@@ -37,12 +37,43 @@ abstract class ArtifactStore {
   Future<Stream<List<int>>> openRead(String key, {int? offset, int? length});
 }
 
+/// Verifies raw [bytes] against [expectedSize] and (when [checkHash])
+/// [expectedHash] (sha256 hex). Returns null on success, or a reason string.
+/// Shared by both backends.
+String? verifyBytes(
+  List<int> bytes,
+  String expectedHash,
+  int expectedSize, {
+  required bool checkHash,
+}) {
+  if (expectedSize > 0 && bytes.length != expectedSize) {
+    return 'size mismatch: got ${bytes.length}, expected $expectedSize';
+  }
+  if (checkHash) {
+    final actual = sha256.convert(bytes).toString();
+    if (actual != expectedHash) {
+      return 'hash mismatch: got $actual, expected $expectedHash';
+    }
+  }
+  return null;
+}
+
 /// Local-disk staging for GCS-style resumable uploads. Chunks accumulate in a
 /// `.partial` file keyed by token, then commit to the store on completion.
+/// The concrete store supplies [put]; staging itself is backend-independent.
 mixin _DiskStaging {
   Directory get staging;
 
+  /// Persists committed bytes; implemented by each backend.
+  Future<void> put(String key, List<int> bytes);
+
   File _stagingFile(String token) => File('${staging.path}/$token.partial');
+
+  /// Commits the staged bytes for [token] to the store under [key].
+  Future<void> commitStaged(String token, String key) async {
+    await put(key, await _stagingFile(token).readAsBytes());
+    discardStaged(token);
+  }
 
   Future<void> stageChunk(String token, int offset, List<int> bytes) async {
     final f = _stagingFile(token);
@@ -68,11 +99,6 @@ mixin _DiskStaging {
     final f = _stagingFile(token);
     if (f.existsSync()) f.deleteSync();
   }
-
-  Future<List<int>> readStaged(String token) =>
-      _stagingFile(token).readAsBytes();
-
-  void removeStaged(String token) => discardStaged(token);
 }
 
 // ---------------------------------------------------------------------------
@@ -99,12 +125,6 @@ class FilesystemArtifactStore with _DiskStaging implements ArtifactStore {
   File _file(String key) => File('${_root.path}/$key');
 
   @override
-  Future<void> commitStaged(String token, String key) async {
-    await put(key, await readStaged(token));
-    removeStaged(token);
-  }
-
-  @override
   Future<void> put(String key, List<int> bytes) async {
     final f = _file(key);
     await f.parent.create(recursive: true);
@@ -128,16 +148,7 @@ class FilesystemArtifactStore with _DiskStaging implements ArtifactStore {
     required bool checkHash,
   }) async {
     final bytes = await _file(key).readAsBytes();
-    if (expectedSize > 0 && bytes.length != expectedSize) {
-      return 'size mismatch: got ${bytes.length}, expected $expectedSize';
-    }
-    if (checkHash) {
-      final actual = sha256.convert(bytes).toString();
-      if (actual != expectedHash) {
-        return 'hash mismatch: got $actual, expected $expectedHash';
-      }
-    }
-    return null;
+    return verifyBytes(bytes, expectedHash, expectedSize, checkHash: checkHash);
   }
 
   @override
@@ -186,12 +197,6 @@ class S3ArtifactStore with _DiskStaging implements ArtifactStore {
   Directory get staging => _staging;
 
   @override
-  Future<void> commitStaged(String token, String key) async {
-    await put(key, await readStaged(token));
-    removeStaged(token);
-  }
-
-  @override
   Future<void> put(String key, List<int> bytes) async {
     await _minio.putObject(
       _bucket,
@@ -235,16 +240,7 @@ class S3ArtifactStore with _DiskStaging implements ArtifactStore {
     required bool checkHash,
   }) async {
     final bytes = await _readAll(key);
-    if (expectedSize > 0 && bytes.length != expectedSize) {
-      return 'size mismatch: got ${bytes.length}, expected $expectedSize';
-    }
-    if (checkHash) {
-      final actual = sha256.convert(bytes).toString();
-      if (actual != expectedHash) {
-        return 'hash mismatch: got $actual, expected $expectedHash';
-      }
-    }
-    return null;
+    return verifyBytes(bytes, expectedHash, expectedSize, checkHash: checkHash);
   }
 
   Future<List<int>> _readAll(String key) async {

@@ -1,0 +1,36 @@
+import 'package:code_push_server/src/config.dart';
+
+/// A [Config] for an embedded SQLite + filesystem backend rooted at [dataDir].
+/// Shared by the backend integration tests (db_test, analytics_test).
+Config sqliteConfig(String dataDir) => Config(
+  port: 8080,
+  publicBaseUrl: 'http://localhost:8080',
+  bootstrapApiKey: 'sb_api_selfhost_dev',
+  dbHost: '',
+  dbPort: 5432,
+  dbName: 'code_push',
+  dbUser: 'cps',
+  dbPassword: '',
+  s3Endpoint: '',
+  s3Port: 9000,
+  s3AccessKey: '',
+  s3SecretKey: '',
+  s3Bucket: 'code-push-artifacts',
+  s3UseSsl: false,
+  urlSigningSecret: 'x',
+  jwtSecret: 'x',
+  jwtIssuer: 'http://localhost:8080',
+  downloadUrlTtl: const Duration(seconds: 300),
+  rateLimitPerMinute: 600,
+  rateLimitShared: false,
+  uploadMethod: 'multipart',
+  idpClientId: '',
+  idpClientSecret: '',
+  idpAuthorizeUrl: '',
+  idpTokenUrl: '',
+  idpScopes: 'openid email',
+  production: false,
+  dbBackend: 'sqlite',
+  storageBackend: 'file',
+  dataDir: dataDir,
+);

@@ -1,9 +1,12 @@
 // code_push_server — self-hosted Shorebird control plane.
 //
-// Postgres metadata + MinIO object storage, short-lived signed download URLs,
-// partial rollouts, audit log + rate limiting, multi-tenancy, OAuth login,
-// event-derived metrics, health/readiness, and graceful shutdown.
-// Wire-compatible with the pinned Shorebird CLI + native updater.
+// Single-container by default (embedded SQLite + local-disk artifacts); an
+// opt-in Postgres + S3/MinIO scale profile is auto-selected by DATABASE_URL /
+// S3_ENDPOINT. Short-lived signed download URLs, partial rollouts, audit log +
+// rate limiting, multi-tenancy, OAuth login, event-derived analytics,
+// health/readiness, and graceful shutdown. Wire-compatible with the pinned
+// Shorebird CLI + native updater.
+import 'dart:async';
 import 'dart:io';
 
 import 'package:code_push_server/src/api.dart';
@@ -66,12 +69,19 @@ Future<void> main() async {
   }
   stdout.writeln('  jwt issuer      : ${config.jwtIssuer}');
 
+  // Periodic housekeeping: drop expired, never-consumed OAuth auth codes.
+  final purgeTimer = Timer.periodic(
+    const Duration(hours: 1),
+    (_) => repo.purgeExpiredAuthCodes(),
+  );
+
   // Graceful shutdown: stop accepting connections, drain, close the pool.
   var shuttingDown = false;
   Future<void> shutdown(ProcessSignal sig) async {
     if (shuttingDown) return;
     shuttingDown = true;
     stdout.writeln('received $sig, shutting down...');
+    purgeTimer.cancel();
     await server.close();
     await repo.close();
     exit(0);

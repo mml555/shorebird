@@ -1,42 +1,10 @@
 import 'dart:io';
 
 import 'package:code_push_server/src/analytics.dart';
-import 'package:code_push_server/src/config.dart';
 import 'package:code_push_server/src/repository.dart';
 import 'package:test/test.dart';
 
-Config _cfg(String dataDir) => Config(
-  port: 8080,
-  publicBaseUrl: 'http://localhost:8080',
-  bootstrapApiKey: 'sb_api_selfhost_dev',
-  dbHost: '',
-  dbPort: 5432,
-  dbName: 'code_push',
-  dbUser: 'cps',
-  dbPassword: '',
-  s3Endpoint: '',
-  s3Port: 9000,
-  s3AccessKey: '',
-  s3SecretKey: '',
-  s3Bucket: 'b',
-  s3UseSsl: false,
-  urlSigningSecret: 'x',
-  jwtSecret: 'x',
-  jwtIssuer: 'http://localhost:8080',
-  downloadUrlTtl: const Duration(seconds: 300),
-  rateLimitPerMinute: 600,
-  rateLimitShared: false,
-  uploadMethod: 'multipart',
-  idpClientId: '',
-  idpClientSecret: '',
-  idpAuthorizeUrl: '',
-  idpTokenUrl: '',
-  idpScopes: 'openid email',
-  production: false,
-  dbBackend: 'sqlite',
-  storageBackend: 'file',
-  dataDir: dataDir,
-);
+import 'support.dart';
 
 void main() {
   // Verifies the analytics date SQL (truncPeriod/extractDow/extractHour) runs on
@@ -49,7 +17,7 @@ void main() {
 
     setUp(() async {
       tmp = Directory.systemTemp.createTempSync('cps_an_test');
-      repo = await Repository.open(_cfg(tmp.path));
+      repo = await Repository.open(sqliteConfig(tmp.path));
       analytics = Analytics(repo.db);
       final app = await repo.createApp('demo', 1);
       appId = app.appId;

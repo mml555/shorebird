@@ -104,10 +104,12 @@ class Config {
   List<String> validate() {
     if (!production) return const [];
     final problems = <String>[];
-    if (jwtSecret == 'dev-jwt-signing-secret-change-me')
+    if (jwtSecret == 'dev-jwt-signing-secret-change-me') {
       problems.add('JWT_SECRET');
-    if (urlSigningSecret == 'dev-url-signing-secret')
+    }
+    if (urlSigningSecret == 'dev-url-signing-secret') {
       problems.add('URL_SIGNING_SECRET');
+    }
     if (bootstrapApiKey == 'sb_api_selfhost_dev') problems.add('API_KEY');
     // DB/object-store credential checks apply only to the backend in use.
     if (dbBackend == 'postgres' &&

@@ -9,7 +9,7 @@ import 'package:jose/jose.dart';
 ///   GET  /login?continue=http://localhost:PORT/callback  -> 302 continue?code=..
 ///   POST /token  (form: grant_type=authorization_code&code=..)  -> tokens
 ///   POST /token  (form: grant_type=refresh_token&refresh_token=..) -> tokens
-///   POST /api/logout  (Authorization: Bearer <refresh_token>)   -> 2xx
+///   POST /api/logout  (Authorization: Bearer `<refresh_token>`)   -> 2xx
 ///
 /// `access_token` is the RS256 JWT the CLI then sends as a bearer to the
 /// code-push server. Header carries alg/kid/typ; payload carries iss

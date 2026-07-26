@@ -604,19 +604,6 @@ class Repository {
     );
   }
 
-  Future<AppRow?> app(String appId) async {
-    final r = await _q('SELECT * FROM apps WHERE app_id = @a', {'a': appId});
-    if (r.isEmpty) return null;
-    final m = r.first;
-    return AppRow(
-      m['app_id'] as String,
-      m['display_name'] as String,
-      _int(m['org_id']),
-      _ts(m['created_at']),
-      _ts(m['updated_at']),
-    );
-  }
-
   /// Apps visible to [orgIds] (org ownership); if [orgIds] is null, all apps.
   Future<List<AppRow>> apps({List<int>? orgIds}) async {
     final List<Map<String, Object?>> r;
@@ -1227,12 +1214,6 @@ class Repository {
     final r = await _q('SELECT value FROM settings WHERE key = @k', {'k': key});
     return r.isEmpty ? null : r.first['value'] as String;
   }
-
-  Future<void> setSetting(String key, String value) => _q(
-    'INSERT INTO settings(key, value) VALUES (@k, @v) '
-    'ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()',
-    {'k': key, 'v': value},
-  );
 
   /// Load-or-create a singleton setting atomically-ish. If absent, calls
   /// [create] and persists it. (A race between nodes at first boot is harmless:

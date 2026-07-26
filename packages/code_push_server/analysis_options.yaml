@@ -1,8 +1,10 @@
-# Stage 0 spike: intentionally NOT inheriting the repo's strict very_good
-# lints. This is throwaway code whose only contract is wire-compatibility with
-# the pinned Shorebird CLI + updater, proven by the on-device exit test.
+# Standard Dart recommended lints. This package keeps its own analysis config
+# (rather than the monorepo's very_good set) because it is standalone — its own
+# pubspec.lock, not a workspace member — but it follows the recommended lints.
+include: package:lints/recommended.yaml
+
 analyzer:
   language:
+    # The DB abstraction returns Object? maps the repository casts explicitly
+    # (e.g. `m['id'] as int`); strict-casts is left off to avoid noise on those.
     strict-casts: false
-linter:
-  rules: {}

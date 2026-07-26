@@ -67,22 +67,28 @@ class Api {
 
   bool _isPublic(List<String> seg) {
     if (seg.isEmpty) return true; // health
-    if (seg.length == 1 && (seg[0] == 'healthz' || seg[0] == 'readyz'))
+    if (seg.length == 1 && (seg[0] == 'healthz' || seg[0] == 'readyz')) {
       return true;
-    if (seg.length == 2 && seg[0] == 'admin' && seg[1] == 'ui')
+    }
+    if (seg.length == 2 && seg[0] == 'admin' && seg[1] == 'ui') {
       return true; // static page
-    if (seg.length == 2 && seg[0] == 'diagnostics' && seg[1] == 'speedtest')
+    }
+    if (seg.length == 2 && seg[0] == 'diagnostics' && seg[1] == 'speedtest') {
       return true;
+    }
     if (seg.isNotEmpty && seg[0] == 'console') return true; // static UI
     if (seg.first == 'download') return true;
     // Auth-service endpoints (no bearer yet at login time).
-    if (seg.length == 1 && (seg[0] == 'login' || seg[0] == 'token'))
+    if (seg.length == 1 && (seg[0] == 'login' || seg[0] == 'token')) {
       return true;
-    if (seg.length == 2 && seg[0] == 'oauth' && seg[1] == 'callback')
+    }
+    if (seg.length == 2 && seg[0] == 'oauth' && seg[1] == 'callback') {
       return true;
+    }
     if (seg.length == 2 && seg[0] == 'api' && seg[1] == 'logout') return true;
-    if (seg.length == 2 && seg[0] == '.well-known' && seg[1] == 'jwks.json')
+    if (seg.length == 2 && seg[0] == '.well-known' && seg[1] == 'jwks.json') {
       return true;
+    }
     final tail = seg.first == 'api' && seg.length > 2 ? seg.sublist(2) : seg;
     return tail.length == 2 &&
         tail[0] == 'patches' &&
@@ -371,12 +377,13 @@ class Api {
 
   // ---- OAuth auth service ----
 
-  /// GET /login?continue=<loopback>: auto-consents as the configured identity
+  /// GET `/login?continue=<loopback>`: auto-consents as the configured identity
   /// (self-host has no external IdP) and redirects to the loopback with a code.
   Future<Response> _login(Request req) async {
     final cont = req.url.queryParameters['continue'];
-    if (cont == null)
+    if (cont == null) {
       return _err(HttpStatus.badRequest, 'bad_request', 'continue required');
+    }
 
     // Broker mode: bounce to the external IdP; the real email arrives at
     // /oauth/callback, which then issues our own code back to `continue`.
@@ -415,8 +422,9 @@ class Api {
   Future<Response> _oauthCallback(Request req) async {
     final q = req.url.queryParameters;
     final cont = _idpState.remove(q['state']);
-    if (cont == null)
+    if (cont == null) {
       return _err(HttpStatus.badRequest, 'bad_request', 'Invalid state');
+    }
     if (q['error'] != null) return Response.found('$cont?error=${q['error']}');
     final idpCode = q['code'];
     if (idpCode == null) return Response.found('$cont?error=missing_code');
@@ -517,8 +525,9 @@ class Api {
   Future<Response> _acceptInvitation(Request req, String token) async {
     final inv = await repo.invitation(token);
     if (inv == null) throw notFound('Unknown invitation');
-    if (inv['accepted_at'] != null)
+    if (inv['accepted_at'] != null) {
       throw conflict('Invitation already accepted');
+    }
     final exp = inv['expires_at'];
     if (exp is DateTime && DateTime.now().toUtc().isAfter(exp.toUtc())) {
       throw conflict('Invitation expired');
@@ -709,8 +718,9 @@ class Api {
   Future<Response> _createPatch(Request req, String appId) async {
     final body = await _jsonBody(req);
     final releaseId = body['release_id'] as int;
-    if (await repo.release(releaseId) == null)
+    if (await repo.release(releaseId) == null) {
       throw notFound('No release $releaseId');
+    }
     final p = await repo.createPatch(appId, releaseId);
     return _json({'id': p.id, 'number': p.number, 'notes': null});
   }
@@ -901,8 +911,9 @@ class Api {
     final rollout = (body['rollout'] as int?) ?? 100;
     final patch = await repo.patch(patchId);
     if (patch == null) throw notFound('No patch $patchId');
-    if (await repo.channelById(channelId) == null)
+    if (await repo.channelById(channelId) == null) {
       throw notFound('No channel $channelId');
+    }
     if (patch.status != PatchStatus.ready) {
       throw conflict('Patch $patchId is ${patch.status.name}, not ready');
     }
@@ -1151,8 +1162,9 @@ class Api {
     if (patch == null || patch.releaseId != release.id) {
       return _json(resp(rolledBack: rolledBack));
     }
-    if (patch.status != PatchStatus.ready)
+    if (patch.status != PatchStatus.ready) {
       return _json(resp(rolledBack: rolledBack));
+    }
     if (patch.number <= clientPatch) return _json(resp(rolledBack: rolledBack));
 
     // Partial rollout: deterministic per-client bucketing. Fail closed when a
@@ -1303,8 +1315,9 @@ class Api {
       if (action == 'withdraw') {
         final rollback = req.url.queryParameters['rollback'] == 'true';
         final cp = await repo.activeChannelPatchForPatch(channel.id, patchId);
-        if (cp == null)
+        if (cp == null) {
           throw conflict('Patch $patchId is not active on $channelName');
+        }
         requireChannelPatchTransition(cp.status, ChannelPatchStatus.withdrawn);
         await repo.withdraw(channel.id, patchId, rollback: rollback);
         await repo.audit(
@@ -1322,8 +1335,9 @@ class Api {
       if (action == 'rollout') {
         final percent = int.parse(req.url.queryParameters['percent'] ?? '100');
         final cp = await repo.activeChannelPatchForPatch(channel.id, patchId);
-        if (cp == null)
+        if (cp == null) {
           throw conflict('Patch $patchId is not active on $channelName');
+        }
         await repo.setRollout(channel.id, patchId, percent);
         await repo.audit(
           'patch.rollout',
