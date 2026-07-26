@@ -1,0 +1,67 @@
+# CI for the self-hosted code_push_server package. Standalone (its own
+# pubspec.lock, not a workspace member), so it's built and tested on its own.
+# Path-filtered to only run when this package (or this workflow) changes.
+name: code_push_server
+
+on:
+  push:
+    paths:
+      - packages/code_push_server/**
+      - .github/workflows/code_push_server.yaml
+  pull_request:
+    paths:
+      - packages/code_push_server/**
+      - .github/workflows/code_push_server.yaml
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: code_push_server-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: packages/code_push_server
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      # The single-container (SQLite) backend uses sqlite3 via FFI; the
+      # dev package resolves libsqlite3.so at runtime for the backend tests.
+      - name: Install libsqlite3
+        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
+
+      - name: Install dependencies
+        run: dart pub get --enforce-lockfile
+
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze (fail on any lint)
+        run: dart analyze --fatal-infos --fatal-warnings
+
+      - name: Unit + backend tests
+        run: dart test -x integration
+
+      - name: Native compile (production build path)
+        run: dart compile exe bin/server.dart -o /tmp/server
+
+      # End-to-end wire-contract smoke against the SQLite single-container
+      # backend: boots the server and drives create -> verify -> promote ->
+      # signed-URL range download -> rollback with curl.
+      - name: Smoke test (SQLite backend)
+        run: |
+          DATA_DIR=/tmp/cps-ci /tmp/server &
+          SV=$!
+          for _ in $(seq 1 40); do
+            curl -sf http://localhost:8080/readyz | grep -q '"db":true' && break
+            sleep 0.5
+          done
+          BASE=http://localhost:8080 KEY=sb_api_selfhost_dev ./tool/smoke_test.sh
+          kill $SV || true
