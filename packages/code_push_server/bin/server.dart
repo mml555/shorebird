@@ -13,11 +13,14 @@ import 'package:code_push_server/src/api.dart';
 import 'package:code_push_server/src/artifact_store.dart';
 import 'package:code_push_server/src/config.dart';
 import 'package:code_push_server/src/oauth.dart';
+import 'package:code_push_server/src/observability.dart';
 import 'package:code_push_server/src/repository.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 
 Future<void> main() async {
   final config = Config.fromEnv();
+  // Set the process-wide log format before anything (migrations included) logs.
+  configureLogging(json: config.logFormat == 'json');
 
   final problems = config.validate();
   if (problems.isNotEmpty) {
@@ -49,28 +52,31 @@ Future<void> main() async {
   // Close idle keep-alive connections so slow/abandoned clients can't tie up
   // sockets indefinitely (mild slow-loris mitigation).
   server.idleTimeout = const Duration(seconds: 60);
-  stdout.writeln(
-    'code_push_server listening on ${server.port}'
-    '${config.production ? ' [PRODUCTION]' : ''}',
-  );
-  stdout.writeln('  public base url : ${config.publicBaseUrl}');
-  if (config.dbBackend == 'sqlite') {
-    stdout.writeln(
-      '  database        : sqlite (${config.dataDir}/code_push.db)',
-    );
+  final database = config.dbBackend == 'sqlite'
+      ? 'sqlite (${config.dataDir}/code_push.db)'
+      : 'postgres ${config.dbHost}:${config.dbPort}/${config.dbName}';
+  final artifacts = config.storageBackend == 's3'
+      ? 's3 ${config.s3Endpoint}:${config.s3Port}/${config.s3Bucket}'
+      : 'files (${config.dataDir}/artifacts)';
+  if (jsonLogging) {
+    logInfo('server listening', {
+      'port': server.port,
+      'production': config.production,
+      'public_base_url': config.publicBaseUrl,
+      'database': database,
+      'artifacts': artifacts,
+      'jwt_issuer': config.jwtIssuer,
+    });
   } else {
     stdout.writeln(
-      '  database        : postgres ${config.dbHost}:${config.dbPort}/${config.dbName}',
+      'code_push_server listening on ${server.port}'
+      '${config.production ? ' [PRODUCTION]' : ''}',
     );
+    stdout.writeln('  public base url : ${config.publicBaseUrl}');
+    stdout.writeln('  database        : $database');
+    stdout.writeln('  artifacts       : $artifacts');
+    stdout.writeln('  jwt issuer      : ${config.jwtIssuer}');
   }
-  if (config.storageBackend == 's3') {
-    stdout.writeln(
-      '  artifacts       : s3 ${config.s3Endpoint}:${config.s3Port}/${config.s3Bucket}',
-    );
-  } else {
-    stdout.writeln('  artifacts       : files (${config.dataDir}/artifacts)');
-  }
-  stdout.writeln('  jwt issuer      : ${config.jwtIssuer}');
 
   // Periodic housekeeping: drop expired, never-consumed OAuth auth codes.
   final purgeTimer = Timer.periodic(
@@ -83,7 +89,7 @@ Future<void> main() async {
   Future<void> shutdown(ProcessSignal sig) async {
     if (shuttingDown) return;
     shuttingDown = true;
-    stdout.writeln('received $sig, shutting down...');
+    logInfo('shutting down', {'signal': '$sig'});
     purgeTimer.cancel();
     await server.close();
     await repo.close();

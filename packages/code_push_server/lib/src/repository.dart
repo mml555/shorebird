@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:code_push_server/src/config.dart';
 import 'package:code_push_server/src/db.dart';
 import 'package:code_push_server/src/domain.dart';
+import 'package:code_push_server/src/observability.dart';
 
 // ---------------------------------------------------------------------------
 // Row types
@@ -208,8 +209,7 @@ class Repository {
           'v': version,
         });
       });
-      // ignore: avoid_print
-      print('code_push_server: applied schema migration $version');
+      logInfo('applied schema migration', {'version': version});
     }
   }
 

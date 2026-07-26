@@ -1006,14 +1006,19 @@ class Api {
     if (reason != null) {
       await repo.setArtifactStatus(art.id, ArtifactStatus.failed);
       await repo.audit('artifact.failed', target: '${art.id}', detail: reason);
-      stdout.writeln('  artifact ${art.id} FAILED verify: $reason');
+      obs.info('artifact verify failed', {
+        'artifact': art.id,
+        'reason': reason,
+      });
       throw badRequest('Artifact verification failed: $reason');
     }
     await repo.setArtifactStatus(art.id, ArtifactStatus.verified);
-    stdout.writeln(
-      '  artifact ${art.id} verified (${art.ownerKind} arch=${art.arch}, '
-      '${file.bytes.length} bytes)',
-    );
+    obs.info('artifact verified', {
+      'artifact': art.id,
+      'owner': art.ownerKind,
+      'arch': art.arch,
+      'bytes': file.bytes.length,
+    });
     await _maybeMarkPatchReady(art);
     return Response(HttpStatus.noContent);
   }
@@ -1077,10 +1082,13 @@ class Api {
       throw badRequest('Artifact verification failed: $reason');
     }
     await repo.setArtifactStatus(art.id, ArtifactStatus.verified);
-    stdout.writeln(
-      '  artifact ${art.id} verified (resumable, ${art.ownerKind} '
-      'arch=${art.arch}, $received bytes)',
-    );
+    obs.info('artifact verified', {
+      'artifact': art.id,
+      'owner': art.ownerKind,
+      'arch': art.arch,
+      'bytes': received,
+      'resumable': true,
+    });
     await _maybeMarkPatchReady(art);
     return Response(HttpStatus.ok);
   }
@@ -1165,7 +1173,7 @@ class Api {
     await for (final chunk in src) {
       if (sent + chunk.length >= failAfter) {
         yield chunk.sublist(0, failAfter - sent);
-        stdout.writeln('  [fault] truncated download at $failAfter bytes');
+        obs.info('fault: truncated download', {'after_bytes': failAfter});
         return;
       }
       sent += chunk.length;
@@ -1252,7 +1260,7 @@ class Api {
 
   Future<Response> _patchesEvents(Request req) async {
     final raw = await req.readAsString();
-    stdout.writeln('  patches/events: $raw');
+    obs.info('patches/events', {'body': raw});
     try {
       final decoded = jsonDecode(raw);
       final e = (decoded is Map && decoded['event'] is Map)
@@ -1278,7 +1286,7 @@ class Api {
         releaseVersion: e['release_version'] as String?,
         ts: e['timestamp'] as int?,
       );
-      if (!inserted) stdout.writeln('  (duplicate event ignored)');
+      if (!inserted) obs.info('duplicate event ignored');
     } catch (_) {
       await repo.insertEvent(raw: raw);
     }

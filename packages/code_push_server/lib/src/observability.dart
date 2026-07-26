@@ -1,17 +1,54 @@
 import 'dart:convert';
 import 'dart:io';
 
-/// Structured request/error logging plus in-process Prometheus metrics.
+/// Process-wide log format, configured once at startup so every emitter — the
+/// request pipeline, migrations, the server lifecycle — agrees. When true, logs
+/// are one JSON object per line; otherwise human-readable text.
+bool _json = false;
+
+/// Sets the process-wide log format. Call once at startup (before anything
+/// logs). Defaults to text until called.
+void configureLogging({required bool json}) => _json = json;
+
+/// Whether JSON logging is currently active.
+bool get jsonLogging => _json;
+
+void _emit(Map<String, Object?> obj) => stdout.writeln(jsonEncode(obj));
+
+/// A structured info line (server lifecycle, migrations, housekeeping). In text
+/// mode [message] is printed verbatim, with any [fields] appended as `k=v`.
+void logInfo(String message, [Map<String, Object?> fields = const {}]) {
+  if (_json) {
+    _emit({'level': 'info', 'msg': message, ...fields});
+  } else if (fields.isEmpty) {
+    stdout.writeln(message);
+  } else {
+    final extra = fields.entries.map((e) => '${e.key}=${e.value}').join(' ');
+    stdout.writeln('$message $extra');
+  }
+}
+
+/// A structured error line. The stack trace goes to stderr in both modes.
+void logError(String message, Object error, StackTrace st) {
+  if (_json) {
+    _emit({'level': 'error', 'msg': message, 'error': '$error'});
+  } else {
+    stdout.writeln('  [error] $message: $error');
+  }
+  stderr.writeln(st);
+}
+
+/// Records + logs completed requests, and owns the metrics rendered at
+/// `GET /metrics`.
 ///
-/// Logs are human-readable text by default, or one JSON object per line when
-/// [json] is true (set via `LOG_FORMAT=json`). Metrics are exposed at
-/// `GET /metrics` in the Prometheus text exposition format. Labels are kept
+/// Metrics use the Prometheus text exposition format. Labels are kept
 /// low-cardinality (method + status class only — never the raw path) so they
 /// neither leak app ids nor explode the series count.
 class Observability {
-  Observability({required this.json});
+  Observability({required bool json}) {
+    configureLogging(json: json);
+  }
 
-  final bool json;
   final Metrics metrics = Metrics();
 
   /// Records + logs a completed request. Health/metrics probes are recorded but
@@ -19,8 +56,8 @@ class Observability {
   void request(String method, String path, int status, int durationMs) {
     metrics.record(method, status, durationMs);
     if (_isProbe(path)) return;
-    if (json) {
-      _line({
+    if (_json) {
+      _emit({
         'level': status >= 500 ? 'error' : 'info',
         'msg': 'request',
         'method': method,
@@ -33,25 +70,12 @@ class Observability {
     }
   }
 
-  void error(String message, Object err, StackTrace st) {
-    if (json) {
-      _line({'level': 'error', 'msg': message, 'error': '$err'});
-      stderr.writeln(st);
-    } else {
-      stdout.writeln('  [500] $err\n$st');
-    }
-  }
+  void error(String message, Object err, StackTrace st) =>
+      logError(message, err, st);
 
-  /// A structured info line (server lifecycle, housekeeping, etc.).
-  void info(String message, [Map<String, Object?> fields = const {}]) {
-    if (json) {
-      _line({'level': 'info', 'msg': message, ...fields});
-    } else {
-      stdout.writeln(message);
-    }
-  }
-
-  void _line(Map<String, Object?> obj) => stdout.writeln(jsonEncode(obj));
+  /// A structured info line (delegates to the top-level [logInfo]).
+  void info(String message, [Map<String, Object?> fields = const {}]) =>
+      logInfo(message, fields);
 
   static bool _isProbe(String path) =>
       path == 'healthz' || path == 'readyz' || path == 'metrics';
