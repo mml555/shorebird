@@ -43,6 +43,7 @@ Config _cfg({
     storageBackend: 's3',
     dataDir: './data',
     maxUploadBytes: 536870912,
+    logFormat: 'text',
   );
 }
 

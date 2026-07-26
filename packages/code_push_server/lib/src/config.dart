@@ -34,6 +34,7 @@ class Config {
     required this.storageBackend,
     required this.dataDir,
     required this.maxUploadBytes,
+    required this.logFormat,
   });
 
   factory Config.fromEnv() {
@@ -59,6 +60,9 @@ class Config {
       dataDir: env['DATA_DIR'] ?? './data',
       // 512 MiB default; rejects larger artifact uploads with 413.
       maxUploadBytes: int.parse(env['MAX_UPLOAD_BYTES'] ?? '536870912'),
+      // Request/error log format: 'text' (human-readable, default) or 'json'
+      // (one structured object per line, for log aggregators).
+      logFormat: env['LOG_FORMAT'] == 'json' ? 'json' : 'text',
       port: port,
       publicBaseUrl: env['PUBLIC_BASE_URL'] ?? 'http://localhost:$port',
       bootstrapApiKey: env['API_KEY'] ?? 'sb_api_selfhost_dev',
@@ -202,4 +206,8 @@ class Config {
 
   /// Max artifact upload size in bytes; larger uploads are rejected with 413.
   final int maxUploadBytes;
+
+  /// Request/error log format: `text` (human-readable, default) or `json`
+  /// (one structured object per line, for aggregators like Loki/ELK).
+  final String logFormat;
 }

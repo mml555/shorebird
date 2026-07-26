@@ -1,7 +1,66 @@
 import 'package:code_push_server/src/api.dart';
+import 'package:code_push_server/src/observability.dart';
 import 'package:test/test.dart';
 
 void main() {
+  group('Metrics.render (Prometheus exposition)', () {
+    test('counts requests by method and status class', () {
+      final m = Metrics()
+        ..record('GET', 200, 5)
+        ..record('GET', 204, 3)
+        ..record('POST', 500, 12)
+        ..record('GET', 404, 1);
+      final out = m.render();
+      expect(
+        out,
+        contains('code_push_requests_total{method="GET",status="2xx"} 2'),
+      );
+      expect(
+        out,
+        contains('code_push_requests_total{method="POST",status="5xx"} 1'),
+      );
+      expect(
+        out,
+        contains('code_push_requests_total{method="GET",status="4xx"} 1'),
+      );
+    });
+
+    test('histogram buckets are cumulative and +Inf equals total count', () {
+      final m = Metrics()
+        ..record('GET', 200, 5) // 0.005s
+        ..record('GET', 200, 30) // 0.030s
+        ..record('GET', 200, 3000); // 3s
+      final out = m.render();
+      // le="0.01" covers only the 5ms request.
+      expect(
+        out,
+        contains('code_push_request_duration_seconds_bucket{le="0.01"} 1'),
+      );
+      // le="0.05" covers the 5ms and 30ms requests.
+      expect(
+        out,
+        contains('code_push_request_duration_seconds_bucket{le="0.05"} 2'),
+      );
+      // +Inf and the count line both equal the total.
+      expect(
+        out,
+        contains('code_push_request_duration_seconds_bucket{le="+Inf"} 3'),
+      );
+      expect(out, contains('code_push_request_duration_seconds_count 3'));
+    });
+
+    test('exposes in-flight gauge and well-formed HELP/TYPE lines', () {
+      final m = Metrics()..inFlight = 4;
+      final out = m.render();
+      expect(out, contains('code_push_requests_in_flight 4'));
+      expect(out, contains('# TYPE code_push_requests_total counter'));
+      expect(
+        out,
+        contains('# TYPE code_push_request_duration_seconds histogram'),
+      );
+    });
+  });
+
   group('rateLimitKey', () {
     test('authenticated requests bucket by bearer, regardless of IP', () {
       expect(

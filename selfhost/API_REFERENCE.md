@@ -244,8 +244,13 @@ Register the IdP redirect URI as `<PUBLIC_BASE_URL>/oauth/callback`. See
 |---|---|---|---|
 | GET | `/healthz` | public | `ok` (liveness) |
 | GET | `/readyz` | public | `{"db":true,"object_store":true}` (readiness — checks both backends) |
+| GET | `/metrics` | public | Prometheus text exposition — request counts by method/status class, a request-duration histogram, in-flight gauge, and uptime. Low-cardinality (no path/app-id labels). Firewall it to your monitoring network if you don't want it internet-reachable. |
 | GET | `/console` | public page | the web dashboard (connect with an API key) |
 | GET | `/admin/ui` | public page | thin admin page |
+
+Request/error logs are plain text by default, or one structured JSON object per
+line (`level`, `msg`, `method`, `path`, `status`, `duration_ms`) when
+`LOG_FORMAT=json` — see `.env.example`.
 
 ---
 

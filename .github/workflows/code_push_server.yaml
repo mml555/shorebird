@@ -65,3 +65,71 @@ jobs:
           done
           BASE=http://localhost:8080 KEY=sb_api_selfhost_dev ./tool/smoke_test.sh
           kill $SV || true
+
+  # Exercises the scale backend (Postgres metadata + filesystem artifacts) that
+  # the SQLite job never touches: the PgDb adapter, unrewritten Postgres SQL,
+  # and the Postgres flavor of the analytics date bucketing.
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cps
+          POSTGRES_PASSWORD: cps_ci_password
+          POSTGRES_DB: code_push
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cps"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Install dependencies
+        run: dart pub get --enforce-lockfile
+
+      - name: Native compile
+        run: dart compile exe bin/server.dart -o /tmp/server
+
+      # DATABASE_URL selects the Postgres backend; S3_ENDPOINT is left unset so
+      # artifacts use the filesystem store under DATA_DIR.
+      - name: Smoke test (Postgres backend)
+        env:
+          DATABASE_URL: postgres://cps:cps_ci_password@localhost:5432/code_push
+        run: |
+          DATA_DIR=/tmp/cps-pg /tmp/server &
+          SV=$!
+          for _ in $(seq 1 40); do
+            curl -sf http://localhost:8080/readyz | grep -q '"db":true' && break
+            sleep 0.5
+          done
+          BASE=http://localhost:8080 KEY=sb_api_selfhost_dev ./tool/smoke_test.sh
+          # Exercise the Postgres date SQL (date_trunc / dow / hour) that the
+          # smoke doesn't: seed one device event, then hit the analytics
+          # endpoints that bucket by period, weekday, and hour.
+          H='Authorization: Bearer sb_api_selfhost_dev'
+          APP=$(curl -s -H "$H" -X POST http://localhost:8080/api/v1/apps \
+            -d '{"organization_id":1,"display_name":"pg-analytics"}' \
+            | sed -E 's/.*"id":"([^"]+)".*/\1/')
+          curl -s -X POST http://localhost:8080/api/v1/patches/events \
+            -d "{\"app_id\":\"$APP\",\"client_id\":\"ci-device\",\"type\":\"__patch_install__\",\"release_version\":\"1.0.0+1\",\"patch_number\":1,\"platform\":\"android\",\"arch\":\"aarch64\",\"timestamp\":1700000000}" \
+            >/dev/null
+          for ep in \
+            "analytics/unique-users?granularity=week" \
+            "analytics/version-distribution" \
+            "analytics/activity-heatmap" \
+            "analytics/active-hours" \
+            "analytics/patch-adoption?granularity=day"; do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "$H" \
+              "http://localhost:8080/api/v1/apps/$APP/$ep")
+            echo "GET /$ep -> $CODE"
+            [ "$CODE" = "200" ] || { echo "analytics endpoint failed"; kill $SV; exit 1; }
+          done
+          kill $SV || true

@@ -20,6 +20,7 @@ lib/src/
   rollout.dart           deterministic rollout bucketing (pure)
   signing.dart           HMAC signed-URL sign/validate (pure)
   content_range.dart     Content-Range / Range parsing (pure)
+  observability.dart     structured (text/JSON) request logging + /metrics
 console/index.html       self-contained web dashboard (apps, analytics, team)
 ```
 
@@ -91,7 +92,15 @@ transitions raise a `409`.
 ## Request lifecycle (`api.dart`)
 
 A shelf `Pipeline` wraps the router:
-1. **logging** — one line per request (`METHOD /path -> status`).
+1. **logging + metrics** (`observability.dart`) — times each request and records
+   it. Logs are human-readable text (`METHOD /path -> status (Nms)`) or, with
+   `LOG_FORMAT=json`, one structured object per line for aggregators; 5xx
+   responses and unhandled errors log at `error`. The same middleware feeds the
+   in-process counters exposed at `GET /metrics` (Prometheus text format:
+   request count by method + status class, a duration histogram, an in-flight
+   gauge, uptime). Labels stay low-cardinality — method and status class only,
+   never the raw path — so they neither leak app ids nor explode the series
+   count. Health/metrics probes are counted but not logged.
 2. **rate limit** — fixed window (`memory`, or `postgres` shared across
    replicas), keyed by bearer for authenticated requests and by client IP
    (`X-Forwarded-For` behind a proxy) for unauthenticated device requests, so
@@ -155,3 +164,9 @@ entry to evolve the schema; it applies on next boot on both backends.
   bucketing).
 - `tool/smoke_test.sh` drives the full wire contract with curl (works against any
   running server, HTTP or TLS via `CURL_OPTS=-k`).
+
+CI (`.github/workflows/code_push_server.yaml`) runs format + analyze + unit/
+backend tests + a compile, then smoke-tests **both** backends: the default
+SQLite+filesystem build, and — in a second job with a Postgres service
+container — the scale backend (`PgDb` on unrewritten Postgres SQL, plus the
+Postgres flavor of the analytics date bucketing).

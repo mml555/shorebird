@@ -8,6 +8,7 @@ import 'package:code_push_server/src/config.dart';
 import 'package:code_push_server/src/content_range.dart';
 import 'package:code_push_server/src/domain.dart';
 import 'package:code_push_server/src/oauth.dart';
+import 'package:code_push_server/src/observability.dart';
 import 'package:code_push_server/src/repository.dart';
 import 'package:code_push_server/src/rollout.dart';
 import 'package:code_push_server/src/signing.dart';
@@ -34,7 +35,8 @@ class Api {
   Api(this.repo, this.store, this.config, {String? signingKeyJson})
     : oauth = OAuthService(config.jwtIssuer, keyJson: signingKeyJson),
       _signer = UrlSigner(config.urlSigningSecret),
-      _analytics = Analytics(repo.db);
+      _analytics = Analytics(repo.db),
+      obs = Observability(json: config.logFormat == 'json');
 
   final Repository repo;
   final ArtifactStore store;
@@ -42,6 +44,9 @@ class Api {
   final OAuthService oauth;
   final UrlSigner _signer;
   final Analytics _analytics;
+
+  /// Structured logging + Prometheus metrics (exposed at `GET /metrics`).
+  final Observability obs;
 
   final _RateLimiter _rateLimiter = _RateLimiter();
   // Short-lived CSRF state -> loopback `continue` URL for the IdP broker flow.
@@ -57,9 +62,21 @@ class Api {
 
   Middleware _logRequests() =>
       (inner) => (req) async {
-        final res = await inner(req);
-        stdout.writeln('${req.method} /${req.url.path} -> ${res.statusCode}');
-        return res;
+        final sw = Stopwatch()..start();
+        obs.metrics.inFlight++;
+        try {
+          final res = await inner(req);
+          sw.stop();
+          obs.request(
+            req.method,
+            req.url.path,
+            res.statusCode,
+            sw.elapsedMilliseconds,
+          );
+          return res;
+        } finally {
+          obs.metrics.inFlight--;
+        }
       };
 
   Middleware _rateLimit() =>
@@ -87,7 +104,8 @@ class Api {
 
   bool _isPublic(List<String> seg) {
     if (seg.isEmpty) return true; // health
-    if (seg.length == 1 && (seg[0] == 'healthz' || seg[0] == 'readyz')) {
+    if (seg.length == 1 &&
+        (seg[0] == 'healthz' || seg[0] == 'readyz' || seg[0] == 'metrics')) {
       return true;
     }
     if (seg.length == 2 && seg[0] == 'admin' && seg[1] == 'ui') {
@@ -158,7 +176,7 @@ class Api {
     } on DomainException catch (e) {
       return _err(e.statusCode, e.code, e.message);
     } catch (e, st) {
-      stdout.writeln('  [500] $e\n$st');
+      obs.error('unhandled request error', e, st);
       return _err(HttpStatus.internalServerError, 'internal', '$e');
     }
   }
@@ -177,6 +195,15 @@ class Api {
       return Response.ok(
         _adminHtml,
         headers: {HttpHeaders.contentTypeHeader: 'text/html'},
+      );
+    }
+    if (seg.length == 1 && seg[0] == 'metrics' && m == 'GET') {
+      return Response.ok(
+        obs.metrics.render(),
+        headers: {
+          HttpHeaders.contentTypeHeader:
+              'text/plain; version=0.0.4; charset=utf-8',
+        },
       );
     }
     if (seg.length == 1 && seg[0] == 'readyz' && m == 'GET') {
