@@ -33,6 +33,7 @@ class Config {
     required this.dbBackend,
     required this.storageBackend,
     required this.dataDir,
+    required this.maxUploadBytes,
   });
 
   factory Config.fromEnv() {
@@ -56,6 +57,8 @@ class Config {
       dbBackend: dbBackend,
       storageBackend: storageBackend,
       dataDir: env['DATA_DIR'] ?? './data',
+      // 512 MiB default; rejects larger artifact uploads with 413.
+      maxUploadBytes: int.parse(env['MAX_UPLOAD_BYTES'] ?? '536870912'),
       port: port,
       publicBaseUrl: env['PUBLIC_BASE_URL'] ?? 'http://localhost:$port',
       bootstrapApiKey: env['API_KEY'] ?? 'sb_api_selfhost_dev',
@@ -196,4 +199,7 @@ class Config {
   /// Directory for the SQLite database file and filesystem artifacts (the one
   /// thing to persist/back up in single-container mode).
   final String dataDir;
+
+  /// Max artifact upload size in bytes; larger uploads are rejected with 413.
+  final int maxUploadBytes;
 }

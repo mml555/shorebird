@@ -46,6 +46,9 @@ Future<void> main() async {
     InternetAddress.anyIPv4,
     config.port,
   );
+  // Close idle keep-alive connections so slow/abandoned clients can't tie up
+  // sockets indefinitely (mild slow-loris mitigation).
+  server.idleTimeout = const Duration(seconds: 60);
   stdout.writeln(
     'code_push_server listening on ${server.port}'
     '${config.production ? ' [PRODUCTION]' : ''}',

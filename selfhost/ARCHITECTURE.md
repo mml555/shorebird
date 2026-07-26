@@ -92,8 +92,10 @@ transitions raise a `409`.
 
 A shelf `Pipeline` wraps the router:
 1. **logging** — one line per request (`METHOD /path -> status`).
-2. **rate limit** — per-bearer fixed window (`memory`, or `postgres` shared
-   across replicas). Over-limit → `429`.
+2. **rate limit** — fixed window (`memory`, or `postgres` shared across
+   replicas), keyed by bearer for authenticated requests and by client IP
+   (`X-Forwarded-For` behind a proxy) for unauthenticated device requests, so
+   one device can't exhaust the fleet's window. Over-limit → `429`.
 3. **auth** — resolves the bearer to a `userId` in `req.context`. Public routes
    (health, console, download, OAuth, device) bypass it. API key → its user (the
    bootstrap key → user 1); JWT → its `sub`/email.
@@ -110,6 +112,9 @@ A shelf `Pipeline` wraps the router:
 - **JWT:** RS256, signed with a key **persisted in `settings`** (survives
   restarts and is shared across replicas); public JWKS at
   `/.well-known/jwks.json`. Issuer must match `SHOREBIRD_JWT_ISSUER`.
+- **Upload cap:** artifact uploads are capped at `MAX_UPLOAD_BYTES` (512 MiB
+  default), enforced mid-stream so a dishonestly-sized body can't exhaust
+  memory; over-limit → `413`. Idle connections close after 60s.
 - **Production guard:** with `PRODUCTION=true`, `config.validate()` refuses to
   boot on any dev-default secret or non-HTTPS `PUBLIC_BASE_URL`.
 - **Last-owner guard:** an org can't have its last owner/admin removed.

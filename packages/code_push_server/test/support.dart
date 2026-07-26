@@ -33,4 +33,5 @@ Config sqliteConfig(String dataDir) => Config(
   dbBackend: 'sqlite',
   storageBackend: 'file',
   dataDir: dataDir,
+  maxUploadBytes: 536870912,
 );

@@ -14,6 +14,19 @@ import 'package:code_push_server/src/signing.dart';
 import 'package:mime/mime.dart';
 import 'package:shelf/shelf.dart';
 
+/// The rate-limit bucket key. Authenticated requests bucket by their bearer;
+/// unauthenticated (device) requests bucket by client IP — so one device (or
+/// one spoofed request) can't exhaust a single shared window for the whole
+/// fleet. Behind a proxy, [forwardedFor] (the first X-Forwarded-For hop) wins;
+/// otherwise the socket [remoteIp] is used.
+String rateLimitKey({String? auth, String? forwardedFor, String? remoteIp}) {
+  if (auth != null && auth.isNotEmpty) return 'auth:$auth';
+  if (forwardedFor != null && forwardedFor.isNotEmpty) {
+    return 'ip:${forwardedFor.split(',').first.trim()}';
+  }
+  return 'ip:${remoteIp ?? 'unknown'}';
+}
+
 /// The HTTP surface: the Shorebird CLI/updater wire contract (translated to the
 /// internal domain here), an OAuth auth service (`shorebird login`), and an
 /// authenticated /admin surface (rollout, withdraw/rollback, provisioning).
@@ -51,7 +64,14 @@ class Api {
 
   Middleware _rateLimit() =>
       (inner) => (req) async {
-        final key = req.headers['authorization'] ?? 'anon';
+        final conn = req.context['shelf.io.connection_info'];
+        final key = rateLimitKey(
+          auth: req.headers['authorization'],
+          forwardedFor: req.headers['x-forwarded-for'],
+          remoteIp: conn is HttpConnectionInfo
+              ? conn.remoteAddress.address
+              : null,
+        );
         final bool ok;
         if (config.rateLimitShared) {
           // Shared fixed window in Postgres — correct across restarts + nodes.
@@ -989,6 +1009,13 @@ class Api {
 
     final cr = parseContentRange(req.headers[HttpHeaders.contentRangeHeader]);
     if (cr == null) throw badRequest('Missing/invalid Content-Range');
+    if (cr.total > config.maxUploadBytes) {
+      throw DomainException(
+        HttpStatus.requestEntityTooLarge,
+        'payload_too_large',
+        'Upload exceeds the maximum size of ${config.maxUploadBytes} bytes',
+      );
+    }
 
     // Query the current offset: `Content-Range: bytes */TOTAL`.
     if (cr.isQuery) {
@@ -1004,7 +1031,7 @@ class Api {
     if (art.status == ArtifactStatus.pending) {
       await repo.setArtifactStatus(art.id, ArtifactStatus.uploading);
     }
-    final chunk = await _collect(req.read());
+    final chunk = await _collect(req.read(), max: config.maxUploadBytes);
     await store.stageChunk(token, cr.start, chunk);
     final received = store.stagedSize(token);
     if (received < cr.total) return _resumeIncomplete(received);
@@ -1568,7 +1595,7 @@ class Api {
       final disposition = part.headers['content-disposition'] ?? '';
       final name = _dispositionParam(disposition, 'name');
       final filename = _dispositionParam(disposition, 'filename');
-      final bytes = await _collect(part);
+      final bytes = await _collect(part, max: config.maxUploadBytes);
       if (filename != null) {
         file = (name: name ?? 'file', bytes: bytes);
       } else if (name != null) {
@@ -1593,10 +1620,19 @@ class Api {
   String? _dispositionParam(String disposition, String key) =>
       RegExp('$key="([^"]*)"').firstMatch(disposition)?.group(1);
 
-  Future<List<int>> _collect(Stream<List<int>> s) async {
+  Future<List<int>> _collect(Stream<List<int>> s, {int? max}) async {
     final b = BytesBuilder();
     await for (final chunk in s) {
       b.add(chunk);
+      // Cap mid-stream so an oversized (or dishonestly-sized) upload can't
+      // exhaust memory before a Content-Length check would catch it.
+      if (max != null && b.length > max) {
+        throw DomainException(
+          HttpStatus.requestEntityTooLarge,
+          'payload_too_large',
+          'Upload exceeds the maximum size of $max bytes',
+        );
+      }
     }
     return b.takeBytes();
   }

@@ -42,6 +42,7 @@ Config _cfg({
     dbBackend: 'postgres',
     storageBackend: 's3',
     dataDir: './data',
+    maxUploadBytes: 536870912,
   );
 }
 
