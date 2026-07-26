@@ -1,0 +1,36 @@
+# TLS overlay for the SINGLE-CONTAINER stack: puts Caddy in front of the server
+# for automatic HTTPS, without adding Postgres/MinIO. Layer it on the default:
+#
+#   docker compose -f docker-compose.yaml -f docker-compose.tls.yaml up -d
+#
+# (./setup.sh --domain <host> does this for you.) Needs DNS for $DOMAIN and
+# ports 80/443 reachable. Still one data volume (cps_data / SQLite + files).
+services:
+  server:
+    # Caddy reaches the server in-network; don't publish 8080 to the host.
+    ports: !reset []
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - server
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data      # persisted TLS certs — do NOT lose this
+      - caddy_config:/config
+    networks:
+      - default
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,25 @@
+name: code_push_server
+description: >-
+  Self-hosted Shorebird control plane. Runs single-container (SQLite +
+  local-disk artifacts) by default, or as a Postgres + S3/MinIO stack for scale.
+  The unmodified, pinned Shorebird CLI + native updater talk to it directly.
+version: 0.0.1
+publish_to: "none"
+# Standalone (own lockfile), NOT a workspace member: this server is fully
+# independent of the shorebird_* packages, and its deps (minio -> xml ^6)
+# conflict with shorebird_cli's xml ^7 under a shared workspace resolution.
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  crypto: ^3.0.6
+  jose: ^0.3.4
+  mime: ^2.0.0
+  minio: ^3.5.0
+  path: ^1.9.0
+  postgres: ^3.5.0
+  shelf: ^1.4.2
+  sqlite3: ^2.4.0
+
+dev_dependencies:
+  test: ^1.31.2

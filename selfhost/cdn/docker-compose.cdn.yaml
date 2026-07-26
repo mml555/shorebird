@@ -1,0 +1,53 @@
+# Self-hosted Shorebird build-time CDN.
+#
+# Two services:
+#   artifact-proxy : the first-party packages/artifact_proxy service. Given a
+#                    Flutter engine artifact path it decides stock-vs-shorebird
+#                    and 302-redirects to storage.googleapis.com. This is exactly
+#                    what download.shorebird.dev runs.
+#   cdn-cache      : an nginx caching reverse proxy in front of artifact-proxy
+#                    AND storage.googleapis.com. It rewrites the proxy's 302s
+#                    back through itself and caches the final artifact bytes, so
+#                    after one warm build everything is served from local disk.
+#
+# See selfhost/CDN_INDEPENDENCE.md for the full design and the cache.dart /
+# shorebird_process.dart source patches needed to point the CLI here.
+#
+# Usage:
+#   docker compose -f selfhost/cdn/docker-compose.cdn.yaml up --build
+# Then (with the CDN_INDEPENDENCE.md source patches applied) build once to warm
+# the cache:
+#   export SHOREBIRD_FLUTTER_STORAGE_BASE_URL=http://localhost:8081
+#   export SHOREBIRD_STORAGE_BASE_URL=http://localhost:8081
+#   export SHOREBIRD_STORAGE_BUCKET=download.shorebird.dev
+#   shorebird release android   # first run pulls through, later runs hit cache
+
+name: shorebird-cdn
+
+services:
+  artifact-proxy:
+    build:
+      # Build context is the artifact_proxy package (unmodified).
+      context: ../../packages/artifact_proxy
+      dockerfile: Dockerfile
+    environment:
+      - PORT=8080
+    expose:
+      - "8080"
+    restart: unless-stopped
+
+  cdn-cache:
+    image: nginx:1.27-alpine
+    depends_on:
+      - artifact-proxy
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - cdn-cache-data:/var/cache/nginx/cdn
+    ports:
+      # Host 8081 -> this is what you point FLUTTER_STORAGE_BASE_URL /
+      # SHOREBIRD_STORAGE_BASE_URL at. (8080 is left free for code_push_server.)
+      - "8085:8080"
+    restart: unless-stopped
+
+volumes:
+  cdn-cache-data:

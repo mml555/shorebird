@@ -1,0 +1,37 @@
+# Compatibility manifest — the pinned Shorebird revisions this self-hosted
+# control plane supports. "Current upstream" is NOT a target: a new
+# CLI/updater/engine revision is unsupported until the compatibility suite
+# passes against it. This is the single source of truth for what we build,
+# vendor, and mirror.
+shorebird:
+  cli_version: 1.6.114
+  cli_revision: 60edcfdc                                         # this repo HEAD
+  flutter_revision: 309dd6573a9fe716410489284cd325a34b950375      # bin/internal/flutter.version
+  engine_revision: e1eaecbcac6d9a32cb5590c646e21cf21252cf19       # shorebird --version
+  updater_revision: 1f85c4ab                                      # vendored at vendor/updater
+  protocol_version: 0.1.0+1                                       # shorebird_code_push_protocol
+
+tested_platforms:
+  # Device-verified end-to-end (release -> patch -> boot -> rollback; signed):
+  - android-arm64      # physical device + emulator
+  - ios-arm64          # physical device (resign flow, no Xcode account)
+  # Handled generically by the server (no hardcoded arch/platform) but NOT yet
+  # exercised end-to-end — see selfhost/PLATFORM_MATRIX.md:
+  # android-arm, android-x64, macos, windows, linux, aar, ios-framework
+
+independence:
+  runtime: true          # no api.shorebird.dev at runtime (device -> our server only)
+  build_time: true       # CDN mirror serves engine + aot-tools + patch (selfhost/cdn)
+  engine_from_source: false  # still consuming Shorebird's prebuilt engine binary.
+                             # SOURCE is captured (insurance vs. closed-source): the
+                             # flutter fork @ 309dd657 (framework + engine C++ +
+                             # DEPS) is vendored at vendor/flutter; the updater @
+                             # 1f85c4ab is vendored + builds at vendor/updater.
+                             # Building the engine still needs a farm — see
+                             # selfhost/ENGINE_BUILD.md.
+
+policy: >
+  Upgrading any pinned revision is a deliberate, gated process: bump the value
+  here, re-vendor/re-mirror as needed, and re-run the CLI-contract + native-updater
+  suites (see selfhost/BEHAVIORAL_FINDINGS.md) before declaring the new revision
+  supported.

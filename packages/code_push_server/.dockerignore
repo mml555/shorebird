@@ -1,0 +1,34 @@
+# Keep the build context small and reproducible.
+
+# Dart build/tool output
+.dart_tool/
+build/
+bin/server
+*.snapshot
+*.exe
+
+# Local env / secrets — never bake into the image
+.env
+.env.*
+!.env.example
+
+# Compose / ops files not needed inside the image
+docker-compose.yaml
+docker-compose.prod.yaml
+Dockerfile
+.dockerignore
+Caddyfile
+PRODUCTION.md
+ops/
+
+# VCS + editor cruft
+.git/
+.gitignore
+.idea/
+.vscode/
+*.iml
+*.log
+.DS_Store
+
+# Docs / tests not required at runtime
+README.md

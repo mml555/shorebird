@@ -1,0 +1,8 @@
+# Stage 0 spike: intentionally NOT inheriting the repo's strict very_good
+# lints. This is throwaway code whose only contract is wire-compatibility with
+# the pinned Shorebird CLI + updater, proven by the on-device exit test.
+analyzer:
+  language:
+    strict-casts: false
+linter:
+  rules: {}

@@ -266,7 +266,12 @@ $stderr''');
     if (executable == 'flutter') {
       // If this ever changes we also need to update the `shorebird` shell
       // wrapper which downloads runs Flutter to fetch artifacts the first time.
-      return {'FLUTTER_STORAGE_BASE_URL': 'https://download.shorebird.dev'};
+      // Overridable via FLUTTER_STORAGE_BASE_URL so a self-hosted deployment
+      // can mirror engine artifacts off Shorebird's CDN (defaults to upstream).
+      const key = 'FLUTTER_STORAGE_BASE_URL';
+      return {
+        key: platform.environment[key] ?? 'https://download.shorebird.dev',
+      };
     }
 
     return {};

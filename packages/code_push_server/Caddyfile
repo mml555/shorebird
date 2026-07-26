@@ -1,0 +1,43 @@
+# Caddy reverse proxy for code_push_server.
+#
+# Terminates TLS and proxies to the Dart server container on port 8080.
+# {$DOMAIN} is read from the environment (see .env / docker-compose.prod.yaml).
+#
+# By default Caddy provisions a real, publicly-trusted certificate via
+# Let's Encrypt / ZeroSSL. That requires:
+#   * {$DOMAIN} resolving (DNS A/AAAA) to this host's public IP, and
+#   * ports 80 and 443 reachable from the internet.
+#
+# For LOCAL testing without public DNS, uncomment the `tls internal` line
+# below (Caddy issues a self-signed cert from its own local CA). You can set
+# DOMAIN=localhost in that case.
+
+{$DOMAIN} {
+	# Email used for ACME account / expiry notices.
+	tls {$ACME_EMAIL}
+
+	# --- Local testing: self-signed cert from Caddy's internal CA. ---
+	# Comment out the `tls {$ACME_EMAIL}` line above and uncomment this
+	# instead when there is no public DNS / you just want HTTPS locally.
+	# tls internal
+
+	# Proxy to the server service defined in docker-compose.prod.yaml.
+	# Health checks keep Caddy from routing to an unready backend.
+	reverse_proxy server:8080 {
+		health_uri /healthz
+		health_interval 10s
+		health_timeout 5s
+	}
+
+	# Reasonable upload ceiling for patch/release artifacts (adjust as needed).
+	request_body {
+		max_size 512MB
+	}
+
+	encode gzip zstd
+
+	log {
+		output stdout
+		format console
+	}
+}

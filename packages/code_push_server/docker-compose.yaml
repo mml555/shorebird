@@ -1,0 +1,41 @@
+# Single-container self-hosted Shorebird control plane — the default.
+#
+#   ./setup.sh            # generates secrets, starts this, prints next steps
+#   docker compose up -d  # or start it directly
+#
+# ONE container. No Postgres, no MinIO, no Redis — the server embeds SQLite and
+# stores artifacts on a local volume (/data). That volume is the only thing to
+# back up. This is the plug-and-play path for dropping code-push into an
+# existing app/infra. Need horizontal scale? See docker-compose.prod.yaml
+# (Postgres + S3/MinIO + Caddy TLS), selected automatically when DATABASE_URL /
+# S3_ENDPOINT are set.
+#
+# Every value has a safe default, so this runs with no .env at all; setup.sh
+# writes one with generated secrets and your device-reachable base URL.
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: code-push-server:latest
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      # Embedded in artifact download URLs — MUST be reachable from your device.
+      # setup.sh sets this to your LAN IP so Android/iOS devices can reach it.
+      PUBLIC_BASE_URL: "${PUBLIC_BASE_URL:-http://localhost:8080}"
+      SHOREBIRD_JWT_ISSUER: "${PUBLIC_BASE_URL:-http://localhost:8080}"
+      API_KEY: "${API_KEY:-sb_api_selfhost_dev}"
+      JWT_SECRET: "${JWT_SECRET:-dev-jwt-signing-secret-change-me}"
+      URL_SIGNING_SECRET: "${URL_SIGNING_SECRET:-dev-url-signing-secret}"
+      LOGIN_EMAIL: "${LOGIN_EMAIL:-you@example.com}"
+      # Set by setup.sh --domain (HTTPS): refuse to boot on dev-default secrets.
+      PRODUCTION: "${PRODUCTION:-}"
+      # SQLite + filesystem artifacts live here (the volume below).
+      DATA_DIR: /data
+    volumes:
+      - cps_data:/data
+
+volumes:
+  cps_data:

@@ -117,11 +117,17 @@ class Cache {
 
   final List<CachedArtifact> _artifacts = [];
 
-  /// The storage base url.
-  String get storageBaseUrl => 'https://storage.googleapis.com';
+  /// The storage base url. Overridable via `SHOREBIRD_STORAGE_BASE_URL` so a
+  /// self-hosted deployment can mirror engine/patch artifacts off Shorebird's
+  /// CDN. Defaults to Google Cloud Storage (upstream behavior).
+  String get storageBaseUrl =>
+      platform.environment['SHOREBIRD_STORAGE_BASE_URL'] ??
+      'https://storage.googleapis.com';
 
-  /// The storage bucket host.
-  String get storageBucket => 'download.shorebird.dev';
+  /// The storage bucket host. Overridable via `SHOREBIRD_STORAGE_BUCKET`.
+  String get storageBucket =>
+      platform.environment['SHOREBIRD_STORAGE_BUCKET'] ??
+      'download.shorebird.dev';
 
   /// Clear the cache.
   Future<void> clear() async {

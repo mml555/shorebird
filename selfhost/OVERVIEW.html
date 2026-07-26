@@ -1,0 +1,386 @@
+<title>Self-Hosted Shorebird Control Plane — Overview</title>
+<style>
+  :root{
+    --paper:#f6f8fa; --surface:#ffffff; --raise:#fbfcfd;
+    --ink:#101a22; --muted:#55697a; --faint:#7f93a2;
+    --line:#dbe3ea; --line-soft:#e9eef3;
+    --accent:#0f8a91; --accent-strong:#0b6d73; --accent-soft:#e2f1f1;
+    --ok:#2f9e6b; --ok-soft:#e4f4ec;
+    --warn:#b7791f; --warn-soft:#f7efdf;
+    --blocked:#c0523f; --blocked-soft:#f6e6e2;
+    --shadow:0 1px 2px rgba(16,26,34,.05), 0 6px 20px rgba(16,26,34,.05);
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,"Cascadia Code",Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#0b1219; --surface:#111b24; --raise:#152029;
+      --ink:#e8eef3; --muted:#93a6b5; --faint:#6d8291;
+      --line:#233240; --line-soft:#1b2731;
+      --accent:#37b7be; --accent-strong:#5fd0d6; --accent-soft:#13333a;
+      --ok:#49b985; --ok-soft:#123227;
+      --warn:#d69b3f; --warn-soft:#33280f;
+      --blocked:#e07a67; --blocked-soft:#331d18;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.28);
+    }
+  }
+  :root[data-theme="light"]{
+    --paper:#f6f8fa; --surface:#ffffff; --raise:#fbfcfd;
+    --ink:#101a22; --muted:#55697a; --faint:#7f93a2;
+    --line:#dbe3ea; --line-soft:#e9eef3;
+    --accent:#0f8a91; --accent-strong:#0b6d73; --accent-soft:#e2f1f1;
+    --ok:#2f9e6b; --ok-soft:#e4f4ec; --warn:#b7791f; --warn-soft:#f7efdf;
+    --blocked:#c0523f; --blocked-soft:#f6e6e2;
+    --shadow:0 1px 2px rgba(16,26,34,.05), 0 6px 20px rgba(16,26,34,.05);
+  }
+  :root[data-theme="dark"]{
+    --paper:#0b1219; --surface:#111b24; --raise:#152029;
+    --ink:#e8eef3; --muted:#93a6b5; --faint:#6d8291;
+    --line:#233240; --line-soft:#1b2731;
+    --accent:#37b7be; --accent-strong:#5fd0d6; --accent-soft:#13333a;
+    --ok:#49b985; --ok-soft:#123227; --warn:#d69b3f; --warn-soft:#33280f;
+    --blocked:#e07a67; --blocked-soft:#331d18;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.28);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+    line-height:1.6;-webkit-font-smoothing:antialiased;font-size:16px}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 24px 96px}
+  .prose{max-width:74ch}
+  a{color:var(--accent-strong);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font-family:var(--mono);font-size:.86em;background:var(--accent-soft);
+    color:var(--accent-strong);padding:.1em .4em;border-radius:5px}
+  h1,h2,h3{text-wrap:balance;line-height:1.2;letter-spacing:-.01em}
+  h2{font-size:1.5rem;margin:0 0 .2em}
+  h3{font-size:1.08rem;margin:2em 0 .4em}
+  p{margin:.6em 0}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--accent);font-weight:600}
+
+  /* header */
+  header{border-bottom:1px solid var(--line);background:
+    linear-gradient(180deg,var(--raise),var(--paper));}
+  .head-inner{max-width:1000px;margin:0 auto;padding:54px 24px 40px}
+  h1{font-size:2.5rem;margin:.32em 0 .1em;font-weight:700}
+  .lede{font-size:1.14rem;color:var(--muted);max-width:60ch;margin:.4em 0 0}
+  .toprule{display:flex;align-items:center;gap:10px;color:var(--faint);
+    font-family:var(--mono);font-size:.75rem;letter-spacing:.1em}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+
+  /* section */
+  section{padding-top:52px}
+  .sec-head{display:flex;flex-direction:column;gap:2px;margin-bottom:14px}
+
+  /* at-a-glance stat strip */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:28px}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    padding:16px 16px 14px;box-shadow:var(--shadow)}
+  .stat .n{font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums;
+    letter-spacing:-.02em}
+  .stat .l{font-family:var(--mono);font-size:.68rem;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--muted);margin-top:3px}
+
+  /* cards */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    padding:20px;box-shadow:var(--shadow)}
+  .card h3{margin-top:0}
+  .card p{color:var(--muted);margin:.3em 0}
+
+  /* pills */
+  .pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);
+    font-size:.7rem;font-weight:600;letter-spacing:.04em;padding:.22em .6em;
+    border-radius:999px;white-space:nowrap;border:1px solid transparent}
+  .pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.9}
+  .p-ok{color:var(--ok);background:var(--ok-soft)}
+  .p-warn{color:var(--warn);background:var(--warn-soft)}
+  .p-blk{color:var(--blocked);background:var(--blocked-soft)}
+  .p-acc{color:var(--accent-strong);background:var(--accent-soft)}
+
+  /* tables */
+  .tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;
+    box-shadow:var(--shadow);margin-top:10px}
+  table{border-collapse:collapse;width:100%;font-size:.92rem;background:var(--surface)}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+  th{font-family:var(--mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);font-weight:600;background:var(--raise)}
+  tr:last-child td{border-bottom:none}
+  td code{background:transparent;color:var(--muted);padding:0}
+  .feat{font-weight:600}
+
+  /* diagram */
+  .diagram{background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    padding:22px;box-shadow:var(--shadow);overflow-x:auto;margin-top:10px}
+  .diagram pre.mermaid{background:transparent;text-align:center;margin:0;min-width:520px}
+  figcaption{font-family:var(--mono);font-size:.72rem;color:var(--faint);
+    letter-spacing:.06em;margin-top:8px}
+
+  /* legend + lists */
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:14px 0 0}
+  ul.clean{list-style:none;padding:0;margin:.4em 0;display:flex;flex-direction:column;gap:9px}
+  ul.clean li{display:flex;gap:10px;align-items:baseline;color:var(--muted)}
+  ul.clean li b{color:var(--ink);font-weight:600}
+  .tick{color:var(--accent);font-family:var(--mono);flex:none}
+
+  /* callout */
+  .note{border-left:3px solid var(--accent);background:var(--accent-soft);
+    border-radius:0 10px 10px 0;padding:14px 18px;margin:16px 0;color:var(--ink)}
+  .note.warnc{border-color:var(--warn);background:var(--warn-soft)}
+
+  pre.code{font-family:var(--mono);font-size:.82rem;background:var(--ink);
+    color:#dbe7ee;border-radius:10px;padding:16px 18px;overflow-x:auto;line-height:1.55}
+  :root[data-theme="dark"] pre.code, @media (prefers-color-scheme:dark){}
+  pre.code .c{color:var(--faint)}
+
+  footer{margin-top:64px;padding-top:22px;border-top:1px solid var(--line);
+    color:var(--faint);font-family:var(--mono);font-size:.74rem;letter-spacing:.05em}
+  @media (max-width:720px){
+    .grid2,.stats{grid-template-columns:1fr}
+    h1{font-size:2rem}
+    .head-inner{padding:40px 20px 30px}
+  }
+</style>
+
+<header>
+  <div class="head-inner">
+    <div class="toprule"><span class="dot"></span> SELF-HOSTED · CODE PUSH · FLUTTER OTA</div>
+    <h1>Self-Hosted Shorebird Control Plane</h1>
+    <p class="lede">A drop-in backend for the unmodified Shorebird CLI and native updater — so Flutter
+      over-the-air updates run entirely on your own infrastructure, with no dependency on
+      <code>api.shorebird.dev</code> at runtime or build time. Runs as <strong>one container</strong>
+      with no external database or object store — plug-and-play, or scale out when you need to.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="stats">
+    <div class="stat"><div class="n">3</div><div class="l">Platforms device-verified</div></div>
+    <div class="stat"><div class="n">56</div><div class="l">Unit tests passing</div></div>
+    <div class="stat"><div class="n">0</div><div class="l">Runtime calls to Shorebird</div></div>
+    <div class="stat"><div class="n">2</div><div class="l">Closed pieces replaced*</div></div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">The idea</span><h2>What it is — and what it isn't</h2></div>
+    <div class="prose">
+      <p>Shorebird ships five things: a CLI, a wire protocol, a modified Flutter <b>engine</b>, a
+      Rust <b>updater</b>, and a hosted <b>backend</b>. Four are open source; only the backend is
+      closed — and it's the one piece that makes self-hosting impossible. This project replaces
+      <em>only</em> that backend with a compatible one, and consumes the rest as published, open-source
+      artifacts.</p>
+      <p>It is <b>not a clone</b> of the engine or updater — reproducing those is Shorebird's entire
+      business. We stand on their open-source runtime and own the control plane around it.</p>
+    </div>
+    <div class="note">
+      <b>*Two closed pieces replaced:</b> the hosted <b>backend</b> (fully reimplemented here) and the
+      build-time <b>CDN routing</b> (mirrored locally). The engine + updater are consumed as open-source
+      prebuilt artifacts — the updater is also vendored and builds from source.
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Architecture</span><h2>The pieces and who owns them</h2></div>
+    <figure class="diagram">
+      <pre class="mermaid">
+flowchart TB
+  subgraph dev["Developer machine"]
+    CLI["shorebird CLI<br/>(open source)"]
+  end
+  subgraph device["End-user device"]
+    UPD["Native updater<br/>(in the engine)"]
+  end
+  subgraph ours["OUR infrastructure — ONE container by default"]
+    SRV["code_push_server<br/>Dart · shelf<br/>SQLite + local-disk artifacts"]
+    SCALE[("scale option:<br/>Postgres + S3/MinIO")]
+    CDN["CDN mirror<br/>artifact_proxy + nginx"]
+    SRV -.->|"only if you scale"| SCALE
+  end
+  GCS[("Shorebird open-source<br/>engine + tooling")]
+  CLI -->|"/api/v1/* · Bearer"| SRV
+  CLI -->|"build-time artifacts"| CDN
+  CDN -.->|"warm once"| GCS
+  UPD -->|"/patches/check · /events"| SRV
+  UPD -->|"signed download URL"| SRV
+      </pre>
+      <figcaption>fig 1 — control plane. Solid = every run; dashed = first build per engine revision only.</figcaption>
+    </figure>
+    <ul class="clean" style="margin-top:18px">
+      <li><span class="tick">▹</span><span><b>Ours:</b> the backend (this server), Postgres + MinIO, and the build-time CDN mirror.</span></li>
+      <li><span class="tick">▹</span><span><b>Consumed (open source):</b> the CLI, the protocol DTOs, the modified Flutter engine, and the Rust updater (also vendored + built from source in <code>vendor/updater</code>).</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">End to end</span><h2>How a patch actually reaches a device</h2></div>
+    <figure class="diagram">
+      <pre class="mermaid">
+sequenceDiagram
+  participant D as Developer (CLI)
+  participant S as code_push_server
+  participant O as MinIO / Postgres
+  participant V as Device (updater)
+  D->>S: create app · release · register artifacts
+  D->>S: upload bytes (multipart or resumable PUT)
+  S->>O: verify sha256 + store; artifact→verified
+  D->>S: finalize release (all verified → ready)
+  D->>S: patch → upload diff → promote to channel
+  Note over V: app relaunches
+  V->>S: POST /patches/check (app,version,platform,arch,channel)
+  S-->>V: patch{number,hash,download_url(signed),signature?}
+  V->>S: GET signed download_url
+  S->>O: stream bytes
+  V->>V: inflate diff vs base · verify hash · install
+  V->>S: /patches/events __patch_install__
+  Note over V: next launch runs the patched code
+      </pre>
+      <figcaption>fig 2 — release → patch → promote → on-device apply. Fail-closed at every gate.</figcaption>
+    </figure>
+    <div class="grid2" style="margin-top:18px">
+      <div class="card">
+        <h3>The trust boundary</h3>
+        <p>A patch becomes device-visible only if: its artifact is verified, the patch is <code>ready</code>
+        (not invalidated), an <b>active</b> promotion makes this client eligible on the requested channel,
+        and its number exceeds the client's. Any ambiguity → no patch.</p>
+      </div>
+      <div class="card">
+        <h3>Rollback</h3>
+        <p>Withdraw stops offering a patch to new checks. A <em>rollback</em> also lists its number in
+        <code>rolled_back_patch_numbers</code>, and installed devices revert on next launch — verified
+        on Android and macOS.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Capabilities</span><h2>Feature set</h2></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th style="width:34%">Area</th><th style="width:16%">Status</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td class="feat">CLI wire contract</td><td><span class="pill p-ok">complete</span></td><td>apps, releases, patches, artifacts, channels, orgs, users — the exact <code>/api/v1/*</code> surface the pinned CLI calls</td></tr>
+          <tr><td class="feat">Lifecycle state machines</td><td><span class="pill p-ok">complete</span></td><td>Artifact / Release / Patch / ChannelPatch transitions, enforced &amp; fail-closed; sha256 verification on upload</td></tr>
+          <tr><td class="feat">Partial rollouts</td><td><span class="pill p-ok">complete</span></td><td>deterministic per-client bucketing (5/25/100%); fail-closed on missing client id</td></tr>
+          <tr><td class="feat">Withdraw &amp; rollback</td><td><span class="pill p-ok">complete</span></td><td>transactional promote (one active/channel); device revert via <code>rolled_back_patch_numbers</code></td></tr>
+          <tr><td class="feat">Signed patches</td><td><span class="pill p-ok">complete</span></td><td><code>hash_signature</code> pass-through; device verifies against the embedded public key</td></tr>
+          <tr><td class="feat">Uploads</td><td><span class="pill p-ok">complete</span></td><td>multipart <em>and</em> GCS-style resumable (Content-Range / 308 / Range)</td></tr>
+          <tr><td class="feat">Downloads</td><td><span class="pill p-ok">complete</span></td><td>short-lived HMAC-signed URLs streamed from MinIO; HTTP range supported</td></tr>
+          <tr><td class="feat">Multi-tenancy</td><td><span class="pill p-ok">complete</span></td><td>users + per-user API keys, orgs + roles, app collaborators, email invitations</td></tr>
+          <tr><td class="feat">Login / OAuth</td><td><span class="pill p-ok">complete</span></td><td><code>shorebird login</code> via self-consent <em>or</em> a real IdP broker (Google/Microsoft); RS256 JWT, persisted key</td></tr>
+          <tr><td class="feat">Analytics + console</td><td><span class="pill p-ok">complete</span></td><td>adoption, unique users, version distribution, heatmap, install/download metrics + a web dashboard</td></tr>
+          <tr><td class="feat">Ops hardening</td><td><span class="pill p-ok">complete</span></td><td>versioned migrations, audit log, rate limiting (shared), <code>/healthz</code>·<code>/readyz</code>, graceful shutdown, config validation</td></tr>
+          <tr><td class="feat">Packaging</td><td><span class="pill p-ok">complete</span></td><td>Docker + docker-compose, Caddy TLS, backup/restore scripts, <code>.env</code> + production runbook</td></tr>
+          <tr><td class="feat">Billing / subscriptions</td><td><span class="pill p-acc">omitted</span></td><td>intentionally not built — always-paid; a self-host doesn't bill itself</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Coverage</span><h2>Platforms — what's proven, on what</h2></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Platform</th><th style="width:22%">Status</th><th>Evidence</th></tr></thead>
+        <tbody>
+          <tr><td class="feat">Android (arm64)</td><td><span class="pill p-ok">device-verified</span></td><td>emulator + physical device — release→patch→boot→rollback→signed</td></tr>
+          <tr><td class="feat">iOS (arm64)</td><td><span class="pill p-ok">device-verified</span></td><td>physical iPhone; resign flow (no Xcode account); install event</td></tr>
+          <tr><td class="feat">macOS</td><td><span class="pill p-ok">device-verified</span></td><td>this Mac; multi-arch — surfaced &amp; fixed a real multi-arch bug</td></tr>
+          <tr><td class="feat">aar (Android add-to-app)</td><td><span class="pill p-ok">server-verified</span></td><td>artifacts built + stored + verified; no device boot (it's a library)</td></tr>
+          <tr><td class="feat">ios-framework (add-to-app)</td><td><span class="pill p-ok">server-verified</span></td><td>xcframework + supplement stored + verified; no device boot</td></tr>
+          <tr><td class="feat">Windows / Linux</td><td><span class="pill p-warn">needs build host</span></td><td>server is platform-agnostic; must be built on that OS (can't cross-build from macOS)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="legend">
+      <span class="pill p-ok">device-verified</span>
+      <span class="pill p-ok">server-verified</span>
+      <span class="pill p-warn">needs external host / creds</span>
+      <span class="pill p-blk">blocked here</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Independence</span><h2>How far it stands on its own</h2></div>
+    <div class="grid2">
+      <div class="card">
+        <h3>Runtime <span class="pill p-ok">proven</span></h3>
+        <p>Devices talk only to your server — no <code>api.shorebird.dev</code> in the code-push path.
+        Confirmed on real hardware via network capture and the updater's own logs.</p>
+      </div>
+      <div class="card">
+        <h3>Build-time <span class="pill p-ok">proven</span></h3>
+        <p>The CDN mirror serves the engine + <code>aot-tools</code> + patch tooling. Verified
+        <code>cache=MISS→HIT</code>: first build warms from GCS, every build after is local, zero
+        Shorebird contact.</p>
+      </div>
+      <div class="card">
+        <h3>Updater from source <span class="pill p-ok">builds</span></h3>
+        <p>Vendored at a pinned commit in <code>vendor/updater</code> and builds with cargo to the
+        linkable <code>libupdater</code>. Cross-compile targets installed.</p>
+      </div>
+      <div class="card">
+        <h3>Engine from source <span class="pill p-warn">scoped</span></h3>
+        <p>Documented in <code>ENGINE_BUILD.md</code>; needs a build farm (depot_tools, ~100&nbsp;GB).
+        Until then the prebuilt engine is consumed via the mirror — the recommended path.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Under the hood</span><h2>Server components</h2></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Module</th><th>Responsibility</th></tr></thead>
+        <tbody>
+          <tr><td><code>api.dart</code></td><td>HTTP surface — wire contract, auth, admin, OAuth, analytics, uploads/downloads</td></tr>
+          <tr><td><code>domain.dart</code></td><td>lifecycle enums + transition guards (the state machines)</td></tr>
+          <tr><td><code>db.dart</code></td><td>backend adapter — SQLite (default, embedded) or Postgres (scale); one SQL set</td></tr>
+          <tr><td><code>repository.dart</code></td><td>schema + CRUD + versioned migrations + transactions (backend-agnostic)</td></tr>
+          <tr><td><code>artifact_store.dart</code></td><td>artifact bytes — local filesystem (default) or MinIO/S3, sha256 verify, range reads</td></tr>
+          <tr><td><code>oauth.dart</code></td><td>RS256 JWT mint/verify, IdP token decoding</td></tr>
+          <tr><td><code>rollout.dart</code> · <code>signing.dart</code> · <code>content_range.dart</code></td><td>pure, unit-tested logic — bucketing, signed URLs, Content-Range parsing</td></tr>
+          <tr><td><code>console/</code></td><td>self-contained web dashboard (apps, rollouts, analytics charts)</td></tr>
+          <tr><td><code>selfhost/cdn/</code></td><td>build-time CDN mirror (artifact_proxy + nginx cache)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Run it</span><h2>From zero to a working control plane</h2></div>
+    <pre class="code"><span class="c"># 1. one-click: generates secrets, starts everything, prints your URL + API key</span>
+cd packages/code_push_server
+./setup.sh                      <span class="c"># or: ./setup.sh --domain cps.you.com  (HTTPS)</span>
+
+<span class="c"># 2. point the unmodified CLI + device at it (one base_url covers both)</span>
+export SHOREBIRD_HOSTED_URL=&lt;url setup.sh printed&gt;
+export SHOREBIRD_TOKEN=&lt;api key setup.sh printed&gt;
+<span class="c"># app shorebird.yaml → base_url: &lt;that url&gt;</span>
+
+<span class="c"># 3. ship — exactly the normal Shorebird workflow</span>
+shorebird release android &amp;&amp; shorebird patch android</pre>
+    <div class="note">A single <code>base_url</code> redirects both the CLI (build side) and the on-device
+      updater (runtime side) — no engine rebuild, no forked app.</div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Handoff</span><h2>What remains — and why it's external</h2></div>
+    <p class="prose" style="color:var(--muted)">Everything achievable in this environment is done. What's
+      left needs resources outside it, not more code:</p>
+    <ul class="clean">
+      <li><span class="tick">▹</span><span><b>Windows / Linux device tests</b> — need those build hosts (no cross-build from macOS). Server needs no change. <span class="pill p-warn">host</span></span></li>
+      <li><span class="tick">▹</span><span><b>Real Google / Microsoft login</b> — needs your OAuth client credentials; broker is built &amp; stub-verified. See <code>IDP_SETUP.md</code>. <span class="pill p-warn">creds</span></span></li>
+      <li><span class="tick">▹</span><span><b>iOS at scale</b> — a registered bundle id + provisioning under your Apple team. See <code>IOS_ONDEVICE.md</code>. <span class="pill p-warn">apple</span></span></li>
+      <li><span class="tick">▹</span><span><b>Engine from source</b> — a build farm with depot_tools + ~100&nbsp;GB. See <code>ENGINE_BUILD.md</code>. <span class="pill p-warn">infra</span></span></li>
+    </ul>
+    <div class="note warnc">The standing risk is <b>compatibility drift</b>, not missing features: we consume
+      Shorebird's evolving engine/updater, so revisions are pinned in <code>compatibility.yaml</code> and
+      upgrades are gated on re-running the verification suites.</div>
+  </section>
+
+  <footer>
+    SELF-HOSTED SHOREBIRD CONTROL PLANE · runtime + build-time independent · pinned: cli 60edcfdc ·
+    flutter 309dd657 · engine e1eaecbc · updater 1f85c4ab
+  </footer>
+</div>

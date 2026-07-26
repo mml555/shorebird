@@ -1,0 +1,119 @@
+# Production stack for the self-hosted code_push_server control plane.
+#
+#   1. cp .env.example .env   # then edit .env — set real secrets/domain
+#   2. docker compose -f docker-compose.prod.yaml up -d --build
+#
+# Topology:
+#   caddy  ──TLS──▶ server ──▶ postgres  (metadata)
+#                         └──▶ minio     (artifact object storage)
+#
+# The Dart server is stateless: all durable state lives in Postgres + MinIO,
+# so `server` can be scaled horizontally (see PRODUCTION.md). Only Caddy
+# publishes ports to the host; postgres/minio/server stay on the internal
+# network. The MinIO console is bound to localhost only.
+#
+# Values come from .env (see .env.example). Never commit .env.
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: code-push-server:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    # No host port published — only Caddy (same network) reaches it.
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      createbuckets:
+        condition: service_completed_successfully
+    networks:
+      - cps
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - server
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data      # persisted TLS certs — do NOT lose this
+      - caddy_config:/config
+    networks:
+      - cps
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - cps_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - cps
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      # Console bound to localhost only — reach it via an SSH tunnel, never
+      # expose it to the internet. The S3 API is internal-network only.
+      - "127.0.0.1:19001:9001"
+    volumes:
+      - cps_minio:/data
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || curl -sf http://localhost:9000/minio/health/live || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - cps
+
+  # Creates the artifacts bucket on first boot, then exits.
+  createbuckets:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} &&
+      mc mb --ignore-existing local/${S3_BUCKET} &&
+      echo 'bucket ready'
+      "
+    networks:
+      - cps
+
+networks:
+  cps:
+    driver: bridge
+
+volumes:
+  cps_pg:
+  cps_minio:
+  caddy_data:
+  caddy_config:

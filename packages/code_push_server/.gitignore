@@ -1,0 +1,14 @@
+# Secrets — setup.sh generates .env with real secrets. NEVER commit it.
+.env
+.env.*
+!.env.example
+
+# Local state / backups
+backups/
+backups-dryrun/
+*.dump
+
+# Dart
+.dart_tool/
+.packages
+pubspec.lock.bak

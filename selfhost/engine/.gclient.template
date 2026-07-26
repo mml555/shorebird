@@ -1,0 +1,29 @@
+# .gclient template for syncing vendor/flutter's engine dependencies.
+#
+# The captured vendor/flutter is a flat SOURCE snapshot; the ~30-50GB of
+# DEPS-pinned engine deps (Skia, dart-sdk, buildtools, …) are fetched by
+# `gclient sync`. This is a STANDARD Flutter-engine step, not Shorebird-specific.
+#
+# ONE-TIME farm bootstrap:
+#   1. Install depot_tools; add to PATH.
+#   2. Place a `.gclient` (based on this template) so its checkout resolves to
+#      vendor/flutter/engine/src/flutter. Because the engine is merged into the
+#      Flutter monorepo, follow Flutter's current "Setting up the engine
+#      development environment" for the pinned revision — the exact solution
+#      name/layout tracks upstream and should be VERIFIED against the docs for
+#      flutter_revision 309dd657, not assumed.
+#   3. cd vendor/flutter/engine/src && gclient sync -D
+#
+# Typical monorepo shape (verify before use):
+solutions = [
+  {
+    "name": "flutter",
+    "url": "https://github.com/shorebirdtech/flutter.git@309dd6573a9fe716410489284cd325a34b950375",
+    "managed": False,
+    "custom_deps": {},
+    "custom_vars": {
+      "download_android_deps": True,
+      "download_windows_deps": False,
+    },
+  },
+]
