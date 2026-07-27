@@ -36,7 +36,7 @@ for the quick start and feature list.
 
 **Platform coverage**
 - [`PLATFORM_MATRIX.md`](PLATFORM_MATRIX.md) — what's verified on which platform
-- [`IOS_ONDEVICE.md`](IOS_ONDEVICE.md) — iOS on-device (signing / resign flow)
+- [`IOS_ONDEVICE.md`](IOS_ONDEVICE.md) — iOS code signing (auto / manual-CI / resign) + one-command ship flow
 - [`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md) — Windows / Linux notes
 
 **Independence (advanced)**

@@ -70,14 +70,13 @@ if [ "$PLATFORM" = android ]; then
 else
   # No Apple ID in Xcode? Build unsigned, then resign with an existing dev cert
   # + provisioning profile (that already includes this device). See ios_resign.sh.
-  # Override these for your team/device via env.
-  : "${IOS_IDENTITY:?set IOS_IDENTITY to a dev cert sha1 from: security find-identity -v -p codesigning}"
+  # Only IOS_PROFILE is required now — team + bundle are read from the profile,
+  # and the identity is auto-selected if there's exactly one (else set IOS_IDENTITY).
   : "${IOS_PROFILE:?set IOS_PROFILE to a .mobileprovision path that includes this device}"
-  : "${IOS_TEAM:?set IOS_TEAM to the profile team id}"
   yes | shorebird release ios --no-codesign 2>&1 | grep -E "Published Release|error|Error|Reason" | head -5 || true
   APP_BUNDLE=$(find "$APP_DIR/build/ios/archive" -name "Runner.app" -path "*Products/Applications*" 2>/dev/null | head -1)
   echo "app bundle: $APP_BUNDLE"
-  "$(dirname "$0")/ios_resign.sh" "$APP_BUNDLE" "$IOS_IDENTITY" "$IOS_PROFILE" "$IOS_TEAM" "$PKG"
+  IOS_DEVICE_UDID="$DEVICE" "$(dirname "$0")/ios_resign.sh" "$APP_BUNDLE" "${IOS_IDENTITY:-}" "$IOS_PROFILE"
   xcrun devicectl device install app --device "$DEVICE" "$APP_BUNDLE" 2>&1 | grep -iE "installed|error|locked" | tail -3
   xcrun devicectl device process launch --terminate-existing --device "$DEVICE" "$PKG" 2>&1 | grep -iE "launched|error" | tail -1 || true
   sleep 6
