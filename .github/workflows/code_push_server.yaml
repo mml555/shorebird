@@ -32,10 +32,10 @@ jobs:
         with:
           sdk: stable
 
-      # The single-container (SQLite) backend uses sqlite3 via FFI; the
-      # dev package resolves libsqlite3.so at runtime for the backend tests.
-      - name: Install libsqlite3
-        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
+      # libsqlite3: the single-container (SQLite) backend uses sqlite3 via FFI.
+      # shellcheck: lint the shell tooling (below). Both in one apt call.
+      - name: Install libsqlite3 + shellcheck
+        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev shellcheck
 
       - name: Install dependencies
         run: dart pub get --enforce-lockfile
@@ -45,6 +45,14 @@ jobs:
 
       - name: Analyze (fail on any lint)
         run: dart analyze --fatal-infos --fatal-warnings
+
+      # Lint the shell tooling (setup, ops, iOS signing, smoke/e2e). Gates on
+      # warnings+errors; --source-path=SCRIPTDIR lets it follow sourced libs.
+      - name: Shellcheck (shell tooling)
+        run: |
+          files=$(git ls-files '*.sh')
+          echo "$files"
+          shellcheck -x --source-path=SCRIPTDIR --severity=warning $files
 
       - name: Unit + backend tests
         run: dart test -x integration
