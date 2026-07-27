@@ -55,6 +55,11 @@ RUN apt-get update \
 # with Debian's /lib symlink).
 COPY --from=build /app/bin/server /app/bin/server
 
+# The web console is a self-contained SPA served from CONSOLE_DIR (default
+# /app/console). Ship it into the runtime image (the build stage's `COPY . .`
+# includes it) or /console returns "console not available".
+COPY --from=build /app/console /app/console
+
 # Run as a non-root, unprivileged user. Create /data (owned by appuser) as root
 # BEFORE dropping privileges — it's the single-container persistence directory
 # (SQLite db + filesystem artifacts), the one thing to back up.
