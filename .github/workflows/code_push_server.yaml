@@ -49,10 +49,7 @@ jobs:
       # Lint the shell tooling (setup, ops, iOS signing, smoke/e2e). Gates on
       # warnings+errors; --source-path=SCRIPTDIR lets it follow sourced libs.
       - name: Shellcheck (shell tooling)
-        run: |
-          files=$(git ls-files '*.sh')
-          echo "$files"
-          shellcheck -x --source-path=SCRIPTDIR --severity=warning $files
+        run: git ls-files -z '*.sh' | xargs -0 -r shellcheck -x --source-path=SCRIPTDIR --severity=warning
 
       - name: Unit + backend tests
         run: dart test -x integration
