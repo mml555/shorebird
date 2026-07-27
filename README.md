@@ -1,25 +1,50 @@
-## Shorebird 🐦
+## Shorebird — self-hosted fork 🐦
 
-[![Discord](https://img.shields.io/discord/1030243211995791380?style=for-the-badge&logo=discord&color=blue)](https://discord.gg/shorebird)
-<a href="https://www.producthunt.com/posts/shorebird-code-push?utm_source=badge-featured&utm_medium=badge&utm_souce=badge-shorebird&#0045;code&#0045;push" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=449946&theme=neutral" alt="Shorebird&#0032;Code&#0032;Push - Flutter&#0032;over&#0032;the&#0032;air&#0032;updates | Product Hunt" style="width: 128px; height: 27px;" width="128" height="27" /></a>
+> **This is a self-hosted fork of [Shorebird](https://github.com/shorebirdtech/shorebird).**
+> It adds a **self-hosted code-push control plane** so you can run Flutter
+> over-the-air updates entirely on your own infrastructure. The unmodified,
+> version-pinned Shorebird CLI and on-device updater talk to **your** server, so
+> no runtime request depends on `api.shorebird.dev` — and there's no
+> per-app/per-user pricing.
+>
+> **Start here → [`packages/code_push_server/README.md`](packages/code_push_server/README.md)**
+> · self-host docs: [`selfhost/README.md`](selfhost/README.md)
 
-[![shorebird ci](https://api.shorebird.dev/api/v1/github/shorebirdtech/shorebird/badge.svg)](https://console.shorebird.dev/ci)
-[![ci](https://github.com/shorebirdtech/shorebird/actions/workflows/main.yaml/badge.svg)](https://github.com/shorebirdtech/shorebird/actions/workflows/main.yaml)
-[![e2e](https://github.com/shorebirdtech/shorebird/actions/workflows/e2e.yaml/badge.svg)](https://github.com/shorebirdtech/shorebird/actions/workflows/e2e.yaml)
-[![codecov](https://codecov.io/gh/shorebirdtech/shorebird/branch/main/graph/badge.svg)](https://codecov.io/gh/shorebirdtech/shorebird)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE-MIT)
 [![License: Apache](https://img.shields.io/badge/license-Apache-orange.svg)](./LICENSE-APACHE)
 
+## What this fork adds
+
+Upstream Shorebird's CLI and updater point at Shorebird's hosted service
+(`api.shorebird.dev`). This fork keeps the CLI and updater **unmodified and
+version-pinned**, and adds a drop-in server they talk to instead:
+
+- **[`packages/code_push_server`](packages/code_push_server/README.md)** — the
+  self-hosted control plane. One command (`./setup.sh`) brings up releases,
+  patches, channels, partial rollouts, multi-tenancy, IdP login, analytics, and
+  ops on your own infra. Runs single-container (SQLite + local disk) by default,
+  or Postgres + S3/MinIO for scale.
+- **[`selfhost/`](selfhost/README.md)** — the self-host documentation set:
+  architecture, API reference, integration guide, iOS code signing, and the
+  go-live runbook.
+
 ## Getting Started
 
-Visit https://docs.shorebird.dev to get started.
+To run your own server, follow
+[`packages/code_push_server/README.md`](packages/code_push_server/README.md).
+
+For the Shorebird CLI and general code-push concepts, upstream's docs at
+https://docs.shorebird.dev still apply — this fork does not change the CLI's
+behavior or wire contract.
 
 ## Packages
 
-This repository is a monorepo containing the following packages:
+This repository is a monorepo. The package added by this fork is listed first;
+the rest are inherited unchanged from upstream Shorebird:
 
 | Package                                                                         | Description                                                                             |
 | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [code_push_server](packages/code_push_server/README.md)                         | **This fork:** self-hosted Shorebird control plane (server)                             |
 | [shorebird_cli](packages/shorebird_cli/README.md)                               | Command-line which allows developers to interact with various Shorebird services        |
 | [shorebird_code_push_client](packages/shorebird_code_push_client/README.md)     | Dart library which allows Dart applications to interact with the Shorebird CodePush API |
 | [shorebird_code_push_protocol](packages/shorebird_code_push_protocol/README.md) | Dart library which contains common interfaces used by Shorebird CodePush                |
@@ -35,8 +60,10 @@ For more information, please refer to the documentation for each package.
 
 ## Contributing
 
-If you're interested in contributing, please join us on
-[Discord](https://discord.gg/shorebird).
+This is a self-hosted fork; contributions here concern the self-hosted server
+and its docs. For upstream Shorebird itself, see the
+[Shorebird Discord](https://discord.gg/shorebird). The developer setup below
+applies to working in this repository.
 
 ### Environment setup
 

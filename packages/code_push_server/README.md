@@ -82,6 +82,29 @@ mismatch rejection, patch promote, signed-URL range download, withdraw+rollback.
 
 ---
 
+## Shipping to iOS (code signing)
+
+iOS builds must be code-signed, and Shorebird records the exact version it ships
+— so signing has to happen the way the CLI expects or patches silently fail to
+apply. The `tool/ios_*.sh` scripts handle all three paths and pick one for you:
+
+| Mode | When | Command |
+|---|---|---|
+| **auto** | Xcode already signs (Apple ID in Xcode or `DEVELOPMENT_TEAM` set) | plain `shorebird release ios` |
+| **manual** | Headless / CI — you have a `.p12` cert + provisioning profile | `--export-options-plist` (generated for you) |
+| **resign** | No Apple ID in Xcode — resign an unsigned build with an existing cert + profile | `--no-codesign` + `tool/ios_resign.sh` |
+
+One wrapper drives all three (mode inferred from the env you set):
+
+```bash
+APP_DIR=$PWD DEVICE=<udid> tool/ios_ship.sh both   # release + patch
+```
+
+Full walkthrough — mode selection, the CI keychain recipe, and every tool — is
+in [`../../selfhost/IOS_ONDEVICE.md`](../../selfhost/IOS_ONDEVICE.md).
+
+---
+
 ## Two ways to run
 
 - **Single container (default) — plug and play.** One container, embedded
@@ -145,6 +168,7 @@ most likely to touch:
 - [`../../selfhost/API_REFERENCE.md`](../../selfhost/API_REFERENCE.md) — every HTTP endpoint (CLI, device, admin/team, analytics, auth, ops)
 - [`../../selfhost/ARCHITECTURE.md`](../../selfhost/ARCHITECTURE.md) — internals: data model, state machines, backends, security
 - [`../../selfhost/INTEGRATION.md`](../../selfhost/INTEGRATION.md) — dropping this into your own stack (env vars, proxy, own DB/S3)
+- [`../../selfhost/IOS_ONDEVICE.md`](../../selfhost/IOS_ONDEVICE.md) — iOS code signing (auto / manual / resign) + the one-command ship flow
 - [`PRODUCTION.md`](PRODUCTION.md) — production operational runbook (scale profile)
 - [`../../selfhost/GO_LIVE.md`](../../selfhost/GO_LIVE.md) — go-live decisions & sequencing
 - [`../../selfhost/OVERVIEW.html`](../../selfhost/OVERVIEW.html) — full system overview
