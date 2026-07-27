@@ -51,9 +51,13 @@ you provision them yourself (Shape B/C):
   than streaming through the app — this is the single biggest scale lever, and
   the main thing hosted Shorebird gives you that a single box doesn't.
 - **Monitoring + alerting** — an uptime check on `/readyz` (it verifies DB + S3
-  reachability), log aggregation for the `server`/Caddy containers, and an alert
-  when `/readyz` fails or error rate climbs. Failure mode is safe (devices keep
-  running last-good code) but you still want to know.
+  reachability), plus the server's built-in observability: scrape `GET /metrics`
+  (Prometheus — request rate, status classes, latency histogram, in-flight) and
+  set `LOG_FORMAT=json` so a log aggregator (Loki/ELK/CloudWatch) can parse the
+  request/error stream. Alert when `/readyz` fails or the 5xx rate climbs.
+  Firewall `/metrics` to your monitoring network if you don't want it public.
+  Failure mode is safe (devices keep running last-good code) but you still want
+  to know.
 - **Secrets management** — for Shape B/C, source the `.env` secrets from a
   secret manager rather than a file on disk; keep a rotation plan. `config.dart`
   `validate()` already refuses dev-default secrets when `PRODUCTION=true`.
