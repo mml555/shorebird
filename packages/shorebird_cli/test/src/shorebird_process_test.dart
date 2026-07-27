@@ -65,6 +65,7 @@ void main() {
       when(() => logger.level).thenReturn(Level.info);
 
       when(() => platform.isWindows).thenReturn(false);
+      when(() => platform.environment).thenReturn({});
     });
 
     test('ShorebirdProcessResult can be instantiated as a const', () {
@@ -151,6 +152,34 @@ void main() {
             ),
             ['--version'],
             environment: flutterStorageBaseUrlEnv,
+            workingDirectory: '~',
+          ),
+        ).called(1);
+      });
+
+      test('honors a FLUTTER_STORAGE_BASE_URL override from the environment '
+          '(self-hosted CDN mirror)', () async {
+        when(() => platform.environment).thenReturn({
+          'FLUTTER_STORAGE_BASE_URL': 'https://cdn.example.com',
+        });
+
+        await runWithOverrides(
+          () => shorebirdProcess.run('flutter', [
+            '--version',
+          ], workingDirectory: '~'),
+        );
+
+        verify(
+          () => processWrapper.run(
+            any(
+              that: contains(
+                p.join('bin', 'cache', 'flutter', 'bin', 'flutter'),
+              ),
+            ),
+            ['--version'],
+            environment: {
+              'FLUTTER_STORAGE_BASE_URL': 'https://cdn.example.com',
+            },
             workingDirectory: '~',
           ),
         ).called(1);
