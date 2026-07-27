@@ -14,15 +14,20 @@ CDNs, no network dependencies, and no build step**.
 - **Connection**: enter a *server base URL* and an *API key*; both persist in
   `localStorage`. A status indicator shows connected / connecting / error.
 - **Organizations & apps**: lists your orgs, lists apps, and a create-app form.
-- **App detail**: releases with per-platform status, patches per release
-  (loaded lazily when you expand a release), and channels.
+- **App detail (tabbed)**: selecting an app opens a tabbed view — no long scroll:
+  - **Overview**: headline stats (total events, unique clients, live-patch
+    count), events-by-type, and the patches currently live on the latest
+    release with inline rollout/withdraw controls.
+  - **Releases**: full release history with per-platform status, patches per
+    release (loaded lazily when you expand a release), and channels.
+  - **Analytics**: a grid of inline-SVG charts, loaded lazily the first time
+    the tab is opened. Endpoints that a given server build hasn't implemented
+    degrade gracefully to "Not available." rather than breaking.
+  - **Team**: app collaborators (list, add, remove). Organization-level
+    membership is managed from the sidebar **Team** section.
 - **Rollout control**: per-patch channel selector + 0–100% slider/number input
   that calls the rollout admin endpoint; withdraw and withdraw-with-rollback
-  buttons (each behind a confirm dialog); add-collaborator form.
-- **Metrics**: total events, unique clients, events-by-type, a per-patch
-  downloads/installs/unique-clients table, and an inline-SVG bar chart.
-- **Analytics**: if the optional analytics endpoints return data, they render
-  as a table + chart; otherwise those sections are silently omitted.
+  buttons (each behind a confirm dialog).
 - **Theme**: follows the OS light/dark preference, with a manual toggle
   (auto → light → dark).
 
@@ -74,34 +79,31 @@ configure.
 Read-only / provisioning (Bearer):
 
 - `GET  /api/v1/organizations`
+- `GET  /api/v1/users/me`
 - `GET  /api/v1/apps`
 - `POST /api/v1/apps`
 - `GET  /api/v1/apps/{appId}/releases`
-- `GET  /api/v1/apps/{appId}/releases/{releaseId}/patches` *(see caveat below)*
+- `GET  /api/v1/apps/{appId}/releases/{releaseId}/patches`
 - `GET  /api/v1/apps/{appId}/channels`
 - `GET  /api/v1/apps/{appId}/metrics`
-- `GET  /api/v1/apps/{appId}/analytics/patch-adoption` *(optional)*
-- `GET  /api/v1/apps/{appId}/analytics/version-distribution` *(optional)*
-- `GET  /api/v1/apps/{appId}/analytics/active-users` *(optional)*
+- `GET  /api/v1/apps/{appId}/analytics/patch-adoption`
+- `GET  /api/v1/apps/{appId}/analytics/unique-users`
+- `GET  /api/v1/apps/{appId}/analytics/version-distribution`
+- `GET  /api/v1/apps/{appId}/analytics/activity-heatmap`
+- `GET  /api/v1/apps/{appId}/analytics/active-hours`
+- `GET  /api/v1/apps/{appId}/analytics/new-devices`
+- `GET  /api/v1/apps/{appId}/analytics/patch-installs`
+- `GET  /api/v1/apps/{appId}/analytics/patch-downloads`
 
 Admin actions (Bearer):
 
-- `POST /admin/apps/{appId}/patches/{patchId}/rollout?channel=&percent=`
-- `POST /admin/apps/{appId}/patches/{patchId}/withdraw?channel=&rollback=`
-- `POST /admin/apps/{appId}/collaborators?email=&role=`
+- `GET    /admin/apps/{appId}/collaborators`
+- `POST   /admin/apps/{appId}/collaborators?email=&role=`
+- `DELETE /admin/apps/{appId}/collaborators/{userId}`
+- `POST   /admin/apps/{appId}/patches/{patchId}/rollout?channel=&percent=`
+- `POST   /admin/apps/{appId}/patches/{patchId}/withdraw?channel=&rollback=`
 
-### Endpoints the console assumes but the server may not yet implement
-
-The console degrades gracefully (shows "no data"/"unavailable" instead of
-breaking) when these are missing:
-
-- **`GET /api/v1/apps/{appId}/releases/{releaseId}/patches`** — not present in
-  the current `lib/src/api.dart` router. Without it, the per-release patch list
-  (and therefore the inline rollout/withdraw controls) stays empty. Expected
-  shape: `{"patches":[{"id":…,"number":…,"status":…}]}`.
-- **`GET /api/v1/apps/{appId}/analytics/patch-adoption`**,
-  **`/analytics/version-distribution`**, **`/analytics/active-users`** — not
-  implemented yet. The console requests them defensively and renders whatever
-  array it finds (looks for `points` / `entries` / `data` / `items` / `rows`,
-  falling back to the first array-valued field); if they 404 the Analytics
-  section is omitted.
+All of the above are implemented by `lib/src/api.dart`. The console still calls
+each analytics endpoint defensively: any that a given server build does not
+implement (or that returns no data) renders as "Not available." in its
+Analytics card rather than breaking the page.

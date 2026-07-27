@@ -56,27 +56,28 @@
 body{margin:0;font:14.5px/1.55 var(--font);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
 a{color:var(--accent-2)}
 code{background:var(--accent-soft);color:var(--accent-2);padding:.1rem .38rem;border-radius:6px;font:12px/1.4 var(--mono)}
-button{font:inherit;font-weight:500;cursor:pointer;padding:.44rem .85rem;border:1px solid var(--border);border-radius:9px;background:var(--panel);color:var(--text);transition:background .12s,border-color .12s,box-shadow .12s}
-button:hover{border-color:var(--accent);background:var(--panel-2)}
+button{font:inherit;font-weight:500;cursor:pointer;padding:.5rem .95rem;border:none;border-radius:9px;background:var(--chip);color:var(--text);transition:background .12s,box-shadow .12s,transform .04s}
+button:hover{background:color-mix(in srgb,var(--text) 9%,var(--chip))}
+button:active{transform:translateY(.5px)}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 button:disabled{opacity:.45;cursor:not-allowed}
-button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);box-shadow:var(--shadow)}
-button.primary:hover{background:var(--accent-2);border-color:var(--accent-2)}
-button.danger{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 45%,var(--border))}
-button.danger:hover{background:var(--danger-bg);border-color:var(--danger)}
-button.sm{padding:.26rem .6rem;font-size:12.5px;border-radius:7px}
-input,select{font:inherit;padding:.46rem .6rem;border:1px solid var(--border);border-radius:9px;background:var(--panel);color:var(--text)}
+button.primary{background:var(--accent);color:var(--accent-fg);box-shadow:var(--shadow)}
+button.primary:hover{background:var(--accent-2)}
+button.danger{color:var(--danger);background:var(--danger-bg)}
+button.danger:hover{background:color-mix(in srgb,var(--danger) 16%,var(--danger-bg))}
+button.sm{padding:.3rem .68rem;font-size:12.5px;border-radius:7px}
+input,select{font:inherit;padding:.52rem .7rem;border:none;border-radius:9px;background:var(--panel-2);color:var(--text)}
 input::placeholder{color:var(--faint)}
-input:focus,select:focus{outline:2px solid color-mix(in srgb,var(--accent) 45%,transparent);outline-offset:0;border-color:var(--accent)}
-label{font:600 10.5px/1.4 var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.28rem}
+input:focus,select:focus{outline:none;box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 45%,transparent)}
+label{font:600 10.5px/1.4 var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.32rem}
 table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
-th,td{border-bottom:1px solid var(--border);padding:.5rem .6rem;text-align:left;white-space:nowrap}
+th,td{padding:.62rem .7rem;text-align:left;white-space:nowrap}
 th{font:600 10.5px/1.4 var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
 tbody tr:hover{background:var(--panel-2)}
 .wrap{max-width:1180px;margin:0 auto;padding:1rem}
 
 /* top bar */
-header{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--border);box-shadow:var(--shadow)}
+header{position:sticky;top:0;z-index:5;background:var(--panel);box-shadow:var(--shadow)}
 .top{display:flex;flex-wrap:wrap;align-items:end;gap:.7rem;max-width:1180px;margin:0 auto;padding:.7rem 1rem}
 .brand{display:flex;align-items:center;gap:.5rem;font-weight:700;font-size:16px;margin-right:.4rem}
 .brand .dot{width:11px;height:11px;border-radius:50%;background:var(--accent)}
@@ -89,105 +90,121 @@ header{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px
 /* layout */
 .grid{display:grid;grid-template-columns:300px 1fr;gap:1rem;margin-top:1rem;align-items:start}
 @media (max-width:820px){.grid{grid-template-columns:1fr}}
-.panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
-.panel .hd{padding:.7rem 1rem;border-bottom:1px solid var(--border);font-weight:600;font-size:15px;display:flex;align-items:center;justify-content:space-between;gap:.5rem;letter-spacing:-.01em;min-height:44px}
-.panel .bd{padding:1rem 1.1rem}
-.section{margin-top:1.25rem}
-.section h2{font:600 11px/1.4 var(--mono);margin:0 0 .55rem;color:var(--accent);text-transform:uppercase;letter-spacing:.13em}
+.panel{background:var(--panel);border-radius:var(--radius);box-shadow:var(--shadow)}
+.panel .hd{padding:1.05rem 1.4rem .3rem;font-weight:600;font-size:15px;display:flex;align-items:center;justify-content:space-between;gap:.5rem;letter-spacing:-.01em}
+.panel .bd{padding:1.1rem 1.4rem 1.3rem}
+.section{margin-top:1.6rem}
+.section h2{font:600 11px/1.4 var(--mono);margin:0 0 .65rem;color:var(--accent);text-transform:uppercase;letter-spacing:.13em}
+
+/* app-detail header + tabs */
+.apphdr{display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin-bottom:.15rem}
+.apphdr h1{font-size:1.4rem;letter-spacing:-.02em;margin:0}
+.tabs{display:flex;gap:.25rem;margin:1rem 0 1.4rem;overflow-x:auto}
+.tab{appearance:none;background:none;border:none;border-radius:9px;
+  padding:.5rem 1rem;font:600 13.5px/1 var(--font);color:var(--muted);cursor:pointer;box-shadow:none;white-space:nowrap;transition:background .12s,color .12s}
+.tab:hover{color:var(--text);background:var(--panel-2)}
+.tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tab.active{color:var(--accent-2);background:var(--accent-soft)}
+.tab .pill{margin-left:.45rem}
 
 /* app list */
 .applist{list-style:none;margin:0;padding:0}
-.applist li{padding:.55rem .9rem;border-bottom:1px solid var(--border);cursor:pointer}
-.applist li:last-child{border-bottom:none}
+.applist li{padding:.62rem .8rem;border-radius:10px;cursor:pointer;transition:background .12s}
 .applist li:hover{background:var(--panel-2)}
-.applist li.active{background:var(--accent-soft);border-left:3px solid var(--accent);padding-left:calc(.9rem - 3px)}
+.applist li.active{background:var(--accent-soft)}
+.applist li.active .name{color:var(--accent-2)}
 .applist .name{font-weight:600}
-.applist .meta{font:11px/1.4 var(--mono);color:var(--muted);margin-top:.1rem}
+.applist .meta{font:11px/1.4 var(--mono);color:var(--muted);margin-top:.12rem}
 
 .muted{color:var(--muted)}
-.pill{display:inline-flex;align-items:center;gap:.3rem;padding:.12rem .5rem;border-radius:999px;font:600 11px/1.4 var(--mono);letter-spacing:.02em;background:var(--chip);color:var(--muted);border:1px solid var(--border)}
-.pill.active{background:var(--accent);color:var(--accent-fg);border-color:transparent}
-.pill.draft{background:var(--chip);color:var(--muted);border-color:var(--border)}
-.pill.acc{background:var(--accent-soft);color:var(--accent-2);border-color:transparent}
-.chips{display:flex;flex-wrap:wrap;gap:.35rem}
+.pill{display:inline-flex;align-items:center;gap:.3rem;padding:.14rem .55rem;border-radius:999px;font:600 11px/1.4 var(--mono);letter-spacing:.02em;background:var(--chip);color:var(--muted)}
+.pill.active{background:var(--accent);color:var(--accent-fg)}
+.pill.draft{background:var(--chip);color:var(--muted)}
+.pill.acc{background:var(--accent-soft);color:var(--accent-2)}
+.chips{display:flex;flex-wrap:wrap;gap:.4rem}
 .row{display:flex;flex-wrap:wrap;gap:.6rem;align-items:end}
-.card{border:1px solid var(--border);border-radius:10px;padding:.9rem;margin-bottom:.6rem;background:var(--panel-2)}
+.card{border-radius:12px;padding:1.05rem 1.1rem;margin-bottom:.7rem;background:var(--panel-2)}
+.card:last-child{margin-bottom:0}
 .card .title{font-weight:600;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
-.kv{display:flex;gap:1.2rem;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:.25rem}
-.stat{display:inline-flex;flex-direction:column;gap:.15rem;padding:.6rem .85rem;border:1px solid var(--border);border-radius:10px;background:var(--panel-2);min-width:104px}
-.stat .n{font-size:22px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kv{display:flex;gap:1.3rem;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:.25rem}
+.stat{display:inline-flex;flex-direction:column;gap:.2rem;padding:.85rem 1.05rem;border-radius:12px;background:var(--panel);box-shadow:var(--shadow);min-width:112px}
+.stat .n{font-size:23px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .stat .l{font:600 10px/1.3 var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.09em}
-.stats{display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:.6rem}
-details{border:1px solid var(--border);border-radius:9px;margin-bottom:.55rem;background:var(--panel-2);overflow:hidden}
-details>summary{padding:.55rem .8rem;cursor:pointer;font-weight:600;list-style:none;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.stats{display:flex;gap:.7rem;flex-wrap:wrap;margin-bottom:.9rem}
+details{border-radius:11px;margin-bottom:.6rem;background:var(--panel-2);overflow:hidden}
+details:last-child{margin-bottom:0}
+details>summary{padding:.72rem .9rem;cursor:pointer;font-weight:600;list-style:none;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
 details>summary::-webkit-details-marker{display:none}
 details>summary::before{content:"\25B8";color:var(--muted);font-size:11px}
 details[open]>summary::before{content:"\25BE"}
-details .inner{padding:.7rem .8rem;border-top:1px solid var(--border)}
+details .inner{padding:.2rem .9rem .9rem}
 .toast{position:fixed;bottom:1rem;right:1rem;z-index:50;display:flex;flex-direction:column;gap:.5rem}
-.toast div{background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:8px;padding:.6rem .8rem;box-shadow:var(--shadow);max-width:340px;font-size:13px;animation:in .15s ease}
-.toast div.ok{border-left-color:var(--ok)} .toast div.err{border-left-color:var(--danger)}
+.toast div{background:var(--panel);border-radius:10px;padding:.7rem .9rem;box-shadow:inset 3px 0 0 var(--accent),var(--shadow);max-width:340px;font-size:13px;animation:in .15s ease}
+.toast div.ok{box-shadow:inset 3px 0 0 var(--ok),var(--shadow)} .toast div.err{box-shadow:inset 3px 0 0 var(--danger),var(--shadow)}
 @keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
-.rollout{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-top:.5rem}
-.rollout input[type=range]{flex:1;min-width:120px;accent-color:var(--accent)}
+.rollout{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-top:.65rem}
+.rollout input[type=range]{-webkit-appearance:none;appearance:none;flex:1;min-width:120px;height:7px;
+  border-radius:999px;cursor:pointer;
+  background:linear-gradient(var(--accent),var(--accent)) 0/var(--fill,0%) 100% no-repeat,var(--chip)}
+.rollout input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.rollout input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+  background:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.rollout input[type=range]::-moz-range-thumb{width:16px;height:16px;border:none;border-radius:50%;
+  background:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .rollout .pct{width:3.8rem;text-align:center}
 .empty{color:var(--muted);padding:.6rem 0;font-style:italic}
 .scroll{overflow-x:auto}
-.err-box{color:var(--danger);background:var(--danger-bg);border:1px solid color-mix(in srgb,var(--danger) 40%,transparent);border-radius:8px;padding:.6rem .8rem;font-size:13px}
+.err-box{color:var(--danger);background:var(--danger-bg);border-radius:9px;padding:.7rem .9rem;font-size:13px}
 svg text{fill:var(--muted);font-size:11px}
-hr{border:none;border-top:1px solid var(--border);margin:.9rem 0}
+hr{border:none;height:0;margin:1.1rem 0}
 .legend{display:flex;gap:1rem;font-size:12px;color:var(--muted);margin:.3rem 0}
 .legend span{display:inline-flex;align-items:center;gap:.35rem}
 .swatch{width:11px;height:11px;border-radius:3px;display:inline-block}
-.ana-h{font:600 11px/1.4 var(--mono);margin:0 0 .6rem;color:var(--accent);text-transform:uppercase;letter-spacing:.13em}
-.ana-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:1rem}
+.ana-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:1.15rem}
 .ana-card{margin:0}
-.ana-card .bd{padding:.9rem 1rem}
-.stats{margin-bottom:.8rem}
+.ana-card .bd{padding:.6rem 1.4rem 1.15rem}
 
 /* ---- app shell + connect gate ---- */
 .logo{line-height:1}
 .gate{min-height:100vh;display:grid;place-items:center;padding:1.5rem;
   background:radial-gradient(1100px 560px at 50% -12%,var(--accent-soft),transparent 62%),var(--bg)}
-.gate-card{width:min(420px,100%);background:var(--panel);border:1px solid var(--border);
-  border-radius:16px;box-shadow:var(--shadow);padding:1.7rem 1.5rem;display:flex;flex-direction:column;gap:.85rem}
-.gate-brand{display:flex;align-items:center;gap:.75rem;margin-bottom:.4rem}
+.gate-card{width:min(420px,100%);background:var(--panel);
+  border-radius:18px;box-shadow:var(--shadow);padding:2rem 1.8rem;display:flex;flex-direction:column;gap:.95rem}
+.gate-brand{display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem}
 .gate-brand .logo{font-size:2rem}
 .gate-brand .gt{font-weight:700;font-size:1.2rem;letter-spacing:-.015em}
 .gate-brand .gs{font:10.5px/1.4 var(--mono);color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-top:.15rem}
 .block{width:100%;justify-content:center;display:inline-flex;align-items:center}
 .gate-foot{display:flex;align-items:center;justify-content:space-between;margin-top:.1rem}
 
-.shell{display:grid;grid-template-columns:284px 1fr;min-height:100vh}
+.shell{display:grid;grid-template-columns:288px 1fr;min-height:100vh}
 .side{position:sticky;top:0;align-self:start;height:100vh;display:flex;flex-direction:column;
-  background:var(--panel);border-right:1px solid var(--border)}
-.side-top{padding:.95rem 1rem;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:.55rem}
+  background:var(--panel)}
+.side-top{padding:1.1rem 1.1rem .9rem;display:flex;flex-direction:column;gap:.6rem}
 .side-top .brand{font-weight:700;font-size:1.08rem;display:flex;align-items:center;gap:.5rem}
 .side-top .logo{font-size:1.25rem}
 .conn{display:flex;align-items:center;gap:.42rem;font:11px/1.4 var(--mono);color:var(--muted);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .side-actions{display:flex;gap:.4rem}
-.side-scroll{flex:1;overflow-y:auto;padding:.75rem}
-.nav-h{font:600 10.5px/1.4 var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--accent);
-  padding:.35rem .55rem .5rem;display:flex;align-items:center;justify-content:space-between}
-.nav-team{margin-top:1rem;border-top:1px solid var(--border);padding-top:.85rem}
-.side-filter{width:100%;margin:0 0 .55rem;padding:.42rem .55rem;font-size:12.5px}
-.side-scroll .applist li{border-bottom:none;border-radius:9px;margin-bottom:.12rem;padding:.5rem .55rem}
-.side-scroll .applist li:hover{background:var(--panel-2)}
-.side-scroll .applist li.active{padding-left:calc(.55rem - 3px)}
-.create{border:1px solid var(--border);border-radius:10px;margin-top:.55rem;background:var(--panel-2)}
-.create>summary{padding:.5rem .7rem;cursor:pointer;font:600 12.5px/1.4 var(--font);list-style:none;color:var(--accent-2)}
+.side-scroll{flex:1;overflow-y:auto;padding:.85rem}
+.nav-h{font:600 10.5px/1.4 var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--muted);
+  padding:.4rem .8rem .55rem;display:flex;align-items:center;justify-content:space-between}
+.nav-team{margin-top:1.4rem;padding-top:.4rem}
+.side-filter{width:100%;margin:0 0 .6rem;padding:.5rem .7rem;font-size:12.5px}
+.side-scroll .applist li{margin-bottom:.15rem}
+.create{border-radius:11px;margin-top:.7rem;background:var(--panel-2)}
+.create>summary{padding:.6rem .8rem;cursor:pointer;font:600 12.5px/1.4 var(--font);list-style:none;color:var(--accent-2)}
 .create>summary::-webkit-details-marker{display:none}
-.create-bd{padding:.65rem .7rem;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:.55rem}
-.main{min-width:0;padding:1.5rem clamp(1rem,3vw,2.25rem)}
+.create-bd{padding:.15rem .8rem .8rem;display:flex;flex-direction:column;gap:.6rem}
+.main{min-width:0;padding:1.75rem clamp(1rem,3.2vw,2.5rem)}
 #detail{max-width:1200px;margin-inline:auto}
 .led.ok{background:var(--ok)}
 
 /* overview / welcome */
-.hero{text-align:center;padding:2.4rem 1rem 1.6rem;color:var(--muted);max-width:600px;margin-inline:auto}
+.hero{text-align:center;padding:2.6rem 1rem 1.6rem;color:var(--muted);max-width:600px;margin-inline:auto}
 .hero .logo{font-size:2.4rem;display:block;margin-bottom:.5rem;opacity:.9}
-.hero h1{font-size:1.4rem;color:var(--text);margin:.2rem 0 .4rem;letter-spacing:-.015em}
-.ovstats{display:flex;gap:.6rem;flex-wrap:wrap;justify-content:center;margin-top:1.2rem}
+.hero h1{font-size:1.45rem;color:var(--text);margin:.2rem 0 .45rem;letter-spacing:-.015em}
+.ovstats{display:flex;gap:.7rem;flex-wrap:wrap;justify-content:center;margin-top:1.3rem}
 
 @media (max-width:820px){
   .shell{grid-template-columns:1fr}
@@ -197,24 +214,24 @@ hr{border:none;border-top:1px solid var(--border);margin:.9rem 0}
 }
 
 /* quick-start / onboarding + copyable code + loading skeletons */
-.qs{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
-  box-shadow:var(--shadow);padding:1.15rem 1.25rem;max-width:640px;margin:1.4rem auto 0;text-align:left}
-.qs h3{margin:0 0 .2rem;font-size:1.02rem;letter-spacing:-.01em}
-.qs p{margin:.15rem 0 .7rem;color:var(--muted);font-size:13px}
-.codeblock{position:relative;background:#141414;color:#e8e8e8;border-radius:10px;
-  padding:.85rem .95rem;font:12px/1.65 var(--mono);overflow-x:auto;white-space:pre;border:1px solid #2b2b2b}
-.copybtn{position:absolute;top:.5rem;right:.5rem;padding:.15rem .5rem;font:600 10px/1.4 var(--mono);
-  letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.08);color:#cfe8ea;
-  border:1px solid rgba(255,255,255,.15);border-radius:6px;cursor:pointer}
-.copybtn:hover{background:rgba(255,255,255,.16);border-color:var(--accent)}
+.qs{background:var(--panel);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:1.35rem 1.45rem;max-width:640px;margin:1.5rem auto 0;text-align:left}
+.qs h3{margin:0 0 .25rem;font-size:1.05rem;letter-spacing:-.01em}
+.qs p{margin:.15rem 0 .8rem;color:var(--muted);font-size:13px}
+.codeblock{position:relative;background:#141414;color:#e8e8e8;border-radius:11px;
+  padding:.95rem 1.05rem;font:12px/1.65 var(--mono);overflow-x:auto;white-space:pre}
+.copybtn{position:absolute;top:.5rem;right:.5rem;padding:.18rem .55rem;font:600 10px/1.4 var(--mono);
+  letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.1);color:#cfe8ea;
+  border:none;border-radius:6px;cursor:pointer}
+.copybtn:hover{background:rgba(255,255,255,.2)}
 @keyframes shimmer{0%{background-position:-450px 0}100%{background-position:450px 0}}
-.skeleton{border-radius:8px;height:14px;margin:.55rem 0;
+.skeleton{border-radius:8px;height:14px;margin:.6rem 0;
   background:linear-gradient(90deg,var(--panel-2) 25%,var(--chip) 37%,var(--panel-2) 63%);
   background-size:900px 100%;animation:shimmer 1.3s infinite linear}
 @media (prefers-reduced-motion:reduce){.skeleton{animation:none}.modal-backdrop,.toast div{animation:none}}
 
 /* patch deployment state + rollout bars */
-.deploys{display:flex;flex-direction:column;gap:.4rem;margin:.55rem 0}
+.deploys{display:flex;flex-direction:column;gap:.5rem;margin:.65rem 0}
 .deploy{display:flex;align-items:center;gap:.6rem;font-size:12.5px}
 .deploy .dch{font:600 12px/1 var(--mono);min-width:66px;color:var(--text)}
 .rbar{position:relative;flex:1;max-width:170px;height:7px;border-radius:999px;background:var(--chip);overflow:hidden}
@@ -224,12 +241,12 @@ hr{border:none;border-top:1px solid var(--border);margin:.9rem 0}
 /* confirm modal */
 .modal-backdrop{position:fixed;inset:0;background:rgba(4,12,15,.55);display:grid;place-items:center;
   z-index:60;animation:in .12s ease}
-.modal{width:min(430px,92vw);background:var(--panel);border:1px solid var(--border);border-radius:14px;
-  box-shadow:var(--shadow);padding:1.25rem 1.35rem}
-.modal h3{margin:0 0 .45rem;font-size:1.08rem;letter-spacing:-.01em}
-.modal p{margin:0 0 1.1rem;color:var(--muted);font-size:13.5px;line-height:1.55}
+.modal{width:min(430px,92vw);background:var(--panel);border-radius:16px;
+  box-shadow:var(--shadow);padding:1.4rem 1.5rem}
+.modal h3{margin:0 0 .5rem;font-size:1.1rem;letter-spacing:-.01em}
+.modal p{margin:0 0 1.2rem;color:var(--muted);font-size:13.5px;line-height:1.55}
 .modal .actions{display:flex;justify-content:flex-end;gap:.6rem}
-.applist li:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:9px}
+.applist li:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:10px}
 </style>
 </head>
 <body>
@@ -304,6 +321,8 @@ hr{border:none;border-top:1px solid var(--border);margin:.9rem 0}
     selectedOrgRole: null,
     me: null,          // current user {user_id,email}
     appFilter: "",     // sidebar app filter text
+    tab: "overview",   // active app-detail tab
+    appData: null,     // cached data for the selected app
   };
 
   const ROLES = ["owner","admin","appManager","developer","viewer"];
@@ -314,6 +333,13 @@ hr{border:none;border-top:1px solid var(--border);margin:.9rem 0}
       {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
   }
   function num(n){ return (n==null||n==="")?"—":Number(n).toLocaleString(); }
+  function fmtBytes(n){
+    n=Number(n)||0;
+    if(n<1024) return n+" B";
+    const u=["KB","MB","GB"]; let i=-1;
+    do{ n/=1024; i++; }while(n>=1024 && i<u.length-1);
+    return n.toFixed(n<10?1:0)+" "+u[i];
+  }
   function relTime(iso){
     if(!iso) return "";
     const t=Date.parse(String(iso));
@@ -365,41 +391,6 @@ hr{border:none;border-top:1px solid var(--border);margin:.9rem 0}
   async function tryApi(method, path, opts){
     try{ return {ok:true, data:await api(method,path,opts)}; }
     catch(e){ return {ok:false, status:e.status, error:e}; }
-  }
-
-  // ---------- inline SVG bar chart ----------
-  // series: [{key,label,color}], rows: [{label, [key]:value}]
-  function barChart(rows, series){
-    if(!rows||!rows.length) return '<div class="empty">No data.</div>';
-    const W=Math.max(320, rows.length*Math.max(60, series.length*26)+60);
-    const H=200, padL=42, padB=34, padT=12, padR=8;
-    const plotW=W-padL-padR, plotH=H-padT-padB;
-    let max=0;
-    rows.forEach(r=>series.forEach(s=>{max=Math.max(max, Number(r[s.key])||0);}));
-    if(max<=0) max=1;
-    const groupW=plotW/rows.length;
-    const barW=Math.min(28,(groupW-8)/series.length);
-    let bars="", axis="", labels="";
-    // y gridlines (4)
-    for(let i=0;i<=4;i++){
-      const v=Math.round(max*i/4);
-      const y=padT+plotH-(plotH*i/4);
-      axis+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="var(--border)" stroke-width="1"/>`;
-      axis+=`<text x="${padL-6}" y="${y+3}" text-anchor="end">${v}</text>`;
-    }
-    rows.forEach((r,ri)=>{
-      const gx=padL+ri*groupW;
-      series.forEach((s,si)=>{
-        const val=Number(r[s.key])||0;
-        const h=plotH*(val/max);
-        const x=gx+(groupW-barW*series.length)/2+si*barW;
-        const y=padT+plotH-h;
-        bars+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(barW-3).toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${s.color}"><title>${esc(r.label)} · ${esc(s.label)}: ${val}</title></rect>`;
-      });
-      labels+=`<text x="${(gx+groupW/2).toFixed(1)}" y="${H-padB+16}" text-anchor="middle">${esc(String(r.label).slice(0,10))}</text>`;
-    });
-    const leg=series.map(s=>`<span><i class="swatch" style="background:${s.color}"></i>${esc(s.label)}</span>`).join("");
-    return `<div class="legend">${leg}</div><div class="scroll"><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;height:auto" role="img">${axis}${bars}${labels}</svg></div>`;
   }
 
   // ---------- render: app list ----------
@@ -584,33 +575,40 @@ hr{border:none;border-top:1px solid var(--border);margin:.9rem 0}
   }
 
   // ---------- app collaborators (in app detail) ----------
-  async function loadCollaborators(appId){
+  // Team tab: app collaborators (org members already have access implicitly).
+  async function renderTeamTab(panel){
+    const appId=state.appData.appId;
+    panel.innerHTML=`<div class="panel"><div class="hd">Collaborators</div><div class="bd"><div class="empty">Loading…</div></div></div>`;
     const res=await tryApi("GET","/admin/apps/"+encodeURIComponent(appId)+"/collaborators");
-    if(!res.ok) return; // not permitted / unavailable — skip silently
+    if(state.tab!=="team" || !state.selected || state.selected.app_id!==appId) return;
+    if(!res.ok){
+      panel.innerHTML=`<div class="panel"><div class="hd">Collaborators</div><div class="bd">`+
+        `<div class="empty">Collaborators unavailable (HTTP ${res.status||"?"}). Organization members already have access to this app.</div></div></div>`;
+      return;
+    }
     const collabs=(res.data&&res.data.collaborators)||[];
-    const sec=document.createElement("div"); sec.className="section";
     let h=`<div class="panel"><div class="hd">Collaborators <span class="pill">${collabs.length}</span></div><div class="bd">`;
-    h+=`<table><thead><tr><th>User</th><th>Role</th><th></th></tr></thead><tbody>`;
+    h+=`<div class="scroll"><table><thead><tr><th>User</th><th>Role</th><th></th></tr></thead><tbody>`;
     if(!collabs.length) h+=`<tr><td colspan="3" class="empty">No collaborators (org members already have access).</td></tr>`;
-    collabs.forEach(c=>{ h+=`<tr><td>${esc(c.email)}</td><td>${esc(c.role)}</td><td><button data-rmcollab="${c.user_id}">Remove</button></td></tr>`; });
-    h+=`</tbody></table>`;
+    collabs.forEach(c=>{ h+=`<tr><td>${esc(c.email)}</td><td>${esc(c.role)}</td><td><button class="sm" data-rmcollab="${c.user_id}">Remove</button></td></tr>`; });
+    h+=`</tbody></table></div>`;
     h+=`<div class="field" style="margin-top:.6rem"><label for="collabEmail">Add collaborator (existing user's email)</label><input id="collabEmail" placeholder="teammate@company.com"></div>`+
        `<div class="field" style="margin:.4rem 0"><label for="collabRole">Role</label><select id="collabRole">${ROLES.map(r=>`<option value="${r}"${r==="developer"?" selected":""}>${r}</option>`).join("")}</select></div>`+
        `<button class="primary" id="addCollabBtn">Add collaborator</button>`;
     h+=`</div></div>`;
-    sec.innerHTML=h;
-    $("detail").appendChild(sec);
-    document.querySelectorAll("[data-rmcollab]").forEach(b=>b.onclick=()=>removeCollab(appId,b.getAttribute("data-rmcollab")));
+    panel.innerHTML=h;
+    panel.querySelectorAll("[data-rmcollab]").forEach(b=>b.onclick=()=>removeCollab(appId,b.getAttribute("data-rmcollab")));
     const add=$("addCollabBtn"); if(add) add.onclick=()=>addCollab(appId);
   }
+  function reloadTeamTab(){ const p=$("tabpanel"); if(p && state.tab==="team") renderTeamTab(p); }
   async function addCollab(appId){
     const email=$("collabEmail").value.trim(); const role=$("collabRole").value;
     if(!email){ toast("Enter an email.","err"); return; }
-    try{ await api("POST","/admin/apps/"+encodeURIComponent(appId)+"/collaborators?email="+encodeURIComponent(email)+"&role="+role); toast("Collaborator added.","ok"); selectApp(state.selected); }
+    try{ await api("POST","/admin/apps/"+encodeURIComponent(appId)+"/collaborators?email="+encodeURIComponent(email)+"&role="+role); toast("Collaborator added.","ok"); reloadTeamTab(); }
     catch(e){ toast("Add failed: "+e.message,"err"); }
   }
   async function removeCollab(appId,userId){
-    try{ await api("DELETE","/admin/apps/"+encodeURIComponent(appId)+"/collaborators/"+userId); toast("Collaborator removed.","ok"); selectApp(state.selected); }
+    try{ await api("DELETE","/admin/apps/"+encodeURIComponent(appId)+"/collaborators/"+userId); toast("Collaborator removed.","ok"); reloadTeamTab(); }
     catch(e){ toast("Remove failed: "+e.message,"err"); }
   }
 
@@ -664,6 +662,7 @@ hr{border:none;border-top:1px solid var(--border);margin:.9rem 0}
   async function selectApp(app){
     state.selected=app;
     state.selectedOrg=null;
+    state.tab="overview";
     renderApps();
     renderTeamOrgs();
     const d=$("detail");
@@ -675,20 +674,139 @@ hr{border:none;border-top:1px solid var(--border);margin:.9rem 0}
       tryApi("GET","/api/v1/apps/"+encodeURIComponent(appId)+"/channels"),
       tryApi("GET","/api/v1/apps/"+encodeURIComponent(appId)+"/metrics"),
     ]);
+    // App may have changed while awaiting (user clicked another app).
+    if(!state.selected || state.selected.app_id!==appId) return;
 
     const releases = relRes.ok ? ((relRes.data&&relRes.data.releases)||[]) : [];
     let channels = [];
     if(chRes.ok){ channels = Array.isArray(chRes.data)?chRes.data:((chRes.data&&chRes.data.channels)||[]); }
     const metrics = mRes.ok ? mRes.data : null;
 
-    d.innerHTML = renderDetail(app, releases, channels, metrics, relRes, mRes);
-    wireDetail(appId, channels);
+    state.appData = {app, appId, releases, channels, metrics, relRes, mRes};
 
-    // Patches per release (endpoint may 404) — load lazily on <details> open.
-    // Analytics (optional) — load and render if present.
-    loadAnalytics(appId);
-    // App collaborators (admin/app access) — appended below.
-    loadCollaborators(appId);
+    d.innerHTML = renderAppShell(app);
+    document.querySelectorAll('.tab[data-tab]').forEach(b=>{
+      b.onclick=()=>selectTab(b.getAttribute("data-tab"));
+    });
+    renderTab(state.tab);
+  }
+
+  // ---------- app-detail shell (tabbed) ----------
+  function renderAppShell(app){
+    const ad=state.appData;
+    let h=`<div class="apphdr"><h1>${esc(app.display_name||app.app_id)}</h1>`+
+      `<button class="pill copy-id" data-copytext="${esc(app.app_id)}" title="Copy app id">${esc(app.app_id)} ⧉</button></div>`;
+    const chSummary=ad.channels.length?ad.channels.map(c=>esc(c.name)).join(", "):"stable";
+    h+=`<div class="muted" style="font:12.5px/1.4 var(--mono);margin-bottom:.3rem">`+
+       `rel ${esc(app.latest_release_version||"—")} · patch ${app.latest_patch_number==null?"—":esc(app.latest_patch_number)} · ${chSummary}</div>`;
+    h+=`<nav class="tabs" role="tablist">`+
+       `<button class="tab" data-tab="overview" role="tab">Overview</button>`+
+       `<button class="tab" data-tab="releases" role="tab">Releases <span class="pill">${ad.releases.length}</span></button>`+
+       `<button class="tab" data-tab="analytics" role="tab">Analytics</button>`+
+       `<button class="tab" data-tab="team" role="tab">Team</button>`+
+       `</nav><div id="tabpanel"></div>`;
+    return h;
+  }
+  function selectTab(id){ state.tab=id; renderTab(id); }
+  function renderTab(id){
+    document.querySelectorAll('.tab[data-tab]').forEach(b=>{
+      b.classList.toggle("active", b.getAttribute("data-tab")===id);
+    });
+    const panel=$("tabpanel");
+    if(!panel) return;
+    if(id==="releases") renderReleasesTab(panel);
+    else if(id==="analytics") renderAnalyticsTab(panel);
+    else if(id==="team") renderTeamTab(panel);
+    else renderOverviewTab(panel);
+  }
+
+  // Overview: headline stats + live patches on the latest release.
+  function renderOverviewTab(panel){
+    const {app, appId, channels, metrics, mRes, releases} = state.appData;
+    let h=`<div class="stats">`;
+    if(mRes.ok){
+      h+=`<div class="stat"><span class="n">${num(metrics&&metrics.total_events)}</span><span class="l">Total events</span></div>`+
+         `<div class="stat"><span class="n">${num(metrics&&metrics.unique_clients)}</span><span class="l">Unique clients</span></div>`;
+    }
+    h+=`<div class="stat"><span class="n" id="liveCount">—</span><span class="l">Live patches</span></div></div>`;
+    const ebt=(metrics&&metrics.events_by_type)||{};
+    const ebtKeys=Object.keys(ebt);
+    if(ebtKeys.length){
+      h+=`<div class="chips" style="margin-bottom:.8rem">`+
+         ebtKeys.map(k=>`<span class="pill">${esc(k)}: ${num(ebt[k])}</span>`).join("")+`</div>`;
+    }
+    h+=`<div class="panel"><div class="hd">Live patches</div>`+
+       `<div class="bd" id="liveBox"><div class="empty">Loading…</div></div></div>`;
+    panel.innerHTML=h;
+    const latest = releases.length ? releases[releases.length-1] : null;
+    if(!latest){ $("liveBox").innerHTML=`<div class="empty">No releases yet — release from your app directory.</div>`; $("liveCount").textContent="0"; return; }
+    loadLivePatches(appId, latest, channels);
+  }
+  async function loadLivePatches(appId, release, channels){
+    const box=$("liveBox"); if(!box) return;
+    const res=await tryApi("GET","/api/v1/apps/"+encodeURIComponent(appId)+"/releases/"+encodeURIComponent(release.id)+"/patches");
+    if(state.tab!=="overview" || !state.selected || state.selected.app_id!==appId) return;
+    const lc=$("liveCount");
+    if(!res.ok){ box.innerHTML=`<div class="empty">Patches unavailable (HTTP ${res.status||"?"}).</div>`; if(lc) lc.textContent="—"; return; }
+    const patches=(res.data&&res.data.patches)||[];
+    const active=patches.filter(p=>(p.deployments||[]).some(d=>d.status==="active" && !d.rolled_back));
+    if(lc) lc.textContent=String(active.length);
+    if(!active.length){ box.innerHTML=`<div class="empty">No patches live on <b>${esc(release.version)}</b>.</div>`; return; }
+    box.innerHTML=`<div class="muted" style="font-size:12px;margin-bottom:.5rem">On latest release <b>${esc(release.version)}</b> — manage older releases under the Releases tab.</div>`+
+      patchCardsHtml(active, channels);
+    wirePatchCards(box, appId, release.id, ()=>loadLivePatches(appId, release, channels));
+  }
+
+  // Releases: full release history with lazily-loaded patches + channels summary.
+  function renderReleasesTab(panel){
+    const {appId, releases, channels, relRes} = state.appData;
+    let h=`<div class="panel"><div class="hd">Releases <span class="pill">${releases.length}</span></div><div class="bd">`;
+    if(!relRes.ok){
+      h+=`<div class="empty">Releases unavailable (HTTP ${relRes.status||"?"}).</div>`;
+    } else if(!releases.length){
+      h+=`<div class="empty" style="margin-bottom:.5rem">No releases yet — publish one from your app directory:</div>`+
+         codeBlock("shorebird release android");
+    } else {
+      const rs=[...releases].reverse(); // newest first
+      rs.forEach(r=>{
+        const ps=r.platform_statuses||{};
+        const pchips=Object.keys(ps).length
+          ? Object.keys(ps).map(pl=>`<span class="chips" style="display:inline-flex">${esc(pl)}&nbsp;${statusPill(ps[pl])}</span>`).join("&nbsp;&nbsp;")
+          : '<span class="muted">no platform status</span>';
+        h+=`<details data-release="${esc(r.id)}"><summary>`+
+           `<b>${esc(r.version)}</b>`+
+           (r.flutter_version?` <span class="pill">Flutter ${esc(r.flutter_version)}</span>`:"")+
+           ` &nbsp; ${pchips}</summary>`+
+           `<div class="inner">`+
+           (r.flutter_revision?`<div class="kv"><span>Flutter rev: <code>${esc(String(r.flutter_revision).slice(0,12))}</code></span>`+
+             (r.created_at?`<span title="${esc(String(r.created_at))}">Created ${esc(relTime(r.created_at))}</span>`:"")+`</div>`:"")+
+           `<div class="patches" data-release="${esc(r.id)}"><div class="empty">Expand to load patches…</div></div>`+
+           `</div></details>`;
+      });
+    }
+    h+=`</div></div>`;
+    h+=`<div class="section"><div class="panel"><div class="hd">Channels</div><div class="bd">`;
+    if(channels.length){
+      h+=`<div class="chips">`+channels.map(c=>`<span class="pill">${esc(c.name)} <span class="muted">#${esc(c.id)}</span></span>`).join("")+`</div>`;
+    } else {
+      h+=`<div class="empty">No channels (rollout defaults to <code>stable</code>).</div>`;
+    }
+    h+=`</div></div></div>`;
+    panel.innerHTML=h;
+    panel.querySelectorAll('details[data-release]').forEach(det=>{
+      det.addEventListener("toggle", ()=>{
+        if(det.open && !det.dataset.loaded){
+          det.dataset.loaded="1";
+          loadPatches(appId, det.dataset.release, channels);
+        }
+      });
+    });
+  }
+
+  // Analytics: the chart grid, loaded lazily the first time the tab opens.
+  function renderAnalyticsTab(panel){
+    panel.innerHTML=`<div class="ana-grid" id="anaGrid"><div class="empty">Loading analytics…</div></div>`;
+    loadAnalytics(state.appData.appId, $("anaGrid"));
   }
 
   function channelOptions(channels){
@@ -737,103 +855,8 @@ hr{border:none;border-top:1px solid var(--border);margin:.9rem 0}
     });
   }
 
-  function renderDetail(app, releases, channels, metrics, relRes, mRes){
-    let h="";
-    // header panel
-    h+=`<div class="panel"><div class="hd"><span>${esc(app.display_name||app.app_id)}</span>`+
-       `<button class="pill copy-id" data-copytext="${esc(app.app_id)}" title="Copy app id">${esc(app.app_id)} ⧉</button></div><div class="bd">`;
-    h+=`<div class="kv"><span>Latest release: <b>${esc(app.latest_release_version||"—")}</b></span>`+
-       `<span>Latest patch: <b>${app.latest_patch_number==null?"—":esc(app.latest_patch_number)}</b></span>`+
-       `<span>Channels: <b>${channels.length?channels.map(c=>esc(c.name)).join(", "):"—"}</b></span></div>`;
-    h+=`</div></div>`;
-
-    // metrics
-    h+=`<div class="section"><div class="panel"><div class="hd">Metrics</div><div class="bd">`;
-    if(!mRes.ok){
-      h+=`<div class="empty">Metrics unavailable (HTTP ${mRes.status||"?"}).</div>`;
-    } else {
-      const patches=(metrics&&metrics.patches)||[];
-      h+=`<div class="stats">`+
-         `<div class="stat"><span class="n">${num(metrics&&metrics.total_events)}</span><span class="l">Total events</span></div>`+
-         `<div class="stat"><span class="n">${num(metrics&&metrics.unique_clients)}</span><span class="l">Unique clients</span></div>`+
-         `<div class="stat"><span class="n">${patches.length}</span><span class="l">Patches w/ data</span></div>`+
-         `</div>`;
-      const ebt=(metrics&&metrics.events_by_type)||{};
-      const ebtKeys=Object.keys(ebt);
-      if(ebtKeys.length){
-        h+=`<div class="chips" style="margin-bottom:.6rem">`+
-           ebtKeys.map(k=>`<span class="pill">${esc(k)}: ${num(ebt[k])}</span>`).join("")+`</div>`;
-      }
-      if(patches.length){
-        const rows=patches.map(p=>({label:"#"+p.patch_number, downloads:p.downloads, installs:p.installs, unique_clients:p.unique_clients}));
-        h+=barChart(rows,[
-          {key:"downloads",label:"Downloads",color:"var(--bar1)"},
-          {key:"installs",label:"Installs",color:"var(--bar2)"},
-        ]);
-        h+=`<div class="scroll"><table><thead><tr><th>Patch</th><th>Downloads</th><th>Installs</th><th>Unique clients</th></tr></thead><tbody>`;
-        patches.forEach(p=>{ h+=`<tr><td>#${esc(p.patch_number)}</td><td>${num(p.downloads)}</td><td>${num(p.installs)}</td><td>${num(p.unique_clients)}</td></tr>`; });
-        h+=`</tbody></table></div>`;
-      } else {
-        h+=`<div class="empty">No patch events yet.</div>`;
-      }
-    }
-    h+=`</div></div></div>`;
-
-    // analytics placeholder (filled async)
-    h+=`<div class="section" id="analyticsWrap"></div>`;
-
-    // releases + patches
-    h+=`<div class="section"><div class="panel"><div class="hd">Releases <span class="pill">${releases.length}</span></div><div class="bd">`;
-    if(!relRes.ok){
-      h+=`<div class="empty">Releases unavailable (HTTP ${relRes.status||"?"}).</div>`;
-    } else if(!releases.length){
-      h+=`<div class="empty" style="margin-bottom:.5rem">No releases yet — publish one from your app directory:</div>`+
-         codeBlock("shorebird release android");
-    } else {
-      // newest first
-      const rs=[...releases].reverse();
-      rs.forEach(r=>{
-        const ps=r.platform_statuses||{};
-        const pchips=Object.keys(ps).length
-          ? Object.keys(ps).map(pl=>`<span class="chips" style="display:inline-flex">${esc(pl)}&nbsp;${statusPill(ps[pl])}</span>`).join("&nbsp;&nbsp;")
-          : '<span class="muted">no platform status</span>';
-        h+=`<details data-release="${esc(r.id)}"><summary>`+
-           `<b>${esc(r.version)}</b>`+
-           (r.flutter_version?` <span class="pill">Flutter ${esc(r.flutter_version)}</span>`:"")+
-           ` &nbsp; ${pchips}</summary>`+
-           `<div class="inner">`+
-           (r.flutter_revision?`<div class="kv"><span>Flutter rev: <code>${esc(String(r.flutter_revision).slice(0,12))}</code></span>`+
-             (r.created_at?`<span title="${esc(String(r.created_at))}">Created ${esc(relTime(r.created_at))}</span>`:"")+`</div>`:"")+
-           `<div class="patches" data-release="${esc(r.id)}"><div class="empty">Expand to load patches…</div></div>`+
-           `</div></details>`;
-      });
-    }
-    h+=`</div></div></div>`;
-
-    // channels + collaborators admin
-    h+=`<div class="section"><div class="panel"><div class="hd">Channels</div><div class="bd">`;
-    if(channels.length){
-      h+=`<div class="chips">`+channels.map(c=>`<span class="pill">${esc(c.name)} <span class="muted">#${esc(c.id)}</span></span>`).join("")+`</div>`;
-    } else {
-      h+=`<div class="empty">No channels (rollout defaults to <code>stable</code>).</div>`;
-    }
-    h+=`</div></div></div>`;
-
-    // Collaborators panel is appended by loadCollaborators() (list + add + remove).
-    return h;
-  }
-
-  function wireDetail(appId, channels){
-    // lazy-load patches when a release <details> opens
-    document.querySelectorAll('details[data-release]').forEach(det=>{
-      det.addEventListener("toggle", ()=>{
-        if(det.open && !det.dataset.loaded){
-          det.dataset.loaded="1";
-          loadPatches(appId, det.dataset.release, channels);
-        }
-      });
-    });
-  }
+  // App-detail content is rendered per-tab by renderOverviewTab /
+  // renderReleasesTab / renderAnalyticsTab / renderTeamTab (see selectApp).
 
   async function loadPatches(appId, releaseId, channels){
     const box=document.querySelector('.patches[data-release="'+CSS.escape(releaseId)+'"]');
@@ -847,6 +870,12 @@ hr{border:none;border-top:1px solid var(--border);margin:.9rem 0}
     }
     const patches=(res.data&&res.data.patches)||[];
     if(!patches.length){ box.innerHTML='<div class="empty">No patches for this release.</div>'; return; }
+    box.innerHTML=patchCardsHtml(patches, channels);
+    wirePatchCards(box, appId, releaseId, ()=>loadPatches(appId, releaseId, channels));
+  }
+
+  // Builds the per-patch cards (deployment state + rollout/withdraw controls).
+  function patchCardsHtml(patches, channels){
     const opts=channelOptions(channels);
     let h="";
     // newest patch first — a timeline of deployment state
@@ -863,6 +892,22 @@ hr{border:none;border-top:1px solid var(--border);margin:.9rem 0}
       else if(deploys.length) state=`<span class="pill">withdrawn</span>`;
       else state=statusPill(p.status||"ready");
       h+=`<div class="card"><div class="title">Patch #${esc(p.number)} ${state}</div>`;
+      // breakdown — what this patch actually is: built artifacts, size, build status, notes
+      const arts=p.artifacts||[];
+      const totalSize=arts.reduce((s,a)=>s+(Number(a.size)||0),0);
+      h+=`<div class="kv" style="margin-top:.2rem">`+
+         `<span>${arts.length} artifact${arts.length===1?"":"s"}</span>`+
+         (totalSize?`<span>${esc(fmtBytes(totalSize))}</span>`:"")+
+         (p.status?`<span>build: <b>${esc(p.status)}</b></span>`:"")+`</div>`;
+      if(arts.length){
+        h+=`<div class="chips" style="margin-top:.5rem">`+
+           arts.map(a=>{
+             const label=`${esc(a.platform||"?")}${a.arch?" · "+esc(a.arch):""}${a.size?" · "+esc(fmtBytes(a.size)):""}`;
+             const tip=a.hash?`SHA-256 ${esc(String(a.hash))}`:"";
+             return `<span class="pill"${tip?` title="${tip}"`:""}>${label}</span>`;
+           }).join("")+`</div>`;
+      }
+      if(p.notes){ h+=`<div class="muted" style="font-size:12.5px;margin-top:.5rem">${esc(p.notes)}</div>`; }
       // per-channel deployment rows with rollout bars
       if(deploys.length){
         h+=`<div class="deploys">`;
@@ -887,15 +932,19 @@ hr{border:none;border-top:1px solid var(--border);margin:.9rem 0}
          `</div>`;
       h+=`</div>`;
     });
-    box.innerHTML=h;
-    // reload this release's patches after a state change (inline refresh)
-    const reload=()=>loadPatches(appId, releaseId, channels);
-    // wire per-patch controls
+    return h;
+  }
+
+  // Wires the rollout sliders + withdraw buttons produced by patchCardsHtml.
+  // `reload` re-fetches and re-renders the container after a state change.
+  function wirePatchCards(box, appId, releaseId, reload){
     box.querySelectorAll('.rollout').forEach(rc=>{
       const pid=rc.dataset.patch;
       const rg=rc.querySelector('.rg'), pct=rc.querySelector('.pct');
-      rg.addEventListener('input',()=>{pct.value=rg.value;});
-      pct.addEventListener('input',()=>{let v=Math.max(0,Math.min(100,Number(pct.value)||0));rg.value=v;});
+      const setFill=()=>rg.style.setProperty('--fill', Math.max(0,Math.min(100,Number(rg.value)||0))+'%');
+      setFill();
+      rg.addEventListener('input',()=>{pct.value=rg.value; setFill();});
+      pct.addEventListener('input',()=>{let v=Math.max(0,Math.min(100,Number(pct.value)||0));rg.value=v; setFill();});
       rc.querySelector('.act-rollout').onclick=()=>{
         const ch=rc.querySelector('.ch').value;
         const percent=Math.max(0,Math.min(100,Number(pct.value)||0));
@@ -1102,10 +1151,8 @@ hr{border:none;border-top:1px solid var(--border);margin:.9rem 0}
     return '<div class="empty">No data.</div>';
   }
 
-  async function loadAnalytics(appId){
-    const wrap=$("analyticsWrap");
+  async function loadAnalytics(appId, wrap){
     if(!wrap) return;
-    wrap.innerHTML=`<h2 class="ana-h">Analytics</h2><div class="empty">Loading analytics…</div>`;
     const base="/api/v1/apps/"+encodeURIComponent(appId)+"/analytics/";
     const [adopt,uu,vd,heat,ah,nd,inst,dl]=await Promise.all([
       tryApi("GET",base+"patch-adoption?granularity=day"),
@@ -1117,8 +1164,8 @@ hr{border:none;border-top:1px solid var(--border);margin:.9rem 0}
       tryApi("GET",base+"patch-installs?window_days=30&granularity=day"),
       tryApi("GET",base+"patch-downloads?window_days=30&granularity=day"),
     ]);
-    // App may have changed while awaiting (user clicked another app).
-    if(!state.selected || state.selected.app_id!==appId) return;
+    // App/tab may have changed while awaiting.
+    if(state.tab!=="analytics" || !state.selected || state.selected.app_id!==appId) return;
     let h="";
     h+=anaCard("Patch adoption", renderAdoption(adopt));
     h+=anaCard("Unique users (30d)", renderUniqueUsers(uu));
@@ -1128,7 +1175,7 @@ hr{border:none;border-top:1px solid var(--border);margin:.9rem 0}
     h+=anaCard("New devices (30d)", renderNewDevices(nd));
     h+=anaCard("Patch installs (30d)", renderPatchMetric(inst,"installs"));
     h+=anaCard("Patch downloads (30d)", renderPatchMetric(dl,"downloads"));
-    wrap.innerHTML=`<h2 class="ana-h">Analytics</h2><div class="ana-grid">`+h+`</div>`;
+    wrap.innerHTML=h;
   }
 
   // GetPatchAdoptionResponse: {release_version,is_latest,granularity,range,as_of,
