@@ -1,3 +1,8 @@
+<!-- cspell:words widnows -->
+<!-- "widnows" is a deliberate misspelling below: an example of the typo the
+     free-form `platform` field accepts. Not a word, so not in the global
+     dictionary. -->
+
 # Shorebird Per-Platform Artifact Matrix (self-host control plane)
 
 Derived from the CLI source (`packages/shorebird_cli`) + protocol

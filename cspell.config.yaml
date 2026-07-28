@@ -1,7 +1,17 @@
 $schema: https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json
 version: "0.2"
 ignorePaths:
-  ["coverage", "bin/cache", "third_party", "build", "*.xcscheme", "fixtures"]
+  [
+    "coverage",
+    "bin/cache",
+    "third_party",
+    "build",
+    "*.xcscheme",
+    "fixtures",
+    # Vendored upstream source (pinned Flutter fork + updater). Third-party
+    # prose and identifiers we don't author and shouldn't be gating on.
+    "vendor",
+  ]
 words:
   - aabs
   - aapt
@@ -14,18 +24,30 @@ words:
   - ANDROIDD
   - apigee
   - Apks
+  - APPB
   - appbundle
+  - appex
   - archs
   - armeabi
+  - AUTOINCREMENT
   - Azul
   - backboardd
+  - BADUP
   - bdero
   - bintools
+  - bipatch
   - bitcode
   - bitrise # Bitrise CI platform
+  - Brody
   - bryanoltman
+  - buildroot
   - buildx # docker buildx, .github/workflows/release_code_push_server.yaml
   - bundletool
+  - byteranges
+  - cdylib
+  - columnized
+  - CURLF
+  - cutover
   - Dalvik # Android Dalvik VM / DEX file format
   - canvaskit
   - carryforward
@@ -37,43 +59,67 @@ words:
   - codesigned
   - codesigning
   - createbuckets # MinIO bucket-init service in docker-compose.prod.yaml
+  - DBPW
+  - Dedup
+  - dedupe
   - deflavored
   - develocity
   - devicectl
   - dorny # From .github dir, doesn't show up in "**" check?
   - dyld
   - dylib
+  - dylibs
+  - eaec
   - endtemplate
   - Entra
   - eseidel
   - exitcode
   - exportoptions
+  - Fastly
   - felangel
+  - Flocalhost
   - FLUSHALL
+  - flutterapp
+  - gclient
   - genhtml
   - genkey # From .github/workflows/e2e.yaml
+  - genpkey
+  - getifaddr
+  - googleusercontent
   - gradlew
+  - gsutil
+  - healthcheck
   - healthz # liveness endpoint
   - HMAC # signed artifact download URLs
+  - hostable
   - hotreload
+  - idempotently
+  - idevicescreenshot
   - idevicesyslog
   - incrbyfloat # From ./packages/redis_client
   - ints
   - iokit
   - iphoneos
   - isatty
+  - isready
+  - kcpw
   - keyalg # From .github/workflows/e2e.yaml
+  - keypair
   - keypass # From .github/workflows/e2e.yaml
   - keysize # From .github/workflows/e2e.yaml
   - keytool # From .github/workflows/e2e.yaml
   - lerping
   - libapp
   - libapps
+  - libexec
   - libflutter
   - libimobiledevice
   - libimobiledeviceglue
   - libplist
+  - libsqlite
+  - libupdater
   - libusbmuxd
+  - lipo
   - lldb
   - LOCALAPPDATA
   - logcat
@@ -85,24 +131,36 @@ words:
   - metacharacters
   - mget # From ./packages/redis_client
   - metadatas
+  - MINPW
   - mktemp
   - mmap # Unix system call — referenced in RELEASE_NOTES (libapp.so mmap-from-APK)
+  - mobileprovision
+  - mockall
   - mocktail
   - mset # From ./packages/redis_client
   - multioption
   - noaudio # From .github dir, doesn't show up in "**" check?
   - NOAUTH
   - nonobvious # From analysis_options.yaml
+  - notafile
   - nserror
   - Oltman
+  - onclick
+  - ONDEVICE
+  - OPPO
   - orri # Arm64 instruction, Or Register with Immediate
+  - outform
+  - ownr
   - parseable
   - patchability
   - pana
+  - PATCHID
   - pbxproj
   - pinact # Third-party action-pinning tool referenced in shorebird_ci
   - Perfetto # Chrome trace viewer at ui.perfetto.dev
+  - PITR
   - pkcs
+  - plutil
   - podfile
   - podspec
   - pointycastle
@@ -113,6 +171,7 @@ words:
   - propertylistserialization
   - propertylistserialization
   - protos # Protocol buffer generated files
+  - pubin
   - pubspec
   - pwsh
   - quantiles
@@ -120,10 +179,25 @@ words:
   - reactivecircus # From .github dir, doesn't show up in "**" check?
   - readlink
   - readyz # readiness endpoint
+  - realkey
+  - recompiles
+  - redirector
   - reimplementation
   - reinit
+  - RELID
+  - rels
+  - repointing
+  - repoints
   - requirepass # From .github dir, doesn't show up in "**" check?
+  - retargeted
+  - retargets
   - reusables
+  - rlib
+  - screencap
+  - SCRIPTDIR
+  - serde
+  - setval
+  - shellcheck
   - spawnee
   - Retryable
   - RSAPKCS
@@ -138,10 +212,14 @@ words:
   - sideloading
   - signup
   - SIGSTOP
+  - spikeapp
   - spoofable # X-Forwarded-For discussion in selfhost/INTEGRATION.md
+  - staticlib
   - storepass # From .github/workflows/e2e.yaml
   - storyboardc
+  - strftime
   - subpackages
+  - Supabase
   - symbolication
   - syskeys # From adb.dart
   - subosito # From .github dir, doesn't show up in "**" check?
@@ -150,19 +228,30 @@ words:
   - tdigest
   - temurin # From .github dir, doesn't show up in "**" check?
   - timebase # Mach timebase (mach_timebase_info)
+  - TIMESTAMPTZ
+  - transactionally
+  - triggerable
+  - trunc
   - udevadm # From .github/workflows/e2e.yaml
   - udid # Unique Device Identifier
   - unanalyzed
   - unawaited
+  - unixepoch
   - unmockable
   - unobfuscated
   - unpadded
+  - unparseable
   - Unpatchable
+  - unrewritten
+  - unserve
+  - unserving
   - unsets
   - unskipped
   - upvote
+  - urandom
   - usbmuxd
   - USERPROFILE
+  - usize
   - VCRUNTIME
   - Verdana
   - vmcode
@@ -184,3 +273,5 @@ words:
   - xcshareddata
   - xcworkspace
   - xlink
+  - yourcompany
+  - zstd
