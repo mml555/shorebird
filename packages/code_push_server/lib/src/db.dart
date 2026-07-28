@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:code_push_server/src/config.dart';
@@ -62,9 +63,22 @@ class PgDb implements Db {
           password: cfg.dbPassword,
         ),
       ],
-      settings: const pg.PoolSettings(
+      settings: pg.PoolSettings(
         maxConnectionCount: 8,
-        sslMode: pg.SslMode.disable,
+        // `Config.validate` rejects anything outside this set at boot, so the
+        // default arm is unreachable in practice. It throws rather than
+        // falling back to `disable`, which would turn a future typo here into
+        // silently unencrypted credentials.
+        sslMode: switch (cfg.dbSslMode) {
+          'disable' => pg.SslMode.disable,
+          'require' => pg.SslMode.require,
+          'verify-full' => pg.SslMode.verifyFull,
+          _ => throw ArgumentError.value(
+            cfg.dbSslMode,
+            'DB_SSL_MODE',
+            'must be one of ${Config.dbSslModes.join(', ')}',
+          ),
+        },
       ),
     );
     return PgDb(pool);
@@ -140,6 +154,12 @@ class _PgTx implements DbSession {
 /// [Db] surface is identical to Postgres. Incoming SQL is the Postgres flavor;
 /// [_translate] rewrites the handful of constructs that differ (types, `now()`,
 /// intervals) and converts `@name` params to positional `?`.
+///
+/// Every access is serialized through [_serialize]. SQLite has a single
+/// connection and no nested transactions, but [tx] awaits an async body — so
+/// without a lock a second request could interleave into an open transaction,
+/// see its `BEGIN` fail, and then `ROLLBACK` the *first* request's work. The
+/// lock makes a transaction atomic with respect to every other database call.
 class SqliteDb implements Db {
   SqliteDb(this._db);
 
@@ -154,14 +174,33 @@ class SqliteDb implements Db {
 
   final sq.Database _db;
 
+  /// Tail of the serialization chain; each queued operation runs after it.
+  Future<void> _lock = Future.value();
+
   @override
   Dialect get dialect => Dialect.sqlite;
+
+  /// Queues [body] behind any in-flight database work. Failures of one queued
+  /// operation never block the next.
+  Future<T> _serialize<T>(Future<T> Function() body) {
+    final done = Completer<T>();
+    final previous = _lock;
+    _lock = done.future.then<void>((_) {}, onError: (_) {});
+    previous.whenComplete(() async {
+      try {
+        done.complete(await body());
+      } on Object catch (e, st) {
+        done.completeError(e, st);
+      }
+    });
+    return done.future;
+  }
 
   @override
   Future<List<Map<String, Object?>>> query(
     String sql, [
     Map<String, Object?> params = const {},
-  ]) async => _run(sql, params);
+  ]) => _serialize(() async => _run(sql, params));
 
   List<Map<String, Object?>> _run(String sql, Map<String, Object?> params) {
     final ordered = <Object?>[];
@@ -176,17 +215,25 @@ class SqliteDb implements Db {
   }
 
   @override
-  Future<T> tx<T>(Future<T> Function(DbSession s) body) async {
+  Future<T> tx<T>(Future<T> Function(DbSession s) body) => _serialize(() async {
+    // The body runs against an unlocked session: the lock is already held by
+    // this transaction, so re-acquiring it per statement would deadlock.
     _db.execute('BEGIN');
     try {
-      final r = await body(this);
+      final r = await body(_SqliteTx(this));
       _db.execute('COMMIT');
       return r;
-    } catch (_) {
-      _db.execute('ROLLBACK');
+    } on Object {
+      // Only this call's own transaction is open, so this can never discard
+      // another request's work. Rollback failures must not mask the original.
+      try {
+        _db.execute('ROLLBACK');
+      } on Object {
+        // ignore: the original error below is the one worth reporting.
+      }
       rethrow;
     }
-  }
+  });
 
   @override
   Future<bool> ping() async {
@@ -236,10 +283,10 @@ class SqliteDb implements Db {
     var s = sql
         // DDL default: must be wrapped in parens in SQLite.
         .replaceAll('DEFAULT now()', 'DEFAULT ($_tsFmt)')
-        // now() + interval 'N days'  ->  strftime(..., '+N days')
+        // now() ± interval 'N days'  ->  strftime(..., '±N days')
         .replaceAllMapped(
-          RegExp(r"now\(\)\s*\+\s*interval\s*'(\d+)\s*days?'"),
-          (m) => "strftime('%Y-%m-%dT%H:%M:%fZ','now','+${m[1]} days')",
+          RegExp(r"now\(\)\s*([-+])\s*interval\s*'(\d+)\s*days?'"),
+          (m) => "strftime('%Y-%m-%dT%H:%M:%fZ','now','${m[1]}${m[2]} days')",
         )
         // bare now()
         .replaceAll('now()', _tsFmt)
@@ -306,6 +353,18 @@ class SqliteDb implements Db {
     if (v is DateTime) return v.toUtc().toIso8601String();
     return v; // int / double / String / Uint8List / null
   }
+}
+
+/// Statements issued inside [SqliteDb.tx], which already holds the lock.
+class _SqliteTx implements DbSession {
+  _SqliteTx(this._db);
+  final SqliteDb _db;
+
+  @override
+  Future<List<Map<String, Object?>>> query(
+    String sql, [
+    Map<String, Object?> params = const {},
+  ]) async => _db._run(sql, params);
 }
 
 /// Coerces a boolean-ish column value across backends: Postgres returns `bool`,

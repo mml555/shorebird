@@ -947,7 +947,10 @@ aar artifact already exists, continuing...''');
     }
   }
 
-  /// Uploads patch artifacts for a specific app/patch combination.
+  /// Uploads patch artifacts for a specific app/patch/platform combination.
+  ///
+  /// A single patch can carry artifacts for several platforms; call this once
+  /// per platform against the same [patch].
   @visibleForTesting
   Future<void> createPatchArtifacts({
     required String appId,
@@ -955,7 +958,9 @@ aar artifact already exists, continuing...''');
     required ReleasePlatform platform,
     required Map<Arch, PatchArtifactBundle> patchArtifactBundles,
   }) async {
-    final createArtifactProgress = logger.progress('Uploading artifacts');
+    final createArtifactProgress = logger.progress(
+      'Uploading ${platform.displayName} artifacts',
+    );
     for (final artifact in patchArtifactBundles.values) {
       try {
         await codePushClient.createPatchArtifact(
@@ -997,15 +1002,27 @@ aar artifact already exists, continuing...''');
   }
 
   /// Publishes a patch to the Shorebird server. This consists of creating a
-  /// patch, uploading patch artifacts, and promoting the patch to a specific
-  /// channel based on the provided [track].
+  /// patch, uploading patch artifacts for every platform in
+  /// [patchArtifactBundles], and promoting the patch to a specific channel
+  /// based on the provided [track].
+  ///
+  /// One patch spans every requested platform: patches are not platform-scoped
+  /// server-side (`POST /apps/:id/patches` takes no platform), and each
+  /// artifact carries its own platform. Publishing this way gives all platforms
+  /// a single patch number and a single promotion, so `--platforms=android,ios`
+  /// ships one logical patch rather than two independent ones.
+  ///
+  /// Promotion happens once, after every artifact has uploaded. This is what
+  /// makes a multi-platform patch atomic from a device's perspective: an
+  /// unpromoted patch is served to nobody, so a failure partway through leaves
+  /// an inert patch instead of a live one covering only some platforms.
   Future<void> publishPatch({
     required String appId,
     required int releaseId,
     required Json metadata,
-    required ReleasePlatform platform,
     required DeploymentTrack track,
-    required Map<Arch, PatchArtifactBundle> patchArtifactBundles,
+    required Map<ReleasePlatform, Map<Arch, PatchArtifactBundle>>
+    patchArtifactBundles,
   }) async {
     final patch = await createPatch(
       appId: appId,
@@ -1013,12 +1030,15 @@ aar artifact already exists, continuing...''');
       metadata: metadata,
     );
 
-    await createPatchArtifacts(
-      appId: appId,
-      patch: patch,
-      platform: platform,
-      patchArtifactBundles: patchArtifactBundles,
-    );
+    for (final MapEntry(key: platform, value: bundles)
+        in patchArtifactBundles.entries) {
+      await createPatchArtifacts(
+        appId: appId,
+        patch: patch,
+        platform: platform,
+        patchArtifactBundles: bundles,
+      );
+    }
 
     final channel =
         await maybeGetChannel(appId: appId, name: track.channel) ??

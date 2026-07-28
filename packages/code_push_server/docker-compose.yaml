@@ -1,7 +1,6 @@
 # Single-container self-hosted Shorebird control plane — the default.
 #
 #   ./setup.sh            # generates secrets, starts this, prints next steps
-#   docker compose up -d  # or start it directly
 #
 # ONE container. No Postgres, no MinIO, no Redis — the server embeds SQLite and
 # stores artifacts on a local volume (/data). That volume is the only thing to
@@ -10,8 +9,19 @@
 # (Postgres + S3/MinIO + Caddy TLS), selected automatically when DATABASE_URL /
 # S3_ENDPOINT are set.
 #
-# Every value has a safe default, so this runs with no .env at all; setup.sh
-# writes one with generated secrets and your device-reachable base URL.
+# Run setup.sh first. There is deliberately no zero-config path: API_KEY and
+# URL_SIGNING_SECRET are required (`:?`) rather than defaulted, because a
+# default committed to this repository is a default every reader of this repo
+# knows. API_KEY authenticates as an owner of the root org — a working one on a
+# reachable port is a full admin bypass — and URL_SIGNING_SECRET forges
+# /download URLs. setup.sh generates both with `openssl rand -hex 32`; the
+# server also refuses to boot on the old placeholder values.
+#
+# The published port is bound to loopback by default. Docker's port publishing
+# bypasses host iptables/ufw rules, so a bare "8080:8080" puts the control
+# plane on every interface of the host regardless of its firewall. Devices need
+# to reach it, so setup.sh sets HOST_BIND=0.0.0.0 together with a real
+# PUBLIC_BASE_URL once secrets exist.
 services:
   server:
     build:
@@ -20,18 +30,31 @@ services:
     image: code-push-server:latest
     restart: unless-stopped
     ports:
-      - "${PORT:-8080}:8080"
+      - "${HOST_BIND:-127.0.0.1}:${PORT:-8080}:8080"
     environment:
       # Embedded in artifact download URLs — MUST be reachable from your device.
       # setup.sh sets this to your LAN IP so Android/iOS devices can reach it.
       PUBLIC_BASE_URL: "${PUBLIC_BASE_URL:-http://localhost:8080}"
       SHOREBIRD_JWT_ISSUER: "${PUBLIC_BASE_URL:-http://localhost:8080}"
-      API_KEY: "${API_KEY:-sb_api_selfhost_dev}"
-      JWT_SECRET: "${JWT_SECRET:-dev-jwt-signing-secret-change-me}"
-      URL_SIGNING_SECRET: "${URL_SIGNING_SECRET:-dev-url-signing-secret}"
+      API_KEY: "${API_KEY:?run ./setup.sh, or set API_KEY to a random value}"
+      URL_SIGNING_SECRET: "${URL_SIGNING_SECRET:?run ./setup.sh, or set URL_SIGNING_SECRET to a random value}"
       LOGIN_EMAIL: "${LOGIN_EMAIL:-you@example.com}"
-      # Set by setup.sh --domain (HTTPS): refuse to boot on dev-default secrets.
+      # Set by setup.sh --domain (HTTPS): adds the production-only checks
+      # (real DB/S3 credentials, https PUBLIC_BASE_URL) on top of the
+      # placeholder-secret checks, which run in every mode.
       PRODUCTION: "${PRODUCTION:-}"
+      # Rate limiting. TRUSTED_PROXIES matters only when something proxies to
+      # this container — the docker-compose.tls.yaml overlay puts Caddy in
+      # front, and Caddy reaches us from the compose bridge network, not
+      # loopback. Without it every request in the deployment shares one bucket;
+      # set too wide and X-Forwarded-For is believed from anyone. See
+      # PRODUCTION.md §9.
+      TRUSTED_PROXIES: "${TRUSTED_PROXIES:-127.0.0.1,::1}"
+      RATE_LIMIT_PER_MINUTE: "${RATE_LIMIT_PER_MINUTE:-600}"
+      RATE_LIMIT_IP_PER_MINUTE: "${RATE_LIMIT_IP_PER_MINUTE:-}"
+      # Hourly retention sweeps; empty/0 keeps everything (the default).
+      EVENT_RETENTION_DAYS: "${EVENT_RETENTION_DAYS:-}"
+      AUDIT_RETENTION_DAYS: "${AUDIT_RETENTION_DAYS:-}"
       # SQLite + filesystem artifacts live here (the volume below).
       DATA_DIR: /data
     volumes:

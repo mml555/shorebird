@@ -5,12 +5,21 @@
 # real sha256 verification, lifecycle gating, withdraw/rollback, and range.
 #
 # Usage:
-#   dart run bin/server.dart &
+#   ./setup.sh                        # writes .env with a generated API_KEY
 #   tool/smoke_test.sh                # or: BASE=... KEY=... tool/smoke_test.sh
 set -euo pipefail
 
 B="${BASE:-http://localhost:8080}"
-KEY="${KEY:-sb_api_selfhost_dev}"
+# KEY used to default to the published placeholder `sb_api_selfhost_dev`, which
+# `Config.validate()` now rejects at boot in every mode -- no server that starts
+# can accept it, so the default only bought a confusing 403 on the first
+# authenticated call below. Fall back to the API_KEY setup.sh generated into
+# .env, and otherwise say what to do rather than guessing.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ -z "${KEY:-}" && -f "$ROOT/.env" ]]; then
+  KEY="$(sed -n 's/^[[:space:]]*API_KEY=//p' "$ROOT/.env" | tail -1)"
+fi
+: "${KEY:?set KEY=<api key>, or run ./setup.sh to generate .env}"
 # Extra curl flags — e.g. CURL_OPTS=-k to accept a self-signed cert when testing
 # against a local TLS (Caddy `tls internal`) endpoint.
 CURL_OPTS="${CURL_OPTS:-}"

@@ -18,11 +18,14 @@ class Config {
     required this.s3Bucket,
     required this.s3UseSsl,
     required this.urlSigningSecret,
-    required this.jwtSecret,
     required this.jwtIssuer,
     required this.downloadUrlTtl,
     required this.rateLimitPerMinute,
     required this.rateLimitShared,
+    this.rateLimitIpPerMinute,
+    this.trustedProxies = defaultTrustedProxies,
+    this.eventRetentionDays = 0,
+    this.auditRetentionDays = 0,
     required this.uploadMethod,
     required this.idpClientId,
     required this.idpClientSecret,
@@ -35,6 +38,8 @@ class Config {
     required this.dataDir,
     required this.maxUploadBytes,
     required this.logFormat,
+    required this.dbSslMode,
+    required this.loginEmail,
   });
 
   factory Config.fromEnv() {
@@ -65,7 +70,10 @@ class Config {
       logFormat: env['LOG_FORMAT'] == 'json' ? 'json' : 'text',
       port: port,
       publicBaseUrl: env['PUBLIC_BASE_URL'] ?? 'http://localhost:$port',
-      bootstrapApiKey: env['API_KEY'] ?? 'sb_api_selfhost_dev',
+      // Placeholders only, so an unset value produces a named config error
+      // from [validate] rather than a confusing empty-string failure. Neither
+      // is accepted at boot — see [devApiKey].
+      bootstrapApiKey: env['API_KEY'] ?? devApiKey,
       dbHost: dbUri.host,
       dbPort: dbUri.hasPort ? dbUri.port : 5432,
       dbName: dbUri.pathSegments.isNotEmpty
@@ -81,8 +89,18 @@ class Config {
       s3SecretKey: env['S3_SECRET_KEY'] ?? 'cps-secret',
       s3Bucket: env['S3_BUCKET'] ?? 'code-push-artifacts',
       s3UseSsl: s3.scheme == 'https',
-      urlSigningSecret: env['URL_SIGNING_SECRET'] ?? 'dev-url-signing-secret',
-      jwtSecret: env['JWT_SECRET'] ?? 'dev-jwt-signing-secret-change-me',
+      urlSigningSecret: env['URL_SIGNING_SECRET'] ?? devUrlSigningSecret,
+      // TLS to Postgres. `disable` (default, in-network compose) / `require`
+      // (encrypt, no cert verification) / `verify-full` (encrypt + verify).
+      // Use `verify-full` for a managed/external database.
+      //
+      // Kept verbatim rather than coerced: a `switch` with a `_ => 'disable'`
+      // arm silently downgrades a typo like `verify_full` or `required` to
+      // plaintext. [validate] rejects anything unrecognized instead.
+      dbSslMode: env['DB_SSL_MODE'] ?? 'disable',
+      // The identity `/login` self-consents as when no external IdP is
+      // configured. Never taken from the request — see Api.login.
+      loginEmail: env['LOGIN_EMAIL'] ?? 'owner@self-host.local',
       jwtIssuer:
           env['SHOREBIRD_JWT_ISSUER'] ??
           env['JWT_ISSUER'] ??
@@ -91,6 +109,10 @@ class Config {
         seconds: int.parse(env['DOWNLOAD_URL_TTL'] ?? '300'),
       ),
       rateLimitPerMinute: int.parse(env['RATE_LIMIT_PER_MINUTE'] ?? '600'),
+      rateLimitIpPerMinute: int.tryParse(env['RATE_LIMIT_IP_PER_MINUTE'] ?? ''),
+      trustedProxies: _parseTrustedProxies(env['TRUSTED_PROXIES']),
+      eventRetentionDays: int.tryParse(env['EVENT_RETENTION_DAYS'] ?? '') ?? 0,
+      auditRetentionDays: int.tryParse(env['AUDIT_RETENTION_DAYS'] ?? '') ?? 0,
       rateLimitShared: env['RATE_LIMIT_BACKEND'] == 'postgres',
       uploadMethod: env['UPLOAD_METHOD'] == 'resumable'
           ? 'resumable'
@@ -106,18 +128,75 @@ class Config {
     );
   }
 
-  /// In production mode, refuse to boot with dev-default secrets. Returns the
-  /// list of problems (empty = ok); the caller aborts if non-empty.
+  /// The set of values [dbSslMode] may take. Anything else is a config error
+  /// rather than a silent fallback — see [validate].
+  static const dbSslModes = {'disable', 'require', 'verify-full'};
+
+  /// The placeholder [bootstrapApiKey] / [urlSigningSecret] that ship in this
+  /// repository. Both are published, so neither is ever a valid runtime value —
+  /// see [validate].
+  static const devApiKey = 'sb_api_selfhost_dev';
+  static const devUrlSigningSecret = 'dev-url-signing-secret';
+
+  /// The `LOGIN_EMAIL` placeholder shipped in `docker-compose.yaml`,
+  /// `.env.example`, and `setup.sh`'s local branch. Unlike the secrets above
+  /// this is not fatal — a local stack in self-consent mode legitimately signs
+  /// in as it — but it is never a real operator identity, so the root-org grant
+  /// it receives must not survive into IdP mode. See `Repository.open`.
+  ///
+  /// Deliberately excludes `owner@self-host.local`: that is seeded as user 1,
+  /// the identity the bootstrap `API_KEY` authenticates as, and revoking its
+  /// membership would break the bootstrap key.
+  static const placeholderLoginEmail = 'you@example.com';
+
+  /// Refuses to boot on a misconfiguration: published placeholder secrets (in
+  /// every mode), dev-default infrastructure credentials in production, and
+  /// settings whose wrong value fails open. Returns the list of problems
+  /// (empty = ok); the caller aborts if non-empty.
   List<String> validate() {
-    if (!production) return const [];
     final problems = <String>[];
-    if (jwtSecret == 'dev-jwt-signing-secret-change-me') {
-      problems.add('JWT_SECRET');
+    // Checked in every mode, not just production: an unrecognized value used
+    // to fall through to `disable`, so a typo (`verify_full`, `required`,
+    // `VERIFY-FULL`) sent the database credentials over the wire in the clear
+    // with no error and no warning.
+    if (!dbSslModes.contains(dbSslMode)) {
+      problems.add(
+        'DB_SSL_MODE="$dbSslMode" must be one of ${dbSslModes.join(', ')}',
+      );
     }
-    if (urlSigningSecret == 'dev-url-signing-secret') {
-      problems.add('URL_SIGNING_SECRET');
+    // Checked in every mode, NOT just production. These two literals are
+    // committed to this repository, so anyone can read them:
+    //
+    //   * API_KEY authenticates as user 1, an owner of the root org — the
+    //     identity `_authorizeServerAdmin` treats as an operator of the whole
+    //     deployment. `POST /admin/users` then mints a durable key for any
+    //     address, and any patch can be promoted to every device.
+    //   * URL_SIGNING_SECRET forges `/download` URLs, which are public by
+    //     design and gated only by that HMAC.
+    //
+    // Gating these behind PRODUCTION is what made `docker compose up -d` with
+    // no .env a network-reachable admin bypass: nothing in the zero-config
+    // path sets PRODUCTION, so the guard never ran. There is no deployment —
+    // local, CI, or otherwise — where a published credential is the right
+    // value, so fail closed everywhere and let setup.sh (or an explicit env
+    // var) supply a real one.
+    if (urlSigningSecret == devUrlSigningSecret) {
+      problems.add(
+        'URL_SIGNING_SECRET is the published placeholder; set it to a random '
+        'value (openssl rand -hex 32) or run ./setup.sh',
+      );
     }
-    if (bootstrapApiKey == 'sb_api_selfhost_dev') problems.add('API_KEY');
+    if (bootstrapApiKey == devApiKey) {
+      problems.add(
+        'API_KEY is the published placeholder; set it to a random value '
+        '(sb_api_\$(openssl rand -hex 32)) or run ./setup.sh',
+      );
+    }
+    // An empty key would otherwise match a blank `Authorization: Bearer `
+    // header and authenticate the caller as the seeded owner. To retire the
+    // bootstrap key, set it to a fresh random value nobody holds.
+    if (bootstrapApiKey.isEmpty) problems.add('API_KEY must not be empty');
+    if (!production) return problems;
     // DB/object-store credential checks apply only to the backend in use.
     if (dbBackend == 'postgres' &&
         (dbPassword.isEmpty || dbPassword == 'cps')) {
@@ -160,19 +239,49 @@ class Config {
   /// HMAC secret for short-lived signed download URLs.
   final String urlSigningSecret;
 
-  /// HMAC secret for minting session JWTs (OAuth login).
-  final String jwtSecret;
-
   /// The `iss` claim stamped into JWTs; must equal the CLI's
   /// `SHOREBIRD_JWT_ISSUER` and the `jwt_issuer` returned by `/users/me`.
   final String jwtIssuer;
 
   final Duration downloadUrlTtl;
+
+  /// Per-principal request cap: one window per bearer token.
   final int rateLimitPerMinute;
+
+  /// Explicit `RATE_LIMIT_IP_PER_MINUTE`; null means derive it. Read through
+  /// [ipRateLimitPerMinute].
+  final int? rateLimitIpPerMinute;
+
+  /// Per-source-IP request cap, and the ceiling that actually holds: a bearer
+  /// token is client-supplied and is not validated until after the rate-limit
+  /// middleware runs, so a caller can mint a fresh per-principal window on
+  /// every request just by rotating it. Defaults to 10x [rateLimitPerMinute],
+  /// since one NAT egress IP legitimately carries many principals.
+  int get ipRateLimitPerMinute =>
+      rateLimitIpPerMinute ?? rateLimitPerMinute * 10;
+
+  /// Reverse proxies whose `X-Forwarded-For` this server believes: literal
+  /// IPs, IPv4 CIDR blocks, or `*` for "any peer". Defaults to loopback only.
+  ///
+  /// The header is attacker-controlled, so trusting it from an arbitrary peer
+  /// turns every IP-keyed limit into a no-op — a rotating XFF buys a fresh
+  /// bucket per request. See [trustsProxy].
+  final Set<String> trustedProxies;
 
   /// When true, rate-limit counters live in Postgres (correct across restarts
   /// and multiple nodes); otherwise an in-process fixed window (dev/single-node).
   final bool rateLimitShared;
+
+  /// Days of device events to keep; `0` (the default) keeps them forever.
+  ///
+  /// `events` gets one row per device check-in from a public endpoint, so it is
+  /// the fastest-growing table here and nothing sweeps it — but it is also what
+  /// every analytics query reads, so discarding history is the operator's call,
+  /// not a default. Set it if the data volume matters more than the history.
+  final int eventRetentionDays;
+
+  /// Days of audit entries to keep; `0` (the default) keeps them forever.
+  final int auditRetentionDays;
 
   /// Artifact upload method advertised on register: 'multipart' (single POST)
   /// or 'resumable' (GCS-style chunked PUT with Content-Range).
@@ -210,4 +319,83 @@ class Config {
   /// Request/error log format: `text` (human-readable, default) or `json`
   /// (one structured object per line, for aggregators like Loki/ELK).
   final String logFormat;
+
+  /// TLS mode for the Postgres connection: `disable` (default), `require`, or
+  /// `verify-full`. Anything other than `disable` sends credentials encrypted.
+  final String dbSslMode;
+
+  /// The identity `/login` self-consents as when [idpEnabled] is false. This is
+  /// server-side configuration only; a request can never choose its own
+  /// identity.
+  final String loginEmail;
+
+  /// True when [peerIp] — the socket peer, not anything it claims to be — is a
+  /// proxy listed in [trustedProxies], and its `X-Forwarded-For` may therefore
+  /// be used as the client's identity.
+  /// `TRUSTED_PROXIES=*`: believe `X-Forwarded-For` from any peer. Meant for a
+  /// proxy whose address can't be pinned (a dynamic or IPv6 load balancer).
+  ///
+  /// The weakest setting, and only safe when nothing but that proxy can reach
+  /// this server: any caller that can connect directly picks its own bucket by
+  /// writing the header, so every IP-keyed limit becomes rotatable again.
+  bool get trustsAnyProxy => trustedProxies.contains('*');
+
+  bool trustsProxy(String? peerIp) {
+    if (trustsAnyProxy) return true;
+    if (peerIp == null || trustedProxies.isEmpty) return false;
+    final ip = normalizeIp(peerIp);
+    for (final entry in trustedProxies) {
+      if (normalizeIp(entry) == ip) return true;
+      if (entry.contains('/') && _inCidr(ip, entry)) return true;
+    }
+    return false;
+  }
+
+  /// Unwraps an IPv4-mapped IPv6 address (`::ffff:10.0.0.1`), which is how a
+  /// dual-stack listener reports an IPv4 peer, so it compares equal to the
+  /// plain IPv4 form an operator would write in `TRUSTED_PROXIES`.
+  static String normalizeIp(String ip) =>
+      ip.startsWith('::ffff:') ? ip.substring('::ffff:'.length) : ip;
+
+  /// IPv4 CIDR containment (`172.16.0.0/12`, the Docker bridge range). An
+  /// entry that doesn't parse is simply not a match — a malformed
+  /// `TRUSTED_PROXIES` must never widen trust.
+  static bool _inCidr(String ip, String cidr) {
+    final slash = cidr.indexOf('/');
+    final bits = int.tryParse(cidr.substring(slash + 1));
+    if (bits == null || bits < 0 || bits > 32) return false;
+    final addr = _ipv4(ip);
+    final network = _ipv4(cidr.substring(0, slash));
+    if (addr == null || network == null) return false;
+    if (bits == 0) return true;
+    final mask = (0xFFFFFFFF << (32 - bits)) & 0xFFFFFFFF;
+    return (addr & mask) == (network & mask);
+  }
+
+  static int? _ipv4(String s) {
+    final parts = s.split('.');
+    if (parts.length != 4) return null;
+    var out = 0;
+    for (final part in parts) {
+      final n = int.tryParse(part);
+      if (n == null || n < 0 || n > 255) return null;
+      out = (out << 8) | n;
+    }
+    return out;
+  }
+
+  /// A reverse proxy on the same host is the one peer that is safe to believe
+  /// without being told about it.
+  static const defaultTrustedProxies = {'127.0.0.1', '::1'};
+
+  /// `TRUSTED_PROXIES` is a comma-separated list. Unset keeps the loopback
+  /// default (a proxy on the same host); set-but-empty trusts nothing.
+  static Set<String> _parseTrustedProxies(String? raw) {
+    if (raw == null) return defaultTrustedProxies;
+    return raw
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toSet();
+  }
 }

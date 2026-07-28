@@ -2,7 +2,17 @@ import 'package:code_push_server/src/config.dart';
 
 /// A [Config] for an embedded SQLite + filesystem backend rooted at [dataDir].
 /// Shared by the backend integration tests (db_test, analytics_test).
-Config sqliteConfig(String dataDir) => Config(
+Config sqliteConfig(
+  String dataDir, {
+  Set<String> trustedProxies = Config.defaultTrustedProxies,
+  int? rateLimitPerMinute,
+  int? rateLimitIpPerMinute,
+  bool rateLimitShared = false,
+  String? loginEmail,
+  bool idpEnabled = false,
+}) => Config(
+  trustedProxies: trustedProxies,
+  rateLimitIpPerMinute: rateLimitIpPerMinute,
   port: 8080,
   publicBaseUrl: 'http://localhost:8080',
   bootstrapApiKey: 'sb_api_selfhost_dev',
@@ -18,16 +28,17 @@ Config sqliteConfig(String dataDir) => Config(
   s3Bucket: 'code-push-artifacts',
   s3UseSsl: false,
   urlSigningSecret: 'x',
-  jwtSecret: 'x',
   jwtIssuer: 'http://localhost:8080',
   downloadUrlTtl: const Duration(seconds: 300),
-  rateLimitPerMinute: 600,
-  rateLimitShared: false,
+  rateLimitPerMinute: rateLimitPerMinute ?? 600,
+  rateLimitShared: rateLimitShared,
   uploadMethod: 'multipart',
-  idpClientId: '',
-  idpClientSecret: '',
-  idpAuthorizeUrl: '',
-  idpTokenUrl: '',
+  // All three must be non-empty for Config.idpEnabled; setting one is not
+  // enough, so flip them together.
+  idpClientId: idpEnabled ? 'client-id' : '',
+  idpClientSecret: idpEnabled ? 'client-secret' : '',
+  idpAuthorizeUrl: idpEnabled ? 'https://idp.test/authorize' : '',
+  idpTokenUrl: idpEnabled ? 'https://idp.test/token' : '',
   idpScopes: 'openid email',
   production: false,
   dbBackend: 'sqlite',
@@ -35,4 +46,6 @@ Config sqliteConfig(String dataDir) => Config(
   dataDir: dataDir,
   maxUploadBytes: 536870912,
   logFormat: 'text',
+  dbSslMode: 'disable',
+  loginEmail: loginEmail ?? 'owner@self-host.local',
 );

@@ -164,9 +164,15 @@ require app access. Also drives the console's Team UI.
 
 ### Users & API keys
 
-| Method | Path | Response |
-|---|---|---|
-| POST | `/admin/users?email=&name=` | `{"user_id","email","api_key"}` — creates/updates a user and issues an API key (shown once) |
+| Method | Path | Auth | Response |
+|---|---|---|---|
+| POST | `/admin/users?email=&name=` | root-org owner/admin | `{"user_id","email","api_key"}` — creates/updates a user and issues an API key (shown once) |
+
+This route returns the **existing** account on an email conflict, so it can
+hand out a fresh key for an address that already exists. It is therefore
+restricted to an owner/admin of the root organization — the identity the
+bootstrap `API_KEY` maps to. Any other caller gets **403**; app-level admin on
+some app is not enough. To add someone to *your* org instead, use an invitation.
 
 ### Organization members
 
@@ -227,7 +233,8 @@ time-bucketed series need not sum to the window total.
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/login?...` | start `shorebird login` — self-consents `LOGIN_EMAIL`, or redirects to the external IdP when `IDP_*` is configured |
+| GET | `/login?continue=<loopback>` | start `shorebird login`. Self-consent mode returns an API-key form; broker mode redirects to the external IdP. `continue` must be a loopback URL |
+| POST | `/login` | self-consent credential check (form: `continue`, `api_key`); a valid key 302s to `continue` with an auth code, otherwise 401 |
 | GET | `/oauth/callback` | IdP redirect target; exchanges the IdP code and issues our own auth code |
 | POST | `/token` | exchange auth code / refresh token → `{access_token, refresh_token, …}` (RS256 JWT; codes + refresh tokens are single-use, persisted, rotated) |
 | POST | `/api/logout` | bearer is the refresh token; revokes it |

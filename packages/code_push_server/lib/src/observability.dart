@@ -110,6 +110,16 @@ class Metrics {
 
   int inFlight = 0;
 
+  /// Requests that carried an `X-Forwarded-For` from a peer not listed in
+  /// `TRUSTED_PROXIES`, so the header was ignored and the peer's own address
+  /// was used for rate limiting instead.
+  ///
+  /// Steadily non-zero means a real reverse proxy is missing from
+  /// `TRUSTED_PROXIES`: every client behind it shares one rate-limit bucket and
+  /// will start seeing 429s. Worth alerting on — unlike the accompanying log
+  /// line, this is not rate limited.
+  int untrustedForwardedFor = 0;
+
   void record(String method, int status, int durationMs) {
     final key = '$method|${status ~/ 100}xx';
     _requests[key] = (_requests[key] ?? 0) + 1;
@@ -155,6 +165,12 @@ class Metrics {
       'code_push_request_duration_seconds_sum ${_durationSum.toStringAsFixed(6)}',
     );
     b.writeln('code_push_request_duration_seconds_count $_durationCount');
+    b.writeln(
+      '# HELP code_push_untrusted_forwarded_for_total Requests whose '
+      'X-Forwarded-For was ignored because the peer is not in TRUSTED_PROXIES.',
+    );
+    b.writeln('# TYPE code_push_untrusted_forwarded_for_total counter');
+    b.writeln('code_push_untrusted_forwarded_for_total $untrustedForwardedFor');
     return b.toString();
   }
 }

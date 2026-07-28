@@ -33,41 +33,61 @@ are set, so `dart test` stays green in CI without a live stack.
 | `DATABASE_URL`    | Postgres connection string                           | `postgres://cps:cps@localhost:5432/cps`   |
 | `S3_ENDPOINT`     | S3 / MinIO endpoint                                  | `http://localhost:19000`                  |
 | `BASE_URL`        | Base URL of the running server (a.k.a. `BASE` below) | `http://localhost:8080`                   |
-| `API_KEY`         | Bearer API key the server accepts                    | `sb_api_selfhost_dev`                     |
+| `API_KEY`         | Bearer API key the server accepts                    | the value in your `.env`                  |
 
 `S3_ACCESS_KEY`, `S3_SECRET_KEY`, and `S3_BUCKET` may also be set; they default
 to `cps` / `cps-secret` / `code-push-artifacts`.
 
+> **There is no zero-config path.** `API_KEY` and `URL_SIGNING_SECRET` are both
+> published placeholders in this repository, so `Config.validate()` refuses to
+> boot with either of them — in *every* mode, not just production. `docker
+> compose up` fails on the `${API_KEY:?}` guard and `dart run bin/server.dart`
+> exits `78`. Generate real values first; every command below assumes you have.
+
 ## Running the full flow
 
-1. Bring up Postgres + MinIO (see `docker-compose.yaml`):
+1. Generate secrets into `.env` (once):
+
+   ```bash
+   ./setup.sh
+   ```
+
+   Or, to stay out of Docker, export them yourself:
+
+   ```bash
+   export API_KEY="sb_api_$(openssl rand -hex 32)"
+   export URL_SIGNING_SECRET="$(openssl rand -hex 32)"
+   ```
+
+2. Bring up Postgres + MinIO (see `docker-compose.yaml`):
 
    ```bash
    docker compose up -d
    ```
 
-2. Start the server:
+3. Start the server (skip if `setup.sh` already started the stack):
 
    ```bash
    dart run bin/server.dart &
    ```
 
-3. Run the smoke test (the source of truth for the integration flow):
+4. Run the smoke test (the source of truth for the integration flow). With no
+   `KEY` it reads `API_KEY` from `.env`:
 
    ```bash
    tool/smoke_test.sh
    # or point it at another host / key:
-   BASE=http://localhost:8080 KEY=sb_api_selfhost_dev tool/smoke_test.sh
+   BASE=http://localhost:8080 KEY="$API_KEY" tool/smoke_test.sh
    ```
 
-4. Optionally run the Dart wrapper (opt-in):
+5. Optionally run the Dart wrapper (opt-in):
 
    ```bash
    INTEGRATION=1 \
    DATABASE_URL=postgres://cps:cps@localhost:5432/cps \
    S3_ENDPOINT=http://localhost:19000 \
    BASE_URL=http://localhost:8080 \
-   API_KEY=sb_api_selfhost_dev \
+   API_KEY="$API_KEY" \
    dart test --tags integration
    ```
 

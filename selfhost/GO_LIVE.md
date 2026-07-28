@@ -60,7 +60,9 @@ you provision them yourself (Shape B/C):
   to know.
 - **Secrets management** — for Shape B/C, source the `.env` secrets from a
   secret manager rather than a file on disk; keep a rotation plan. `config.dart`
-  `validate()` already refuses dev-default secrets when `PRODUCTION=true`.
+  `validate()` already refuses the published placeholder `API_KEY` /
+  `URL_SIGNING_SECRET` in every mode, and dev-default DB/S3 credentials when
+  `PRODUCTION=true`.
 
 ---
 

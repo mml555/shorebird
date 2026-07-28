@@ -11,7 +11,7 @@
 # Env:
 #   APP_DIR         Flutter app dir (has shorebird.yaml / lib/main.dart)   [required]
 #   BASE_URL / $3   server base url, LAN-reachable from the device   [default http://10.0.0.7:8091]
-#   SHOREBIRD_TOKEN API key (default sb_api_selfhost_dev); or rely on an OAuth session
+#   SHOREBIRD_TOKEN API key; defaults to the API_KEY in .env written by setup.sh
 #   SHOTS           screenshot output dir                            [default /tmp/cps_shots]
 set -euo pipefail
 
@@ -19,7 +19,15 @@ PLATFORM="${1:?usage: e2e_device.sh <android|ios> <device> [base_url]}"
 DEVICE="${2:?device id required}"
 BASE="${3:-${BASE_URL:-http://10.0.0.7:8091}}"
 APP_DIR="${APP_DIR:?set APP_DIR to the Flutter app dir}"
-KEY="${SHOREBIRD_TOKEN:-sb_api_selfhost_dev}"
+# Was defaulted to the published placeholder `sb_api_selfhost_dev`, which the
+# server now refuses to boot with (see Config.validate), so it could never
+# authenticate. Read the key setup.sh generated instead.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+KEY="${SHOREBIRD_TOKEN:-}"
+if [[ -z "$KEY" && -f "$ROOT/.env" ]]; then
+  KEY="$(sed -n 's/^[[:space:]]*API_KEY=//p' "$ROOT/.env" | tail -1)"
+fi
+: "${KEY:?set SHOREBIRD_TOKEN=<api key>, or run ./setup.sh to generate .env}"
 SHOTS="${SHOTS:-/tmp/cps_shots}"; mkdir -p "$SHOTS"
 PKG=com.example.spikeapp
 MAIN="$APP_DIR/lib/main.dart"

@@ -43,8 +43,9 @@ Still a single container — just add Caddy TLS in front:
 ```
 
 Needs DNS pointing at the host and ports 80/443 open; you get an automatic Let's
-Encrypt certificate and `PRODUCTION=true` (refuses to boot on dev-default
-secrets). Only when you need horizontal scale do you add Postgres + S3/MinIO with
+Encrypt certificate and `PRODUCTION=true` (adds the DB/S3-credential and HTTPS
+checks; the published placeholder `API_KEY` / `URL_SIGNING_SECRET` are refused
+in every mode). Only when you need horizontal scale do you add Postgres + S3/MinIO with
 `./setup.sh --scale --domain …`.
 
 Backups: `./setup.sh --backup` snapshots the data volume, `--restore <file>`

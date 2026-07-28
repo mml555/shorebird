@@ -149,6 +149,24 @@ class Repository {
     final repo = Repository(db);
     await repo._migrate();
     await repo._seed();
+    // Only in self-consent mode. With an IdP broker configured, LOGIN_EMAIL is
+    // documented as ignored (IDP_SETUP.md, .env.example) and setup.sh's local
+    // branch leaves the placeholder `you@example.com` behind, so honoring it
+    // here would grant root-org ownership — and with it `POST /admin/users`,
+    // which issues an API key for any address — to whoever can present that
+    // identity to the IdP.
+    if (cfg.idpEnabled) {
+      // Skipping the grant only helps a stack that had the IdP configured from
+      // its first boot. A stack that ran in self-consent mode first already has
+      // the placeholder in `org_members`, and that row outlives the config
+      // change: `_auth` resolves an IdP identity through `userByEmail`, so
+      // whoever can present `you@example.com` to the broker lands on a root-org
+      // owner. Undo the grant we made rather than leaving it for the operator
+      // to notice.
+      await repo.revokeSeededRootOwner(Config.placeholderLoginEmail);
+    } else {
+      await repo.ensureRootOwner(cfg.loginEmail);
+    }
     return repo;
   }
 
@@ -189,6 +207,38 @@ class Repository {
               expires_at TIMESTAMPTZ NOT NULL, accepted_at TIMESTAMPTZ)''',
       ],
     ),
+    (3, _v3Indexes),
+    (
+      4,
+      [
+        // CSRF state for the external-IdP broker flow. Persisted (not in
+        // process memory) so it survives restarts and works across replicas.
+        '''CREATE TABLE IF NOT EXISTS idp_states(
+              state TEXT PRIMARY KEY, continue_url TEXT NOT NULL,
+              expires_at TIMESTAMPTZ NOT NULL)''',
+      ],
+    ),
+  ];
+
+  /// Indexes for the access paths that would otherwise scan. `events` is the
+  /// hot one: it grows with device count x check frequency and backs every
+  /// analytics query.
+  static const List<String> _v3Indexes = [
+    'CREATE INDEX IF NOT EXISTS events_app_ts ON events(app_id, ts)',
+    'CREATE INDEX IF NOT EXISTS events_app_client ON events(app_id, client_id)',
+    'CREATE INDEX IF NOT EXISTS events_app_type_ts ON events(app_id, type, ts)',
+    'CREATE INDEX IF NOT EXISTS events_app_release ON events(app_id, release_version)',
+    'CREATE INDEX IF NOT EXISTS artifacts_owner ON artifacts(owner_kind, owner_id)',
+    'CREATE INDEX IF NOT EXISTS channel_patches_channel_status ON channel_patches(channel_id, status)',
+    'CREATE INDEX IF NOT EXISTS channel_patches_patch ON channel_patches(patch_id)',
+    'CREATE INDEX IF NOT EXISTS patches_release ON patches(release_id)',
+    'CREATE INDEX IF NOT EXISTS patches_app ON patches(app_id)',
+    'CREATE INDEX IF NOT EXISTS releases_app ON releases(app_id)',
+    'CREATE INDEX IF NOT EXISTS apps_org ON apps(org_id)',
+    'CREATE INDEX IF NOT EXISTS api_keys_user ON api_keys(user_id)',
+    'CREATE INDEX IF NOT EXISTS org_members_user ON org_members(user_id)',
+    'CREATE INDEX IF NOT EXISTS app_collaborators_user ON app_collaborators(user_id)',
+    'CREATE INDEX IF NOT EXISTS rate_limits_window ON rate_limits(window_start)',
   ];
 
   Future<void> _migrate() async {
@@ -320,6 +370,60 @@ class Repository {
     }
   }
 
+  /// Makes [email] — the `LOGIN_EMAIL` the bootstrap key authenticates as — an
+  /// owner of the root org (id 1).
+  ///
+  /// `_seed` hardcodes `owner@self-host.local` as user 1, but `setup.sh` writes
+  /// a `LOGIN_EMAIL` of its own. Without this, signing in through `/login` with
+  /// the bootstrap key produces a *different* user in a personal org, who is
+  /// then refused by the operator-only routes (`POST /admin/users`) that the
+  /// login page itself points at. Idempotent, and safe to run against an
+  /// existing database.
+  /// Runs on every boot, so it must grant exactly once per address and then
+  /// never again — otherwise it silently undoes a deliberate demotion, or
+  /// re-admits an operator who was removed from the org (offboarding), simply
+  /// because `LOGIN_EMAIL` still names them. A marker in `settings` records
+  /// that this address has had its grant, so membership after that belongs
+  /// entirely to the API.
+  Future<void> ensureRootOwner(String email) async {
+    if (email.isEmpty) return;
+    final marker = 'root_owner_seeded:$email';
+    if (await getSetting(marker) != null) return;
+    final user = await userByEmail(email) ?? await upsertUser(email, null);
+    await _q(
+      "INSERT INTO org_members(org_id, user_id, role) VALUES (1, @u, 'owner') "
+      'ON CONFLICT(org_id, user_id) DO NOTHING',
+      {'u': user.id},
+    );
+    await _q(
+      "INSERT INTO settings(key, value) VALUES (@k, 'true') "
+      'ON CONFLICT(key) DO NOTHING',
+      {'k': marker},
+    );
+  }
+
+  /// Undoes an [ensureRootOwner] grant for [email], for the enable-the-IdP-later
+  /// path where a placeholder address must not keep root-org ownership.
+  ///
+  /// Gated on the same `settings` marker [ensureRootOwner] writes, so it only
+  /// removes membership *this code* granted. An address deliberately made an
+  /// owner through the API has no marker and is left alone — otherwise every
+  /// boot would silently offboard a legitimate operator who happens to share
+  /// the address. User 1 is never touched: it is the identity the bootstrap
+  /// `API_KEY` maps to, so dropping its membership would lock out the key.
+  Future<void> revokeSeededRootOwner(String email) async {
+    if (email.isEmpty) return;
+    final marker = 'root_owner_seeded:$email';
+    if (await getSetting(marker) == null) return;
+    final user = await userByEmail(email);
+    if (user != null && user.id != 1) {
+      await _q('DELETE FROM org_members WHERE org_id = 1 AND user_id = @u', {
+        'u': user.id,
+      });
+    }
+    await _q('DELETE FROM settings WHERE key = @k', {'k': marker});
+  }
+
   String _uuid() {
     final b = List<int>.generate(16, (_) => _rng.nextInt(256));
     String hex(int a, int c) =>
@@ -415,6 +519,21 @@ class Repository {
     return r.isNotEmpty;
   }
 
+  /// True if [userId] may administer [appId] — i.e. manage its collaborators.
+  /// That means an owner/admin of the owning org, or a collaborator who was
+  /// themselves granted an owner/admin role. A plain `developer` collaborator
+  /// can ship patches but cannot change who else has access.
+  Future<bool> userIsAppAdmin(int userId, String appId) async {
+    final r = await _q(
+      'SELECT 1 FROM apps a JOIN org_members m ON m.org_id = a.org_id '
+      "WHERE a.app_id = @a AND m.user_id = @u AND m.role IN ('owner','admin') "
+      'UNION SELECT 1 FROM app_collaborators c '
+      "WHERE c.app_id = @a AND c.user_id = @u AND c.role IN ('owner','admin')",
+      {'a': appId, 'u': userId},
+    );
+    return r.isNotEmpty;
+  }
+
   Future<bool> userInOrg(int userId, int orgId) async {
     final r = await _q(
       'SELECT 1 FROM org_members WHERE user_id = @u AND org_id = @o',
@@ -443,10 +562,23 @@ class Repository {
     return token;
   }
 
+  /// The invitation for [token], with an `expired` flag computed **in SQL**.
+  ///
+  /// The comparison has to happen here, not in Dart. `expires_at` is
+  /// `TIMESTAMPTZ`, which the SQLite translation rewrites to `TEXT`, so the
+  /// caller gets a `DateTime` on Postgres and a `String` on SQLite — the
+  /// default backend. A `value is DateTime` guard therefore silently never
+  /// fired on single-container deployments and the 7-day expiry set by
+  /// [createInvitation] was not enforced at all. Both backends compare
+  /// correctly here: [_tsFmt] keeps the SQLite text form lexicographically
+  /// chronological, which is the same reason `consumeAuthCode` and
+  /// `consumeIdpState` filter in SQL.
   Future<Map<String, dynamic>?> invitation(String token) async {
-    final r = await _q('SELECT * FROM invitations WHERE token = @t', {
-      't': token,
-    });
+    final r = await _q(
+      'SELECT *, (expires_at <= now()) AS expired FROM invitations '
+      'WHERE token = @t',
+      {'t': token},
+    );
     return r.isEmpty ? null : r.first;
   }
 
@@ -795,6 +927,18 @@ class Repository {
         .toList();
   }
 
+  /// True if [patchId] has ever been promoted to a channel (active or since
+  /// withdrawn). A promoted patch's artifact set is frozen: accepting a new
+  /// arch afterwards would flip the patch back to `uploading` and silently
+  /// unserve it mid-rollout.
+  Future<bool> patchIsPromoted(int patchId) async {
+    final r = await _q(
+      'SELECT 1 FROM channel_patches WHERE patch_id = @p LIMIT 1',
+      {'p': patchId},
+    );
+    return r.isNotEmpty;
+  }
+
   /// True if [patchId] has been rolled back on any channel.
   Future<bool> patchRolledBack(int patchId) async {
     final r = await _q(
@@ -863,9 +1007,25 @@ class Repository {
 
   // ---- ChannelPatches ----
 
-  /// Promote [patchId] to [channelId] transactionally: supersede any OTHER
-  /// active patch on the channel (stop serving it — not a rollback) and
-  /// activate this one, so a channel has exactly one active patch.
+  /// Promote [patchId] to [channelId] transactionally: supersede other active
+  /// patches on the channel (stop serving them — not a rollback) and activate
+  /// this one.
+  ///
+  /// Supersession is scoped **per platform**. The Shorebird CLI creates one
+  /// patch per platform — `--platforms=android,ios` publishes TWO patches — so
+  /// withdrawing every other active patch made the last-promoted platform evict
+  /// the other, and those devices silently fell back to no patch. A channel
+  /// therefore holds at most one active patch *per platform*, not one overall.
+  ///
+  /// A patch is superseded only when the incoming one **fully covers** it —
+  /// every platform it carries is also carried by [patchId]. Withdrawing on any
+  /// overlap re-created the same bug in the opposite direction: nothing stops a
+  /// patch carrying artifacts for several platforms (`_createPatchArtifact`
+  /// takes `platform` per artifact), and promoting an android-only patch over
+  /// an active android+ios one would withdraw the whole `channel_patches` row,
+  /// unserving the iOS devices. Leaving a partially-covered patch active is
+  /// safe because [activeChannelPatch] resolves per platform and takes the
+  /// highest patch number: android gets the newcomer, iOS keeps the incumbent.
   Future<void> promote(
     int channelId,
     int patchId, {
@@ -873,7 +1033,27 @@ class Repository {
   }) => _db.tx((s) async {
     await s.query(
       'UPDATE channel_patches SET status = @w, withdrawn_at = now() '
-      'WHERE channel_id = @c AND status = @a AND patch_id <> @p',
+      'WHERE channel_id = @c AND status = @a AND patch_id <> @p '
+      // Supersede a patch only if it has no platform outside the incoming
+      // patch's set. Kept as a top-level IN (…) — correlated only between the
+      // artifact aliases, never against channel_patches — so it runs unchanged
+      // on both Postgres and the SQLite translation layer.
+      //
+      // A patch with no artifacts has an empty platform set and so supersedes
+      // nothing; that is the intended reading (it can serve no device), and
+      // promote is only reachable for a `ready` patch, which by definition has
+      // verified artifacts.
+      'AND patch_id IN ('
+      '  SELECT DISTINCT a.owner_id FROM artifacts a'
+      "  WHERE a.owner_kind = 'patch' AND NOT EXISTS ("
+      '    SELECT 1 FROM artifacts a3'
+      "    WHERE a3.owner_kind = 'patch' AND a3.owner_id = a.owner_id"
+      '      AND a3.platform NOT IN ('
+      '        SELECT a2.platform FROM artifacts a2'
+      "        WHERE a2.owner_kind = 'patch' AND a2.owner_id = @p"
+      '      )'
+      '  )'
+      ')',
       {
         'w': ChannelPatchStatus.withdrawn.name,
         'a': ChannelPatchStatus.active.name,
@@ -893,11 +1073,30 @@ class Repository {
     );
   });
 
-  Future<ChannelPatchRow?> activeChannelPatch(int channelId) async {
+  /// Newest active patch on [channelId]. When [platform] is given, only
+  /// considers patches that actually carry an artifact for it.
+  ///
+  /// The platform filter matters because a channel can hold one active patch
+  /// per platform (see [promote]); picking the globally-newest active patch
+  /// would hand an Android device an iOS-only patch and serve it nothing.
+  Future<ChannelPatchRow?> activeChannelPatch(
+    int channelId, {
+    String? platform,
+  }) async {
     final r = await _q(
       'SELECT cp.* FROM channel_patches cp JOIN patches p ON p.id = cp.patch_id '
-      'WHERE cp.channel_id = @c AND cp.status = @s ORDER BY p.number DESC LIMIT 1',
-      {'c': channelId, 's': ChannelPatchStatus.active.name},
+      'WHERE cp.channel_id = @c AND cp.status = @s '
+      '${platform == null ? '' : 'AND EXISTS ('
+                '  SELECT 1 FROM artifacts a'
+                "  WHERE a.owner_kind = 'patch' AND a.owner_id = cp.patch_id"
+                '    AND a.platform = @plat'
+                ') '}'
+      'ORDER BY p.number DESC LIMIT 1',
+      {
+        'c': channelId,
+        's': ChannelPatchStatus.active.name,
+        if (platform != null) 'plat': platform,
+      },
     );
     if (r.isEmpty) return null;
     return _cpFrom(r.first);
@@ -1164,6 +1363,59 @@ class Repository {
   /// Best-effort cleanup of expired auth codes (call periodically).
   Future<void> purgeExpiredAuthCodes() =>
       _q('DELETE FROM auth_codes WHERE expires_at < now()');
+
+  // ---- IdP broker CSRF state (persisted, single-use) ----
+
+  Future<void> insertIdpState(
+    String state,
+    String continueUrl,
+    DateTime expiresAt,
+  ) => _q(
+    'INSERT INTO idp_states(state, continue_url, expires_at) VALUES (@s,@c,@x)',
+    {'s': state, 'c': continueUrl, 'x': expiresAt},
+  );
+
+  /// Atomically consumes an unexpired IdP state, returning its `continue` URL.
+  Future<String?> consumeIdpState(String state) async {
+    final r = await _q(
+      'DELETE FROM idp_states WHERE state = @s AND expires_at > now() '
+      'RETURNING continue_url',
+      {'s': state},
+    );
+    return r.isEmpty ? null : r.first['continue_url'] as String;
+  }
+
+  /// Drops IdP states abandoned mid-login (call periodically).
+  Future<void> purgeExpiredIdpStates() =>
+      _q('DELETE FROM idp_states WHERE expires_at < now()');
+
+  /// Drops rate-limit counters for windows that have closed. Without this the
+  /// table grows one row per bucket per minute, forever.
+  Future<void> purgeOldRateWindows({int keepMinutes = 10}) => _q(
+    'DELETE FROM rate_limits WHERE window_start < @w',
+    {'w': DateTime.now().millisecondsSinceEpoch ~/ 60000 - keepMinutes},
+  );
+
+  /// Drops device events older than [days]. `events` is written one row per
+  /// check-in by the public `/patches/events`, storing the raw body, so it is
+  /// the fastest-growing table in the schema — but it is also what every
+  /// analytics query reads, so retention is opt-in (`days <= 0` keeps
+  /// everything, which is the default).
+  Future<void> purgeOldEvents(int days) async {
+    if (days <= 0) return;
+    await _q(
+      "DELETE FROM events WHERE received_at < now() - interval '$days days'",
+    );
+  }
+
+  /// Drops audit entries older than [days]. Opt-in for the same reason: the
+  /// audit trail is often the thing an operator most wants to keep.
+  Future<void> purgeOldAuditLog(int days) async {
+    if (days <= 0) return;
+    await _q(
+      "DELETE FROM audit_log WHERE created_at < now() - interval '$days days'",
+    );
+  }
 
   // ---- Metrics (event-derived) ----
 

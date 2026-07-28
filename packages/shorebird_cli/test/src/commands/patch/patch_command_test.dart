@@ -26,6 +26,7 @@ import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_validator.dart';
+import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:test/test.dart';
 
@@ -66,7 +67,6 @@ void main() {
       hasAssetChanges: false,
       hasNativeChanges: false,
     );
-    final patchMetadata = CreatePatchMetadata.forTest();
 
     final appMetadata = AppMetadata(
       appId: appId,
@@ -156,6 +156,8 @@ void main() {
 
     setUpAll(() {
       registerFallbackValue(CreatePatchMetadata.forTest());
+      registerFallbackValue(CreatePatchPlatformMetadata.forTest());
+      registerFallbackValue(BuildEnvironmentMetadata.forTest());
       registerFallbackValue(DeploymentTrack.stable);
       registerFallbackValue(FakeDiffStatus());
       registerFallbackValue(Directory(''));
@@ -242,15 +244,14 @@ void main() {
         () => codePushClientWrapper.getReleases(appId: any(named: 'appId')),
       ).thenAnswer((_) async => [release]);
       when(
-        () => patcher.uploadPatchArtifacts(
+        () => codePushClientWrapper.publishPatch(
           appId: any(named: 'appId'),
           releaseId: any(named: 'releaseId'),
-          track: any(named: 'track'),
-          artifacts: any(named: 'artifacts'),
           metadata: any(named: 'metadata'),
+          track: any(named: 'track'),
+          patchArtifactBundles: any(named: 'patchArtifactBundles'),
         ),
       ).thenAnswer((_) async {});
-
       when(
         () => codePushClientWrapper.getReleaseArtifacts(
           appId: any(named: 'appId'),
@@ -313,8 +314,16 @@ void main() {
         ),
       ).thenAnswer((_) async => patchArtifactBundles);
       when(
-        () => patcher.updatedCreatePatchMetadata(any()),
-      ).thenAnswer((_) async => patchMetadata);
+        () => patcher.updatedPlatformMetadata(any()),
+      ).thenAnswer((invocation) async {
+        return invocation.positionalArguments.first
+            as CreatePatchPlatformMetadata;
+      });
+      when(
+        () => patcher.updatedEnvironmentMetadata(any()),
+      ).thenAnswer((invocation) async {
+        return invocation.positionalArguments.first as BuildEnvironmentMetadata;
+      });
       when(
         () => patcher.assertUnpatchableDiffs(
           releaseArtifact: any(named: 'releaseArtifact'),
@@ -386,15 +395,17 @@ void main() {
 
     group('createPatch', () {
       test('publishes the patch', () async {
-        await runWithOverrides(() => command.createPatch(patcher));
+        await runWithOverrides(() => command.createPatch([patcher]));
 
         verify(
-          () => patcher.uploadPatchArtifacts(
+          () => codePushClientWrapper.publishPatch(
             appId: appId,
             releaseId: any(named: 'releaseId'),
             metadata: any(named: 'metadata'),
             track: any(named: 'track'),
-            artifacts: patchArtifactBundles,
+            patchArtifactBundles: {
+              ReleasePlatform.android: patchArtifactBundles,
+            },
           ),
         ).called(1);
       });
@@ -402,7 +413,7 @@ void main() {
       group('flavor validation', () {
         group('when no flavors are present', () {
           test('validates successfully', () async {
-            await runWithOverrides(() => command.createPatch(patcher));
+            await runWithOverrides(() => command.createPatch([patcher]));
 
             verify(
               () => shorebirdValidator.validateFlavors(
@@ -420,7 +431,7 @@ void main() {
           });
 
           test('validates successfully', () async {
-            await runWithOverrides(() => command.createPatch(patcher));
+            await runWithOverrides(() => command.createPatch([patcher]));
 
             verify(
               () => shorebirdValidator.validateFlavors(
@@ -443,7 +454,7 @@ void main() {
 
           test('exits with code 78 (config)', () async {
             await expectLater(
-              runWithOverrides(() => command.createPatch(patcher)),
+              runWithOverrides(() => command.createPatch([patcher])),
               exitsWithCode(ExitCode.config),
             );
           });
@@ -454,7 +465,7 @@ void main() {
         group('when no key pair is provided', () {
           test('is valid', () async {
             await expectLater(
-              runWithOverrides(() => command.createPatch(patcher)),
+              runWithOverrides(() => command.createPatch([patcher])),
               completes,
             );
           });
@@ -476,7 +487,7 @@ void main() {
             ).thenReturn(createTempFile('public.pem').path);
 
             await expectLater(
-              runWithOverrides(() => command.createPatch(patcher)),
+              runWithOverrides(() => command.createPatch([patcher])),
               completes,
             );
           });
@@ -497,7 +508,7 @@ void main() {
               ).thenReturn(createTempFile('private.pem').path);
 
               await expectLater(
-                runWithOverrides(() => command.createPatch(patcher)),
+                runWithOverrides(() => command.createPatch([patcher])),
                 exitsWithCode(ExitCode.usage),
               );
               verify(
@@ -524,7 +535,7 @@ void main() {
               ).thenReturn(createTempFile('public.pem').path);
 
               await expectLater(
-                runWithOverrides(() => command.createPatch(patcher)),
+                runWithOverrides(() => command.createPatch([patcher])),
                 exitsWithCode(ExitCode.usage),
               );
               verify(
@@ -544,7 +555,7 @@ void main() {
           });
 
           test('downloads the supplemental release artifact', () async {
-            await runWithOverrides(() => command.createPatch(patcher));
+            await runWithOverrides(() => command.createPatch([patcher]));
 
             verify(
               () => codePushClientWrapper.maybeGetReleaseArtifact(
@@ -577,7 +588,7 @@ void main() {
             });
 
             test('gracefully continues to create patch', () async {
-              await runWithOverrides(() => command.createPatch(patcher));
+              await runWithOverrides(() => command.createPatch([patcher]));
               verify(
                 () => patcher.createPatchArtifacts(
                   appId: appId,
@@ -620,7 +631,7 @@ void main() {
                   ),
                 ).thenAnswer((_) async => true);
 
-                await runWithOverrides(() => command.createPatch(patcher));
+                await runWithOverrides(() => command.createPatch([patcher]));
 
                 final captured =
                     verify(
@@ -644,7 +655,7 @@ void main() {
                   ),
                 ).thenAnswer((_) async => false);
 
-                await runWithOverrides(() => command.createPatch(patcher));
+                await runWithOverrides(() => command.createPatch([patcher]));
 
                 final captured =
                     verify(
@@ -670,7 +681,7 @@ void main() {
 
             test('logs error and exits', () async {
               await expectLater(
-                () => runWithOverrides(() => command.createPatch(patcher)),
+                () => runWithOverrides(() => command.createPatch([patcher])),
                 exitsWithCode(ExitCode.software),
               );
               verify(
@@ -702,6 +713,12 @@ void main() {
     });
 
     group('confirmCreatePatch', () {
+      // The threshold is parsed by parseMinLinkPercentage before any build and
+      // handed to logPatchSummary; these tests pass it directly.
+      var minLinkPercentage = 0;
+
+      setUp(() => minLinkPercentage = 0);
+
       group('when using a custom deployment track', () {
         setUp(() {
           when(() => argResults['track']).thenReturn('custom-track');
@@ -719,8 +736,11 @@ void main() {
               () => command.logPatchSummary(
                 app: appMetadata,
                 releaseVersion: releaseVersion,
-                patcher: patcher,
-                patchArtifactBundles: patchArtifactBundles,
+                patchers: [patcher],
+                patchArtifactBundles: {
+                  ReleasePlatform.android: patchArtifactBundles,
+                },
+                minLinkPercentage: minLinkPercentage,
               ),
             ),
             completes,
@@ -750,8 +770,11 @@ void main() {
               () => command.logPatchSummary(
                 app: appMetadata,
                 releaseVersion: releaseVersion,
-                patcher: patcher,
-                patchArtifactBundles: patchArtifactBundles,
+                patchers: [patcher],
+                patchArtifactBundles: {
+                  ReleasePlatform.android: patchArtifactBundles,
+                },
+                minLinkPercentage: minLinkPercentage,
               ),
             ),
             completes,
@@ -785,8 +808,11 @@ void main() {
               () => command.logPatchSummary(
                 app: appMetadata,
                 releaseVersion: releaseVersion,
-                patcher: patcher,
-                patchArtifactBundles: patchArtifactBundles,
+                patchers: [patcher],
+                patchArtifactBundles: {
+                  ReleasePlatform.android: patchArtifactBundles,
+                },
+                minLinkPercentage: minLinkPercentage,
               ),
             ),
             completes,
@@ -816,8 +842,11 @@ void main() {
               () => command.logPatchSummary(
                 app: appMetadata,
                 releaseVersion: releaseVersion,
-                patcher: patcher,
-                patchArtifactBundles: patchArtifactBundles,
+                patchers: [patcher],
+                patchArtifactBundles: {
+                  ReleasePlatform.android: patchArtifactBundles,
+                },
+                minLinkPercentage: minLinkPercentage,
               ),
             ),
             completes,
@@ -854,8 +883,11 @@ void main() {
               () => command.logPatchSummary(
                 app: appMetadata,
                 releaseVersion: releaseVersion,
-                patcher: patcher,
-                patchArtifactBundles: patchArtifactBundles,
+                patchers: [patcher],
+                patchArtifactBundles: {
+                  ReleasePlatform.android: patchArtifactBundles,
+                },
+                minLinkPercentage: minLinkPercentage,
               ),
             ),
             completes,
@@ -867,13 +899,7 @@ void main() {
 
         group('when min-link-percentage is specified', () {
           group('when link percentage is higher than min', () {
-            const minLinkPercentageArg = '40';
-
-            setUp(() {
-              when(
-                () => argResults[CommonArguments.minLinkPercentage.name],
-              ).thenReturn(minLinkPercentageArg);
-            });
+            setUp(() => minLinkPercentage = 40);
 
             test('completes, does not print error message', () async {
               await expectLater(
@@ -881,8 +907,11 @@ void main() {
                   () => command.logPatchSummary(
                     app: appMetadata,
                     releaseVersion: releaseVersion,
-                    patcher: patcher,
-                    patchArtifactBundles: patchArtifactBundles,
+                    patchers: [patcher],
+                    patchArtifactBundles: {
+                      ReleasePlatform.android: patchArtifactBundles,
+                    },
+                    minLinkPercentage: minLinkPercentage,
                   ),
                 ),
                 completes,
@@ -897,13 +926,7 @@ void main() {
           });
 
           group('when link percentage is lower than min', () {
-            const minLinkPercentageArg = '50';
-
-            setUp(() {
-              when(
-                () => argResults[CommonArguments.minLinkPercentage.name],
-              ).thenReturn(minLinkPercentageArg);
-            });
+            setUp(() => minLinkPercentage = 50);
 
             test('prints error message and exits', () async {
               await expectLater(
@@ -911,8 +934,11 @@ void main() {
                   () => command.logPatchSummary(
                     app: appMetadata,
                     releaseVersion: releaseVersion,
-                    patcher: patcher,
-                    patchArtifactBundles: patchArtifactBundles,
+                    patchers: [patcher],
+                    patchArtifactBundles: {
+                      ReleasePlatform.android: patchArtifactBundles,
+                    },
+                    minLinkPercentage: minLinkPercentage,
                   ),
                 ),
                 exitsWithCode(ExitCode.software),
@@ -920,30 +946,19 @@ void main() {
 
               verify(
                 () => logger.err(
-                  '''The link percentage of this patch ($linkPercentage%) is below the minimum threshold (50%). Exiting.''',
+                  '''The Android link percentage of this patch ($linkPercentage%) is below the minimum threshold (50%). Exiting.''',
                 ),
               ).called(1);
             });
           });
 
           group('when min-link-percentage is invalid', () {
-            void setMinLinkPercentage(String value) {
+            Future<void> expectUsageError(String value) async {
               when(
                 () => argResults[CommonArguments.minLinkPercentage.name],
               ).thenReturn(value);
-            }
-
-            Future<void> expectUsageError(String value) async {
-              setMinLinkPercentage(value);
-              await expectLater(
-                runWithOverrides(
-                  () => command.logPatchSummary(
-                    app: appMetadata,
-                    releaseVersion: releaseVersion,
-                    patcher: patcher,
-                    patchArtifactBundles: patchArtifactBundles,
-                  ),
-                ),
+              expect(
+                () => runWithOverrides(command.parseMinLinkPercentage),
                 exitsWithCode(ExitCode.usage),
               );
               verify(
@@ -972,13 +987,17 @@ void main() {
               when(
                 () => argResults[CommonArguments.minLinkPercentage.name],
               ).thenReturn('0');
+              expect(runWithOverrides(command.parseMinLinkPercentage), 0);
               await expectLater(
                 runWithOverrides(
                   () => command.logPatchSummary(
                     app: appMetadata,
                     releaseVersion: releaseVersion,
-                    patcher: patcher,
-                    patchArtifactBundles: patchArtifactBundles,
+                    patchers: [patcher],
+                    patchArtifactBundles: {
+                      ReleasePlatform.android: patchArtifactBundles,
+                    },
+                    minLinkPercentage: minLinkPercentage,
                   ),
                 ),
                 completes,
@@ -989,14 +1008,19 @@ void main() {
               when(
                 () => argResults[CommonArguments.minLinkPercentage.name],
               ).thenReturn('100');
+              expect(runWithOverrides(command.parseMinLinkPercentage), 100);
+              minLinkPercentage = 100;
               when(() => patcher.linkPercentage).thenReturn(100);
               await expectLater(
                 runWithOverrides(
                   () => command.logPatchSummary(
                     app: appMetadata,
                     releaseVersion: releaseVersion,
-                    patcher: patcher,
-                    patchArtifactBundles: patchArtifactBundles,
+                    patchers: [patcher],
+                    patchArtifactBundles: {
+                      ReleasePlatform.android: patchArtifactBundles,
+                    },
+                    minLinkPercentage: minLinkPercentage,
                   ),
                 ),
                 completes,
@@ -1029,8 +1053,11 @@ void main() {
                 () => command.logPatchSummary(
                   app: appMetadata,
                   releaseVersion: releaseVersion,
-                  patcher: patcher,
-                  patchArtifactBundles: patchArtifactBundles,
+                  patchers: [patcher],
+                  patchArtifactBundles: {
+                    ReleasePlatform.android: patchArtifactBundles,
+                  },
+                  minLinkPercentage: minLinkPercentage,
                 ),
               ),
               completes,
@@ -1062,8 +1089,11 @@ void main() {
                 () => command.logPatchSummary(
                   app: appMetadata,
                   releaseVersion: releaseVersion,
-                  patcher: patcher,
-                  patchArtifactBundles: patchArtifactBundles,
+                  patchers: [patcher],
+                  patchArtifactBundles: {
+                    ReleasePlatform.android: patchArtifactBundles,
+                  },
+                  minLinkPercentage: minLinkPercentage,
                 ),
               ),
               exitsWithCode(ExitCode.success),
@@ -1084,8 +1114,11 @@ void main() {
               () => command.logPatchSummary(
                 app: appMetadata,
                 releaseVersion: releaseVersion,
-                patcher: patcher,
-                patchArtifactBundles: patchArtifactBundles,
+                patchers: [patcher],
+                patchArtifactBundles: {
+                  ReleasePlatform.android: patchArtifactBundles,
+                },
+                minLinkPercentage: minLinkPercentage,
               ),
             ),
             completes,
@@ -1159,20 +1192,14 @@ void main() {
             releaseId: release.id,
             releaseArtifact: any(named: 'releaseArtifact'),
           ),
-          () => patcher.updatedCreatePatchMetadata(
-            any(
-              that: isA<CreatePatchMetadata>().having(
-                (m) => m.inferredReleaseVersion,
-                'inferredReleaseVersion',
-                isFalse,
-              ),
-            ),
-          ),
-          () => patcher.uploadPatchArtifacts(
+          () => codePushClientWrapper.publishPatch(
             appId: appId,
             releaseId: release.id,
-            metadata: patchMetadata.toJson(),
-            artifacts: any(named: 'artifacts'),
+            metadata: any(
+              named: 'metadata',
+              that: containsPair('inferred_release_version', isFalse),
+            ),
+            patchArtifactBundles: any(named: 'patchArtifactBundles'),
             track: DeploymentTrack.stable,
           ),
         ]);
@@ -1265,7 +1292,7 @@ void main() {
           ).called(1);
           verify(
             () => logger.warn(
-              '''No ${releasePlatform.displayName} releases found for app $appId. You must first create a release before you can create a patch.''',
+              '''No releases found for app $appId covering ${releasePlatform.displayName}. You must first create a release before you can create a patch.''',
             ),
           ).called(1);
         });
@@ -1375,11 +1402,11 @@ void main() {
               releaseId: release.id,
               releaseArtifact: any(named: 'releaseArtifact'),
             ),
-            () => patcher.uploadPatchArtifacts(
+            () => codePushClientWrapper.publishPatch(
               appId: appId,
               releaseId: release.id,
               metadata: any(named: 'metadata'),
-              artifacts: any(named: 'artifacts'),
+              patchArtifactBundles: any(named: 'patchArtifactBundles'),
               track: DeploymentTrack.stable,
             ),
           ]);
@@ -1411,7 +1438,7 @@ void main() {
 
           verify(
             () => logger.warn(
-              '''No ${releasePlatform.displayName} releases found for app $appId. You must first create a release before you can create a patch.''',
+              '''No releases found for app $appId covering ${releasePlatform.displayName}. You must first create a release before you can create a patch.''',
             ),
           ).called(1);
         });
@@ -1524,14 +1551,15 @@ void main() {
                 ),
                 () =>
                     patcher.buildPatchArtifact(releaseVersion: releaseVersion),
-                () => patcher.updatedCreatePatchMetadata(
-                  any(
-                    that: isA<CreatePatchMetadata>().having(
-                      (m) => m.inferredReleaseVersion,
-                      'inferredReleaseVersion',
-                      isTrue,
-                    ),
+                () => codePushClientWrapper.publishPatch(
+                  appId: any(named: 'appId'),
+                  releaseId: any(named: 'releaseId'),
+                  metadata: any(
+                    named: 'metadata',
+                    that: containsPair('inferred_release_version', isTrue),
                   ),
+                  patchArtifactBundles: any(named: 'patchArtifactBundles'),
+                  track: any(named: 'track'),
                 ),
               ]);
             },
@@ -1576,11 +1604,11 @@ void main() {
           ),
         );
         verifyNever(
-          () => patcher.uploadPatchArtifacts(
+          () => codePushClientWrapper.publishPatch(
             appId: appId,
             releaseId: release.id,
             metadata: any(named: 'metadata'),
-            artifacts: any(named: 'artifacts'),
+            patchArtifactBundles: any(named: 'patchArtifactBundles'),
             track: DeploymentTrack.stable,
           ),
         );
@@ -1767,11 +1795,11 @@ Please re-run the release command for this version or create a new release.'''),
         expect(exitCode, equals(ExitCode.success.code));
 
         verify(
-          () => patcher.uploadPatchArtifacts(
+          () => codePushClientWrapper.publishPatch(
             appId: appId,
             releaseId: release.id,
             metadata: any(named: 'metadata'),
-            artifacts: any(named: 'artifacts'),
+            patchArtifactBundles: any(named: 'patchArtifactBundles'),
             track: DeploymentTrack.staging,
           ),
         ).called(1);
@@ -1810,14 +1838,15 @@ Please re-run the release command for this version or create a new release.'''),
         test('sets isSigned to true in PatchMetadata', () async {
           await runWithOverrides(command.run);
           verify(
-            () => patcher.updatedCreatePatchMetadata(
-              any(
-                that: isA<CreatePatchMetadata>().having(
-                  (m) => m.isSigned,
-                  'isSigned',
-                  isTrue,
-                ),
+            () => codePushClientWrapper.publishPatch(
+              appId: any(named: 'appId'),
+              releaseId: any(named: 'releaseId'),
+              metadata: any(
+                named: 'metadata',
+                that: containsPair('is_signed', isTrue),
               ),
+              patchArtifactBundles: any(named: 'patchArtifactBundles'),
+              track: any(named: 'track'),
             ),
           );
         });
@@ -1836,16 +1865,299 @@ Please re-run the release command for this version or create a new release.'''),
         test('sets isSigned to false in PatchMetadata', () async {
           await runWithOverrides(command.run);
           verify(
-            () => patcher.updatedCreatePatchMetadata(
-              any(
-                that: isA<CreatePatchMetadata>().having(
-                  (m) => m.isSigned,
-                  'isSigned',
-                  isFalse,
-                ),
+            () => codePushClientWrapper.publishPatch(
+              appId: any(named: 'appId'),
+              releaseId: any(named: 'releaseId'),
+              metadata: any(
+                named: 'metadata',
+                that: containsPair('is_signed', isFalse),
               ),
+              patchArtifactBundles: any(named: 'patchArtifactBundles'),
+              track: any(named: 'track'),
             ),
           );
+        });
+      });
+    });
+
+    group('when patching multiple platforms', () {
+      late Patcher iosPatcher;
+      late Release multiPlatformRelease;
+
+      /// Matches any call to publishPatch, for verifyNever.
+      void verifyNothingPublished() {
+        verifyNever(
+          () => codePushClientWrapper.publishPatch(
+            appId: any(named: 'appId'),
+            releaseId: any(named: 'releaseId'),
+            metadata: any(named: 'metadata'),
+            track: any(named: 'track'),
+            patchArtifactBundles: any(named: 'patchArtifactBundles'),
+          ),
+        );
+      }
+
+      setUp(() {
+        iosPatcher = MockPatcher();
+        when(() => iosPatcher.releaseType).thenReturn(ReleaseType.ios);
+        when(
+          () => iosPatcher.primaryReleaseArtifactArch,
+        ).thenReturn('xcarchive');
+        when(
+          () => iosPatcher.supplementaryReleaseArtifactArch,
+        ).thenReturn(null);
+        when(() => iosPatcher.linkPercentage).thenReturn(null);
+        when(() => iosPatcher.assertArgsAreValid()).thenAnswer((_) async {});
+        when(() => iosPatcher.assertPreconditions()).thenAnswer((_) async {});
+        when(
+          () => iosPatcher.buildPatchArtifact(
+            releaseVersion: any(named: 'releaseVersion'),
+          ),
+        ).thenAnswer((_) async => File(''));
+        when(
+          () => iosPatcher.createPatchArtifacts(
+            appId: any(named: 'appId'),
+            releaseId: any(named: 'releaseId'),
+            releaseArtifact: any(named: 'releaseArtifact'),
+            supplementDirectory: any(named: 'supplementDirectory'),
+          ),
+        ).thenAnswer((_) async => patchArtifactBundles);
+        when(
+          () => iosPatcher.assertUnpatchableDiffs(
+            releaseArtifact: any(named: 'releaseArtifact'),
+            releaseArchive: any(named: 'releaseArchive'),
+            patchArchive: any(named: 'patchArchive'),
+          ),
+        ).thenAnswer((_) async => diffStatus);
+        when(() => iosPatcher.updatedPlatformMetadata(any())).thenAnswer((
+          invocation,
+        ) async {
+          return invocation.positionalArguments.first
+              as CreatePatchPlatformMetadata;
+        });
+        when(() => iosPatcher.updatedEnvironmentMetadata(any())).thenAnswer((
+          invocation,
+        ) async {
+          return invocation.positionalArguments.first
+              as BuildEnvironmentMetadata;
+        });
+
+        multiPlatformRelease = Release(
+          id: 7,
+          appId: appId,
+          version: releaseVersion,
+          flutterRevision: flutterRevision,
+          flutterVersion: flutterVersion,
+          displayName: '1.2.3+1',
+          platformStatuses: const {
+            ReleasePlatform.android: ReleaseStatus.active,
+            ReleasePlatform.ios: ReleaseStatus.active,
+          },
+          createdAt: DateTime(2023),
+          updatedAt: DateTime(2023),
+        );
+        when(
+          () => codePushClientWrapper.getRelease(
+            appId: any(named: 'appId'),
+            releaseVersion: any(named: 'releaseVersion'),
+          ),
+        ).thenAnswer((_) async => multiPlatformRelease);
+        when(
+          () => codePushClientWrapper.getReleases(appId: any(named: 'appId')),
+        ).thenAnswer((_) async => [multiPlatformRelease]);
+        when(
+          () => codePushClientWrapper.getReleaseArtifact(
+            appId: any(named: 'appId'),
+            releaseId: any(named: 'releaseId'),
+            arch: 'xcarchive',
+            platform: ReleasePlatform.ios,
+          ),
+        ).thenAnswer((_) async => releaseArtifact);
+
+        when(() => argResults['platforms']).thenReturn(['android', 'ios']);
+        command = PatchCommand(
+          resolvePatcher: (releaseType) =>
+              releaseType == ReleaseType.ios ? iosPatcher : patcher,
+        )..testArgResults = argResults;
+      });
+
+      test('publishes a single patch carrying every platform', () async {
+        await runWithOverrides(command.run);
+
+        verify(
+          () => codePushClientWrapper.publishPatch(
+            appId: appId,
+            releaseId: multiPlatformRelease.id,
+            metadata: any(named: 'metadata'),
+            track: DeploymentTrack.stable,
+            patchArtifactBundles: {
+              ReleasePlatform.android: patchArtifactBundles,
+              ReleasePlatform.ios: patchArtifactBundles,
+            },
+          ),
+        ).called(1);
+      });
+
+      test('records metadata for every platform', () async {
+        await runWithOverrides(command.run);
+
+        final metadata =
+            verify(
+                  () => codePushClientWrapper.publishPatch(
+                    appId: any(named: 'appId'),
+                    releaseId: any(named: 'releaseId'),
+                    metadata: captureAny(named: 'metadata'),
+                    track: any(named: 'track'),
+                    patchArtifactBundles: any(named: 'patchArtifactBundles'),
+                  ),
+                ).captured.single
+                as Map<String, dynamic>;
+
+        expect(
+          (metadata['platforms']! as Map).keys,
+          containsAll(<String>['android', 'ios']),
+        );
+      });
+
+      test('asserts all preconditions before building anything', () async {
+        await runWithOverrides(command.run);
+
+        verifyInOrder([
+          patcher.assertPreconditions,
+          iosPatcher.assertPreconditions,
+          () => patcher.buildPatchArtifact(
+            releaseVersion: any(named: 'releaseVersion'),
+          ),
+        ]);
+      });
+
+      group('when a later platform fails its preconditions', () {
+        setUp(() {
+          when(
+            () => iosPatcher.assertPreconditions(),
+          ).thenThrow(ProcessExit(ExitCode.unavailable.code));
+        });
+
+        test('builds nothing and publishes nothing', () async {
+          await expectLater(
+            runWithOverrides(command.run),
+            exitsWithCode(ExitCode.unavailable),
+          );
+
+          // The whole point of preflighting: patching android+ios from a host
+          // that can't build ios must not ship the android half.
+          verifyNever(
+            () => patcher.buildPatchArtifact(
+              releaseVersion: any(named: 'releaseVersion'),
+            ),
+          );
+          verifyNothingPublished();
+        });
+      });
+
+      group('when a later platform fails to build', () {
+        setUp(() {
+          when(
+            () => iosPatcher.buildPatchArtifact(
+              releaseVersion: any(named: 'releaseVersion'),
+            ),
+          ).thenThrow(Exception('oh no'));
+        });
+
+        test('publishes nothing, so no platform goes live alone', () async {
+          await expectLater(
+            runWithOverrides(command.run),
+            exitsWithCode(ExitCode.software),
+          );
+
+          verify(
+            () => patcher.buildPatchArtifact(
+              releaseVersion: any(named: 'releaseVersion'),
+            ),
+          ).called(1);
+          verifyNothingPublished();
+        });
+      });
+
+      group('when the release does not cover every platform', () {
+        setUp(() {
+          when(
+            () => codePushClientWrapper.getRelease(
+              appId: any(named: 'appId'),
+              releaseVersion: any(named: 'releaseVersion'),
+            ),
+          ).thenAnswer((_) async => release); // android only
+        });
+
+        test('errors and publishes nothing', () async {
+          await expectLater(
+            runWithOverrides(command.run),
+            exitsWithCode(ExitCode.software),
+          );
+
+          verify(
+            () => logger.err(
+              any(that: contains('No release exists for ios')),
+            ),
+          ).called(1);
+          verifyNothingPublished();
+        });
+      });
+
+      group('when --release-version=latest', () {
+        setUp(() {
+          when(() => argResults['release-version']).thenReturn('latest');
+        });
+
+        test('skips releases that do not cover every platform', () async {
+          // Newer, but android-only: resolving "latest" per platform would
+          // pick this for android and straddle two release versions.
+          final androidOnly = Release(
+            id: 9,
+            appId: appId,
+            version: '1.2.4+1',
+            flutterRevision: flutterRevision,
+            flutterVersion: flutterVersion,
+            displayName: '1.2.4+1',
+            platformStatuses: const {
+              ReleasePlatform.android: ReleaseStatus.active,
+            },
+            createdAt: DateTime(2024),
+            updatedAt: DateTime(2024),
+          );
+          when(
+            () => codePushClientWrapper.getReleases(appId: any(named: 'appId')),
+          ).thenAnswer((_) async => [multiPlatformRelease, androidOnly]);
+
+          await runWithOverrides(command.run);
+
+          verify(
+            () => codePushClientWrapper.publishPatch(
+              appId: appId,
+              releaseId: multiPlatformRelease.id,
+              metadata: any(named: 'metadata'),
+              track: any(named: 'track'),
+              patchArtifactBundles: any(named: 'patchArtifactBundles'),
+            ),
+          ).called(1);
+        });
+
+        test('warns and exits when no release covers every platform', () async {
+          when(
+            () => codePushClientWrapper.getReleases(appId: any(named: 'appId')),
+          ).thenAnswer((_) async => [release]); // android only
+
+          await expectLater(
+            runWithOverrides(command.run),
+            exitsWithCode(ExitCode.usage),
+          );
+
+          verify(
+            () => logger.warn(
+              '''No releases found for app $appId covering Android and iOS. You must first create a release before you can create a patch.''',
+            ),
+          ).called(1);
+          verifyNothingPublished();
         });
       });
     });

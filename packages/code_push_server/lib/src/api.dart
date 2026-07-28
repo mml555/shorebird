@@ -6,26 +6,91 @@ import 'package:code_push_server/src/analytics.dart';
 import 'package:code_push_server/src/artifact_store.dart';
 import 'package:code_push_server/src/config.dart';
 import 'package:code_push_server/src/content_range.dart';
+import 'package:code_push_server/src/db.dart' show asDbBool;
 import 'package:code_push_server/src/domain.dart';
 import 'package:code_push_server/src/oauth.dart';
 import 'package:code_push_server/src/observability.dart';
 import 'package:code_push_server/src/repository.dart';
 import 'package:code_push_server/src/rollout.dart';
 import 'package:code_push_server/src/signing.dart';
+import 'package:crypto/crypto.dart';
 import 'package:mime/mime.dart';
 import 'package:shelf/shelf.dart';
 
-/// The rate-limit bucket key. Authenticated requests bucket by their bearer;
-/// unauthenticated (device) requests bucket by client IP — so one device (or
-/// one spoofed request) can't exhaust a single shared window for the whole
-/// fleet. Behind a proxy, [forwardedFor] (the first X-Forwarded-For hop) wins;
-/// otherwise the socket [remoteIp] is used.
-String rateLimitKey({String? auth, String? forwardedFor, String? remoteIp}) {
-  if (auth != null && auth.isNotEmpty) return 'auth:$auth';
-  if (forwardedFor != null && forwardedFor.isNotEmpty) {
-    return 'ip:${forwardedFor.split(',').first.trim()}';
+/// The client's network identity: the socket [remoteIp], or a hop from
+/// `X-Forwarded-For` when [isTrustedProxy] says the peer is one of our own
+/// reverse proxies (`Config.trustsProxy`).
+///
+/// X-Forwarded-For is written by the client. Honoring it from an untrusted
+/// peer means a caller gets a brand-new bucket for every request just by
+/// rotating the header, which is indistinguishable from having no rate limit
+/// at all — so it is read only when a proxy we control appended to it.
+///
+/// Which hop matters. Caddy's `reverse_proxy` (2.7+, once `trusted_proxies` is
+/// set), nginx's
+/// `$proxy_add_x_forwarded_for` and most cloud load balancers all *append* to
+/// whatever the client sent, so the leftmost entry is again attacker-written.
+/// Walking from the right and stopping at the first hop that isn't itself a
+/// trusted proxy is correct for appending and replacing proxies alike, and for
+/// a chain of them.
+///
+/// [trustAllHops] is the `TRUSTED_PROXIES=*` case: the operator has a proxy
+/// they can't name (a dynamic or IPv6 load balancer) and is vouching for the
+/// whole header, so the leftmost hop is the best available answer. It is the
+/// weaker setting — a client that can reach the server directly can then
+/// choose its own identity — which is why it is opt-in.
+String clientIp({
+  String? forwardedFor,
+  String? remoteIp,
+  bool Function(String ip)? isTrustedProxy,
+  bool trustAllHops = false,
+}) {
+  if (forwardedFor != null && (trustAllHops || isTrustedProxy != null)) {
+    final hops = forwardedFor
+        .split(',')
+        .map((h) => h.trim())
+        .where(_looksLikeIp)
+        .toList();
+    if (hops.isNotEmpty) {
+      if (trustAllHops) return hops.first;
+      for (final hop in hops.reversed) {
+        if (!isTrustedProxy!(hop)) return hop;
+      }
+    }
   }
-  return 'ip:${remoteIp ?? 'unknown'}';
+  return remoteIp ?? 'unknown';
+}
+
+/// Cheap shape check on a forwarded hop before it becomes part of a bucket
+/// key. The key is retained for the whole window and, with the Postgres
+/// backend, written to an indexed column — so a hop is only ever taken from
+/// the header if it is short and looks like an address, never verbatim.
+bool _looksLikeIp(String s) =>
+    s.isNotEmpty &&
+    s.length <= 45 &&
+    RegExp(r'^[0-9a-fA-F:.\[\]]+$').hasMatch(s);
+
+/// The rate-limit bucket key for a request's *principal*: its bearer if one is
+/// presented, else [ip] — the already-resolved [clientIp] for the request.
+///
+/// Taking the resolved address rather than re-deriving it keeps this from
+/// drifting out of step with the hop resolution the caller already did.
+///
+/// The bearer is hashed rather than used verbatim: it is an unbounded,
+/// unvalidated client-supplied header, and the key is retained for the whole
+/// window (and, with the Postgres backend, written to an indexed column), so
+/// keying on the raw value lets an unauthenticated caller pin megabytes per
+/// request. Hashing also makes the key fixed-size and keeps credentials out of
+/// the counter table.
+///
+/// This key alone is not a limit: a caller can rotate bearers freely. Every
+/// request must also be charged against the un-rotatable per-IP bucket — see
+/// `Api._rateLimit`.
+String rateLimitKey({String? auth, required String ip}) {
+  if (auth != null && auth.isNotEmpty) {
+    return 'auth:${sha256.convert(utf8.encode(auth)).toString().substring(0, 32)}';
+  }
+  return 'ip:$ip';
 }
 
 /// The HTTP surface: the Shorebird CLI/updater wire contract (translated to the
@@ -49,8 +114,49 @@ class Api {
   final Observability obs;
 
   final _RateLimiter _rateLimiter = _RateLimiter();
-  // Short-lived CSRF state -> loopback `continue` URL for the IdP broker flow.
-  final Map<String, String> _idpState = {};
+
+  /// `shorebird doctor` runs the speed check a couple of times per invocation;
+  /// a handful per minute per client is plenty and caps egress amplification.
+  static const int _speedtestPerMinute = 6;
+
+  /// When the untrusted-proxy warning was last emitted, so a proxied fleet
+  /// doesn't log one line per request. Null until the first occurrence.
+  DateTime? _untrustedProxyWarnedAt;
+
+  /// How often to repeat that warning. Long enough to stay out of the way,
+  /// short enough that an operator tailing logs sees it.
+  static const Duration _untrustedProxyWarnInterval = Duration(minutes: 10);
+
+  /// Warns, at most once per [_untrustedProxyWarnInterval], that an
+  /// `X-Forwarded-For` arrived from a peer not listed in `TRUSTED_PROXIES` and
+  /// was therefore ignored.
+  ///
+  /// This header used to be honored unconditionally. Tightening it is correct —
+  /// otherwise any direct caller picks its own rate-limit bucket by writing the
+  /// header — but it is silent on upgrade: behind an operator's own
+  /// nginx/Caddy the peer is the Docker bridge gateway (e.g. `172.17.0.1`),
+  /// not loopback, so every device in the fleet collapses into one bucket and
+  /// starts seeing 429s on `/patches/check` with nothing in the logs to say
+  /// why. Cheap to emit and it names the exact value to add.
+  void _warnUntrustedProxy(String? peer) {
+    // Counted on every occurrence — only the log line is rate limited, so a
+    // dashboard still sees the true rate.
+    obs.metrics.untrustedForwardedFor++;
+    final now = DateTime.now();
+    final last = _untrustedProxyWarnedAt;
+    if (last != null && now.difference(last) < _untrustedProxyWarnInterval) {
+      return;
+    }
+    _untrustedProxyWarnedAt = now;
+    obs.info('WARNING: ignoring X-Forwarded-For from an untrusted peer', {
+      'peer': peer ?? 'unknown',
+      'trusted_proxies': config.trustedProxies.join(','),
+      'hint':
+          'every client behind this proxy shares one rate-limit bucket; '
+          'add the proxy to TRUSTED_PROXIES (e.g. TRUSTED_PROXIES=$peer) '
+          'if it is really your reverse proxy',
+    });
+  }
 
   Handler get handler => const Pipeline()
       .addMiddleware(_logRequests())
@@ -82,25 +188,81 @@ class Api {
   Middleware _rateLimit() =>
       (inner) => (req) async {
         final conn = req.context['shelf.io.connection_info'];
-        final key = rateLimitKey(
-          auth: req.headers['authorization'],
-          forwardedFor: req.headers['x-forwarded-for'],
-          remoteIp: conn is HttpConnectionInfo
-              ? conn.remoteAddress.address
-              : null,
-        );
-        final bool ok;
-        if (config.rateLimitShared) {
-          // Shared fixed window in Postgres — correct across restarts + nodes.
-          final window = DateTime.now().millisecondsSinceEpoch ~/ 60000;
-          final count = await repo.incrementRateWindow(key, window);
-          ok = count <= config.rateLimitPerMinute;
-        } else {
-          ok = _rateLimiter.allow(key, config.rateLimitPerMinute);
+        final peer = conn is HttpConnectionInfo
+            ? conn.remoteAddress.address
+            : null;
+        final forwardedFor = req.headers['x-forwarded-for'];
+        // X-Forwarded-For is read only when the socket peer is a proxy we
+        // configured; the same predicate then skips over any further trusted
+        // hops inside the header. Under `TRUSTED_PROXIES=*` no hop can be
+        // told apart from a proxy, so the header is taken at face value.
+        final trustAllHops = config.trustsAnyProxy;
+        final peerIsTrusted = trustAllHops || config.trustsProxy(peer);
+        if (forwardedFor != null && !peerIsTrusted) {
+          _warnUntrustedProxy(peer);
         }
-        if (!ok) return _err(429, 'rate_limited', 'Too many requests');
+        final isTrustedProxy = !trustAllHops && config.trustsProxy(peer)
+            ? config.trustsProxy
+            : null;
+        final ip = clientIp(
+          forwardedFor: forwardedFor,
+          remoteIp: peer,
+          isTrustedProxy: isTrustedProxy,
+          trustAllHops: trustAllHops,
+        );
+
+        // The speedtest moves 16 MB per call from a public endpoint, so it
+        // gets its own much tighter window rather than sharing the general
+        // per-minute allowance. It is keyed on the peer alone: the endpoint is
+        // unauthenticated, so a bearer here carries no identity and would only
+        // hand the caller an unlimited supply of fresh buckets.
+        final isSpeedtest =
+            req.url.pathSegments.length == 2 &&
+            req.url.pathSegments[0] == 'diagnostics' &&
+            req.url.pathSegments[1] == 'speedtest';
+        if (isSpeedtest) {
+          // Its own key namespace, but through the same backend as everything
+          // else: with RATE_LIMIT_BACKEND=postgres and N replicas, an
+          // in-process counter would make the real cap 6xN per IP — on the one
+          // endpoint whose cap exists specifically to bound egress.
+          if (!await _withinLimit('speed:$ip', _speedtestPerMinute)) {
+            return _err(429, 'rate_limited', 'Too many speedtest requests');
+          }
+          return inner(req);
+        }
+
+        // Two buckets, in separate key namespaces so both always apply:
+        //
+        //   host:<ip>  — the ceiling, at ipRateLimitPerMinute. The only key a
+        //                caller cannot rotate out of.
+        //   auth:<h> / ip:<ip> — the principal, at rateLimitPerMinute, so one
+        //                busy API key can't spend a shared NAT's whole
+        //                allowance. Anonymous traffic keys on the IP here too;
+        //                the distinct `host:` prefix keeps that from
+        //                collapsing into a single (looser) charge.
+        if (!await _withinLimit('host:$ip', config.ipRateLimitPerMinute)) {
+          return _err(429, 'rate_limited', 'Too many requests');
+        }
+        final principal = rateLimitKey(
+          auth: req.headers['authorization'],
+          ip: ip,
+        );
+        if (!await _withinLimit(principal, config.rateLimitPerMinute)) {
+          return _err(429, 'rate_limited', 'Too many requests');
+        }
         return inner(req);
       };
+
+  /// Charges one request against [key] and reports whether it stayed within
+  /// [perMinute], using the shared Postgres window when configured.
+  Future<bool> _withinLimit(String key, int perMinute) async {
+    if (config.rateLimitShared) {
+      // Shared fixed window in Postgres — correct across restarts + nodes.
+      final window = DateTime.now().millisecondsSinceEpoch ~/ 60000;
+      return await repo.incrementRateWindow(key, window) <= perMinute;
+    }
+    return _rateLimiter.allow(key, perMinute);
+  }
 
   bool _isPublic(List<String> seg) {
     if (seg.isEmpty) return true; // health
@@ -140,7 +302,7 @@ class Api {
         final key = (auth != null && auth.startsWith('Bearer '))
             ? auth.substring('Bearer '.length)
             : null;
-        if (key == null) {
+        if (key == null || key.isEmpty) {
           return _err(
             HttpStatus.forbidden,
             'forbidden',
@@ -157,7 +319,11 @@ class Api {
                 await repo.upsertUser(email, null);
             userId = user.id;
           }
-        } else if (key == config.bootstrapApiKey) {
+        } else if (config.bootstrapApiKey.isNotEmpty &&
+            key == config.bootstrapApiKey) {
+          // Guarded on isNotEmpty: with API_KEY unset to "", a blank
+          // `Authorization: Bearer ` header would otherwise match here and
+          // authenticate the caller as the seeded owner.
           userId = 1;
         } else {
           userId = await repo.userIdForApiKey(key);
@@ -181,7 +347,40 @@ class Api {
     }
   }
 
-  int _uid(Request req) => (req.context['userId'] as int?) ?? 1;
+  /// The authenticated caller. `_auth` puts this in the context for every
+  /// non-public route, so its absence means a handler that needs an identity
+  /// was reached without authentication. Defaulting to 1 here would silently
+  /// run it as the root-org owner, turning any future `_isPublic` mistake into
+  /// a full auth bypass; failing loudly keeps that a 500 instead.
+  int _uid(Request req) {
+    final id = req.context['userId'];
+    if (id is! int) {
+      throw StateError('handler requires authentication but _auth did not run');
+    }
+    return id;
+  }
+
+  /// Parses a numeric path segment. A non-numeric segment is a client error,
+  /// so it becomes a 400 rather than escaping as an unhandled FormatException
+  /// (a 500 plus a logged stack trace, which a client could trigger at will).
+  static int _pathId(String segment, String what) {
+    final n = int.tryParse(segment);
+    if (n == null) throw badRequest('Invalid $what: "$segment"');
+    return n;
+  }
+
+  /// Parses an optional ISO-8601 date query parameter. Absent is `null`;
+  /// malformed is a 400, for the same reason as [_pathId] — `DateTime.parse`
+  /// would otherwise throw a FormatException that escapes as a 500.
+  static DateTime? _dateParam(Map<String, String> query, String name) {
+    final raw = query[name];
+    if (raw == null) return null;
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) {
+      throw badRequest('Invalid $name: "$raw" (expected an ISO-8601 date)');
+    }
+    return parsed;
+  }
 
   Future<Response> _dispatch(Request req) async {
     var seg = req.url.pathSegments;
@@ -229,6 +428,9 @@ class Api {
 
     // OAuth auth service (shorebird login).
     if (seg.length == 1 && seg[0] == 'login' && m == 'GET') return _login(req);
+    if (seg.length == 1 && seg[0] == 'login' && m == 'POST') {
+      return _loginSubmit(req);
+    }
     if (seg.length == 2 &&
         seg[0] == 'oauth' &&
         seg[1] == 'callback' &&
@@ -287,7 +489,8 @@ class Api {
       if (seg[1] == 'gcp_download') {
         return _json({
           'download_url':
-              '${config.publicBaseUrl}/diagnostics/speedtest?size=1048576',
+              '${config.publicBaseUrl}/diagnostics/speedtest'
+              '?size=$_speedtestBytes',
         });
       }
     }
@@ -323,8 +526,8 @@ class Api {
                 appId,
                 releaseVersion: q['release_version'],
                 granularity: gran,
-                start: q['start'] != null ? DateTime.parse(q['start']!) : null,
-                end: q['end'] != null ? DateTime.parse(q['end']!) : null,
+                start: _dateParam(q, 'start'),
+                end: _dateParam(q, 'end'),
               ),
             );
           case 'unique-users':
@@ -393,25 +596,25 @@ class Api {
           rest[0] == 'patches' &&
           rest[2] == 'artifacts' &&
           m == 'POST') {
-        return _createPatchArtifact(req, appId, int.parse(rest[1]));
+        return _createPatchArtifact(req, appId, _pathId(rest[1], 'patch id'));
       }
       if (rest.length == 1 && rest[0] == 'releases') {
         if (m == 'POST') return _createRelease(req, appId);
         if (m == 'GET') return _getReleases(appId);
       }
       if (rest.length == 2 && rest[0] == 'releases' && m == 'PATCH') {
-        return _updateRelease(req, appId, int.parse(rest[1]));
+        return _updateRelease(req, appId, _pathId(rest[1], 'release id'));
       }
       if (rest.length == 3 && rest[0] == 'releases' && rest[2] == 'artifacts') {
-        final releaseId = int.parse(rest[1]);
+        final releaseId = _pathId(rest[1], 'release id');
         if (m == 'POST') return _createReleaseArtifact(req, appId, releaseId);
-        if (m == 'GET') return _getReleaseArtifacts(req, releaseId);
+        if (m == 'GET') return _getReleaseArtifacts(req, appId, releaseId);
       }
       if (rest.length == 3 &&
           rest[0] == 'releases' &&
           rest[2] == 'patches' &&
           m == 'GET') {
-        return _getReleasePatches(int.parse(rest[1]));
+        return _getReleasePatches(appId, _pathId(rest[1], 'release id'));
       }
     }
 
@@ -424,19 +627,32 @@ class Api {
 
   // ---- OAuth auth service ----
 
-  /// GET `/login?continue=<loopback>`: auto-consents as the configured identity
-  /// (self-host has no external IdP) and redirects to the loopback with a code.
+  /// GET `/login?continue=<loopback>`.
+  ///
+  /// Broker mode (an external IdP is configured) bounces to the IdP. Otherwise
+  /// the server has no identity provider of its own, so it authenticates the
+  /// operator against an API key: the browser gets a form, and only a correct
+  /// key yields an auth code. The identity is then whatever that key is bound
+  /// to — never anything supplied in the request.
   Future<Response> _login(Request req) async {
     final cont = req.url.queryParameters['continue'];
-    if (cont == null) {
-      return _err(HttpStatus.badRequest, 'bad_request', 'continue required');
+    if (cont == null || !_safeContinue(cont)) {
+      return _err(
+        HttpStatus.badRequest,
+        'bad_request',
+        'A loopback `continue` URL is required',
+      );
     }
 
     // Broker mode: bounce to the external IdP; the real email arrives at
     // /oauth/callback, which then issues our own code back to `continue`.
     if (config.idpEnabled) {
       final state = OAuthService.randomToken('sb_state_');
-      _idpState[state] = cont;
+      await repo.insertIdpState(
+        state,
+        cont,
+        DateTime.now().add(const Duration(minutes: 10)),
+      );
       final authUri = Uri.parse(config.idpAuthorizeUrl).replace(
         queryParameters: {
           'response_type': 'code',
@@ -449,36 +665,149 @@ class Api {
       return Response.found(authUri.toString());
     }
 
-    // Self-consent (single-tenant / dev): no external IdP.
-    final email =
-        req.url.queryParameters['email'] ??
-        Platform.environment['LOGIN_EMAIL'] ??
-        'owner@self-host.local';
+    return _loginFormResponse(cont);
+  }
+
+  /// POST `/login` (form-encoded `continue` + `api_key`): the self-consent
+  /// flow's credential check. A valid key mints an auth code for the identity
+  /// that key belongs to; anything else re-renders the form with an error.
+  Future<Response> _loginSubmit(Request req) async {
+    final form = Uri.splitQueryString(await _readText(req));
+    final cont = form['continue'];
+    if (cont == null || !_safeContinue(cont)) {
+      return _err(
+        HttpStatus.badRequest,
+        'bad_request',
+        'A loopback `continue` URL is required',
+      );
+    }
+    if (config.idpEnabled) {
+      return _err(
+        HttpStatus.badRequest,
+        'bad_request',
+        'An external IdP is configured; use GET /login',
+      );
+    }
+
+    final email = await _identityForApiKey(form['api_key'] ?? '');
+    if (email == null) {
+      // Logged, not audited. `POST /login` is public, so an audit row per
+      // failed attempt is an unauthenticated write into the one table with no
+      // default retention — the same unbounded growth the housekeeping sweeps
+      // exist to prevent. The structured log is where auth failures belong.
+      obs.info('login denied', {'reason': 'invalid api key'});
+      return _loginFormResponse(cont, error: 'That API key was not accepted.');
+    }
+
     final code = OAuthService.randomToken('sb_code_');
     await repo.insertAuthCode(
       code,
       email,
       DateTime.now().add(const Duration(minutes: 5)),
     );
+    await repo.audit('login.consent', actor: email);
     final sep = cont.contains('?') ? '&' : '?';
     return Response.found('$cont${sep}code=$code');
+  }
+
+  /// Resolves an API key to the email it authenticates as, or null if the key
+  /// is unknown. The bootstrap key maps to the configured [Config.loginEmail].
+  Future<String?> _identityForApiKey(String key) async {
+    if (key.isEmpty) return null;
+    if (config.bootstrapApiKey.isNotEmpty && key == config.bootstrapApiKey) {
+      return config.loginEmail;
+    }
+    final userId = await repo.userIdForApiKey(key);
+    if (userId == null) return null;
+    return (await repo.userById(userId))?.email;
+  }
+
+  /// The CLI always passes a loopback `continue`; refusing anything else stops
+  /// the login redirect being used to bounce a fresh auth code off-host.
+  static bool _safeContinue(String cont) {
+    // Header-safe characters first. `cont` is echoed into a `Location:` header,
+    // and `Uri.tryParse` happily keeps a CR/LF — or any non-ASCII byte —
+    // inside the path. dart:io then rejects the header value *while writing
+    // the response*, so the request never completes and its socket stays open.
+    // Both `/login` and `/oauth/callback` are public, so that is an
+    // unauthenticated way to pin connections until the process runs out of
+    // file descriptors. This mirrors dart:io's own validator: printable ASCII
+    // only, which is all a percent-encoded loopback URL ever needs.
+    if (cont.length > 2048) return false;
+    if (cont.codeUnits.any((c) => c < 0x20 || c >= 0x7f)) return false;
+    final uri = Uri.tryParse(cont);
+    if (uri == null || !uri.hasScheme || !uri.isScheme('http')) return false;
+    return uri.host == 'localhost' ||
+        uri.host == '127.0.0.1' ||
+        uri.host == '::1';
+  }
+
+  Response _loginFormResponse(String cont, {String? error}) => Response(
+    error == null ? HttpStatus.ok : HttpStatus.unauthorized,
+    body: _loginHtml(cont, error),
+    headers: {HttpHeaders.contentTypeHeader: 'text/html; charset=utf-8'},
+  );
+
+  static String _loginHtml(String cont, String? error) {
+    String esc(String s) => const HtmlEscape().convert(s);
+    return '''
+<!doctype html><html><head><meta charset="utf-8"><title>Sign in</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+ body{font:15px/1.5 system-ui,sans-serif;margin:0;display:grid;place-items:center;
+      min-height:100vh;background:#f6f7f9;color:#222}
+ form{background:#fff;padding:2rem;border-radius:12px;box-shadow:0 1px 4px #0002;width:min(26rem,90vw)}
+ h1{font-size:1.15rem;margin:0 0 .25rem} p{margin:.25rem 0 1rem;color:#666;font-size:.9rem}
+ input{width:100%;padding:.6rem;font:inherit;border:1px solid #ccc;border-radius:6px;box-sizing:border-box}
+ button{margin-top:1rem;width:100%;padding:.6rem;font:inherit;border:0;border-radius:6px;
+        background:#2f6feb;color:#fff;cursor:pointer}
+ .err{background:#fdecec;color:#a11;padding:.5rem .75rem;border-radius:6px;font-size:.9rem;margin-bottom:1rem}
+</style></head><body>
+<!-- Empty action posts back to this exact URL, so the form survives being
+     served under a reverse-proxy path prefix. -->
+<form method="post" action="">
+ <h1>Sign in to code_push_server</h1>
+ <p>Paste an API key. <code>setup.sh</code> printed one; more can be issued with
+    <code>POST /admin/users</code>.</p>
+ ${error == null ? '' : '<div class="err">${esc(error)}</div>'}
+ <input type="hidden" name="continue" value="${esc(cont)}">
+ <input type="password" name="api_key" placeholder="sb_api_…" autofocus
+        autocomplete="off" spellcheck="false">
+ <button type="submit">Sign in</button>
+</form></body></html>
+''';
   }
 
   /// External-IdP redirect target: exchange the IdP code for the user's email,
   /// then hand our own code back to the CLI's loopback (`continue`).
   Future<Response> _oauthCallback(Request req) async {
     final q = req.url.queryParameters;
-    final cont = _idpState.remove(q['state']);
+    // Single-use and persisted, so the state survives a restart and is valid
+    // on whichever replica the IdP redirects the browser back to.
+    final cont = await repo.consumeIdpState(q['state'] ?? '');
     if (cont == null) {
-      return _err(HttpStatus.badRequest, 'bad_request', 'Invalid state');
+      return _err(
+        HttpStatus.badRequest,
+        'bad_request',
+        'Invalid or expired state',
+      );
     }
-    if (q['error'] != null) return Response.found('$cont?error=${q['error']}');
+    // `_safeContinue` allows a loopback URL that already carries a query
+    // string, so the separator has to be computed — and the IdP's `error` is
+    // its text, not ours, so it has to be encoded before being pasted in.
+    String back(String param, String value) {
+      final sep = cont.contains('?') ? '&' : '?';
+      return '$cont$sep$param=${Uri.encodeQueryComponent(value)}';
+    }
+
+    final idpError = q['error'];
+    if (idpError != null) return Response.found(back('error', idpError));
     final idpCode = q['code'];
-    if (idpCode == null) return Response.found('$cont?error=missing_code');
+    if (idpCode == null) return Response.found(back('error', 'missing_code'));
 
     final tokenResp = await _idpTokenExchange(idpCode);
     final email = OAuthService.emailFromIdToken(tokenResp);
-    if (email == null) return Response.found('$cont?error=no_email');
+    if (email == null) return Response.found(back('error', 'no_email'));
 
     final code = OAuthService.randomToken('sb_code_');
     await repo.insertAuthCode(
@@ -486,8 +815,7 @@ class Api {
       email,
       DateTime.now().add(const Duration(minutes: 5)),
     );
-    final sep = cont.contains('?') ? '&' : '?';
-    return Response.found('$cont${sep}code=$code');
+    return Response.found(back('code', code));
   }
 
   /// POSTs the authorization code to the IdP token endpoint (form-encoded).
@@ -526,7 +854,7 @@ class Api {
   /// Codes and refresh tokens are single-use and persisted in Postgres, so
   /// sessions survive restarts and a code/refresh cannot be replayed.
   Future<Response> _token(Request req) async {
-    final form = Uri.splitQueryString(await req.readAsString());
+    final form = Uri.splitQueryString(await _readText(req));
     final grant = form['grant_type'];
     String? email;
     if (grant == 'authorization_code') {
@@ -575,8 +903,11 @@ class Api {
     if (inv['accepted_at'] != null) {
       throw conflict('Invitation already accepted');
     }
-    final exp = inv['expires_at'];
-    if (exp is DateTime && DateTime.now().toUtc().isAfter(exp.toUtc())) {
+    // `expired` is computed in SQL by `repo.invitation` — see the note there.
+    // WAS: `exp is DateTime && …`, which on the SQLite backend (the default)
+    // tested a String and so never fired: invitations never expired, and a
+    // leaked accept link kept granting its role — up to `owner` — forever.
+    if (asDbBool(inv['expired'])) {
       throw conflict('Invitation expired');
     }
     final user = await repo.userById(_uid(req));
@@ -613,8 +944,8 @@ class Api {
     final body = await _jsonBody(req);
     final current = await repo.userById(_uid(req));
     final user = await repo.upsertUser(
-      current?.email ?? 'owner@self-host.local',
-      body['name'] as String?,
+      current?.email ?? config.loginEmail,
+      _optStringField(body, 'name'),
     );
     return _json(_privateUser(user));
   }
@@ -652,7 +983,7 @@ class Api {
 
   Future<Response> _createApp(Request req) async {
     final body = await _jsonBody(req);
-    final orgId = (body['organization_id'] as int?) ?? 1;
+    final orgId = _optIntField(body, 'organization_id') ?? _rootOrgId;
     if (!await repo.userInOrg(_uid(req), orgId)) {
       throw DomainException(
         HttpStatus.forbidden,
@@ -661,7 +992,7 @@ class Api {
       );
     }
     final app = await repo.createApp(
-      body['display_name'] as String? ?? 'app',
+      _optStringField(body, 'display_name') ?? 'app',
       orgId,
     );
     await repo.audit('app.create', actor: '${_uid(req)}', target: app.appId);
@@ -677,6 +1008,91 @@ class Api {
         'No access to app $appId',
       );
     }
+  }
+
+  /// Authorizes the caller to administer [appId] (manage collaborators).
+  Future<void> _authorizeAppAdmin(Request req, String appId) async {
+    if (!await repo.userIsAppAdmin(_uid(req), appId)) {
+      throw DomainException(
+        HttpStatus.forbidden,
+        'forbidden',
+        'Managing collaborators on $appId requires an admin role',
+      );
+    }
+  }
+
+  /// The roles a membership or collaboration may hold. Anything outside this
+  /// set is a 400 rather than a stored string nobody interprets: authorization
+  /// matches on exact values (`userIsOrgAdmin`, `userIsAppAdmin`), so a typo
+  /// like `Admin` reads as "no privileges at all" wherever it lands.
+  static const Set<String> _roles = {'owner', 'admin', 'developer'};
+
+  /// The subset of [_roles] that confers administrative rights.
+  static const Set<String> _adminRoles = {'owner', 'admin'};
+
+  /// Validates a `role` query parameter. [orDefault] is the value to use when
+  /// the parameter is absent — supplied only where "unspecified" has an
+  /// obvious meaning (creating an invitation or a collaborator). On an update
+  /// there is no such default: a mistyped parameter name would otherwise read
+  /// as a silent demotion rather than an error.
+  static String _validRole(String? role, {String? orDefault}) {
+    final r = role ?? orDefault;
+    if (r == null) throw badRequest('role required');
+    if (!_roles.contains(r)) {
+      throw badRequest('role must be one of ${_roles.join(', ')}');
+    }
+    return r;
+  }
+
+  /// The org `Repository._seed` creates, which the bootstrap API key's user is
+  /// an owner of. Membership in it is what distinguishes an operator of this
+  /// server from an ordinary tenant, who gets a personal org of their own.
+  static const int _rootOrgId = 1;
+
+  /// Authorizes the caller as an operator of this deployment: an owner/admin
+  /// of the root org. This is the identity `setup.sh`'s bootstrap key maps to.
+  Future<void> _authorizeServerAdmin(Request req) async {
+    if (!await repo.userIsOrgAdmin(_uid(req), _rootOrgId)) {
+      await repo.audit('admin.denied', actor: '${_uid(req)}', target: 'users');
+      throw DomainException(
+        HttpStatus.forbidden,
+        'forbidden',
+        'Issuing API keys requires an owner/admin of the root organization',
+      );
+    }
+  }
+
+  // ---- ownership resolution --------------------------------------------
+  //
+  // `_authorizeApp` only proves the caller may act on the app named in the
+  // PATH. Every id taken from a body or a deeper path segment must then be
+  // confirmed to belong to that same app, or a caller could operate on another
+  // tenant's release/patch/channel by pairing their own app id with a foreign
+  // numeric id. These resolvers are the only sanctioned way to load one.
+  // They 404 rather than 403 on mismatch so they don't confirm the id exists.
+
+  Future<ReleaseRow> _ownedRelease(String appId, int releaseId) async {
+    final release = await repo.release(releaseId);
+    if (release == null || release.appId != appId) {
+      throw notFound('No release $releaseId on app $appId');
+    }
+    return release;
+  }
+
+  Future<PatchRow> _ownedPatch(String appId, int patchId) async {
+    final patch = await repo.patch(patchId);
+    if (patch == null || patch.appId != appId) {
+      throw notFound('No patch $patchId on app $appId');
+    }
+    return patch;
+  }
+
+  Future<ChannelRow> _ownedChannel(String appId, int channelId) async {
+    final channel = await repo.channelById(channelId);
+    if (channel == null || channel.appId != appId) {
+      throw notFound('No channel $channelId on app $appId');
+    }
+    return channel;
   }
 
   Future<Response> _getApps(Request req) async {
@@ -708,10 +1124,10 @@ class Api {
     final body = await _jsonBody(req);
     final r = await repo.createRelease(
       appId: appId,
-      version: body['version'] as String,
-      flutterRevision: body['flutter_revision'] as String?,
-      flutterVersion: body['flutter_version'] as String?,
-      displayName: body['display_name'] as String?,
+      version: _stringField(body, 'version'),
+      flutterRevision: _optStringField(body, 'flutter_revision'),
+      flutterVersion: _optStringField(body, 'flutter_version'),
+      displayName: _optStringField(body, 'display_name'),
     );
     return _json({'release': _releaseJson(r)});
   }
@@ -727,10 +1143,9 @@ class Api {
     int releaseId,
   ) async {
     final body = await _jsonBody(req);
-    final release = await repo.release(releaseId);
-    if (release == null) throw notFound('No release $releaseId');
-    final status = body['status'] as String?;
-    final platform = body['platform'] as String?;
+    final release = await _ownedRelease(appId, releaseId);
+    final status = _optStringField(body, 'status');
+    final platform = _optStringField(body, 'platform');
     if (status != null && platform != null) {
       await repo.setReleasePlatformStatus(releaseId, platform, status);
       if (status == 'active') {
@@ -764,10 +1179,8 @@ class Api {
 
   Future<Response> _createPatch(Request req, String appId) async {
     final body = await _jsonBody(req);
-    final releaseId = body['release_id'] as int;
-    if (await repo.release(releaseId) == null) {
-      throw notFound('No release $releaseId');
-    }
+    final releaseId = _intField(body, 'release_id');
+    await _ownedRelease(appId, releaseId);
     final p = await repo.createPatch(appId, releaseId);
     return _json({'id': p.id, 'number': p.number, 'notes': null});
   }
@@ -777,29 +1190,29 @@ class Api {
     String appId,
     int releaseId,
   ) async {
-    final release = await repo.release(releaseId);
-    if (release == null) throw notFound('No release $releaseId');
+    final release = await _ownedRelease(appId, releaseId);
+    // Parse and validate before advancing the lifecycle, matching `_upload` and
+    // `_createPatchArtifact`. Unlike those two this was not a dead end — the
+    // release lifecycle has no transition guard, so a release left in
+    // `uploading` still accepts artifacts and still finalizes — but there is no
+    // reason for a rejected request to move it at all.
+    final (fields, _) = await _parseMultipart(req);
+    final arch = _requiredField(fields, 'arch');
+    final platform = _requiredField(fields, 'platform');
+    final hash = _requiredField(fields, 'hash');
+    if (await repo.existingArtifact('release', releaseId, arch, platform) !=
+        null) {
+      throw conflict('Artifact already registered for $arch/$platform');
+    }
     if (release.lifecycle == ReleaseLifecycle.draft) {
       await repo.setReleaseLifecycle(releaseId, ReleaseLifecycle.uploading);
-    }
-    final (fields, _) = await _parseMultipart(req);
-    if (await repo.existingArtifact(
-          'release',
-          releaseId,
-          fields['arch']!,
-          fields['platform']!,
-        ) !=
-        null) {
-      throw conflict(
-        'Artifact already registered for ${fields['arch']}/${fields['platform']}',
-      );
     }
     final art = await repo.createArtifact(
       ownerKind: 'release',
       ownerId: releaseId,
-      arch: fields['arch']!,
-      platform: fields['platform']!,
-      hash: fields['hash']!,
+      arch: arch,
+      platform: platform,
+      hash: hash,
       size: int.tryParse(fields['size'] ?? '0') ?? 0,
       podfileLockHash: fields['podfile_lock_hash'],
       canSideload: fields['can_sideload'] == 'true',
@@ -812,28 +1225,40 @@ class Api {
     String appId,
     int patchId,
   ) async {
-    final patch = await repo.patch(patchId);
-    if (patch == null) throw notFound('No patch $patchId');
-    requirePatchTransition(patch.status, PatchStatus.uploading);
-    await repo.setPatchStatus(patchId, PatchStatus.uploading);
-    final (fields, _) = await _parseMultipart(req);
-    if (await repo.existingArtifact(
-          'patch',
-          patchId,
-          fields['arch']!,
-          fields['platform']!,
-        ) !=
-        null) {
+    final patch = await _ownedPatch(appId, patchId);
+    // A promoted patch's artifact set is frozen. Re-opening it to `uploading`
+    // would stop `patches/check` serving it (it requires `ready`), silently
+    // unserving every device mid-rollout until the new arch finished.
+    if (await repo.patchIsPromoted(patchId)) {
       throw conflict(
-        'Artifact already registered for ${fields['arch']}/${fields['platform']}',
+        'Patch $patchId has already been promoted; artifacts can no longer be '
+        'added. Create a new patch instead.',
       );
     }
+    requirePatchTransition(patch.status, PatchStatus.uploading);
+    // Parse and validate BEFORE moving the patch to `uploading`: a body that
+    // turns out to be unusable would otherwise leave the patch parked in a
+    // state `patches/check` won't serve, with no request left to finish it.
+    final (fields, _) = await _parseMultipart(req);
+    final arch = _requiredField(fields, 'arch');
+    final platform = _requiredField(fields, 'platform');
+    final hash = _requiredField(fields, 'hash');
+    // The duplicate check belongs here too, above the transition. `_patchNext`
+    // allows ready -> uploading, so a retried registration whose response was
+    // lost (the CLI's last arch succeeded, the patch verified to `ready`, the
+    // client didn't hear it) would flip the patch back to `uploading` and only
+    // then 409. Nothing can move it forward from there — `patches/check` and
+    // `_promotePatch` both require `ready` — so the patch is stranded for good.
+    if (await repo.existingArtifact('patch', patchId, arch, platform) != null) {
+      throw conflict('Artifact already registered for $arch/$platform');
+    }
+    await repo.setPatchStatus(patchId, PatchStatus.uploading);
     final art = await repo.createArtifact(
       ownerKind: 'patch',
       ownerId: patchId,
-      arch: fields['arch']!,
-      platform: fields['platform']!,
-      hash: fields['hash']!,
+      arch: arch,
+      platform: platform,
+      hash: hash,
       size: int.tryParse(fields['size'] ?? '0') ?? 0,
       hashSignature: fields['hash_signature'],
       podfileLockHash: fields['podfile_lock_hash'],
@@ -841,7 +1266,12 @@ class Api {
     return _json(_registerJson(art, releaseKey: false));
   }
 
-  Future<Response> _getReleaseArtifacts(Request req, int releaseId) async {
+  Future<Response> _getReleaseArtifacts(
+    Request req,
+    String appId,
+    int releaseId,
+  ) async {
+    await _ownedRelease(appId, releaseId);
     final arch = req.url.queryParameters['arch'];
     final platform = req.url.queryParameters['platform'];
     final arts = await repo.releaseArtifacts(
@@ -869,7 +1299,7 @@ class Api {
 
   Future<Response> _createChannel(Request req, String appId) async {
     final body = await _jsonBody(req);
-    final name = body['channel'] as String;
+    final name = _stringField(body, 'channel');
     final channel =
         await repo.channel(appId, name) ??
         await repo.createChannel(appId, name);
@@ -882,7 +1312,8 @@ class Api {
     return _json({...app, 'patches': patches});
   }
 
-  Future<Response> _getReleasePatches(int releaseId) async {
+  Future<Response> _getReleasePatches(String appId, int releaseId) async {
+    await _ownedRelease(appId, releaseId);
     final patches = await repo.patchesForRelease(releaseId);
     final out = <Map<String, Object?>>[];
     for (final p in patches) {
@@ -911,12 +1342,20 @@ class Api {
     return _json({'patches': out});
   }
 
-  /// Byte source/sink for `shorebird doctor`'s network speed check.
+  /// The exact payload size `NetworkChecker.performGCPDownloadSpeedTest`
+  /// expects; it errors on any other length. Also the response cap, so this
+  /// public endpoint can't be used as a bandwidth amplifier.
+  static const _speedtestBytes = 16000000;
+
+  /// Byte source/sink for `shorebird doctor`'s network speed check. Public:
+  /// the CLI fetches it with an unauthenticated client. Bucketed under its own
+  /// tighter rate limit — see [_rateLimit].
   Future<Response> _speedtest(Request req) async {
     if (req.method == 'GET') {
       final size =
-          (int.tryParse(req.url.queryParameters['size'] ?? '') ?? 1048576)
-              .clamp(0, 50 * 1024 * 1024);
+          (int.tryParse(req.url.queryParameters['size'] ?? '') ??
+                  _speedtestBytes)
+              .clamp(0, _speedtestBytes);
       return Response.ok(
         Stream<List<int>>.value(Uint8List(size)),
         headers: {
@@ -925,8 +1364,15 @@ class Api {
         },
       );
     }
-    await req.read().drain<void>(); // upload: accept + discard
-    return _json({'ok': true});
+    // Upload: count + discard, never buffer. `_collect` would hold the whole
+    // payload in memory and only throw once the cap was already exceeded — on
+    // a public, unauthenticated endpoint that is MAX_UPLOAD_BYTES (512 MiB by
+    // default) of heap pinned per in-flight request, so a handful of concurrent
+    // POSTs is an OOM. Nothing here reads the bytes, so streaming past them
+    // costs O(1). The cap is the speedtest's own payload size, not the artifact
+    // limit: the CLI uploads a fixed 5 MB probe.
+    await _drain(req.read(), max: _speedtestBytes);
+    return Response(HttpStatus.noContent);
   }
 
   /// Serves the self-contained web console (single-page app).
@@ -953,14 +1399,14 @@ class Api {
 
   Future<Response> _promotePatch(Request req, String appId) async {
     final body = await _jsonBody(req);
-    final patchId = body['patch_id'] as int;
-    final channelId = body['channel_id'] as int;
-    final rollout = (body['rollout'] as int?) ?? 100;
-    final patch = await repo.patch(patchId);
-    if (patch == null) throw notFound('No patch $patchId');
-    if (await repo.channelById(channelId) == null) {
-      throw notFound('No channel $channelId');
+    final patchId = _intField(body, 'patch_id');
+    final channelId = _intField(body, 'channel_id');
+    final rollout = _optIntField(body, 'rollout') ?? 100;
+    if (rollout < 0 || rollout > 100) {
+      throw badRequest('rollout must be between 0 and 100');
     }
+    final patch = await _ownedPatch(appId, patchId);
+    await _ownedChannel(appId, channelId);
     if (patch.status != PatchStatus.ready) {
       throw conflict('Patch $patchId is ${patch.status.name}, not ready');
     }
@@ -992,9 +1438,16 @@ class Api {
     if (art.status != ArtifactStatus.pending) {
       throw conflict('Upload token not reusable (status ${art.status.name})');
     }
-    await repo.setArtifactStatus(art.id, ArtifactStatus.uploading);
+    // Parse and validate BEFORE leaving `pending`, for the same reason as
+    // `_createPatchArtifact`. Moving to `uploading` first made any body that
+    // failed to parse — a part-count or aggregate-size cap in `_parseMultipart`,
+    // or a body with no file part — permanently burn the upload token: the
+    // retry hits the `status != pending` conflict above, and re-registering the
+    // artifact hits the duplicate check in `_createPatchArtifact`. Nothing can
+    // move the artifact forward from there, so the patch never reaches `ready`.
     final (_, file) = await _parseMultipart(req);
     if (file == null) throw badRequest('Missing file part');
+    await repo.setArtifactStatus(art.id, ArtifactStatus.uploading);
     await store.put(art.storageKey, file.bytes);
 
     final reason = await store.verify(
@@ -1123,20 +1576,30 @@ class Api {
       throw notFound('No artifact for token');
     }
     final total = await store.size(art.storageKey);
-    final failAfter = int.tryParse(q['fail_after'] ?? '');
+    // Fault injection for the updater's resume/retry tests. Never honored in
+    // production — it's a way to make a real download return truncated bytes.
+    final failAfter = config.production
+        ? null
+        : int.tryParse(q['fail_after'] ?? '');
 
-    final range = req.headers[HttpHeaders.rangeHeader];
-    if (range != null && range.startsWith('bytes=')) {
-      final spec = range.substring('bytes='.length).split('-');
-      final start = int.tryParse(spec[0]) ?? 0;
-      final end = (spec.length > 1 && spec[1].isNotEmpty)
-          ? int.parse(spec[1])
-          : total - 1;
-      final len = end - start + 1;
+    final rangeHeader = req.headers[HttpHeaders.rangeHeader];
+    // A header we can't honor falls through to the full 200 below, which is
+    // what RFC 7233 asks for and what a CDN in front of /download expects.
+    final parsed = rangeHeader == null
+        ? const ParsedRange(RangeOutcome.ignore)
+        : parseByteRange(rangeHeader, total);
+    if (parsed.outcome == RangeOutcome.unsatisfiable) {
+      return Response(
+        HttpStatus.requestedRangeNotSatisfiable,
+        headers: {HttpHeaders.contentRangeHeader: 'bytes */$total'},
+      );
+    }
+    if (parsed.outcome == RangeOutcome.partial) {
+      final range = parsed.range!;
       final body = await store.openRead(
         art.storageKey,
-        offset: start,
-        length: len,
+        offset: range.start,
+        length: range.length,
       );
       return Response(
         HttpStatus.partialContent,
@@ -1144,8 +1607,9 @@ class Api {
         headers: {
           HttpHeaders.contentTypeHeader: 'application/octet-stream',
           HttpHeaders.acceptRangesHeader: 'bytes',
-          HttpHeaders.contentRangeHeader: 'bytes $start-$end/$total',
-          HttpHeaders.contentLengthHeader: '$len',
+          HttpHeaders.contentRangeHeader:
+              'bytes ${range.start}-${range.end}/$total',
+          HttpHeaders.contentLengthHeader: '${range.length}',
         },
       );
     }
@@ -1185,16 +1649,27 @@ class Api {
 
   Future<Response> _patchesCheck(Request req) async {
     final body = await _jsonBody(req);
-    final appId = body['app_id'] as String?;
-    final version = body['release_version'] as String?;
-    final platform = body['platform'] as String?;
-    final arch = body['arch'] as String?;
-    final channelName = (body['channel'] as String?) ?? 'stable';
-    final clientId = body['client_id'] as String?;
+    // Deliberately tolerant, unlike the CLI-facing endpoints: this is the
+    // updater's hot path, and a device that sends a wrong-typed field should
+    // be told "no patch for you" rather than have the cast escape as a 500.
+    String? str(String key) {
+      final v = body[key];
+      return v is String ? v : null;
+    }
+
+    int? integer(String key) {
+      final v = body[key];
+      return v is int ? v : null;
+    }
+
+    final appId = str('app_id');
+    final version = str('release_version');
+    final platform = str('platform');
+    final arch = str('arch');
+    final channelName = str('channel') ?? 'stable';
+    final clientId = str('client_id');
     final clientPatch =
-        (body['current_patch_number'] as int?) ??
-        (body['patch_number'] as int?) ??
-        0;
+        integer('current_patch_number') ?? integer('patch_number') ?? 0;
 
     Map<String, Object?> resp({
       Map<String, Object?>? patch,
@@ -1218,7 +1693,13 @@ class Api {
       release.id,
     );
 
-    final active = await repo.activeChannelPatch(channel.id);
+    // Platform-scoped: a channel can hold one active patch per platform, so an
+    // Android device must not be handed the newest patch when that patch is
+    // iOS-only (and vice versa).
+    final active = await repo.activeChannelPatch(
+      channel.id,
+      platform: platform,
+    );
     if (active == null) return _json(resp(rolledBack: rolledBack));
     final patch = await repo.patch(active.patchId);
     if (patch == null || patch.releaseId != release.id) {
@@ -1259,7 +1740,7 @@ class Api {
   }
 
   Future<Response> _patchesEvents(Request req) async {
-    final raw = await req.readAsString();
+    final raw = await _readText(req);
     obs.info('patches/events', {'body': raw});
     try {
       final decoded = jsonDecode(raw);
@@ -1301,7 +1782,7 @@ class Api {
         seg.length == 3 &&
         seg[0] == 'orgs' &&
         seg[2] == 'invitations') {
-      final orgId = int.parse(seg[1]);
+      final orgId = _pathId(seg[1], 'org id');
       if (!await repo.userIsOrgAdmin(_uid(req), orgId)) {
         throw DomainException(
           HttpStatus.forbidden,
@@ -1310,7 +1791,10 @@ class Api {
         );
       }
       final email = req.url.queryParameters['email'];
-      final role = req.url.queryParameters['role'] ?? 'developer';
+      final role = _validRole(
+        req.url.queryParameters['role'],
+        orDefault: 'developer',
+      );
       if (email == null) throw badRequest('email required');
       final token = await repo.createInvitation(orgId, email, role);
       await repo.audit(
@@ -1330,6 +1814,12 @@ class Api {
     }
     // POST /admin/users?email=&name=  -> create user + issue an API key
     if (req.method == 'POST' && seg.length == 1 && seg[0] == 'users') {
+      // Being authenticated is not enough. `upsertUser` returns the EXISTING
+      // row on an email conflict, so this route hands the caller a working API
+      // key for *any* address already registered — name the seeded owner and
+      // you own the server. That escalation would undo every role and tenancy
+      // check elsewhere in this file, so it is gated on being an operator.
+      await _authorizeServerAdmin(req);
       final email = req.url.queryParameters['email'];
       if (email == null || email.isEmpty) throw badRequest('email required');
       final user = await repo.upsertUser(
@@ -1346,9 +1836,14 @@ class Api {
         seg[0] == 'apps' &&
         seg[2] == 'collaborators') {
       final appId = seg[1];
-      await _authorizeApp(req, appId);
+      // Granting access is an admin action: a `developer` collaborator can
+      // ship patches but must not be able to add or remove other people.
+      await _authorizeAppAdmin(req, appId);
       final email = req.url.queryParameters['email'];
-      final role = req.url.queryParameters['role'] ?? 'developer';
+      final role = _validRole(
+        req.url.queryParameters['role'],
+        orDefault: 'developer',
+      );
       if (email == null) throw badRequest('email required');
       final user = await repo.userByEmail(email);
       if (user == null) throw notFound('No user $email');
@@ -1368,8 +1863,12 @@ class Api {
         seg[0] == 'apps' &&
         seg[2] == 'patches') {
       final appId = seg[1];
-      final patchId = int.parse(seg[3]);
+      final patchId = _pathId(seg[3], 'patch id');
       final action = seg[4];
+      // /admin is dispatched outside the /api/v1/apps block, so it gets no
+      // authorization for free — withdraw and rollout must check it here.
+      await _authorizeApp(req, appId);
+      await _ownedPatch(appId, patchId);
       final channelName = req.url.queryParameters['channel'] ?? 'stable';
       final channel = await repo.channel(appId, channelName);
       if (channel == null) throw notFound('No channel $channelName');
@@ -1395,7 +1894,12 @@ class Api {
         });
       }
       if (action == 'rollout') {
-        final percent = int.parse(req.url.queryParameters['percent'] ?? '100');
+        final percent = int.tryParse(
+          req.url.queryParameters['percent'] ?? '100',
+        );
+        if (percent == null || percent < 0 || percent > 100) {
+          throw badRequest('percent must be an integer between 0 and 100');
+        }
         final cp = await repo.activeChannelPatchForPatch(channel.id, patchId);
         if (cp == null) {
           throw conflict('Patch $patchId is not active on $channelName');
@@ -1417,7 +1921,7 @@ class Api {
         seg.length == 3 &&
         seg[0] == 'orgs' &&
         seg[2] == 'members') {
-      final orgId = int.parse(seg[1]);
+      final orgId = _pathId(seg[1], 'org id');
       if (!await repo.userInOrg(_uid(req), orgId)) {
         throw DomainException(
           HttpStatus.forbidden,
@@ -1432,8 +1936,8 @@ class Api {
         seg.length == 4 &&
         seg[0] == 'orgs' &&
         seg[2] == 'members') {
-      final orgId = int.parse(seg[1]);
-      final userId = int.parse(seg[3]);
+      final orgId = _pathId(seg[1], 'org id');
+      final userId = _pathId(seg[3], 'user id');
       if (!await repo.userIsOrgAdmin(_uid(req), orgId)) {
         throw DomainException(
           HttpStatus.forbidden,
@@ -1441,8 +1945,17 @@ class Api {
           'Not an org admin',
         );
       }
-      final role = req.url.queryParameters['role'];
-      if (role == null || role.isEmpty) throw badRequest('role required');
+      final role = _validRole(req.url.queryParameters['role']);
+      // Same "don't strand the org" rule the DELETE below enforces: demoting
+      // the last owner/admin leaves nobody who can invite, manage members, or
+      // (for the root org) issue API keys, with no recovery short of the
+      // database. A near-miss like `Admin` or `ownr` used to be written
+      // straight through, which is exactly how that happened.
+      if (!_adminRoles.contains(role) &&
+          await repo.userIsOrgAdmin(userId, orgId) &&
+          await repo.orgAdminCount(orgId) <= 1) {
+        throw conflict('Cannot demote the last owner/admin of the org');
+      }
       await repo.setMemberRole(orgId, userId, role);
       await repo.audit(
         'org.member.role',
@@ -1457,8 +1970,8 @@ class Api {
         seg.length == 4 &&
         seg[0] == 'orgs' &&
         seg[2] == 'members') {
-      final orgId = int.parse(seg[1]);
-      final userId = int.parse(seg[3]);
+      final orgId = _pathId(seg[1], 'org id');
+      final userId = _pathId(seg[3], 'user id');
       if (!await repo.userIsOrgAdmin(_uid(req), orgId)) {
         throw DomainException(
           HttpStatus.forbidden,
@@ -1475,7 +1988,8 @@ class Api {
         }
       }
       final r = target?['role'];
-      if ((r == 'owner' || r == 'admin') &&
+      if (r is String &&
+          _adminRoles.contains(r) &&
           await repo.orgAdminCount(orgId) <= 1) {
         throw conflict('Cannot remove the last owner/admin of the org');
       }
@@ -1493,7 +2007,7 @@ class Api {
         seg.length == 3 &&
         seg[0] == 'orgs' &&
         seg[2] == 'invitations') {
-      final orgId = int.parse(seg[1]);
+      final orgId = _pathId(seg[1], 'org id');
       if (!await repo.userIsOrgAdmin(_uid(req), orgId)) {
         throw DomainException(
           HttpStatus.forbidden,
@@ -1508,7 +2022,7 @@ class Api {
         seg.length == 4 &&
         seg[0] == 'orgs' &&
         seg[2] == 'invitations') {
-      final orgId = int.parse(seg[1]);
+      final orgId = _pathId(seg[1], 'org id');
       if (!await repo.userIsOrgAdmin(_uid(req), orgId)) {
         throw DomainException(
           HttpStatus.forbidden,
@@ -1532,7 +2046,13 @@ class Api {
         seg[2] == 'collaborators') {
       final appId = seg[1];
       await _authorizeApp(req, appId);
-      return _json({'collaborators': await repo.appCollaborators(appId)});
+      // `can_manage` mirrors what _authorizeAppAdmin will allow, so the
+      // console can hide the add/remove controls instead of offering everyone
+      // buttons that answer 403.
+      return _json({
+        'collaborators': await repo.appCollaborators(appId),
+        'can_manage': await repo.userIsAppAdmin(_uid(req), appId),
+      });
     }
     // DELETE /admin/apps/{appId}/collaborators/{userId}
     if (req.method == 'DELETE' &&
@@ -1540,8 +2060,8 @@ class Api {
         seg[0] == 'apps' &&
         seg[2] == 'collaborators') {
       final appId = seg[1];
-      await _authorizeApp(req, appId);
-      final userId = int.parse(seg[3]);
+      await _authorizeAppAdmin(req, appId);
+      final userId = _pathId(seg[3], 'user id');
       await repo.removeCollaborator(appId, userId);
       await repo.audit(
         'app.collaborator.remove',
@@ -1598,10 +2118,70 @@ class Api {
     'notes': null,
   };
 
+  /// Ceiling on any body we turn into a String. Every payload at these
+  /// endpoints is a small control-plane document; `readAsString` on its own has
+  /// no ceiling at all, and several of these routes are public, so an
+  /// unauthenticated POST could pin arbitrary heap (worse than the raw bytes:
+  /// UTF-8 decoding to a Dart String roughly doubles it).
+  static const int _maxTextBodyBytes = 1 << 20; // 1 MiB
+
+  /// Artifact registration sends a handful of fields plus one file.
+  static const int _maxMultipartParts = 32;
+
+  /// `allowMalformed` because strict UTF-8 decoding throws a FormatException
+  /// on bytes the client chose — another client-triggerable 500. Invalid
+  /// sequences become U+FFFD, and the JSON/form parse downstream then fails
+  /// with a 400 like any other bad body.
+  Future<String> _readText(Request req) async => utf8.decode(
+    await _collect(req.read(), max: _maxTextBodyBytes),
+    allowMalformed: true,
+  );
+
   Future<Map<String, dynamic>> _jsonBody(Request req) async {
-    final s = await req.readAsString();
+    final s = await _readText(req);
     if (s.isEmpty) return {};
-    return jsonDecode(s) as Map<String, dynamic>;
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(s);
+    } on FormatException {
+      throw badRequest('Body is not valid JSON');
+    }
+    if (decoded is! Map<String, dynamic>) {
+      throw badRequest('Body must be a JSON object');
+    }
+    return decoded;
+  }
+
+  // Body-field readers. These values arrive straight off the wire, so a
+  // missing or wrong-typed one is a client error. A raw `as` cast instead
+  // throws a TypeError that escapes as a 500 plus a logged stack trace — which
+  // any caller could trigger at will with `{"release_id": "1"}`. Same defect
+  // class as the non-numeric path segments [_pathId] handles.
+
+  static int _intField(Map<String, dynamic> body, String key) =>
+      _optIntField(body, key) ?? (throw badRequest('$key is required'));
+
+  static int? _optIntField(Map<String, dynamic> body, String key) {
+    final v = body[key];
+    if (v == null) return null;
+    if (v is int) return v;
+    throw badRequest('$key must be an integer');
+  }
+
+  static String _stringField(Map<String, dynamic> body, String key) =>
+      _optStringField(body, key) ?? (throw badRequest('$key is required'));
+
+  /// The multipart equivalent of [_stringField]. A bare `fields['arch']!` is
+  /// the same client-triggerable 500 as a raw body cast: post an artifact
+  /// registration without the part and the null-check throws.
+  static String _requiredField(Map<String, String> fields, String key) =>
+      fields[key] ?? (throw badRequest('Missing form field "$key"'));
+
+  static String? _optStringField(Map<String, dynamic> body, String key) {
+    final v = body[key];
+    if (v == null) return null;
+    if (v is String) return v;
+    throw badRequest('$key must be a string');
   }
 
   Response _json(Object data) => _jsonRaw(jsonEncode(data));
@@ -1624,17 +2204,28 @@ class Api {
     final fields = <String, String>{};
     ({String name, List<int> bytes})? file;
     if (boundary == null) return (fields, file);
+    // Per-part caps alone bound nothing: a body of many parts, or many small
+    // fields, is unbounded in aggregate. Every real request here is a handful
+    // of fields plus one file.
+    var remaining = config.maxUploadBytes;
+    var parts = 0;
     await for (final part in MimeMultipartTransformer(
       boundary,
     ).bind(req.read())) {
+      if (++parts > _maxMultipartParts) {
+        throw badRequest('Too many multipart parts (max $_maxMultipartParts)');
+      }
       final disposition = part.headers['content-disposition'] ?? '';
       final name = _dispositionParam(disposition, 'name');
       final filename = _dispositionParam(disposition, 'filename');
-      final bytes = await _collect(part, max: config.maxUploadBytes);
+      final bytes = await _collect(part, max: remaining);
+      remaining -= bytes.length;
       if (filename != null) {
         file = (name: name ?? 'file', bytes: bytes);
       } else if (name != null) {
-        fields[name] = utf8.decode(bytes);
+        // Lenient for the same reason as [_readText]: a malformed byte in a
+        // form field is a 400 from whatever consumes it, not a 500 here.
+        fields[name] = utf8.decode(bytes, allowMalformed: true);
       }
     }
     return (fields, file);
@@ -1661,16 +2252,28 @@ class Api {
       b.add(chunk);
       // Cap mid-stream so an oversized (or dishonestly-sized) upload can't
       // exhaust memory before a Content-Length check would catch it.
-      if (max != null && b.length > max) {
-        throw DomainException(
-          HttpStatus.requestEntityTooLarge,
-          'payload_too_large',
-          'Upload exceeds the maximum size of $max bytes',
-        );
-      }
+      if (max != null && b.length > max) throw _tooLarge(max);
     }
     return b.takeBytes();
   }
+
+  /// Consumes and discards [s], enforcing [max] without retaining a byte of
+  /// it. Use wherever the payload is unwanted; [_collect] buffers first, which
+  /// makes the cap a memory *reservation* rather than a limit.
+  Future<int> _drain(Stream<List<int>> s, {required int max}) async {
+    var received = 0;
+    await for (final chunk in s) {
+      received += chunk.length;
+      if (received > max) throw _tooLarge(max);
+    }
+    return received;
+  }
+
+  static DomainException _tooLarge(int max) => DomainException(
+    HttpStatus.requestEntityTooLarge,
+    'payload_too_large',
+    'Upload exceeds the maximum size of $max bytes',
+  );
 }
 
 /// A thin, self-contained admin page. Public HTML (no secrets embedded); the
@@ -1714,12 +2317,21 @@ async function load(){
 </script></body></html>
 ''';
 
-/// Fixed-window in-memory rate limiter, keyed by bearer token (or 'anon').
+/// Fixed-window in-memory rate limiter, keyed by bearer token or client IP.
+///
+/// Buckets from closed windows are swept as the window rolls over. Without
+/// that the map grows one entry per distinct IP forever, which is unbounded
+/// memory driven entirely by unauthenticated traffic.
 class _RateLimiter {
   final Map<String, (int windowStart, int count)> _buckets = {};
+  int _lastSweptWindow = 0;
 
   bool allow(String key, int perMinute) {
     final nowMin = DateTime.now().millisecondsSinceEpoch ~/ 60000;
+    if (nowMin != _lastSweptWindow) {
+      _lastSweptWindow = nowMin;
+      _buckets.removeWhere((_, v) => v.$1 < nowMin);
+    }
     final entry = _buckets[key];
     if (entry == null || entry.$1 != nowMin) {
       _buckets[key] = (nowMin, 1);

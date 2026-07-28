@@ -44,7 +44,6 @@ openssl rand -hex 32
 
 You need fresh values for:
 
-- `JWT_SECRET` — signs session JWTs.
 - `URL_SIGNING_SECRET` — signs short-lived download URLs.
 - `API_KEY` — bootstrap API key (rotate/remove once real users exist).
 - `POSTGRES_PASSWORD` (and the matching password inside `DATABASE_URL`).
@@ -93,7 +92,8 @@ BASE=http://localhost:8080 KEY=<API_KEY from .env> tool/smoke_test.sh
 This runs create → verify → promote → signed-URL range download → rollback end
 to end. Once it passes, run `./setup.sh --down` and switch to the domain flow
 below (`./setup.sh --domain …`), which is identical but adds Caddy TLS and
-`PRODUCTION=true` (so the dev-default-secret guard in section 8 is enforced).
+`PRODUCTION=true` (so the DB/S3-credential and HTTPS checks in section 8 are
+enforced on top of the placeholder-secret checks, which always run).
 
 ## 4. TLS / domain setup
 
@@ -150,11 +150,23 @@ docker compose -f docker-compose.prod.yaml up -d server
 
 ## 7. Scaling notes
 
-The `server` is stateless, so it scales horizontally behind Caddy:
+The `server` keeps no session state in memory — logins, OAuth codes, refresh
+tokens and IdP CSRF state all live in Postgres — so it scales horizontally
+behind Caddy:
 
 ```bash
 docker compose -f docker-compose.prod.yaml up -d --scale server=3
 ```
+
+**Two things are still per-instance. Check both before scaling past one:**
+
+- **`UPLOAD_METHOD=resumable` requires a single replica** (or sticky sessions).
+  Resumable uploads stage `.partial` chunks on the instance's local disk, so
+  chunks that land on different replicas produce a truncated artifact. The
+  default `multipart` is a single request and scales fine.
+- **`RATE_LIMIT_BACKEND=memory` counts per instance**, making the effective
+  limit `RATE_LIMIT_PER_MINUTE × replicas`. Set `RATE_LIMIT_BACKEND=postgres`
+  for a shared window (section 9).
 
 Caddy's `reverse_proxy server:8080` load-balances across replicas via
 Docker's internal DNS. All replicas share the **same** Postgres and MinIO, so
@@ -164,7 +176,6 @@ those become the scaling bottleneck — scale them independently:
   point `DATABASE_URL` at it and drop the in-compose `postgres` service.
 - **MinIO:** run a distributed MinIO cluster or use a managed S3-compatible
   store; point `S3_ENDPOINT` / credentials at it.
-- Keep `RATE_LIMIT_PER_MINUTE` sane; note it is enforced per server instance.
 
 For real load, run Postgres and MinIO as managed/external services and keep
 only stateless `server` replicas + Caddy in compose.
@@ -174,9 +185,15 @@ only stateless `server` replicas + Caddy in compose.
 ## 8. Security checklist
 
 - [ ] **Rotate the bootstrap API key** (`API_KEY`) once real per-user keys are
-      seeded — ideally remove reliance on it entirely.
+      seeded. Set it to a fresh random value — never to an empty string, which
+      the server refuses to boot on.
+- [ ] **Never run the published placeholders.** `API_KEY=sb_api_selfhost_dev`
+      and `URL_SIGNING_SECRET=dev-url-signing-secret` are committed to this
+      repository; the server refuses to boot on either in *every* mode, not
+      just `PRODUCTION=true`. The first authenticates as an owner of the root
+      org (server admin), the second forges `/download` URLs.
 - [ ] **Set real secrets** — no `CHANGE_ME`, no dev defaults. Confirm
-      `JWT_SECRET`, `URL_SIGNING_SECRET`, DB and MinIO credentials are all
+      `URL_SIGNING_SECRET`, DB and MinIO credentials are all
       unique `openssl rand -hex 32` values.
 - [ ] **Restrict the MinIO console** — it is bound to `127.0.0.1:19001` only;
       reach it via SSH tunnel (`ssh -L 19001:127.0.0.1:19001 host`), never
@@ -191,6 +208,15 @@ only stateless `server` replicas + Caddy in compose.
 - [ ] **Host firewall** — allow only 80/443 (and your admin SSH) inbound.
 - [ ] **Backups verified** — a restore has been tested end to end.
 - [ ] **`LOGIN_EMAIL`** set to the intended operator account for OAuth login.
+- [ ] **`TRUSTED_PROXIES` matches your actual proxy** (section 9). Wrong either
+      way and the IP rate limit is useless or throttles everyone as one client.
+- [ ] **`DB_SSL_MODE=verify-full`** whenever `DATABASE_URL` points at a
+      managed/external Postgres. The server logs a warning at boot when a
+      non-local database is reached with SSL off.
+- [ ] **`POST /admin/users` is operator-only** — it issues API keys and returns
+      the existing account on an email conflict, so it requires an owner/admin
+      of the root organization (the identity `API_KEY` maps to). Keep that key
+      out of app-team hands; give teammates their own per-user keys.
 - [ ] **Updates** — keep base images (postgres/minio/caddy/dart) patched.
 
 ---
@@ -212,6 +238,41 @@ Set `RATE_LIMIT_BACKEND=postgres` when you run more than one `server` replica
 (section 7) — otherwise each replica keeps its own counter and the effective
 limit is `RATE_LIMIT_PER_MINUTE × replicas`.
 
+### Client identification behind a proxy
+
+```bash
+# Proxies whose X-Forwarded-For is believed: literal IPs, IPv4 CIDR, or `*`.
+# Default: 127.0.0.1,::1
+TRUSTED_PROXIES=172.16.0.0/12
+
+# Per-source-IP ceiling. Default: 10 × RATE_LIMIT_PER_MINUTE.
+RATE_LIMIT_IP_PER_MINUTE=6000
+```
+
+Every request is charged against two buckets: its source IP
+(`RATE_LIMIT_IP_PER_MINUTE`) and its bearer token
+(`RATE_LIMIT_PER_MINUTE`). The IP bucket is the one that actually holds — the
+bearer is supplied by the caller and is not validated until after rate limiting
+runs, so a caller rotating it would otherwise get a fresh window per request.
+
+That makes `TRUSTED_PROXIES` load-bearing. `X-Forwarded-For` is written by the
+client, so it is used only when the socket peer is a proxy on this list:
+
+- **Set it too wide** (`*` on a server reachable from the internet) and any
+  caller can rotate the header for an unlimited supply of buckets. `*` means
+  "believe `X-Forwarded-For` from any peer" — use it only when nothing but
+  your proxy can reach the server, e.g. a load balancer whose address is
+  dynamic or IPv6 (the CIDR matcher is IPv4-only).
+- **Set it too narrow** and every request arrives as your proxy's IP, so the
+  whole fleet shares one window.
+
+With the shipped compose, Caddy is the only thing that can reach `server` (no
+host ports are published), and it lives on the Docker bridge network — hence
+`172.16.0.0/12`, which `setup.sh` writes into `.env` for both proxied modes.
+Confirm the actual subnet with `docker network inspect
+code_push_server_default` (single container + TLS) or
+`docker network inspect code_push_server_cps` (scale profile).
+
 ### Upload method
 
 ```bash
@@ -227,7 +288,9 @@ artifacts over flaky links).
 
 Point `shorebird login` at a real IdP (Google, Microsoft/Entra, Okta, …).
 Broker mode activates only when `IDP_CLIENT_ID` + both URLs are set; otherwise
-`/login` self-consents `LOGIN_EMAIL`. Register the redirect URI
+`/login` serves a form that requires an API key and signs the caller in as
+whoever that key belongs to (the bootstrap key maps to `LOGIN_EMAIL`, which is
+made an owner of the root organization at boot). Register the redirect URI
 `<PUBLIC_BASE_URL>/oauth/callback` at the IdP. Full walkthrough:
 `selfhost/IDP_SETUP.md`.
 

@@ -6,8 +6,11 @@ Auth0, …). The CLI never talks to the IdP directly — it always talks to *you
 server, and your server bounces the browser out to the IdP and back.
 
 When no IdP is configured the server falls back to **self-consent**: `/login`
-issues a session for `LOGIN_EMAIL` (single-tenant / dev). Configuring the
-`IDP_*` variables below turns on broker mode.
+serves a sign-in form that accepts an API key (`API_KEY`, or any per-user key
+from `POST /admin/users`) and issues a session for the identity that key belongs
+to — the bootstrap key signs in as `LOGIN_EMAIL`. A request can never name its
+own identity. Configuring the `IDP_*` variables below turns on broker mode,
+after which identity comes from the IdP's `email` claim instead.
 
 ---
 
@@ -18,7 +21,7 @@ shorebird login
       │  opens browser at
       ▼
 GET <PUBLIC_BASE_URL>/login?continue=<CLI loopback>
-      │  server stores CSRF `state` -> continue, 302 to the IdP
+      │  server persists CSRF `state` -> continue (single-use, 10 min), 302 to the IdP
       ▼
 IdP authorize page  (user signs in / consents)
       │  302 back to the redirect URI with ?code=&state=

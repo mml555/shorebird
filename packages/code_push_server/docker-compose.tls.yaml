@@ -11,6 +11,13 @@ services:
     ports: !reset []
     expose:
       - "8080"
+    environment:
+      # This overlay IS the "behind a proxy" topology, so override the base
+      # file's loopback default: Caddy connects from the compose bridge
+      # network, and without naming that range the server ignores Caddy's
+      # X-Forwarded-For and rate-limits the whole fleet as one client.
+      # Safe here because nothing else can reach the server — no host ports.
+      TRUSTED_PROXIES: "${TRUSTED_PROXIES:-172.16.0.0/12}"
 
   caddy:
     image: caddy:2-alpine

@@ -112,11 +112,15 @@ S3_ACCESS_KEY=cps
 S3_SECRET_KEY=$MINPW
 S3_BUCKET=code-push-artifacts
 API_KEY=sb_api_$(gen)
-JWT_SECRET=$(gen)
 URL_SIGNING_SECRET=$(gen)
 DOWNLOAD_URL_TTL=300
 RATE_LIMIT_PER_MINUTE=600
 RATE_LIMIT_BACKEND=postgres
+# Caddy proxies to the server from the compose bridge network, so its address
+# is what the server sees as the peer. Naming that range here is what lets
+# X-Forwarded-For be believed -- without it every device in the fleet shares a
+# single rate-limit bucket. See PRODUCTION.md section 9.
+TRUSTED_PROXIES=172.16.0.0/12
 LOGIN_EMAIL=$EMAIL
 POSTGRES_USER=cps
 POSTGRES_PASSWORD=$DBPW
@@ -137,8 +141,9 @@ ACME_EMAIL=$EMAIL
 PRODUCTION=true
 PUBLIC_BASE_URL=https://$DOMAIN
 API_KEY=sb_api_$(gen)
-JWT_SECRET=$(gen)
 URL_SIGNING_SECRET=$(gen)
+# Caddy proxies to the server from the compose bridge network (see above).
+TRUSTED_PROXIES=172.16.0.0/12
 LOGIN_EMAIL=$EMAIL
 EOF
   ok ".env written."
@@ -150,8 +155,12 @@ else
 # Backend: embedded SQLite + filesystem artifacts (cps_data volume). No Postgres/MinIO.
 # PUBLIC_BASE_URL must be reachable from your test device (detected LAN IP).
 PUBLIC_BASE_URL=$BASE
+# The compose file binds the published port to loopback by default so a stray
+# \`docker compose up\` can't put the control plane on every host interface.
+# A test device has to reach it over the LAN, so open it here -- now that the
+# secrets above are freshly generated rather than the published placeholders.
+HOST_BIND=0.0.0.0
 API_KEY=sb_api_$(gen)
-JWT_SECRET=$(gen)
 URL_SIGNING_SECRET=$(gen)
 LOGIN_EMAIL=you@example.com
 EOF

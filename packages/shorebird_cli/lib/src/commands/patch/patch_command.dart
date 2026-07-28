@@ -231,13 +231,7 @@ NOTE: this is ${styleBold.wrap('not')} recommended. Asset changes cannot be incl
       return ExitCode.usage.code;
     }
 
-    final patcherFutures = results.releaseTypes
-        .map(_resolvePatcher)
-        .map(createPatch);
-
-    for (final patcherFuture in patcherFutures) {
-      await patcherFuture;
-    }
+    await createPatch(results.releaseTypes.map(_resolvePatcher).toList());
 
     return ExitCode.success.code;
   }
@@ -301,44 +295,79 @@ NOTE: this is ${styleBold.wrap('not')} recommended. Asset changes cannot be incl
   /// The last built Flutter revision.
   String? lastBuiltFlutterRevision;
 
-  /// Creates a patch using the provided [patcher].
+  /// Creates a single patch spanning every platform in [patchers].
+  ///
+  /// One invocation produces one patch, not one per platform: patches are not
+  /// platform-scoped server-side, and each uploaded artifact carries its own
+  /// platform. That gives `--platforms=android,ios` a single patch number, a
+  /// single promotion, and a single rollback.
+  ///
+  /// The phases matter. Everything that can fail cheaply (preconditions,
+  /// argument validation, release resolution) runs for *every* platform before
+  /// any platform is built, and the patch is promoted only once every
+  /// platform's artifacts have uploaded. An unpromoted patch is served to
+  /// nobody, so a failure at any point leaves an inert patch rather than a live
+  /// one covering only the platforms that happened to finish first.
   @visibleForTesting
-  Future<void> createPatch(Patcher patcher) async {
-    await patcher.assertPreconditions();
-    await patcher.assertArgsAreValid();
+  Future<void> createPatch(List<Patcher> patchers) async {
+    // Preflight every platform before doing any work. Preconditions are
+    // platform-specific — the Apple patchers require macOS — and used to be
+    // asserted at the top of each platform's own turn, by which point earlier
+    // platforms had already published. Patching android+ios from a Linux CI
+    // runner would ship the Android patch and only then fail.
+    for (final patcher in patchers) {
+      await patcher.assertPreconditions();
+      await patcher.assertArgsAreValid();
+    }
     results.assertAbsentOrValidKeyPairOrCommands();
 
-    try {
-      await shorebirdValidator.validateFlavors(
-        flavorArg: flavor,
-        releasePlatform: patcher.releaseType.releasePlatform,
-      );
-    } on ValidationFailedException {
-      throw ProcessExit(ExitCode.config.code);
+    // Parsed here rather than where it's used, so a bad value fails before any
+    // build instead of after every platform has been compiled and linked.
+    final minLinkPercentage = parseMinLinkPercentage();
+
+    for (final patcher in patchers) {
+      try {
+        await shorebirdValidator.validateFlavors(
+          flavorArg: flavor,
+          releasePlatform: patcher.releaseType.releasePlatform,
+        );
+      } on ValidationFailedException {
+        throw ProcessExit(ExitCode.config.code);
+      }
     }
 
     await cache.updateAll();
 
     final app = await codePushClientWrapper.getApp(appId: appId);
+    final releasePlatforms = patchers
+        .map((patcher) => patcher.releaseType.releasePlatform)
+        .toSet();
 
     var inferredReleaseVersion = false;
-    File? patchArtifactFile;
+    // The artifact built speculatively to infer the release version, and the
+    // patcher that built it, so that platform isn't compiled twice.
+    Patcher? prebuiltPatcher;
+    File? prebuiltArtifact;
     final Release release;
-    final releasePlatform = patcher.releaseType.releasePlatform;
     if (useLatestRelease) {
       final releases = await codePushClientWrapper.getReleases(appId: appId);
+      // Every platform in one patch shares one release, so "latest" has to mean
+      // the newest release that covers *all* of them. Resolving per platform
+      // could otherwise straddle versions — patching android against 1.0.2 and
+      // ios against 1.0.1 in the same invocation.
       releases
         ..removeWhere(
-          (release) => !release.platformStatuses.keys.contains(releasePlatform),
+          (release) => !releasePlatforms.every(
+            release.platformStatuses.keys.contains,
+          ),
         )
         ..sortByUpdatedAt();
       if (releases.isEmpty) {
         logger.warn(
-          '''No ${releasePlatform.displayName} releases found for app $appId. You must first create a release before you can create a patch.''',
+          '''No releases found for app $appId covering ${_platformList(releasePlatforms)}. You must first create a release before you can create a patch.''',
         );
         throw ProcessExit(ExitCode.usage.code);
       }
-      // Use the most recently updated release for the specified platform.
       release = releases.last;
     } else if (results.wasParsed('release-version')) {
       final releaseVersion = results['release-version'] as String;
@@ -347,7 +376,7 @@ NOTE: this is ${styleBold.wrap('not')} recommended. Asset changes cannot be incl
         releaseVersion: releaseVersion,
       );
     } else if (shorebirdEnv.canAcceptUserInput) {
-      release = await promptForRelease(releasePlatform);
+      release = await promptForRelease(releasePlatforms);
     } else {
       final flutterVersionString = await shorebirdFlutter
           .getVersionAndRevision();
@@ -362,26 +391,129 @@ Building with Flutter $flutterVersionString to determine the release version...
 ''');
       lastBuiltFlutterRevision = shorebirdEnv.flutterRevision;
       inferredReleaseVersion = true;
-      patchArtifactFile = await _tryBuildingArtifact<File>(
-        patcher.buildPatchArtifact,
+      // All platforms share one release version, so one speculative build
+      // answers for the whole set.
+      prebuiltPatcher = patchers.first;
+      prebuiltArtifact = await _tryBuildingArtifact<File>(
+        prebuiltPatcher.buildPatchArtifact,
       );
-      final releaseVersion = await patcher.extractReleaseVersionFromArtifact(
-        patchArtifactFile,
-      );
+      final releaseVersion = await prebuiltPatcher
+          .extractReleaseVersionFromArtifact(prebuiltArtifact);
       release = await codePushClientWrapper.getRelease(
         appId: appId,
         releaseVersion: releaseVersion,
       );
     }
 
-    assertReleaseContainsPlatform(release: release, patcher: patcher);
-    assertReleaseIsActive(release: release, patcher: patcher);
+    for (final patcher in patchers) {
+      assertReleaseContainsPlatform(release: release, patcher: patcher);
+      assertReleaseIsActive(release: release, patcher: patcher);
+    }
 
     try {
       await shorebirdFlutter.installRevision(revision: release.flutterRevision);
     } on Exception {
       throw ProcessExit(ExitCode.software.code);
     }
+
+    final releaseFlutterShorebirdEnv = shorebirdEnv.copyWith(
+      flutterRevisionOverride: release.flutterRevision,
+    );
+
+    return await runScoped(
+      () async {
+        await cache.updateAll();
+
+        final bundles = <ReleasePlatform, Map<Arch, PatchArtifactBundle>>{};
+        final platformMetadata =
+            <ReleasePlatform, CreatePatchPlatformMetadata>{};
+        // Shared by every platform: one invocation builds them all on one
+        // machine. Each patcher may contribute fields it owns (the Apple
+        // patchers add the Xcode version).
+        var environment = BuildEnvironmentMetadata(
+          flutterRevision: shorebirdEnv.flutterRevision,
+          operatingSystem: platform.operatingSystem,
+          operatingSystemVersion: platform.operatingSystemVersion,
+          shorebirdVersion: packageVersion,
+          shorebirdYaml: shorebirdEnv.getShorebirdYaml()!,
+          usesShorebirdCodePushPackage:
+              shorebirdEnv.usesShorebirdCodePushPackage,
+        );
+
+        for (final patcher in patchers) {
+          final result = await _buildPlatformPatch(
+            patcher: patcher,
+            release: release,
+            prebuiltArtifact: identical(patcher, prebuiltPatcher)
+                ? prebuiltArtifact
+                : null,
+          );
+          final releasePlatform = patcher.releaseType.releasePlatform;
+          bundles[releasePlatform] = result.bundles;
+          platformMetadata[releasePlatform] = await patcher
+              .updatedPlatformMetadata(result.metadata);
+          environment = await patcher.updatedEnvironmentMetadata(environment);
+        }
+
+        final dryRun = results['dry-run'] == true;
+        if (dryRun) {
+          logger
+            ..info('No issues detected.')
+            ..info('The server may enforce additional checks.');
+          throw ProcessExit(ExitCode.success.code);
+        }
+
+        await logPatchSummary(
+          app: app,
+          releaseVersion: release.version,
+          patchers: patchers,
+          patchArtifactBundles: bundles,
+          minLinkPercentage: minLinkPercentage,
+        );
+
+        final metadata = CreatePatchMetadata(
+          platforms: platformMetadata,
+          usedIgnoreAssetChangesFlag: allowAssetDiffs,
+          usedIgnoreNativeChangesFlag: allowNativeDiffs,
+          inferredReleaseVersion: inferredReleaseVersion,
+          isSigned:
+              results.wasParsed(CommonArguments.privateKeyArg.name) ||
+              results.wasParsed(CommonArguments.signCmd.name),
+          environment: environment,
+        );
+
+        // One patch, every platform's artifacts, one promotion at the end.
+        await codePushClientWrapper.publishPatch(
+          appId: appId,
+          releaseId: release.id,
+          metadata: metadata.toJson(),
+          track: track,
+          patchArtifactBundles: bundles,
+        );
+      },
+      values: {shorebirdEnvRef.overrideWith(() => releaseFlutterShorebirdEnv)},
+    );
+  }
+
+  /// Builds, validates, and packages one platform's patch artifacts.
+  ///
+  /// Deliberately uploads nothing: every platform must get this far before any
+  /// of them is published, so that a multi-platform patch is all-or-nothing.
+  ///
+  /// [prebuiltArtifact] is the artifact already built to infer the release
+  /// version, if this is the patcher that built it.
+  Future<
+    ({
+      Map<Arch, PatchArtifactBundle> bundles,
+      CreatePatchPlatformMetadata metadata,
+    })
+  >
+  _buildPlatformPatch({
+    required Patcher patcher,
+    required Release release,
+    required File? prebuiltArtifact,
+  }) async {
+    final releasePlatform = patcher.releaseType.releasePlatform;
 
     final releaseArtifact = await codePushClientWrapper.getReleaseArtifact(
       appId: appId,
@@ -498,130 +630,109 @@ Building with Flutter $flutterVersionString to determine the release version...
     }
     patcher.extraBuildArgs = extraBuildArgs;
 
-    final releaseFlutterShorebirdEnv = shorebirdEnv.copyWith(
-      flutterRevisionOverride: release.flutterRevision,
+    // Set up build tracing before any flutter build / aot_tools /
+    // gen_snapshot call runs. Version-gated inside prepareBuildTrace —
+    // a no-op on older Flutter pins. Called once per platform; the summary
+    // is finalized below, after this platform's link step.
+    await artifactBuilder.prepareBuildTrace(platform: releasePlatform.name);
+
+    // Don't build the patch artifact twice with the same Flutter revision:
+    // reuse the speculative build only if it used the release's revision.
+    final File patchArtifactFile;
+    if (prebuiltArtifact != null &&
+        lastBuiltFlutterRevision == release.flutterRevision) {
+      patchArtifactFile = prebuiltArtifact;
+    } else {
+      final flutterVersionString = await shorebirdFlutter
+          .getVersionAndRevision();
+      logger.info('''
+Building ${releasePlatform.displayName} patch with Flutter $flutterVersionString
+''');
+      patchArtifactFile = await _tryBuildingArtifact<File>(
+        () => patcher.buildPatchArtifact(releaseVersion: release.version),
+      );
+    }
+
+    final diffStatus = await assertUnpatchableDiffs(
+      releaseArtifact: releaseArtifact,
+      releaseArchive: releaseArchive,
+      patchArchive: patchArtifactFile,
+      patcher: patcher,
+    );
+    final patchArtifactBundles = await patcher.createPatchArtifacts(
+      appId: appId,
+      releaseId: release.id,
+      releaseArtifact: releaseArchive,
+      supplementDirectory: supplementDirectory,
     );
 
-    return await runScoped(
-      () async {
-        await cache.updateAll();
+    // Write the build-trace summary once this platform's compile/link work has
+    // finished, before the next platform's prepareBuildTrace overwrites the
+    // session. No-op when tracing wasn't set up (older Flutter pin).
+    artifactBuilder.writeBuildTraceSummary();
 
-        // Set up build tracing before any flutter build / aot_tools /
-        // gen_snapshot call runs. Version-gated inside prepareBuildTrace —
-        // a no-op on older Flutter pins. Summary is written at the very
-        // end of createPatch, after aot_tools link and artifact uploads.
-        await artifactBuilder.prepareBuildTrace(
-          platform: patcher.releaseType.releasePlatform.name,
-        );
-
-        // Don't built the patch artifact twice with the same Flutter revision.
-        if (lastBuiltFlutterRevision != release.flutterRevision) {
-          final flutterVersionString = await shorebirdFlutter
-              .getVersionAndRevision();
-          logger.info('''
-Building patch with Flutter $flutterVersionString
-''');
-          patchArtifactFile = await _tryBuildingArtifact<File>(
-            () => patcher.buildPatchArtifact(
-              releaseVersion: release.version,
-            ),
-          );
-        }
-
-        final diffStatus = await assertUnpatchableDiffs(
-          releaseArtifact: releaseArtifact,
-          releaseArchive: releaseArchive,
-          patchArchive: patchArtifactFile!,
-          patcher: patcher,
-        );
-        final patchArtifactBundles = await patcher.createPatchArtifacts(
-          appId: appId,
-          releaseId: release.id,
-          releaseArtifact: releaseArchive,
-          supplementDirectory: supplementDirectory,
-        );
-
-        final dryRun = results['dry-run'] == true;
-        if (dryRun) {
-          logger
-            ..info('No issues detected.')
-            ..info('The server may enforce additional checks.');
-          throw ProcessExit(ExitCode.success.code);
-        }
-
-        await logPatchSummary(
-          app: app,
-          releaseVersion: release.version,
-          patcher: patcher,
-          patchArtifactBundles: patchArtifactBundles,
-        );
-
-        // Write the build-trace summary after all compile/link work has
-        // finished — the metadata upload is the last step and it carries
-        // this summary, so we finalize immediately before it. No-op when
-        // tracing wasn't set up (older Flutter pin).
-        artifactBuilder.writeBuildTraceSummary();
-
-        final baseMetadata = CreatePatchMetadata(
-          releasePlatform: patcher.releaseType.releasePlatform,
-          usedIgnoreAssetChangesFlag: allowAssetDiffs,
-          hasAssetChanges: diffStatus.hasAssetChanges,
-          usedIgnoreNativeChangesFlag: allowNativeDiffs,
-          hasNativeChanges: diffStatus.hasNativeChanges,
-          inferredReleaseVersion: inferredReleaseVersion,
-          isSigned:
-              results.wasParsed(CommonArguments.privateKeyArg.name) ||
-              results.wasParsed(CommonArguments.signCmd.name),
-          environment: BuildEnvironmentMetadata(
-            flutterRevision: shorebirdEnv.flutterRevision,
-            operatingSystem: platform.operatingSystem,
-            operatingSystemVersion: platform.operatingSystemVersion,
-            shorebirdVersion: packageVersion,
-            shorebirdYaml: shorebirdEnv.getShorebirdYaml()!,
-            usesShorebirdCodePushPackage:
-                shorebirdEnv.usesShorebirdCodePushPackage,
-          ),
-          // Attach the build-trace summary if the build produced one.
-          // Null for older Flutter pins without the --shorebird-trace
-          // flag or when trace parsing failed; uploader sends
-          // null-as-omitted.
-          buildTraceSummary: buildTraceSession.summary?.toJson(),
-        );
-        final updateMetadata = await patcher.updatedCreatePatchMetadata(
-          baseMetadata,
-        );
-
-        await patcher.uploadPatchArtifacts(
-          appId: appId,
-          releaseId: release.id,
-          metadata: updateMetadata.toJson(),
-          track: track,
-          artifacts: patchArtifactBundles,
-        );
-      },
-      values: {shorebirdEnvRef.overrideWith(() => releaseFlutterShorebirdEnv)},
+    return (
+      bundles: patchArtifactBundles,
+      metadata: CreatePatchPlatformMetadata(
+        hasAssetChanges: diffStatus.hasAssetChanges,
+        hasNativeChanges: diffStatus.hasNativeChanges,
+        // Attach the build-trace summary if the build produced one.
+        // Null for older Flutter pins without the --shorebird-trace
+        // flag or when trace parsing failed; uploader sends
+        // null-as-omitted.
+        buildTraceSummary: buildTraceSession.summary?.toJson(),
+      ),
     );
   }
 
   /// Prompts the user for the specific release to patch.
-  Future<Release> promptForRelease(ReleasePlatform platform) async {
+  ///
+  /// Only releases covering *every* requested platform are offered: one patch
+  /// spans all of them, so a release missing any one of them can't be used.
+  Future<Release> promptForRelease(Set<ReleasePlatform> platforms) async {
     final releases = await codePushClientWrapper.getReleases(appId: appId);
 
-    final releasesForPlatform = releases.where(
-      (release) => release.platformStatuses.keys.contains(platform),
+    final candidates = releases.where(
+      (release) => platforms.every(release.platformStatuses.keys.contains),
     );
 
-    if (releasesForPlatform.isEmpty) {
+    if (candidates.isEmpty) {
       logger.warn(
-        '''No ${platform.displayName} releases found for app $appId. You must first create a release before you can create a patch.''',
+        '''No releases found for app $appId covering ${_platformList(platforms)}. You must first create a release before you can create a patch.''',
       );
       throw ProcessExit(ExitCode.usage.code);
     }
 
     return chooseRelease(
-      releases: releasesForPlatform,
+      releases: candidates,
       action: 'patch',
     );
+  }
+
+  /// Renders [platforms] as a human-readable list, e.g. "android and ios".
+  static String _platformList(Set<ReleasePlatform> platforms) {
+    final names = platforms.map((p) => p.displayName).toList();
+    if (names.length == 1) return names.first;
+    return '${names.take(names.length - 1).join(', ')} and ${names.last}';
+  }
+
+  /// Parses and validates `--min-link-percentage`.
+  @visibleForTesting
+  int parseMinLinkPercentage() {
+    final raw = results[CommonArguments.minLinkPercentage.name] as String;
+    final value = int.tryParse(raw);
+    if (value == null ||
+        value < CommonArguments.minLinkPercentageMin ||
+        value > CommonArguments.minLinkPercentageMax) {
+      logger.err(
+        '--min-link-percentage must be an integer between '
+        '${CommonArguments.minLinkPercentageMin} and '
+        '${CommonArguments.minLinkPercentageMax} '
+        '(got $raw).',
+      );
+      throw ProcessExit(ExitCode.usage.code);
+    }
+    return value;
   }
 
   /// Asserts that the release contains a platform for the given [patcher].
@@ -679,20 +790,22 @@ Please re-run the release command for this version or create a new release.''');
   /// Logs a summary of the patch to be created, including:
   /// - The app name and ID
   /// - The release version
-  /// - The platform
+  /// - One line per platform the patch covers, with its arches and sizes
   /// - The track
   /// - The link percentage (if iOS)
   /// - The debug info file (if iOS)
+  ///
+  /// Also enforces `--min-link-percentage`. The threshold applies to every
+  /// platform that reports a link percentage: one patch ships to all of them,
+  /// so a single platform linking badly has to fail the whole patch.
   Future<void> logPatchSummary({
     required AppMetadata app,
     required String releaseVersion,
-    required Patcher patcher,
-    required Map<Arch, PatchArtifactBundle> patchArtifactBundles,
+    required List<Patcher> patchers,
+    required Map<ReleasePlatform, Map<Arch, PatchArtifactBundle>>
+    patchArtifactBundles,
+    required int minLinkPercentage,
   }) async {
-    final archMetadata = patchArtifactBundles.keys.map((arch) {
-      final size = formatBytes(patchArtifactBundles[arch]!.size);
-      return '${arch.name} ($size)';
-    });
     final trackSummary = (() {
       return switch (track) {
         DeploymentTrack.staging => '🟠 Track: ${lightCyan.wrap('Staging')}',
@@ -702,36 +815,38 @@ Please re-run the release command for this version or create a new release.''');
       };
     })();
 
-    final linkPercentage = patcher.linkPercentage;
-    final minLinkPercentageRaw =
-        results[CommonArguments.minLinkPercentage.name] as String;
-    final minLinkPercentage = int.tryParse(minLinkPercentageRaw);
-    if (minLinkPercentage == null ||
-        minLinkPercentage < CommonArguments.minLinkPercentageMin ||
-        minLinkPercentage > CommonArguments.minLinkPercentageMax) {
-      logger.err(
-        '--min-link-percentage must be an integer between '
-        '${CommonArguments.minLinkPercentageMin} and '
-        '${CommonArguments.minLinkPercentageMax} '
-        '(got $minLinkPercentageRaw).',
-      );
-      throw ProcessExit(ExitCode.usage.code);
+    for (final patcher in patchers) {
+      final linkPercentage = patcher.linkPercentage;
+      if (linkPercentage != null && linkPercentage < minLinkPercentage) {
+        logger.err(
+          '''The ${patcher.releaseType.releasePlatform.displayName} link percentage of this patch ($linkPercentage%) is below the minimum threshold ($minLinkPercentage%). Exiting.''',
+        );
+        throw ProcessExit(ExitCode.software.code);
+      }
     }
-    if (linkPercentage != null && linkPercentage < minLinkPercentage) {
-      logger.err(
-        '''The link percentage of this patch ($linkPercentage%) is below the minimum threshold ($minLinkPercentage%). Exiting.''',
+
+    final platformLines = patchers.map((patcher) {
+      final releasePlatform = patcher.releaseType.releasePlatform;
+      final bundles = patchArtifactBundles[releasePlatform] ?? {};
+      final archMetadata = bundles.entries.map(
+        (entry) => '${entry.key.name} (${formatBytes(entry.value.size)})',
       );
-      throw ProcessExit(ExitCode.software.code);
-    }
+      return '''🕹️  Platform: ${lightCyan.wrap(releasePlatform.displayName)} ${lightCyan.wrap('[${archMetadata.join(', ')}]')}''';
+    });
+
+    final anyLowLinkPercentage = patchers.any(
+      (patcher) =>
+          patcher.linkPercentage != null &&
+          patcher.linkPercentage! < Patcher.linkPercentageWarningThreshold,
+    );
 
     final summary = [
       '''📱 App: ${lightCyan.wrap(app.displayName)} ${lightCyan.wrap('(${app.appId})')}''',
       if (flavor != null) '🍧 Flavor: ${lightCyan.wrap(flavor)}',
       '📦 Release Version: ${lightCyan.wrap(releaseVersion)}',
-      '''🕹️  Platform: ${lightCyan.wrap(patcher.releaseType.releasePlatform.displayName)} ${lightCyan.wrap('[${archMetadata.join(', ')}]')}''',
+      ...platformLines,
       trackSummary,
-      if (linkPercentage != null &&
-          linkPercentage < Patcher.linkPercentageWarningThreshold)
+      if (anyLowLinkPercentage)
         '''🔍 Debug Info: ${lightCyan.wrap(Patcher.debugInfoFile.path)}''',
     ];
 

@@ -60,15 +60,17 @@ mixin ApplePatcherMixin on Patcher {
   }
 
   @override
-  Future<CreatePatchMetadata> updatedCreatePatchMetadata(
-    CreatePatchMetadata metadata,
+  Future<CreatePatchPlatformMetadata> updatedPlatformMetadata(
+    CreatePatchPlatformMetadata metadata,
   ) async => metadata.copyWith(
     linkPercentage: linkPercentage,
     linkMetadata: linkMetadata,
-    environment: metadata.environment.copyWith(
-      xcodeVersion: await xcodeBuild.version(),
-    ),
   );
+
+  @override
+  Future<BuildEnvironmentMetadata> updatedEnvironmentMetadata(
+    BuildEnvironmentMetadata metadata,
+  ) async => metadata.copyWith(xcodeVersion: await xcodeBuild.version());
 
   /// Linker output (link map / version info) attached to patch metadata.
   /// Returns `null` if the platform does not use a linker or if the linking

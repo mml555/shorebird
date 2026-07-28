@@ -21,7 +21,10 @@ default path.
 The URL you set here is embedded in the artifact download links the on-device
 updater fetches, so **it must be reachable from your users' devices** and should
 be stable (it's baked into shipped apps via `base_url`). Everything else has a
-safe default.
+safe default except the two secrets below, which have no default at all: the
+server refuses to boot on the placeholder `API_KEY` / `URL_SIGNING_SECRET`
+committed to this repo, because a published default is a default everyone
+knows. `setup.sh` generates both for you.
 
 ## Running behind your existing reverse proxy
 
@@ -35,12 +38,20 @@ docker run -d --name code-push \
   -e PUBLIC_BASE_URL=https://cps.yourco.com \
   -e PRODUCTION=true \
   -e API_KEY=$(openssl rand -hex 32) \
-  -e JWT_SECRET=$(openssl rand -hex 32) \
   -e URL_SIGNING_SECRET=$(openssl rand -hex 32) \
+  -e TRUSTED_PROXIES=172.17.0.1 \
   -p 127.0.0.1:8080:8080 \
   -v code_push_data:/data \
   code-push-server:latest
 ```
+
+`TRUSTED_PROXIES` must be **your proxy's address as the container sees it**, not
+`127.0.0.1` — `-p 127.0.0.1:8080:8080` binds the *host* side to loopback, but
+Docker rewrites the peer to the bridge gateway (usually `172.17.0.1`). Get the
+real value from `docker network inspect bridge`. Set it wrong and the server
+ignores `X-Forwarded-For`, so every device in your fleet shares one rate-limit
+bucket; set it to `*` on a container anyone can reach and the header becomes
+spoofable. See the `TRUSTED_PROXIES` row below.
 
 Health endpoints for your orchestrator / load balancer:
 - `GET /healthz` — liveness (always 200 if the process is up)
@@ -82,14 +93,13 @@ Read by `lib/src/config.dart`. Everything has a default; set only what you need.
 | `PUBLIC_BASE_URL` | `http://localhost:8080` | device-reachable base URL (see above) |
 | `PORT` | `8080` | listen port inside the container |
 | `DATA_DIR` | `./data` (`/data` in image) | SQLite db + filesystem artifacts |
-| `PRODUCTION` | unset | `true` → refuse to boot on dev-default secrets / non-HTTPS |
+| `PRODUCTION` | unset | `true` → also refuse dev-default DB/S3 credentials and a non-HTTPS `PUBLIC_BASE_URL` |
 
-**Secrets** (generate with `openssl rand -hex 32`; required when `PRODUCTION=true`)
+**Secrets** (generate with `openssl rand -hex 32`; **required in every mode**)
 | Var | Default | Purpose |
 |---|---|---|
-| `API_KEY` | `sb_api_selfhost_dev` | bootstrap API key (rotate; issue per-user keys via `/admin/users`) |
-| `JWT_SECRET` | dev value | signs session JWTs (OAuth login) |
-| `URL_SIGNING_SECRET` | dev value | signs short-lived artifact download URLs |
+| `API_KEY` | none — the placeholder `sb_api_selfhost_dev` is refused at boot | bootstrap API key; also the credential `/login` accepts. Authenticates as an owner of the root org, so a known value is a full admin bypass. Rotate it (never blank it); issue per-user keys via `/admin/users` |
+| `URL_SIGNING_SECRET` | none — the placeholder `dev-url-signing-secret` is refused at boot | signs short-lived artifact download URLs; `/download` is public and gated only by this HMAC |
 
 **Backends** (omit for the single-container default)
 | Var | Effect |
@@ -109,7 +119,9 @@ Read by `lib/src/config.dart`. Everything has a default; set only what you need.
 | Var | Default | Purpose |
 |---|---|---|
 | `DOWNLOAD_URL_TTL` | `300` | signed download URL lifetime (seconds) |
-| `RATE_LIMIT_PER_MINUTE` | `600` | per-client request cap |
+| `RATE_LIMIT_PER_MINUTE` | `600` | per-principal (bearer) request cap |
+| `RATE_LIMIT_IP_PER_MINUTE` | `10 × RATE_LIMIT_PER_MINUTE` | per-source-IP cap; the ceiling a caller can't rotate out of |
+| `TRUSTED_PROXIES` | `127.0.0.1,::1` | proxies whose `X-Forwarded-For` is believed (IPs, IPv4 CIDR, or `*`). Wrong value = no effective IP limit, or the whole fleet in one bucket |
 | `RATE_LIMIT_BACKEND` | `memory` | `postgres` for a shared window across replicas |
 | `UPLOAD_METHOD` | `multipart` | `resumable` for GCS-style chunked uploads |
 

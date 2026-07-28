@@ -24,13 +24,26 @@ Future<void> main() async {
 
   final problems = config.validate();
   if (problems.isNotEmpty) {
-    stderr.writeln(
-      'FATAL: PRODUCTION mode but insecure config: ${problems.join(', ')}',
-    );
-    stderr.writeln(
-      'Set real secrets (openssl rand -hex 32) before booting in production.',
-    );
+    stderr.writeln('FATAL: insecure config: ${problems.join(', ')}');
+    if (config.production) {
+      stderr.writeln(
+        'Set real secrets (openssl rand -hex 32) before booting in production.',
+      );
+    }
     exit(78); // EX_CONFIG
+  }
+  // Not fatal, and deliberately quiet for the shipped compose: that talks to
+  // an in-network Postgres over a private Docker network, addressed by the
+  // bare service name `postgres`. A dotted host is a real network hop, and
+  // reaching one with SSL off puts the credentials on the wire in the clear.
+  if (config.dbBackend == 'postgres' &&
+      config.dbSslMode == 'disable' &&
+      config.dbHost.contains('.') &&
+      !const {'127.0.0.1', '::1'}.contains(config.dbHost)) {
+    logInfo('WARNING: DB_SSL_MODE=disable to a non-local database', {
+      'db_host': config.dbHost,
+      'hint': 'set DB_SSL_MODE=verify-full for a managed/external Postgres',
+    });
   }
 
   final repo = await Repository.open(config);
@@ -78,10 +91,30 @@ Future<void> main() async {
     stdout.writeln('  jwt issuer      : ${config.jwtIssuer}');
   }
 
-  // Periodic housekeeping: drop expired, never-consumed OAuth auth codes.
+  // Periodic housekeeping. Each of these tables is written by unauthenticated
+  // or abandoned traffic, so without a sweep they only ever grow.
+  Future<void> housekeeping() async {
+    try {
+      await repo.purgeExpiredAuthCodes();
+      await repo.purgeExpiredIdpStates();
+      await repo.purgeOldRateWindows();
+      // Opt-in, and off by default — these two hold data an operator may want
+      // to keep. Unset, `events` and `audit_log` grow without bound.
+      await repo.purgeOldEvents(config.eventRetentionDays);
+      await repo.purgeOldAuditLog(config.auditRetentionDays);
+    } on Object catch (e, st) {
+      logError('housekeeping failed', e, st);
+    }
+  }
+
+  // Sweep once at boot as well as on the timer: a deployment that restarts
+  // more often than the interval (rolling deploys, a crash-restart loop,
+  // repeated `docker compose up -d`) would otherwise never sweep at all, which
+  // is exactly the unbounded growth this exists to stop.
+  unawaited(housekeeping());
   final purgeTimer = Timer.periodic(
     const Duration(hours: 1),
-    (_) => repo.purgeExpiredAuthCodes(),
+    (_) => housekeeping(),
   );
 
   // Graceful shutdown: stop accepting connections, drain, close the pool.

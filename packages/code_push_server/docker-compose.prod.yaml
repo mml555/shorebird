@@ -23,6 +23,20 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      # Caddy proxies to the server from the compose bridge network, so its
+      # container address — not loopback — is what the server sees as the peer.
+      # Without naming that range the server ignores Caddy's X-Forwarded-For
+      # and keys every request in the deployment on Caddy's IP, collapsing the
+      # whole device fleet into one rate-limit bucket.
+      #
+      # Defaulted here, not just in .env: setup.sh writes TRUSTED_PROXIES only
+      # when it *generates* a .env, so a stack that predates that line keeps
+      # its existing .env on upgrade and would otherwise silently fall back to
+      # the server's {127.0.0.1, ::1} default. An explicit value in .env still
+      # wins. Safe because no host port is published — nothing but Caddy can
+      # reach the server to forge the header. See PRODUCTION.md §9.
+      TRUSTED_PROXIES: "${TRUSTED_PROXIES:-172.16.0.0/12}"
     # No host port published — only Caddy (same network) reaches it.
     expose:
       - "8080"

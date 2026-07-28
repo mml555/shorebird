@@ -325,7 +325,13 @@ hr{border:none;height:0;margin:1.1rem 0}
     appData: null,     // cached data for the selected app
   };
 
-  const ROLES = ["owner","admin","appManager","developer","viewer"];
+  // Must match Api._roles. The server rejects anything else with a 400, and
+  // authorization matches these exact strings — a role it doesn't know reads
+  // as "no privileges", so offering one here would just create dead members.
+  const ROLES = ["owner","admin","developer"];
+  // The seeded org (Repository._seed). Being an owner/admin of it is what the
+  // server treats as being an operator of this deployment.
+  const ROOT_ORG_ID = 1;
 
   // ---------- utils ----------
   function esc(s){
@@ -523,10 +529,15 @@ hr{border:none;height:0;margin:1.1rem 0}
         h+=`</tbody></table>`;
       }
       h+=`</div></div></div>`;
-      h+=`<div class="section"><div class="panel"><div class="hd">Create user + API key</div><div class="bd">`+
-         `<div class="field" style="margin-bottom:.5rem"><label for="cuEmail">Email</label><input id="cuEmail" placeholder="ci@company.com"></div>`+
-         `<div class="field" style="margin-bottom:.5rem"><label for="cuName">Name (optional)</label><input id="cuName" placeholder="CI Bot"></div>`+
-         `<button class="primary" id="createUserBtn">Create user + key</button><div id="cuOut"></div></div></div></div>`;
+      // Issuing API keys is operator-only server-side (it returns the existing
+      // account on an email conflict, so it can hand out a key for anyone).
+      // Only root-org admins can do it, so don't offer the form to anyone else.
+      if(orgId===ROOT_ORG_ID){
+        h+=`<div class="section"><div class="panel"><div class="hd">Create user + API key</div><div class="bd">`+
+           `<div class="field" style="margin-bottom:.5rem"><label for="cuEmail">Email</label><input id="cuEmail" placeholder="ci@company.com"></div>`+
+           `<div class="field" style="margin-bottom:.5rem"><label for="cuName">Name (optional)</label><input id="cuName" placeholder="CI Bot"></div>`+
+           `<button class="primary" id="createUserBtn">Create user + key</button><div id="cuOut"></div></div></div></div>`;
+      }
     }
     return h;
   }
@@ -587,14 +598,21 @@ hr{border:none;height:0;margin:1.1rem 0}
       return;
     }
     const collabs=(res.data&&res.data.collaborators)||[];
+    // The server reports whether this caller passes _authorizeAppAdmin; adding
+    // or removing collaborators is an admin action, so a plain developer sees
+    // the list read-only rather than buttons that answer 403.
+    const canManage=!!(res.data&&res.data.can_manage);
     let h=`<div class="panel"><div class="hd">Collaborators <span class="pill">${collabs.length}</span></div><div class="bd">`;
-    h+=`<div class="scroll"><table><thead><tr><th>User</th><th>Role</th><th></th></tr></thead><tbody>`;
-    if(!collabs.length) h+=`<tr><td colspan="3" class="empty">No collaborators (org members already have access).</td></tr>`;
-    collabs.forEach(c=>{ h+=`<tr><td>${esc(c.email)}</td><td>${esc(c.role)}</td><td><button class="sm" data-rmcollab="${c.user_id}">Remove</button></td></tr>`; });
+    if(!canManage) h+=`<div class="empty" style="margin-bottom:.6rem">Viewing only — adding or removing collaborators requires an owner/admin role on this app.</div>`;
+    h+=`<div class="scroll"><table><thead><tr><th>User</th><th>Role</th>${canManage?"<th></th>":""}</tr></thead><tbody>`;
+    if(!collabs.length) h+=`<tr><td colspan="${canManage?3:2}" class="empty">No collaborators (org members already have access).</td></tr>`;
+    collabs.forEach(c=>{ h+=`<tr><td>${esc(c.email)}</td><td>${esc(c.role)}</td>`+(canManage?`<td><button class="sm" data-rmcollab="${c.user_id}">Remove</button></td>`:"")+`</tr>`; });
     h+=`</tbody></table></div>`;
-    h+=`<div class="field" style="margin-top:.6rem"><label for="collabEmail">Add collaborator (existing user's email)</label><input id="collabEmail" placeholder="teammate@company.com"></div>`+
-       `<div class="field" style="margin:.4rem 0"><label for="collabRole">Role</label><select id="collabRole">${ROLES.map(r=>`<option value="${r}"${r==="developer"?" selected":""}>${r}</option>`).join("")}</select></div>`+
-       `<button class="primary" id="addCollabBtn">Add collaborator</button>`;
+    if(canManage){
+      h+=`<div class="field" style="margin-top:.6rem"><label for="collabEmail">Add collaborator (existing user's email)</label><input id="collabEmail" placeholder="teammate@company.com"></div>`+
+         `<div class="field" style="margin:.4rem 0"><label for="collabRole">Role</label><select id="collabRole">${ROLES.map(r=>`<option value="${r}"${r==="developer"?" selected":""}>${r}</option>`).join("")}</select></div>`+
+         `<button class="primary" id="addCollabBtn">Add collaborator</button>`;
+    }
     h+=`</div></div>`;
     panel.innerHTML=h;
     panel.querySelectorAll("[data-rmcollab]").forEach(b=>b.onclick=()=>removeCollab(appId,b.getAttribute("data-rmcollab")));
@@ -895,7 +913,14 @@ hr{border:none;height:0;margin:1.1rem 0}
       // breakdown — what this patch actually is: built artifacts, size, build status, notes
       const arts=p.artifacts||[];
       const totalSize=arts.reduce((s,a)=>s+(Number(a.size)||0),0);
+      // A patch is not platform-scoped: `shorebird patch --platforms=android,ios`
+      // publishes ONE patch carrying artifacts for both. Summarize the platform
+      // set here — the per-artifact chips below are per arch, so a 3-arch
+      // android + ios patch is 4 chips you'd otherwise have to read to answer
+      // "what does this patch cover?".
+      const plats=[...new Set(arts.map(a=>a.platform).filter(Boolean))].sort();
       h+=`<div class="kv" style="margin-top:.2rem">`+
+         (plats.length?`<span>${plats.map(esc).join(" + ")}</span>`:"")+
          `<span>${arts.length} artifact${arts.length===1?"":"s"}</span>`+
          (totalSize?`<span>${esc(fmtBytes(totalSize))}</span>`:"")+
          (p.status?`<span>build: <b>${esc(p.status)}</b></span>`:"")+`</div>`;

@@ -124,8 +124,11 @@ A shelf `Pipeline` wraps the router:
 - **Upload cap:** artifact uploads are capped at `MAX_UPLOAD_BYTES` (512 MiB
   default), enforced mid-stream so a dishonestly-sized body can't exhaust
   memory; over-limit → `413`. Idle connections close after 60s.
-- **Production guard:** with `PRODUCTION=true`, `config.validate()` refuses to
-  boot on any dev-default secret or non-HTTPS `PUBLIC_BASE_URL`.
+- **Placeholder-secret guard:** `config.validate()` refuses to boot on the
+  `API_KEY` / `URL_SIGNING_SECRET` placeholders committed to this repo, in
+  every mode — they are published, and `API_KEY` authenticates as a root-org
+  owner. With `PRODUCTION=true` it additionally refuses dev-default DB/S3
+  credentials and a non-HTTPS `PUBLIC_BASE_URL`.
 - **Last-owner guard:** an org can't have its last owner/admin removed.
 
 ## Rollout bucketing (`rollout.dart`)
