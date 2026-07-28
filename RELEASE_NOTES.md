@@ -4,6 +4,22 @@
 cspell:words pubspec erickzanardo xcframeworks cupertino codesign codecov rkishan appbundle proto tlsv kingdomseed Peetee Aditya serde bipatch GLES
  -->
 
+## 1.6.114+selfhost.1 (July 28, 2026)
+
+Fork build of upstream 1.6.114, shipped in the `selfhost-v1.0.0` baseline. Not
+an upstream release — see [`selfhost/`](selfhost/README.md).
+
+- Patch metadata is now split per platform. `CreatePatchPlatformMetadata`
+  carries everything measured by building or diffing one platform's artifact
+  (`hasAssetChanges`, `hasNativeChanges`, `linkPercentage`, `linkMetadata`,
+  `buildTraceSummary`); `CreatePatchMetadata` keeps what describes the
+  invocation and the machine. A `--platforms=android,ios` patch previously
+  reported one platform's measurements for both.
+- `--shorebird-trace` support detection dropped its revision allowlist. The
+  tracing change (shorebirdtech/flutter#116) shipped in
+  `flutter_release/3.41.7`, so the `>=3.41.7` floor now covers it and the
+  pinned-hash escape hatch is no longer needed.
+
 ## 1.6.114 (July 20, 2026)
 
 - 🐦 Flutter 3.44.7 / Dart 3.12.2 support

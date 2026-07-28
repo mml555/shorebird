@@ -4,7 +4,9 @@ All notable changes to `code_push_server` are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 1.1.0 — 2026-07-28
+
+Shipped in the `selfhost-v1.0.0` distribution baseline.
 
 Security and hardening pass over the HTTP surface. Several entries are
 **breaking for an in-place upgrade** — read "Changed" before deploying.

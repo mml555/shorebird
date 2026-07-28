@@ -3,7 +3,7 @@ description: >-
   Self-hosted Shorebird control plane. Runs single-container (SQLite +
   local-disk artifacts) by default, or as a Postgres + S3/MinIO stack for scale.
   The unmodified, pinned Shorebird CLI + native updater talk to it directly.
-version: 1.0.1
+version: 1.1.0
 publish_to: "none"
 # Standalone (own lockfile), NOT a workspace member: this server is fully
 # independent of the shorebird_* packages, and its deps (minio -> xml ^6)

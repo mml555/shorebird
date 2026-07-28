@@ -4,8 +4,8 @@
 # passes against it. This is the single source of truth for what we build,
 # vendor, and mirror.
 shorebird:
-  cli_version: 1.6.114
-  cli_revision: 60edcfdc                                         # this repo HEAD
+  cli_version: 1.6.114+selfhost.1                                # fork build of upstream 1.6.114
+  cli_revision: selfhost-v1.0.0                                  # this repo's baseline tag
   flutter_revision: 309dd6573a9fe716410489284cd325a34b950375      # bin/internal/flutter.version
   engine_revision: e1eaecbcac6d9a32cb5590c646e21cf21252cf19       # shorebird --version
   updater_revision: 1f85c4ab                                      # vendored at vendor/updater
