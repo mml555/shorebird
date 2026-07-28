@@ -24,6 +24,7 @@ words:
   - bitcode
   - bitrise # Bitrise CI platform
   - bryanoltman
+  - buildx # docker buildx, .github/workflows/release_code_push_server.yaml
   - bundletool
   - Dalvik # Android Dalvik VM / DEX file format
   - canvaskit
@@ -35,6 +36,7 @@ words:
   - codesign
   - codesigned
   - codesigning
+  - createbuckets # MinIO bucket-init service in docker-compose.prod.yaml
   - deflavored
   - develocity
   - devicectl
@@ -51,6 +53,8 @@ words:
   - genhtml
   - genkey # From .github/workflows/e2e.yaml
   - gradlew
+  - healthz # liveness endpoint
+  - HMAC # signed artifact download URLs
   - hotreload
   - idevicesyslog
   - incrbyfloat # From ./packages/redis_client
@@ -115,6 +119,7 @@ words:
   - rdata
   - reactivecircus # From .github dir, doesn't show up in "**" check?
   - readlink
+  - readyz # readiness endpoint
   - reimplementation
   - reinit
   - requirepass # From .github dir, doesn't show up in "**" check?
@@ -122,7 +127,9 @@ words:
   - spawnee
   - Retryable
   - RSAPKCS
+  - rollouts # partial patch rollouts
   - sdcard # From .github/workflows/e2e.yaml
+  - selfhost # this fork: selfhost/ docs, +selfhost.N CLI builds
   - sgit # From .github/license_check/action.yaml
   - shorebirdtech
   - sideload
@@ -131,6 +138,7 @@ words:
   - sideloading
   - signup
   - SIGSTOP
+  - spoofable # X-Forwarded-For discussion in selfhost/INTEGRATION.md
   - storepass # From .github/workflows/e2e.yaml
   - storyboardc
   - subpackages
@@ -162,6 +170,7 @@ words:
   - worktrees
   - writeln
   - WRONGPASS
+  - yourco # placeholder domain in selfhost docs
   - xcarchive
   - xcarchives
   - xcframework

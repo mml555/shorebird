@@ -30,22 +30,34 @@ version-pinned**, and adds a drop-in server they talk to instead:
 
 ## Getting Started
 
-To run your own server, follow
+Pin a release rather than tracking `main` — the latest baseline is
+[`selfhost-v1.0.0`](https://github.com/mml555/shorebird/releases/tag/selfhost-v1.0.0):
+
+```bash
+git clone --branch selfhost-v1.0.0 https://github.com/mml555/shorebird.git
+cd shorebird/packages/code_push_server
+./setup.sh
+```
+
+`setup.sh` generates secrets, pulls the prebuilt image
+(`ghcr.io/mml555/code-push-server:1.1.0`, amd64 + arm64), starts the stack, and
+prints the next steps. Full walkthrough in
 [`packages/code_push_server/README.md`](packages/code_push_server/README.md).
 
 For the Shorebird CLI and general code-push concepts, upstream's docs at
 https://docs.shorebird.dev still apply — this fork does not change the CLI's
-behavior or wire contract.
+wire contract.
 
 ## Packages
 
-This repository is a monorepo. The package added by this fork is listed first;
-the rest are inherited unchanged from upstream Shorebird:
+This repository is a monorepo. The package added by this fork is listed first,
+then the one it modifies; the rest are inherited unchanged from upstream
+Shorebird:
 
 | Package                                                                         | Description                                                                             |
 | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | [code_push_server](packages/code_push_server/README.md)                         | **This fork:** self-hosted Shorebird control plane (server)                             |
-| [shorebird_cli](packages/shorebird_cli/README.md)                               | Command-line which allows developers to interact with various Shorebird services        |
+| [shorebird_cli](packages/shorebird_cli/README.md)                               | **Fork build** (`+selfhost.N`): command-line for interacting with Shorebird services    |
 | [shorebird_code_push_client](packages/shorebird_code_push_client/README.md)     | Dart library which allows Dart applications to interact with the Shorebird CodePush API |
 | [shorebird_code_push_protocol](packages/shorebird_code_push_protocol/README.md) | Dart library which contains common interfaces used by Shorebird CodePush                |
 | [artifact_proxy](packages/artifact_proxy/README.md)                             | Dart server which supports intercepting and proxying Flutter artifact requests          |
@@ -78,6 +90,15 @@ We don't yet have a script to run tests locally. For now, we recommend using
 
 (If you run it in the root, it will find packages in bin/cache/flutter and try
 to run tests there, some of which will fail.)
+
+`code_push_server` is standalone — it has its own `pubspec.lock` and is not a
+workspace member — so run its tests from its own directory:
+
+```
+cd packages/code_push_server && dart test -x integration
+```
+
+`-x integration` skips the tests that need a live Postgres/MinIO.
 
 To generate a coverage report install `lcov`:
 

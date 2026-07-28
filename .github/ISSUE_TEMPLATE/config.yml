@@ -1,0 +1,13 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Bug in upstream Shorebird (hosted service, CLI, or updater)
+    url: https://github.com/shorebirdtech/shorebird/issues
+    about: >-
+      This repo is a self-hosted fork. If the problem reproduces against
+      Shorebird's hosted service, or is in the unmodified CLI/updater, report it
+      upstream — they can fix it, this fork can only carry a patch.
+  - name: Self-hosting documentation
+    url: https://github.com/mml555/shorebird/tree/main/selfhost
+    about: >-
+      Architecture, API reference, integration guide, iOS code signing, and the
+      go-live runbook. Check here before filing a setup question.

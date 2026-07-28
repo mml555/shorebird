@@ -5,7 +5,18 @@ title: "fix: "
 labels: bug
 ---
 
-App ID: (insert the app_id from your shorebird.yaml here)
+<!--
+  This is a self-hosted fork. If the bug reproduces against Shorebird's hosted
+  service, please file it upstream instead: github.com/shorebirdtech/shorebird
+-->
+
+**Environment**
+
+- Server version: (`code_push_server` version, or the image tag you pulled)
+- Deployment: (single-container SQLite / Postgres + S3 / other)
+- CLI version: (`shorebird --version`)
+- Platform: (android-arm64, ios-arm64, …)
+- App ID: (the `app_id` from your `shorebird.yaml`)
 
 **Description**
 
