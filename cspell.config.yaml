@@ -27,6 +27,7 @@ words:
   - APPB
   - appbundle
   - appex
+  - appuser
   - archs
   - armeabi
   - AUTOINCREMENT
@@ -41,11 +42,13 @@ words:
   - Brody
   - bryanoltman
   - buildroot
+  - buildtools
   - buildx # docker buildx, .github/workflows/release_code_push_server.yaml
   - bundletool
   - byteranges
   - cdylib
   - columnized
+  - creds
   - CURLF
   - cutover
   - Dalvik # Android Dalvik VM / DEX file format
@@ -63,8 +66,10 @@ words:
   - Dedup
   - dedupe
   - deflavored
+  - destkey
   - develocity
   - devicectl
+  - dlopen
   - dorny # From .github dir, doesn't show up in "**" check?
   - dyld
   - dylib
@@ -108,9 +113,11 @@ words:
   - keypass # From .github/workflows/e2e.yaml
   - keysize # From .github/workflows/e2e.yaml
   - keytool # From .github/workflows/e2e.yaml
+  - lede
   - lerping
   - libapp
   - libapps
+  - libc
   - libexec
   - libflutter
   - libimobiledevice
@@ -122,6 +129,7 @@ words:
   - lipo
   - lldb
   - LOCALAPPDATA
+  - localfile
   - logcat
   - longpaths
   - lookback # active-hours "best time to release" lookback window
@@ -138,9 +146,11 @@ words:
   - mockall
   - mocktail
   - mset # From ./packages/redis_client
+  - msvc
   - multioption
   - noaudio # From .github dir, doesn't show up in "**" check?
   - NOAUTH
+  - nologin
   - nonobvious # From analysis_options.yaml
   - notafile
   - nserror
@@ -165,6 +175,9 @@ words:
   - podspec
   - pointycastle
   - precache
+  - preflighting
+  - prereq
+  - Prereqs
   - previewable
   - PRNG
   - proguard # Android ProGuard shrinker/obfuscator
@@ -189,6 +202,7 @@ words:
   - repointing
   - repoints
   - requirepass # From .github dir, doesn't show up in "**" check?
+  - retarget
   - retargeted
   - retargets
   - reusables
@@ -198,6 +212,7 @@ words:
   - serde
   - setval
   - shellcheck
+  - Skia
   - spawnee
   - Retryable
   - RSAPKCS
@@ -274,4 +289,5 @@ words:
   - xcworkspace
   - xlink
   - yourcompany
+  - zipdir
   - zstd
