@@ -168,8 +168,8 @@ EOF
 fi
 
 # --- start ------------------------------------------------------------------
-say "Building and starting the stack (first run pulls images + builds the server)…"
-"${COMPOSE[@]}" up -d --build
+say "Starting the stack (first run pulls the images)…"
+"${COMPOSE[@]}" up -d --pull missing
 
 # --- wait for readiness -----------------------------------------------------
 set -a; . ./.env; set +a

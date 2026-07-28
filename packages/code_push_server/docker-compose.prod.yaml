@@ -16,10 +16,12 @@
 
 services:
   server:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: code-push-server:latest
+    # See docker-compose.yaml — pinned prebuilt image; uncomment build: to
+    # compile from source instead.
+    #   build:
+    #     context: .
+    #     dockerfile: Dockerfile
+    image: ghcr.io/mml555/code-push-server:1.1.0
     restart: unless-stopped
     env_file:
       - .env

@@ -60,7 +60,7 @@ cp .env.example .env
 #   DATABASE_URL password  == POSTGRES_PASSWORD
 #   S3_ACCESS_KEY / SECRET  == MINIO_ROOT_USER / MINIO_ROOT_PASSWORD
 
-docker compose -f docker-compose.prod.yaml up -d --build
+docker compose -f docker-compose.prod.yaml up -d --pull missing
 ```
 
 What happens: Postgres and MinIO start and become healthy, `createbuckets`

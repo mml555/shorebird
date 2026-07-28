@@ -24,10 +24,14 @@
 # PUBLIC_BASE_URL once secrets exist.
 services:
   server:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: code-push-server:latest
+    # Prebuilt multi-arch image (amd64/arm64), pinned to the release this
+    # checkout describes — so `docker compose up` gets the same server the
+    # selfhost tag was cut from, not whatever the local toolchain compiles.
+    # To build from source instead, comment the image line and uncomment build:
+    #   build:
+    #     context: .
+    #     dockerfile: Dockerfile
+    image: ghcr.io/mml555/code-push-server:1.1.0
     restart: unless-stopped
     ports:
       - "${HOST_BIND:-127.0.0.1}:${PORT:-8080}:8080"
