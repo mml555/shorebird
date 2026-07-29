@@ -1,4 +1,4 @@
-<!-- cspell:words dartsdk prebuilts aot vmcode -->
+<!-- cspell:words dartsdk prebuilts aot vmcode upstreamable -->
 
 # Engine improvements — what this branch is
 
@@ -70,7 +70,7 @@ Every one of these cost a debugging cycle, and none looks like its cause:
   stamped with its builder's SDK hash. Shorebird hit this too — `font_subset` is
   commented out of their own `linux_build.sh` (flutter#164531).
 - **Maven POMs cannot be proxy-rewritten** — Gradle validates the version inside
-  the file, so every module must be materialised locally.
+  the file, so every module must be materialized locally.
 - **Recompile tool snapshots when the vended Dart changes.** Clearing an artifact
   cache swaps the Dart under an already-compiled snapshot and fails as
   "Wrong full snapshot version" *on the host*.
