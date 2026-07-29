@@ -43,8 +43,64 @@ void main() {
       );
     });
 
+    group('ClearAppDataException', () {
+      test('isPermissionDenied recognizes a device denial', () {
+        // Both spellings adb has been seen to emit for this.
+        expect(
+          ClearAppDataException(
+            stderr:
+                'java.lang.SecurityException: PID 1 does not have '
+                'permission android.permission.CLEAR_APP_USER_DATA',
+          ).isPermissionDenied,
+          isTrue,
+        );
+        expect(
+          ClearAppDataException(
+            stderr: 'SecurityException: not allowed',
+          ).isPermissionDenied,
+          isTrue,
+        );
+      });
+
+      test('isPermissionDenied is false for unrelated failures', () {
+        for (final stderr in ['device offline', 'Unknown package: x', '']) {
+          expect(
+            ClearAppDataException(stderr: stderr).isPermissionDenied,
+            isFalse,
+            reason: stderr,
+          );
+        }
+      });
+
+      test('toString keeps the adb stderr', () {
+        expect(
+          ClearAppDataException(stderr: 'oops').toString(),
+          contains('oops'),
+        );
+      });
+    });
+
     group('clearAppData', () {
       const package = 'com.example.app';
+      test('throws ClearAppDataException carrying stderr', () async {
+        when(() => process.run(any(), any())).thenAnswer(
+          (_) async => const ShorebirdProcessResult(
+            exitCode: 1,
+            stdout: '',
+            stderr: 'android.permission.CLEAR_APP_USER_DATA',
+          ),
+        );
+        await expectLater(
+          () => runWithOverrides(() => adb.clearAppData(package: package)),
+          throwsA(
+            isA<ClearAppDataException>().having(
+              (e) => e.isPermissionDenied,
+              'isPermissionDenied',
+              isTrue,
+            ),
+          ),
+        );
+      });
       test('throws when unable to locate adb', () async {
         when(() => androidSdk.adbPath).thenReturn(null);
         await expectLater(

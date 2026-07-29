@@ -717,14 +717,27 @@ This is only applicable when previewing Android releases.''',
     }
 
     final startAppProgress = logger.progress('Starting app');
+    // Clearing data is best-effort and must not decide whether the preview
+    // runs. Several vendor ROMs deny CLEAR_APP_USER_DATA to the adb shell user,
+    // and treating that as fatal meant the app was installed and ready but
+    // never launched — so the error the user saw was about clearing data, from
+    // a command whose job is to start the app.
+    var appDataCleared = true;
+    ClearAppDataException? clearError;
     try {
       await adb.clearAppData(package: package, deviceId: deviceId);
+    } on ClearAppDataException catch (error) {
+      appDataCleared = false;
+      clearError = error;
+    }
+    try {
       await adb.startApp(package: package, deviceId: deviceId);
       startAppProgress.complete();
     } on Exception catch (error) {
       startAppProgress.fail('$error');
       return ExitCode.software.code;
     }
+    if (!appDataCleared) _warnAppDataNotCleared(clearError!);
 
     final process = await adb.logcat(filter: 'flutter', deviceId: deviceId);
     // adb logcat sometimes lets non-utf8 characters through, so we need to
@@ -738,6 +751,38 @@ This is only applicable when previewing Android releases.''',
     });
 
     return process.exitCode;
+  }
+
+  /// Warns that the app's data survived, and says what that means for the
+  /// preview rather than only reporting that a command failed.
+  ///
+  /// The reason this matters: leftover data can include a patch installed by an
+  /// earlier run, and the updater will launch that patch. So the app on screen
+  /// may not be the release that was just previewed — exactly the thing a
+  /// preview is supposed to show.
+  void _warnAppDataNotCleared(ClearAppDataException error) {
+    logger.warn(
+      'Could not clear the app data on this device, so the preview kept any '
+      'data from a previous install.',
+    );
+    if (error.isPermissionDenied) {
+      logger.info(
+        '''
+The device refused the request (${lightCyan.wrap('CLEAR_APP_USER_DATA')}). Some vendor ROMs — Xiaomi/POCO
+and OPPO/OnePlus among them — deny this to the adb shell user even with USB
+debugging enabled, so it is a device restriction rather than a problem with your
+app or with Shorebird. See ${link(uri: Uri.parse('https://github.com/shorebirdtech/shorebird/issues/1839'))}.''',
+      );
+    } else {
+      logger.info('adb reported: ${error.stderr.trim()}');
+    }
+    logger.info(
+      '''
+This only matters if a patch was already installed here: the updater will launch
+that patch, so what you see may not be the release you just previewed. To be
+certain you are looking at the release itself, clear the app's storage in the
+device settings (or uninstall the app) and run ${lightCyan.wrap('shorebird preview')} again.''',
+    );
   }
 
   /// Installs and launches the release on iOS.
