@@ -19,10 +19,14 @@ Citations use `library/src/<file>.rs:<line>` against the pinned updater commit b
   `shorebird_code_push-v2.0.7` (the Dart wrapper package, unrelated to the Rust
   library version). So there is no semantic version to pin — we pin the commit.
 - **Engine → updater mapping is NOT discoverable from the updater repo alone.**
-  Our engine revision is `e1eaecbcac6d9a32cb5590c646e21cf21252cf19`; the updater
+  Our engine revision is `69f9831c360d9152862ec3897c67fb09ae843f3b`; the updater
   commit it was built from lives in the Shorebird engine/buildroot DEPS, not
-  here. `BEHAVIORAL_FINDINGS.md` was captured on CLI 1.6.114 / engine
-  `309dd6573a9fe716410489284cd325a34b950375`. **Everything below is pinned to
+  here. `BEHAVIORAL_FINDINGS.md` was captured on CLI 1.6.114 / Flutter
+  `309dd6573a9fe716410489284cd325a34b950375` (engine `e1eaecbc…`), the pin
+  before this one. Those findings carry forward: `updater_rev` in the Flutter
+  fork's `DEPS` is byte-identical at both revisions
+  (`1f85c4ab1ee5b540269b9859c75e1bffbb9050c7`), so the on-device updater — and
+  therefore this entire contract — did not change with the engine bump. **Everything below is pinned to
   updater HEAD and should be treated as "latest".** All behaviors documented
   here (HTTP Range/resume, `PatchVerificationMode` strict/install_only,
   `__patch_update_failure__`, `current_patch_number`) are present at this HEAD;

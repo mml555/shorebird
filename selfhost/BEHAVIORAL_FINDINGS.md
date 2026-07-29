@@ -5,7 +5,13 @@ own `code_push_server`; `source-derived` = inferred from source only.
 
 ## Environment (device-verified run)
 
-- Shorebird CLI **1.6.114**, Flutter **3.44.7** (engine revision `309dd6573a9fe716410489284cd325a34b950375`), Dart 3.12.2.
+- Shorebird CLI **1.6.114**, Flutter **3.44.7** (Flutter revision
+  `309dd6573a9fe716410489284cd325a34b950375`, engine `e1eaecbc…`), Dart 3.12.2.
+  This is the pin *before* the current one and is left as recorded — it is what
+  was actually on the device. It carries forward to Flutter `c15ef637` / engine
+  `69f9831c` because `updater_rev` is byte-identical at both revisions
+  (`1f85c4ab…`), so nothing the device runs against this control plane changed.
+  A device pass on the current pin has not been re-run.
 - Verified on BOTH: an Android **arm64-v8a** emulator (`shorebird_spike`), and a
   **physical device** (OnePlus/OPPO **CPH2551**, Android 16, arm64-v8a).
 - Server: `packages/code_push_server` (Stage 0 spike). Emulator run used the host

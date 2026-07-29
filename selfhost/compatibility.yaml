@@ -67,16 +67,17 @@ independence:
                          # download.shorebird.dev. Warm it once (see selfhost/cdn)
                          # to restore a build that touches nothing upstream.
   engine_from_source: false  # still consuming Shorebird's prebuilt engine binary.
-                             # SOURCE is captured (insurance vs. closed-source) but
-                             # now LAGS the supported pin by one revision: the
-                             # vendored flutter fork at vendor/flutter is @ 309dd657
-                             # (engine e1eaecbc), i.e. the `previous:` set above,
-                             # not c15ef637/69f9831c. The updater @ 1f85c4ab is
-                             # current because that revision did not move.
-                             # Re-vendor to close the gap; until then the insurance
-                             # would restore the previous pin, not this one.
+                             # SOURCE is captured (insurance vs. closed-source) and
+                             # is CURRENT with the supported pin: vendor/flutter is
+                             # re-vendored @ c15ef637 (engine 69f9831c, verified
+                             # from its own bin/internal/engine.version, which is
+                             # now force-added to git — Flutter's .gitignore had
+                             # been silently excluding it). vendor/updater @
+                             # 1f85c4ab is unchanged; DEPS is byte-identical
+                             # between the two Flutter revisions, so no updater
+                             # re-vendor was needed.
                              # Building the engine still needs a farm — see
-                             # selfhost/ENGINE_BUILD.md (still cites 309dd657).
+                             # selfhost/ENGINE_BUILD.md.
 
 policy: >
   Upgrading any pinned revision is a deliberate, gated process: bump the value

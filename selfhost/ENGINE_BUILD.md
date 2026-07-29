@@ -30,7 +30,7 @@ records what's done and precisely what the rest requires.
 
 **Source is now vendored** (insurance against upstream going closed-source): the
 Shorebird Flutter monorepo fork is snapshotted at `vendor/flutter/` — pinned
-commit `309dd657` (branch `flutter_release/3.44.7`). Because Flutter merged the
+commit `c15ef637` (branch `flutter_release/3.44.8`). Because Flutter merged the
 engine into the monorepo, that one fork contains the **framework**, the
 **modified engine C++ source** (`engine/src/flutter/`), Shorebird's `shorebird/`
 tooling, and `DEPS` (which pins every third-party revision and the updater commit
@@ -49,9 +49,10 @@ ongoing piece — essentially Shorebird's core operation.
 
 **Flow (once infra exists):**
 1. Use the captured monorepo source at `vendor/flutter` (pinned
-   `flutter_revision` 309dd657; its `bin/internal/engine.version` is the pinned
-   `engine_revision`, and its `DEPS` `updater_rev` equals `vendor/updater`'s
-   `1f85c4ab`). No re-checkout needed — the source is already local.
+   `flutter_revision` c15ef637; its `bin/internal/engine.version` is the pinned
+   `engine_revision` 69f9831c, and its `DEPS` `updater_rev` equals
+   `vendor/updater`'s `1f85c4ab`). No re-checkout needed — the source is already
+   local.
 2. `gclient sync` to fetch engine deps.
 3. Build the engine with GN/Ninja for each `(platform, arch, mode)`, linking in
    our built `libupdater`.
