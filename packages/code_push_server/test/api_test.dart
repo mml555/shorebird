@@ -1692,6 +1692,705 @@ void main() {
       expect(r.statusCode, HttpStatus.ok);
     });
   });
+
+  // -------------------------------------------------------------------------
+  // The CLI's `PatchArtifact.fromJson` does an unguarded
+  // `DateTime.parse(json['created_at'] as String)`. The patch-artifact payload
+  // omitted `created_at`, so every patch that HAS artifacts was unparseable and
+  // `patches info`, `patches list` and `patches set-track` all died with a
+  // FormatException. Only artifact-less patches — which no real patch is —
+  // appeared to work, which is why unit tests never caught it.
+  group('patch artifact wire contract', () {
+    test('a patch artifact carries every field the CLI requires', () async {
+      final s = await seedApp();
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/${s.appId}/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': s.releaseId},
+        ),
+      );
+      await uploadPatchArtifact(s.appId, p['id'] as int);
+
+      final list = await jsonOf(
+        await send(
+          'GET',
+          '/api/v1/apps/${s.appId}/releases/${s.releaseId}/patches',
+          bearer: _bootstrapKey,
+        ),
+      );
+      final artifacts =
+          ((list['patches'] as List).single as Map)['artifacts'] as List;
+      final artifact = artifacts.single as Map<String, dynamic>;
+
+      // Exactly the keys PatchArtifact.fromJson reads, with the types it casts
+      // to. `created_at` is the one that was missing.
+      expect(artifact['id'], isA<int>());
+      expect(artifact['patch_id'], isA<int>());
+      expect(artifact['arch'], isA<String>());
+      expect(artifact['platform'], isA<String>());
+      expect(artifact['hash'], isA<String>());
+      expect(artifact['size'], isA<int>());
+      expect(artifact['created_at'], isA<String>());
+      // Must be parseable, not merely present.
+      expect(
+        () => DateTime.parse(artifact['created_at'] as String),
+        returnsNormally,
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Build provenance. The CLI attaches a `metadata` blob to every release
+  // status update and patch creation; the server used to discard it entirely.
+  group('build metadata capture', () {
+    late String appId;
+    late int releaseId;
+
+    setUp(() async {
+      final s = await seedApp();
+      appId = s.appId;
+      releaseId = s.releaseId;
+    });
+
+    Future<Map<String, dynamic>?> releaseMetadata() async {
+      final r = await jsonOf(
+        await send(
+          'GET',
+          '/api/v1/apps/$appId/releases',
+          bearer: _bootstrapKey,
+        ),
+      );
+      final rel = (r['releases'] as List).single as Map<String, dynamic>;
+      return rel['metadata'] as Map<String, dynamic>?;
+    }
+
+    // Shaped like a real `UpdateReleaseMetadata`, including the nested
+    // environment object that must survive the round trip intact.
+    const releaseMeta = {
+      'release_platform': 'android',
+      'flutter_version_override': '3.27.0',
+      'generated_apks': false,
+      'environment': {
+        'shorebird_version': '1.2.3',
+        'operating_system': 'macos',
+        'flutter_revision': 'abc123',
+      },
+    };
+
+    test('metadata sent with a release update is stored', () async {
+      expect(await releaseMetadata(), isNull);
+      await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {'metadata': releaseMeta},
+      );
+      final stored = await releaseMetadata();
+      expect(stored, isNotNull);
+      expect(stored!['flutter_version_override'], '3.27.0');
+      // Nested structure, not flattened or stringified.
+      expect((stored['environment'] as Map)['shorebird_version'], '1.2.3');
+      expect(stored['generated_apks'], isFalse);
+    });
+
+    test('metadata sent with a patch is stored', () async {
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/$appId/patches',
+          bearer: _bootstrapKey,
+          json: {
+            'release_id': releaseId,
+            'metadata': {'used_ignore_asset_changes_flag': true},
+          },
+        ),
+      );
+      final list = await jsonOf(
+        await send(
+          'GET',
+          '/api/v1/apps/$appId/releases/$releaseId/patches',
+          bearer: _bootstrapKey,
+        ),
+      );
+      final patch = (list['patches'] as List)
+          .cast<Map<String, dynamic>>()
+          .firstWhere((x) => x['id'] == p['id']);
+      expect(
+        (patch['metadata'] as Map)['used_ignore_asset_changes_flag'],
+        isTrue,
+      );
+    });
+
+    // The opposite of the notes rule, on purpose: a release that fails the
+    // fail-closed status gate is exactly when you want to know what built it.
+    test('metadata is captured even when the request 409s on status', () async {
+      final r = await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        // `active` with no verified artifacts is the 409 path.
+        json: {
+          'status': 'active',
+          'platform': 'android',
+          'metadata': releaseMeta,
+        },
+      );
+      expect(r.statusCode, HttpStatus.conflict);
+      expect((await releaseMetadata())!['flutter_version_override'], '3.27.0');
+    });
+
+    test('a later release update replaces the stored metadata', () async {
+      await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {'metadata': releaseMeta},
+      );
+      await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {
+          'metadata': {'flutter_version_override': '3.29.0'},
+        },
+      );
+      final stored = await releaseMetadata();
+      expect(stored!['flutter_version_override'], '3.29.0');
+      expect(stored.containsKey('environment'), isFalse);
+    });
+
+    // Metadata is diagnostic data whose shape is upstream's to change, so a
+    // surprising value must never fail the release it was attached to.
+    test(
+      'a non-object or absent metadata field is ignored, not an error',
+      () async {
+        for (final bad in <Object?>[null, 'a string', 42, <String>[], {}]) {
+          final r = await send(
+            'PATCH',
+            '/api/v1/apps/$appId/releases/$releaseId',
+            bearer: _bootstrapKey,
+            json: {'metadata': bad},
+          );
+          expect(r.statusCode, HttpStatus.noContent, reason: 'metadata=$bad');
+          expect(await releaseMetadata(), isNull, reason: 'metadata=$bad');
+        }
+      },
+    );
+
+    test(
+      'an oversized blob is dropped, and the release still succeeds',
+      () async {
+        final r = await send(
+          'PATCH',
+          '/api/v1/apps/$appId/releases/$releaseId',
+          bearer: _bootstrapKey,
+          json: {
+            'metadata': {'padding': 'x' * (64 * 1024 + 1)},
+          },
+        );
+        expect(r.statusCode, HttpStatus.noContent);
+        expect(await releaseMetadata(), isNull);
+      },
+    );
+
+    // Notes and metadata are independent columns written by the same request.
+    test('metadata and notes on one request both land', () async {
+      await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {'metadata': releaseMeta, 'notes': 'shipped from CI'},
+      );
+      final r = await jsonOf(
+        await send(
+          'GET',
+          '/api/v1/apps/$appId/releases',
+          bearer: _bootstrapKey,
+        ),
+      );
+      final rel = (r['releases'] as List).single as Map<String, dynamic>;
+      expect(rel['notes'], 'shipped from CI');
+      expect((rel['metadata'] as Map)['release_platform'], 'android');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Restricting an org to one or more email domains, so a personal account
+  // can't be added to a company org or onto one of its apps.
+  group('org email-domain restriction', () {
+    /// The bootstrap user's org (they are its owner).
+    Future<int> rootOrg() async => (await repo.memberships(1)).first.orgId;
+
+    Future<Response> setDomains(
+      int orgId,
+      String domains, {
+      String? bearer,
+    }) => send(
+      'PUT',
+      '/admin/orgs/$orgId/domains?domains=${Uri.encodeQueryComponent(domains)}',
+      bearer: bearer ?? _bootstrapKey,
+    );
+
+    Future<Response> invite(int orgId, String email) => send(
+      'POST',
+      '/admin/orgs/$orgId/invitations?email=${Uri.encodeQueryComponent(email)}',
+      bearer: _bootstrapKey,
+    );
+
+    test('an org is unrestricted by default', () async {
+      final orgId = await rootOrg();
+      final r = await jsonOf(
+        await send('GET', '/admin/orgs/$orgId/domains', bearer: _bootstrapKey),
+      );
+      expect(r['domains'], isEmpty);
+      expect(
+        (await invite(orgId, 'anyone@gmail.com')).statusCode,
+        HttpStatus.ok,
+      );
+    });
+
+    test('setting a policy round-trips normalized domains', () async {
+      final orgId = await rootOrg();
+      final put = await jsonOf(
+        await setDomains(orgId, '@Self-Host.local, example.COM'),
+      );
+      expect(put['domains'], ['self-host.local', 'example.com']);
+      final get = await jsonOf(
+        await send('GET', '/admin/orgs/$orgId/domains', bearer: _bootstrapKey),
+      );
+      expect(get['domains'], ['self-host.local', 'example.com']);
+    });
+
+    test(
+      'an in-domain invitation is allowed, an out-of-domain one is not',
+      () async {
+        final orgId = await rootOrg();
+        await setDomains(orgId, 'self-host.local,example.com');
+        expect(
+          (await invite(orgId, 'dev@example.com')).statusCode,
+          HttpStatus.ok,
+        );
+        final bad = await invite(orgId, 'someone@gmail.com');
+        expect(bad.statusCode, HttpStatus.forbidden);
+        // The refusal names the policy so an admin can act on it.
+        expect((await jsonOf(bad))['message'], contains('example.com'));
+      },
+    );
+
+    // The case the upstream request is actually about: a personal account added
+    // straight onto a company app, bypassing the org invitation flow.
+    test(
+      'an out-of-domain collaborator cannot be added to the org\'s app',
+      () async {
+        final orgId = await rootOrg();
+        final s = await seedApp();
+        await repo.upsertUser('personal@gmail.com', 'Personal');
+        await repo.upsertUser('colleague@example.com', 'Colleague');
+        await setDomains(orgId, 'example.com,self-host.local');
+
+        final bad = await send(
+          'POST',
+          '/admin/apps/${s.appId}/collaborators?email=personal%40gmail.com',
+          bearer: _bootstrapKey,
+        );
+        expect(bad.statusCode, HttpStatus.forbidden);
+
+        final ok = await send(
+          'POST',
+          '/admin/apps/${s.appId}/collaborators?email=colleague%40example.com',
+          bearer: _bootstrapKey,
+        );
+        expect(ok.statusCode, HttpStatus.ok);
+      },
+    );
+
+    test('clearing the policy makes the org unrestricted again', () async {
+      final orgId = await rootOrg();
+      await setDomains(orgId, 'example.com,self-host.local');
+      expect(
+        (await invite(orgId, 'someone@gmail.com')).statusCode,
+        HttpStatus.forbidden,
+      );
+      final cleared = await jsonOf(await setDomains(orgId, ''));
+      expect(cleared['domains'], isEmpty);
+      expect(
+        (await invite(orgId, 'someone@gmail.com')).statusCode,
+        HttpStatus.ok,
+      );
+    });
+
+    // Existing members predate the policy and keep their access; the policy
+    // governs additions only. Evicting on the next request would be far worse.
+    test(
+      'an existing member is not evicted by a policy that excludes them',
+      () async {
+        final orgId = await rootOrg();
+        final before = await repo.orgMembers(orgId);
+        await setDomains(orgId, 'example.com,self-host.local');
+        expect(await repo.orgMembers(orgId), hasLength(before.length));
+        expect(await repo.userCanAccessApp(1, (await seedApp()).appId), isTrue);
+      },
+    );
+
+    test('a policy excluding every owner/admin is refused', () async {
+      final orgId = await rootOrg();
+      // The only owner is owner@self-host.local, so this would strand the org.
+      final r = await setDomains(orgId, 'example.com');
+      expect(r.statusCode, HttpStatus.conflict);
+      expect(await repo.orgAllowedDomains(orgId), isEmpty);
+    });
+
+    test(
+      'a non-empty but unparseable list is a 400, not a silent clear',
+      () async {
+        final orgId = await rootOrg();
+        await setDomains(orgId, 'self-host.local');
+        final r = await setDomains(orgId, 'localhost, nope');
+        expect(r.statusCode, HttpStatus.badRequest);
+        expect(await repo.orgAllowedDomains(orgId), ['self-host.local']);
+      },
+    );
+
+    test('a non-admin can neither read nor set the policy', () async {
+      final orgId = await rootOrg();
+      final other = await otherTenant();
+      expect(
+        (await send(
+          'GET',
+          '/admin/orgs/$orgId/domains',
+          bearer: other.key,
+        )).statusCode,
+        HttpStatus.forbidden,
+      );
+      expect(
+        (await setDomains(orgId, 'evil.test', bearer: other.key)).statusCode,
+        HttpStatus.forbidden,
+      );
+      expect(await repo.orgAllowedDomains(orgId), isEmpty);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Tracks are channels: `shorebird patches set-track --track=<name>` resolves
+  // the channel and promotes onto it, so several patches can be live at once on
+  // different tracks and each device follows only its own. This pins the
+  // behavior upstream shorebirdtech/shorebird#1443 and #3776 ask for.
+  group('independent live patches per track', () {
+    test(
+      'each track serves its own patch, and promotion is per track',
+      () async {
+        final s = await seedApp();
+        final appId = s.appId;
+
+        Future<int> readyPatch() async {
+          final p = await jsonOf(
+            await send(
+              'POST',
+              '/api/v1/apps/$appId/patches',
+              bearer: _bootstrapKey,
+              json: {'release_id': s.releaseId},
+            ),
+          );
+          final id = p['id'] as int;
+          await uploadPatchArtifact(appId, id);
+          return id;
+        }
+
+        Future<int> channel(String name) async {
+          final c = await jsonOf(
+            await send(
+              'POST',
+              '/api/v1/apps/$appId/channels',
+              bearer: _bootstrapKey,
+              json: {'channel': name},
+            ),
+          );
+          return c['id'] as int;
+        }
+
+        Future<void> promote(int patchId, int channelId) async {
+          final r = await send(
+            'POST',
+            '/api/v1/apps/$appId/patches/promote',
+            bearer: _bootstrapKey,
+            json: {'patch_id': patchId, 'channel_id': channelId},
+          );
+          expect(r.statusCode, HttpStatus.noContent);
+        }
+
+        /// What a device on [track] is told to install.
+        Future<int?> check(String track) async {
+          final r = await jsonOf(
+            await send(
+              'POST',
+              '/api/v1/patches/check',
+              json: {
+                'app_id': appId,
+                'release_version': '1.0.0',
+                'platform': 'android',
+                'arch': 'aarch64',
+                'channel': track,
+                'client_id': 'device-on-$track',
+                'patch_number': 0,
+              },
+            ),
+          );
+          final patch = r['patch'];
+          return patch == null ? null : (patch as Map)['number'] as int?;
+        }
+
+        final internal = await channel('internal');
+        final patch1 = await readyPatch();
+        final patch2 = await readyPatch();
+
+        // The high-volume internal track gets both patches in turn; stable, the
+        // curated track, is still serving nothing.
+        await promote(patch1, internal);
+        expect(await check('internal'), 1);
+        expect(await check('stable'), isNull);
+
+        await promote(patch2, internal);
+        expect(await check('internal'), 2);
+        expect(await check('stable'), isNull);
+
+        // Curated promotion: only the vetted patch #1 graduates to stable, while
+        // internal stays ahead on #2. Both are live simultaneously.
+        await promote(patch1, s.channelId);
+        expect(await check('stable'), 1);
+        expect(await check('internal'), 2);
+      },
+    );
+
+    // The `channel` field is what `shorebird patches list` prints as the track
+    // and `patches info` shows as "Track:". It was hardcoded null, so a patch
+    // promoted seconds earlier still displayed "[no track]".
+    test('the CLI-visible track reflects promotion and withdrawal', () async {
+      final s = await seedApp();
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/${s.appId}/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': s.releaseId},
+        ),
+      );
+      final patchId = p['id'] as int;
+      await uploadPatchArtifact(s.appId, patchId);
+
+      Future<Object?> track() async {
+        final r = await jsonOf(
+          await send(
+            'GET',
+            '/api/v1/apps/${s.appId}/releases/${s.releaseId}/patches',
+            bearer: _bootstrapKey,
+          ),
+        );
+        return ((r['patches'] as List).single as Map)['channel'];
+      }
+
+      // Never promoted: genuinely no track.
+      expect(await track(), isNull);
+
+      await send(
+        'POST',
+        '/api/v1/apps/${s.appId}/patches/promote',
+        bearer: _bootstrapKey,
+        json: {'patch_id': patchId, 'channel_id': s.channelId},
+      );
+      expect(await track(), 'stable');
+
+      // Withdrawn: no longer served, so it reports no track again rather than
+      // continuing to claim the channel it was removed from.
+      await send(
+        'POST',
+        '/admin/apps/${s.appId}/patches/$patchId/withdraw?channel=stable',
+        bearer: _bootstrapKey,
+      );
+      expect(await track(), isNull);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Release/patch notes. The wire contract always carried `notes` on both DTOs
+  // and the CLI's `releases info` / `patches info` already print it, but the
+  // server hardcoded null on every response, so the field could never be used.
+  group('release and patch notes', () {
+    late String appId;
+    late int releaseId;
+
+    setUp(() async {
+      final s = await seedApp();
+      appId = s.appId;
+      releaseId = s.releaseId;
+    });
+
+    Future<Map<String, dynamic>> release() async {
+      final r = await jsonOf(
+        await send(
+          'GET',
+          '/api/v1/apps/$appId/releases',
+          bearer: _bootstrapKey,
+        ),
+      );
+      return (r['releases'] as List).single as Map<String, dynamic>;
+    }
+
+    Future<int> createPatch({String? notes}) async {
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/$appId/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': releaseId, if (notes != null) 'notes': notes},
+        ),
+      );
+      return p['id'] as int;
+    }
+
+    Future<Map<String, dynamic>> patchFromList(int patchId) async {
+      final r = await jsonOf(
+        await send(
+          'GET',
+          '/api/v1/apps/$appId/releases/$releaseId/patches',
+          bearer: _bootstrapKey,
+        ),
+      );
+      return (r['patches'] as List).cast<Map<String, dynamic>>().firstWhere(
+        (p) => p['id'] == patchId,
+      );
+    }
+
+    test('a release round-trips notes set at creation', () async {
+      final r = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/$appId/releases',
+          bearer: _bootstrapKey,
+          json: {'version': '2.0.0', 'notes': 'first ship'},
+        ),
+      );
+      expect((r['release'] as Map)['notes'], 'first ship');
+    });
+
+    test('PATCH sets release notes and they survive a re-read', () async {
+      final r = await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {'notes': 'hotfix for the login crash'},
+      );
+      expect(r.statusCode, HttpStatus.noContent);
+      expect((await release())['notes'], 'hotfix for the login crash');
+    });
+
+    // The CLI sends `UpdateReleaseRequest` with every key populated during a
+    // normal release, so a null `notes` must not wipe notes already set --
+    // upstream documents null as "the notes will not be updated".
+    test('a null notes field leaves existing notes alone', () async {
+      await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {'notes': 'keep me'},
+      );
+      await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {'status': 'active', 'platform': 'android', 'notes': null},
+      );
+      expect((await release())['notes'], 'keep me');
+    });
+
+    // Notes are validated up front but written last, so a request rejected by
+    // the status gate doesn't leave the notes changed by a call that failed.
+    test('a request that 409s on status does not apply its notes', () async {
+      final r = await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        // `active` with no verified artifacts is the fail-closed 409 path.
+        json: {'status': 'active', 'platform': 'android', 'notes': 'nope'},
+      );
+      expect(r.statusCode, HttpStatus.conflict);
+      expect((await release())['notes'], isNull);
+    });
+
+    test('an empty notes string clears notes', () async {
+      await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {'notes': 'temporary'},
+      );
+      await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {'notes': ''},
+      );
+      expect((await release())['notes'], isNull);
+    });
+
+    test('a patch round-trips notes set at creation', () async {
+      final patchId = await createPatch(notes: 'raising the timeout');
+      expect((await patchFromList(patchId))['notes'], 'raising the timeout');
+    });
+
+    test('PATCH sets patch notes and echoes what was stored', () async {
+      final patchId = await createPatch();
+      expect((await patchFromList(patchId))['notes'], isNull);
+      final r = await jsonOf(
+        await send(
+          'PATCH',
+          '/api/v1/apps/$appId/patches/$patchId',
+          bearer: _bootstrapKey,
+          json: {'notes': 'annotated after the fact'},
+        ),
+      );
+      expect(r['notes'], 'annotated after the fact');
+      expect(
+        (await patchFromList(patchId))['notes'],
+        'annotated after the fact',
+      );
+    });
+
+    test('notes over the ceiling are a 400, not a silent truncation', () async {
+      final r = await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {'notes': 'x' * 4097},
+      );
+      expect(r.statusCode, HttpStatus.badRequest);
+      expect((await release())['notes'], isNull);
+    });
+
+    test('a wrong-typed notes field is a 400, not a 500', () async {
+      final r = await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {'notes': 42},
+      );
+      expect(r.statusCode, HttpStatus.badRequest);
+    });
+
+    test('another tenant cannot write notes on this app\'s patch', () async {
+      final patchId = await createPatch();
+      final other = await otherTenant();
+      final r = await send(
+        'PATCH',
+        '/api/v1/apps/$appId/patches/$patchId',
+        bearer: other.key,
+        json: {'notes': 'pwned'},
+      );
+      expect(r.statusCode, isIn([HttpStatus.forbidden, HttpStatus.notFound]));
+      expect((await patchFromList(patchId))['notes'], isNull);
+    });
+  });
 }
 
 /// Stands in for the socket peer that `shelf_io` would supply.

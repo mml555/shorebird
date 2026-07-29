@@ -598,6 +598,12 @@ class Api {
           m == 'POST') {
         return _createPatchArtifact(req, appId, _pathId(rest[1], 'patch id'));
       }
+      // Fork addition: upstream exposes no way to write patch notes, even
+      // though its own `Patch` DTO carries the field and `shorebird patches
+      // info` prints it. Mirrors the shape of the release PATCH above.
+      if (rest.length == 2 && rest[0] == 'patches' && m == 'PATCH') {
+        return _updatePatch(req, appId, _pathId(rest[1], 'patch id'));
+      }
       if (rest.length == 1 && rest[0] == 'releases') {
         if (m == 'POST') return _createRelease(req, appId);
         if (m == 'GET') return _getReleases(appId);
@@ -1000,6 +1006,26 @@ class Api {
   }
 
   /// Authorizes the caller for [appId] via org membership or collaboration.
+  /// Enforces an org's email-domain allowlist before [email] is granted access
+  /// to it (or to one of its apps).
+  ///
+  /// A no-op for orgs with no policy, which is the default. Existing members are
+  /// never re-checked: setting a policy governs who can be added from then on,
+  /// it does not evict anyone — evicting silently on the next request would be a
+  /// far worse failure than refusing the add.
+  Future<void> _requireEmailAllowedInOrg(int orgId, String email) async {
+    final domains = await repo.orgAllowedDomains(orgId);
+    if (emailAllowedByDomains(email, domains)) return;
+    // Names the policy: the caller is an org admin who can change it, and
+    // "forbidden" with no reason is the kind of thing that turns into a support
+    // ticket.
+    throw DomainException(
+      HttpStatus.forbidden,
+      'forbidden',
+      'Organization $orgId only admits addresses at ${domains.join(', ')}',
+    );
+  }
+
   Future<void> _authorizeApp(Request req, String appId) async {
     if (!await repo.userCanAccessApp(_uid(req), appId)) {
       throw DomainException(
@@ -1128,6 +1154,7 @@ class Api {
       flutterRevision: _optStringField(body, 'flutter_revision'),
       flutterVersion: _optStringField(body, 'flutter_version'),
       displayName: _optStringField(body, 'display_name'),
+      notes: _optNotesField(body),
     );
     return _json({'release': _releaseJson(r)});
   }
@@ -1144,6 +1171,26 @@ class Api {
   ) async {
     final body = await _jsonBody(req);
     final release = await _ownedRelease(appId, releaseId);
+    // Upstream's `UpdateReleaseRequest` documents `notes: null` as "leave
+    // unchanged" — and it serializes the key on every request, including the
+    // status updates the CLI sends mid-release — so only an explicitly present,
+    // non-null value writes. An empty string is the clear signal.
+    //
+    // Validated here but written after the status handling below, so an
+    // over-long value is a 400 before anything is touched and a status conflict
+    // doesn't leave the notes changed by a request that failed.
+    final writesNotes = body['notes'] != null;
+    final notes = writesNotes ? _optNotesField(body) : null;
+    // Build provenance: the CLI attaches this to every release status update.
+    //
+    // Written *before* the status handling below, unlike notes. The status gate
+    // can fail closed with a 409 (activating before every artifact verified),
+    // and that is exactly the case where knowing what built this release is
+    // most useful — discarding the diagnostics attached to a failed deploy is
+    // backwards. Metadata is also not a field anyone reads as state, so there's
+    // no partial-update surprise in recording it.
+    final metadata = _optMetadataField(body);
+    if (metadata != null) await repo.setReleaseMetadata(releaseId, metadata);
     final status = _optStringField(body, 'status');
     final platform = _optStringField(body, 'platform');
     if (status != null && platform != null) {
@@ -1174,6 +1221,14 @@ class Api {
         }
       }
     }
+    if (writesNotes) {
+      await repo.setReleaseNotes(releaseId, notes);
+      await repo.audit(
+        'release.notes',
+        actor: '${_uid(req)}',
+        target: '$releaseId',
+      );
+    }
     return Response(HttpStatus.noContent);
   }
 
@@ -1181,9 +1236,83 @@ class Api {
     final body = await _jsonBody(req);
     final releaseId = _intField(body, 'release_id');
     await _ownedRelease(appId, releaseId);
-    final p = await repo.createPatch(appId, releaseId);
-    return _json({'id': p.id, 'number': p.number, 'notes': null});
+    // `notes` is optional and the pinned CLI never sends it; accepted here so a
+    // script or the console can annotate a patch at creation time instead of
+    // needing a follow-up PATCH.
+    final p = await repo.createPatch(
+      appId,
+      releaseId,
+      notes: _optNotesField(body),
+      metadata: _optMetadataField(body),
+    );
+    return _json({'id': p.id, 'number': p.number, 'notes': p.notes});
   }
+
+  /// `PATCH /api/v1/apps/{appId}/patches/{patchId}` with `{"notes": "..."}`.
+  ///
+  /// Same null-means-unchanged / empty-means-clear semantics as the release
+  /// endpoint. Returns the patch so a caller can confirm what was stored.
+  Future<Response> _updatePatch(Request req, String appId, int patchId) async {
+    final body = await _jsonBody(req);
+    final patch = await _ownedPatch(appId, patchId);
+    var notes = patch.notes;
+    if (body['notes'] != null) {
+      notes = _optNotesField(body);
+      await repo.setPatchNotes(patchId, notes);
+      await repo.audit(
+        'patch.notes',
+        actor: '${_uid(req)}',
+        target: '$patchId',
+      );
+    }
+    return _json({'id': patch.id, 'number': patch.number, 'notes': notes});
+  }
+
+  /// Reads and validates an optional freeform `notes` field.
+  ///
+  /// Absent/JSON-null means "leave unchanged", matching the documented
+  /// `UpdateReleaseRequest.notes` contract. An explicitly empty string is the
+  /// way to *clear* notes, and is normalized to null here so a cleared field
+  /// reads back as null rather than `''`.
+  static String? _optNotesField(Map<String, Object?> body) {
+    final v = _optStringField(body, 'notes');
+    if (v == null) return null;
+    if (v.length > _maxNotesChars) {
+      throw badRequest('notes must be at most $_maxNotesChars characters');
+    }
+    return v.isEmpty ? null : v;
+  }
+
+  /// Ceiling on stored notes. Generous for a changelog entry, small enough that
+  /// the field can't be used to park bulk data in the control-plane database.
+  static const int _maxNotesChars = 4096;
+
+  /// Reads the optional build-provenance `metadata` object the CLI sends on
+  /// release updates and patch creation.
+  ///
+  /// Anything that isn't a JSON object is ignored rather than rejected: this is
+  /// diagnostic data the CLI attaches on its own, and its shape is upstream's to
+  /// change. Failing a release because a future CLI sent a field we didn't
+  /// expect would trade a working deploy for a blob we only read out-of-band.
+  /// Oversized blobs are dropped for the same reason — see [_maxMetadataChars].
+  static Map<String, Object?>? _optMetadataField(Map<String, Object?> body) {
+    final v = body['metadata'];
+    if (v is! Map) return null;
+    final map = v.cast<String, Object?>();
+    if (map.isEmpty) return null;
+    if (jsonEncode(map).length > _maxMetadataChars) {
+      logInfo('WARNING: dropping oversized metadata blob', {
+        'limit': _maxMetadataChars,
+      });
+      return null;
+    }
+    return map;
+  }
+
+  /// Ceiling on a stored metadata blob. The CLI's own payload — versions, flags,
+  /// and `BuildTraceSummary` counters — is a few KB; this leaves generous room
+  /// while keeping one release row from holding megabytes.
+  static const int _maxMetadataChars = 64 * 1024;
 
   Future<Response> _createReleaseArtifact(
     Request req,
@@ -1312,18 +1441,44 @@ class Api {
     return _json({...app, 'patches': patches});
   }
 
+  /// The channel a patch counts as being "in", for the CLI's singular `channel`
+  /// field: the most recent deployment that is still active and not rolled
+  /// back. Null when the patch was never promoted, or every promotion has since
+  /// been withdrawn or reverted — in which case it genuinely has no track.
+  ///
+  /// [deployments] arrives newest-first from `Repository.patchDeployments`.
+  static String? _currentTrack(List<Map<String, Object?>> deployments) {
+    for (final d in deployments) {
+      if (d['status'] == ChannelPatchStatus.active.name &&
+          d['rolled_back'] != true) {
+        return d['channel'] as String?;
+      }
+    }
+    return null;
+  }
+
   Future<Response> _getReleasePatches(String appId, int releaseId) async {
     await _ownedRelease(appId, releaseId);
     final patches = await repo.patchesForRelease(releaseId);
     final out = <Map<String, Object?>>[];
     for (final p in patches) {
       final arts = await repo.patchArtifacts(p.id);
+      final deployments = await repo.patchDeployments(p.id);
       out.add({
         'id': p.id,
         'number': p.number,
         'status': p.status.name,
-        'channel': null,
-        'deployments': await repo.patchDeployments(p.id),
+        // The CLI's singular "track" for this patch: the newest deployment
+        // that is still live. `deployments` (below) is the full per-channel
+        // picture and stays authoritative — this is the one-line summary the
+        // CLI reads.
+        //
+        // WAS hardcoded null, so `shorebird patches list` printed
+        // "[no track]" and `patches info` never showed a Track at all, even
+        // for a patch promoted seconds earlier. It also made `set-track`'s
+        // "already in that track" check dead code, so it always re-promoted.
+        'channel': _currentTrack(deployments),
+        'deployments': deployments,
         'artifacts': [
           for (final a in arts)
             {
@@ -1333,10 +1488,18 @@ class Api {
               'platform': a.platform,
               'hash': a.hash,
               'size': a.size,
+              // Required by the CLI's `PatchArtifact.fromJson`, which does an
+              // unguarded `DateTime.parse(json['created_at'] as String)`.
+              // Omitting it made every patch that HAS artifacts unparseable,
+              // so `patches info`, `patches list` and `patches set-track` all
+              // failed with a FormatException — only artifact-less patches,
+              // which no real patch is, appeared to work.
+              'created_at': a.createdAt,
             },
         ],
         'is_rolled_back': await repo.patchRolledBack(p.id),
-        'notes': null,
+        'notes': p.notes,
+        'metadata': p.metadata,
       });
     }
     return _json({'patches': out});
@@ -1796,6 +1959,7 @@ class Api {
         orDefault: 'developer',
       );
       if (email == null) throw badRequest('email required');
+      await _requireEmailAllowedInOrg(orgId, email);
       final token = await repo.createInvitation(orgId, email, role);
       await repo.audit(
         'org.invite',
@@ -1845,6 +2009,13 @@ class Api {
         orDefault: 'developer',
       );
       if (email == null) throw badRequest('email required');
+      // The policy lives on the owning org, and a collaborator grant is a way
+      // into that org's app — so it has to be checked here too, not just on the
+      // invitation path. This is the case the upstream request is really about:
+      // a personal account added straight onto a company app.
+      final appOrgId = await repo.appOrgId(appId);
+      if (appOrgId == null) throw notFound('No app $appId');
+      await _requireEmailAllowedInOrg(appOrgId, email);
       final user = await repo.userByEmail(email);
       if (user == null) throw notFound('No user $email');
       await repo.addCollaborator(appId, user.id, role);
@@ -2017,6 +2188,59 @@ class Api {
       }
       return _json({'invitations': await repo.orgInvitations(orgId)});
     }
+    // GET  /admin/orgs/{orgId}/domains
+    // PUT  /admin/orgs/{orgId}/domains?domains=example.com,example.org
+    //
+    // The org's email-domain allowlist. An empty `domains` clears the policy.
+    if (seg.length == 3 &&
+        seg[0] == 'orgs' &&
+        seg[2] == 'domains' &&
+        (req.method == 'GET' || req.method == 'PUT')) {
+      final orgId = _pathId(seg[1], 'org id');
+      // Reading is admin-only too: the allowlist names the company's mail
+      // domains, which is not something a `developer` needs.
+      if (!await repo.userIsOrgAdmin(_uid(req), orgId)) {
+        throw DomainException(
+          HttpStatus.forbidden,
+          'forbidden',
+          'Not an org admin',
+        );
+      }
+      if (req.method == 'GET') {
+        return _json({'domains': await repo.orgAllowedDomains(orgId)});
+      }
+      final raw = req.url.queryParameters['domains'] ?? '';
+      final domains = parseDomainList(raw);
+      // Refuse a policy that would lock out every current owner/admin: nobody
+      // left could invite, and it is only ever a typo. Existing members keep
+      // access either way, so this is about not stranding administration.
+      if (domains.isNotEmpty) {
+        final admins = (await repo.orgMembers(orgId))
+            .where((m) => _adminRoles.contains(m['role']))
+            .map((m) => (m['email'] as String?) ?? '')
+            .toList();
+        if (admins.isNotEmpty &&
+            !admins.any((e) => emailAllowedByDomains(e, domains))) {
+          throw conflict(
+            'That policy would exclude every owner/admin of the org '
+            '(${admins.join(', ')})',
+          );
+        }
+      }
+      // A non-empty request that parses to nothing is a malformed list, not a
+      // request to clear — clearing is `?domains=`.
+      if (domains.isEmpty && raw.trim().isNotEmpty) {
+        throw badRequest('No valid domains in "$raw"');
+      }
+      await repo.setOrgAllowedDomains(orgId, domains);
+      await repo.audit(
+        'org.domains',
+        actor: '${_uid(req)}',
+        target: '$orgId',
+        detail: domains.isEmpty ? 'cleared' : domains.join(','),
+      );
+      return _json({'org_id': orgId, 'domains': domains});
+    }
     // DELETE /admin/orgs/{orgId}/invitations/{token}
     if (req.method == 'DELETE' &&
         seg.length == 4 &&
@@ -2115,7 +2339,11 @@ class Api {
     'platform_statuses': r.platformStatuses,
     'created_at': r.createdAt,
     'updated_at': r.updatedAt,
-    'notes': null,
+    'notes': r.notes,
+    // Extra key the pinned CLI ignores (its DTOs parse field by field), so the
+    // console and any operator tooling can read build provenance without a
+    // second round trip.
+    'metadata': r.metadata,
   };
 
   /// Ceiling on any body we turn into a String. Every payload at these

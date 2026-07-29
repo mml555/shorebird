@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:code_push_server/src/config.dart';
@@ -36,6 +37,8 @@ class ReleaseRow {
     required this.createdAt,
     required this.updatedAt,
     required this.platformStatuses,
+    this.notes,
+    this.metadata,
   });
   final int id;
   final String appId;
@@ -47,15 +50,41 @@ class ReleaseRow {
   final String createdAt;
   final String updatedAt;
   final Map<String, String> platformStatuses;
+
+  /// Freeform operator-supplied release notes, surfaced by
+  /// `shorebird releases info`. Null when never set.
+  final String? notes;
+
+  /// Build provenance as sent by the CLI (`UpdateReleaseMetadata`). Null if the
+  /// release predates metadata capture or was created by something that sends
+  /// none.
+  final Map<String, Object?>? metadata;
 }
 
 class PatchRow {
-  PatchRow(this.id, this.appId, this.releaseId, this.number, this.status);
+  PatchRow(
+    this.id,
+    this.appId,
+    this.releaseId,
+    this.number,
+    this.status, {
+    this.notes,
+    this.metadata,
+  });
   final int id;
   final String appId;
   final int releaseId;
   final int number;
   final PatchStatus status;
+
+  /// Freeform operator-supplied patch notes, surfaced by
+  /// `shorebird patches info`. Null when never set.
+  final String? notes;
+
+  /// Build provenance as sent by the CLI (`CreatePatchMetadata`). Null if the
+  /// patch predates metadata capture or was created by something that sends
+  /// none.
+  final Map<String, Object?>? metadata;
 }
 
 class ChannelRow {
@@ -97,6 +126,7 @@ class ArtifactRow {
     required this.canSideload,
     required this.status,
     required this.storageKey,
+    required this.createdAt,
   });
   final int id;
   final String token;
@@ -111,6 +141,10 @@ class ArtifactRow {
   final bool canSideload;
   final ArtifactStatus status;
   final String storageKey;
+
+  /// When the artifact row was created, ISO-8601 UTC. Part of the CLI's
+  /// `PatchArtifact` wire contract, which requires it.
+  final String createdAt;
 }
 
 class UserRow {
@@ -216,6 +250,40 @@ class Repository {
         '''CREATE TABLE IF NOT EXISTS idp_states(
               state TEXT PRIMARY KEY, continue_url TEXT NOT NULL,
               expires_at TIMESTAMPTZ NOT NULL)''',
+      ],
+    ),
+    (
+      5,
+      [
+        // Release/patch notes. The wire contract already carried a `notes`
+        // field on both DTOs and `shorebird releases info` / `patches info`
+        // already print it — there was just never anywhere to store it, so it
+        // was hardcoded null on every response. Deliberately plain `ALTER
+        // TABLE ADD COLUMN` with no `IF NOT EXISTS`: SQLite doesn't support
+        // that clause, and a versioned migration runs exactly once anyway.
+        'ALTER TABLE releases ADD COLUMN notes TEXT',
+        'ALTER TABLE patches ADD COLUMN notes TEXT',
+      ],
+    ),
+    (
+      6,
+      [
+        // Optional per-org email-domain allowlist, stored as a comma-separated
+        // list of lowercase domains. NULL/empty means unrestricted, which is
+        // every org's default — so an existing deployment is unaffected.
+        'ALTER TABLE organizations ADD COLUMN allowed_email_domains TEXT',
+      ],
+    ),
+    (
+      7,
+      [
+        // Build provenance. The CLI already sends a `metadata` blob on every
+        // release status update and patch creation (Flutter/Shorebird versions,
+        // OS, Xcode version, flags used, build timings) — the server simply
+        // discarded it. Stored as JSON text rather than Postgres JSONB so the
+        // same column works on the SQLite backend.
+        'ALTER TABLE releases ADD COLUMN metadata TEXT',
+        'ALTER TABLE patches ADD COLUMN metadata TEXT',
       ],
     ),
   ];
@@ -649,6 +717,32 @@ class Repository {
     return _int(r.first['c']);
   }
 
+  /// The org's email-domain allowlist, lowercased. Empty means unrestricted.
+  Future<List<String>> orgAllowedDomains(int orgId) async {
+    final r = await _q(
+      'SELECT allowed_email_domains AS d FROM organizations WHERE id = @o',
+      {'o': orgId},
+    );
+    if (r.isEmpty) return const [];
+    return parseDomainList(r.first['d'] as String?);
+  }
+
+  /// Replaces the org's allowlist. An empty [domains] clears it (unrestricted).
+  Future<void> setOrgAllowedDomains(int orgId, List<String> domains) => _q(
+    'UPDATE organizations SET allowed_email_domains = @d, updated_at = now() '
+    'WHERE id = @o',
+    {'d': domains.isEmpty ? null : domains.join(','), 'o': orgId},
+  );
+
+  /// The org that owns [appId], or null if there is no such app. Needed to
+  /// resolve an app-scoped request back to the org whose policy governs it.
+  Future<int?> appOrgId(String appId) async {
+    final r = await _q('SELECT org_id FROM apps WHERE app_id = @a', {
+      'a': appId,
+    });
+    return r.isEmpty ? null : _int(r.first['org_id']);
+  }
+
   /// Pending (unaccepted) invitations for [orgId].
   Future<List<Map<String, Object?>>> orgInvitations(int orgId) async {
     final r = await _q(
@@ -774,10 +868,11 @@ class Repository {
     String? flutterRevision,
     String? flutterVersion,
     String? displayName,
+    String? notes,
   }) async {
     final r = await _q(
       'INSERT INTO releases(app_id, version, flutter_revision, flutter_version, '
-      'display_name, lifecycle) VALUES (@a,@v,@fr,@fv,@dn,@l) RETURNING id',
+      'display_name, lifecycle, notes) VALUES (@a,@v,@fr,@fv,@dn,@l,@n) RETURNING id',
       {
         'a': appId,
         'v': version,
@@ -785,6 +880,7 @@ class Repository {
         'fv': flutterVersion,
         'dn': displayName,
         'l': ReleaseLifecycle.draft.name,
+        'n': notes,
       },
     );
     return (await release(_int(r.first['id'])))!;
@@ -833,8 +929,38 @@ class Repository {
       createdAt: _ts(m['created_at']),
       updatedAt: _ts(m['updated_at']),
       platformStatuses: ps,
+      notes: m['notes'] as String?,
+      metadata: _decodeMetadata(m['metadata']),
     );
   }
+
+  /// Decodes a stored metadata blob. Tolerates anything that isn't a JSON
+  /// object: the column is written only by us, but a hand-edited or
+  /// externally-migrated row must not take down every read of the release.
+  static Map<String, Object?>? _decodeMetadata(Object? v) {
+    if (v is! String || v.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(v);
+      return decoded is Map<String, Object?> ? decoded : null;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  /// Records the build-provenance blob the CLI sends with a release update.
+  Future<void> setReleaseMetadata(
+    int releaseId,
+    Map<String, Object?> metadata,
+  ) => _q(
+    'UPDATE releases SET metadata = @m, updated_at = now() WHERE id = @id',
+    {'m': jsonEncode(metadata), 'id': releaseId},
+  );
+
+  /// Sets (or, with a null [notes], clears) the release's notes.
+  Future<void> setReleaseNotes(int releaseId, String? notes) => _q(
+    'UPDATE releases SET notes = @n, updated_at = now() WHERE id = @id',
+    {'n': notes, 'id': releaseId},
+  );
 
   Future<void> setReleaseLifecycle(int releaseId, ReleaseLifecycle lifecycle) =>
       _q(
@@ -859,15 +985,28 @@ class Repository {
 
   // ---- Patches ----
 
-  Future<PatchRow> createPatch(String appId, int releaseId) async {
+  Future<PatchRow> createPatch(
+    String appId,
+    int releaseId, {
+    String? notes,
+    Map<String, Object?>? metadata,
+  }) async {
     final maxR = await _q(
       'SELECT COALESCE(MAX(number),0) AS n FROM patches WHERE release_id = @r',
       {'r': releaseId},
     );
     final number = _int(maxR.first['n']) + 1;
     final r = await _q(
-      'INSERT INTO patches(app_id, release_id, number, status) VALUES (@a,@r,@n,@s) RETURNING id',
-      {'a': appId, 'r': releaseId, 'n': number, 's': PatchStatus.draft.name},
+      'INSERT INTO patches(app_id, release_id, number, status, notes, metadata) '
+      'VALUES (@a,@r,@n,@s,@no,@md) RETURNING id',
+      {
+        'a': appId,
+        'r': releaseId,
+        'n': number,
+        's': PatchStatus.draft.name,
+        'no': notes,
+        'md': metadata == null ? null : jsonEncode(metadata),
+      },
     );
     return (await patch(_int(r.first['id'])))!;
   }
@@ -875,14 +1014,7 @@ class Repository {
   Future<PatchRow?> patch(int id) async {
     final r = await _q('SELECT * FROM patches WHERE id = @id', {'id': id});
     if (r.isEmpty) return null;
-    final m = r.first;
-    return PatchRow(
-      _int(m['id']),
-      m['app_id'] as String,
-      _int(m['release_id']),
-      _int(m['number']),
-      PatchStatus.parse(m['status'] as String),
-    );
+    return _patchFrom(r.first);
   }
 
   Future<void> setPatchStatus(int patchId, PatchStatus status) => _q(
@@ -890,21 +1022,29 @@ class Repository {
     {'s': status.name, 'id': patchId},
   );
 
+  /// Sets (or, with a null [notes], clears) the patch's notes.
+  Future<void> setPatchNotes(int patchId, String? notes) => _q(
+    'UPDATE patches SET notes = @n WHERE id = @id',
+    {'n': notes, 'id': patchId},
+  );
+
   Future<List<PatchRow>> patchesForRelease(int releaseId) async {
     final r = await _q(
       'SELECT * FROM patches WHERE release_id = @r ORDER BY number',
       {'r': releaseId},
     );
-    return r.map((m) {
-      return PatchRow(
-        _int(m['id']),
-        m['app_id'] as String,
-        _int(m['release_id']),
-        _int(m['number']),
-        PatchStatus.parse(m['status'] as String),
-      );
-    }).toList();
+    return r.map(_patchFrom).toList();
   }
+
+  PatchRow _patchFrom(Map<String, Object?> m) => PatchRow(
+    _int(m['id']),
+    m['app_id'] as String,
+    _int(m['release_id']),
+    _int(m['number']),
+    PatchStatus.parse(m['status'] as String),
+    notes: m['notes'] as String?,
+    metadata: _decodeMetadata(m['metadata']),
+  );
 
   /// Per-channel deployment state for [patchId]: `{channel, status, rollout,
   /// rolled_back}` per row (newest promotion first). Empty = not promoted.
@@ -1241,6 +1381,7 @@ class Repository {
     canSideload: asDbBool(m['can_sideload']),
     status: ArtifactStatus.parse(m['status'] as String),
     storageKey: m['storage_key'] as String,
+    createdAt: _ts(m['created_at']),
   );
 
   Future<void> setArtifactStatus(int artifactId, ArtifactStatus status) => _q(

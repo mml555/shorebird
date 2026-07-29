@@ -55,9 +55,9 @@ These are exactly what the pinned Shorebird CLI calls for `init` / `release` /
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/apps/{appId}/releases` | `{"version":"1.0.0+1","flutter_revision":"…","flutter_version"?,"display_name"?}` | `{"release":{"id","version","flutter_revision","status",…}}` |
+| POST | `/apps/{appId}/releases` | `{"version":"1.0.0+1","flutter_revision":"…","flutter_version"?,"display_name"?,"notes"?}` | `{"release":{"id","version","flutter_revision","status","notes",…}}` |
 | GET | `/apps/{appId}/releases` | — | `{"releases":[Release]}` |
-| PATCH | `/apps/{appId}/releases/{releaseId}` | `{"status"?:"active","platform"?:"android","metadata"?}` | 204 · **409** if set `active` before all artifacts verified (fail-closed finalize) |
+| PATCH | `/apps/{appId}/releases/{releaseId}` | `{"status"?:"active","platform"?:"android","metadata"?,"notes"?}` | 204 · **409** if set `active` before all artifacts verified (fail-closed finalize) |
 
 ### Release artifacts
 
@@ -74,9 +74,72 @@ mismatch fails the artifact (`400` on upload) and the release cannot finalize.
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/apps/{appId}/patches` | `{"release_id":1,"metadata":{}}` | `{"id","number"}` |
+| POST | `/apps/{appId}/patches` | `{"release_id":1,"metadata":{},"notes"?}` | `{"id","number","notes"}` |
 | POST | `/apps/{appId}/patches/{patchId}/artifacts` | multipart: `arch,platform,hash,size,hash_signature?,podfile_lock_hash?` | `{…,"url","upload_method"}` |
 | POST | `/apps/{appId}/patches/promote` | `{"patch_id":1,"channel_id":1}` | 204 · **409** if the patch isn't `ready` |
+| PATCH | `/apps/{appId}/patches/{patchId}` | `{"notes"?}` | `{"id","number","notes"}` |
+
+### Release & patch notes
+
+Freeform operator notes (max 4096 chars) on a release or a patch — "why did this
+ship". `shorebird releases info` and `shorebird patches info` already print the
+field, and the console's patch cards show and edit it.
+
+Write semantics are shared by both endpoints, and match the `notes` contract the
+CLI's own `UpdateReleaseRequest` documents:
+
+| `notes` value | Effect |
+|---|---|
+| absent, or `null` | left unchanged — the CLI sends `notes: null` on every mid-release status update, so this must not clear |
+| `""` | cleared (reads back as `null`) |
+| non-empty string | stored |
+| over 4096 chars | `400`, nothing written |
+
+`PATCH /apps/{appId}/patches/{patchId}` has no upstream counterpart: upstream's
+`Patch` DTO carries `notes` but exposes no way to set it.
+
+### Patch payload: `channel` vs `deployments`
+
+`GET /apps/{appId}/releases/{releaseId}/patches` returns both:
+
+- **`channel`** — the single track the CLI displays (`patches list` prints it,
+  `patches info` shows it as `Track:`). It is the newest deployment that is
+  still `active` and not rolled back, or `null` once every promotion has been
+  withdrawn or reverted.
+- **`deployments`** — the full per-channel picture (`channel`, `status`,
+  `rollout`, `rolled_back`), newest first. Authoritative; a patch can be live on
+  several tracks at once, which `channel` cannot express.
+
+Each entry in `artifacts` carries `id`, `patch_id`, `arch`, `platform`, `hash`,
+`size`, and `created_at`. All seven are required by the CLI's
+`PatchArtifact.fromJson`, which casts `created_at` unguarded — omitting it makes
+every patch with artifacts unparseable.
+
+### Build provenance (`metadata`)
+
+The CLI attaches a `metadata` object to every release status update
+(`UpdateReleaseMetadata`) and to patch creation (`CreatePatchMetadata`) —
+Shorebird and Flutter versions, OS and Xcode versions, which flags were used,
+and `BuildTraceSummary` timings. It is stored per release and per patch, and
+returned on `GET /apps/{appId}/releases` and
+`GET /apps/{appId}/releases/{releaseId}/patches` as a `metadata` object (null if
+never sent). The console shows it under **Build provenance** on release rows and
+patch cards.
+
+- The pinned CLI ignores the extra response key — its DTOs parse field by field.
+- **Recorded even when the request fails.** Unlike `notes`, metadata is written
+  before the release status gate, so provenance survives a `409` from activating
+  before all artifacts verified — the case where knowing what built the release
+  matters most.
+- **Never fatal.** The shape is upstream's to change, so a `metadata` that isn't
+  a JSON object is ignored rather than rejected, and a blob over 64 KiB is
+  dropped with a warning. A release is never failed over its diagnostics.
+
+Two related upstream requests need CLI-side changes before they're fully
+covered, because the fields aren't in the blob yet: recording the git commit a
+release was built from (#3443) and the `--dart-define` values set at release
+time so a patch can warn when they changed (#3700). This is the storage and
+display half.
 
 A patch's `hash` is the **inflated-output** hash (the reconstructed `libapp.so`),
 while the uploaded bytes are a binary diff — so the server verifies only the
@@ -191,12 +254,33 @@ some app is not enough. To add someone to *your* org instead, use an invitation.
 | DELETE | `/admin/orgs/{orgId}/invitations/{token}` | org admin | `{"revoked":true}` |
 | POST | `/api/v1/invitations/{token}/accept` | the invited user (bearer) | `{"joined_org","role"}` — email must match the invite; not expired/accepted |
 
+### Allowed email domains (org restriction)
+
+| Method | Path | Auth | Response |
+|---|---|---|---|
+| GET | `/admin/orgs/{orgId}/domains` | org admin | `{"domains":["company.com"]}` — empty means unrestricted |
+| PUT | `/admin/orgs/{orgId}/domains?domains=a.com,b.com` | org admin | `{org_id,domains}` · `?domains=` clears · **409** if it would exclude every owner/admin · **400** if nothing in the list parses as a domain |
+
+Restricts an org to one or more email domains, so a personal account can't be
+added to a company org or onto one of its apps. With a policy set, both
+`POST /admin/orgs/{orgId}/invitations` and
+`POST /admin/apps/{appId}/collaborators` reject an out-of-domain address with
+`403`, naming the policy.
+
+- **Unrestricted is the default**, so an existing deployment is unaffected.
+- **Existing members are never evicted.** The policy governs who can be *added*
+  from then on; it does not re-check people who are already in.
+- **Matching is exact on the domain.** `company.com` does not admit
+  `mail.company.com`, so the org can't be widened by a subdomain someone else
+  controls. Input is normalized: case-insensitive, and a leading `@` or `*.` is
+  accepted and stripped.
+
 ### App collaborators
 
 | Method | Path | Auth | Response |
 |---|---|---|---|
 | GET | `/admin/apps/{appId}/collaborators` | app access | `{"collaborators":[{user_id,email,display_name,role}]}` |
-| POST | `/admin/apps/{appId}/collaborators?email=&role=` | app access | `{app_id,user_id,role}` — the user must already exist |
+| POST | `/admin/apps/{appId}/collaborators?email=&role=` | app access | `{app_id,user_id,role}` — the user must already exist · **403** if the owning org restricts email domains |
 | DELETE | `/admin/apps/{appId}/collaborators/{userId}` | app access | `{"removed":true}` |
 
 ### Rollout & rollback

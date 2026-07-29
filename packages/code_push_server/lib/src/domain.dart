@@ -25,6 +25,48 @@ DomainException notFound(String message) =>
 DomainException badRequest(String message) =>
     DomainException(400, 'bad_request', message);
 
+/// Parses a stored/submitted email-domain allowlist into normalized, lowercase
+/// domains with duplicates and blanks removed.
+///
+/// Accepts a comma- or whitespace-separated list, tolerating a leading `@` or a
+/// `*.` wildcard prefix on each entry (both are written by hand often enough to
+/// be worth accepting). Order is preserved so a round-trip reads back the way
+/// it was set. Returns an empty list for null/blank input, which every caller
+/// treats as "unrestricted".
+List<String> parseDomainList(String? raw) {
+  if (raw == null) return const [];
+  final out = <String>[];
+  for (final part in raw.split(RegExp(r'[,\s]+'))) {
+    var d = part.trim().toLowerCase();
+    if (d.startsWith('@')) d = d.substring(1);
+    if (d.startsWith('*.')) d = d.substring(2);
+    // A bare dot-less token can't be a mail domain, and anything with a slash,
+    // an `@`, or whitespace is a pasted address or URL rather than a domain.
+    if (d.isEmpty || !d.contains('.')) continue;
+    if (d.contains('/') || d.contains('@')) continue;
+    if (!out.contains(d)) out.add(d);
+  }
+  return out;
+}
+
+/// The domain part of [email], lowercased, or empty if it has no `@`.
+String emailDomain(String email) {
+  final at = email.lastIndexOf('@');
+  if (at < 0 || at == email.length - 1) return '';
+  return email.substring(at + 1).trim().toLowerCase();
+}
+
+/// Whether [email] is admissible to an org whose allowlist is [allowedDomains].
+///
+/// An empty allowlist admits everyone. Matching is exact on the domain — a
+/// policy of `example.com` does not admit `mail.example.com`, so an org can't
+/// be widened by a subdomain someone else controls.
+bool emailAllowedByDomains(String email, List<String> allowedDomains) {
+  if (allowedDomains.isEmpty) return true;
+  final d = emailDomain(email);
+  return d.isNotEmpty && allowedDomains.contains(d);
+}
+
 enum ArtifactStatus {
   pending,
   uploading,

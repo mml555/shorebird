@@ -4,6 +4,103 @@ All notable changes to `code_push_server` are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.2.0 — 2026-07-29
+
+### Fixed
+
+- **`shorebird patches info` / `patches list` / `patches set-track` failed for
+  any patch that had artifacts.** The patch-artifact payload omitted
+  `created_at`, and the CLI's `PatchArtifact.fromJson` does an unguarded
+  `DateTime.parse(json['created_at'] as String)` — so every real patch came back
+  as `FormatException: type 'Null' is not a subtype of type 'String'`. Only
+  artifact-less patches, which no real patch is, appeared to work, which is why
+  the unit suite never caught it. The column already existed on `artifacts`; it
+  was simply never surfaced.
+
+- **A patch's track was always reported as absent.** `channel` was hardcoded
+  `null` in the patch payload, so `shorebird patches list` printed
+  `[no track]` and `patches info` never showed a `Track:` line, even for a patch
+  promoted seconds earlier. It also made `set-track`'s "already in that track"
+  check dead code, so it silently re-promoted every time. The field now reports
+  the newest deployment that is still active and not rolled back (and `null`
+  once every promotion has been withdrawn or reverted). The richer
+  `deployments` array is unchanged and remains authoritative.
+
+  Both bugs predate this branch and were found by driving the real pinned CLI
+  against a containerized server on Postgres — not by the unit suite.
+
+### Added
+
+- **Release and patch notes are stored and served.** The CLI wire contract has
+  always carried a `notes` field on both the `Patch` and `Release` DTOs, and
+  `shorebird releases info` / `shorebird patches info` already print it — but
+  the server hardcoded `null` on every response, so the field could never be
+  used. Notes are now persisted (schema migration **v5**) and surfaced:
+  - `POST /api/v1/apps/{appId}/releases` and `POST /api/v1/apps/{appId}/patches`
+    accept an optional `notes`.
+  - `PATCH /api/v1/apps/{appId}/releases/{releaseId}` accepts `notes`, matching
+    the semantics upstream's own `UpdateReleaseRequest` documents: absent or
+    `null` leaves notes unchanged (the CLI sends `notes: null` on every
+    mid-release status update, so this must not clear them), `""` clears, and a
+    non-empty string is stored. Capped at 4096 characters; over-length is a
+    `400` with nothing written.
+  - `PATCH /api/v1/apps/{appId}/patches/{patchId}` is new, with the same
+    semantics — upstream carries `notes` on its `Patch` DTO but exposes no way
+    to set it.
+  - The console's patch cards show notes and edit them inline.
+  - Both writes land in the audit log (`release.notes`, `patch.notes`).
+
+  Addresses upstream shorebirdtech/shorebird#1288 and #3767. No CLI change is
+  needed — the pinned CLI already parses and prints the field.
+
+- **An organization can be restricted to one or more email domains**, so a
+  personal account can't be added to a company org or onto one of its apps
+  (schema migration **v6**). Managed from the console's **Team** tab, or:
+  - `GET /admin/orgs/{orgId}/domains` — read the allowlist.
+  - `PUT /admin/orgs/{orgId}/domains?domains=company.com,company.co.uk` — set
+    it; `?domains=` clears it.
+
+  With a policy set, both org invitations and app-collaborator grants reject an
+  out-of-domain address with `403`, naming the policy. Notable choices:
+  - Unrestricted is the default, so existing deployments are unaffected.
+  - Existing members are never evicted — the policy governs who can be *added*
+    from then on. Evicting silently on the next request is a far worse failure
+    than refusing an add.
+  - A policy that would exclude every owner/admin is refused with `409`: it is
+    only ever a typo, and it would leave nobody able to invite.
+  - Matching is exact on the domain, so `company.com` does not admit
+    `mail.company.com` and the org can't be widened by a subdomain someone else
+    controls. A non-empty list that parses to no valid domain is a `400`, not a
+    silent clear.
+
+  Addresses upstream shorebirdtech/shorebird#3056.
+
+- **Build provenance is captured instead of discarded** (schema migration
+  **v7**). The CLI already attaches a `metadata` blob to every release status
+  update and patch creation — Shorebird/Flutter versions, OS and Xcode versions,
+  which flags were used, `BuildTraceSummary` timings — and the server threw all
+  of it away. It is now stored per release and per patch, returned on the
+  release and patch list endpoints, and shown under **Build provenance** in the
+  console. The pinned CLI ignores the extra response key, since its DTOs parse
+  field by field.
+
+  Two deliberate choices:
+  - **Recorded even when the request fails.** Metadata is written *before* the
+    release status gate, so it survives the fail-closed `409` from activating
+    before all artifacts verified. That is precisely when knowing what built the
+    release is most useful, so discarding it there would be backwards. This is
+    the opposite of the `notes` rule above, because metadata is diagnostic data
+    rather than state anyone reads.
+  - **Never fatal.** The blob's shape is upstream's to change, so a `metadata`
+    that isn't a JSON object is ignored rather than rejected, and anything over
+    64 KiB is dropped with a warning. A release is never failed over its own
+    diagnostics.
+
+  This is the storage and display half of shorebirdtech/shorebird#3443 (know
+  which git commit a release was built from) and #3700 (record `--dart-define`
+  at release time, warn on patch if it changed). Both need `shorebird_cli`
+  changes to put those fields into the blob before they're fully covered.
+
 ## 1.1.0 — 2026-07-28
 
 Shipped in the `selfhost-v1.0.0` distribution baseline.
