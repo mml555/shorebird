@@ -1694,6 +1694,98 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  // Tracks are channels: `shorebird patches set-track --track=<name>` resolves
+  // the channel and promotes onto it, so several patches can be live at once on
+  // different tracks and each device follows only its own. This pins the
+  // behavior upstream shorebirdtech/shorebird#1443 and #3776 ask for.
+  group('independent live patches per track', () {
+    test(
+      'each track serves its own patch, and promotion is per track',
+      () async {
+        final s = await seedApp();
+        final appId = s.appId;
+
+        Future<int> readyPatch() async {
+          final p = await jsonOf(
+            await send(
+              'POST',
+              '/api/v1/apps/$appId/patches',
+              bearer: _bootstrapKey,
+              json: {'release_id': s.releaseId},
+            ),
+          );
+          final id = p['id'] as int;
+          await uploadPatchArtifact(appId, id);
+          return id;
+        }
+
+        Future<int> channel(String name) async {
+          final c = await jsonOf(
+            await send(
+              'POST',
+              '/api/v1/apps/$appId/channels',
+              bearer: _bootstrapKey,
+              json: {'channel': name},
+            ),
+          );
+          return c['id'] as int;
+        }
+
+        Future<void> promote(int patchId, int channelId) async {
+          final r = await send(
+            'POST',
+            '/api/v1/apps/$appId/patches/promote',
+            bearer: _bootstrapKey,
+            json: {'patch_id': patchId, 'channel_id': channelId},
+          );
+          expect(r.statusCode, HttpStatus.noContent);
+        }
+
+        /// What a device on [track] is told to install.
+        Future<int?> check(String track) async {
+          final r = await jsonOf(
+            await send(
+              'POST',
+              '/api/v1/patches/check',
+              json: {
+                'app_id': appId,
+                'release_version': '1.0.0',
+                'platform': 'android',
+                'arch': 'aarch64',
+                'channel': track,
+                'client_id': 'device-on-$track',
+                'patch_number': 0,
+              },
+            ),
+          );
+          final patch = r['patch'];
+          return patch == null ? null : (patch as Map)['number'] as int?;
+        }
+
+        final internal = await channel('internal');
+        final patch1 = await readyPatch();
+        final patch2 = await readyPatch();
+
+        // The high-volume internal track gets both patches in turn; stable, the
+        // curated track, is still serving nothing.
+        await promote(patch1, internal);
+        expect(await check('internal'), 1);
+        expect(await check('stable'), isNull);
+
+        await promote(patch2, internal);
+        expect(await check('internal'), 2);
+        expect(await check('stable'), isNull);
+
+        // Curated promotion: only the vetted patch #1 graduates to stable, while
+        // internal stays ahead on #2. Both are live simultaneously.
+        await promote(patch1, s.channelId);
+        expect(await check('stable'), 1);
+        expect(await check('internal'), 2);
+      },
+    );
+  });
+
+  // -------------------------------------------------------------------------
   // Release/patch notes. The wire contract always carried `notes` on both DTOs
   // and the CLI's `releases info` / `patches info` already print it, but the
   // server hardcoded null on every response, so the field could never be used.
