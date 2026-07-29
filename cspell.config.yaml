@@ -243,6 +243,8 @@ words:
   - strftime
   - subpackages
   - Supabase
+  - symbolicate
+  - symbolicated
   - symbolication
   - syskeys # From adb.dart
   - subosito # From .github dir, doesn't show up in "**" check?
