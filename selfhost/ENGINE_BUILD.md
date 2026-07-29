@@ -182,7 +182,32 @@ only discover it on device — but building both sides ourselves keeps us
 self-consistent, so the risk lands on interop with *their* prebuilts, which the
 experimental cell does not need.
 
-### Device result (2026-07-29): builds and links, does NOT boot on a mixed set
+### Device result (2026-07-29): GREEN — full release/patch/rollback cycle
+
+`engine_from_source` is proven on hardware. Engine `dabf1837` (our Dart VM
+`4bd36869` = vanilla 3.12.2 + 57 lines), release `1.0.2+3` built on the Linux box,
+physical CPH2551:
+
+| Step | Evidence |
+|---|---|
+| APK carries our engine | `lib/arm64-v8a/libflutter.so` sha256 `0da873a2…` == our build |
+| Boots | process alive, `[shorebird] Reporting successful launch`, Impeller/Vulkan up |
+| Patch delivered | patch 1, arm64 66.93 KB, downloaded from this control plane |
+| Patch applied | `output_written=3146640b` — exactly `libapp.so`'s size |
+| Patched code runs | our marker printed from code absent from the installed APK |
+| Rollback | `rolled_back_patch_numbers: [1]`, marker gone on the next launch |
+
+Note the rollback timing: the launch that *learns* about the rollback still runs
+the patch, and the revert takes effect on the launch after. That matches
+`UPDATER_CONTRACT.md` and is not a bug.
+
+**What it took beyond the minimal cell** — the whole host toolchain from our tree
+(`out/host_release` for `dart_sdk` + `flutter_patched_sdk_product`, `out/host_debug`
+for `linux-x64/artifacts.zip` = `frontend_server`), releases driven from Linux, and
+`--no-tree-shake-icons`. Details in `compatibility.yaml`'s
+`experimental.build_host_constraints`.
+
+### How it failed first (2026-07-29): a mixed set cannot boot
 
 Engine `dabf1837` was built, published, and consumed by a real
 `shorebird release android`. The APK's `lib/arm64-v8a/libflutter.so` is

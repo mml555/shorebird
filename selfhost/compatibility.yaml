@@ -142,8 +142,42 @@ experimental:
                                        # Dart_IsKernel is (LTO internalizes both).
         served_by_mirror: true         # overlay hits for our artifacts, 302 -> pinned
                                        # hash for the rest, our jar != stock jar
-        device_verified: false         # NOT YET — release -> patch -> boot -> rollback
-                                       # on a physical arm64 device is the open gate.
+        device_verified: true          # 2026-07-29, physical CPH2551 (Android 16,
+                                       # arm64-v8a). Release 1.0.2+3 built ON THE
+                                       # LINUX BOX (see host_toolchain below),
+                                       # installed; APK libflutter.so sha256
+                                       # 0da873a2… == our build. Booted, updater
+                                       # reported successful launch. Patch 1
+                                       # (arm64 66.93 KB) downloaded, applied
+                                       # (output_written=3146640b == libapp.so
+                                       # size), and the patched code RAN on the
+                                       # next launch. Withdraw with rollback
+                                       # reverted it on the following launch.
+      host_toolchain:                  # all from OUR tree — a mixed set cannot boot
+        - out/android_release_arm64    # libflutter.so + android gen_snapshot
+        - out/host_release             # dart_sdk + flutter_patched_sdk_product
+        - out/host_debug               # linux-x64/artifacts.zip = frontend_server
+      build_host_constraints:
+        - >-
+          Releases and patches must run on Linux, because our gen_snapshot is
+          linux-x64. A macOS host fetches darwin-x64 gen_snapshot, which only a
+          macOS engine build can produce.
+        - >-
+          --no-tree-shake-icons is required. Icon tree shaking runs const_finder,
+          a kernel snapshot stamped with the SDK hash of the Dart that built it,
+          so ours fails with "Can't load Kernel binary. Invalid SDK hash".
+          Shorebird hit the same wall - font_subset/ConstFinder is commented out
+          of their own linux_build.sh (flutter#164531).
+        - >-
+          Recompile the CLI/flutter tool snapshots whenever the vended Dart
+          changes. Clearing an artifact cache swaps the Dart underneath an
+          already-compiled snapshot and surfaces as "Wrong full snapshot version"
+          on the HOST, which reads like an engine fault but is not.
+        - >-
+          PUBLIC_BASE_URL must be reachable, at the same URL, by both the build
+          host and the device - the server embeds absolute upload/download URLs.
+          A LAN IP cannot satisfy a remote build box; http://localhost:18080 plus
+          an ssh reverse tunnel (box) and adb reverse (device) does.
     # shape for future entries:
                                    # - hash: <40-hex sha of the engine branch HEAD>
                                    #   branch: selfhost/experimental
