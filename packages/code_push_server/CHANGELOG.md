@@ -4,7 +4,7 @@ All notable changes to `code_push_server` are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 1.2.0 — 2026-07-29
 
 ### Fixed
 

@@ -40,7 +40,7 @@ cd shorebird/packages/code_push_server
 ```
 
 `setup.sh` generates secrets, pulls the prebuilt image
-(`ghcr.io/mml555/code-push-server:1.1.0`, amd64 + arm64), starts the stack, and
+(`ghcr.io/mml555/code-push-server:1.2.0`, amd64 + arm64), starts the stack, and
 prints the next steps. Full walkthrough in
 [`packages/code_push_server/README.md`](packages/code_push_server/README.md).
 
