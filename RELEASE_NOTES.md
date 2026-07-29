@@ -11,6 +11,25 @@ patch metadata, trace-support allowlist removal — see 1.6.114+selfhost.1 below
 forward onto upstream's 1.6.115 base. Not an upstream release — see
 [`selfhost/`](selfhost/README.md).
 
+- `shorebird preview` no longer gives up on Android when it cannot clear the
+  app's data. Installing the apks, clearing data and starting the app shared one
+  `try`, so a device that refuses `pm clear` produced exit 70 with the app
+  installed but never launched — and an error about clearing data from a command
+  whose job is to start the app. Clearing is now best-effort; starting the app
+  stays fatal.
+
+  Vendor ROMs (Xiaomi/POCO, OPPO/OnePlus) deny `CLEAR_APP_USER_DATA` to the adb
+  shell user even with USB debugging on, which made `preview` unusable on those
+  devices. Verified fixed on a physical OPPO CPH2551 (Android 16) that reproduces
+  the denial.
+
+  The warning states the consequence rather than just the error: leftover data
+  can hold a patch from an earlier run, and the updater will launch it, so the
+  app on screen may not be the release just previewed. `Adb.clearAppData` throws
+  a typed `ClearAppDataException` whose `isPermissionDenied` separates a device
+  restriction from an unrelated failure. Sent upstream as
+  shorebirdtech/shorebird#1839.
+
 ## 1.6.115 (July 28, 2026)
 
 - 🐦 Flutter 3.44.8 / Dart 3.12.2 support
