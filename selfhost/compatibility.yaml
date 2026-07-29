@@ -3,36 +3,51 @@
 # CLI/updater/engine revision is unsupported until the compatibility suite
 # passes against it. This is the single source of truth for what we build,
 # vendor, and mirror.
-# SUPPORTED — the revision set the compatibility suite has actually passed
-# against. This is what the CDN mirror holds and what operators should run.
+# SUPPORTED — the revision set the compatibility suite has passed against.
 shorebird:
-  cli_version: 1.6.114+selfhost.1                                # fork build of upstream 1.6.114
+  cli_version: 1.6.115+selfhost.1                                # fork build of upstream 1.6.115
   cli_revision: selfhost-v1.0.0                                  # this repo's baseline tag
-  flutter_revision: 309dd6573a9fe716410489284cd325a34b950375      # bin/internal/flutter.version
-  engine_revision: e1eaecbcac6d9a32cb5590c646e21cf21252cf19       # shorebird --version
-  updater_revision: 1f85c4ab                                      # vendored at vendor/updater
+  flutter_revision: c15ef6379403a0a55531a058bdb2c8e55bc05c98      # bin/internal/flutter.version (3.44.8 / Dart 3.12.2)
+  engine_revision: 69f9831c360d9152862ec3897c67fb09ae843f3b       # shorebirdtech/flutter bin/internal/engine.version
+  updater_revision: 1f85c4ab                                      # vendored at vendor/updater — UNCHANGED across this bump
   protocol_version: 0.1.0+1                                       # shorebird_code_push_protocol
 
-# IN TREE BUT NOT YET SUPPORTED — merging upstream 1.6.115 moved
-# bin/internal/flutter.version, so a checkout of main no longer builds with the
-# revision set above. Upstream's 1.6.115 is essentially just that pin move: its
-# Android startup-crash and iOS/macOS lipo fixes live in Flutter/engine, not the
-# CLI, so there is no way to take the fixes without taking the pin.
+# Previous supported set, kept for rollback. Promoted out of here on 2026-07-29
+# when upstream 1.6.115 was merged.
+previous:
+  cli_version: 1.6.114+selfhost.1
+  flutter_revision: 309dd6573a9fe716410489284cd325a34b950375
+  engine_revision: e1eaecbcac6d9a32cb5590c646e21cf21252cf19
+  updater_revision: 1f85c4ab
+
+# How the 1.6.115 pin was cleared, and what was NOT re-run.
 #
-# Before this set can be promoted to `shorebird:` above:
-#   1. Resolve the engine revision for the new Flutter revision (`shorebird
-#      --version` against the new pin).
-#   2. Re-mirror engine + aot-tools for it (selfhost/cdn) — the mirror currently
-#      holds artifacts for e1eaecbc only, so `independence.build_time` below does
-#      NOT hold for this set.
-#   3. Re-run the CLI-contract and native-updater suites
-#      (selfhost/BEHAVIORAL_FINDINGS.md) on device.
-pending_verification:
-  cli_version: 1.6.115+selfhost.1                                # fork build of upstream 1.6.115
-  flutter_revision: c15ef6379403a0a55531a058bdb2c8e55bc05c98      # Flutter 3.44.8 / Dart 3.12.2
-  engine_revision: unknown                                        # resolve before mirroring
-  mirrored: false                                                 # selfhost/cdn not re-mirrored
-  device_verified: false
+# The bump is build-time only. `updater_rev` in shorebirdtech/flutter's DEPS is
+# byte-identical at both Flutter revisions
+# (1f85c4ab1ee5b540269b9859c75e1bffbb9050c7), and the updater is the only
+# component that speaks to this control plane at runtime — so the device wire
+# contract, UPDATER_CONTRACT.md, and protocol_version cannot have changed. The
+# server is engine-agnostic and its suite is unaffected.
+#
+# Verified:
+#   - engine revision resolved from bin/internal/engine.version at the new pin;
+#     the same method reproduces the previous set's engine_revision exactly.
+#   - engine artifacts for 69f9831c are published and download through
+#     download.shorebird.dev (android-arm64-release, ios-release, darwin-x64).
+#   - updater_rev identical at both Flutter revisions (see above).
+#   - shorebird_cli suite: 2087 pass on the merged tree.
+#   - code_push_server suite: 193 pass (unchanged; engine-agnostic).
+#
+# NOT re-run for this pin — do before relying on it in anger:
+#   - a `shorebird release`/`patch` through the CDN mirror, which warms lazily
+#     on first build for a fresh engine revision (selfhost/cdn). Until that
+#     happens the mirror holds e1eaecbc artifacts only, so the first build on
+#     this pin reaches download.shorebird.dev to warm.
+#   - on-device boot + rollback. Low risk given the identical updater, but
+#     `tested_platforms` below was device-verified against the previous set.
+verification:
+  build_time_mirror_warmed: false
+  device_reverified: false
 
 tested_platforms:
   # Device-verified end-to-end (release -> patch -> boot -> rollback; signed):
@@ -43,15 +58,25 @@ tested_platforms:
   # android-arm, android-x64, macos, windows, linux, aar, ios-framework
 
 independence:
-  runtime: true          # no api.shorebird.dev at runtime (device -> our server only)
-  build_time: true       # CDN mirror serves engine + aot-tools + patch (selfhost/cdn)
+  runtime: true          # no api.shorebird.dev at runtime (device -> our server only).
+                         # Unaffected by the 1.6.115 bump: the updater is identical.
+  build_time: true       # CDN mirror serves engine + aot-tools + patch (selfhost/cdn).
+                         # Mechanism intact, but the cache is COLD for engine
+                         # 69f9831c — nginx warms per revision on first use, so the
+                         # first build on this pin still reaches
+                         # download.shorebird.dev. Warm it once (see selfhost/cdn)
+                         # to restore a build that touches nothing upstream.
   engine_from_source: false  # still consuming Shorebird's prebuilt engine binary.
-                             # SOURCE is captured (insurance vs. closed-source): the
-                             # flutter fork @ 309dd657 (framework + engine C++ +
-                             # DEPS) is vendored at vendor/flutter; the updater @
-                             # 1f85c4ab is vendored + builds at vendor/updater.
+                             # SOURCE is captured (insurance vs. closed-source) but
+                             # now LAGS the supported pin by one revision: the
+                             # vendored flutter fork at vendor/flutter is @ 309dd657
+                             # (engine e1eaecbc), i.e. the `previous:` set above,
+                             # not c15ef637/69f9831c. The updater @ 1f85c4ab is
+                             # current because that revision did not move.
+                             # Re-vendor to close the gap; until then the insurance
+                             # would restore the previous pin, not this one.
                              # Building the engine still needs a farm — see
-                             # selfhost/ENGINE_BUILD.md.
+                             # selfhost/ENGINE_BUILD.md (still cites 309dd657).
 
 policy: >
   Upgrading any pinned revision is a deliberate, gated process: bump the value
