@@ -1,4 +1,4 @@
-<!-- cspell:words jewgo rustc passwordless libfreetype dosbox androideabi modversion freetype armv dartsdk googlesource rebuildable -->
+<!-- cspell:words jewgo rustc passwordless libfreetype dosbox androideabi modversion freetype armv dartsdk googlesource rebuildable embedders prebuilts -->
 
 # Building the native stack from source (Level 2)
 
@@ -159,7 +159,7 @@ What their private Dart fork must provide, and what vanilla 3.12.2 already has:
 | `pkg/aot_tools` — the linker (`link`, `link_metadata`, `dump_blobs`), emits `.vmcode` + `linkPercentage` | Absent | Large. Their real IP — **and iOS-only** (`useLinker` appears only in the Apple patchers) |
 | VM execution of patched code via an interpreter | **Present upstream**: `runtime/vm/interpreter.cc` (4,567 lines) + `bytecode_reader.cc` (3,120), behind `DART_DYNAMIC_MODULES`, ©2024 — plus a `--dart-dynamic-modules` GN flag (`tools/gn:685`) and Flutter CI builders for it | Their fork predates this; upstream is now a viable substrate |
 
-So the work splits by platform, and the split is favourable:
+So the work splits by platform, and the split is favorable:
 
 - **Android — small.** Android patches ship real machine code; the linker is never
   invoked. The engine's only Dart-fork dependency is the two accessors. So "our own
