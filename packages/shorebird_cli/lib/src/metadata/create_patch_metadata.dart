@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:shorebird_cli/src/metadata/build_environment_metadata.dart';
+import 'package:shorebird_cli/src/metadata/create_patch_platform_metadata.dart';
 import 'package:shorebird_code_push_protocol/shorebird_code_push_protocol.dart';
 
 part 'create_patch_metadata.g.dart';
@@ -11,6 +12,11 @@ part 'create_patch_metadata.g.dart';
 /// Collection of this information is done to help Shorebird users debug any
 /// later failures in their builds.
 ///
+/// A patch is not platform-scoped: `--platforms=android,ios` publishes one
+/// patch carrying artifacts for both. Fields describing the invocation or the
+/// build machine live here; anything derived from building or diffing a
+/// specific platform lives in [platforms].
+///
 /// We do not collect Personally Identifying Information (e.g. no paths,
 /// argument lists, etc.) in accordance with our privacy policy:
 /// https://shorebird.dev/privacy/
@@ -19,45 +25,32 @@ part 'create_patch_metadata.g.dart';
 class CreatePatchMetadata extends Equatable {
   /// {@macro create_patch_metadata}
   const CreatePatchMetadata({
-    required this.releasePlatform,
+    required this.platforms,
     required this.usedIgnoreAssetChangesFlag,
-    required this.hasAssetChanges,
     required this.usedIgnoreNativeChangesFlag,
-    required this.hasNativeChanges,
     required this.inferredReleaseVersion,
     required this.environment,
     required this.isSigned,
-    this.linkPercentage,
-    this.linkMetadata,
-    this.buildTraceSummary,
   });
 
   // coverage:ignore-start
   /// Creates a [CreatePatchMetadata] with overridable default values for
   /// testing purposes.
   factory CreatePatchMetadata.forTest({
-    ReleasePlatform releasePlatform = ReleasePlatform.android,
+    Map<ReleasePlatform, CreatePatchPlatformMetadata>? platforms,
     bool usedIgnoreAssetChangesFlag = false,
-    bool hasAssetChanges = false,
     bool usedIgnoreNativeChangesFlag = false,
-    bool hasNativeChanges = false,
     bool inferredReleaseVersion = false,
     bool isSigned = false,
-    double? linkPercentage,
-    Json? linkMetadata,
-    Json? buildTraceSummary,
     BuildEnvironmentMetadata? environment,
   }) => CreatePatchMetadata(
-    releasePlatform: releasePlatform,
+    platforms:
+        platforms ??
+        {ReleasePlatform.android: CreatePatchPlatformMetadata.forTest()},
     usedIgnoreAssetChangesFlag: usedIgnoreAssetChangesFlag,
-    hasAssetChanges: hasAssetChanges,
     usedIgnoreNativeChangesFlag: usedIgnoreNativeChangesFlag,
-    hasNativeChanges: hasNativeChanges,
     isSigned: isSigned,
     inferredReleaseVersion: inferredReleaseVersion,
-    linkPercentage: linkPercentage,
-    linkMetadata: linkMetadata,
-    buildTraceSummary: buildTraceSummary,
     environment: environment ?? BuildEnvironmentMetadata.forTest(),
   );
   // coverage:ignore-end
@@ -72,36 +65,40 @@ class CreatePatchMetadata extends Equatable {
   /// Returns a copy of this [CreatePatchMetadata] with the given fields
   /// replaced by the new values.
   CreatePatchMetadata copyWith({
-    ReleasePlatform? releasePlatform,
+    Map<ReleasePlatform, CreatePatchPlatformMetadata>? platforms,
     bool? usedIgnoreAssetChangesFlag,
-    bool? hasAssetChanges,
     bool? usedIgnoreNativeChangesFlag,
-    bool? hasNativeChanges,
     bool? inferredReleaseVersion,
     bool? isSigned,
-    double? linkPercentage,
-    Json? linkMetadata,
-    Json? buildTraceSummary,
     BuildEnvironmentMetadata? environment,
   }) => CreatePatchMetadata(
-    releasePlatform: releasePlatform ?? this.releasePlatform,
+    platforms: platforms ?? this.platforms,
     usedIgnoreAssetChangesFlag:
         usedIgnoreAssetChangesFlag ?? this.usedIgnoreAssetChangesFlag,
-    hasAssetChanges: hasAssetChanges ?? this.hasAssetChanges,
     usedIgnoreNativeChangesFlag:
         usedIgnoreNativeChangesFlag ?? this.usedIgnoreNativeChangesFlag,
-    hasNativeChanges: hasNativeChanges ?? this.hasNativeChanges,
     inferredReleaseVersion:
         inferredReleaseVersion ?? this.inferredReleaseVersion,
     isSigned: isSigned ?? this.isSigned,
-    linkPercentage: linkPercentage ?? this.linkPercentage,
-    linkMetadata: linkMetadata ?? this.linkMetadata,
-    buildTraceSummary: buildTraceSummary ?? this.buildTraceSummary,
     environment: environment ?? this.environment,
   );
 
-  /// The platform for which the patch was created.
-  final ReleasePlatform releasePlatform;
+  /// Returns a copy of this [CreatePatchMetadata] with [platform]'s entry
+  /// replaced by [metadata].
+  CreatePatchMetadata withPlatform(
+    ReleasePlatform platform,
+    CreatePatchPlatformMetadata metadata,
+  ) => copyWith(platforms: {...platforms, platform: metadata});
+
+  /// Per-platform patch details, keyed by the platform the patch carries
+  /// artifacts for. Always has at least one entry.
+  ///
+  /// Serialized as an object keyed by [ReleasePlatform.value] rather than
+  /// relying on json_serializable's enum-key handling, which would key on the
+  /// Dart identifier and silently diverge if a platform's wire value ever
+  /// stops matching its enum name.
+  @JsonKey(toJson: _platformsToJson, fromJson: _platformsFromJson)
+  final Map<ReleasePlatform, CreatePatchPlatformMetadata> platforms;
 
   /// Whether the `--allow-asset-diffs` flag was used.
   ///
@@ -109,38 +106,15 @@ class CreatePatchMetadata extends Equatable {
   /// asset changes is.
   final bool usedIgnoreAssetChangesFlag;
 
-  /// Whether asset changes were detected in the patch.
-  ///
-  /// Reason: shorebird does not support asset changes in patches, and knowing
-  /// that asset changes were detected can help explain unexpected behavior in
-  /// a patch.
-  final bool hasAssetChanges;
-
   /// Whether the `--allow-native-diffs` flag was used.
   ///
   /// Reason: this helps us understand how often prevalent the need to ignore
   /// native code changes is.
   final bool usedIgnoreNativeChangesFlag;
 
-  /// Whether native code changes were detected in the patch.
-  ///
-  /// Reason: shorebird does not support native code changes in patches, and
-  /// knowing that native code changes were detected can help explain unexpected
-  /// behavior in a patch.
-  final bool hasNativeChanges;
-
   /// Whether the release version had to be inferred by Shorebird because
   /// it was not explicitly specified via the --release-version flag.
   final bool inferredReleaseVersion;
-
-  /// The percentage of code that was linked in the patch.
-  /// Generally, the higher the percentage, the better the patch performance
-  /// since more code will be run on the CPU as opposed to the simulator.
-  /// Note: link percentage is currently only available for iOS patches.
-  final double? linkPercentage;
-
-  /// Metadata from the linker, if available.
-  final Json? linkMetadata;
 
   /// Whether the patch was signed.
   ///
@@ -151,30 +125,36 @@ class CreatePatchMetadata extends Equatable {
 
   /// Properties about the environment in which the patch was created.
   ///
+  /// Shared across platforms: one invocation builds every platform on one
+  /// machine, so the OS, Flutter revision and Xcode version describe the run
+  /// rather than any single platform.
+  ///
   /// Reason: see [BuildEnvironmentMetadata].
   final BuildEnvironmentMetadata environment;
 
-  /// Privacy-safe aggregate timings from the Flutter build, produced by
-  /// `BuildTraceSummary.toJson()`. Shape: integer millisecond counters +
-  /// small categorical fields; see `BuildTraceSummary` for the schema.
-  /// Null when no trace was captured (older Flutter pin, user opted out,
-  /// trace file malformed). Stored as [Json] here to avoid this class
-  /// having a compile-time dep on `BuildTraceSummary`'s type — the
-  /// server consumes the blob as-is.
-  final Json? buildTraceSummary;
-
   @override
   List<Object?> get props => [
-    releasePlatform,
+    platforms,
     usedIgnoreAssetChangesFlag,
-    hasAssetChanges,
     usedIgnoreNativeChangesFlag,
-    hasNativeChanges,
-    linkPercentage,
-    linkMetadata,
     inferredReleaseVersion,
     isSigned,
     environment,
-    buildTraceSummary,
   ];
 }
+
+Map<String, dynamic> _platformsToJson(
+  Map<ReleasePlatform, CreatePatchPlatformMetadata> platforms,
+) => {
+  for (final MapEntry(key: platform, value: metadata) in platforms.entries)
+    platform.value: metadata.toJson(),
+};
+
+Map<ReleasePlatform, CreatePatchPlatformMetadata> _platformsFromJson(
+  Map<String, dynamic> json,
+) => {
+  for (final MapEntry(:key, :value) in json.entries)
+    ReleasePlatform.fromJson(key): CreatePatchPlatformMetadata.fromJson(
+      value as Map<String, dynamic>,
+    ),
+};

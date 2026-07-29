@@ -190,60 +190,6 @@ void main() {
       });
     });
 
-    group('uploadPatchArtifacts', () {
-      test('calls codePushClientWrapper.publishPatch '
-          'with correct args', () async {
-        final args = MockArgResults();
-        final patcher = _TestPatcher(
-          argParser: MockArgParser(),
-          argResults: args,
-          flavor: null,
-          target: null,
-          releaseType: ReleaseType.android,
-        );
-        const appId = 'test_app_id';
-        const releaseId = 42;
-        const metadata = <String, String>{};
-        const artifacts = <Arch, PatchArtifactBundle>{};
-        const track = DeploymentTrack.stable;
-        final codePushClientWrapper = MockCodePushClientWrapper();
-        when(
-          () => codePushClientWrapper.publishPatch(
-            appId: any(named: 'appId'),
-            releaseId: any(named: 'releaseId'),
-            metadata: any(named: 'metadata'),
-            platform: any(named: 'platform'),
-            track: any(named: 'track'),
-            patchArtifactBundles: any(named: 'patchArtifactBundles'),
-          ),
-        ).thenAnswer((_) async {});
-        await runScoped(
-          () async {
-            await patcher.uploadPatchArtifacts(
-              appId: appId,
-              releaseId: releaseId,
-              metadata: metadata,
-              artifacts: artifacts,
-              track: track,
-            );
-          },
-          values: {
-            codePushClientWrapperRef.overrideWith(() => codePushClientWrapper),
-          },
-        );
-        verify(
-          () => codePushClientWrapper.publishPatch(
-            appId: appId,
-            releaseId: releaseId,
-            metadata: metadata,
-            platform: ReleaseType.android.releasePlatform,
-            track: track,
-            patchArtifactBundles: artifacts,
-          ),
-        ).called(1);
-      });
-    });
-
     group('signHash', () {
       final cryptoFixturesBasePath = p.join('test', 'fixtures', 'crypto');
       final privateKeyFile = File(

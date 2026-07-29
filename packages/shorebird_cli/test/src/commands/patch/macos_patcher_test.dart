@@ -1240,9 +1240,21 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
       });
     });
 
-    group('updatedCreatePatchMetadata', () {
-      const allowAssetDiffs = false;
-      const allowNativeDiffs = true;
+    group('updatedPlatformMetadata', () {
+      test('returns metadata unchanged', () async {
+        const metadata = CreatePatchPlatformMetadata(
+          hasAssetChanges: true,
+          hasNativeChanges: false,
+        );
+
+        expect(
+          runWithOverrides(() => patcher.updatedPlatformMetadata(metadata)),
+          completion(metadata),
+        );
+      });
+    });
+
+    group('updatedEnvironmentMetadata', () {
       const flutterRevision = '853d13d954df3b6e9c2f07b72062f33c52a9a64b';
       const operatingSystem = 'Mac OS X';
       const operatingSystemVersion = '10.15.7';
@@ -1252,47 +1264,19 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
         when(() => xcodeBuild.version()).thenAnswer((_) async => xcodeVersion);
       });
 
-      test('returns correct metadata', () async {
-        const metadata = CreatePatchMetadata(
-          releasePlatform: ReleasePlatform.macos,
-          usedIgnoreAssetChangesFlag: allowAssetDiffs,
-          hasAssetChanges: true,
-          usedIgnoreNativeChangesFlag: allowNativeDiffs,
-          hasNativeChanges: false,
-          inferredReleaseVersion: false,
-          isSigned: true,
-          environment: BuildEnvironmentMetadata(
-            flutterRevision: flutterRevision,
-            operatingSystem: operatingSystem,
-            operatingSystemVersion: operatingSystemVersion,
-            shorebirdVersion: packageVersion,
-            shorebirdYaml: ShorebirdYaml(appId: 'app-id'),
-            usesShorebirdCodePushPackage: false,
-          ),
+      test('adds the xcode version and leaves other fields alone', () async {
+        const metadata = BuildEnvironmentMetadata(
+          flutterRevision: flutterRevision,
+          operatingSystem: operatingSystem,
+          operatingSystemVersion: operatingSystemVersion,
+          shorebirdVersion: packageVersion,
+          shorebirdYaml: ShorebirdYaml(appId: 'app-id'),
+          usesShorebirdCodePushPackage: false,
         );
 
         expect(
-          runWithOverrides(() => patcher.updatedCreatePatchMetadata(metadata)),
-          completion(
-            const CreatePatchMetadata(
-              releasePlatform: ReleasePlatform.macos,
-              usedIgnoreAssetChangesFlag: allowAssetDiffs,
-              hasAssetChanges: true,
-              usedIgnoreNativeChangesFlag: allowNativeDiffs,
-              hasNativeChanges: false,
-              inferredReleaseVersion: false,
-              isSigned: true,
-              environment: BuildEnvironmentMetadata(
-                flutterRevision: flutterRevision,
-                operatingSystem: operatingSystem,
-                operatingSystemVersion: operatingSystemVersion,
-                shorebirdVersion: packageVersion,
-                xcodeVersion: xcodeVersion,
-                shorebirdYaml: ShorebirdYaml(appId: 'app-id'),
-                usesShorebirdCodePushPackage: false,
-              ),
-            ),
-          ),
+          runWithOverrides(() => patcher.updatedEnvironmentMetadata(metadata)),
+          completion(metadata.copyWith(xcodeVersion: xcodeVersion)),
         );
       });
     });

@@ -6,7 +6,6 @@ import 'package:path/path.dart' as p;
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/code_signer.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
-import 'package:shorebird_cli/src/deployment_track.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/extensions/iterable.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
@@ -127,29 +126,24 @@ More info: ${troubleshootingUrl.toLink()}.
     Directory? supplementDirectory,
   });
 
-  /// Updates the provided metadata to include patcher-specific fields.
-  Future<CreatePatchMetadata> updatedCreatePatchMetadata(
-    CreatePatchMetadata metadata,
+  /// Updates this platform's slice of the patch metadata to include
+  /// patcher-specific fields (e.g. iOS link percentage).
+  Future<CreatePatchPlatformMetadata> updatedPlatformMetadata(
+    CreatePatchPlatformMetadata metadata,
   ) async {
     return metadata;
   }
 
-  /// Uploads the patch artifacts to the CodePush server.
-  Future<void> uploadPatchArtifacts({
-    required String appId,
-    required int releaseId,
-    required Map<String, dynamic> metadata,
-    required Map<Arch, PatchArtifactBundle> artifacts,
-    required DeploymentTrack track,
-  }) async {
-    await codePushClientWrapper.publishPatch(
-      appId: appId,
-      releaseId: releaseId,
-      metadata: metadata,
-      platform: releaseType.releasePlatform,
-      track: track,
-      patchArtifactBundles: artifacts,
-    );
+  /// Updates the shared build-environment metadata to include patcher-specific
+  /// fields (e.g. the Xcode version used by Apple patchers).
+  ///
+  /// Every patcher in a multi-platform patch contributes to the same
+  /// [BuildEnvironmentMetadata], so an implementation must only set fields it
+  /// owns and leave the rest untouched.
+  Future<BuildEnvironmentMetadata> updatedEnvironmentMetadata(
+    BuildEnvironmentMetadata metadata,
+  ) async {
+    return metadata;
   }
 
   /// Whether to allow changes in assets (--allow-asset-diffs).

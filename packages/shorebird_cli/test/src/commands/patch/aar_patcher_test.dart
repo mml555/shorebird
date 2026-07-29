@@ -623,34 +623,37 @@ void main() {
       });
     });
 
-    group('updatedCreatePatchMetadata', () {
-      const allowAssetDiffs = false;
-      const allowNativeDiffs = true;
+    group('updatedPlatformMetadata', () {
+      test('returns metadata unchanged', () async {
+        const metadata = CreatePatchPlatformMetadata(
+          hasAssetChanges: false,
+          hasNativeChanges: false,
+        );
+
+        expect(
+          runWithOverrides(() => patcher.updatedPlatformMetadata(metadata)),
+          completion(metadata),
+        );
+      });
+    });
+
+    group('updatedEnvironmentMetadata', () {
       const flutterRevision = '853d13d954df3b6e9c2f07b72062f33c52a9a64b';
       const operatingSystem = 'Mac OS X';
       const operatingSystemVersion = '10.15.7';
 
-      test('returns correct metadata', () async {
-        const metadata = CreatePatchMetadata(
-          releasePlatform: ReleasePlatform.android,
-          usedIgnoreAssetChangesFlag: allowAssetDiffs,
-          hasAssetChanges: false,
-          usedIgnoreNativeChangesFlag: allowNativeDiffs,
-          hasNativeChanges: false,
-          inferredReleaseVersion: false,
-          isSigned: false,
-          environment: BuildEnvironmentMetadata(
-            flutterRevision: flutterRevision,
-            operatingSystem: operatingSystem,
-            operatingSystemVersion: operatingSystemVersion,
-            shorebirdVersion: packageVersion,
-            shorebirdYaml: ShorebirdYaml(appId: 'app-id'),
-            usesShorebirdCodePushPackage: true,
-          ),
+      test('returns metadata unchanged', () async {
+        const metadata = BuildEnvironmentMetadata(
+          flutterRevision: flutterRevision,
+          operatingSystem: operatingSystem,
+          operatingSystemVersion: operatingSystemVersion,
+          shorebirdVersion: packageVersion,
+          shorebirdYaml: ShorebirdYaml(appId: 'app-id'),
+          usesShorebirdCodePushPackage: true,
         );
 
         expect(
-          runWithOverrides(() => patcher.updatedCreatePatchMetadata(metadata)),
+          runWithOverrides(() => patcher.updatedEnvironmentMetadata(metadata)),
           completion(metadata),
         );
       });

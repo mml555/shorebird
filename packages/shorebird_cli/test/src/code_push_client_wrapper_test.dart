@@ -2768,9 +2768,8 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
             () => codePushClientWrapper.publishPatch(
               appId: appId,
               releaseId: releaseId,
-              platform: releasePlatform,
               track: track,
-              patchArtifactBundles: patchArtifactBundles,
+              patchArtifactBundles: {releasePlatform: patchArtifactBundles},
               metadata: {'foo': 'bar'},
             ),
           );
@@ -2824,9 +2823,8 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
             () => codePushClientWrapper.publishPatch(
               appId: appId,
               releaseId: releaseId,
-              platform: releasePlatform,
               track: track,
-              patchArtifactBundles: patchArtifactBundles,
+              patchArtifactBundles: {releasePlatform: patchArtifactBundles},
               metadata: {'foo': 'bar'},
             ),
           );
@@ -2869,15 +2867,65 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
             () => codePushClientWrapper.publishPatch(
               appId: appId,
               releaseId: releaseId,
-              platform: releasePlatform,
               track: track,
-              patchArtifactBundles: patchArtifactBundles,
+              patchArtifactBundles: {releasePlatform: patchArtifactBundles},
               metadata: {'foo': 'bar'},
             ),
           );
 
           verify(
             () => logger.success(any(that: contains('Published Patch 2!'))),
+          ).called(1);
+        });
+
+        test('uploads every platform to one patch and promotes once', () async {
+          const platforms = [ReleasePlatform.android, ReleasePlatform.ios];
+
+          await runWithOverrides(
+            () => codePushClientWrapper.publishPatch(
+              appId: appId,
+              releaseId: releaseId,
+              track: track,
+              patchArtifactBundles: {
+                for (final platform in platforms)
+                  platform: patchArtifactBundles,
+              },
+              metadata: {'foo': 'bar'},
+            ),
+          );
+
+          // A multi-platform patch is one patch, not one per platform: that's
+          // what gives both platforms the same patch number.
+          verify(
+            () => codePushClient.createPatch(
+              appId: appId,
+              releaseId: releaseId,
+              metadata: {'foo': 'bar'},
+            ),
+          ).called(1);
+
+          for (final platform in platforms) {
+            verify(
+              () => codePushClient.createPatchArtifact(
+                appId: appId,
+                artifactPath: patchArtifactBundle.path,
+                patchId: patchId,
+                arch: arch.arch,
+                platform: platform,
+                hash: patchArtifactBundle.hash,
+              ),
+            ).called(1);
+          }
+
+          // Promoted once, after every artifact has uploaded — an unpromoted
+          // patch is served to nobody, so a mid-upload failure can't leave a
+          // live patch covering only some platforms.
+          verify(
+            () => codePushClient.promotePatch(
+              appId: appId,
+              patchId: patchId,
+              channelId: channel.id,
+            ),
           ).called(1);
         });
       });
