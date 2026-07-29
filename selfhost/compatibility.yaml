@@ -3,6 +3,8 @@
 # CLI/updater/engine revision is unsupported until the compatibility suite
 # passes against it. This is the single source of truth for what we build,
 # vendor, and mirror.
+# SUPPORTED — the revision set the compatibility suite has actually passed
+# against. This is what the CDN mirror holds and what operators should run.
 shorebird:
   cli_version: 1.6.114+selfhost.1                                # fork build of upstream 1.6.114
   cli_revision: selfhost-v1.0.0                                  # this repo's baseline tag
@@ -10,6 +12,27 @@ shorebird:
   engine_revision: e1eaecbcac6d9a32cb5590c646e21cf21252cf19       # shorebird --version
   updater_revision: 1f85c4ab                                      # vendored at vendor/updater
   protocol_version: 0.1.0+1                                       # shorebird_code_push_protocol
+
+# IN TREE BUT NOT YET SUPPORTED — merging upstream 1.6.115 moved
+# bin/internal/flutter.version, so a checkout of main no longer builds with the
+# revision set above. Upstream's 1.6.115 is essentially just that pin move: its
+# Android startup-crash and iOS/macOS lipo fixes live in Flutter/engine, not the
+# CLI, so there is no way to take the fixes without taking the pin.
+#
+# Before this set can be promoted to `shorebird:` above:
+#   1. Resolve the engine revision for the new Flutter revision (`shorebird
+#      --version` against the new pin).
+#   2. Re-mirror engine + aot-tools for it (selfhost/cdn) — the mirror currently
+#      holds artifacts for e1eaecbc only, so `independence.build_time` below does
+#      NOT hold for this set.
+#   3. Re-run the CLI-contract and native-updater suites
+#      (selfhost/BEHAVIORAL_FINDINGS.md) on device.
+pending_verification:
+  cli_version: 1.6.115+selfhost.1                                # fork build of upstream 1.6.115
+  flutter_revision: c15ef6379403a0a55531a058bdb2c8e55bc05c98      # Flutter 3.44.8 / Dart 3.12.2
+  engine_revision: unknown                                        # resolve before mirroring
+  mirrored: false                                                 # selfhost/cdn not re-mirrored
+  device_verified: false
 
 tested_platforms:
   # Device-verified end-to-end (release -> patch -> boot -> rollback; signed):
