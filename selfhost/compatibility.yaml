@@ -113,7 +113,38 @@ experimental:
   build_host: hermes-vps           # Azure 20.120.104.70, /data/shorebird-engine (shared
                                    # with a live Hermes deployment — 4 vCPU, cap ninja -j3)
   cell: android-arm64-release      # the only platform cell built from source today
-  engines: []                      # populated per build; shape:
+  engines:
+    - hash: dabf1837976819e5da33f3e143c4f628749702da   # shorebirdtech/flutter @ selfhost/experimental
+      branch: selfhost/experimental
+      falls_back_to: 69f9831c360d9152862ec3897c67fb09ae843f3b
+      flutter_revision: c15ef6379403a0a55531a058bdb2c8e55bc05c98
+      dart_vm: 4bd36869145ebc45bb78b604d326f9b8591c3ca8  # OUR fork: vanilla Dart
+                                                         # 3.12.2 (d684a576) + 57 lines.
+                                                         # See selfhost/engine/dart-fork/.
+      built: 2026-07-29                                  # hermes-vps, ninja -j2, ~35 min
+      local_artifacts:
+        - android-arm64-release/artifacts.zip            # 42 MB
+        - android-arm64-release/symbols.zip              # 43 MB
+        - android-arm64-release/linux-x64.zip            # host gen_snapshot, 2 MB
+        - arm64_v8a_release-1.0.0-<hash>.{jar,pom,maven-metadata.xml}   # 43 MB jar
+      changes: none                    # the ENGINE source is stock at this commit; the
+                                       # only difference from 69f9831c is the Dart VM.
+                                       # This build exists to prove the toolchain, not
+                                       # to change behavior. Expect it to behave
+                                       # identically to the pinned engine.
+      verified:
+        gclient_sync: true             # 54 deps, 23 GB, clean
+        compiles: true                 # snapshots_data_handle.o + shorebird.o
+        links: true                    # 5369/5369, zero FAILED:, libflutter.so 14 MB
+                                       # stripped. Our accessors appear as U in the
+                                       # object and the link resolved them; they are
+                                       # absent from nm output exactly as stock
+                                       # Dart_IsKernel is (LTO internalizes both).
+        served_by_mirror: true         # overlay hits for our artifacts, 302 -> pinned
+                                       # hash for the rest, our jar != stock jar
+        device_verified: false         # NOT YET — release -> patch -> boot -> rollback
+                                       # on a physical arm64 device is the open gate.
+    # shape for future entries:
                                    # - hash: <40-hex sha of the engine branch HEAD>
                                    #   branch: selfhost/experimental
                                    #   falls_back_to: 69f9831c360d9152862ec3897c67fb09ae843f3b
