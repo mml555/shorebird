@@ -75,6 +75,7 @@ words:
   - dylib
   - dylibs
   - eaec
+  - embedders
   - endtemplate
   - Entra
   - eseidel
@@ -90,6 +91,7 @@ words:
   - genkey # From .github/workflows/e2e.yaml
   - genpkey
   - getifaddr
+  - googlesource
   - googleusercontent
   - gradlew
   - gsutil
@@ -102,6 +104,7 @@ words:
   - idevicescreenshot
   - idevicesyslog
   - incrbyfloat # From ./packages/redis_client
+  - intptr
   - ints
   - iokit
   - iphoneos
@@ -154,6 +157,7 @@ words:
   - nonobvious # From analysis_options.yaml
   - notafile
   - nserror
+  - nullptr
   - nvme
   - Oltman
   - onclick
