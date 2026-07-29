@@ -290,9 +290,13 @@ class Api {
       return true;
     }
     final tail = seg.first == 'api' && seg.length > 2 ? seg.sublist(2) : seg;
+    // The device surface carries no bearer: apps in the wild only know their
+    // app_id. `assets` joins it for the same reason — it is asked by app-side
+    // Dart on launch, which has no credential either, and it answers only for a
+    // patch number the caller already names.
     return tail.length == 2 &&
         tail[0] == 'patches' &&
-        (tail[1] == 'check' || tail[1] == 'events');
+        (tail[1] == 'check' || tail[1] == 'events' || tail[1] == 'assets');
   }
 
   Middleware _auth() =>
@@ -452,6 +456,7 @@ class Api {
     if (devTail.length == 2 && devTail[0] == 'patches' && m == 'POST') {
       if (devTail[1] == 'check') return _patchesCheck(req);
       if (devTail[1] == 'events') return _patchesEvents(req);
+      if (devTail[1] == 'assets') return _patchesAssets(req);
     }
 
     if (seg.isNotEmpty && seg[0] == 'admin') return _admin(req, seg.sublist(1));
@@ -1898,6 +1903,82 @@ class Api {
           'hash_signature': artifact.hashSignature,
         },
         rolledBack: rolledBack,
+      ),
+    );
+  }
+
+  /// `POST /patches/assets` — device-facing lookup for a patch's **asset
+  /// bundle**, the payload behind asset support in patches.
+  ///
+  /// Why this exists as its own endpoint rather than a field on
+  /// `patches/check`: that response is consumed by the native updater, which is
+  /// the stock upstream binary and knows nothing about assets. The app-side Dart
+  /// code never sees it. So the app asks here instead, and the updater stays
+  /// untouched — which is what keeps this feature off the engine-build critical
+  /// path and therefore working on iOS as well as Android.
+  ///
+  /// Same posture as `patches/check`: unauthenticated, scoped by `app_id`, and
+  /// handing back a signed, expiring URL. It deliberately requires the caller to
+  /// name a `patch_number` and only answers for that patch, so a client cannot
+  /// be handed assets belonging to a patch it is not running.
+  ///
+  /// Body: `{app_id, release_version, platform, patch_number}`.
+  /// Reply: `{assets_available, assets: {url, hash, size} | null}`.
+  Future<Response> _patchesAssets(Request req) async {
+    final body = await _jsonBody(req);
+    String? str(String key) {
+      final v = body[key];
+      return v is String ? v : null;
+    }
+
+    final appId = str('app_id');
+    final version = str('release_version');
+    final platform = str('platform');
+    final number = body['patch_number'];
+
+    Map<String, Object?> resp({Map<String, Object?>? assets}) => {
+      'assets_available': assets != null,
+      'assets': assets,
+    };
+
+    // Malformed or unknown input answers "nothing here" rather than erroring:
+    // this is polled by app code on launch, and a hard failure would be a
+    // needless crash path for a purely additive feature.
+    if (appId == null ||
+        version == null ||
+        platform == null ||
+        number is! int) {
+      return _json(resp());
+    }
+    final release = await repo.releaseByVersion(appId, version);
+    if (release == null) return _json(resp());
+
+    final patches = await repo.patchesForRelease(release.id);
+    PatchRow? patch;
+    for (final p in patches) {
+      if (p.number == number) {
+        patch = p;
+        break;
+      }
+    }
+    if (patch == null) return _json(resp());
+
+    // Withdrawn/rolled-back patches must not keep serving their assets, or an
+    // app that rolled back would go on using the newer bundle against older
+    // code.
+    if (await repo.patchRolledBack(patch.id)) return _json(resp());
+
+    final artifact = await repo.patchArtifact(patch.id, assetsArch, platform);
+    if (artifact == null || artifact.status != ArtifactStatus.verified) {
+      return _json(resp());
+    }
+    return _json(
+      resp(
+        assets: {
+          'url': _signedUrl(artifact.token),
+          'hash': artifact.hash,
+          'size': artifact.size,
+        },
       ),
     );
   }

@@ -1742,6 +1742,189 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  // Asset support in patches. The bundle rides along as an ordinary patch
+  // artifact tagged `arch: assets`, and app-side Dart fetches it from
+  // /patches/assets. The native updater is never involved, which is what keeps
+  // the feature off the engine-build critical path (and working on iOS).
+  group('patch asset bundles', () {
+    late String appId;
+    late int releaseId;
+    late int patchNumber;
+    late int patchId;
+
+    /// A promoted patch, so the app under test is running it.
+    Future<void> seedPromotedPatch({bool withAssets = true}) async {
+      final s = await seedApp();
+      appId = s.appId;
+      releaseId = s.releaseId;
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/$appId/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': releaseId},
+        ),
+      );
+      patchId = p['id'] as int;
+      patchNumber = p['number'] as int;
+      // The code artifact the updater consumes...
+      await uploadPatchArtifact(appId, patchId);
+      // ...and the asset bundle, which needs NO new upload path: `arch` is
+      // free-form on artifact registration, so this is the existing endpoint.
+      if (withAssets) {
+        await uploadPatchArtifact(appId, patchId, arch: assetsArch);
+      }
+      await send(
+        'POST',
+        '/api/v1/apps/$appId/patches/promote',
+        bearer: _bootstrapKey,
+        json: {'patch_id': patchId, 'channel_id': s.channelId},
+      );
+    }
+
+    Future<Map<String, dynamic>> ask({
+      String? app,
+      String version = '1.0.0',
+      String platform = 'android',
+      Object? number,
+    }) async => jsonOf(
+      await send(
+        'POST',
+        '/api/v1/patches/assets',
+        json: {
+          'app_id': app ?? appId,
+          'release_version': version,
+          'platform': platform,
+          'patch_number': number ?? patchNumber,
+        },
+      ),
+    );
+
+    test('serves a signed url for the named patch', () async {
+      await seedPromotedPatch();
+      final r = await ask();
+      expect(r['assets_available'], isTrue);
+      final assets = r['assets'] as Map<String, dynamic>;
+      expect(assets['url'], isA<String>());
+      expect(assets['hash'], isA<String>());
+      expect(assets['size'], isA<int>());
+      // Signed and expiring, exactly like the patch download url.
+      final u = Uri.parse(assets['url'] as String);
+      expect(u.path, startsWith('/download/'));
+      expect(u.queryParameters, contains('exp'));
+      expect(u.queryParameters, contains('sig'));
+    });
+
+    test('the url actually downloads the bundle', () async {
+      await seedPromotedPatch();
+      final u = Uri.parse(((await ask())['assets'] as Map)['url'] as String);
+      // The signature lives in the query, so the path alone is not enough.
+      final got = await send('GET', '${u.path}?${u.query}');
+      expect(got.statusCode, HttpStatus.ok);
+      expect(await got.readAsString(), 'abc');
+    });
+
+    test('a patch without an asset bundle reports none', () async {
+      await seedPromotedPatch(withAssets: false);
+      expect((await ask())['assets_available'], isFalse);
+    });
+
+    test('will not hand a client another patch number\'s assets', () async {
+      await seedPromotedPatch();
+      // The app believes it is running a patch that does not exist here.
+      expect((await ask(number: patchNumber + 1))['assets_available'], isFalse);
+      expect((await ask(number: 0))['assets_available'], isFalse);
+    });
+
+    test('stops serving assets once the patch is rolled back', () async {
+      await seedPromotedPatch();
+      expect((await ask())['assets_available'], isTrue);
+      final r = await send(
+        'POST',
+        '/admin/apps/$appId/patches/$patchId/withdraw?rollback=true',
+        bearer: _bootstrapKey,
+      );
+      expect(r.statusCode, anyOf(HttpStatus.ok, HttpStatus.noContent));
+      // A rollback reverts devices to the previous code. Continuing to serve
+      // this patch's assets would pair new assets with old code.
+      expect((await ask())['assets_available'], isFalse);
+    });
+
+    test(
+      'a plain withdraw keeps serving, because devices still run it',
+      () async {
+        // Withdrawing without rollback only stops OFFERING the patch to new
+        // devices; anything already running it stays on it. Those devices must
+        // keep getting their assets, or a withdraw would silently strip assets
+        // from a fleet that is still executing the patched code.
+        await seedPromotedPatch();
+        final r = await send(
+          'POST',
+          '/admin/apps/$appId/patches/$patchId/withdraw',
+          bearer: _bootstrapKey,
+        );
+        expect(r.statusCode, anyOf(HttpStatus.ok, HttpStatus.noContent));
+        expect((await ask())['assets_available'], isTrue);
+      },
+    );
+
+    test('another app cannot fish for this app\'s bundle', () async {
+      await seedPromotedPatch();
+      final other = await otherTenant();
+      expect((await ask(app: other.appId))['assets_available'], isFalse);
+    });
+
+    test('unknown release version reports none', () async {
+      await seedPromotedPatch();
+      expect((await ask(version: '9.9.9'))['assets_available'], isFalse);
+    });
+
+    test('a platform with no bundle reports none', () async {
+      await seedPromotedPatch();
+      expect((await ask(platform: 'ios'))['assets_available'], isFalse);
+    });
+
+    test('malformed bodies answer none rather than erroring', () async {
+      await seedPromotedPatch();
+      // App code polls this on launch; a 500 here would be a crash path for a
+      // purely additive feature.
+      for (final body in <Map<String, Object?>>[
+        {},
+        {'app_id': appId},
+        {'app_id': appId, 'release_version': '1.0.0', 'platform': 'android'},
+        {
+          'app_id': appId,
+          'release_version': '1.0.0',
+          'platform': 'android',
+          'patch_number': 'not-an-int',
+        },
+      ]) {
+        final r = await send('POST', '/api/v1/patches/assets', json: body);
+        expect(r.statusCode, HttpStatus.ok);
+        expect((await jsonOf(r))['assets_available'], isFalse);
+      }
+    });
+
+    test(
+      'needs no bearer token, like the rest of the device surface',
+      () async {
+        await seedPromotedPatch();
+        final r = await send(
+          'POST',
+          '/api/v1/patches/assets',
+          json: {
+            'app_id': appId,
+            'release_version': '1.0.0',
+            'platform': 'android',
+            'patch_number': patchNumber,
+          },
+        );
+        expect(r.statusCode, HttpStatus.ok);
+      },
+    );
+  });
+
+  // -------------------------------------------------------------------------
   // Build provenance. The CLI attaches a `metadata` blob to every release
   // status update and patch creation; the server used to discard it entirely.
   group('build metadata capture', () {

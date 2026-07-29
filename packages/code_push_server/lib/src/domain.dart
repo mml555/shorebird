@@ -67,6 +67,16 @@ bool emailAllowedByDomains(String email, List<String> allowedDomains) {
   return d.isNotEmpty && allowedDomains.contains(d);
 }
 
+/// The `arch` value that marks a patch artifact as an **asset bundle** rather
+/// than code.
+///
+/// `artifacts.arch` is free-form (the create path takes whatever the CLI sends),
+/// which is why asset support needs no schema change: an asset bundle is just
+/// another artifact owned by the patch, tagged with this. Deliberately not a
+/// real architecture name, so it can never collide with one the CLI uploads
+/// (`aarch64`, `arm`, `x86_64`, …).
+const assetsArch = 'assets';
+
 enum ArtifactStatus {
   pending,
   uploading,
