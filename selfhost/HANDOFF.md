@@ -80,35 +80,37 @@ named `garbage never fails the reporter` guarding this.
 
 ### Track B — assets in patches
 
-**Done:** both ends of the wire, nothing in between.
+**Done:** the CLI half, end to end on Android.
 
 | Piece | Where |
 |---|---|
 | `POST /patches/assets` (device, unauthenticated, signed URL) | `code_push_server/lib/src/api.dart` → `_patchesAssets` |
 | Upload path | `shorebird_cli/.../code_push_client_wrapper.dart` → `createPatchAssetArtifact`, tag `assetsArch` |
+| `--assets` flag (opt-in) | `patch_command.dart`, next to `allow-asset-diffs`; getter `includeAssets` |
+| Asset source hook | `commands/patch/patcher.dart` → `assetsDirectory()`, `null` by default |
+| Android implementation | `android_patcher.dart` → `base/assets/flutter_assets/**` from the AAB cached by `buildPatchArtifact`, via `ArtifactManager.extractAndroidFlutterAssetsFromAab` |
+| Packaging + upload | shares Track A's `_packageSidecars` / `publishPatch(sidecars: …)` |
 
-**Next: per-patcher wiring + `--assets` flag.**
+Decisions made while wiring it, so you do not re-litigate them:
 
-- Flag: declare next to `allow-asset-diffs` in
-  `shorebird_cli/lib/src/commands/patch/patch_command.dart` (~line 92, getter
-  ~line 203). Make it **opt-in** — patch size and safety.
-- Asset source, per platform. Android: `assets/flutter_assets/` inside the built
-  AAB/APK the patcher already produces. Apple: inside the app bundle. The
-  patchers do not currently expose it, so add something like
-  `Future<Directory?> assetsDirectory()` to `Patcher` returning `null` by
-  default and override per platform — that keeps the other patchers untouched.
-- Zip it with `Directory.zipToTempFile()` from
-  `lib/src/archive/directory_archive.dart`. **Use this, not a new
-  helper** — it zips with `includeDirName: false`, so entries are relative to
-  the directory, which is what an overlay unpacked over an asset root needs. (I
-  wrote a duplicate on `ArtifactManager` before finding it, and removed it.)
-- Changed-file detection already exists:
+- **Full `flutter_assets` overlay, not a delta.** Simpler and correct; the plan
+  always allowed "replace the whole tree for patch N". Delta is an optimization,
+  and the changed-file detection to drive one already exists if you want it:
   `archive_analysis/archive_differ.dart` → `assetsFileSetDiff()` /
   `containsPotentiallyBreakingAssetDiffs()`, surfaced as
   `DiffStatus.hasAssetChanges` by `patch_diff_checker.dart`.
-- **Open design call:** full `flutter_assets` overlay vs delta. Start full — it is
-  simpler and correct; the plan always allowed "replace the whole tree for patch
-  N". Delta is an optimization.
+- **The AAB is the source, not a build intermediate.** Those are the bytes the
+  release would have shipped, already through Flutter's asset pipeline; an
+  intermediate directory can hold another variant's assets.
+- Zipped with `Directory.zipToTempFile()` from
+  `lib/src/archive/directory_archive.dart`. **Use this, not a new helper** — it
+  zips with `includeDirName: false`, so entries are relative to the directory,
+  which is what an overlay unpacked over an asset root needs. (I wrote a
+  duplicate on `ArtifactManager` before finding it, and removed it.)
+
+**Next: Apple `assetsDirectory()`** — the assets live inside the app bundle, and
+the Apple patchers do not expose it, so `--assets` currently warns and skips on
+those platforms. Everything above that hook is already platform-agnostic.
 
 **Then the Dart package** (app-side): read the running patch number via
 `shorebird_code_push`, `POST /patches/assets`, download, cache, expose an

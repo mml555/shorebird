@@ -57,6 +57,20 @@ void main() {
       });
     });
 
+    group('assetsDirectory', () {
+      test('defaults to null', () async {
+        await expectLater(
+          _TestPatcher(
+            argParser: MockArgParser(),
+            argResults: MockArgResults(),
+            flavor: null,
+            target: null,
+          ).assetsDirectory(),
+          completion(isNull),
+        );
+      });
+    });
+
     group('debugSymbolsDirectory', () {
       late Directory tempDir;
       late ArgParser argParser;

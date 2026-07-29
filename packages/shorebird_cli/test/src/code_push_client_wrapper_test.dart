@@ -2921,10 +2921,13 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
         });
 
         group('sidecars', () {
+          late File assetsBundle;
           late File symbolsBundle;
 
           setUp(() {
             final tempDir = Directory.systemTemp.createTempSync();
+            assetsBundle = File(p.join(tempDir.path, 'assets.zip'))
+              ..writeAsBytesSync([1, 2, 3, 4]);
             symbolsBundle = File(p.join(tempDir.path, 'symbols.zip'))
               ..writeAsBytesSync([5, 6, 7, 8]);
           });
@@ -2946,14 +2949,15 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
                 appId: any(named: 'appId'),
                 patchId: any(named: 'patchId'),
                 artifactPath: any(named: 'artifactPath'),
-                arch: symbolsArch,
+                arch: any(named: 'arch', that: isIn([assetsArch, symbolsArch])),
                 platform: any(named: 'platform'),
                 hash: any(named: 'hash'),
               ),
             );
           });
 
-          test('uploads symbols for the platform that has them', () async {
+          test('uploads assets and symbols for the platform that has '
+              'them', () async {
             await runWithOverrides(
               () => codePushClientWrapper.publishPatch(
                 appId: appId,
@@ -2961,7 +2965,48 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
                 track: track,
                 patchArtifactBundles: {releasePlatform: patchArtifactBundles},
                 metadata: {'foo': 'bar'},
-                sidecars: {releasePlatform: (symbols: symbolsBundle)},
+                sidecars: {
+                  releasePlatform: (
+                    assets: assetsBundle,
+                    symbols: symbolsBundle,
+                  ),
+                },
+              ),
+            );
+
+            verify(
+              () => codePushClient.createPatchArtifact(
+                appId: appId,
+                patchId: patchId,
+                artifactPath: assetsBundle.path,
+                arch: assetsArch,
+                platform: releasePlatform,
+                hash: any(named: 'hash'),
+              ),
+            ).called(1);
+            verify(
+              () => codePushClient.createPatchArtifact(
+                appId: appId,
+                patchId: patchId,
+                artifactPath: symbolsBundle.path,
+                arch: symbolsArch,
+                platform: releasePlatform,
+                hash: any(named: 'hash'),
+              ),
+            ).called(1);
+          });
+
+          test('uploads only what a platform actually contributed', () async {
+            await runWithOverrides(
+              () => codePushClientWrapper.publishPatch(
+                appId: appId,
+                releaseId: releaseId,
+                track: track,
+                patchArtifactBundles: {releasePlatform: patchArtifactBundles},
+                metadata: {'foo': 'bar'},
+                sidecars: {
+                  releasePlatform: (assets: null, symbols: symbolsBundle),
+                },
               ),
             );
 
@@ -2975,6 +3020,16 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
                 hash: any(named: 'hash'),
               ),
             ).called(1);
+            verifyNever(
+              () => codePushClient.createPatchArtifact(
+                appId: any(named: 'appId'),
+                patchId: any(named: 'patchId'),
+                artifactPath: any(named: 'artifactPath'),
+                arch: assetsArch,
+                platform: any(named: 'platform'),
+                hash: any(named: 'hash'),
+              ),
+            );
           });
 
           test('uploads them before the patch is promoted', () async {
@@ -2990,18 +3045,18 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
             ).thenAnswer((_) async {
               promoted = true;
             });
-            var uploadedAfterPromotion = false;
+            var assetsUploadedAfterPromotion = false;
             when(
               () => codePushClient.createPatchArtifact(
                 appId: any(named: 'appId'),
                 patchId: any(named: 'patchId'),
-                artifactPath: symbolsBundle.path,
+                artifactPath: assetsBundle.path,
                 arch: any(named: 'arch'),
                 platform: any(named: 'platform'),
                 hash: any(named: 'hash'),
               ),
             ).thenAnswer((_) async {
-              uploadedAfterPromotion = promoted;
+              assetsUploadedAfterPromotion = promoted;
             });
 
             await runWithOverrides(
@@ -3011,11 +3066,13 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
                 track: track,
                 patchArtifactBundles: {releasePlatform: patchArtifactBundles},
                 metadata: {'foo': 'bar'},
-                sidecars: {releasePlatform: (symbols: symbolsBundle)},
+                sidecars: {
+                  releasePlatform: (assets: assetsBundle, symbols: null),
+                },
               ),
             );
 
-            expect(uploadedAfterPromotion, isFalse);
+            expect(assetsUploadedAfterPromotion, isFalse);
           });
 
           test('uploads each platform its own sidecars', () async {
@@ -3031,9 +3088,12 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
                     platform: patchArtifactBundles,
                 },
                 metadata: {'foo': 'bar'},
-                // Only android emitted symbols; ios must not inherit them.
+                // Only android contributed assets; ios must not inherit them.
                 sidecars: {
-                  ReleasePlatform.android: (symbols: symbolsBundle),
+                  ReleasePlatform.android: (
+                    assets: assetsBundle,
+                    symbols: null,
+                  ),
                 },
               ),
             );
@@ -3042,8 +3102,8 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
               () => codePushClient.createPatchArtifact(
                 appId: appId,
                 patchId: patchId,
-                artifactPath: symbolsBundle.path,
-                arch: symbolsArch,
+                artifactPath: assetsBundle.path,
+                arch: assetsArch,
                 platform: ReleasePlatform.android,
                 hash: any(named: 'hash'),
               ),
@@ -3053,7 +3113,7 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
                 appId: any(named: 'appId'),
                 patchId: any(named: 'patchId'),
                 artifactPath: any(named: 'artifactPath'),
-                arch: symbolsArch,
+                arch: assetsArch,
                 platform: ReleasePlatform.ios,
                 hash: any(named: 'hash'),
               ),

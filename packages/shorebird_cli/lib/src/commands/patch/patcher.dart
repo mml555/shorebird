@@ -286,6 +286,14 @@ More info: ${troubleshootingUrl.toLink()}.
     return directory;
   }
 
+  /// The `flutter_assets` tree this patch's build produced, or `null` if this
+  /// platform cannot supply one.
+  ///
+  /// Returns `null` by default so a patcher that has not implemented asset
+  /// lookup stays out of the asset path entirely rather than shipping an empty
+  /// or wrong overlay.
+  Future<Directory?> assetsDirectory() async => null;
+
   /// The path to the output file for the debug info.
   static File get debugInfoFile {
     return File(p.join(shorebirdEnv.buildDirectory.path, 'patch-debug.zip'));

@@ -322,6 +322,52 @@ class ArtifactManager {
     return outDir;
   }
 
+  /// Extracts every `base/assets/flutter_assets/**` entry from [aab] into a
+  /// fresh temporary directory, laid out relative to `flutter_assets/` (so
+  /// `AssetManifest.bin` lands at the root), and returns it. Returns `null` if
+  /// the bundle carries no `flutter_assets` tree.
+  ///
+  /// The AAB is the authoritative source: these are the bytes the release
+  /// would have shipped, already through Flutter's asset pipeline. Reading an
+  /// intermediate build directory instead would risk picking up assets from a
+  /// different variant.
+  ///
+  /// The decode runs in a separate isolate to avoid blocking progress
+  /// animations while reading a potentially large bundle.
+  static Future<Directory?> extractAndroidFlutterAssetsFromAab(
+    File aab,
+  ) async {
+    final outDir = Directory.systemTemp.createTempSync('shorebird_aab_assets');
+    final aabPath = aab.path;
+    final outPath = outDir.path;
+    final extracted = await Isolate.run(() {
+      final assetEntry = RegExp(r'^base/assets/flutter_assets/(.+)$');
+      final inputStream = InputFileStream(aabPath);
+      final archive = ZipDecoder().decodeStream(inputStream);
+      var count = 0;
+      // Entry contents are decompressed lazily from the input stream, so only
+      // close it once every asset has been written out.
+      for (final file in archive.files) {
+        if (!file.isFile) continue;
+        final match = assetEntry.firstMatch(file.name);
+        if (match == null) continue;
+        final relativePath = match.group(1)!;
+        File(p.join(outPath, relativePath))
+          ..createSync(recursive: true)
+          ..writeAsBytesSync(file.content as List<int>);
+        count++;
+      }
+      inputStream.closeSync();
+      return count;
+    });
+
+    if (extracted == 0) {
+      outDir.deleteSync(recursive: true);
+      return null;
+    }
+    return outDir;
+  }
+
   /// The directory containing the compiled macOS .app file, if it exists.
   Directory? getMacOSAppDirectory({String? flavor}) {
     final projectRoot = shorebirdEnv.getShorebirdProjectRoot()!;

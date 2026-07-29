@@ -598,6 +598,69 @@ void main() {
       });
     });
 
+    group('extractAndroidFlutterAssetsFromAab', () {
+      test('extracts the tree relative to flutter_assets', () async {
+        final aab = File(
+          p.join('test', 'fixtures', 'aabs', 'changed_asset.aab'),
+        );
+
+        final dir = await ArtifactManager.extractAndroidFlutterAssetsFromAab(
+          aab,
+        );
+
+        expect(dir, isNotNull);
+        // Entries must be relative to flutter_assets/, not the AAB root: the
+        // bundle is unpacked over an asset root, so AssetManifest.bin has to
+        // land at the top level.
+        expect(
+          File(p.join(dir!.path, 'AssetManifest.bin')).existsSync(),
+          isTrue,
+        );
+        expect(
+          File(p.join(dir.path, 'assets', 'asset.json')).existsSync(),
+          isTrue,
+        );
+        expect(
+          Directory(p.join(dir.path, 'base')).existsSync(),
+          isFalse,
+          reason: 'the base/assets/flutter_assets prefix must be stripped',
+        );
+      });
+
+      test('preserves contents byte for byte', () async {
+        final aab = File(
+          p.join('test', 'fixtures', 'aabs', 'changed_asset.aab'),
+        );
+
+        final dir = await ArtifactManager.extractAndroidFlutterAssetsFromAab(
+          aab,
+        );
+
+        expect(
+          File(p.join(dir!.path, 'assets', 'asset.json')).lengthSync(),
+          equals(15),
+        );
+      });
+
+      test('is null when the aab has no flutter_assets', () async {
+        final aab = File(
+          p.join(Directory.systemTemp.createTempSync().path, 'a.aab'),
+        );
+        // A valid but asset-free zip.
+        final encoder = ZipFileEncoder()..create(aab.path);
+        await encoder.addFile(
+          File(p.join(Directory.systemTemp.createTempSync().path, 'other.txt'))
+            ..writeAsStringSync('not an asset'),
+        );
+        await encoder.close();
+
+        await expectLater(
+          ArtifactManager.extractAndroidFlutterAssetsFromAab(aab),
+          completion(isNull),
+        );
+      });
+    });
+
     group('androidArchsDirectoryFromAab', () {
       late Directory projectRoot;
       final aab = File(p.join('test', 'fixtures', 'aabs', 'changed_asset.aab'));

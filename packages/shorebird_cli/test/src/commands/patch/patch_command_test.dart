@@ -306,7 +306,8 @@ void main() {
       ).thenAnswer((_) async => File(''));
       when(() => patcher.releaseType).thenReturn(ReleaseType.android);
       when(() => patcher.primaryReleaseArtifactArch).thenReturn('aab');
-      // No sidecars by default: no --split-debug-info, so no symbols.
+      // Neither sidecar by default: no --assets, no --split-debug-info.
+      when(patcher.assetsDirectory).thenAnswer((_) async => null);
       when(patcher.debugSymbolsDirectory).thenAnswer((_) async => null);
       when(
         () => patcher.createPatchArtifacts(
@@ -396,6 +397,17 @@ void main() {
       });
     });
 
+    group('--assets', () {
+      test('is an opt-in flag', () {
+        final parser = PatchCommand().argParser;
+
+        expect(parser.options['assets']!.isFlag, isTrue);
+        expect(parser.options['assets']!.negatable, isFalse);
+        expect(parser.parse([])['assets'], isFalse);
+        expect(parser.parse(['--assets'])['assets'], isTrue);
+      });
+    });
+
     group('createPatch', () {
       test('publishes the patch', () async {
         await runWithOverrides(() => command.createPatch([patcher]));
@@ -442,6 +454,59 @@ void main() {
           return dir;
         }
 
+        group('assets', () {
+          test('are not packaged without --assets', () async {
+            expect((await publishedSidecars()).assets, isNull);
+            // Opt-in means the AAB is never even decoded for assets.
+            verifyNever(patcher.assetsDirectory);
+          });
+
+          group('with --assets', () {
+            setUp(() {
+              when(() => argResults['assets']).thenReturn(true);
+            });
+
+            test('are packaged when the platform resolves them', () async {
+              when(
+                patcher.assetsDirectory,
+              ).thenAnswer((_) async => populatedDir());
+
+              final assets = (await publishedSidecars()).assets;
+
+              expect(assets, isNotNull);
+              expect(assets!.existsSync(), isTrue);
+              expect(p.basename(assets.path), equals('assets.zip'));
+            });
+
+            test('warn and are skipped when the platform resolves '
+                'nothing', () async {
+              when(patcher.assetsDirectory).thenAnswer((_) async => null);
+
+              expect((await publishedSidecars()).assets, isNull);
+              verify(
+                () => logger.warn(
+                  any(that: contains('no assets could be resolved')),
+                ),
+              ).called(1);
+            });
+
+            test('do not fail the patch when packaging fails', () async {
+              // An empty directory that gets removed before it can be zipped.
+              final vanished = Directory.systemTemp.createTempSync()
+                ..deleteSync();
+              when(patcher.assetsDirectory).thenAnswer((_) async => vanished);
+
+              // publishedSidecars() only returns if the patch published, so
+              // this asserts both that the bundle is missing and that its
+              // absence did not take the patch down with it.
+              expect((await publishedSidecars()).assets, isNull);
+              verify(
+                () => logger.warn(any(that: contains('Failed to package'))),
+              ).called(1);
+            });
+          });
+        });
+
         group('symbols', () {
           test('are not packaged when the build emitted none', () async {
             expect((await publishedSidecars()).symbols, isNull);
@@ -458,23 +523,6 @@ void main() {
 
             expect(symbols, isNotNull);
             expect(p.basename(symbols!.path), equals('symbols.zip'));
-          });
-
-          test('do not fail the patch when packaging fails', () async {
-            // A directory that is gone before it can be zipped.
-            final vanished = Directory.systemTemp.createTempSync()
-              ..deleteSync();
-            when(
-              patcher.debugSymbolsDirectory,
-            ).thenAnswer((_) async => vanished);
-
-            // publishedSidecars() only returns if the patch published, so this
-            // asserts both that symbols are missing and that their absence did
-            // not take the patch down with it.
-            expect((await publishedSidecars()).symbols, isNull);
-            verify(
-              () => logger.warn(any(that: contains('Failed to package'))),
-            ).called(1);
           });
         });
       });
@@ -1986,6 +2034,7 @@ Please re-run the release command for this version or create a new release.'''),
         when(() => iosPatcher.linkPercentage).thenReturn(null);
         when(() => iosPatcher.assertArgsAreValid()).thenAnswer((_) async {});
         when(() => iosPatcher.assertPreconditions()).thenAnswer((_) async {});
+        when(iosPatcher.assetsDirectory).thenAnswer((_) async => null);
         when(iosPatcher.debugSymbolsDirectory).thenAnswer((_) async => null);
         when(
           () => iosPatcher.buildPatchArtifact(

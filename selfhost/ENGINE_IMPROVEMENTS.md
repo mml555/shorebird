@@ -94,9 +94,12 @@ the Android→iOS carryover argument.
 | In-process patch apply (hot restart) | yes — and now possible |
 | iOS anything | yes, plus `aot_tools` and a Mac |
 
-Asset support already has its server half here: `POST /patches/assets` serves a
-signed URL for a patch's asset bundle, tagged `arch: assets`. It needed no schema
-change and no new upload path, because `arch` is free-form end to end.
+Asset support has both its server and CLI halves here: `POST /patches/assets`
+serves a signed URL for a patch's asset bundle, and `shorebird patch --assets`
+packages Android's `flutter_assets` out of the built AAB and uploads it tagged
+`arch: assets`. Neither needed a schema change nor a new upload path, because
+`arch` is free-form end to end. What remains is the app-side Dart that reads it,
+and `assetsDirectory()` for the Apple patchers.
 
 Debug symbols ride the same mechanism as `arch: symbols`, uploaded whenever a
 patch build emits them (`--split-debug-info`). Together with a crash report's

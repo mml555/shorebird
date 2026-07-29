@@ -94,6 +94,7 @@ To target the latest release (e.g. the release that was most recently updated) u
         help: allowAssetDiffsHelpText,
         negatable: false,
       )
+      ..addFlag('assets', help: assetsHelpText, negatable: false)
       ..addOption(
         'track',
         help: 'The track to publish the patch to.',
@@ -179,6 +180,11 @@ NOTE: this is ${styleBold.wrap('not')} recommended. Native code changes cannot b
 Patch even if asset diffs are detected.
 NOTE: this is ${styleBold.wrap('not')} recommended. Asset changes cannot be included in a patch can cause your app to behave unexpectedly.''';
 
+  /// Help text for the opt-in asset bundle upload.
+  static final assetsHelpText = '''
+Attach this patch's assets to it, so an app built against this control plane can pick them up.
+${styleBold.wrap('Experimental')}, and opt-in because it makes the patch larger. The native updater ignores the bundle; reading it requires app-side support.''';
+
   late final ResolvePatcher _resolvePatcher;
 
   @override
@@ -205,6 +211,9 @@ NOTE: this is ${styleBold.wrap('not')} recommended. Asset changes cannot be incl
 
   /// Whether to allow changes in native code (--allow-native-diffs).
   bool get allowNativeDiffs => results['allow-native-diffs'] == true;
+
+  /// Whether to attach this patch's assets to it (--assets).
+  bool get includeAssets => results['assets'] == true;
 
   /// Whether the patch is for the staging environment.
   bool get isStaging => track == DeploymentTrack.staging;
@@ -693,16 +702,29 @@ Building ${releasePlatform.displayName} patch with Flutter $flutterVersionString
 
   /// Zips whatever non-code payloads this platform's build produced.
   ///
-  /// Packaged here rather than at upload time so that a multi-platform patch
-  /// stays all-or-nothing: [_buildPlatformPatch] deliberately uploads nothing,
-  /// and a platform's symbol directory is transient build output that the next
-  /// platform's build may overwrite.
+  /// Both are packaged here rather than at upload time so that a multi-platform
+  /// patch stays all-or-nothing: [_buildPlatformPatch] deliberately uploads
+  /// nothing, and each platform's `flutter_assets` and symbol directories are
+  /// transient build output that the next platform's build may overwrite.
   ///
-  /// Not fatal. A patch whose symbols could not be packaged is still a valid
-  /// patch, so a failure here degrades to "not retained" and says so, rather
-  /// than throwing away a build that otherwise succeeded.
+  /// Neither is fatal. A patch whose assets or symbols could not be packaged is
+  /// still a valid patch, so a failure here degrades to "not retained" and says
+  /// so, rather than throwing away a build that otherwise succeeded.
   Future<PatchSidecars> _packageSidecars(Patcher patcher) async {
     final platformName = patcher.releaseType.releasePlatform.displayName;
+
+    File? assets;
+    if (includeAssets) {
+      final directory = await patcher.assetsDirectory();
+      if (directory == null) {
+        logger.warn(
+          '--assets was passed but no assets could be resolved for '
+          '$platformName. The patch will not carry an asset bundle.',
+        );
+      } else {
+        assets = await _tryZip(directory, name: 'assets', of: platformName);
+      }
+    }
 
     // Not gated on a flag: symbols only exist when the build was already asked
     // for them with --split-debug-info, which is the opt-in.
@@ -711,7 +733,7 @@ Building ${releasePlatform.displayName} patch with Flutter $flutterVersionString
       symbols = await _tryZip(directory, name: 'symbols', of: platformName);
     }
 
-    return (symbols: symbols);
+    return (assets: assets, symbols: symbols);
   }
 
   /// Zips [directory], or returns null and warns if that fails. [name] and [of]

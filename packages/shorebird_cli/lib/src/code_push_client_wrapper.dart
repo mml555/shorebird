@@ -87,12 +87,13 @@ const symbolsArch = 'symbols';
 
 /// The non-code files that can accompany one platform's patch artifacts.
 ///
-/// Optional and independent: a patch may retain symbols (`--split-debug-info`)
-/// or nothing at all, which is the default and matches stock behavior exactly.
-typedef PatchSidecars = ({File? symbols});
+/// Both are optional and independent: a patch may ship assets without symbols
+/// (no `--split-debug-info`), symbols without assets (no `--assets`), or
+/// neither, which is the default and matches stock behavior exactly.
+typedef PatchSidecars = ({File? assets, File? symbols});
 
-/// A [PatchSidecars] carrying nothing, for platforms that contributed none.
-const noPatchSidecars = (symbols: null);
+/// A [PatchSidecars] carrying nothing, for platforms that contributed neither.
+const noPatchSidecars = (assets: null, symbols: null);
 
 /// A reference to a [CodePushClientWrapper] instance.
 ScopedRef<CodePushClientWrapper> codePushClientWrapperRef = create(() {
@@ -1120,10 +1121,10 @@ aar artifact already exists, continuing...''');
   /// unpromoted patch is served to nobody, so a failure partway through leaves
   /// an inert patch instead of a live one covering only some platforms.
   ///
-  /// [sidecars] carries each platform's non-code payloads, which upload
-  /// alongside that platform's code artifacts and before promotion, so they are
-  /// in place by the time any device can see the patch. A platform absent from
-  /// the map contributes none.
+  /// [sidecars] carries each platform's non-code payloads — an asset bundle and
+  /// a debug-symbol set — which upload alongside that platform's code artifacts
+  /// and before promotion, so they are in place by the time any device can see
+  /// the patch. A platform absent from the map contributes neither.
   Future<void> publishPatch({
     required String appId,
     required int releaseId,
@@ -1149,6 +1150,14 @@ aar artifact already exists, continuing...''');
       );
 
       final sidecar = sidecars[platform] ?? noPatchSidecars;
+      if (sidecar.assets case final assets?) {
+        await createPatchAssetArtifact(
+          appId: appId,
+          patch: patch,
+          platform: platform,
+          bundle: assets,
+        );
+      }
       if (sidecar.symbols case final symbols?) {
         await createPatchSymbolArtifact(
           appId: appId,
