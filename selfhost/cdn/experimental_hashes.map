@@ -1,0 +1,9 @@
+# Experimental engine hashes served from selfhost/cdn/overlay, and the pinned
+# revision each one falls back to for artifacts it did not rebuild.
+#
+# Format (nginx `map` entries, one per line):
+#   <experimentalEngineHash> <pinnedEngineHash>;
+#
+# Written by selfhost/engine/overlay_publish.sh — you normally do not edit this
+# by hand. An empty file (just these comments) means no experimental engine is
+# published and the mirror behaves exactly as a passthrough cache.

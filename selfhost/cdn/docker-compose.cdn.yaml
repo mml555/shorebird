@@ -42,6 +42,12 @@ services:
       - artifact-proxy
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      # Locally built experimental engines, served before anything upstream.
+      # Populated by selfhost/engine/overlay_publish.sh.
+      - ./overlay:/overlay:ro
+      # <expHash> -> <pinnedHash> fallback table, also written by that script.
+      # nginx reads it at startup, so recreate cdn-cache after publishing.
+      - ./experimental_hashes.map:/etc/nginx/experimental_hashes.map:ro
       - cdn-cache-data:/var/cache/nginx/cdn
     ports:
       # Host 8081 -> this is what you point FLUTTER_STORAGE_BASE_URL /

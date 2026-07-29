@@ -154,6 +154,7 @@ words:
   - nonobvious # From analysis_options.yaml
   - notafile
   - nserror
+  - nvme
   - Oltman
   - onclick
   - ONDEVICE
@@ -207,6 +208,7 @@ words:
   - retargets
   - reusables
   - rlib
+  - rustup
   - screencap
   - SCRIPTDIR
   - serde
@@ -251,6 +253,7 @@ words:
   - udid # Unique Device Identifier
   - unanalyzed
   - unawaited
+  - unittests
   - unixepoch
   - unmockable
   - unobfuscated

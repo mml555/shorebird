@@ -89,8 +89,41 @@ independence:
                              # Building the engine still needs a farm — see
                              # selfhost/ENGINE_BUILD.md.
 
+# EXPERIMENTAL — engines we build ourselves, for feature work that has to modify
+# the engine (see selfhost/ENGINE_BUILD.md). These are NOT supported revisions
+# and must never be promoted into `shorebird:` above without the full gate in
+# `policy` below.
+#
+# An experimental engine hash is the git sha of the engine branch it was built
+# from, so the artifact prefix names its own source. Only the artifacts listed
+# under `local_artifacts` are ours; the mirror serves everything else from
+# `falls_back_to`, and 404s rather than substituting stock bytes for an artifact
+# the build was supposed to provide (selfhost/cdn/nginx.conf `$overlay_owned`).
+#
+# Valid only while dart_sdk_revision in DEPS is untouched and the snapshot/patch
+# contract is unchanged: gen_snapshot, aot-tools.dill and the patch CLI all come
+# from `falls_back_to`.
+experimental:
+  build_host: hermes-vps           # Azure 20.120.104.70, /data/shorebird-engine (shared
+                                   # with a live Hermes deployment — 4 vCPU, cap ninja -j3)
+  cell: android-arm64-release      # the only platform cell built from source today
+  engines: []                      # populated per build; shape:
+                                   # - hash: <40-hex sha of the engine branch HEAD>
+                                   #   branch: selfhost/experimental
+                                   #   falls_back_to: 69f9831c360d9152862ec3897c67fb09ae843f3b
+                                   #   flutter_revision: c15ef6379403a0a55531a058bdb2c8e55bc05c98
+                                   #   local_artifacts:
+                                   #     - android-arm64-release/artifacts.zip
+                                   #     - android-arm64-release/symbols.zip
+                                   #     - android-arm64-release/linux-x64.zip
+                                   #     - arm64_v8a_release-1.0.0-<hash>.{jar,pom}
+                                   #   changes: <what this engine does differently, or "none">
+                                   #   device_verified: false
+
 policy: >
   Upgrading any pinned revision is a deliberate, gated process: bump the value
   here, re-vendor/re-mirror as needed, and re-run the CLI-contract + native-updater
   suites (see selfhost/BEHAVIORAL_FINDINGS.md) before declaring the new revision
-  supported.
+  supported. Experimental engines (see `experimental`) are exempt from this gate
+  precisely because they are served under their own hash and are never the
+  supported pin.

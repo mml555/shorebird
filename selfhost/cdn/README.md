@@ -139,6 +139,58 @@ Once warm, the same engine revision builds without touching
 `download.shorebird.dev` or GCS. Host the cache centrally to warm it once for a
 whole team.
 
+## Serving a locally built (experimental) engine
+
+The mirror doubles as the store for engines **we** build (see
+`selfhost/ENGINE_BUILD.md` and `selfhost/engine/`). An experimental engine gets
+its own 40-hex hash so it can never be mistaken for, or overwrite, the supported
+pin — but only the Android arm64 binaries actually differ from that pin, and the
+macOS/Windows host `gen_snapshot` cannot even be built on a Linux host. So the
+mirror serves a *mixed* set:
+
+| Request for an experimental hash | Result |
+|---|---|
+| present in `overlay/` | served from local disk (`X-Overlay: hit`) |
+| **owned** by the overlay but absent | **404**, never stock bytes |
+| anything else | hash rewritten to the pinned revision, served as usual |
+
+"Owned" = the artifacts a build is required to produce itself, listed in the
+`$overlay_owned` map in `nginx.conf`: `android-arm64-release/{artifacts,symbols,
+linux-x64}.zip` and the `arm64_v8a_release` Maven artifacts. That 404 is the
+point — a half-published experiment must fail loudly rather than quietly run
+Shorebird's stock engine under your hash. `android-arm64-release/{darwin-x64,
+windows-x64}.zip` are deliberately *not* owned: they are host `gen_snapshot` for
+Mac/Windows and are stock by design.
+
+Ownership only applies to hashes listed in `experimental_hashes.map`. For every
+ordinary revision the mirror behaves exactly as it did before the overlay
+existed.
+
+```bash
+# after selfhost/engine/build.sh --cell android-arm64
+selfhost/engine/overlay_publish.sh --hash <expHash> --root /path/to/checkout
+# nginx reads the hash map at startup:
+docker compose -f selfhost/cdn/docker-compose.cdn.yaml up -d --force-recreate cdn-cache
+```
+
+Verify all three behaviors before spending a device cycle on it:
+
+```bash
+B=http://localhost:8085; EXP=<expHash>
+# 1. our build, from disk
+curl -sI $B/flutter_infra_release/flutter/$EXP/android-arm64-release/artifacts.zip | head -1
+# 2. loud failure: temporarily move an owned artifact aside -> must be 404
+# 3. stock fallback under the pinned hash
+curl -sI $B/flutter_infra_release/flutter/$EXP/dart-sdk-darwin-arm64.zip | head -1
+```
+
+The `cdn` access log prints `must_be_local=` and `stock=` for each request, which
+is the quickest way to see which of the three paths a request took.
+
+> Docker Desktop on macOS caches bind-mount lookups for a second or two, so a
+> file moved out of `overlay/` can still serve 200 briefly. Recreate the
+> container if a negative test looks wrong.
+
 ## Notes / caveats
 
 - Artifacts are immutable per engine revision (the revision hash is in the path),
