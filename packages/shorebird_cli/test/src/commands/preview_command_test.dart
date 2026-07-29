@@ -964,6 +964,10 @@ channel: ${track.channel}
         });
       });
 
+      // Clearing data is best-effort: the app is already installed by this
+      // point, so a device that refuses `pm clear` must still get a launched
+      // app. Several vendor ROMs deny CLEAR_APP_USER_DATA to the adb shell
+      // user (shorebirdtech/shorebird#1839).
       group('when clearing app data fails', () {
         setUp(() {
           when(
@@ -973,16 +977,57 @@ channel: ${track.channel}
             ),
           ).thenAnswer(setupAndroidShorebirdYaml);
 
-          final exception = Exception('oops');
           when(
             () => adb.clearAppData(package: any(named: 'package')),
-          ).thenThrow(exception);
+          ).thenThrow(ClearAppDataException(stderr: 'oops'));
         });
 
-        test('exits with code 70', () async {
+        test('still starts the app and warns', () async {
           final result = await runWithOverrides(command.run);
-          expect(result, equals(ExitCode.software.code));
+          expect(result, equals(ExitCode.success.code));
           verify(() => adb.clearAppData(package: packageName)).called(1);
+          verify(() => adb.startApp(package: packageName)).called(1);
+          verify(
+            () => logger.warn(any(that: contains('Could not clear the app'))),
+          ).called(1);
+        });
+
+        test('explains that a previously installed patch may run', () async {
+          await runWithOverrides(command.run);
+          verify(
+            () => logger.info(
+              any(that: contains('may not be the release you just previewed')),
+            ),
+          ).called(1);
+        });
+
+        test(
+          'names the device restriction when permission was denied',
+          () async {
+            when(
+              () => adb.clearAppData(package: any(named: 'package')),
+            ).thenThrow(
+              ClearAppDataException(
+                stderr:
+                    'java.lang.SecurityException: PID 1 does not have '
+                    'permission android.permission.CLEAR_APP_USER_DATA',
+              ),
+            );
+            await runWithOverrides(command.run);
+            verify(
+              () => logger.info(any(that: contains('CLEAR_APP_USER_DATA'))),
+            ).called(1);
+          },
+        );
+
+        test('surfaces adb stderr when the cause is not a denial', () async {
+          when(
+            () => adb.clearAppData(package: any(named: 'package')),
+          ).thenThrow(ClearAppDataException(stderr: 'device offline'));
+          await runWithOverrides(command.run);
+          verify(
+            () => logger.info(any(that: contains('device offline'))),
+          ).called(1);
         });
       });
 

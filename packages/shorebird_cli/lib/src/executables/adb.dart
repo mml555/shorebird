@@ -11,6 +11,30 @@ final adbRef = create(Adb.new);
 /// The [Adb] instance available in the current zone.
 Adb get adb => read(adbRef);
 
+/// {@template clear_app_data_exception}
+/// Thrown when `adb shell pm clear` fails.
+/// {@endtemplate}
+class ClearAppDataException implements Exception {
+  /// {@macro clear_app_data_exception}
+  ClearAppDataException({required this.stderr});
+
+  /// The stderr output of the failed `pm clear` invocation.
+  final String stderr;
+
+  /// Whether the failure was the device refusing the operation rather than,
+  /// say, the package not being installed.
+  ///
+  /// Several vendor ROMs (Xiaomi/POCO, OPPO/OnePlus among them) deny
+  /// `CLEAR_APP_USER_DATA` to the adb shell user even with USB debugging on, so
+  /// this is a property of the device, not of the app or of Shorebird.
+  bool get isPermissionDenied =>
+      stderr.contains('CLEAR_APP_USER_DATA') ||
+      stderr.contains('SecurityException');
+
+  @override
+  String toString() => 'Unable to clear app data: $stderr';
+}
+
 /// A wrapper around the `adb` command.
 class Adb {
   Future<ShorebirdProcessResult> _exec(String command) async {
@@ -38,7 +62,7 @@ class Adb {
     ];
     final result = await _exec(args.join(' '));
     if (result.exitCode != 0) {
-      throw Exception('Unable to clear app data: ${result.stderr}');
+      throw ClearAppDataException(stderr: '${result.stderr}');
     }
   }
 
