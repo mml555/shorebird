@@ -182,6 +182,51 @@ only discover it on device — but building both sides ourselves keeps us
 self-consistent, so the risk lands on interop with *their* prebuilts, which the
 experimental cell does not need.
 
+### Device result (2026-07-29): builds and links, does NOT boot on a mixed set
+
+Engine `dabf1837` was built, published, and consumed by a real
+`shorebird release android`. The APK's `lib/arm64-v8a/libflutter.so` is
+byte-identical to our build (`sha256 0da873a2…`, 13,840,240 B), and on device the
+Shorebird plumbing came alive — the updater reached this control plane and got a
+real answer. Then the app died at launch:
+
+```
+[FATAL:flutter/runtime/dart_vm_initializer.cc(88)] Error while initializing the
+Dart VM: Wrong full snapshot version, expected '8889ac39…' found '839937dd…'
+```
+
+**Why, exactly:** `tools/make_version.py` computes the snapshot version as an MD5
+over `VM_SNAPSHOT_FILES`, and that list contains `dart_api_impl.cc` and
+`image_snapshot.h` — two of the three files our 57-line patch touches. So our VM
+refuses any snapshot not produced by a `gen_snapshot` built from *our* tree.
+
+The consequence is structural, not a bug to fix:
+
+- There is **no** way to be snapshot-compatible with Shorebird's prebuilt
+  `gen_snapshot` while running a non-Shorebird VM. Their `libflutter.so` and their
+  `gen_snapshot` share their VM; ours must share ours.
+- Therefore an experimental engine needs a **matching host toolchain from the same
+  tree**: `gen_snapshot`, `flutter_patched_sdk_product`, `dart-sdk-<host>`, and
+  `aot-tools.dill` — not just `libflutter.so`.
+- And since we build on Linux, releases must be **driven from Linux**: a macOS host
+  fetches `android-arm64-release/darwin-x64.zip` for `gen_snapshot`, which only a
+  macOS engine build can produce.
+
+`selfhost/cdn/nginx.conf` now treats all of those as overlay-owned, so a missing
+one 404s during the build instead of yielding an app that installs and then
+crashes. Two further corrections came out of the same run: nginx must reach GCS
+through a **variable** upstream host (a literal hostname is resolved once at
+startup including AAAA records, so a container without IPv6 egress intermittently
+502s), and Maven modules **cannot** be hash-rewritten by a proxy at all, because
+Gradle validates the version inside the `.pom` body — every module must be
+materialized locally under our hash, including ABIs we did not build.
+
+**So the minimal cell was enough to prove compile + link + publish + serve, and is
+not enough to boot.** Reaching a green device test means building the
+`host_release` targets too (`dart_sdk`, `flutter_patched_sdk`), which is the
+from-source Dart build the minimal cell was chosen to avoid — i.e. this work
+graduates to the full shard, exactly where this document said it would.
+
 ### What this does and does not put at risk
 
 | Capability | Contingent on Shorebird? |
