@@ -1,4 +1,4 @@
-<!-- cspell:words prebuilts dartsdk vmcode embedder embedders upstreamable crashpad minidumps symbolicate -->
+<!-- cspell:words prebuilts dartsdk vmcode embedder embedders upstreamable crashpad minidumps symbolicate bidiff -->
 
 # Experimental engine & runtime work — what's reachable, and what carries to iOS
 
@@ -90,19 +90,49 @@ Only a native crashpad-style collector would need layer 5, and that is optional.
 Assets are **data, not code**, so this never needs the linker or the interpreter.
 Two routes:
 
-**Route A — framework/Dart (layers 2 + 3). Unblocked today, both platforms.**
-Ship an `AssetBundle` that prefers files from the active patch directory and falls
-back to `rootBundle`. The CLI packages changed assets into the patch. The updater's
-on-disk layout is public and vendored — `patches/`, `pointers.json`,
-`patches_state.json` under the embedder-provided storage dir, downloads under
-`<code_cache_dir>/downloads` ([`config.rs:138`](../vendor/updater/library/src/config.rs),
-[`updater_state.rs:34`](../vendor/updater/library/src/cache/updater_state.rs)).
+**Route A — CLI + server + a Dart package (layers 1 + 2 + 3). Unblocked today,
+both platforms.** Spiked 2026-07-29; the design changed as a result.
 
-The one unknown to spike: how the app learns that directory. The updater is handed
-`app_storage_dir` / `code_cache_dir` by the embedder; we need to confirm those map
-to what `path_provider` returns on each platform. Note `shorebird_code_push` (the
-Dart package apps depend on) is a *separate upstream repo*, not in this one — so
-exposing a path officially means forking it or shipping our own shim.
+The obvious version — piggyback the assets inside the updater's patch file — is
+the wrong one. The updater downloads exactly one artifact and applies it as a
+bidiff, so teaching it about a second payload is a Rust change, which is linked
+into `libflutter.so`, which puts it behind an engine build. That would make the
+highest-value feature Android-only for no good reason.
+
+Better: attach the asset bundle to the patch **on the control plane** and fetch it
+from Dart.
+
+What the spike established:
+
+- The patch store is at
+  `<app_storage_path>/shorebird_updater/<app_id>/patches/<N>/`
+  (`cache/lifecycle.rs` `PATCHES_DIR` + `patch_dir(n)`, and `shorebird.cc:156-159`
+  joining `{app_storage_path, shorebird_updater_dir_name, app_id}`). On Android
+  `app_storage_path` is `getFilesDir()` — observed on device as
+  `/data/user/0/<pkg>/files/shorebird_updater/…` — which `path_provider`'s
+  `getApplicationSupportDirectory()` reaches. So Dart *can* find it. We just do not
+  need to write into it.
+- **The server already supports this with no schema change.** The `artifacts` table
+  is generic (`owner_kind`, `owner_id`, `arch`, `platform`, `hash`, `size`,
+  `storage_key`, `can_sideload`), so an asset bundle is simply another artifact
+  owned by the patch, distinguished by its `arch` value. Device delivery reuses the
+  existing signed-URL scheme in `signing.dart` (`"<token>.<exp>"`, tamper-proof).
+
+So the shape is:
+
+1. **CLI** — on patch, diff `flutter_assets`, zip the changes, upload as an extra
+   patch artifact.
+2. **Server** — one app-scoped endpoint returning a signed URL for a patch's asset
+   artifact. No protocol change to the updater, which stays stock and ignores it.
+3. **Dart package (ours)** — read the running patch number via
+   `shorebird_code_push`, fetch and cache the bundle, expose an `AssetBundle` that
+   prefers it and falls back to `rootBundle`.
+
+Trade-offs to design for: it is a second network fetch, not atomic with the code
+patch — so cached assets must be keyed by patch number and ignored unless they
+match the *running* patch, and discarded on rollback. In exchange it needs no
+engine build, no updater change, and no fork access, and it ships on Android and
+iOS simultaneously.
 
 **Route B — engine (layer 5).** Push a higher-priority `AssetResolver` into the
 common `flutter::AssetManager`. Cleaner (no app opt-in, works for

@@ -28,6 +28,11 @@
 #   --overlay <dir>    Overlay root. Default: selfhost/cdn/overlay.
 #   --bucket <name>    Bucket path segment the CLI uses for shorebird/<rev>/
 #                      artifacts. Default: download.shorebird.dev.
+#   --host-tag <tag>   Host the release will be BUILT on, for the dart-sdk zip
+#                      name: linux-x64 | darwin-arm64 | darwin-x64 | windows-x64.
+#                      Default: linux-x64 (we build the engine on Linux).
+#   --mirror <url>     Where to fetch pinned-revision Maven modules from.
+#                      Default: http://localhost:8085 (the CDN mirror).
 set -euo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." >/dev/null 2>&1 && pwd)"
@@ -37,6 +42,8 @@ STOCK_HASH=""
 FLUTTER_ROOT="$REPO_ROOT/vendor/flutter"
 OVERLAY="$REPO_ROOT/selfhost/cdn/overlay"
 BUCKET="download.shorebird.dev"
+HOST_TAG="linux-x64"
+MIRROR_URL="http://localhost:8085"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 note() { echo "==> $*"; }
@@ -48,6 +55,8 @@ while [[ $# -gt 0 ]]; do
     --root)    FLUTTER_ROOT="${2:?}"; shift 2 ;;
     --overlay) OVERLAY="${2:?}"; shift 2 ;;
     --bucket)  BUCKET="${2:?}"; shift 2 ;;
+    --host-tag) HOST_TAG="${2:?}"; shift 2 ;;
+    --mirror)  MIRROR_URL="${2:?}"; shift 2 ;;
     -h|--help) sed -n '2,30p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) die "unknown argument: $1" ;;
   esac
@@ -89,23 +98,87 @@ copy() {  # copy <src> <dest>
   fi
 }
 
-# --- Artifacts this overlay OWNS (nginx will 404 rather than fall back) ------
+# --- Engine artifacts --------------------------------------------------------
 ZIPS="$OUT/zip_archives/android-arm64-release"
 copy "$ZIPS/artifacts.zip"  "$INFRA/android-arm64-release/artifacts.zip"
 copy "$ZIPS/symbols.zip"    "$INFRA/android-arm64-release/symbols.zip"
-# Host gen_snapshot built here. Only a Linux-host build consumes it; a Mac-driven
-# `shorebird release android` fetches darwin-x64.zip, which cannot be produced on
-# Linux and is served stock by design.
+# Host gen_snapshot. NOT optional: see the VM-coupling note below.
 copy "$ZIPS/linux-x64.zip"  "$INFRA/android-arm64-release/linux-x64.zip"
 
-# The Maven artifact is what Gradle resolves, so this jar is the one that
-# actually puts our libflutter.so in the APK.
+# --- VM-coupled host toolchain (learned on device) ---------------------------
+# Dart version-locks snapshots against an MD5 over runtime/vm sources
+# (tools/make_version.py VM_SNAPSHOT_FILES), and that list includes
+# dart_api_impl.cc and image_snapshot.h — both touched by our fork. So an app
+# snapshot built by anyone else's gen_snapshot is rejected at launch with
+#   "Wrong full snapshot version, expected 'X' found 'Y'"
+# and the app dies after installing cleanly. These must therefore come from the
+# SAME tree as libflutter.so, not from the pinned revision:
+HOST_OUT="$FLUTTER_ROOT/engine/src/out/host_release"
+if [[ -d "$HOST_OUT" ]]; then
+  if [[ -d "$HOST_OUT/dart-sdk" && ! -f "$HOST_OUT/dart-sdk-$HOST_TAG.zip" ]]; then
+    note "zipping dart-sdk ($HOST_TAG)"
+    ( cd "$HOST_OUT" && zip -qr "dart-sdk-$HOST_TAG.zip" dart-sdk )
+  fi
+  copy "$HOST_OUT/dart-sdk-$HOST_TAG.zip" "$INFRA/dart-sdk-$HOST_TAG.zip"
+  copy "$HOST_OUT/zip_archives/flutter_patched_sdk_product.zip" \
+       "$INFRA/flutter_patched_sdk_product.zip"
+else
+  echo "  ! MISSING $HOST_OUT — build it with:" >&2
+  echo "      gn --runtime-mode=release --no-prebuilt-dart-sdk && \\" >&2
+  echo "      ninja -C out/host_release dart_sdk flutter/build/archives:flutter_patched_sdk" >&2
+  echo "    Without it the app installs and then dies at launch." >&2
+  missing=1
+fi
+
+# NOTE: aot-tools.dill is deliberately NOT published. It lives in
+# pkg/aot_tools inside Shorebird's PRIVATE Dart fork, so we cannot build it, and
+# vanilla Dart has no equivalent. It is the AOT linker and only the Apple
+# patchers invoke it, so Android is unaffected and the pinned copy is served.
+# This single artifact is what blocks iOS on a self-built engine.
+
+# --- Maven modules -----------------------------------------------------------
+# A proxy CANNOT hash-rewrite these: Gradle validates the version inside the
+# .pom body and fails with "inconsistent module metadata found". So every module
+# a release resolves must exist locally under our hash — including the ABIs we
+# did not build, whose jars are copied from the pinned revision with only the
+# POM version rewritten.
+#
+# Our own module's POM also needs rewriting: the engine build stamps it with the
+# Flutter checkout's HEAD, not the hash we publish under.
+pom_retag() {  # pom_retag <file> <old-version-hash>
+  [[ -f "$1" ]] || return 0
+  sed -i.bak "s|1\.0\.0-$2|1.0.0-$EXP_HASH|g" "$1" && rm -f "$1.bak"
+}
+
 copy "$OUT/arm64_v8a_release.jar" "$MAVEN/arm64_v8a_release-1.0.0-$EXP_HASH.jar"
 copy "$OUT/arm64_v8a_release.pom" "$MAVEN/arm64_v8a_release-1.0.0-$EXP_HASH.pom"
-if [[ -f "$OUT/arm64_v8a_release.maven-metadata.xml" ]]; then
-  copy "$OUT/arm64_v8a_release.maven-metadata.xml" \
-       "$MAVEN/arm64_v8a_release-1.0.0-$EXP_HASH.maven-metadata.xml"
+if [[ -f "$MAVEN/arm64_v8a_release-1.0.0-$EXP_HASH.pom" ]]; then
+  # whatever version the build stamped in, make it ours
+  BUILT_VER="$(sed -n 's|.*<version>1\.0\.0-\([0-9a-f]\{40\}\)</version>.*|\1|p' \
+    "$MAVEN/arm64_v8a_release-1.0.0-$EXP_HASH.pom" | head -1)"
+  if [[ -n "$BUILT_VER" && "$BUILT_VER" != "$EXP_HASH" ]]; then
+    pom_retag "$MAVEN/arm64_v8a_release-1.0.0-$EXP_HASH.pom" "$BUILT_VER"
+    echo "    (POM version $BUILT_VER -> $EXP_HASH)"
+  fi
 fi
+
+# The ABIs and the embedding jar we did not build: take the pinned ones and
+# retag. MIRROR_URL must serve the pinned revision (the CDN mirror does).
+for mod in flutter_embedding_release armeabi_v7a_release x86_64_release; do
+  d="$OVERLAY/download.flutter.io/io/flutter/$mod/1.0.0-$EXP_HASH"
+  mkdir -p "$d"
+  for ext in jar pom; do
+    dest="$d/$mod-1.0.0-$EXP_HASH.$ext"
+    [[ -f "$dest" ]] && continue
+    src="$MIRROR_URL/download.flutter.io/io/flutter/$mod/1.0.0-$STOCK_HASH/$mod-1.0.0-$STOCK_HASH.$ext"
+    if curl -fsSL "$src" -o "$dest"; then
+      echo "  + ${dest#"$OVERLAY"/} (from $STOCK_HASH)"
+    else
+      echo "  ! could not fetch $src" >&2; missing=1; rm -f "$dest"
+    fi
+  done
+  pom_retag "$d/$mod-1.0.0-$EXP_HASH.pom" "$STOCK_HASH"
+done
 
 # --- Manifest ----------------------------------------------------------------
 # Informational for now: nginx rewrites experimental hashes to the pinned one
