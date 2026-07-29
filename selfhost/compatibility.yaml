@@ -76,7 +76,13 @@ independence:
                          # artifact the proxy routes is on local disk and a second
                          # pass is all cache HIT. Re-warm only when adopting a new
                          # engine revision.
-  engine_from_source: false  # still consuming Shorebird's prebuilt engine binary.
+  engine_from_source: false  # BLOCKED, not merely undone: DEPS pins the Dart VM
+                             # source to the private shorebirdtech/dart-sdk, so the
+                             # captured engine source does not compile. Android is
+                             # reachable with ~50 lines on vanilla Dart; iOS needs
+                             # their AOT linker. See selfhost/ENGINE_BUILD.md and
+                             # selfhost/EXPERIMENTAL_ENGINE.md.
+                             # Still consuming Shorebird's prebuilt engine binary.
                              # SOURCE is captured (insurance vs. closed-source) and
                              # is CURRENT with the supported pin: vendor/flutter is
                              # re-vendored @ c15ef637 (engine 69f9831c, verified

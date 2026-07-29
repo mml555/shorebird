@@ -1,3 +1,5 @@
+<!-- cspell:words prebuilts -->
+
 # Self-hosted Shorebird — documentation index
 
 A compatible control plane that the unmodified, pinned Shorebird CLI and native
@@ -41,7 +43,8 @@ for the quick start and feature list.
 
 **Independence (advanced)**
 - [`CDN_INDEPENDENCE.md`](CDN_INDEPENDENCE.md) + [`cdn/`](cdn) — build-time CDN mirror (default, recommended)
-- [`ENGINE_BUILD.md`](ENGINE_BUILD.md) + [`engine/`](engine) — build the engine from captured source
+- [`ENGINE_BUILD.md`](ENGINE_BUILD.md) + [`engine/`](engine) — build the engine from captured source (⛔ blocked: private Dart VM fork — see below)
+- [`EXPERIMENTAL_ENGINE.md`](EXPERIMENTAL_ENGINE.md) — engine/runtime improvement roadmap: what's reachable today, and Android → iOS carryover
 - [`../vendor/flutter`](../vendor) + [`../vendor/updater`](../vendor) — captured source (insurance vs. upstream going closed)
 
 ## The short version of "how independent is it?"
@@ -52,8 +55,30 @@ for the quick start and feature list.
 | Runtime (device → our server) | ✅ proven, no `api.shorebird.dev` |
 | Build-time (engine via CDN mirror) | ✅ proven for pinned revisions |
 | Engine/updater **source** | ✅ captured in `vendor/` (insurance) |
-| Engine **built from source** | ⚙️ turn-key scripts (`engine/`), needs a build farm |
+| Engine **built from source** | ⛔ **blocked** — needs Shorebird's private Dart VM fork |
 
 For almost everyone, the one-click setup + the CDN mirror is the finish line.
-Building the engine yourself is insurance you only cash in if Shorebird goes
-closed or you need a Flutter version they haven't shipped.
+
+### The one thing that is blocked (read this before planning engine work)
+
+`DEPS` pins the Dart VM source to `git@github.com:shorebirdtech/dart-sdk.git`,
+which is **private** — 404 anonymously and to an authenticated account, and
+Shorebird's own docs say it is "private currently". Their *engine* and *framework*
+forks are public and captured in `vendor/flutter`; the Dart VM is not, and the
+engine will not compile without it (its hooks call two Dart APIs that vanilla Dart
+does not define).
+
+What that does and does not affect:
+
+| | |
+|---|---|
+| Runtime code push, device → this server | ✅ unaffected |
+| Building releases/patches on the current pin | ✅ unaffected (mirror is warm) |
+| Adopting a newer Flutter version | ✅ needs their published *prebuilts*, not source |
+| Building a **modified** engine | ⛔ blocked without fork access — **except on Android**, where a ~50-line patch to vanilla Dart is enough |
+| Surviving Shorebird disappearing | ⚠️ partial — we hold the engine C++ and updater, not the VM fork to compile them |
+
+Full evidence, the measured size of their changes, and what it would cost to build
+our own VM: [`ENGINE_BUILD.md`](ENGINE_BUILD.md). Which improvements are reachable
+anyway, and how much Android work carries to iOS:
+[`EXPERIMENTAL_ENGINE.md`](EXPERIMENTAL_ENGINE.md).
