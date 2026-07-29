@@ -1742,6 +1742,128 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  // Zero-config crash reporting. Boot-crash rollback already exists; what was
+  // missing is the stack trace that explains why. Intake must be as forgiving as
+  // possible — the client posting it is, by definition, an app that just died.
+  group('crash reporting', () {
+    late String appId;
+
+    Future<Response> report(Object? body, {String? rawBody}) => send(
+      'POST',
+      '/api/v1/crashes',
+      json: rawBody == null ? body : null,
+      body: rawBody,
+    );
+
+    Future<List<dynamic>> listCrashes({String query = ''}) async =>
+        (await jsonOf(
+              await send(
+                'GET',
+                '/api/v1/apps/$appId/crashes$query',
+                bearer: _bootstrapKey,
+              ),
+            ))['crashes']
+            as List<dynamic>;
+
+    setUp(() async {
+      appId = (await seedApp()).appId;
+    });
+
+    Map<String, Object?> crash({
+      String? client = 'device-1',
+      String version = '1.0.0',
+      int patch = 1,
+      String stack = 'main.dart:1\nfoo.dart:2',
+      String kind = 'FlutterError',
+    }) => {
+      'app_id': appId,
+      'client_id': client,
+      'release_version': version,
+      'patch_number': patch,
+      'platform': 'android',
+      'arch': 'aarch64',
+      'kind': kind,
+      'message': 'boom',
+      'stack': stack,
+      'timestamp': 1700000000,
+    };
+
+    test('stores a report and reads it back', () async {
+      expect((await jsonOf(await report(crash())))['stored'], isTrue);
+      final list = await listCrashes();
+      expect(list, hasLength(1));
+      final c = list.single as Map<String, dynamic>;
+      expect(c['release_version'], '1.0.0');
+      expect(c['patch_number'], 1);
+      expect(c['arch'], 'aarch64');
+      expect(c['kind'], 'FlutterError');
+      expect(c['stack'], contains('foo.dart:2'));
+      // Normalized regardless of backend, and parseable.
+      expect(() => DateTime.parse(c['received_at'] as String), returnsNormally);
+    });
+
+    test('a crash loop collapses to one row', () async {
+      for (var i = 0; i < 5; i++) {
+        await report(crash());
+      }
+      expect(await listCrashes(), hasLength(1));
+      // Second post reports stored:false rather than erroring.
+      expect((await jsonOf(await report(crash())))['stored'], isFalse);
+    });
+
+    test('a genuinely different stack is kept', () async {
+      await report(crash());
+      await report(crash(stack: 'other.dart:9'));
+      expect(await listCrashes(), hasLength(2));
+    });
+
+    test('narrows by release version and patch number', () async {
+      await report(crash());
+      await report(crash(version: '2.0.0', patch: 7, stack: 'a.dart:1'));
+      expect(await listCrashes(query: '?release_version=2.0.0'), hasLength(1));
+      expect(await listCrashes(query: '?patch_number=7'), hasLength(1));
+      expect(await listCrashes(query: '?patch_number=999'), isEmpty);
+    });
+
+    test('accepts a nested {crash: {...}} envelope', () async {
+      expect(
+        (await jsonOf(await report({'crash': crash()})))['stored'],
+        isTrue,
+      );
+      expect(await listCrashes(), hasLength(1));
+    });
+
+    test('garbage never fails the reporter', () async {
+      // An app in a crash loop must not also be fighting 4xx/5xx.
+      for (final r in [
+        await report(null, rawBody: 'not json at all'),
+        await report(<String, Object?>{}),
+        await report({'app_id': 12345}),
+        await report(null, rawBody: ''),
+      ]) {
+        expect(r.statusCode, HttpStatus.ok);
+        expect((await jsonOf(r))['stored'], anyOf(isTrue, isFalse));
+      }
+    });
+
+    test('needs no bearer token', () async {
+      final r = await send('POST', '/api/v1/crashes', json: crash());
+      expect(r.statusCode, HttpStatus.ok);
+    });
+
+    test('another tenant cannot read this app\'s crashes', () async {
+      await report(crash());
+      final other = await otherTenant();
+      final r = await send(
+        'GET',
+        '/api/v1/apps/$appId/crashes',
+        bearer: other.key,
+      );
+      expect(r.statusCode, anyOf(HttpStatus.notFound, HttpStatus.forbidden));
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Asset support in patches. The bundle rides along as an ordinary patch
   // artifact tagged `arch: assets`, and app-side Dart fetches it from
   // /patches/assets. The native updater is never involved, which is what keeps

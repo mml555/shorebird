@@ -286,6 +286,35 @@ class Repository {
         'ALTER TABLE patches ADD COLUMN metadata TEXT',
       ],
     ),
+    (
+      8,
+      [
+        // Crash reports posted by devices. Shorebird's boot-crash detection
+        // already rolls a bad patch back, but the stack trace that explains WHY
+        // never leaves the device — the CLI only emits symbols for third-party
+        // crash tools. This is the store behind zero-config crash reporting:
+        // reports land keyed to (app, release_version, patch_number, arch) so a
+        // symbol set retained for the same tuple can resolve them later.
+        //
+        // `raw` keeps the exact payload. Everything else is a projection for
+        // querying, mirroring how `events` is shaped — the same reasoning
+        // applies (a device wire format we do not control should be stored
+        // verbatim and indexed opportunistically).
+        //
+        // dedupe_key is UNIQUE: crash reporters retry, and a device that cannot
+        // reach the server buffers and re-posts. Without it a single crash loop
+        // would flood the table.
+        '''CREATE TABLE IF NOT EXISTS crash_reports(
+              id SERIAL PRIMARY KEY, dedupe_key TEXT UNIQUE, raw TEXT NOT NULL,
+              app_id TEXT, client_id TEXT, release_version TEXT,
+              patch_number INTEGER, platform TEXT, arch TEXT,
+              kind TEXT, message TEXT, stack TEXT, ts BIGINT,
+              received_at TIMESTAMPTZ NOT NULL DEFAULT now())''',
+        'CREATE INDEX IF NOT EXISTS crash_reports_app_idx ON crash_reports(app_id)',
+        'CREATE INDEX IF NOT EXISTS crash_reports_tuple_idx '
+            'ON crash_reports(app_id, release_version, patch_number)',
+      ],
+    ),
   ];
 
   /// Indexes for the access paths that would otherwise scan. `events` is the
@@ -1464,6 +1493,73 @@ class Repository {
       },
     );
     return r.isNotEmpty;
+  }
+
+  // ---- Crash reports (device-posted, deduped) ----
+
+  /// Stores a crash report. Returns false when [dedupeKey] was already seen,
+  /// which is the normal case for a retrying reporter or a crash loop rather
+  /// than an error.
+  Future<bool> insertCrashReport({
+    required String raw,
+    String? dedupeKey,
+    String? appId,
+    String? clientId,
+    String? releaseVersion,
+    int? patchNumber,
+    String? platform,
+    String? arch,
+    String? kind,
+    String? message,
+    String? stack,
+    int? ts,
+  }) async {
+    final r = await _q(
+      'INSERT INTO crash_reports(dedupe_key, raw, app_id, client_id, '
+      'release_version, patch_number, platform, arch, kind, message, stack, ts) '
+      'VALUES (@dk,@raw,@a,@c,@rv,@pn,@pl,@ar,@k,@m,@st,@ts) '
+      'ON CONFLICT(dedupe_key) DO NOTHING RETURNING id',
+      {
+        'dk': dedupeKey,
+        'raw': raw,
+        'a': appId,
+        'c': clientId,
+        'rv': releaseVersion,
+        'pn': patchNumber,
+        'pl': platform,
+        'ar': arch,
+        'k': kind,
+        'm': message,
+        'st': stack,
+        'ts': ts,
+      },
+    );
+    return r.isNotEmpty;
+  }
+
+  /// Crash reports for an app, newest first. [releaseVersion] and [patchNumber]
+  /// narrow to the tuple a symbol set would be retained against.
+  Future<List<Map<String, Object?>>> crashReports(
+    String appId, {
+    String? releaseVersion,
+    int? patchNumber,
+    int limit = 100,
+  }) async {
+    final where = <String>['app_id = @a'];
+    final args = <String, Object?>{'a': appId, 'lim': limit};
+    if (releaseVersion != null) {
+      where.add('release_version = @rv');
+      args['rv'] = releaseVersion;
+    }
+    if (patchNumber != null) {
+      where.add('patch_number = @pn');
+      args['pn'] = patchNumber;
+    }
+    return _q(
+      'SELECT * FROM crash_reports WHERE ${where.join(' AND ')} '
+      'ORDER BY id DESC LIMIT @lim',
+      args,
+    );
   }
 
   // ---- OAuth codes + refresh tokens (persisted, single-use) ----

@@ -294,6 +294,7 @@ class Api {
     // app_id. `assets` joins it for the same reason — it is asked by app-side
     // Dart on launch, which has no credential either, and it answers only for a
     // patch number the caller already names.
+    if (tail.length == 1 && tail[0] == 'crashes') return true;
     return tail.length == 2 &&
         tail[0] == 'patches' &&
         (tail[1] == 'check' || tail[1] == 'events' || tail[1] == 'assets');
@@ -458,6 +459,9 @@ class Api {
       if (devTail[1] == 'events') return _patchesEvents(req);
       if (devTail[1] == 'assets') return _patchesAssets(req);
     }
+    if (devTail.length == 1 && devTail[0] == 'crashes' && m == 'POST') {
+      return _crashesReport(req);
+    }
 
     if (seg.isNotEmpty && seg[0] == 'admin') return _admin(req, seg.sublist(1));
 
@@ -608,6 +612,9 @@ class Api {
       // info` prints it. Mirrors the shape of the release PATCH above.
       if (rest.length == 2 && rest[0] == 'patches' && m == 'PATCH') {
         return _updatePatch(req, appId, _pathId(rest[1], 'patch id'));
+      }
+      if (rest.length == 1 && rest[0] == 'crashes' && m == 'GET') {
+        return _getCrashes(req, appId);
       }
       if (rest.length == 1 && rest[0] == 'releases') {
         if (m == 'POST') return _createRelease(req, appId);
@@ -1981,6 +1988,109 @@ class Api {
         },
       ),
     );
+  }
+
+  /// `POST /crashes` — device-facing crash ingestion.
+  ///
+  /// Shorebird already detects a boot crash and rolls the patch back, but the
+  /// stack trace explaining *why* never leaves the device: the CLI only emits
+  /// symbols for third-party crash tools. This is the intake for that, so a
+  /// self-hosted deployment gets crash visibility without bolting on a
+  /// third-party SDK.
+  ///
+  /// Same posture as `patches/check` and `patches/events`: unauthenticated,
+  /// `app_id`-scoped, and tolerant of anything malformed — a crashing app must
+  /// never be made worse by its own reporter. Always answers 200 with
+  /// `{stored: bool}`; `false` means the report deduped, which is the normal
+  /// outcome for a retrying reporter or a crash loop.
+  Future<Response> _crashesReport(Request req) async {
+    final raw = await _readText(req);
+    obs.info('crashes/report', {'bytes': raw.length});
+    try {
+      final decoded = jsonDecode(raw);
+      final m = decoded is Map ? decoded : const {};
+      final body = m['crash'] is Map ? m['crash'] as Map : m;
+      String? str(String k) => body[k] is String ? body[k] as String : null;
+      int? integer(String k) => body[k] is int ? body[k] as int : null;
+
+      final appId = str('app_id');
+      final clientId = str('client_id');
+      final releaseVersion = str('release_version');
+      final patchNumber = integer('patch_number');
+      final stack = str('stack') ?? str('stack_trace');
+      final ts = integer('timestamp') ?? integer('ts');
+
+      // Dedupe on identity + the stack itself, so a loop collapses to one row
+      // while genuinely different crashes from the same build still land.
+      final dedupe = [
+        clientId,
+        appId,
+        releaseVersion,
+        patchNumber,
+        str('kind'),
+        // A whole stack makes an unwieldy key; its hash is enough.
+        if (stack != null) sha256.convert(utf8.encode(stack)).toString(),
+        ts,
+      ].join('|');
+
+      final stored = await repo.insertCrashReport(
+        raw: raw,
+        dedupeKey: dedupe,
+        appId: appId,
+        clientId: clientId,
+        releaseVersion: releaseVersion,
+        patchNumber: patchNumber,
+        platform: str('platform'),
+        arch: str('arch'),
+        kind: str('kind'),
+        message: str('message'),
+        stack: stack,
+        ts: ts,
+      );
+      return _json({'stored': stored});
+    } on Object catch (e) {
+      // Deliberately swallowed. An app in a crash loop retrying a malformed
+      // report should not also be fighting 4xx/5xx responses.
+      obs.info('crashes/report rejected', {'error': '$e'});
+      return _json({'stored': false});
+    }
+  }
+
+  /// `GET /api/v1/apps/{appId}/crashes` — authenticated read for the console.
+  ///
+  /// `release_version` and `patch_number` narrow to the tuple a retained symbol
+  /// set would be keyed by, which is how symbolication will find its inputs.
+  Future<Response> _getCrashes(Request req, String appId) async {
+    await _authorizeApp(req, appId);
+    final q = req.url.queryParameters;
+    final reports = await repo.crashReports(
+      appId,
+      releaseVersion: q['release_version'],
+      patchNumber: int.tryParse(q['patch_number'] ?? ''),
+      limit: int.tryParse(q['limit'] ?? '') ?? 100,
+    );
+    return _json({
+      'crashes': [
+        for (final r in reports)
+          {
+            'id': r['id'],
+            'client_id': r['client_id'],
+            'release_version': r['release_version'],
+            'patch_number': r['patch_number'],
+            'platform': r['platform'],
+            'arch': r['arch'],
+            'kind': r['kind'],
+            'message': r['message'],
+            'stack': r['stack'],
+            'ts': r['ts'],
+            // Postgres hands back a DateTime here, SQLite a String. Normalize
+            // so the wire shape does not depend on the backend.
+            'received_at': r['received_at'] is DateTime
+                ? (r['received_at']! as DateTime).toUtc().toIso8601String()
+                : '${r['received_at']}',
+          },
+      ],
+    });
   }
 
   Future<Response> _patchesEvents(Request req) async {
