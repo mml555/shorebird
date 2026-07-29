@@ -211,12 +211,33 @@ some app is not enough. To add someone to *your* org instead, use an invitation.
 | DELETE | `/admin/orgs/{orgId}/invitations/{token}` | org admin | `{"revoked":true}` |
 | POST | `/api/v1/invitations/{token}/accept` | the invited user (bearer) | `{"joined_org","role"}` — email must match the invite; not expired/accepted |
 
+### Allowed email domains (org restriction)
+
+| Method | Path | Auth | Response |
+|---|---|---|---|
+| GET | `/admin/orgs/{orgId}/domains` | org admin | `{"domains":["company.com"]}` — empty means unrestricted |
+| PUT | `/admin/orgs/{orgId}/domains?domains=a.com,b.com` | org admin | `{org_id,domains}` · `?domains=` clears · **409** if it would exclude every owner/admin · **400** if nothing in the list parses as a domain |
+
+Restricts an org to one or more email domains, so a personal account can't be
+added to a company org or onto one of its apps. With a policy set, both
+`POST /admin/orgs/{orgId}/invitations` and
+`POST /admin/apps/{appId}/collaborators` reject an out-of-domain address with
+`403`, naming the policy.
+
+- **Unrestricted is the default**, so an existing deployment is unaffected.
+- **Existing members are never evicted.** The policy governs who can be *added*
+  from then on; it does not re-check people who are already in.
+- **Matching is exact on the domain.** `company.com` does not admit
+  `mail.company.com`, so the org can't be widened by a subdomain someone else
+  controls. Input is normalized: case-insensitive, and a leading `@` or `*.` is
+  accepted and stripped.
+
 ### App collaborators
 
 | Method | Path | Auth | Response |
 |---|---|---|---|
 | GET | `/admin/apps/{appId}/collaborators` | app access | `{"collaborators":[{user_id,email,display_name,role}]}` |
-| POST | `/admin/apps/{appId}/collaborators?email=&role=` | app access | `{app_id,user_id,role}` — the user must already exist |
+| POST | `/admin/apps/{appId}/collaborators?email=&role=` | app access | `{app_id,user_id,role}` — the user must already exist · **403** if the owning org restricts email domains |
 | DELETE | `/admin/apps/{appId}/collaborators/{userId}` | app access | `{"removed":true}` |
 
 ### Rollout & rollback

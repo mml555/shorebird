@@ -30,6 +30,28 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Addresses upstream shorebirdtech/shorebird#1288 and #3767. No CLI change is
   needed — the pinned CLI already parses and prints the field.
 
+- **An organization can be restricted to one or more email domains**, so a
+  personal account can't be added to a company org or onto one of its apps
+  (schema migration **v6**). Managed from the console's **Team** tab, or:
+  - `GET /admin/orgs/{orgId}/domains` — read the allowlist.
+  - `PUT /admin/orgs/{orgId}/domains?domains=company.com,company.co.uk` — set
+    it; `?domains=` clears it.
+
+  With a policy set, both org invitations and app-collaborator grants reject an
+  out-of-domain address with `403`, naming the policy. Notable choices:
+  - Unrestricted is the default, so existing deployments are unaffected.
+  - Existing members are never evicted — the policy governs who can be *added*
+    from then on. Evicting silently on the next request is a far worse failure
+    than refusing an add.
+  - A policy that would exclude every owner/admin is refused with `409`: it is
+    only ever a typo, and it would leave nobody able to invite.
+  - Matching is exact on the domain, so `company.com` does not admit
+    `mail.company.com` and the org can't be widened by a subdomain someone else
+    controls. A non-empty list that parses to no valid domain is a `400`, not a
+    silent clear.
+
+  Addresses upstream shorebirdtech/shorebird#3056.
+
 ## 1.1.0 — 2026-07-28
 
 Shipped in the `selfhost-v1.0.0` distribution baseline.

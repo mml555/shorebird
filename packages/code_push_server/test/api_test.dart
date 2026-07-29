@@ -1694,6 +1694,162 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  // Restricting an org to one or more email domains, so a personal account
+  // can't be added to a company org or onto one of its apps.
+  group('org email-domain restriction', () {
+    /// The bootstrap user's org (they are its owner).
+    Future<int> rootOrg() async => (await repo.memberships(1)).first.orgId;
+
+    Future<Response> setDomains(
+      int orgId,
+      String domains, {
+      String? bearer,
+    }) => send(
+      'PUT',
+      '/admin/orgs/$orgId/domains?domains=${Uri.encodeQueryComponent(domains)}',
+      bearer: bearer ?? _bootstrapKey,
+    );
+
+    Future<Response> invite(int orgId, String email) => send(
+      'POST',
+      '/admin/orgs/$orgId/invitations?email=${Uri.encodeQueryComponent(email)}',
+      bearer: _bootstrapKey,
+    );
+
+    test('an org is unrestricted by default', () async {
+      final orgId = await rootOrg();
+      final r = await jsonOf(
+        await send('GET', '/admin/orgs/$orgId/domains', bearer: _bootstrapKey),
+      );
+      expect(r['domains'], isEmpty);
+      expect(
+        (await invite(orgId, 'anyone@gmail.com')).statusCode,
+        HttpStatus.ok,
+      );
+    });
+
+    test('setting a policy round-trips normalized domains', () async {
+      final orgId = await rootOrg();
+      final put = await jsonOf(
+        await setDomains(orgId, '@Self-Host.local, example.COM'),
+      );
+      expect(put['domains'], ['self-host.local', 'example.com']);
+      final get = await jsonOf(
+        await send('GET', '/admin/orgs/$orgId/domains', bearer: _bootstrapKey),
+      );
+      expect(get['domains'], ['self-host.local', 'example.com']);
+    });
+
+    test(
+      'an in-domain invitation is allowed, an out-of-domain one is not',
+      () async {
+        final orgId = await rootOrg();
+        await setDomains(orgId, 'self-host.local,example.com');
+        expect(
+          (await invite(orgId, 'dev@example.com')).statusCode,
+          HttpStatus.ok,
+        );
+        final bad = await invite(orgId, 'someone@gmail.com');
+        expect(bad.statusCode, HttpStatus.forbidden);
+        // The refusal names the policy so an admin can act on it.
+        expect((await jsonOf(bad))['message'], contains('example.com'));
+      },
+    );
+
+    // The case the upstream request is actually about: a personal account added
+    // straight onto a company app, bypassing the org invitation flow.
+    test(
+      'an out-of-domain collaborator cannot be added to the org\'s app',
+      () async {
+        final orgId = await rootOrg();
+        final s = await seedApp();
+        await repo.upsertUser('personal@gmail.com', 'Personal');
+        await repo.upsertUser('colleague@example.com', 'Colleague');
+        await setDomains(orgId, 'example.com,self-host.local');
+
+        final bad = await send(
+          'POST',
+          '/admin/apps/${s.appId}/collaborators?email=personal%40gmail.com',
+          bearer: _bootstrapKey,
+        );
+        expect(bad.statusCode, HttpStatus.forbidden);
+
+        final ok = await send(
+          'POST',
+          '/admin/apps/${s.appId}/collaborators?email=colleague%40example.com',
+          bearer: _bootstrapKey,
+        );
+        expect(ok.statusCode, HttpStatus.ok);
+      },
+    );
+
+    test('clearing the policy makes the org unrestricted again', () async {
+      final orgId = await rootOrg();
+      await setDomains(orgId, 'example.com,self-host.local');
+      expect(
+        (await invite(orgId, 'someone@gmail.com')).statusCode,
+        HttpStatus.forbidden,
+      );
+      final cleared = await jsonOf(await setDomains(orgId, ''));
+      expect(cleared['domains'], isEmpty);
+      expect(
+        (await invite(orgId, 'someone@gmail.com')).statusCode,
+        HttpStatus.ok,
+      );
+    });
+
+    // Existing members predate the policy and keep their access; the policy
+    // governs additions only. Evicting on the next request would be far worse.
+    test(
+      'an existing member is not evicted by a policy that excludes them',
+      () async {
+        final orgId = await rootOrg();
+        final before = await repo.orgMembers(orgId);
+        await setDomains(orgId, 'example.com,self-host.local');
+        expect(await repo.orgMembers(orgId), hasLength(before.length));
+        expect(await repo.userCanAccessApp(1, (await seedApp()).appId), isTrue);
+      },
+    );
+
+    test('a policy excluding every owner/admin is refused', () async {
+      final orgId = await rootOrg();
+      // The only owner is owner@self-host.local, so this would strand the org.
+      final r = await setDomains(orgId, 'example.com');
+      expect(r.statusCode, HttpStatus.conflict);
+      expect(await repo.orgAllowedDomains(orgId), isEmpty);
+    });
+
+    test(
+      'a non-empty but unparseable list is a 400, not a silent clear',
+      () async {
+        final orgId = await rootOrg();
+        await setDomains(orgId, 'self-host.local');
+        final r = await setDomains(orgId, 'localhost, nope');
+        expect(r.statusCode, HttpStatus.badRequest);
+        expect(await repo.orgAllowedDomains(orgId), ['self-host.local']);
+      },
+    );
+
+    test('a non-admin can neither read nor set the policy', () async {
+      final orgId = await rootOrg();
+      final other = await otherTenant();
+      expect(
+        (await send(
+          'GET',
+          '/admin/orgs/$orgId/domains',
+          bearer: other.key,
+        )).statusCode,
+        HttpStatus.forbidden,
+      );
+      expect(
+        (await setDomains(orgId, 'evil.test', bearer: other.key)).statusCode,
+        HttpStatus.forbidden,
+      );
+      expect(await repo.orgAllowedDomains(orgId), isEmpty);
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Tracks are channels: `shorebird patches set-track --track=<name>` resolves
   // the channel and promotes onto it, so several patches can be live at once on
   // different tracks and each device follows only its own. This pins the

@@ -247,6 +247,15 @@ class Repository {
         'ALTER TABLE patches ADD COLUMN notes TEXT',
       ],
     ),
+    (
+      6,
+      [
+        // Optional per-org email-domain allowlist, stored as a comma-separated
+        // list of lowercase domains. NULL/empty means unrestricted, which is
+        // every org's default — so an existing deployment is unaffected.
+        'ALTER TABLE organizations ADD COLUMN allowed_email_domains TEXT',
+      ],
+    ),
   ];
 
   /// Indexes for the access paths that would otherwise scan. `events` is the
@@ -676,6 +685,32 @@ class Repository {
       {'o': orgId},
     );
     return _int(r.first['c']);
+  }
+
+  /// The org's email-domain allowlist, lowercased. Empty means unrestricted.
+  Future<List<String>> orgAllowedDomains(int orgId) async {
+    final r = await _q(
+      'SELECT allowed_email_domains AS d FROM organizations WHERE id = @o',
+      {'o': orgId},
+    );
+    if (r.isEmpty) return const [];
+    return parseDomainList(r.first['d'] as String?);
+  }
+
+  /// Replaces the org's allowlist. An empty [domains] clears it (unrestricted).
+  Future<void> setOrgAllowedDomains(int orgId, List<String> domains) => _q(
+    'UPDATE organizations SET allowed_email_domains = @d, updated_at = now() '
+    'WHERE id = @o',
+    {'d': domains.isEmpty ? null : domains.join(','), 'o': orgId},
+  );
+
+  /// The org that owns [appId], or null if there is no such app. Needed to
+  /// resolve an app-scoped request back to the org whose policy governs it.
+  Future<int?> appOrgId(String appId) async {
+    final r = await _q('SELECT org_id FROM apps WHERE app_id = @a', {
+      'a': appId,
+    });
+    return r.isEmpty ? null : _int(r.first['org_id']);
   }
 
   /// Pending (unaccepted) invitations for [orgId].

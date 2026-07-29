@@ -1006,6 +1006,26 @@ class Api {
   }
 
   /// Authorizes the caller for [appId] via org membership or collaboration.
+  /// Enforces an org's email-domain allowlist before [email] is granted access
+  /// to it (or to one of its apps).
+  ///
+  /// A no-op for orgs with no policy, which is the default. Existing members are
+  /// never re-checked: setting a policy governs who can be added from then on,
+  /// it does not evict anyone — evicting silently on the next request would be a
+  /// far worse failure than refusing the add.
+  Future<void> _requireEmailAllowedInOrg(int orgId, String email) async {
+    final domains = await repo.orgAllowedDomains(orgId);
+    if (emailAllowedByDomains(email, domains)) return;
+    // Names the policy: the caller is an org admin who can change it, and
+    // "forbidden" with no reason is the kind of thing that turns into a support
+    // ticket.
+    throw DomainException(
+      HttpStatus.forbidden,
+      'forbidden',
+      'Organization $orgId only admits addresses at ${domains.join(', ')}',
+    );
+  }
+
   Future<void> _authorizeApp(Request req, String appId) async {
     if (!await repo.userCanAccessApp(_uid(req), appId)) {
       throw DomainException(
@@ -1867,6 +1887,7 @@ class Api {
         orDefault: 'developer',
       );
       if (email == null) throw badRequest('email required');
+      await _requireEmailAllowedInOrg(orgId, email);
       final token = await repo.createInvitation(orgId, email, role);
       await repo.audit(
         'org.invite',
@@ -1916,6 +1937,13 @@ class Api {
         orDefault: 'developer',
       );
       if (email == null) throw badRequest('email required');
+      // The policy lives on the owning org, and a collaborator grant is a way
+      // into that org's app — so it has to be checked here too, not just on the
+      // invitation path. This is the case the upstream request is really about:
+      // a personal account added straight onto a company app.
+      final appOrgId = await repo.appOrgId(appId);
+      if (appOrgId == null) throw notFound('No app $appId');
+      await _requireEmailAllowedInOrg(appOrgId, email);
       final user = await repo.userByEmail(email);
       if (user == null) throw notFound('No user $email');
       await repo.addCollaborator(appId, user.id, role);
@@ -2087,6 +2115,59 @@ class Api {
         );
       }
       return _json({'invitations': await repo.orgInvitations(orgId)});
+    }
+    // GET  /admin/orgs/{orgId}/domains
+    // PUT  /admin/orgs/{orgId}/domains?domains=example.com,example.org
+    //
+    // The org's email-domain allowlist. An empty `domains` clears the policy.
+    if (seg.length == 3 &&
+        seg[0] == 'orgs' &&
+        seg[2] == 'domains' &&
+        (req.method == 'GET' || req.method == 'PUT')) {
+      final orgId = _pathId(seg[1], 'org id');
+      // Reading is admin-only too: the allowlist names the company's mail
+      // domains, which is not something a `developer` needs.
+      if (!await repo.userIsOrgAdmin(_uid(req), orgId)) {
+        throw DomainException(
+          HttpStatus.forbidden,
+          'forbidden',
+          'Not an org admin',
+        );
+      }
+      if (req.method == 'GET') {
+        return _json({'domains': await repo.orgAllowedDomains(orgId)});
+      }
+      final raw = req.url.queryParameters['domains'] ?? '';
+      final domains = parseDomainList(raw);
+      // Refuse a policy that would lock out every current owner/admin: nobody
+      // left could invite, and it is only ever a typo. Existing members keep
+      // access either way, so this is about not stranding administration.
+      if (domains.isNotEmpty) {
+        final admins = (await repo.orgMembers(orgId))
+            .where((m) => _adminRoles.contains(m['role']))
+            .map((m) => (m['email'] as String?) ?? '')
+            .toList();
+        if (admins.isNotEmpty &&
+            !admins.any((e) => emailAllowedByDomains(e, domains))) {
+          throw conflict(
+            'That policy would exclude every owner/admin of the org '
+            '(${admins.join(', ')})',
+          );
+        }
+      }
+      // A non-empty request that parses to nothing is a malformed list, not a
+      // request to clear — clearing is `?domains=`.
+      if (domains.isEmpty && raw.trim().isNotEmpty) {
+        throw badRequest('No valid domains in "$raw"');
+      }
+      await repo.setOrgAllowedDomains(orgId, domains);
+      await repo.audit(
+        'org.domains',
+        actor: '${_uid(req)}',
+        target: '$orgId',
+        detail: domains.isEmpty ? 'cleared' : domains.join(','),
+      );
+      return _json({'org_id': orgId, 'domains': domains});
     }
     // DELETE /admin/orgs/{orgId}/invitations/{token}
     if (req.method == 'DELETE' &&

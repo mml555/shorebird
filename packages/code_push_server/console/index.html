@@ -491,17 +491,19 @@ hr{border:none;height:0;margin:1.1rem 0}
     const d=$("detail");
     d.innerHTML=skeletonDetail();
     const isAdmin = role==="owner"||role==="admin";
-    const [mRes,iRes]=await Promise.all([
+    const [mRes,iRes,dRes]=await Promise.all([
       tryApi("GET","/admin/orgs/"+orgId+"/members"),
-      isAdmin?tryApi("GET","/admin/orgs/"+orgId+"/invitations"):Promise.resolve({ok:false,status:403})
+      isAdmin?tryApi("GET","/admin/orgs/"+orgId+"/invitations"):Promise.resolve({ok:false,status:403}),
+      isAdmin?tryApi("GET","/admin/orgs/"+orgId+"/domains"):Promise.resolve({ok:false,status:403})
     ]);
     const members=mRes.ok?((mRes.data&&mRes.data.members)||[]):[];
     const invites=iRes.ok?((iRes.data&&iRes.data.invitations)||[]):[];
-    d.innerHTML=renderTeam(orgId,name,role,isAdmin,members,invites,mRes);
+    const domains=dRes.ok?((dRes.data&&dRes.data.domains)||[]):[];
+    d.innerHTML=renderTeam(orgId,name,role,isAdmin,members,invites,mRes,domains);
     wireTeam(orgId,isAdmin);
   }
 
-  function renderTeam(orgId,name,role,isAdmin,members,invites,mRes){
+  function renderTeam(orgId,name,role,isAdmin,members,invites,mRes,domains){
     const meId=state.me&&state.me.user_id;
     let h=`<div class="panel"><div class="hd"><span>Team · ${esc(name)}</span><span class="pill">${esc(role)}</span></div><div class="bd">`;
     if(!isAdmin) h+=`<div class="empty" style="margin-bottom:.6rem">You are a <b>${esc(role)}</b> — viewing only. Owners and admins can invite and manage members.</div>`;
@@ -522,6 +524,20 @@ hr{border:none;height:0;margin:1.1rem 0}
          `<div class="field" style="margin-bottom:.5rem"><label for="invEmail">Email</label><input id="invEmail" placeholder="teammate@company.com"></div>`+
          `<div class="field" style="margin-bottom:.5rem"><label for="invRole">Role</label><select id="invRole">${ROLES.map(r=>`<option value="${r}"${r==="developer"?" selected":""}>${r}</option>`).join("")}</select></div>`+
          `<button class="primary" id="inviteBtn">Send invite</button><div id="inviteOut"></div></div></div></div>`;
+      // Domain allowlist: governs who can be *added* from now on (invitations
+      // and app collaborators). Existing members are never evicted by it.
+      const dl=(domains||[]).join(", ");
+      h+=`<div class="section"><div class="panel"><div class="hd">`+
+         `<span>Allowed email domains</span>`+
+         `<span class="pill${dl?" active":""}">${dl?"restricted":"unrestricted"}</span></div><div class="bd">`+
+         `<div class="field" style="margin-bottom:.5rem"><label for="domList">Domains</label>`+
+         `<input id="domList" placeholder="company.com, company.co.uk" value="${esc(dl)}"></div>`+
+         `<div class="muted" style="font-size:12.5px;margin-bottom:.5rem">`+
+         `Comma-separated. Leave empty to allow any address. Applies to new invitations and `+
+         `app collaborators — current members keep their access. Matching is exact, so `+
+         `<code>company.com</code> does not include <code>mail.company.com</code>.</div>`+
+         `<button class="primary" id="domSaveBtn">Save domains</button><div id="domOut"></div>`+
+         `</div></div></div>`;
       h+=`<div class="section"><div class="panel"><div class="hd">Pending invitations <span class="pill">${invites.length}</span></div><div class="bd">`;
       if(!invites.length) h+=`<div class="empty">No pending invitations.</div>`;
       else{
@@ -556,6 +572,21 @@ hr{border:none;height:0;margin:1.1rem 0}
     document.querySelectorAll("[data-copy]").forEach(b=>{ b.onclick=()=>{ if(navigator.clipboard) navigator.clipboard.writeText(b.getAttribute("data-copy")); toast("Invite link copied.","ok"); }; });
     const inv=$("inviteBtn"); if(inv) inv.onclick=()=>sendInvite(orgId);
     const cu=$("createUserBtn"); if(cu) cu.onclick=()=>createUser();
+    const ds=$("domSaveBtn"); if(ds) ds.onclick=()=>saveDomains(orgId);
+  }
+
+  // An empty box clears the policy; the server refuses a list that would lock
+  // out every owner/admin, and reports it as a 409 we surface verbatim.
+  async function saveDomains(orgId){
+    const raw=$("domList").value.trim();
+    try{
+      const r=await api("PUT","/admin/orgs/"+orgId+"/domains?domains="+encodeURIComponent(raw));
+      const list=(r.domains||[]);
+      $("domOut").innerHTML=okBox(list.length
+        ? `Restricted to <code>${esc(list.join(", "))}</code>. Current members keep access.`
+        : "Cleared — any email address may be added.");
+      selectOrg(orgId, orgName(orgId), state.selectedOrgRole);
+    }catch(e){ toast("Saving domains failed: "+e.message,"err"); }
   }
 
   async function sendInvite(orgId){
