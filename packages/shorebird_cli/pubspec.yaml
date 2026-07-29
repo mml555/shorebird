@@ -2,7 +2,7 @@ name: shorebird_cli
 description: >-
   Command-line tool to interact with Shorebird code-push services, hosted or
   self-hosted. Fork build — see RELEASE_NOTES.md for what differs from upstream.
-version: 1.6.114+selfhost.1
+version: 1.6.115+selfhost.1
 repository: https://github.com/mml555/shorebird
 resolution: workspace
 

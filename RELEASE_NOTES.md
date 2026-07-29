@@ -1,8 +1,23 @@
 # Release Notes
 
 <!--
-cspell:words pubspec erickzanardo xcframeworks cupertino codesign codecov rkishan appbundle proto tlsv kingdomseed Peetee Aditya serde bipatch GLES
+cspell:words pubspec erickzanardo xcframeworks cupertino codesign codecov rkishan appbundle proto tlsv kingdomseed Peetee Aditya serde bipatch GLES lipo
  -->
+
+## 1.6.115+selfhost.1 (July 29, 2026)
+
+Fork build of upstream 1.6.115. Carries the fork's CLI changes (per-platform
+patch metadata, trace-support allowlist removal — see 1.6.114+selfhost.1 below)
+forward onto upstream's 1.6.115 base. Not an upstream release — see
+[`selfhost/`](selfhost/README.md).
+
+## 1.6.115 (July 28, 2026)
+
+- 🐦 Flutter 3.44.8 / Dart 3.12.2 support
+  - Android: fix a startup crash on vendor-modified devices caused by the
+    accessibility bridge failing during initialization.
+  - iOS/macOS: fix framework builds failing under Xcode 27 due to a `lipo`
+    architecture verification error.
 
 ## 1.6.114+selfhost.1 (July 28, 2026)
 
