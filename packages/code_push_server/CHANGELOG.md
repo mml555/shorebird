@@ -52,6 +52,32 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
   Addresses upstream shorebirdtech/shorebird#3056.
 
+- **Build provenance is captured instead of discarded** (schema migration
+  **v7**). The CLI already attaches a `metadata` blob to every release status
+  update and patch creation — Shorebird/Flutter versions, OS and Xcode versions,
+  which flags were used, `BuildTraceSummary` timings — and the server threw all
+  of it away. It is now stored per release and per patch, returned on the
+  release and patch list endpoints, and shown under **Build provenance** in the
+  console. The pinned CLI ignores the extra response key, since its DTOs parse
+  field by field.
+
+  Two deliberate choices:
+  - **Recorded even when the request fails.** Metadata is written *before* the
+    release status gate, so it survives the fail-closed `409` from activating
+    before all artifacts verified. That is precisely when knowing what built the
+    release is most useful, so discarding it there would be backwards. This is
+    the opposite of the `notes` rule above, because metadata is diagnostic data
+    rather than state anyone reads.
+  - **Never fatal.** The blob's shape is upstream's to change, so a `metadata`
+    that isn't a JSON object is ignored rather than rejected, and anything over
+    64 KiB is dropped with a warning. A release is never failed over its own
+    diagnostics.
+
+  This is the storage and display half of shorebirdtech/shorebird#3443 (know
+  which git commit a release was built from) and #3700 (record `--dart-define`
+  at release time, warn on patch if it changed). Both need `shorebird_cli`
+  changes to put those fields into the blob before they're fully covered.
+
 ## 1.1.0 — 2026-07-28
 
 Shipped in the `selfhost-v1.0.0` distribution baseline.

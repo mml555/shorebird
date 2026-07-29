@@ -64,6 +64,7 @@ restores it. Behind your own reverse proxy or using your own Postgres/S3? See
 | **Partial rollouts** | deterministic 5 / 25 / 100 % by client, fail-closed |
 | **Signed patches** | `hash_signature` pass-through, verified on-device |
 | **Release & patch notes** | freeform "why this shipped" notes, shown by `shorebird releases info` / `patches info` and editable in the console |
+| **Build provenance** | Shorebird/Flutter/OS/Xcode versions, flags, and build timings recorded per release and patch |
 | **Multi-tenancy** | users + per-user API keys, orgs + roles, collaborators, invitations — managed in the console **Team** tab |
 | **Org domain restriction** | optionally limit an org to your own email domains, so a personal account can't be added |
 | **Login** | `shorebird login` via self-consent or a real IdP (Google/Microsoft) |

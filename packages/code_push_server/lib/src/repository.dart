@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:code_push_server/src/config.dart';
@@ -37,6 +38,7 @@ class ReleaseRow {
     required this.updatedAt,
     required this.platformStatuses,
     this.notes,
+    this.metadata,
   });
   final int id;
   final String appId;
@@ -52,6 +54,11 @@ class ReleaseRow {
   /// Freeform operator-supplied release notes, surfaced by
   /// `shorebird releases info`. Null when never set.
   final String? notes;
+
+  /// Build provenance as sent by the CLI (`UpdateReleaseMetadata`). Null if the
+  /// release predates metadata capture or was created by something that sends
+  /// none.
+  final Map<String, Object?>? metadata;
 }
 
 class PatchRow {
@@ -62,6 +69,7 @@ class PatchRow {
     this.number,
     this.status, {
     this.notes,
+    this.metadata,
   });
   final int id;
   final String appId;
@@ -72,6 +80,11 @@ class PatchRow {
   /// Freeform operator-supplied patch notes, surfaced by
   /// `shorebird patches info`. Null when never set.
   final String? notes;
+
+  /// Build provenance as sent by the CLI (`CreatePatchMetadata`). Null if the
+  /// patch predates metadata capture or was created by something that sends
+  /// none.
+  final Map<String, Object?>? metadata;
 }
 
 class ChannelRow {
@@ -254,6 +267,18 @@ class Repository {
         // list of lowercase domains. NULL/empty means unrestricted, which is
         // every org's default — so an existing deployment is unaffected.
         'ALTER TABLE organizations ADD COLUMN allowed_email_domains TEXT',
+      ],
+    ),
+    (
+      7,
+      [
+        // Build provenance. The CLI already sends a `metadata` blob on every
+        // release status update and patch creation (Flutter/Shorebird versions,
+        // OS, Xcode version, flags used, build timings) — the server simply
+        // discarded it. Stored as JSON text rather than Postgres JSONB so the
+        // same column works on the SQLite backend.
+        'ALTER TABLE releases ADD COLUMN metadata TEXT',
+        'ALTER TABLE patches ADD COLUMN metadata TEXT',
       ],
     ),
   ];
@@ -900,8 +925,31 @@ class Repository {
       updatedAt: _ts(m['updated_at']),
       platformStatuses: ps,
       notes: m['notes'] as String?,
+      metadata: _decodeMetadata(m['metadata']),
     );
   }
+
+  /// Decodes a stored metadata blob. Tolerates anything that isn't a JSON
+  /// object: the column is written only by us, but a hand-edited or
+  /// externally-migrated row must not take down every read of the release.
+  static Map<String, Object?>? _decodeMetadata(Object? v) {
+    if (v is! String || v.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(v);
+      return decoded is Map<String, Object?> ? decoded : null;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  /// Records the build-provenance blob the CLI sends with a release update.
+  Future<void> setReleaseMetadata(
+    int releaseId,
+    Map<String, Object?> metadata,
+  ) => _q(
+    'UPDATE releases SET metadata = @m, updated_at = now() WHERE id = @id',
+    {'m': jsonEncode(metadata), 'id': releaseId},
+  );
 
   /// Sets (or, with a null [notes], clears) the release's notes.
   Future<void> setReleaseNotes(int releaseId, String? notes) => _q(
@@ -936,6 +984,7 @@ class Repository {
     String appId,
     int releaseId, {
     String? notes,
+    Map<String, Object?>? metadata,
   }) async {
     final maxR = await _q(
       'SELECT COALESCE(MAX(number),0) AS n FROM patches WHERE release_id = @r',
@@ -943,14 +992,15 @@ class Repository {
     );
     final number = _int(maxR.first['n']) + 1;
     final r = await _q(
-      'INSERT INTO patches(app_id, release_id, number, status, notes) '
-      'VALUES (@a,@r,@n,@s,@no) RETURNING id',
+      'INSERT INTO patches(app_id, release_id, number, status, notes, metadata) '
+      'VALUES (@a,@r,@n,@s,@no,@md) RETURNING id',
       {
         'a': appId,
         'r': releaseId,
         'n': number,
         's': PatchStatus.draft.name,
         'no': notes,
+        'md': metadata == null ? null : jsonEncode(metadata),
       },
     );
     return (await patch(_int(r.first['id'])))!;
@@ -988,6 +1038,7 @@ class Repository {
     _int(m['number']),
     PatchStatus.parse(m['status'] as String),
     notes: m['notes'] as String?,
+    metadata: _decodeMetadata(m['metadata']),
   );
 
   /// Per-channel deployment state for [patchId]: `{channel, status, rollout,

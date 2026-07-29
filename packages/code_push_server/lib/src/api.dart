@@ -1181,6 +1181,16 @@ class Api {
     // doesn't leave the notes changed by a request that failed.
     final writesNotes = body['notes'] != null;
     final notes = writesNotes ? _optNotesField(body) : null;
+    // Build provenance: the CLI attaches this to every release status update.
+    //
+    // Written *before* the status handling below, unlike notes. The status gate
+    // can fail closed with a 409 (activating before every artifact verified),
+    // and that is exactly the case where knowing what built this release is
+    // most useful — discarding the diagnostics attached to a failed deploy is
+    // backwards. Metadata is also not a field anyone reads as state, so there's
+    // no partial-update surprise in recording it.
+    final metadata = _optMetadataField(body);
+    if (metadata != null) await repo.setReleaseMetadata(releaseId, metadata);
     final status = _optStringField(body, 'status');
     final platform = _optStringField(body, 'platform');
     if (status != null && platform != null) {
@@ -1233,6 +1243,7 @@ class Api {
       appId,
       releaseId,
       notes: _optNotesField(body),
+      metadata: _optMetadataField(body),
     );
     return _json({'id': p.id, 'number': p.number, 'notes': p.notes});
   }
@@ -1275,6 +1286,33 @@ class Api {
   /// Ceiling on stored notes. Generous for a changelog entry, small enough that
   /// the field can't be used to park bulk data in the control-plane database.
   static const int _maxNotesChars = 4096;
+
+  /// Reads the optional build-provenance `metadata` object the CLI sends on
+  /// release updates and patch creation.
+  ///
+  /// Anything that isn't a JSON object is ignored rather than rejected: this is
+  /// diagnostic data the CLI attaches on its own, and its shape is upstream's to
+  /// change. Failing a release because a future CLI sent a field we didn't
+  /// expect would trade a working deploy for a blob we only read out-of-band.
+  /// Oversized blobs are dropped for the same reason — see [_maxMetadataChars].
+  static Map<String, Object?>? _optMetadataField(Map<String, Object?> body) {
+    final v = body['metadata'];
+    if (v is! Map) return null;
+    final map = v.cast<String, Object?>();
+    if (map.isEmpty) return null;
+    if (jsonEncode(map).length > _maxMetadataChars) {
+      logInfo('WARNING: dropping oversized metadata blob', {
+        'limit': _maxMetadataChars,
+      });
+      return null;
+    }
+    return map;
+  }
+
+  /// Ceiling on a stored metadata blob. The CLI's own payload — versions, flags,
+  /// and `BuildTraceSummary` counters — is a few KB; this leaves generous room
+  /// while keeping one release row from holding megabytes.
+  static const int _maxMetadataChars = 64 * 1024;
 
   Future<Response> _createReleaseArtifact(
     Request req,
@@ -1428,6 +1466,7 @@ class Api {
         ],
         'is_rolled_back': await repo.patchRolledBack(p.id),
         'notes': p.notes,
+        'metadata': p.metadata,
       });
     }
     return _json({'patches': out});
@@ -2268,6 +2307,10 @@ class Api {
     'created_at': r.createdAt,
     'updated_at': r.updatedAt,
     'notes': r.notes,
+    // Extra key the pinned CLI ignores (its DTOs parse field by field), so the
+    // console and any operator tooling can read build provenance without a
+    // second round trip.
+    'metadata': r.metadata,
   };
 
   /// Ceiling on any body we turn into a String. Every payload at these

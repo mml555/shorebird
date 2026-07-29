@@ -1694,6 +1694,181 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  // Build provenance. The CLI attaches a `metadata` blob to every release
+  // status update and patch creation; the server used to discard it entirely.
+  group('build metadata capture', () {
+    late String appId;
+    late int releaseId;
+
+    setUp(() async {
+      final s = await seedApp();
+      appId = s.appId;
+      releaseId = s.releaseId;
+    });
+
+    Future<Map<String, dynamic>?> releaseMetadata() async {
+      final r = await jsonOf(
+        await send(
+          'GET',
+          '/api/v1/apps/$appId/releases',
+          bearer: _bootstrapKey,
+        ),
+      );
+      final rel = (r['releases'] as List).single as Map<String, dynamic>;
+      return rel['metadata'] as Map<String, dynamic>?;
+    }
+
+    // Shaped like a real `UpdateReleaseMetadata`, including the nested
+    // environment object that must survive the round trip intact.
+    const releaseMeta = {
+      'release_platform': 'android',
+      'flutter_version_override': '3.27.0',
+      'generated_apks': false,
+      'environment': {
+        'shorebird_version': '1.2.3',
+        'operating_system': 'macos',
+        'flutter_revision': 'abc123',
+      },
+    };
+
+    test('metadata sent with a release update is stored', () async {
+      expect(await releaseMetadata(), isNull);
+      await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {'metadata': releaseMeta},
+      );
+      final stored = await releaseMetadata();
+      expect(stored, isNotNull);
+      expect(stored!['flutter_version_override'], '3.27.0');
+      // Nested structure, not flattened or stringified.
+      expect((stored['environment'] as Map)['shorebird_version'], '1.2.3');
+      expect(stored['generated_apks'], isFalse);
+    });
+
+    test('metadata sent with a patch is stored', () async {
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/$appId/patches',
+          bearer: _bootstrapKey,
+          json: {
+            'release_id': releaseId,
+            'metadata': {'used_ignore_asset_changes_flag': true},
+          },
+        ),
+      );
+      final list = await jsonOf(
+        await send(
+          'GET',
+          '/api/v1/apps/$appId/releases/$releaseId/patches',
+          bearer: _bootstrapKey,
+        ),
+      );
+      final patch = (list['patches'] as List)
+          .cast<Map<String, dynamic>>()
+          .firstWhere((x) => x['id'] == p['id']);
+      expect(
+        (patch['metadata'] as Map)['used_ignore_asset_changes_flag'],
+        isTrue,
+      );
+    });
+
+    // The opposite of the notes rule, on purpose: a release that fails the
+    // fail-closed status gate is exactly when you want to know what built it.
+    test('metadata is captured even when the request 409s on status', () async {
+      final r = await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        // `active` with no verified artifacts is the 409 path.
+        json: {
+          'status': 'active',
+          'platform': 'android',
+          'metadata': releaseMeta,
+        },
+      );
+      expect(r.statusCode, HttpStatus.conflict);
+      expect((await releaseMetadata())!['flutter_version_override'], '3.27.0');
+    });
+
+    test('a later release update replaces the stored metadata', () async {
+      await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {'metadata': releaseMeta},
+      );
+      await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {
+          'metadata': {'flutter_version_override': '3.29.0'},
+        },
+      );
+      final stored = await releaseMetadata();
+      expect(stored!['flutter_version_override'], '3.29.0');
+      expect(stored.containsKey('environment'), isFalse);
+    });
+
+    // Metadata is diagnostic data whose shape is upstream's to change, so a
+    // surprising value must never fail the release it was attached to.
+    test(
+      'a non-object or absent metadata field is ignored, not an error',
+      () async {
+        for (final bad in <Object?>[null, 'a string', 42, <String>[], {}]) {
+          final r = await send(
+            'PATCH',
+            '/api/v1/apps/$appId/releases/$releaseId',
+            bearer: _bootstrapKey,
+            json: {'metadata': bad},
+          );
+          expect(r.statusCode, HttpStatus.noContent, reason: 'metadata=$bad');
+          expect(await releaseMetadata(), isNull, reason: 'metadata=$bad');
+        }
+      },
+    );
+
+    test(
+      'an oversized blob is dropped, and the release still succeeds',
+      () async {
+        final r = await send(
+          'PATCH',
+          '/api/v1/apps/$appId/releases/$releaseId',
+          bearer: _bootstrapKey,
+          json: {
+            'metadata': {'padding': 'x' * (64 * 1024 + 1)},
+          },
+        );
+        expect(r.statusCode, HttpStatus.noContent);
+        expect(await releaseMetadata(), isNull);
+      },
+    );
+
+    // Notes and metadata are independent columns written by the same request.
+    test('metadata and notes on one request both land', () async {
+      await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {'metadata': releaseMeta, 'notes': 'shipped from CI'},
+      );
+      final r = await jsonOf(
+        await send(
+          'GET',
+          '/api/v1/apps/$appId/releases',
+          bearer: _bootstrapKey,
+        ),
+      );
+      final rel = (r['releases'] as List).single as Map<String, dynamic>;
+      expect(rel['notes'], 'shipped from CI');
+      expect((rel['metadata'] as Map)['release_platform'], 'android');
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Restricting an org to one or more email domains, so a personal account
   // can't be added to a company org or onto one of its apps.
   group('org email-domain restriction', () {

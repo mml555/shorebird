@@ -98,6 +98,32 @@ CLI's own `UpdateReleaseRequest` documents:
 `PATCH /apps/{appId}/patches/{patchId}` has no upstream counterpart: upstream's
 `Patch` DTO carries `notes` but exposes no way to set it.
 
+### Build provenance (`metadata`)
+
+The CLI attaches a `metadata` object to every release status update
+(`UpdateReleaseMetadata`) and to patch creation (`CreatePatchMetadata`) —
+Shorebird and Flutter versions, OS and Xcode versions, which flags were used,
+and `BuildTraceSummary` timings. It is stored per release and per patch, and
+returned on `GET /apps/{appId}/releases` and
+`GET /apps/{appId}/releases/{releaseId}/patches` as a `metadata` object (null if
+never sent). The console shows it under **Build provenance** on release rows and
+patch cards.
+
+- The pinned CLI ignores the extra response key — its DTOs parse field by field.
+- **Recorded even when the request fails.** Unlike `notes`, metadata is written
+  before the release status gate, so provenance survives a `409` from activating
+  before all artifacts verified — the case where knowing what built the release
+  matters most.
+- **Never fatal.** The shape is upstream's to change, so a `metadata` that isn't
+  a JSON object is ignored rather than rejected, and a blob over 64 KiB is
+  dropped with a warning. A release is never failed over its diagnostics.
+
+Two related upstream requests need CLI-side changes before they're fully
+covered, because the fields aren't in the blob yet: recording the git commit a
+release was built from (#3443) and the `--dart-define` values set at release
+time so a patch can warn when they changed (#3700). This is the storage and
+display half.
+
 A patch's `hash` is the **inflated-output** hash (the reconstructed `libapp.so`),
 while the uploaded bytes are a binary diff — so the server verifies only the
 patch's `size`; the device verifies the hash after inflating.
