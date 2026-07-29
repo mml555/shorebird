@@ -56,9 +56,25 @@ shorebird release android   # or patch — pulls through the mirror
 `patch-darwin-arm64.zip` and `aot-tools.dill` from the mirror
 (`cache=MISS`→GCS on first build, `cache=HIT`→local disk thereafter), with no
 `download.shorebird.dev` contact. `bundletool.jar` comes from GitHub (not
-Shorebird), so it never touches the mirror. Flow A (engine) rides the same nginx
-+ `artifact_proxy` and warms on the next fresh engine revision (`flutter
-precache` / first release on a new engine).
+Shorebird), so it never touches the mirror.
+
+**Verified (Flow A), engine `69f9831c`:** all 87 engine artifact paths that
+`artifact_proxy` routes were requested through the mirror. 78 returned `200` and
+cached (2.8 GB total); the other 9 are not published for this revision and
+`404` — nginx caches a `404` for one minute only, so those legitimately re-MISS.
+A second pass over the same 87 reported `X-Cache-Status: HIT` for all 78, i.e.
+served from local disk with no upstream contact.
+
+> Flow A needed a fix to work at all. `proxy_redirect` rewrites
+> `artifact_proxy`'s `https://storage.googleapis.com/...` 302 to `/gcs/...`, but
+> nginx turns a relative `Location` back into an absolute one using its own **listen** port —
+> emitting `http://<host>:8080/gcs/...` even when the caller reached the mirror
+> on the published host port (8085). A client on the host followed that to the
+> wrong port and nothing ever cached, which is why this flow had previously only
+> been reasoned about rather than exercised. `absolute_redirect off` in
+> `nginx.conf` keeps the `Location` relative so it resolves against whatever
+> host:port the client actually used — published on 8085, in-network on 8080, or
+> behind TLS on 443.
 
 ## Warm the cache
 

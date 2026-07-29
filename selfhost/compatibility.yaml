@@ -46,8 +46,13 @@ previous:
 #   - on-device boot + rollback. Low risk given the identical updater, but
 #     `tested_platforms` below was device-verified against the previous set.
 verification:
-  build_time_mirror_warmed: false
-  device_reverified: false
+  build_time_mirror_warmed: true   # engine 69f9831c: 78/87 routed artifacts cached
+                                   # (9 unpublished for this rev), 2.8 GB, second
+                                   # pass all HIT. Flow B (aot-tools.dill,
+                                   # patch-*.zip, artifacts_manifest.yaml) cached
+                                   # too. Required an nginx fix — see
+                                   # selfhost/cdn/README.md.
+  device_reverified: false         # still the one open item on this pin.
 
 tested_platforms:
   # Device-verified end-to-end (release -> patch -> boot -> rollback; signed):
@@ -60,12 +65,11 @@ tested_platforms:
 independence:
   runtime: true          # no api.shorebird.dev at runtime (device -> our server only).
                          # Unaffected by the 1.6.115 bump: the updater is identical.
-  build_time: true       # CDN mirror serves engine + aot-tools + patch (selfhost/cdn).
-                         # Mechanism intact, but the cache is COLD for engine
-                         # 69f9831c — nginx warms per revision on first use, so the
-                         # first build on this pin still reaches
-                         # download.shorebird.dev. Warm it once (see selfhost/cdn)
-                         # to restore a build that touches nothing upstream.
+  build_time: true       # CDN mirror serves engine + aot-tools + patch (selfhost/cdn),
+                         # and is WARM for engine 69f9831c — every published
+                         # artifact the proxy routes is on local disk and a second
+                         # pass is all cache HIT. Re-warm only when adopting a new
+                         # engine revision.
   engine_from_source: false  # still consuming Shorebird's prebuilt engine binary.
                              # SOURCE is captured (insurance vs. closed-source) and
                              # is CURRENT with the supported pin: vendor/flutter is
