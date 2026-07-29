@@ -36,6 +36,7 @@ class ReleaseRow {
     required this.createdAt,
     required this.updatedAt,
     required this.platformStatuses,
+    this.notes,
   });
   final int id;
   final String appId;
@@ -47,15 +48,30 @@ class ReleaseRow {
   final String createdAt;
   final String updatedAt;
   final Map<String, String> platformStatuses;
+
+  /// Freeform operator-supplied release notes, surfaced by
+  /// `shorebird releases info`. Null when never set.
+  final String? notes;
 }
 
 class PatchRow {
-  PatchRow(this.id, this.appId, this.releaseId, this.number, this.status);
+  PatchRow(
+    this.id,
+    this.appId,
+    this.releaseId,
+    this.number,
+    this.status, {
+    this.notes,
+  });
   final int id;
   final String appId;
   final int releaseId;
   final int number;
   final PatchStatus status;
+
+  /// Freeform operator-supplied patch notes, surfaced by
+  /// `shorebird patches info`. Null when never set.
+  final String? notes;
 }
 
 class ChannelRow {
@@ -216,6 +232,19 @@ class Repository {
         '''CREATE TABLE IF NOT EXISTS idp_states(
               state TEXT PRIMARY KEY, continue_url TEXT NOT NULL,
               expires_at TIMESTAMPTZ NOT NULL)''',
+      ],
+    ),
+    (
+      5,
+      [
+        // Release/patch notes. The wire contract already carried a `notes`
+        // field on both DTOs and `shorebird releases info` / `patches info`
+        // already print it — there was just never anywhere to store it, so it
+        // was hardcoded null on every response. Deliberately plain `ALTER
+        // TABLE ADD COLUMN` with no `IF NOT EXISTS`: SQLite doesn't support
+        // that clause, and a versioned migration runs exactly once anyway.
+        'ALTER TABLE releases ADD COLUMN notes TEXT',
+        'ALTER TABLE patches ADD COLUMN notes TEXT',
       ],
     ),
   ];
@@ -774,10 +803,11 @@ class Repository {
     String? flutterRevision,
     String? flutterVersion,
     String? displayName,
+    String? notes,
   }) async {
     final r = await _q(
       'INSERT INTO releases(app_id, version, flutter_revision, flutter_version, '
-      'display_name, lifecycle) VALUES (@a,@v,@fr,@fv,@dn,@l) RETURNING id',
+      'display_name, lifecycle, notes) VALUES (@a,@v,@fr,@fv,@dn,@l,@n) RETURNING id',
       {
         'a': appId,
         'v': version,
@@ -785,6 +815,7 @@ class Repository {
         'fv': flutterVersion,
         'dn': displayName,
         'l': ReleaseLifecycle.draft.name,
+        'n': notes,
       },
     );
     return (await release(_int(r.first['id'])))!;
@@ -833,8 +864,15 @@ class Repository {
       createdAt: _ts(m['created_at']),
       updatedAt: _ts(m['updated_at']),
       platformStatuses: ps,
+      notes: m['notes'] as String?,
     );
   }
+
+  /// Sets (or, with a null [notes], clears) the release's notes.
+  Future<void> setReleaseNotes(int releaseId, String? notes) => _q(
+    'UPDATE releases SET notes = @n, updated_at = now() WHERE id = @id',
+    {'n': notes, 'id': releaseId},
+  );
 
   Future<void> setReleaseLifecycle(int releaseId, ReleaseLifecycle lifecycle) =>
       _q(
@@ -859,15 +897,26 @@ class Repository {
 
   // ---- Patches ----
 
-  Future<PatchRow> createPatch(String appId, int releaseId) async {
+  Future<PatchRow> createPatch(
+    String appId,
+    int releaseId, {
+    String? notes,
+  }) async {
     final maxR = await _q(
       'SELECT COALESCE(MAX(number),0) AS n FROM patches WHERE release_id = @r',
       {'r': releaseId},
     );
     final number = _int(maxR.first['n']) + 1;
     final r = await _q(
-      'INSERT INTO patches(app_id, release_id, number, status) VALUES (@a,@r,@n,@s) RETURNING id',
-      {'a': appId, 'r': releaseId, 'n': number, 's': PatchStatus.draft.name},
+      'INSERT INTO patches(app_id, release_id, number, status, notes) '
+      'VALUES (@a,@r,@n,@s,@no) RETURNING id',
+      {
+        'a': appId,
+        'r': releaseId,
+        'n': number,
+        's': PatchStatus.draft.name,
+        'no': notes,
+      },
     );
     return (await patch(_int(r.first['id'])))!;
   }
@@ -875,14 +924,7 @@ class Repository {
   Future<PatchRow?> patch(int id) async {
     final r = await _q('SELECT * FROM patches WHERE id = @id', {'id': id});
     if (r.isEmpty) return null;
-    final m = r.first;
-    return PatchRow(
-      _int(m['id']),
-      m['app_id'] as String,
-      _int(m['release_id']),
-      _int(m['number']),
-      PatchStatus.parse(m['status'] as String),
-    );
+    return _patchFrom(r.first);
   }
 
   Future<void> setPatchStatus(int patchId, PatchStatus status) => _q(
@@ -890,21 +932,28 @@ class Repository {
     {'s': status.name, 'id': patchId},
   );
 
+  /// Sets (or, with a null [notes], clears) the patch's notes.
+  Future<void> setPatchNotes(int patchId, String? notes) => _q(
+    'UPDATE patches SET notes = @n WHERE id = @id',
+    {'n': notes, 'id': patchId},
+  );
+
   Future<List<PatchRow>> patchesForRelease(int releaseId) async {
     final r = await _q(
       'SELECT * FROM patches WHERE release_id = @r ORDER BY number',
       {'r': releaseId},
     );
-    return r.map((m) {
-      return PatchRow(
-        _int(m['id']),
-        m['app_id'] as String,
-        _int(m['release_id']),
-        _int(m['number']),
-        PatchStatus.parse(m['status'] as String),
-      );
-    }).toList();
+    return r.map(_patchFrom).toList();
   }
+
+  PatchRow _patchFrom(Map<String, Object?> m) => PatchRow(
+    _int(m['id']),
+    m['app_id'] as String,
+    _int(m['release_id']),
+    _int(m['number']),
+    PatchStatus.parse(m['status'] as String),
+    notes: m['notes'] as String?,
+  );
 
   /// Per-channel deployment state for [patchId]: `{channel, status, rollout,
   /// rolled_back}` per row (newest promotion first). Empty = not promoted.

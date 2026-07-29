@@ -1692,6 +1692,186 @@ void main() {
       expect(r.statusCode, HttpStatus.ok);
     });
   });
+
+  // -------------------------------------------------------------------------
+  // Release/patch notes. The wire contract always carried `notes` on both DTOs
+  // and the CLI's `releases info` / `patches info` already print it, but the
+  // server hardcoded null on every response, so the field could never be used.
+  group('release and patch notes', () {
+    late String appId;
+    late int releaseId;
+
+    setUp(() async {
+      final s = await seedApp();
+      appId = s.appId;
+      releaseId = s.releaseId;
+    });
+
+    Future<Map<String, dynamic>> release() async {
+      final r = await jsonOf(
+        await send(
+          'GET',
+          '/api/v1/apps/$appId/releases',
+          bearer: _bootstrapKey,
+        ),
+      );
+      return (r['releases'] as List).single as Map<String, dynamic>;
+    }
+
+    Future<int> createPatch({String? notes}) async {
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/$appId/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': releaseId, if (notes != null) 'notes': notes},
+        ),
+      );
+      return p['id'] as int;
+    }
+
+    Future<Map<String, dynamic>> patchFromList(int patchId) async {
+      final r = await jsonOf(
+        await send(
+          'GET',
+          '/api/v1/apps/$appId/releases/$releaseId/patches',
+          bearer: _bootstrapKey,
+        ),
+      );
+      return (r['patches'] as List).cast<Map<String, dynamic>>().firstWhere(
+        (p) => p['id'] == patchId,
+      );
+    }
+
+    test('a release round-trips notes set at creation', () async {
+      final r = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/$appId/releases',
+          bearer: _bootstrapKey,
+          json: {'version': '2.0.0', 'notes': 'first ship'},
+        ),
+      );
+      expect((r['release'] as Map)['notes'], 'first ship');
+    });
+
+    test('PATCH sets release notes and they survive a re-read', () async {
+      final r = await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {'notes': 'hotfix for the login crash'},
+      );
+      expect(r.statusCode, HttpStatus.noContent);
+      expect((await release())['notes'], 'hotfix for the login crash');
+    });
+
+    // The CLI sends `UpdateReleaseRequest` with every key populated during a
+    // normal release, so a null `notes` must not wipe notes already set --
+    // upstream documents null as "the notes will not be updated".
+    test('a null notes field leaves existing notes alone', () async {
+      await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {'notes': 'keep me'},
+      );
+      await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {'status': 'active', 'platform': 'android', 'notes': null},
+      );
+      expect((await release())['notes'], 'keep me');
+    });
+
+    // Notes are validated up front but written last, so a request rejected by
+    // the status gate doesn't leave the notes changed by a call that failed.
+    test('a request that 409s on status does not apply its notes', () async {
+      final r = await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        // `active` with no verified artifacts is the fail-closed 409 path.
+        json: {'status': 'active', 'platform': 'android', 'notes': 'nope'},
+      );
+      expect(r.statusCode, HttpStatus.conflict);
+      expect((await release())['notes'], isNull);
+    });
+
+    test('an empty notes string clears notes', () async {
+      await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {'notes': 'temporary'},
+      );
+      await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {'notes': ''},
+      );
+      expect((await release())['notes'], isNull);
+    });
+
+    test('a patch round-trips notes set at creation', () async {
+      final patchId = await createPatch(notes: 'raising the timeout');
+      expect((await patchFromList(patchId))['notes'], 'raising the timeout');
+    });
+
+    test('PATCH sets patch notes and echoes what was stored', () async {
+      final patchId = await createPatch();
+      expect((await patchFromList(patchId))['notes'], isNull);
+      final r = await jsonOf(
+        await send(
+          'PATCH',
+          '/api/v1/apps/$appId/patches/$patchId',
+          bearer: _bootstrapKey,
+          json: {'notes': 'annotated after the fact'},
+        ),
+      );
+      expect(r['notes'], 'annotated after the fact');
+      expect(
+        (await patchFromList(patchId))['notes'],
+        'annotated after the fact',
+      );
+    });
+
+    test('notes over the ceiling are a 400, not a silent truncation', () async {
+      final r = await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {'notes': 'x' * 4097},
+      );
+      expect(r.statusCode, HttpStatus.badRequest);
+      expect((await release())['notes'], isNull);
+    });
+
+    test('a wrong-typed notes field is a 400, not a 500', () async {
+      final r = await send(
+        'PATCH',
+        '/api/v1/apps/$appId/releases/$releaseId',
+        bearer: _bootstrapKey,
+        json: {'notes': 42},
+      );
+      expect(r.statusCode, HttpStatus.badRequest);
+    });
+
+    test('another tenant cannot write notes on this app\'s patch', () async {
+      final patchId = await createPatch();
+      final other = await otherTenant();
+      final r = await send(
+        'PATCH',
+        '/api/v1/apps/$appId/patches/$patchId',
+        bearer: other.key,
+        json: {'notes': 'pwned'},
+      );
+      expect(r.statusCode, isIn([HttpStatus.forbidden, HttpStatus.notFound]));
+      expect((await patchFromList(patchId))['notes'], isNull);
+    });
+  });
 }
 
 /// Stands in for the socket peer that `shelf_io` would supply.

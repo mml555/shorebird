@@ -4,6 +4,32 @@ All notable changes to `code_push_server` are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- **Release and patch notes are stored and served.** The CLI wire contract has
+  always carried a `notes` field on both the `Patch` and `Release` DTOs, and
+  `shorebird releases info` / `shorebird patches info` already print it — but
+  the server hardcoded `null` on every response, so the field could never be
+  used. Notes are now persisted (schema migration **v5**) and surfaced:
+  - `POST /api/v1/apps/{appId}/releases` and `POST /api/v1/apps/{appId}/patches`
+    accept an optional `notes`.
+  - `PATCH /api/v1/apps/{appId}/releases/{releaseId}` accepts `notes`, matching
+    the semantics upstream's own `UpdateReleaseRequest` documents: absent or
+    `null` leaves notes unchanged (the CLI sends `notes: null` on every
+    mid-release status update, so this must not clear them), `""` clears, and a
+    non-empty string is stored. Capped at 4096 characters; over-length is a
+    `400` with nothing written.
+  - `PATCH /api/v1/apps/{appId}/patches/{patchId}` is new, with the same
+    semantics — upstream carries `notes` on its `Patch` DTO but exposes no way
+    to set it.
+  - The console's patch cards show notes and edit them inline.
+  - Both writes land in the audit log (`release.notes`, `patch.notes`).
+
+  Addresses upstream shorebirdtech/shorebird#1288 and #3767. No CLI change is
+  needed — the pinned CLI already parses and prints the field.
+
 ## 1.1.0 — 2026-07-28
 
 Shipped in the `selfhost-v1.0.0` distribution baseline.

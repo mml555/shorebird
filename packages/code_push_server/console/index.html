@@ -146,6 +146,7 @@ details .inner{padding:.2rem .9rem .9rem}
 .toast div{background:var(--panel);border-radius:10px;padding:.7rem .9rem;box-shadow:inset 3px 0 0 var(--accent),var(--shadow);max-width:340px;font-size:13px;animation:in .15s ease}
 .toast div.ok{box-shadow:inset 3px 0 0 var(--ok),var(--shadow)} .toast div.err{box-shadow:inset 3px 0 0 var(--danger),var(--shadow)}
 @keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+.notes{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
 .rollout{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-top:.65rem}
 .rollout input[type=range]{-webkit-appearance:none;appearance:none;flex:1;min-width:120px;height:7px;
   border-radius:999px;cursor:pointer;
@@ -936,7 +937,12 @@ hr{border:none;height:0;margin:1.1rem 0}
              return `<span class="pill"${tip?` title="${tip}"`:""}>${label}</span>`;
            }).join("")+`</div>`;
       }
-      if(p.notes){ h+=`<div class="muted" style="font-size:12.5px;margin-top:.5rem">${esc(p.notes)}</div>`; }
+      // Notes: shown when set, and always editable inline. Freeform "why did
+      // this patch ship" text — the field the CLI's `patches info` prints.
+      h+=`<div class="notes" data-patch="${esc(pid)}" style="margin-top:.5rem">`+
+         `<input type="text" class="nt" maxlength="4096" placeholder="Add notes — why this patch shipped" value="${esc(p.notes||"")}" style="flex:1;min-width:12rem">`+
+         `<button class="sm act-notes">Save notes</button>`+
+         `</div>`;
       // per-channel deployment rows with rollout bars
       if(deploys.length){
         h+=`<div class="deploys">`;
@@ -980,6 +986,14 @@ hr{border:none;height:0;margin:1.1rem 0}
         doRollout(appId, pid, ch, percent, reload);
       };
     });
+    box.querySelectorAll('.notes').forEach(nc=>{
+      const pid=nc.dataset.patch;
+      const input=nc.querySelector('.nt');
+      const save=()=>doSetPatchNotes(appId, pid, input.value, reload);
+      nc.querySelector('.act-notes').onclick=save;
+      // Enter saves, so the common case is type-and-go.
+      input.addEventListener('keydown',e=>{ if(e.key==="Enter"){ e.preventDefault(); save(); }});
+    });
     box.querySelectorAll('.card').forEach(card=>{
       const rc=card.querySelector('.rollout');
       const pid=rc?rc.dataset.patch:null;
@@ -991,6 +1005,14 @@ hr{border:none;height:0;margin:1.1rem 0}
         };
       });
     });
+  }
+
+  // An empty string is the documented "clear the notes" signal, so a blank box
+  // saves as cleared rather than being rejected client-side.
+  async function doSetPatchNotes(appId, patchId, notes, reload){
+    const res=await tryApi("PATCH","/api/v1/apps/"+encodeURIComponent(appId)+"/patches/"+encodeURIComponent(patchId),{json:{notes:String(notes==null?"":notes)}});
+    if(res.ok){ toast(String(notes).trim()?"Notes saved.":"Notes cleared.","ok"); if(reload) reload(); }
+    else toast("Saving notes failed: "+(res.error?res.error.message:res.status),"err");
   }
 
   async function doRollout(appId, patchId, channel, percent, reload){

@@ -55,9 +55,9 @@ These are exactly what the pinned Shorebird CLI calls for `init` / `release` /
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/apps/{appId}/releases` | `{"version":"1.0.0+1","flutter_revision":"…","flutter_version"?,"display_name"?}` | `{"release":{"id","version","flutter_revision","status",…}}` |
+| POST | `/apps/{appId}/releases` | `{"version":"1.0.0+1","flutter_revision":"…","flutter_version"?,"display_name"?,"notes"?}` | `{"release":{"id","version","flutter_revision","status","notes",…}}` |
 | GET | `/apps/{appId}/releases` | — | `{"releases":[Release]}` |
-| PATCH | `/apps/{appId}/releases/{releaseId}` | `{"status"?:"active","platform"?:"android","metadata"?}` | 204 · **409** if set `active` before all artifacts verified (fail-closed finalize) |
+| PATCH | `/apps/{appId}/releases/{releaseId}` | `{"status"?:"active","platform"?:"android","metadata"?,"notes"?}` | 204 · **409** if set `active` before all artifacts verified (fail-closed finalize) |
 
 ### Release artifacts
 
@@ -74,9 +74,29 @@ mismatch fails the artifact (`400` on upload) and the release cannot finalize.
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/apps/{appId}/patches` | `{"release_id":1,"metadata":{}}` | `{"id","number"}` |
+| POST | `/apps/{appId}/patches` | `{"release_id":1,"metadata":{},"notes"?}` | `{"id","number","notes"}` |
 | POST | `/apps/{appId}/patches/{patchId}/artifacts` | multipart: `arch,platform,hash,size,hash_signature?,podfile_lock_hash?` | `{…,"url","upload_method"}` |
 | POST | `/apps/{appId}/patches/promote` | `{"patch_id":1,"channel_id":1}` | 204 · **409** if the patch isn't `ready` |
+| PATCH | `/apps/{appId}/patches/{patchId}` | `{"notes"?}` | `{"id","number","notes"}` |
+
+### Release & patch notes
+
+Freeform operator notes (max 4096 chars) on a release or a patch — "why did this
+ship". `shorebird releases info` and `shorebird patches info` already print the
+field, and the console's patch cards show and edit it.
+
+Write semantics are shared by both endpoints, and match the `notes` contract the
+CLI's own `UpdateReleaseRequest` documents:
+
+| `notes` value | Effect |
+|---|---|
+| absent, or `null` | left unchanged — the CLI sends `notes: null` on every mid-release status update, so this must not clear |
+| `""` | cleared (reads back as `null`) |
+| non-empty string | stored |
+| over 4096 chars | `400`, nothing written |
+
+`PATCH /apps/{appId}/patches/{patchId}` has no upstream counterpart: upstream's
+`Patch` DTO carries `notes` but exposes no way to set it.
 
 A patch's `hash` is the **inflated-output** hash (the reconstructed `libapp.so`),
 while the uploaded bytes are a binary diff — so the server verifies only the

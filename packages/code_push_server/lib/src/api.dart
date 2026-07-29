@@ -598,6 +598,12 @@ class Api {
           m == 'POST') {
         return _createPatchArtifact(req, appId, _pathId(rest[1], 'patch id'));
       }
+      // Fork addition: upstream exposes no way to write patch notes, even
+      // though its own `Patch` DTO carries the field and `shorebird patches
+      // info` prints it. Mirrors the shape of the release PATCH above.
+      if (rest.length == 2 && rest[0] == 'patches' && m == 'PATCH') {
+        return _updatePatch(req, appId, _pathId(rest[1], 'patch id'));
+      }
       if (rest.length == 1 && rest[0] == 'releases') {
         if (m == 'POST') return _createRelease(req, appId);
         if (m == 'GET') return _getReleases(appId);
@@ -1128,6 +1134,7 @@ class Api {
       flutterRevision: _optStringField(body, 'flutter_revision'),
       flutterVersion: _optStringField(body, 'flutter_version'),
       displayName: _optStringField(body, 'display_name'),
+      notes: _optNotesField(body),
     );
     return _json({'release': _releaseJson(r)});
   }
@@ -1144,6 +1151,16 @@ class Api {
   ) async {
     final body = await _jsonBody(req);
     final release = await _ownedRelease(appId, releaseId);
+    // Upstream's `UpdateReleaseRequest` documents `notes: null` as "leave
+    // unchanged" — and it serializes the key on every request, including the
+    // status updates the CLI sends mid-release — so only an explicitly present,
+    // non-null value writes. An empty string is the clear signal.
+    //
+    // Validated here but written after the status handling below, so an
+    // over-long value is a 400 before anything is touched and a status conflict
+    // doesn't leave the notes changed by a request that failed.
+    final writesNotes = body['notes'] != null;
+    final notes = writesNotes ? _optNotesField(body) : null;
     final status = _optStringField(body, 'status');
     final platform = _optStringField(body, 'platform');
     if (status != null && platform != null) {
@@ -1174,6 +1191,14 @@ class Api {
         }
       }
     }
+    if (writesNotes) {
+      await repo.setReleaseNotes(releaseId, notes);
+      await repo.audit(
+        'release.notes',
+        actor: '${_uid(req)}',
+        target: '$releaseId',
+      );
+    }
     return Response(HttpStatus.noContent);
   }
 
@@ -1181,9 +1206,55 @@ class Api {
     final body = await _jsonBody(req);
     final releaseId = _intField(body, 'release_id');
     await _ownedRelease(appId, releaseId);
-    final p = await repo.createPatch(appId, releaseId);
-    return _json({'id': p.id, 'number': p.number, 'notes': null});
+    // `notes` is optional and the pinned CLI never sends it; accepted here so a
+    // script or the console can annotate a patch at creation time instead of
+    // needing a follow-up PATCH.
+    final p = await repo.createPatch(
+      appId,
+      releaseId,
+      notes: _optNotesField(body),
+    );
+    return _json({'id': p.id, 'number': p.number, 'notes': p.notes});
   }
+
+  /// `PATCH /api/v1/apps/{appId}/patches/{patchId}` with `{"notes": "..."}`.
+  ///
+  /// Same null-means-unchanged / empty-means-clear semantics as the release
+  /// endpoint. Returns the patch so a caller can confirm what was stored.
+  Future<Response> _updatePatch(Request req, String appId, int patchId) async {
+    final body = await _jsonBody(req);
+    final patch = await _ownedPatch(appId, patchId);
+    var notes = patch.notes;
+    if (body['notes'] != null) {
+      notes = _optNotesField(body);
+      await repo.setPatchNotes(patchId, notes);
+      await repo.audit(
+        'patch.notes',
+        actor: '${_uid(req)}',
+        target: '$patchId',
+      );
+    }
+    return _json({'id': patch.id, 'number': patch.number, 'notes': notes});
+  }
+
+  /// Reads and validates an optional freeform `notes` field.
+  ///
+  /// Absent/JSON-null means "leave unchanged", matching the documented
+  /// `UpdateReleaseRequest.notes` contract. An explicitly empty string is the
+  /// way to *clear* notes, and is normalized to null here so a cleared field
+  /// reads back as null rather than `''`.
+  static String? _optNotesField(Map<String, Object?> body) {
+    final v = _optStringField(body, 'notes');
+    if (v == null) return null;
+    if (v.length > _maxNotesChars) {
+      throw badRequest('notes must be at most $_maxNotesChars characters');
+    }
+    return v.isEmpty ? null : v;
+  }
+
+  /// Ceiling on stored notes. Generous for a changelog entry, small enough that
+  /// the field can't be used to park bulk data in the control-plane database.
+  static const int _maxNotesChars = 4096;
 
   Future<Response> _createReleaseArtifact(
     Request req,
@@ -1336,7 +1407,7 @@ class Api {
             },
         ],
         'is_rolled_back': await repo.patchRolledBack(p.id),
-        'notes': null,
+        'notes': p.notes,
       });
     }
     return _json({'patches': out});
@@ -2115,7 +2186,7 @@ class Api {
     'platform_statuses': r.platformStatuses,
     'created_at': r.createdAt,
     'updated_at': r.updatedAt,
-    'notes': null,
+    'notes': r.notes,
   };
 
   /// Ceiling on any body we turn into a String. Every payload at these
