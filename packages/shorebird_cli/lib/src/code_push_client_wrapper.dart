@@ -1,4 +1,5 @@
 // cspell:words endtemplate pubspec sideloadable bryanoltman archs sideload
+// cspell:words bidiff
 // cspell:words xcarchive codesigned xcframework
 
 import 'dart:io';
