@@ -16,3 +16,10 @@ bin/cache/
 # Misc
 .DS_Store
 .claude/
+serverinfo.md
+sshkey20.120.104.70.pem
+
+# Locally built experimental engine artifacts served by the CDN mirror
+# (selfhost/engine/overlay_publish.sh). Hundreds of MB of build output.
+selfhost/cdn/overlay/*
+!selfhost/cdn/overlay/.gitkeep
