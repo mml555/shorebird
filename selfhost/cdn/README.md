@@ -65,6 +65,12 @@ cached (2.8 GB total); the other 9 are not published for this revision and
 A second pass over the same 87 reported `X-Cache-Status: HIT` for all 78, i.e.
 served from local disk with no upstream contact.
 
+Those 87 paths are **not the whole story**: they are the archives the flutter tool
+fetches, and warming them all still left the Gradle Maven artifacts
+(`download.flutter.io/io/flutter/<abi>_release/*.jar`) cold. A real
+`shorebird release android` is what pulls those, so treat "warm" as meaning *one
+full release build has run through the mirror*, not *a list of URLs was fetched*.
+
 > Flow A needed a fix to work at all. `proxy_redirect` rewrites
 > `artifact_proxy`'s `https://storage.googleapis.com/...` 302 to `/gcs/...`, but
 > nginx turns a relative `Location` back into an absolute one using its own **listen** port —
@@ -75,6 +81,47 @@ served from local disk with no upstream contact.
 > `nginx.conf` keeps the `Location` relative so it resolves against whatever
 > host:port the client actually used — published on 8085, in-network on 8080, or
 > behind TLS on 443.
+
+## Android: Gradle refuses a plain-HTTP mirror
+
+Engine artifacts reach an Android build two different ways, and only one of them
+tolerates `http://`:
+
+- the **flutter tool** downloads `flutter_infra_release/...` archives over plain
+  HTTP happily (this is what `precache` and the release build's Dart/engine
+  fetches use);
+- **Gradle** resolves `download.flutter.io/io/flutter/<abi>_release/...jar` as
+  Maven dependencies, and Gradle rejects any `http://` repository:
+
+  ```
+  Execution failed for task ':app:mergeReleaseAssets'.
+  > Could not resolve all dependencies for configuration ':app:releaseRuntimeClasspath'.
+     > Using insecure protocols with repositories, without explicit opt-in, is unsupported.
+  ```
+
+Flutter's Gradle plugin declares that repo as
+`repositories.maven { url = uri("$FLUTTER_STORAGE_BASE_URL/${engineRealm}download.flutter.io") }`
+with **no** `isAllowInsecureProtocol` support (`FlutterPlugin.kt`), so there is no
+env var or flag that fixes this — the opt-in has to come from the app's own Gradle
+config. Either serve the mirror over HTTPS, or add this to the app's
+`android/build.gradle.kts`:
+
+```kotlin
+allprojects {
+    repositories.all {
+        if (this is MavenArtifactRepository && url.scheme == "http") {
+            isAllowInsecureProtocol = true
+        }
+    }
+}
+```
+
+`repositories.all` is a live collection, so it catches the repository Flutter adds
+later during plugin application; only `http://` repos are touched. With that in
+place a full `shorebird release android` completes with every engine artifact
+served by the mirror. **Serving the mirror over HTTPS is the better answer for
+anything beyond a local test** — it needs no per-app change and keeps the opt-in
+from being copy-pasted into production apps.
 
 ## Warm the cache
 

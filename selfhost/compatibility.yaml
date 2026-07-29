@@ -43,8 +43,8 @@ previous:
 #     on first build for a fresh engine revision (selfhost/cdn). Until that
 #     happens the mirror holds e1eaecbc artifacts only, so the first build on
 #     this pin reaches download.shorebird.dev to warm.
-#   - on-device boot + rollback. Low risk given the identical updater, but
-#     `tested_platforms` below was device-verified against the previous set.
+#   - nothing. The device pass has since been run on this pin (see
+#     `verification.device_reverified` below).
 verification:
   build_time_mirror_warmed: true   # engine 69f9831c: 78/87 routed artifacts cached
                                    # (9 unpublished for this rev), 2.8 GB, second
@@ -52,7 +52,13 @@ verification:
                                    # patch-*.zip, artifacts_manifest.yaml) cached
                                    # too. Required an nginx fix — see
                                    # selfhost/cdn/README.md.
-  device_reverified: false         # still the one open item on this pin.
+  device_reverified: true          # 2026-07-29, physical CPH2551 (Android 16,
+                                   # arm64-v8a): release built on this pin through
+                                   # the warm mirror, installed, patch created +
+                                   # promoted, downloaded from a signed URL on this
+                                   # control plane, executed on next launch, then
+                                   # withdrawn with rollback and the device reverted.
+                                   # See selfhost/BEHAVIORAL_FINDINGS.md.
 
 tested_platforms:
   # Device-verified end-to-end (release -> patch -> boot -> rollback; signed):

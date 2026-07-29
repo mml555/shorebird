@@ -5,6 +5,43 @@ own `code_push_server`; `source-derived` = inferred from source only.
 
 ## Environment (device-verified run)
 
+### Re-verified on the current pin — 2026-07-29
+
+- Shorebird CLI **1.6.115+selfhost.1**, Flutter **3.44.8** (Flutter revision
+  `c15ef6379403a0a55531a058bdb2c8e55bc05c98`, engine
+  `69f9831c360d9152862ec3897c67fb09ae843f3b`), Dart 3.12.2.
+- Physical **CPH2551** (Android 16, arm64-v8a), reached over `adb reverse
+  tcp:8080 tcp:8080` so `base_url: http://localhost:8080` resolves to the host
+  control plane from both sides.
+- Release built entirely through the self-hosted CDN mirror; the release log
+  never contacts `download.shorebird.dev`.
+- Full round trip observed in `adb logcat`, using a marker string compiled into
+  the app so a claim of "patch applied" is backed by the patched code actually
+  executing:
+
+  | Launch | Server response | Device ran |
+  |---|---|---|
+  | 1 (release only) | `patch_available: false` | `BUILD=release` |
+  | 2 (patch promoted) | `patch_available: true`, downloaded from a signed `/download/...?exp=&sig=` URL on this server | `BUILD=release` |
+  | 3 | `No update` (already installed) | `BUILD=patched` |
+  | 4 (withdraw + rollback) | `rolled_back_patch_numbers: [1]` | `BUILD=patched` |
+  | 5 | — | `BUILD=release` (reverted) |
+
+  Both install and rollback take effect on the launch *after* the one that
+  learns about them, which matches the pre-existing findings below.
+
+Two things this run surfaced, neither a regression on this pin:
+
+- **`shorebird preview` cannot install on this device.** It runs `adb shell pm
+  clear`, which the ROM denies: `SecurityException: PID does not have permission
+  android.permission.CLEAR_APP_USER_DATA`. This reproduces upstream
+  shorebirdtech/shorebird#1839. The release was installed with `bundletool
+  build-apks --mode=universal` plus `adb install` instead.
+- **A plain-HTTP CDN mirror cannot serve Android Gradle dependencies** without an
+  app-side opt-in — see `CDN_INDEPENDENCE.md`.
+
+### Original run (previous pin)
+
 - Shorebird CLI **1.6.114**, Flutter **3.44.7** (Flutter revision
   `309dd6573a9fe716410489284cd325a34b950375`, engine `e1eaecbc…`), Dart 3.12.2.
   This is the pin *before* the current one and is left as recorded — it is what
