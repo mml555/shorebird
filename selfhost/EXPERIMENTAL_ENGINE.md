@@ -183,6 +183,15 @@ own engine — and if it worked it would be genuinely upstreamable.
 
 ## Summary
 
+Status as of 2026-07-29 — see [`HANDOFF.md`](HANDOFF.md) for where to put your
+hands next:
+
+| Phase | Landed | Remaining |
+|---|---|---|
+| 4 — crash reporting | `POST /crashes` ingestion + retention; debug symbols retained per patch (`symbols` tag) | symbolication (needs a symbolizer in the image; read-time resolution suggested) |
+| 1 — assets | `POST /patches/assets` + the CLI upload path (`assets` tag) | per-patcher asset location, `--assets` flag, app-side Dart package |
+| 2 — hot restart | — | design, then updater status split + engine isolate reload |
+
 | Phase | Blocked? | Android→iOS carryover |
 |---|---|---|
 | 4 — crash + symbolication | ✅ no | 100% (no platform code) |

@@ -5,6 +5,10 @@
 Work toward modifying the engine and runtime ourselves, kept **off `main`** and
 deliberately inert by default.
 
+Picking this up mid-stream? [`HANDOFF.md`](HANDOFF.md) has the per-track next
+steps, the invariants that cost real debugging time, and the live environment
+state.
+
 ## Read this first: nothing here changes what you ship
 
 | | |
