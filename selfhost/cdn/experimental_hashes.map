@@ -7,4 +7,10 @@
 # Written by selfhost/engine/overlay_publish.sh — you normally do not edit this
 # by hand. An empty file (just these comments) means no experimental engine is
 # published and the mirror behaves exactly as a passthrough cache.
-dabf1837976819e5da33f3e143c4f628749702da 69f9831c360d9152862ec3897c67fb09ae843f3b;
+# Checked in EMPTY on purpose. With no entries the mirror is a pure passthrough
+# cache of Shorebird's pinned engine — which is what this repo ships. Publishing
+# an experimental engine (selfhost/engine/overlay_publish.sh) writes its entry
+# here; that is a local, deliberate act, not the default state.
+#
+# The engine device-verified on 2026-07-29 was:
+#   dabf1837976819e5da33f3e143c4f628749702da 69f9831c360d9152862ec3897c67fb09ae843f3b;
