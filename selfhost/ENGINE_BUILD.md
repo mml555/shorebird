@@ -141,6 +141,47 @@ Two further considerations before anyone attempts to reimplement them:
   against a hash of the VM sources, so a VM that isn't their fork may simply
   refuse them. That risk is unmeasurable without the fork.
 
+### How much of this could we build ourselves?
+
+Measured, not guessed. Shorebird's **public** delta over vanilla Flutter 3.44.8
+(`git diff 3.44.8 c15ef637`) is **144 files, +8,132/−1,110**, of which the engine
+is **56 files, +3,053/−38** — almost entirely *new* files under
+`shell/common/shorebird/` and `runtime/shorebird/`, plus small hooks in the
+platform embedders, `runtime/dart_snapshot.cc` (29 lines) and
+`lib/snapshot/BUILD.gn`. We already have all of it.
+
+What their private Dart fork must provide, and what vanilla 3.12.2 already has:
+
+| Their addition | Vanilla status | Cost to us |
+|---|---|---|
+| `Dart_SnapshotDataSize` / `Dart_SnapshotInstrSize` | No public C API, but the internals exist: `Snapshot::length()` (`runtime/vm/snapshot.h:57`) and `Image`'s `ImageSize` header field (`runtime/vm/image_snapshot.h:45`) | Thin wrappers — tens of lines |
+| `analyze_snapshot --dump_blobs` | `analyze_snapshot.cc` present, no blob dumping | Moderate; only needed to *create* patches locally |
+| `pkg/aot_tools` — the linker (`link`, `link_metadata`, `dump_blobs`), emits `.vmcode` + `linkPercentage` | Absent | Large. Their real IP — **and iOS-only** (`useLinker` appears only in the Apple patchers) |
+| VM execution of patched code via an interpreter | **Present upstream**: `runtime/vm/interpreter.cc` (4,567 lines) + `bytecode_reader.cc` (3,120), behind `DART_DYNAMIC_MODULES`, ©2024 — plus a `--dart-dynamic-modules` GN flag (`tools/gn:685`) and Flutter CI builders for it | Their fork predates this; upstream is now a viable substrate |
+
+So the work splits by platform, and the split is favourable:
+
+- **Android — small.** Android patches ship real machine code; the linker is never
+  invoked. The engine's only Dart-fork dependency is the two accessors. So "our own
+  fork" is vanilla Dart 3.12.2 plus ~50 lines. Build our own `gen_snapshot` from
+  the same VM and drive the release from Linux, and the artifact set is
+  self-consistent — which also removes the snapshot version-lock risk of mixing our
+  VM with their prebuilt `gen_snapshot`. Realistic: a day of code, a week to a
+  patched app on device including build iterations. Rebasing a 50-line patch per
+  Dart version is *less* maintenance than tracking their fork.
+- **iOS — large.** Requires reimplementing the linker: diff two AOT snapshots,
+  decide what can reuse original instructions, emit `.vmcode`. Months, and the part
+  most likely to churn per Dart version.
+- **Improving on their interpreter — research-grade but newly tractable**, because
+  upstream's dynamic-modules interpreter is public and wired into the engine's GN.
+  Building on that beats replicating a 2022-era fork.
+
+Caveat: this bounds the dependency by what the *public* engine calls. If their fork
+also alters snapshot layout in ways Android patch *application* assumes, we would
+only discover it on device — but building both sides ourselves keeps us
+self-consistent, so the risk lands on interop with *their* prebuilts, which the
+experimental cell does not need.
+
 ### What this does and does not put at risk
 
 | Capability | Contingent on Shorebird? |
