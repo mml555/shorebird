@@ -1,4 +1,4 @@
-<!-- cspell:words jewgo rustc passwordless libfreetype dosbox androideabi modversion freetype armv -->
+<!-- cspell:words jewgo rustc passwordless libfreetype dosbox androideabi modversion freetype armv dartsdk googlesource rebuildable -->
 
 # Building the native stack from source (Level 2)
 
@@ -38,8 +38,9 @@ engine into the monorepo, that one fork contains the **framework**, the
 tooling, and `DEPS` (which pins every third-party revision and the updater commit
 `1f85c4ab`, matching `vendor/updater`). A license change is not retroactive, so
 this commit stays usable regardless of what upstream does later. See
-`vendor/flutter/VENDOR.md`. What remains is *building* it, which is the large,
-ongoing piece — essentially Shorebird's core operation.
+`vendor/flutter/VENDOR.md`. What remains is *building* it — and as of 2026-07-29
+that is **blocked, not merely expensive**: the build needs Shorebird's private
+Dart VM fork. See "BLOCKER" below before planning any engine work.
 
 **Requirements (not present on this workstation — see "The build host we
 actually use" below for the farm):**
@@ -79,6 +80,81 @@ flow — `build.sh` delegates to Shorebird's own vendored CI build scripts
 upload from `gs://download.shorebird.dev` to our object store, preserving the
 key layout. See `selfhost/engine/README.md`. (Grounded in the real build
 scripts; runnable on a farm — not yet executed here for lack of build infra.)
+
+## BLOCKER: the engine source cannot be compiled — the Dart VM fork is private
+
+Found 2026-07-29 on the first real `gclient sync`, which failed after 8 seconds.
+
+`DEPS` pins the Dart VM **source** to a private repo:
+
+```
+"dart_sdk_git": "git@github.com:shorebirdtech/dart-sdk.git",
+"dart_sdk_revision": "db98bdaa9d8f8e2250ff83d24abcaf775807244c",
+'engine/src/flutter/third_party/dart': Var('dart_sdk_git') + '@' + Var('dart_sdk_revision'),
+```
+
+Evidence it is genuinely unavailable, not a misconfiguration on our side:
+
+| Probe | Result |
+|---|---|
+| `https://github.com/shorebirdtech/dart-sdk` anonymously | 404 (`flutter` and `updater` return 200) |
+| Same via an authenticated GitHub account | 404 |
+| Name variants `dart-sdk`/`dart_sdk`/`sdk`/`dartsdk`/`dart` via API (follows renames) | 404 |
+| The org's 34 public repos | no Dart fork among them |
+| `git fetch dart-lang/sdk db98bdaa…` | `upload-pack: not our ref` |
+| `gs://shorebird-dart-sdk-prebuilt` (the macos-arm64 prebuilt) | 401, anonymous listing denied |
+
+Shorebird's own docs confirm it, and say it is meant to open eventually:
+
+> "Shorebird's Dart SDK fork is private currently. It will likely be public in
+> the future, and there are plans to upstream many changes as the team grows and
+> the product matures." — <https://docs.shorebird.dev/code-push/system-architecture/>
+
+This is **not** a 3.44.8 regression: the previous supported pin `309dd657` names
+the same private fork at the same revision.
+
+### Substituting vanilla Dart does not work
+
+Vanilla Flutter 3.44.8 pins `third_party/dart` at
+`dart.googlesource.com/sdk@d684a576` — "Version 3.12.2", the same Dart version
+`compatibility.yaml` records for this pin, and it fetches fine. But the Shorebird
+engine hooks call two Dart APIs that **do not exist anywhere in vanilla Dart
+3.12.2**:
+
+- `Dart_SnapshotDataSize` and `Dart_SnapshotInstrSize`
+  (`shell/common/shorebird/snapshots_data_handle.cc:10,17`)
+
+They size the four blobs — `vm_data`, `iso_data`, `vm_instructions`,
+`iso_instructions` — that the updater's bipatch state machine treats as one
+contiguous stream. So a vanilla-Dart tree fails at compile time, cheaply and
+unambiguously.
+
+Two further considerations before anyone attempts to reimplement them:
+
+- Those two are the *only* Dart APIs the Shorebird engine hooks use, and the
+  fork's documented purpose (an interpreter for patched code) is the **iOS**
+  mechanism — our own Android patcher never touches the linker
+  (`aotTools`/`linkPercentage` appear only in the Apple patchers). So an
+  Android-only path plausibly needs just those accessors.
+- But the mixed artifact set assumes our `libflutter.so` can load snapshots
+  produced by **Shorebird's** pinned `gen_snapshot`. Dart version-locks snapshots
+  against a hash of the VM sources, so a VM that isn't their fork may simply
+  refuse them. That risk is unmeasurable without the fork.
+
+### What this does and does not put at risk
+
+| Capability | Contingent on Shorebird? |
+|---|---|
+| Runtime code push (device → this control plane) | **No.** The updater is public and vendored; the protocol is ours; device-verified. |
+| Building releases/patches on the current pin | **No.** The mirror holds the full `69f9831c` set on local disk. |
+| Adopting a *newer* Flutter version | Yes — on them continuing to publish prebuilt engines (which they do, publicly). Not on source. |
+| Building a **modified** engine (this whole backlog) | **Yes — blocked today.** |
+| Surviving Shorebird disappearing | **Partially blocked.** We hold the engine C++ and the updater, but not the Dart VM fork needed to compile them. |
+
+So the self-hosted control plane is not at risk. What is affected is the
+*insurance* claim below and the experimental-engine ambition. Adjust expectations
+accordingly: `vendor/flutter` is real insurance for **the framework and the engine
+C++**, and a starting point for a port, but it is not a rebuildable engine.
 
 ## The build host we actually use (Hermes VPS, shared)
 

@@ -97,6 +97,22 @@ move). Note that GitHub's `309dd657...c15ef637` compare reports ~153 files: that
 is three-dot, merge-base semantics across two release branches, not the net
 difference between the commits.
 
+## What this snapshot cannot do (2026-07-29)
+
+It is **not** a rebuildable engine. `DEPS` pins the Dart VM source to
+`git@github.com:shorebirdtech/dart-sdk.git`, which is private — confirmed
+anonymously, with an authenticated account, and by Shorebird's own docs ("private
+currently"). The pinned sha is not in `dart-lang/sdk`, and the engine's Shorebird
+hooks call two Dart APIs (`Dart_SnapshotDataSize`, `Dart_SnapshotInstrSize`) that
+vanilla Dart 3.12.2 does not define — so the captured source does not compile
+without that fork. Note also that `engine/src/flutter/third_party/dart` is a
+gclient dep and was never part of this snapshot.
+
+What the snapshot *is*: the framework, the modified engine C++, Shorebird's build
+tooling, and `DEPS` — enough to read, diff, and port their changes, and enough to
+rebuild if the fork ever opens. Full analysis and consequences:
+`selfhost/ENGINE_BUILD.md`.
+
 ## Why this exists
 
 If Shorebird ever closes source or takes down their repos, a license change is
@@ -107,10 +123,13 @@ make us engine-from-source independent — building it still needs a build farm
 (depot_tools, `gclient sync` of the DEPS-pinned deps, per-platform SDKs). See
 `selfhost/ENGINE_BUILD.md`.
 
-Some `third_party` directories (`cpu_features`, `libjpeg-turbo`, `ninja`) are
-excluded by Flutter's `.gitignore` because `gclient` fetches them. They are
-recoverable from the pinned `DEPS` revisions, so the insurance still holds — but
-it holds via DEPS, not via this snapshot alone.
+Some `third_party` directories are populated by `gclient` from the pinned `DEPS`
+revisions rather than living here, so that part of the insurance holds via DEPS
+rather than via this snapshot alone. That is fine for the public deps (Skia, ICU,
+…) and **not** fine for `third_party/dart`, which DEPS points at a private repo —
+see "What this snapshot cannot do" above. (The `BUILD.gn` files for
+`cpu_features`, `libjpeg-turbo` and `ninja` *are* tracked here now; they had been
+dropped by nested `.gitignore` rules.)
 
 ## To update
 
