@@ -208,6 +208,7 @@ words:
   - repointing
   - repoints
   - requirepass # From .github dir, doesn't show up in "**" check?
+  - retag
   - retarget
   - retargeted
   - retargets
