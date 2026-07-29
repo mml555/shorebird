@@ -77,6 +77,13 @@ bool emailAllowedByDomains(String email, List<String> allowedDomains) {
 /// (`aarch64`, `arm`, `x86_64`, …).
 const assetsArch = 'assets';
 
+/// The `arch` value that marks a patch artifact as **debug symbols**, retained
+/// so crash reports against that patch can be symbolicated.
+///
+/// Same reasoning as [assetsArch]: `arch` is free-form, so retention needs no
+/// schema change, and the name cannot collide with a real architecture.
+const symbolsArch = 'symbols';
+
 enum ArtifactStatus {
   pending,
   uploading,

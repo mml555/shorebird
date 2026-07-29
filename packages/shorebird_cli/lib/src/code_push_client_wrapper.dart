@@ -79,6 +79,12 @@ class PatchArtifactBundle extends Equatable {
 /// CLI uploads (`aarch64`, `arm`, `x86_64`, ...).
 const assetsArch = 'assets';
 
+/// The `arch` value marking a patch artifact as **debug symbols**.
+///
+/// Same contract as [assetsArch]: free-form on the wire, must match the control
+/// plane's constant, and deliberately not a real architecture name.
+const symbolsArch = 'symbols';
+
 /// A reference to a [CodePushClientWrapper] instance.
 ScopedRef<CodePushClientWrapper> codePushClientWrapperRef = create(() {
   return CodePushClientWrapper(
@@ -1007,18 +1013,60 @@ aar artifact already exists, continuing...''');
     required Patch patch,
     required ReleasePlatform platform,
     required File bundle,
+  }) => _createPatchSidecarArtifact(
+    appId: appId,
+    patch: patch,
+    platform: platform,
+    file: bundle,
+    arch: assetsArch,
+    label: 'assets',
+  );
+
+  /// Retains debug symbols for [patch] so crashes reported against it can be
+  /// symbolicated later.
+  ///
+  /// The source is the `--split-debug-info` output the CLI already produces
+  /// (`Patcher.debugInfoFile`); until now it was written for third-party crash
+  /// tools and never kept anywhere this control plane could reach. Stored
+  /// keyed by patch and [symbolsArch]; together with a crash report's
+  /// (app, release_version, patch_number, arch) that is the join
+  /// symbolication needs.
+  Future<void> createPatchSymbolArtifact({
+    required String appId,
+    required Patch patch,
+    required ReleasePlatform platform,
+    required File symbols,
+  }) => _createPatchSidecarArtifact(
+    appId: appId,
+    patch: patch,
+    platform: platform,
+    file: symbols,
+    arch: symbolsArch,
+    label: 'debug symbols',
+  );
+
+  /// Uploads a non-code artifact belonging to [patch], distinguished only by
+  /// its [arch] tag. Shared by the asset-bundle and debug-symbol paths, which
+  /// differ in nothing but that tag and the progress text.
+  Future<void> _createPatchSidecarArtifact({
+    required String appId,
+    required Patch patch,
+    required ReleasePlatform platform,
+    required File file,
+    required String arch,
+    required String label,
   }) async {
     final progress = logger.progress(
-      'Uploading ${platform.displayName} assets',
+      'Uploading ${platform.displayName} $label',
     );
     try {
       await codePushClient.createPatchArtifact(
         appId: appId,
         patchId: patch.id,
-        artifactPath: bundle.path,
-        arch: assetsArch,
+        artifactPath: file.path,
+        arch: arch,
         platform: platform,
-        hash: sha256.convert(await bundle.readAsBytes()).toString(),
+        hash: sha256.convert(await file.readAsBytes()).toString(),
       );
       progress.complete();
     } catch (error) {

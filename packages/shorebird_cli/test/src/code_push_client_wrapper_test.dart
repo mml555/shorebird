@@ -2779,6 +2779,43 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
           verify(() => progress.complete()).called(1);
         });
 
+        test('retains debug symbols under the symbols tag', () async {
+          final symbols = File(p.join(tempDir.path, 'patch-debug.zip'))
+            ..writeAsBytesSync([9, 9, 9]);
+          when(
+            () => codePushClient.createPatchArtifact(
+              appId: any(named: 'appId'),
+              patchId: any(named: 'patchId'),
+              artifactPath: any(named: 'artifactPath'),
+              arch: any(named: 'arch'),
+              platform: any(named: 'platform'),
+              hash: any(named: 'hash'),
+            ),
+          ).thenAnswer((_) async {});
+
+          await runWithOverrides(
+            () => codePushClientWrapper.createPatchSymbolArtifact(
+              appId: appId,
+              patch: patch,
+              platform: releasePlatform,
+              symbols: symbols,
+            ),
+          );
+
+          // Distinguished from assets and from code by the arch tag alone.
+          verify(
+            () => codePushClient.createPatchArtifact(
+              appId: appId,
+              patchId: patchId,
+              artifactPath: symbols.path,
+              arch: symbolsArch,
+              platform: releasePlatform,
+              hash: sha256.convert(symbols.readAsBytesSync()).toString(),
+            ),
+          ).called(1);
+          expect(symbolsArch, isNot(assetsArch));
+        });
+
         test('exits with code 70 when the upload fails', () async {
           const error = 'something went wrong';
           when(
