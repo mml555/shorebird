@@ -126,6 +126,7 @@ class ArtifactRow {
     required this.canSideload,
     required this.status,
     required this.storageKey,
+    required this.createdAt,
   });
   final int id;
   final String token;
@@ -140,6 +141,10 @@ class ArtifactRow {
   final bool canSideload;
   final ArtifactStatus status;
   final String storageKey;
+
+  /// When the artifact row was created, ISO-8601 UTC. Part of the CLI's
+  /// `PatchArtifact` wire contract, which requires it.
+  final String createdAt;
 }
 
 class UserRow {
@@ -1376,6 +1381,7 @@ class Repository {
     canSideload: asDbBool(m['can_sideload']),
     status: ArtifactStatus.parse(m['status'] as String),
     storageKey: m['storage_key'] as String,
+    createdAt: _ts(m['created_at']),
   );
 
   Future<void> setArtifactStatus(int artifactId, ArtifactStatus status) => _q(

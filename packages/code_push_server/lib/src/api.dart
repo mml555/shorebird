@@ -1441,18 +1441,44 @@ class Api {
     return _json({...app, 'patches': patches});
   }
 
+  /// The channel a patch counts as being "in", for the CLI's singular `channel`
+  /// field: the most recent deployment that is still active and not rolled
+  /// back. Null when the patch was never promoted, or every promotion has since
+  /// been withdrawn or reverted — in which case it genuinely has no track.
+  ///
+  /// [deployments] arrives newest-first from `Repository.patchDeployments`.
+  static String? _currentTrack(List<Map<String, Object?>> deployments) {
+    for (final d in deployments) {
+      if (d['status'] == ChannelPatchStatus.active.name &&
+          d['rolled_back'] != true) {
+        return d['channel'] as String?;
+      }
+    }
+    return null;
+  }
+
   Future<Response> _getReleasePatches(String appId, int releaseId) async {
     await _ownedRelease(appId, releaseId);
     final patches = await repo.patchesForRelease(releaseId);
     final out = <Map<String, Object?>>[];
     for (final p in patches) {
       final arts = await repo.patchArtifacts(p.id);
+      final deployments = await repo.patchDeployments(p.id);
       out.add({
         'id': p.id,
         'number': p.number,
         'status': p.status.name,
-        'channel': null,
-        'deployments': await repo.patchDeployments(p.id),
+        // The CLI's singular "track" for this patch: the newest deployment
+        // that is still live. `deployments` (below) is the full per-channel
+        // picture and stays authoritative — this is the one-line summary the
+        // CLI reads.
+        //
+        // WAS hardcoded null, so `shorebird patches list` printed
+        // "[no track]" and `patches info` never showed a Track at all, even
+        // for a patch promoted seconds earlier. It also made `set-track`'s
+        // "already in that track" check dead code, so it always re-promoted.
+        'channel': _currentTrack(deployments),
+        'deployments': deployments,
         'artifacts': [
           for (final a in arts)
             {
@@ -1462,6 +1488,13 @@ class Api {
               'platform': a.platform,
               'hash': a.hash,
               'size': a.size,
+              // Required by the CLI's `PatchArtifact.fromJson`, which does an
+              // unguarded `DateTime.parse(json['created_at'] as String)`.
+              // Omitting it made every patch that HAS artifacts unparseable,
+              // so `patches info`, `patches list` and `patches set-track` all
+              // failed with a FormatException — only artifact-less patches,
+              // which no real patch is, appeared to work.
+              'created_at': a.createdAt,
             },
         ],
         'is_rolled_back': await repo.patchRolledBack(p.id),

@@ -98,6 +98,23 @@ CLI's own `UpdateReleaseRequest` documents:
 `PATCH /apps/{appId}/patches/{patchId}` has no upstream counterpart: upstream's
 `Patch` DTO carries `notes` but exposes no way to set it.
 
+### Patch payload: `channel` vs `deployments`
+
+`GET /apps/{appId}/releases/{releaseId}/patches` returns both:
+
+- **`channel`** — the single track the CLI displays (`patches list` prints it,
+  `patches info` shows it as `Track:`). It is the newest deployment that is
+  still `active` and not rolled back, or `null` once every promotion has been
+  withdrawn or reverted.
+- **`deployments`** — the full per-channel picture (`channel`, `status`,
+  `rollout`, `rolled_back`), newest first. Authoritative; a patch can be live on
+  several tracks at once, which `channel` cannot express.
+
+Each entry in `artifacts` carries `id`, `patch_id`, `arch`, `platform`, `hash`,
+`size`, and `created_at`. All seven are required by the CLI's
+`PatchArtifact.fromJson`, which casts `created_at` unguarded — omitting it makes
+every patch with artifacts unparseable.
+
 ### Build provenance (`metadata`)
 
 The CLI attaches a `metadata` object to every release status update

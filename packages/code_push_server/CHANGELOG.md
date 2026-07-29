@@ -6,6 +6,29 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Fixed
+
+- **`shorebird patches info` / `patches list` / `patches set-track` failed for
+  any patch that had artifacts.** The patch-artifact payload omitted
+  `created_at`, and the CLI's `PatchArtifact.fromJson` does an unguarded
+  `DateTime.parse(json['created_at'] as String)` — so every real patch came back
+  as `FormatException: type 'Null' is not a subtype of type 'String'`. Only
+  artifact-less patches, which no real patch is, appeared to work, which is why
+  the unit suite never caught it. The column already existed on `artifacts`; it
+  was simply never surfaced.
+
+- **A patch's track was always reported as absent.** `channel` was hardcoded
+  `null` in the patch payload, so `shorebird patches list` printed
+  `[no track]` and `patches info` never showed a `Track:` line, even for a patch
+  promoted seconds earlier. It also made `set-track`'s "already in that track"
+  check dead code, so it silently re-promoted every time. The field now reports
+  the newest deployment that is still active and not rolled back (and `null`
+  once every promotion has been withdrawn or reverted). The richer
+  `deployments` array is unchanged and remains authoritative.
+
+  Both bugs predate this branch and were found by driving the real pinned CLI
+  against a containerized server on Postgres — not by the unit suite.
+
 ### Added
 
 - **Release and patch notes are stored and served.** The CLI wire contract has

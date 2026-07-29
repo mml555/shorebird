@@ -1694,6 +1694,54 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  // The CLI's `PatchArtifact.fromJson` does an unguarded
+  // `DateTime.parse(json['created_at'] as String)`. The patch-artifact payload
+  // omitted `created_at`, so every patch that HAS artifacts was unparseable and
+  // `patches info`, `patches list` and `patches set-track` all died with a
+  // FormatException. Only artifact-less patches — which no real patch is —
+  // appeared to work, which is why unit tests never caught it.
+  group('patch artifact wire contract', () {
+    test('a patch artifact carries every field the CLI requires', () async {
+      final s = await seedApp();
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/${s.appId}/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': s.releaseId},
+        ),
+      );
+      await uploadPatchArtifact(s.appId, p['id'] as int);
+
+      final list = await jsonOf(
+        await send(
+          'GET',
+          '/api/v1/apps/${s.appId}/releases/${s.releaseId}/patches',
+          bearer: _bootstrapKey,
+        ),
+      );
+      final artifacts =
+          ((list['patches'] as List).single as Map)['artifacts'] as List;
+      final artifact = artifacts.single as Map<String, dynamic>;
+
+      // Exactly the keys PatchArtifact.fromJson reads, with the types it casts
+      // to. `created_at` is the one that was missing.
+      expect(artifact['id'], isA<int>());
+      expect(artifact['patch_id'], isA<int>());
+      expect(artifact['arch'], isA<String>());
+      expect(artifact['platform'], isA<String>());
+      expect(artifact['hash'], isA<String>());
+      expect(artifact['size'], isA<int>());
+      expect(artifact['created_at'], isA<String>());
+      // Must be parseable, not merely present.
+      expect(
+        () => DateTime.parse(artifact['created_at'] as String),
+        returnsNormally,
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Build provenance. The CLI attaches a `metadata` blob to every release
   // status update and patch creation; the server used to discard it entirely.
   group('build metadata capture', () {
@@ -2114,6 +2162,54 @@ void main() {
         expect(await check('internal'), 2);
       },
     );
+
+    // The `channel` field is what `shorebird patches list` prints as the track
+    // and `patches info` shows as "Track:". It was hardcoded null, so a patch
+    // promoted seconds earlier still displayed "[no track]".
+    test('the CLI-visible track reflects promotion and withdrawal', () async {
+      final s = await seedApp();
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/${s.appId}/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': s.releaseId},
+        ),
+      );
+      final patchId = p['id'] as int;
+      await uploadPatchArtifact(s.appId, patchId);
+
+      Future<Object?> track() async {
+        final r = await jsonOf(
+          await send(
+            'GET',
+            '/api/v1/apps/${s.appId}/releases/${s.releaseId}/patches',
+            bearer: _bootstrapKey,
+          ),
+        );
+        return ((r['patches'] as List).single as Map)['channel'];
+      }
+
+      // Never promoted: genuinely no track.
+      expect(await track(), isNull);
+
+      await send(
+        'POST',
+        '/api/v1/apps/${s.appId}/patches/promote',
+        bearer: _bootstrapKey,
+        json: {'patch_id': patchId, 'channel_id': s.channelId},
+      );
+      expect(await track(), 'stable');
+
+      // Withdrawn: no longer served, so it reports no track again rather than
+      // continuing to claim the channel it was removed from.
+      await send(
+        'POST',
+        '/admin/apps/${s.appId}/patches/$patchId/withdraw?channel=stable',
+        bearer: _bootstrapKey,
+      );
+      expect(await track(), isNull);
+    });
   });
 
   // -------------------------------------------------------------------------
