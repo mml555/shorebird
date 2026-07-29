@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
@@ -2729,6 +2730,81 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
               hash: patchArtifactBundle.hash,
             ),
           ).called(1);
+        });
+      });
+
+      group('createPatchAssetArtifact', () {
+        late Directory tempDir;
+        late File bundle;
+
+        setUp(() {
+          tempDir = Directory.systemTemp.createTempSync();
+          bundle = File(p.join(tempDir.path, 'assets.zip'))
+            ..writeAsBytesSync([1, 2, 3, 4]);
+        });
+
+        test('uploads the bundle tagged as assets, not as an arch', () async {
+          when(
+            () => codePushClient.createPatchArtifact(
+              appId: any(named: 'appId'),
+              patchId: any(named: 'patchId'),
+              artifactPath: any(named: 'artifactPath'),
+              arch: any(named: 'arch'),
+              platform: any(named: 'platform'),
+              hash: any(named: 'hash'),
+            ),
+          ).thenAnswer((_) async {});
+
+          await runWithOverrides(
+            () => codePushClientWrapper.createPatchAssetArtifact(
+              appId: appId,
+              patch: patch,
+              platform: releasePlatform,
+              bundle: bundle,
+            ),
+          );
+
+          // The whole point: it rides the existing artifact endpoint, so the
+          // only thing distinguishing it from code is the arch tag.
+          verify(
+            () => codePushClient.createPatchArtifact(
+              appId: appId,
+              patchId: patchId,
+              artifactPath: bundle.path,
+              arch: assetsArch,
+              platform: releasePlatform,
+              hash: sha256.convert(bundle.readAsBytesSync()).toString(),
+            ),
+          ).called(1);
+          verify(() => progress.complete()).called(1);
+        });
+
+        test('exits with code 70 when the upload fails', () async {
+          const error = 'something went wrong';
+          when(
+            () => codePushClient.createPatchArtifact(
+              appId: any(named: 'appId'),
+              patchId: any(named: 'patchId'),
+              artifactPath: any(named: 'artifactPath'),
+              arch: any(named: 'arch'),
+              platform: any(named: 'platform'),
+              hash: any(named: 'hash'),
+            ),
+          ).thenThrow(error);
+
+          await expectLater(
+            () async => runWithOverrides(
+              () => codePushClientWrapper.createPatchAssetArtifact(
+                appId: appId,
+                patch: patch,
+                platform: releasePlatform,
+                bundle: bundle,
+              ),
+            ),
+            exitsWithCode(ExitCode.software),
+          );
+
+          verify(() => progress.fail(error)).called(1);
         });
       });
 

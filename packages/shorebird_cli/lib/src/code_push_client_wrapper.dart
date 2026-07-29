@@ -68,6 +68,16 @@ class PatchArtifactBundle extends Equatable {
   ];
 }
 
+/// The `arch` value marking a patch artifact as an **asset bundle** rather than
+/// code.
+///
+/// Must match `assetsArch` in the control plane (code_push_server's
+/// `domain.dart`). That server is a standalone package with its own lockfile,
+/// not a workspace member, so this string is deliberately duplicated rather
+/// than shared. Chosen so it can never collide with a real architecture the
+/// CLI uploads (`aarch64`, `arm`, `x86_64`, ...).
+const assetsArch = 'assets';
+
 /// A reference to a [CodePushClientWrapper] instance.
 ScopedRef<CodePushClientWrapper> codePushClientWrapperRef = create(() {
   return CodePushClientWrapper(
@@ -978,6 +988,41 @@ aar artifact already exists, continuing...''');
       }
     }
     createArtifactProgress.complete();
+  }
+
+  /// Uploads an asset bundle for [patch].
+  ///
+  /// This is asset support in patches. The bundle is registered as an ordinary
+  /// patch artifact tagged [assetsArch], which needs no protocol or client
+  /// change — `arch` is free-form all the way to the server's artifacts table.
+  ///
+  /// It is deliberately NOT part of the native updater's payload. The updater
+  /// applies exactly one artifact as a bidiff, so carrying assets there would
+  /// mean changing Rust that is linked into libflutter.so — putting the feature
+  /// behind an engine build, and therefore out of reach on iOS. App-side Dart
+  /// fetches this bundle instead, so the stock updater stays untouched.
+  Future<void> createPatchAssetArtifact({
+    required String appId,
+    required Patch patch,
+    required ReleasePlatform platform,
+    required File bundle,
+  }) async {
+    final progress = logger.progress(
+      'Uploading ${platform.displayName} assets',
+    );
+    try {
+      await codePushClient.createPatchArtifact(
+        appId: appId,
+        patchId: patch.id,
+        artifactPath: bundle.path,
+        arch: assetsArch,
+        platform: platform,
+        hash: sha256.convert(await bundle.readAsBytes()).toString(),
+      );
+      progress.complete();
+    } catch (error) {
+      _handleErrorAndExit(error, progress: progress);
+    }
   }
 
   /// Promotes a patch to a specific [channel].
