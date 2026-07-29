@@ -98,6 +98,11 @@ Asset support already has its server half here: `POST /patches/assets` serves a
 signed URL for a patch's asset bundle, tagged `arch: assets`. It needed no schema
 change and no new upload path, because `arch` is free-form end to end.
 
+Debug symbols ride the same mechanism as `arch: symbols`, uploaded whenever a
+patch build emits them (`--split-debug-info`). Together with a crash report's
+`(app, release_version, patch_number, arch)` that is the join a server-side
+symbolizer needs.
+
 ## Reproducing the engine
 
 ```bash

@@ -85,6 +85,15 @@ const assetsArch = 'assets';
 /// plane's constant, and deliberately not a real architecture name.
 const symbolsArch = 'symbols';
 
+/// The non-code files that can accompany one platform's patch artifacts.
+///
+/// Optional and independent: a patch may retain symbols (`--split-debug-info`)
+/// or nothing at all, which is the default and matches stock behavior exactly.
+typedef PatchSidecars = ({File? symbols});
+
+/// A [PatchSidecars] carrying nothing, for platforms that contributed none.
+const noPatchSidecars = (symbols: null);
+
 /// A reference to a [CodePushClientWrapper] instance.
 ScopedRef<CodePushClientWrapper> codePushClientWrapperRef = create(() {
   return CodePushClientWrapper(
@@ -1110,6 +1119,11 @@ aar artifact already exists, continuing...''');
   /// makes a multi-platform patch atomic from a device's perspective: an
   /// unpromoted patch is served to nobody, so a failure partway through leaves
   /// an inert patch instead of a live one covering only some platforms.
+  ///
+  /// [sidecars] carries each platform's non-code payloads, which upload
+  /// alongside that platform's code artifacts and before promotion, so they are
+  /// in place by the time any device can see the patch. A platform absent from
+  /// the map contributes none.
   Future<void> publishPatch({
     required String appId,
     required int releaseId,
@@ -1117,6 +1131,7 @@ aar artifact already exists, continuing...''');
     required DeploymentTrack track,
     required Map<ReleasePlatform, Map<Arch, PatchArtifactBundle>>
     patchArtifactBundles,
+    Map<ReleasePlatform, PatchSidecars> sidecars = const {},
   }) async {
     final patch = await createPatch(
       appId: appId,
@@ -1132,6 +1147,16 @@ aar artifact already exists, continuing...''');
         platform: platform,
         patchArtifactBundles: bundles,
       );
+
+      final sidecar = sidecars[platform] ?? noPatchSidecars;
+      if (sidecar.symbols case final symbols?) {
+        await createPatchSymbolArtifact(
+          appId: appId,
+          patch: patch,
+          platform: platform,
+          symbols: symbols,
+        );
+      }
     }
 
     final channel =

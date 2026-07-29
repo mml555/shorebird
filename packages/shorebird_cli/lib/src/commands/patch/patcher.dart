@@ -249,6 +249,43 @@ More info: ${troubleshootingUrl.toLink()}.
     );
   }
 
+  /// Where this build actually writes debug symbols, which is not always what
+  /// the user asked for: Flutter requires `--split-debug-info` alongside
+  /// `--obfuscate`, so the patch command injects the flag itself when it has
+  /// to enable obfuscation to match the release. Symbols exist in that case
+  /// even though [splitDebugInfoPath] is null.
+  String? get _effectiveSplitDebugInfoPath {
+    final explicit = splitDebugInfoPath;
+    if (explicit != null) return explicit;
+
+    const prefix = '--split-debug-info=';
+    for (final arg in extraBuildArgs) {
+      if (arg.startsWith(prefix)) return arg.substring(prefix.length);
+    }
+    return null;
+  }
+
+  /// The directory holding the debug symbols this patch's build produced, or
+  /// `null` if it produced none.
+  ///
+  /// Uniform across platforms because one flag decides it everywhere:
+  /// `--split-debug-info` is forwarded to `flutter build` on Android, and the
+  /// Apple patchers point gen_snapshot's `--save-debugging-info` at the same
+  /// directory. Nothing is produced — and so nothing is retained — unless the
+  /// build was asked for symbols.
+  Future<Directory?> debugSymbolsDirectory() async {
+    final path = _effectiveSplitDebugInfoPath;
+    if (path == null) return null;
+
+    final directory = Directory(path);
+    if (!directory.existsSync()) return null;
+    // An empty directory means the build declined to emit symbols; zipping it
+    // would retain nothing and cost an upload.
+    if (directory.listSync().isEmpty) return null;
+
+    return directory;
+  }
+
   /// The path to the output file for the debug info.
   static File get debugInfoFile {
     return File(p.join(shorebirdEnv.buildDirectory.path, 'patch-debug.zip'));

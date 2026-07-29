@@ -57,6 +57,88 @@ void main() {
       });
     });
 
+    group('debugSymbolsDirectory', () {
+      late Directory tempDir;
+      late ArgParser argParser;
+      late ArgResults argResults;
+
+      /// A patcher whose --split-debug-info resolves to [path], or to nothing
+      /// when [path] is null.
+      _TestPatcher patcherFor({
+        String? path,
+        List<String> extraBuildArgs = const [],
+      }) {
+        when(() => argResults.wasParsed(any())).thenReturn(path != null);
+        when(
+          () => argResults[CommonArguments.splitDebugInfoArg.name],
+        ).thenReturn(path);
+        return _TestPatcher(
+          argParser: argParser,
+          argResults: argResults,
+          flavor: null,
+          target: null,
+        )..extraBuildArgs = extraBuildArgs;
+      }
+
+      setUp(() {
+        tempDir = Directory.systemTemp.createTempSync();
+        argParser = MockArgParser();
+        argResults = MockArgResults();
+        when(() => argParser.options).thenReturn({});
+        when(() => argResults.rest).thenReturn([]);
+      });
+
+      test('is null when --split-debug-info was not passed', () async {
+        await expectLater(
+          patcherFor().debugSymbolsDirectory(),
+          completion(isNull),
+        );
+      });
+
+      test('is null when the directory does not exist', () async {
+        await expectLater(
+          patcherFor(
+            path: p.join(tempDir.path, 'absent'),
+          ).debugSymbolsDirectory(),
+          completion(isNull),
+        );
+      });
+
+      test('is null when the build emitted no symbols', () async {
+        await expectLater(
+          patcherFor(path: tempDir.path).debugSymbolsDirectory(),
+          completion(isNull),
+        );
+      });
+
+      test('is the directory when the build emitted symbols', () async {
+        File(p.join(tempDir.path, 'app.android-arm64.symbols'))
+          ..createSync(recursive: true)
+          ..writeAsStringSync('symbols');
+
+        final result = await patcherFor(
+          path: tempDir.path,
+        ).debugSymbolsDirectory();
+
+        expect(result?.path, equals(tempDir.path));
+      });
+
+      test('falls back to the path the patch command injected', () async {
+        // Flutter requires --split-debug-info alongside --obfuscate, so the
+        // patch command adds the flag itself. Symbols exist even though the
+        // user never passed it.
+        File(p.join(tempDir.path, 'app.android-arm64.symbols'))
+          ..createSync(recursive: true)
+          ..writeAsStringSync('symbols');
+
+        final result = await patcherFor(
+          extraBuildArgs: ['--split-debug-info=${tempDir.path}'],
+        ).debugSymbolsDirectory();
+
+        expect(result?.path, equals(tempDir.path));
+      });
+    });
+
     group('assertArgsAreValid', () {
       test('has no validations by default', () {
         expect(

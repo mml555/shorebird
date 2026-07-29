@@ -4,6 +4,7 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:meta/meta.dart';
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:shorebird_cli/src/archive/directory_archive.dart';
 import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_builder/build_trace_session.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
@@ -425,6 +426,7 @@ Building with Flutter $flutterVersionString to determine the release version...
         await cache.updateAll();
 
         final bundles = <ReleasePlatform, Map<Arch, PatchArtifactBundle>>{};
+        final sidecars = <ReleasePlatform, PatchSidecars>{};
         final platformMetadata =
             <ReleasePlatform, CreatePatchPlatformMetadata>{};
         // Shared by every platform: one invocation builds them all on one
@@ -450,6 +452,7 @@ Building with Flutter $flutterVersionString to determine the release version...
           );
           final releasePlatform = patcher.releaseType.releasePlatform;
           bundles[releasePlatform] = result.bundles;
+          sidecars[releasePlatform] = result.sidecars;
           platformMetadata[releasePlatform] = await patcher
               .updatedPlatformMetadata(result.metadata);
           environment = await patcher.updatedEnvironmentMetadata(environment);
@@ -489,6 +492,7 @@ Building with Flutter $flutterVersionString to determine the release version...
           metadata: metadata.toJson(),
           track: track,
           patchArtifactBundles: bundles,
+          sidecars: sidecars,
         );
       },
       values: {shorebirdEnvRef.overrideWith(() => releaseFlutterShorebirdEnv)},
@@ -506,6 +510,7 @@ Building with Flutter $flutterVersionString to determine the release version...
     ({
       Map<Arch, PatchArtifactBundle> bundles,
       CreatePatchPlatformMetadata metadata,
+      PatchSidecars sidecars,
     })
   >
   _buildPlatformPatch({
@@ -673,6 +678,7 @@ Building ${releasePlatform.displayName} patch with Flutter $flutterVersionString
 
     return (
       bundles: patchArtifactBundles,
+      sidecars: await _packageSidecars(patcher),
       metadata: CreatePatchPlatformMetadata(
         hasAssetChanges: diffStatus.hasAssetChanges,
         hasNativeChanges: diffStatus.hasNativeChanges,
@@ -683,6 +689,47 @@ Building ${releasePlatform.displayName} patch with Flutter $flutterVersionString
         buildTraceSummary: buildTraceSession.summary?.toJson(),
       ),
     );
+  }
+
+  /// Zips whatever non-code payloads this platform's build produced.
+  ///
+  /// Packaged here rather than at upload time so that a multi-platform patch
+  /// stays all-or-nothing: [_buildPlatformPatch] deliberately uploads nothing,
+  /// and a platform's symbol directory is transient build output that the next
+  /// platform's build may overwrite.
+  ///
+  /// Not fatal. A patch whose symbols could not be packaged is still a valid
+  /// patch, so a failure here degrades to "not retained" and says so, rather
+  /// than throwing away a build that otherwise succeeded.
+  Future<PatchSidecars> _packageSidecars(Patcher patcher) async {
+    final platformName = patcher.releaseType.releasePlatform.displayName;
+
+    // Not gated on a flag: symbols only exist when the build was already asked
+    // for them with --split-debug-info, which is the opt-in.
+    File? symbols;
+    if (await patcher.debugSymbolsDirectory() case final directory?) {
+      symbols = await _tryZip(directory, name: 'symbols', of: platformName);
+    }
+
+    return (symbols: symbols);
+  }
+
+  /// Zips [directory], or returns null and warns if that fails. [name] and [of]
+  /// name the payload and platform in that warning.
+  Future<File?> _tryZip(
+    Directory directory, {
+    required String name,
+    required String of,
+  }) async {
+    try {
+      return await directory.zipToTempFile(name: name);
+    } on Exception catch (error) {
+      logger.warn(
+        'Failed to package $of $name from ${directory.path} ($error). '
+        'They will not be retained with this patch.',
+      );
+      return null;
+    }
   }
 
   /// Prompts the user for the specific release to patch.

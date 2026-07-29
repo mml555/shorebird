@@ -250,6 +250,7 @@ void main() {
           metadata: any(named: 'metadata'),
           track: any(named: 'track'),
           patchArtifactBundles: any(named: 'patchArtifactBundles'),
+          sidecars: any(named: 'sidecars'),
         ),
       ).thenAnswer((_) async {});
       when(
@@ -305,6 +306,8 @@ void main() {
       ).thenAnswer((_) async => File(''));
       when(() => patcher.releaseType).thenReturn(ReleaseType.android);
       when(() => patcher.primaryReleaseArtifactArch).thenReturn('aab');
+      // No sidecars by default: no --split-debug-info, so no symbols.
+      when(patcher.debugSymbolsDirectory).thenAnswer((_) async => null);
       when(
         () => patcher.createPatchArtifacts(
           appId: any(named: 'appId'),
@@ -406,8 +409,74 @@ void main() {
             patchArtifactBundles: {
               ReleasePlatform.android: patchArtifactBundles,
             },
+            sidecars: any(named: 'sidecars'),
           ),
         ).called(1);
+      });
+
+      group('sidecars', () {
+        /// Runs a patch and returns the sidecars it published for Android.
+        Future<PatchSidecars> publishedSidecars() async {
+          await runWithOverrides(() => command.createPatch([patcher]));
+          final captured =
+              verify(
+                    () => codePushClientWrapper.publishPatch(
+                      appId: any(named: 'appId'),
+                      releaseId: any(named: 'releaseId'),
+                      metadata: any(named: 'metadata'),
+                      track: any(named: 'track'),
+                      patchArtifactBundles: any(named: 'patchArtifactBundles'),
+                      sidecars: captureAny(named: 'sidecars'),
+                    ),
+                  ).captured.single
+                  as Map<ReleasePlatform, PatchSidecars>;
+          return captured[ReleasePlatform.android]!;
+        }
+
+        /// A directory holding one file, so zipping it produces something.
+        Directory populatedDir() {
+          final dir = Directory.systemTemp.createTempSync();
+          File(p.join(dir.path, 'contents'))
+            ..createSync(recursive: true)
+            ..writeAsStringSync('contents');
+          return dir;
+        }
+
+        group('symbols', () {
+          test('are not packaged when the build emitted none', () async {
+            expect((await publishedSidecars()).symbols, isNull);
+          });
+
+          test('are retained with no flag of their own', () async {
+            // --split-debug-info is the opt-in: if the build produced symbols,
+            // the user already asked for them.
+            when(
+              patcher.debugSymbolsDirectory,
+            ).thenAnswer((_) async => populatedDir());
+
+            final symbols = (await publishedSidecars()).symbols;
+
+            expect(symbols, isNotNull);
+            expect(p.basename(symbols!.path), equals('symbols.zip'));
+          });
+
+          test('do not fail the patch when packaging fails', () async {
+            // A directory that is gone before it can be zipped.
+            final vanished = Directory.systemTemp.createTempSync()
+              ..deleteSync();
+            when(
+              patcher.debugSymbolsDirectory,
+            ).thenAnswer((_) async => vanished);
+
+            // publishedSidecars() only returns if the patch published, so this
+            // asserts both that symbols are missing and that their absence did
+            // not take the patch down with it.
+            expect((await publishedSidecars()).symbols, isNull);
+            verify(
+              () => logger.warn(any(that: contains('Failed to package'))),
+            ).called(1);
+          });
+        });
       });
 
       group('flavor validation', () {
@@ -1201,6 +1270,7 @@ void main() {
             ),
             patchArtifactBundles: any(named: 'patchArtifactBundles'),
             track: DeploymentTrack.stable,
+            sidecars: any(named: 'sidecars'),
           ),
         ]);
       });
@@ -1408,6 +1478,7 @@ void main() {
               metadata: any(named: 'metadata'),
               patchArtifactBundles: any(named: 'patchArtifactBundles'),
               track: DeploymentTrack.stable,
+              sidecars: any(named: 'sidecars'),
             ),
           ]);
 
@@ -1560,6 +1631,7 @@ void main() {
                   ),
                   patchArtifactBundles: any(named: 'patchArtifactBundles'),
                   track: any(named: 'track'),
+                  sidecars: any(named: 'sidecars'),
                 ),
               ]);
             },
@@ -1610,6 +1682,7 @@ void main() {
             metadata: any(named: 'metadata'),
             patchArtifactBundles: any(named: 'patchArtifactBundles'),
             track: DeploymentTrack.stable,
+            sidecars: any(named: 'sidecars'),
           ),
         );
       });
@@ -1801,6 +1874,7 @@ Please re-run the release command for this version or create a new release.'''),
             metadata: any(named: 'metadata'),
             patchArtifactBundles: any(named: 'patchArtifactBundles'),
             track: DeploymentTrack.staging,
+            sidecars: any(named: 'sidecars'),
           ),
         ).called(1);
       });
@@ -1847,6 +1921,7 @@ Please re-run the release command for this version or create a new release.'''),
               ),
               patchArtifactBundles: any(named: 'patchArtifactBundles'),
               track: any(named: 'track'),
+              sidecars: any(named: 'sidecars'),
             ),
           );
         });
@@ -1874,6 +1949,7 @@ Please re-run the release command for this version or create a new release.'''),
               ),
               patchArtifactBundles: any(named: 'patchArtifactBundles'),
               track: any(named: 'track'),
+              sidecars: any(named: 'sidecars'),
             ),
           );
         });
@@ -1893,6 +1969,7 @@ Please re-run the release command for this version or create a new release.'''),
             metadata: any(named: 'metadata'),
             track: any(named: 'track'),
             patchArtifactBundles: any(named: 'patchArtifactBundles'),
+            sidecars: any(named: 'sidecars'),
           ),
         );
       }
@@ -1909,6 +1986,7 @@ Please re-run the release command for this version or create a new release.'''),
         when(() => iosPatcher.linkPercentage).thenReturn(null);
         when(() => iosPatcher.assertArgsAreValid()).thenAnswer((_) async {});
         when(() => iosPatcher.assertPreconditions()).thenAnswer((_) async {});
+        when(iosPatcher.debugSymbolsDirectory).thenAnswer((_) async => null);
         when(
           () => iosPatcher.buildPatchArtifact(
             releaseVersion: any(named: 'releaseVersion'),
@@ -1994,6 +2072,7 @@ Please re-run the release command for this version or create a new release.'''),
               ReleasePlatform.android: patchArtifactBundles,
               ReleasePlatform.ios: patchArtifactBundles,
             },
+            sidecars: any(named: 'sidecars'),
           ),
         ).called(1);
       });
@@ -2009,6 +2088,7 @@ Please re-run the release command for this version or create a new release.'''),
                     metadata: captureAny(named: 'metadata'),
                     track: any(named: 'track'),
                     patchArtifactBundles: any(named: 'patchArtifactBundles'),
+                    sidecars: any(named: 'sidecars'),
                   ),
                 ).captured.single
                 as Map<String, dynamic>;
@@ -2138,6 +2218,7 @@ Please re-run the release command for this version or create a new release.'''),
               metadata: any(named: 'metadata'),
               track: any(named: 'track'),
               patchArtifactBundles: any(named: 'patchArtifactBundles'),
+              sidecars: any(named: 'sidecars'),
             ),
           ).called(1);
         });

@@ -32,7 +32,7 @@ Branch: `feat/engine-improvements`, 22 commits off `main`.
 
 ### Track A — crash reporting
 
-**Done:** ingestion + retention.
+**Done:** ingestion + retention, and retention is now actually wired.
 
 | Piece | Where |
 |---|---|
@@ -41,6 +41,23 @@ Branch: `feat/engine-improvements`, 22 commits off `main`.
 | `POST /crashes` (device, unauthenticated) | `lib/src/api.dart` → `_crashesReport` |
 | `GET /api/v1/apps/{id}/crashes` (authed) | same file → `_getCrashes` |
 | Symbol retention | `shorebird_cli/lib/src/code_push_client_wrapper.dart` → `createPatchSymbolArtifact`, tag `symbolsArch` |
+| Symbol **source** | `commands/patch/patcher.dart` → `debugSymbolsDirectory()` |
+| Packaging + upload | `patch_command.dart` → `_packageSidecars`, then `publishPatch(sidecars: …)` |
+
+Retention has **no flag of its own**: `--split-debug-info` is the opt-in, since
+that is what makes any patcher emit symbols at all. It is uniform across
+platforms — Flutter writes symbols there on Android, and the Apple patchers point
+gen_snapshot's `--save-debugging-info` at the same directory.
+
+One subtlety worth not re-discovering: the patch command **injects**
+`--split-debug-info` itself when it has to enable `--obfuscate` to match the
+release, so `debugSymbolsDirectory()` also reads `extraBuildArgs`. Reading
+`argResults` alone would retain nothing for obfuscated patches — the ones that
+most need symbolication.
+
+Sidecars are **not fatal**: a patch whose symbols could not be packaged is still
+a valid patch, so failures warn and degrade to "not retained" rather than
+throwing away a completed build.
 
 **Next: symbolication.** The join is already in place — crash reports carry
 `(app_id, release_version, patch_number, arch)` and symbols are a patch artifact

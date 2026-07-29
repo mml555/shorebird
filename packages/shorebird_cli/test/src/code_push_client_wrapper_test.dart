@@ -2920,6 +2920,147 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
           ).called(1);
         });
 
+        group('sidecars', () {
+          late File symbolsBundle;
+
+          setUp(() {
+            final tempDir = Directory.systemTemp.createTempSync();
+            symbolsBundle = File(p.join(tempDir.path, 'symbols.zip'))
+              ..writeAsBytesSync([5, 6, 7, 8]);
+          });
+
+          test('uploads nothing extra by default', () async {
+            await runWithOverrides(
+              () => codePushClientWrapper.publishPatch(
+                appId: appId,
+                releaseId: releaseId,
+                track: track,
+                patchArtifactBundles: {releasePlatform: patchArtifactBundles},
+                metadata: {'foo': 'bar'},
+              ),
+            );
+
+            // Stock behavior: only the code artifact goes up.
+            verifyNever(
+              () => codePushClient.createPatchArtifact(
+                appId: any(named: 'appId'),
+                patchId: any(named: 'patchId'),
+                artifactPath: any(named: 'artifactPath'),
+                arch: symbolsArch,
+                platform: any(named: 'platform'),
+                hash: any(named: 'hash'),
+              ),
+            );
+          });
+
+          test('uploads symbols for the platform that has them', () async {
+            await runWithOverrides(
+              () => codePushClientWrapper.publishPatch(
+                appId: appId,
+                releaseId: releaseId,
+                track: track,
+                patchArtifactBundles: {releasePlatform: patchArtifactBundles},
+                metadata: {'foo': 'bar'},
+                sidecars: {releasePlatform: (symbols: symbolsBundle)},
+              ),
+            );
+
+            verify(
+              () => codePushClient.createPatchArtifact(
+                appId: appId,
+                patchId: patchId,
+                artifactPath: symbolsBundle.path,
+                arch: symbolsArch,
+                platform: releasePlatform,
+                hash: any(named: 'hash'),
+              ),
+            ).called(1);
+          });
+
+          test('uploads them before the patch is promoted', () async {
+            // A patch is invisible until promotion, so sidecars uploaded
+            // beforehand are in place for the first device that can see it.
+            var promoted = false;
+            when(
+              () => codePushClient.promotePatch(
+                appId: any(named: 'appId'),
+                patchId: any(named: 'patchId'),
+                channelId: any(named: 'channelId'),
+              ),
+            ).thenAnswer((_) async {
+              promoted = true;
+            });
+            var uploadedAfterPromotion = false;
+            when(
+              () => codePushClient.createPatchArtifact(
+                appId: any(named: 'appId'),
+                patchId: any(named: 'patchId'),
+                artifactPath: symbolsBundle.path,
+                arch: any(named: 'arch'),
+                platform: any(named: 'platform'),
+                hash: any(named: 'hash'),
+              ),
+            ).thenAnswer((_) async {
+              uploadedAfterPromotion = promoted;
+            });
+
+            await runWithOverrides(
+              () => codePushClientWrapper.publishPatch(
+                appId: appId,
+                releaseId: releaseId,
+                track: track,
+                patchArtifactBundles: {releasePlatform: patchArtifactBundles},
+                metadata: {'foo': 'bar'},
+                sidecars: {releasePlatform: (symbols: symbolsBundle)},
+              ),
+            );
+
+            expect(uploadedAfterPromotion, isFalse);
+          });
+
+          test('uploads each platform its own sidecars', () async {
+            const platforms = [ReleasePlatform.android, ReleasePlatform.ios];
+
+            await runWithOverrides(
+              () => codePushClientWrapper.publishPatch(
+                appId: appId,
+                releaseId: releaseId,
+                track: track,
+                patchArtifactBundles: {
+                  for (final platform in platforms)
+                    platform: patchArtifactBundles,
+                },
+                metadata: {'foo': 'bar'},
+                // Only android emitted symbols; ios must not inherit them.
+                sidecars: {
+                  ReleasePlatform.android: (symbols: symbolsBundle),
+                },
+              ),
+            );
+
+            verify(
+              () => codePushClient.createPatchArtifact(
+                appId: appId,
+                patchId: patchId,
+                artifactPath: symbolsBundle.path,
+                arch: symbolsArch,
+                platform: ReleasePlatform.android,
+                hash: any(named: 'hash'),
+              ),
+            ).called(1);
+            verifyNever(
+              () => codePushClient.createPatchArtifact(
+                appId: any(named: 'appId'),
+                patchId: any(named: 'patchId'),
+                artifactPath: any(named: 'artifactPath'),
+                arch: symbolsArch,
+                platform: ReleasePlatform.ios,
+                hash: any(named: 'hash'),
+              ),
+            );
+          });
+        });
+
         test('creates channel if none exists', () async {
           when(
             () => codePushClient.getChannels(appId: any(named: 'appId')),
