@@ -247,6 +247,7 @@ words:
   - symbolicate
   - symbolicated
   - symbolicates
+  - symbolicatable
   - symbolicating
   - symbolication
   - symbolizer
@@ -265,7 +266,9 @@ words:
   - udid # Unique Device Identifier
   - unanalyzed
   - unawaited
+  - crashpad
   - unfailable
+  - unwritable
   - unsymbolicated
   - virt
   - unittests

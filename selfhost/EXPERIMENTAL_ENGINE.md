@@ -78,9 +78,10 @@ platforms because none of it is platform code.
 - ✅ Symbols retained keyed by `(app, release, patch, arch)`, from the
   `--split-debug-info` output the CLI already produces.
 - ✅ Stack traces accepted on the control plane and symbolicated server-side.
-- ◻ Dart-level capture (`FlutterError.onError`,
-  `PlatformDispatcher.instance.onError`) is pure framework/app code — no engine
-  work, but nothing emits crash reports yet, so the pipeline has no input.
+- ✅ Dart-level capture (`FlutterError.onError`,
+  `PlatformDispatcher.instance.onError`) in
+  [`code_push_runtime`](../packages/code_push_runtime) — pure app code, no engine
+  work, and it is what finally feeds the pipeline.
 
 The symbolication design deserves stating, because the obvious reading of it is
 wrong. A Dart crash report is a *Dart* stack trace, and Dart's
@@ -135,7 +136,8 @@ So the shape is:
    artifact. No protocol change to the updater, which stays stock and ignores it.
 3. **Dart package (ours)** — read the running patch number via
    `shorebird_code_push`, fetch and cache the bundle, expose an `AssetBundle` that
-   prefers it and falls back to `rootBundle`.
+   prefers it and falls back to `rootBundle`. Built:
+   [`packages/code_push_runtime`](../packages/code_push_runtime).
 
 Trade-offs to design for: it is a second network fetch, not atomic with the code
 patch — so cached assets must be keyed by patch number and ignored unless they
@@ -197,8 +199,8 @@ hands next:
 
 | Phase | Landed | Remaining |
 |---|---|---|
-| 4 — crash reporting | `POST /crashes` ingestion + retention; symbols retained per patch; **read-time symbolication** via `package:native_stack_traces` (`?symbolicate=true`) — pure Dart, so Android *and* Apple, no `atos`, no Mac worker | app-side crash reporter to produce the traces |
-| 1 — assets | `POST /patches/assets` + the CLI upload path (`assets` tag); `--assets` packages `flutter_assets` on Android (from the AAB) and on iOS/macOS (from the app bundle) | app-side Dart package |
+| 4 — crash reporting | end to end: ingestion, retention, **read-time symbolication** via `package:native_stack_traces` (`?symbolicate=true`, pure Dart so Android *and* Apple, no `atos`), and an app-side reporter in `code_push_runtime` | a real crash resolved on device |
+| 1 — assets | end to end: `--assets` packages `flutter_assets` on Android and Apple, server serves it, `code_push_runtime` reads it as an `AssetBundle` | a new `code_push_server` image (pinned 1.2.0 predates `/patches/assets`) |
 | 2 — hot restart | — | design, then updater status split + engine isolate reload |
 
 | Phase | Blocked? | Android→iOS carryover |

@@ -137,13 +137,40 @@ Decisions made while wiring it, so you do not re-litigate them:
   which is what an overlay unpacked over an asset root needs. (I wrote a
   duplicate on `ArtifactManager` before finding it, and removed it.)
 
-**Next: the Dart package** (app-side): read the running patch number via
-`shorebird_code_push`, `POST /patches/assets`, download, cache, expose an
-`AssetBundle` preferring the bundle and falling back to `rootBundle`. Two
-invariants: key the cache by patch number and use it **only** when it matches the
-running patch, and discard on rollback — the fetch is not atomic with the code
-patch. Note `shorebird_code_push` is a **separate upstream repo**, not in this
-monorepo, so this means our own package or a shim.
+**The app-side package is done**: [`packages/code_push_runtime`](../packages/code_push_runtime).
+It reads the running patch number via `shorebird_code_push` (depended on from
+pub, since the source is a separate upstream repo), fetches `POST
+/patches/assets`, caches, and exposes a `PatchAssetBundle` preferring the bundle
+and falling back to `rootBundle`. It also carries the **crash reporter**, since it
+needed the same two things — the patch number and an HTTP client to this control
+plane — and without it nothing fed symbolication.
+
+Standalone package, **not a workspace member**, for the same reason as
+`code_push_server`: the workspace root resolves with the Dart SDK, and adding a
+Flutter package would force every package to resolve through Flutter. Test with
+`cd packages/code_push_runtime && flutter test`.
+
+Invariants it exists to enforce, all tested:
+
+- **Cache keyed by patch number, served only for the running patch**, and every
+  other patch's bundle deleted as soon as a different one runs. Eviction is
+  unconditional, so a rollback to a patch with *no* assets still drops the newer
+  bundle.
+- **Published only when complete** — staging dir, completion marker, one rename.
+  A payload that is not a zip decodes to an *empty* archive rather than throwing,
+  so zero extracted files is treated as failure; without that check a corrupt
+  download became a cached bundle that looked complete and was never retried.
+  (A test caught exactly this.)
+- **Overlay, not replacement.** A key the bundle lacks falls back to the
+  compiled-in asset.
+- **Chained error handlers.** `FlutterError.onError` and
+  `PlatformDispatcher.onError` wrap whatever was there, so Crashlytics and
+  debug's red screen both survive, and the previous handled-verdict is preserved
+  rather than defaulted.
+- **Release version is injected** (`readReleaseVersion`). Flutter does not bundle
+  the app version anywhere reachable on every platform — `version.json` is *not*
+  in `flutter_assets`, which I checked against a real AAB — and taking a
+  platform-channel dependency to find it would make the package untestable.
 
 ### Track C — hot restart
 
