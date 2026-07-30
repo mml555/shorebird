@@ -4,6 +4,64 @@ All notable changes to `code_push_server` are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.3.0 — 2026-07-29
+
+### Added
+
+- **Patch asset bundles are stored and served**, so a patch can change assets —
+  images, fonts, JSON — and not only Dart code. The bundle rides along as an
+  ordinary patch artifact tagged `arch: assets`, which needed no schema change
+  and no new upload path, because `arch` is free-form end to end.
+  - `POST /patches/assets` — device-facing and unauthenticated, like the rest of
+    the device surface: an app in the wild knows only its `app_id`. Takes
+    `{app_id, release_version, platform, patch_number}` and answers
+    `{assets_available, assets: {url, hash, size}}` with a signed download URL.
+  - Malformed or unknown input answers "nothing here" rather than erroring. This
+    is polled on launch by app code, and a hard failure would be a needless
+    crash path for a purely additive feature.
+  - A **rolled-back patch stops serving its assets**, or an app that had reverted
+    would keep using the newer bundle against older code.
+
+  The native updater is never involved, which is what keeps this off the
+  engine-build critical path — and therefore working on iOS as well as Android.
+
+- **Crash reports are ingested, retained, and symbolicated** (schema migration
+  **v8**), so a self-hosted deployment gets crash visibility without a
+  third-party SDK. Boot-crash rollback already existed; the stack trace
+  explaining *why* never left the device.
+  - `POST /crashes` — device-facing and unauthenticated. It always answers
+    `200 {stored: bool}` and swallows malformed input **on purpose**: the client
+    is an app that just died, and making it fight 4xx/5xx is a second failure on
+    top of the first. A test named `garbage never fails the reporter` guards it.
+  - `GET /api/v1/apps/{appId}/crashes` — authed, filterable by
+    `release_version` / `patch_number`.
+  - `?symbolicate=true` adds `stack_symbolicated` beside the raw `stack`,
+    resolving the trace against the debug symbols the CLI retains for that patch
+    (`arch: symbols`).
+
+  Symbolication is pure Dart: what the CLI retains is Dart's own
+  `--split-debug-info` output, which is what `flutter symbolize` reads through
+  `package:native_stack_traces`, and that package handles both the ELF form
+  (Android) and the Mach-O form (Apple). So one implementation covers every
+  platform inside this Linux container — no `llvm-symbolizer`, no `atos`, no Mac
+  worker. Those would only matter for native Objective-C/C++ frames out of a
+  dSYM, which a Dart crash handler does not produce.
+
+  Notable choices:
+  - **Read-time, never ingest-time.** Ingest must stay unfailable, and symbols
+    are routinely uploaded *after* a crash has already arrived, so resolving at
+    ingest would permanently miss.
+  - **Opt-in.** Resolving costs a fetch, unzip and DWARF parse per distinct patch
+    in the page, so the default response is unchanged for existing callers.
+  - **Never guesses the symbol file.** Arch matching is on the
+    `-<token>.symbols` suffix rather than a substring: `arm` is a prefix of
+    `arm64`, so a substring match would hand arm64 symbols to an arm32 crash and
+    resolve every frame to a wrong address — a failure that looks like success.
+    Given several candidates and no arch match it resolves nothing.
+
+  Verified end to end against a physical Android device: a crash thrown from
+  patched code resolved to exact function names and line numbers.
+
 ## 1.2.0 — 2026-07-29
 
 ### Fixed
