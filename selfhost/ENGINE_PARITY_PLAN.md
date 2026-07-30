@@ -263,9 +263,29 @@ Without this, every future engine feature costs what the first one cost.
 - **Build determinism is the biggest tax we pay.** Rebuilding identical source
   today produces a different `libflutter.so`, so a change cannot be validated by
   diffing against a known-good artifact and *every* change needs its own device
-  test. Chase the non-determinism (link order, embedded paths, timestamps). This
-  is the single highest-leverage item in this plan for iteration speed, and it is
-  independent of iOS — worth doing even if everything else stalls.
+  test. This is the single highest-leverage item in this plan for iteration
+  speed, and it is independent of iOS.
+
+  **First probe done, 2026-07-30, and it narrows the hunt a lot.** Two clean
+  from-scratch builds of `gen_snapshot` (`out/host_release`, `rm -rf` between
+  them) are **byte-identical** — sha256 `71c2c45b…` both times
+  (`/data/shorebird-engine/gs_determinism.sh`, ~5 min per build on the box). So
+  the toolchain, GN and ninja are *not* the problem, and neither is C++
+  compilation in general. Whatever moves in `libflutter.so` is specific to that
+  link.
+
+  The leading hypothesis is the **Rust updater**, which is compiled into
+  `libflutter.so` by `//flutter/shell/common/shorebird:build_rust_updater`
+  driving cargo. Cargo defaults to parallel codegen units, whose ordering is
+  famously non-reproducible, and that fits the observed signature exactly:
+  same `.text` *size* to the byte with different contents, and an unchanged
+  `.data.rel.ro`. LTO over those units is the other candidate.
+
+  Next probe, and it is cheap — minutes, not a full engine build: build the Rust
+  updater twice on its own and compare the static library. If it differs,
+  `codegen-units=1` (and `-C metadata`/path remapping if needed) is the likely
+  fix. Only fall back to two full `android-arm64` builds if the Rust library
+  turns out to be stable.
 - **CI that builds every cell** — `android-arm64`, `ios-arm64`, and both host
   toolchains — so an engine change is not a week of manual assembly.
 - **Contract tests on device**, one per engine behavior we depend on: asset
