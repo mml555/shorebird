@@ -272,6 +272,29 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
   }
 
   @override
+  Future<Directory?> assetsDirectory() async {
+    // The locally built xcarchive, not the downloaded release one: these are
+    // the assets this patch is shipping.
+    final xcarchive = artifactManager.getXcarchiveDirectory();
+    if (xcarchive == null) {
+      logger.detail('Cannot resolve patch assets: no .xcarchive was built.');
+      return null;
+    }
+
+    final app = artifactManager.getIosAppDirectory(
+      xcarchiveDirectory: xcarchive,
+    );
+    if (app == null) {
+      logger.detail(
+        'Cannot resolve patch assets: no .app in ${xcarchive.path}',
+      );
+      return null;
+    }
+
+    return ArtifactManager.findFlutterAssetsDirectory(app);
+  }
+
+  @override
   Future<String> extractReleaseVersionFromArtifact(File artifact) async {
     final archivePath = artifactManager.getXcarchiveDirectory()?.path;
     if (archivePath == null) {

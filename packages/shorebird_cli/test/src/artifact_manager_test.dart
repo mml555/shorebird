@@ -661,6 +661,84 @@ void main() {
       });
     });
 
+    group('findFlutterAssetsDirectory', () {
+      late Directory bundle;
+
+      Directory make(String relativePath) =>
+          Directory(p.join(bundle.path, relativePath))
+            ..createSync(recursive: true);
+
+      setUp(() {
+        bundle = Directory.systemTemp.createTempSync();
+      });
+
+      test('finds the iOS layout', () {
+        final assets = make(
+          p.join('Frameworks', 'App.framework', 'flutter_assets'),
+        );
+
+        expect(
+          ArtifactManager.findFlutterAssetsDirectory(bundle)?.path,
+          equals(assets.path),
+        );
+      });
+
+      test('finds the macOS layout', () {
+        final assets = make(
+          p.join(
+            'Contents',
+            'Frameworks',
+            'App.framework',
+            'Resources',
+            'flutter_assets',
+          ),
+        );
+
+        expect(
+          ArtifactManager.findFlutterAssetsDirectory(bundle)?.path,
+          equals(assets.path),
+        );
+      });
+
+      test('prefers the shallowest match over a nested plugin copy', () {
+        // A plugin framework can vendor its own flutter_assets; the app's own
+        // assets are always shallower, and shipping the plugin's would be
+        // wrong.
+        make(
+          p.join(
+            'Frameworks',
+            'SomePlugin.framework',
+            'Frameworks',
+            'App.framework',
+            'flutter_assets',
+          ),
+        );
+        final appAssets = make(
+          p.join('Frameworks', 'App.framework', 'flutter_assets'),
+        );
+
+        expect(
+          ArtifactManager.findFlutterAssetsDirectory(bundle)?.path,
+          equals(appAssets.path),
+        );
+      });
+
+      test('is null when the bundle has no flutter_assets', () {
+        make(p.join('Frameworks', 'App.framework'));
+
+        expect(ArtifactManager.findFlutterAssetsDirectory(bundle), isNull);
+      });
+
+      test('is null when the bundle does not exist', () {
+        expect(
+          ArtifactManager.findFlutterAssetsDirectory(
+            Directory(p.join(bundle.path, 'absent')),
+          ),
+          isNull,
+        );
+      });
+    });
+
     group('androidArchsDirectoryFromAab', () {
       late Directory projectRoot;
       final aab = File(p.join('test', 'fixtures', 'aabs', 'changed_asset.aab'));

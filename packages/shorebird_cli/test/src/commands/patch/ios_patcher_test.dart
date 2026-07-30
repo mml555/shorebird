@@ -1517,6 +1517,76 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
       });
     });
 
+    group('assetsDirectory', () {
+      late Directory xcarchive;
+      late Directory app;
+
+      setUp(() {
+        xcarchive = Directory.systemTemp.createTempSync();
+        app = Directory(p.join(xcarchive.path, 'Products', 'Runner.app'))
+          ..createSync(recursive: true);
+        when(
+          () => artifactManager.getXcarchiveDirectory(),
+        ).thenReturn(xcarchive);
+        when(
+          () => artifactManager.getIosAppDirectory(
+            xcarchiveDirectory: any(named: 'xcarchiveDirectory'),
+          ),
+        ).thenReturn(app);
+      });
+
+      test('is null when no xcarchive was built', () async {
+        when(() => artifactManager.getXcarchiveDirectory()).thenReturn(null);
+
+        await expectLater(
+          runWithOverrides(patcher.assetsDirectory),
+          completion(isNull),
+        );
+      });
+
+      test('is null when the xcarchive has no .app', () async {
+        when(
+          () => artifactManager.getIosAppDirectory(
+            xcarchiveDirectory: any(named: 'xcarchiveDirectory'),
+          ),
+        ).thenReturn(null);
+
+        await expectLater(
+          runWithOverrides(patcher.assetsDirectory),
+          completion(isNull),
+        );
+      });
+
+      test('is null when the .app has no flutter_assets', () async {
+        await expectLater(
+          runWithOverrides(patcher.assetsDirectory),
+          completion(isNull),
+        );
+      });
+
+      test('finds flutter_assets inside the built .app', () async {
+        final assets = Directory(
+          p.join(app.path, 'Frameworks', 'App.framework', 'flutter_assets'),
+        )..createSync(recursive: true);
+
+        final result = await runWithOverrides(patcher.assetsDirectory);
+
+        expect(result?.path, equals(assets.path));
+      });
+
+      test('reads the patch xcarchive, not the downloaded release', () async {
+        Directory(
+          p.join(app.path, 'Frameworks', 'App.framework', 'flutter_assets'),
+        ).createSync(recursive: true);
+
+        await runWithOverrides(patcher.assetsDirectory);
+
+        // getXcarchiveDirectory() is the locally built archive; resolving
+        // against the release archive would ship the release's assets.
+        verify(() => artifactManager.getXcarchiveDirectory()).called(1);
+      });
+    });
+
     group('extractReleaseVersionFromArtifact', () {
       setUp(() {
         when(() => artifactManager.getXcarchiveDirectory()).thenReturn(

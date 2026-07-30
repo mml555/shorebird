@@ -368,6 +368,39 @@ class ArtifactManager {
     return outDir;
   }
 
+  /// Finds the `flutter_assets` directory inside a built app bundle, or `null`
+  /// if the bundle has none.
+  ///
+  /// Searched rather than hardcoded because the location differs per Apple
+  /// platform — `Frameworks/App.framework/flutter_assets` on iOS,
+  /// `Contents/Frameworks/App.framework/Resources/flutter_assets` on macOS —
+  /// and has moved between Flutter versions. One search is both correct today
+  /// and resilient to that path changing again.
+  ///
+  /// Returns the shallowest match, so a copy nested inside an embedded plugin
+  /// framework can never win over the app's own assets.
+  static Directory? findFlutterAssetsDirectory(Directory bundleRoot) {
+    if (!bundleRoot.existsSync()) return null;
+
+    // Breadth-first so depth decides ties, not directory listing order.
+    final queue = <Directory>[bundleRoot];
+    while (queue.isNotEmpty) {
+      final dir = queue.removeAt(0);
+      final List<Directory> children;
+      try {
+        children = dir.listSync().whereType<Directory>().toList();
+      } on FileSystemException {
+        // Unreadable subtree: skip it rather than fail the whole search.
+        continue;
+      }
+      for (final child in children) {
+        if (p.basename(child.path) == 'flutter_assets') return child;
+      }
+      queue.addAll(children);
+    }
+    return null;
+  }
+
   /// The directory containing the compiled macOS .app file, if it exists.
   Directory? getMacOSAppDirectory({String? flavor}) {
     final projectRoot = shorebirdEnv.getShorebirdProjectRoot()!;

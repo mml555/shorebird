@@ -212,6 +212,17 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
   }
 
   @override
+  Future<Directory?> assetsDirectory() async {
+    final app = artifactManager.getMacOSAppDirectory(flavor: flavor);
+    if (app == null) {
+      logger.detail('Cannot resolve patch assets: no .app was built.');
+      return null;
+    }
+
+    return ArtifactManager.findFlutterAssetsDirectory(app);
+  }
+
+  @override
   Future<String> extractReleaseVersionFromArtifact(File artifact) async {
     final appPath = artifactManager.getMacOSAppDirectory()?.path;
     if (appPath == null) {
