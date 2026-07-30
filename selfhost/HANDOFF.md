@@ -2,6 +2,9 @@
 
 # Handoff — engine improvements (as of 2026-07-29)
 
+**Next up:** rebuilding the fork's iOS capability ourselves rather than asking for
+access is scoped in [`FORK_REBUILD.md`](FORK_REBUILD.md). Start there.
+
 Working notes for whoever picks this up next. Product documentation lives in
 [`ENGINE_IMPROVEMENTS.md`](ENGINE_IMPROVEMENTS.md) (front door),
 [`ENGINE_BUILD.md`](ENGINE_BUILD.md) (evidence + constraints) and
@@ -188,11 +191,22 @@ Invariants it exists to enforce, all tested:
 
 ### Track D — engine-level patch assets (Route B) — PROVEN, fonts included
 
-Device-verified 2026-07-30 on Android arm64. Two measurements, the second being
-the one that matters: `rootBundle` returned the patched value (so no app opt-in is
-needed), and a **pubspec-declared font changed glyphs** (Courier New -> Comic Sans)
-with only the `.ttf` swapped in the overlay. Fonts never pass through an app-side
-`AssetBundle`, so that is the case Route A cannot reach. Engine hash
+Device-verified 2026-07-30 on Android arm64. **All three engine-only cases changed
+in a single launch**, which is the complete claim:
+
+| Case | From APK | From overlay |
+|---|---|---|
+| `rootBundle` (no `DefaultAssetBundle`) | `APK-baked` | `ENGINE-OVERLAY-patch-1` |
+| Declared font (`family: Probe`) | Courier New | Comic Sans |
+| Declared shader (`shaders/probe.frag`) | blue | red |
+
+Fonts and shaders never pass through an app-side `AssetBundle`, so those two are
+what Route A structurally cannot reach at any price.
+
+**Shader gotcha:** anything under `shaders:` is compiled to `iplr` at build time.
+The replacement must ALSO be declared under `shaders:`; shipping it as a plain
+asset means swapping raw GLSL over compiled bytes, which reads as "shaders do not
+work" rather than "the test was wrong". Sizes give it away (243 vs 1220 bytes). Engine hash
 `fc184af6509a93eaf6fc068c6820639b324175a8` (rebuild of `dabf1837…` plus the
 resolver), published to the local overlay and served by the mirror.
 
@@ -217,6 +231,38 @@ Three traps, all of which cost real time:
 `FML_LOG(INFO)` does **not** appear in logcat on a release build, so do not rely
 on it to confirm the hook. Grep the linked `libflutter.so` for the literal, and
 prove the behavior on device.
+
+#### Reproducing the Route B rig
+
+Assembling this was most of the work. The pieces and why each is needed:
+
+1. **Build on the box, publish to the Mac.** `build.sh --cell android-arm64`, then
+   `overlay_publish.sh --hash <sha> --root <staged>`. The Mac holds the mirror, so
+   either stage the built zips there (128 MB) or run publish where the mirror is
+   reachable. Host artifacts (`dart-sdk-*.zip`, `flutter_patched_sdk_product.zip`,
+   `linux-x64/artifacts.zip`) can be reused from a previous hash **only** if the
+   change is engine-C++-only; they are VM-coupled otherwise.
+2. **`overlay_publish.sh` does not publish everything.** It omits
+   `linux-x64/artifacts.zip` (gen_snapshot, impellerc) and the Maven
+   `maven-metadata.xml`. Add both by hand; the known-good set is 17 files.
+3. **Releases must run on Linux.** Our `gen_snapshot` is linux-x64 only, and the
+   mirror 404s (deliberately) on host artifacts we did not build, so a release
+   from the Mac cannot work. Use `release_on_box.sh` / `release_routeb.sh`.
+4. **Tunnels.** The box reaches the Mac's control plane and mirror over `ssh -R`.
+   Watch for stale forwards: one was still pointing at an old server and produced
+   a confusing "Could not find app with id".
+5. **One URL must satisfy box and device.** `PUBLIC_BASE_URL` is embedded
+   absolutely in upload/download URLs, so the port the box uses must also be the
+   port the device reaches via `adb reverse`.
+6. **The upstream CLI on the box has neither `--no-confirm` nor
+   `--flutter-version` on `patch`.** Pipe `yes` instead.
+7. **Getting an overlay onto the device.** A release build is not debuggable, so
+   `adb run-as` cannot write into app-private storage. The app writes its own
+   overlay instead (Phase 2 replaces this with real delivery).
+8. **The Android patch dir has no app-id component**
+   (`<files>/shorebird_updater/patches/<N>/`), while the desktop API inserts one
+   (`.../shorebird_updater/<app_id>/patches/<N>/`). Derive from the patch file's
+   dirname; never rebuild the path from `app_storage_path`.
 
 ### Track C — hot restart
 

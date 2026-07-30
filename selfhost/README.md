@@ -94,7 +94,9 @@ What that does and does not affect:
 | Building a **modified** engine, iOS | ⛔ blocked — needs `pkg/aot_tools` from the private fork |
 | Surviving Shorebird disappearing | ⚠️ partial — we hold the engine C++ and updater, not the VM fork to compile them |
 
-Full evidence, the measured size of their changes, and what it would cost to build
-our own VM: [`ENGINE_BUILD.md`](ENGINE_BUILD.md). Which improvements are reachable
+Whether to ask for access or rebuild that capability ourselves is scoped in
+[`FORK_REBUILD.md`](FORK_REBUILD.md). Full evidence, the measured size of their
+changes, and what it would cost to build our own VM:
+[`ENGINE_BUILD.md`](ENGINE_BUILD.md). Which improvements are reachable
 anyway, and how much Android work carries to iOS:
 [`EXPERIMENTAL_ENGINE.md`](EXPERIMENTAL_ENGINE.md).

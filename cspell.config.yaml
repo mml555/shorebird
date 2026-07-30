@@ -267,7 +267,10 @@ words:
   - unanalyzed
   - unawaited
   - crashpad
+  - GLSL
+  - impellerc
   - iplr
+  - routeb
   - embedder
   - rodata
   - unfailable
