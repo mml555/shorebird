@@ -172,8 +172,16 @@ from the patch overlay, with only the `.ttf` bytes swapped and
 and never pass through an app-side `AssetBundle`, so Route A cannot touch them at
 any price.
 
-Shaders were not measured. They travel the same resolver, so they should follow.
-iOS remains fork-gated for the *build*, though the resolver itself is common code.
+**Shaders too**: a declared fragment shader rendered blue from the APK and red
+from the overlay. One trap worth knowing — a shader listed under `shaders:` is
+compiled to `iplr` at build time, so the replacement must ALSO be declared there.
+Swapping a raw `.frag` shipped as a plain asset over a compiled one produces an
+unparseable shader rather than a visible change.
+
+So all three engine-only cases are proven: `rootBundle`, declared fonts, declared
+shaders. iOS remains fork-gated for the *build*, though the resolver itself is
+common code and iOS **does** go through `RunConfiguration::InferFromSettings`,
+which is already wired.
 
 Recommendation: Route A to prove product value on both platforms immediately;
 Route B later as the "done properly" version.

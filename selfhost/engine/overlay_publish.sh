@@ -221,7 +221,7 @@ grep -v "^$EXP_HASH " "$MAPFILE" > "$MAPFILE.tmp" || true
 echo "$EXP_HASH $STOCK_HASH;" >> "$MAPFILE.tmp"
 # Sort the ENTRIES only, keeping the comment header in its authored order. This
 # file is checked in and its comments are what document why it ships empty;
-# sorting the whole file (as this did) alphabetises them into nonsense, and the
+# sorting the whole file (as this did) sorts them into nonsense, and the
 # damage lands in a tracked file.
 {
   grep '^[[:space:]]*#' "$MAPFILE.tmp" || true

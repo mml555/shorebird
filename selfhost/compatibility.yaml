@@ -147,8 +147,17 @@ experimental:
                                        # app-side AssetBundle, so this is the case
                                        # Route A structurally cannot reach and the
                                        # reason Route B exists.
-        shaders_verified: false        # same resolver path; not measured.
+        shaders_verified: true         # 2026-07-30, same device. A pubspec-declared
+                                       # fragment shader rendered blue from the APK
+                                       # and red from the overlay. Note: BOTH
+                                       # shaders must be declared under `shaders:`
+                                       # so both compile to iplr — swapping a raw
+                                       # .frag (a plain asset) over a compiled one
+                                       # just yields an unparseable shader.
       notes: |
+        All three engine-only asset cases verified together in one launch:
+        rootBundle, a declared font, and a declared shader.
+
         Not reproducible: rebuilding dabf1837's identical source produced a
         libflutter.so of identical size with a different .text, so an engine
         change cannot be validated by diffing against a known-good artifact.

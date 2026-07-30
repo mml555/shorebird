@@ -267,6 +267,7 @@ words:
   - unanalyzed
   - unawaited
   - crashpad
+  - iplr
   - embedder
   - rodata
   - unfailable
