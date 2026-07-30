@@ -1,4 +1,4 @@
-<!-- cspell:words vmcode aot xcframework gclient bidiff dartsdk prebuilts resign resigned iplr upstreamable dylib devicectl bootable dynmod devirtualization -->
+<!-- cspell:words vmcode aot xcframework gclient bidiff dartsdk prebuilts resign resigned iplr upstreamable dylib devicectl bootable dynmod devirtualization vtables jewgo -->
 
 # Plan — engine parity on iOS and Android, without upstream
 
@@ -153,7 +153,37 @@ something Shorebird's hosted product does not do. Note the shader trap from
 Android: anything under `shaders:` is compiled to `iplr` at build time, so the
 replacement must also be declared under `shaders:`.
 
-## Phase 3 — Measure the linker gap exactly
+## Phase 3 — Measure the linker gap exactly ◐ contract confirmed, size still open
+
+Two results from 2026-07-30, one positive and one negative.
+
+**The contract is confirmed, twice, independently.** A version-matched diff
+(Shorebird's `darwin-x64-release/gen_snapshot_x64` against vanilla Flutter
+**3.44.8**'s `gen_snapshot`, engine `0cd61071…` — same Flutter, same Dart 3.12.2)
+reproduces exactly the six options the earlier 3.38.5 comparison found:
+`--base_{ct,dt,ft,op}_link_data` and `--patch_{ct,op}_link_data`. So "pin the
+patch snapshot's class, dispatch, field and object-pool layout to the base's" is
+solid, not an artifact of comparing mismatched versions.
+
+**Symbol counting cannot size the fork.** The same diff reports 2,976
+Shorebird-only and 11,406 vanilla-only symbols — and vanilla ships 55,985 symbols
+against Shorebird's 43,198. That gap is build configuration (two independently
+configured release builds), not fork content, and it swamps the signal. Only 71
+of the 2,976 even mention the fork's vocabulary, and some of those (`UnlinkedCall`
+vtables) are vanilla Dart concepts caught by a loose grep.
+
+**So sizing still requires building vanilla ourselves with matching config** —
+Phase 3 as originally written, below. That is now unblocked: the build box is
+reachable again (SSH is on a non-standard port as user `jewgo`; see
+[`HANDOFF.md`](HANDOFF.md)), `/data` has 380 GB free, and `src/dart-sdk` is
+already checked out.
+
+One incidental finding worth keeping: **Shorebird's `linux-x64/gen_snapshot` is
+stripped and contains no `shorebird` strings at all.** The fork's snapshot-linking
+machinery ships only in the macOS/iOS toolchain, which is consistent with
+`useLinker` appearing only in the Apple patchers — Android needs none of it.
+
+### Phase 3 as originally written
 
 Cheap, and it converts "unknown size" into a number the way the Android answer
 became "57 lines".

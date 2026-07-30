@@ -1,4 +1,4 @@
-<!-- cspell:words dartsdk prebuilts bidiff vmcode aot daemonized crashprobe -->
+<!-- cspell:words dartsdk prebuilts bidiff vmcode aot daemonized crashprobe jewgo azureuser sshkey serverinfo -->
 
 # Handoff — engine improvements (as of 2026-07-30)
 
@@ -369,9 +369,16 @@ Do not re-learn these:
 
 ## Live environment (may need reverting)
 
-- **Build host:** Hermes VPS `20.120.104.70`, everything under
+- **Build host:** Hermes VPS `20.120.104.70`. **SSH is on port 13549 as user
+  `jewgo`**, not 22 as `azureuser` — port 22 is filtered, so the box looks dead
+  if you assume the default (`ssh -i sshkey20.120.104.70.pem -p 13549
+  jewgo@20.120.104.70`; also recorded in [`../serverinfo.md`](../serverinfo.md)).
+  Confirmed reachable 2026-07-30: 4 cores, 82 GB RAM, `/data` 380 GB free,
+  `hermes-gateway` active. Everything under
   `/data/shorebird-engine/` — never touch `/data/hermes`, and check
-  `systemctl --user is-active hermes-gateway` after anything invasive. Contains
+  `systemctl --user is-active hermes-gateway` after anything invasive. Note the
+  previous `out/` build directories are **gone**; `src/flutter` (29 GB) and
+  `src/dart-sdk` (500 MB) remain. Contains
   the engine checkout, our Dart fork, `out/{android_release_arm64,host_release,host_debug}`,
   a patched CLI at v1.6.115, and the test app.
 - **Local containers up:** `code_push_server` (1.2.0, host 8080), `cdn-cache`,
