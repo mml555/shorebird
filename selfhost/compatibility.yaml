@@ -138,10 +138,16 @@ experimental:
                                        # went from {"origin":"APK-baked"} to
                                        # {"origin":"ENGINE-OVERLAY-patch-2"}.
                                        # Release AND patch built on the Linux box.
-        fonts_verified: false          # the actual motivation for Route B, and
-                                       # still unmeasured. Fonts resolve through
-                                       # the same AssetManager so they should
-                                       # follow, but only rootBundle was proven.
+        fonts_verified: true           # 2026-07-30, same device. A pubspec-declared
+                                       # family rendered in Courier New from the
+                                       # APK, then in Comic Sans from the patch
+                                       # overlay, with only the .ttf bytes swapped
+                                       # (FontManifest.json untouched). Fonts are
+                                       # resolved by the ENGINE, never through an
+                                       # app-side AssetBundle, so this is the case
+                                       # Route A structurally cannot reach and the
+                                       # reason Route B exists.
+        shaders_verified: false        # same resolver path; not measured.
       notes: |
         Not reproducible: rebuilding dabf1837's identical source produced a
         libflutter.so of identical size with a different .text, so an engine

@@ -165,10 +165,15 @@ Two things the implementation had to get right, both discovered the hard way:
   asset path from the running patch file's own directory is what makes this work
   on both.
 
-Still unproven for Route B specifically: **fonts and shaders**. They resolve
-through the same `AssetManager`, so they should follow, but only `rootBundle` was
-measured. iOS remains fork-gated for the *build*, though the resolver itself is
-common code.
+**Fonts are proven too**, which is the part that actually justifies Route B: a
+pubspec-declared family rendered in Courier New from the APK and in Comic Sans
+from the patch overlay, with only the `.ttf` bytes swapped and
+`FontManifest.json` left alone. Fonts are loaded by the engine from that manifest
+and never pass through an app-side `AssetBundle`, so Route A cannot touch them at
+any price.
+
+Shaders were not measured. They travel the same resolver, so they should follow.
+iOS remains fork-gated for the *build*, though the resolver itself is common code.
 
 Recommendation: Route A to prove product value on both platforms immediately;
 Route B later as the "done properly" version.

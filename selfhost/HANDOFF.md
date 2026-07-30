@@ -186,9 +186,13 @@ Invariants it exists to enforce, all tested:
   in `flutter_assets`, which I checked against a real AAB — and taking a
   platform-channel dependency to find it would make the package untestable.
 
-### Track D — engine-level patch assets (Route B) — PROVEN
+### Track D — engine-level patch assets (Route B) — PROVEN, fonts included
 
-Device-verified 2026-07-30 on Android arm64. Engine hash
+Device-verified 2026-07-30 on Android arm64. Two measurements, the second being
+the one that matters: `rootBundle` returned the patched value (so no app opt-in is
+needed), and a **pubspec-declared font changed glyphs** (Courier New -> Comic Sans)
+with only the `.ttf` swapped in the overlay. Fonts never pass through an app-side
+`AssetBundle`, so that is the case Route A cannot reach. Engine hash
 `fc184af6509a93eaf6fc068c6820639b324175a8` (rebuild of `dabf1837…` plus the
 resolver), published to the local overlay and served by the mirror.
 
