@@ -2,8 +2,10 @@
 
 # Handoff — engine improvements (as of 2026-07-30)
 
-**Next up:** rebuilding the fork's iOS capability ourselves rather than asking for
-access is scoped in [`FORK_REBUILD.md`](FORK_REBUILD.md). Start there.
+**Next up:** [`ENGINE_PARITY_PLAN.md`](ENGINE_PARITY_PLAN.md) — the staged plan
+for getting our engine changes onto iOS as well as Android, and for being able to
+add the next one without upstream. Start there.
+([`FORK_REBUILD.md`](FORK_REBUILD.md) is the earlier scoping it supersedes.)
 
 Working notes for whoever picks this up next. Product documentation lives in
 [`ENGINE_IMPROVEMENTS.md`](ENGINE_IMPROVEMENTS.md) (front door),

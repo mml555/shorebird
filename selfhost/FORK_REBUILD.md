@@ -2,6 +2,13 @@
 
 # Rebuilding the fork ourselves, instead of asking for access
 
+> **Superseded 2026-07-30 by [`ENGINE_PARITY_PLAN.md`](ENGINE_PARITY_PLAN.md),
+> which is the actual plan.** Two of the open questions below have since been
+> answered by measurement, and the "ask for access in parallel" recommendation
+> at the bottom is **withdrawn** — see the plan for why. This file is kept for
+> the reasoning that still holds: the two candidate routes, and why route 1 was
+> rejected.
+
 Brief for whoever picks this up. The decision recorded here is **direction, not a
 plan**: nothing below has been attempted.
 
@@ -66,14 +73,28 @@ Answer these before writing anything. Each is a read or a small experiment.
 2. **Can a dynamic module replace a function the AOT snapshot already contains?**
    Patching means overriding existing code, not just adding new code. This is the
    crux, and it is where the idea most plausibly dies.
-3. **Does the KBC interpreter exist in a release AOT build**, or is it compiled
-   out? If it is debug/JIT-only, iOS gains nothing.
+3. ~~**Does the KBC interpreter exist in a release AOT build**, or is it compiled
+   out?~~ **ANSWERED: yes.** Vanilla Flutter's `ios-release` device slice
+   (`ios-arm64`, 8.8 MB) contains `DRT_ResumeInterpreter`,
+   `InvokeDartCodeFromBytecode` and the `[Bytecode Stub]` table. It is not
+   debug-only, and it is *upstream's* — Shorebird's and vanilla's `gen_snapshot`
+   carry the same interpreter symbols at the same Dart version (3.12.2), and only
+   Shorebird's carries `shorebird` strings. Caveat: the same binary also contains
+   `"Loading of dynamic modules is not supported."`, so the entry point is gated
+   off in stock builds. The gate is `--dart-dynamic-modules` (`tools/gn:685`),
+   which is ours to flip.
 4. **What does Apple's review actually permit?** Shorebird's whole design assumes
    interpreting downloaded bytecode is acceptable. Confirm the constraint before
-   building to it.
-5. **How large is the delta they actually ship?** Measure `pkg/aot_tools` and the
-   VM changes properly rather than assuming. The Android answer was 57 lines; be
-   open to the iOS answer also being smaller than it looks.
+   building to it. (Weak evidence in favor: they ship it in App Store apps today.)
+5. ~~**How large is the delta they actually ship?**~~ **PARTLY ANSWERED.** A
+   symbol diff of the two `gen_snapshot` binaries names the contract:
+   `--base_ct_link_data`, `--patch_{ct,op}_link_data`,
+   `--base_{dt,ft,op}_link_data`, plus `ClassTable::AllocateIndex` and extra
+   parameters threaded into `Deserializer` and `ObjectPoolBuilder::FindObject`.
+   So the fork's job is to **pin the patch snapshot's identifier layout to the
+   base's** — not to interpret. A precise count needs a version-matched diff
+   against a `gen_snapshot` built from our own fork tree; that is Phase 3 of the
+   plan.
 
 ## What this does not require
 
@@ -100,10 +121,26 @@ Worth being clear, because it is easy to over-scope:
 - [`engine/dart-fork/`](engine/dart-fork) — the 57-line precedent, as a worked
   example of how to reproduce a piece of their fork from vanilla.
 
-## The honest counter-argument
+## The honest counter-argument, and why it was withdrawn
 
-Asking for access costs an email and converts every "Android only" row to "both
-platforms" without changing any of the work. Rebuilding costs months and might
-fail at question 2 above. Doing both in parallel is not contradictory: ask, and
-investigate Route 2 as insurance against the answer being no — which is also the
-answer to "what if they stop publishing".
+The original argument: asking for access costs an email and converts every
+"Android only" row to "both platforms" without changing any of the work, while
+rebuilding costs months and might fail at question 2. So ask, and investigate
+Route 2 as insurance.
+
+**Withdrawn 2026-07-30**, for three reasons:
+
+1. **It buys less than it looked.** iOS code push already works here on
+   Shorebird's prebuilt engine — Apple patchers, `aot_tools`, their host tools,
+   device-verified. The *only* thing gated behind their fork is running **our
+   own modified engine** on iOS.
+2. **It would undo the point.** This fork exists so that nothing we depend on can
+   be withdrawn. Building iOS capability on a private, revocable artifact
+   re-creates that dependency one layer down.
+3. **The insurance is worth less now.** Question 3 turned out to be "the
+   interpreter is upstream's and already ships to iOS devices", so the fallback
+   is a scoped compiler problem rather than a bet on inventing JIT-less
+   execution.
+
+The real question is not "ask or build" but "does iOS *engine* capability matter
+enough to fund the work" — which is a product decision, not a negotiation.
