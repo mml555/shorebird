@@ -48,6 +48,9 @@ for the quick start and feature list.
 - [`ENGINE_IMPROVEMENTS.md`](ENGINE_IMPROVEMENTS.md) — **start here for engine work**: what is proven, what stays pinned, and the constraints that cost real debugging
 - [`EXPERIMENTAL_ENGINE.md`](EXPERIMENTAL_ENGINE.md) — engine/runtime improvement roadmap: what's reachable today, and Android → iOS carryover
 - [`../vendor/flutter`](../vendor) + [`../vendor/updater`](../vendor) — captured source (insurance vs. upstream going closed)
+- [`../packages/code_push_runtime`](../packages/code_push_runtime) — app-side runtime: patched assets + patch-scoped crash reporting
+- [`FORK_REBUILD.md`](FORK_REBUILD.md) — rebuilding the fork's iOS capability vs. asking for access
+- [`cdn/tls/`](cdn/tls) — HTTPS for the mirror, required by Gradle 8+
 
 ## The short version of "how independent is it?"
 

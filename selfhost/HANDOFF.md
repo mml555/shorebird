@@ -286,10 +286,30 @@ artifact is fetched.
 
 **This is not specific to experimental engines** — it applies to the documented
 CDN-mirror setup with a current Flutter/AGP, so it will bite ordinary mirror users.
-Options: serve the mirror over HTTPS (proper fix), or patch the vended
+
+**Fixed, and verified:** [`cdn/tls/`](cdn/tls) adds an optional HTTPS listener.
+
+```bash
+selfhost/cdn/tls/generate.sh localhost          # local CA + SAN'd server cert
+# point tls_listen.conf at listen-enabled.conf in docker-compose.cdn.yaml
+docker compose -f selfhost/cdn/docker-compose.cdn.yaml up -d --force-recreate cdn-cache
+selfhost/cdn/tls/trust.sh                        # on every machine that BUILDS
+export FLUTTER_STORAGE_BASE_URL=https://localhost:8443
+```
+
+`trust.sh` installs into **two** stores, and missing either gives a misleading
+error rather than a clear one: Gradle runs on the JVM and reads the JDK's
+`cacerts` (`PKIX path building failed`), while Dart/Flutter tooling reads the OS
+store (`CERTIFICATE_VERIFY_FAILED`).
+
+Verified on the Linux build host with the `FlutterPlugin.kt` insecure-protocol
+patch **reverted**: a release built over https succeeded. Off by default, so an
+existing deployment is unaffected until it opts in.
+
+The escape hatch remains if TLS is impractical: patch the vended
 `packages/flutter_tools/gradle/src/main/kotlin/FlutterPlugin.kt` to set
-`isAllowInsecureProtocol = true` on that repository (what the build host does
-today; a `.orig` backup sits beside it).
+`isAllowInsecureProtocol = true`. That has to be redone on every build host and
+after every Flutter bump, which is why HTTPS is the real fix.
 
 ## Invariants that cost real debugging time
 
@@ -333,6 +353,23 @@ Do not re-learn these:
   daemonized ssh reverse tunnel. Revert to a LAN IP for normal device testing.
 - The Mac's vended Flutter `engine.version` **has been reverted** to Shorebird's
   `69f9831c`. Confirm it stayed that way.
+
+## Pending actions (things that are prepared but NOT done)
+
+- **`code_push_server` 1.3.0 is prepped but unpublished.** `pubspec.yaml`, the
+  CHANGELOG and both compose pins are at 1.3.0; publishing is a tag push
+  (`code_push_server-v1.3.0`) or a manual `workflow_dispatch` on
+  `release_code_push_server`. Until that runs, `docker compose up` still pulls
+  1.2.0, which has **no** `/patches/assets` and no symbolication — and the
+  endpoint answers `403 Missing bearer token` there, which reads like an auth bug
+  rather than a missing route. Anyone testing asset patches against a stock
+  deployment will hit this.
+- **State left on the build box** (deliberately, so the rig reproduces): the CDN
+  mirror's CA is trusted in its JDK `cacerts` and OS store, and
+  `FlutterPlugin.kt` is reverted to stock (correct now that HTTPS works). Undo
+  commands are printed by `cdn/tls/trust.sh`.
+- Two scratch test apps are installed on the Android device, and their sources
+  live under `/data/shorebird-engine/` on the build box. Nothing depends on them.
 
 ## Loose ends
 

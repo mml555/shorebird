@@ -19,6 +19,7 @@ where `<token>` is either an **API key** (`sb_api_…`, bootstrap or per-user) o
 **session JWT** from `shorebird login`. Public endpoints (no auth): `/healthz`,
 `/readyz`, `/console`, `/admin/ui`, `/download/*` (signed), `/login`, `/token`,
 `/oauth/callback`, `/api/logout`, `/.well-known/jwks.json`, `/patches/check`,
+`/patches/assets`, `/crashes`,
 `/patches/events`.
 
 **Errors.** Non-2xx responses are `{"code": "...", "message": "...", "details"?: …}`.
@@ -158,6 +159,33 @@ patch's `size`; the device verifies the hash after inflating.
 |---|---|---|
 | GET | `/apps/{appId}/metrics` | `{"patches":[{"patch_number","downloads","installs","install_failures","update_failures","unique_clients"}]}` |
 
+### Crashes (read, with symbolication)
+
+`GET /api/v1/apps/{appId}/crashes`
+Optional: `release_version`, `patch_number`, `limit` (default 100),
+`symbolicate=true`.
+
+Returns `{ "crashes": [ { id, client_id, release_version, patch_number, platform,
+arch, kind, message, stack, ts, received_at } ] }`.
+
+With `symbolicate=true`, each entry gains **`stack_symbolicated`** — the trace
+resolved against the debug symbols retained for that patch (`arch: symbols`,
+uploaded when the patch was built with `--split-debug-info`). `null` is a normal
+outcome: a crash on an unpatched release has no retained symbols, and symbols may
+be uploaded after a crash arrives. The raw `stack` is always present alongside.
+
+Notable choices:
+
+- **Opt-in**, because resolving costs a fetch, unzip and DWARF parse per distinct
+  patch in the page. Off by default the response is unchanged for existing callers.
+- **Read-time, never ingest-time.** Ingest must stay unfailable, and symbols
+  routinely arrive *after* a crash, so resolving at ingest would permanently miss.
+- **Pure Dart** (`package:native_stack_traces`, the same one `flutter symbolize`
+  uses), which reads both the ELF form (Android) and the Mach-O form (Apple). One
+  implementation covers every platform with no native toolchain in the image —
+  `llvm-symbolizer` and `atos` would only matter for native C/Objective-C frames,
+  which a Dart crash handler does not produce.
+
 ### Uploads
 
 | Method | Path | Body | Notes |
@@ -210,6 +238,54 @@ number appears in `rolled_back_patch_numbers` (installed devices revert).
 Returns `204`. Idempotent (deduped by `client_id|app_id|release_version|
 patch_number|type|timestamp`). Known types: `__patch_download__`,
 `__patch_install__`, plus `__patch_install_failure__` / `__patch_update_failure__`.
+
+### Patch asset bundle
+
+`POST /api/v1/patches/assets`
+```json
+{ "app_id":"<uuid>", "release_version":"1.0.0+1", "platform":"android",
+  "patch_number": 1 }
+```
+Response:
+```json
+{ "assets_available": true,
+  "assets": { "url": "…/download/<token>?exp=&sig=", "hash": "<sha256>",
+              "size": 114524 } }
+```
+Serves the `flutter_assets` overlay attached to a patch, so a patch can change
+assets and not only Dart code. The bundle is an ordinary patch artifact tagged
+`arch: assets` (see [`PLATFORM_MATRIX.md`](PLATFORM_MATRIX.md)); no schema or
+protocol change was needed because `arch` is free-form end to end.
+
+The **native updater never sees this** — it downloads exactly one artifact and
+applies it as a binary diff. App-side Dart fetches the bundle instead
+([`code_push_runtime`](../packages/code_push_runtime)), which is what keeps the
+feature off the engine-build critical path and therefore working on iOS.
+
+Malformed or unknown input answers `{"assets_available": false, "assets": null}`
+rather than erroring: this is polled on launch by app code, and a hard failure
+would be a needless crash path for a purely additive feature. A **rolled-back**
+patch stops serving its assets, or an app that had reverted would keep using the
+newer bundle against older code.
+
+### Crash reports
+
+`POST /api/v1/crashes`
+```json
+{ "app_id":"<uuid>", "client_id":"<uuid>", "release_version":"1.0.0+1",
+  "patch_number": 1, "platform":"android", "arch":"arm64",
+  "kind":"StateError", "message":"Bad state: …",
+  "stack":"*** *** ***\npid: …\n    #00 abs 0000… virt 0000…",
+  "timestamp": 1785000000 }
+```
+Always answers `200 {"stored": <bool>}`. **It never fails**, and swallows
+malformed input on purpose: the client is an app that just died, and making it
+fight 4xx/5xx is a second failure on top of the first. A test named
+`garbage never fails the reporter` guards this.
+
+`arch` matters — it selects which retained symbol file the trace is resolved
+against, and the wrong one resolves every frame to a wrong address. Read back via
+`GET /api/v1/apps/{appId}/crashes` below.
 
 ### Download
 

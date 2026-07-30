@@ -266,7 +266,9 @@ words:
   - udid # Unique Device Identifier
   - unanalyzed
   - unawaited
+  - cacerts
   - crashpad
+  - PKIX
   - GLSL
   - impellerc
   - iplr
