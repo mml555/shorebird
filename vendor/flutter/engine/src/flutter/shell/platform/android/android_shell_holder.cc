@@ -14,7 +14,9 @@
 #include <utility>
 
 #include "common/settings.h"
+#include "flutter/assets/directory_asset_bundle.h"
 #include "flutter/fml/cpu_affinity.h"
+#include "flutter/fml/file.h"
 #include "flutter/fml/logging.h"
 #include "flutter/fml/message_loop.h"
 #include "flutter/lib/ui/painting/image_generator_registry.h"
@@ -343,6 +345,32 @@ std::optional<RunConfiguration> AndroidShellHolder::BuildRunConfiguration(
   }
 
   RunConfiguration config(std::move(isolate_configuration));
+
+  // Shorebird: assets shipped with the active patch are registered BEFORE the
+  // APK's own provider. AddAssetResolver appends, and AssetManager resolves in
+  // order, so registering first is what makes a patched asset win over the one
+  // packaged in the APK. Resolution still falls through to the APK for any key
+  // the patch does not carry, so a patch changing one asset cannot hide the rest.
+  //
+  // This is deliberately here rather than only in
+  // RunConfiguration::InferFromSettings: Android never calls that function. It
+  // builds its RunConfiguration directly, which is why a resolver added there
+  // has no effect on Android at all.
+  //
+  // Registered unconditionally when the path is set; AssetManager rejects a
+  // resolver over a missing directory, so a patch without assets is a no-op.
+  const std::string& patch_assets = GetSettings().shorebird_patch_assets_path;
+  if (!patch_assets.empty()) {
+    const bool added =
+        config.AddAssetResolver(std::make_unique<DirectoryAssetBundle>(
+            fml::OpenDirectory(patch_assets.c_str(), false,
+                               fml::FilePermission::kRead),
+            true));
+    FML_LOG(INFO) << "Shorebird patch assets "
+                  << (added ? "registered from " : "not found at ")
+                  << patch_assets;
+  }
+
   config.AddAssetResolver(apk_asset_provider_->Clone());
 
   {

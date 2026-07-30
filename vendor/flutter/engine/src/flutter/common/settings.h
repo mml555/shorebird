@@ -133,6 +133,18 @@ struct Settings {
   // case the primary path to the library can not be loaded.
   std::vector<std::string> application_library_paths;
 
+  // Shorebird: directory holding the `flutter_assets` overlay shipped with the
+  // active patch, or empty when there is no patch or it carries no assets.
+  // Set by ConfigureShorebird(); consumed by RunConfiguration, which pushes it
+  // to the FRONT of the AssetManager so a patched asset wins over the one
+  // compiled into the app.
+  //
+  // This exists because assets resolved by the engine rather than through
+  // Dart's AssetBundle — declared fonts, shaders, ImmutableBuffer.fromAsset —
+  // never consult an app-side bundle, so they cannot be patched from Dart at
+  // all. Empty on a stock build, which leaves asset resolution untouched.
+  std::string shorebird_patch_assets_path;
+
   // Path to a library containing compiled Dart code usable for launching
   // the VM service isolate.
   std::vector<std::string> vmservice_snapshot_library_path;

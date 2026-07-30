@@ -10,6 +10,7 @@
 #include "flutter/assets/directory_asset_bundle.h"
 #include "flutter/common/graphics/persistent_cache.h"
 #include "flutter/fml/file.h"
+#include "flutter/fml/logging.h"
 #include "flutter/fml/unique_fd.h"
 #include "flutter/runtime/dart_vm.h"
 #include "flutter/runtime/isolate_configuration.h"
@@ -21,6 +22,26 @@ RunConfiguration RunConfiguration::InferFromSettings(
     const fml::RefPtr<fml::TaskRunner>& io_worker,
     IsolateLaunchType launch_type) {
   auto asset_manager = std::make_shared<AssetManager>();
+
+  // Shorebird: assets shipped with the active patch resolve first, so a patched
+  // asset wins over the one compiled into the app. PushFront, before the
+  // bundled resolvers below, is what makes it an override; resolution still
+  // falls through to those for any key the patch does not carry, so a patch
+  // that changes one asset cannot hide the rest.
+  //
+  // Pushed unconditionally: AssetManager::PushFront rejects a resolver over a
+  // missing directory, so a patch with no assets is a no-op here. Empty on a
+  // stock build, which leaves the resolver chain exactly as upstream builds it.
+  if (!settings.shorebird_patch_assets_path.empty()) {
+    const bool pushed =
+        asset_manager->PushFront(std::make_unique<DirectoryAssetBundle>(
+            fml::OpenDirectory(settings.shorebird_patch_assets_path.c_str(),
+                               false, fml::FilePermission::kRead),
+            true));
+    FML_LOG(INFO) << "Shorebird: patch assets "
+                  << (pushed ? "active: " : "absent at: ")
+                  << settings.shorebird_patch_assets_path;
+  }
 
   if (fml::UniqueFD::traits_type::IsValid(settings.assets_dir)) {
     asset_manager->PushBack(std::make_unique<DirectoryAssetBundle>(

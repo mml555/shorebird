@@ -54,6 +54,24 @@ void ConfigureShorebird(std::string code_cache_path,
 /// Exposed for testing.
 std::string GetValueFromYaml(const std::string& yaml, const std::string& key);
 
+/// The directory holding the `flutter_assets` overlay shipped alongside an
+/// active patch, given that patch's own file path, or "" when
+/// `active_patch_path` is empty.
+///
+/// Derived from the patch file's directory rather than recomputed from
+/// app_storage_path: the two ConfigureShorebird() APIs assemble that path
+/// differently (one appends the app id, one does not), and the updater is the
+/// only authority on where the patch actually landed.
+///
+/// Returns a path whether or not it exists. Callers hand it to
+/// DirectoryAssetBundle, and AssetManager::PushFront already rejects a resolver
+/// over a missing directory, so a patch without assets needs no separate check.
+///
+/// Exposed so desktop embedders, which use the ConfigureShorebird() overload
+/// that does not touch Settings, can populate
+/// Settings::shorebird_patch_assets_path themselves.
+std::string PatchAssetsPathForPatch(const std::string& active_patch_path);
+
 }  // namespace flutter
 
 #endif  // FLUTTER_SHELL_COMMON_SHOREBIRD_SHOREBIRD_H_

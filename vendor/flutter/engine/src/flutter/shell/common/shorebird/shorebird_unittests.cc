@@ -17,5 +17,21 @@ TEST(Shorebird, GetValueFromYamlValueDoesNotExist) {
   std::string value = GetValueFromYaml(yaml, key);
   EXPECT_EQ(value, "");
 }
+
+TEST(Shorebird, PatchAssetsPathSitsBesideThePatch) {
+  // Derived from the patch file's own directory, because the two
+  // ConfigureShorebird() APIs assemble the patch root differently.
+  EXPECT_EQ(PatchAssetsPathForPatch(
+                "/data/user/0/com.example/files/shorebird_updater/"
+                "app-id/patches/3/dlc.vmcode"),
+            "/data/user/0/com.example/files/shorebird_updater/"
+            "app-id/patches/3/flutter_assets");
+}
+
+TEST(Shorebird, PatchAssetsPathIsEmptyWithoutAPatch) {
+  // No active patch means no overlay, and RunConfiguration must leave asset
+  // resolution exactly as a stock build has it.
+  EXPECT_EQ(PatchAssetsPathForPatch(""), "");
+}
 }  // namespace testing
 }  // namespace flutter

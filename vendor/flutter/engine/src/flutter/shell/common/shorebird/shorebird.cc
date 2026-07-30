@@ -138,6 +138,19 @@ std::string GetValueFromYaml(const std::string& yaml, const std::string& key) {
   return "";
 }
 
+std::string PatchAssetsPathForPatch(const std::string& active_patch_path) {
+  if (active_patch_path.empty()) {
+    return "";
+  }
+  auto patch_dir = fml::paths::GetDirectoryName(active_patch_path);
+  if (patch_dir.empty()) {
+    return "";
+  }
+  // Named for what it is: the same tree shape the CLI zips out of a build, so
+  // an overlay can be unpacked here verbatim.
+  return fml::paths::JoinPaths({patch_dir, "flutter_assets"});
+}
+
 /// Newer api, used by Desktop implementations.
 /// Does not directly manipulate Settings.
 // TODO(eseidel): Consolidate this with the other ConfigureShorebird() API.
@@ -265,6 +278,11 @@ void ConfigureShorebird(std::string code_cache_path,
   std::string active_path = shorebird::Updater::Instance().NextBootPatchPath();
   if (!active_path.empty()) {
     FML_LOG(INFO) << "Shorebird updater: active path: " << active_path;
+
+    // Assets shipped with this patch, if any. Recorded unconditionally; whether
+    // the directory exists is decided in RunConfiguration, where an absent one
+    // is simply not pushed.
+    settings.shorebird_patch_assets_path = PatchAssetsPathForPatch(active_path);
 
 #if SHOREBIRD_USE_INTERPRETER
     // On iOS we add the patch to the front of the list instead of clearing
