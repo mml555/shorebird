@@ -267,6 +267,7 @@ words:
   - unanalyzed
   - unawaited
   - crashpad
+  - rodata
   - unfailable
   - unwritable
   - unsymbolicated

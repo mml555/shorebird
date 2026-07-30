@@ -57,18 +57,31 @@ for the quick start and feature list.
 | Runtime (device → our server) | ✅ proven, no `api.shorebird.dev` |
 | Build-time (engine via CDN mirror) | ✅ proven for pinned revisions |
 | Engine/updater **source** | ✅ captured in `vendor/` (insurance) |
-| Engine **built from source** | ⛔ **blocked** — needs Shorebird's private Dart VM fork |
+| Engine **built from source** | ◐ **Android: proven** (device-verified, on our own vanilla-Dart VM). **iOS: blocked** — needs Shorebird's private fork |
 
 For almost everyone, the one-click setup + the CDN mirror is the finish line.
 
-### The one thing that is blocked (read this before planning engine work)
+### What is blocked, and what turned out not to be (read this before planning engine work)
 
 `DEPS` pins the Dart VM source to `git@github.com:shorebirdtech/dart-sdk.git`,
 which is **private** — 404 anonymously and to an authenticated account, and
 Shorebird's own docs say it is "private currently". Their *engine* and *framework*
 forks are public and captured in `vendor/flutter`; the Dart VM is not, and the
-engine will not compile without it (its hooks call two Dart APIs that vanilla Dart
-does not define).
+engine will not compile against vanilla Dart as-is (its hooks call two Dart APIs
+vanilla does not define).
+
+**That stopped being a blocker for Android.** Their fork exists to *interpret*
+patched code, which is the iOS mechanism — Android patches carry real machine
+code. So the dependency came to ~57 lines: vanilla Dart 3.12.2 plus two
+snapshot-size accessors and one public getter, reproducible from the patch in
+[`engine/dart-fork/`](engine/dart-fork). An engine built entirely from that ran
+release → patch → boot → rollback on a physical Android arm64 device.
+
+**iOS remains genuinely blocked**, and by a different artifact: `pkg/aot_tools`,
+the host-side AOT linker, also lives in the private fork. iOS forbids JIT, so a
+patch there is `.vmcode` produced by that linker and run by the interpreter —
+there is no way around it short of fork access, and reimplementing it was
+considered and rejected. See [`EXPERIMENTAL_ENGINE.md`](EXPERIMENTAL_ENGINE.md).
 
 What that does and does not affect:
 
@@ -77,7 +90,8 @@ What that does and does not affect:
 | Runtime code push, device → this server | ✅ unaffected |
 | Building releases/patches on the current pin | ✅ unaffected (mirror is warm) |
 | Adopting a newer Flutter version | ✅ needs their published *prebuilts*, not source |
-| Building a **modified** engine | ⛔ blocked without fork access — **except on Android**, where a ~50-line patch to vanilla Dart is enough |
+| Building a **modified** engine, Android | ✅ proven — vanilla Dart + ~57 lines, device-verified |
+| Building a **modified** engine, iOS | ⛔ blocked — needs `pkg/aot_tools` from the private fork |
 | Surviving Shorebird disappearing | ⚠️ partial — we hold the engine C++ and updater, not the VM fork to compile them |
 
 Full evidence, the measured size of their changes, and what it would cost to build

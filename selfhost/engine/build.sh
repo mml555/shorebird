@@ -121,7 +121,13 @@ EOF
 fi
 
 # --- Disk check (warn only) --------------------------------------------------
-AVAIL_GB="$(df -Pg "$ENGINE_SRC" 2>/dev/null | awk 'NR==2{print $4}')"
+# `df -Pk` (POSIX 1K blocks), not `df -Pg`: -g is a BSD/macOS flag that GNU
+# coreutils rejects, so on Linux the command failed, and under `set -e` with
+# `pipefail` a failing substitution in an assignment exits the script — silently,
+# because the error was sent to /dev/null. That aborted every run on Linux right
+# here, which is the *only* supported host for the android-arm64 cell.
+# `|| true` as well, so a "warn only" check can never again be fatal.
+AVAIL_GB="$(df -Pk "$ENGINE_SRC" 2>/dev/null | awk 'NR==2{print int($4/1048576)}' || true)"
 if [[ -n "${AVAIL_GB:-}" && "$AVAIL_GB" -lt 60 ]]; then
   echo "WARNING: only ${AVAIL_GB}GB free under $ENGINE_SRC; a full build wants ~60GB+." >&2
 fi

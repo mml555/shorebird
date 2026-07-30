@@ -245,8 +245,23 @@ Do not re-learn these:
 
 - Release `1.0.1+2` is stranded in `draft` on the local server from a failed
   upload — harmless, but clean it up.
-- `overlay_publish.sh`'s host-toolchain path is written but **never executed**;
-  those artifacts were published by hand for the verified run.
+- `overlay_publish.sh` now **has** run end to end (exit 0, 2026-07-30). One gap:
+  it re-fetches the Maven modules for the ABIs we did not build from
+  `--mirror` (default `localhost:8085`), so it must run somewhere the CDN mirror
+  is reachable. From the build box that needs a reverse tunnel to the Mac; without
+  it those modules are skipped and the mirror will 404 on them (deliberately, per
+  `$overlay_owned` in nginx.conf). The Mac's overlay already holds them for
+  `dabf1837…` from the original hand-publish.
+- **The engine build is not reproducible.** Rebuilding the identical source
+  (`HEAD` = `dabf1837…`, no code change) produced a different `libflutter.so`:
+  same size to the byte (171,860,472) and an identical `.data.rel.ro`, but a
+  different `.text` (7,566,324 bytes both, different hash) and `.rodata`. Same
+  sizes throughout point to non-deterministic layout rather than a different
+  build, but that is inference, not proof. Consequence for engine work: **you
+  cannot validate an engine change by diffing against the known-good artifact.**
+  Every change needs its own device test, so batch changes rather than iterating.
+  The device-verified artifact in `selfhost/cdn/overlay` was deliberately left in
+  place rather than overwritten with an unverified rebuild.
 - The self-built APK is **arm64-only in practice** — arm/x64 slices pair our
   `libapp.so` with the stock engine.
 - A dev API key was printed into a session transcript. Rotate via `setup.sh` if
