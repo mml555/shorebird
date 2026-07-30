@@ -114,6 +114,43 @@ experimental:
                                    # with a live Hermes deployment — 4 vCPU, cap ninja -j3)
   cell: android-arm64-release      # the only platform cell built from source today
   engines:
+    - hash: fc184af6509a93eaf6fc068c6820639b324175a8   # dabf1837 + the Route B asset resolver
+      falls_back_to: 69f9831c360d9152862ec3897c67fb09ae843f3b
+      flutter_revision: c15ef6379403a0a55531a058bdb2c8e55bc05c98
+      built: 2026-07-30                                # hermes-vps, ninja -j3, ~6 min
+                                                       # incremental on dabf1837's out/
+      changes: |
+        Engine-level patch assets (Route B). A DirectoryAssetBundle over the
+        running patch's own asset directory is registered AHEAD of the APK's
+        provider, so a patched asset wins with no app opt-in. Five files:
+        Settings::shorebird_patch_assets_path, PatchAssetsPathForPatch() in
+        shell/common/shorebird/, the registration in android_shell_holder.cc
+        (the load-bearing one: Android never calls
+        RunConfiguration::InferFromSettings), the same in run_configuration.cc
+        for embedders that do, and two unit tests.
+      verified:
+        compiles: true                 # 91/91 targets, zero errors
+        links: true                    # marker literal present in libflutter.so
+        served_by_mirror: true         # 17-file overlay, our bytes not stock
+        device_verified: true          # 2026-07-30, physical Android arm64 (USB).
+                                       # An app with NO code_push_runtime
+                                       # dependency, reading via rootBundle,
+                                       # went from {"origin":"APK-baked"} to
+                                       # {"origin":"ENGINE-OVERLAY-patch-2"}.
+                                       # Release AND patch built on the Linux box.
+        fonts_verified: false          # the actual motivation for Route B, and
+                                       # still unmeasured. Fonts resolve through
+                                       # the same AssetManager so they should
+                                       # follow, but only rootBundle was proven.
+      notes: |
+        Not reproducible: rebuilding dabf1837's identical source produced a
+        libflutter.so of identical size with a different .text, so an engine
+        change cannot be validated by diffing against a known-good artifact.
+        Every change needs its own device test.
+
+        Building a release against the mirror needs HTTPS or a patched Gradle
+        plugin: Gradle 8+ refuses insecure Maven repositories, which breaks the
+        documented http mirror setup for everyone, not just experimental engines.
     - hash: dabf1837976819e5da33f3e143c4f628749702da   # shorebirdtech/flutter @ selfhost/experimental
       branch: selfhost/experimental
       falls_back_to: 69f9831c360d9152862ec3897c67fb09ae843f3b
