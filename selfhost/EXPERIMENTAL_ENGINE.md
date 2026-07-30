@@ -70,19 +70,28 @@ carries over almost entirely.
 
 ## The roadmap, re-scored
 
-### Phase 4 — Crash reporting + symbolication ✅ do this first
+### Phase 4 — Crash reporting + symbolication ✅ largely landed
 
 Layers 1 + 2, optionally 3. **Not blocked at all**, and 100% shared between
 platforms because none of it is platform code.
 
-- Retain native + Dart symbols keyed by `(app, release, patch, arch)` — the CLI
-  already produces them via `--split-debug-info`.
-- Accept stack traces / minidumps on the control plane, symbolicate server-side,
-  surface in the console.
-- Dart-level capture (`FlutterError.onError`, `PlatformDispatcher.instance.onError`)
-  is pure framework/app code — no engine work.
+- ✅ Symbols retained keyed by `(app, release, patch, arch)`, from the
+  `--split-debug-info` output the CLI already produces.
+- ✅ Stack traces accepted on the control plane and symbolicated server-side.
+- ◻ Dart-level capture (`FlutterError.onError`,
+  `PlatformDispatcher.instance.onError`) is pure framework/app code — no engine
+  work, but nothing emits crash reports yet, so the pipeline has no input.
 
-Only a native crashpad-style collector would need layer 5, and that is optional.
+The symbolication design deserves stating, because the obvious reading of it is
+wrong. A Dart crash report is a *Dart* stack trace, and Dart's
+`--split-debug-info` output is what `flutter symbolize` consumes through
+`package:native_stack_traces`. That package is pure Dart and reads both ELF
+(Android) and Mach-O (Apple), so **one server-side implementation symbolicates
+every platform** with no native toolchain in the image. `llvm-symbolizer` and
+`atos` would only enter the picture for native C++/Objective-C frames — which
+means only a crashpad-style native collector would need them, and that is
+optional layer-5 work.
+
 **Carryover to iOS: 100%.** Best value-per-effort on the list today.
 
 ### Phase 1 — Assets in patches ✅ reachable on both platforms
@@ -188,8 +197,8 @@ hands next:
 
 | Phase | Landed | Remaining |
 |---|---|---|
-| 4 — crash reporting | `POST /crashes` ingestion + retention; debug symbols retained per patch (`symbols` tag), uploaded by `shorebird patch` whenever the build emits them | symbolication (needs a symbolizer in the image; read-time resolution suggested) |
-| 1 — assets | `POST /patches/assets` + the CLI upload path (`assets` tag); `--assets` packages Android's `flutter_assets` out of the built AAB | Apple `assetsDirectory()`, app-side Dart package |
+| 4 — crash reporting | `POST /crashes` ingestion + retention; symbols retained per patch; **read-time symbolication** via `package:native_stack_traces` (`?symbolicate=true`) — pure Dart, so Android *and* Apple, no `atos`, no Mac worker | app-side crash reporter to produce the traces |
+| 1 — assets | `POST /patches/assets` + the CLI upload path (`assets` tag); `--assets` packages `flutter_assets` on Android (from the AAB) and on iOS/macOS (from the app bundle) | app-side Dart package |
 | 2 — hot restart | — | design, then updater status split + engine isolate reload |
 
 | Phase | Blocked? | Android→iOS carryover |

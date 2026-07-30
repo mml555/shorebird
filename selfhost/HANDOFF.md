@@ -1,4 +1,4 @@
-<!-- cspell:words dartsdk prebuilts bidiff vmcode aot atos unfailable symbolizer daemonized -->
+<!-- cspell:words dartsdk prebuilts bidiff vmcode aot daemonized -->
 
 # Handoff — engine improvements (as of 2026-07-29)
 
@@ -26,7 +26,7 @@ print('pin identical:', m['shorebird']==b['shorebird'],
 PY
 ```
 
-Branch: `feat/engine-improvements`, 22 commits off `main`.
+Branch: `feat/engine-improvements`, 25 commits off `main`.
 
 ## Where each track stands
 
@@ -59,19 +59,41 @@ Sidecars are **not fatal**: a patch whose symbols could not be packaged is still
 a valid patch, so failures warn and degrade to "not retained" rather than
 throwing away a completed build.
 
-**Next: symbolication.** The join is already in place — crash reports carry
-`(app_id, release_version, patch_number, arch)` and symbols are a patch artifact
-tagged `symbols`. What is missing:
+**Symbolication is done** — `lib/src/symbolication.dart`, surfaced as
+`GET /api/v1/apps/{id}/crashes?symbolicate=true` adding a `stack_symbolicated`
+field beside the raw `stack`.
 
-1. A symbolizer in the server image. Android needs `llvm-symbolizer` (ELF +
-   `libapp.so`/`libflutter.so`); Apple needs `atos` or a dSYM parser, which does
-   **not** run in a Linux container — decide whether Apple symbolication is
-   out of scope, done client-side, or needs a Mac worker.
-2. Fetch + unzip + cache the retained symbol set (it is a zip of
-   `--split-debug-info` output, not a bare symbol file).
-3. Decide **ingest-time vs read-time** resolution. Read-time is safer: ingest must
-   stay unfailable (see below), and symbols may be uploaded after a crash arrives.
-   Suggest storing raw always and resolving in `_getCrashes`, cached.
+An earlier version of this file said Android needs `llvm-symbolizer` and Apple
+needs `atos` or a Mac worker. **That was wrong**, and it would have bought a
+whole Mac-worker architecture for nothing. What the CLI retains is Dart's own
+`--split-debug-info` output, which is what `flutter symbolize` reads via
+`package:native_stack_traces` — pure Dart, handling the ELF form (Android) and
+the Mach-O form (Apple). One implementation covers every platform inside the
+Linux container. `atos` would only matter for native Objective-C/C++ frames out
+of a dSYM, and a Dart crash handler does not produce those.
+
+Things worth not re-deciding:
+
+- **Read-time, not ingest-time.** Ingest must stay unfailable, and symbols are
+  routinely uploaded *after* a crash arrives, so an ingest-time attempt would
+  permanently miss.
+- **Opt-in via `?symbolicate=true`.** Resolving costs a fetch, unzip and DWARF
+  parse per distinct patch in the page. Off by default also keeps the response
+  byte-identical for existing callers.
+- **Never guess the symbol file.** Match the arch by `-<token>.symbols` suffix,
+  not `contains`: `arm` is a prefix of `arm64`, so a `contains` match hands
+  arm64 symbols to an arm32 crash and resolves every frame to a wrong address —
+  a failure that looks like success. With several entries and no arch match the
+  code returns null on purpose.
+- Parsed symbol sets are cached (bounded, small — a parsed set is large in
+  memory), with a negative cache so a broken artifact is not re-parsed per
+  request.
+
+**Still unverified:** a real obfuscated trace resolving to real line numbers.
+The retained artifact is confirmed to parse (`Dwarf.fromBytes` on the real
+1.3 MB file from the e2e run), and arch selection is confirmed against that real
+3-ABI zip, but producing an actual resolved frame needs a crash from that exact
+build — which needs the app-side crash reporter that does not exist yet.
 
 **Do not make `POST /crashes` fail.** It always answers `200 {stored: bool}` and
 swallows malformed input on purpose — the client is an app that just died, and
@@ -80,7 +102,7 @@ named `garbage never fails the reporter` guarding this.
 
 ### Track B — assets in patches
 
-**Done:** the CLI half, end to end on Android.
+**Done:** the whole CLI half — Android (device-verified end to end) and Apple.
 
 | Piece | Where |
 |---|---|
@@ -89,6 +111,7 @@ named `garbage never fails the reporter` guarding this.
 | `--assets` flag (opt-in) | `patch_command.dart`, next to `allow-asset-diffs`; getter `includeAssets` |
 | Asset source hook | `commands/patch/patcher.dart` → `assetsDirectory()`, `null` by default |
 | Android implementation | `android_patcher.dart` → `base/assets/flutter_assets/**` from the AAB cached by `buildPatchArtifact`, via `ArtifactManager.extractAndroidFlutterAssetsFromAab` |
+| Apple implementation | `ios_patcher.dart` / `macos_patcher.dart` → `ArtifactManager.findFlutterAssetsDirectory` over the built bundle |
 | Packaging + upload | shares Track A's `_packageSidecars` / `publishPatch(sidecars: …)` |
 
 Decisions made while wiring it, so you do not re-litigate them:
@@ -102,17 +125,19 @@ Decisions made while wiring it, so you do not re-litigate them:
 - **The AAB is the source, not a build intermediate.** Those are the bytes the
   release would have shipped, already through Flutter's asset pipeline; an
   intermediate directory can hold another variant's assets.
+- **Apple's location is searched, not hardcoded.** iOS keeps it at
+  `Frameworks/App.framework/flutter_assets`, macOS at
+  `Contents/Frameworks/App.framework/Resources/flutter_assets`, and it has moved
+  between Flutter versions. The search is breadth-first on purpose: a plugin
+  framework can vendor its own `flutter_assets`, and the app's own copy is always
+  shallower, so a depth-first walk could ship the plugin's.
 - Zipped with `Directory.zipToTempFile()` from
   `lib/src/archive/directory_archive.dart`. **Use this, not a new helper** — it
   zips with `includeDirName: false`, so entries are relative to the directory,
   which is what an overlay unpacked over an asset root needs. (I wrote a
   duplicate on `ArtifactManager` before finding it, and removed it.)
 
-**Next: Apple `assetsDirectory()`** — the assets live inside the app bundle, and
-the Apple patchers do not expose it, so `--assets` currently warns and skips on
-those platforms. Everything above that hook is already platform-agnostic.
-
-**Then the Dart package** (app-side): read the running patch number via
+**Next: the Dart package** (app-side): read the running patch number via
 `shorebird_code_push`, `POST /patches/assets`, download, cache, expose an
 `AssetBundle` preferring the bundle and falling back to `rootBundle`. Two
 invariants: key the cache by patch number and use it **only** when it matches the

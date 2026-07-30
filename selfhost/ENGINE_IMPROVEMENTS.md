@@ -103,8 +103,14 @@ and `assetsDirectory()` for the Apple patchers.
 
 Debug symbols ride the same mechanism as `arch: symbols`, uploaded whenever a
 patch build emits them (`--split-debug-info`). Together with a crash report's
-`(app, release_version, patch_number, arch)` that is the join a server-side
-symbolizer needs.
+`(app, release_version, patch_number, arch)` that is the join symbolication
+needs, and the server now resolves it: `?symbolicate=true` on the crashes
+endpoint returns `stack_symbolicated` beside the raw stack.
+
+That symbolizer is pure Dart — `package:native_stack_traces`, the same one
+`flutter symbolize` uses — which reads both the ELF and Mach-O forms of Dart's
+debug info. So Android and Apple are symbolicated by one implementation inside
+the Linux container, with no `atos` and no Mac worker.
 
 ## Reproducing the engine
 

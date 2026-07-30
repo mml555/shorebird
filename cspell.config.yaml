@@ -243,8 +243,11 @@ words:
   - strftime
   - subpackages
   - Supabase
+  - atos
   - symbolicate
   - symbolicated
+  - symbolicates
+  - symbolicating
   - symbolication
   - symbolizer
   - syskeys # From adb.dart
@@ -263,6 +266,8 @@ words:
   - unanalyzed
   - unawaited
   - unfailable
+  - unsymbolicated
+  - virt
   - unittests
   - unixepoch
   - unmockable

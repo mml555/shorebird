@@ -13,6 +13,7 @@ import 'package:code_push_server/src/observability.dart';
 import 'package:code_push_server/src/repository.dart';
 import 'package:code_push_server/src/rollout.dart';
 import 'package:code_push_server/src/signing.dart';
+import 'package:code_push_server/src/symbolication.dart';
 import 'package:crypto/crypto.dart';
 import 'package:mime/mime.dart';
 import 'package:shelf/shelf.dart';
@@ -101,6 +102,7 @@ class Api {
     : oauth = OAuthService(config.jwtIssuer, keyJson: signingKeyJson),
       _signer = UrlSigner(config.urlSigningSecret),
       _analytics = Analytics(repo.db),
+      _symbolizer = Symbolizer(store: store),
       obs = Observability(json: config.logFormat == 'json');
 
   final Repository repo;
@@ -109,6 +111,7 @@ class Api {
   final OAuthService oauth;
   final UrlSigner _signer;
   final Analytics _analytics;
+  final Symbolizer _symbolizer;
 
   /// Structured logging + Prometheus metrics (exposed at `GET /metrics`).
   final Observability obs;
@@ -2069,6 +2072,13 @@ class Api {
       patchNumber: int.tryParse(q['patch_number'] ?? ''),
       limit: int.tryParse(q['limit'] ?? '') ?? 100,
     );
+
+    // Opt-in, because resolving means fetching, unzipping and DWARF-parsing a
+    // symbol set per distinct patch in the page — fine for one crash, too slow
+    // to impose on a list view that only wants counts and messages. Off by
+    // default also keeps this response byte-identical to before.
+    final wantSymbols = q['symbolicate'] == 'true';
+
     return _json({
       'crashes': [
         for (final r in reports)
@@ -2082,6 +2092,8 @@ class Api {
             'kind': r['kind'],
             'message': r['message'],
             'stack': r['stack'],
+            if (wantSymbols)
+              'stack_symbolicated': await _symbolicatedStack(appId, r),
             'ts': r['ts'],
             // Postgres hands back a DateTime here, SQLite a String. Normalize
             // so the wire shape does not depend on the backend.
@@ -2091,6 +2103,52 @@ class Api {
           },
       ],
     });
+  }
+
+  /// The symbolicated form of one crash report's stack, or `null` when it
+  /// cannot be resolved.
+  ///
+  /// Null is a normal outcome, not an error: a crash against a release (no
+  /// patch number) has no retained symbol set, a patch built without
+  /// `--split-debug-info` retained none, and symbols may simply not have been
+  /// uploaded yet. The raw `stack` is always present alongside this, so the
+  /// caller loses nothing when it is null.
+  Future<String?> _symbolicatedStack(
+    String appId,
+    Map<String, Object?> report,
+  ) async {
+    final stack = report['stack'];
+    final version = report['release_version'];
+    final number = report['patch_number'];
+    if (stack is! String || stack.isEmpty) return null;
+    if (version is! String || number is! int) return null;
+
+    final platform = report['platform'];
+    if (platform is! String) return null;
+
+    final release = await repo.releaseByVersion(appId, version);
+    if (release == null) return null;
+
+    final patches = await repo.patchesForRelease(release.id);
+    PatchRow? patch;
+    for (final p in patches) {
+      if (p.number == number) {
+        patch = p;
+        break;
+      }
+    }
+    if (patch == null) return null;
+
+    final symbols = await repo.patchArtifact(patch.id, symbolsArch, platform);
+    if (symbols == null || symbols.status != ArtifactStatus.verified) {
+      return null;
+    }
+
+    return _symbolizer.symbolicate(
+      stack: stack,
+      symbols: symbols,
+      arch: report['arch'] is String ? report['arch']! as String : null,
+    );
   }
 
   Future<Response> _patchesEvents(Request req) async {

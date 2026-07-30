@@ -1861,6 +1861,60 @@ void main() {
       );
       expect(r.statusCode, anyOf(HttpStatus.notFound, HttpStatus.forbidden));
     });
+
+    // Symbolication is read-time and opt-in. Ingest must never depend on it:
+    // symbols are often uploaded after a crash has already arrived, and
+    // resolving costs a fetch + unzip + DWARF parse per distinct patch.
+    group('symbolication', () {
+      test('is absent unless asked for', () async {
+        await report(crash());
+
+        final crashes = await listCrashes();
+
+        // Default response shape must be unchanged for existing callers.
+        expect(crashes.single, isNot(contains('stack_symbolicated')));
+      });
+
+      test('is present but null when no symbols were retained', () async {
+        await report(crash());
+
+        final crashes = await listCrashes(query: '?symbolicate=true');
+
+        // The key appears so a caller can tell "not resolvable" from "not
+        // requested", and the raw stack is always still there.
+        final report0 = crashes.single as Map<String, dynamic>;
+        expect(report0, contains('stack_symbolicated'));
+        expect(report0['stack_symbolicated'], isNull);
+        expect(report0['stack'], equals('main.dart:1\nfoo.dart:2'));
+      });
+
+      test('is null for a crash carrying no patch number', () async {
+        // A crash against an unpatched release has no patch, so no retained
+        // symbol set can exist for it.
+        await report({...crash(), 'patch_number': null});
+
+        final crashes = await listCrashes(query: '?symbolicate=true');
+
+        expect(
+          (crashes.single as Map<String, dynamic>)['stack_symbolicated'],
+          isNull,
+        );
+      });
+
+      test('does not fail the request when symbols are unusable', () async {
+        await report(crash());
+
+        final r = await send(
+          'GET',
+          '/api/v1/apps/$appId/crashes?symbolicate=true',
+          bearer: _bootstrapKey,
+        );
+
+        // Unsymbolicated crashes are still worth reading; an unresolvable
+        // symbol set must never turn the list endpoint into an error.
+        expect(r.statusCode, HttpStatus.ok);
+      });
+    });
   });
 
   // -------------------------------------------------------------------------
