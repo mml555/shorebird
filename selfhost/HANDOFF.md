@@ -1,6 +1,6 @@
-<!-- cspell:words dartsdk prebuilts bidiff vmcode aot daemonized -->
+<!-- cspell:words dartsdk prebuilts bidiff vmcode aot daemonized crashprobe -->
 
-# Handoff — engine improvements (as of 2026-07-29)
+# Handoff — engine improvements (as of 2026-07-30)
 
 **Next up:** rebuilding the fork's iOS capability ourselves rather than asking for
 access is scoped in [`FORK_REBUILD.md`](FORK_REBUILD.md). Start there.
@@ -29,7 +29,8 @@ print('pin identical:', m['shorebird']==b['shorebird'],
 PY
 ```
 
-Branch: `feat/engine-improvements`, 25 commits off `main`.
+Branch: `feat/engine-improvements`, off `main` and now pushed to `fork`
+(`mml555/shorebird`) — it is no longer single-copy on one Mac.
 
 ## Where each track stands
 
@@ -92,11 +93,35 @@ Things worth not re-deciding:
   memory), with a negative cache so a broken artifact is not re-parsed per
   request.
 
-**Still unverified:** a real obfuscated trace resolving to real line numbers.
-The retained artifact is confirmed to parse (`Dwarf.fromBytes` on the real
-1.3 MB file from the e2e run), and arch selection is confirmed against that real
-3-ABI zip, but producing an actual resolved frame needs a crash from that exact
-build — which needs the app-side crash reporter that does not exist yet.
+**Verified end to end on device, 2026-07-30.** An obfuscated release +
+obfuscated patch on Android arm64 (CPH2551), crashed from a patched code path,
+reported by `code_push_runtime`, and resolved by
+`GET /api/v1/apps/{id}/crashes?symbolicate=true`:
+
+```
+raw:  #00 abs 000000775284f067 virt 00000000001a6067 _kDartIsolateSnapshotInstructions+0xcef27
+sym:  #0  patchedCrashProbeThrow (…/crashprobe/lib/main.dart:36:3)
+      #1  CrashProbeHome.build.<anonymous closure> (…/crashprobe/lib/main.dart:75:32)
+```
+
+Two things that make this more than "a name appeared":
+
+- **The line number proves which symbol set was used.** The probe function sat
+  at line 27 in the release and line 36 in the patch. The resolved frame says
+  **36**, so the server joined on the *patch's* retained symbols — the join the
+  whole design rests on — rather than the release's.
+- **Arch selection was exercised for real.** The retained zip held all three
+  ABIs, and `app.android-x64.symbols` is listed *first*. A first-entry or
+  `contains('arm')` match would have resolved every frame against the wrong ABI
+  and looked like success. The `-arm64.symbols` suffix match picked correctly.
+
+Reproduce with an app depending on `code_push_runtime`: obfuscated
+`shorebird release android --obfuscate --split-debug-info=<dir>`, then plain
+`shorebird patch android` (obfuscation and `--split-debug-info` are inherited
+automatically), crash from patched code, then read the crashes endpoint with
+`?symbolicate=true`. **The crash must happen while a patch is running** —
+reporting is deliberately not installed on an unpatched release, so a crash
+before the patch applies is not a bug.
 
 **Do not make `POST /crashes` fail.** It always answers `200 {stored: bool}` and
 swallows malformed input on purpose — the client is an app that just died, and
@@ -347,7 +372,13 @@ Do not re-learn these:
   `systemctl --user is-active hermes-gateway` after anything invasive. Contains
   the engine checkout, our Dart fork, `out/{android_release_arm64,host_release,host_debug}`,
   a patched CLI at v1.6.115, and the test app.
-- **Local containers up:** `code_push_server`, `cdn-cache`, `artifact-proxy`.
+- **Local containers up:** `code_push_server` (1.2.0, host 8080), `cdn-cache`,
+  `artifact-proxy`, and **`cps-phase4`** — the 1.3.0 image on host 18080 with its
+  data under the session scratchpad, which is the rig the Phase 4 verification
+  ran against. `cps-e2e` was stopped to free port 18080; restart it if you want
+  the older asset-patch rig back. Device access is
+  `adb reverse tcp:18080 tcp:18080`, so `PUBLIC_BASE_URL=http://localhost:18080`
+  is one URL that satisfies both the Mac and the phone.
 - **`PUBLIC_BASE_URL=http://localhost:18080`** in `packages/code_push_server/.env`
   (was the LAN IP), plus an `adb reverse tcp:18080 tcp:8080` mapping and a
   daemonized ssh reverse tunnel. Revert to a LAN IP for normal device testing.
@@ -356,14 +387,12 @@ Do not re-learn these:
 
 ## Pending actions (things that are prepared but NOT done)
 
-- **`code_push_server` 1.3.0 is prepped but unpublished.** `pubspec.yaml`, the
-  CHANGELOG and both compose pins are at 1.3.0; publishing is a tag push
-  (`code_push_server-v1.3.0`) or a manual `workflow_dispatch` on
-  `release_code_push_server`. Until that runs, `docker compose up` still pulls
-  1.2.0, which has **no** `/patches/assets` and no symbolication — and the
-  endpoint answers `403 Missing bearer token` there, which reads like an auth bug
-  rather than a missing route. Anyone testing asset patches against a stock
-  deployment will hit this.
+- ~~`code_push_server` 1.3.0 is prepped but unpublished.~~ **Published
+  2026-07-30** from tag `code_push_server-v1.3.0`: multi-arch (amd64 + arm64)
+  at `ghcr.io/mml555/code-push-server:1.3.0`, pulled and booted healthy, and it
+  is the image the Phase 4 verification above ran against. Both compose pins
+  resolve. Note the tag points at `feat/engine-improvements`, not `main`, so a
+  later merge should not re-cut it.
 - **State left on the build box** (deliberately, so the rig reproduces): the CDN
   mirror's CA is trusted in its JDK `cacerts` and OS store, and
   `FlutterPlugin.kt` is reverted to stock (correct now that HTTPS works). Undo
@@ -382,6 +411,12 @@ Do not re-learn these:
   it those modules are skipped and the mirror will 404 on them (deliberately, per
   `$overlay_owned` in nginx.conf). The Mac's overlay already holds them for
   `dabf1837…` from the original hand-publish.
+- **The overlay is backed up locally but not yet off-machine.**
+  `~/shorebird-backups/engine-overlay-dabf1837-fc184af6.tar` (775 MB, sha256
+  `b5fc5633c509f64660701e4654d8dfcd839ce023667f7d9dce7125b0420d9b5f`) holds both
+  device-verified engines. That protects against a stray `git clean -xfd` in the
+  repo, not against losing the disk — and given the next point, losing it means
+  re-proving every Route B claim on device. Get a copy off this machine.
 - **The engine build is not reproducible.** Rebuilding the identical source
   (`HEAD` = `dabf1837…`, no code change) produced a different `libflutter.so`:
   same size to the byte (171,860,472) and an identical `.data.rel.ro`, but a

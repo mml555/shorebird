@@ -70,7 +70,7 @@ carries over almost entirely.
 
 ## The roadmap, re-scored
 
-### Phase 4 — Crash reporting + symbolication ✅ largely landed
+### Phase 4 — Crash reporting + symbolication ✅ done, device-verified
 
 Layers 1 + 2, optionally 3. **Not blocked at all**, and 100% shared between
 platforms because none of it is platform code.
@@ -82,6 +82,9 @@ platforms because none of it is platform code.
   `PlatformDispatcher.instance.onError`) in
   [`code_push_runtime`](../packages/code_push_runtime) — pure app code, no engine
   work, and it is what finally feeds the pipeline.
+- ✅ Proven on a physical Android arm64 device: an obfuscated patch's crash
+  resolved to the right function *and* the patch's own line number, picking the
+  arm64 entry out of a three-ABI symbol zip.
 
 The symbolication design deserves stating, because the obvious reading of it is
 wrong. A Dart crash report is a *Dart* stack trace, and Dart's
@@ -231,8 +234,8 @@ hands next:
 
 | Phase | Landed | Remaining |
 |---|---|---|
-| 4 — crash reporting | end to end: ingestion, retention, **read-time symbolication** via `package:native_stack_traces` (`?symbolicate=true`, pure Dart so Android *and* Apple, no `atos`), and an app-side reporter in `code_push_runtime` | a real crash resolved on device |
-| 1 — assets | end to end: `--assets` packages `flutter_assets` on Android and Apple, server serves it, `code_push_runtime` reads it as an `AssetBundle` | a new `code_push_server` image (pinned 1.2.0 predates `/patches/assets`) |
+| 4 — crash reporting | **complete**: ingestion, retention, read-time symbolication via `package:native_stack_traces` (`?symbolicate=true`, pure Dart so Android *and* Apple, no `atos`), an app-side reporter in `code_push_runtime`, and — 2026-07-30 — a real obfuscated on-device crash resolved to `main.dart:36:3` against the patch's own symbols (see [`HANDOFF.md`](HANDOFF.md)) | Apple: the same proof on an iOS device |
+| 1 — assets | end to end: `--assets` packages `flutter_assets` on Android and Apple, server serves it, `code_push_runtime` reads it as an `AssetBundle` | — image published as `code-push-server:1.3.0` |
 | 2 — hot restart | — | design, then updater status split + engine isolate reload |
 
 | Phase | Blocked? | Android→iOS carryover |
