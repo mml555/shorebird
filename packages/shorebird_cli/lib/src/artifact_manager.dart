@@ -372,10 +372,16 @@ class ArtifactManager {
   /// if the bundle has none.
   ///
   /// Searched rather than hardcoded because the location differs per Apple
-  /// platform — `Frameworks/App.framework/flutter_assets` on iOS,
-  /// `Contents/Frameworks/App.framework/Resources/flutter_assets` on macOS —
-  /// and has moved between Flutter versions. One search is both correct today
-  /// and resilient to that path changing again.
+  /// platform and has moved between Flutter versions. Observed in real builds:
+  /// - iOS: `Frameworks/App.framework/flutter_assets`
+  /// - macOS: `Contents/Frameworks/App.framework/Versions/A/Resources/flutter_assets`
+  ///
+  /// **Symlinks are not followed.** A macOS framework is a web of them —
+  /// `App.framework/Resources` → `Versions/Current/Resources` and
+  /// `Versions/Current` → `A` — so following links would walk the same tree
+  /// twice and, worse, could loop forever on a cycle in any embedded framework,
+  /// hanging `shorebird patch` with no output. Walking only real directories
+  /// makes a cycle impossible and lands on the canonical path.
   ///
   /// Returns the shallowest match, so a copy nested inside an embedded plugin
   /// framework can never win over the app's own assets.
@@ -388,7 +394,10 @@ class ArtifactManager {
       final dir = queue.removeAt(0);
       final List<Directory> children;
       try {
-        children = dir.listSync().whereType<Directory>().toList();
+        children = dir
+            .listSync(followLinks: false)
+            .whereType<Directory>()
+            .toList();
       } on FileSystemException {
         // Unreadable subtree: skip it rather than fail the whole search.
         continue;

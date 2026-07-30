@@ -126,11 +126,16 @@ Decisions made while wiring it, so you do not re-litigate them:
   release would have shipped, already through Flutter's asset pipeline; an
   intermediate directory can hold another variant's assets.
 - **Apple's location is searched, not hardcoded.** iOS keeps it at
-  `Frameworks/App.framework/flutter_assets`, macOS at
-  `Contents/Frameworks/App.framework/Resources/flutter_assets`, and it has moved
-  between Flutter versions. The search is breadth-first on purpose: a plugin
-  framework can vendor its own `flutter_assets`, and the app's own copy is always
-  shallower, so a depth-first walk could ship the plugin's.
+  `Frameworks/App.framework/flutter_assets`; macOS, verified against a real
+  build, at
+  `Contents/Frameworks/App.framework/Versions/A/Resources/flutter_assets` —
+  **not** `App.framework/Resources/...`, which is only a symlink to it. (The
+  unit test originally asserted the symlink path and passed without that path
+  existing; building for real is what caught it.) The search is breadth-first so
+  a plugin framework vendoring its own `flutter_assets` cannot win over the
+  app's shallower copy, and it does **not follow symlinks** — a macOS framework
+  is a web of them, and a cycle in any embedded framework would otherwise hang
+  `shorebird patch` with no output.
 - Zipped with `Directory.zipToTempFile()` from
   `lib/src/archive/directory_archive.dart`. **Use this, not a new helper** — it
   zips with `includeDirName: false`, so entries are relative to the directory,

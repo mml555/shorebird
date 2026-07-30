@@ -683,12 +683,18 @@ void main() {
         );
       });
 
-      test('finds the macOS layout', () {
+      test('finds the real macOS layout', () {
+        // Verified against a real `flutter build macos` bundle: the true path
+        // carries a Versions/A component, and `App.framework/Resources` is
+        // only a symlink to it. An earlier version of this test asserted the
+        // symlink path and passed without that path ever existing.
         final assets = make(
           p.join(
             'Contents',
             'Frameworks',
             'App.framework',
+            'Versions',
+            'A',
             'Resources',
             'flutter_assets',
           ),
@@ -697,6 +703,54 @@ void main() {
         expect(
           ArtifactManager.findFlutterAssetsDirectory(bundle)?.path,
           equals(assets.path),
+        );
+      });
+
+      test('does not hang on a symlink cycle', () {
+        // macOS frameworks are a web of symlinks, and an embedded framework
+        // could contain a cycle. Following links would loop forever here and
+        // hang `shorebird patch` with no output at all.
+        final nested = make(p.join('Contents', 'Frameworks', 'Loop'));
+        Link(
+          p.join(nested.path, 'back'),
+        ).createSync(p.join(bundle.path, 'Contents'));
+        final assets = make(
+          p.join('Contents', 'Frameworks', 'App.framework', 'flutter_assets'),
+        );
+
+        expect(
+          ArtifactManager.findFlutterAssetsDirectory(bundle)?.path,
+          equals(assets.path),
+        );
+      });
+
+      test('ignores a flutter_assets reachable only through a symlink', () {
+        // The canonical directory is what should be zipped; resolving through a
+        // link would work but records a path that is not the real one.
+        final real = make(
+          p.join(
+            'Contents',
+            'Frameworks',
+            'App.framework',
+            'Versions',
+            'A',
+            'Resources',
+            'flutter_assets',
+          ),
+        );
+        Link(
+          p.join(
+            bundle.path,
+            'Contents',
+            'Frameworks',
+            'App.framework',
+            'Resources',
+          ),
+        ).createSync(p.join('Versions', 'A', 'Resources'));
+
+        expect(
+          ArtifactManager.findFlutterAssetsDirectory(bundle)?.path,
+          equals(real.path),
         );
       });
 
