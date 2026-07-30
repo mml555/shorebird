@@ -167,7 +167,20 @@ against 3.38.5; a version-matched diff removes that noise.
 specification for Phase 5, written by them and read by us without touching their
 source.
 
-## Phase 4 — The crux experiments (kill gates, days not weeks)
+## Phase 4 — The crux experiments ✅ ANSWERED 2026-07-30: no
+
+**A dynamic module cannot replace code the AOT snapshot already contains.**
+Harness, evidence and the three traps: [`engine/dynmod/`](engine/dynmod).
+`loadDynamicModule` runs a module's entry point and returns its result; the only
+override a module can express is a subclass, which cannot change what an
+already-constructed instance returns; and `dyn-module:can-be-overridden` is a
+devirtualization barrier that keeps a dispatch point open rather than redirecting
+one. It is an extension mechanism, not a patch mechanism.
+
+**So Phase 5 is the pinned-layout route**, and the upstreamable variant is off
+the table. The original experiment list is kept below for the record.
+
+### The original crux experiments (kill gates, days not weeks)
 
 Run these before committing to Phase 5, in this order, because each can end the
 question cheaply:
@@ -185,6 +198,10 @@ question cheaply:
 **Decision:** if (3) succeeds, Phase 5 rides upstream's mechanism and is
 plausibly upstreamable. If it fails, Phase 5 is the pinned-layout work — bigger,
 permanently coupled to Dart's snapshot format, and ours to maintain forever.
+
+*(3) failed. Experiments 1 and 2 were not needed: the question was settled at the
+language-semantics level rather than the build-configuration level, which is why
+it cost hours instead of the budgeted days.*
 
 ## Phase 5 — Code patches on our own iOS engine
 
