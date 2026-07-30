@@ -145,6 +145,15 @@ and falling back to `rootBundle`. It also carries the **crash reporter**, since 
 needed the same two things — the patch number and an HTTP client to this control
 plane — and without it nothing fed symbolication.
 
+**Crash reporting is deliberately scoped to patches.** The handlers are not
+installed at all on an unpatched release. This is not a crash reporting product
+and must not grow into one: an app on a plain release already has whatever
+reporter it chose, and a report from one could never be symbolicated here anyway,
+because symbols are retained per patch. The question it answers is the narrow one
+code push creates — "did the patch I shipped break something?" Resist the
+temptation to "complete" this by retaining release symbols; that was considered
+and rejected as scope, not overlooked.
+
 Standalone package, **not a workspace member**, for the same reason as
 `code_push_server`: the workspace root resolves with the Dart SDK, and adding a
 Flutter package would force every package to resolve through Flutter. Test with

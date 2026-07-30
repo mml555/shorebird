@@ -7,7 +7,7 @@ because a self-hosted control plane can do things the hosted service does not:
 | | |
 |---|---|
 | **Patched assets** | Serves the `flutter_assets` bundle attached to the running patch, so a patch can change images, fonts and JSON — not only Dart code. |
-| **Crash reporting** | Reports Dart crashes with the `(app, release, patch, arch)` tuple the server needs to symbolicate them against the debug symbols retained for that patch. |
+| **Patch crash reporting** | While a patch is running, reports Dart crashes with the `(app, release, patch, arch)` tuple the server needs to symbolicate them against the symbols retained for that patch. |
 
 Neither needs an engine build, a modified updater, or Shorebird's private Dart VM
 fork — which is the whole point. Both work on Android and iOS.
@@ -67,6 +67,12 @@ directory, gets a completion marker, then moves into place in one rename — so 
 interrupted unpack can never be mistaken for a finished one. Bundles are also
 rejected if their hash does not match, which catches a truncated transfer before
 it becomes a cached directory that looks fine and serves broken assets forever.
+
+**Crash reporting is scoped to patches, and is not a crash reporting product.**
+Nothing is reported on an unpatched release: the error handlers are not even
+installed. This exists to answer the question code push creates — "did the patch
+I shipped break something?" — not to replace Crashlytics or Sentry. It is also
+the only case that *can* be answered here, since symbols are retained per patch.
 
 **Crash reporting chains, it does not replace.** `FlutterError.onError` and
 `PlatformDispatcher.instance.onError` are wrapped, and whatever was there before

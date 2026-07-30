@@ -25,6 +25,12 @@ typedef ReleaseVersionReader = Future<String?> Function();
 /// Shorebird's hosted service does not: serve the assets attached to a patch,
 /// and symbolicate crashes against the symbols retained for it.
 ///
+/// Scoped to patches on purpose. This is not a crash reporting product, and it
+/// does not try to replace one — it answers the narrower question code push
+/// creates, "did the patch I shipped break something?" An app on an unpatched
+/// release reports nothing here and keeps using whatever reporter it already
+/// had.
+///
 /// ```dart
 /// final runtime = await CodePushRuntime.initialize(
 ///   readReleaseVersion: () async => '1.0.0+1',
@@ -49,12 +55,14 @@ class CodePushRuntime {
   /// The patch running, or null on an unpatched release.
   final int? patchNumber;
 
-  /// The installed crash reporter, or null when there is no control plane to
-  /// report to.
+  /// The installed crash reporter, or null when there is nothing to report to
+  /// or no patch running.
+  ///
+  /// Null on an unpatched release by design — see [initialize].
   final CrashReporter? crashReporter;
 
   /// Prepares the runtime: resolves the running patch, makes its assets
-  /// available, and starts crash reporting.
+  /// available, and — only if a patch is running — starts crash reporting.
   ///
   /// Never throws. Every failure degrades to the app's built-in assets and no
   /// reporting, because neither feature is worth failing an app's startup over.
@@ -103,8 +111,14 @@ class CodePushRuntime {
         }
       }
 
+      // Only while a patch is running. This package is not a crash reporting
+      // product and should not act like one: an app on an unpatched release
+      // already has whatever reporter it chose, and duplicating it would add
+      // reports that can never be symbolicated here, because symbols are
+      // retained per patch. The question this answers is narrower and is the
+      // one code push creates — "did the patch I shipped break something?"
       CrashReporter? reporter;
-      if (reportCrashes && releaseVersion != null) {
+      if (reportCrashes && releaseVersion != null && patch != null) {
         reporter = CrashReporter(
           environment: env,
           releaseVersion: releaseVersion,
