@@ -186,6 +186,34 @@ Invariants it exists to enforce, all tested:
   in `flutter_assets`, which I checked against a real AAB — and taking a
   platform-channel dependency to find it would make the package untestable.
 
+### Track D — engine-level patch assets (Route B) — PROVEN
+
+Device-verified 2026-07-30 on Android arm64. Engine hash
+`fc184af6509a93eaf6fc068c6820639b324175a8` (rebuild of `dabf1837…` plus the
+resolver), published to the local overlay and served by the mirror.
+
+| Piece | Where |
+|---|---|
+| `Settings::shorebird_patch_assets_path` | `engine/src/flutter/common/settings.h` |
+| Path derivation | `shell/common/shorebird/shorebird.cc` → `PatchAssetsPathForPatch()` |
+| **The hook that matters** | `shell/platform/android/android_shell_holder.cc`, registered BEFORE the APK provider |
+| Embedder-generic hook (unused on Android) | `shell/common/run_configuration.cc` |
+
+Three traps, all of which cost real time:
+
+1. **Android does not call `RunConfiguration::InferFromSettings`.** A resolver
+   added there does nothing. LTO strips the function and the log string vanishes
+   from `libflutter.so`, which is the only reason it was caught.
+2. **The Android patch dir has no app id**:
+   `<files>/shorebird_updater/patches/<N>/`. Derive from the patch file's
+   dirname, never rebuild the path from `app_storage_path`.
+3. **Gradle refuses the HTTP mirror.** See the mirror note below; this blocks any
+   release built against the mirror, not just experimental engines.
+
+`FML_LOG(INFO)` does **not** appear in logcat on a release build, so do not rely
+on it to confirm the hook. Grep the linked `libflutter.so` for the literal, and
+prove the behavior on device.
+
 ### Track C — hot restart
 
 **Not started.** Needs the engine build loop, so agree the design before touching
@@ -197,6 +225,21 @@ in-process; cold restart stays the fallback; boot-crash rollback must still hold
 Both halves live in shared code (`shell/common/shorebird/`,
 `vendor/updater/library/src/`), so it is iOS-ready by construction even though
 iOS cannot run it yet.
+
+## The mirror cannot serve a release over plain HTTP any more
+
+`FLUTTER_STORAGE_BASE_URL=http://…` makes Flutter's Gradle plugin add an `http`
+Maven repository, and Gradle 8+ refuses insecure repositories without an explicit
+opt-in. The failure is `:app:mergeReleaseAssets` → "Using insecure protocols with
+repositories, without explicit opt-in, is unsupported", before any Flutter
+artifact is fetched.
+
+**This is not specific to experimental engines** — it applies to the documented
+CDN-mirror setup with a current Flutter/AGP, so it will bite ordinary mirror users.
+Options: serve the mirror over HTTPS (proper fix), or patch the vended
+`packages/flutter_tools/gradle/src/main/kotlin/FlutterPlugin.kt` to set
+`isAllowInsecureProtocol = true` on that repository (what the build host does
+today; a `.orig` backup sits beside it).
 
 ## Invariants that cost real debugging time
 

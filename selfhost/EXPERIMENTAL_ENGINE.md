@@ -145,11 +145,30 @@ match the *running* patch, and discarded on rollback. In exchange it needs no
 engine build, no updater change, and no fork access, and it ships on Android and
 iOS simultaneously.
 
-**Route B — engine (layer 5).** Push a higher-priority `AssetResolver` into the
-common `flutter::AssetManager`. Cleaner (no app opt-in, works for
-`ImmutableBuffer.fromAsset` and image resolution) but needs an engine build, so:
-Android now, iOS fork-gated. Because `AssetManager` is common code, **carryover is
-near total** once an iOS build is possible.
+**Route B — engine (layer 5). ✅ PROVEN on device, 2026-07-30.** A resolver over
+the patch's own asset directory is registered ahead of the APK's, so a patched
+asset wins with no app opt-in at all. Verified on a physical Android arm64 device
+with an app that does **not** depend on `code_push_runtime` and reads through
+`rootBundle` (which `DefaultAssetBundle` cannot intercept): the value changed from
+`APK-baked` to `ENGINE-OVERLAY-patch-2`.
+
+Two things the implementation had to get right, both discovered the hard way:
+
+- **Android never calls `RunConfiguration::InferFromSettings`.** It builds its
+  `RunConfiguration` directly and calls `AddAssetResolver`, so the obvious hook
+  (next to the existing `DirectoryAssetBundle` pushes) is dead code on Android.
+  LTO dead-stripped the unused function, which is how it surfaced: the log string
+  never reached `libflutter.so`.
+- **The Android patch directory has no app-id component.** It is
+  `<files>/shorebird_updater/patches/<N>/`, because the older
+  `ConfigureShorebird` omits the app id that the desktop API inserts. Deriving the
+  asset path from the running patch file's own directory is what makes this work
+  on both.
+
+Still unproven for Route B specifically: **fonts and shaders**. They resolve
+through the same `AssetManager`, so they should follow, but only `rootBundle` was
+measured. iOS remains fork-gated for the *build*, though the resolver itself is
+common code.
 
 Recommendation: Route A to prove product value on both platforms immediately;
 Route B later as the "done properly" version.
