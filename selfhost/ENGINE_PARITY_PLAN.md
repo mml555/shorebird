@@ -1,4 +1,4 @@
-<!-- cspell:words vmcode aot xcframework gclient bidiff dartsdk prebuilts resign resigned iplr upstreamable dylib devicectl -->
+<!-- cspell:words vmcode aot xcframework gclient bidiff dartsdk prebuilts resign resigned iplr upstreamable dylib devicectl bootable dynmod devirtualization -->
 
 # Plan — engine parity on iOS and Android, without upstream
 
