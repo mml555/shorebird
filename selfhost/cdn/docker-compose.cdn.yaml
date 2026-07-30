@@ -48,11 +48,20 @@ services:
       # <expHash> -> <pinnedHash> fallback table, also written by that script.
       # nginx reads it at startup, so recreate cdn-cache after publishing.
       - ./experimental_hashes.map:/etc/nginx/experimental_hashes.map:ro
+      # TLS listener, off by default. Point this at tls/listen-enabled.conf and
+      # run tls/generate.sh to serve https as well as http. Needed because
+      # Gradle 8+ refuses insecure Maven repositories, which is what
+      # FLUTTER_STORAGE_BASE_URL becomes during an Android release build.
+      - ./tls/listen-disabled.conf:/etc/nginx/tls_listen.conf:ro
+      - ./tls:/etc/nginx/tls:ro
       - cdn-cache-data:/var/cache/nginx/cdn
     ports:
       # Host 8081 -> this is what you point FLUTTER_STORAGE_BASE_URL /
       # SHOREBIRD_STORAGE_BASE_URL at. (8080 is left free for code_push_server.)
       - "8085:8080"
+      # https, serving the same content. Only listening when the TLS listener is
+      # enabled; harmless to publish either way.
+      - "8443:8443"
     restart: unless-stopped
 
 volumes:
