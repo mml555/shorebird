@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:code_push_runtime/src/crash_reporter.dart';
+import 'package:code_push_runtime/src/engine_asset_overlay.dart';
 import 'package:code_push_runtime/src/environment.dart';
 import 'package:code_push_runtime/src/patch_asset_bundle.dart';
 import 'package:code_push_runtime/src/patch_asset_store.dart';
@@ -46,6 +47,7 @@ class CodePushRuntime {
     required this.assetBundle,
     required this.patchNumber,
     required this.crashReporter,
+    this.engineOverlayInstalled = false,
   });
 
   /// The bundle to read assets through. Serves the running patch's assets when
@@ -54,6 +56,15 @@ class CodePushRuntime {
 
   /// The patch running, or null on an unpatched release.
   final int? patchNumber;
+
+  /// Whether this launch wrote the patch's assets into the engine's overlay
+  /// directory.
+  ///
+  /// Diagnostic only, and note the tense: the overlay takes effect on the
+  /// **next** launch, because the engine builds its resolver chain during
+  /// startup before any Dart runs. True here means "installed for next time",
+  /// not "active now".
+  final bool engineOverlayInstalled;
 
   /// The installed crash reporter, or null when there is nothing to report to
   /// or no patch running.
@@ -69,6 +80,7 @@ class CodePushRuntime {
   static Future<CodePushRuntime> initialize({
     required ReleaseVersionReader readReleaseVersion,
     bool reportCrashes = true,
+    bool installEngineOverlay = false,
     AssetBundle? fallbackBundle,
     ShorebirdUpdater? updater,
     ShorebirdEnvironment? environment,
@@ -97,6 +109,7 @@ class CodePushRuntime {
           );
 
       var bundle = fallback;
+      var engineOverlayInstalled = false;
       if (patch == null) {
         // No patch running: the app's own assets are correct, and any bundle
         // left from a patch that was rolled back must not outlive it.
@@ -108,6 +121,13 @@ class CodePushRuntime {
         );
         if (dir != null) {
           bundle = PatchAssetBundle(directory: dir, fallback: fallback);
+          if (installEngineOverlay) {
+            engineOverlayInstalled = await _installEngineOverlay(
+              environment: env,
+              patchNumber: patch,
+              bundle: dir,
+            );
+          }
         }
       }
 
@@ -131,6 +151,7 @@ class CodePushRuntime {
         assetBundle: bundle,
         patchNumber: patch,
         crashReporter: reporter,
+        engineOverlayInstalled: engineOverlayInstalled,
       );
     } on Object {
       return CodePushRuntime._(
@@ -163,6 +184,43 @@ class CodePushRuntime {
   static Future<Directory> _defaultCacheDirectory() async {
     final support = await getApplicationSupportDirectory();
     return Directory(p.join(support.path, 'code_push_runtime', 'assets'));
+  }
+
+  /// Copies the patch's assets into the engine's overlay directory.
+  ///
+  /// Both plausible roots are offered because the engine derives the updater's
+  /// directory from a different base per platform: Android passes
+  /// `getFilesDir()` (which `getApplicationSupportDirectory` reaches), while
+  /// iOS passes its caches path for both arguments. Probing beats encoding a
+  /// per-platform constant that would break silently on the platform nobody
+  /// tested.
+  static Future<bool> _installEngineOverlay({
+    required ShorebirdEnvironment environment,
+    required int patchNumber,
+    required Directory bundle,
+  }) async {
+    try {
+      final roots = <Directory>[];
+      for (final resolve in <Future<Directory> Function()>[
+        getApplicationSupportDirectory,
+        getApplicationCacheDirectory,
+      ]) {
+        try {
+          roots.add(await resolve());
+        } on Object {
+          // Not every platform implements every directory; a root we cannot
+          // resolve is simply one we do not search.
+        }
+      }
+      if (roots.isEmpty) return false;
+
+      return EngineAssetOverlay(
+        appId: environment.appId,
+        searchRoots: roots,
+      ).install(patchNumber: patchNumber, bundle: bundle);
+    } on Object {
+      return false;
+    }
   }
 
   /// A per-install identifier used only to group crash reports.

@@ -5,6 +5,7 @@ library;
 
 export 'src/code_push_runtime.dart' show CodePushRuntime, ReleaseVersionReader;
 export 'src/crash_reporter.dart' show CrashReporter;
+export 'src/engine_asset_overlay.dart' show EngineAssetOverlay;
 export 'src/environment.dart' show DeviceAbi, ShorebirdEnvironment;
 export 'src/patch_asset_bundle.dart' show PatchAssetBundle;
 export 'src/patch_asset_store.dart' show PatchAssetStore;
