@@ -236,9 +236,35 @@ something Shorebird's hosted product does not do. Note the shader trap from
 Android: anything under `shaders:` is compiled to `iplr` at build time, so the
 replacement must also be declared under `shaders:`.
 
-## Phase 3 — Measure the linker gap exactly ◐ contract confirmed, size still open
+## Phase 3 — Measure the linker gap exactly ✅ sized 2026-07-31 (by source, not binary)
 
-Two results from 2026-07-30, one positive and one negative.
+**The sizing question is answered:
+[`AOT_LINKER_FEASIBILITY.md`](AOT_LINKER_FEASIBILITY.md).** Reading Dart 3.12.2's
+snapshot machinery beats symbol-counting for this purpose, and it is not blocked
+on storage.
+
+Headline: **the pinning work is localized, not diffuse.** Three of the four
+identifier spaces the fork's flags name already have an "assign at a chosen index"
+entry point upstream — `ClassTable::Register` honors a pre-set cid,
+`FieldTable::Register` already takes an `expected_field_id`, and the dispatch
+table's greedy packer exposes `AllocateAt(offset)`. Selector ids turn out to come
+from a **156-line Dart file** in the front end, keyed by `(class, name, getter)`,
+not from C++. Upstream also already carries "reference an object in another
+snapshot unit" end to end for deferred loading units — the gap is *persisting*
+that mapping across builds, which is exactly what `--base_*_link_data` does.
+
+**The object pool is the one item that can still cost months**: its entries are
+deduplicated by in-process object identity, so pinning needs a structural key that
+survives two separate builds. Scope that first; it dominates the estimate.
+
+The binary diff below is **not** obsolete, but it is demoted — it enumerates the
+fork's symbols and is now a cross-check on this design rather than the primary
+sizing instrument. It stays blocked on a macOS build (Shorebird's `linux-x64`
+`gen_snapshot` is stripped and carries no fork machinery at all).
+
+### The earlier binary-diff results (2026-07-30)
+
+Two results, one positive and one negative.
 
 **The contract is confirmed, twice, independently.** A version-matched diff
 (Shorebird's `darwin-x64-release/gen_snapshot_x64` against vanilla Flutter
@@ -255,16 +281,17 @@ configured release builds), not fork content, and it swamps the signal. Only 71
 of the 2,976 even mention the fork's vocabulary, and some of those (`UnlinkedCall`
 vtables) are vanilla Dart concepts caught by a loose grep.
 
-**So sizing still requires building vanilla ourselves with matching config** —
-Phase 3 as originally written, below. That is now unblocked: the build box is
-reachable again (SSH is on a non-standard port as user `jewgo`; see
-[`HANDOFF.md`](HANDOFF.md)), `/data` has 380 GB free, and `src/dart-sdk` is
-already checked out.
+**So a symbol diff would require building vanilla ourselves with matching config**
+— Phase 3 as originally written, below.
 
-One incidental finding worth keeping: **Shorebird's `linux-x64/gen_snapshot` is
-stripped and contains no `shorebird` strings at all.** The fork's snapshot-linking
-machinery ships only in the macOS/iOS toolchain, which is consistent with
-`useLinker` appearing only in the Apple patchers — Android needs none of it.
+One incidental finding worth keeping, and it is the reason that diff stays
+blocked: **Shorebird's `linux-x64/gen_snapshot` is stripped and contains no
+`shorebird` strings at all.** The fork's snapshot-linking machinery ships only in
+the macOS/iOS toolchain, which is consistent with `useLinker` appearing only in
+the Apple patchers — Android needs none of it. So the build box cannot host this
+comparison however much disk it has; a matched vanilla **macOS** `gen_snapshot` is
+required, which is what the storage constraint blocks. The source-level sizing
+above was done on the box instead, and answers the question that gates Phase 5.
 
 ### Phase 3 as originally written
 
@@ -338,6 +365,13 @@ sane link percentage, and rolls back cleanly.
 Estimate, and it is an estimate: **weeks** for the host side once the VM
 cooperates, **months** for the pinned-layout VM work if Phase 4 sends us there.
 Real compiler work, but bounded and specified — not research.
+
+**Sharpened 2026-07-31** by [`AOT_LINKER_FEASIBILITY.md`](AOT_LINKER_FEASIBILITY.md):
+the class table, field table and selector ids are plumbing plus a file format, the
+dispatch table is mechanically supported by `AllocateAt`, and the serializer should
+follow upstream's loading-unit path rather than invent one. **The object pool's
+cross-build identity problem is where the months are — scope it first**, because a
+bad answer there is the one outcome that invalidates the estimate.
 
 ## Phase 6 — The part that makes capability 3 true
 
