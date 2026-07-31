@@ -149,7 +149,7 @@ original Route B work (`rootBundle`, fonts and shaders all swapped on engine
 `fc184af6…`). The two together cover the chain; neither covers it alone.
 
 Stage B — teaching the Rust updater to carry an assets-only payload, so apps
-without `code_push_runtime` are covered too — is unstarted. Design below.
+without `code_push_runtime` are covered too — has not started. Design below.
 
 The insight that makes iOS worth doing before the linker: **an asset-only patch
 contains no code, so nothing needs to be linked or interpreted.** It is pure
