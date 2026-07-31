@@ -430,16 +430,23 @@ Do not re-learn these:
   Restore with `tar -xf engine-overlay-dabf1837-fc184af6.tar -C selfhost/cdn/`.
   This matters because of the next point: these artifacts cannot be regenerated,
   so losing them means re-proving every Route B claim on device.
-- **The engine build is not reproducible.** Rebuilding the identical source
-  (`HEAD` = `dabf1837…`, no code change) produced a different `libflutter.so`:
-  same size to the byte (171,860,472) and an identical `.data.rel.ro`, but a
-  different `.text` (7,566,324 bytes both, different hash) and `.rodata`. Same
-  sizes throughout point to non-deterministic layout rather than a different
-  build, but that is inference, not proof. Consequence for engine work: **you
-  cannot validate an engine change by diffing against the known-good artifact.**
-  Every change needs its own device test, so batch changes rather than iterating.
-  The device-verified artifact in `selfhost/cdn/overlay` was deliberately left in
-  place rather than overwritten with an unverified rebuild.
+- ~~**The engine build is not reproducible.**~~ **Retracted 2026-07-31 — it is.**
+  Two clean `android-arm64` builds produced a byte-identical `libflutter.so`
+  (`ff98f93c…`) with **0 of 7,366 objects differing**. `gen_snapshot`, the Rust
+  updater, and a relink from identical objects are all reproducible too. Scripts
+  are checked in as `selfhost/engine/{gs,rust,link,object}_determinism.sh`;
+  ~40 minutes per full build on the box.
+
+  **So you _can_ validate an engine change by diffing against a known-good
+  artifact**, and the old advice to batch changes rather than iterate is void.
+
+  The earlier observation (same size, unchanged `.data.rel.ro`, differing
+  `.text` and `.rodata`) cannot be explained retroactively — that source state
+  is gone, so a not-quite-clean rebuild and a tree differing in some generated
+  file are equally consistent with it. Two limits on the new result: both builds
+  ran on the same host at the same paths, so this is repeatability rather than
+  cross-machine reproducibility, and it says nothing about builds straddling a
+  `gclient sync`.
 - The self-built APK is **arm64-only in practice** — arm/x64 slices pair our
   `libapp.so` with the stock engine.
 - A dev API key was printed into a session transcript. Rotate via `setup.sh` if

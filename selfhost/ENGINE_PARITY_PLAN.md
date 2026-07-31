@@ -306,19 +306,40 @@ Without this, every future engine feature costs what the first one cost.
   in `flutter/tools/gn`, and `use_thin_lto = false`, so both builds above were
   full-LTO — including the `gen_snapshot` that came out reproducible.
 
-  So the two cheap explanations are dead, and what remains is specific to the
-  `libflutter.so` link at its full scale. Next probe, staged so the expensive
-  part is paid once rather than twice:
+  **Resolved 2026-07-31: the build IS reproducible, and the standing claim was
+  wrong.** Two clean `android-arm64` builds produced a byte-identical
+  `libflutter.so` (sha256 `ff98f93c…`) with **0 of 7,366 object files
+  differing**, and no object present in one build and not the other. Relinking
+  from identical objects also reproduced the `.so` exactly.
 
-  1. Build the `android-arm64` cell once and keep `libflutter.so`.
-  2. Delete **only the final link output** and re-run ninja, relinking from the
-     same object files. A differing `.so` means the *link* is non-deterministic.
-  3. Only if the relink is stable, delete the objects and rebuild, which tests
-     compilation and costs a second full build.
+  | Probe | Result |
+  |---|---|
+  | `gen_snapshot`, two clean builds | identical (`71c2c45b…`) |
+  | Rust updater, `aarch64-linux-android` | identical (`e93b7bdb…`) |
+  | `libflutter.so` relinked from same objects | identical |
+  | 7,366 objects across two clean builds | **all identical** |
+  | `libflutter.so`, two clean builds | identical (`ff98f93c…`) |
 
-  That ordering matters: the observed signature (identical size, unchanged
-  `.data.rel.ro`, differing `.text` *and* `.rodata`) is consistent with either,
-  and step 2 is nearly free once step 1 has run.
+  Scripts: [`engine/gs_determinism.sh`](engine/gs_determinism.sh),
+  [`engine/rust_determinism.sh`](engine/rust_determinism.sh),
+  [`engine/link_determinism.sh`](engine/link_determinism.sh),
+  [`engine/object_determinism.sh`](engine/object_determinism.sh). Each full
+  build is ~40 minutes on the box at `-j3`.
+
+  **Consequence, and it is a large one:** an engine change *can* be validated by
+  diffing against a known-good artifact. The rule that every change needs its
+  own device test — the tax this section was written to attack — does not apply.
+  Batching changes to amortize device testing is no longer necessary either.
+
+  What we cannot do is explain the original observation retroactively. The
+  earlier report (identical size, unchanged `.data.rel.ro`, differing `.text`
+  and `.rodata`) was real enough to write down, but the source state it came
+  from is gone, so the likeliest explanations — a not-quite-clean rebuild, or a
+  tree that differed in a generated file — cannot now be distinguished. Two
+  caveats on the new result: both builds ran on the same host, at the same
+  paths, with the same toolchain, so this establishes *repeatability*, not
+  cross-machine reproducibility; and it says nothing about builds that straddle
+  a `gclient sync`.
 - **CI that builds every cell** — `android-arm64`, `ios-arm64`, and both host
   toolchains — so an engine change is not a week of manual assembly.
 - **Contract tests on device**, one per engine behavior we depend on: asset
