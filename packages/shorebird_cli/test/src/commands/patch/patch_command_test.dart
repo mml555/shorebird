@@ -420,7 +420,7 @@ void main() {
 
       test('implies --assets', () {
         // A patch with neither code nor assets would carry nothing at all, so
-        // requiring both flags together would only be a footgun.
+        // requiring both flags together would only trip people up.
         final args = MockArgResults();
         when(() => args['assets']).thenReturn(false);
         when(() => args['assets-only']).thenReturn(true);
