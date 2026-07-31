@@ -25,6 +25,7 @@ void main() {
     late ArchiveDiffer archiveDiffer;
     late FileSetDiff assetsFileSetDiff;
     late FileSetDiff nativeFileSetDiff;
+    late FileSetDiff unclassifiedFileSetDiff;
     late http.Client httpClient;
     late ShorebirdLogger logger;
     late Progress progress;
@@ -51,6 +52,7 @@ void main() {
       archiveDiffer = MockArchiveDiffer();
       assetsFileSetDiff = MockFileSetDiff();
       nativeFileSetDiff = MockFileSetDiff();
+      unclassifiedFileSetDiff = MockFileSetDiff();
       httpClient = MockHttpClient();
       logger = MockShorebirdLogger();
       progress = MockProgress();
@@ -79,6 +81,19 @@ void main() {
           newArchivePath: any(named: 'newArchivePath'),
         ),
       ).thenAnswer((_) async => '');
+      // Default: nothing dropped, nothing unclassified. Individual groups
+      // override these to exercise the two new warnings.
+      when(() => assetsFileSetDiff.addedPaths).thenReturn(<String>{});
+      when(
+        () => archiveDiffer.assetKeysReferencedByDart(
+          archivePath: any(named: 'archivePath'),
+          assetKeys: any(named: 'assetKeys'),
+        ),
+      ).thenAnswer((_) async => <String>{});
+      when(
+        () => archiveDiffer.unclassifiedFileSetDiff(any()),
+      ).thenReturn(unclassifiedFileSetDiff);
+      when(() => unclassifiedFileSetDiff.isEmpty).thenReturn(true);
 
       when(() => httpClient.send(any())).thenAnswer(
         (_) async => http.StreamedResponse(const Stream.empty(), HttpStatus.ok),
@@ -351,6 +366,155 @@ void main() {
           );
         },
       );
+    });
+
+    group('when dropped assets are still referenced by the patched Dart', () {
+      setUp(() {
+        when(
+          () => archiveDiffer.containsPotentiallyBreakingAssetDiffs(any()),
+        ).thenReturn(true);
+        when(() => assetsFileSetDiff.addedPaths).thenReturn({
+          'base/assets/flutter_assets/assets/images/logo.png',
+        });
+        when(
+          () => archiveDiffer.assetKeysReferencedByDart(
+            archivePath: any(named: 'archivePath'),
+            assetKeys: any(named: 'assetKeys'),
+          ),
+        ).thenAnswer((_) async => {'assets/images/logo.png'});
+      });
+
+      test('warns and names the asset', () async {
+        await runWithOverrides(
+          () => patchDiffChecker.confirmUnpatchableDiffsIfNecessary(
+            localArchive: localArtifact,
+            releaseArchive: releaseArtifact,
+            archiveDiffer: archiveDiffer,
+            allowAssetChanges: true,
+            allowNativeChanges: false,
+          ),
+        );
+
+        verify(
+          () => logger.warn(
+            any(that: contains('still referenced by the patched Dart')),
+          ),
+        ).called(1);
+        verify(
+          () => logger.info(
+            any(that: contains('assets/images/logo.png')),
+          ),
+        ).called(1);
+      });
+
+      test('scans for the Dart asset key, not the archive path', () async {
+        await runWithOverrides(
+          () => patchDiffChecker.confirmUnpatchableDiffsIfNecessary(
+            localArchive: localArtifact,
+            releaseArchive: releaseArtifact,
+            archiveDiffer: archiveDiffer,
+            allowAssetChanges: true,
+            allowNativeChanges: false,
+          ),
+        );
+
+        // Dart asks for `assets/images/logo.png`; the archive stores it under
+        // `base/assets/flutter_assets/`. Searching the snapshot for the
+        // archive path would never match.
+        verify(
+          () => archiveDiffer.assetKeysReferencedByDart(
+            archivePath: localArtifact.path,
+            assetKeys: {'assets/images/logo.png'},
+          ),
+        ).called(1);
+      });
+
+      test(
+        'does not warn when nothing references the dropped assets',
+        () async {
+          when(
+            () => archiveDiffer.assetKeysReferencedByDart(
+              archivePath: any(named: 'archivePath'),
+              assetKeys: any(named: 'assetKeys'),
+            ),
+          ).thenAnswer((_) async => <String>{});
+
+          await runWithOverrides(
+            () => patchDiffChecker.confirmUnpatchableDiffsIfNecessary(
+              localArchive: localArtifact,
+              releaseArchive: releaseArtifact,
+              archiveDiffer: archiveDiffer,
+              allowAssetChanges: true,
+              allowNativeChanges: false,
+            ),
+          );
+
+          verifyNever(
+            () => logger.warn(
+              any(that: contains('still referenced by the patched Dart')),
+            ),
+          );
+        },
+      );
+
+      test('a failed scan never fails the patch', () async {
+        when(
+          () => archiveDiffer.assetKeysReferencedByDart(
+            archivePath: any(named: 'archivePath'),
+            assetKeys: any(named: 'assetKeys'),
+          ),
+        ).thenThrow(Exception('unreadable archive'));
+
+        await expectLater(
+          runWithOverrides(
+            () => patchDiffChecker.confirmUnpatchableDiffsIfNecessary(
+              localArchive: localArtifact,
+              releaseArchive: releaseArtifact,
+              archiveDiffer: archiveDiffer,
+              allowAssetChanges: true,
+              allowNativeChanges: false,
+            ),
+          ),
+          completes,
+        );
+      });
+    });
+
+    group('when changed files match no classifier', () {
+      setUp(() {
+        when(() => unclassifiedFileSetDiff.isEmpty).thenReturn(false);
+        when(() => unclassifiedFileSetDiff.addedPaths).thenReturn(<String>{});
+        when(() => unclassifiedFileSetDiff.removedPaths).thenReturn(<String>{});
+        when(() => unclassifiedFileSetDiff.changedPaths).thenReturn({
+          'Products/Applications/Runner.app/Info.plist',
+        });
+        when(
+          () => unclassifiedFileSetDiff.prettyString,
+        ).thenReturn('unclassified pretty string');
+      });
+
+      test('reports them instead of dropping them silently', () async {
+        await runWithOverrides(
+          () => patchDiffChecker.confirmUnpatchableDiffsIfNecessary(
+            localArchive: localArtifact,
+            releaseArchive: releaseArtifact,
+            archiveDiffer: archiveDiffer,
+            allowAssetChanges: false,
+            allowNativeChanges: false,
+          ),
+        );
+
+        verify(
+          () => logger.info(
+            any(
+              that: contains(
+                '1 file(s) changed that are neither assets, Dart, nor '
+                'recognized native code.',
+              ),
+            ),
+          ),
+        ).called(1);
+      });
     });
   });
 }
