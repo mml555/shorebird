@@ -95,6 +95,7 @@ To target the latest release (e.g. the release that was most recently updated) u
         negatable: false,
       )
       ..addFlag('assets', help: assetsHelpText, negatable: false)
+      ..addFlag('assets-only', help: assetsOnlyHelpText, negatable: false)
       ..addOption(
         'track',
         help: 'The track to publish the patch to.',
@@ -185,6 +186,11 @@ NOTE: this is ${styleBold.wrap('not')} recommended. Asset changes cannot be incl
 Attach this patch's assets to it, so an app built against this control plane can pick them up.
 ${styleBold.wrap('Experimental')}, and opt-in because it makes the patch larger. The native updater ignores the bundle; reading it requires app-side support.''';
 
+  /// Help text for publishing a patch that carries assets and no code.
+  static final assetsOnlyHelpText = '''
+Publish a patch containing only this patch's assets, with no Dart code.
+${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interpreted, which is what lets an asset change ship where a code change cannot. Requires an updater that advertises support; older updaters are never offered such a patch.''';
+
   late final ResolvePatcher _resolvePatcher;
 
   @override
@@ -213,7 +219,13 @@ ${styleBold.wrap('Experimental')}, and opt-in because it makes the patch larger.
   bool get allowNativeDiffs => results['allow-native-diffs'] == true;
 
   /// Whether to attach this patch's assets to it (--assets).
-  bool get includeAssets => results['assets'] == true;
+  ///
+  /// Implied by [assetsOnly]: a patch with no code and no assets would carry
+  /// nothing at all.
+  bool get includeAssets => results['assets'] == true || assetsOnly;
+
+  /// Whether to publish a patch carrying assets and no code (--assets-only).
+  bool get assetsOnly => results['assets-only'] == true;
 
   /// Whether the patch is for the staging environment.
   bool get isStaging => track == DeploymentTrack.staging;
@@ -494,13 +506,35 @@ Building with Flutter $flutterVersionString to determine the release version...
           environment: environment,
         );
 
+        // An assets-only patch drops the code artifacts and ships the bundle
+        // alone. The build still ran: `flutter_assets` comes out of the built
+        // app, so there is no way to package assets without building. What
+        // changes is only what gets uploaded.
+        if (assetsOnly) {
+          final missing = sidecars.entries
+              .where((e) => e.value.assets == null)
+              .map((e) => e.key.name)
+              .toList();
+          if (missing.isNotEmpty) {
+            // Publishing here would create a patch carrying nothing, which
+            // devices would download and apply to no effect — a silent no-op
+            // is worse than a failed patch.
+            logger.err(
+              '''--assets-only was passed but no asset bundle could be packaged for: ${missing.join(', ')}.''',
+            );
+            throw ProcessExit(ExitCode.software.code);
+          }
+        }
+
         // One patch, every platform's artifacts, one promotion at the end.
         await codePushClientWrapper.publishPatch(
           appId: appId,
           releaseId: release.id,
           metadata: metadata.toJson(),
           track: track,
-          patchArtifactBundles: bundles,
+          patchArtifactBundles: assetsOnly
+              ? {for (final platform in bundles.keys) platform: const {}}
+              : bundles,
           sidecars: sidecars,
         );
       },

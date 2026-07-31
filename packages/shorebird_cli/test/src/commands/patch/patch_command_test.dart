@@ -408,6 +408,39 @@ void main() {
       });
     });
 
+    group('--assets-only', () {
+      test('is an opt-in flag', () {
+        final parser = PatchCommand().argParser;
+
+        expect(parser.options['assets-only']!.isFlag, isTrue);
+        expect(parser.options['assets-only']!.negatable, isFalse);
+        expect(parser.parse([])['assets-only'], isFalse);
+        expect(parser.parse(['--assets-only'])['assets-only'], isTrue);
+      });
+
+      test('implies --assets', () {
+        // A patch with neither code nor assets would carry nothing at all, so
+        // requiring both flags together would only be a footgun.
+        final args = MockArgResults();
+        when(() => args['assets']).thenReturn(false);
+        when(() => args['assets-only']).thenReturn(true);
+        final command = PatchCommand()..testArgResults = args;
+
+        expect(command.assetsOnly, isTrue);
+        expect(command.includeAssets, isTrue);
+      });
+
+      test('does not imply the reverse', () {
+        final args = MockArgResults();
+        when(() => args['assets']).thenReturn(true);
+        when(() => args['assets-only']).thenReturn(false);
+        final command = PatchCommand()..testArgResults = args;
+
+        expect(command.includeAssets, isTrue);
+        expect(command.assetsOnly, isFalse);
+      });
+    });
+
     group('createPatch', () {
       test('publishes the patch', () async {
         await runWithOverrides(() => command.createPatch([patcher]));
