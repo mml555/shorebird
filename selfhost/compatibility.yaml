@@ -114,6 +114,37 @@ experimental:
                                    # with a live Hermes deployment — 4 vCPU, cap ninja -j3)
   cell: android-arm64-release      # the only platform cell built from source today
   engines:
+    - hash: 760e3fabffbf31b4e86919a0ef47d6ce5f182991   # 5b1a8965 + the Rust updater's assets-patch support
+      falls_back_to: 69f9831c360d9152862ec3897c67fb09ae843f3b
+      flutter_revision: c15ef6379403a0a55531a058bdb2c8e55bc05c98
+      built: 2026-07-31                                # hermes-vps, incremental, ~3 min
+      changes: |
+        Everything in 5b1a8965 plus the Rust updater half of assets-only
+        patches: PatchKind names the two payload shapes and the installed
+        artifact's filename carries it (dlc.vmcode / dlc.assets), the updater
+        advertises supported_patch_kinds on patches/check, and an assets payload
+        is unpacked into <patch dir>/flutter_assets where the engine resolver
+        reads it. The assets filename must never contain ".vmcode": that
+        substring is how both TryLoadFromPatch and PatchCarriesCode decide
+        whether a patch carries code.
+      verified:
+        compiles: true
+        links: true
+        served_by_mirror: true         # 17-file overlay, verified over HTTPS
+        device_verified: true          # 2026-07-31, physical Android arm64 (USB).
+                                       # A patch with NO code artifact at all
+                                       # (one artifact, arch=assets) was offered
+                                       # only after the updater advertised
+                                       # supported_patch_kinds, installed as
+                                       # dlc.assets, and the app BOOTED with it
+                                       # active — which is itself the proof of the
+                                       # PatchCarriesCode guard, since without it
+                                       # Android clears application_library_paths
+                                       # and nothing is loadable. rootBundle then
+                                       # read {"origin":"ASSETS-ONLY-PATCH"},
+                                       # a path no app-side AssetBundle can
+                                       # intercept. Font and shader stayed at
+                                       # their APK values as controls.
     - hash: 5b1a89658709b9a0d2e76c6f3d47ad1a26eecdee   # fc184af6 + the assets-only patch guard
       falls_back_to: 69f9831c360d9152862ec3897c67fb09ae843f3b
       flutter_revision: c15ef6379403a0a55531a058bdb2c8e55bc05c98
