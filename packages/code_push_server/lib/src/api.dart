@@ -1393,12 +1393,32 @@ class Api {
       //
       // A byte-identical re-upload carries no new information, so return the
       // existing registration and let the run continue to what it still owes.
-      // A *differing* hash for the same arch/platform is a genuine conflict and
-      // still fails — that would be two different builds claiming one slot.
       if (existing.hash == hash) {
         return _json(_registerJson(existing, releaseKey: true));
       }
-      throw conflict('Artifact already registered for $arch/$platform');
+      // A *differing* hash while the release is still incomplete is a rebuild,
+      // not a collision. `shorebird release` rebuilds on every invocation, so a
+      // retry after an interruption arrives with fresh bytes — matching on hash
+      // alone would 409 exactly the case this is meant to rescue. Supersede the
+      // stale row (the lookup above skips `failed`) so the retry can register and
+      // go on to the artifacts that are missing.
+      //
+      // Once the release is `ready` its artifacts are what installed apps
+      // actually run, and patches are linked against them. Replacing one then
+      // would silently invalidate every patch built from it, so from `ready`
+      // onward a differing hash stays a hard conflict.
+      if (release.lifecycle == ReleaseLifecycle.draft ||
+          release.lifecycle == ReleaseLifecycle.uploading) {
+        await repo.setArtifactStatus(existing.id, ArtifactStatus.failed);
+        await repo.audit(
+          'artifact.superseded',
+          actor: '${_uid(req)}',
+          target: '${existing.id}',
+          detail: 'release $releaseId $platform/$arch re-registered on retry',
+        );
+      } else {
+        throw conflict('Artifact already registered for $arch/$platform');
+      }
     }
     if (release.lifecycle == ReleaseLifecycle.draft) {
       await repo.setReleaseLifecycle(releaseId, ReleaseLifecycle.uploading);

@@ -484,23 +484,42 @@ void main() {
       expect((await jsonOf(again))['id'], first['id']);
     });
 
-    test('a differing hash for the same arch/platform still conflicts', () async {
+    test('a rebuilt artifact supersedes the stale one while incomplete', () async {
+      // The real rescue path: `shorebird release` rebuilds on every retry, so the
+      // retry's bytes differ from what landed before the interruption. Matching
+      // on hash alone would 409 the exact case this exists to fix.
       final app = await seedApp();
-      await register(
-        app.appId,
-        app.releaseId,
-        arch: 'xcarchive',
-        platform: 'ios',
-      );
-      final other = await register(
+      await upload(app.appId, app.releaseId, arch: 'xcarchive', platform: 'ios');
+      final rebuilt = await register(
         app.appId,
         app.releaseId,
         arch: 'xcarchive',
         platform: 'ios',
         hash: 'f' * 64,
       );
-      expect(other.statusCode, HttpStatus.conflict);
-      expect(await other.readAsString(), contains('already registered'));
+      expect(rebuilt.statusCode, HttpStatus.ok);
+      // A fresh registration, not the superseded one.
+      expect((await jsonOf(rebuilt))['hash'], 'f' * 64);
+    });
+
+    test('a differing hash is refused once the release is ready', () async {
+      // From `ready` on, the release artifacts are what installed apps run and
+      // what patches link against; swapping one would invalidate those patches.
+      final app = await seedApp();
+      for (final arch in ['xcarchive', 'runner', 'ios_supplement']) {
+        await upload(app.appId, app.releaseId, arch: arch, platform: 'ios');
+      }
+      expect((await activate(app.appId, app.releaseId, 'ios')).statusCode,
+          HttpStatus.noContent);
+      final after = await register(
+        app.appId,
+        app.releaseId,
+        arch: 'xcarchive',
+        platform: 'ios',
+        hash: 'f' * 64,
+      );
+      expect(after.statusCode, HttpStatus.conflict);
+      expect(await after.readAsString(), contains('already registered'));
     });
 
     test('a platform cannot be activated with an incomplete artifact set',
