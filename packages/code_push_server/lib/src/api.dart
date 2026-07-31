@@ -94,6 +94,18 @@ String rateLimitKey({String? auth, required String ip}) {
   return 'ip:$ip';
 }
 
+/// Artifacts a release must carry, per platform, before that platform may be
+/// activated.
+///
+/// Derived from every release this server has accepted (ids 1-6 as of
+/// 2026-07-31): Android has always registered exactly these five and iOS exactly
+/// these three. A platform absent from this map is not gated — see the
+/// completeness check in `_updateRelease` for why unknown targets are left alone.
+const _requiredArchs = <String, Set<String>>{
+  'android': {'aab', 'arm', 'aarch64', 'x86_64', 'android_supplement'},
+  'ios': {'xcarchive', 'runner', 'ios_supplement'},
+};
+
 /// The HTTP surface: the Shorebird CLI/updater wire contract (translated to the
 /// internal domain here), an OAuth auth service (`shorebird login`), and an
 /// authenticated /admin surface (rollout, withdraw/rollback, provisioning).
@@ -1226,6 +1238,25 @@ class Api {
             'Release $releaseId ($platform) has unverified artifacts',
           );
         }
+        // `allVerified` only asserts that whatever is *present* is verified — not
+        // that the platform's expected set is complete. An interrupted upload can
+        // leave iOS holding a lone verified `xcarchive`, which sails through this
+        // gate and publishes a release no patch can ever be built against (the
+        // linker needs `runner` + `ios_supplement`). The failure then surfaces at
+        // patch time, far from the cause.
+        //
+        // Unknown platforms are deliberately unchecked: gating a target this
+        // server hasn't learned the artifact set for would break it outright,
+        // which is worse than the hole being closed late.
+        final missing = _requiredArchs[platform]?.difference(
+          live.map((a) => a.arch).toSet(),
+        );
+        if (missing != null && missing.isNotEmpty) {
+          throw conflict(
+            'Release $releaseId ($platform) is missing artifacts: '
+            '${(missing.toList()..sort()).join(', ')}',
+          );
+        }
         if (release.lifecycle != ReleaseLifecycle.ready) {
           await repo.setReleaseLifecycle(releaseId, ReleaseLifecycle.ready);
           await repo.audit(
@@ -1344,8 +1375,29 @@ class Api {
     final arch = _requiredField(fields, 'arch');
     final platform = _requiredField(fields, 'platform');
     final hash = _requiredField(fields, 'hash');
-    if (await repo.existingArtifact('release', releaseId, arch, platform) !=
-        null) {
+    final existing = await repo.existingArtifact(
+      'release',
+      releaseId,
+      arch,
+      platform,
+    );
+    if (existing != null) {
+      // Idempotent re-upload. `shorebird release` uploads a platform's artifacts
+      // in a fixed order and has no resume: an interrupted run re-sends the ones
+      // that already landed. 409ing on those aborts the retry *before* it reaches
+      // the artifacts that are actually missing, which strands the release
+      // permanently — this API exposes no DELETE, so nothing can clear the
+      // blocker. Observed 2026-07-30 on release 2.0.0+1785465879, killed
+      // mid-upload with `xcarchive` registered and `runner` + `ios_supplement`
+      // missing; every retry died on `xcarchive` and iOS was unrecoverable.
+      //
+      // A byte-identical re-upload carries no new information, so return the
+      // existing registration and let the run continue to what it still owes.
+      // A *differing* hash for the same arch/platform is a genuine conflict and
+      // still fails — that would be two different builds claiming one slot.
+      if (existing.hash == hash) {
+        return _json(_registerJson(existing, releaseKey: true));
+      }
       throw conflict('Artifact already registered for $arch/$platform');
     }
     if (release.lifecycle == ReleaseLifecycle.draft) {
@@ -1921,8 +1973,32 @@ class Api {
       artifact = await repo.patchArtifact(patch.id, assetsArch, platform);
       kind = assetsPatchKind;
     }
+
     if (artifact == null || artifact.status != ArtifactStatus.verified) {
-      return _json(resp(rolledBack: rolledBack));
+      // The active patch is unusable by *this* client — overwhelmingly because
+      // it is assets-only and the client is a stock updater. Offering nothing
+      // would strip a patch the device was already entitled to: a fresh install
+      // would run unpatched code that the previous patch had fixed, silently.
+      //
+      // So fall back to the newest superseded patch this client *can* take.
+      // Superseded is not the same as withdrawn-for-cause: those patches were
+      // replaced, not pulled, and `supersededChannelPatches` excludes anything
+      // rolled back. Each client class therefore runs the best patch available
+      // to it, which is why different clients can legitimately sit on different
+      // patch numbers.
+      return _json(
+        await _fallbackPatchResponse(
+          channelId: channel.id,
+          releaseId: release.id,
+          appId: appId,
+          arch: arch,
+          platform: platform,
+          clientId: clientId,
+          clientPatch: clientPatch,
+          rolledBack: rolledBack,
+          resp: resp,
+        ),
+      );
     }
     return _json(
       resp(
@@ -1938,6 +2014,70 @@ class Api {
         rolledBack: rolledBack,
       ),
     );
+  }
+
+  /// The newest superseded patch this client can install, or "no patch".
+  ///
+  /// Only reached when the active patch cannot be served to the caller. Applies
+  /// the same gates as the active path — same release, `ready`, newer than the
+  /// client's, eligible under that patch's own rollout — because a fallback that
+  /// skipped them would be a way to receive a patch the rollout excluded.
+  ///
+  /// Deliberately code-only: an assets patch that could not be served is one the
+  /// client said it cannot install, so trying another of the same kind would
+  /// fail the same way.
+  Future<Map<String, Object?>> _fallbackPatchResponse({
+    required int channelId,
+    required int releaseId,
+    required String appId,
+    required String arch,
+    required String platform,
+    required String? clientId,
+    required int clientPatch,
+    required List<int> rolledBack,
+    required Map<String, Object?> Function({
+      Map<String, Object?>? patch,
+      List<int> rolledBack,
+    })
+    resp,
+  }) async {
+    final candidates = await repo.supersededChannelPatches(
+      channelId,
+      platform: platform,
+    );
+    for (final candidate in candidates) {
+      final patch = await repo.patch(candidate.patchId);
+      if (patch == null ||
+          patch.releaseId != releaseId ||
+          patch.status != PatchStatus.ready ||
+          patch.number <= clientPatch) {
+        continue;
+      }
+      if (!eligibleForRollout(
+        appId: appId,
+        channelId: channelId,
+        patchId: patch.id,
+        rollout: candidate.rollout,
+        clientId: clientId,
+      )) {
+        continue;
+      }
+      final artifact = await repo.patchArtifact(patch.id, arch, platform);
+      if (artifact == null || artifact.status != ArtifactStatus.verified) {
+        continue;
+      }
+      return resp(
+        patch: {
+          'number': patch.number,
+          'download_url': _signedUrl(artifact.token),
+          'hash': artifact.hash,
+          'hash_signature': artifact.hashSignature,
+          'kind': codePatchKind,
+        },
+        rolledBack: rolledBack,
+      );
+    }
+    return resp(rolledBack: rolledBack);
   }
 
   /// `POST /patches/assets` — device-facing lookup for a patch's **asset

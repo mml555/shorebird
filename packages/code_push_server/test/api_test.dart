@@ -871,6 +871,111 @@ void main() {
       expect((r['patch'] as Map)['kind'], equals(codePatchKind));
     });
 
+    test('an incapable client falls back to the superseded code patch', () async {
+      // The hazard this exists to close: promoting an assets-only patch
+      // withdraws the code patch, and a stock updater offered nothing would
+      // silently lose a patch it was already entitled to.
+      await seedPatchWith(['aarch64']);
+      final codePatchId = patchId;
+
+      // A second, assets-only patch supersedes it.
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/$appId/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': 1},
+        ),
+      );
+      final assetsPatchId = p['id'] as int;
+      await uploadPatchArtifact(appId, assetsPatchId, arch: assetsArch);
+      await send(
+        'POST',
+        '/api/v1/apps/$appId/patches/promote',
+        bearer: _bootstrapKey,
+        json: {'patch_id': assetsPatchId, 'channel_id': channelId},
+      );
+
+      // Capable client: the new assets patch.
+      final capable = await check(kinds: [codePatchKind, assetsPatchKind]);
+      expect((capable['patch'] as Map)['kind'], equals(assetsPatchKind));
+
+      // Stock client: the superseded code patch, not nothing.
+      final stock = await check();
+      expect(stock['patch_available'], isTrue);
+      final patch = stock['patch'] as Map;
+      expect(patch['kind'], equals(codePatchKind));
+      expect(patch['number'], equals(1));
+      expect(codePatchId, isNot(assetsPatchId));
+    });
+
+    test('a rolled-back patch is never offered as a fallback', () async {
+      // Superseded means "replaced"; rolled back means "pulled deliberately".
+      // Conflating them would resurrect a patch someone withdrew for cause.
+      await seedPatchWith(['aarch64']);
+      final rb = await send(
+        'POST',
+        '/admin/apps/$appId/patches/$patchId/withdraw?rollback=true',
+        bearer: _bootstrapKey,
+      );
+      expect(rb.statusCode, anyOf(HttpStatus.ok, HttpStatus.noContent));
+
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/$appId/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': 1},
+        ),
+      );
+      final assetsPatchId = p['id'] as int;
+      await uploadPatchArtifact(appId, assetsPatchId, arch: assetsArch);
+      await send(
+        'POST',
+        '/api/v1/apps/$appId/patches/promote',
+        bearer: _bootstrapKey,
+        json: {'patch_id': assetsPatchId, 'channel_id': channelId},
+      );
+
+      expect((await check())['patch_available'], isFalse);
+    });
+
+    test('the fallback still respects the client patch number', () async {
+      // A client already on the code patch must not be handed it again.
+      await seedPatchWith(['aarch64']);
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/$appId/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': 1},
+        ),
+      );
+      final assetsPatchId = p['id'] as int;
+      await uploadPatchArtifact(appId, assetsPatchId, arch: assetsArch);
+      await send(
+        'POST',
+        '/api/v1/apps/$appId/patches/promote',
+        bearer: _bootstrapKey,
+        json: {'patch_id': assetsPatchId, 'channel_id': channelId},
+      );
+
+      final r = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/patches/check',
+          json: {
+            'app_id': appId,
+            'release_version': '1.0.0',
+            'platform': 'android',
+            'arch': 'aarch64',
+            'current_patch_number': 1,
+          },
+        ),
+      );
+      expect(r['patch_available'], isFalse);
+    });
+
     test('a malformed capability list is treated as no support', () async {
       await seedPatchWith([assetsArch]);
       final r = await jsonOf(

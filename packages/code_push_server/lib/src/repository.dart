@@ -1271,6 +1271,37 @@ class Repository {
     return _cpFrom(r.first);
   }
 
+  /// Previously-promoted, never-rolled-back channel patches for [channelId],
+  /// newest first.
+  ///
+  /// Exists for one narrow case: the active patch is of a kind this client
+  /// cannot install (an assets-only patch reaching a stock updater), and
+  /// offering it nothing would silently strip a patch it was already entitled
+  /// to. Superseded patches are still perfectly good code — they were replaced,
+  /// not withdrawn for being broken — whereas a rolled-back patch was pulled
+  /// deliberately and must never be served again.
+  Future<List<ChannelPatchRow>> supersededChannelPatches(
+    int channelId, {
+    String? platform,
+  }) async {
+    final r = await _q(
+      'SELECT cp.* FROM channel_patches cp JOIN patches p ON p.id = cp.patch_id '
+      'WHERE cp.channel_id = @c AND cp.status = @s AND cp.rolled_back = false '
+      '${platform == null ? '' : 'AND EXISTS ('
+                '  SELECT 1 FROM artifacts a'
+                "  WHERE a.owner_kind = 'patch' AND a.owner_id = cp.patch_id"
+                '    AND a.platform = @plat'
+                ') '}'
+      'ORDER BY p.number DESC',
+      {
+        'c': channelId,
+        's': ChannelPatchStatus.withdrawn.name,
+        if (platform != null) 'plat': platform,
+      },
+    );
+    return r.map(_cpFrom).toList();
+  }
+
   Future<ChannelPatchRow?> activeChannelPatchForPatch(
     int channelId,
     int patchId,

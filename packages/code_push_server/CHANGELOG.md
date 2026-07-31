@@ -23,24 +23,29 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   A patch carrying both a code artifact and a bundle still reports `code`; the
   bundle continues to be fetched separately via `patches/assets`.
 
-### Known limitation
+### Fixed
 
-- **Promoting an assets-only patch withdraws the previous code patch, and
-  clients that cannot take the new one are then offered nothing.** Observed on
-  2026-07-31: promoting an assets-only patch marked the release's code patch
-  `withdrawn`, after which a stock updater's `patches/check` returned
-  `patch_available: false`. A device already running the code patch keeps it,
-  but a **fresh install gets unpatched code that was previously patched** — a
-  silent coverage regression rather than a visible failure.
+- **A client that cannot install the active patch is now offered the newest one
+  it can**, instead of nothing.
 
-  This is supersession behaving as designed (one active patch per channel per
-  platform) meeting a patch kind not every client can accept. Fixing it is a
-  product decision, not a bug fix, because the options differ in what they
-  promise: fall back to the newest *servable* code patch per client class, which
-  means different clients deliberately run different patch numbers; or keep code
-  and asset patches in separate lanes so neither supersedes the other. Until one
-  is chosen, do not promote an assets-only patch to a channel whose devices are
-  not all on a capable updater.
+  Found by promoting a real assets-only patch: promotion withdrew the release's
+  code patch, and because a stock updater cannot be offered an assets patch,
+  `patches/check` returned `patch_available: false` for it. A device already
+  running the code patch kept it, but a fresh install would have run unpatched
+  code that the previous patch had fixed — silently, with nothing in the rollout
+  to show it.
+
+  The fallback walks superseded patches newest-first and applies every gate the
+  active path applies: same release, `ready`, newer than the client's, and
+  eligible under that patch's own rollout — a fallback that skipped those would
+  be a way to receive a patch a rollout excluded. Rolled-back patches are never
+  candidates: superseded means *replaced*, rolled back means *pulled for cause*,
+  and conflating them would resurrect a patch someone deliberately withdrew.
+
+  Consequence worth understanding: client classes can now legitimately sit on
+  different patch numbers, each running the newest patch it supports. That is
+  intended. It follows from a device being able to boot only one patch, which
+  makes an assets-only patch and a code patch alternatives rather than additive.
 
 ## 1.3.0 — 2026-07-29
 
