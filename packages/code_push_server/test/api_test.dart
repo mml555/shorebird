@@ -398,6 +398,144 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
+  group('release artifact registration and activation', () {
+    // WAS: re-registering an already-uploaded release artifact was always a 409,
+    // and activating a platform only checked that the artifacts *present* were
+    // verified. Together those stranded release 2.0.0+1785465879 (2026-07-30):
+    // the run was killed with iOS `xcarchive` registered and `runner` +
+    // `ios_supplement` missing, every retry died re-sending `xcarchive` before
+    // reaching them, and no DELETE route exists to clear it.
+    const bd = 'BOUNDARY';
+    const abcSha =
+        'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad';
+
+    String field(String n, String v) =>
+        '--$bd\r\ncontent-disposition: form-data; name="$n"\r\n\r\n$v\r\n';
+
+    Future<Response> register(
+      String appId,
+      int releaseId, {
+      required String arch,
+      required String platform,
+      String hash = abcSha,
+    }) => send(
+      'POST',
+      '/api/v1/apps/$appId/releases/$releaseId/artifacts',
+      bearer: _bootstrapKey,
+      headers: {'content-type': 'multipart/form-data; boundary=$bd'},
+      body:
+          '${field('arch', arch)}${field('platform', platform)}'
+          '${field('hash', hash)}${field('size', '3')}--$bd--\r\n',
+    );
+
+    /// Registers and uploads, leaving the artifact `verified`. Release artifacts
+    /// have their hash checked (unlike patch artifacts), so the bytes must hash
+    /// to [abcSha].
+    Future<void> upload(
+      String appId,
+      int releaseId, {
+      required String arch,
+      required String platform,
+    }) async {
+      final reg = await jsonOf(
+        await register(appId, releaseId, arch: arch, platform: platform),
+      );
+      final token = (reg['url'] as String).split('/').last;
+      final up = await send(
+        'POST',
+        '/api/v1/uploads/$token',
+        bearer: _bootstrapKey,
+        headers: {'content-type': 'multipart/form-data; boundary=$bd'},
+        body:
+            '--$bd\r\ncontent-disposition: form-data; name="file"; '
+            'filename="a"\r\n\r\nabc\r\n--$bd--\r\n',
+      );
+      expect(up.statusCode, HttpStatus.noContent);
+    }
+
+    Future<Response> activate(String appId, int releaseId, String platform) =>
+        send(
+          'PATCH',
+          '/api/v1/apps/$appId/releases/$releaseId',
+          bearer: _bootstrapKey,
+          json: {'status': 'active', 'platform': platform},
+        );
+
+    test('a byte-identical re-upload is idempotent, not a conflict', () async {
+      final app = await seedApp();
+      final first = await jsonOf(
+        await register(
+          app.appId,
+          app.releaseId,
+          arch: 'xcarchive',
+          platform: 'ios',
+        ),
+      );
+      final again = await register(
+        app.appId,
+        app.releaseId,
+        arch: 'xcarchive',
+        platform: 'ios',
+      );
+      expect(again.statusCode, HttpStatus.ok);
+      // Same registration, not a duplicate row — the retry can carry on to the
+      // artifacts it still owes.
+      expect((await jsonOf(again))['id'], first['id']);
+    });
+
+    test('a differing hash for the same arch/platform still conflicts', () async {
+      final app = await seedApp();
+      await register(
+        app.appId,
+        app.releaseId,
+        arch: 'xcarchive',
+        platform: 'ios',
+      );
+      final other = await register(
+        app.appId,
+        app.releaseId,
+        arch: 'xcarchive',
+        platform: 'ios',
+        hash: 'f' * 64,
+      );
+      expect(other.statusCode, HttpStatus.conflict);
+      expect(await other.readAsString(), contains('already registered'));
+    });
+
+    test('a platform cannot be activated with an incomplete artifact set',
+        () async {
+      final app = await seedApp();
+      // Exactly the state the killed run left behind: one verified xcarchive.
+      await upload(app.appId, app.releaseId, arch: 'xcarchive', platform: 'ios');
+      final r = await activate(app.appId, app.releaseId, 'ios');
+      expect(r.statusCode, HttpStatus.conflict);
+      final body = await r.readAsString();
+      expect(body, contains('missing artifacts'));
+      expect(body, contains('ios_supplement'));
+      expect(body, contains('runner'));
+    });
+
+    test('a platform activates once its full artifact set is present', () async {
+      final app = await seedApp();
+      for (final arch in ['xcarchive', 'runner', 'ios_supplement']) {
+        await upload(app.appId, app.releaseId, arch: arch, platform: 'ios');
+      }
+      expect((await activate(app.appId, app.releaseId, 'ios')).statusCode,
+          HttpStatus.noContent);
+    });
+
+    test('an unknown platform is not gated on an artifact list', () async {
+      // macOS et al must not be blocked by a required set this server has never
+      // learned; better a late-closed hole than a target that cannot ship.
+      final app = await seedApp();
+      await upload(app.appId, app.releaseId, arch: 'arm64', platform: 'macos');
+      expect((await activate(app.appId, app.releaseId, 'macos')).statusCode,
+          HttpStatus.noContent);
+    });
+  });
+
+  // -------------------------------------------------------------------------
   group('cross-tenant isolation', () {
     // WAS: `_authorizeApp` checked the app in the PATH, but release_id,
     // patch_id and channel_id came from the body unchecked — so pairing your
