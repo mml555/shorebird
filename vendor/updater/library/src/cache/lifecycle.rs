@@ -339,11 +339,27 @@ impl PatchLifecycle {
         download_artifact_path(&self.download_root, n)
     }
 
-    /// Path of the installed (inflated) artifact. Lives at
+    /// Path of the installed (inflated) code artifact. Lives at
     /// `{state_root}/patches/{N}/dlc.vmcode`. Convenience wrapper
     /// around the free [`installed_artifact_path`].
     pub fn installed_artifact_path(&self, n: usize) -> PathBuf {
         installed_artifact_path(&self.state_root, n)
+    }
+
+    /// Path of the installed artifact for a payload of `kind`.
+    pub fn installed_artifact_path_for(&self, n: usize, kind: PatchKind) -> PathBuf {
+        installed_artifact_path_for(&self.state_root, n, kind)
+    }
+
+    /// The artifact on disk for patch `n`, whatever kind it is, falling back to
+    /// the code path when nothing is present.
+    ///
+    /// Falls back rather than returning `Option` because every caller needs a
+    /// path to report in an error, and "the code artifact is missing" is the
+    /// right message for a patch with nothing installed at all.
+    pub fn resolved_artifact_path(&self, n: usize) -> PathBuf {
+        resolve_installed_artifact(&self.state_root, n)
+            .unwrap_or_else(|| self.installed_artifact_path(n))
     }
 
     fn patches_root(&self) -> PathBuf {
@@ -371,14 +387,76 @@ pub fn download_artifact_path(download_root: &Path, n: usize) -> PathBuf {
     download_root.join(n.to_string())
 }
 
-/// Path of the installed (inflated) artifact. Lives at
+/// What a patch's payload contains.
+///
+/// Deliberately **not** persisted in [`PatchState`]. The kind is inherent to
+/// the payload and the installed file's own name already records it, so
+/// storing it a second time would create two sources of truth that can
+/// disagree — most easily after a rollback, when state and disk are exactly
+/// what you cannot afford to have drift apart.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PatchKind {
+    /// Dart code, as a snapshot the VM loads.
+    Code,
+    /// Assets only, for the engine's asset resolver. No executable code, which
+    /// is what lets this work on iOS without the AOT linker.
+    Assets,
+}
+
+/// Filename for a code payload.
+const CODE_ARTIFACT: &str = "dlc.vmcode";
+
+/// Filename for an assets-only payload.
+///
+/// **The `.vmcode` suffix is load-bearing and must not appear here.** The
+/// engine decides whether an active patch carries code by searching the path
+/// for that literal substring (`TryLoadFromPatch` in
+/// `runtime/shorebird/patch_cache.cc`, and `PatchCarriesCode` in
+/// `shell/common/shorebird/shorebird.cc`). Naming this `dlc.assets.vmcode`
+/// would make the VM try to load an asset zip as a snapshot.
+const ASSETS_ARTIFACT: &str = "dlc.assets";
+
+impl PatchKind {
+    /// The installed artifact's filename for this kind.
+    pub fn artifact_file_name(self) -> &'static str {
+        match self {
+            PatchKind::Code => CODE_ARTIFACT,
+            PatchKind::Assets => ASSETS_ARTIFACT,
+        }
+    }
+}
+
+/// Directory holding patch `n`'s installed state.
+fn patch_dir_at(state_root: &Path, n: usize) -> PathBuf {
+    state_root.join(PATCHES_DIR).join(n.to_string())
+}
+
+/// Path of the installed (inflated) artifact for a payload of `kind`.
+///
+/// Used when *writing*, where the kind is known from the download and the file
+/// does not exist yet. To find whatever is already on disk, use
+/// [`resolve_installed_artifact`].
+pub fn installed_artifact_path_for(state_root: &Path, n: usize, kind: PatchKind) -> PathBuf {
+    patch_dir_at(state_root, n).join(kind.artifact_file_name())
+}
+
+/// Path of the installed (inflated) code artifact. Lives at
 /// `{state_root}/patches/{N}/dlc.vmcode`. See [`download_artifact_path`]
 /// for why this is a free function rather than only a method.
 pub fn installed_artifact_path(state_root: &Path, n: usize) -> PathBuf {
-    state_root
-        .join(PATCHES_DIR)
-        .join(n.to_string())
-        .join("dlc.vmcode")
+    installed_artifact_path_for(state_root, n, PatchKind::Code)
+}
+
+/// The artifact actually present on disk for patch `n`, whatever its kind.
+///
+/// Code is checked first so a patch that somehow has both is treated as a code
+/// patch, which is the conservative reading: booting code that exists beats
+/// silently ignoring it.
+pub fn resolve_installed_artifact(state_root: &Path, n: usize) -> Option<PathBuf> {
+    [PatchKind::Code, PatchKind::Assets]
+        .into_iter()
+        .map(|kind| installed_artifact_path_for(state_root, n, kind))
+        .find(|path| path.exists())
 }
 
 /// What `update_internal` should do when starting work on a patch.
@@ -700,7 +778,10 @@ impl PatchLifecycle {
             Some(PatchState::Installed { size, signature }) => (size, signature),
             other => bail!("Patch {n} is not Installed: {other:?}"),
         };
-        let path = self.installed_artifact_path(n);
+        // Resolving rather than assuming `dlc.vmcode`: an assets-only patch
+        // installs a differently named artifact, and validating the wrong path
+        // would tombstone a perfectly good patch as ValidationFailed.
+        let path = self.resolved_artifact_path(n);
         if !path.exists() {
             bail!("Patch {n} artifact missing at {}", path.display());
         }
@@ -858,6 +939,72 @@ mod tests {
     /// against the same on-disk roots a prior `fixture()` set up.
     fn reload_at(tmp_path: &Path) -> PatchLifecycle {
         PatchLifecycle::load_or_default(tmp_path.to_path_buf(), tmp_path.join("downloads"))
+    }
+
+    /// Writes an installed artifact of `kind` for patch `n`.
+    fn install_artifact(lifecycle: &PatchLifecycle, n: usize, kind: PatchKind) -> PathBuf {
+        let path = lifecycle.installed_artifact_path_for(n, kind);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, b"payload").unwrap();
+        path
+    }
+
+    #[test]
+    fn assets_artifact_is_not_named_vmcode() {
+        // Load-bearing, not cosmetic: the engine decides whether an active
+        // patch carries code by searching the path for ".vmcode". An assets
+        // artifact whose name contained it would be handed to the VM as a
+        // snapshot and fail to boot the app.
+        assert!(!PatchKind::Assets.artifact_file_name().contains(".vmcode"));
+        assert!(PatchKind::Code.artifact_file_name().contains(".vmcode"));
+    }
+
+    #[test]
+    fn artifact_paths_differ_by_kind_but_share_a_patch_dir() {
+        let (_tmp, lifecycle) = fixture();
+        let code = lifecycle.installed_artifact_path_for(3, PatchKind::Code);
+        let assets = lifecycle.installed_artifact_path_for(3, PatchKind::Assets);
+
+        assert_ne!(code, assets);
+        // Same directory matters: the engine derives the asset overlay location
+        // from the active artifact's dirname, so an assets patch must sit in
+        // the same patch directory a code patch would.
+        assert_eq!(code.parent(), assets.parent());
+    }
+
+    #[test]
+    fn resolves_an_assets_only_patch() {
+        let (_tmp, lifecycle) = fixture();
+        let expected = install_artifact(&lifecycle, 1, PatchKind::Assets);
+        assert_eq!(lifecycle.resolved_artifact_path(1), expected);
+    }
+
+    #[test]
+    fn resolves_a_code_patch() {
+        let (_tmp, lifecycle) = fixture();
+        let expected = install_artifact(&lifecycle, 1, PatchKind::Code);
+        assert_eq!(lifecycle.resolved_artifact_path(1), expected);
+    }
+
+    #[test]
+    fn prefers_code_when_a_patch_somehow_has_both() {
+        let (_tmp, lifecycle) = fixture();
+        let code = install_artifact(&lifecycle, 1, PatchKind::Code);
+        install_artifact(&lifecycle, 1, PatchKind::Assets);
+
+        // Conservative reading: booting code that exists beats ignoring it.
+        assert_eq!(lifecycle.resolved_artifact_path(1), code);
+    }
+
+    #[test]
+    fn falls_back_to_the_code_path_when_nothing_is_installed() {
+        let (_tmp, lifecycle) = fixture();
+        // Callers need a path to name in an error, and "the code artifact is
+        // missing" is the right message for a patch with nothing on disk.
+        assert_eq!(
+            lifecycle.resolved_artifact_path(1),
+            lifecycle.installed_artifact_path(1)
+        );
     }
 
     #[test]

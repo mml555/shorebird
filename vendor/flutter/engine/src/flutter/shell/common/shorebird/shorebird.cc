@@ -138,6 +138,21 @@ std::string GetValueFromYaml(const std::string& yaml, const std::string& key) {
   return "";
 }
 
+/// Whether an active patch path points at a payload containing Dart code.
+///
+/// Keyed on `.vmcode` because that is exactly how
+/// `runtime/shorebird/patch_cache.cc`'s `TryLoadFromPatch` decides whether to
+/// read a snapshot out of the patch. The two must agree: if this said "code"
+/// where `TryLoadFromPatch` said "not code", the loader would be left pointing
+/// at a file the VM declines to read and the app would fail to boot with no
+/// snapshot at all.
+///
+/// Duplicated rather than shared because the two live in different GN targets,
+/// the same reason `patch_cache.cc` duplicates the snapshot symbol names.
+bool PatchCarriesCode(const std::string& active_patch_path) {
+  return active_patch_path.find(".vmcode") != std::string::npos;
+}
+
 std::string PatchAssetsPathForPatch(const std::string& active_patch_path) {
   if (active_patch_path.empty()) {
     return "";
@@ -291,8 +306,18 @@ void ConfigureShorebird(std::string code_cache_path,
     settings.application_library_paths.insert(
         settings.application_library_paths.begin(), active_path);
 #else
-    settings.application_library_paths.clear();
-    settings.application_library_paths.emplace_back(active_path);
+    // Only a patch that actually carries code may displace the app's own
+    // library. An assets-only patch has no snapshot in it, so clearing the list
+    // would leave the loader with a single path holding nothing loadable and
+    // the app would fail to boot — while the asset overlay above, which is the
+    // whole point of such a patch, needs no library path at all.
+    //
+    // Note the asymmetry with the iOS branch above: iOS *inserts* and so keeps
+    // the base reachable for free, which is why this guard is only needed here.
+    if (PatchCarriesCode(active_path)) {
+      settings.application_library_paths.clear();
+      settings.application_library_paths.emplace_back(active_path);
+    }
 #endif
   } else {
     FML_LOG(INFO) << "Shorebird updater: no active patch.";
