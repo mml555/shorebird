@@ -25,6 +25,37 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **An interrupted release is recoverable.** Registering a release artifact used
+  to conflict unconditionally on a second attempt, which made a killed
+  `shorebird release` terminal: the CLI rebuilds and re-uploads a platform's
+  artifacts in a fixed order, so the retry died re-sending the one that already
+  landed and never reached the ones still missing — and this API has no `DELETE`
+  to clear the way.
+
+  Found the hard way on 2026-07-30. Cutting `2.0.0+1785465879` was killed
+  mid-upload with iOS `xcarchive` registered and `runner` + `ios_supplement`
+  missing. The release sat at `{android: active, ios: draft}` and no invocation
+  could finish it.
+
+  A byte-identical re-upload now returns the existing registration. A *differing*
+  hash while the release is still `draft`/`uploading` supersedes the stale row
+  (marked `failed`, which the duplicate lookup skips) and is audited as
+  `artifact.superseded` — matching on hash alone would have missed the real case,
+  since a rebuild never reproduces the previous bytes. From `ready` onward a
+  differing hash stays a hard conflict: those artifacts are what installed apps
+  run and what patches are linked against, so swapping one would silently
+  invalidate every patch built from it.
+
+- **A platform can no longer be activated with an incomplete artifact set.** The
+  gate asserted that every artifact *present* was verified, not that the expected
+  set was complete, so a lone verified `xcarchive` would activate an iOS release
+  that no patch could ever be linked against — surfacing at patch time, far from
+  the cause. Now compared against a per-platform required set.
+
+  Platforms absent from that set are deliberately ungated. Blocking a target
+  whose artifact list this server has never learned would stop it shipping
+  outright, which is worse than closing the hole late.
+
 - **A client that cannot install the active patch is now offered the newest one
   it can**, instead of nothing.
 
