@@ -274,18 +274,31 @@ Without this, every future engine feature costs what the first one cost.
   compilation in general. Whatever moves in `libflutter.so` is specific to that
   link.
 
-  The leading hypothesis is the **Rust updater**, which is compiled into
-  `libflutter.so` by `//flutter/shell/common/shorebird:build_rust_updater`
-  driving cargo. Cargo defaults to parallel codegen units, whose ordering is
-  famously non-reproducible, and that fits the observed signature exactly:
-  same `.text` *size* to the byte with different contents, and an unchanged
-  `.data.rel.ro`. LTO over those units is the other candidate.
+  **Second probe done, and it eliminates the other obvious suspect.** The Rust
+  updater — compiled into `libflutter.so` by `build_rust_updater.py` driving
+  cargo — builds **byte-identically** for the real `aarch64-linux-android`
+  target across two clean builds, sha256 `e93b7bdb…` (~36 s each,
+  `/data/shorebird-engine/rust_determinism.sh`). Cargo's parallel-codegen
+  non-determinism was never in play: the crate already sets `codegen-units = 1`
+  and `lto = true` in `[profile.release]`.
 
-  Next probe, and it is cheap — minutes, not a full engine build: build the Rust
-  updater twice on its own and compare the static library. If it differs,
-  `codegen-units=1` (and `-C metadata`/path remapping if needed) is the likely
-  fix. Only fall back to two full `android-arm64` builds if the Rust library
-  turns out to be stable.
+  **And LTO by itself does not explain it either.** `--lto` defaults to `True`
+  in `flutter/tools/gn`, and `use_thin_lto = false`, so both builds above were
+  full-LTO — including the `gen_snapshot` that came out reproducible.
+
+  So the two cheap explanations are dead, and what remains is specific to the
+  `libflutter.so` link at its full scale. Next probe, staged so the expensive
+  part is paid once rather than twice:
+
+  1. Build the `android-arm64` cell once and keep `libflutter.so`.
+  2. Delete **only the final link output** and re-run ninja, relinking from the
+     same object files. A differing `.so` means the *link* is non-deterministic.
+  3. Only if the relink is stable, delete the objects and rebuild, which tests
+     compilation and costs a second full build.
+
+  That ordering matters: the observed signature (identical size, unchanged
+  `.data.rel.ro`, differing `.text` *and* `.rodata`) is consistent with either,
+  and step 2 is nearly free once step 1 has run.
 - **CI that builds every cell** — `android-arm64`, `ios-arm64`, and both host
   toolchains — so an engine change is not a week of manual assembly.
 - **Contract tests on device**, one per engine behavior we depend on: asset
