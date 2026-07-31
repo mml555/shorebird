@@ -13,12 +13,14 @@ use crate::file_errors::{FileOperation, IoResultExt};
 use anyhow::{bail, Context, Result};
 use dyn_clone::DynClone;
 
-use crate::cache::lifecycle::{self, BadReason, DownloadAction, SkipReason};
+use crate::cache::lifecycle::{self, BadReason, DownloadAction, PatchKind, SkipReason};
 use crate::cache::{PatchInfo, UpdaterState};
 use crate::config::{set_config, with_config, UpdateConfig};
 use crate::events::{EventType, PatchEvent};
 use crate::logging::init_logging;
-use crate::network::{download_to_path, patches_check_url, NetworkHooks, PatchCheckRequest};
+use crate::network::{
+    download_to_path, patches_check_url, NetworkHooks, PatchCheckRequest, PatchPayloadKind,
+};
 use crate::updater_lock::{with_updater_thread_lock, UpdaterLockState};
 use crate::yaml::YamlConfig;
 
@@ -577,33 +579,133 @@ fn download_and_install_patch(
 /// from `Downloaded` to `Installed`. Marks the patch `Bad` (with the
 /// appropriate reason) on inflate or hash-check failure so the next
 /// update cycle short-circuits via `decide_start`.
+/// Installs an assets-only payload: the archive is kept at `installed_path`,
+/// and its contents unpacked into `flutter_assets/` beside it.
+///
+/// That directory name is not arbitrary — the engine registers an asset
+/// resolver over `<patch dir>/flutter_assets` ahead of the ones baked into the
+/// app, so this is what makes a patched font or shader win.
+///
+/// Unpacked into a staging directory and renamed, because the engine reads the
+/// tree at startup with no completeness check of its own: a half-extracted font
+/// renders as corruption rather than falling back to the app's own.
+fn install_asset_patch(download_path: &Path, installed_path: &Path) -> anyhow::Result<()> {
+    let patch_dir = installed_path
+        .parent()
+        .context("installed patch path has no parent directory")?;
+    std::fs::create_dir_all(patch_dir)?;
+
+    let assets_dir = patch_dir.join("flutter_assets");
+    let staging_dir = patch_dir.join("flutter_assets.staging");
+    if staging_dir.exists() {
+        std::fs::remove_dir_all(&staging_dir)?;
+    }
+    std::fs::create_dir_all(&staging_dir)?;
+
+    let file = std::fs::File::open(download_path)?;
+    let mut archive = zip::ZipArchive::new(file).context("patch assets are not a zip archive")?;
+    let mut extracted = 0usize;
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i)?;
+        if entry.is_dir() {
+            continue;
+        }
+        // `enclosed_name` returns None for anything that would escape the
+        // destination (absolute paths, `..`). Entries come from our own CLI,
+        // but an extractor that honours traversal is a foothold the moment
+        // that stops being true.
+        let Some(relative) = entry.enclosed_name() else {
+            continue;
+        };
+        let out_path = staging_dir.join(relative);
+        if let Some(parent) = out_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let mut out = std::fs::File::create(&out_path)?;
+        std::io::copy(&mut entry, &mut out)?;
+        extracted += 1;
+    }
+
+    // An empty result is a failure, not an empty bundle. A payload that is not
+    // a zip at all can decode to zero entries rather than erroring, and
+    // publishing that would leave a complete-looking overlay serving nothing.
+    if extracted == 0 {
+        let _ = std::fs::remove_dir_all(&staging_dir);
+        bail!("patch assets archive contained no files");
+    }
+
+    if assets_dir.exists() {
+        std::fs::remove_dir_all(&assets_dir)?;
+    }
+    std::fs::rename(&staging_dir, &assets_dir)?;
+
+    // Kept so `resolve_installed_artifact` finds a non-".vmcode" artifact and
+    // reports this patch as assets-only, and so boot validation has a file
+    // whose size it can check.
+    std::fs::copy(download_path, installed_path)?;
+    Ok(())
+}
+
 fn install_downloaded_patch(
     config: &UpdateConfig,
     patch: &crate::network::Patch,
     download_path: &Path,
 ) -> anyhow::Result<UpdateStatus> {
+    let kind = match patch.kind {
+        PatchPayloadKind::Code => PatchKind::Code,
+        PatchPayloadKind::Assets => PatchKind::Assets,
+        PatchPayloadKind::Unknown => {
+            // Only reachable if a server ignored our capability list. Refuse
+            // rather than guess: applying an unknown payload as a code diff is
+            // how you brick a launch.
+            mark_patch_bad(patch.number, BadReason::InvalidPatchBytes);
+            bail!("Patch {} has an unsupported payload kind", patch.number);
+        }
+    };
     let installed_path =
-        lifecycle::installed_artifact_path(Path::new(&config.storage_dir), patch.number);
+        lifecycle::installed_artifact_path_for(Path::new(&config.storage_dir), patch.number, kind);
 
-    let patch_base_rs = patch_base(config)?;
-    if let Err(e) = inflate(download_path, patch_base_rs, &installed_path) {
-        // Inflate failed — bytes won't decompress. Deterministically bad.
-        mark_patch_bad(patch.number, BadReason::InvalidPatchBytes);
-        return Err(e);
-    }
+    match kind {
+        PatchKind::Code => {
+            let patch_base_rs = patch_base(config)?;
+            if let Err(e) = inflate(download_path, patch_base_rs, &installed_path) {
+                // Inflate failed — bytes won't decompress. Deterministically bad.
+                mark_patch_bad(patch.number, BadReason::InvalidPatchBytes);
+                return Err(e);
+            }
 
-    if let Err(e) = check_hash(&installed_path, &patch.hash).with_context(|| {
-        format!(
-            "This app reports version {}, but the binary is different from \
+            if let Err(e) = check_hash(&installed_path, &patch.hash).with_context(|| {
+                format!(
+                    "This app reports version {}, but the binary is different from \
         the version {} that was submitted to Shorebird.",
-            config.release_version, config.release_version
-        )
-    }) {
-        // Hash mismatch — bytes decompressed but produced the wrong
-        // result. Most often a customer build/release mismatch on their
-        // side; deterministic on this device.
-        mark_patch_bad(patch.number, BadReason::InstallHashMismatch);
-        return Err(e);
+                    config.release_version, config.release_version
+                )
+            }) {
+                // Hash mismatch — bytes decompressed but produced the wrong
+                // result. Most often a customer build/release mismatch on their
+                // side; deterministic on this device.
+                mark_patch_bad(patch.number, BadReason::InstallHashMismatch);
+                return Err(e);
+            }
+        }
+        PatchKind::Assets => {
+            // No diff and no release snapshot involved: an asset bundle is
+            // self-contained, which is exactly why it needs no linker and can
+            // ship where code cannot.
+            //
+            // The hash is checked on the downloaded bytes rather than after
+            // install, because unlike a code patch there is no reconstruction
+            // step whose output could be verified — the archive *is* the
+            // artifact.
+            if let Err(e) = check_hash(download_path, &patch.hash) {
+                mark_patch_bad(patch.number, BadReason::InstallHashMismatch);
+                return Err(e);
+            }
+            if let Err(e) = install_asset_patch(download_path, &installed_path) {
+                mark_patch_bad(patch.number, BadReason::InvalidPatchBytes);
+                return Err(e);
+            }
+        }
     }
 
     let installed_size = std::fs::metadata(&installed_path)?.len();
@@ -1221,6 +1323,128 @@ pub fn start_update_thread() {
 }
 
 #[cfg(test)]
+mod install_asset_patch_tests {
+    use super::install_asset_patch;
+    use std::io::Write;
+    use tempfile::TempDir;
+
+    /// A zip containing `entries`, written to `path`.
+    fn write_zip(path: &std::path::Path, entries: &[(&str, &[u8])]) {
+        let file = std::fs::File::create(path).unwrap();
+        let mut zip = zip::ZipWriter::new(file);
+        let options: zip::write::FileOptions<'_, ()> = zip::write::FileOptions::default();
+        for (name, bytes) in entries {
+            zip.start_file(*name, options).unwrap();
+            zip.write_all(bytes).unwrap();
+        }
+        zip.finish().unwrap();
+    }
+
+    /// `(tempdir, downloaded archive, installed artifact path)`.
+    fn fixture(entries: &[(&str, &[u8])]) -> (TempDir, std::path::PathBuf, std::path::PathBuf) {
+        let tmp = TempDir::new().unwrap();
+        let download = tmp.path().join("download");
+        write_zip(&download, entries);
+        let installed = tmp.path().join("patches").join("1").join("dlc.assets");
+        (tmp, download, installed)
+    }
+
+    #[test]
+    fn unpacks_into_the_directory_the_engine_resolves() {
+        let (_tmp, download, installed) =
+            fixture(&[("assets/logo.png", b"PATCHED"), ("fonts/P.ttf", b"FONT")]);
+
+        install_asset_patch(&download, &installed).unwrap();
+
+        // flutter_assets is where the engine's resolver looks; anywhere else
+        // and a patched font simply never wins.
+        let assets = installed.parent().unwrap().join("flutter_assets");
+        assert_eq!(
+            std::fs::read(assets.join("assets/logo.png")).unwrap(),
+            b"PATCHED"
+        );
+        assert_eq!(std::fs::read(assets.join("fonts/P.ttf")).unwrap(), b"FONT");
+    }
+
+    #[test]
+    fn keeps_the_archive_so_the_patch_reads_back_as_assets_only() {
+        let (_tmp, download, installed) = fixture(&[("a.txt", b"x")]);
+        install_asset_patch(&download, &installed).unwrap();
+        // resolve_installed_artifact finds this and, because the name is not
+        // ".vmcode", the engine treats the patch as carrying no code.
+        assert!(installed.exists());
+        assert!(!installed.to_string_lossy().contains(".vmcode"));
+    }
+
+    #[test]
+    fn leaves_no_staging_directory_behind() {
+        let (_tmp, download, installed) = fixture(&[("a.txt", b"x")]);
+        install_asset_patch(&download, &installed).unwrap();
+        assert!(!installed
+            .parent()
+            .unwrap()
+            .join("flutter_assets.staging")
+            .exists());
+    }
+
+    #[test]
+    fn replaces_a_previous_overlay_rather_than_merging() {
+        let (_tmp, download, installed) = fixture(&[("new.txt", b"new")]);
+        let assets = installed.parent().unwrap().join("flutter_assets");
+        std::fs::create_dir_all(&assets).unwrap();
+        std::fs::write(assets.join("stale.txt"), b"stale").unwrap();
+
+        install_asset_patch(&download, &installed).unwrap();
+
+        // Merging would leave a previous patch's assets resolving over the
+        // app's own, which is the mismatch rollback exists to prevent.
+        assert!(!assets.join("stale.txt").exists());
+        assert!(assets.join("new.txt").exists());
+    }
+
+    #[test]
+    fn rejects_a_payload_that_is_not_a_zip() {
+        let tmp = TempDir::new().unwrap();
+        let download = tmp.path().join("download");
+        std::fs::write(&download, b"definitely not a zip").unwrap();
+        let installed = tmp.path().join("patches").join("1").join("dlc.assets");
+
+        assert!(install_asset_patch(&download, &installed).is_err());
+        assert!(!installed.parent().unwrap().join("flutter_assets").exists());
+    }
+
+    #[test]
+    fn rejects_an_empty_archive_instead_of_publishing_it() {
+        let (_tmp, download, installed) = fixture(&[]);
+        // Zero entries is a failure, not an empty bundle: publishing it would
+        // leave a complete-looking overlay that serves nothing.
+        assert!(install_asset_patch(&download, &installed).is_err());
+        assert!(!installed.parent().unwrap().join("flutter_assets").exists());
+    }
+
+    #[test]
+    fn refuses_to_escape_the_patch_directory() {
+        let (_tmp, download, installed) =
+            fixture(&[("../../escaped.txt", b"nope"), ("safe.txt", b"ok")]);
+
+        install_asset_patch(&download, &installed).unwrap();
+
+        let assets = installed.parent().unwrap().join("flutter_assets");
+        assert!(assets.join("safe.txt").exists());
+        // Traversal entries are dropped, not written outside the tree.
+        assert!(!installed
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("escaped.txt")
+            .exists());
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use serial_test::serial;
     use std::path::Path;
@@ -1507,6 +1731,7 @@ patch_verification: bogus_mode
                 hash: "bb8f1d041a5cdc259055afe9617136799543e0a7a86f86db82f8c1fadbd8cc45"
                     .to_string(),
                 hash_signature: None,
+                kind: crate::network::PatchPayloadKind::Code,
             }),
             rolled_back_patch_numbers: Some(vec![2]),
         };
@@ -1581,6 +1806,7 @@ patch_verification: bogus_mode
                 hash: "bb8f1d041a5cdc259055afe9617136799543e0a7a86f86db82f8c1fadbd8cc45"
                     .to_string(),
                 hash_signature: None,
+                kind: crate::network::PatchPayloadKind::Code,
             }),
             rolled_back_patch_numbers: Some(vec![2]),
         };
@@ -1934,6 +2160,7 @@ patch_verification: bogus_mode
                 download_url: "download_url".to_string(),
                 hash: "hash".to_string(),
                 hash_signature: None,
+                kind: crate::network::PatchPayloadKind::Code,
             }),
             rolled_back_patch_numbers: None,
         };
@@ -1984,6 +2211,7 @@ patch_verification: bogus_mode
                 hash: "#".to_string(),
                 download_url: "download_url".to_string(),
                 hash_signature: None,
+                kind: crate::network::PatchPayloadKind::Code,
             }),
             rolled_back_patch_numbers: None,
         };
@@ -2093,6 +2321,7 @@ patch_verification: bogus_mode
                 hash: "bb8f1d041a5cdc259055afe9617136799543e0a7a86f86db82f8c1fadbd8cc45"
                     .to_string(),
                 hash_signature: None,
+                kind: crate::network::PatchPayloadKind::Code,
             }),
             rolled_back_patch_numbers: None,
         };
@@ -2162,6 +2391,7 @@ patch_verification: bogus_mode
                         hash: "abc123".to_string(),
                         download_url: "http://example.com/patch/1".to_string(),
                         hash_signature: None,
+                        kind: crate::network::PatchPayloadKind::Code,
                     }),
                     rolled_back_patch_numbers: None,
                 })
@@ -2246,6 +2476,7 @@ patch_verification: bogus_mode
                 hash: "bb8f1d041a5cdc259055afe9617136799543e0a7a86f86db82f8c1fadbd8cc45"
                     .to_string(),
                 hash_signature: None,
+                kind: crate::network::PatchPayloadKind::Code,
             }),
             rolled_back_patch_numbers: None,
         };
@@ -2308,6 +2539,7 @@ patch_verification: bogus_mode
                 hash: "bb8f1d041a5cdc259055afe9617136799543e0a7a86f86db82f8c1fadbd8cc45"
                     .to_string(),
                 hash_signature: None,
+                kind: crate::network::PatchPayloadKind::Code,
             }),
             rolled_back_patch_numbers: None,
         };
@@ -2391,6 +2623,7 @@ patch_verification: bogus_mode
                 hash: "bb8f1d041a5cdc259055afe9617136799543e0a7a86f86db82f8c1fadbd8cc45"
                     .to_string(),
                 hash_signature: None,
+                kind: crate::network::PatchPayloadKind::Code,
             }),
             rolled_back_patch_numbers: None,
         };
@@ -2541,6 +2774,7 @@ mod rollback_tests {
                     .to_string(),
                 download_url: download_url.to_string(),
                 hash_signature: None,
+                kind: crate::network::PatchPayloadKind::Code,
             }),
             rolled_back_patch_numbers: Some(vec![3, 2]),
         };
@@ -2693,6 +2927,7 @@ mod rollback_tests {
                 hash: "bb8f1d041a5cdc259055afe9617136799543e0a7a86f86db82f8c1fadbd8cc45"
                     .to_string(),
                 hash_signature: None,
+                kind: crate::network::PatchPayloadKind::Code,
             }),
             rolled_back_patch_numbers: Some(vec![2]),
         };
@@ -2776,6 +3011,7 @@ mod check_for_downloadable_update_tests {
                 hash: "#".to_string(),
                 download_url: "download_url".to_string(),
                 hash_signature: None,
+                kind: crate::network::PatchPayloadKind::Code,
             }),
             rolled_back_patch_numbers,
         };
@@ -3264,6 +3500,7 @@ mod download_validation_tests {
                         hash: "abc123".to_string(),
                         download_url: "http://example.com/patch/1".to_string(),
                         hash_signature: None,
+                        kind: crate::network::PatchPayloadKind::Code,
                     }),
                     rolled_back_patch_numbers: None,
                 })
@@ -3311,6 +3548,7 @@ mod download_validation_tests {
                         hash: "abc123".to_string(),
                         download_url: "http://example.com/patch/1".to_string(),
                         hash_signature: None,
+                        kind: crate::network::PatchPayloadKind::Code,
                     }),
                     rolled_back_patch_numbers: None,
                 })
@@ -3359,6 +3597,7 @@ mod download_validation_tests {
                         hash: "abc123".to_string(),
                         download_url: "http://example.com/patch/1".to_string(),
                         hash_signature: None,
+                        kind: crate::network::PatchPayloadKind::Code,
                     }),
                     rolled_back_patch_numbers: None,
                 })
@@ -3584,6 +3823,7 @@ mod resume_edge_case_tests {
                         hash: PATCH_HASH.to_string(),
                         download_url: "http://example.com/patch/1".to_string(),
                         hash_signature: None,
+                        kind: crate::network::PatchPayloadKind::Code,
                     }),
                     rolled_back_patch_numbers: None,
                 })
@@ -3872,6 +4112,7 @@ mod resume_edge_case_tests {
                         hash: PATCH_HASH.to_string(),
                         download_url: "http://example.com/patch/1".to_string(),
                         hash_signature: None,
+                        kind: crate::network::PatchPayloadKind::Code,
                     }),
                     rolled_back_patch_numbers: None,
                 })
