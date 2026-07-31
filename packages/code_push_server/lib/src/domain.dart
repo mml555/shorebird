@@ -77,6 +77,22 @@ bool emailAllowedByDomains(String email, List<String> allowedDomains) {
 /// (`aarch64`, `arm`, `x86_64`, …).
 const assetsArch = 'assets';
 
+/// A patch whose payload is Dart code, applied by the updater as a binary diff
+/// against the release snapshot. The only kind that existed before assets.
+const codePatchKind = 'code';
+
+/// A patch whose payload is assets and nothing else.
+///
+/// Exists so the engine's asset overlay can be delivered on platforms where
+/// shipping *code* needs the AOT linker — an assets-only patch has nothing to
+/// link or interpret, so it works on iOS with no linker at all.
+///
+/// **Only ever offered to a client that asks for it** (see
+/// `supported_patch_kinds` on `patches/check`). A stock updater handed one
+/// would try to apply an asset archive as a binary diff, fail to inflate, and
+/// tombstone the patch as permanently bad for that release.
+const assetsPatchKind = 'assets';
+
 /// The `arch` value that marks a patch artifact as **debug symbols**, retained
 /// so crash reports against that patch can be symbolicated.
 ///

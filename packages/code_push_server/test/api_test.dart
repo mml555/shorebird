@@ -783,6 +783,114 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  group('assets-only patches', () {
+    late String appId;
+    late int patchId;
+    late int channelId;
+
+    /// Promotes a patch carrying [arch] artifacts and nothing else.
+    Future<void> seedPatchWith(List<String> arches) async {
+      final s = await seedApp();
+      appId = s.appId;
+      channelId = s.channelId;
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/$appId/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': s.releaseId},
+        ),
+      );
+      patchId = p['id'] as int;
+      for (final arch in arches) {
+        await uploadPatchArtifact(appId, patchId, arch: arch);
+      }
+      await send(
+        'POST',
+        '/api/v1/apps/$appId/patches/promote',
+        bearer: _bootstrapKey,
+        json: {'patch_id': patchId, 'channel_id': channelId},
+      );
+    }
+
+    Future<Map<String, dynamic>> check({List<String>? kinds}) async => jsonOf(
+      await send(
+        'POST',
+        '/api/v1/patches/check',
+        json: {
+          'app_id': appId,
+          'release_version': '1.0.0',
+          'platform': 'android',
+          'arch': 'aarch64',
+          if (kinds != null) 'supported_patch_kinds': kinds,
+        },
+      ),
+    );
+
+    test('a code patch reports its kind', () async {
+      await seedPatchWith(['aarch64']);
+      final r = await check(kinds: [codePatchKind, assetsPatchKind]);
+      expect(r['patch_available'], isTrue);
+      expect((r['patch'] as Map)['kind'], equals(codePatchKind));
+    });
+
+    test('kind is present even for a client that asked for nothing', () async {
+      // So a client never has to infer the kind from an absent field.
+      await seedPatchWith(['aarch64']);
+      final r = await check();
+      expect((r['patch'] as Map)['kind'], equals(codePatchKind));
+    });
+
+    test('an assets-only patch is served to a client that supports it', () async {
+      await seedPatchWith([assetsArch]);
+      final r = await check(kinds: [codePatchKind, assetsPatchKind]);
+      expect(r['patch_available'], isTrue);
+      final patch = r['patch'] as Map;
+      expect(patch['kind'], equals(assetsPatchKind));
+      expect(patch['download_url'], isA<String>());
+    });
+
+    test('an assets-only patch is withheld from a stock updater', () async {
+      // The compatibility gate, and the reason this is negotiated rather than
+      // just announced. A stock updater would try to inflate the asset archive
+      // as a binary diff, fail, and tombstone the patch as permanently bad for
+      // the whole release — so it must never be offered one.
+      await seedPatchWith([assetsArch]);
+      expect((await check())['patch_available'], isFalse);
+      expect(
+        (await check(kinds: [codePatchKind]))['patch_available'],
+        isFalse,
+      );
+    });
+
+    test('code wins when a patch carries both', () async {
+      await seedPatchWith(['aarch64', assetsArch]);
+      final r = await check(kinds: [codePatchKind, assetsPatchKind]);
+      // The code artifact is what the updater must apply; the bundle rides
+      // alongside and is fetched separately via /patches/assets.
+      expect((r['patch'] as Map)['kind'], equals(codePatchKind));
+    });
+
+    test('a malformed capability list is treated as no support', () async {
+      await seedPatchWith([assetsArch]);
+      final r = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/patches/check',
+          json: {
+            'app_id': appId,
+            'release_version': '1.0.0',
+            'platform': 'android',
+            'arch': 'aarch64',
+            'supported_patch_kinds': 'assets',
+          },
+        ),
+      );
+      // Fails closed: a wrong-typed capability must not be read as consent.
+      expect(r['patch_available'], isFalse);
+    });
+  });
+
   group('diagnostics speedtest', () {
     test('serves exactly the size the CLI verifies', () async {
       // NetworkChecker rejects any length other than 16000000.

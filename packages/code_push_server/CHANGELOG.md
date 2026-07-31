@@ -4,6 +4,25 @@ All notable changes to `code_push_server` are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- **Assets-only patches.** `patches/check` can now serve a patch whose payload
+  is an asset bundle and nothing else, which is what lets the engine's asset
+  overlay ship on platforms where shipping *code* needs the AOT linker — there
+  is nothing to link or interpret. The response always carries a `kind`
+  (`code` | `assets`).
+
+  Gated behind a `supported_patch_kinds` capability in the request rather than
+  simply announced, because the failure mode is sticky: a stock updater handed
+  an assets-only patch would try to inflate the archive as a binary diff, fail,
+  and tombstone the patch as permanently bad for that release. Silence means
+  code-only, and a wrong-typed capability is read as no support.
+
+  A patch carrying both a code artifact and a bundle still reports `code`; the
+  bundle continues to be fetched separately via `patches/assets`.
+
 ## 1.3.0 — 2026-07-29
 
 ### Added

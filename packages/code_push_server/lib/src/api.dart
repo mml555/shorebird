@@ -1900,7 +1900,27 @@ class Api {
       return _json(resp(rolledBack: rolledBack));
     }
 
-    final artifact = await repo.patchArtifact(patch.id, arch, platform);
+    // Capability negotiation, and it has to be negotiation rather than a bare
+    // response field. An assets-only patch has no code artifact, so a stock
+    // updater handed one would try to inflate an asset archive as a binary diff
+    // against the release snapshot, fail, and tombstone the patch as
+    // permanently bad — it would never retry it for that release. Clients that
+    // understand the kind say so; everyone else is only ever offered code.
+    // Read the same tolerant way as every other field here: a wrong-typed
+    // capability yields "no support", never a 500 the device has to interpret.
+    final rawKinds = body['supported_patch_kinds'];
+    final supportedKinds = <String>{
+      if (rawKinds is List) ...rawKinds.whereType<String>(),
+    };
+
+    var kind = codePatchKind;
+    var artifact = await repo.patchArtifact(patch.id, arch, platform);
+    if (artifact == null && supportedKinds.contains(assetsPatchKind)) {
+      // No code for this arch. That is what an assets-only patch looks like,
+      // so fall back to its bundle rather than reporting "no patch".
+      artifact = await repo.patchArtifact(patch.id, assetsArch, platform);
+      kind = assetsPatchKind;
+    }
     if (artifact == null || artifact.status != ArtifactStatus.verified) {
       return _json(resp(rolledBack: rolledBack));
     }
@@ -1911,6 +1931,9 @@ class Api {
           'download_url': _signedUrl(artifact.token),
           'hash': artifact.hash,
           'hash_signature': artifact.hashSignature,
+          // Always present, including for code, so a client never has to infer
+          // the kind from an absent field.
+          'kind': kind,
         },
         rolledBack: rolledBack,
       ),

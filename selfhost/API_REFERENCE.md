@@ -213,19 +213,38 @@ The updater reads `base_url` from the bundled `shorebird.yaml` and calls these �
 ```json
 { "app_id":"<uuid>", "release_version":"1.0.0+1", "platform":"android",
   "arch":"aarch64", "channel":"stable", "client_id":"<uuid>",
-  "patch_number": 0 }
+  "patch_number": 0,
+  "supported_patch_kinds": ["code","assets"] }
 ```
 Response:
 ```json
 { "patch_available": true,
   "patch": { "number": 1, "download_url": "…/download/<token>?exp=&sig=",
-             "hash": "<sha256>", "hash_signature": "<base64>|null" },
+             "hash": "<sha256>", "hash_signature": "<base64>|null",
+             "kind": "code" },
   "rolled_back_patch_numbers": [] }
 ```
 A patch is offered only if its artifact is verified, the patch is `ready` (not
 invalidated), an **active** channel-patch makes this `client_id` eligible under
 the current rollout, and its number exceeds the client's. A rolled-back patch's
 number appears in `rolled_back_patch_numbers` (installed devices revert).
+
+**`kind`** (always present) is `code` for the usual patch, or `assets` for a
+patch whose payload is assets and nothing else — the shape that lets the
+engine's asset overlay ship where code cannot, because there is nothing to link
+or interpret.
+
+**`supported_patch_kinds`** (optional, defaults to code-only) is a *capability
+gate, not a hint*. An assets-only patch is offered **only** to a client that
+lists `assets`. A stock updater handed one would try to inflate an asset archive
+as a binary diff against the release snapshot, fail, and tombstone the patch as
+permanently bad for that release — so silence must mean "code only". A
+wrong-typed value is read as no support, failing closed like every other field
+on this endpoint.
+
+Where a patch carries both a code artifact and an asset bundle, `kind` is
+`code`: the bundle rides alongside and is fetched separately via
+`/patches/assets`.
 
 ### Events
 
