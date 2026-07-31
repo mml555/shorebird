@@ -73,8 +73,11 @@ iosdev::_resolve() {
 }
 
 # True when the device should be driven by devicectl rather than ios-deploy.
-# Unknown version => assume modern, since devicectl reports a clear error and
-# the caller falls back.
+#
+# Unknown version assumes modern, which is only sound because both callers fall
+# back to ios-deploy when devicectl fails. `xctrace` does intermittently report
+# no version for a busy device — observed on an iOS 15 device immediately after
+# an install — so this guess is wrong often enough to need that fallback.
 iosdev::_is_coredevice() {
   local major="${1%%.*}"
   [ -z "$major" ] && return 0
@@ -104,8 +107,12 @@ iosdev::install() {
       echo "installed (devicectl)"
       return 0
     fi
-    iosdev::_err "devicectl install failed"
-    return 1
+    # Fall through rather than fail. `xctrace` occasionally returns no version
+    # for a device that is busy or mid-reconnect, and an unknown version is
+    # assumed modern — so a devicectl failure here may simply mean the device is
+    # older than the guess. Observed for real on an iOS 15 device that had just
+    # been installed to.
+    iosdev::_err "devicectl install failed (iOS ${ver:-unknown}); trying ios-deploy"
   fi
 
   deploy="$(iosdev::ios_deploy)" || {
@@ -136,8 +143,15 @@ iosdev::launch() {
   ver="$(iosdev::os_version "$udid")"
 
   if iosdev::_is_coredevice "$ver"; then
-    xcrun devicectl device process launch --terminate-existing --device "$udid" "$bundle_id"
-    return $?
+    if xcrun devicectl device process launch --terminate-existing --device "$udid" \
+      "$bundle_id"; then
+      return 0
+    fi
+    # Same fallback as install: an unknown version is assumed modern, so a
+    # devicectl failure can mean "actually an older device" rather than "launch
+    # failed". Only worth retrying when we were given a bundle to launch from.
+    [ -n "$artifact" ] || return 1
+    iosdev::_err "devicectl launch failed (iOS ${ver:-unknown}); trying ios-deploy"
   fi
 
   deploy="$(iosdev::ios_deploy)" || { iosdev::_err "ios-deploy not found"; return 1; }
