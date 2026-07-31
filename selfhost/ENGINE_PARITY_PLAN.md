@@ -121,6 +121,36 @@ Phase 5 exists. Do not ship this configuration to anyone.
 
 ## Phase 2 — Asset-only patches: Route B on iOS with no linker
 
+**Stage A landed and is device-verified (2026-07-31, Android arm64.)**
+`code_push_runtime`'s `EngineAssetOverlay` writes a patch's assets into
+`<patch dir>/flutter_assets`, which is where our engine's resolver reads. Opt-in
+via `installEngineOverlay`. On device, with a patch carrying `--assets`:
+
+```
+patch=1  overlayInstalled=true
+patchDir=/data/user/0/<pkg>/files/shorebird_updater/patches/1
+onDisk=PATCHED-ASSET        <- bytes reached the resolver's directory
+runtimeBundle=PATCHED-ASSET <- Route A
+rootBundle=RELEASE-ASSET    <- control: stock engine has no resolver
+```
+
+Two facts this pinned down that were previously inference:
+
+- **Android's patch directory really has no app-id component.** The layout was
+  read off one logcat line; the probe tries both shapes and picked correctly
+  against the real device.
+- **Installing the overlay does not perturb a stock engine.** `rootBundle`
+  staying at the release value is the control, not a failure — that flip needs
+  our engine.
+
+What Stage A does *not* prove is the engine reading the tree, because this app
+runs on Shorebird's stock engine. That half is separately device-proven by the
+original Route B work (`rootBundle`, fonts and shaders all swapped on engine
+`fc184af6…`). The two together cover the chain; neither covers it alone.
+
+Stage B — teaching the Rust updater to carry an assets-only payload, so apps
+without `code_push_runtime` are covered too — is unstarted. Design below.
+
 The insight that makes iOS worth doing before the linker: **an asset-only patch
 contains no code, so nothing needs to be linked or interpreted.** It is pure
 data delivery, and every layer it touches is ours and public.
