@@ -128,16 +128,36 @@ data delivery, and every layer it touches is ours and public.
 Work:
 
 - **Rust updater** (`vendor/updater`, layer 4) learns a patch that carries no
-  code payload: download, validate, stage, and report it as bootable, with
-  `NextBootPatchPath` pointing at a directory holding assets and no `.vmcode`.
-  The exact shape must be confirmed against `cache/lifecycle.rs` and
-  `updater.rs` before any C++ is written — a wrong guess here costs a rebuild.
-- **Engine C++**: when the active patch has no code, keep the base snapshot but
-  still set `settings.shorebird_patch_assets_path`. On iOS today
-  `ConfigureShorebird` inserts the patch path at the front of
-  `application_library_paths` and `TryLoadFromPatch` keys off `.vmcode` in the
-  name — an absent code payload must fall through to the base cleanly rather
-  than `FML_LOG(FATAL)`.
+  code payload. **Design confirmed against the source 2026-07-30**, so this is
+  no longer a discovery task:
+
+  The updater's model is single-artifact and code-named throughout.
+  `installed_artifact_path` is hardcoded to `{state_root}/patches/{N}/dlc.vmcode`
+  (`cache/lifecycle.rs`), `PatchState::Installed` is documented as "`dlc.vmcode`
+  is present; the patch is bootable", and boot validation checks *that*
+  artifact's size and signature. So an asset-only patch needs a patch **kind**
+  (code vs assets) carried in `state.json`, with `installed_artifact_path` and
+  `validate_next_boot_patch` keyed off it.
+
+  The tempting shortcut — ship a no-op code patch and hang assets off it —
+  **fails exactly where Phase 2 is needed.** On Android a no-op bidiff would
+  reconstruct an identical `libapp.so` and cost nothing. On iOS with our own
+  engine, producing any `.vmcode` at all requires the linker, which is the
+  dependency this phase exists to route around.
+
+- **Engine C++**, where the platform split is the **inverse of the usual one**.
+  Android and iOS call the *same* `ConfigureShorebird`
+  (`flutter_main.cc:167`, `FlutterDartProject.mm:182`), differing only by the
+  compile-time `SHOREBIRD_USE_INTERPRETER` flag:
+
+  | | What it does with the patch path | Effect on an asset-only patch |
+  |---|---|---|
+  | **iOS** (`SHOREBIRD_USE_INTERPRETER=1`) | `application_library_paths.insert(begin, active_path)` — inserts, keeping the base reachable | `TryLoadFromPatch` returns null for any path lacking `.vmcode`, so it falls through to the base snapshot cleanly **and** `shorebird_patch_assets_path` is still set. Little or no engine change needed. |
+  | **Android** | `application_library_paths.clear()` then `emplace_back(active_path)` | Nothing loadable remains. **Android is the platform needing the engine change here**, not iOS. |
+
+  Also load-bearing: `TryLoadFromPatch` decides by searching the path for the
+  literal substring `.vmcode`, so the artifact's *filename* is part of the
+  contract rather than decoration.
 - **CLI**: publish an assets-only patch (`--assets` with no code delta). The
   server needs **nothing** — `arch` is free-form and already carries `assets`.
 - **Rollback must cover it.** A bad font or a broken shader can hang or crash an
