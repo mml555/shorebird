@@ -70,10 +70,11 @@ carries over almost entirely.
 
 ## The roadmap, re-scored
 
-### Phase 4 — Crash reporting + symbolication ✅ done, device-verified
+### Phase 4 — Crash reporting + symbolication ✅ Android; ⚠️ iOS resolves nothing
 
-Layers 1 + 2, optionally 3. **Not blocked at all**, and 100% shared between
-platforms because none of it is platform code.
+Layers 1 + 2, optionally 3. Not blocked, and the *pipeline* is platform-neutral —
+but see the correction below: on iOS the frames a patched app produces cannot be
+resolved at all, for reasons no server change can address.
 
 - ✅ Symbols retained keyed by `(app, release, patch, arch)`, from the
   `--split-debug-info` output the CLI already produces.
@@ -90,13 +91,53 @@ The symbolication design deserves stating, because the obvious reading of it is
 wrong. A Dart crash report is a *Dart* stack trace, and Dart's
 `--split-debug-info` output is what `flutter symbolize` consumes through
 `package:native_stack_traces`. That package is pure Dart and reads both ELF
-(Android) and Mach-O (Apple), so **one server-side implementation symbolicates
-every platform** with no native toolchain in the image. `llvm-symbolizer` and
+(Android) and Mach-O (Apple), so one server-side implementation covers every
+platform's *symbol format* with no native toolchain in the image — though on iOS
+there turn out to be no addresses to look up, see below. `llvm-symbolizer` and
 `atos` would only enter the picture for native C++/Objective-C frames — which
 means only a crashpad-style native collector would need them, and that is
 optional layer-5 work.
 
-**Carryover to iOS: 100%.** Best value-per-effort on the list today.
+**Carryover to iOS: NOT 100%. Corrected 2026-07-31 by measurement.**
+
+The claim was that one pure-Dart implementation symbolicates every platform,
+since `package:native_stack_traces` reads Mach-O as well as ELF. That is true
+about *formats* and false about *iOS in practice*, and the difference matters
+because it cannot be fixed on the server.
+
+Measured on a physical iPhone 7 (iOS 15.8.8) with a patch applied: the crash
+arrives, is stored with the right `platform`/`arch`/`patch_number`, and
+`?symbolicate=true` returns **null**. The trace header says why:
+
+```
+os: ios arch: arm64  comp: no  sim: yes
+#00 abs 00000000000f9f2b <invalid Dart instruction address>
+```
+
+`comp: no` means the executing code is not AOT machine code and `sim: yes` means
+the VM is interpreting it — which is exactly how iOS patches work, because iOS
+forbids JIT. DWARF maps *AOT instruction addresses* to source lines. An
+interpreted frame has no such address, so every frame reads
+`<invalid Dart instruction address>` and there is nothing for the symbolizer to
+resolve. The symbols were retained and located correctly; the addresses simply
+do not exist.
+
+**The sharper consequence:** this system only collects crashes *while a patch is
+running* (a deliberate scoping decision — see `code_push_runtime`). On iOS those
+are precisely the crashes that cannot be symbolicated. So iOS crash
+symbolication is not "unimplemented", it is **structurally unavailable** for the
+crashes we collect, and no amount of server work changes that.
+
+What still carries to iOS: ingestion, retention, the join key, and the reporter
+itself — all verified working on device. What does not: resolving a patched iOS
+frame to a line number.
+
+Ways it could be reached, none cheap: symbolicate against the interpreter's own
+bytecode metadata rather than DWARF (needs the linker's mapping, i.e. the
+private fork); or capture unpatched-release crashes too, which was explicitly
+rejected as scope and would still need release symbols retained.
+
+Android is unaffected and remains fully verified end to end.
 
 ### Phase 1 — Assets in patches ✅ reachable on both platforms
 
@@ -234,13 +275,13 @@ hands next:
 
 | Phase | Landed | Remaining |
 |---|---|---|
-| 4 — crash reporting | **complete**: ingestion, retention, read-time symbolication via `package:native_stack_traces` (`?symbolicate=true`, pure Dart so Android *and* Apple, no `atos`), an app-side reporter in `code_push_runtime`, and — 2026-07-30 — a real obfuscated on-device crash resolved to `main.dart:36:3` against the patch's own symbols (see [`HANDOFF.md`](HANDOFF.md)) | Apple: the same proof on an iOS device |
+| 4 — crash reporting | **complete on Android**: ingestion, retention, read-time symbolication, an app-side reporter, and a real obfuscated on-device crash resolved to `main.dart:36:3` against the patch's own symbols. On **iOS** ingestion/retention/reporting are device-verified, but symbolication of a patched frame is **structurally impossible** — the code is interpreted, so the trace carries no AOT addresses to resolve | nothing further on iOS without the interpreter's own mapping |
 | 1 — assets | end to end: `--assets` packages `flutter_assets` on Android and Apple, server serves it, `code_push_runtime` reads it as an `AssetBundle` | — image published as `code-push-server:1.3.0` |
 | 2 — hot restart | — | design, then updater status split + engine isolate reload |
 
 | Phase | Blocked? | Android→iOS carryover |
 |---|---|---|
-| 4 — crash + symbolication | ✅ no | 100% (no platform code) |
+| 4 — crash + symbolication | ✅ no | ingest/retain/report 100%; **resolving a patched iOS frame: not possible** (interpreted, no AOT addresses) |
 | 1 — assets, Route A (Dart) | ✅ no | 100% (ships on both at once) |
 | 1 — assets, Route B (engine) | Android yes / iOS fork-gated | near total (common `AssetManager`) |
 | 2 — in-process apply | Android only | high for design/updater; zero for iOS code execution |
