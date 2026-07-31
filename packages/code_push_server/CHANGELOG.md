@@ -1,3 +1,5 @@
+<!-- cspell:words ungated -->
+
 # Changelog
 
 All notable changes to `code_push_server` are documented here. The format is

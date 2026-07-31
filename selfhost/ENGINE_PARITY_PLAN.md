@@ -67,64 +67,38 @@ is on disk and its library structure is readable, but reimplementing from
 decompiled private kernel is how you build a derivative work. This plan does not
 depend on reading it, and should not start to.
 
-## Blocker found 2026-07-31: our engine cannot produce `android_supplement`
+## Retracted 2026-07-31: the `android_supplement` "blocker" was our own bug
 
-Discovered while trying to release against our own engine to prove assets-only
-patches on device. **This is not an iOS-only problem, which is what the plan
-above assumes**, so it belongs before everything else.
+Recorded here because the wrong diagnosis was committed first and the correction
+is the more useful lesson.
 
-`shorebird release android` failed with:
+`shorebird release android` against our own engine failed with
+`missing artifacts: android_supplement`. I traced that to the vended Flutter tool
+asking gen_snapshot for the supplement via `--print_dispatch_table_link_info_to`
+(`flutter_tools/lib/src/base/build.dart:219`) — a private-fork flag our
+gen_snapshot does not have, confirmed by finding zero occurrences in the binary
+the mirror serves — and concluded the private fork was needed to *release* on
+Android, not just to execute patched code on iOS.
 
-```
-No release supplements found at .../rbtest/build/android/shorebird
-Failed Release 4 (android) is missing artifacts: android_supplement
-```
+**That conclusion was wrong.** The error came from our own server's completeness
+gate, whose required set had been *induced from a biased sample*: every Android
+release the server had accepted was both obfuscated and single-ABI, so it
+recorded as mandatory two things that are conditional.
 
-The build succeeded and the AAB plus three `libapp.so` uploaded fine. What is
-missing is the supplement, and the reason is structural. The vended Flutter tool
-asks gen_snapshot for it directly (`flutter_tools/lib/src/base/build.dart:219`):
+- `android_supplement` exists only with `--obfuscate` — it is the obfuscation
+  map's home, and the CLI does not create the directory otherwise
+  (`assembleSupplementDirectory`). My release passed no `--obfuscate`.
+- `arm` and `x86_64` exist only for a multi-ABI build; `--target-platform
+  android-arm64` produces `aarch64` alone.
 
-```
---print_dispatch_table_link_debug_info_to=…/App.dispatch_table.json
---print_dispatch_table_link_info_to=…/App.dt.link
-```
+Android also does not *need* the supplement to be patchable: it applies a bidiff
+and never links, which is what the supplement serves. Fixed by requiring only the
+bundle plus at least one code ABI, with tests for both halves.
 
-Those are **the private fork's flags** — the same `dispatch_table_link_info`
-machinery the gen_snapshot symbol diff identified as fork-only. Our gen_snapshot,
-built from vanilla Dart plus our 57 lines, contains none of them:
-
-| flag | in our gen_snapshot |
-|---|---|
-| `print_dispatch_table_link_info_to` | 0 |
-| `print_shorebird_info` | 0 |
-| `base_dt_link_data` | 0 |
-
-**Why this matters beyond the immediate failure:** the working assumption has
-been that the private fork is only needed to *execute* patched code on iOS, and
-that Android is fully independent. It is not — with a CLI that requires
-`android_supplement`, the fork is needed to *release* on our own engine at all.
-
-Reconciling this with history is the open question: the Route B run of 2026-07-30
-released successfully on our engine (`fc184af6`) on this same box. Either the
-supplement requirement is newer than that run, or that release produced the
-directory by some path this one did not. That should be established before
-choosing a fix, since it decides whether this is a regression or a
-long-standing gap that was masked.
-
-Candidate fixes, in order of appeal:
-
-1. **Stop requiring the supplement for Android in our fork's CLI.** The
-   supplement exists for the *linker*, and Android never links — it applies a
-   bidiff. If that holds, requiring it on Android is a check that cannot pass on
-   any engine but theirs, and relaxing it is correct rather than a workaround.
-2. Emit an empty/synthetic supplement so validation passes. Cheap, but ships a
-   file whose meaning we do not control.
-3. Implement the dispatch-table flags in our Dart fork. Real work, and it is
-   Phase 5's territory anyway.
-
-Do **not** reach for mixing toolchains: using their gen_snapshot with our
-`libflutter.so` violates the welded-format invariant and dies at launch with
-`Wrong full snapshot version`.
+Two things worth carrying forward. A required-artifact set derived by observing
+traffic encodes the *sampling*, not the contract — and the comment saying so was
+right there. And the private-fork flags really are absent from our gen_snapshot,
+which stays true and still matters for Phase 5; it just was not the cause here.
 
 ## Phase 0 — Build host and iOS test rig (blocking)
 

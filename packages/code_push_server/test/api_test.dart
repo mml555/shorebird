@@ -522,6 +522,31 @@ void main() {
       expect(await after.readAsString(), contains('already registered'));
     });
 
+    test('an unobfuscated single-ABI Android release activates', () async {
+      // The set this check was built from was induced from a biased sample —
+      // every Android release the server had seen was obfuscated and single-ABI
+      // — so it demanded android_supplement (which only exists with
+      // --obfuscate) plus arm and x86_64 (which only exist for a multi-ABI
+      // build). That made this perfectly ordinary release impossible to
+      // activate, and it is how a real release against our own engine failed.
+      final app = await seedApp();
+      for (final arch in ['aab', 'aarch64']) {
+        await upload(app.appId, app.releaseId, arch: arch, platform: 'android');
+      }
+      final r = await activate(app.appId, app.releaseId, 'android');
+      expect(r.statusCode, HttpStatus.noContent);
+    });
+
+    test('an Android release with no code artifact is refused', () async {
+      // The "at least one of" half: an aab alone would activate a release no
+      // patch could ever be built against.
+      final app = await seedApp();
+      await upload(app.appId, app.releaseId, arch: 'aab', platform: 'android');
+      final r = await activate(app.appId, app.releaseId, 'android');
+      expect(r.statusCode, HttpStatus.conflict);
+      expect(await r.readAsString(), contains('no code artifact'));
+    });
+
     test('a platform cannot be activated with an incomplete artifact set',
         () async {
       final app = await seedApp();

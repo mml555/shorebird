@@ -1,3 +1,4 @@
+// cspell:words bidiff
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -102,8 +103,33 @@ String rateLimitKey({String? auth, required String ip}) {
 /// these three. A platform absent from this map is not gated — see the
 /// completeness check in `_updateRelease` for why unknown targets are left alone.
 const _requiredArchs = <String, Set<String>>{
-  'android': {'aab', 'arm', 'aarch64', 'x86_64', 'android_supplement'},
+  // Android requires only the bundle. Everything else is conditional on how the
+  // release was built, which the previous set got wrong by inducting from a
+  // biased sample — every Android release this server had seen at the time was
+  // both obfuscated and single-ABI:
+  //
+  //   * `android_supplement` exists only when `--obfuscate` is passed. It is the
+  //     obfuscation map's home (see `assembleSupplementDirectory`), and the CLI
+  //     does not even create the directory otherwise. Requiring it made a
+  //     non-obfuscated Android release impossible to activate.
+  //   * `arm` / `x86_64` exist only for a multi-ABI release. A
+  //     `--target-platform android-arm64` build produces `aarch64` alone.
+  //
+  // Nor does Android *need* the supplement to be patchable: it applies a bidiff
+  // against the release snapshot and never links, which is what the supplement
+  // serves.
+  'android': {'aab'},
   'ios': {'xcarchive', 'runner', 'ios_supplement'},
+};
+
+/// Platforms that must ship at least one executable-code artifact.
+///
+/// Separate from [_requiredArchs] because the requirement is "one of these",
+/// not "all of these" — the ABI set depends on `--target-platform`. Without it
+/// an Android release holding only an `aab` would activate, and no patch could
+/// ever be built against it.
+const _requiredAnyArchs = <String, Set<String>>{
+  'android': {'aarch64', 'arm', 'x86_64'},
 };
 
 /// The HTTP surface: the Shorebird CLI/updater wire contract (translated to the
@@ -1248,13 +1274,21 @@ class Api {
         // Unknown platforms are deliberately unchecked: gating a target this
         // server hasn't learned the artifact set for would break it outright,
         // which is worse than the hole being closed late.
-        final missing = _requiredArchs[platform]?.difference(
-          live.map((a) => a.arch).toSet(),
-        );
+        final present = live.map((a) => a.arch).toSet();
+        final missing = _requiredArchs[platform]?.difference(present);
         if (missing != null && missing.isNotEmpty) {
           throw conflict(
             'Release $releaseId ($platform) is missing artifacts: '
             '${(missing.toList()..sort()).join(', ')}',
+          );
+        }
+        // "At least one of" — the ABI set varies with --target-platform, so the
+        // check is that *some* code shipped, not which.
+        final anyOf = _requiredAnyArchs[platform];
+        if (anyOf != null && anyOf.intersection(present).isEmpty) {
+          throw conflict(
+            'Release $releaseId ($platform) has no code artifact: expected at '
+            'least one of ${(anyOf.toList()..sort()).join(', ')}',
           );
         }
         if (release.lifecycle != ReleaseLifecycle.ready) {
