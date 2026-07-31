@@ -420,12 +420,16 @@ Do not re-learn these:
   it those modules are skipped and the mirror will 404 on them (deliberately, per
   `$overlay_owned` in nginx.conf). The Mac's overlay already holds them for
   `dabf1837…` from the original hand-publish.
-- **The overlay is backed up locally but not yet off-machine.**
-  `~/shorebird-backups/engine-overlay-dabf1837-fc184af6.tar` (775 MB, sha256
-  `b5fc5633c509f64660701e4654d8dfcd839ce023667f7d9dce7125b0420d9b5f`) holds both
-  device-verified engines. That protects against a stray `git clean -xfd` in the
-  repo, not against losing the disk — and given the next point, losing it means
-  re-proving every Route B claim on device. Get a copy off this machine.
+- **The overlay is backed up in two places, both verified.** 775 MB, sha256
+  `b5fc5633c509f64660701e4654d8dfcd839ce023667f7d9dce7125b0420d9b5f`, holding
+  both device-verified engines (`dabf1837…` and the Route B `fc184af6…`):
+  - `~/shorebird-backups/engine-overlay-dabf1837-fc184af6.tar` on the Mac
+  - `/data/shorebird-engine/backups/` on the build box — checksum re-verified
+    after transfer, so this one survives losing the Mac entirely.
+
+  Restore with `tar -xf engine-overlay-dabf1837-fc184af6.tar -C selfhost/cdn/`.
+  This matters because of the next point: these artifacts cannot be regenerated,
+  so losing them means re-proving every Route B claim on device.
 - **The engine build is not reproducible.** Rebuilding the identical source
   (`HEAD` = `dabf1837…`, no code change) produced a different `libflutter.so`:
   same size to the byte (171,860,472) and an identical `.data.rel.ro`, but a
