@@ -23,6 +23,25 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   A patch carrying both a code artifact and a bundle still reports `code`; the
   bundle continues to be fetched separately via `patches/assets`.
 
+### Known limitation
+
+- **Promoting an assets-only patch withdraws the previous code patch, and
+  clients that cannot take the new one are then offered nothing.** Observed on
+  2026-07-31: promoting an assets-only patch marked the release's code patch
+  `withdrawn`, after which a stock updater's `patches/check` returned
+  `patch_available: false`. A device already running the code patch keeps it,
+  but a **fresh install gets unpatched code that was previously patched** — a
+  silent coverage regression rather than a visible failure.
+
+  This is supersession behaving as designed (one active patch per channel per
+  platform) meeting a patch kind not every client can accept. Fixing it is a
+  product decision, not a bug fix, because the options differ in what they
+  promise: fall back to the newest *servable* code patch per client class, which
+  means different clients deliberately run different patch numbers; or keep code
+  and asset patches in separate lanes so neither supersedes the other. Until one
+  is chosen, do not promote an assets-only patch to a channel whose devices are
+  not all on a capable updater.
+
 ## 1.3.0 — 2026-07-29
 
 ### Added
