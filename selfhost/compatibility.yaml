@@ -114,6 +114,36 @@ experimental:
                                    # with a live Hermes deployment — 4 vCPU, cap ninja -j3)
   cell: android-arm64-release      # the only platform cell built from source today
   engines:
+    - hash: 5b1a89658709b9a0d2e76c6f3d47ad1a26eecdee   # fc184af6 + the assets-only patch guard
+      falls_back_to: 69f9831c360d9152862ec3897c67fb09ae843f3b
+      flutter_revision: c15ef6379403a0a55531a058bdb2c8e55bc05c98
+      built: 2026-07-31                                # hermes-vps, ninja -j3, ~3 min
+                                                       # INCREMENTAL on the reproducible
+                                                       # baseline, not a clean build
+      # Content-addressed, not a source sha: the first 40 hex of the built
+      # libflutter.so's sha256. Only meaningful because the build was proven
+      # reproducible the same day — identical source now yields identical bytes,
+      # so the artifact naming itself is verifiable.
+      changes: |
+        PatchCarriesCode() guard in shell/common/shorebird/shorebird.cc. Android
+        cleared application_library_paths and replaced them with the active patch
+        path; for an assets-only patch, which contains no snapshot, that leaves
+        the loader holding one path to nothing loadable and the app fails to boot.
+        Decided on the ".vmcode" substring, exactly as TryLoadFromPatch decides,
+        so the two cannot disagree. iOS is unaffected: it inserts rather than
+        clears, keeping the base reachable for free.
+      verified:
+        compiles: true
+        links: true                    # shorebird literals present in libflutter.so
+        blast_radius: 1                # of 7,366 objects — only
+                                       # shell/common/shorebird/shorebird.shorebird.o
+                                       # changed. This check is only sound because
+                                       # two clean builds were proven byte-identical.
+        served_by_mirror: true         # 17-file overlay verified 2026-07-31; an ABI
+                                       # we did not build still falls back to pinned
+        device_verified: false         # NOT yet run on device. Needs a release built
+                                       # against this hash on the Linux box, and the
+                                       # box CLI lacks --assets-only (still 1.6.115).
     - hash: fc184af6509a93eaf6fc068c6820639b324175a8   # dabf1837 + the Route B asset resolver
       falls_back_to: 69f9831c360d9152862ec3897c67fb09ae843f3b
       flutter_revision: c15ef6379403a0a55531a058bdb2c8e55bc05c98
