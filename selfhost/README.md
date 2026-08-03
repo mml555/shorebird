@@ -42,8 +42,10 @@ for the quick start and feature list.
 - [`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md) — Windows / Linux notes
 
 **Independence (advanced)**
+- [`UPSTREAM_INDEPENDENCE.md`](UPSTREAM_INDEPENDENCE.md) — **start here**: every remaining dependency on upstream Shorebird, whether it is *mirrored* or *built*, and what removing it takes
 - [`CDN_INDEPENDENCE.md`](CDN_INDEPENDENCE.md) + [`cdn/`](cdn) — build-time CDN mirror (default, recommended)
-- [`ENGINE_BUILD.md`](ENGINE_BUILD.md) + [`engine/`](engine) — build the engine from captured source (⛔ blocked: private Dart VM fork — see below)
+- [`ENGINE_BUILD.md`](ENGINE_BUILD.md) + [`engine/`](engine) — build the engine from captured source (their private Dart VM fork is **no longer a blocker**: we build on vanilla Dart + a 57-line shim, see [`engine/dart-fork/`](engine/dart-fork))
+- [`IOS_CODE_PUSH.md`](IOS_CODE_PUSH.md) — iOS code push without their fork: the interpreter and dispatch are already upstream; what we owe is a binder
 - [`HANDOFF.md`](HANDOFF.md) — current state of the three work tracks, next steps, and gotchas
 - [`ENGINE_IMPROVEMENTS.md`](ENGINE_IMPROVEMENTS.md) — **start here for engine work**: what is proven, what stays pinned, and the constraints that cost real debugging
 - [`EXPERIMENTAL_ENGINE.md`](EXPERIMENTAL_ENGINE.md) — engine/runtime improvement roadmap: what's reachable today, and Android → iOS carryover
