@@ -320,6 +320,24 @@ one. It is an extension mechanism, not a patch mechanism.
 **So Phase 5 is the pinned-layout route**, and the upstreamable variant is off
 the table. The original experiment list is kept below for the record.
 
+**Refined 2026-08-03 — this closed the wrong door, not the only door.** See
+[`IOS_CODE_PUSH.md`](IOS_CODE_PUSH.md). The experiment above tested the **Dart-level
+module API**, and that result stands. But vanilla Dart also has
+`Function::AttachBytecode` (`runtime/vm/object.cc:8413`), a **C++ primitive** that
+replaces an AOT-compiled function's implementation with interpreted bytecode by
+pointing its entry point at the upstream `InterpretCall` stub — reachable from
+exactly the layer our engine patch-installer already occupies. `DartEntry::InvokeFunction`
+routes interpreted functions to the interpreter with no `DART_PRECOMPILED_RUNTIME`
+exclusion, and `runtime/vm/interpreter.cc` is built to run inside an AOT runtime.
+
+So the iOS execution engine and dispatch mechanism are **already upstream**, behind
+the `dart_dynamic_modules` GN flag. That does not make iOS code push done — inlining,
+static call-site rewriting and binding bytecode to the base snapshot's identifiers all
+remain, and the object pool's cross-build identity key is still the item that can cost
+months. But it removes the part that would genuinely have required reproducing their
+fork: writing an interpreter. **Run the kill gate in `IOS_CODE_PUSH.md` before building
+any linker.**
+
 ### The original crux experiments (kill gates, days not weeks)
 
 Run these before committing to Phase 5, in this order, because each can end the
