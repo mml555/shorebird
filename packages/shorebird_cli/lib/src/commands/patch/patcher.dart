@@ -61,6 +61,17 @@ More info: ${troubleshootingUrl.toLink()}.
   /// patchers to pass obfuscation flags to gen_snapshot and the linker.
   String? obfuscationMapPath;
 
+  /// Whether this patch ships only assets, with no code. Set by the patch
+  /// command from `--assets-only`.
+  ///
+  /// Apple patchers use this to skip linking. The patch command replaces the
+  /// code bundles with an empty map before upload, so a linked `.vmcode` would
+  /// be built and then discarded. Skipping it is not merely an optimization:
+  /// linking is the only step that needs `aot-tools.dill`, which is Shorebird's
+  /// AOT linker and is not something we can build. So an assets-only patch is
+  /// the one iOS patch we can produce without it.
+  bool assetsOnly = false;
+
   /// Extra build arguments injected by the patch command. These are included
   /// in the Flutter build command args by patchers. Currently used to inject
   /// obfuscation flags when the release was built with obfuscation.

@@ -628,7 +628,9 @@ Building with Flutter $flutterVersionString to determine the release version...
       );
     }
 
-    patcher.obfuscationMapPath = obfuscationMapFile?.path;
+    patcher
+      ..obfuscationMapPath = obfuscationMapFile?.path
+      ..assetsOnly = assetsOnly;
 
     // Build extra args to inject into the Flutter build command. These use
     // --extra-gen-snapshot-options= because they're passed through Flutter's

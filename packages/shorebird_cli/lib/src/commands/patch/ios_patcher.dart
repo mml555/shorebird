@@ -189,7 +189,13 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
       p.join(appDirectory.path, 'Frameworks', 'App.framework', 'App'),
     );
 
-    final useLinker = AotTools.usesLinker(shorebirdEnv.flutterRevision);
+    // An assets-only patch carries no code, and the patch command drops the code
+    // bundles before upload — so linking here would produce a `.vmcode` that is
+    // immediately discarded. Skipping it also drops the only dependency on
+    // `aot-tools.dill` (Shorebird's AOT linker, which we cannot build), which is
+    // what makes an assets-only iOS patch possible without their toolchain.
+    final useLinker =
+        !assetsOnly && AotTools.usesLinker(shorebirdEnv.flutterRevision);
     if (useLinker) {
       apple.copySupplementFilesToSnapshotDirs(
         releaseSupplementDir: releaseSupplementDir,

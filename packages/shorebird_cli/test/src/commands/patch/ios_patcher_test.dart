@@ -1161,6 +1161,51 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
           ).thenReturn(genSnapshotFile.path);
         });
 
+        group('when the patch is assets-only', () {
+          setUp(() {
+            patcher.assetsOnly = true;
+            setUpProjectRootArtifacts();
+          });
+
+          test('does not invoke the linker', () async {
+            await runWithOverrides(
+              () => patcher.createPatchArtifacts(
+                appId: appId,
+                releaseId: releaseId,
+                releaseArtifact: releaseArtifactFile,
+              ),
+            );
+
+            // The revision DOES support the linker — this group's setUp makes
+            // usesLinker true — so this asserts assetsOnly is what suppresses
+            // it. Linking is the only step needing aot-tools.dill, so skipping
+            // it is what lets an assets-only iOS patch be built without
+            // Shorebird's AOT linker.
+            verifyNever(
+              () => apple.runLinker(
+                kernelFile: any(named: 'kernelFile'),
+                aotOutputFile: any(named: 'aotOutputFile'),
+                releaseArtifact: any(named: 'releaseArtifact'),
+                splitDebugInfoArgs: any(named: 'splitDebugInfoArgs'),
+                vmCodeFile: any(named: 'vmCodeFile'),
+              ),
+            );
+          });
+
+          test('leaves link percentage unset', () async {
+            await runWithOverrides(
+              () => patcher.createPatchArtifacts(
+                appId: appId,
+                releaseId: releaseId,
+                releaseArtifact: releaseArtifactFile,
+              ),
+            );
+
+            // Nothing was linked, so reporting a percentage would be a fiction.
+            expect(patcher.linkPercentage, isNull);
+          });
+        });
+
         group('when linking fails', () {
           group('when .app does not exist', () {
             setUp(() {
