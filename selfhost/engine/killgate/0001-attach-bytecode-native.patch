@@ -157,6 +157,29 @@ index c6bfb48c..a6792581 100644
    V(Internal_allocateOneByteString, 1)                                         \
    V(Internal_allocateTwoByteString, 1)                                         \
    V(Internal_writeIntoOneByteString, 3)                                        \
+diff --git a/runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc b/runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc
+index 0f90cbc2..7eeaf012 100644
+--- a/runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc
++++ b/runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc
+@@ -607,6 +607,18 @@ void FlowGraphCompiler::EmitOptimizedStaticCall(
+   ASSERT(!function.IsClosureFunction());
+   if (function.PrologueNeedsArgumentsDescriptor()) {
+     __ LoadObject(ARGS_DESC_REG, arguments_descriptor);
++#if defined(DART_DYNAMIC_MODULES)
++  } else if (FLAG_precompiled_mode && !arguments_descriptor.IsNull()) {
++    // Patchability (selfhost): if this callee's body is later replaced with
++    // bytecode, the call enters through the InterpretCall stub, which reads the
++    // arguments descriptor out of ARGS_DESC_REG. Nothing else supplies it for a
++    // resolved static call in AOT, so the stub read garbage and faulted.
++    //
++    // The descriptor is a compile-time constant here, so this costs one pool
++    // entry plus one load per static call site, and only when dynamic modules
++    // are enabled -- stock builds are untouched.
++    __ LoadObject(ARGS_DESC_REG, arguments_descriptor);
++#endif
+   } else {
+     if (!FLAG_precompiled_mode) {
+       __ LoadImmediate(ARGS_DESC_REG, 0);  // GC safe smi zero because of stub.
 diff --git a/sdk/lib/_internal/vm/lib/internal_patch.dart b/sdk/lib/_internal/vm/lib/internal_patch.dart
 index d13d7f8e..80a14b04 100644
 --- a/sdk/lib/_internal/vm/lib/internal_patch.dart

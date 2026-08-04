@@ -239,6 +239,50 @@ Status after this: **execution proven, redirection proven, entry convention is t
 open item.** None of it requires their fork — it requires a patch to vanilla Dart of
 the kind we already maintain (the existing shim is 57 lines).
 
+### Entry convention: two routes tried, both ruled out for concrete reasons
+
+**Route 1 — supply the arguments descriptor at the call site.** `EmitOptimizedStaticCall`
+(`flow_graph_compiler_arm64.cc:598`) already receives `arguments_descriptor` and loads
+it when `PrologueNeedsArgumentsDescriptor()`; in AOT it otherwise loads nothing, because
+the `else` branch is JIT-only. Patching it to always load the descriptor under
+`DART_DYNAMIC_MODULES` costs one pool entry and one load per call site (pool grew
+2,237 → 2,244) and is kept, because the descriptor is genuinely required.
+
+It is **not sufficient.** The fault only moved, `0xfffffff814b2186f` → `0x7`: a
+near-null dereference. The `InterpretCall` stub also needs the callee **`Function` in
+`FUNCTION_REG`**, and a resolved static call never passes it — on arm64 that register
+is carrying an argument. So a static call site cannot be redirected to that stub
+whatever the pool slot says.
+
+**Route 2 — leave the calls unlinked.** During precompilation, static call sites
+initially target the `CallStaticFunction` stub and `Precompiler`'s code visitor
+(`precompiler.cc:2092`) rewrites them to the resolved target. Its own comment notes it
+"[doesn't] properly replace the old references to the CallStaticFunction stub". If that
+binding were skipped for patchable functions, dispatch would resolve through the
+`Function` at runtime and `AttachBytecode` alone would suffice — no pool rewrite at all.
+
+But the `CallStaticFunction` path is JIT machinery: it calls into the runtime to *patch
+the call site*, which means writing executable memory. Illegal on iOS. So leaving calls
+unlinked trades one impossible write for another.
+
+### What that leaves — and it is a specific compiler feature, not research
+
+Both dead ends share one cause: **AOT's static-call convention passes neither the
+callee `Function` nor a descriptor**, because it does not expect the callee to change.
+So a patchable call must be *emitted differently at release time* — a form that keeps
+the callee `Function` in a pool slot, loads it into `FUNCTION_REG`, loads the
+descriptor, and branches through `Function::entry_point_`.
+
+Everything that form touches at runtime is **data**: a pool slot and a field read. No
+executable page is written, so it is iOS-legal — and patching becomes exactly what we
+already proved works (`AttachBytecode` repoints `entry_point_`), with no pool rewrite
+needed at all.
+
+That is a new call-emission mode in the compiler, gated on `DART_DYNAMIC_MODULES`, and
+it is the next piece of work. It also sharpens the release-time story: an app must be
+*built* patchable, and this is what "built patchable" concretely means — a somewhat
+slower, slightly larger call sequence for functions we want to be able to replace.
+
 The remaining honest caveat: this is macOS arm64, not iOS. iOS adds code signing
 and a stricter W^X posture, but it is the same precompiled runtime and the same
 interpreter — a port of a proven mechanism rather than an open question.
