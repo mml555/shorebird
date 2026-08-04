@@ -52,7 +52,18 @@ class Cache {
   Cache() {
     registerArtifact(PatchArtifact(cache: this, platform: platform));
     registerArtifact(BundleToolArtifact(cache: this, platform: platform));
-    registerArtifact(AotToolsArtifact(cache: this, platform: platform));
+    // aot_tools is Shorebird's AOT linker, invoked only by the Apple patchers,
+    // which cannot run without Xcode. On a non-macOS host it can never be used,
+    // so registering it there only forces a download from their bucket that
+    // nothing will read — and `updateAll` fetches every registered artifact,
+    // so that download happened on every Android release and patch too.
+    //
+    // Keeping it off non-Apple hosts means Android work on Linux does not
+    // depend on `aot-tools.dill` at all.
+    // See selfhost/UPSTREAM_INDEPENDENCE.md item 7.
+    if (platform.isMacOS) {
+      registerArtifact(AotToolsArtifact(cache: this, platform: platform));
+    }
   }
 
   /// Register a new [CachedArtifact] with the cache.

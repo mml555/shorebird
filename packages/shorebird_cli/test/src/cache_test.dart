@@ -193,6 +193,44 @@ void main() {
       });
     });
 
+    group('aot_tools registration', () {
+      /// Every URL `updateAll` actually requested.
+      List<String> requestedUrls() => verify(
+        () => httpClient.send(captureAny()),
+      ).captured.cast<http.BaseRequest>().map((r) => r.url.toString()).toList();
+
+      test('is not fetched on a non-macOS host', () async {
+        setMockPlatform(Platform.linux);
+        final linuxCache = runWithOverrides(Cache.new);
+
+        await runWithOverrides(() => linuxCache.updateAll(Duration.zero));
+
+        // aot_tools is only invoked by the Apple patchers, which need Xcode.
+        // Fetching it on Linux is a dependency on Shorebird's bucket that
+        // nothing can ever use — and it happened on every Android release.
+        expect(
+          requestedUrls().where((u) => u.contains('aot-tools')),
+          isEmpty,
+          reason: 'Android work on Linux must not depend on aot-tools.dill',
+        );
+      });
+
+      test(
+        'is fetched on macOS, where the Apple patchers can use it',
+        () async {
+          setMockPlatform(Platform.macOS);
+          final macCache = runWithOverrides(Cache.new);
+
+          await runWithOverrides(() => macCache.updateAll(Duration.zero));
+
+          expect(
+            requestedUrls().where((u) => u.contains('aot-tools')),
+            isNotEmpty,
+          );
+        },
+      );
+    });
+
     group('updateAll', () {
       group('patch', () {
         group('fileName', () {
