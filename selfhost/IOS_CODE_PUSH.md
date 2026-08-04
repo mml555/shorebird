@@ -196,6 +196,49 @@ loading-unit split) is a *release-time* choice — a patch cannot retrofit it on
 app that was built without it. Whatever we adopt has to be baked into how releases
 are built, exactly as Shorebird's layout pinning is.
 
+### The pool rewrite works. The stub it lands on does not (yet).
+
+Implemented the rewrite in the gate's native: capture the target's `Code` before
+attaching, then walk the single global object pool
+(`ObjectStore::global_object_pool()`) and repoint every slot holding that `Code`.
+
+```
+ATTACH: pool len=2237, rewrote 1 slot(s) (other Code slots=836)
+ATTACH: C++ invoke of target returned: NEW
+===== CRASH =====  si_signo=Segmentation fault, si_code=SEGV_ACCERR
+```
+
+It found **exactly the one slot** for the call site, out of 2,237 entries — the
+redirection surface is real and precisely addressable. Then the call through it
+crashed, and the cause is in the stub
+(`runtime/vm/compiler/stub_code_compiler.cc:230`):
+
+```cpp
+if (!FLAG_precompiled_mode) {
+  __ LoadCompressedFieldFromOffset(CODE_REG, FUNCTION_REG, ...);
+#if defined(DART_DYNAMIC_MODULES)
+  // InterpretCall stub needs arguments descriptor for all function calls.
+  __ LoadObject(ARGS_DESC_REG, ArgumentsDescriptorBoxed(...));
+#endif
+}
+```
+
+**The arguments-descriptor setup is guarded by `!FLAG_precompiled_mode`.** In AOT
+nothing populates `ARGS_DESC_REG`, so entering `InterpretCall` from an AOT call site
+reads a garbage descriptor and faults. That is why the C++ path succeeds and the
+Dart path does not: `DartEntry::InvokeFunction` builds a real descriptor and calls
+`Interpreter::Call` directly, bypassing the stub.
+
+So the remaining gap is **one specific, well-scoped VM modification**: make the
+`InterpretCall` path viable in precompiled mode by deriving the arguments descriptor
+from the callee `Function` (its parameter counts are right there in `FUNCTION_REG`)
+instead of expecting a caller-provided register. Upstream never needed this because
+dynamic modules are only entered through the generic invoke path.
+
+Status after this: **execution proven, redirection proven, entry convention is the
+open item.** None of it requires their fork — it requires a patch to vanilla Dart of
+the kind we already maintain (the existing shim is 57 lines).
+
 The remaining honest caveat: this is macOS arm64, not iOS. iOS adds code signing
 and a stricter W^X posture, but it is the same precompiled runtime and the same
 interpreter — a port of a proven mechanism rather than an open question.

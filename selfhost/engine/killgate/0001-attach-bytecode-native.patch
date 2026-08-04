@@ -1,8 +1,8 @@
 diff --git a/runtime/lib/object.cc b/runtime/lib/object.cc
-index 39d530be..e9e6f24e 100644
+index 39d530be..a267382f 100644
 --- a/runtime/lib/object.cc
 +++ b/runtime/lib/object.cc
-@@ -627,6 +627,106 @@ DEFINE_NATIVE_ENTRY(Internal_loadDynamicModule, 0, 1) {
+@@ -627,6 +627,142 @@ DEFINE_NATIVE_ENTRY(Internal_loadDynamicModule, 0, 1) {
  #endif  // defined(DART_DYNAMIC_MODULES)
  }
  
@@ -76,12 +76,48 @@ index 39d530be..e9e6f24e 100644
 +    // InterpretCall stub, with this bytecode as its body.
 +    OS::PrintErr("ATTACH: before -> IsInterpreted=%d HasBytecode=%d\n",
 +                 target.IsInterpreted() ? 1 : 0, target.HasBytecode() ? 1 : 0);
++    // Captured BEFORE the attach: object pool slots still reference this Code,
++    // and AttachBytecode does not touch them.
++    const auto& old_code = Code::Handle(zone, target.CurrentCode());
 +    target.AttachBytecode(bc);
 +    // Confirm the VM state actually changed. If this says IsInterpreted=1 and
 +    // callers still reach the old body, the gap is call-site binding, not the
 +    // primitive.
 +    OS::PrintErr("ATTACH: after  -> IsInterpreted=%d HasBytecode=%d\n",
 +                 target.IsInterpreted() ? 1 : 0, target.HasBytecode() ? 1 : 0);
++
++    // THE BINDER, in miniature. AttachBytecode repoints Function.code_ and the
++    // entry point, but a pool slot was baked with its target resolved at snapshot
++    // time and still holds the old Code -- which is why every call shape kept
++    // running the old body. AOT uses one global pool, so this is a single walk.
++    //
++    // Pool entries are DATA, which is what makes this legal on iOS: no executable
++    // page is written. PC-relative call sites cannot be fixed this way at all,
++    // which is why the release has to be built with --force_indirect_calls (or a
++    // loading-unit split) for a patch to be able to land.
++    const auto& new_code = Code::Handle(zone, target.CurrentCode());
++    const auto& pool = ObjectPool::Handle(
++        zone, thread->isolate_group()->object_store()->global_object_pool());
++    if (pool.IsNull()) {
++      OS::PrintErr("ATTACH: no global object pool\n");
++    } else {
++      intptr_t rewritten = 0;
++      intptr_t code_slots = 0;
++      auto& entry = Object::Handle(zone);
++      for (intptr_t i = 0; i < pool.Length(); i++) {
++        if (pool.TypeAt(i) != ObjectPool::EntryType::kTaggedObject) continue;
++        entry = pool.ObjectAt(i);
++        if (entry.ptr() == old_code.ptr()) {
++          pool.SetObjectAt(i, new_code);
++          rewritten++;
++        } else if (entry.IsCode()) {
++          code_slots++;
++        }
++      }
++      OS::PrintErr("ATTACH: pool len=%" Pd ", rewrote %" Pd " slot(s) "
++                   "(other Code slots=%" Pd ")\n",
++                   pool.Length(), rewritten, code_slots);
++    }
 +  }
 +
 +  // Invoke the target from C++, OUTSIDE the program_lock (invoking Dart while
