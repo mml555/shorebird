@@ -1,11 +1,22 @@
 <!-- cspell:words dartsdk prebuilts bidiff vmcode aot daemonized crashprobe jewgo azureuser sshkey serverinfo -->
 
-# Handoff — engine improvements (as of 2026-07-30)
+# Handoff — engine improvements (as of 2026-08-04)
 
-**Next up:** [`ENGINE_PARITY_PLAN.md`](ENGINE_PARITY_PLAN.md) — the staged plan
-for getting our engine changes onto iOS as well as Android, and for being able to
-add the next one without upstream. Start there.
-([`FORK_REBUILD.md`](FORK_REBUILD.md) is the earlier scoping it supersedes.)
+**Next up: [Track E](#track-e--ios-code-push-the-binder) below.** The iOS
+code-push kill gate **passed** on 2026-08-04 — interpreted patch execution is
+proven in a precompiled runtime, on our own engine, with no access to Shorebird's
+private Dart fork. What remains is one well-defined compiler feature, described
+there with file:line pointers. Read [`IOS_CODE_PUSH.md`](IOS_CODE_PUSH.md) for the
+full evidence chain first; it is the most important document in this directory now.
+
+Also new: [`UPSTREAM_INDEPENDENCE.md`](UPSTREAM_INDEPENDENCE.md) is the single
+tracker for every remaining dependency on upstream Shorebird (7 of 10 items now
+built, not merely mirrored).
+
+Background: [`ENGINE_PARITY_PLAN.md`](ENGINE_PARITY_PLAN.md) is the staged plan
+these tracks execute. ([`FORK_REBUILD.md`](FORK_REBUILD.md) is earlier scoping it
+supersedes.) [`AOT_LINKER_FEASIBILITY.md`](AOT_LINKER_FEASIBILITY.md) sizes the
+linker work by reading the Dart SDK.
 
 Working notes for whoever picks this up next. Product documentation lives in
 [`ENGINE_IMPROVEMENTS.md`](ENGINE_IMPROVEMENTS.md) (front door),
@@ -291,6 +302,141 @@ Assembling this was most of the work. The pieces and why each is needed:
    (`.../shorebird_updater/<app_id>/patches/<N>/`). Derive from the patch file's
    dirname; never rebuild the path from `app_storage_path`.
 
+### Track E — iOS code push (the binder)
+
+**Status: execution PROVEN, one compiler feature remains.** Full evidence and
+reasoning: [`IOS_CODE_PUSH.md`](IOS_CODE_PUSH.md). Harness and result:
+[`engine/killgate/`](engine/killgate).
+
+The premise this track overturned: we assumed iOS code push required reproducing
+Shorebird's private Dart fork, because it needs an interpreter for patched code.
+**It does not.** Vanilla Dart 3.12.2 already ships the interpreter, the
+`InterpretCall` stub, and `Function::AttachBytecode` — all behind the
+`dart_dynamic_modules` GN flag, which defaults off. It is a build-config flip, not
+new VM code.
+
+What has been demonstrated on a real build (macOS arm64, release AOT):
+
+| Question | Result |
+|---|---|
+| Interpreter present in a precompiled runtime | **Yes** — 48 `Interpreter` symbols + `_InterpretCall` in `dartaotruntime` |
+| An AOT function's body replaceable at runtime | **Yes** — `AttachBytecode`, `IsInterpreted` 0 → 1 |
+| Interpreter executes the replacement | **Yes** — returned `NEW` via `DartEntry::InvokeFunction` |
+| Call site locatable and rewritable | **Yes** — found 1 of 2,237 global-pool slots |
+| Entering the interpreter *from* an AOT call site | **No** — see below |
+
+#### The remaining work, precisely
+
+AOT's static-call convention passes **neither the callee `Function` nor an
+arguments descriptor**, because it never expects the callee to change. Two routes
+were tried and both are ruled out for concrete reasons (details in
+`IOS_CODE_PUSH.md`):
+
+- Supplying the descriptor at the call site is **necessary but not sufficient** —
+  `InterpretCall` also wants the `Function` in `FUNCTION_REG`, which on arm64 is
+  carrying an argument. The fault merely moved (`0x…186f` → `0x7`).
+- Leaving calls **unlinked** so they resolve through the `Function` would work in
+  principle, but `CallStaticFunction` is JIT machinery that patches the call site
+  — i.e. writes executable memory. Illegal on iOS.
+
+**So the next task is a new call-emission mode**, gated on `DART_DYNAMIC_MODULES`,
+for functions we want replaceable: keep the callee `Function` in a pool slot, load
+it into `FUNCTION_REG`, load the descriptor, branch through
+`Function::entry_point_`. Everything it touches at runtime is **data** (a pool slot
+and a field read), so it is iOS-legal — and patching then reduces to
+`AttachBytecode` repointing `entry_point_`, needing no pool rewrite at all.
+
+Where to work:
+- `runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc:598`
+  `EmitOptimizedStaticCall` — already carries `arguments_descriptor`; our
+  descriptor-loading change is here.
+- `…:397` `GenerateStaticDartCall` — the two existing forms (PC-relative vs
+  pool-mediated) to model the third on.
+- `…/flow_graph_compiler.cc:3535` `CanPcRelativeCall` — `precompiled_mode &&
+  !force_indirect_calls && same_loading_unit`, the switch between them.
+- `runtime/vm/compiler/stub_code_compiler_arm64.cc:3137`
+  `GenerateInterpretCallStub` — the register contract to satisfy (`R0` Function,
+  `R4` descriptor).
+
+**Release-time consequence to settle early:** an app must be *built* patchable.
+`--force_indirect_calls` alone costs ~4% snapshot size (measured: 838,560 →
+871,520 bytes on a toy program); the new mode will cost a little more. A patch
+cannot retrofit this onto an app already shipped, exactly as Shorebird's layout
+pinning cannot be retrofitted.
+
+#### The macOS build rig (new, and the thing to reuse)
+
+Everything lives on the external SSD at `/Volumes/build` — **APFS, deliberately
+named without spaces**, because `depot_tools`/`gclient`/GN break on paths
+containing them.
+
+```
+/Volumes/build/ios-engine/
+  depot_tools/     # pinned, DEPOT_TOOLS_UPDATE=0
+  flutter/         # shorebirdtech/flutter @ c15ef63794 (the pinned flutter_revision)
+  dart-sdk/        # OUR fork: vanilla d684a576 + the 57-line shim, served over file://
+```
+
+Scripts, all in [`engine/killgate/`](engine/killgate):
+- `build_host_for_gate.sh` — waits for the sync, applies our engine patches,
+  configures and builds. **Read its comments before changing flags**; three of
+  them encode failures that cost real time.
+- `0001-attach-bytecode-native.patch` — the SDK side (176 insertions, 5 files):
+  the `attachBytecodeToFunction` native, its registration, the `dart:_internal`
+  declaration, the pool rewrite, and the descriptor-loading compiler change.
+- `run.sh` — runs the gate. Honors `GEN_SNAPSHOT_FLAGS`
+  (e.g. `--force_indirect_calls`). Refuses to run unless
+  `dart_dynamic_modules = true` is actually in `args.gn`.
+
+Build invocation that works:
+
+```bash
+export PATH=/Volumes/build/ios-engine/depot_tools:$PATH
+cd /Volumes/build/ios-engine/flutter/engine/src
+./flutter/tools/gn --runtime-mode=release --mac-cpu arm64 \
+    --no-prebuilt-dart-sdk --dart-dynamic-modules
+ninja -C out/host_release_arm64 -j8 \
+    gen_snapshot dartaotruntime dart dart_sdk vm_platform.dill
+```
+
+Four things in that command are load-bearing, each learned the hard way:
+1. **`--mac-cpu arm64`** — `tools/gn` defaults it to `x64` even on Apple silicon
+   (`tools/gn:971`), which makes the Rust updater target `x86_64-apple-darwin` and
+   fail with `can't find crate for 'core'`. It also changes the output directory
+   to `out/host_release_arm64`.
+2. **`--no-prebuilt-dart-sdk`** — mandatory for us. DEPS pulls a prebuilt macOS
+   Dart SDK from `gs://shorebird-dart-sdk-prebuilt`, which is private and 401s.
+   `.gclient` also sets `custom_vars: {download_dart_sdk: False}` to skip it. It is
+   the **only** private bucket in DEPS; everything else is public.
+3. **Named targets, not the default all-targets** — the default pulls in ANGLE,
+   whose Metal shader compilation fails on Xcode 26 without a separately
+   downloaded Metal Toolchain. Named targets are 1,549 vs 11,462 and skip it.
+4. **`--dart-dynamic-modules`** — the whole point. Verify it reached
+   `out/host_release_arm64/args.gn`; a silently dropped GN arg wastes hours.
+
+First full build: ~8 minutes. Incremental after a runtime edit: ~1 minute.
+
+#### Gate gotchas that will bite again
+
+- **`dart2bytecode` takes source, not a `.dill`.** Feed it a `.dill` and it tries
+  to tokenize the binary as Dart and dies while reporting the error (an OOM inside
+  the diagnostic). Real usage: `dart2bytecode --platform vm_platform.dill
+  [--import-dill host.dill] input.dart`.
+- **Use `gen_kernel.dart`, not `dart compile kernel`,** when the library URI
+  matters: the latter takes a file path and rejects a `package:` URI, but the URI
+  recorded in the snapshot is what the native looks up at runtime.
+- **AOT drops library dictionaries**, so runtime name lookup fails until the target
+  carries `@pragma('vm:entry-point')`. That is a *gate* limitation only — a real
+  linker identifies targets from the snapshot's tables at build time.
+- **Keep a test replacement body self-contained.** The first one called `print()`
+  and died in `bytecode_reader.cc:1172` with `Unable to find function print in
+  Library:'dart:core'` — that is the *binding* problem, and letting it in makes a
+  binding failure look like an execution failure.
+- **`--import-dill` crashes the CFE** when handed an AOT (tree-shaken) kernel:
+  `DillExtensionBuilder`, null check on null. Probably wants a non-AOT kernel.
+  Unresolved, and it matters — `--import-dill` is upstream's channel for compiling
+  a module against a host program, so binding work will hit it.
+
 ### Track C — hot restart
 
 **Not started.** Needs the engine build loop, so agree the design before touching
@@ -369,6 +515,25 @@ Do not re-learn these:
 
 ## Live environment (may need reverting)
 
+- **macOS build host (new, 2026-08-03/04):** this Mac — 10 cores, 64 GB RAM,
+  Xcode 26.6. It is the **only** host that can build iOS/macOS engines, and it is
+  where Track E happens. All build state is on an external SSD at
+  **`/Volumes/build`** (1 TB APFS, ~390 GB free with media restored). Two hazards:
+  - **Keep the SSD plugged in directly, not through a hub.** It detached mid-write
+    once while behind a VIA Labs hub, taking a transfer and a build with it. The
+    telltale was a `USB Billboard Device` from the same vendor with the SSD absent
+    entirely. Direct-attached it has been stable. `diskutil verifyVolume` after any
+    detach — the one time it happened, APFS came back clean, but do not assume.
+  - **Never run a long job as a harness background task.** Harness cleanup killed
+    these jobs twice. Use a detached screen:
+    `screen -dmS <name> bash -c 'caffeinate -is ./script.sh'`. `caffeinate`
+    prevents idle sleep, which is the other thing that killed one.
+- **Media on the SSD:** `/Volumes/build/media` holds 513 GB (2,055 files) restored
+  from the server and **MD5-verified byte-identical** on 2026-08-04. The server
+  still has the authoritative copy under `/mnt/spare/ssd-backup` and
+  `/data/ssd-backup`, so the SSD copy is disposable if space is needed. Note
+  `/mnt/spare` is the old 220 GB `/data` disk, now in `/etc/fstab` with `nofail`
+  (backup at `/etc/fstab.bak-20260803`).
 - **Build host:** Hermes VPS `20.120.104.70`. **SSH is on port 13549 as user
   `jewgo`**, not 22 as `azureuser` — port 22 is filtered, so the box looks dead
   if you assume the default (`ssh -i sshkey20.120.104.70.pem -p 13549
@@ -396,6 +561,28 @@ Do not re-learn these:
 
 ## Pending actions (things that are prepared but NOT done)
 
+- **Track E's next step: the new call-emission mode.** Specified above with
+  file:line pointers; nothing blocks starting it. It is arm64 codegen work, not
+  research. The `dartaotruntime`/`gen_snapshot` in
+  `/Volumes/build/ios-engine/.../out/host_release_arm64` already carry the native,
+  the pool rewrite and the descriptor change, so the edit/build/test loop is ~1
+  minute.
+- **The SDK changes exist only on the SSD**, captured as
+  `engine/killgate/0001-attach-bytecode-native.patch` (176 insertions, 5 files).
+  The checkout itself is **not** in git — reapply the patch to
+  `engine/src/flutter/third_party/dart` if the checkout is ever recreated.
+- **`--import-dill` CFE crash is unresolved** and is likely on the critical path
+  for binding. See Track E gotchas.
+- **iOS device verification of assets-only patches has not been run.** The CLI side
+  now skips the linker for `--assets-only`
+  (`ios_patcher.dart` / `ios_framework_patcher.dart`), which is what makes an iOS
+  patch producible without `aot-tools.dill`, and it has unit tests — but it has
+  never been exercised against a device. That is the cheapest remaining iOS win,
+  and it does **not** depend on Track E at all.
+- **Serve the `patch` differ from the overlay.** `engine/publish_patch_tool.sh`
+  builds and packages it (output verified byte-identical to Shorebird's), but the
+  overlay's `shorebird/<rev>/` still only carries the manifest and provenance, so
+  the CLI still fetches theirs. Small, mechanical.
 - ~~`code_push_server` 1.3.0 is prepped but unpublished.~~ **Published
   2026-07-30** from tag `code_push_server-v1.3.0`: multi-arch (amd64 + arm64)
   at `ghcr.io/mml555/code-push-server:1.3.0`, pulled and booted healthy, and it
