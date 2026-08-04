@@ -75,7 +75,17 @@ note "AOT-compiling $TARGET_URI"
   --platform "$OUT/vm_platform.dill" --aot \
   --packages .dart_tool/package_config.json \
   -o target.dill "$TARGET_URI"
-"$GEN_SNAPSHOT" --snapshot_kind=app-aot-elf --elf=target.aot target.dill
+# GEN_SNAPSHOT_FLAGS lets the caller change how call sites are emitted, which is
+# the whole question for the binder. In particular:
+#
+#   GEN_SNAPSHOT_FLAGS=--force_indirect_calls
+#
+# suppresses PC-relative calls (flow_graph_compiler.cc:62), so every static call
+# goes through an object pool entry instead of a `bl` immediate baked into the
+# instruction stream. Pool entries are DATA, so they can be rewritten at runtime
+# on iOS, where code pages cannot be.
+"$GEN_SNAPSHOT" ${GEN_SNAPSHOT_FLAGS:-} \
+  --snapshot_kind=app-aot-elf --elf=target.aot target.dill
 
 # --- 2. the replacement body -> bytecode --------------------------------------
 # dart2bytecode's real interface (lib/dart2bytecode.dart:143) is

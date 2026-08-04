@@ -143,6 +143,59 @@ does. Nothing in the VM is missing; the missing piece is the **binder**. That is
 much better position than the one this document started from, where writing an
 interpreter was on the table.
 
+## Where the binder has to act — measured 2026-08-04
+
+AOT emits static calls in **two forms**, and the difference decides whether a
+patch is possible on iOS at all
+(`runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc:397`):
+
+```cpp
+if (CanPcRelativeCall(target)) {
+  __ GenerateUnRelocatedPcRelativeCall();   // a `bl` immediate, in the instruction stream
+} else {
+  // "Call sites to the same target can share object pool entries."
+  __ BranchLinkWithEquivalence(StubCode::CallStaticFunction(), target, entry_kind);
+}
+```
+
+- **PC-relative** lives in **code**. iOS will not let us write code pages, so a
+  call site of this form can never be redirected at runtime.
+- **Pool-mediated** goes through an object pool entry, which is **data**, and data
+  is writable on iOS.
+
+`CanPcRelativeCall` (`flow_graph_compiler.cc:3535`) is `precompiled_mode &&
+!FLAG_force_indirect_calls && same_loading_unit`. So there are exactly two ways to
+force every static call onto the patchable path: the **`--force_indirect_calls`**
+flag, or putting patchable code in a **separate loading unit**.
+
+**Both halves tested.** `--force_indirect_calls` is honored — the same program's
+snapshot grows 838,560 → 871,520 bytes (+4%), which is the expected cost of
+replacing `bl` immediates with pool loads. But the gate's result did **not**
+change: all four call shapes still ran the old body.
+
+That isolates the remaining work exactly:
+
+> Making calls indirect is **necessary but not sufficient**. A pool entry is baked
+> with the target resolved at snapshot time, and `Function::AttachBytecode` updates
+> `Function.code_` and the entry point — **not** the pool entries that already
+> point at the old `Code`.
+
+So the binder's core operation is now concrete and small: **after attaching, rewrite
+every object-pool entry that references a patched function's old `Code`** so it
+resolves to the interpreted version instead. Nothing needs to be discovered about
+the VM to do that; it is a walk over data.
+
+This is also, finally, a satisfying explanation of the fork's flag set. The object
+pool is the *redirection surface*, which is why `op` is one of only two spaces
+carrying both `--base_op_link_data` **and** `--patch_op_link_data`: the patch has to
+know the base's pool layout to rewrite the right slots, and hand its own forward for
+the next patch.
+
+**Consequence worth deciding early:** shipping with `--force_indirect_calls` (or a
+loading-unit split) is a *release-time* choice — a patch cannot retrofit it onto an
+app that was built without it. Whatever we adopt has to be baked into how releases
+are built, exactly as Shorebird's layout pinning is.
+
 The remaining honest caveat: this is macOS arm64, not iOS. iOS adds code signing
 and a stricter W^X posture, but it is the same precompiled runtime and the same
 interpreter — a port of a proven mechanism rather than an open question.
