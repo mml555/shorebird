@@ -13,9 +13,65 @@ If yes, the iOS execution model is proven and the remaining work is the *binder*
 we learn which assumption in [`../../IOS_CODE_PUSH.md`](../../IOS_CODE_PUSH.md) is
 wrong for the price of one build instead of months of linker work.
 
-**Status: prepared, not yet run.** These files were written against the Dart 3.12.2
-source while the engine was still building. They have not been compiled. Expect to
-fix at least the exact spelling of one or two internal APIs — noted inline.
+## RESULT — run 2026-08-04: the execution model works
+
+```
+ATTACH: before -> IsInterpreted=0 HasBytecode=0
+ATTACH: after  -> IsInterpreted=1 HasBytecode=1
+ATTACH: C++ invoke of target returned: NEW      <-- interpreter ran the new body
+after  direct   : OLD
+after  tear-off : OLD
+after  dynamic  : OLD
+after  apply    : OLD
+```
+
+**Answered: yes.** In a precompiled (AOT) runtime, on macOS arm64, a function the
+snapshot already contained was repointed at interpreted bytecode
+(`IsInterpreted` 0 → 1) and **executed the new body**, returning `NEW` when invoked
+through `DartEntry::InvokeFunction`. No JIT, no new executable pages. That is the
+iOS execution model, proven.
+
+**What does not work yet, and it is the predicted thing:** every Dart-side call
+site still reaches the old code. All four shapes — direct, tear-off, dynamic,
+`Function.apply` — returned `OLD`. In AOT these are all statically bound: the
+direct call's target was resolved at compile time, and the tear-off is a constant
+closure whose code was baked in, so `Function.apply` on it never re-resolves the
+function's current code and never reaches the `IsInterpreted()` branch.
+
+So the remaining work is **call-site binding**, which is exactly what a linker
+does — and exactly why Shorebird pins the object pool and reports a link
+percentage. It is not a VM capability gap.
+
+This splits the risk cleanly:
+
+| Question | Status |
+|---|---|
+| Does an interpreter exist in an AOT runtime? | **Yes** — 48 `Interpreter` symbols + `_InterpretCall` in `dartaotruntime` |
+| Can an AOT function's body be replaced at runtime? | **Yes** — `AttachBytecode`, `IsInterpreted` 0 → 1 |
+| Does the interpreter execute the replacement? | **Yes** — returned `NEW` |
+| Do existing call sites reach it? | **No** — needs call-site rewriting (the binder) |
+| Does patch bytecode bind to the base snapshot? | **Not yet** — see the `print` finding below |
+
+### Two findings worth keeping
+
+**Binding is real and shows up immediately.** The first replacement body called
+`print()`, and the run died in `bytecode_reader.cc:1172` with
+`Unable to find function print in Library:'dart:core'`. A patch's bytecode
+references do **not** resolve against the base snapshot for free. Keeping the
+replacement self-contained is what let the execution question be answered
+separately — the discipline paid for itself.
+
+**AOT drops library dictionaries.** `Library::LookupFunctionAllowPrivate` could not
+find `greet` until it was marked `@pragma('vm:entry-point')`. That is a *gate*
+limitation, not a design constraint: a real linker identifies patch targets from
+the snapshot's tables at build time, not by runtime name lookup.
+
+### Reproducing
+
+`0001-attach-bytecode-native.patch` (128 insertions across 4 files) carries the
+SDK side: the native, its registration, and the `dart:_internal` declaration.
+Apply it to `engine/src/flutter/third_party/dart`, rebuild
+`dartaotruntime gen_snapshot dart dart_sdk vm_platform.dill`, then run `run.sh`.
 
 ## Why host macOS first, not iOS
 

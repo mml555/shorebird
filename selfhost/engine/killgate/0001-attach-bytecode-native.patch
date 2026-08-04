@@ -1,0 +1,172 @@
+diff --git a/runtime/lib/object.cc b/runtime/lib/object.cc
+index 39d530be..e9e6f24e 100644
+--- a/runtime/lib/object.cc
++++ b/runtime/lib/object.cc
+@@ -627,6 +627,106 @@ DEFINE_NATIVE_ENTRY(Internal_loadDynamicModule, 0, 1) {
+ #endif  // defined(DART_DYNAMIC_MODULES)
+ }
+ 
++DEFINE_NATIVE_ENTRY(Internal_attachBytecodeToFunction, 0, 3) {
++#if defined(DART_DYNAMIC_MODULES)
++  GET_NON_NULL_NATIVE_ARGUMENT(TypedDataBase, module_bytes,
++                               arguments->NativeArgAt(0));
++  GET_NON_NULL_NATIVE_ARGUMENT(String, library_uri, arguments->NativeArgAt(1));
++  GET_NON_NULL_NATIVE_ARGUMENT(String, target_name, arguments->NativeArgAt(2));
++
++  // Copy into malloc'd memory owned by an ExternalTypedData, exactly as
++  // Internal_loadDynamicModule does: the loader keeps a reference to these
++  // bytes beyond this call, so they cannot live in the Dart heap.
++  const intptr_t length = module_bytes.LengthInBytes();
++  uint8_t* data = reinterpret_cast<uint8_t*>(::malloc(length));
++  if (data == nullptr) {
++    const auto& exception = Instance::Handle(
++        zone, thread->isolate_group()->object_store()->out_of_memory());
++    Exceptions::Throw(thread, exception);
++  }
++  {
++    NoSafepointScope no_safepoint;
++    memcpy(data, module_bytes.DataAddr(0), length);  // NOLINT
++  }
++  const ExternalTypedData& typed_data = ExternalTypedData::Handle(
++      zone,
++      ExternalTypedData::New(kExternalTypedDataUint8ArrayCid, data, length));
++
++  auto& loaded = Function::Handle(zone);
++  auto& target = Function::Handle(zone);
++
++  {
++    // AttachBytecode asserts the caller is the program_lock writer, and the
++    // loader requires it too.
++    SafepointWriteRwLocker ml(thread, thread->isolate_group()->program_lock());
++
++    bytecode::BytecodeLoader loader(thread, typed_data);
++    loaded = loader.LoadBytecode();
++    if (loaded.IsNull()) {
++      OS::PrintErr("ATTACH: LoadBytecode returned null\n");
++      return Bool::False().ptr();
++    }
++
++    // Resolve the function to be replaced in the already-compiled program.
++    const auto& lib =
++        Library::Handle(zone, Library::LookupLibrary(thread, library_uri));
++    if (lib.IsNull()) {
++      OS::PrintErr("ATTACH: library not found: %s\n", library_uri.ToCString());
++      return Bool::False().ptr();
++    }
++    target = lib.LookupFunctionAllowPrivate(target_name);
++    if (target.IsNull()) {
++      OS::PrintErr("ATTACH: function %s not found in %s\n", target_name.ToCString(), library_uri.ToCString());
++      return Bool::False().ptr();
++    }
++
++    // The gate's premise: the target is an ordinary AOT-compiled function.
++    // If it is already interpreted, the test proves nothing.
++    if (target.IsInterpreted()) {
++      OS::PrintErr("ATTACH: target already interpreted\n");
++      return Bool::False().ptr();
++    }
++
++    const auto& bc = Bytecode::Handle(zone, loaded.GetBytecode());
++    if (bc.IsNull()) {
++      OS::PrintErr("ATTACH: loaded entry carries no bytecode (%s)\n", loaded.ToCString());
++      return Bool::False().ptr();
++    }
++
++    // This is the operation under test: repoint an AOT function's entry at the
++    // InterpretCall stub, with this bytecode as its body.
++    OS::PrintErr("ATTACH: before -> IsInterpreted=%d HasBytecode=%d\n",
++                 target.IsInterpreted() ? 1 : 0, target.HasBytecode() ? 1 : 0);
++    target.AttachBytecode(bc);
++    // Confirm the VM state actually changed. If this says IsInterpreted=1 and
++    // callers still reach the old body, the gap is call-site binding, not the
++    // primitive.
++    OS::PrintErr("ATTACH: after  -> IsInterpreted=%d HasBytecode=%d\n",
++                 target.IsInterpreted() ? 1 : 0, target.HasBytecode() ? 1 : 0);
++  }
++
++  // Invoke the target from C++, OUTSIDE the program_lock (invoking Dart while
++  // holding it would deadlock). This is the discriminator: if this prints NEW,
++  // the interpreter executes the attached bytecode correctly and every Dart-side
++  // call shape is simply bound to the old code. If it prints OLD, the attach
++  // changed state that nothing consults.
++  {
++    const auto& result =
++        Object::Handle(zone, DartEntry::InvokeFunction(target, Object::empty_array()));
++    if (result.IsError()) {
++      OS::PrintErr("ATTACH: C++ invoke error: %s\n", Error::Cast(result).ToErrorCString());
++    } else {
++      OS::PrintErr("ATTACH: C++ invoke of target returned: %s\n", result.ToCString());
++    }
++  }
++
++  return Bool::True().ptr();
++#else
++  // Built without dart_dynamic_modules: report it rather than pretending.
++  return Bool::False().ptr();
++#endif  // defined(DART_DYNAMIC_MODULES)
++}
++
+ DEFINE_NATIVE_ENTRY(Internal_ensureDeeplyImmutable, 0, 1) {
+   GET_NATIVE_ARGUMENT(Instance, value, arguments->NativeArgAt(0));
+   value.EnsureDeeplyImmutable(zone);
+diff --git a/runtime/vm/bootstrap_natives.h b/runtime/vm/bootstrap_natives.h
+index c6bfb48c..a6792581 100644
+--- a/runtime/vm/bootstrap_natives.h
++++ b/runtime/vm/bootstrap_natives.h
+@@ -273,6 +273,7 @@ namespace dart {
+   V(Internal_prependTypeArguments, 4)                                          \
+   V(Internal_instantiateClosure, 2)                                            \
+   V(Internal_loadDynamicModule, 1)                                             \
++  V(Internal_attachBytecodeToFunction, 3)                                      \
+   V(Internal_allocateOneByteString, 1)                                         \
+   V(Internal_allocateTwoByteString, 1)                                         \
+   V(Internal_writeIntoOneByteString, 3)                                        \
+diff --git a/sdk/lib/_internal/vm/lib/internal_patch.dart b/sdk/lib/_internal/vm/lib/internal_patch.dart
+index d13d7f8e..80a14b04 100644
+--- a/sdk/lib/_internal/vm/lib/internal_patch.dart
++++ b/sdk/lib/_internal/vm/lib/internal_patch.dart
+@@ -476,6 +476,20 @@ Future<Object?> loadDynamicModule({Uri? uri, Uint8List? bytes}) {
+ @pragma("vm:external-name", "Internal_loadDynamicModule")
+ external Object? _loadDynamicModule(Uint8List bytes);
+ 
++@patch
++bool attachBytecodeToFunction(
++  Uint8List bytecode,
++  String libraryUri,
++  String targetName,
++) => _attachBytecodeToFunction(bytecode, libraryUri, targetName);
++
++@pragma("vm:external-name", "Internal_attachBytecodeToFunction")
++external bool _attachBytecodeToFunction(
++  Uint8List bytecode,
++  String libraryUri,
++  String targetName,
++);
++
+ @patch
+ @pragma("vm:entry-point")
+ abstract interface class IsolateGroup {
+diff --git a/sdk/lib/internal/internal.dart b/sdk/lib/internal/internal.dart
+index 6df7e6c2..0ce5e72a 100644
+--- a/sdk/lib/internal/internal.dart
++++ b/sdk/lib/internal/internal.dart
+@@ -1146,6 +1146,19 @@ bool isToStringVisiting(Object object) {
+ /// Returns a future containing the result of the entry point method.
+ external Future<Object?> loadDynamicModule({Uri? uri, Uint8List? bytes});
+ 
++/// Replaces the body of an already-compiled [targetName] in [libraryUri] with
++/// the function contained in [bytecode], which is then run interpreted.
++///
++/// Added for the self-hosted iOS code-push kill gate: unlike
++/// [loadDynamicModule], which runs a module's own entry point, this REPLACES an
++/// existing function. Returns false if the target or bytecode cannot be
++/// resolved, so a harness error stays distinguishable from a VM refusal.
++external bool attachBytecodeToFunction(
++  Uint8List bytecode,
++  String libraryUri,
++  String targetName,
++);
++
+ /// Helper class to create `bool Function(Object?)` functions which
+ /// perform an `v is T` type test.
+ ///

@@ -116,12 +116,36 @@ build rather than months of linker work.
 **Do not build the linker first.** A perfect patch that cannot execute is worth
 nothing, and this gate is days, not months.
 
-## Honest status
+## Status — the gate has been run, and it passed on execution
 
-This is a **source read, not a result**. Nothing here has been built or run. It
-establishes that the pieces exist upstream and that the design is coherent; it does
-**not** establish that a patched function executes on an iPhone. The gate above is
-what would.
+**2026-08-04, macOS arm64, release AOT build with `dart_dynamic_modules=true`:**
+a function the snapshot already contained was repointed at interpreted bytecode
+(`IsInterpreted` 0 → 1) and **executed the new body** — `NEW` instead of `OLD` —
+via `DartEntry::InvokeFunction`. No JIT, no new executable pages. Full evidence in
+[`engine/killgate/README.md`](engine/killgate).
+
+This also settles Phase 4's never-run experiment #2: the interpreter survives a
+release AOT build. `dartaotruntime` carries 48 `Interpreter` symbols and the
+`_InterpretCall` stub.
+
+**What is now proven vs. what remains:**
+
+| Question | Answer |
+|---|---|
+| Interpreter present in an AOT runtime | **Yes** |
+| An AOT function's body replaceable at runtime | **Yes**, `AttachBytecode` |
+| Interpreter executes the replacement | **Yes** |
+| Existing call sites reach it | **No** — all four shapes (direct, tear-off, dynamic, `Function.apply`) still ran the old code |
+| Patch bytecode binds to the base snapshot | **No** — a body calling `print()` failed with `Unable to find function print in Library:'dart:core'` |
+
+The two "no" rows are items (2) and (3) above, and they are precisely what a linker
+does. Nothing in the VM is missing; the missing piece is the **binder**. That is a
+much better position than the one this document started from, where writing an
+interpreter was on the table.
+
+The remaining honest caveat: this is macOS arm64, not iOS. iOS adds code signing
+and a stricter W^X posture, but it is the same precompiled runtime and the same
+interpreter — a port of a proven mechanism rather than an open question.
 
 What it does change is the estimate's shape: we are no longer contemplating writing
 an interpreter and a dispatch mechanism, which is the part that would genuinely have
