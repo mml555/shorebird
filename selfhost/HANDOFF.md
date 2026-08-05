@@ -1,6 +1,6 @@
 <!-- cspell:words dartsdk prebuilts bidiff vmcode aot daemonized crashprobe jewgo azureuser sshkey serverinfo -->
 <!-- cspell:words APFS CODEPATCH PRECOMPILER Werror caffeinate dartaotruntime SEGVs Specializer diskutil dumpsys flowgraph iface killgate libdart nodm nofail precompiler unapply -->
-<!-- cspell:words tearoff DNDEBUG SEGV LINKEDIT ourengine noinstall SELTOTAL hosttest unrun closurizing closurized closurize closurization bodyless pids footgun mtimes repointed rbtest -->
+<!-- cspell:words tearoff DNDEBUG SEGV LINKEDIT ourengine noinstall SELTOTAL hosttest unrun closurizing closurized closurize closurization bodyless pids footgun mtimes repointed rbtest Devirtualization genkernel -->
 
 # Handoff — engine improvements (as of 2026-08-04)
 
@@ -289,6 +289,34 @@ The TFA work is its own compiler-correctness project with one success criterion:
 **These patches stay until a replacement passes the same bar**: clean rebuild
 (no diagnostics in any shipped artifact), app to first frame, and an on-device
 patch round-trip.
+
+##### TFA root cause (2026-08-05): located, not yet fixed
+
+Written up in full in [`TFA_ROOT_CAUSE.md`](TFA_ROOT_CAUSE.md); tooling kept in
+[`engine/tools/`](engine/tools/). The headline:
+
+**The table-selector metadata is broken in the `frontend_server` path and
+correct in the `gen_kernel` path** — same app, same platform dill, same flags,
+only the frontend binary differs:
+
+| | `List.length` | `List.[]` | implausible `call_count`s |
+|---|---|---|---|
+| `frontend_server` (what Flutter uses) | **0** | **0** | **86**, top value 1,040,450,688 |
+| `gen_kernel` | **200** | **416** | 0 |
+
+So TFA is not merely conservative — the counts are mis-associated with selector
+IDs, and some entries hold values that are not counts at all. Devirtualization
+itself is healthy (140,000 direct-call hits vs 13,766 misses), so this is
+specific to the selector table.
+
+Consequence for retirement, assuming the metadata gets fixed: patch 2 goes,
+half of patch 3 goes, and **patches 1 and 4 stay** — those two are backend
+invariants (no closurized implicit accessors; no dispatch call to a bodyless
+graph intrinsic) that were merely discovered while chasing this. A separate,
+independent bug also fell out: `TableSelectorAssigner._selectorIdForMember`
+returns the *getter's* selector id when asked for a setter's, because
+`_getterMemberIds` is keyed by Kernel `Name`, which does not distinguish
+setters. That is why patch 3's regular-methods-only rule is load-bearing.
 
 ##### Test results attached to this work (2026-08-05)
 
@@ -598,16 +626,15 @@ Ruled out along the way:
 
 Next diagnostics, in order of expected value:
 
-1. **Why does TFA report `call_count == 0` for these selectors?** That is the
-   whole bug now. `Map._fromLiteral` is `@pragma("vm:entry-point", "call")` and
-   is invoked by the VM's `BuildMapLiteral`, not from Dart source, so TFA counts
-   the calls in its body only if it treats that pragma as an analysis root. Look
-   at `pkg/vm/lib/transformations/type_flow/` (`summary_collector.dart`,
-   `table_selector_assigner.dart`), and specifically at whether TFA models the
-   element list as `_List` while the VM passes a const `_ImmutableList`.
-2. **Compare against a dill from the stock frontend_server** — the clean
-   ours-vs-theirs split, still unrun. If stock's dill has `call_count > 0` for
-   `get:length`, the bug is in our frontend, not our backend.
+1. ~~**Why does TFA report `call_count == 0` for these selectors?**~~
+   **Answered 2026-08-05 — see [`TFA_ROOT_CAUSE.md`](TFA_ROOT_CAUSE.md).** Not
+   the entry-point-pragma theory guessed here: `Map._fromLiteral`'s body *is*
+   analyzed and the two call sites *are* left virtual. The counts are lost in
+   the `frontend_server` path specifically; `gen_kernel` on the identical input
+   reports 200 and 416.
+2. **Compare against a dill from the stock frontend_server** — still unrun, and
+   now the highest-value remaining step: it splits "upstream `frontend_server`
+   bug that stock tolerates" from "something in our invocation".
 3. Stock's snapshot of our dill is **44 % larger** (951 k vs 662 k lines of
    assembly), so their fork very likely retains far more and would mask exactly
    this class of bug. Worth confirming — it means "stock compiles it" is *not*
