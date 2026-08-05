@@ -1,6 +1,6 @@
 <!-- cspell:words dartsdk prebuilts bidiff vmcode aot daemonized crashprobe jewgo azureuser sshkey serverinfo -->
 <!-- cspell:words APFS CODEPATCH PRECOMPILER Werror caffeinate dartaotruntime SEGVs Specializer diskutil dumpsys flowgraph iface killgate libdart nodm nofail precompiler unapply -->
-<!-- cspell:words tearoff DNDEBUG SEGV LINKEDIT ourengine noinstall SELTOTAL hosttest unrun closurizing closurized closurize closurization bodyless pids footgun -->
+<!-- cspell:words tearoff DNDEBUG SEGV LINKEDIT ourengine noinstall SELTOTAL hosttest unrun closurizing closurized closurize closurization bodyless pids footgun mtimes repointed rbtest -->
 
 # Handoff — engine improvements (as of 2026-08-04)
 
@@ -362,26 +362,123 @@ Not blockers on the engine, but real:
   keeps working, so nothing is broken today; the exposure is the *next* Android
   engine rebuild, which silently picks up all four changes.
 
-  **Prepared, not done.** The build box's Dart tree is now patched and verified
+  **RESOLVED 2026-08-05 — Android round-trip passes on the rebuilt compiler.**
+  Engine `760e3fab` unchanged (already device-verified 2026-07-31); the only
+  variable was the rebuilt host `gen_snapshot`. On CPH2551:
+
+  | step | screen |
+  |---|---|
+  | release install | `CODEPATCH-V1 patch: null` |
+  | patch apply | `CODEPATCH-V2 patch: 1` |
+  | rollback | `CODEPATCH-V1 patch: null` |
+
+  Server logged the whole chain on a **separate** Android instance
+  (`cps-android`, port 18081) — `patches/check`, `__patch_install__` with
+  `patch_number: 1`, then `withdraw?rollback=true`. The iOS rig on 18080 was
+  never touched. Engine identity inside the APK confirmed by marker rather than
+  hash (AGP strips the packaged `.so`): `dlc.assets` ×1 and `vmcode` ×2 are
+  specific to `760e3fab`, and the stock `69f9831c` revision string is absent.
+
+  Three setup facts worth keeping:
+
+  - **Gradle 8+ refuses insecure Maven repos**, and Flutter's gradle plugin
+    declares the repo itself, so the opt-in cannot live in the app. The mirror's
+    HTTPS listener normally solves this, but it is down mid-migration to Caddy.
+    Worked around with a **localhost-scoped** init script at
+    `/data/gradle-home/init.d/selfhost-allow-insecure-mirror.gradle` — it can
+    never loosen a real remote repo. Remove it once HTTPS is back.
+  - **`760e3fab` is now self-contained.** The Jul 31 publish deliberately reused
+    the host toolchain from the previous hash, so its overlay had no
+    `flutter_patched_sdk.zip`; clearing `artifacts/engine/common` on the box
+    turned that into a hard 404. Published ours from
+    `out/host_debug/flutter_patched_sdk`. Never substitute upstream's copy.
+  - The fresh server has no apps, and app ids are **server-generated**
+    (`POST /api/v1/apps` ignores a requested id), so `rbtest`'s
+    `shorebird.yaml` was repointed at a new id and `base_url` moved to 18081.
+    Backup alongside it.
+
+  **2026-08-05 earlier: the compiler change does NOT touch the Android engine
+  binary.** Rebuilt `android_release_arm64` on the VPS after applying the patch
+  series. ninja rebuilt **10 objects in 85 seconds** — all compiler-side — and
+  the outputs say the rest plainly:
+
+  | artifact | result |
+  |---|---|
+  | `artifacts.zip` (device engine), `symbols.zip` | **not rebuilt** (mtimes unchanged) |
+  | `linux-x64.zip` (host `gen_snapshot`) | rebuilt |
+
+  `libflutter.so` was never relinked, so `0004`/`0005`/`0006` are isolated to
+  the AOT compiler on Android exactly as they are on iOS. What still needs
+  device proof is therefore *apps compiled by the new `gen_snapshot`*, not a new
+  engine.
+
+  Also caught, and the reason `dart_patches.sh` earned its keep on day one: the
+  VPS **build tree** (`src/flutter/engine/src/flutter/third_party/dart`) was
+  unpatched — only the *fork source* at `src/dart-sdk` had been patched. Two
+  different checkouts, one of which is what actually gets compiled. `--verify`
+  found it in seconds; without it the rebuild would have silently produced the
+  old compiler and "verified" nothing.
+
+  **`fc184af6` is NOT the current Android engine — this section used to imply it
+  was, and that is what made the Jul 31 rebuild look like a discrepancy.**
+  `compatibility.yaml` has the real chain:
+
+  | hash | is | device_verified |
+  |---|---|---|
+  | `fc184af6` | Route B asset resolver | ✅ 2026-07-30 |
+  | `5b1a8965` | `fc184af6` + the `PatchCarriesCode()` guard | ✗ |
+  | **`760e3fab`** | `5b1a8965` + the Rust updater's assets-patch support | ✅ **2026-07-31** |
+
+  `760e3fab` is the current one and it is already device-verified on physical
+  Android arm64: a patch with no code artifact at all was installed as
+  `dlc.assets` and the app booted with it active. Build non-determinism is ruled
+  out — two clean builds were proven byte-identical that day (blast radius 1 of
+  7,366 objects), which is what makes the content-addressed naming meaningful.
+
+  The VPS tree is exactly that source state, confirmed two ways: its
+  `artifacts.zip` is **byte-identical** to the published `760e3fab` copy
+  (`ecdcb458…`), and its `libflutter.so` sha256 begins
+  `760e3fabffbf31b4e86919a0ef47d6ce5f182991` — the hash *is* the content.
+
+  So the compiler change is cleanly isolable on Android: republish **only** the
+  rebuilt `linux-x64.zip` under the unchanged `760e3fab`, exactly as iOS
+  republished a new `gen_snapshot` under an unchanged `70974f81`. One variable.
+
+  **Still to do for the device proof.** The build box's Dart tree is now patched and verified
   (`dart_patches.sh --dest /data/shorebird-engine/src/dart-sdk --verify` → all
   four applied on the pinned base), and CPH2551 is attached to the Mac over USB,
   so the device half is ready. What remains is the build itself, and it is not a
   quick job:
 
-  - `20.120.104.70` has **4 cores** and **40 GB free on `/data` (92 % full)**,
-    and its `out/` directories are gone. A full `android_release_arm64` build is
-    multi-hour and disk-tight — clear space before starting, and run it detached
-    (`screen -dmS … caffeinate -is …`), never as a harness background task.
+  - `20.120.104.70` has **4 cores**, and its `out/` directories are gone. Disk
+    is no longer the constraint — the media archive was removed on 2026-08-05,
+    so `/data` has **378 GB free** and `/mnt/spare` **195 GB**. Cores are: a
+    full `android_release_arm64` build there is multi-hour on 4 of them. Run it
+    detached (`screen -dmS … caffeinate -is …`), never as a harness background
+    task. The Mac is ~2.5× faster if you accept the `gclient sync` hazard below.
   - Then: publish to the overlay under the new hash, add it to
     `experimental_hashes.map`, and run the same round-trip the original proof
     used — **release install → patch apply → rollback**, on the physical device,
     with `adb reverse tcp:18080 tcp:18080`.
+
+  **Hazard if you build Android on the Mac instead** (10 cores and 371 GB free
+  make it the better host, but its checkout has `android_tools/sdk` and **no
+  NDK**, so it needs `target_os = ['android']` in `.gclient` plus a
+  `gclient sync`): that sync resets `engine/src/flutter/third_party/dart` to the
+  pinned fork commit `6b58bb3a` and therefore **silently discards `0004`,
+  `0005` and `0006`**. `managed: False` protects the *flutter* checkout's git
+  state, not the DEPS-managed subtrees. Recovery is one command now —
+  `dart_patches.sh --dest … --apply` — and `--verify` is what catches it before
+  you waste a build. Run verify after any `gclient sync`, always.
   - Until that passes, treat Android on a *rebuilt* engine as unverified. The
     existing `fc184af6` artifact stays valid on its own terms.
 - The CLI still fetches `aot-tools.dill` during cache warm-up for
   `--assets-only`, so an iOS patch is independent at *use* level but not at
   *cache* level.
-- Two dev secrets leaked into transcripts earlier; rotate via `setup.sh`.
+- **Three** dev secrets have now leaked into transcripts; rotate via `setup.sh`.
+  The third is the `code_push_server` `API_KEY` (`sb_api_98a7…`), echoed on
+  2026-08-05 while editing the Android release script. It is shared by the
+  `cps-ios` and `cps-android` instances.
 - The engine patches, the `code_push_runtime` assets-only work and these docs
   are committed as `c4b708a4` on `feat/engine-improvements`. The Dart tree
   itself is **not** in git — reapply `0004`/`0005`/`0006` (and the `0002` GN
@@ -1182,12 +1279,25 @@ Do not re-learn these:
     these jobs twice. Use a detached screen:
     `screen -dmS <name> bash -c 'caffeinate -is ./script.sh'`. `caffeinate`
     prevents idle sleep, which is the other thing that killed one.
-- **Media on the SSD:** `/Volumes/build/media` holds 513 GB (2,055 files) restored
-  from the server and **MD5-verified byte-identical** on 2026-08-04. The server
-  still has the authoritative copy under `/mnt/spare/ssd-backup` and
-  `/data/ssd-backup`, so the SSD copy is disposable if space is needed. Note
-  `/mnt/spare` is the old 220 GB `/data` disk, now in `/etc/fstab` with `nofail`
-  (backup at `/etc/fstab.bak-20260803`).
+- **Media on the SSD — THIS IS NOW THE ONLY COPY. Do not delete it.**
+  `/Volumes/build/media` holds 513 GB (2,055 files), **MD5-verified
+  byte-identical** on 2026-08-04. On 2026-08-05 both server copies were deleted
+  to free the build box, so the earlier note here — "the SSD copy is disposable
+  if space is needed" — is **inverted and must not be followed**.
+
+  Before deleting, every server file was matched against the SSD by path and
+  byte size: `/data/ssd-backup` (338 GB, 1545 files, `tv`) and
+  `/mnt/spare/ssd-backup` (176 GB, 510 files, `movie` + `tv`) were **disjoint
+  halves**, not copies of each other, and all 2055 files were present on the SSD
+  with zero discrepancies. That freed `/data` 40 GB → 378 GB and `/mnt/spare`
+  19 GB → 195 GB.
+
+  The consequence: this media has no second copy anywhere, and it lives on an
+  external SSD that has already detached mid-write once (see the hub hazard
+  above). If it matters, give it a real backup.
+
+  Note `/mnt/spare` is the old 220 GB `/data` disk, now in `/etc/fstab` with
+  `nofail` (backup at `/etc/fstab.bak-20260803`).
 - **Build host:** Hermes VPS `20.120.104.70`. **SSH is on port 13549 as user
   `jewgo`**, not 22 as `azureuser` — port 22 is filtered, so the box looks dead
   if you assume the default (`ssh -i sshkey20.120.104.70.pem -p 13549

@@ -1,3 +1,4 @@
+# cspell:words CODEPATCH
 # Compatibility manifest — the pinned Shorebird revisions this self-hosted
 # control plane supports. "Current upstream" is NOT a target: a new
 # CLI/updater/engine revision is unsupported until the compatibility suite
@@ -145,6 +146,30 @@ experimental:
                                        # a path no app-side AssetBundle can
                                        # intercept. Font and shader stayed at
                                        # their APK values as controls.
+        corrected_compiler_verified: true
+          # 2026-08-05, physical Android arm64 (CPH2551, USB). Re-verified after
+          # engine/0004+0005+0006 corrected the AOT compiler. THIS ENGINE BINARY
+          # IS UNCHANGED: ninja rebuilt 10 compiler objects and only
+          # linux-x64.zip (host gen_snapshot); artifacts.zip and symbols.zip
+          # were not relinked, and the rebuilt artifacts.zip is byte-identical
+          # to the published copy (ecdcb458…). So the round-trip isolates the
+          # compiler change to one variable.
+          #
+          # release install -> CODEPATCH-V1 patch: null
+          # patch apply     -> CODEPATCH-V2 patch: 1
+          # rollback        -> CODEPATCH-V1 patch: null
+          #
+          # Run against a SEPARATE control plane (cps-android, :18081) so the
+          # iOS rig on :18080 stayed untouched. Engine identity inside the APK
+          # was confirmed by marker, not hash — AGP strips the packaged .so —
+          # via dlc.assets x1 and vmcode x2, with the stock 69f9831c revision
+          # string absent.
+          #
+          # Also republished under this same hash: flutter_patched_sdk.zip. The
+          # 2026-07-31 publish reused the host toolchain from the previous hash,
+          # so this hash had none of its own; that is fine until someone clears
+          # bin/cache/artifacts/engine/common, at which point it 404s. The hash
+          # is now self-contained.
     - hash: 5b1a89658709b9a0d2e76c6f3d47ad1a26eecdee   # fc184af6 + the assets-only patch guard
       falls_back_to: 69f9831c360d9152862ec3897c67fb09ae843f3b
       flutter_revision: c15ef6379403a0a55531a058bdb2c8e55bc05c98
