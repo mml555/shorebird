@@ -319,6 +319,15 @@ frontend that produces the clean column and simply do not ship it;
 `$FLUTTER_STORAGE_BASE_URL/flutter_infra_release/flutter/<engine hash>/`, the
 path the overlay CDN already intercepts.
 
+**Verified on iOS, 2026-08-05.** With our frontend installed and patches 2 and 3a
+reverted: clean rebuild, release `29.0.0+1` published, first frame on device,
+assets patch applied, rollback — all pass. **Android has not been through this
+yet and keeps all four patches until it does.** Three traps sit between
+"published to the overlay" and "actually used" (`update_dart_sdk.sh` is gated on
+the flutter-tool stamp, the Shorebird CLI snapshot is version-locked to the Dart
+SDK, and `const_finder` is version-locked to the frontend) — all three are
+written up in [`TFA_ROOT_CAUSE.md`](TFA_ROOT_CAUSE.md).
+
 Consequence for retirement: **patch 2 and half of patch 3 are coupled to that
 swap** and must not be retired before it — against the stock frontend they are
 load-bearing. **Patches 1 and 4 stay** regardless; they are backend invariants

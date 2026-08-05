@@ -154,18 +154,67 @@ before it.** Retiring them against the stock frontend re-opens the original
 with no diagnostics in any shipped artifact, app to first frame, and an
 on-device patch round-trip on both platforms.
 
-## Next steps, in order
+## Verification, 2026-08-05 — iOS passes with patches 2 and 3a removed
 
-1. **Publish our host `dart-sdk` to the overlay** under the current engine hash,
-   both `darwin-arm64` and `linux-x64`.
-2. **Rebuild `gen_snapshot` with patch 2 and patch 3a reverted** and run the full
-   retirement bar against a build that uses our frontend.
-3. **Check what else Shorebird's frontend was providing.** The DD two-pass build
-   (`App.dispatch_table.json`, `App.dt.link`, and friends in
-   `.dart_tool/flutter_build/`) is fork-specific. We already disable it via
-   `--dd-max-bytes=0` and our patcher does not use the AOT linker, so the
-   expected impact is none — but confirm rather than assume before swapping.
-4. **Decide whether `_selectorIdForMember` is worth an upstream bug report.** It
+Done in the order above, one variable at a time.
+
+**1. Publish our host `dart-sdk`.** Already published — `dart-sdk-darwin-arm64.zip`
+(revision `6b58bb3a`) had been sitting under engine hash `70974f81` and
+`dart-sdk-linux-x64.zip` under `760e3fab` all along. **It was never installed.**
+See "Three traps" below; this is the reason the fork's frontend stayed in play
+despite the overlay being correct.
+
+**2. What Shorebird's frontend contributed: nothing.** All six link-info files
+(`App.ct.link`, `App.class_table.json`, `App.dt.link`, `App.dispatch_table.json`,
+`App.ft.link`, `App.field_table.json`) are written by **`gen_snapshot`** from
+flags `flutter_tools` passes at `base/build.dart:216-220`, and are already our
+`0005` stubs. The DD path is likewise backend-only —
+`gen_snapshot --print_dd_function_identity_to` at `build.dart:415` plus
+`analyze_snapshot --compute_dd_*`. `flutter_tools` passes no fork-only flag to
+`frontend_server`; its argument list is stock, and `extraFrontEndOptions` carries
+only what the user supplies.
+
+**3. Backend rebuilt with patch 2 and patch 3a removed.** Restored: the
+`IsUsed()` test in `SelectorMap::GetSelector(int32_t)`, the `IsUsed()`
+requirement on row retention, the `torn_off` gate on extractor creation, and the
+`metadata.has_tearoff_uses` gate in `precompiler.cc`. Kept: `IsRegularFunction()`,
+`tearoff_sid != sid`, the six flag stubs, and `0006`. Note the AOT compiler is not
+linked into a release runtime, so `Flutter.framework`'s binary is unchanged and
+the engine hash stays `70974f81`.
+
+**4. Retirement bar, iOS:** clean rebuild ✓ · release published (`29.0.0+1`) ✓ ·
+first frame on device ✓ · assets patch applied on device ✓ · rollback ✓.
+No `NoSuchMethodError`, no `Unexpected tag 4 (Field)`, no
+`ConcurrentModificationError`.
+
+**Android is still outstanding** and the patches must stay in the Android
+toolchain until it passes the same bar: install our `dart-sdk-linux-x64`, rebuild
+the Android `gen_snapshot` with the same reverts, then the device round-trip.
+
+### Three traps between "published to the overlay" and "actually used"
+
+1. **`update_dart_sdk.sh` almost never runs.** `shared.sh:152` calls it only
+   inside the branch that recompiles the flutter tool, which is gated on
+   `bin/cache/flutter_tools.stamp` and the Flutter git revision — *not* on the
+   engine version. We only ever rewrite `bin/internal/engine.version`, so the
+   branch never fires and the Dart SDK stays whatever was installed the day the
+   Flutter checkout was first bootstrapped. To force it: set `engine.version`
+   first, then `rm -f bin/cache/flutter_tools.stamp bin/cache/engine-dart-sdk.stamp`
+   and run `flutter --version`. Confirm with `cat bin/cache/dart-sdk/revision`.
+2. **The Shorebird CLI snapshot is version-locked to the Dart SDK.** Swapping the
+   SDK makes every `shorebird` invocation die with `Wrong full snapshot version`.
+   `rm -f ~/.shorebird/bin/cache/shorebird.stamp` to force a rebuild.
+3. **`const_finder` is version-locked to the frontend.** It reads `app.dill` and
+   checks the SDK hash baked into it, and our `zip_archives` rule does not include
+   it, so the build silently keeps Shorebird's copy and dies at the icon tree
+   shaker with `ConstFinder failure: Can't load Kernel binary: Invalid SDK hash`.
+   `publish_ios_overlay.sh` now injects it; build it with
+   `ninja -C out/host_debug_arm64 flutter/tools/const_finder`.
+
+## Remaining
+
+1. **Android.** As above — the same swap and the same bar.
+2. **Decide whether `_selectorIdForMember` is worth an upstream bug report.** It
    is a real latent defect in vanilla Dart, currently unreachable there.
 
 ## Reproducing

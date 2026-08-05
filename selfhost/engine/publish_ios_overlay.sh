@@ -126,6 +126,23 @@ publish_host "$HOST_DBG/zip_archives/darwin-arm64/artifacts.zip"      "darwin-ar
 # ours at the same size, and mixing it with our compiler yields the opaque
 # "Unexpected tag 4 (Field)" from ReadUntilFunctionNode.
 publish_host "$HOST_DBG/zip_archives/flutter_patched_sdk.zip"         "flutter_patched_sdk.zip"
+
+# const_finder reads app.dill and checks the SDK hash baked into it, so it is
+# version-locked to the frontend the same way dartaotruntime is. Our zip_archives
+# rule does not include it (stock's does), so a build would silently keep
+# Shorebird's Jun-30 copy and die at the icon-tree-shaker step with
+#   IconTreeShakerException: ConstFinder failure: Can't load Kernel binary:
+#   Invalid SDK hash.
+# Inject ours. `ninja -C out/host_debug_arm64 flutter/tools/const_finder` builds it.
+CF="$HOST_DBG/gen/const_finder.dart.snapshot"
+if [[ -f "$CF" ]]; then
+  ( cd "$(dirname "$CF")" && zip -q "$HASH_DIR/darwin-arm64/artifacts.zip" const_finder.dart.snapshot )
+  echo "    darwin-arm64/artifacts.zip += const_finder.dart.snapshot  ($(du -h "$CF" | cut -f1))"
+else
+  echo "    MISSING const_finder.dart.snapshot (expected at $CF)" >&2
+  MISSING_HOST=1
+fi
+
 if (( MISSING_HOST )); then
   echo "warning: host toolchain incomplete — a release built against $HASH will" >&2
   echo "         404 on the missing piece rather than silently using stock bytes." >&2
