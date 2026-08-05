@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:mason_logger/mason_logger.dart';
-import 'package:path/path.dart' as p;
 import 'package:meta/meta.dart';
+import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/archive/directory_archive.dart';
 import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
@@ -13,6 +13,7 @@ import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/commands/patch/patch.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/config/config.dart';
+import 'package:shorebird_cli/src/dart_sdk_compatibility.dart';
 import 'package:shorebird_cli/src/deployment_track.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/extensions/string.dart';
@@ -445,6 +446,16 @@ Building with Flutter $flutterVersionString to determine the release version...
     return await runScoped(
       () async {
         await cache.updateAll();
+
+        // After updateAll, so the cache is populated, and before anything
+        // invokes Flutter. A frontend/backend mismatch here builds cleanly and
+        // fails on the device instead.
+        try {
+          dartSdkCompatibility.validate();
+        } on DartSdkMismatchException catch (error) {
+          logger.err('$error');
+          throw ProcessExit(ExitCode.config.code);
+        }
 
         final bundles = <ReleasePlatform, Map<Arch, PatchArtifactBundle>>{};
         final sidecars = <ReleasePlatform, PatchSidecars>{};

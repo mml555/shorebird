@@ -13,6 +13,8 @@ import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/checksum_checker.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/code_signer.dart';
+import 'package:shorebird_cli/src/dart_sdk_compatibility.dart';
+import 'package:shorebird_cli/src/dd_support.dart';
 import 'package:shorebird_cli/src/doctor.dart';
 import 'package:shorebird_cli/src/engine_config.dart';
 import 'package:shorebird_cli/src/executables/executables.dart';
@@ -72,6 +74,8 @@ Command: shorebird ${args.join(' ')}
           checksumCheckerRef,
           codePushClientWrapperRef,
           codeSignerRef,
+          dartSdkCompatibilityRef,
+          ddSupportRef,
           devicectlRef,
           diffRef,
           dittoRef,

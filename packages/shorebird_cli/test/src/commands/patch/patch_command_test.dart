@@ -16,6 +16,7 @@ import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/commands/patch/patch.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/config/config.dart';
+import 'package:shorebird_cli/src/dart_sdk_compatibility.dart';
 import 'package:shorebird_cli/src/deployment_track.dart';
 import 'package:shorebird_cli/src/executables/executables.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
@@ -124,6 +125,7 @@ void main() {
     late ArtifactBuilder artifactBuilder;
     late ArtifactManager artifactManager;
     late Cache cache;
+    late DartSdkCompatibility dartSdkCompatibility;
     late CodePushClientWrapper codePushClientWrapper;
     late ShorebirdLogger logger;
     late Patcher patcher;
@@ -145,6 +147,9 @@ void main() {
             () => BuildTraceSession(commandStartedAt: DateTime(2023)),
           ),
           cacheRef.overrideWith(() => cache),
+          dartSdkCompatibilityRef.overrideWith(
+            () => dartSdkCompatibility,
+          ),
           codePushClientWrapperRef.overrideWith(() => codePushClientWrapper),
           loggerRef.overrideWith(() => logger),
           shorebirdEnvRef.overrideWith(() => shorebirdEnv),
@@ -181,6 +186,7 @@ void main() {
       when(artifactBuilder.writeBuildTraceSummary).thenReturn(null);
       artifactManager = MockArtifactManager();
       cache = MockCache();
+      dartSdkCompatibility = MockDartSdkCompatibility();
       codePushClientWrapper = MockCodePushClientWrapper();
       logger = MockShorebirdLogger();
       progress = MockProgress();
@@ -1300,6 +1306,31 @@ void main() {
           () => runWithOverrides(command.run),
           exitsWithCode(ExitCode.software),
         );
+      });
+    });
+
+    group('when the Dart SDK does not match the engine', () {
+      setUp(() {
+        when(() => dartSdkCompatibility.validate()).thenThrow(
+          DartSdkMismatchException(
+            engineRevision: '70974f81',
+            expectedDartSdkRevision: '6b58bb3a',
+            actualDartSdkRevision: 'db98bdaa',
+            flutterDirectory: '/flutter',
+            shorebirdRoot: '/shorebird',
+          ),
+        );
+      });
+
+      test('fails with the remediation instead of building', () async {
+        await expectLater(
+          () => runWithOverrides(command.run),
+          exitsWithCode(ExitCode.config),
+        );
+        verify(
+          () => logger.err(any(that: contains('bin/internal/engine.version'))),
+        ).called(1);
+        verifyNever(() => patcher.buildPatchArtifact());
       });
     });
 

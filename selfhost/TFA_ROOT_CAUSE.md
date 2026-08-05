@@ -202,6 +202,38 @@ bootstrapped while `engine.version` already pointed at our hash, so
 doing anything on Android; the July device proof passed despite them, not because
 of them. Only the Mac was mixed, and only because its cache predates the overlay.
 
+### The CLI now refuses to build on a mismatch
+
+`packages/shorebird_cli/lib/src/dart_sdk_compatibility.dart` checks
+`bin/cache/dart-sdk/revision` against the engine named by
+`bin/internal/engine.version` and fails before anything invokes Flutter. Wired
+into both `release_command.dart` and `patch_command.dart`, immediately after
+`cache.updateAll()` inside the scoped block, so every release and patch path
+hits it.
+
+It is an identity check against a recorded pairing, not a capability probe like
+`DdSupport`, because there is no question you can ask the frontend whose answer
+distinguishes the two cases — the mismatched pipeline compiles perfectly well.
+The table is:
+
+| engine | required Dart SDK |
+|---|---|
+| `70974f81` | `6b58bb3a` |
+| `760e3fab` | `4bd36869` |
+
+Engines absent from the table are not checked: Shorebird's own engines pair
+their published `dart-sdk-<host>.zip` automatically, and an unrecognized hash is
+not evidence of a mismatch. For a listed engine an unreadable `revision` file is
+treated as a mismatch — being unable to confirm carries the same risk as
+confirming it is wrong. The error prints the engine hash, both revisions, and
+the exact commands that install the right SDK.
+
+Found while wiring it: **`ddSupportRef` was never registered in
+`bin/shorebird.dart`**, so an Apple release at the default `--dd-max-bytes`
+would have thrown `StateError` on the scoped read. Every release this project
+ran passed `--dd-max-bytes=0`, which returns before that line, so it was never
+hit. Both refs are registered now.
+
 ### Three traps between "published to the overlay" and "actually used"
 
 1. **`update_dart_sdk.sh` almost never runs.** `shared.sh:152` calls it only

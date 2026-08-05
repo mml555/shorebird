@@ -11,6 +11,7 @@ import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/commands/release/release.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/config/config.dart';
+import 'package:shorebird_cli/src/dart_sdk_compatibility.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/extensions/string.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
@@ -320,6 +321,16 @@ of the iOS app that is using this module. (aar and ios-framework only)''',
     return await runScoped(
       () async {
         await cache.updateAll();
+
+        // After updateAll, so the cache is populated, and before anything
+        // invokes Flutter. A frontend/backend mismatch here builds cleanly and
+        // fails on the device instead.
+        try {
+          dartSdkCompatibility.validate();
+        } on DartSdkMismatchException catch (error) {
+          logger.err('$error');
+          throw ProcessExit(ExitCode.config.code);
+        }
 
         // Set up build tracing for this platform before any flutter build /
         // aot_tools / gen_snapshot call runs. Version-gated inside

@@ -331,6 +331,14 @@ the first of those is load-bearing — `TableSelectorAssigner._selectorIdForMemb
 returns the getter's selector id when asked for a setter's, because
 `_getterMemberIds` is keyed by Kernel `Name`, which does not distinguish setters.
 
+**The CLI now enforces the pairing.** `dart_sdk_compatibility.dart` compares
+`bin/cache/dart-sdk/revision` against the engine in `bin/internal/engine.version`
+and fails with the remediation before invoking Flutter, on both the release and
+patch paths. It has to be an identity check rather than a probe: a mismatched
+frontend/backend pair compiles cleanly and only fails on the device, so "it
+built" proves nothing. Add a row to `expectedDartSdkRevisions` whenever a new
+engine hash is published.
+
 **Android was never fork-mixed**: the box's Flutter cache already carried our
 `dart-sdk` (`4bd36869`), because it was bootstrapped with `engine.version`
 already pointing at our hash. Only the Mac was mixed, and only because its cache
