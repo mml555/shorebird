@@ -475,10 +475,20 @@ Not blockers on the engine, but real:
 - The CLI still fetches `aot-tools.dill` during cache warm-up for
   `--assets-only`, so an iOS patch is independent at *use* level but not at
   *cache* level.
-- **Three** dev secrets have now leaked into transcripts; rotate via `setup.sh`.
-  The third is the `code_push_server` `API_KEY` (`sb_api_98a7…`), echoed on
-  2026-08-05 while editing the Android release script. It is shared by the
-  `cps-ios` and `cps-android` instances.
+- ~~Leaked dev secrets~~ — **rotated 2026-08-05.** Both bootstrap credentials of
+  the local `code_push_server` instances (`API_KEY` and `URL_SIGNING_SECRET`,
+  each `openssl rand -hex 32` per `setup.sh`) had been echoed into session
+  transcripts. Both were regenerated and `cps-ios` (:18080) and `cps-android`
+  (:18081) recreated with the new values, data volumes preserved. Verified: the
+  old key now returns **403**, the new key **200** on both, and the app records
+  survived. The dead key was also scrubbed from the build box's
+  `release_android_verify.sh` / `patch_android_verify.sh`, which now require
+  `SHOREBIRD_TOKEN` from the environment rather than baking it in. Neither old
+  value appears anywhere in the repo.
+
+  These are dev-only bootstrap credentials for local instances; there is no
+  production deployment holding them. If you ever stand one up, `setup.sh`
+  generates fresh values and the published placeholders are rejected at startup.
 - The engine patches, the `code_push_runtime` assets-only work and these docs
   are committed as `c4b708a4` on `feat/engine-improvements`. The Dart tree
   itself is **not** in git — reapply `0004`/`0005`/`0006` (and the `0002` GN
@@ -1400,8 +1410,8 @@ Do not re-learn these:
   `gclient sync`.
 - The self-built APK is **arm64-only in practice** — arm/x64 slices pair our
   `libapp.so` with the stock engine.
-- A dev API key was printed into a session transcript. Rotate via `setup.sh` if
-  that bothers you.
+- ~~A dev API key was printed into a session transcript.~~ Rotated 2026-08-05
+  along with `URL_SIGNING_SECRET`; see the rotation note above.
 - Branches `feat/experimental-engine-farm` and `feat/asset-patches` are fully
   merged into this one and can be deleted.
 
