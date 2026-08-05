@@ -1333,6 +1333,20 @@ Do not re-learn these:
 
 ## Live environment (may need reverting)
 
+- **Rig state as of 2026-08-05, left warm on purpose.** Everything needed for the
+  pending Apple `DdSupport` validation is in place:
+  - Mac `bin/cache/dart-sdk` is **ours** (`6b58bb3a`). That is the fix, not
+    residue — do not "restore" it. The CLI guard now enforces it.
+  - `bin/internal/engine.version` **is back at stock `69f9831c`**, so any build
+    against our engine must set it (the release scripts do this from `HASH`).
+  - Overlay is current for both `70974f81` (iOS, incl. our `dart-sdk-darwin-arm64`
+    and the injected `const_finder`) and `760e3fab` (Android). CDN container up.
+  - iPhone 7 attached over USB; Android CPH2551 attached with
+    `adb reverse tcp:18081 tcp:18081`.
+  - The ssh reverse tunnel to the Linux box is **closed**; reopen with
+    `-R 8085:localhost:8085 -R 18081:localhost:18081` before an Android build.
+  - Linux box `out/` dirs survive and carry the retired-patch tree.
+
 - **macOS build host (new, 2026-08-03/04):** this Mac — 10 cores, 64 GB RAM,
   Xcode 26.6. It is the **only** host that can build iOS/macOS engines, and it is
   where Track E happens. All build state is on an external SSD at
@@ -1391,6 +1405,33 @@ Do not re-learn these:
   `69f9831c`. Confirm it stayed that way.
 
 ## Pending actions (things that are prepared but NOT done)
+
+- **Exercise the `DdSupport` auto-disable on a real Apple build.** It has unit
+  coverage but has never executed during an actual release, because every
+  release this project ran passed `--dd-max-bytes=0` explicitly, which returns
+  at the `parsed <= 0` check in `Releaser.ddMaxBytes` before `ddSupport` is ever
+  read. Related: `ddSupportRef` was missing from `bin/shorebird.dart`'s scope
+  set until `b70a6fb7`, so that read would have thrown `StateError` — another
+  reason nothing has ever run this path.
+
+  **How to run it:** an `ios` or `macos` release with `--dd-max-bytes` left at
+  its default. Everything else as in `release_ios_dev.sh`. Not free: it needs a
+  version bump and publishes a release row on `cps-ios`.
+
+  **Pass:** the build behaves *identically* to passing `--dd-max-bytes=0`.
+  `DdSupport.isSupportedBy` runs `gen_snapshot --print_dd_function_identity_to
+  /dev/null --version`, our vanilla `gen_snapshot` exits non-zero on the
+  unrecognized flag, `ddMaxBytes` returns null, and `--verbose` shows the
+  `logger.detail` line naming the reason. App reaches first frame.
+
+  **Fail, two distinct ways:**
+  - The build dies with `Setting VM flags failed: Unrecognized flags:
+    print_dd_function_identity_to` → the probe did not run, or its result was
+    not applied. Check the scope registration first.
+  - The build succeeds *with DD enabled* (a two-pass build, `App.dd_*` files
+    populated rather than absent) → the probe wrongly returned true. It fails
+    open on any exception by design, so an exception inside the probe looks
+    exactly like this. Check whether `gen_snapshot` was resolvable.
 
 - **Track E's next step: the new call-emission mode.** Specified above with
   file:line pointers; nothing blocks starting it. It is arm64 codegen work, not
