@@ -237,11 +237,11 @@ The consequence is structural, not a bug to fix:
   fetches `android-arm64-release/darwin-x64.zip` for `gen_snapshot`, which only a
   macOS engine build can produce.
 
-`selfhost/cdn/nginx.conf` now treats all of those as overlay-owned, so a missing
+`selfhost/cdn/Caddyfile` now treats all of those as overlay-owned, so a missing
 one 404s during the build instead of yielding an app that installs and then
-crashes. Two further corrections came out of the same run: nginx must reach GCS
-through a **variable** upstream host (a literal hostname is resolved once at
-startup including AAAA records, so a container without IPv6 egress intermittently
+crashes. Two further corrections came out of the same run: the mirror must reach GCS
+through Go's resolver with TLS SNI set explicitly (a literal hostname resolved once at
+startup including AAAA records previously caused intermittent
 502s), and Maven modules **cannot** be hash-rewritten by a proxy at all, because
 Gradle validates the version inside the `.pom` body — every module must be
 materialized locally under our hash, including ABIs we did not build.

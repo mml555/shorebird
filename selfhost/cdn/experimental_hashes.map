@@ -1,8 +1,8 @@
 # Experimental engine hashes served from selfhost/cdn/overlay, and the pinned
 # revision each one falls back to for artifacts it did not rebuild.
 #
-# Format (nginx `map` entries, one per line):
-#   <experimentalEngineHash> <pinnedEngineHash>;
+# Format (Caddy `map` entries, one per line — imported into the CDN Caddyfile):
+#   <experimentalEngineHash> <pinnedEngineHash>
 #
 # Written by selfhost/engine/overlay_publish.sh — you normally do not edit this
 # by hand. An empty file (just these comments) means no experimental engine is
@@ -13,9 +13,9 @@
 # here; that is a local, deliberate act, not the default state.
 #
 # The engine device-verified on 2026-07-29 was:
-#   dabf1837976819e5da33f3e143c4f628749702da 69f9831c360d9152862ec3897c67fb09ae843f3b;
-5b1a89658709b9a0d2e76c6f3d47ad1a26eecdee 69f9831c360d9152862ec3897c67fb09ae843f3b;
-760e3fabffbf31b4e86919a0ef47d6ce5f182991 69f9831c360d9152862ec3897c67fb09ae843f3b;
+#   dabf1837976819e5da33f3e143c4f628749702da 69f9831c360d9152862ec3897c67fb09ae843f3b
+5b1a89658709b9a0d2e76c6f3d47ad1a26eecdee 69f9831c360d9152862ec3897c67fb09ae843f3b
+760e3fabffbf31b4e86919a0ef47d6ce5f182991 69f9831c360d9152862ec3897c67fb09ae843f3b
 # The Route B engine (device-verified 2026-07-30). Without an entry here a build
 # against it dies on the FIRST artifact the overlay does not own — sky_engine.zip
 # — because the passthrough asks upstream for OUR revision, which upstream has
@@ -23,7 +23,7 @@
 # artifact we DO own is now a loud 404 instead of a silent fall back to stock
 # bytes. sky_engine.zip is safe to take from stock: it is the Dart source of
 # dart:ui, and this engine differs from the pinned one only in C++.
-fc184af6509a93eaf6fc068c6820639b324175a8 69f9831c360d9152862ec3897c67fb09ae843f3b;
+fc184af6509a93eaf6fc068c6820639b324175a8 69f9831c360d9152862ec3897c67fb09ae843f3b
 # Our own iOS engine (selfhost/engine/publish_ios_overlay.sh). Built against
 # VANILLA Dart with shorebird_use_interpreter=false, so it carries the updater and
 # supports assets-only patches but not iOS code patches — those need the AOT
@@ -44,17 +44,17 @@ fc184af6509a93eaf6fc068c6820639b324175a8 69f9831c360d9152862ec3897c67fb09ae843f3
 # republishes under the SAME hash — clear the Flutter artifact cache
 # (bin/cache/artifacts/engine/ios-release*) or a build will silently reuse the
 # old compiler.
-70974f811d448da19a927c581678ef1dbd33605c 69f9831c360d9152862ec3897c67fb09ae843f3b;
+70974f811d448da19a927c581678ef1dbd33605c 69f9831c360d9152862ec3897c67fb09ae843f3b
 # 9f4d3942… is the same engine built with dart_dynamic_modules=true, which is
 # Track E's configuration, not the shipping one: it leaves the whole host
 # toolchain (frontend_server, platform dill) at dart_dynamic_modules=false while
 # the runtime VM has it on. Its gen_snapshot compiles an app fine, so the flag is
 # NOT the "Unexpected tag 4 (Field)" hazard the invariant in HANDOFF.md claimed —
 # but the shipping engine stays consistent with its toolchain.
-9f4d3942c65831668235703091092d0d985e87e4 69f9831c360d9152862ec3897c67fb09ae843f3b;
+9f4d3942c65831668235703091092d0d985e87e4 69f9831c360d9152862ec3897c67fb09ae843f3b
 # 70b2e762… is a DIAGNOSTIC engine: same as 70974f81 plus a temporary FML_CHECK
 # that makes any unhandled Dart exception fatal, because app stderr is not
 # readable on this rig. Do not ship it.
-70b2e762e0c10306c3b0412ef46266886db1dd8a 69f9831c360d9152862ec3897c67fb09ae843f3b;
+70b2e762e0c10306c3b0412ef46266886db1dd8a 69f9831c360d9152862ec3897c67fb09ae843f3b
 # bbddaa6e… diagnostic engine (unhandled-exception FATAL + settings-json log). Do not ship.
-bbddaa6e2da41fef8e950ed63e14b6d4400b69d7 69f9831c360d9152862ec3897c67fb09ae843f3b;
+bbddaa6e2da41fef8e950ed63e14b6d4400b69d7 69f9831c360d9152862ec3897c67fb09ae843f3b

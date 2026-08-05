@@ -1,6 +1,6 @@
 <!-- cspell:words dartsdk prebuilts bidiff vmcode aot daemonized crashprobe jewgo azureuser sshkey serverinfo -->
 <!-- cspell:words APFS CODEPATCH PRECOMPILER Werror caffeinate dartaotruntime SEGVs Specializer diskutil dumpsys flowgraph iface killgate libdart nodm nofail precompiler unapply -->
-<!-- cspell:words tearoff DNDEBUG SEGV LINKEDIT ourengine noinstall SELTOTAL hosttest unrun closurizing closurized closurize bodyless -->
+<!-- cspell:words tearoff DNDEBUG SEGV LINKEDIT ourengine noinstall SELTOTAL hosttest unrun closurizing closurized closurize closurization bodyless pids footgun -->
 
 # Handoff — engine improvements (as of 2026-08-04)
 
@@ -261,6 +261,132 @@ anecdotes:
 The underlying question — *why* TFA under-reports — is still open and still
 lives in `pkg/vm/lib/transformations/type_flow/`. These four are compensations
 that make the pipeline correct; a proper fix would let most of them be deleted.
+
+##### Decision (2026-08-05): ship on these four; TFA is a separate project
+
+**Do not block shipping on the `type_flow` root cause.** The engine is clean,
+device-verified, and the size cost is 1.5 %. The architectural conclusion is
+settled and should not be re-argued:
+
+> TFA metadata is advisory / lower-bound data in this pipeline, but vanilla AOT
+> relies on it as complete when constructing dispatch and tear-off behavior.
+
+The four patches restore correctness at the compiler boundary, each on a
+language-semantics rule rather than on metadata:
+
+1. Protect implicit accessors from illegal closurization.
+2. Preserve selector rows even when TFA reports zero use.
+3. Generate extractors from language semantics — regular methods only — not
+   from incomplete tear-off flags.
+4. Exclude only bodyless graph-intrinsic accessors from dispatch calls.
+
+The TFA work is its own compiler-correctness project with one success criterion:
+
+> Explain why `call_count`, `torn_off` and `has_tearoff_uses` omit uses that are
+> introduced or required downstream, then determine which compensating patches
+> can safely be removed.
+
+**These patches stay until a replacement passes the same bar**: clean rebuild
+(no diagnostics in any shipped artifact), app to first frame, and an on-device
+patch round-trip.
+
+##### Test results attached to this work (2026-08-05)
+
+`cd packages && very_good test -r`, then each failing package re-run standalone:
+
+| Package | Result |
+|---|---|
+| `shorebird_cli` | **2164 passed, 1 skipped** (includes 6 new `DdSupport` tests) |
+| `code_push_runtime`, `code_push_server`, `shorebird_code_push_client`, `shorebird_code_push_protocol`, `artifact_proxy`, `dex`, `jwt`, `scoped_deps`, `shorebird_ci`, `stripe_api`, `discord_gcp_alerts`, `flutter_version_resolver` | passed |
+| `shorebird_build_trace` | 3 failures under `very_good test -r`, **48/48 pass standalone** — those tests spawn real subprocesses and assert on OS pids, so they are flaky under parallel package execution, not broken |
+| `redis_client` | 6 failures — needs a live Redis, none running. Environmental |
+
+`currentRunLogFile creates a log file in the logs directory` also failed only in
+the parallel run and passes standalone. **So: no real failures.** If you want a
+green single command, `redis_client` needs a Redis container and
+`shorebird_build_trace` wants to run outside the parallel sweep.
+
+##### The `--dd-max-bytes` footgun is gone
+
+The CLI now decides this itself, by probing the **capability** rather than trying
+to recognize a particular engine revision (so it keeps working for engines that
+do not exist yet). `DdSupport.isSupportedBy` runs the cached `gen_snapshot` with
+`--print_dd_function_identity_to=/dev/null --version`; the VM parses flags,
+prints, and exits before compiling anything, so it costs one short-lived process
+and writes nothing. A vanilla-Dart `gen_snapshot` exits non-zero, and
+`Releaser.ddMaxBytes` then returns null — the release builds exactly as if
+`--dd-max-bytes=0` had been passed, with the reason at `--verbose`.
+
+- `lib/src/dd_support.dart`, wired into `Releaser.ddMaxBytes`.
+- Only Apple releasers opt in, via `ddGenSnapshotArtifact` on
+  `AppleReleaserMixin` (macOS overrides it with its own `gen_snapshot`).
+  Flutter gates the DD pass on `usesLinker`, which is Apple-only.
+- On any uncertainty — artifact path unresolvable, probe throws — it assumes
+  **supported**, so behavior on stock engines is unchanged and we never silently
+  turn DD off for the wrong reason.
+
+##### Recreating the Dart checkout is now reproducible
+
+[`engine/dart_patches.sh`](engine/dart_patches.sh) pins the base commit and owns
+the series (`0001`, `0004`, `0005`, `0006` — `0002` is the flutter tree, `0003`
+is diagnostic-only):
+
+```bash
+selfhost/engine/dart_patches.sh --dest <dart-checkout> --verify   # default
+selfhost/engine/dart_patches.sh --dest <dart-checkout> --apply
+```
+
+`--verify` checks actual file contents (`git apply --reverse --check`), so it
+catches a missing hunk, and distinguishes *not applied* from *does not apply —
+re-derive it*. It exits non-zero with a message saying an engine built from that
+checkout is not the one the device proofs were made against. Run it before
+trusting any rebuilt engine.
+
+Note `gclient sync --no-history` leaves the tree shallow, so the pinned commit
+is usually absent as an object even when the tree is right; the script downgrades
+that to a warning and relies on the content checks. On a full clone it enforces
+the base.
+
+Verified in both directions on both hosts: the Mac's build tree reports all four
+applied; the dart-fork source repo correctly reported three missing.
+
+##### Before this ships to anyone but us
+
+Not blockers on the engine, but real:
+
+- ~~**`--dd-max-bytes=0` is mandatory**~~ — **fixed**, see above.
+- **Android has not been re-verified against this compiler.** The four patches
+  live in the shared Dart tree, so they change `gen_snapshot` for *every*
+  target. The Android proof (`fc184af6`, release + patch + rollback on CPH2551)
+  was produced by the **pre-fix** compiler. That engine hash is unchanged and
+  keeps working, so nothing is broken today; the exposure is the *next* Android
+  engine rebuild, which silently picks up all four changes.
+
+  **Prepared, not done.** The build box's Dart tree is now patched and verified
+  (`dart_patches.sh --dest /data/shorebird-engine/src/dart-sdk --verify` → all
+  four applied on the pinned base), and CPH2551 is attached to the Mac over USB,
+  so the device half is ready. What remains is the build itself, and it is not a
+  quick job:
+
+  - `20.120.104.70` has **4 cores** and **40 GB free on `/data` (92 % full)**,
+    and its `out/` directories are gone. A full `android_release_arm64` build is
+    multi-hour and disk-tight — clear space before starting, and run it detached
+    (`screen -dmS … caffeinate -is …`), never as a harness background task.
+  - Then: publish to the overlay under the new hash, add it to
+    `experimental_hashes.map`, and run the same round-trip the original proof
+    used — **release install → patch apply → rollback**, on the physical device,
+    with `adb reverse tcp:18080 tcp:18080`.
+  - Until that passes, treat Android on a *rebuilt* engine as unverified. The
+    existing `fc184af6` artifact stays valid on its own terms.
+- The CLI still fetches `aot-tools.dill` during cache warm-up for
+  `--assets-only`, so an iOS patch is independent at *use* level but not at
+  *cache* level.
+- Two dev secrets leaked into transcripts earlier; rotate via `setup.sh`.
+- The engine patches, the `code_push_runtime` assets-only work and these docs
+  are committed as `c4b708a4` on `feat/engine-improvements`. The Dart tree
+  itself is **not** in git — reapply `0004`/`0005`/`0006` (and the `0002` GN
+  bits) to `engine/src/flutter/third_party/dart` if that checkout is ever
+  recreated.
 
 #### How it got there (2026-08-05, ~02:00)
 
@@ -1133,7 +1259,7 @@ Do not re-learn these:
   `--mirror` (default `localhost:8085`), so it must run somewhere the CDN mirror
   is reachable. From the build box that needs a reverse tunnel to the Mac; without
   it those modules are skipped and the mirror will 404 on them (deliberately, per
-  `$overlay_owned` in nginx.conf). The Mac's overlay already holds them for
+  `@must_be_local` in Caddyfile). The Mac's overlay already holds them for
   `dabf1837…` from the original hand-publish.
 - **The overlay is backed up in two places, both verified.** 775 MB, sha256
   `b5fc5633c509f64660701e4654d8dfcd839ce023667f7d9dce7125b0420d9b5f`, holding

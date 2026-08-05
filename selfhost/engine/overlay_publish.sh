@@ -8,13 +8,13 @@
 # flutter_patched_sdk_product, aot-tools.dill, the patch CLI, iOS/macOS/Windows
 # artifacts, other Android ABIs) is identical to the pinned revision — and some
 # of it cannot even be produced on Linux (the macOS/Windows host gen_snapshot).
-# So we publish what we built and let nginx serve the rest from the already-warm
+# So we publish what we built and let Caddy serve the rest from the already-warm
 # pinned-revision cache, rewriting the hash on the way out.
 #
 # The mirror is configured so that the artifacts THIS script owns are never
 # eligible for that fallback: if a rebuild is missing from the overlay the
 # request 404s instead of silently resolving to Shorebird's stock bytes. See
-# `$overlay_owned` in selfhost/cdn/nginx.conf.
+# `@must_be_local` in selfhost/cdn/Caddyfile.
 #
 # Usage:
 #   selfhost/engine/overlay_publish.sh --hash <expHash> [options]
@@ -181,7 +181,7 @@ for mod in flutter_embedding_release armeabi_v7a_release x86_64_release; do
 done
 
 # --- Manifest ----------------------------------------------------------------
-# Informational for now: nginx rewrites experimental hashes to the pinned one
+# Informational for now: Caddy rewrites experimental hashes to the pinned one
 # before artifact_proxy sees them, so artifact_proxy reads the pinned manifest.
 # Publishing it anyway keeps the prefix self-describing and makes the eventual
 # move to publish_to_store.sh a no-op.
@@ -213,12 +213,12 @@ fi
 } > "$SB/PROVENANCE.txt"
 echo "  + ${SB#"$OVERLAY"/}/PROVENANCE.txt"
 
-# --- Hash map consumed by nginx ---------------------------------------------
-# One `<expHash> <stockHash>;` per line. Idempotent: replace any existing entry.
+# --- Hash map consumed by Caddy ---------------------------------------------
+# One `<expHash> <stockHash>` per line. Idempotent: replace any existing entry.
 mkdir -p "$(dirname "$MAPFILE")"
 touch "$MAPFILE"
 grep -v "^$EXP_HASH " "$MAPFILE" > "$MAPFILE.tmp" || true
-echo "$EXP_HASH $STOCK_HASH;" >> "$MAPFILE.tmp"
+echo "$EXP_HASH $STOCK_HASH" >> "$MAPFILE.tmp"
 # Sort the ENTRIES only, keeping the comment header in its authored order. This
 # file is checked in and its comments are what document why it ships empty;
 # sorting the whole file (as this did) sorts them into nonsense, and the
@@ -240,7 +240,7 @@ fi
 
 cat <<EOF
 
-==> Reload the mirror so nginx picks up the new hash map:
+==> Reload the mirror so Caddy picks up the new hash map:
       docker compose -f selfhost/cdn/docker-compose.cdn.yaml up -d --force-recreate cdn-cache
 
 ==> Point the CLI at this engine (on the machine that runs \`shorebird\`):

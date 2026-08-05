@@ -1,0 +1,244 @@
+# cspell:words nutsdb epath mabi mfile mext sbucket sfile
+#
+# Self-hosted Shorebird CDN cache (Caddy).
+#
+# Purpose: mirror the build-time artifacts that the Shorebird CLI + the vended
+# Flutter tool would otherwise fetch from download.shorebird.dev / GCS, so that
+# after one warm-up build every artifact is served from local disk. It also
+# serves LOCALLY BUILT experimental engines from an overlay (see below).
+#
+# Topology (see selfhost/CDN_INDEPENDENCE.md):
+#   client -> [this Caddy] -> /overlay (local experimental build) if present
+#                          -> artifact_proxy -> 302 to storage.googleapis.com
+#                          -> (rewritten) /gcs/... back through this Caddy -> GCS (cached)
+#
+# Flow A (Flutter engine): FLUTTER_STORAGE_BASE_URL -> this Caddy.
+# Flow B (CLI cache: patch/aot-tools): SHOREBIRD_STORAGE_BASE_URL -> this Caddy,
+#   SHOREBIRD_STORAGE_BUCKET=download.shorebird.dev (requires the cache.dart
+#   patch documented in CDN_INDEPENDENCE.md §6).
+#
+# ---------------------------------------------------------------------------
+# EXPERIMENTAL ENGINE OVERLAY
+#
+# An engine we build ourselves gets its own 40-hex engine hash so it can never
+# be confused with, or overwrite, the supported pin in
+# selfhost/compatibility.yaml. But only a handful of artifacts actually differ.
+# For an experimental hash:
+#   1. serve the file from /overlay if it is there (that is our build), else
+#   2. if the path is one the overlay OWNS -> 404, loudly. Never substitute
+#      stock bytes for an artifact we were supposed to have rebuilt.
+#   3. otherwise rewrite the hash to the pinned revision and serve it the normal
+#      way — from the already-warm cache.
+#
+# `experimental_hashes.map` (written by selfhost/engine/overlay_publish.sh) is
+# what makes a hash "experimental": it maps <expHash> -> <pinnedHash>. A hash
+# not in that file behaves exactly as it did before this overlay existed.
+# ---------------------------------------------------------------------------
+{
+	auto_https off
+	admin off
+
+	# Cache before reverse_proxy so /gcs/ and Flow B store final bytes on disk.
+	order cache before reverse_proxy
+
+	cache {
+		# Immutable, revision-scoped artifacts: safe to cache long-term.
+		# bypass_response ignores upstream Cache-Control (GCS often sends
+		# max-age=3600) so our ttl wins — same idea as nginx's
+		# proxy_cache_valid 200 365d.
+		mode bypass_response
+		ttl 8760h
+		stale 168h
+		nuts {
+			path /var/cache/caddy/cdn
+		}
+		# Successful artifact responses are immutable. Handlers below override
+		# Cache-Control on 404 so unpublished paths only stick for one minute.
+		default_cache_control "public, max-age=31536000, immutable"
+		log_level error
+	}
+}
+
+# Shared site logic — mounted on :8080 always, and on :8443 when TLS is enabled
+# (see tls/listen-*.caddy).
+(mirror_site) {
+	# Engine hash carried by the request path, whatever flow it belongs to.
+	map {http.request.uri.path} {engine_hash} {
+		~^/flutter_infra_release/flutter/([0-9a-f]{40})/ "${1}"
+		~^/download\.flutter\.io/io/flutter/[^/]+/1\.0\.0-([0-9a-f]{40})/ "${1}"
+		~^/[^/]+/shorebird/([0-9a-f]{40})/ "${1}"
+		default ""
+	}
+
+	# Experimental hash -> the pinned hash its non-rebuilt artifacts come from.
+	# Empty for every ordinary revision (byte-identical to the pre-overlay mirror).
+	map {engine_hash} {stock_engine_hash} {
+		default ""
+		import /etc/caddy/experimental_hashes.map
+	}
+
+	# Ownership only bites for an EXPERIMENTAL hash. Without this, an ordinary
+	# pinned-revision request for an arm64 artifact would 404 instead of passing
+	# through to the mirror — i.e. the overlay would break the plain cache.
+	#
+	# Keep the path list in sync with what selfhost/engine/overlay_publish.sh
+	# copies. Deliberately NOT owned: android-arm64-release/{darwin,windows}-*.zip
+	# (host gen_snapshot a Linux build host cannot produce). NOT aot-tools.dill
+	# either (cannot build it; Android never invokes it).
+	#
+	# Caddy allows only one path_regexp per named matcher, so ownership is one
+	# alternation. expression is AND'd with it.
+	@must_be_local {
+		expression `{stock_engine_hash} != ""`
+		path_regexp ^/(flutter_infra_release/flutter/[0-9a-f]{40}/(android-arm64-release/|ios-release/|(linux|darwin|windows)-(x64|arm64)/artifacts\.zip$|flutter_patched_sdk_product\.zip$|flutter_patched_sdk\.zip$|dart-sdk-[a-z0-9-]+\.zip$|engine_stamp\.json$)|download\.flutter\.io/io/flutter/)
+	}
+
+	@has_stock expression `{stock_engine_hash} != ""`
+
+	root * /overlay
+
+	route {
+		# ---- Cached mirror of Google Cloud Storage --------------------------
+		@gcs path /gcs/*
+		handle @gcs {
+			uri strip_prefix /gcs
+			cache
+			reverse_proxy https://storage.googleapis.com {
+				header_up Host storage.googleapis.com
+				transport http {
+					versions 1.1 2
+					tls_server_name storage.googleapis.com
+				}
+				@miss status 404
+				header_down @miss Cache-Control "public, max-age=60"
+			}
+		}
+
+		# ---- Overlay: experimental builds straight off disk -----------------
+		@overlay_hit {
+			file {
+				try_files {path}
+			}
+		}
+		handle @overlay_hit {
+			header X-Overlay hit
+			header X-Engine-Hash {engine_hash}
+			file_server
+		}
+
+		# Loud failure: owned by the overlay but absent.
+		handle @must_be_local {
+			respond "overlay miss on owned artifact" 404
+		}
+
+		# ---- Flow A: Flutter engine artifacts -------------------------------
+		# Do not cache the 302 itself; the bytes are cached at /gcs/.
+		@engine path_regexp engine ^/flutter_infra_release/flutter/([0-9a-f]{40})/(.*)$
+		handle @engine {
+			handle @has_stock {
+				rewrite * /flutter_infra_release/flutter/{stock_engine_hash}/{re.engine.2}
+				reverse_proxy artifact-proxy:8080 {
+					header_up Host {host}
+					header_down Location https://storage.googleapis.com/ /gcs/
+					header_down Location http://storage.googleapis.com/ /gcs/
+				}
+			}
+			handle {
+				reverse_proxy artifact-proxy:8080 {
+					header_up Host {host}
+					header_down Location https://storage.googleapis.com/ /gcs/
+					header_down Location http://storage.googleapis.com/ /gcs/
+				}
+			}
+		}
+
+		# ---- Flow A (Maven) -------------------------------------------------
+		@maven path_regexp maven ^/download\.flutter\.io/io/flutter/([^/]+)/1\.0\.0-([0-9a-f]{40})/([^/]+)-1\.0\.0-[0-9a-f]{40}\.([A-Za-z0-9.\-]+)$
+		handle @maven {
+			handle @has_stock {
+				rewrite * /download.flutter.io/io/flutter/{re.maven.1}/1.0.0-{stock_engine_hash}/{re.maven.3}-1.0.0-{stock_engine_hash}.{re.maven.4}
+				reverse_proxy artifact-proxy:8080 {
+					header_up Host {host}
+					header_down Location https://storage.googleapis.com/ /gcs/
+					header_down Location http://storage.googleapis.com/ /gcs/
+				}
+			}
+			handle {
+				reverse_proxy artifact-proxy:8080 {
+					header_up Host {host}
+					header_down Location https://storage.googleapis.com/ /gcs/
+					header_down Location http://storage.googleapis.com/ /gcs/
+				}
+			}
+		}
+
+		# ---- Flow A fallback ------------------------------------------------
+		@engine_misc path_regexp ^/(flutter_infra_release|download\.flutter\.io)/
+		handle @engine_misc {
+			reverse_proxy artifact-proxy:8080 {
+				header_up Host {host}
+				header_down Location https://storage.googleapis.com/ /gcs/
+				header_down Location http://storage.googleapis.com/ /gcs/
+			}
+		}
+
+		# ---- Flow B: CLI cache artifacts ------------------------------------
+		@shorebird path_regexp shorebird ^/([^/]+)/shorebird/([0-9a-f]{40})/(.*)$
+		handle @shorebird {
+			handle @has_stock {
+				rewrite * /{re.shorebird.1}/shorebird/{stock_engine_hash}/{re.shorebird.3}
+				cache
+				reverse_proxy https://storage.googleapis.com {
+					header_up Host storage.googleapis.com
+					transport http {
+						versions 1.1 2
+						tls_server_name storage.googleapis.com
+					}
+					@miss status 404
+					header_down @miss Cache-Control "public, max-age=60"
+				}
+			}
+			handle {
+				cache
+				reverse_proxy https://storage.googleapis.com {
+					header_up Host storage.googleapis.com
+					transport http {
+						versions 1.1 2
+						tls_server_name storage.googleapis.com
+					}
+					@miss status 404
+					header_down @miss Cache-Control "public, max-age=60"
+				}
+			}
+		}
+
+		# ---- Raw GCS passthrough --------------------------------------------
+		handle {
+			cache
+			reverse_proxy https://storage.googleapis.com {
+				header_up Host storage.googleapis.com
+				transport http {
+					versions 1.1 2
+					tls_server_name storage.googleapis.com
+				}
+				@miss status 404
+				header_down @miss Cache-Control "public, max-age=60"
+			}
+		}
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
+
+http://:8080 {
+	import mirror_site
+}
+
+# Optional HTTPS on :8443. docker-compose mounts either listen-enabled.caddy or
+# listen-disabled.caddy here. Needed because Gradle 8+ rejects insecure Maven
+# repositories, which is what FLUTTER_STORAGE_BASE_URL becomes during an Android
+# release build.
+import /etc/caddy/tls_listen.caddy

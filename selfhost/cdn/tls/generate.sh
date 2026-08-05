@@ -103,7 +103,7 @@ openssl x509 -req -in "$DIR/server.csr" -sha256 -days "$DAYS" \
   -out "$DIR/server.crt" \
   -extfile "$DIR/openssl.cnf" -extensions server_ext 2>/dev/null
 
-# nginx wants the chain in one file, leaf first.
+# Caddy wants the chain in one file, leaf first.
 cat "$DIR/server.crt" "$DIR/ca.crt" > "$DIR/fullchain.crt"
 chmod 600 "$DIR/ca.key" "$DIR/server.key"
 rm -f "$DIR/server.csr" "$DIR/.srl" "$DIR/ca.srl"
@@ -111,7 +111,7 @@ rm -f "$DIR/server.csr" "$DIR/.srl" "$DIR/ca.srl"
 echo
 echo "==> wrote:"
 echo "      $DIR/ca.crt         <- the CA to trust (see trust.sh)"
-echo "      $DIR/fullchain.crt  <- served by nginx"
+echo "      $DIR/fullchain.crt  <- served by Caddy"
 echo "      $DIR/server.key     <- private key, never commit"
 echo
 echo "==> SANs on the server cert:"

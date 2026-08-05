@@ -18,10 +18,10 @@ state.
 | The CDN mirror | checked in as a **pure passthrough** cache; `experimental_hashes.map` has no active entries |
 | Our engine | reachable only if you publish it locally *and* point a build at its hash — two deliberate acts |
 
-The only behavioral change to the default path is a **bug fix**: nginx reached
-Google Cloud Storage through a literal upstream hostname, which is resolved once
-at startup including AAAA records, so any host without IPv6 egress got
-intermittent `502`s. That would bite mirror users regardless of engine work.
+The only behavioral change to the default path is a **bug fix**: the CDN mirror
+previously resolved Google Cloud Storage through a literal upstream hostname
+(including AAAA records), so any host without IPv6 egress got intermittent
+`502`s. That would bite mirror users regardless of engine work.
 
 Everything else is additive: docs, tooling, a server endpoint, and 20 files
 restored to the vendored source snapshot.

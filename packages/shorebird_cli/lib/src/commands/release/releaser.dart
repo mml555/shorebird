@@ -6,11 +6,13 @@ import 'package:path/path.dart' as p;
 import 'package:pub_semver/pub_semver.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
+import 'package:shorebird_cli/src/dd_support.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/flutter_version_constraints.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
@@ -116,13 +118,35 @@ abstract class Releaser {
   /// silently re-enabled.
   ///
   /// Returns null when DD should be disabled: the option is absent, or the
-  /// value is `0` (the user's "disable DD" knob), or the value is malformed.
+  /// value is `0` (the user's "disable DD" knob), or the value is malformed,
+  /// or the engine in use cannot run the DD pass at all.
   int? get ddMaxBytes {
     final value = argResults['dd-max-bytes'] as String?;
     if (value == null) return null;
     final parsed = int.tryParse(value);
-    return (parsed != null && parsed > 0) ? parsed : null;
+    if (parsed == null || parsed <= 0) return null;
+
+    // An engine built from vanilla Dart has no DD support, and every failure
+    // inside Flutter's DD pass is fatal — the build dies with
+    // "Unrecognized flags: print_dd_function_identity_to", which sends you
+    // looking in the wrong layer. Turn it off ourselves instead of making
+    // every user of such an engine know to pass --dd-max-bytes=0.
+    final genSnapshot = ddGenSnapshotArtifact;
+    if (genSnapshot != null && !ddSupport.isSupportedBy(genSnapshot)) {
+      logger.detail(
+        '''This engine's gen_snapshot does not support the DD pass; building without it (equivalent to --dd-max-bytes=0). Patches against this release compute DD on the fly when applied.''',
+      );
+      return null;
+    }
+    return parsed;
   }
+
+  /// The `gen_snapshot` whose DD support decides whether [ddMaxBytes] applies,
+  /// or null for platforms where Flutter never runs the DD pass.
+  ///
+  /// Flutter gates the pass on `usesLinker`, which is Apple-only, so only the
+  /// Apple releasers override this.
+  ShorebirdArtifact? get ddGenSnapshotArtifact => null;
 
   /// Path where the obfuscation map is saved during obfuscated builds.
   String get obfuscationMapPath => p.join(

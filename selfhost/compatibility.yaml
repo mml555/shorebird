@@ -50,7 +50,7 @@ verification:
                                    # (9 unpublished for this rev), 2.8 GB, second
                                    # pass all HIT. Flow B (aot-tools.dill,
                                    # patch-*.zip, artifacts_manifest.yaml) cached
-                                   # too. Required an nginx fix — see
+                                   # too. Required a CDN redirect fix — see
                                    # selfhost/cdn/README.md.
   device_reverified: true          # 2026-07-29, physical CPH2551 (Android 16,
                                    # arm64-v8a): release built on this pin through
@@ -104,7 +104,7 @@ independence:
 # from, so the artifact prefix names its own source. Only the artifacts listed
 # under `local_artifacts` are ours; the mirror serves everything else from
 # `falls_back_to`, and 404s rather than substituting stock bytes for an artifact
-# the build was supposed to provide (selfhost/cdn/nginx.conf `$overlay_owned`).
+# the build was supposed to provide (selfhost/cdn/Caddyfile `@must_be_local`).
 #
 # Valid only while dart_sdk_revision in DEPS is untouched and the snapshot/patch
 # contract is unchanged: gen_snapshot, aot-tools.dill and the patch CLI all come
