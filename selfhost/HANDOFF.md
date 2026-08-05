@@ -319,24 +319,26 @@ frontend that produces the clean column and simply do not ship it;
 `$FLUTTER_STORAGE_BASE_URL/flutter_infra_release/flutter/<engine hash>/`, the
 path the overlay CDN already intercepts.
 
-**Verified on iOS, 2026-08-05.** With our frontend installed and patches 2 and 3a
-reverted: clean rebuild, release `29.0.0+1` published, first frame on device,
-assets patch applied, rollback — all pass. **Android has not been through this
-yet and keeps all four patches until it does.** Three traps sit between
-"published to the overlay" and "actually used" (`update_dart_sdk.sh` is gated on
-the flutter-tool stamp, the Shorebird CLI snapshot is version-locked to the Dart
-SDK, and `const_finder` is version-locked to the frontend) — all three are
-written up in [`TFA_ROOT_CAUSE.md`](TFA_ROOT_CAUSE.md).
+**Done, 2026-08-05 — patches 2 and 3a are retired.** With our own frontend
+installed, both platforms pass the full bar on device: clean rebuild, release
+(iOS `29.0.0+1`, Android `0.7.0+1`), first frame, patch applied (assets on iOS,
+**code** on Android), rollback. `0004` and `0005` are regenerated; the `IsUsed()`,
+`torn_off` and `has_tearoff_uses` gates are all back to upstream.
 
-Consequence for retirement: **patch 2 and half of patch 3 are coupled to that
-swap** and must not be retired before it — against the stock frontend they are
-load-bearing. **Patches 1 and 4 stay** regardless; they are backend invariants
-(no closurized implicit accessors; no dispatch call to a bodyless graph
-intrinsic) that were merely discovered while chasing this. A separate bug in
-*vanilla* also fell out: `TableSelectorAssigner._selectorIdForMember` returns the
-getter's selector id when asked for a setter's, because `_getterMemberIds` is
-keyed by Kernel `Name`, which does not distinguish setters. That is why patch 3's
-regular-methods-only rule is load-bearing on its own terms.
+What stays is not metadata-shaped at all: `IsRegularFunction()` and
+`tearoff_sid != sid` in `0004`, and `0006`. A separate bug in *vanilla* is why
+the first of those is load-bearing — `TableSelectorAssigner._selectorIdForMember`
+returns the getter's selector id when asked for a setter's, because
+`_getterMemberIds` is keyed by Kernel `Name`, which does not distinguish setters.
+
+**Android was never fork-mixed**: the box's Flutter cache already carried our
+`dart-sdk` (`4bd36869`), because it was bootstrapped with `engine.version`
+already pointing at our hash. Only the Mac was mixed, and only because its cache
+predates the overlay. Three traps sit between "published to the overlay" and
+"actually used" — `update_dart_sdk.sh` is gated on the flutter-tool stamp, the
+Shorebird CLI snapshot is version-locked to the Dart SDK, and `const_finder` is
+version-locked to the frontend. All three are written up in
+[`TFA_ROOT_CAUSE.md`](TFA_ROOT_CAUSE.md).
 
 ##### Test results attached to this work (2026-08-05)
 

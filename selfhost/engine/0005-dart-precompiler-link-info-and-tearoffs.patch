@@ -1,10 +1,13 @@
 # cspell:words precompiler tearoff selfhost Closurization Werror charp libdart mislink unbuildable
 #
-# 1. Accept the six print_*_table_link_*_to flags flutter_tools passes on
-#    every Apple target, writing a self-describing stub.
-# 2. Stop gating method-extractor creation on TFA's has_tearoff_uses.
+# Accept the six print_*_table_link_*_to flags flutter_tools passes on every
+# Apple target, writing a self-describing stub. A vanilla gen_snapshot rejects
+# them outright and exits 255, which makes every iOS release unbuildable.
+#
+# The has_tearoff_uses bypass that used to be item 2 here is GONE as of
+# 2026-08-05 — see selfhost/TFA_ROOT_CAUSE.md.
 diff --git a/runtime/vm/compiler/aot/precompiler.cc b/runtime/vm/compiler/aot/precompiler.cc
-index a1501f76..d864e351 100644
+index a1501f76..44ece7b0 100644
 --- a/runtime/vm/compiler/aot/precompiler.cc
 +++ b/runtime/vm/compiler/aot/precompiler.cc
 @@ -79,6 +79,80 @@ DEFINE_FLAG(charp,
@@ -115,43 +118,18 @@ index a1501f76..d864e351 100644
        ClassFinalizer::SortClasses();
  
        // Collects type usage information which allows us to decide when/how to
-@@ -1734,16 +1828,29 @@ void Precompiler::CheckForNewDynamicFunctions() {
+@@ -1734,9 +1828,12 @@ void Precompiler::CheckForNewDynamicFunctions() {
              metadata = kernel::ProcedureAttributesOf(function, Z);
              found_metadata = true;
  
--            if (metadata.has_tearoff_uses) {
++            // SELFHOST: upstream, has_tearoff_uses gate included. Dropping it
++            // was how we survived a dill whose tear-off flags were not real —
++            // see selfhost/TFA_ROOT_CAUSE.md. Correct again once the frontend
++            // comes from this same tree.
+             if (metadata.has_tearoff_uses) {
 -              // Closurization.
 -              // Function is foo and somewhere get:foo is called.
--              function2 = function.ImplicitClosureFunction();
--              AddFunction(function2, RetainReasons::kImplicitClosure);
--
--              // Add corresponding method extractor.
--              function2 = function.GetMethodExtractor(selector2);
--              AddFunction(function2, RetainReasons::kMethodExtractor);
--            }
-+            // SELFHOST: the `metadata.has_tearoff_uses` gate that used to wrap
-+            // this is dropped. Like call_count and torn_off, it comes from the
-+            // dill's TFA metadata and is a lower bound in our pipeline, so
-+            // trusting it loses the method extractor for tear-offs TFA did not
-+            // record — `platformDispatcher.onPointerDataPacket =
-+            // _handlePointerDataPacket` in GestureBinding.initInstances died as
-+            // "Class 'WidgetsFlutterBinding' has no instance getter
-+            // '_handlePointerDataPacket'" before any user code ran.
-+            //
-+            // The enclosing IsSent(get:foo) test is the sound signal and it
-+            // still applies: we only get here when the program really does
-+            // send that getter name somewhere. Doing this here rather than in
-+            // DispatchTableGenerator matters — creating an extractor here adds
-+            // a function, it does not write a dispatch-table row, so it cannot
-+            // displace the method's own entry.
-+            //
-+            // Closurization: function is foo and somewhere get:foo is called.
-+            function2 = function.ImplicitClosureFunction();
-+            AddFunction(function2, RetainReasons::kImplicitClosure);
-+
-+            // Add corresponding method extractor.
-+            function2 = function.GetMethodExtractor(selector2);
-+            AddFunction(function2, RetainReasons::kMethodExtractor);
-           }
-         }
++              // Closurization: function is foo and somewhere get:foo is called.
+               function2 = function.ImplicitClosureFunction();
+               AddFunction(function2, RetainReasons::kImplicitClosure);
  

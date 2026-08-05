@@ -1,8 +1,9 @@
-<!-- cspell:words tearoff tearoffs precompiler dartaotruntime selfhost Ddart Devirtualization bodyless closurize frontends genkernel nodm upstreamable stockfe ourfe assetprobe misparse -->
+<!-- cspell:words tearoff tearoffs precompiler dartaotruntime selfhost Ddart Devirtualization bodyless closurize frontends genkernel nodm upstreamable stockfe ourfe assetprobe misparse CODEPATCH -->
 
-# Why the dispatch-table metadata is wrong, and what it means for the four compiler patches
+# Why the dispatch-table metadata was wrong, and which compiler patches it cost us
 
-**Status 2026-08-05: root cause located and reproduced. Not yet fixed.**
+**Status 2026-08-05: root cause found and fixed. Patches 2 and 3a retired,
+verified on both platforms on device.**
 
 The four patches in `engine/0004`, `0005`, `0006` exist because the AOT compiler
 trusts three fields of the dill's TFA metadata — `call_count`, `torn_off`,
@@ -141,20 +142,18 @@ snapshot alone.
 
 ## What this means for the four patches
 
-| # | Patch | Retire? |
+| # | Patch | Outcome |
 |---|---|---|
-| 1 | Never closurize an implicit accessor (`0004`) | **No — keep.** A language invariant; `object.cc:8762` asserts it. Independent of all of the above. |
-| 2 | Drop the `IsUsed()` (`call_count > 0`) gate on selector rows (`0004`) | **Yes — but only together with the frontend swap.** It exists solely to survive the stock frontend's zeroed counts. |
-| 3 | Extractors for regular methods only, ignoring `torn_off` / `has_tearoff_uses` (`0004` + `0005`) | **Partly.** Restore the flags, keep "regular methods only" — the latter guards the vanilla setter/getter collision above and is not about metadata quality. |
-| 4 | Never dispatch-call the `_HashVMBase` graph-intrinsic slot accessors (`0006`) | **No — keep.** `external` bodyless accessors are only ever valid inlined; unrelated to any of this. Arguably upstreamable as-is. |
+| 1 | Never closurize an implicit accessor — `IsRegularFunction()` (`0004`) | **Kept.** A language invariant; `object.cc:8762` asserts it. Independent of all of the above, and what keeps a setter out of the tear-off branch. |
+| 2 | Drop the `IsUsed()` (`call_count > 0`) gates (`0004`) | **Retired 2026-08-05.** Existed solely to survive the fork frontend's zeroed counts. Both gates restored to upstream. |
+| 3a | Ignore `torn_off` / `has_tearoff_uses` (`0004` + `0005`) | **Retired 2026-08-05.** Both gates restored to upstream. |
+| 3b | `tearoff_sid != sid` (`0004`) | **Kept.** `getter_selector_id` can be the method's own id; writing there displaces the method. Not about metadata quality. |
+| 4 | Never dispatch-call the `_HashVMBase` graph-intrinsic slot accessors (`0006`) | **Kept.** `external` bodyless accessors are only ever valid inlined; unrelated to any of this. Arguably upstreamable as-is. |
 
-**Patches 2 and 3a are coupled to the frontend swap and must not be retired
-before it.** Retiring them against the stock frontend re-opens the original
-`NoSuchMethodError` immediately. The retirement bar is unchanged: clean rebuild
-with no diagnostics in any shipped artifact, app to first frame, and an
-on-device patch round-trip on both platforms.
+Two of five gone. What remains is three rules about Dart semantics and one about
+a latent vanilla bug — nothing that trusts or distrusts TFA.
 
-## Verification, 2026-08-05 — iOS passes with patches 2 and 3a removed
+## Verification, 2026-08-05 — both platforms pass with patches 2 and 3a removed
 
 Done in the order above, one variable at a time.
 
@@ -182,14 +181,26 @@ requirement on row retention, the `torn_off` gate on extractor creation, and the
 linked into a release runtime, so `Flutter.framework`'s binary is unchanged and
 the engine hash stays `70974f81`.
 
-**4. Retirement bar, iOS:** clean rebuild ✓ · release published (`29.0.0+1`) ✓ ·
-first frame on device ✓ · assets patch applied on device ✓ · rollback ✓.
-No `NoSuchMethodError`, no `Unexpected tag 4 (Field)`, no
-`ConcurrentModificationError`.
+**4. Retirement bar — both platforms pass.**
 
-**Android is still outstanding** and the patches must stay in the Android
-toolchain until it passes the same bar: install our `dart-sdk-linux-x64`, rebuild
-the Android `gen_snapshot` with the same reverts, then the device round-trip.
+| | iOS (`70974f81`, iPhone 7) | Android (`760e3fab`, arm64) |
+|---|---|---|
+| clean rebuild | ✓ | ✓ |
+| release published | `29.0.0+1` | `0.7.0+1` |
+| first frame on device | ✓ | ✓ |
+| patch applied on device | assets patch 1 ✓ | **code** patch 1 (`CODEPATCH-V3`) ✓ |
+| rollback | ✓ | ✓ |
+
+No `NoSuchMethodError`, no `Unexpected tag 4 (Field)`, no
+`ConcurrentModificationError`. **Patches 2 and 3a are retired**; `0004` and
+`0005` are regenerated to match.
+
+**Android was never fork-mixed.** Its Flutter cache carries `dart-sdk` revision
+`4bd36869`, which is the Linux box's own Dart tree — the checkout there was
+bootstrapped while `engine.version` already pointed at our hash, so
+`update_dart_sdk.sh` ran once and pulled ours. So patches 2 and 3a were never
+doing anything on Android; the July device proof passed despite them, not because
+of them. Only the Mac was mixed, and only because its cache predates the overlay.
 
 ### Three traps between "published to the overlay" and "actually used"
 

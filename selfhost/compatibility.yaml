@@ -1,4 +1,4 @@
-# cspell:words CODEPATCH
+# cspell:words CODEPATCH tearoff selfhost
 # Compatibility manifest — the pinned Shorebird revisions this self-hosted
 # control plane supports. "Current upstream" is NOT a target: a new
 # CLI/updater/engine revision is unsupported until the compatibility suite
@@ -170,6 +170,21 @@ experimental:
           # so this hash had none of its own; that is fine until someone clears
           # bin/cache/artifacts/engine/common, at which point it 404s. The hash
           # is now self-contained.
+        retired_patches_verified: true
+          # 2026-08-05, same device. linux-x64.zip republished again after
+          # patches 2 and 3a were RETIRED from 0004/0005 — the IsUsed(),
+          # torn_off and has_tearoff_uses gates all restored to upstream. See
+          # selfhost/TFA_ROOT_CAUSE.md: they were compensating for Shorebird's
+          # forked frontend_server's dill being read by our vanilla backend,
+          # and this box never had that problem — its bin/cache/dart-sdk is
+          # revision 4bd36869, our own tree, because the checkout was
+          # bootstrapped with engine.version already pointing here.
+          #
+          # release install -> CODEPATCH-V2 patch: null   (0.7.0+1)
+          # patch apply     -> CODEPATCH-V3 patch: 1
+          # rollback        -> CODEPATCH-V2 patch: null
+          #
+          # Engine binary unchanged again: only linux-x64.zip moved.
     - hash: 5b1a89658709b9a0d2e76c6f3d47ad1a26eecdee   # fc184af6 + the assets-only patch guard
       falls_back_to: 69f9831c360d9152862ec3897c67fb09ae843f3b
       flutter_revision: c15ef6379403a0a55531a058bdb2c8e55bc05c98
