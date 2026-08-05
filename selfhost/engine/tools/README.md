@@ -1,9 +1,9 @@
-<!-- cspell:words tearoff -->
+<!-- cspell:words tearoff misparse minimises selfhost -->
 
 # Dill table-selector inspection tools
 
-Two throwaway-quality but reusable readers used to locate the TFA root cause
-documented in [`../../TFA_ROOT_CAUSE.md`](../../TFA_ROOT_CAUSE.md).
+The dill readers and the A/B harness used to locate the root cause documented in
+[`../../TFA_ROOT_CAUSE.md`](../../TFA_ROOT_CAUSE.md).
 
 Both need `package:kernel` and `package:vm` resolvable, so run them with the
 Dart SDK **from the Dart tree you built**, pointed at that tree's package
@@ -28,4 +28,13 @@ $O/dart-sdk/bin/dart --packages=$D/.dart_tool/package_config.json \
 - **`dump_selectors.dart`** — whole-table summary: selector count, how many
   have `call_count > 0`, how many are `torn_off`, and the count of *implausible*
   entries (values too large to be counts), with the top offenders listed.
-  Implausible entries appear only in the `frontend_server` path.
+- **`layout_scan.dart <dill> <A..G>`** — reads the same table under seven
+  candidate binary layouts and reports, per layout, how many records come out
+  with a `flags` byte greater than 3. Only two flag bits are defined, so that
+  count is an alignment metric: the layout the writer actually used is the one
+  that minimises it. This is what ruled out "Shorebird added a field" and showed
+  the divergence is semantic. Layout `A` is vanilla's own format.
+- **`fe_ab.sh`** — compiles one app twice, changing only the frontend binary,
+  with the exact argument list `flutter_tools` builds for an iOS release.
+  Requires `APP` and `PKG`; everything else has a default. This is the
+  experiment the conclusion rests on.

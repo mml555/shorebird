@@ -1,6 +1,6 @@
 <!-- cspell:words dartsdk prebuilts bidiff vmcode aot daemonized crashprobe jewgo azureuser sshkey serverinfo -->
 <!-- cspell:words APFS CODEPATCH PRECOMPILER Werror caffeinate dartaotruntime SEGVs Specializer diskutil dumpsys flowgraph iface killgate libdart nodm nofail precompiler unapply -->
-<!-- cspell:words tearoff DNDEBUG SEGV LINKEDIT ourengine noinstall SELTOTAL hosttest unrun closurizing closurized closurize closurization bodyless pids footgun mtimes repointed rbtest Devirtualization genkernel -->
+<!-- cspell:words tearoff DNDEBUG SEGV LINKEDIT ourengine noinstall SELTOTAL hosttest unrun closurizing closurized closurize closurization bodyless pids footgun mtimes repointed rbtest Devirtualization genkernel misparse -->
 
 # Handoff — engine improvements (as of 2026-08-04)
 
@@ -290,33 +290,44 @@ The TFA work is its own compiler-correctness project with one success criterion:
 (no diagnostics in any shipped artifact), app to first frame, and an on-device
 patch round-trip.
 
-##### TFA root cause (2026-08-05): located, not yet fixed
+##### Root cause (2026-08-05): located, not yet fixed
 
 Written up in full in [`TFA_ROOT_CAUSE.md`](TFA_ROOT_CAUSE.md); tooling kept in
 [`engine/tools/`](engine/tools/). The headline:
 
-**The table-selector metadata is broken in the `frontend_server` path and
-correct in the `gen_kernel` path** — same app, same platform dill, same flags,
-only the frontend binary differs:
+**We pair Shorebird's forked `frontend_server` with our vanilla `gen_snapshot`,
+and the two disagree about `vm.table-selector.metadata`.** TFA is not
+under-reporting, and `frontend_server` as a *mode* is not at fault. Holding the
+mode fixed and swapping only the frontend binary — same app, same platform dill,
+same `flutter_tools` release argument list:
 
-| | `List.length` | `List.[]` | implausible `call_count`s |
-|---|---|---|---|
-| `frontend_server` (what Flutter uses) | **0** | **0** | **86**, top value 1,040,450,688 |
-| `gen_kernel` | **200** | **416** | 0 |
+| frontend | `List.get:length` | `List.[]` | selectors | `call_count > 0` | records with `flags > 3` |
+|---|---|---|---|---|---|
+| stock (Shorebird fork) | **0** | **0** | 13641 | 1696 | **1023** |
+| ours (vanilla + patches) | **200** | **413** | 13641 | 869 | **0** |
 
-So TFA is not merely conservative — the counts are mis-associated with selector
-IDs, and some entries hold values that are not counts at all. Devirtualization
-itself is healthy (140,000 direct-call hits vs 13,766 misses), so this is
-specific to the selector table.
+Both assign the same 13641 selector IDs; only the payload differs. Vanilla's own
+binary layout fits the stock table better than any of six alternatives, so this
+is not a misparse — the stock table genuinely carries 85 `call_count`s that
+cannot be counts, 1023 records setting flag bits vanilla does not define, and
+zero for hot core selectors. Their snapshot also exports
+`TableSelectorAssigner._getSelectorHash`, which does not exist in vanilla.
 
-Consequence for retirement, assuming the metadata gets fixed: patch 2 goes,
-half of patch 3 goes, and **patches 1 and 4 stay** — those two are backend
-invariants (no closurized implicit accessors; no dispatch call to a bodyless
-graph intrinsic) that were merely discovered while chasing this. A separate,
-independent bug also fell out: `TableSelectorAssigner._selectorIdForMember`
-returns the *getter's* selector id when asked for a setter's, because
-`_getterMemberIds` is keyed by Kernel `Name`, which does not distinguish
-setters. That is why patch 3's regular-methods-only rule is load-bearing.
+**The fix is a frontend swap, not a compiler change.** We already build the
+frontend that produces the clean column and simply do not ship it;
+`bin/internal/update_dart_sdk.sh:131` fetches `dart-sdk-<host>.zip` from
+`$FLUTTER_STORAGE_BASE_URL/flutter_infra_release/flutter/<engine hash>/`, the
+path the overlay CDN already intercepts.
+
+Consequence for retirement: **patch 2 and half of patch 3 are coupled to that
+swap** and must not be retired before it — against the stock frontend they are
+load-bearing. **Patches 1 and 4 stay** regardless; they are backend invariants
+(no closurized implicit accessors; no dispatch call to a bodyless graph
+intrinsic) that were merely discovered while chasing this. A separate bug in
+*vanilla* also fell out: `TableSelectorAssigner._selectorIdForMember` returns the
+getter's selector id when asked for a setter's, because `_getterMemberIds` is
+keyed by Kernel `Name`, which does not distinguish setters. That is why patch 3's
+regular-methods-only rule is load-bearing on its own terms.
 
 ##### Test results attached to this work (2026-08-05)
 
@@ -629,12 +640,12 @@ Next diagnostics, in order of expected value:
 1. ~~**Why does TFA report `call_count == 0` for these selectors?**~~
    **Answered 2026-08-05 — see [`TFA_ROOT_CAUSE.md`](TFA_ROOT_CAUSE.md).** Not
    the entry-point-pragma theory guessed here: `Map._fromLiteral`'s body *is*
-   analyzed and the two call sites *are* left virtual. The counts are lost in
-   the `frontend_server` path specifically; `gen_kernel` on the identical input
-   reports 200 and 416.
-2. **Compare against a dill from the stock frontend_server** — still unrun, and
-   now the highest-value remaining step: it splits "upstream `frontend_server`
-   bug that stock tolerates" from "something in our invocation".
+   analyzed and the two call sites *are* left virtual. The table is written by
+   Shorebird's forked frontend and read by our vanilla backend, and the two
+   disagree about what the fields mean.
+2. ~~**Compare against a dill from the stock frontend_server.**~~ **Run
+   2026-08-05** via [`engine/tools/fe_ab.sh`](engine/tools/fe_ab.sh) — that is
+   the experiment the answer above rests on.
 3. Stock's snapshot of our dill is **44 % larger** (951 k vs 662 k lines of
    assembly), so their fork very likely retains far more and would mask exactly
    this class of bug. Worth confirming — it means "stock compiles it" is *not*
