@@ -158,7 +158,17 @@ More info: ${troubleshootingUrl.toLink()}.
   }
 
   /// Whether to allow changes in assets (--allow-asset-diffs).
-  bool get allowAssetDiffs => argResults['allow-asset-diffs'] == true;
+  ///
+  /// Implied by [assetsOnly]. Asset changes are that patch's entire payload,
+  /// so warning "your app contains asset changes, which will not be included
+  /// in the patch" and then demanding an override is both false and
+  /// self-contradictory.
+  /// It was worse than cosmetic: the warning ends in a "Continue anyway?"
+  /// prompt, which has no answer in a non-interactive context, so
+  /// `--assets-only` failed outright in CI (and under `--no-confirm`) unless
+  /// `--allow-asset-diffs` was passed too.
+  bool get allowAssetDiffs =>
+      argResults['allow-asset-diffs'] == true || assetsOnly;
 
   /// Whether to allow changes in native code (--allow-native-diffs).
   bool get allowNativeDiffs => argResults['allow-native-diffs'] == true;

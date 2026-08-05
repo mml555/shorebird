@@ -43,6 +43,43 @@ void main() {
       });
     });
 
+    group('allowAssetDiffs', () {
+      Patcher patcher({required bool flagPassed, required bool assetsOnly}) {
+        final argResults = MockArgResults();
+        when(() => argResults['allow-asset-diffs']).thenReturn(flagPassed);
+        return _TestPatcher(
+          argParser: MockArgParser(),
+          argResults: argResults,
+          flavor: null,
+          target: null,
+        )..assetsOnly = assetsOnly;
+      }
+
+      test('is false when neither the flag nor assetsOnly is set', () {
+        expect(
+          patcher(flagPassed: false, assetsOnly: false).allowAssetDiffs,
+          isFalse,
+        );
+      });
+
+      test('is true when the flag is passed', () {
+        expect(
+          patcher(flagPassed: true, assetsOnly: false).allowAssetDiffs,
+          isTrue,
+        );
+      });
+
+      test('is implied by assetsOnly', () {
+        // Asset changes are an assets-only patch's entire payload, so the diff
+        // check must not warn about them and stop for confirmation — a prompt
+        // that cannot be answered under --no-confirm or in CI.
+        expect(
+          patcher(flagPassed: false, assetsOnly: true).allowAssetDiffs,
+          isTrue,
+        );
+      });
+    });
+
     group('supplementaryReleaseArtifactArch', () {
       test('defaults to null', () {
         expect(

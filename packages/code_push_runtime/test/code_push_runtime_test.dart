@@ -29,6 +29,15 @@ void main() {
           releaseVersion: any(named: 'releaseVersion'),
         ),
       ).thenAnswer((_) async => null);
+      // Default to "no assets-only patch active". Left unstubbed, the throw
+      // from an unmatched call is swallowed by initialize's catch-all and shows
+      // up as some unrelated assertion failing.
+      when(
+        () => store.discoverAssetsOnlyPatch(
+          releaseVersion: any(named: 'releaseVersion'),
+          clientId: any(named: 'clientId'),
+        ),
+      ).thenAnswer((_) async => null);
       when(store.evictAll).thenReturn(null);
     });
 
@@ -111,6 +120,69 @@ void main() {
         await init();
 
         verify(store.evictAll).called(1);
+      });
+
+      test('serves an assets-only patch the updater cannot see', () async {
+        // The case this whole path exists for, and the only way an assets-only
+        // patch reaches an iOS device: the native updater reports no patch
+        // because the patch carries no code, so without asking the control
+        // plane directly the bundle would never be fetched and publishing the
+        // patch would silently change nothing.
+        final dir = Directory.systemTemp.createTempSync('cpr_assets_only');
+        addTearDown(() => dir.deleteSync(recursive: true));
+        when(
+          () => store.discoverAssetsOnlyPatch(
+            releaseVersion: any(named: 'releaseVersion'),
+            clientId: any(named: 'clientId'),
+          ),
+        ).thenAnswer((_) async => 7);
+        when(
+          () => store.ensure(
+            patchNumber: any(named: 'patchNumber'),
+            releaseVersion: any(named: 'releaseVersion'),
+          ),
+        ).thenAnswer((_) async => dir);
+
+        final runtime = await init();
+        addTearDown(() => runtime.crashReporter?.uninstall());
+
+        expect(runtime.assetBundle, isA<PatchAssetBundle>());
+        expect(runtime.assetsPatchNumber, equals(7));
+        // No code is patched, so this stays null and no reporter is installed:
+        // an assets-only patch retains no symbols to resolve a frame against.
+        expect(runtime.patchNumber, isNull);
+        expect(runtime.crashReporter, isNull);
+        verify(
+          () => store.ensure(patchNumber: 7, releaseVersion: '1.0.0+1'),
+        ).called(1);
+      });
+
+      test('reports no assets patch when the bundle fetch fails', () async {
+        // Discovery succeeding must not be mistaken for assets being served.
+        when(
+          () => store.discoverAssetsOnlyPatch(
+            releaseVersion: any(named: 'releaseVersion'),
+            clientId: any(named: 'clientId'),
+          ),
+        ).thenAnswer((_) async => 7);
+
+        final runtime = await init();
+
+        expect(runtime.assetBundle, isNot(isA<PatchAssetBundle>()));
+        expect(runtime.assetsPatchNumber, isNull);
+      });
+
+      test('does not ask for assets while a code patch runs', () async {
+        // The updater owns that patch; its bundle (if any) comes with it.
+        final runtime = await init(patch: 4);
+        addTearDown(() => runtime.crashReporter?.uninstall());
+
+        verifyNever(
+          () => store.discoverAssetsOnlyPatch(
+            releaseVersion: any(named: 'releaseVersion'),
+            clientId: any(named: 'clientId'),
+          ),
+        );
       });
     });
 

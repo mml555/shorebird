@@ -1,6 +1,464 @@
 <!-- cspell:words dartsdk prebuilts bidiff vmcode aot daemonized crashprobe jewgo azureuser sshkey serverinfo -->
+<!-- cspell:words APFS CODEPATCH PRECOMPILER Werror caffeinate dartaotruntime SEGVs Specializer diskutil dumpsys flowgraph iface killgate libdart nodm nofail precompiler unapply -->
+<!-- cspell:words tearoff DNDEBUG SEGV LINKEDIT ourengine noinstall SELTOTAL hosttest unrun closurizing closurized closurize bodyless -->
 
 # Handoff — engine improvements (as of 2026-08-04)
+
+## 2026-08-04, later: Android proven on our own engine; iOS engine now builds
+
+Three results that change the picture, all verified rather than argued:
+
+1. **Android code push is proven end to end on OUR engine**, device-verified on
+   CPH2551: release `0.6.0+1` built against `fc184af6` (served from our overlay),
+   patch built by our own differ, applied on device, patched Dart executing
+   (`CODEPATCH-V1 patch: 1`), then rolled back to `patch: null`. Proof the engine
+   was ours and not stock: the APK's `libflutter.so` carries the Route B
+   patch-assets marker, which stock has **zero** occurrences of, and lacks the
+   `69f9831c` revision string that stock carries. Two fixes were needed and are
+   checked in: `engine_stamp.json` must be in the overlay (Flutter 3.44 fetches
+   it and a 404 is fatal), and `fc184af6` must be in `experimental_hashes.map`
+   (else `sky_engine.zip` 404s, because the passthrough asks upstream for *our*
+   revision).
+2. **Our own iOS engine builds against vanilla Dart, and is published to the
+   overlay** as `70974f81…` (`engine/publish_ios_overlay.sh`) together with the
+   macOS host toolchain. (`5a6b0b09…` was the first attempt and is superseded;
+   both are in `experimental_hashes.map` with the reason.) The published
+   `artifacts.zip` now carries the fixed `gen_snapshot`
+   ([`0004`](engine/0004-dart-tearoff-selector-guard.patch)). See
+   [`UPSTREAM_INDEPENDENCE.md`](UPSTREAM_INDEPENDENCE.md) item 7 for what it took.
+   Two private-fork dependencies had to be closed first: the
+   `shorebird_use_interpreter` GN gate, and six `print_*_table_link_*_to`
+   gen_snapshot flags their flutter_tools passes unconditionally on Apple targets.
+   **A release now builds against it** (release `9.0.0+1`, 2026-08-04) and the
+   engine boots on device, but **no app has run to first frame yet** — see
+   [§ Status: it BUILDS, it does not yet RUN](#status-it-builds-it-does-not-yet-run).
+   So shipped iOS releases still run on Shorebird's prebuilt engine.
+3. **An assets-only patch was invisible to devices, and now is not.** The CLI
+   could publish one and the server would store it, but nothing on the device
+   ever asked for it: the native updater is only offered patches carrying code
+   (deliberately — it would inflate an asset archive as a binary diff and
+   tombstone the patch), so it reported "no patch", and `code_push_runtime` only
+   fetched a bundle when the updater named a patch. Fixed in
+   `code_push_runtime`: `PatchAssetStore.discoverAssetsOnlyPatch()` asks
+   `patches/check` directly with `supported_patch_kinds: ['assets']`, and
+   `CodePushRuntime` now reports `assetsPatchNumber` separately from
+   `patchNumber` so "no patch" and "assets patched, code original" are
+   distinguishable. **This was the actual gap between "the CLI can build an iOS
+   patch without their linker" and "iOS code push works".**
+
+   **Device-verified 2026-08-04** on iPhone9,1 / iOS 15.8.8, over the USB link:
+   release `5.0.0+1` on Shorebird's prebuilt engine rendered
+   `code patch: none` / `assets patch: 1` with the patched asset served, and the
+   server log shows the whole chain — `POST /api/v1/patches/check` (the native
+   updater, correctly offered nothing), `POST /patches/check` (our new discovery
+   call), `POST /patches/assets`, then the bundle download. `code patch: none`
+   beside `assets patch: 1` is the load-bearing detail: it proves the asset
+   arrived through app-side discovery and not through the updater. Before this
+   fix the same screen read `BAKED-INTO-RELEASE`.
+
+   Useful tooling note: **`idevicescreenshot` works on iOS 15 with no extra
+   setup**, so an on-device result can be captured rather than described. It is
+   the only way to see a Flutter screen — Flutter draws to a canvas, so nothing
+   in the view hierarchy or `dumpsys`-style output contains the text.
+
+   Also fixed while proving it: **`--assets-only` now implies
+   `--allow-asset-diffs`** (`commands/patch/patcher.dart`). The diff checker was
+   warning "your app contains asset changes, which will not be included in the
+   patch" on the one kind of patch whose entire payload *is* asset changes — a
+   statement that is both false and self-contradictory. Worse than cosmetic: the
+   warning ends in a `Continue anyway?` prompt, which has no answer under
+   `--no-confirm` or in CI, so `--assets-only` failed outright unless
+   `--allow-asset-diffs` was passed alongside it. Three tests cover it.
+
+   Still open on the same theme: the CLI **downloads `aot-tools.dill` even for
+   `--assets-only`**, during cache warm-up, and a download failure is fatal
+   (`CacheUpdateFailure`) despite the artifact being declared `required => false`.
+   It is never invoked — the build runs `gen_snapshot` for the diff check and no
+   linker — but it still has to be fetchable, so an assets-only iOS patch is not
+   yet fully independent of upstream at *cache* level even though it is at *use*
+   level.
+
+4. ~~**iOS on OUR engine does not work yet, and the reason is our Dart fork's base
+   revision.**~~ **Superseded — read [§ Root cause, found](#root-cause-found-2026-08-04-late) below
+   before anything else in this item.** The base revision was never the problem,
+   the two "bugs" were one bug, and it is fixed. The text below is kept only
+   because the elimination log refers to it.
+
+   Two bugs found, both in the
+   implicit-accessor-synthesized-from-a-Field path:
+
+   - **Bug #1 (fixed):** `ReadParameterCovariance` (`runtime/vm/kernel.cc`) calls
+     `ReadUntilFunctionNode` with no kind check. An implicit accessor's
+     `kernel_offset` points at the **Field** node, so it aborts with the opaque
+     `Unexpected tag 4 (Field)`. Every other caller guards this — the kind switch
+     in `kernel_binary_flowgraph.cc`, the `PeekTag() == kField` branch in
+     `scope_builder.cc` — this one did not. Fix + a much better
+     `ReportUnexpectedTag` diagnostic are in
+     [`engine/0003-dart-kernel-reader-fixes.patch`](engine/0003-dart-kernel-reader-fixes.patch).
+     It needs a `final` field in a reachable package (for us `package:yaml`'s
+     `YamlDocument.span`), which is exactly why `dart compile aot-snapshot` on
+     hello-world succeeded while every Flutter release failed, and why Android
+     never tripped it.
+   - **Bug #2 (open):** with #1 fixed the compile gets further and SEGVs.
+     A **debug** `gen_snapshot` (`out/host_debug_arm64/gen_snapshot`) is what makes
+     this diagnosable at all — the release build prints one `si_addr` line and no
+     stack. Trace: `Class::HasCompressedPointers()` ← `Slot::Get(const Field&,
+     const ParsedFunction*)` ← `CallSpecializer::InlineImplicitInstanceGetter` ←
+     `CompilerPass_ApplyClassIds`. A garbage owner `Class` while inlining an
+     implicit instance getter.
+
+   ~~**Two bugs in one narrow path is a tree problem.** Rebase onto the public
+   vanilla tag `3.12.2` (`704629bc…`).~~ **Wrong on both counts — see below.**
+
+## Root cause, found (2026-08-04, late)
+
+**One bug, not two, and not in our base revision. Fixed in one line:**
+[`engine/0004-dart-tearoff-selector-guard.patch`](engine/0004-dart-tearoff-selector-guard.patch).
+
+**Do not do the rebase.** `refs/tags/3.12.2` is an *annotated* tag: `704629bc` is
+the tag object and its target commit is `d684a576a6aa954ae107a03b2b4e1d61c3bebe93`
+— the commit our fork is already based on. `git ls-remote` shows no `^{}` peel
+line for this tag (it does for `3.12.0`), which is what made one commit look like
+two. `tools/VERSION` there reads `CHANNEL stable / 3.12.2 / PRERELEASE 0`, and
+Shorebird's `DEPS` names the same SHA as `dart_revision`. Our Dart is vanilla
+stable 3.12.2 plus the 57-line shim. A fresh clone would have produced a
+byte-identical tree — a day for nothing.
+
+### What was actually wrong
+
+`dispatch_table_generator.cc:590`. A table selector is shared by every member with
+the same name, so a **getter** selector is marked `torn_off` as soon as *any*
+method of that name is torn off anywhere in the program. For a field's implicit
+getter that path then runs
+
+```
+GetMethodExtractor(get:get:foo)
+  → Function::ImplicitClosureFunction()
+    → set_implicit_closure_function()
+```
+
+and `set_implicit_closure_function` **overwrites the accessor's `data_` slot —
+which holds its `Field` — with the closure.** `object.cc:8762` asserts exactly
+that this is illegal (`ASSERT(old_data.IsNull() || value.IsNull())`), but
+`gen_snapshot` ships `-DNDEBUG`, so the assert is compiled out and the corruption
+is silent. 349 members were hit in one app, 598 of them implicit getters.
+
+Both "bugs" were that one event surfacing at different distances from it:
+
+- "Unexpected tag 4 (Field)" — `ImplicitClosureFunction()` calls
+  `ReadParameterCovariance` (`object.cc:11079`), whose `kernel_offset` for an
+  implicit accessor points at the **Field** node.
+- The SEGV — afterwards `accessor_field()` returns a `Function` (cid 7) where a
+  `Field` (cid 11) is expected, so `Field::Owner()` reads garbage.
+
+The fix skips the tear-off block for `IsImplicitGetterOrSetter()`. **Keep it that
+narrow.** The first version guarded on `IsRegularFunction()` instead, which also
+compiles and produces a working snapshot for `gen_snapshot`, but drops legitimate
+tear-off entries for real getters/setters and method extractors — 349 sites in one
+app. Both guards behave identically at runtime for the app below, so the broad one
+was not what broke it, but there is no reason to carry the extra blast radius.
+
+### Status: it BUILDS, it does not yet RUN
+
+`shorebird release ios` completes on our own engine — first time ever. Verified on
+release `9.0.0+1`, engine `70974f81…`:
+
+- the `Flutter.framework` inside the IPA is **byte-identical** to
+  `out/ios_release/.../Flutter` (compare bytes 1 MB–14 MB; the header and
+  `__LINKEDIT` differ because Xcode re-signs);
+- on device, our engine boots, loads `App.framework`, and **the Shorebird updater
+  talks to our control plane**: `Sending patch check request … release_version:
+  "9.0.0+1"` → `PatchCheckResponse { patch_available: false }` → `Reporting
+  successful launch`.
+
+Then it aborts before Dart user code runs:
+
+```
+[FATAL:flutter/lib/io/dart_io.cc(31)] Check failed: !CheckAndHandleError(locale_closure).
+Unhandled exception:
+#0 Object.noSuchMethod        (dart:core-patch/object_patch.dart:38)
+#1 _objectNoSuchMethod        (dart:core-patch/object_patch.dart:88)
+#2 new Map._fromLiteral       (dart:core-patch/map_patch.dart:19)
+#3 new PlatformDispatcher._   (dart:ui/platform_dispatcher.dart:186)
+#4 PlatformDispatcher._instance
+#5 _getLocaleClosure          (dart:ui/hooks.dart)
+```
+
+`map_patch.dart:19` is `var map = LinkedHashMap<K, V>();` — constructing a plain
+map literal fails dynamic dispatch. In AOT a missing dispatch-table entry lands on
+the no-such-method stub, so **the dispatch table is the prime suspect**, but this
+is *not* our guard's doing: the broad and narrow guards fail identically, and
+Android already runs on our engine with the same vanilla `gen_snapshot`.
+
+What is ruled out:
+
+- **`dart_dynamic_modules`.** Built and ran both ways; identical failure. The
+  invariant below that blames a dm mismatch for "Unexpected tag 4 (Field)" is
+  **wrong** — a dm=true `gen_snapshot` consumes a dm=false frontend_server's dill
+  without complaint, and the real cause of that error is the tear-off bug above.
+- **Our frontend_server / platform dill / the kernel.** Stock `gen_snapshot`
+  compiles our `app.dill` end to end (951 k lines of assembly).
+- **The app, device, server and USB link.** All verified working on the stock
+  engine, and the updater round-trip above happens on ours.
+- **Swapping the stock `Flutter.framework` under our snapshot** to isolate
+  engine-vs-snapshot. Impossible by construction: `Wrong full snapshot version,
+  expected '839937ddd…' found '8889ac395…'`. That is invariant #1 doing its job.
+
+Next diagnostics, in order of expected value:
+
+#### RESOLVED 2026-08-05 — iOS code push runs end to end on our own engine
+
+Device-verified on iPhone9,1 / iOS 15.8.8, engine `70974f81…`, release
+`27.0.0+1`, patch `1`:
+
+```
+status: ok
+code patch: none
+assets patch: 1
+assets/probe.json via PatchAssetBundle: {"origin":"PATCHED-ON-OUR-OWN-ENGINE"}
+```
+
+Release built on our engine → app runs to first frame → patch built by our CLI
+with **no AOT linker** → served by our control plane → applied on device →
+patched asset rendered. Server log shows the whole chain:
+`POST /api/v1/patches/check` (native updater) → `POST /patches/check` (our
+Dart-side discovery) → `POST /patches/assets` → `GET /download/…`. The shipped
+`Flutter.framework` is byte-identical to `out/ios_release`'s and differs from
+stock. No engine or SDK diagnostics are in the shipped artifacts.
+
+**Four fixes, one theme.** The dill's TFA metadata — `call_count`, `torn_off`,
+`has_tearoff_uses` — is a **lower bound** in our pipeline, and vanilla's AOT
+compiler treats it as exact. Where that costs a dispatch-table row the call
+becomes unresolvable at runtime, because AOT product snapshots carry no
+`Class::functions()` for a name lookup to fall back on.
+
+| # | Patch | Fix |
+|---|---|---|
+| 1 | [`0004`](engine/0004-dart-tearoff-selector-guard.patch) | Never closurize an implicit accessor — it overwrites the accessor's `Field` pointer |
+| 2 | [`0004`](engine/0004-dart-tearoff-selector-guard.patch) | Drop the `IsUsed()` (`call_count > 0`) gate on selector rows |
+| 3 | [`0004`](engine/0004-dart-tearoff-selector-guard.patch) + [`0005`](engine/0005-dart-precompiler-link-info-and-tearoffs.patch) | Build method extractors for **regular methods only**, ignoring `torn_off` / `has_tearoff_uses` |
+| 4 | [`0006`](engine/0006-dart-no-dispatch-call-for-hash-slots.patch) | Never dispatch-call the `_HashVMBase` graph-intrinsic slot accessors |
+
+Snapshot size cost: **+1.5 %**.
+
+Two of these were self-inflicted and are worth remembering as *rules*, not
+anecdotes:
+
+- **Only a regular method can be torn off.** Letting getters and setters into
+  the extractor path corrupts the table, because a setter's
+  `getter_selector_id` names its *field's* getter — so the extractor for
+  `set:_data` was written into `get:_data`'s row and `_table._data` started
+  returning a fresh `(List<dynamic>) => void` closure on every read. That
+  surfaced as a bogus `ConcurrentModificationError`, which is nothing like its
+  cause. `tearoff_sid != sid` does **not** catch it: the two selectors really
+  are different.
+- **Don't exclude *all* recognized methods** from dispatch-table calls to fix
+  the above — `_Array.[]` and `_Array.get:length` are recognized and do have
+  bodies, and dropping their rows brings back the `Map._fromLiteral`
+  `NoSuchMethodError`. Only the bodyless graph-intrinsic slot accessors must be
+  excluded.
+
+The underlying question — *why* TFA under-reports — is still open and still
+lives in `pkg/vm/lib/transformations/type_flow/`. These four are compensations
+that make the pipeline correct; a proper fix would let most of them be deleted.
+
+#### How it got there (2026-08-05, ~02:00)
+
+Startup now gets **much** further. Verified on release `18.0.0+1`:
+
+| stage | before | now |
+|---|---|---|
+| `gen_snapshot` compiles the app | ✅ | ✅ |
+| Dart isolate starts | ✗ abort in `DartIO::InitForIsolate` | ✅ |
+| `main()` entered | ✗ | ✅ beacon `01` |
+| `WidgetsFlutterBinding` ready | ✗ | ✅ beacon `02` |
+| `runApp()` called | ✗ | ✅ beacon `03` |
+| `CodePushRuntime.initialize` returns | ✗ | ✅ beacon `04` |
+| first frame painted | ✗ | ✅ (see RESOLVED above) |
+
+**The one remaining blocker** is a *spurious* `ConcurrentModificationError`:
+
+```
+Concurrent modification during iteration: _Map len:9
+#0 _CompactEntriesIterator.moveNext (dart:_compact_hash:919)
+```
+
+thrown during the first widget build, and again (len:1) twice more. Nothing is
+actually modifying the map — `_CompactIterator.moveNext` compares its captured
+`_modificationCount` against `_map._modificationCount` and sees a mismatch that
+should not exist, which is the signature of a field read landing on the wrong
+slot. It does **not** reproduce in a plain Dart program: an equivalent
+map-iteration test compiled by the *current* `gen_snapshot_product` and run under
+`dartaotruntime` iterates keys/entries/values/`forEach` correctly
+(`scratchpad/hosttest/iter.dart`). So it is specific to the Flutter dill.
+
+Two techniques made this visible and are worth keeping:
+
+- **Beacons.** App stderr is unreadable on this rig, but the control-plane log is
+  not. `GET http://<host>/selfhost-beacon/<stage>` from Dart turns the server log
+  into a progress trace; a 403/404 in the log is a success. This is what proved
+  `main()` runs.
+- **App-side error capture.** Flutter's own `FlutterError.reportError` runs the
+  stack through `defaultStackFilter`, which on this engine dies with the same
+  bogus `ConcurrentModificationError` and takes the real error with it. Setting
+  `FlutterError.onError` in the app and beaconing
+  `details.exceptionAsString()` is what surfaced the message at all.
+
+Also worth knowing: `ios-deploy`'s lldb console only flushes the app's output
+**when the process crashes**. A clean-running app looks completely silent. To read
+anything from a non-crashing app, either beacon it out or make the failure fatal
+(`FML_CHECK`) so the console flushes and a `.ips` crash report is written.
+
+#### Traced to its mechanism
+
+Chased with a VM diagnostic in `NoSuchMethodFromCallStub`. (`runtime_entry.cc` is
+**not** in `VM_SNAPSHOT_FILES`, so it can be instrumented and the framework
+hot-swapped into an already-signed bundle without invalidating the snapshot.)
+
+```
+SELFHOST NSM: target='get:length' receiver_class='_ImmutableList' cid=91
+SELFHOST NSM: target='[]'         receiver_class='_ImmutableList' cid=91
+  chain cid=91   _ImmutableList                              functions=0
+  chain cid=2464 __ImmutableList&_Array&UnmodifiableListMixin functions=0
+  chain cid=2463 _Array                                      functions=0
+  chain cid=45   Object                                      functions=6
+```
+
+Those two are the `elements.length` and `elements[i]` in `Map._fromLiteral`.
+Empty `functions()` arrays are **normal** in AOT — name lookup is not supposed to
+be needed. The call reached a name lookup because the compiler never gave it a
+dispatch-table entry:
+
+```
+SELFHOST SEL:  dart:core_List_get_length      sid=5195 call_count=0 offset=-1
+SELFHOST CALL: iface=dart:core_List_get_length sid=-1  offset=-1 null=1
+SELFHOST SELTOTAL: selectors=13675 with_calls=1695 torn_off=597
+```
+
+`GetSelector()` returns null when `call_count == 0`, and
+`AotCallSpecializer::TryReplaceWithDispatchTableCall` then leaves the call alone.
+Its own `#if defined(DEBUG)` branch says why: *"Target functions were removed by
+tree shaking. This call is dead code, or the receiver is always null."*
+**The compiler concluded this call can never execute. It executes.**
+
+Full chain: our dill's TFA table-selector metadata reports zero call sites for
+`get:length` / `[]` → no dispatch-table entry → the call survives as a switchable
+call → at runtime the receiver is an `_ImmutableList` (the *const* element list
+the VM's `BuildMapLiteral` passes when every entry is constant) → AOT cannot
+resolve by name → `NoSuchMethodError`. The metadata is not globally empty (1695
+of 13675 selectors do have calls), so this is specific, not wholesale.
+
+Ruled out along the way:
+
+- **Our `gen_snapshot`, and the assembly path in general.** A plain Dart program
+  with map literals, compiled by our `gen_snapshot_product` as **both**
+  `app-aot-elf` and `app-aot-assembly` (the latter assembled with clang into a
+  dylib and run under our `dartaotruntime`), prints the right answer. Recipe in
+  `scratchpad/hosttest/`; rebuild it, it is a seconds-long loop. Note the
+  `host_debug_arm64` `gen_snapshot` cannot be used for this — its output trips
+  `Flag dedup_instructions is false in snapshot` in a product runtime.
+- **Our precompiler patch.** The link-info stub loop is a pure insertion before
+  `ClassFinalizer::SortClasses()`; control flow around class-id sorting is
+  untouched (`precompiler.cc` ~line 549).
+- **The tear-off guard.** `_Array.get:length` is a plain `GetterFunction`, which
+  the narrow guard never touches, and broad and narrow fail alike.
+
+Next diagnostics, in order of expected value:
+
+1. **Why does TFA report `call_count == 0` for these selectors?** That is the
+   whole bug now. `Map._fromLiteral` is `@pragma("vm:entry-point", "call")` and
+   is invoked by the VM's `BuildMapLiteral`, not from Dart source, so TFA counts
+   the calls in its body only if it treats that pragma as an analysis root. Look
+   at `pkg/vm/lib/transformations/type_flow/` (`summary_collector.dart`,
+   `table_selector_assigner.dart`), and specifically at whether TFA models the
+   element list as `_List` while the VM passes a const `_ImmutableList`.
+2. **Compare against a dill from the stock frontend_server** — the clean
+   ours-vs-theirs split, still unrun. If stock's dill has `call_count > 0` for
+   `get:length`, the bug is in our frontend, not our backend.
+3. Stock's snapshot of our dill is **44 % larger** (951 k vs 662 k lines of
+   assembly), so their fork very likely retains far more and would mask exactly
+   this class of bug. Worth confirming — it means "stock compiles it" is *not*
+   evidence that a dill is sound, which weakens the cross-test used above.
+
+Trap found while attempting #2: **Shorebird's published host artifacts for the
+pinned revision are internally inconsistent.** `dart-sdk-darwin-arm64.zip`
+(`dart-sdk/revision` = `db98bdaa`) carries a `dartaotruntime` expecting snapshot
+version `839937ddd…`, while the `frontend_server_aot.dart.snapshot` in the same
+revision's `darwin-arm64/artifacts.zip` reports `ace654289…` — so running their
+frontend_server under their `dartaotruntime` fails immediately with `Wrong full
+snapshot version`. Whatever `flutter` does to run frontend_server, it is not that
+pairing; work out what before retrying.
+
+Reproducing takes ~10 min: `release_ios_ourengine.sh`-style build, then
+`ios-deploy --bundle Payload/Runner.app --noinstall --debug` for the console.
+**Use `--export-method development`** — an ad-hoc IPA has `get-task-allow: false`
+and lldb cannot attach, which is the difference between a stack trace and a white
+screen. And note the engine hash is sha1 of the **Flutter binary only**, so a
+`gen_snapshot`-only change republishes under the same hash: delete
+`bin/cache/engine.stamp`, `engine_stamp.stamp` and
+`bin/cache/artifacts/engine/ios-release` or the build silently reuses the old
+compiler.
+
+A trick worth reusing: to test an engine change without a full release cycle,
+rebuild just `Flutter.framework`, copy the binary into an existing
+`Payload/Runner.app/Frameworks/Flutter.framework/`, re-sign each framework and
+then the app with `codesign -f -s <identity> --entitlements <extracted>`, and
+reinstall. ~3 minutes instead of ~15. Safe as long as the change does not touch
+`VM_SNAPSHOT_FILES`. Also: `FML_CHECK`'s own message is lost to `abort()` on iOS —
+log the condition with `FML_LOG(ERROR)` first or you will see the check fire with
+no reason attached.
+
+**The bug-#1 patch is retired.** With the guard in place, reverse-applying
+`0003` changes nothing: same exit 0, and the two snapshots differ only in the 20
+lines encoding `gen_snapshot`'s own build hash. `0003` is now diagnostic-only.
+That also retires the carried gap about it mis-reporting covariance for a
+covariant field's implicit setter.
+
+### The fast loop that found it (use this)
+
+No Xcode, no device, no server. **0.24 s to reproduce, ~80 s per rebuild:**
+
+```bash
+GS=/Volumes/build/ios-engine/flutter/engine/src/out/host_debug_arm64/gen_snapshot
+$GS --deterministic --snapshot_kind=app-aot-assembly --assembly=/tmp/out.S app.dill
+# rebuild after an edit:
+ninja -C /Volumes/build/ios-engine/flutter/engine/src/out/host_debug_arm64 -j8 gen_snapshot
+```
+
+`app.dill` is any Flutter app's, from `.dart_tool/flutter_build/*/app.dill`.
+`out/host_debug_arm64` prints a full stack and the crashing function's CFG; note
+it is `is_debug=false` / `dart_runtime_mode=develop`, so **`ASSERT` is compiled
+out there too** — that is why the illegal write went unseen. When a VM invariant
+is suspect, turn the relevant `ASSERT` into an `OS::PrintErr` +
+`Profiler::DumpStackTrace(false)` rather than trusting that asserts would have
+caught it.
+
+The decisive experiment was cheaper than any of it: run **stock**
+`gen_snapshot_arm64` (from Shorebird's `ios-release/artifacts.zip`) on *our*
+`app.dill`. It succeeded, which cleared our frontend_server, our platform dill and
+the kernel in a single command and pointed straight at our binary. Do this first
+next time.
+
+### Two more upstream dependencies this surfaced
+
+- **The DD two-pass build.** `flutter_tools` runs it whenever `usesLinker`, and it
+  needs `gen_snapshot --print_dd_function_identity_to` plus `analyze_snapshot
+  --compute_dd_table` / `--compute_dd_slot_mapping` / `--dd_caller_links` /
+  `--dd_table_data` / `--dd_function_identity` — all private to their fork, and
+  *every* failure inside the pass is fatal. Pass **`--dd-max-bytes=0`** to
+  `shorebird release ios`; DD only improves the link percentage of iOS *code*
+  patches, which need the linker we do not have. (`--dd-max-bytes` defaults to
+  `10000`, so it is on unless you turn it off.)
+- Stubbing flags is not always enough. The six `print_*_table_link_*_to` flags
+  work as stubs because nothing reads what they write; DD does not, because
+  `analyze_snapshot` has to consume the output.
+
+Corrections to what this file said before: `experimental_hashes.map` is **not**
+checked in empty (it had two passthrough aliases before today, and now names our
+Route B engine); the Metal-toolchain hazard is **not** ANGLE-specific — it applies
+to any Metal compilation, including Impeller on iOS; and an earlier claim of mine
+that "there is no public Dart revision to rebase onto" was **wrong** — I had tested
+Shorebird's private SHA instead of looking for vanilla's release tags.
 
 **Next up: [Track E](#track-e--ios-code-push-the-binder) below.** The iOS
 code-push kill gate **passed** on 2026-08-04 — interpreted patch execution is
@@ -27,9 +485,17 @@ This file is the "where to put your hands" version.
 ## The one thing to internalize first
 
 **`main` and the supported pin are untouched, and must stay that way.** Everything
-ships on Shorebird's prebuilt engine. Our own engine exists, is device-verified,
-and is deliberately inert: `experimental_hashes.map` is checked in empty, so the
-mirror is a pure passthrough cache. Verify before and after any change you make:
+*shipped* still runs on Shorebird's prebuilt engine, and `compatibility.yaml` is
+byte-identical to `main`.
+
+What is **no longer** true, despite what this section used to say:
+`experimental_hashes.map` is not checked in empty. It carries four entries — two
+passthrough aliases to the stock pin, the Route B Android engine `fc184af6…`, and
+our iOS engine `5a6b0b09…`. The mirror is therefore no longer a pure passthrough
+cache: for those hashes it serves our overlay and 404s a miss instead of falling
+back to stock. That is deliberate and is what makes the device proofs meaningful,
+but it means **the map, not the pin, is the switch to check** when you want to
+know whether a build used our engine. Verify the pin before and after any change:
 
 ```bash
 python3 - <<'PY'
@@ -493,6 +959,49 @@ Do not re-learn these:
    files our fork patches. A mixed artifact set installs fine and then dies at
    launch with `Wrong full snapshot version`. The whole host toolchain must come
    from our tree.
+
+   **Stronger than that, learned on iOS 2026-08-04: same tree is not enough —
+   the whole host toolchain must share the same GN CONFIG and the same applied
+   patches.** The chain is
+   `frontend_server_aot` → kernel → `gen_snapshot` → snapshot, against the
+   platform dill in `flutter_patched_sdk_product`. Break it anywhere and the iOS
+   AOT step dies with
+
+   ```
+   Error (Xcode): Unexpected tag 4 (Field) in ?, expected a procedure,
+   a constructor, a local function or a function node
+   ```
+
+   which names nothing useful. Two distinct causes produced that identical
+   message, hours apart:
+
+   - ~~**Different `dart_dynamic_modules`.**~~ **Disproved 2026-08-04 (late).** A
+     `dart_dynamic_modules=true` `gen_snapshot` consumes a dill from a
+     `dart_dynamic_modules=false` frontend_server and platform dill without
+     complaint — built and ran both ways, identical behavior. The real cause of
+     this error is the tear-off bug in [§ Root cause,
+     found](#root-cause-found-2026-08-04-late). Keeping the whole toolchain on one
+     GN config is still right on principle, and `out/host_release_arm64_nodm`
+     exists for that, but it was not the bug and chasing it cost hours.
+   - **Track E's SDK edits leaking into the platform dill.** The killgate patch
+     modifies `sdk/lib/_internal/vm/lib/internal_patch.dart` and
+     `sdk/lib/internal/internal.dart`, which are *SDK sources* and therefore
+     compile into `platform_strong.dill` no matter what the GN flag says —
+     `strings platform_strong.dill | grep attachBytecodeToFunction` returns 7
+     hits. Those changes are designed for `dart_dynamic_modules = true`.
+
+   **So the killgate rig and the iOS-engine rig cannot share one Dart checkout.**
+   Give each its own, or unapply
+   [`engine/killgate/0001-attach-bytecode-native.patch`](engine/killgate)
+   before building an iOS engine. Check with `git status` in
+   `engine/src/flutter/third_party/dart` before trusting any iOS artifact.
+
+   A corollary worth knowing: a change to `runtime/vm/compiler/aot/precompiler.cc`
+   can compile clean in `out/ios_release` and still break a host build, because
+   that file is also compiled into the JIT variant (`libdart_compiler_jit`) where
+   `DART_PRECOMPILER` is off. `-Werror=unused-function` on a helper whose only
+   call site is inside the guard is the failure mode. Build a host target too
+   before believing an `ios_release`-only success.
 2. **Clearing an artifact cache swaps the Dart under an already-compiled tool
    snapshot**, which then fails as `Wrong full snapshot version` *on the host* —
    looks like an engine fault, is not. Recompile the CLI/flutter tool snapshots.
@@ -506,6 +1015,25 @@ Do not re-learn these:
 5. **`PUBLIC_BASE_URL` is embedded absolutely** in upload/download URLs. One URL
    must satisfy both the build host and the device; `http://localhost:18080` plus
    an ssh reverse tunnel (box) and `adb reverse` (device) does.
+
+   **On iOS there is no `adb reverse`, but you do not need Wi-Fi either: use the
+   USB link.** A tethered iPhone appears as an ordinary macOS network interface
+   with IPv4 link-local on both ends, so the phone can reach a server on the Mac
+   over the cable. Find it with:
+
+   ```bash
+   ifconfig | awk '/^[a-z0-9]+:/{i=$1} /inet 169\.254\./{print i, $2}'   # Mac side
+   arp -a -i <iface>            # the phone shows up as <name>.local
+   ```
+
+   On 2026-08-04 that was `en17`, Mac `169.254.189.3`, phone `169.254.145.84`,
+   ~1 ms round trip. Set `PUBLIC_BASE_URL` and the app's `shorebird.yaml`
+   `base_url` to the **Mac's** link-local address and everything works with Wi-Fi
+   off — which also satisfies the wired-only testing rule.
+
+   Two caveats: the link-local address can change when the device reconnects, and
+   `base_url` is baked into `flutter_assets`, so a changed address means a new
+   release build. Check the address before building, not after.
 6. **`arch` is free-form end to end.** It has now absorbed three artifact kinds
    (code, `assets`, `symbols`) with no schema, protocol, or client change. Reach
    for it before adding columns.

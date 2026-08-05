@@ -47,6 +47,7 @@ class CodePushRuntime {
     required this.assetBundle,
     required this.patchNumber,
     required this.crashReporter,
+    this.assetsPatchNumber,
     this.engineOverlayInstalled = false,
   });
 
@@ -54,8 +55,19 @@ class CodePushRuntime {
   /// it has any, and the app's compiled-in assets otherwise.
   final AssetBundle assetBundle;
 
-  /// The patch running, or null on an unpatched release.
+  /// The **code** patch running, or null when none is — including when an
+  /// assets-only patch is active, since that one replaces no code.
   final int? patchNumber;
+
+  /// The patch whose assets are being served, or null when the compiled-in
+  /// assets are.
+  ///
+  /// Equal to [patchNumber] when a code patch carries assets. Set *without* it
+  /// for an assets-only patch, which is the case that would otherwise be
+  /// indistinguishable from "no patch at all" — the two are reported separately
+  /// so an app can tell "no patch" from "assets patched, code original" rather
+  /// than having [patchNumber] quietly mean two different things.
+  final int? assetsPatchNumber;
 
   /// Whether this launch wrote the patch's assets into the engine's overlay
   /// directory.
@@ -108,15 +120,30 @@ class CodePushRuntime {
             rootDirectory: cacheDirectory ?? await _defaultCacheDirectory(),
           );
 
+      // An assets-only patch is invisible to the updater by design, so when it
+      // reports nothing we still have to ask whether one is active. Without
+      // this, publishing an assets-only patch changes nothing on the device:
+      // the updater says "no patch", the store is never consulted, and the app
+      // keeps serving compiled-in assets forever. This is the only way such a
+      // patch reaches a device running a stock updater — which is every iOS
+      // device, since iOS code patches need an AOT linker we do not have.
+      var assetsPatch = patch;
+      if (patch == null && releaseVersion != null) {
+        assetsPatch = await store.discoverAssetsOnlyPatch(
+          releaseVersion: releaseVersion,
+          clientId: await _clientId(),
+        );
+      }
+
       var bundle = fallback;
       var engineOverlayInstalled = false;
-      if (patch == null) {
+      if (assetsPatch == null) {
         // No patch running: the app's own assets are correct, and any bundle
         // left from a patch that was rolled back must not outlive it.
         store.evictAll();
       } else if (releaseVersion != null) {
         final dir = await store.ensure(
-          patchNumber: patch,
+          patchNumber: assetsPatch,
           releaseVersion: releaseVersion,
         );
         if (dir != null) {
@@ -124,19 +151,23 @@ class CodePushRuntime {
           if (installEngineOverlay) {
             engineOverlayInstalled = await _installEngineOverlay(
               environment: env,
-              patchNumber: patch,
+              patchNumber: assetsPatch,
               bundle: dir,
             );
           }
         }
       }
 
-      // Only while a patch is running. This package is not a crash reporting
-      // product and should not act like one: an app on an unpatched release
-      // already has whatever reporter it chose, and duplicating it would add
-      // reports that can never be symbolicated here, because symbols are
-      // retained per patch. The question this answers is narrower and is the
-      // one code push creates — "did the patch I shipped break something?"
+      // Only while a CODE patch is running — deliberately `patch`, not
+      // `assetsPatch`. This package is not a crash reporting product and should
+      // not act like one: an app on an unpatched release already has whatever
+      // reporter it chose, and duplicating it would add reports that can never
+      // be symbolicated here, because symbols are retained per patch. The
+      // question this answers is narrower and is the one code push creates —
+      // "did the patch I shipped break something?" An assets-only patch ships
+      // no code and retains no symbols, so a report attributed to it could
+      // never resolve a frame; swapping an asset is also not the kind of change
+      // that introduces a crash in compiled code.
       CrashReporter? reporter;
       if (reportCrashes && releaseVersion != null && patch != null) {
         reporter = CrashReporter(
@@ -150,6 +181,10 @@ class CodePushRuntime {
       return CodePushRuntime._(
         assetBundle: bundle,
         patchNumber: patch,
+        // Only claim assets are patched when a bundle is actually being
+        // served: discovery succeeding but the fetch failing must not look
+        // like success.
+        assetsPatchNumber: bundle == fallback ? null : assetsPatch,
         crashReporter: reporter,
         engineOverlayInstalled: engineOverlayInstalled,
       );

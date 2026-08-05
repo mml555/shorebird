@@ -1,0 +1,139 @@
+# cspell:words precompiler closurizing closurized tearoff selfhost
+#
+# Dispatch-table fixes that let a Flutter app COMPILE AND RUN on our
+# vanilla-Dart iOS engine. Apply to engine/src/flutter/third_party/dart.
+#
+# Theme: the dill's TFA metadata (call_count, torn_off) is a LOWER BOUND in
+# our pipeline, but vanilla's AOT compiler treats it as exact. Where that
+# costs a dispatch-table row, the call is later unresolvable, because AOT
+# product snapshots carry no Class::functions() for a name lookup to use.
+diff --git a/runtime/vm/compiler/aot/dispatch_table_generator.cc b/runtime/vm/compiler/aot/dispatch_table_generator.cc
+index 1863badc..6f9513a4 100644
+--- a/runtime/vm/compiler/aot/dispatch_table_generator.cc
++++ b/runtime/vm/compiler/aot/dispatch_table_generator.cc
+@@ -381,7 +381,11 @@ const TableSelector* SelectorMap::GetSelector(
+ const TableSelector* SelectorMap::GetSelector(int32_t sid) const {
+   if (sid == kInvalidSelectorId) return nullptr;
+   const TableSelector* selector = &selectors_[sid];
+-  if (!selector->IsUsed()) return nullptr;
++  // SELFHOST: the IsUsed() (call_count > 0) test that used to be here is gone
++  // for the reason given in SetupSelectorRows — call_count is a lower bound in
++  // our pipeline, so a zero count must not be read as "never called". The
++  // offset check below is the real question: a selector with no row has no
++  // offset, and only then must the caller fall back.
+   if (selector->offset == kInvalidSelectorOffset) return nullptr;
+   return selector;
+ }
+@@ -587,7 +591,46 @@ void DispatchTableGenerator::SetupSelectorRows() {
+               };
+               MakeIntervals(function, sid);
+ 
+-              if (selector_map_.selectors_[sid].torn_off) {
++              // SELFHOST: an implicit accessor must never be closurized. A
++              // selector is shared by every member with the same name, so a
++              // getter selector is marked torn_off as soon as ANY method of
++              // that name is torn off somewhere in the program — including
++              // when the member here is a field's implicit getter. Creating a
++              // method extractor for that forces
++              // Function::ImplicitClosureFunction() onto the accessor, whose
++              // data slot holds its Field; set_implicit_closure_function()
++              // then overwrites the Field with the closure. The ASSERT at
++              // object.cc:8762 says exactly that this is illegal, but it is
++              // compiled out in a release VM, so the corruption is silent and
++              // only shows up later as a crash in the compiler.
++              //
++              // Keep the guard this narrow. Skipping ALL non-regular functions
++              // here also drops legitimate tear-off entries and leaves the
++              // dispatch table incomplete — the app then dies at startup with
++              // a NoSuchMethodError from a map literal in
++              // PlatformDispatcher._.
++              // SELFHOST: `torn_off` is another lower bound from the dill's TFA
++              // metadata (see call_count above), so we no longer gate on it —
++              // trusting it lost the extractor for
++              // `platformDispatcher.onPointerDataPacket =
++              // _handlePointerDataPacket`, which died as "Class
++              // 'WidgetsFlutterBinding' has no instance getter
++              // '_handlePointerDataPacket'" before any user code ran.
++              //
++              // Only a REGULAR method can be torn off. Dart has no tear-off of
++              // a getter or a setter, and letting one through here corrupts the
++              // table: a setter's ProcedureAttributes.getter_selector_id names
++              // its FIELD'S getter, so the extractor for `set:_data` was
++              // written into `get:_data`'s row. `_table._data` then returned a
++              // fresh `(List<dynamic>) => void` closure on every read instead
++              // of the field, which is what produced the bogus
++              // "Concurrent modification during iteration". The
++              // `tearoff_sid != sid` check below does NOT catch this, because
++              // the two selectors really are different.
++              //
++              // This also subsumes the implicit-accessor exclusion from 0004:
++              // closurizing one overwrites its Field pointer (object.cc:8762).
++              if (function.IsRegularFunction()) {
+                 const String& method_name = String::Handle(Z, function.name());
+                 const String& getter_name =
+                     String::Handle(Z, Field::GetterName(method_name));
+@@ -595,7 +638,35 @@ void DispatchTableGenerator::SetupSelectorRows() {
+                     Z, function.GetMethodExtractor(getter_name));
+                 const int32_t tearoff_sid = selector_map_.SelectorId(tearoff);
+ 
+-                if (tearoff_sid != SelectorMap::kInvalidSelectorId) {
++                // SELFHOST: `tearoff_sid != sid` is load-bearing. For a method
++                // TFA never saw torn off, ProcedureAttributes.getter_selector_id
++                // can come back as the method's OWN selector, and writing the
++                // extractor into that row displaces the method itself — the
++                // symptom was `elements[i]` in Map._fromLiteral landing inside
++                // _Array.[] and throwing. Creating the extractor above is what
++                // we actually need; the row only belongs to a genuinely
++                // distinct getter selector.
++                // Creating the extractor above is unconditional; giving it a
++                // dispatch-table row is not. Writing a row for a method TFA
++                // never recorded as torn off corrupts the table — the getter
++                // selector id can be the method's own (Object.get:hashCode
++                // reports sid == tearoff_sid) or an id belonging to something
++                // else, and the extractor then displaces a real
++                // implementation. That is how parsing the two-byte JSON
++                // document `{}` ended in "Out of Memory" inside
++                // _LinkedHashMapMixin._populateUnsafe.
++                // `torn_off` is not consulted here either — it is the same
++                // under-reported TFA flag, and trusting it left
++                // `_NavigatorPushObservation.notify` without a row ("has no
++                // instance getter 'notify'"). This is only safe because the
++                // enclosing branch is now regular methods only: for those,
++                // Field::GetterName(name) really is `get:<name>` and
++                // getter_selector_id really is that tear-off's selector. It was
++                // SETTERS that made this dangerous — their getter_selector_id
++                // names their field's getter, so the extractor landed in
++                // `get:_data`'s row.
++                if (tearoff_sid != SelectorMap::kInvalidSelectorId &&
++                    tearoff_sid != sid) {
+                   MakeIntervals(tearoff, tearoff_sid);
+                 }
+               }
+@@ -607,9 +678,25 @@ void DispatchTableGenerator::SetupSelectorRows() {
+   }
+ 
+   // Retain all selectors that contain implementation intervals.
++  //
++  // SELFHOST: this used to also require selector.IsUsed(), i.e. a non-zero
++  // call_count in the dill's TFA table-selector metadata. That treats the
++  // metadata's call count as exact, and in our pipeline it is only a lower
++  // bound: some call sites are synthesized by the VM's flow graph builder
++  // rather than appearing in kernel, so TFA never counts them. Map literals are
++  // the case that bit us — BuildMapLiteral emits a call to
++  // Map._fromLiteral(elements), whose body does elements.length and
++  // elements[i]; TFA reports call_count == 0 for get:length, so the selector got
++  // no row, the compiler emitted a switchable call instead of a dispatch-table
++  // call, and at runtime it could not be resolved: AOT product snapshots carry
++  // no Class::functions() arrays, so there is no name-based fallback. The
++  // result was NoSuchMethodError on `{}` in PlatformDispatcher._, before any
++  // user code ran.
++  //
++  // Giving a row to every selector that actually has implementations costs
++  // table size and nothing else — an unused row is never indexed.
+   for (intptr_t i = 0; i < num_selectors_; i++) {
+-    const TableSelector& selector = selector_map_.selectors_[i];
+-    if (selector.IsUsed() && selector_rows[i].Finalize()) {
++    if (selector_rows[i].Finalize()) {
+       table_rows_.Add(&selector_rows[i]);
+     }
+   }

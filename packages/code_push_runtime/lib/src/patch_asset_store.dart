@@ -83,6 +83,59 @@ class PatchAssetStore {
     }
   }
 
+  /// Asks the control plane for an **assets-only** patch active on this
+  /// release, returning its number, or `null` if there is none.
+  ///
+  /// This exists because nothing else on the device can find one. The native
+  /// updater decides what "the running patch" is, and it is only ever offered
+  /// patches carrying code: the control plane withholds assets-only patches
+  /// from it deliberately, since a stock updater handed an asset archive would
+  /// inflate it as a binary diff against the release snapshot, fail, and
+  /// tombstone the patch as permanently bad for that release. So the updater
+  /// reports no patch, and without this call [PatchAssetStore] would never be
+  /// asked for a bundle — the patch would be published, active, and invisible.
+  ///
+  /// Declaring `supported_patch_kinds` is the negotiation that makes the server
+  /// willing to offer one. Never throws: a failure here means the app runs on
+  /// its compiled-in assets, which is the correct degradation.
+  Future<int?> discoverAssetsOnlyPatch({
+    required String releaseVersion,
+    String? clientId,
+  }) async {
+    try {
+      final abi = DeviceAbi.current();
+      final response = await _http.post(
+        environment.baseUrl.resolve('patches/check'),
+        headers: const {'content-type': 'application/json'},
+        body: jsonEncode({
+          'app_id': environment.appId,
+          'release_version': releaseVersion,
+          'platform': abi.platform,
+          'arch': abi.arch,
+          // Partial rollout bucketing fails closed without a stable client id,
+          // so send it when we have one rather than being silently excluded.
+          'client_id': ?clientId,
+          // We are asking on behalf of an app running no code patch.
+          'current_patch_number': 0,
+          'supported_patch_kinds': ['assets'],
+        }),
+      );
+      if (response.statusCode != HttpStatus.ok) return null;
+
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map) return null;
+      final patch = decoded['patch'];
+      if (patch is! Map) return null;
+      // Guard on the kind: if the server ever offers code here, the updater —
+      // not this package — owns applying it.
+      if (patch['kind'] != 'assets') return null;
+      final number = patch['number'];
+      return number is int ? number : null;
+    } on Object {
+      return null;
+    }
+  }
+
   /// Asks the control plane where this patch's bundle is.
   Future<_BundleDescriptor?> _describe({
     required int patchNumber,
