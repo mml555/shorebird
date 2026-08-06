@@ -193,6 +193,19 @@ else
   echo "  ! MISSING $GEN (manifest not written)" >&2
 fi
 
+# --- Patch differ (Flow B) -----------------------------------------------------
+# The CLI fetches patch-<plat>.zip from shorebird/<rev>/, and @must_be_local in
+# the Caddyfile owns that path for experimental hashes — so every publish must
+# carry the differ or patch builds against this hash die on a loud 404. This
+# builds the HOST platform's zip; other platforms' zips are published from
+# their own build hosts (windows stays mirrored — recorded gap).
+PATCH_TOOL="$(dirname "${BASH_SOURCE[0]}")/publish_patch_tool.sh"
+if bash "$PATCH_TOOL" --overlay "$OVERLAY" --rev "$EXP_HASH" >/dev/null; then
+  echo "  + ${SB#"$OVERLAY"/}/patch-<host>.zip (via publish_patch_tool.sh)"
+else
+  echo "  ! publish_patch_tool.sh failed — patch builds against $EXP_HASH will 404" >&2
+fi
+
 # --- Provenance --------------------------------------------------------------
 {
   echo "experimental_engine_hash: $EXP_HASH"

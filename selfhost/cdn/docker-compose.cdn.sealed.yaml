@@ -1,0 +1,22 @@
+# SEALED-mode override: the mirror refuses every upstream fetch.
+#
+# Cache hits and overlay files still serve; any cold path returns a greppable
+# "sealed: refusing upstream fetch" 502 instead of reaching
+# storage.googleapis.com. This is the mode the air-gap acceptance harness
+# (selfhost/scripts/airgap_run.sh) runs against, after one warm (unsealed)
+# full build has populated the cache.
+#
+# Usage:
+#   docker compose -f selfhost/cdn/docker-compose.cdn.yaml \
+#                  -f selfhost/cdn/docker-compose.cdn.sealed.yaml up -d
+# Verify nothing cold was needed during a sealed run:
+#   selfhost/cdn/verify_warm.sh
+#
+# Compose merges volume mounts by container target path, so only the mount
+# that differs from docker-compose.cdn.yaml is listed here.
+name: shorebird-cdn
+
+services:
+  cdn-cache:
+    volumes:
+      - ./upstream/sealed.caddy:/etc/caddy/upstream_gcs.caddy:ro

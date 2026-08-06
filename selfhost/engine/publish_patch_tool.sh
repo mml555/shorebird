@@ -104,6 +104,9 @@ chmod +x "$STAGE/patch"
 
 DEST_DIR="${OUT_DIR:-$OVERLAY/$BUCKET/shorebird/$REV}"
 mkdir -p "$DEST_DIR"
+# Absolutize: the zip below is written from inside $STAGE, so a relative
+# --overlay/--out path would otherwise resolve against the wrong directory.
+DEST_DIR="$(cd "$DEST_DIR" && pwd)"
 ZIP="$DEST_DIR/patch-$PLAT.zip"
 rm -f "$ZIP"
 ( cd "$STAGE" && zip -q "$ZIP" patch )   # `patch` at the zip root, as extractArtifact expects

@@ -1,0 +1,13 @@
+# Upstream GCS fetch — the normal (unsealed) mode. Imported at every point in
+# the Caddyfile that would otherwise reach storage.googleapis.com directly.
+# Swap the docker-compose mount to upstream/sealed.caddy to refuse all upstream
+# fetches (cache hits and overlay files still serve).
+reverse_proxy https://storage.googleapis.com {
+	header_up Host storage.googleapis.com
+	transport http {
+		versions 1.1 2
+		tls_server_name storage.googleapis.com
+	}
+	@miss status 404
+	header_down @miss Cache-Control "public, max-age=60"
+}

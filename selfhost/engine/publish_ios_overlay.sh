@@ -167,6 +167,14 @@ ts = datetime.datetime.utcfromtimestamp(zip_path.stat().st_mtime)
 print('    engine_stamp.json written')
 PY
 
+# The CLI fetches patch-<plat>.zip from shorebird/<rev>/, and @must_be_local in
+# the Caddyfile owns that path for experimental hashes — publish the host's
+# differ zip alongside the engine or patch builds against this hash 404.
+PATCH_TOOL="$(dirname "${BASH_SOURCE[0]}")/publish_patch_tool.sh"
+bash "$PATCH_TOOL" --overlay "$OVERLAY" --rev "$HASH" >/dev/null \
+  && note "patch differ published for $HASH" \
+  || echo "WARNING: publish_patch_tool.sh failed — patch builds against $HASH will 404" >&2
+
 # Alongside the Android sets, so provenance travels with the artifacts it
 # describes (and stays out of git, since the overlay is ignored).
 PROV_DIR="$OVERLAY/download.shorebird.dev/shorebird/$HASH"

@@ -32,6 +32,12 @@ services:
       dockerfile: Dockerfile
     environment:
       - PORT=8080
+      # The manifest fetch is server-side — it never passes through cdn-cache
+      # on its own — so route it through the cache explicitly. The path shape
+      # matches the Caddyfile's Flow-B matcher, which means the manifest is
+      # cached and overlay-servable like any other Flow-B artifact, and a
+      # sealed mirror keeps working with upstream unreachable.
+      - MANIFEST_BASE_URL=http://cdn-cache:8080/download.shorebird.dev
     expose:
       - "8080"
     restart: unless-stopped
@@ -55,6 +61,12 @@ services:
       # Gradle 8+ refuses insecure Maven repositories, which is what
       # FLUTTER_STORAGE_BASE_URL becomes during an Android release build.
       - ./tls/listen-disabled.caddy:/etc/caddy/tls_listen.caddy:ro
+      # Upstream reachability, ENABLED by default. Overridden to
+      # upstream/sealed.caddy by docker-compose.cdn.sealed.yaml (or by editing
+      # this mount): sealed mode refuses every upstream GCS fetch with a
+      # greppable "sealed:" 502 while still serving cache hits and overlay
+      # files — the air-gap acceptance mode.
+      - ./upstream/enabled.caddy:/etc/caddy/upstream_gcs.caddy:ro
       - ./tls:/etc/caddy/tls:ro
       - cdn-cache-data:/var/cache/caddy/cdn
     ports:

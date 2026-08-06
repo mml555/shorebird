@@ -38,8 +38,11 @@
 	auto_https off
 	admin off
 
-	# Cache before reverse_proxy so /gcs/ and Flow B store final bytes on disk.
-	order cache before reverse_proxy
+	# Cache before respond (which itself precedes reverse_proxy in Caddy's
+	# default directive order) so /gcs/ and Flow B store final bytes on disk —
+	# and so SEALED mode's `respond` refusal cannot preempt a cache HIT: a warm
+	# sealed mirror must keep serving cached bytes.
+	order cache before respond
 
 	cache {
 		# Immutable, revision-scoped artifacts: safe to cache long-term.
@@ -83,14 +86,20 @@
 	#
 	# Keep the path list in sync with what selfhost/engine/overlay_publish.sh
 	# copies. Deliberately NOT owned: android-arm64-release/{darwin,windows}-*.zip
-	# (host gen_snapshot a Linux build host cannot produce). NOT aot-tools.dill
-	# either (cannot build it; Android never invokes it).
+	# (host gen_snapshot a Linux build host cannot produce), and Flow B's
+	# patch-windows-x64.zip (same reason — recorded gap).
+	#
+	# Flow B IS owned for experimental hashes: the patch differ zips are built by
+	# selfhost/engine/publish_patch_tool.sh, artifacts_manifest.yaml is written
+	# by overlay_publish.sh, and aot-tools.dill is owned precisely so a fork-hash
+	# request 404s LOUDLY instead of silently serving the pinned linker the fork
+	# engine cannot use (the CLI treats it as optional and warns).
 	#
 	# Caddy allows only one path_regexp per named matcher, so ownership is one
 	# alternation. expression is AND'd with it.
 	@must_be_local {
 		expression `{stock_engine_hash} != ""`
-		path_regexp ^/(flutter_infra_release/flutter/[0-9a-f]{40}/(android-arm64-release/|ios-release/|(linux|darwin|windows)-(x64|arm64)/artifacts\.zip$|flutter_patched_sdk_product\.zip$|flutter_patched_sdk\.zip$|dart-sdk-[a-z0-9-]+\.zip$|engine_stamp\.json$)|download\.flutter\.io/io/flutter/)
+		path_regexp ^/(flutter_infra_release/flutter/[0-9a-f]{40}/(android-arm64-release/|ios-release/|(linux|darwin|windows)-(x64|arm64)/artifacts\.zip$|flutter_patched_sdk_product\.zip$|flutter_patched_sdk\.zip$|dart-sdk-[a-z0-9-]+\.zip$|engine_stamp\.json$)|download\.flutter\.io/io/flutter/|[^/]+/shorebird/[0-9a-f]{40}/(patch-(darwin-arm64|darwin-x64|linux-x64)\.zip$|aot-tools\.dill$|artifacts_manifest\.yaml$))
 	}
 
 	@has_stock expression `{stock_engine_hash} != ""`
@@ -103,15 +112,8 @@
 		handle @gcs {
 			uri strip_prefix /gcs
 			cache
-			reverse_proxy https://storage.googleapis.com {
-				header_up Host storage.googleapis.com
-				transport http {
-					versions 1.1 2
-					tls_server_name storage.googleapis.com
-				}
-				@miss status 404
-				header_down @miss Cache-Control "public, max-age=60"
-			}
+			# Enabled or sealed via the docker-compose mount (upstream/*.caddy).
+			import /etc/caddy/upstream_gcs.caddy
 		}
 
 		# ---- Overlay: experimental builds straight off disk -----------------
@@ -188,42 +190,21 @@
 			handle @has_stock {
 				rewrite * /{re.shorebird.1}/shorebird/{stock_engine_hash}/{re.shorebird.3}
 				cache
-				reverse_proxy https://storage.googleapis.com {
-					header_up Host storage.googleapis.com
-					transport http {
-						versions 1.1 2
-						tls_server_name storage.googleapis.com
-					}
-					@miss status 404
-					header_down @miss Cache-Control "public, max-age=60"
-				}
+				# Enabled or sealed via the docker-compose mount (upstream/*.caddy).
+				import /etc/caddy/upstream_gcs.caddy
 			}
 			handle {
 				cache
-				reverse_proxy https://storage.googleapis.com {
-					header_up Host storage.googleapis.com
-					transport http {
-						versions 1.1 2
-						tls_server_name storage.googleapis.com
-					}
-					@miss status 404
-					header_down @miss Cache-Control "public, max-age=60"
-				}
+				# Enabled or sealed via the docker-compose mount (upstream/*.caddy).
+				import /etc/caddy/upstream_gcs.caddy
 			}
 		}
 
 		# ---- Raw GCS passthrough --------------------------------------------
 		handle {
 			cache
-			reverse_proxy https://storage.googleapis.com {
-				header_up Host storage.googleapis.com
-				transport http {
-					versions 1.1 2
-					tls_server_name storage.googleapis.com
-				}
-				@miss status 404
-				header_down @miss Cache-Control "public, max-age=60"
-			}
+			# Enabled or sealed via the docker-compose mount (upstream/*.caddy).
+			import /etc/caddy/upstream_gcs.caddy
 		}
 	}
 

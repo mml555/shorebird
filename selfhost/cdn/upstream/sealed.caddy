@@ -1,0 +1,12 @@
+# SEALED mode: refuse every upstream fetch, loudly and greppably.
+#
+# Cache hits and overlay files are still served — the cache handler and
+# @overlay_hit run before this point — so a warm mirror keeps working with the
+# outside world unreachable, and any COLD path fails fast with the "sealed:"
+# marker below instead of hanging on a blocked socket.
+#
+# max-age=1: the cache layer honors the final response Cache-Control for TTL
+# (same mechanism the unsealed file uses to bound 404s to 60s), so a sealed
+# refusal can never stick in the cache and survive unsealing.
+header Cache-Control "public, max-age=1"
+respond "sealed: refusing upstream fetch for {uri}" 502

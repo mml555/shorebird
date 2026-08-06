@@ -23,3 +23,6 @@ sshkey20.120.104.70.pem
 # (selfhost/engine/overlay_publish.sh). Hundreds of MB of build output.
 selfhost/cdn/overlay/*
 !selfhost/cdn/overlay/.gitkeep
+
+# Local git mirrors for air-gapped installs (selfhost/cdn/README.md). Gigabytes.
+selfhost/cdn/mirrors/
