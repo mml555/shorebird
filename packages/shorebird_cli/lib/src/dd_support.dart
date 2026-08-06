@@ -32,9 +32,21 @@ class DdSupport {
 
   /// Whether [genSnapshot] accepts the DD flags.
   ///
-  /// `--version` makes the VM parse its flags, print, and exit before it
-  /// compiles anything, so this costs one short-lived process and writes
-  /// nothing. An unrecognized flag exits non-zero.
+  /// The probe must reach VM flag *validation*, and `--version` never does:
+  /// gen_snapshot prints its version and exits 0 before looking at any other
+  /// flag, so `--version` probes always report "supported" (verified live on
+  /// 2026-08-05 — the original probe returned exit 0 for arbitrary bogus
+  /// flags). Instead we ask gen_snapshot to compile a file that cannot exist.
+  /// Flag validation runs before the input is opened, so the two lineages
+  /// separate cleanly on stderr:
+  ///
+  /// - vanilla-Dart gen_snapshot: `Setting VM flags failed: Unrecognized
+  ///   flags: print_dd_function_identity_to`
+  /// - Shorebird's Dart fork: `Error: Unable to read file: ...`
+  ///
+  /// Both exit non-zero, so the exit code is useless here — the decision is
+  /// made on the "Unrecognized flags" marker alone. The probe compiles
+  /// nothing and writes nothing.
   bool isSupportedBy(ShorebirdArtifact genSnapshot) {
     return _cache.putIfAbsent(genSnapshot, () {
       final String executable;
@@ -51,9 +63,12 @@ class DdSupport {
       try {
         final result = process.runSync(executable, const [
           '--print_dd_function_identity_to=/dev/null',
-          '--version',
+          '--snapshot_kind=app-aot-assembly',
+          '--assembly=/dev/null',
+          '/nonexistent-dd-support-probe.dill',
         ]);
-        return result.exitCode == 0;
+        final stderrOutput = '${result.stderr}';
+        return !stderrOutput.contains('Unrecognized flags');
       } on Exception {
         return true;
       }

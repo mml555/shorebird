@@ -106,9 +106,16 @@ function Test-ShorebirdNeedsUpdate {
 function Update-Flutter {
     Write-Output "Updating Flutter..."
 
+    # A self-hosted deployment can point the clone at its own mirror.
+    $flutterGitUrl = if ($env:SHOREBIRD_FLUTTER_GIT_URL) {
+        $env:SHOREBIRD_FLUTTER_GIT_URL
+    } else {
+        'https://github.com/shorebirdtech/flutter.git'
+    }
+
     if (!(Test-Path $flutterPath)) {
         Invoke-SilentlyIfNeeded {
-            git clone --filter=tree:0 https://github.com/shorebirdtech/flutter.git --no-checkout "$flutterPath" 
+            git clone --filter=tree:0 $flutterGitUrl --no-checkout "$flutterPath"
         }
     }
     else {
@@ -122,11 +129,20 @@ function Update-Flutter {
         git -C "$flutterPath" -c advice.detachedHead=false checkout "$flutterVersion"
     }
 
-    # Set FLUTTER_STORAGE_BASE_URL=https://download.shorebird.dev and execute
-    # a `flutter` command to trigger a download of Dart, etc.
-    $env:FLUTTER_STORAGE_BASE_URL = 'https://download.shorebird.dev';
+    # Execute a `flutter` command to trigger a download of Dart, etc.
+    # Default FLUTTER_STORAGE_BASE_URL only when the caller did not set it
+    # (a mirror deployment sets its own), and restore the caller's value
+    # afterward instead of unconditionally deleting it.
+    $priorStorageBaseUrl = $env:FLUTTER_STORAGE_BASE_URL
+    if (!$priorStorageBaseUrl) {
+        $env:FLUTTER_STORAGE_BASE_URL = 'https://download.shorebird.dev';
+    }
     & $flutter --version
-    Remove-Item Env:\FLUTTER_STORAGE_BASE_URL
+    if ($priorStorageBaseUrl) {
+        $env:FLUTTER_STORAGE_BASE_URL = $priorStorageBaseUrl
+    } else {
+        Remove-Item Env:\FLUTTER_STORAGE_BASE_URL
+    }
 }
 
 function Update-Shorebird {

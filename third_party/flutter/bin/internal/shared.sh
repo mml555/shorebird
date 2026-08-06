@@ -9,25 +9,34 @@ set -e
 unset CDPATH
 
 # Either clones or pulls the Shorebird Flutter repository, depending on whether FLUTTER_PATH exists.
+# A self-hosted deployment can point both network touches at its own mirror:
+# SHOREBIRD_FLUTTER_GIT_URL for the clone, FLUTTER_STORAGE_BASE_URL for the
+# artifact download (the default only applies when the caller did not set it).
 function update_flutter {
   if [[ -d "$FLUTTER_PATH" ]]; then
     git -C "$FLUTTER_PATH" fetch
   else
-    git clone --filter=tree:0 https://github.com/shorebirdtech/flutter.git --no-checkout "$FLUTTER_PATH"
+    git clone --filter=tree:0 "${SHOREBIRD_FLUTTER_GIT_URL:-https://github.com/shorebirdtech/flutter.git}" --no-checkout "$FLUTTER_PATH"
   fi
   # -c to avoid printing a warning about being in a detached head state.
   git -C "$FLUTTER_PATH" -c advice.detachedHead=false checkout "$FLUTTER_VERSION"
   SHOREBIRD_ENGINE_VERSION=`cat "$FLUTTER_PATH/bin/internal/engine.version"`
   echo "Shorebird Engine • revision $SHOREBIRD_ENGINE_VERSION"
   # Install Shorebird Flutter Artifacts
-  FLUTTER_STORAGE_BASE_URL=https://download.shorebird.dev $FLUTTER_PATH/bin/flutter --version
+  FLUTTER_STORAGE_BASE_URL="${FLUTTER_STORAGE_BASE_URL:-https://download.shorebird.dev}" $FLUTTER_PATH/bin/flutter --version
 }
 
 function pub_get_with_retry {
+  # SHOREBIRD_PUB_OFFLINE=true resolves from the local pub cache only — for
+  # air-gapped installs with a seeded PUB_CACHE.
+  local pub_offline_flag=""
+  if [[ "$SHOREBIRD_PUB_OFFLINE" == "true" ]]; then
+    pub_offline_flag="--offline"
+  fi
   local total_tries="10"
   local remaining_tries=$((total_tries - 1))
   while [[ "$remaining_tries" -gt 0 ]]; do
-    (cd "$SHOREBIRD_CLI_DIR" && $DART_PATH pub get) && break
+    (cd "$SHOREBIRD_CLI_DIR" && $DART_PATH pub get $pub_offline_flag) && break
     >&2 echo "Error: Unable to 'pub get' shorebird. Retrying in five seconds... ($remaining_tries tries left)"
     remaining_tries=$((remaining_tries - 1))
     sleep 5

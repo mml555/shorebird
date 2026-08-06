@@ -97,6 +97,7 @@ void main() {
       ).thenAnswer((_) async => 'origin/flutter_release/3.10.6');
       when(() => logger.progress(any())).thenReturn(progress);
       when(() => platform.isMacOS).thenReturn(false);
+      when(() => platform.environment).thenReturn(const {});
       when(() => shorebirdEnv.flutterDirectory).thenReturn(flutterDirectory);
       when(() => shorebirdEnv.flutterRevision).thenReturn(flutterRevision);
       when(
@@ -914,6 +915,37 @@ origin/flutter_release/3.10.6''';
         verifyNever(
           () => process.run('flutter', any(that: contains('precache'))),
         );
+      });
+
+      test('clones from SHOREBIRD_FLUTTER_GIT_URL when set', () async {
+        const mirrorUrl = 'https://mirror.example.com/flutter.git';
+        when(
+          () => platform.environment,
+        ).thenReturn(const {'SHOREBIRD_FLUTTER_GIT_URL': mirrorUrl});
+        // Fail the checkout to end the install early; the clone URL is what
+        // this test is about.
+        final exception = Exception('oops');
+        when(
+          () => git.checkout(
+            directory: any(named: 'directory'),
+            revision: any(named: 'revision'),
+          ),
+        ).thenThrow(exception);
+
+        await expectLater(
+          runWithOverrides(
+            () => shorebirdFlutter.installRevision(revision: revision),
+          ),
+          throwsA(exception),
+        );
+
+        verify(
+          () => git.clone(
+            url: mirrorUrl,
+            outputDirectory: p.join(flutterDirectory.parent.path, revision),
+            args: ['--filter=tree:0', '--no-checkout'],
+          ),
+        ).called(1);
       });
 
       test('throws exception if unable to clone', () async {

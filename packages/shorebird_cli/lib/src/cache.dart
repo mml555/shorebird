@@ -226,6 +226,16 @@ abstract class CachedArtifact {
     try {
       response = await httpClient.send(request);
     } catch (error) {
+      if (!required) {
+        // An optional artifact must not take the whole command down when its
+        // host is unreachable (an air-gapped install never can reach it). No
+        // stamp file is written, so a later run retries the download.
+        updateProgress.fail();
+        logger.warn('''
+Failed to download optional artifact $fileName from $url: $error
+Continuing without it; commands that need $fileName will not work until it can be downloaded.''');
+        return;
+      }
       throw CacheUpdateFailure('''
 Failed to download $fileName: $error
 If you're behind a firewall/proxy, please, make sure shorebird_cli is
@@ -405,9 +415,13 @@ class BundleToolArtifact extends CachedArtifact {
   @override
   bool get isExecutable => false;
 
+  /// Overridable via `SHOREBIRD_BUNDLETOOL_URL` so a self-hosted deployment
+  /// can serve bundletool from its own mirror instead of GitHub. The
+  /// [checksum] is verified either way, so a mirror cannot swap the jar.
   @override
   Future<String> get storageUrl async {
-    return 'https://github.com/google/bundletool/releases/download/1.18.1/bundletool-all-1.18.1.jar';
+    return platform.environment['SHOREBIRD_BUNDLETOOL_URL'] ??
+        'https://github.com/google/bundletool/releases/download/1.18.1/bundletool-all-1.18.1.jar';
   }
 
   @override
