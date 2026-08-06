@@ -85,7 +85,18 @@ LOG="$(fetch_log)" || exit $?
 # No brace repetition ({40} for the hash): this has to run under whatever
 # `grep` the host provides, and ugrep — which some hosts alias to grep —
 # rejects it with "invalid repetition count(s)".
-EXPECTED_REFUSALS="${EXPECTED_REFUSALS:-/shorebird/[0-9a-f]+/aot-tools\.dill}"
+#   - aot-tools.dill on a fork hash: owned so it fails loudly; CLI warns on.
+#   - AIRGAP-SEAL-PROBE: airgap_run.sh's own preflight probe, which exists
+#     precisely to force a refusal and confirm the mirror is sealed.
+#   - android-x86 / android-arm: Flutter precaches every Android ABI, but
+#     nothing here ships 32-bit or x86 Android. Observed live: a sealed iOS
+#     run refused android-x86/artifacts.zip and the release AND patch both
+#     completed, so the artifact is genuinely unused. Only these two ABIs are
+#     listed — a refusal for arm64 or x64 would be a real failure.
+#   - "/" exactly: a health/reachability probe of the mirror root. No build
+#     ever requests the bare root, so a refusal there is always a checker,
+#     never a missing artifact.
+EXPECTED_REFUSALS="${EXPECTED_REFUSALS:-/shorebird/[0-9a-f]+/aot-tools\.dill|AIRGAP-SEAL-PROBE|/android-x86/|/android-arm/|^/$}"
 
 # bash 3.2 (macOS) has no mapfile, and this script runs on both hosts — keep
 # it to a while-read loop over a temp file.
