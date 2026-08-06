@@ -62,7 +62,7 @@ for the quick start and feature list.
 | Runtime (device → our server) | ✅ proven, no `api.shorebird.dev` |
 | Build-time (engine via CDN mirror) | ✅ proven for pinned revisions |
 | Engine/updater **source** | ✅ captured in `vendor/` (insurance) |
-| Engine **built from source** | ◐ **Android: proven** (device-verified, on our own vanilla-Dart VM). **iOS: blocked** — needs Shorebird's private fork |
+| Engine **built from source** | ◐ **Android: proven** (device-verified, on our own vanilla-Dart VM). **iOS: proven for releases + assets patches** (device-verified 2026-08-05, own engine + own frontend); **iOS *code* patches: route decision in progress** — see below |
 
 For almost everyone, the one-click setup + the CDN mirror is the finish line.
 
@@ -82,11 +82,18 @@ snapshot-size accessors and one public getter, reproducible from the patch in
 [`engine/dart-fork/`](engine/dart-fork). An engine built entirely from that ran
 release → patch → boot → rollback on a physical Android arm64 device.
 
-**iOS remains genuinely blocked**, and by a different artifact: `pkg/aot_tools`,
-the host-side AOT linker, also lives in the private fork. iOS forbids JIT, so a
-patch there is `.vmcode` produced by that linker and run by the interpreter —
-there is no way around it short of fork access, and reimplementing it was
-considered and rejected. See [`EXPERIMENTAL_ENGINE.md`](EXPERIMENTAL_ENGINE.md).
+**iOS is no longer blocked the way this section used to claim.** Superseded
+findings (2026-08-04/05): our own iOS engine builds against vanilla Dart plus
+the `engine/000x` patches, runs releases to first frame, and applies
+assets-only patches on a physical iPhone — device-verified, see
+[`HANDOFF.md`](HANDOFF.md) and [`TFA_ROOT_CAUSE.md`](TFA_ROOT_CAUSE.md). What
+remains gated is iOS **code** patches, and "reimplementing was considered and
+rejected" is stale: two routes were spiked 2026-08-05 — Track E's binding crux
+**passed** ([`engine/killgate/README.md`](engine/killgate/README.md)) and the
+AOT-linker route's object-pool crux is measuring strongly positive
+([`engine/spike/README.md`](engine/spike/README.md)). The route decision
+follows the rubric in the current plan; `pkg/aot_tools` itself remains
+private-fork-only and can only ever be rewritten, never fetched.
 
 What that does and does not affect:
 
@@ -96,7 +103,7 @@ What that does and does not affect:
 | Building releases/patches on the current pin | ✅ unaffected (mirror is warm) |
 | Adopting a newer Flutter version | ✅ needs their published *prebuilts*, not source |
 | Building a **modified** engine, Android | ✅ proven — vanilla Dart + ~57 lines, device-verified |
-| Building a **modified** engine, iOS | ⛔ blocked — needs `pkg/aot_tools` from the private fork |
+| Building a **modified** engine, iOS | ◐ proven for releases + assets patches; **code** patches pending the route decision (both spikes trending pass) |
 | Surviving Shorebird disappearing | ⚠️ partial — we hold the engine C++ and updater, not the VM fork to compile them |
 
 Whether to ask for access or rebuild that capability ourselves is scoped in

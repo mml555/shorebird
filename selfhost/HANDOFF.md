@@ -1406,32 +1406,36 @@ Do not re-learn these:
 
 ## Pending actions (things that are prepared but NOT done)
 
-- **Exercise the `DdSupport` auto-disable on a real Apple build.** It has unit
-  coverage but has never executed during an actual release, because every
-  release this project ran passed `--dd-max-bytes=0` explicitly, which returns
-  at the `parsed <= 0` check in `Releaser.ddMaxBytes` before `ddSupport` is ever
-  read. Related: `ddSupportRef` was missing from `bin/shorebird.dart`'s scope
-  set until `b70a6fb7`, so that read would have thrown `StateError` — another
-  reason nothing has ever run this path.
+- ~~**Exercise the `DdSupport` auto-disable on a real Apple build.**~~
+  **DONE 2026-08-05 — and the validation caught a real probe bug**, which is
+  exactly why it ran before any air-gap work. The original probe
+  (`--print_dd_function_identity_to=/dev/null --version`) was structurally
+  inert: `gen_snapshot` prints its version and exits 0 **before validating any
+  other flag** — verified live, an arbitrary bogus flag also exits 0 — so the
+  probe reported "supported" on our vanilla gen_snapshot and the release
+  proceeded with DD enabled (failure signature 2, caught at line 40 of the
+  first run's log). The probe was redesigned to reach VM flag *validation*:
+  compile a file that cannot exist
+  (`--snapshot_kind=app-aot-assembly --assembly=/dev/null
+  /nonexistent-dd-support-probe.dill`) and decide on the stderr marker —
+  vanilla dies with `Unrecognized flags: print_dd_function_identity_to`,
+  Shorebird's fork with `Unable to read file` — because **both exit non-zero**
+  and the exit code alone is useless. See `dd_support.dart` + its 7 tests.
 
-  **How to run it:** an `ios` or `macos` release with `--dd-max-bytes` left at
-  its default. Everything else as in `release_ios_dev.sh`. Not free: it needs a
-  version bump and publishes a release row on `cps-ios`.
+  With the fixed probe, the full pass condition was met on release `30.0.0+1`
+  (engine `70974f81…`, default `--dd-max-bytes`, `--verbose`): probe exited
+  255 with the unrecognized-flags marker → the auto-disable `logger.detail`
+  line appeared → `SHOREBIRD_DD_MAX_BYTES` never set → supplement dir has the
+  six ct/dt/ft stub link files and **zero `App.dd_*`** → app reached first
+  frame on the iPhone 7 (screenshot evidence; `--justlaunch`'s
+  lldb-detach SIGTRAP on iOS 15 is a launcher artifact — use
+  `--noninteractive` and screenshot while attached).
 
-  **Pass:** the build behaves *identically* to passing `--dd-max-bytes=0`.
-  `DdSupport.isSupportedBy` runs `gen_snapshot --print_dd_function_identity_to
-  /dev/null --version`, our vanilla `gen_snapshot` exits non-zero on the
-  unrecognized flag, `ddMaxBytes` returns null, and `--verbose` shows the
-  `logger.detail` line naming the reason. App reaches first frame.
-
-  **Fail, two distinct ways:**
-  - The build dies with `Setting VM flags failed: Unrecognized flags:
-    print_dd_function_identity_to` → the probe did not run, or its result was
-    not applied. Check the scope registration first.
-  - The build succeeds *with DD enabled* (a two-pass build, `App.dd_*` files
-    populated rather than absent) → the probe wrongly returned true. It fails
-    open on any exception by design, so an exception inside the probe looks
-    exactly like this. Check whether `gen_snapshot` was resolvable.
+  Environment note from the same run: Xcode had lost its iOS platform
+  component ("iOS 26.5 is not installed") — `xcodebuild -downloadPlatform iOS`
+  repairs it; and the device could NOT reach the control plane at
+  `169.254.189.3:18080` during this run (no `patches/check` server-side), an
+  open rig item that blocks device patch legs but not this validation.
 
 - **Track E's next step: the new call-emission mode.** Specified above with
   file:line pointers; nothing blocks starting it. It is arm64 codegen work, not
@@ -1443,18 +1447,36 @@ Do not re-learn these:
   `engine/killgate/0001-attach-bytecode-native.patch` (176 insertions, 5 files).
   The checkout itself is **not** in git — reapply the patch to
   `engine/src/flutter/third_party/dart` if the checkout is ever recreated.
-- **`--import-dill` CFE crash is unresolved** and is likely on the critical path
-  for binding. See Track E gotchas.
+- ~~**`--import-dill` CFE crash is unresolved**~~ **RESOLVED as a workaround
+  that generalizes — and the binding crux is DEAD (Spike B, 2026-08-05).**
+  Feeding `--import-dill` a `--no-aot --no-link-platform` pre-AOT kernel (the
+  dynmod recipe) compiled all six spike variants. Load-time resolution works
+  when retention is declared: app symbols under `vm:entry-point` OR the
+  dynamic interface; `dart:core print` (the canonical `bytecode_reader.cc:1172`
+  failure) under `gen_kernel --dynamic-interface` — which accepted a
+  `dart:core` entry. Bound bodies execute via `DartEntry::InvokeFunction`,
+  including interpreter→host and interpreter→SDK calls. Retention tax on the
+  gate program: +0.93% snapshot. See `engine/killgate/README.md` §Spike B and
+  `engine/killgate/binding/`. Remaining Route B work is the call-emission
+  mode (unchanged), platform-dill hygiene, iOS port, integration.
 - **iOS device verification of assets-only patches has not been run.** The CLI side
   now skips the linker for `--assets-only`
   (`ios_patcher.dart` / `ios_framework_patcher.dart`), which is what makes an iOS
   patch producible without `aot-tools.dill`, and it has unit tests — but it has
   never been exercised against a device. That is the cheapest remaining iOS win,
   and it does **not** depend on Track E at all.
-- **Serve the `patch` differ from the overlay.** `engine/publish_patch_tool.sh`
-  builds and packages it (output verified byte-identical to Shorebird's), but the
-  overlay's `shorebird/<rev>/` still only carries the manifest and provenance, so
-  the CLI still fetches theirs. Small, mechanical.
+- ~~**Serve the `patch` differ from the overlay.**~~ **DONE 2026-08-05.**
+  `patch-darwin-arm64.zip`, `patch-darwin-x64.zip` (cross-compiled,
+  Rosetta-verified) and `patch-linux-x64.zip` (built on the Linux box) now sit
+  in the overlay for the pinned rev and every mapped experimental hash, and
+  `overlay_publish.sh` / `publish_ios_overlay.sh` invoke
+  `publish_patch_tool.sh` automatically so future publishes carry the host's
+  zip. The Caddyfile's `@must_be_local` now owns the Flow-B path space for
+  experimental hashes (patch zips, `aot-tools.dill` — loud 404 by design,
+  the CLI warns and continues — and `artifacts_manifest.yaml`).
+  `patch-windows-x64.zip` stays mirrored (recorded gap). Also fixed:
+  `publish_patch_tool.sh` broke on relative `--overlay` paths (zip ran from a
+  temp dir); `DEST_DIR` is now absolutized.
 - ~~`code_push_server` 1.3.0 is prepped but unpublished.~~ **Published
   2026-07-30** from tag `code_push_server-v1.3.0`: multi-arch (amd64 + arm64)
   at `ghcr.io/mml555/code-push-server:1.3.0`, pulled and booted healthy, and it

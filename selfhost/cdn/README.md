@@ -150,6 +150,59 @@ Once warm, the same engine revision builds without touching
 `download.shorebird.dev` or GCS. Host the cache centrally to warm it once for a
 whole team.
 
+**"Warm" is defined by executing full real workflows, never by a URL list** —
+URL-list warming missed the Maven artifacts once already (see Notes). The
+procedure for a provably complete cache is: run the acceptance payload
+(`../scripts/airgap_acceptance.sh`) once against the unsealed mirror, then
+seal and run it again.
+
+## SEALED mode (air-gap acceptance)
+
+Sealed mode makes the mirror REFUSE every upstream fetch: cache hits and
+overlay files still serve, any cold path returns a greppable
+`sealed: refusing upstream fetch` 502 (bounded to `max-age=1`, so a refusal
+can never stick in the cache past unsealing). The upstream reachability is a
+one-file compose mount (`upstream/enabled.caddy` vs `upstream/sealed.caddy`,
+imported at every point the Caddyfile would reach GCS):
+
+```bash
+# seal
+docker compose -f selfhost/cdn/docker-compose.cdn.yaml \
+               -f selfhost/cdn/docker-compose.cdn.sealed.yaml up -d
+# machine-check that a sealed run needed nothing cold
+selfhost/cdn/verify_warm.sh --since 2h
+# unseal
+docker compose -f selfhost/cdn/docker-compose.cdn.yaml up -d
+```
+
+Verified live 2026-08-05: cached bytes 200, overlay files 200, cold path 502
+with the marker. (Caddy ordering matters: `order cache before respond`, or the
+sealed `respond` preempts cache HITs.)
+
+## Mirrors for full self-containment
+
+Everything a clean machine touches that is NOT Shorebird infrastructure:
+
+- **Flutter git clone** (CLI bootstrap): a bare mirror lives at
+  `selfhost/cdn/mirrors/flutter.git` (git-ignored; recreate with
+  `git clone --mirror https://github.com/shorebirdtech/flutter.git` and set
+  `uploadpack.allowfilter=true` + `uploadpack.allowanysha1inwant=true` on it —
+  the bootstrap does a `--filter=tree:0` clone). Point
+  `SHOREBIRD_FLUTTER_GIT_URL=file:///…/mirrors/flutter.git` (or serve it over
+  git daemon / smart-HTTP for other machines). Bootstrap-from-mirror verified
+  2026-08-05.
+- **bundletool.jar**: mirrored at `overlay/mirror/bundletool/`, served by the
+  overlay; point `SHOREBIRD_BUNDLETOOL_URL` at
+  `$MIRROR/mirror/bundletool/bundletool-all-1.18.1.jar`. The CLI still
+  verifies the pinned SHA-256 either way.
+- **pub.dev**: seed a `PUB_CACHE` during the warm run and set
+  `SHOREBIRD_PUB_OFFLINE=true` for sealed runs (`dart pub get --offline`).
+  A true pub mirror is possible but out of scope — pub's API embeds absolute
+  archive URLs, so a dumb HTTP cache cannot mirror it.
+- **artifact manifest**: `artifact_proxy` reads `MANIFEST_BASE_URL`
+  (wired in docker-compose to route through this cache), so its server-side
+  manifest fetch survives upstream loss too.
+
 ## Serving a locally built (experimental) engine
 
 The mirror doubles as the store for engines **we** build (see

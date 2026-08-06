@@ -23,12 +23,12 @@ Getting from mirrored to built is most of the remaining work.
 | 2 | `shorebirdtech/dart-sdk` (**private**) | Their Dart VM fork | Vanilla Dart `d684a576` + our 57-line snapshot-size shim ([`engine/dart-fork/`](engine/dart-fork)) | **Built ✅ for Android; NOT sufficient for iOS** ⚠ — see below |
 | 3 | `gs://shorebird-dart-sdk-prebuilt` (**private**) | Prebuilt Dart SDK for macOS; 401s for us | `custom_vars: {download_dart_sdk: False}` + `tools/gn --no-prebuilt-dart-sdk`, compiling Dart from source | **Built** ✅ 2026-08-03 |
 | 4 | `shorebird_cli` | The CLI | Forked in-repo, version-pinned, `+selfhost.N` | **Built** ✅ (we track their releases by choice, not need) |
-| 5 | `bundletool.jar` | Android bundle tool | Comes from `github.com/google/bundletool` — Google, never Shorebird | **N/A** ✅ |
-| 6 | `patch` binary | The binary differ that produces patch payloads | `vendor/updater/patch` (`bidiff 1.0.0`) — source was always ours. [`engine/publish_patch_tool.sh`](engine/publish_patch_tool.sh) builds and packages it. **Output verified byte-identical to theirs** (2026-08-03) | **Built** ✅ darwin-arm64; same script covers linux-x64 |
-| 7 | `aot-tools.dill` | **Their AOT linker.** Emits `.vmcode` + link percentage | Write our own — see [`IOS_CODE_PUSH.md`](IOS_CODE_PUSH.md) and [`AOT_LINKER_FEASIBILITY.md`](AOT_LINKER_FEASIBILITY.md). Referenced only by `ios_patcher.dart` / `ios_framework_patcher.dart`, so **iOS code push only** — an assets-only iOS patch no longer touches it (2026-08-03) | **In progress** ◐ |
+| 5 | `bundletool.jar` | Android bundle tool | Comes from `github.com/google/bundletool` — Google, never Shorebird. For FULL self-containment: `SHOREBIRD_BUNDLETOOL_URL` override (checksum still verified) + the jar mirrored at `overlay/mirror/bundletool/` (2026-08-05) | **Built** ✅ |
+| 6 | `patch` binary | The binary differ that produces patch payloads | `vendor/updater/patch` (`bidiff 1.0.0`) — source was always ours. [`engine/publish_patch_tool.sh`](engine/publish_patch_tool.sh) builds and packages it. **Output verified byte-identical to theirs** (2026-08-03) | **Done** ✅ 2026-08-05: darwin-arm64 + darwin-x64 + linux-x64 in the overlay for the pinned rev and every mapped hash; publish scripts carry it automatically; windows stays mirrored (recorded gap) |
+| 7 | `aot-tools.dill` | **Their AOT linker.** Emits `.vmcode` + link percentage | Route decision in progress via two kill-gate spikes (2026-08-05): **Spike B (Track E binding) PASSED** — see [`engine/killgate/README.md`](engine/killgate/README.md); Spike A (pool identity) day-0 + deltas strongly positive — see [`engine/spike/README.md`](engine/spike/README.md). Cache-side already independent: a blocked fetch warns instead of dying | **In progress** ◐ |
 | 8 | `download.shorebird.dev` engine artifacts | The per-engine-revision artifact set the CLI fetches | Build every artifact ourselves and serve from our own store | **Mirrored** ◐ |
 | 9 | Artifact manifest in their GCS | `artifact_proxy` fetches it with a literal URL | Mirror it, or drop `artifact_proxy` and serve our own manifest | **Mirrored** ◐ |
-| 10 | `shorebirdtech/flutter` git | Engine + framework source (public) | Vendored snapshot at [`vendor/flutter`](../vendor/flutter); a real git clone is still needed to *build* (gclient runs `rev-parse`/`describe`), so host our own mirror | **Mirrored** ◐ |
+| 10 | `shorebirdtech/flutter` git | Engine + framework source (public) | Vendored snapshot at [`vendor/flutter`](../vendor/flutter); the CLI bootstrap clone is now overridable via `SHOREBIRD_FLUTTER_GIT_URL` (CLI + both wrappers, 2026-08-05) with a bare mirror recipe at `cdn/mirrors/` (`uploadpack.allowfilter=true` for the tree:0 clone) — bootstrap-from-mirror verified. The *engine build* checkout (gclient) still wants a reachable remote | **Built ✅ for CLI bootstrap; Mirrored ◐ for engine builds** |
 
 Items 1–5 are done. 6 is trivial and just undone. **7, 8, 9, 10 are the work.**
 
@@ -163,9 +163,14 @@ rendered `code patch: none` beside `assets patch: 1` with the patched asset
 served: the native updater was correctly offered nothing, and the asset arrived
 through `code_push_runtime`'s own discovery call. So the linker gates iOS *code*
 patches only, in practice and not just on paper.
-The CLI still *downloads* `aot-tools.dill` during cache warm-up and dies if that
-fetch fails, so the artifact must still be reachable even though nothing runs it —
-independent at use, not yet at cache.
+~~The CLI still *downloads* `aot-tools.dill` during cache warm-up and dies if
+that fetch fails~~ — closed 2026-08-05: `CachedArtifact.update()` now treats a
+**connection failure** on an optional artifact like the 404 it already
+tolerated — `logger.warn` naming the URL, no stamp file (so a later online run
+retries), command continues. Independent at use **and** at cache. The mirror
+side matches: `@must_be_local` owns `aot-tools.dill` for experimental hashes,
+so a fork-hash request 404s loudly instead of silently serving the pinned
+linker the fork engine cannot use.
 
 Two facts established 2026-08-04 that bound this item precisely:
 
@@ -239,18 +244,43 @@ build works.
 
 ## What "independent" will mean concretely
 
-When 6–10 are done, the test is:
+The test — now **implemented** at [`scripts/airgap_run.sh`](scripts/airgap_run.sh)
+(packet-level seal: pf anchor on macOS / netns on Linux, /etc/hosts tripwire,
+preflight probes, ISOLATED cache homes) driving
+[`scripts/airgap_acceptance.sh`](scripts/airgap_acceptance.sh)
+(empty `bin/cache` bootstrap → android release+patch → iOS release with DEFAULT
+flags + assets-only patch → `cdn/verify_warm.sh` post-check), scoped wider than
+originally specified (2026-08-05 decision — FULLY self-contained):
 
-> Block `*.shorebird.dev` and `storage.googleapis.com/shorebird-*` at the firewall.
-> A clean machine can still: install the CLI, create a release, publish a patch, and
-> have a device apply it — on Android **and** iOS.
+> Block **all** external network — Shorebird hosts, GCS, github.com (Flutter
+> clone via `SHOREBIRD_FLUTTER_GIT_URL` → local mirror at `cdn/mirrors/`,
+> bundletool via `SHOREBIRD_BUNDLETOOL_URL`), pub.dev (seeded `PUB_CACHE` +
+> `SHOREBIRD_PUB_OFFLINE=true`) — from ISOLATED host caches (`HOME` on Linux,
+> `PUB_CACHE`, `GRADLE_USER_HOME`, `XDG_CACHE_HOME`, `TMPDIR`; Xcode keychain
+> kept as a preinstalled system tool). A clean machine can still: install the
+> CLI, create a release, publish a patch, and have a device apply it — Android
+> **and** iOS. The mirror runs SEALED
+> (`cdn/docker-compose.cdn.sealed.yaml`), so any cold path fails fast with a
+> greppable `sealed:` 502 instead of a hung socket.
 
-That is a runnable acceptance test, and it is the right definition of done. Until it
-passes, "independent" is an aspiration. Worth running deliberately once the pieces
-land, because it is the only way to catch a literal URL nobody noticed — exactly the
-class of problem [`CDN_INDEPENDENCE.md`](CDN_INDEPENDENCE.md) documents, where three
-separate spots overwrite `FLUTTER_STORAGE_BASE_URL` and two getters read no
-environment variable at all.
+Deliberate, recorded mirrored-stock policy (NOT rebuilt; served from the warm
+sealed cache): `android-arm64-release/{darwin,windows}-x64.zip` host
+gen_snapshots, `sky_engine.zip` (Dart source of dart:ui, identical to stock),
+Windows engine artifacts, `patch-windows-x64.zip`. "Warm" is defined by one
+full real build per flow through the unsealed mirror — never by a URL list
+(the documented lesson: URL-list warming missed Maven).
+
+Bootstrap smoke of stage 1 passed 2026-08-05: a fresh clone with an empty
+`bin/cache` bootstrapped with the Flutter clone origin =
+`file://…/cdn/mirrors/flutter.git` and mirror-only artifacts. The full sealed
+two-platform run is still pending (needs sudo for the seal, the Linux netns,
+and the device→control-plane link restored).
+
+Until the sealed run passes, "independent" is an aspiration. It is the only
+way to catch a literal URL nobody noticed — exactly the class of problem
+[`CDN_INDEPENDENCE.md`](CDN_INDEPENDENCE.md) documents, where three separate
+spots overwrite `FLUTTER_STORAGE_BASE_URL` and two getters read no environment
+variable at all.
 
 ## Order of work
 
