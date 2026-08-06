@@ -82,9 +82,13 @@ independence:
                              # Android — PROVEN from source (vanilla Dart + shim,
                              # device-verified). iOS — PROVEN from source for
                              # releases + assets patches (engine 70974f81, own
-                             # frontend, device-verified); iOS CODE patches await
-                             # the linker-route decision (both spikes trending
-                             # pass — engine/killgate/README.md, engine/spike/).
+                             # frontend, device-verified); iOS Dart CODE patches
+                             # are NOT BUILT — Route B selected and de-risked by
+                             # the 2026-08-05 spikes (engine/killgate/README.md,
+                             # engine/spike/), but the call-emission mode,
+                             # symbol retention, versioned payload header,
+                             # updater integration and device gate are all still
+                             # ahead. Selected != shippable.
                              # The private dart-sdk fork remains unfetchable; the
                              # engine/000x patches are what make vanilla Dart work.
                              # Still consuming Shorebird's prebuilt engine binary.

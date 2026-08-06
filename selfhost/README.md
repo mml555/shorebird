@@ -62,7 +62,35 @@ for the quick start and feature list.
 | Runtime (device → our server) | ✅ proven, no `api.shorebird.dev` |
 | Build-time (engine via CDN mirror) | ✅ proven for pinned revisions |
 | Engine/updater **source** | ✅ captured in `vendor/` (insurance) |
-| Engine **built from source** | ◐ **Android: proven** (device-verified, on our own vanilla-Dart VM). **iOS: proven for releases + assets patches** (device-verified 2026-08-05, own engine + own frontend); **iOS *code* patches: route decision in progress** — see below |
+| Engine **built from source** | ◐ **Android: proven** (device-verified, on our own vanilla-Dart VM). **iOS: proven for releases + assets patches** (device-verified 2026-08-05, own engine + own frontend); **iOS *Dart code* patches: NOT BUILT** — architecture selected and de-risked, production integration not started (see below) |
+
+## Capability statement (read this before claiming anything)
+
+> **Android Dart code push and iOS asset push are complete and independent.
+> iOS Dart code push has a selected, de-risked architecture, but the
+> production compiler/runtime integration has not been built yet.**
+
+What works on iOS today, end to end and artifact-independent: a release built
+with our own engine and compiler, the app reaching first frame, and an
+assets-only patch published, downloaded, applied and rolled back on a
+physical device.
+
+What remains before iOS Dart **code** patches work — none of it started:
+
+1. Implement Route B's patchable call-emission mode on arm64.
+2. Retain and bind app + SDK symbols via the dynamic-interface mechanism
+   Spike B proved.
+3. Package the bytecode payload with an explicit **versioned type/header** —
+   NOT the provisional `*.vmcode` filename trick, which is bring-up scaffolding
+   and must not become the contract.
+4. Integrate with the updater/runtime lifecycle.
+5. Pass the physical-device gate: release, Dart behavior actually changes
+   after the patch, sane patch-coverage (link-percentage equivalent), rollback.
+6. Measure the two vetoes: release size and frame-time impact, and whether
+   hot-path patches must stay native.
+
+The spikes proved the *mechanism* in a harness. They did not produce a
+shippable path.
 
 For almost everyone, the one-click setup + the CDN mirror is the finish line.
 
@@ -91,9 +119,11 @@ remains gated is iOS **code** patches, and "reimplementing was considered and
 rejected" is stale: two routes were spiked 2026-08-05 — Track E's binding crux
 **passed** ([`engine/killgate/README.md`](engine/killgate/README.md)) and the
 AOT-linker route's object-pool crux is measuring strongly positive
-([`engine/spike/README.md`](engine/spike/README.md)). The route decision
-follows the rubric in the current plan; `pkg/aot_tools` itself remains
-private-fork-only and can only ever be rewritten, never fetched.
+([`engine/spike/README.md`](engine/spike/README.md)). **Route B was selected**
+on that evidence — but selected is not built: the compiler, runtime,
+packaging and updater work listed in the capability statement above is all
+still ahead. `pkg/aot_tools` itself remains private-fork-only and can only
+ever be rewritten, never fetched.
 
 What that does and does not affect:
 
@@ -103,7 +133,7 @@ What that does and does not affect:
 | Building releases/patches on the current pin | ✅ unaffected (mirror is warm) |
 | Adopting a newer Flutter version | ✅ needs their published *prebuilts*, not source |
 | Building a **modified** engine, Android | ✅ proven — vanilla Dart + ~57 lines, device-verified |
-| Building a **modified** engine, iOS | ◐ proven for releases + assets patches; **code** patches pending the route decision (both spikes trending pass) |
+| Building a **modified** engine, iOS | ◐ proven for releases + assets patches; **Dart code** patches NOT BUILT (Route B selected, integration not started) |
 | Surviving Shorebird disappearing | ⚠️ partial — we hold the engine C++ and updater, not the VM fork to compile them |
 
 Whether to ask for access or rebuild that capability ourselves is scoped in

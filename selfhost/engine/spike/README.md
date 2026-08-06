@@ -94,6 +94,12 @@ Honest limit, unchanged: this proves identity/mapping feasibility on a
 of a full Flutter app's ~100k-entry pool — that measurement belongs to
 whichever route proceeds.
 
+> **Selected is not built.** The rubric below picks the architecture. It does
+> not deliver iOS Dart code push: the call-emission mode, symbol retention,
+> a versioned payload header (NOT the provisional `*.vmcode` filename),
+> updater integration, the physical-device gate and the two veto measurements
+> are all still ahead. See the capability statement in `selfhost/README.md`.
+
 ## Rubric applied — both spikes PASS → Route B selected as default
 
 Spike B (binding) passed decisively — `../killgate/README.md` §Spike B.
