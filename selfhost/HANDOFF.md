@@ -1443,6 +1443,17 @@ Do not re-learn these:
   `/Volumes/build/ios-engine/.../out/host_release_arm64` already carry the native,
   the pool rewrite and the descriptor change, so the edit/build/test loop is ~1
   minute.
+
+  **2026-08-05: this is now the selected default route.** Both kill-gate
+  spikes passed the same day (Spike B binding — `engine/killgate/README.md`;
+  Spike A pool identity — `engine/spike/README.md`), and the plan's rubric
+  selects Route B on a both-pass, subject to two vetoes owned by this
+  milestone: a real-app size/frame-time benchmark of the emission mode +
+  retention, and the hot-path-patching product question. Note the `_nodm`
+  out-dir's gen_snapshot currently carries the spike-only
+  `--dump_global_object_pool_to` flag (working-tree edit, captured as
+  `engine/spike/0001-dump-global-object-pool.patch`; revert before any
+  publish from that tree).
 - **The SDK changes exist only on the SSD**, captured as
   `engine/killgate/0001-attach-bytecode-native.patch` (176 insertions, 5 files).
   The checkout itself is **not** in git — reapply the patch to

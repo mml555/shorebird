@@ -49,21 +49,70 @@ matched entries at base indices, append novel ones — the parent-pool layering
 in `object_pool_builder.h` already demonstrates index-stable composition)
 would absorb. The "months" risk has not yet materialized anywhere.
 
-**Honest limits, still open before a verdict:**
+## RESULT — medium program on the shipping config, 2026-08-05: **SPIKE A PASSES**
 
-1. The structured JSONL dump (`--dump_global_object_pool_to`, spike-only
-   patch in the killgate convention) — needed to key argdescs/closures
-   properly instead of arguing from ToCString text.
-2. The same matrix on a **medium program** (async + collections + consts) —
-   the small program cannot show cross-library emission-order effects.
-3. A run on the `_nodm` shipping config.
-4. This proves identity/mapping feasibility, **not** that a linked snapshot
-   runs — same epistemic status `AOT_LINKER_FEASIBILITY.md` assigns itself.
+The three open items above were closed the same day:
 
-## Context: Spike B already passed
+- **Structured JSONL dump**: `0001-dump-global-object-pool.patch` (spike-only,
+  killgate convention — never ship it) adds
+  `gen_snapshot --dump_global_object_pool_to=<file>`, walking the FINALIZED
+  pool at the same site as `FLAG_disassemble`: per entry — type, patchability,
+  cid, ToCString, array elements (ArgumentsDescriptors), qualified name +
+  token position (Functions/Closures), raw value (immediates).
+- **Medium program**: `medium/` — async + collections + consts + closures +
+  generics + enums across two libraries; pool len 1,575. Driver:
+  `run_matrix.sh`; differ: `pool_diff.py` (reports exactly the five
+  patch-relevance metrics).
+- **Shipping config**: everything below ran on `host_release_arm64_nodm`
+  (dart_dynamic_modules=false).
 
-Route B's crux (bytecode→base binding) passed decisively on 2026-08-05 — see
-`../killgate/README.md` §"RESULT — run 2026-08-05 (Spike B)". Under the
-plan's rubric a both-pass outcome defaults to **Route B with two vetoes**
-(perf: size/frame-time on a real app; product: hot-path patching), with
-Spike A's artifacts kept as Route B's link-percentage analog.
+| Comparison | Result |
+|---|---|
+| P0/P0 determinism | 0 collisions, 0 moved, 0 unmatched — perfect |
+| P0/P1 body edit | **0 moved indices**; delta = the edited string + two same-file anonymous closures whose token-position key component changed |
+| P0/P2 added function | 269 uniquely-keyed entries change index (mid-pool insertion) but **every one key-matches**; genuinely new keys: 1 (`EXTRA-PROBE`) |
+| P0/P3 added const | Same shape; genuinely new keys: **0** (reuses existing pool material; one argdesc key's multiplicity +1) |
+
+The five criteria:
+(a) **100% keyed** — 644 unique + 931 interchangeable duplicates of identical
+canonical objects (any consistent mapping is correct); (b) **no unkeyed class
+remains** once the dump exposes structure — the two apparent residues were
+dump artifacts (`_List` vs `_ImmutableList` empty arrays distinguished by
+cid; native-function entries carry the gen_snapshot process's ASLR'd
+trampoline address, relocated at load, so they key by type); (c) nothing
+moves under the canonical edit; (d) unmatched keys ARE the delta;
+(e) **collision rate among patch-relevant entries: 0**.
+
+One design note for the eventual pinning pass: closure keys include token
+position, so an edit ABOVE a closure in the same file re-keys it. The base
+entries persist (unchanged code is unaffected); a linker either matches
+closures by owner+ordinal or accepts same-file closures rebinding as part of
+the patch delta.
+
+Honest limit, unchanged: this proves identity/mapping feasibility on a
+1.5k-entry program, **not** that a linked snapshot runs, and not the behavior
+of a full Flutter app's ~100k-entry pool — that measurement belongs to
+whichever route proceeds.
+
+## Rubric applied — both spikes PASS → Route B selected as default
+
+Spike B (binding) passed decisively — `../killgate/README.md` §Spike B.
+Spike A (this file) passed on patch relevance. Per the plan's rubric, the
+both-pass row selects **Route B (Track E) as the default**, on the grounds
+that Spike A's pass only de-risks months of serializer/aot_tools work that
+remains months, while Route B's remainder is a bounded compiler feature
+(the call-emission mode, already specified with file:line pointers) plus
+integration on Google-maintained machinery.
+
+**Two vetoes stand between "default" and "committed", both owned by Route B's
+first milestone:**
+1. *Perf veto*: benchmark a release build with the call-emission mode +
+   dynamic-interface retention on a real app — if snapshot size grows beyond
+   ~10% or steady-state frame time regresses beyond budget, take Route A
+   (patched code stays native there).
+2. *Product veto*: if hot-path patching is a requirement, take Route A.
+
+Spike A's artifacts (this dump flag + differ) are kept either way — they are
+Route B's link-percentage analog. The `*.vmcode` filename contract remains
+PROVISIONAL (bring-up only); production identifies patch payload type via
+explicit metadata or a versioned header.
