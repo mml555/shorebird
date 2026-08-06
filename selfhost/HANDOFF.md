@@ -1431,11 +1431,16 @@ Do not re-learn these:
   lldb-detach SIGTRAP on iOS 15 is a launcher artifact — use
   `--noninteractive` and screenshot while attached).
 
-  Environment note from the same run: Xcode had lost its iOS platform
+  Environment notes from the same run: Xcode had lost its iOS platform
   component ("iOS 26.5 is not installed") — `xcodebuild -downloadPlatform iOS`
-  repairs it; and the device could NOT reach the control plane at
-  `169.254.189.3:18080` during this run (no `patches/check` server-side), an
-  open rig item that blocks device patch legs but not this validation.
+  repairs it. A device→control-plane scare resolved as a non-issue: launches
+  via `ios-deploy --justlaunch` die on lldb detach (SIGTRAP in
+  `lldb_image_notifier`) before the updater's network calls fire, which looks
+  exactly like a dead link. A held-attach launch (`--noninteractive`, kill
+  after ~15 s) produced the full chain server-side — the app's
+  `/selfhost-beacon/*` diagnostics and `POST /patches/check → 200` from
+  release `30.0.0+1` over `169.254.189.3:18080`. The USB link-local pair is
+  healthy (phone at `169.254.145.84` on en17, 0% ping loss).
 
 - **Track E's next step: the new call-emission mode.** Specified above with
   file:line pointers; nothing blocks starting it. It is arm64 codegen work, not
