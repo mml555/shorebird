@@ -82,11 +82,40 @@ bootstrap() {
   echo "flutter cloned from: $origin"
 }
 
+# Point the vended Flutter at the fork engine AND refresh its toolchain.
+# Writing engine.version alone is not enough: the cached Dart SDK still
+# belongs to the previous engine, and the dart_sdk_compatibility guard
+# (correctly) refuses to build a fork engine against a stock host SDK —
+# caught live on the first warm run. Deleting the stamps makes the next
+# flutter invocation re-fetch the matching dart-sdk + engine artifacts
+# through the mirror, which is itself part of warming.
+switch_engine() {
+  [[ -n "$ENGINE_HASH" ]] || return 0
+  local fl="$SHOREBIRD_ROOT/bin/cache/flutter/$FLREV"
+  echo "$ENGINE_HASH" > "$fl/bin/internal/engine.version"
+  # Drop the ENTIRE cached artifact set, not just the Dart SDK stamp. Every
+  # piece of the host toolchain is stamped with the Dart that built it, so a
+  # partial refresh leaves e.g. a stock const_finder beside a fork dart-sdk
+  # and the build dies with "ConstFinder failure: Can't load Kernel binary:
+  # Invalid SDK hash" (observed live, 2026-08-06). Re-fetching all of it
+  # through the mirror is also exactly what warming wants.
+  rm -rf "$fl/bin/cache/artifacts" "$fl/bin/cache/dart-sdk"
+  rm -f "$fl"/bin/cache/*.stamp "$SHOREBIRD_ROOT/bin/cache/shorebird.stamp"
+  "$fl/bin/flutter" --version >/dev/null || return 1
+  # Deliberately NO `flutter precache` here. It was tried and removed the same
+  # day: `precache --android` pulls EVERY Android ABI, and the run died
+  # fetching android-x86/artifacts.zip — an artifact no release needs and the
+  # mirror was never warmed for. Let the build fetch exactly what it uses,
+  # which is also the honest cold-cache path. (Precache was originally added
+  # so capability probes would not run against a gen_snapshot that is not on
+  # disk yet; that is now handled correctly in the CLI, which fails closed
+  # when the binary is absent.)
+}
+
 # --- stage 2: android release + patch --------------------------------------------
 android_release_patch() {
   cd "$APP_DIR"
-  [[ -n "$ENGINE_HASH" ]] && echo "$ENGINE_HASH" \
-    > "$SHOREBIRD_ROOT/bin/cache/flutter/$FLREV/bin/internal/engine.version"
+  switch_engine || return 1
   "$SHOREBIRD_ROOT/bin/shorebird" release android --no-confirm --artifact=apk \
     --flutter-version="$FLREV" -- --no-tree-shake-icons || return 1
   "$SHOREBIRD_ROOT/bin/shorebird" patch android --no-confirm --allow-asset-diffs || return 1
@@ -95,8 +124,7 @@ android_release_patch() {
 # --- stage 3: ios release (default flags) + assets-only patch --------------------
 ios_release_patch() {
   cd "$APP_DIR"
-  [[ -n "$ENGINE_HASH" ]] && echo "$ENGINE_HASH" \
-    > "$SHOREBIRD_ROOT/bin/cache/flutter/$FLREV/bin/internal/engine.version"
+  switch_engine || return 1
   # DEFAULT --dd-max-bytes on purpose: the DdSupport probe must auto-disable
   # DD on a vanilla-Dart engine. Passing 0 here would mask a broken probe.
   "$SHOREBIRD_ROOT/bin/shorebird" release ios --no-confirm --verbose \

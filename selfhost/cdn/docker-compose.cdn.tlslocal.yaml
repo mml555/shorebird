@@ -1,43 +1,25 @@
-# Self-hosted Shorebird build-time CDN (local HTTPS).
+# Local-HTTPS override: also serve the mirror on https://:8443.
 #
-# Same as docker-compose.cdn.yaml but mounts tls/listen-enabled.caddy so the
-# mirror also serves https://:8443. Run tls/generate.sh (+ trust.sh on build
-# hosts) first. Needed because Gradle 8+ refuses insecure Maven repositories.
+# Needed because Gradle 8+ refuses insecure Maven repositories, which is what
+# FLUTTER_STORAGE_BASE_URL becomes during an Android release build.
 #
-# Usage:
-#   selfhost/cdn/tls/generate.sh
-#   docker compose -f selfhost/cdn/docker-compose.cdn.tlslocal.yaml up --build
-
+# Run tls/generate.sh first (and tls/trust.sh on each build host that must
+# trust the generated CA).
+#
+# Usage — this is an OVERLAY on the base compose, not a standalone file:
+#   docker compose -f selfhost/cdn/docker-compose.cdn.yaml \
+#                  -f selfhost/cdn/docker-compose.cdn.tlslocal.yaml up -d
+# Combine with docker-compose.cdn.sealed.yaml for a sealed HTTPS mirror.
+#
+# It was previously a full standalone service definition, which meant every
+# new mount or env var added to the base had to be mirrored here by hand —
+# and one silently was not (the upstream_gcs.caddy mount the Caddyfile now
+# imports), which would have failed at startup. Compose merges volume mounts
+# by container target path, so an overlay carrying ONLY the difference cannot
+# drift from the base.
 name: shorebird-cdn
 
 services:
-  artifact-proxy:
-    build:
-      context: ../../packages/artifact_proxy
-      dockerfile: Dockerfile
-    environment:
-      - PORT=8080
-    expose:
-      - "8080"
-    restart: unless-stopped
-
   cdn-cache:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    depends_on:
-      - artifact-proxy
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./overlay:/overlay:ro
-      - ./experimental_hashes.map:/etc/caddy/experimental_hashes.map:ro
       - ./tls/listen-enabled.caddy:/etc/caddy/tls_listen.caddy:ro
-      - ./tls:/etc/caddy/tls:ro
-      - cdn-cache-data:/var/cache/caddy/cdn
-    ports:
-      - "8085:8080"
-      - "8443:8443"
-    restart: unless-stopped
-
-volumes:
-  cdn-cache-data:

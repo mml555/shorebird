@@ -128,7 +128,8 @@ HTTPS for the mirror:
 ```bash
 selfhost/cdn/tls/generate.sh
 selfhost/cdn/tls/trust.sh          # on every machine that builds
-docker compose -f selfhost/cdn/docker-compose.cdn.tlslocal.yaml up --build -d
+docker compose -f selfhost/cdn/docker-compose.cdn.yaml \
+               -f selfhost/cdn/docker-compose.cdn.tlslocal.yaml up --build -d
 export FLUTTER_STORAGE_BASE_URL=https://localhost:8443
 export SHOREBIRD_STORAGE_BASE_URL=https://localhost:8443
 ```

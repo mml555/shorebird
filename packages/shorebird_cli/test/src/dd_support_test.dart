@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:mocktail/mocktail.dart';
+import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/dd_support.dart';
+import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_process.dart';
 import 'package:test/test.dart';
@@ -9,9 +13,10 @@ import 'mocks.dart';
 
 void main() {
   group(DdSupport, () {
-    const genSnapshotPath = '/path/to/gen_snapshot_arm64';
+    late String genSnapshotPath;
     late ShorebirdArtifacts shorebirdArtifacts;
     late ShorebirdProcess process;
+    late ShorebirdLogger logger;
     late DdSupport ddSupport;
 
     R runWithOverrides<R>(R Function() body) {
@@ -20,6 +25,7 @@ void main() {
         values: {
           shorebirdArtifactsRef.overrideWith(() => shorebirdArtifacts),
           processRef.overrideWith(() => process),
+          loggerRef.overrideWith(() => logger),
         },
       );
     }
@@ -39,7 +45,15 @@ void main() {
     setUp(() {
       shorebirdArtifacts = MockShorebirdArtifacts();
       process = MockShorebirdProcess();
+      logger = MockShorebirdLogger();
       ddSupport = DdSupport();
+      // The probe checks the executable exists before running it, so the
+      // happy paths need a real file on disk.
+      genSnapshotPath = p.join(
+        Directory.systemTemp.createTempSync().path,
+        'gen_snapshot_arm64',
+      );
+      File(genSnapshotPath).writeAsStringSync('#!/bin/sh\n');
       when(
         () => shorebirdArtifacts.getArtifactPath(
           artifact: any(named: 'artifact'),
@@ -134,6 +148,25 @@ void main() {
             () => ddSupport.isSupportedBy(ShorebirdArtifact.genSnapshotIos),
           ),
           isTrue,
+        );
+        verifyNever(() => process.runSync(any(), any()));
+      });
+
+      test('reports unsupported when gen_snapshot is not cached yet', () {
+        // Cold cache: the engine's gen_snapshot has not been downloaded, so
+        // it cannot be probed. Fail CLOSED — wrongly enabling DD aborts the
+        // build, wrongly disabling it only costs link percentage.
+        when(
+          () => shorebirdArtifacts.getArtifactPath(
+            artifact: any(named: 'artifact'),
+          ),
+        ).thenReturn('/definitely/not/on/disk/gen_snapshot_arm64');
+
+        expect(
+          runWithOverrides(
+            () => ddSupport.isSupportedBy(ShorebirdArtifact.genSnapshotIos),
+          ),
+          isFalse,
         );
         verifyNever(() => process.runSync(any(), any()));
       });

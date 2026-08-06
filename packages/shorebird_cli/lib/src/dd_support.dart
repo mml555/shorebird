@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_process.dart';
 
@@ -58,6 +61,21 @@ class DdSupport {
         // No gen_snapshot to ask; let the build proceed and report its own
         // error rather than silently changing behavior here.
         return true;
+      }
+
+      // A cold cache has not downloaded the engine's gen_snapshot yet, so
+      // there is nothing to ask. Answer "unsupported" rather than failing
+      // open, because the two mistakes are not symmetric: wrongly disabling
+      // DD costs only link percentage (patches compute DD on the fly when
+      // applied), while wrongly enabling it aborts the build with
+      // "Unrecognized flags: print_dd_function_identity_to" — exactly the
+      // misleading failure this class exists to prevent. Observed live on a
+      // cold-cache iOS release against a fork engine, 2026-08-06.
+      if (!File(executable).existsSync()) {
+        logger.detail(
+          '''[dd] $executable is not in the cache yet; assuming no DD support.''',
+        );
+        return false;
       }
 
       try {
