@@ -112,13 +112,31 @@ switch_engine() {
   # when the binary is absent.)
 }
 
+# The release version the app will publish, e.g. "31.0.0+1" from pubspec.
+# `shorebird patch` must be told which release to patch: without it the CLI
+# prompts "Which release would you like to patch?" and --no-confirm does not
+# answer that prompt, so the stage hangs then fails (observed live).
+app_release_version() {
+  sed -nE 's/^version:[[:space:]]*([^[:space:]#]+).*/\1/p' "$APP_DIR/pubspec.yaml" | head -1
+}
+
 # --- stage 2: android release + patch --------------------------------------------
 android_release_patch() {
   cd "$APP_DIR"
   switch_engine || return 1
   "$SHOREBIRD_ROOT/bin/shorebird" release android --no-confirm --artifact=apk \
     --flutter-version="$FLREV" -- --no-tree-shake-icons || return 1
-  "$SHOREBIRD_ROOT/bin/shorebird" patch android --no-confirm --allow-asset-diffs || return 1
+  local rel; rel="$(app_release_version)"
+  [[ -n "$rel" ]] || { echo "could not read version: from $APP_DIR/pubspec.yaml" >&2; return 1; }
+  # --no-tree-shake-icons on the PATCH build too, for the same reason the
+  # release needs it: icon tree shaking runs const_finder, a kernel stamped
+  # with the SDK hash of whatever Dart built it. The Linux host toolchain is
+  # ours (dart-sdk 4bd36869) but no fork const_finder is published for
+  # linux-x64, so the stock one loads and the build dies with "Invalid SDK
+  # hash". Disabling the feature is explicit and documented; the alternative
+  # — shipping a fork linux-x64 const_finder — is tracked separately.
+  "$SHOREBIRD_ROOT/bin/shorebird" patch android --no-confirm --allow-asset-diffs \
+    --release-version="$rel" -- --no-tree-shake-icons || return 1
 }
 
 # --- stage 3: ios release (default flags) + assets-only patch --------------------
@@ -135,14 +153,24 @@ ios_release_patch() {
     echo "App.dd_* artifacts present — DdSupport probe failed open" >&2
     return 1
   fi
+  local rel; rel="$(app_release_version)"
+  [[ -n "$rel" ]] || { echo "could not read version: from $APP_DIR/pubspec.yaml" >&2; return 1; }
   "$SHOREBIRD_ROOT/bin/shorebird" patch ios --no-confirm --assets-only \
-    --allow-asset-diffs || return 1
+    --allow-asset-diffs --release-version="$rel" || return 1
 }
 
 # --- stage 4: post-checks ---------------------------------------------------------
 post_checks() {
-  local vw
-  vw="$(cd "$(dirname "${BASH_SOURCE[0]}")/../cdn" && pwd)/verify_warm.sh"
+  # AIRGAP_VERIFY_WARM lets a caller that runs this script from outside the
+  # repo (e.g. an immutable copy in /tmp, so a mid-run sync cannot clobber the
+  # file bash is still reading) point at verify_warm.sh explicitly. Without it
+  # the relative lookup resolves against the copy's directory and silently
+  # fails the stage.
+  local vw="${AIRGAP_VERIFY_WARM:-}"
+  if [[ -z "$vw" ]]; then
+    vw="$(cd "$(dirname "${BASH_SOURCE[0]}")/../cdn" 2>/dev/null && pwd)/verify_warm.sh"
+  fi
+  [[ -x "$vw" ]] || { echo "verify_warm.sh not found at '$vw'; set AIRGAP_VERIFY_WARM" >&2; return 1; }
   # The mirror is often on another host (the Linux leg reaches the Mac's
   # mirror over an SSH tunnel), so let the caller point the check at it:
   #   AIRGAP_VERIFY_ARGS="--ssh user@host:port"
