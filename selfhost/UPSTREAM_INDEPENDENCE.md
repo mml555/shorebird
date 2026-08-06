@@ -244,6 +244,40 @@ build works.
 
 ## What "independent" will mean concretely
 
+## PASSED 2026-08-06 — both platforms, mirror sealed, from empty caches
+
+| Leg | Engine | Release | Patch | Stages | Isolation |
+|---|---|---|---|---|---|
+| iOS (macOS) | `70974f81` | `34.0.0+1` | 1 | bootstrap / ios / post-checks **PASS** | **OK** |
+| Android (Linux) | `760e3fab` | `1.5.0+1` | 1 | bootstrap / android / post-checks **PASS** | **OK** |
+
+Both from an empty `bin/cache` with the mirror in sealed mode — every
+upstream fetch refused — and both completed release **and** patch.
+Zero blocking refusals. Everything refused was the harness's own probe
+(`/gcs/AIRGAP-SEAL-PROBE`, `/`) or `android-x86` (an ABI nothing here ships;
+a full iOS release and patch completed while it was denied). Notably **no
+`aot-tools.dill` refusal on either leg** — the assets-only iOS path really
+does not ask for it.
+
+**What this establishes:** no dependency on closed upstream systems. All
+Shorebird artifact traffic routes through the mirror; the mirror refused
+upstream throughout; both platforms still shipped.
+
+**What it deliberately does NOT claim:** "no network". GitHub and pub.dev
+stayed reachable and are reported as such. Depending on open-source
+infrastructure is fine — we mirror it for durability, not because reaching
+it is a failure.
+
+Caveats recorded honestly:
+- macOS host-level packet blocking was abandoned: Tailscale reloads pf and
+  flushes any anchor, so a host seal cannot be held there. The mirror seal
+  carries the proof and is enforced inside the container regardless.
+- Android icon tree-shaking stays disabled pending a fork `linux-x64`
+  `const_finder` (see `engine/publish_font_subset.sh` for the macOS
+  equivalent that was fixed).
+
+## The test itself
+
 The test — now **implemented** at [`scripts/airgap_run.sh`](scripts/airgap_run.sh)
 (packet-level seal: pf anchor on macOS / netns on Linux, /etc/hosts tripwire,
 preflight probes, ISOLATED cache homes) driving
@@ -252,16 +286,14 @@ preflight probes, ISOLATED cache homes) driving
 flags + assets-only patch → `cdn/verify_warm.sh` post-check), scoped wider than
 originally specified (2026-08-05 decision — FULLY self-contained):
 
-> Block **all** external network — Shorebird hosts, GCS, github.com (Flutter
-> clone via `SHOREBIRD_FLUTTER_GIT_URL` → local mirror at `cdn/mirrors/`,
-> bundletool via `SHOREBIRD_BUNDLETOOL_URL`), pub.dev (seeded `PUB_CACHE` +
-> `SHOREBIRD_PUB_OFFLINE=true`) — from ISOLATED host caches (`HOME` on Linux,
-> `PUB_CACHE`, `GRADLE_USER_HOME`, `XDG_CACHE_HOME`, `TMPDIR`; Xcode keychain
-> kept as a preinstalled system tool). A clean machine can still: install the
-> CLI, create a release, publish a patch, and have a device apply it — Android
-> **and** iOS. The mirror runs SEALED
-> (`cdn/docker-compose.cdn.sealed.yaml`), so any cold path fails fast with a
-> greppable `sealed:` 502 instead of a hung socket.
+> With the mirror SEALED (`cdn/docker-compose.cdn.sealed.yaml` — it refuses
+> every upstream fetch with a greppable `sealed:` 502), from an empty
+> `bin/cache` and ISOLATED caches (`PUB_CACHE`, `GRADLE_USER_HOME`,
+> `XDG_CACHE_HOME`, `TMPDIR`; `HOME` is kept, it holds preinstalled tooling —
+> the macOS keychain and the Android SDK), a clean machine can still install
+> the CLI, create a release, publish a patch, and have a device apply it —
+> Android **and** iOS. Open-source hosts may stay reachable; the point is that
+> nothing CLOSED is required.
 
 Deliberate, recorded mirrored-stock policy (NOT rebuilt; served from the warm
 sealed cache): `android-arm64-release/{darwin,windows}-x64.zip` host
