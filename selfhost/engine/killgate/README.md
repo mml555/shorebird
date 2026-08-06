@@ -50,7 +50,49 @@ This splits the risk cleanly:
 | Can an AOT function's body be replaced at runtime? | **Yes** — `AttachBytecode`, `IsInterpreted` 0 → 1 |
 | Does the interpreter execute the replacement? | **Yes** — returned `NEW` |
 | Do existing call sites reach it? | **No** — needs call-site rewriting (the binder) |
-| Does patch bytecode bind to the base snapshot? | **Not yet** — see the `print` finding below |
+| Does patch bytecode bind to the base snapshot? | **YES — Spike B, 2026-08-05** (see `binding/`, RESULT below) |
+
+## RESULT — run 2026-08-05 (Spike B): binding works; the crux is dead
+
+`binding/run.sh` asked the question the 08-04 gate deliberately deferred: does
+patch bytecode compiled with `--import-dill` resolve references into the base
+AOT program at load time — an app symbol and an SDK symbol — and execute?
+Matrix: {r1 self-contained, r2 calls `hostSuffix()`, r3 calls `print()`} ×
+{arm1 `vm:entry-point` pragma, arm2 `gen_kernel --dynamic-interface`}.
+
+| | r1 (control) | r2 (app symbol) | r3 (`print`, the canonical failure) |
+|---|---|---|---|
+| arm1 (pragma) | PASS | PASS — returned `NEW-HOST` | FAIL(load) at `bytecode_reader.cc:1172` |
+| arm2 (di.yaml) | PASS | PASS — returned `NEW-HOST` | **PASS — printed `BOUND`, returned `NEW-PRINTED`** |
+
+What this establishes:
+
+- **Compile-time binding generalizes.** The dynmod `--import-dill` workaround
+  (feed a `--no-aot --no-link-platform` pre-AOT kernel) compiled all six
+  variants; the CFE crash is fully avoided, not just in dynmod's harness.
+- **Load-time resolution works when retention is declared.** App symbols
+  resolve under either mechanism; `dart:core print` resolves only under the
+  dynamic interface — `gen_kernel --dynamic-interface` accepted a `dart:core`
+  entry, and `dyn-module:callable` retention (≡ `vm:entry-point`,
+  `object.cc` `FindEntryPointPragma`) is exactly what eliminates the 1172
+  failure. The canonical failure reproduces under arm1/r3, so the fix is
+  attributed, not coincidental.
+- **The bound bodies execute** via `DartEntry::InvokeFunction` — including an
+  interpreter→host call (`hostSuffix()`) and an interpreter→SDK call
+  (`print`).
+- **Judged line**: the attach native's own C++ invoke. The Dart-level
+  `Function.apply` still returns `OLD` by design of the measurement — every
+  Dart-side call shape is statically bound in AOT; that is the 08-04 gate's
+  known call-emission gap (Route B's next milestone), not a binding failure.
+- **Retention tax on the gate program**: `target.aot` 881,264 → 889,432 bytes
+  (+0.93%) for a 3-entry interface incl. `dart:core print`; global pool
+  1511 → 1696 entries. A real-app measurement with a production-shaped
+  interface belongs to the call-emission milestone.
+
+Consequence for the route decision (see the plan's rubric): Route B's single
+unproven crux — binding — is now proven. Remaining Route B work is the
+specified call-emission mode, platform-dill hygiene, the iOS port, and
+CLI/server/updater integration.
 
 ### Two findings worth keeping
 
