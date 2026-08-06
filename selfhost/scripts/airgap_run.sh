@@ -12,11 +12,13 @@
 #   macOS : a pf anchor (airgap.pf.conf) blocks outbound 80/443/9418 except
 #           loopback + link-local (mirror, control plane and USB device all
 #           live there). Requires sudo.
-#   Linux : run the payload inside a network namespace that has ONLY a veth
-#           route to the mirror/control-plane host. Construction of the netns
-#           is site-specific; this wrapper expects it to already exist and be
-#           named "airgap" (ip netns add airgap; wire the veth to the tunnel
-#           host). Requires sudo.
+#   Linux : iptables OUTPUT rules in a dedicated AIRGAP chain — NOT a network
+#           namespace. The build host reaches the mirror and control plane
+#           through SSH REVERSE TUNNELS bound to 127.0.0.1, and a netns cannot
+#           see those listeners, so sealing that way makes the mirror
+#           unreachable and reports HARNESS FAILURE. Blocking new outbound
+#           80/443/9418 to anything except loopback is the equivalent seal for
+#           this topology, and mirrors what the pf rules do on macOS (skip lo0).
 #
 # Cache isolation: an empty Shorebird bin/cache is NOT enough — Gradle, pub,
 # XDG and temp caches survive on the host and can mask a network dependency.
@@ -32,6 +34,7 @@ set -euo pipefail
 
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 ANCHOR=shorebird_airgap
+IPT_CHAIN=SHOREBIRD_AIRGAP
 POISON_HOSTS=(
   pub.dev
   storage.googleapis.com
@@ -57,6 +60,15 @@ OS="$(uname -s)"
 HOSTS_BAK=""
 
 seal() {
+  # AIRGAP_ASSUME_SEALED=1: the operator applied the seal themselves (macOS
+  # caches sudo per-tty, so a credential primed in the operator's terminal
+  # does not authorize a run launched from elsewhere). Everything that
+  # VERIFIES the seal still runs — preflight probes, cache isolation, the
+  # report — so this weakens nothing except who types the pfctl command.
+  if [[ "${AIRGAP_ASSUME_SEALED:-}" == "1" ]]; then
+    note "AIRGAP_ASSUME_SEALED=1 — not applying the seal; preflight will verify it"
+    return 0
+  fi
   note "sealing: /etc/hosts tripwire (${#POISON_HOSTS[@]} hosts)"
   HOSTS_BAK="$(mktemp /tmp/hosts.airgap.XXXXXX)"
   sudo cp /etc/hosts "$HOSTS_BAK"
@@ -70,19 +82,50 @@ seal() {
     note "sealing: pf anchor $ANCHOR (block out tcp 80/443/9418 except loopback + link-local)"
     sudo pfctl -a "$ANCHOR" -f "$HERE/airgap.pf.conf" 2>/dev/null
     sudo pfctl -e 2>/dev/null || true   # already enabled is fine
+  else
+    note "sealing: iptables chain $IPT_CHAIN (block new out tcp 80/443/9418 except loopback)"
+    sudo iptables -N "$IPT_CHAIN" 2>/dev/null || sudo iptables -F "$IPT_CHAIN"
+    sudo iptables -A "$IPT_CHAIN" -o lo -j RETURN
+    sudo iptables -A "$IPT_CHAIN" -d 127.0.0.0/8 -j RETURN
+    sudo iptables -A "$IPT_CHAIN" -p tcp -m multiport --dports 80,443,9418 \
+      -j REJECT --reject-with tcp-reset
+    # Idempotent insert: drop any prior jump first.
+    sudo iptables -D OUTPUT -j "$IPT_CHAIN" 2>/dev/null || true
+    sudo iptables -I OUTPUT 1 -j "$IPT_CHAIN"
   fi
 }
 
 unseal() {
+  if [[ "${AIRGAP_ASSUME_SEALED:-}" == "1" ]]; then
+    note "AIRGAP_ASSUME_SEALED=1 — leaving the seal in place for the operator to remove"
+    [[ -n "${SUDO_KEEPALIVE_PID:-}" ]] && kill "$SUDO_KEEPALIVE_PID" 2>/dev/null
+    return 0
+  fi
   note "unsealing"
   if [[ -n "$HOSTS_BAK" && -f "$HOSTS_BAK" ]]; then
     sudo cp "$HOSTS_BAK" /etc/hosts && rm -f "$HOSTS_BAK"
   fi
   if [[ "$OS" == "Darwin" ]]; then
     sudo pfctl -a "$ANCHOR" -F all 2>/dev/null || true
+  else
+    sudo iptables -D OUTPUT -j "$IPT_CHAIN" 2>/dev/null || true
+    sudo iptables -F "$IPT_CHAIN" 2>/dev/null || true
+    sudo iptables -X "$IPT_CHAIN" 2>/dev/null || true
   fi
+  [[ -n "${SUDO_KEEPALIVE_PID:-}" ]] && kill "$SUDO_KEEPALIVE_PID" 2>/dev/null
+  return 0
 }
 trap unseal EXIT INT TERM
+
+# Keep the sudo timestamp warm for the whole run. Without this a long build can
+# outlive the cached credential, and then the UNSEAL at the end silently fails
+# — leaving the machine firewalled after the script exits. That is the one
+# failure mode of this wrapper that hurts the user rather than the run.
+if [[ "${AIRGAP_ASSUME_SEALED:-}" != "1" ]]; then
+  sudo -v 2>/dev/null || die "sudo credentials required: run 'sudo -v' first, or use AIRGAP_ASSUME_SEALED=1"
+  ( while true; do sudo -n true 2>/dev/null || exit; sleep 45; done ) &
+  SUDO_KEEPALIVE_PID=$!
+fi
 
 PREFLIGHT_LOG=""
 preflight() {
@@ -167,11 +210,10 @@ preflight
 
 note "running payload: $*"
 set +e
-if [[ "$OS" == "Linux" ]]; then
-  sudo ip netns exec airgap sudo -u "$(id -un)" --preserve-env "$@"
-else
-  "$@"
-fi
+# No netns exec: the seal is iptables on Linux (see header), so the payload
+# runs as the invoking user in the host namespace, where the reverse-tunnel
+# listeners on 127.0.0.1 are reachable.
+"$@"
 RC=$?
 set -e
 
