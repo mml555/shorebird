@@ -167,6 +167,16 @@ ts = datetime.datetime.utcfromtimestamp(zip_path.stat().st_mtime)
 print('    engine_stamp.json written')
 PY
 
+# font-subset.zip carries const_finder.dart.snapshot and extracts into the same
+# cache dir as artifacts.zip, so if it is not ours the STOCK const_finder wins
+# and every release dies with "Invalid SDK hash". Publish it with the engine so
+# it can never become a hand-injected artifact again (see the script header).
+FONT_SUBSET="$(dirname "${BASH_SOURCE[0]}")/publish_font_subset.sh"
+DART="${DART:-$FLUTTER_ROOT/bin/cache/dart-sdk/bin/dart}" \
+  bash "$FONT_SUBSET" --overlay "$OVERLAY" --rev "$HASH" \
+  && note "font-subset (with our const_finder) published for $HASH" \
+  || echo "WARNING: publish_font_subset.sh failed — releases on $HASH will hit the stock const_finder" >&2
+
 # The CLI fetches patch-<plat>.zip from shorebird/<rev>/, and @must_be_local in
 # the Caddyfile owns that path for experimental hashes — publish the host's
 # differ zip alongside the engine or patch builds against this hash 404.

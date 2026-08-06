@@ -95,11 +95,28 @@
 	# request 404s LOUDLY instead of silently serving the pinned linker the fork
 	# engine cannot use (the CLI treats it as optional and warns).
 	#
+	# font-subset.zip is owned for a reason worth remembering: it carries
+	# const_finder.dart.snapshot, and it extracts into the SAME cache directory
+	# as artifacts.zip. Unowned, it fell through to the pinned revision and the
+	# STOCK const_finder overwrote the fork one, so every release died with
+	# "ConstFinder failure: Can't load Kernel binary: Invalid SDK hash" — a
+	# silent cross-toolchain mix that cost a full warm run to find
+	# (2026-08-06). Published by selfhost/engine/publish_font_subset.sh.
+	#
+	# ONLY darwin-arm64/font-subset.zip is owned, because darwin-arm64 is the
+	# only host toolchain we build (we publish dart-sdk-darwin-arm64.zip and
+	# nothing else). Owning the linux/windows variants would 404 the Linux
+	# build host's own font-subset fetch, where falling through to the pinned
+	# revision is CORRECT — that host runs a stock Dart SDK, so it needs the
+	# stock const_finder. Every mapped hash publishes this file: ours where
+	# the host toolchain is ours, a verbatim copy of the pinned one where it
+	# is not, so ownership never has to guess.
+	#
 	# Caddy allows only one path_regexp per named matcher, so ownership is one
 	# alternation. expression is AND'd with it.
 	@must_be_local {
 		expression `{stock_engine_hash} != ""`
-		path_regexp ^/(flutter_infra_release/flutter/[0-9a-f]{40}/(android-arm64-release/|ios-release/|(linux|darwin|windows)-(x64|arm64)/artifacts\.zip$|flutter_patched_sdk_product\.zip$|flutter_patched_sdk\.zip$|dart-sdk-[a-z0-9-]+\.zip$|engine_stamp\.json$)|download\.flutter\.io/io/flutter/|[^/]+/shorebird/[0-9a-f]{40}/(patch-(darwin-arm64|darwin-x64|linux-x64)\.zip$|aot-tools\.dill$|artifacts_manifest\.yaml$))
+		path_regexp ^/(flutter_infra_release/flutter/[0-9a-f]{40}/(android-arm64-release/|ios-release/|(linux|darwin|windows)-(x64|arm64)/artifacts\.zip$|darwin-arm64/font-subset\.zip$|flutter_patched_sdk_product\.zip$|flutter_patched_sdk\.zip$|dart-sdk-[a-z0-9-]+\.zip$|engine_stamp\.json$)|download\.flutter\.io/io/flutter/|[^/]+/shorebird/[0-9a-f]{40}/(patch-(darwin-arm64|darwin-x64|linux-x64)\.zip$|aot-tools\.dill$|artifacts_manifest\.yaml$))
 	}
 
 	@has_stock expression `{stock_engine_hash} != ""`

@@ -143,13 +143,17 @@ ios_release_patch() {
 post_checks() {
   local vw
   vw="$(cd "$(dirname "${BASH_SOURCE[0]}")/../cdn" && pwd)/verify_warm.sh"
-  # In a sealed run, refusals mean something needed a cold path. verify_warm
-  # exits 1 and lists them; surface but judge: a refusal for aot-tools.dill on
-  # a fork hash is EXPECTED (loud 404 by design happens before the seal).
-  "$vw" --since 4h && return 0
+  # The mirror is often on another host (the Linux leg reaches the Mac's
+  # mirror over an SSH tunnel), so let the caller point the check at it:
+  #   AIRGAP_VERIFY_ARGS="--ssh user@host:port"
+  # Without this the remote leg can only report "container is not running",
+  # which is not a verdict.
+  # shellcheck disable=SC2086
+  "$vw" --since 4h ${AIRGAP_VERIFY_ARGS:-} && return 0
   echo "(review the refusal list above — fork-hash aot-tools.dill is expected)" >&2
   return 1
 }
+
 
 stage bootstrap bootstrap
 [[ "$DO_ANDROID" == "1" ]] && stage android android_release_patch
