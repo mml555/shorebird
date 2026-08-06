@@ -72,16 +72,53 @@ fetch_log() {
 
 LOG="$(fetch_log)" || exit $?
 
-REFUSALS="$(grep -F 'sealed: refusing upstream fetch' <<<"$LOG" || true)"
-COUNT="$(grep -c '"status": 502' <<<"$LOG" || true)"
-COUNT="${COUNT:-0}"
+# Refusals are NOT uniformly failures. Exactly one class is by design: a
+# fork-hash aot-tools.dill. The overlay owns that path so it fails loudly
+# instead of silently serving the pinned linker a fork engine cannot use, and
+# the CLI treats it as optional — warns and continues. Anything else refused
+# was a required artifact, which is a blocking failure.
+#
+# EXPECTED_REFUSALS is an extended-regex allowlist of URIs whose refusal is
+# design, not breakage. Keep it SHORT and justify each entry: every pattern
+# added here is a refusal nobody will look at again.
+#
+# No brace repetition ({40} for the hash): this has to run under whatever
+# `grep` the host provides, and ugrep — which some hosts alias to grep —
+# rejects it with "invalid repetition count(s)".
+EXPECTED_REFUSALS="${EXPECTED_REFUSALS:-/shorebird/[0-9a-f]+/aot-tools\.dill}"
 
-if [[ -z "$REFUSALS" && "$COUNT" == "0" ]]; then
+# bash 3.2 (macOS) has no mapfile, and this script runs on both hosts — keep
+# it to a while-read loop over a temp file.
+TALLY="$(mktemp)"; trap 'rm -f "$TALLY" "$TALLY.exp" "$TALLY.blk"' EXIT
+grep '"status": 502' <<<"$LOG" | grep -o '"uri": "[^"]*"' |
+  sed 's/"uri": "//; s/"$//' | sort | uniq -c | sort -rn > "$TALLY"
+
+if [[ ! -s "$TALLY" ]]; then
   echo "WARM: no sealed refusals in the last $SINCE (source: $SOURCE)"
   exit 0
 fi
 
-echo "COLD PATHS detected in the last $SINCE (${COUNT} sealed 502s, source: $SOURCE):"
-grep '"status": 502' <<<"$LOG" |
-  grep -o '"uri": "[^"]*"' | sort | uniq -c | sort -rn || true
+: > "$TALLY.exp"; : > "$TALLY.blk"
+while IFS= read -r line; do
+  [[ -n "$line" ]] || continue
+  uri="${line##* }"
+  if printf '%s' "$uri" | grep -qE "$EXPECTED_REFUSALS"; then
+    printf '%s\n' "$line" >> "$TALLY.exp"
+  else
+    printf '%s\n' "$line" >> "$TALLY.blk"
+  fi
+done < "$TALLY"
+
+if [[ -s "$TALLY.exp" ]]; then
+  echo "EXPECTED refusals (by design — CLI warns and continues):"
+  sed 's/^/  /' "$TALLY.exp"
+fi
+
+if [[ ! -s "$TALLY.blk" ]]; then
+  echo "WARM: no BLOCKING refusals in the last $SINCE (source: $SOURCE)"
+  exit 0
+fi
+
+echo "BLOCKING refusals — a required artifact was not available locally:"
+sed 's/^/  /' "$TALLY.blk"
 exit 1
