@@ -192,6 +192,34 @@ Everything a clean machine touches that is NOT Shorebird infrastructure:
   `SHOREBIRD_FLUTTER_GIT_URL=file:///…/mirrors/flutter.git` (or serve it over
   git daemon / smart-HTTP for other machines). Bootstrap-from-mirror verified
   2026-08-05.
+
+  **Durable copy: `github.com/mml555/shorebird-flutter-mirror` (private).**
+  Pushed 2026-08-06 — 1779 refs. This is the insurance the local mirror is
+  not: a laptop disk is not a backup. Upstream is open source and we are
+  happy to depend on it; what we refuse is being unable to rebuild if it
+  ever closes or disappears.
+
+  `refs/pull/*` is rejected by GitHub ("deny updating a hidden ref") and that
+  is fine — those are the source repo's PR metadata, not code.
+
+  Refresh it (safe to re-run):
+  ```bash
+  git -C selfhost/cdn/mirrors/flutter.git fetch --prune origin
+  git -C selfhost/cdn/mirrors/flutter.git push --mirror durable   # ignore refs/pull/* rejects
+  ```
+
+  **Restore from it** — this exact sequence was run and verified, it is not
+  a plausible-looking recipe:
+  ```bash
+  git clone --mirror https://github.com/mml555/shorebird-flutter-mirror.git \
+      selfhost/cdn/mirrors/flutter.git
+  git -C selfhost/cdn/mirrors/flutter.git config uploadpack.allowfilter true
+  git -C selfhost/cdn/mirrors/flutter.git config uploadpack.allowanysha1inwant true
+  # proof it works: a bootstrap-shaped clone of the pinned revision
+  git clone --filter=tree:0 --no-checkout <mirror-url> /tmp/restore_test
+  git -C /tmp/restore_test checkout c15ef6379403a0a55531a058bdb2c8e55bc05c98
+  cat /tmp/restore_test/bin/internal/engine.version   # expect 69f9831c…
+  ```
 - **bundletool.jar**: mirrored at `overlay/mirror/bundletool/`, served by the
   overlay; point `SHOREBIRD_BUNDLETOOL_URL` at
   `$MIRROR/mirror/bundletool/bundletool-all-1.18.1.jar`. The CLI still
