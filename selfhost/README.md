@@ -42,11 +42,13 @@ for the quick start and feature list.
 - [`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md) — Windows / Linux notes
 
 **Independence (advanced)**
-- [`UPSTREAM_INDEPENDENCE.md`](UPSTREAM_INDEPENDENCE.md) — **start here**: every remaining dependency on upstream Shorebird, whether it is *mirrored* or *built*, and what removing it takes
+- [`ROUTE_B.md`](ROUTE_B.md) — **start here to work on iOS Dart code push.** Plan of record: what is proven, the ten steps, where to work down to file:line, the rig you inherit, and the traps
+- [`UPSTREAM_INDEPENDENCE.md`](UPSTREAM_INDEPENDENCE.md) — every dependency on upstream Shorebird, whether *mirrored* or *built*, and what removing it takes. Items 1–6 and 8–10 are closed; 7 is Route B
 - [`CDN_INDEPENDENCE.md`](CDN_INDEPENDENCE.md) + [`cdn/`](cdn) — build-time CDN mirror (default, recommended)
 - [`ENGINE_BUILD.md`](ENGINE_BUILD.md) + [`engine/`](engine) — build the engine from captured source (their private Dart VM fork is **no longer a blocker**: we build on vanilla Dart + a 57-line shim, see [`engine/dart-fork/`](engine/dart-fork))
 - [`IOS_CODE_PUSH.md`](IOS_CODE_PUSH.md) — iOS code push without their fork: the interpreter and dispatch are already upstream; what we owe is a binder
-- [`HANDOFF.md`](HANDOFF.md) — current state of the three work tracks, next steps, and gotchas
+- [`HANDOFF.md`](HANDOFF.md) — the dated working log: evidence chains and debugging traps. Long, and **not** required reading before starting Route B
+- [`fixtures/airgap_app/README.md`](fixtures/airgap_app/README.md) + [`fixtures/CONTROL_PLANE_DATA.md`](fixtures/CONTROL_PLANE_DATA.md) — the acceptance fixture, and where rig data / config / secrets live
 - [`ENGINE_IMPROVEMENTS.md`](ENGINE_IMPROVEMENTS.md) — **start here for engine work**: what is proven, what stays pinned, and the constraints that cost real debugging
 - [`EXPERIMENTAL_ENGINE.md`](EXPERIMENTAL_ENGINE.md) — engine/runtime improvement roadmap: what's reachable today, and Android → iOS carryover
 - [`../vendor/flutter`](../vendor) + [`../vendor/updater`](../vendor) — captured source (insurance vs. upstream going closed)
@@ -71,11 +73,27 @@ for the quick start and feature list.
 > production compiler/runtime integration has not been built yet.**
 
 What works on iOS today, end to end and artifact-independent: a release built
-with our own engine and compiler, the app reaching first frame, and an
-assets-only patch published, downloaded, applied and rolled back on a
-physical device.
+with our own engine and compiler, the app reaching first frame on a physical
+device, and an assets-only patch published, downloaded, applied and rolled back.
 
-What remains before iOS Dart **code** patches work — none of it started:
+**Status split, so two different claims stay separate** (2026-08-07):
+
+| claim | status |
+|---|---|
+| iOS artifact independence | **PASS** |
+| iOS release → first frame on device | **PASS** |
+| iOS device → control-plane reach | **BLOCKED** — device Local Network permission |
+| iOS assets-patch application on device | **NOT VERIFIED** on the current fixture |
+| Android full device lifecycle (release → Dart code patch → rollback) | **PASS** |
+
+Android must not be read as covering the iOS device claim. The assets-only
+round trip *was* device-verified on 2026-08-05 against an app that no longer
+exists; the durable fixture that replaced it has not yet cleared the device
+gap. See [`UPSTREAM_INDEPENDENCE.md`](UPSTREAM_INDEPENDENCE.md).
+
+What remains before iOS Dart **code** patches work — none of it started. The
+plan of record, with file:line pointers and the rig, is
+[`ROUTE_B.md`](ROUTE_B.md); in outline:
 
 1. Implement Route B's patchable call-emission mode on arm64.
 2. Retain and bind app + SDK symbols via the dynamic-interface mechanism
@@ -91,6 +109,11 @@ What remains before iOS Dart **code** patches work — none of it started:
 
 The spikes proved the *mechanism* in a harness. They did not produce a
 shippable path.
+
+**Infrastructure and artifact independence are closed** as of 2026-08-07 —
+artifact ownership audited per cell, the acceptance fixture and its pub seed
+durable and committed, control-plane data/config/secrets moved out of session
+scratchpads, and endpoint configuration derived at run time rather than pinned.
 
 For almost everyone, the one-click setup + the CDN mirror is the finish line.
 

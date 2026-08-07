@@ -3,9 +3,29 @@
 <!-- cspell:words tearoff DNDEBUG SEGV LINKEDIT ourengine noinstall SELTOTAL hosttest unrun closurizing closurized closurize closurization bodyless pids footgun mtimes repointed rbtest Devirtualization genkernel misparse -->
 <!-- cspell:words airgap justlaunch noninteractive SIGTRAP dynmod absolutized DEFAULTPATH SIGPIPE PIPESTATUS -->
 
-# Handoff — engine improvements (as of 2026-08-06)
+# Handoff — engine improvements (as of 2026-08-07)
 
-## Current state — 2026-08-06. READ THIS SECTION BEFORE ANY OTHER
+## If you are picking this up: read [`ROUTE_B.md`](ROUTE_B.md), not this file
+
+The infrastructure track is **closed**. The remaining project is Route B — iOS
+Dart code push — and [`ROUTE_B.md`](ROUTE_B.md) is its plan of record: what is
+already proven, the ten steps, where to work down to file:line, the rig you
+inherit, and the traps that will bite. It is ~200 lines and assumes nothing.
+
+**This file is a 1,800-line dated working log.** It is worth reading for the
+evidence chains and the debugging traps, and it is *not* required before you
+start. The section below is the current state; everything after it is history.
+
+| you want | read |
+|---|---|
+| to start Route B | [`ROUTE_B.md`](ROUTE_B.md) |
+| the iOS code-push evidence chain | [`IOS_CODE_PUSH.md`](IOS_CODE_PUSH.md) |
+| what still depends on upstream | [`UPSTREAM_INDEPENDENCE.md`](UPSTREAM_INDEPENDENCE.md) |
+| rig state: data, config, secrets | [`fixtures/CONTROL_PLANE_DATA.md`](fixtures/CONTROL_PLANE_DATA.md) |
+| the acceptance fixture | [`fixtures/airgap_app/README.md`](fixtures/airgap_app/README.md) |
+| why the compiler carries four patches | [`TFA_ROOT_CAUSE.md`](TFA_ROOT_CAUSE.md) |
+
+## Current state — 2026-08-07. READ THIS SECTION BEFORE ANY OTHER
 
 Everything below this section is a dated working log, kept because the evidence
 chains and the traps are worth reading. **Where it disagrees with this section,
@@ -88,25 +108,24 @@ the reasoning: [`UPSTREAM_INDEPENDENCE.md`](UPSTREAM_INDEPENDENCE.md).
 **Android does not carry the iOS device claim.** They are separate claims and
 merging them would manufacture a green check the iOS leg has not earned.
 
-### Order of work (decided 2026-08-06)
+### Order of work — infrastructure track CLOSED 2026-08-07
 
-1. ~~Update this file.~~ **Done — this section.**
-2. ~~**Close independence items 8 and 9**~~ — **done 2026-08-07. Both cells
-   AUDIT CLEAN.** sky_engine.zip and flutter_gpu.zip owned per cell, manifests
-   regenerated with correct base-revision semantics, provenance.yaml emitted
-   from the policy.
-3. ~~**Linux `const_finder`**~~ — **done 2026-08-07**, and the Android
-   default-path acceptance passed, closing #15 and the Gradle workaround.
-4. ~~**Final sealed two-platform regression**~~ — **as far as it can go.** The
-   durable fixture, endpoint derivation and drift guard are in place and the
-   iOS leg builds, publishes and reaches first frame; what remains is the
-   device Local Network blocker above, not an infrastructure task.
-5. **Then** start Route B as a new greenfield implementation project, in this
-   order: arm64 patchable call emission → dynamic-interface retention → stable
-   target identity → versioned payload format → CLI packaging → transactional
-   updater/runtime activation → host integration tests → real-app size and
-   frame-time benchmark → physical-iPhone code-patch/rollback gate → sealed
-   independence regression for iOS code patches.
+Every item is done. Kept as a record of what was closed, and in what order, so
+nobody re-opens a finished question.
+
+| # | item | outcome |
+|---|---|---|
+| 1 | Update this file | done |
+| 2 | Independence items 8 and 9 | **both cells AUDIT CLEAN** — artifacts owned per cell, manifests correct, provenance emitted from policy |
+| 3 | Linux `const_finder` | **built and owned**; proven to load under the fork SDK and reject stock |
+| 4 | Android default-path acceptance | **PASS** — tree-shaking on, no Gradle workaround, release → Dart code patch → rollback on device |
+| 5 | Durable acceptance fixture + pub seed | committed, reproducible, harness defaults to it |
+| 6 | Rig state durability | data, config and **secrets** moved behind `rig_preflight` |
+| 7 | Sealed two-platform regression | **as far as it can go** — blocked only by the iOS device gap below, which is not an infrastructure task |
+
+**The remaining project is Route B.** Its plan of record is
+[`ROUTE_B.md`](ROUTE_B.md); the ten steps live there rather than here so they
+stay next to the file:line pointers and the rig facts.
 
 **Do NOT start Track C (hot restart) yet.** It adds a second runtime lifecycle
 axis before Route B's core code-patch lifecycle exists. Finish basic iOS code

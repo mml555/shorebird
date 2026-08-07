@@ -25,12 +25,18 @@ Getting from mirrored to built is most of the remaining work.
 | 4 | `shorebird_cli` | The CLI | Forked in-repo, version-pinned, `+selfhost.N` | **Built** ✅ (we track their releases by choice, not need) |
 | 5 | `bundletool.jar` | Android bundle tool | Comes from `github.com/google/bundletool` — Google, never Shorebird. For FULL self-containment: `SHOREBIRD_BUNDLETOOL_URL` override (checksum still verified) + the jar mirrored at `overlay/mirror/bundletool/` (2026-08-05) | **Built** ✅ |
 | 6 | `patch` binary | The binary differ that produces patch payloads | `vendor/updater/patch` (`bidiff 1.0.0`) — source was always ours. [`engine/publish_patch_tool.sh`](engine/publish_patch_tool.sh) builds and packages it. **Output verified byte-identical to theirs** (2026-08-03) | **Done** ✅ 2026-08-05: darwin-arm64 + darwin-x64 + linux-x64 in the overlay for the pinned rev and every mapped hash; publish scripts carry it automatically; windows stays mirrored (recorded gap) |
-| 7 | `aot-tools.dill` | **Their AOT linker.** Emits `.vmcode` + link percentage | Route decision in progress via two kill-gate spikes (2026-08-05): **Spike B (Track E binding) PASSED** — see [`engine/killgate/README.md`](engine/killgate/README.md); Spike A (pool identity) day-0 + deltas strongly positive — see [`engine/spike/README.md`](engine/spike/README.md). Cache-side already independent: a blocked fetch warns instead of dying | **In progress** ◐ |
-| 8 | `download.shorebird.dev` engine artifacts | The per-engine-revision artifact set the CLI fetches | Build every artifact ourselves and serve from our own store | **Mirrored** ◐ |
-| 9 | Artifact manifest in their GCS | `artifact_proxy` fetches it with a literal URL | Mirror it, or drop `artifact_proxy` and serve our own manifest | **Mirrored** ◐ |
+| 7 | `aot-tools.dill` | **Their AOT linker.** Emits `.vmcode` + link percentage | Both kill-gate spikes PASSED 2026-08-05 and **Route B was selected** — see [`ROUTE_B.md`](ROUTE_B.md), [`engine/killgate/README.md`](engine/killgate/README.md), [`engine/spike/README.md`](engine/spike/README.md). Never fetched: `pkg/aot_tools` does not exist in vanilla Dart, so it can only be rewritten. Cache-side already independent: a blocked fetch warns instead of dying | **Selected, NOT BUILT** ◐ — the remaining project |
+| 8 | `download.shorebird.dev` engine artifacts | The per-engine-revision artifact set the CLI fetches | Own every artifact whose correctness depends on our tree, per cell; mirror stock only where tree-independent or unsupported. Policy in [`cdn/artifact_policy.conf`](cdn/artifact_policy.conf), enforced by [`cdn/audit_overlay.sh`](cdn/audit_overlay.sh) | **Built** ✅ 2026-08-07 — both supported cells **AUDIT CLEAN**; Windows and Intel-Mac host cells deliberately `compat-mirrored` |
+| 9 | Artifact manifest in their GCS | `artifact_proxy` fetches it with a literal URL | [`engine/generate_manifest.sh`](engine/generate_manifest.sh) writes it from explicit inputs, with correct base-revision semantics; `provenance.yaml` emitted from the policy records what we actually produced | **Built** ✅ 2026-08-07 |
 | 10 | `shorebirdtech/flutter` git | Engine + framework source (public, open source) | Vendored snapshot at [`vendor/flutter`](../vendor/flutter); the CLI bootstrap clone is overridable via `SHOREBIRD_FLUTTER_GIT_URL` (CLI + both wrappers) with a bare mirror at `cdn/mirrors/` — bootstrap-from-mirror verified. **Durable copy pushed to `github.com/mml555/shorebird-flutter-mirror` 2026-08-06 (1779 refs), and RESTORE-tested**: a `--filter=tree:0` clone from it checks out the pinned `c15ef637` with the right `engine.version`. The *engine build* checkout (gclient) still wants a reachable remote | **Built ✅ for CLI bootstrap (durable); Mirrored ◐ for engine builds** |
 
-Items 1–5 are done. 6 is trivial and just undone. **7, 8, 9, 10 are the work.**
+**Items 1–6 and 8–10 are done. Item 7 — the linker replacement — is the only
+one left, and it is now a greenfield engineering project rather than an
+inventory gap: see [`ROUTE_B.md`](ROUTE_B.md).**
+
+Item 10 is "built" for the path that matters (CLI bootstrap, from a durable
+mirror, restore-tested); engine-build checkouts still want a reachable gclient
+remote, which is recorded rather than solved.
 
 ## Correction, 2026-08-04: item 2 is not settled for iOS
 
@@ -694,15 +700,23 @@ way to catch a literal URL nobody noticed — exactly the class of problem
 spots overwrite `FLUTTER_STORAGE_BASE_URL` and two getters read no environment
 variable at all.
 
-## Order of work
+## Order of work — COMPLETE 2026-08-07
 
-1. **Finish the macOS/iOS engine build** (in flight) — unlocks item 8 for Apple targets.
-2. **Run the iOS code-push kill gate** — decides item 7's shape before any linker code.
-3. **Build and serve the `patch` binary** (item 6) — small, removes a download.
-4. **Add build cells per target** (item 8) and serve from our own store, replacing the
-   overlay-on-their-CDN with a store whose bytes we produced.
-5. **Mirror or replace the manifest** (item 9), then host a git mirror (item 10).
-6. **Run the firewall acceptance test.**
+All six items are done. Kept as a record so a finished question is not reopened.
 
-Steps 3–5 are unglamorous and low-risk; step 2 is the one that can still change the
-plan.
+| # | item | outcome |
+|---|---|---|
+| 1 | Finish the macOS/iOS engine build | done — `70974f81`, device-verified |
+| 2 | Run the iOS code-push kill gate | done — both spikes passed, **Route B selected** |
+| 3 | Build and serve the `patch` binary (item 6) | done — 3 host variants in the overlay |
+| 4 | Build cells per target (item 8) | done — both supported cells **AUDIT CLEAN** |
+| 5 | Manifest (item 9) and git mirror (item 10) | done — manifests regenerated with correct base-revision semantics; durable Flutter mirror, restore-tested |
+| 6 | Firewall acceptance test | done 2026-08-06; the device half of the iOS leg is the one remaining gap, recorded above |
+
+Everything since is Route B. Its plan of record — the ten steps, file:line
+pointers, the rig, and the traps — is [`ROUTE_B.md`](ROUTE_B.md).
+
+## What is left, in one line
+
+> **Infrastructure independence is complete. One outstanding physical-iOS
+> device-network verification gap. Route B is the major engineering project.**
