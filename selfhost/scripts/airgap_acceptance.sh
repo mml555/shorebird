@@ -322,7 +322,12 @@ launch_fixture() {  # launch_fixture — install and run the fixture on the devi
   # verification needs an internet connection ONCE. On an air-gap rig the phone
   # usually has none, so this shows as "Unable to Verify App" on the device and
   # nothing in the log — name it rather than letting it read as "no beacon".
-  if grep -qiE "verify|not been trusted|Untrusted" "$log" 2>/dev/null; then
+  # Match the REFUSAL, not the word. "verify" alone hits ios-deploy's own
+  # progress line "[ 70%] VerifyingApplication", which aborted a SUCCESSFUL
+  # launch on 2026-08-07. A launch that reached lldb's "run" plainly did not
+  # get refused, so require the absence of that too.
+  if ! grep -q "^success$" "$log" 2>/dev/null \
+     && grep -qiE "Unable to Verify|not been trusted|Untrusted Developer|ApplicationVerificationFailed" "$log" 2>/dev/null; then
     echo "  device refused to launch — see $log" >&2
     echo "  If the screen says \"Unable to Verify App\": trust the developer" >&2
     echo "  certificate once (Settings > General > VPN & Device Management)," >&2
