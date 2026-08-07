@@ -46,6 +46,24 @@ while [[ $# -gt 0 ]]; do
 done
 [[ "$DO_ANDROID$DO_IOS" != "00" ]] || { echo "pass --android and/or --ios" >&2; exit 2; }
 
+# --- where the repo is -----------------------------------------------------------
+# Every relative lookup below (fixture, Flutter mirror, verify_warm, the CLI
+# revision check) resolved against THIS SCRIPT's directory. That breaks the
+# pattern the script itself recommends — running an immutable copy from /tmp so
+# a mid-run edit cannot clobber the file bash is still reading. From /tmp the
+# lookups become /tmp/../..., and the failures are indirect: the Flutter mirror
+# URL silently degraded to a bare "file://" and bootstrap died with
+# "fatal: no path specified" (observed 2026-08-07).
+#
+# AIRGAP_REPO pins the repo root once, for all of them.
+AIRGAP_REPO="${AIRGAP_REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." 2>/dev/null && pwd || true)}"
+if [[ ! -d "$AIRGAP_REPO/selfhost" ]]; then
+  echo "Cannot locate the selfhost repo (looked at '${AIRGAP_REPO:-unset}')." >&2
+  echo "  Set AIRGAP_REPO=/path/to/shorebird — required when running a copy of" >&2
+  echo "  this script from outside the repo (e.g. /tmp)." >&2
+  exit 2
+fi
+
 # --- the canonical fixture -------------------------------------------------------
 # --app used to be mandatory with no default, and the app it pointed at lived in
 # a session scratchpad. The scratchpad was cleaned and the path was never
@@ -53,7 +71,7 @@ done
 # committed fixture is what stops that recurring; the override still exists for
 # one-off apps.
 if [[ -z "$APP_DIR" ]]; then
-  APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../fixtures/airgap_app" 2>/dev/null && pwd || true)"
+  APP_DIR="$(cd "$AIRGAP_REPO/selfhost/fixtures/airgap_app" 2>/dev/null && pwd || true)"
 fi
 if [[ -z "$APP_DIR" || ! -f "$APP_DIR/pubspec.yaml" ]]; then
   cat >&2 <<'EOF'
@@ -76,7 +94,7 @@ fi
 export FLUTTER_STORAGE_BASE_URL="$MIRROR"
 export SHOREBIRD_STORAGE_BASE_URL="$MIRROR"
 export SHOREBIRD_STORAGE_BUCKET="${SHOREBIRD_STORAGE_BUCKET:-download.shorebird.dev}"
-export SHOREBIRD_FLUTTER_GIT_URL="${SHOREBIRD_FLUTTER_GIT_URL:-file://$(cd "$(dirname "${BASH_SOURCE[0]}")/../cdn/mirrors/flutter.git" 2>/dev/null && pwd)}"
+export SHOREBIRD_FLUTTER_GIT_URL="${SHOREBIRD_FLUTTER_GIT_URL:-file://$(cd "$AIRGAP_REPO/selfhost/cdn/mirrors/flutter.git" 2>/dev/null && pwd)}"
 export SHOREBIRD_PUB_OFFLINE=true
 : "${SHOREBIRD_HOSTED_URL:?SHOREBIRD_HOSTED_URL must point at the control plane}"
 : "${SHOREBIRD_TOKEN:?SHOREBIRD_TOKEN must be set}"
@@ -94,7 +112,7 @@ export SHOREBIRD_PUB_OFFLINE=true
 # binary is its own reproducibility gap, so name it up front.
 cli_revision_check() {
   local repo cli_head repo_head behind
-  repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." 2>/dev/null && pwd)" || return 0
+  repo="$AIRGAP_REPO"
   git -C "$SHOREBIRD_ROOT" rev-parse --git-dir >/dev/null 2>&1 || {
     echo "[cli] $SHOREBIRD_ROOT is not a git checkout; cannot verify CLI revision"
     return 0
@@ -278,7 +296,7 @@ post_checks() {
   # fails the stage.
   local vw="${AIRGAP_VERIFY_WARM:-}"
   if [[ -z "$vw" ]]; then
-    vw="$(cd "$(dirname "${BASH_SOURCE[0]}")/../cdn" 2>/dev/null && pwd)/verify_warm.sh"
+    vw="$AIRGAP_REPO/selfhost/cdn/verify_warm.sh"
   fi
   [[ -x "$vw" ]] || { echo "verify_warm.sh not found at '$vw'; set AIRGAP_VERIFY_WARM" >&2; return 1; }
   # The mirror is often on another host (the Linux leg reaches the Mac's
