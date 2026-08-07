@@ -99,10 +99,34 @@ EOF
   note "wrote .generated/shorebird.$1.yaml (app_id $2, base_url $3)"
 }
 
+# The iOS device has no `adb reverse`. It reaches the Mac over the USB link,
+# which is an ordinary network interface with IPv4 link-local on both ends — so
+# base_url must be the Mac's LINK-LOCAL address, not localhost, or the app on
+# the phone cannot reach the control plane at all.
+#
+# And that address CHANGES when the device reconnects. On 2026-08-07 a warm run
+# hung uploading to 169.254.189.3 (a previous session's address) while the Mac
+# was actually on 169.254.94.102. base_url is baked into flutter_assets, so a
+# changed address means a NEW RELEASE BUILD — discover it here rather than
+# letting a stale constant waste a 15-minute build.
+mac_link_local() {
+  ifconfig 2>/dev/null | awk '/^[a-z0-9]+:/{i=$1} /inet 169\.254\./{print $2; exit}'
+}
+
 if [[ -n "$APP_ID" ]]; then
   [[ -n "$LEG" ]] || die "--app-id needs --leg <ios|android> so the config is written per instance"
   case "$LEG" in
-    ios)     : "${HOSTED_URL:=http://localhost:18080}" ;;
+    ios)
+      if [[ -z "$HOSTED_URL" ]]; then
+        ll="$(mac_link_local)"
+        [[ -n "$ll" ]] || die "no 169.254.x link-local interface found — is the iPhone attached over USB?
+       The iOS leg needs the Mac's link-local address; localhost is unreachable
+       from the device. Pass --hosted-url explicitly to override."
+        HOSTED_URL="http://$ll:18080"
+        note "discovered USB link-local: $ll"
+        note "NOTE: cps-ios PUBLIC_BASE_URL must match this, or artifact uploads hang:"
+        note "  docker inspect cps-ios --format '{{range .Config.Env}}{{println .}}{{end}}' | grep PUBLIC_BASE_URL"
+      fi ;;
     android) : "${HOSTED_URL:=http://localhost:18081}" ;;
     *) die "unknown --leg '$LEG' (expected ios or android)" ;;
   esac

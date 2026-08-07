@@ -81,6 +81,46 @@ export SHOREBIRD_PUB_OFFLINE=true
 : "${SHOREBIRD_HOSTED_URL:?SHOREBIRD_HOSTED_URL must point at the control plane}"
 : "${SHOREBIRD_TOKEN:?SHOREBIRD_TOKEN must be set}"
 
+# --- which CLI is actually under test? -------------------------------------------
+# The acceptance run exercises $SHOREBIRD_ROOT/bin/shorebird, which is its own
+# git checkout — NOT the repo this script lives in. Those drift, silently.
+#
+# On 2026-08-07 the installed CLI was 18 commits stale and was missing
+# acaeda64 ("fail closed when gen_snapshot is not cached yet"). The probe it
+# fixes is the one this harness deliberately exercises with default
+# --dd-max-bytes, so the run died with "Unrecognized flags:
+# print_dd_function_identity_to" — the harness correctly caught a bug that had
+# already been fixed, in a CLI nobody had noticed was old. Testing the wrong
+# binary is its own reproducibility gap, so name it up front.
+cli_revision_check() {
+  local repo cli_head repo_head behind
+  repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." 2>/dev/null && pwd)" || return 0
+  git -C "$SHOREBIRD_ROOT" rev-parse --git-dir >/dev/null 2>&1 || {
+    echo "[cli] $SHOREBIRD_ROOT is not a git checkout; cannot verify CLI revision"
+    return 0
+  }
+  cli_head="$(git -C "$SHOREBIRD_ROOT" rev-parse HEAD 2>/dev/null)"
+  repo_head="$(git -C "$repo" rev-parse HEAD 2>/dev/null)"
+  echo "[cli] under test : ${cli_head:0:9}  ($SHOREBIRD_ROOT)"
+  echo "[cli] harness repo: ${repo_head:0:9}  ($repo)"
+  [[ "$cli_head" == "$repo_head" ]] && return 0
+
+  # Differing HEADs are fine on their own — only CLI-affecting commits matter.
+  behind="$(git -C "$repo" log --oneline "$cli_head..$repo_head" \
+              -- packages/shorebird_cli 2>/dev/null)" || return 0
+  [[ -n "$behind" ]] || { echo "[cli] revisions differ, but no shorebird_cli commits between them"; return 0; }
+  echo "STALE CLI: $SHOREBIRD_ROOT is missing shorebird_cli commits:" >&2
+  echo "$behind" | sed 's/^/  /' >&2
+  cat >&2 <<EOF
+  Sync it, then re-run:
+    git -C $SHOREBIRD_ROOT fetch $repo \$(git -C $repo branch --show-current)
+    git -C $SHOREBIRD_ROOT checkout FETCH_HEAD
+    rm -f $SHOREBIRD_ROOT/bin/cache/shorebird.snapshot
+  Set AIRGAP_ALLOW_STALE_CLI=1 to test an intentionally older CLI.
+EOF
+  [[ -n "${AIRGAP_ALLOW_STALE_CLI:-}" ]]
+}
+
 declare -a RESULTS=()
 FAIL=0
 stage() {  # stage <name> <fn>
@@ -253,6 +293,7 @@ post_checks() {
 }
 
 
+stage cli-revision cli_revision_check
 stage bootstrap bootstrap
 [[ "$DO_ANDROID" == "1" ]] && stage android android_release_patch
 [[ "$DO_IOS" == "1" ]] && stage ios ios_release_patch

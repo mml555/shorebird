@@ -251,6 +251,7 @@ words:
   - prereq
   - Prereqs
   - previewable
+  - println
   - PRNG
   - proguard # Android ProGuard shrinker/obfuscator
   - propertylistserialization
