@@ -162,9 +162,19 @@ real.
    — which is the stronger place for it anyway. Do not retry the pf route
    expecting a different result.
 2. ~~**Control-plane data lives in session scratchpads.**~~ **RESOLVED
-   2026-08-07** — 1.2 GB moved to `~/shorebird-rig/control-plane/`, and the
-   acceptance run now REFUSES to start if either rig's `/data` resolves inside
-   a scratch tree. See [`fixtures/CONTROL_PLANE_DATA.md`](fixtures/CONTROL_PLANE_DATA.md).
+   2026-08-07** — and with it the credentials. The ownership direction is now
+
+       durable data + durable config + durable secrets -> disposable container
+
+   not the reverse. 1.2 GB of rig data moved to `~/shorebird-rig/control-plane/`,
+   `API_KEY`/`URL_SIGNING_SECRET` extracted to `~/shorebird-rig/secrets/*.env`
+   (0600), non-secret settings to `~/shorebird-rig/config/*.env`.
+   [`scripts/lib/rig_container.sh`](scripts/lib/rig_container.sh) is the only
+   thing that creates a control plane, and `rig_preflight` validates every
+   input **before** `docker rm` — so a missing or malformed input costs
+   nothing. The acceptance run refuses to start if either rig's `/data` is in a
+   scratch tree or has no durable secrets file.
+   See [`fixtures/CONTROL_PLANE_DATA.md`](fixtures/CONTROL_PLANE_DATA.md).
 3. **Engine builds still need a reachable gclient remote.** The durable Flutter
    mirror closes CLI bootstrap, not the engine build checkout.
 4. ~~**The iOS Dart checkout carries the Spike A measurement patch.**~~
