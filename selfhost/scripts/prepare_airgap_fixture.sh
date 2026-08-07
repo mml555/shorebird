@@ -75,6 +75,34 @@ else
   note "ios/ and android/ already present"
 fi
 
+# --- iOS Info.plist: local network + cleartext ----------------------------------
+# ios/ is generated, so these have to be re-injected every time it is created.
+#
+# The control plane lives on the Mac at a LINK-LOCAL address over cleartext
+# HTTP. Two iOS policies stand in the way of an app talking to it, and both
+# fail QUIETLY — the app renders fine and the request simply never arrives,
+# which reads as "the beacon is broken" (observed 2026-08-07):
+#
+#   NSLocalNetworkUsageDescription  iOS 14+ gates local-network access behind a
+#                                   permission; without the key it is denied.
+#   NSAllowsLocalNetworking         App Transport Security blocks cleartext
+#                                   HTTP. This narrow form permits it for local
+#                                   names/addresses only — NOT
+#                                   NSAllowsArbitraryLoads, which would disable
+#                                   ATS wholesale for a test fixture.
+#
+# The native Shorebird updater reaches the same URL from its own HTTP stack, so
+# a working updater is NOT evidence that Dart-side networking is permitted.
+PLIST="$FIXTURE/ios/Runner/Info.plist"
+if [[ -f "$PLIST" ]]; then
+  /usr/libexec/PlistBuddy -c "Delete :NSLocalNetworkUsageDescription" "$PLIST" >/dev/null 2>&1 || true
+  /usr/libexec/PlistBuddy -c "Add :NSLocalNetworkUsageDescription string Reaches the self-hosted control plane on this Mac over the USB link." "$PLIST" >/dev/null
+  /usr/libexec/PlistBuddy -c "Delete :NSAppTransportSecurity" "$PLIST" >/dev/null 2>&1 || true
+  /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" "$PLIST" >/dev/null
+  /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true" "$PLIST" >/dev/null
+  note "Info.plist: local-network usage + NSAllowsLocalNetworking set"
+fi
+
 # --- shorebird.yaml, per leg ----------------------------------------------------
 # app_id is SERVER-GENERATED (POST /api/v1/apps ignores a requested id), so it
 # cannot be committed as a constant — it differs per control-plane instance.
