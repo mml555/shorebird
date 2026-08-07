@@ -1,4 +1,4 @@
-<!-- cspell:words killgate dynmod tearoff dartaotruntime disqualifiers APFS DNDEBUG -->
+<!-- cspell:words killgate dynmod tearoff dartaotruntime disqualifiers APFS DNDEBUG packageable overengineer -->
 
 # Route B — iOS Dart code push. Start here.
 
@@ -18,23 +18,52 @@ Selected is not built. Two kill-gate spikes passed and Route B was chosen on
 that evidence; the harness proved the *mechanism* and produced no shippable
 path. Do not let a passing spike be reported as a working feature.
 
-## What you are building
+## What you are building, in one shape change
 
-A **binder**, not an interpreter. Vanilla Dart 3.12.2 already ships the
-interpreter, the `InterpretCall` stub and `Function::AttachBytecode`, all behind
-the `dart_dynamic_modules` GN flag. That is the part that would have meant
-reproducing Shorebird's private fork, and it is not needed.
+Route B is **not** building a Dart interpreter. Vanilla Dart 3.12.2 already
+contains everything that would have meant reproducing Shorebird's private fork,
+behind the `dart_dynamic_modules` GN flag: bytecode execution, `InterpretCall`,
+`Function::AttachBytecode`, and the runtime ability to redirect a `Function`
+into interpreted bytecode.
 
-What is missing is one compiler feature. AOT's static-call convention passes
-**neither the callee `Function` nor an arguments descriptor**, because it never
-expects the callee to change. So a patchable call has to be *emitted
-differently at release time*: keep the callee `Function` in a pool slot, load it
-into `FUNCTION_REG`, load the descriptor, branch through
-`Function::entry_point_`.
+Route B is the **binding and dispatch layer** that lets a normal AOT Shorebird
+app opt *specific* calls into that machinery. Today an AOT call says:
 
-Everything that form touches at runtime is **data** — a pool slot and a field
-read — so it is iOS-legal, no executable page is written. Patching then reduces
-to `AttachBytecode` repointing `entry_point_`, with no pool rewrite at all.
+```
+call this compiled machine-code target
+```
+
+A patchable call has to say:
+
+```
+call this Dart Function object, through its current entry point
+```
+
+Normally that entry point *is* the AOT implementation, so nothing changes and
+nothing is slower except the call sequence itself. After a patch:
+
+```
+AttachBytecode(Function X, newBytecode)
+  -> Function X now enters the interpreter
+  -> existing callers start running patched Dart
+```
+
+No rewriting of executable pages. No new VM. No second runtime. That is the
+whole idea; everything below is making it safe, general, packageable,
+measurable, and compatible with the existing updater lifecycle.
+
+## The first success criterion — keep it almost stupidly small
+
+Do not aim at "arbitrary Dart patches anywhere". Aim at this:
+
+> A real release on an iPhone contains **one** patchable Dart function.
+> `shorebird patch` changes that function. The existing updater receives the
+> patch. `AttachBytecode` activates it. **The UI visibly changes.** Rollback
+> restores the original AOT behavior.
+
+When that loop survives release → patch → rollback, Route B is real. Widening
+the supported surface comes after, deliberately, from an inventory of call
+forms — not before.
 
 ## What is already proven (do not re-litigate)
 
@@ -54,29 +83,100 @@ which on arm64 is carrying an argument), and leaving calls unlinked would
 require `CallStaticFunction`, which patches the call site — writing executable
 memory, illegal on iOS.
 
-## The ten steps
+## Five things to build, then four to prove
 
-Ordered so the cheap disqualifiers come before the expensive integration.
+The work is five real pieces. The remaining steps are validation, and they are
+deliberately last: each is cheap once the mechanism exists and expensive to
+discover after shipping.
 
-1. **arm64 patchable call emission** — the compiler feature above.
-2. **Dynamic-interface retention** — retain and bind app + SDK symbols using
-   the mechanism Spike B proved.
-3. **Stable target identity** — how a patch names the function it replaces,
-   surviving recompilation.
-4. **Versioned payload format** — an explicit type/header. **Not** the
-   provisional `*.vmcode` filename trick, which is bring-up scaffolding and
-   must not become the contract.
-5. **CLI packaging** — produce and upload the payload.
-6. **Transactional updater/runtime activation** — apply, roll back, survive a
-   boot crash.
-7. **Host integration tests.**
-8. **Real-app size and frame-time benchmark.** ← veto
-9. **Physical-iPhone code-patch/rollback gate** — release, Dart behavior
-   actually changes, sane patch coverage, rollback. ← veto
-10. **Sealed independence regression for iOS code patches.**
+### 1. Patchable call emission — the core VM/compiler change
 
-Steps 8 and 9 are deliberately late: they are cheap once the mode exists and
-expensive to discover after shipping. Either can still kill the approach.
+For functions chosen as patchable, arm64 call generation must stop baking in a
+direct AOT target and instead emit a sequence carrying enough identity to
+dispatch through the `Function`. It has to line up with the existing
+`InterpretCall` calling convention. File:line below.
+
+**This is the first real engineering problem.** Everything else waits on it.
+
+### 2. Make the necessary symbols survive AOT
+
+Patch bytecode has to refer to things already in the app and SDK, so release
+compilation must retain what a future patch might bind to rather than
+tree-shaking it away. This is where `dart_dynamic_modules` and the
+frontend/SDK setup matter.
+
+**Spike B already proved this model works** via the dynamic interface, at
++0.93 % snapshot on the gate program. This is productizing, not researching.
+
+### 3. Stable target identities — the binder
+
+The CLI and server need a deterministic answer to *"this bytecode belongs to
+which function in the installed release?"*, and the runtime cannot lean on
+addresses or incidental object-pool positions.
+
+**Do not overengineer this.** The identity contract only has to be stable
+between *a specific release* and patches built for that release. A universal
+Dart ABI is not the goal and would be a much larger project.
+
+### 4. Package and activate the patch
+
+A **versioned container**, not a filename convention — the spike's `*.vmcode`
+naming is bring-up scaffolding and must not become the contract. Roughly:
+
+```
+format version
+release compatibility identity
+target functions
+bytecode payload(s)
+metadata / hashes
+```
+
+Then the updater: download → validate against the installed release → bind
+targets → `AttachBytecode` → activate transactionally → preserve rollback.
+This is where Route B meets the existing Shorebird lifecycle rather than
+inventing a parallel one.
+
+### 5. Make `shorebird patch` produce it
+
+The point at which this becomes a feature instead of a VM experiment:
+
+```
+shorebird release   ->  patchable AOT application
+  (change Dart)
+shorebird patch     ->  bytecode payload + target bindings
+                          -> existing updater
+                             -> AttachBytecode
+                                -> new Dart behavior
+```
+
+### Then prove it
+
+6. **Host integration tests.**
+7. **Real-app size and frame-time benchmark.** ← veto
+8. **Physical-iPhone gate** — release, Dart behavior actually changes, sane
+   patch coverage, rollback. ← veto
+9. **Sealed independence regression for iOS code patches.**
+
+Either veto can still kill the approach, which is why they are gates and not
+chores.
+
+## The design decision to make before writing code
+
+**Define what "patchable" means in the first implementation, narrowly:**
+
+> Static Dart calls, explicitly compiled in Route-B patchable mode.
+
+Do not start by covering every invocation shape — instance calls, dynamic
+dispatch, closures, tear-offs, getters/setters, constructors, FFI. The first
+job is proving one path end to end:
+
+```
+AOT caller -> Function-based patchable dispatch -> attached bytecode
+```
+
+Once that survives release/patch/rollback, inventory the call forms and expand
+on purpose. Every widening before then multiplies the ways the first proof can
+fail for reasons unrelated to the mechanism.
 
 ### Where to work
 
@@ -117,6 +217,46 @@ selfhost/cdn/audit_overlay.sh --hash <h> --cell <macos-ios|linux-android>
 selfhost/scripts/prepare_ios_endpoint.sh --mode lan
 selfhost/scripts/prepare_airgap_fixture.sh --leg ios --app-id <id>
 ```
+
+## Before Step 1 — three things, and only three
+
+Very little stands between here and the compiler work.
+
+### 1. Check the iPhone Local Network setting, once
+
+Settings → Privacy & Security → Local Network → *Airgap Probe*. If it resolves
+the device→control-plane gap, good. **If it does not, record the result and move
+on exactly as planned** — device networking gets dealt with again at the
+physical-device gate, and it is not a reason to delay Step 1.
+
+### 2. Create a DEDICATED Route B Dart checkout
+
+**This one is critical. Do not reuse either existing Dart tree.**
+
+Route B needs `dart_dynamic_modules = true`, the SDK changes, *and* VM/compiler
+changes. The killgate rig and the shipping iOS-engine rig carry incompatible
+assumptions about exactly those things — the killgate SDK edits compile into
+`platform_strong.dill` regardless of the GN flag, and mixing them into an iOS
+engine build fails the AOT step with `Unexpected tag 4 (Field)`, a message that
+names nothing useful.
+
+Sharing a checkout here is precisely the ambient-state trap the previous session
+spent itself removing. Give Route B its own, and run
+`dart_patches.sh --dest <checkout> --verify` on **every** tree you build from.
+
+### 3. Re-run the rig preflight
+
+Not because the infrastructure needs revalidation — it is closed and guarded —
+but so you know you are starting from the recorded baseline:
+
+```bash
+selfhost/cdn/audit_overlay.sh --hash 70974f811d448da19a927c581678ef1dbd33605c --cell macos-ios
+selfhost/cdn/audit_overlay.sh --hash 760e3fabffbf31b4e86919a0ef47d6ce5f182991 --cell linux-android
+selfhost/scripts/prepare_ios_endpoint.sh --mode lan
+selfhost/engine/dart_patches.sh --dest <route-b-checkout> --verify
+```
+
+Then start Step 1.
 
 ## Traps that will bite you
 
@@ -195,3 +335,12 @@ of that step rather than as separate infrastructure work. Full reasoning:
 - **Do not widen the sealed-run claim to "no network."** The criterion is
   *nothing closed is required*. GitHub, pub.dev and Apple's signing
   infrastructure are all permitted; none of them serves a Shorebird artifact.
+- **Do not build a second interpreter.** The one in vanilla Dart is the one.
+- **Do not try to make every AOT call patchable immediately.** See the design
+  decision above; breadth before the first working loop is how this explodes.
+- **Do not invent writable-executable-page patching on iOS.** It is illegal
+  there, and it is the reason the pool-rewrite and unlinked-call routes were
+  ruled out.
+- **Do not pursue Route A / object-pool relinking.** That decision is made.
+- **Do not change the infrastructure or mirror architecture.** Closed and
+  guarded; a firing guard is telling you something true.

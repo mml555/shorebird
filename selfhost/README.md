@@ -42,7 +42,7 @@ for the quick start and feature list.
 - [`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md) — Windows / Linux notes
 
 **Independence (advanced)**
-- [`ROUTE_B.md`](ROUTE_B.md) — **start here to work on iOS Dart code push.** Plan of record: what is proven, the ten steps, where to work down to file:line, the rig you inherit, and the traps
+- [`ROUTE_B.md`](ROUTE_B.md) — **start here to work on iOS Dart code push.** Plan of record: the one call-shape change it reduces to, the five pieces to build, the deliberately tiny first success criterion, file:line pointers, the three pre-Step-1 items, and the traps
 - [`UPSTREAM_INDEPENDENCE.md`](UPSTREAM_INDEPENDENCE.md) — every dependency on upstream Shorebird, whether *mirrored* or *built*, and what removing it takes. Items 1–6 and 8–10 are closed; 7 is Route B
 - [`CDN_INDEPENDENCE.md`](CDN_INDEPENDENCE.md) + [`cdn/`](cdn) — build-time CDN mirror (default, recommended)
 - [`ENGINE_BUILD.md`](ENGINE_BUILD.md) + [`engine/`](engine) — build the engine from captured source (their private Dart VM fork is **no longer a blocker**: we build on vanilla Dart + a 57-line shim, see [`engine/dart-fork/`](engine/dart-fork))

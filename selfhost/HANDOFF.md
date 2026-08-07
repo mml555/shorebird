@@ -8,9 +8,15 @@
 ## If you are picking this up: read [`ROUTE_B.md`](ROUTE_B.md), not this file
 
 The infrastructure track is **closed**. The remaining project is Route B — iOS
-Dart code push — and [`ROUTE_B.md`](ROUTE_B.md) is its plan of record: what is
-already proven, the ten steps, where to work down to file:line, the rig you
-inherit, and the traps that will bite. It is ~200 lines and assumes nothing.
+Dart code push — and [`ROUTE_B.md`](ROUTE_B.md) is its plan of record: the one
+call-shape change it comes down to, the five pieces to build, a deliberately
+tiny first success criterion, where to work down to file:line, the three things
+to do before Step 1, and the traps that will bite. It assumes nothing.
+
+Route B in a sentence: vanilla Dart already has the interpreter, `InterpretCall`
+and `AttachBytecode` behind `dart_dynamic_modules`; what is missing is a call
+that dispatches **through the `Function`** instead of to a baked-in AOT target,
+so `AttachBytecode` can redirect it later. No new VM, no writable code pages.
 
 **This file is a 1,800-line dated working log.** It is worth reading for the
 evidence chains and the debugging traps, and it is *not* required before you
