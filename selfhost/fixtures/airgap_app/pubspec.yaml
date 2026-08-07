@@ -14,9 +14,15 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # Reads the running patch number, which is what the acceptance run asserts
-  # changed. Same dependency the previous assets-only acceptance flow used.
-  shorebird_code_push: ^2.0.4
+  # code_push_runtime, NOT shorebird_code_push. The native updater is never
+  # offered an assets-only patch (it would inflate an asset archive as a binary
+  # diff and tombstone the patch), so shorebird_code_push reports "no patch"
+  # and rootBundle keeps serving the compiled-in asset — the assets-only case
+  # would be indistinguishable from a broken overlay. code_push_runtime does
+  # its own discovery and reports assetsPatchNumber SEPARATELY from the code
+  # patchNumber, which is exactly the distinction this fixture asserts.
+  code_push_runtime:
+    path: ../../../packages/code_push_runtime
 
 flutter:
   uses-material-design: true

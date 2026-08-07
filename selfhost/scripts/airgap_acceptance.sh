@@ -268,23 +268,112 @@ android_release_patch() {
 }
 
 # --- stage 3: ios release (default flags) + assets-only patch --------------------
+# --- device assertion helpers ----------------------------------------------------
+# A screenshot is evidence for a human and a poor assertion for a harness, so
+# the fixture BEACONS its rendered state as a query string and we read it out
+# of the control plane's request log. No server endpoint is needed: the 404 is
+# logged with the URL, and the URL is the payload.
+CPS_CONTAINER="${AIRGAP_CPS_CONTAINER:-cps-ios}"
+
+beacon_since() { date -u +%Y-%m-%dT%H:%M:%S 2>/dev/null; }
+
+# read_beacon <since> -> "release=<v> asset=<v> patch=<v>" for the LATEST beacon
+read_beacon() {
+  docker logs "$CPS_CONTAINER" --since "${1:-2m}" 2>&1 \
+    | grep -o '/selfhost-beacon/state?[^" ]*' | tail -1 \
+    | sed 's|.*state?||' | tr '&' '\n' \
+    | sed 's/%20/ /g; s/+/ /g' | tr '\n' ' '
+}
+
+launch_fixture() {  # launch_fixture — install (if needed) and run, twice if asked
+  local ipa bundle
+  ipa="$(find "$APP_DIR/build/ios/ipa" -name '*.ipa' 2>/dev/null | head -1)"
+  [[ -n "$ipa" ]] || { echo "no IPA under $APP_DIR/build/ios/ipa" >&2; return 1; }
+  # --justlaunch dies on lldb detach BEFORE the updater's network calls fire
+  # (SIGTRAP in lldb_image_notifier), which looks exactly like a dead link.
+  # Hold the attach instead and kill it after the app has had time to beacon.
+  ios-deploy --bundle "$ipa" ${DEVICE:+--id "$DEVICE"} --noninteractive >/dev/null 2>&1 &
+  local pid=$!
+  sleep "${AIRGAP_LAUNCH_SECONDS:-25}"
+  kill "$pid" >/dev/null 2>&1 || true
+  wait "$pid" 2>/dev/null || true
+}
+
+screenshot() {  # screenshot <label> — human-readable evidence, never the assertion
+  local out="$APP_DIR/build/airgap-$1.png"
+  idevicescreenshot ${DEVICE:+-u "$DEVICE"} "$out" >/dev/null 2>&1 \
+    && echo "  screenshot: $out" || echo "  (screenshot unavailable)"
+}
+
+assert_beacon() {  # assert_beacon <label> <expect-asset> <expect-assets-patch>
+  local got; got="$(read_beacon 3m)"
+  echo "  beacon [$1]: ${got:-<none>}"
+  [[ -n "$got" ]] || { echo "no beacon seen — did the app reach $SHOREBIRD_HOSTED_URL?" >&2; return 1; }
+  case "$got" in *"asset=$2"*) ;; *) echo "expected asset=$2" >&2; return 1 ;; esac
+  case "$got" in *"assets_patch=$3"*) ;; *) echo "expected assets_patch=$3" >&2; return 1 ;; esac
+  # An assets-only patch must leave the CODE patch unset. If this ever reads a
+  # number, something published code where only assets were intended.
+  case "$got" in *"code_patch=none"*) ;;
+    *) echo "code_patch is set — an assets-only patch shipped code" >&2; return 1 ;; esac
+  # The release line must NEVER move under an assets-only patch — that is the
+  # whole distinction between an app-side asset overlay and a code patch.
+  case "$got" in *"release=AIRGAP-FIXTURE-V1"*) ;;
+    *) echo "release line changed under an assets-only patch" >&2; return 1 ;; esac
+}
+
+# --- stage 3: ios release + assets-only patch, VERIFIED ON DEVICE ----------------
+# Publishing an assets-only patch proves the server accepted an archive. It
+# does NOT prove the app-side overlay works. Those are different claims, and an
+# earlier version of this stage asserted only the first while the summary line
+# implied the second. So: mutate the asset, patch, and read the device's own
+# report of what it rendered.
+BAKED='{"origin": "BAKED-INTO-RELEASE"}'
+PATCHED='{"origin": "PATCHED-AIRGAP"}'
+
 ios_release_patch() {
   cd "$APP_DIR"
   switch_engine || return 1
+  # Always start from the baseline asset, whatever a previous run left behind.
+  printf '%s\n' "$BAKED" > assets/probe.json
+
   # DEFAULT --dd-max-bytes on purpose: the DdSupport probe must auto-disable
   # DD on a vanilla-Dart engine. Passing 0 here would mask a broken probe.
   "$SHOREBIRD_ROOT/bin/shorebird" release ios --no-confirm --verbose \
     ${AIRGAP_IOS_EXPORT_ARGS:---export-method development} \
     --flutter-version="$FLREV" || return 1
   # No DD artifacts may exist (probe must have disabled the pass).
-  if find build/ios -name "App.dd*" 2>/dev/null | grep -q .; then
+  if find build/ios -name "App.dd*" 2>/dev/null | grep -q . ; then
     echo "App.dd_* artifacts present — DdSupport probe failed open" >&2
     return 1
   fi
   local rel; rel="$(app_release_version)"
   [[ -n "$rel" ]] || { echo "could not read version: from $APP_DIR/pubspec.yaml" >&2; return 1; }
+
+  if [[ -n "${AIRGAP_SKIP_DEVICE:-}" ]]; then
+    echo "AIRGAP_SKIP_DEVICE set — publishing only, NOT verifying on device."
+    echo "PASS from this stage means publication succeeded, nothing more." >&2
+    "$SHOREBIRD_ROOT/bin/shorebird" patch ios --no-confirm --assets-only \
+      --allow-asset-diffs --release-version="$rel" || return 1
+    return 0
+  fi
+
+  echo "-- device: baseline release"
+  launch_fixture || return 1
+  screenshot release
+  assert_beacon release BAKED-INTO-RELEASE none || return 1
+
+  echo "-- mutating ONLY assets/probe.json, then patching"
+  printf '%s\n' "$PATCHED" > assets/probe.json
   "$SHOREBIRD_ROOT/bin/shorebird" patch ios --no-confirm --assets-only \
     --allow-asset-diffs --release-version="$rel" || return 1
+  printf '%s\n' "$BAKED" > assets/probe.json   # leave the fixture as committed
+
+  # First launch discovers and downloads; the second runs with it applied.
+  echo "-- device: after assets-only patch"
+  launch_fixture || return 1
+  launch_fixture || return 1
+  screenshot patched
+  assert_beacon patched PATCHED-AIRGAP 1 || return 1
 }
 
 # --- stage 4: post-checks ---------------------------------------------------------

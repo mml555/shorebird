@@ -43,23 +43,57 @@ defaults `AIRGAP_PUB_CACHE` to it.
 left no record of its contents, which is the other half of why it could not be
 reproduced.
 
-## What it renders, and why in three lines
+## What it renders, and why these four lines
 
 ```
-release state:   AIRGAP-FIXTURE-V1     <- compiled in; a CODE patch changes it
-asset state:     BAKED-INTO-RELEASE    <- assets/probe.json; an ASSETS patch changes it
-patch number:    null                  <- from the updater
+release:        AIRGAP-FIXTURE-V1     <- compiled in; a CODE patch changes it
+asset:          BAKED-INTO-RELEASE    <- probe.json via the runtime bundle
+assets patch:   none                  <- the patch whose assets are served
+code patch:     none                  <- the running code patch
 ```
 
-Splitting code state from asset state is the point. The iOS leg publishes an
-**assets-only** patch, so the correct result there is a *changed asset line
-beside an unchanged release line* — that pairing is what distinguishes "the
-asset arrived through app-side discovery" from "a code patch landed", and a
-single combined line could not show it.
+Splitting **assets patch** from **code patch** is the whole point. An
+assets-only patch is deliberately never offered to the native updater — it
+would inflate an asset archive as a binary diff and tombstone the patch — so
+anything reading only the updater's patch number sees "no patch" and cannot
+distinguish a working asset overlay from a broken one.
 
-`readCurrentPatch()` failures render as `ERROR: …` rather than blanking the
-screen: an unreadable patch number is itself a result worth seeing on a
-screenshot.
+That is why the fixture depends on **`code_push_runtime`, not
+`shorebird_code_push`**: it does its own discovery and reports
+`assetsPatchNumber` separately from `patchNumber`. With the wrong package the
+iOS assets-only check fails for a reason that has nothing to do with what is
+being tested.
+
+The correct result after an assets-only patch is therefore:
+
+```
+release:        AIRGAP-FIXTURE-V1     <- UNCHANGED
+asset:          PATCHED-AIRGAP        <- changed
+assets patch:   1
+code patch:     none                  <- still none
+```
+
+## How the harness asserts it
+
+The app **beacons** its rendered state as a query string:
+
+```
+GET <base_url>/selfhost-beacon/state?release=…&asset=…&assets_patch=…&code_patch=…
+```
+
+No server endpoint is required — the control plane logs every request line, so
+a 404 there is a success and the URL *is* the payload. The harness greps that
+log. Screenshots (`build/airgap-release.png`, `build/airgap-patched.png`) are
+human-readable evidence, never the correctness mechanism: OCR is a bad
+assertion.
+
+`base_url` comes from the bundled `shorebird.yaml`, the same address the
+updater uses, so the beacon cannot drift from the control plane under test.
+Beacon failures are swallowed — a beacon that cannot send must not change what
+the app displays.
+
+`AIRGAP_SKIP_DEVICE=1` publishes without verifying, and says so loudly. A PASS
+under that flag means publication succeeded and nothing more.
 
 ## Per-run housekeeping
 

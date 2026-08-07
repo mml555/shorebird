@@ -153,6 +153,7 @@ words:
   - iphoneos
   - isatty
   - isready
+  - justlaunch
   - kcpw
   - keepalive
   - keyalg # From .github/workflows/e2e.yaml
@@ -295,6 +296,7 @@ words:
   - setval
   - shellcheck
   - signo
+  - sigtrap
   - Skia
   - souin
   - spawnee
