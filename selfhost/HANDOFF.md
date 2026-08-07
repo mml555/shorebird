@@ -98,14 +98,26 @@ Four things are knowingly not clean. None blocks the current flows; all are real
    carries the proof instead, and it is enforced inside the container regardless
    — which is the stronger place for it anyway. Do not retry the pf route
    expecting a different result.
-3. **The Gradle insecure-mirror workaround is temporary and may already be
-   removable.** A localhost-scoped init script at
-   `/data/gradle-home/init.d/selfhost-allow-insecure-mirror.gradle` on the build
-   box was added on 2026-08-05 because the mirror's HTTPS listener was down at
-   the time. HTTPS itself works and is verified (see [the plain-HTTP
-   section](#the-mirror-cannot-serve-a-release-over-plain-http-any-more)), so
-   **check whether the listener is back and delete the script if it is** — it can
-   never loosen a real remote repo, but it should not outlive its reason.
+3. **The Gradle insecure-mirror workaround is ready to delete — one test
+   short.** `/data/gradle-home/init.d/selfhost-allow-insecure-mirror.gradle` on
+   the build box was added 2026-08-05 because the mirror's HTTPS listener was
+   down. Every precondition for removing it was re-checked on **2026-08-07**:
+
+   | check | result |
+   |---|---|
+   | HTTPS listener on the Mac (`tls/listen-enabled.caddy` mounted) | up, `302` |
+   | HTTPS from the build box, **CA validation enforced** (no `-k`) | `302` — passes |
+   | Mirror CA in the box's JDK `cacerts` (what Gradle reads) | present, 2 entries |
+
+   The script only fires for `http://localhost` Maven repos, so pointing
+   `FLUTTER_STORAGE_BASE_URL` at `https://localhost:8443` makes it inert as well
+   as unnecessary. **The one remaining gate is a real Gradle resolution with the
+   script removed** — and the Android default-path device round-trip is exactly
+   that run, so do it there rather than as a separate exercise. Do not keep the
+   workaround merely because it was once required.
+
+   (The box reaches the mirror through an `ssh -R` reverse tunnel, which is
+   normally down; the checks above were run through a command-scoped one.)
 4. **Engine builds still need a reachable gclient remote.** The durable Flutter
    mirror closes CLI bootstrap, not the engine build checkout.
 

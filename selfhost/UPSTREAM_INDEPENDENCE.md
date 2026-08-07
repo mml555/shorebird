@@ -394,6 +394,42 @@ records provenance, requirement, whether it is present, whether it is
 route-protected, and `verified_for_custom_engine` — which is the field that
 stops "present in our mirror" from being read as "produced by our toolchain".
 
+#### Android manifest regenerated and PROVEN, 2026-08-07
+
+[`engine/generate_manifest.sh`](engine/generate_manifest.sh) rewrote
+`760e3fab`'s manifest from explicit inputs (flutter `c15ef637`, dart-sdk
+`4bd36869` read out of the published `dart-sdk-linux-x64.zip` rather than
+trusted from a doc, host `linux-x64`, target `android`), taking the override
+list from the pinned revision's own manifest and setting
+`flutter_engine_revision` to the upstream Flutter base.
+
+Verified by lookup, not by inspection. `sky_engine.zip` is deliberately **not**
+in `artifact_overrides`, so it is the probe: the proxy must resolve it from
+Flutter's CDN under `flutter_engine_revision`. Asking `artifact_proxy`
+**directly**, bypassing Caddy's hash rewrite, so our manifest is genuinely the
+one being read:
+
+```
+GET  /flutter_infra_release/flutter/760e3fab…/sky_engine.zip
+302  https://storage.googleapis.com/flutter_infra_release/flutter/83675ed2…/sky_engine.zip   200
+```
+
+And the counterfactual, which is what the old manifest would have produced:
+
+| resolved target | result |
+|---|---|
+| `flutter/760e3fab…/sky_engine.zip` (old — our own hash) | **404** |
+| `flutter/83675ed2…/sky_engine.zip` (corrected — upstream base) | **200** |
+
+So the latent breakage was real and is now closed for this cell. The invariant
+to hold: **every custom-engine manifest names the upstream Flutter base
+revision its artifact mapping derives from; custom-engine identity belongs in
+the overlay and provenance layer, never in `flutter_engine_revision`.**
+`generate_manifest.sh` refuses a base manifest that violates it.
+
+`70974f81`'s manifest is byte-identical to the pinned one and already carries
+the correct base, so it needs regenerating only for the provenance header.
+
 ### Definition of done for 8 + 9
 
 For both `70974f81` and `760e3fab`:
