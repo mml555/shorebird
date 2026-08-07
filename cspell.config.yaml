@@ -352,6 +352,7 @@ words:
   - routeb
   - embedder
   - rodata
+  - unbuildable
   - unfailable
   - unfetchable
   - unkeyed

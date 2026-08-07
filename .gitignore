@@ -26,3 +26,16 @@ selfhost/cdn/overlay/*
 
 # Local git mirrors for air-gapped installs (selfhost/cdn/README.md). Gigabytes.
 selfhost/cdn/mirrors/
+
+# Air-gap acceptance fixture: generated, reproducible from the committed
+# sources by selfhost/scripts/prepare_airgap_fixture.sh.
+selfhost/fixtures/airgap_app/ios/
+selfhost/fixtures/airgap_app/android/
+selfhost/fixtures/airgap_app/.dart_tool/
+selfhost/fixtures/airgap_app/build/
+selfhost/fixtures/airgap/
+
+# Instance-specific (server-generated app_id) and flutter-create output.
+selfhost/fixtures/airgap_app/shorebird.yaml
+selfhost/fixtures/airgap_app/.metadata
+selfhost/fixtures/airgap_app/.gitignore

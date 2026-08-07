@@ -1,0 +1,24 @@
+# Canonical air-gap acceptance fixture. See README.md in this directory.
+#
+# The version here is what airgap_acceptance.sh reads to derive
+# --release-version, so BUMP IT before each acceptance run (the control plane
+# rejects a duplicate release version).
+name: airgap_probe
+description: Canonical fixture for the sealed air-gap acceptance run.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Reads the running patch number, which is what the acceptance run asserts
+  # changed. Same dependency the previous assets-only acceptance flow used.
+  shorebird_code_push: ^2.0.4
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/probe.json

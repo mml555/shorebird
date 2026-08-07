@@ -64,7 +64,18 @@ note() { echo "==> $*"; }
 [[ "${1:-}" == "--" ]] && shift
 [[ $# -ge 1 ]] || die "usage: airgap_run.sh -- <payload command...>"
 
-[[ -n "${AIRGAP_PUB_CACHE:-}" ]] || die "AIRGAP_PUB_CACHE must point at the seeded pub cache (from the warm run)"
+# Default to the DOCUMENTED seed produced by prepare_airgap_fixture.sh, rather
+# than making the caller remember a path. An ambient ~/.pub-cache is explicitly
+# not a valid seed: the 2026-08-06 run used one and left no record of what was
+# in it, which is half of why that acceptance could not be reproduced.
+if [[ -z "${AIRGAP_PUB_CACHE:-}" ]]; then
+  _seed="$(cd "$HERE/../fixtures/airgap/pub-cache" 2>/dev/null && pwd || true)"
+  [[ -n "$_seed" ]] && AIRGAP_PUB_CACHE="$_seed" && export AIRGAP_PUB_CACHE
+fi
+[[ -n "${AIRGAP_PUB_CACHE:-}" ]] || die "AIRGAP_PUB_CACHE must point at the seeded pub cache.
+       Run selfhost/scripts/prepare_airgap_fixture.sh to build it, or set the
+       variable explicitly. Do NOT point it at ~/.pub-cache — the seed has to
+       be a documented, reproducible output (see fixtures/airgap/SEED.txt)."
 [[ -d "$AIRGAP_PUB_CACHE" ]] || die "AIRGAP_PUB_CACHE does not exist: $AIRGAP_PUB_CACHE"
 
 OS="$(uname -s)"

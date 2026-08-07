@@ -45,7 +45,33 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 [[ "$DO_ANDROID$DO_IOS" != "00" ]] || { echo "pass --android and/or --ios" >&2; exit 2; }
-[[ -n "$APP_DIR" ]] || { echo "--app <flutter app dir> is required" >&2; exit 2; }
+
+# --- the canonical fixture -------------------------------------------------------
+# --app used to be mandatory with no default, and the app it pointed at lived in
+# a session scratchpad. The scratchpad was cleaned and the path was never
+# written down, so the 2026-08-06 pass could not be reproduced. Defaulting to a
+# committed fixture is what stops that recurring; the override still exists for
+# one-off apps.
+if [[ -z "$APP_DIR" ]]; then
+  APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../fixtures/airgap_app" 2>/dev/null && pwd || true)"
+fi
+if [[ -z "$APP_DIR" || ! -f "$APP_DIR/pubspec.yaml" ]]; then
+  cat >&2 <<'EOF'
+Missing canonical acceptance fixture.
+  Run: selfhost/scripts/prepare_airgap_fixture.sh --app-id <id>
+  (or pass --app <flutter app dir> for a one-off)
+EOF
+  exit 2
+fi
+if grep -q 'REPLACE-ME' "$APP_DIR/shorebird.yaml" 2>/dev/null; then
+  cat >&2 <<EOF
+Fixture at $APP_DIR has a placeholder app_id.
+  app_id is server-generated, so it cannot be committed. Create the app on the
+  control plane and re-run:
+    selfhost/scripts/prepare_airgap_fixture.sh --app-id <id>
+EOF
+  exit 2
+fi
 
 export FLUTTER_STORAGE_BASE_URL="$MIRROR"
 export SHOREBIRD_STORAGE_BASE_URL="$MIRROR"
@@ -124,19 +150,23 @@ app_release_version() {
 android_release_patch() {
   cd "$APP_DIR"
   switch_engine || return 1
+  # DEFAULT FLAGS as of 2026-08-07 — no --no-tree-shake-icons.
+  #
+  # That flag used to be mandatory here: icon tree shaking runs const_finder, a
+  # kernel stamped with the SDK hash of whatever Dart built it, and no fork
+  # linux-x64 const_finder was published, so the stock one loaded and the build
+  # died with "Invalid SDK hash". We now build and publish our own inside
+  # 760e3fab's linux-x64/font-subset.zip (engine/publish_font_subset.sh
+  # --host linux-x64), proven on device by the default-path acceptance run.
+  #
+  # Keeping the flag would make this gate weaker than the shipping path, which
+  # is the opposite of what it is for.
   "$SHOREBIRD_ROOT/bin/shorebird" release android --no-confirm --artifact=apk \
-    --flutter-version="$FLREV" -- --no-tree-shake-icons || return 1
+    --flutter-version="$FLREV" || return 1
   local rel; rel="$(app_release_version)"
   [[ -n "$rel" ]] || { echo "could not read version: from $APP_DIR/pubspec.yaml" >&2; return 1; }
-  # --no-tree-shake-icons on the PATCH build too, for the same reason the
-  # release needs it: icon tree shaking runs const_finder, a kernel stamped
-  # with the SDK hash of whatever Dart built it. The Linux host toolchain is
-  # ours (dart-sdk 4bd36869) but no fork const_finder is published for
-  # linux-x64, so the stock one loads and the build dies with "Invalid SDK
-  # hash". Disabling the feature is explicit and documented; the alternative
-  # — shipping a fork linux-x64 const_finder — is tracked separately.
   "$SHOREBIRD_ROOT/bin/shorebird" patch android --no-confirm --allow-asset-diffs \
-    --release-version="$rel" -- --no-tree-shake-icons || return 1
+    --release-version="$rel" || return 1
 }
 
 # --- stage 3: ios release (default flags) + assets-only patch --------------------
