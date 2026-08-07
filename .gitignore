@@ -39,3 +39,8 @@ selfhost/fixtures/airgap/
 selfhost/fixtures/airgap_app/shorebird.yaml
 selfhost/fixtures/airgap_app/.metadata
 selfhost/fixtures/airgap_app/.gitignore
+selfhost/fixtures/airgap_app/.generated/
+selfhost/fixtures/airgap/acceptance.env
+
+# Local run logs (acceptance/warm runs).
+.logs/

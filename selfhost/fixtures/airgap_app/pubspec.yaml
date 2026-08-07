@@ -6,7 +6,7 @@
 name: airgap_probe
 description: Canonical fixture for the sealed air-gap acceptance run.
 publish_to: none
-version: 1.0.0+1
+version: 1.1.0+1
 
 environment:
   sdk: ">=3.6.0 <4.0.0"
@@ -21,4 +21,9 @@ dependencies:
 flutter:
   uses-material-design: true
   assets:
+    # shorebird.yaml MUST be declared here — the CLI refuses to build without
+    # it ("Your pubspec.yaml does not have shorebird.yaml as a flutter asset"),
+    # because the updater reads app_id and base_url out of the bundled copy at
+    # runtime. Caught by the first warm run of this fixture, 2026-08-07.
+    - shorebird.yaml
     - assets/probe.json
