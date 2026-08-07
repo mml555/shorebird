@@ -485,6 +485,15 @@ control_plane_durable() {
         echo "$c stores /data in an EPHEMERAL path: $src" >&2; bad=1 ;;
       *) echo "[data] $c -> $src" ;;
     esac
+    # Credentials must ALSO be durable. A rig whose secrets exist only inside
+    # the container cannot be recreated safely — losing them between a `rm -f`
+    # and a `run` bricks it, which nearly happened on 2026-08-07.
+    local sec="${RIG_SECRETS_DIR:-$HOME/shorebird-rig/secrets}/$c.env"
+    if [[ ! -f "$sec" ]]; then
+      echo "$c has no durable secrets file ($sec)" >&2
+      echo "  Its credentials exist only in container config, which is not recoverable." >&2
+      bad=1
+    fi
   done
   if [[ $bad -eq 1 ]]; then
     echo "  Move it: selfhost/scripts/relocate_control_plane_data.sh" >&2

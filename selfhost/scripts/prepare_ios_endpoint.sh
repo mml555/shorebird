@@ -53,6 +53,9 @@ MODE=lan
 FORCE=0
 STAMP="$HERE/../fixtures/airgap/endpoint.stamp"
 
+# shellcheck source=lib/rig_container.sh
+source "$HERE/lib/rig_container.sh"
+
 die() { echo "ERROR: $*" >&2; exit 1; }
 note() { echo "==> $*"; }
 
@@ -97,32 +100,17 @@ if [[ "$HAVE" == "$WANT" && $FORCE -eq 0 ]]; then
   note "already correct; not recreating"
 else
   note "endpoint differs — recreating $CONTAINER"
-  # Preserve EVERYTHING except PUBLIC_BASE_URL: image, ports, mounts, and every
-  # other env var (which include secrets). The env goes through a 0600 file so
-  # no secret ever lands on a command line or in a transcript — a dev key was
-  # leaked that way once and had to be rotated.
-  TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
-  ENVFILE="$TMP/env"; umask 077
-  docker inspect "$CONTAINER" --format '{{range .Config.Env}}{{println .}}{{end}}' \
-    | grep -vE '^(PUBLIC_BASE_URL=|PATH=|$)' > "$ENVFILE"
-  echo "PUBLIC_BASE_URL=$WANT" >> "$ENVFILE"
-
+  # Built from DURABLE inputs, never by reading the old container back. See
+  # lib/rig_container.sh: a recreate that sources its own credentials from the
+  # container it is about to delete loses them the moment anything between the
+  # rm and the run fails — which happened on 2026-08-07.
   IMAGE="$(docker inspect "$CONTAINER" --format '{{.Config.Image}}')"
-  # Bind mounts carry the app/release/patch history — preserved verbatim.
-  MOUNTS=()
-  while IFS= read -r m; do [[ -n "$m" ]] && MOUNTS+=(-v "$m"); done < <(
-    docker inspect "$CONTAINER" --format '{{range .Mounts}}{{.Source}}:{{.Destination}}{{"\n"}}{{end}}')
   PORTMAP="$(docker inspect "$CONTAINER" \
-    --format '{{range $p, $c := .HostConfig.PortBindings}}{{range $c}}{{.HostPort}}{{end}}:{{$p}}{{end}}' \
+    --format '{{range $p, $co := .HostConfig.PortBindings}}{{range $co}}{{.HostPort}}{{end}}:{{$p}}{{end}}' \
     | sed 's|/tcp||')"
   [[ -n "$IMAGE" && -n "$PORTMAP" ]] || die "could not read image/ports from $CONTAINER"
-  note "image $IMAGE, ports $PORTMAP, ${#MOUNTS[@]} mount(s) preserved"
-
-  docker rm -f "$CONTAINER" >/dev/null
-  docker run -d --name "$CONTAINER" --restart unless-stopped \
-    --env-file "$ENVFILE" -p "$PORTMAP" "${MOUNTS[@]}" "$IMAGE" >/dev/null \
-    || die "recreate failed — the data mount is untouched, so re-running this is safe"
-  note "recreated"
+  rig_recreate "$CONTAINER" "$IMAGE" "$PORTMAP" "PUBLIC_BASE_URL=$WANT" \
+    || die "recreate failed; durable inputs are intact, just re-run this"
   sleep 3
 fi
 

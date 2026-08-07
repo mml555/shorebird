@@ -1,13 +1,39 @@
-# Control-plane data: the authoritative location
+# Control-plane rig state: the authoritative locations
 
 ```
-~/shorebird-rig/control-plane/
-  cps-ios/       app ids, releases, patches, artifacts for the iOS rig  (:18080)
-  cps-android/   the same for the Android rig                           (:18081)
+~/shorebird-rig/
+  control-plane/<name>/   data: app ids, releases, patches, artifacts
+  config/<name>.env       non-secret: PORT, DATA_DIR, HOST_BIND, ...   0644
+  secrets/<name>.env      API_KEY, URL_SIGNING_SECRET                  0600
 ```
 
-Override with `CONTROL_PLANE_ROOT`. Nothing here is in the repo — it is rig
-state, not source — but the *path* is documented so it stops being folklore.
+`<name>` is `cps-ios` (:18080) or `cps-android` (:18081). Override the roots
+with `CONTROL_PLANE_ROOT`, `RIG_CONFIG_DIR`, `RIG_SECRETS_DIR`. Nothing here is
+in the repo — it is rig state, not source — but the *paths* are documented so
+they stop being folklore.
+
+## The ownership direction
+
+Containers are built **from** these files. They are never rebuilt by reading
+state back out of the container being replaced:
+
+```
+durable config + durable secrets + durable data  ->  container
+```
+
+[`scripts/lib/rig_container.sh`](../scripts/lib/rig_container.sh) is the only
+thing that creates them. `rig_preflight` proves every input exists — secrets
+file present, mode 0600, owned by you, required keys non-empty; config present;
+data root present and not in a scratch tree — and `rig_recreate` calls it
+**before** `docker rm`, so a missing or malformed input costs you nothing.
+
+Verified: with the secrets file absent, or present at mode 0644, the recreate
+refuses and the existing container survives.
+
+Why it matters: `API_KEY` authenticates every CLI call and
+`URL_SIGNING_SECRET` signs artifact download URLs. When those lived only in
+container config, a `docker rm -f` followed by a failed `docker run` destroyed
+them — see the note at the end of this file.
 
 ## Why this moved
 
@@ -41,16 +67,23 @@ that nobody notices ephemeral state until it disappears.
 
 ## Backup and restore
 
+Back up **all three** roots — data alone will not rebuild a rig.
+
 ```bash
-# back up (stop first for a consistent SQLite snapshot)
+# stop first for a consistent SQLite snapshot
 docker stop cps-ios cps-android
-tar -C ~/shorebird-rig/control-plane -czf control-plane-$(date +%F).tgz .
+tar -C ~/shorebird-rig -czf shorebird-rig-$(date +%F).tgz \
+    control-plane config secrets
 docker start cps-ios cps-android
+# the archive contains 0600 secrets — store it somewhere you would keep a
+# private key, and never in the repo
+chmod 600 shorebird-rig-$(date +%F).tgz
 
 # restore
-docker stop cps-ios cps-android
-tar -C ~/shorebird-rig/control-plane -xzf control-plane-<date>.tgz
-docker start cps-ios cps-android
+docker stop cps-ios cps-android 2>/dev/null || true
+tar -C ~/shorebird-rig -xzf shorebird-rig-<date>.tgz
+# recreate from the restored inputs rather than starting a stale container
+selfhost/scripts/prepare_ios_endpoint.sh --mode lan --force
 ```
 
 Stopping first matters: a live SQLite file copied mid-write can land in a state
@@ -80,9 +113,10 @@ block-accounting difference between filesystems.
   `URL_SIGNING_SECRET` — lives only in the container config. It happened:
   `"${arr[@]}"` on an EMPTY array aborts under `set -u` in bash 3.2 (macOS),
   right between the two. The secrets were recovered from the script's temp
-  env-file, which had not been cleaned up yet. The expansion is now guarded,
-  but the sharper lesson is that **the container config is the only copy of
-  those secrets** — worth a backup of its own before any recreate.
+  env-file, which had not been cleaned up yet. The expansion is now guarded —
+  and more importantly the premise is gone: credentials live in
+  `secrets/<name>.env`, and `rig_recreate` validates them before destroying
+  anything, so the container is no longer the authoritative copy of anything.
 - **A live server keeps writing.** `code_push.db` will not match a hash taken
   before the move; the meaningful check is that the *copy* was byte-identical
   at copy time and the app records survive. After the move: cps-ios 6 apps,

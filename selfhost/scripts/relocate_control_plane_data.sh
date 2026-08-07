@@ -34,6 +34,10 @@ CONTAINERS=()
 PURGE=0
 DRY=0
 
+HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+# shellcheck source=lib/rig_container.sh
+source "$HERE/lib/rig_container.sh"
+
 die() { echo "ERROR: $*" >&2; exit 1; }
 note() { echo "==> $*"; }
 
@@ -110,35 +114,26 @@ relocate_one() {
   done < <(find "$src" -maxdepth 1 -name '*.db')
   note "$c: verified $sf files, checksums match"
 
-  # --- recreate on the new mount, preserving everything else ------------------
-  # Same approach as prepare_ios_endpoint.sh: every env var (secrets included)
-  # goes through a 0600 file rather than a command line.
-  tmp="$(mktemp -d)"; envfile="$tmp/env"; umask 077
-  docker inspect "$c" --format '{{range .Config.Env}}{{println .}}{{end}}' \
-    | grep -vE '^(PATH=|$)' > "$envfile"
+  # --- recreate on the new mount, from DURABLE inputs -------------------------
+  # Never rebuilt by reading the old container: that made the container the only
+  # copy of its own credentials, and a failure between `rm -f` and `run` lost
+  # them (2026-08-07). rig_recreate validates secrets, config and data BEFORE
+  # anything is destroyed.
   image="$(docker inspect "$c" --format '{{.Config.Image}}')"
   portmap="$(docker inspect "$c" \
     --format '{{range $p, $co := .HostConfig.PortBindings}}{{range $co}}{{.HostPort}}{{end}}:{{$p}}{{end}}' \
     | sed 's|/tcp||')"
   [[ -n "$image" && -n "$portmap" ]] || die "$c: could not read image/ports"
 
-  # Any non-/data mounts are carried over unchanged. Note the guarded
-  # expansion below: under `set -u`, bash 3.2 (macOS) treats "${arr[@]}" on an
-  # EMPTY array as an unbound variable and aborts — which it did here, after
-  # `docker rm -f` had already run, leaving the container deleted mid-move.
-  local extra=()
-  while IFS= read -r m; do
-    [[ -n "$m" ]] && extra+=(-v "$m")
-  done < <(docker inspect "$c" \
-      --format '{{range .Mounts}}{{if ne .Destination "/data"}}{{.Source}}:{{.Destination}}{{"\n"}}{{end}}{{end}}')
+  # The data root has just moved, so point the library at the new location.
+  local pub
+  pub="$(docker inspect "$c" --format '{{range .Config.Env}}{{println .}}{{end}}' \
+         | awk -F= '/^PUBLIC_BASE_URL=/{print substr($0, index($0,"=")+1)}')"
+  CONTROL_PLANE_ROOT="$DEST_ROOT" RIG_DATA_ROOT="$DEST_ROOT" \
+    rig_recreate "$c" "$image" "$portmap" ${pub:+"PUBLIC_BASE_URL=$pub"} \
+    || die "$c: recreate failed. Data is intact at BOTH $src and $dst"
 
-  docker rm -f "$c" >/dev/null
-  docker run -d --name "$c" --restart unless-stopped --env-file "$envfile" \
-    -p "$portmap" -v "$dst:/data" ${extra[@]+"${extra[@]}"} "$image" >/dev/null \
-    || { rm -rf "$tmp"; die "$c: recreate failed. Data is intact at BOTH $src and $dst"; }
-  rm -rf "$tmp"
   sleep 3
-  note "$c: recreated on $dst"
 
   # --- prove the rig still works ---------------------------------------------
   local port code
