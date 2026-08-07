@@ -1,7 +1,7 @@
 <!-- cspell:words dartsdk prebuilts bidiff vmcode aot daemonized crashprobe jewgo azureuser sshkey serverinfo -->
 <!-- cspell:words APFS CODEPATCH PRECOMPILER Werror caffeinate dartaotruntime SEGVs Specializer diskutil dumpsys flowgraph iface killgate libdart nodm nofail precompiler unapply -->
 <!-- cspell:words tearoff DNDEBUG SEGV LINKEDIT ourengine noinstall SELTOTAL hosttest unrun closurizing closurized closurize closurization bodyless pids footgun mtimes repointed rbtest Devirtualization genkernel misparse -->
-<!-- cspell:words airgap justlaunch noninteractive SIGTRAP dynmod absolutized -->
+<!-- cspell:words airgap justlaunch noninteractive SIGTRAP dynmod absolutized DEFAULTPATH SIGPIPE PIPESTATUS -->
 
 # Handoff — engine improvements (as of 2026-08-06)
 
@@ -67,12 +67,14 @@ the tracker of record.
 ### Order of work (decided 2026-08-06)
 
 1. ~~Update this file.~~ **Done — this section.**
-2. **Close independence items 8 and 9**, together, while the mirror/build
-   machinery is fresh: finish the engine artifact cells we actually intend to
-   own, mirror and seal the artifact-manifest path, re-run the warm/sealed
-   checks. Bounded infrastructure closure. **Do not mix Route B into this.**
-3. **Linux `const_finder`** if it is still quick (see caveats below).
-4. **Then** start Route B as a new greenfield implementation project, in this
+2. ~~**Close independence items 8 and 9**~~ — **done 2026-08-07. Both cells
+   AUDIT CLEAN.** sky_engine.zip and flutter_gpu.zip owned per cell, manifests
+   regenerated with correct base-revision semantics, provenance.yaml emitted
+   from the policy.
+3. ~~**Linux `const_finder`**~~ — **done 2026-08-07**, and the Android
+   default-path acceptance passed, closing #15 and the Gradle workaround.
+4. **Final sealed two-platform regression** — the last infrastructure task.
+5. **Then** start Route B as a new greenfield implementation project, in this
    order: arm64 patchable call emission → dynamic-interface retention → stable
    target identity → versioned payload format → CLI packaging → transactional
    updater/runtime activation → host integration tests → real-app size and
@@ -84,56 +86,57 @@ axis before Route B's core code-patch lifecycle exists. Finish basic iOS code
 patching first; hot restart layers onto a proven activation/rollback model. This
 is a decision, not an oversight — see [Track C](#track-c--hot-restart).
 
+### Android DEFAULT-PATH acceptance — PASSED 2026-08-07
+
+One run closed **#15 and the Gradle insecure-mirror workaround together**, on
+CPH2551 over USB, driven by
+[`scripts/accept_android_default.sh`](scripts/accept_android_default.sh).
+"Default path" is the claim: **no `--no-tree-shake-icons`, no Gradle init
+script, no plain-HTTP mirror.**
+
+| step | evidence |
+|---|---|
+| mirror over HTTPS, CA validation **enforced** (no `-k`) | `200` from the box |
+| Gradle resolved over HTTPS with **no** init script | `Flutter assets will be downloaded from https://localhost:18443`, **zero** insecure-protocol errors |
+| icon tree-shaking actually **executed** | `Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 1096 bytes (99.9%)` |
+| const_finder served was **ours** | sha256 `0092a3d2…` recorded from the mirror *before* the build, = our fork build, ≠ stock |
+| engine in the APK was **ours** | 0 occurrences of the stock revision string, 1 `dlc.assets` marker (specific to `760e3fab`) |
+| release published | `1.6.0+1` |
+| first frame | `CODEPATCH-V3 patch: null` |
+| Dart **code** patch, default flags | `Published Patch 1` |
+| patched Dart executing | `CODEPATCH-V4-DEFAULTPATH patch: 1` |
+| rollback | back to `CODEPATCH-V3 patch: null` |
+| audit after | **AUDIT CLEAN**, both cells |
+
+Caches were cleared first (engine artifacts, stamps, Gradle `modules-2`) so
+neither retired workaround could be silently reused. The init script is moved
+to `/data/shorebird-engine/retired/`, not deleted, so the old behavior is
+recoverable.
+
+Three things that cost time and will again:
+
+- **`shorebird patch` has no `--artifact` flag** (that is `release`-only).
+  Passing it dumps usage and exits **64 with no error line**, which reads like
+  a completely different failure. It also has no `--no-confirm`, hence `yes |`.
+- **`yes |` makes the exit status 141** (SIGPIPE) even on success. Read
+  `PIPESTATUS`, or a passing run looks failed.
+- **`adb exec-out screencap -p` is corrupt on this device** — it prepends
+  `[Warning] Multiple displays were found…` into the PNG stream. Write to
+  `/sdcard` and `adb pull` instead.
+
 ### Live caveats carried forward
 
-Four things are knowingly not clean. None blocks the current flows; all are real.
+Two things are knowingly not clean. Neither blocks the current flows; both are
+real.
 
-1. **The fork `linux-x64` `const_finder` now EXISTS (2026-08-07); removing
-   `--no-tree-shake-icons` is the one step left.** Built with the fork dart and
-   published inside `760e3fab`'s `linux-x64/font-subset.zip` by
-   [`engine/publish_font_subset.sh --host linux-x64`](engine/publish_font_subset.sh),
-   which now serves both cells. Proven on the box: our SDK **loads** it and
-   **rejects** stock with `Invalid SDK hash`.
-
-   The trap, and it is the whole reason the first attempt failed: `ninja`'s own
-   `const_finder` target compiles with the **prebuilt** dart (`d684a576`), and
-   its output is rejected by our SDK even though the rule passes
-   `-Dsdk_hash=4bd3686914`. **`-Dsdk_hash` is a program define, not the stamp** —
-   the kernel's SDK hash comes from the *compiling VM*. Run upstream's exact
-   command with our dart as the binary and it produces a same-sized,
-   byte-different kernel that loads.
-
-   Still to do: drop `--no-tree-shake-icons` and prove it on a device — bundled
-   into the Android default-path round-trip with caveat 3 below, so one run
-   covers both.
-2. **macOS host-level packet blocking was abandoned.** Tailscale reloads pf and
+1. **macOS host-level packet blocking was abandoned.** Tailscale reloads pf and
    flushes any anchor, so a host seal cannot be held there. The *mirror* seal
    carries the proof instead, and it is enforced inside the container regardless
    — which is the stronger place for it anyway. Do not retry the pf route
    expecting a different result.
-3. **The Gradle insecure-mirror workaround is ready to delete — one test
-   short.** `/data/gradle-home/init.d/selfhost-allow-insecure-mirror.gradle` on
-   the build box was added 2026-08-05 because the mirror's HTTPS listener was
-   down. Every precondition for removing it was re-checked on **2026-08-07**:
-
-   | check | result |
-   |---|---|
-   | HTTPS listener on the Mac (`tls/listen-enabled.caddy` mounted) | up, `302` |
-   | HTTPS from the build box, **CA validation enforced** (no `-k`) | `302` — passes |
-   | Mirror CA in the box's JDK `cacerts` (what Gradle reads) | present, 2 entries |
-
-   The script only fires for `http://localhost` Maven repos, so pointing
-   `FLUTTER_STORAGE_BASE_URL` at `https://localhost:8443` makes it inert as well
-   as unnecessary. **The one remaining gate is a real Gradle resolution with the
-   script removed** — and the Android default-path device round-trip is exactly
-   that run, so do it there rather than as a separate exercise. Do not keep the
-   workaround merely because it was once required.
-
-   (The box reaches the mirror through an `ssh -R` reverse tunnel, which is
-   normally down; the checks above were run through a command-scoped one.)
-4. **Engine builds still need a reachable gclient remote.** The durable Flutter
+2. **Engine builds still need a reachable gclient remote.** The durable Flutter
    mirror closes CLI bootstrap, not the engine build checkout.
-5. ~~**The iOS Dart checkout carries the Spike A measurement patch.**~~
+3. ~~**The iOS Dart checkout carries the Spike A measurement patch.**~~
    **RESOLVED 2026-08-07 — reverted, and `dart_patches.sh --verify` is green
    on all four patches.**
 
