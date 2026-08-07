@@ -315,6 +315,10 @@ launch_fixture() {  # launch_fixture — install and run the fixture on the devi
   # the beacon round trip. Measured ~28s to a rendered frame; 45 leaves room
   # without making a passing run slow.
   sleep "${AIRGAP_LAUNCH_SECONDS:-45}"
+  # Screenshot BEFORE the kill. Killing ios-deploy terminates the app, so a
+  # screenshot taken after launch_fixture returns always shows the home screen
+  # — which is what the "evidence" images were, silently, until 2026-08-07.
+  [[ -n "${1:-}" ]] && screenshot "$1"
   kill "$pid" >/dev/null 2>&1 || true
   wait "$pid" 2>/dev/null || true
 
@@ -425,8 +429,7 @@ ios_release_patch() {
   fi
 
   echo "-- device: baseline release"
-  launch_fixture || return 1
-  screenshot release
+  launch_fixture release || return 1
   assert_beacon release BAKED-INTO-RELEASE none || return 1
 
   echo "-- mutating ONLY assets/probe.json, then patching"
@@ -438,8 +441,7 @@ ios_release_patch() {
   # First launch discovers and downloads; the second runs with it applied.
   echo "-- device: after assets-only patch"
   launch_fixture || return 1
-  launch_fixture || return 1
-  screenshot patched
+  launch_fixture patched || return 1
   assert_beacon patched PATCHED-AIRGAP 1 || return 1
 }
 
