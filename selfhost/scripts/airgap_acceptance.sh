@@ -95,8 +95,47 @@ stage() {  # stage <name> <fn>
 }
 
 # --- stage 1: bootstrap from empty cache ----------------------------------------
+# Guard for every destructive path in this script.
+#
+# Added after a real incident (2026-08-07): this harness was invoked as a
+# "does it parse" check and stage 1 promptly deleted ~/.shorebird/bin/cache,
+# taking the 309dd6573 Flutter checkout — the rollback pin from
+# compatibility.yaml — with it. Nothing about `airgap_acceptance.sh --ios`
+# announces that it starts by wiping a cache.
+#
+# So: say exactly what is about to be deleted, and refuse anything that is not
+# a Shorebird cache under a plausible harness root. AIRGAP_I_KNOW is the escape
+# hatch for a genuinely unusual root, and it has to be typed on purpose.
+rm_cache() {  # rm_cache <dir>
+  local target="$1" root
+  [[ -n "$target" ]] || { echo "rm_cache: empty target" >&2; return 1; }
+  # Resolve without requiring existence: a missing path is a no-op, not a risk.
+  [[ -e "$target" ]] || { echo "  (nothing to delete at $target)"; return 0; }
+  root="$(cd "$target" >/dev/null 2>&1 && pwd -P)" || {
+    echo "rm_cache: cannot resolve $target" >&2; return 1; }
+
+  case "$root" in
+    */bin/cache|*/bin/cache/*) ;;
+    *) echo "REFUSING to delete '$root': not a .../bin/cache path" >&2; return 1 ;;
+  esac
+  # A bare "/" or a home directory can never match the above, but be explicit
+  # about the shortest plausible accident anyway.
+  [[ ${#root} -gt 12 ]] || { echo "REFUSING to delete suspiciously short path '$root'" >&2; return 1; }
+  if [[ "$root" != "$SHOREBIRD_ROOT"/* && -z "${AIRGAP_I_KNOW:-}" ]]; then
+    echo "REFUSING: '$root' is outside SHOREBIRD_ROOT ($SHOREBIRD_ROOT)." >&2
+    echo "          Set AIRGAP_I_KNOW=1 if that is genuinely intended." >&2
+    return 1
+  fi
+
+  echo "  DELETING $root  ($(du -sh "$root" 2>/dev/null | awk '{print $1}'))"
+  rm -rf "$root"
+}
+
 bootstrap() {
-  rm -rf "$SHOREBIRD_ROOT/bin/cache"
+  # Stage 1 is destructive BY DESIGN — an empty cache is the whole premise of
+  # the test — but it should never be a surprise. See rm_cache above.
+  echo "stage 1 starts by emptying the Shorebird cache:"
+  rm_cache "$SHOREBIRD_ROOT/bin/cache" || return 1
   "$SHOREBIRD_ROOT/bin/shorebird" --version || return 1
   # The clone must have come from the local mirror, not github.
   local origin
@@ -125,7 +164,8 @@ switch_engine() {
   # and the build dies with "ConstFinder failure: Can't load Kernel binary:
   # Invalid SDK hash" (observed live, 2026-08-06). Re-fetching all of it
   # through the mirror is also exactly what warming wants.
-  rm -rf "$fl/bin/cache/artifacts" "$fl/bin/cache/dart-sdk"
+  rm_cache "$fl/bin/cache/artifacts" || return 1
+  rm_cache "$fl/bin/cache/dart-sdk" || return 1
   rm -f "$fl"/bin/cache/*.stamp "$SHOREBIRD_ROOT/bin/cache/shorebird.stamp"
   "$fl/bin/flutter" --version >/dev/null || return 1
   # Deliberately NO `flutter precache` here. It was tried and removed the same
