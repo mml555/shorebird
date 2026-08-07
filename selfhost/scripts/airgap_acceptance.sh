@@ -285,18 +285,47 @@ read_beacon() {
     | sed 's/%20/ /g; s/+/ /g' | tr '\n' ' '
 }
 
-launch_fixture() {  # launch_fixture — install (if needed) and run, twice if asked
-  local ipa bundle
+launch_fixture() {  # launch_fixture — install and run the fixture on the device
+  local ipa app stage log
   ipa="$(find "$APP_DIR/build/ios/ipa" -name '*.ipa' 2>/dev/null | head -1)"
   [[ -n "$ipa" ]] || { echo "no IPA under $APP_DIR/build/ios/ipa" >&2; return 1; }
+
+  # --bundle wants an .app DIRECTORY, not the .ipa. Handed the archive,
+  # ios-deploy installs it and then fails the debug phase with
+  # "Cannot read Info.plist file: .../airgap_probe.ipa/Info.plist" — so the app
+  # lands on the device and never launches, which looks like a silent no-op.
+  # Unzip and point at Payload/*.app, the recipe HANDOFF records.
+  stage="$APP_DIR/build/airgap-payload"
+  rm -rf "$stage"; mkdir -p "$stage"
+  unzip -qq "$ipa" -d "$stage" || { echo "could not unzip $ipa" >&2; return 1; }
+  app="$(find "$stage/Payload" -maxdepth 1 -name '*.app' | head -1)"
+  [[ -n "$app" ]] || { echo "no Payload/*.app inside $ipa" >&2; return 1; }
+
+  # Keep the output. It was going to /dev/null, which is how the .ipa mistake
+  # above stayed invisible; ios-deploy reports install AND launch failures here
+  # and they are the first thing anyone will want.
+  log="$APP_DIR/build/airgap-launch.log"
   # --justlaunch dies on lldb detach BEFORE the updater's network calls fire
   # (SIGTRAP in lldb_image_notifier), which looks exactly like a dead link.
-  # Hold the attach instead and kill it after the app has had time to beacon.
-  ios-deploy --bundle "$ipa" ${DEVICE:+--id "$DEVICE"} --noninteractive >/dev/null 2>&1 &
+  # Hold the attach instead and kill it once the app has had time to beacon.
+  ios-deploy --bundle "$app" ${DEVICE:+--id "$DEVICE"} --noninteractive > "$log" 2>&1 &
   local pid=$!
   sleep "${AIRGAP_LAUNCH_SECONDS:-25}"
   kill "$pid" >/dev/null 2>&1 || true
   wait "$pid" 2>/dev/null || true
+
+  # iOS refuses to run an app whose developer certificate it cannot verify, and
+  # verification needs an internet connection ONCE. On an air-gap rig the phone
+  # usually has none, so this shows as "Unable to Verify App" on the device and
+  # nothing in the log — name it rather than letting it read as "no beacon".
+  if grep -qiE "verify|not been trusted|Untrusted" "$log" 2>/dev/null; then
+    echo "  device refused to launch — see $log" >&2
+    echo "  If the screen says \"Unable to Verify App\": trust the developer" >&2
+    echo "  certificate once (Settings > General > VPN & Device Management)," >&2
+    echo "  which requires the phone to reach Apple once. That is a one-time" >&2
+    echo "  trust step, not part of the sealed test." >&2
+    return 1
+  fi
 }
 
 screenshot() {  # screenshot <label> — human-readable evidence, never the assertion
