@@ -272,7 +272,7 @@ tree-*independent*), `compat-mirrored` (stock, for a cell we do not build —
 **never** supports a self-built claim), and `denied` (route-protected and
 deliberately absent, because a 404 beats a silent toolchain mix).
 
-#### Audit as of 2026-08-07 — Android cell has its bytes; iOS cell still blocked
+#### AUDIT CLEAN on both cells, 2026-08-07
 
 | | linux-android (`760e3fab`) | macos-ios (`70974f81`) |
 |---|---|---|
@@ -280,21 +280,58 @@ deliberately absent, because a 404 beats a silent toolchain mix).
 | owned-mirrored | 7 | 0 |
 | compat-mirrored | 1 | 1 |
 | denied | 6 | 4 |
-| **missing-required** | **0** ✅ | **2** |
+| **missing-required** | **0** ✅ | **0** ✅ |
+| **unprotected** | **0** ✅ | **0** ✅ |
+| verdict | **AUDIT CLEAN** | **AUDIT CLEAN** |
 
-**Android, done 2026-08-07.** `sky_engine.zip` and `flutter_gpu.zip` published
-under `760e3fab` from the VPS tree, both **content-identical to stock** (zip
-bytes differ, which is expected and meaningless — mtimes and entry order). Two
-gates were checked before publishing, and both passed: the tree's
-`artifacts.zip` is byte-identical to the published engine (`ecdcb458…`), so it
-really is the tree that produced `760e3fab`; and its Dart checkout has no
-`sdk/lib` modifications, which is why content-identical is the *correct*
-outcome rather than a suspicious one. Recorded in
-`overlay/…/760e3fab…/sky_packages_provenance.txt`.
+(One `deferred` remains on Android: the Linux `const_finder`, below.)
 
-**iOS is blocked on hardware, not on knowledge**: `/Volumes/build` (the
-external SSD holding the iOS engine tree) is not mounted. Same command once it
-is.
+Both cells' `sky_engine.zip` and `flutter_gpu.zip` were built from **their own**
+verified trees — never copied between hashes — and both are content-identical
+to stock, which is the correct result because neither shipping tree modifies
+`sdk/lib`. Gates checked before each publish:
+
+| cell | tree identity | `sdk/lib` clean? |
+|---|---|---|
+| linux-android | `artifacts.zip` byte-identical to the published engine (`ecdcb458…`) | yes |
+| macos-ios | sha1 of `out/ios_release/…/Flutter` **is** `70974f81…` — the hash is the content | yes, and no killgate marker |
+
+The iOS gate mattered: `engine/killgate/0001` modifies
+`sdk/lib/_internal/vm/lib/internal_patch.dart`, so a tree carrying it would
+have produced a *different* `sky_engine` for Track E's configuration. It was
+absent, which is what made this tree safe to publish from.
+
+##### Routing verified live, not asserted
+
+`@must_be_local` is hash-generic, which is right for artifacts every hash
+publishes and wrong for these two — they are owned **per cell**, from each
+cell's own tree. A second matcher, `@must_be_local_pkgs`, spells out the two
+supported hashes, so the superseded, Track E and diagnostic hashes keep falling
+through to stock (correct for a cell we do not support) instead of 404ing.
+`audit_overlay.sh` reads **both** matchers.
+
+Four behaviors were then tested against the running mirror:
+
+| behavior | result |
+|---|---|
+| supported cell serves our bytes | `200`, `X-Overlay: hit`, sha256 = ours, ≠ stock |
+| unsupported hash (`fc184af6`) | `302` — falls through, as intended |
+| overlay miss on an owned path | **`404`** — loud, never stock |
+| both audits after the change | **AUDIT CLEAN** |
+
+##### A trap that hid all of this at first
+
+**Editing the Caddyfile and reloading does nothing.** It is a *single-file*
+bind mount, so the container holds the original inode; an editor that writes a
+new file and renames it leaves the container reading the old one forever. The
+symptom is a syntax error at a line number that does not match your file — the
+container is validating a version you cannot see. `docker exec … sha256sum
+/etc/caddy/Caddyfile` against the host file is the check. Recreate the
+container (`up -d --force-recreate cdn-cache`); do not trust a reload.
+
+Per-artifact records are in each hash's
+`overlay/…/<hash>/sky_packages_provenance.txt`, and `provenance.yaml` (emitted
+from the policy) sits beside the Flow B artifacts for both cells.
 
 Three things learned by running it for real, none of which were guessable:
 
@@ -314,8 +351,14 @@ Three things learned by running it for real, none of which were guessable:
    the bytes — including the live iOS engine `70974f81` — so protecting after
    only the Android publish would 404 the artifact for iOS and break every iOS
    build. The per-cell plan does not survive contact with a hash-generic
-   matcher. `audit_overlay.sh` now detects this and prints **NOT SAFE TO
-   PROTECT YET** with the offending hashes named.
+   matcher. `audit_overlay.sh` detects this and prints **NOT SAFE TO PROTECT
+   YET** with the offending hashes named.
+
+   **Resolved** by scoping the protection instead of widening the publishing:
+   `@must_be_local_pkgs` names the two supported hashes explicitly, so the
+   other five keep falling through to stock. Borrowing one cell's copy to
+   satisfy another was never an option — they are engine-revision namespaced,
+   and copying is the exact thing this policy exists to prevent.
 
 Both misses are the same pair, and both were **invisible before the audit
 existed**: `sky_engine.zip` and `flutter_gpu.zip`. They are

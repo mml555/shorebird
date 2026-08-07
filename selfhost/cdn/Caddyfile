@@ -153,6 +153,27 @@
 		path_regexp ^/(flutter_infra_release/flutter/[0-9a-f]{40}/(android-arm64-release/|ios-release/|(linux|darwin|windows)-(x64|arm64)/artifacts\.zip$|darwin-arm64/font-subset\.zip$|flutter_patched_sdk_product\.zip$|flutter_patched_sdk\.zip$|dart-sdk-[a-z0-9-]+\.zip$|engine_stamp\.json$)|download\.flutter\.io/io/flutter/|[^/]+/shorebird/[0-9a-f]{40}/(patch-(darwin-arm64|darwin-x64|linux-x64)\.zip$|aot-tools\.dill$|artifacts_manifest\.yaml$))
 	}
 
+	# ---- Per-cell ownership: sky_engine.zip / flutter_gpu.zip -----------------
+	# These are owned ONLY for the two supported cells, and the hashes are
+	# spelled out on purpose. @must_be_local above matches [0-9a-f]{40}, i.e.
+	# ANY mapped hash, which is right for artifacts every hash publishes — and
+	# wrong for these two.
+	#
+	# We own them per CELL, from each cell's own tree (they are engine-revision
+	# namespaced, and copying one hash's copy to another would be exactly the
+	# borrowing this whole policy exists to prevent). The superseded, Track E
+	# and diagnostic hashes therefore do not have them and never will, so a
+	# hash-generic matcher would 404 those builds instead of letting them fall
+	# through to stock — which for an unsupported cell is the correct outcome.
+	#
+	# ADD A HASH HERE ONLY AFTER publish_sky_packages.sh has run for it.
+	# selfhost/cdn/audit_overlay.sh reads BOTH matchers and will say NOT SAFE TO
+	# PROTECT YET if you get the order wrong.
+	@must_be_local_pkgs {
+		expression `{stock_engine_hash} != ""`
+		path_regexp ^/flutter_infra_release/flutter/(70974f811d448da19a927c581678ef1dbd33605c|760e3fabffbf31b4e86919a0ef47d6ce5f182991)/(sky_engine|flutter_gpu)\.zip$
+	}
+
 	@has_stock expression `{stock_engine_hash} != ""`
 
 	root * /overlay
@@ -182,6 +203,9 @@
 		# Loud failure: owned by the overlay but absent.
 		handle @must_be_local {
 			respond "overlay miss on owned artifact" 404
+		}
+		handle @must_be_local_pkgs {
+			respond "overlay miss on owned artifact (sky package, supported cell)" 404
 		}
 
 		# ---- Flow A: Flutter engine artifacts -------------------------------

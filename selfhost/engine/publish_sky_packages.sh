@@ -45,7 +45,7 @@ HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 OVERLAY="$HERE/../cdn/overlay"
 MIRROR="http://localhost:8085"
 PINNED="69f9831c360d9152862ec3897c67fb09ae843f3b"
-HASH=""; ENGINE_OUT=""; ENGINE_SRC=""; SKY_ZIP=""; GPU_ZIP=""
+HASH=""; ENGINE_OUT=""; ENGINE_SRC=""; SKY_ZIP=""; GPU_ZIP=""; SOURCE_NOTE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -57,6 +57,11 @@ while [[ $# -gt 0 ]]; do
     --pinned-hash) PINNED="${2:?}"; shift 2 ;;
     --sky-zip) SKY_ZIP="${2:?}"; shift 2 ;;
     --gpu-zip) GPU_ZIP="${2:?}"; shift 2 ;;
+    # Where the tree really came from, when it is not the tree you are standing
+    # in. The Android flow builds on the box and publishes where the mirror is
+    # (see HANDOFF), so the local path is a staging dir and says nothing about
+    # origin. Free text, recorded verbatim.
+    --source-note) SOURCE_NOTE="${2:?}"; shift 2 ;;
     -h|--help) sed -n '3,43p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
@@ -108,16 +113,20 @@ src_dir_for() {  # src_dir_for <name> ; echoes the directory to package, or noth
   esac
 }
 
+# Echoes "<zip-path><TAB><human source description>". The description is what
+# lands in the provenance record, so it must name the DIRECTORY the bytes came
+# from — a temp zip path we just created tells a later reader nothing.
 locate_zip() {  # locate_zip <name> <explicit-or-empty> <stock-zip-or-empty>
   local name="$1" explicit="$2" stock="$3" pkg
   if [[ -n "$explicit" ]]; then
     [[ -r "$explicit" ]] || { echo "ERROR: explicit zip $explicit is unreadable" >&2; return 1; }
-    printf '%s' "$explicit"; return 0
+    printf '%s\t%s' "$explicit" "explicit zip: $explicit"; return 0
   fi
   # 1. GN already built the archive (not the case on either host today, but
   #    cheap to prefer if a future config does emit it).
   if [[ -n "$ENGINE_OUT" && -r "$ENGINE_OUT/zip_archives/$name.zip" ]]; then
-    printf '%s' "$ENGINE_OUT/zip_archives/$name.zip"; return 0
+    printf '%s\t%s' "$ENGINE_OUT/zip_archives/$name.zip" \
+                    "prebuilt archive: $ENGINE_OUT/zip_archives/$name.zip"; return 0
   fi
   # 2. Build it from the directory, matching the published layout: entries are
   #    "<name>/..." relative to a staging root.
@@ -138,7 +147,7 @@ locate_zip() {  # locate_zip <name> <explicit-or-empty> <stock-zip-or-empty>
       unzip -qq -o "$stock" 'LICENSE.zip_old_location.md' -d "$WORK/stage-$name" ;;
   esac
   ( cd "$WORK/stage-$name" && zip -qr "$WORK/$name.zip" . )
-  printf '%s' "$WORK/$name.zip"; return 0
+  printf '%s\t%s' "$WORK/$name.zip" "packaged from directory: $pkg"; return 0
 }
 
 # --- Compare against stock ---------------------------------------------------
@@ -174,14 +183,17 @@ publish_one() {  # publish_one <name> <explicit-zip>
     stock_zip=""
   fi
 
-  if ! local_zip="$(locate_zip "$name" "$explicit" "$stock_zip")"; then
+  local located source_desc
+  if ! located="$(locate_zip "$name" "$explicit" "$stock_zip")"; then
     echo "  ERROR: could not find $name locally." >&2
     echo "         Looked for: \$ENGINE_OUT/zip_archives/$name.zip" >&2
     echo "                 and $(src_dir_for "$name" || echo '<no source dir known>')" >&2
     echo "         Pass --sky-zip / --gpu-zip <path> if it lives elsewhere." >&2
     return 1
   fi
-  echo "  local:  $local_zip"
+  local_zip="${located%%	*}"
+  source_desc="${located#*	}"
+  echo "  source: $source_desc"
 
   local lsha ssha content byte
   lsha="$(sha "$local_zip")"
@@ -227,7 +239,8 @@ publish_one() {  # publish_one <name> <explicit-zip>
     echo "stock_source:      $PINNED"
     echo "zip_bytes_match:   $byte"
     echo "content_matches:   $content"
-    echo "built_from:        $local_zip"
+    echo "built_from:        $source_desc"
+    [[ -n "$SOURCE_NOTE" ]] && echo "source_note:       $SOURCE_NOTE"
     echo
   } >> "$WORK/report"
 }

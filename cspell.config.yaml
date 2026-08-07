@@ -17,6 +17,10 @@ ignorePaths:
     # source, and it accounted for most of the noise that made
     # `npx cspell selfhost` unable to pass.
     "selfhost/cdn/mirrors/**",
+    # Generated local overlay state (engine artifacts + provenance records).
+    # Gitignored, and the records embed mktemp paths whose random names are
+    # not words. Nothing here is authored prose or source.
+    "selfhost/cdn/overlay/**",
   ]
 words:
   - aabs
@@ -234,6 +238,7 @@ words:
   - PITR
   - pkcs
   - pkeys
+  - pkgs
   - plutil
   - podfile
   - podspec

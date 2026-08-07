@@ -120,6 +120,25 @@ Four things are knowingly not clean. None blocks the current flows; all are real
    normally down; the checks above were run through a command-scoped one.)
 4. **Engine builds still need a reachable gclient remote.** The durable Flutter
    mirror closes CLI bootstrap, not the engine build checkout.
+5. **The iOS Dart checkout carries the Spike A measurement patch, and
+   `dart_patches.sh --verify` FAILS on it (checked 2026-08-07).** `0005` reports
+   `[CONFLICT] — does not apply cleanly`. The cause is benign but the state is
+   not: `runtime/vm/compiler/aot/precompiler.cc` has **217** inserted lines
+   where `0005` accounts for 99, and the surplus is Spike A's
+   `--dump_global_object_pool_to` flag
+   ([`engine/spike/0001-dump-global-object-pool.patch`](engine/spike)).
+
+   A previous note placed this in "the `_nodm` out-dir's gen_snapshot", which
+   **understates it** — the edit is in the *shared* Dart source, so every
+   out-dir built from this tree from now on picks it up, `ios_release`
+   included. The currently published `70974f81` engine predates it and is
+   unaffected (sha1 still matches, and the flag lands in `gen_snapshot`, not
+   `Flutter.framework`).
+
+   So: **revert the spike patch and re-run `--verify` before rebuilding any
+   iOS engine or gen_snapshot from `/Volumes/build`.** It does not affect
+   `sky_engine.zip` / `flutter_gpu.zip`, which come from `sdk/lib` and
+   `flutter/lib/gpu` — which is why publishing those from this tree was safe.
 
 ## 2026-08-04, later: Android proven on our own engine; iOS engine now builds
 

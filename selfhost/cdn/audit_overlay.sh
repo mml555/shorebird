@@ -66,18 +66,35 @@ done
 # --- The route-protection regex, read from the Caddyfile itself --------------
 # Extracted rather than duplicated: a copy here would drift the first time the
 # Caddyfile changed, and a stale copy in the checker is worse than no checker.
-ROUTE_RE="$(awk '/^[[:space:]]*path_regexp \^\/\(flutter_infra_release/ {
-                   sub(/^[[:space:]]*path_regexp[[:space:]]+/, ""); print; exit }' "$CADDYFILE")"
-if [[ -z "$ROUTE_RE" ]]; then
-  echo "ERROR: could not find the @must_be_local path_regexp in $CADDYFILE." >&2
-  echo "       If the matcher was renamed or reformatted, fix the awk above —" >&2
+# There is more than one ownership matcher — @must_be_local is hash-generic,
+# @must_be_local_pkgs is scoped to the supported cells — so collect EVERY
+# path_regexp under a @must_be_local* matcher rather than just the first.
+# Missing one would report a protected artifact as unprotected and send someone
+# to "fix" a Caddyfile that is already correct.
+WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
+ROUTE_RES="$WORK/route_regexes"
+if ! awk '
+  /^[[:space:]]*@must_be_local[a-z_]*[[:space:]]*\{/ { inm=1; next }
+  inm && /^[[:space:]]*\}/                           { inm=0; next }
+  inm && /^[[:space:]]*path_regexp[[:space:]]/ {
+      sub(/^[[:space:]]*path_regexp[[:space:]]+/, ""); print }
+' "$CADDYFILE" > "$ROUTE_RES" || [[ ! -s "$ROUTE_RES" ]]; then :; fi
+if [[ ! -s "$ROUTE_RES" ]]; then
+  echo "ERROR: found no path_regexp under any @must_be_local* matcher in $CADDYFILE." >&2
+  echo "       If a matcher was renamed or reformatted, fix the awk above —" >&2
   echo "       do NOT paste a copy of the regex into this script." >&2
   exit 2
 fi
 
 route_owns() {  # route_owns <overlay-relative-path>
   # Paths are request URIs minus the leading slash, so put it back.
-  printf '/%s' "$1" | grep -qE "$ROUTE_RE"
+  local uri; uri="/$1"
+  local re
+  while IFS= read -r re; do
+    [[ -n "$re" ]] || continue
+    printf '%s' "$uri" | grep -qE "$re" && return 0
+  done < "$ROUTE_RES"
+  return 1
 }
 
 # Which OTHER mapped engine hashes lack this artifact? Protection is global —
@@ -98,7 +115,6 @@ missing_on_other_hashes() {  # missing_on_other_hashes <this-hash's path>
   done < "$HASH_MAP"
 }
 
-WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 FINDINGS="$WORK/findings"; : > "$FINDINGS"
 ROWS="$WORK/rows"; : > "$ROWS"
 
