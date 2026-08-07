@@ -85,9 +85,24 @@
 	# through to the mirror — i.e. the overlay would break the plain cache.
 	#
 	# Keep the path list in sync with what selfhost/engine/overlay_publish.sh
-	# copies. Deliberately NOT owned: android-arm64-release/{darwin,windows}-*.zip
-	# (host gen_snapshot a Linux build host cannot produce), and Flow B's
-	# patch-windows-x64.zip (same reason — recorded gap).
+	# copies, and with selfhost/cdn/artifact_policy.conf, which is the written
+	# ownership policy. selfhost/cdn/audit_overlay.sh checks all three agree.
+	#
+	# CORRECTION 2026-08-06: this comment used to say
+	# "Deliberately NOT owned: android-arm64-release/{darwin,windows}-*.zip".
+	# That was false — `android-arm64-release/` in the alternation below has no
+	# `$` anchor, so it matches EVERY file under that prefix, those two
+	# included, and they 404. The behavior is right (a stock host gen_snapshot
+	# served against our engine is the fork mix dart_sdk_compatibility.dart
+	# exists to refuse) and it is now what artifact_policy.conf records, as
+	# `denied`. Only the comment was wrong. Flow B's patch-windows-x64.zip IS
+	# genuinely unowned and falls through — recorded gap, no Windows builder.
+	#
+	# NOT owned, and deliberately so for now: sky_engine.zip and
+	# flutter_gpu.zip. Policy says we should own both (they are namespaced by
+	# engine revision and carry Dart-facing engine API source), but the bytes
+	# are not published yet. PUBLISH FIRST, THEN ADD THE PATHS HERE — protecting
+	# an absent artifact 404s every build against a custom hash.
 	#
 	# Flow B IS owned for experimental hashes: the patch differ zips are built by
 	# selfhost/engine/publish_patch_tool.sh, artifacts_manifest.yaml is written

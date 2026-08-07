@@ -282,6 +282,56 @@ curl -sI $B/flutter_infra_release/flutter/$EXP/dart-sdk-darwin-arm64.zip | head 
 > file moved out of `overlay/` can still serve 200 briefly. Recreate the
 > container if a negative test looks wrong.
 
+## Artifact ownership: what we BUILT vs what we merely SERVE
+
+"It is in our mirror" and "we produced it" are different claims, and only the
+second one is independence. [`artifact_policy.conf`](artifact_policy.conf) is
+the written policy; [`audit_overlay.sh`](audit_overlay.sh) enforces it.
+
+The rule:
+
+> Own every artifact whose correctness depends on our Dart/Flutter tree, or
+> whose URL is under one of our custom engine hashes. Mirror stock only when
+> the artifact is demonstrably tree-independent, or belongs to a platform we
+> deliberately do not build.
+
+Four states, because two is not enough to describe what is actually going on:
+
+| State | Meaning | May it support a "self-built" claim? |
+|---|---|---|
+| `owned-built` | Produced from our tree and validated | **Yes** |
+| `owned-mirrored` | Served by us, sourced upstream because the artifact is tree-*independent* | No — we serve it, we did not compile it |
+| `compat-mirrored` | Stock, kept only for a platform/cell we do not build | **Never** |
+| `denied` | Route-protected and deliberately absent: 404 is the right answer | n/a |
+
+`denied` exists because silent cross-toolchain mixing is worse than a loud
+failure. Stock `font-subset.zip` extracts into the same cache directory as
+`artifacts.zip`, so on 2026-08-06 the stock `const_finder` overwrote the fork
+one and every release died with `Invalid SDK hash` — after a full warm run.
+Host toolchains we do not build are therefore denied, not mirrored.
+
+```bash
+selfhost/cdn/audit_overlay.sh --hash <hash> --cell linux-android
+selfhost/cdn/audit_overlay.sh --hash <hash> --cell macos-ios --emit-manifest
+```
+
+It cross-checks three sources that drift independently — the policy, the
+overlay on disk, and the Caddyfile's `@must_be_local` matcher — and the
+three-way check is the point. An artifact we *believe* we own but which is not
+route-protected falls through to the pinned hash and serves **stock bytes
+silently**; you cannot see that by looking at the overlay, because the bytes
+are absent locally and present in the response.
+
+`--emit-manifest` writes `provenance.yaml` beside the artifacts, generated from
+the policy so the two cannot drift. That is the file that answers "where did
+this come from?" for a custom hash — unlike `artifacts_manifest.yaml`, which is
+produced by Shorebird's own `generate_manifest.sh` and is an upstream
+description of our hash.
+
+**Fix order, when the audit reports `UNPROTECTED`: publish the bytes first,
+then add the path to `@must_be_local`.** Protecting an artifact that does not
+exist yet 404s every build against that hash.
+
 ## Notes / caveats
 
 - Artifacts are immutable per engine revision (the revision hash is in the path),
