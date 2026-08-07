@@ -98,6 +98,7 @@ words:
   - dlopen
   - dorny # From .github dir, doesn't show up in "**" check?
   - dports
+  - dsdk
   - dyld
   - dylib
   - dylibs

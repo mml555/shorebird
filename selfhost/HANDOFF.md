@@ -88,11 +88,24 @@ is a decision, not an oversight — see [Track C](#track-c--hot-restart).
 
 Four things are knowingly not clean. None blocks the current flows; all are real.
 
-1. **Android icon tree-shaking stays disabled** pending a fork `linux-x64`
-   `const_finder`. [`engine/publish_font_subset.sh`](engine/publish_font_subset.sh)
-   is the macOS equivalent that was fixed — model the Linux one on it.
-   `--no-tree-shake-icons` remains mandatory on a self-built engine until then
-   (invariant 3 below explains why).
+1. **The fork `linux-x64` `const_finder` now EXISTS (2026-08-07); removing
+   `--no-tree-shake-icons` is the one step left.** Built with the fork dart and
+   published inside `760e3fab`'s `linux-x64/font-subset.zip` by
+   [`engine/publish_font_subset.sh --host linux-x64`](engine/publish_font_subset.sh),
+   which now serves both cells. Proven on the box: our SDK **loads** it and
+   **rejects** stock with `Invalid SDK hash`.
+
+   The trap, and it is the whole reason the first attempt failed: `ninja`'s own
+   `const_finder` target compiles with the **prebuilt** dart (`d684a576`), and
+   its output is rejected by our SDK even though the rule passes
+   `-Dsdk_hash=4bd3686914`. **`-Dsdk_hash` is a program define, not the stamp** —
+   the kernel's SDK hash comes from the *compiling VM*. Run upstream's exact
+   command with our dart as the binary and it produces a same-sized,
+   byte-different kernel that loads.
+
+   Still to do: drop `--no-tree-shake-icons` and prove it on a device — bundled
+   into the Android default-path round-trip with caveat 3 below, so one run
+   covers both.
 2. **macOS host-level packet blocking was abandoned.** Tailscale reloads pf and
    flushes any anchor, so a host seal cannot be held there. The *mirror* seal
    carries the proof instead, and it is enforced inside the container regardless

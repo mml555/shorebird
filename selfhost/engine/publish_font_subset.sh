@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# publish_font_subset.sh — publish a fork-compatible darwin-arm64/font-subset.zip.
+# publish_font_subset.sh — publish a fork-compatible <host>/font-subset.zip.
 #
 # WHY THIS EXISTS (found by the first cold-cache warm run, 2026-08-06):
 #
@@ -35,11 +35,36 @@
 #
 # Usage:
 #   publish_font_subset.sh --overlay <dir> --rev <forkEngineHash> \
+#                          [--host darwin-arm64|linux-x64] \
+#                          [--const-finder <file>] \
 #                          [--mirror http://localhost:8085] [--pinned <hash>]
 set -euo pipefail
 
 OVERLAY=""; REV=""; PINNED="69f9831c360d9152862ec3897c67fb09ae843f3b"
 MIRROR="${FLUTTER_STORAGE_BASE_URL:-http://localhost:8085}"
+# Which host cell's font-subset.zip to publish. The two supported cells source
+# their const_finder DIFFERENTLY, which is the whole reason this is a flag:
+#
+#   darwin-arm64  the fork's own artifacts.zip already carries
+#                 const_finder.dart.snapshot, so it is extracted from there.
+#   linux-x64     it does NOT. The fork's linux-x64/artifacts.zip has neither
+#                 const_finder nor font-subset, so the snapshot has to be BUILT
+#                 and handed in with --const-finder.
+#
+# Building it: run upstream's own command (engine
+# build/dart/internal/application_snapshot.gni) but with OUR dart as the
+# compiler, because the kernel's SDK hash comes from the COMPILING VM:
+#
+#   <fork-sdk>/bin/dart --packages=<engine>/flutter/.dart_tool/package_config.json \
+#     --snapshot=<out>.dill --snapshot-kind=kernel -Dsdk_hash=<first10 of rev> \
+#     <engine>/flutter/tools/const_finder/bin/main.dart
+#
+# `-Dsdk_hash` is a program DEFINE, not the stamp — passing it while compiling
+# with the prebuilt dart (d684a576) still yields a kernel our fork SDK rejects.
+# Verified 2026-08-07: ninja's own output was rejected; the same command run
+# with the fork dart produced a byte-different, same-sized kernel that loads.
+HOST="darwin-arm64"
+CONST_FINDER_FILE=""
 # Only some fork engine hashes had const_finder injected into their
 # artifacts.zip. Every fork engine here is built against the SAME Dart SDK
 # (verified: all publish dart-sdk revision 6b58bb3a), and const_finder is a
@@ -58,13 +83,20 @@ while [[ $# -gt 0 ]]; do
     --pinned) PINNED="${2:?}"; shift 2 ;;
     --mirror) MIRROR="${2:?}"; shift 2 ;;
     --const-finder-from) CONST_FINDER_FROM="${2:?}"; shift 2 ;;
+    --host) HOST="${2:?}"; shift 2 ;;
+    --const-finder) CONST_FINDER_FILE="${2:?}"; shift 2 ;;
     -h|--help) sed -n '2,40p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) die "unknown argument: $1" ;;
   esac
 done
 [[ -n "$OVERLAY" && -n "$REV" ]] || die "--overlay and --rev are required"
+case "$HOST" in
+  darwin-arm64) WANT_ARCH="arm64";  SDK_ZIP="dart-sdk-darwin-arm64.zip" ;;
+  linux-x64)    WANT_ARCH="x86-64"; SDK_ZIP="dart-sdk-linux-x64.zip" ;;
+  *) die "unsupported --host '$HOST' (expected darwin-arm64 or linux-x64)" ;;
+esac
 
-SRC_ZIP="$OVERLAY/flutter_infra_release/flutter/$REV/darwin-arm64/artifacts.zip"
+SRC_ZIP="$OVERLAY/flutter_infra_release/flutter/$REV/$HOST/artifacts.zip"
 STAGE="$(mktemp -d)"; trap 'rm -rf "$STAGE"' EXIT
 
 # A hash that does NOT publish our darwin host toolchain must keep the STOCK
@@ -72,27 +104,31 @@ STAGE="$(mktemp -d)"; trap 'rm -rf "$STAGE"' EXIT
 # so the stock kernel is the CONSISTENT one. Publish the pinned archive
 # verbatim rather than leaving the path unpublished — @must_be_local owns it,
 # and an owned-but-absent path is a loud 404.
-if [[ ! -f "$OVERLAY/flutter_infra_release/flutter/$REV/dart-sdk-darwin-arm64.zip" ]]; then
-  note "$REV publishes no darwin host toolchain; mirroring the pinned font-subset verbatim"
-  DEST_DIR="$OVERLAY/flutter_infra_release/flutter/$REV/darwin-arm64"
+if [[ ! -f "$OVERLAY/flutter_infra_release/flutter/$REV/$SDK_ZIP" ]]; then
+  note "$REV publishes no $HOST host toolchain; mirroring the pinned font-subset verbatim"
+  DEST_DIR="$OVERLAY/flutter_infra_release/flutter/$REV/$HOST"
   mkdir -p "$DEST_DIR"
   curl -sfL -o "$DEST_DIR/font-subset.zip" \
-    "$MIRROR/flutter_infra_release/flutter/$PINNED/darwin-arm64/font-subset.zip" \
+    "$MIRROR/flutter_infra_release/flutter/$PINNED/$HOST/font-subset.zip" \
     || die "could not fetch the pinned font-subset.zip from $MIRROR"
   note "wrote $DEST_DIR/font-subset.zip ($(wc -c < "$DEST_DIR/font-subset.zip" | tr -d ' ') bytes, stock const_finder)"
   exit 0
 fi
 
-[[ -f "$SRC_ZIP" ]] || die "no fork artifacts.zip at $SRC_ZIP (publish the engine first)"
-
 CF_REV="$REV"
-if ! unzip -o -q "$SRC_ZIP" const_finder.dart.snapshot -d "$STAGE" 2>/dev/null; then
+if [[ -n "$CONST_FINDER_FILE" ]]; then
+  [[ -r "$CONST_FINDER_FILE" ]] || die "--const-finder $CONST_FINDER_FILE is unreadable"
+  cp -f "$CONST_FINDER_FILE" "$STAGE/const_finder.dart.snapshot"
+  CF_REV="$CONST_FINDER_FILE"
+elif [[ ! -f "$SRC_ZIP" ]]; then
+  die "no fork artifacts.zip at $SRC_ZIP (publish the engine first), and no --const-finder given"
+elif ! unzip -o -q "$SRC_ZIP" const_finder.dart.snapshot -d "$STAGE" 2>/dev/null; then
   [[ -n "$CONST_FINDER_FROM" ]] \
-    || die "$REV/darwin-arm64/artifacts.zip has no const_finder.dart.snapshot; pass --const-finder-from <siblingHash>"
+    || die "$REV/$HOST/artifacts.zip has no const_finder.dart.snapshot; pass --const-finder-from <siblingHash> or --const-finder <file>"
   # Borrowing is only valid when both hashes ship the SAME Dart SDK, because
   # const_finder is keyed by SDK hash. Prove it before using it.
   sdk_rev_of() {
-    unzip -p "$OVERLAY/flutter_infra_release/flutter/$1/dart-sdk-darwin-arm64.zip" \
+    unzip -p "$OVERLAY/flutter_infra_release/flutter/$1/$SDK_ZIP" \
       dart-sdk/revision 2>/dev/null | tr -d '[:space:]'
   }
   a="$(sdk_rev_of "$REV")"; b="$(sdk_rev_of "$CONST_FINDER_FROM")"
@@ -101,22 +137,22 @@ if ! unzip -o -q "$SRC_ZIP" const_finder.dart.snapshot -d "$STAGE" 2>/dev/null; 
   note "dart-sdk match confirmed ($a); borrowing const_finder from $CONST_FINDER_FROM"
   CF_REV="$CONST_FINDER_FROM"
   unzip -o -q \
-    "$OVERLAY/flutter_infra_release/flutter/$CONST_FINDER_FROM/darwin-arm64/artifacts.zip" \
+    "$OVERLAY/flutter_infra_release/flutter/$CONST_FINDER_FROM/$HOST/artifacts.zip" \
     const_finder.dart.snapshot -d "$STAGE" \
-    || die "$CONST_FINDER_FROM/darwin-arm64/artifacts.zip has no const_finder either"
+    || die "$CONST_FINDER_FROM/$HOST/artifacts.zip has no const_finder either"
 fi
 note "const_finder sourced from $CF_REV"
 
-note "fetching upstream font-subset (arm64, not Dart-coupled) via the mirror"
+note "fetching upstream font-subset ($WANT_ARCH, not Dart-coupled) via the mirror"
 curl -sfL -o "$STAGE/upstream.zip" \
-  "$MIRROR/flutter_infra_release/flutter/$PINNED/darwin-arm64/font-subset.zip" \
+  "$MIRROR/flutter_infra_release/flutter/$PINNED/$HOST/font-subset.zip" \
   || die "could not fetch the pinned font-subset.zip from $MIRROR"
 unzip -o -q "$STAGE/upstream.zip" font-subset LICENSE.font_subset.md -d "$STAGE" \
   || die "upstream font-subset.zip is missing expected members"
 
 # Refuse to ship a cross-architecture binary under an arm64 path.
-ARCH="$(file -b "$STAGE/font-subset" | grep -oE 'arm64|x86_64' | head -1)"
-[[ "$ARCH" == "arm64" ]] || die "font-subset is $ARCH, expected arm64 — refusing to publish"
+ARCH="$(file -b "$STAGE/font-subset" | grep -oE 'arm64|x86_64|x86-64' | head -1)"
+[[ "$ARCH" == "$WANT_ARCH" ]] || die "font-subset is $ARCH, expected $WANT_ARCH for $HOST — refusing to publish"
 note "font-subset arch verified: $ARCH"
 
 # Refuse to ship a const_finder our own SDK cannot load.
@@ -130,7 +166,7 @@ else
   note "DART not set; skipping the SDK-hash load check (set DART=<dart-sdk>/bin/dart)"
 fi
 
-DEST_DIR="$OVERLAY/flutter_infra_release/flutter/$REV/darwin-arm64"
+DEST_DIR="$OVERLAY/flutter_infra_release/flutter/$REV/$HOST"
 mkdir -p "$DEST_DIR"
 DEST_DIR="$(cd "$DEST_DIR" && pwd)"   # zip runs from $STAGE; needs an absolute path
 ZIP="$DEST_DIR/font-subset.zip"

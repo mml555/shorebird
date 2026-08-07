@@ -284,7 +284,41 @@ deliberately absent, because a 404 beats a silent toolchain mix).
 | **unprotected** | **0** ✅ | **0** ✅ |
 | verdict | **AUDIT CLEAN** | **AUDIT CLEAN** |
 
-(One `deferred` remains on Android: the Linux `const_finder`, below.)
+No `deferred` items remain: the Linux `const_finder` was built and published on
+2026-08-07 (below).
+
+##### Linux `const_finder` — built, proven, owned
+
+The Android cell's `linux-x64/font-subset.zip` now carries **our**
+`const_finder.dart.snapshot`. Unlike the macOS cell, it could not be extracted
+from anything — the fork's `linux-x64/artifacts.zip` contains neither
+`const_finder` nor `font-subset` — so it had to be built.
+
+The three proofs, run on the build box against the published fork SDK
+(`4bd36869`):
+
+| | result |
+|---|---|
+| fork SDK + **our** const_finder | **loads** (reaches const_finder's own arg parser) |
+| fork SDK + **stock** const_finder | **rejected** — `Can't load Kernel binary: Invalid SDK hash` |
+| `font-subset` binary | ELF x86-64, **0** Dart symbols, harfbuzz present — genuinely Dart-independent, so upstream's is used unchanged |
+
+**The trap worth remembering:** `ninja`'s own `const_finder` target produces a
+kernel our SDK **rejects**, even though the rule passes `-Dsdk_hash=4bd3686914`
+— our fork's revision. `-Dsdk_hash` is a program *define*, not the stamp; the
+kernel's SDK hash comes from the **compiling VM**, and that target compiles with
+the *prebuilt* dart (`d684a576`, the vanilla base). Running upstream's exact
+command with our dart as the binary yields a same-sized, byte-different kernel
+that loads. Building it "the official way" is precisely what fails here.
+
+Protection is scoped to `760e3fab` alone, for the same reason the darwin-arm64
+note gives: only a hash publishing **our** Linux host toolchain may serve our
+const_finder. Any other hash builds with a stock Dart SDK and needs the stock
+one, so falling through is correct there.
+
+Also corrected: HANDOFF claimed the box's Flutter cache carried our
+`dart-sdk (4bd36869)`. It now reads `d684a576`, the vanilla base. The fork SDK
+had to be fetched from the overlay for the proofs.
 
 Both cells' `sky_engine.zip` and `flutter_gpu.zip` were built from **their own**
 verified trees — never copied between hashes — and both are content-identical
