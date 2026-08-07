@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words FLDIR dists rbtest SIGPIPE PIPESTATUS DEFAULTPATH
+# cspell:words FLDIR dists SIGPIPE PIPESTATUS DEFAULTPATH
 # accept_android_default.sh — the Android DEFAULT-PATH acceptance run.
 #
 # One test, no side experiments. It closes two things at once:

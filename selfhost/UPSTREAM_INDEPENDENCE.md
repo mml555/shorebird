@@ -559,6 +559,56 @@ Caveats recorded honestly:
   `const_finder` (see `engine/publish_font_subset.sh` for the macOS
   equivalent that was fixed).
 
+## Final sealed regression — stack VALIDATED, legs BLOCKED on a missing app
+
+### The three-file CDN stack works (validated 2026-08-07)
+
+`docker-compose.cdn.yaml` + `.tlslocal.yaml` + `.sealed.yaml` had never been run
+together. It composes correctly — the two overlays touch **different** mount
+targets (`tls_listen.caddy` and `upstream_gcs.caddy`), so neither clobbers the
+other:
+
+| check | result |
+|---|---|
+| HTTPS listener, CA validation enforced | `200` **from the build box** (see note) |
+| overlay artifact over HTTPS and HTTP | `200` / `200` |
+| deliberately cold upstream path | `502` `sealed: refusing upstream fetch for …` |
+| `audit_overlay.sh`, both cells | **AUDIT CLEAN** |
+
+Note on the first row: the **Mac's** curl does *not* trust the local CA
+(`self signed certificate in certificate chain`); only the box has it, via
+`tls/trust.sh`. That is fine and not worth fixing — the Mac runs the iOS leg,
+which has no Gradle and uses `http://localhost:8085`. HTTPS is only load-bearing
+on the Android leg, where Gradle refuses insecure repos.
+
+**A trap that bit during this validation:** bringing the CDN up with only
+`docker-compose.cdn.yaml` **silently drops the TLS listener**, because HTTPS
+lives in the `tlslocal` OVERLAY. Port 8443 stays published, so it looks alive
+and answers `Connection reset by peer`. Always pass every `-f` the current mode
+needs; `docker inspect … .Mounts` is the check.
+
+### What blocks the legs
+
+The harness requires `--app <flutter app dir>`, and **the iOS acceptance app no
+longer exists on disk.** It lived in a prior session's scratchpad, which has
+been cleaned, and its path was never recorded — the docs only ever say
+`--app <dir>`. The Android app (`rbtest`) is intact on the build box.
+
+So the run cannot be a regression against the same artifact until an iOS test
+app is reconstituted. What that needs, in order:
+
+1. A Flutter app on the Mac with `shorebird.yaml` pointing at `cps-ios`
+   (`http://localhost:18080`) and a `probe.json` asset, matching the shape the
+   assets-only patch check expects.
+2. A **warm** (unsealed) full iOS run to populate the mirror cache and seed
+   `AIRGAP_PUB_CACHE` — "warm" is defined by executing the workflow, never by a
+   URL list.
+3. Then the sealed run, both legs.
+
+Also unrecorded and worth fixing when this is set up: the value of
+`AIRGAP_PUB_CACHE` used by the passing 2026-08-06 run. `~/.pub-cache` (3.8 GB)
+exists and is the likely seed, but that is an inference, not a record.
+
 ## The test itself
 
 The test — now **implemented** at [`scripts/airgap_run.sh`](scripts/airgap_run.sh)

@@ -260,6 +260,7 @@ words:
   - pubspec
   - pwsh
   - quantiles
+  - rbtest
   - rdata
   - reactivecircus # From .github dir, doesn't show up in "**" check?
   - readlink
