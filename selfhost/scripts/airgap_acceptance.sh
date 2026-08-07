@@ -370,6 +370,35 @@ PATCHED='{"origin": "PATCHED-AIRGAP"}'
 
 ios_release_patch() {
   cd "$APP_DIR"
+
+  # Refuse to build for an endpoint that has since moved. base_url is baked
+  # into flutter_assets, so a drift between preparation and launch produces an
+  # IPA carrying a dead address — which is exactly how a 15-minute build was
+  # thrown away on 2026-08-07. prepare_ios_endpoint.sh stamps what it
+  # configured; the fixture must still agree with it.
+  local stamp="$AIRGAP_REPO/selfhost/fixtures/airgap/endpoint.stamp"
+  if [[ -r "$stamp" ]]; then
+    local want have
+    want="$(tr -d '[:space:]' < "$stamp")"
+    have="$(awk '/^base_url:/{print $2}' shorebird.yaml 2>/dev/null)"
+    if [[ "$want" != "$have" ]]; then
+      echo "endpoint drift: fixture says '$have', prepared endpoint is '$want'" >&2
+      echo "  Re-run: selfhost/scripts/prepare_ios_endpoint.sh --mode lan" >&2
+      return 1
+    fi
+    echo "endpoint: $have (matches the prepared stamp)"
+    # And it must still be the endpoint the SERVER advertises, or uploads hang.
+    local adv
+    adv="$(docker inspect "${AIRGAP_CPS_CONTAINER:-cps-ios}" \
+           --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null \
+           | awk -F= '/^PUBLIC_BASE_URL=/{print substr($0, index($0,"=")+1)}')"
+    if [[ -n "$adv" && "$adv" != "$want" ]]; then
+      echo "control plane advertises '$adv' but the fixture targets '$want'" >&2
+      echo "  Re-run: selfhost/scripts/prepare_ios_endpoint.sh --mode lan" >&2
+      return 1
+    fi
+  fi
+
   switch_engine || return 1
   # Always start from the baseline asset, whatever a previous run left behind.
   printf '%s\n' "$BAKED" > assets/probe.json
