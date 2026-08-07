@@ -11,34 +11,50 @@ ignorePaths:
     # Vendored upstream source (pinned Flutter fork + updater). Third-party
     # prose and identifiers we don't author and shouldn't be gating on.
     "vendor",
+    # The bare Git mirror of shorebirdtech/flutter. Linting this means linting
+    # Git's own internal storage — packed-refs, and the sample hooks Git ships
+    # (sendemail-validate, update, pre-receive...). It is not project prose or
+    # source, and it accounted for most of the noise that made
+    # `npx cspell selfhost` unable to pass.
+    "selfhost/cdn/mirrors/**",
   ]
 words:
   - aabs
   - aapt
   - aarch
   - aars # Android Archive
+  - accerr
+  - agbridge
   - agentic
   - aidl # Android AIDL interface definition files
+  - airgap
+  - allowanysha
+  - allowfilter
   - allprojects # From gradle files
   - altool
   - ANDROIDD
+  - androidx
   - apigee
   - Apks
   - APPB
   - appbundle
   - appex
+  - appspot
   - appuser
   - archs
+  - argdesc
   - armeabi
   - AUTOINCREMENT
   - Azul
   - backboardd
   - BADUP
   - bdero
+  - bidiff
   - bintools
   - bipatch
   - bitcode
   - bitrise # Bitrise CI platform
+  - bkeys
   - Brody
   - bryanoltman
   - buildroot
@@ -46,8 +62,12 @@ words:
   - buildx # docker buildx, .github/workflows/release_code_push_server.yaml
   - bundletool
   - byteranges
+  - caddyserver
+  - callsite
   - cdylib
+  - charp
   - columnized
+  - comde
   - creds
   - CURLF
   - cutover
@@ -62,6 +82,8 @@ words:
   - codesigned
   - codesigning
   - createbuckets # MinIO bucket-init service in docker-compose.prod.yaml
+  - darkweak
+  - dartaotruntime
   - DBPW
   - Dedup
   - dedupe
@@ -71,20 +93,26 @@ words:
   - devicectl
   - dlopen
   - dorny # From .github dir, doesn't show up in "**" check?
+  - dports
   - dyld
   - dylib
   - dylibs
+  - dynmod
   - eaec
+  - elems
   - embedders
   - endtemplate
   - Entra
   - eseidel
+  - exifinterface
   - exitcode
   - exportoptions
   - Fastly
   - felangel
   - finalizer
+  - firewalled
   - Flocalhost
+  - flrev
   - FLUSHALL
   - flutterapp
   - gclient
@@ -92,10 +120,15 @@ words:
   - genkey # From .github/workflows/e2e.yaml
   - genpkey
   - getifaddr
+  - getkeepsafe
   - googlesource
   - googleusercontent
+  - gotoolchain
   - gradlew
+  - greppable
+  - greppably
   - gsutil
+  - harfbuzz
   - healthcheck
   - healthz # liveness endpoint
   - HMAC # signed artifact download URLs
@@ -104,19 +137,26 @@ words:
   - idempotently
   - idevicescreenshot
   - idevicesyslog
+  - iface
+  - immediates
   - incrbyfloat # From ./packages/redis_client
+  - inlines
   - intptr
   - ints
+  - inwant
   - iokit
   - iphoneos
   - isatty
   - isready
   - kcpw
+  - keepalive
   - keyalg # From .github/workflows/e2e.yaml
   - keypair
   - keypass # From .github/workflows/e2e.yaml
   - keysize # From .github/workflows/e2e.yaml
   - keytool # From .github/workflows/e2e.yaml
+  - killgate
+  - klass
   - lede
   - lerping
   - libapp
@@ -139,11 +179,16 @@ words:
   - lookback # active-hours "best time to release" lookback window
   - lproj
   - madd # From ./packages/redis_client
+  - malloc
   - mbps
+  - memcpy
+  - menachems
+  - mendell
   - metacharacters
   - mget # From ./packages/redis_client
   - metadatas
   - MINPW
+  - mislink
   - mktemp
   - mmap # Unix system call — referenced in RELEASE_NOTES (libapp.so mmap-from-APK)
   - mobileprovision
@@ -151,11 +196,20 @@ words:
   - mocktail
   - mset # From ./packages/redis_client
   - msvc
+  - mult
   - multioption
+  - multiport
+  - multiset
+  - netns
+  - newermt
   - noaudio # From .github dir, doesn't show up in "**" check?
   - NOAUTH
+  - nodm
+  - nohup
+  - nolint
   - nologin
   - nonobvious # From analysis_options.yaml
+  - nopasswd
   - notafile
   - nserror
   - nullptr
@@ -168,19 +222,24 @@ words:
   - outform
   - ownr
   - parseable
+  - passwordless
   - patchability
   - pana
   - PATCHID
   - pbxproj
+  - pfctl
   - pinact # Third-party action-pinning tool referenced in shorebird_ci
   - Perfetto # Chrome trace viewer at ui.perfetto.dev
   - PITR
   - pkcs
+  - pkeys
   - plutil
   - podfile
   - podspec
   - pointycastle
   - precache
+  - precaches
+  - precompiler
   - preflighting
   - prereq
   - Prereqs
@@ -201,10 +260,14 @@ words:
   - realkey
   - recompiles
   - redirector
+  - regenerable
   - reimplementation
   - reinit
   - RELID
+  - relinker
   - rels
+  - repoint
+  - repointed
   - repointing
   - repoints
   - requirepass # From .github dir, doesn't show up in "**" check?
@@ -215,12 +278,16 @@ words:
   - reusables
   - rlib
   - rustup
+  - safepoint
   - screencap
   - SCRIPTDIR
+  - segv
   - serde
   - setval
   - shellcheck
+  - signo
   - Skia
+  - souin
   - spawnee
   - Retryable
   - RSAPKCS
@@ -259,11 +326,13 @@ words:
   - temurin # From .github dir, doesn't show up in "**" check?
   - timebase # Mach timebase (mach_timebase_info)
   - TIMESTAMPTZ
+  - tlslocal
   - transactionally
   - triggerable
   - trunc
   - udevadm # From .github/workflows/e2e.yaml
   - udid # Unique Device Identifier
+  - ugrep
   - unanalyzed
   - unawaited
   - cacerts
@@ -276,8 +345,11 @@ words:
   - embedder
   - rodata
   - unfailable
+  - unfetchable
+  - unkeyed
   - unwritable
   - unsymbolicated
+  - uploadpack
   - virt
   - unittests
   - unixepoch
