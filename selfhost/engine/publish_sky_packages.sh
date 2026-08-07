@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words lsha ssha
+# cspell:words lsha ssha SIGPIPEs
 # publish_sky_packages.sh — own sky_engine.zip and flutter_gpu.zip for one of
 # our engine hashes, instead of letting them fall through to stock.
 #
@@ -45,12 +45,13 @@ HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 OVERLAY="$HERE/../cdn/overlay"
 MIRROR="http://localhost:8085"
 PINNED="69f9831c360d9152862ec3897c67fb09ae843f3b"
-HASH=""; ENGINE_OUT=""; SKY_ZIP=""; GPU_ZIP=""
+HASH=""; ENGINE_OUT=""; ENGINE_SRC=""; SKY_ZIP=""; GPU_ZIP=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --hash) HASH="${2:?}"; shift 2 ;;
     --engine-out) ENGINE_OUT="${2:?}"; shift 2 ;;
+    --engine-src) ENGINE_SRC="${2:?}"; shift 2 ;;
     --overlay) OVERLAY="${2:?}"; shift 2 ;;
     --mirror) MIRROR="${2:?}"; shift 2 ;;
     --pinned-hash) PINNED="${2:?}"; shift 2 ;;
@@ -62,6 +63,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n "$HASH" ]] || { echo "ERROR: --hash is required" >&2; exit 2; }
+# <engine-src> is the `src` dir; <engine-out> is src/out/<config> under it.
+# Derive one from the other so callers normally pass only --engine-out.
+if [[ -z "$ENGINE_SRC" && -n "$ENGINE_OUT" ]]; then
+  ENGINE_SRC="$(cd -- "$ENGINE_OUT/../.." >/dev/null 2>&1 && pwd || true)"
+fi
 [[ -d "$OVERLAY" ]] || { echo "ERROR: no overlay at $OVERLAY" >&2; exit 2; }
 command -v unzip >/dev/null || { echo "ERROR: unzip is required" >&2; exit 2; }
 
@@ -74,27 +80,65 @@ REPORT="$INFRA/sky_packages_provenance.txt"
 : > "$WORK/report"
 
 # --- Locate the local copy ---------------------------------------------------
-# Preference order, and each is a real place these land depending on how the
-# tree was built. An explicit --sky-zip/--gpu-zip always wins.
-locate_zip() {  # locate_zip <name> <explicit-or-empty> ; echoes a zip path
-  local name="$1" explicit="$2"
+# An explicit --sky-zip/--gpu-zip always wins; otherwise this is the order.
+#
+# VERIFIED AGAINST A REAL TREE 2026-08-07 (the Android build box). The two
+# packages come from DIFFERENT places, which an earlier version of this script
+# got wrong by assuming both were under gen/dart-pkg:
+#
+#   sky_engine   <out>/gen/dart-pkg/sky_engine      288 files — build output
+#                (dart:ui + the Dart SDK patch sources)
+#   flutter_gpu  <src>/flutter/lib/gpu               34 files — SOURCE dir,
+#                packaged as flutter_gpu/. It has no build output at all; the
+#                published zip is the .cc/.h/.dart sources verbatim.
+#
+# Both file lists were diffed against the stock zips and match exactly.
+#
+# Both published zips also carry a root LICENSE.zip_old_location.md, a
+# licensing POINTER (it names the upstream flutter/engine revision where the
+# LICENSE lives). We copy stock's verbatim rather than synthesize one: it is a
+# statement about where the license is hosted, not a provenance claim, and
+# rewriting it would misstate that. Our provenance claim lives in
+# sky_packages_provenance.txt and provenance.yaml.
+src_dir_for() {  # src_dir_for <name> ; echoes the directory to package, or nothing
+  local name="$1"
+  case "$name" in
+    sky_engine)  [[ -n "$ENGINE_OUT" ]] && printf '%s' "$ENGINE_OUT/gen/dart-pkg/sky_engine" ;;
+    flutter_gpu) [[ -n "$ENGINE_SRC" ]] && printf '%s' "$ENGINE_SRC/flutter/lib/gpu" ;;
+  esac
+}
+
+locate_zip() {  # locate_zip <name> <explicit-or-empty> <stock-zip-or-empty>
+  local name="$1" explicit="$2" stock="$3" pkg
   if [[ -n "$explicit" ]]; then
-    [[ -r "$explicit" ]] || { echo "ERROR: --${name%_*}-zip $explicit is unreadable" >&2; return 1; }
+    [[ -r "$explicit" ]] || { echo "ERROR: explicit zip $explicit is unreadable" >&2; return 1; }
     printf '%s' "$explicit"; return 0
   fi
-  [[ -n "$ENGINE_OUT" ]] || return 1
-  # 1. GN already built the archive.
-  if [[ -r "$ENGINE_OUT/zip_archives/$name.zip" ]]; then
+  # 1. GN already built the archive (not the case on either host today, but
+  #    cheap to prefer if a future config does emit it).
+  if [[ -n "$ENGINE_OUT" && -r "$ENGINE_OUT/zip_archives/$name.zip" ]]; then
     printf '%s' "$ENGINE_OUT/zip_archives/$name.zip"; return 0
   fi
-  # 2. Only the package tree exists — build the archive ourselves, matching the
-  #    published layout: entries are "<name>/..." relative to the parent dir.
-  local pkg="$ENGINE_OUT/gen/dart-pkg/$name"
-  if [[ -d "$pkg" ]]; then
-    ( cd "$(dirname "$pkg")" && zip -qr "$WORK/$name.zip" "$name" )
-    printf '%s' "$WORK/$name.zip"; return 0
-  fi
-  return 1
+  # 2. Build it from the directory, matching the published layout: entries are
+  #    "<name>/..." relative to a staging root.
+  pkg="$(src_dir_for "$name")"
+  [[ -n "$pkg" && -d "$pkg" ]] || return 1
+  rm -rf "$WORK/stage-$name"; mkdir -p "$WORK/stage-$name"
+  cp -R "$pkg" "$WORK/stage-$name/$name"
+  # Capture the listing into a variable rather than piping into `grep -q`.
+  # Under `set -o pipefail`, grep -q exits on the FIRST match and SIGPIPEs
+  # unzip (141), which pipefail then reports as the pipeline's status — so the
+  # test reads false. It only misfires on a listing long enough that grep wins
+  # the race, which is why sky_engine (289 entries) silently lost its LICENSE
+  # pointer while flutter_gpu (35) kept it. Observed for real, 2026-08-07.
+  local listing=""
+  [[ -n "$stock" ]] && listing="$(unzip -Z1 "$stock" 2>/dev/null || true)"
+  case "$listing" in
+    *LICENSE.zip_old_location.md*)
+      unzip -qq -o "$stock" 'LICENSE.zip_old_location.md' -d "$WORK/stage-$name" ;;
+  esac
+  ( cd "$WORK/stage-$name" && zip -qr "$WORK/$name.zip" . )
+  printf '%s' "$WORK/$name.zip"; return 0
 }
 
 # --- Compare against stock ---------------------------------------------------
@@ -119,23 +163,25 @@ publish_one() {  # publish_one <name> <explicit-zip>
   local name="$1" explicit="$2" local_zip stock_zip rc
   echo "--- $name"
 
-  if ! local_zip="$(locate_zip "$name" "$explicit")"; then
-    echo "  ERROR: could not find $name locally." >&2
-    echo "         Looked for: \$ENGINE_OUT/zip_archives/$name.zip" >&2
-    echo "                 and \$ENGINE_OUT/gen/dart-pkg/$name/" >&2
-    echo "         Pass --${name%_*}-zip <path> if it lives elsewhere in this tree." >&2
-    return 1
-  fi
-  echo "  local:  $local_zip"
-
+  # Stock comes FIRST: besides the comparison, it supplies the root
+  # LICENSE.zip_old_location.md when we have to build the archive ourselves.
   stock_zip="$WORK/stock-$name.zip"
   if curl -fsSL "$MIRROR/flutter_infra_release/flutter/$PINNED/$name.zip" -o "$stock_zip"; then
     echo "  stock:  $MIRROR/.../$PINNED/$name.zip"
   else
-    echo "  WARN: could not fetch stock $name for comparison — publishing anyway," >&2
-    echo "        with the comparison recorded as 'not performed'." >&2
+    echo "  WARN: could not fetch stock $name — publishing anyway, comparison" >&2
+    echo "        recorded as 'not performed' and the LICENSE pointer omitted." >&2
     stock_zip=""
   fi
+
+  if ! local_zip="$(locate_zip "$name" "$explicit" "$stock_zip")"; then
+    echo "  ERROR: could not find $name locally." >&2
+    echo "         Looked for: \$ENGINE_OUT/zip_archives/$name.zip" >&2
+    echo "                 and $(src_dir_for "$name" || echo '<no source dir known>')" >&2
+    echo "         Pass --sky-zip / --gpu-zip <path> if it lives elsewhere." >&2
+    return 1
+  fi
+  echo "  local:  $local_zip"
 
   local lsha ssha content byte
   lsha="$(sha "$local_zip")"

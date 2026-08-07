@@ -80,6 +80,24 @@ route_owns() {  # route_owns <overlay-relative-path>
   printf '/%s' "$1" | grep -qE "$ROUTE_RE"
 }
 
+# Which OTHER mapped engine hashes lack this artifact? Protection is global —
+# @must_be_local matches [0-9a-f]{40} rather than a specific hash — so a path
+# is only safe to protect once every mapped hash has the bytes.
+HASH_MAP="${HASH_MAP:-$HERE/experimental_hashes.map}"
+missing_on_other_hashes() {  # missing_on_other_hashes <this-hash's path>
+  local path="$1" rest other line
+  [[ -r "$HASH_MAP" ]] || return 0
+  case "$path" in flutter_infra_release/flutter/"$HASH"/*) ;; *) return 0 ;; esac
+  rest="${path#flutter_infra_release/flutter/"$HASH"/}"
+  while IFS= read -r line; do
+    other="$(printf '%s' "$line" | grep -oE '^[0-9a-f]{40}')" || true
+    [[ -n "$other" && "$other" != "$HASH" ]] || continue
+    if [[ ! -e "$OVERLAY/flutter_infra_release/flutter/$other/$rest" ]]; then
+      printf '                    %s  (no %s)\n' "${other:0:8}" "$rest"
+    fi
+  done < "$HASH_MAP"
+}
+
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 FINDINGS="$WORK/findings"; : > "$FINDINGS"
 ROWS="$WORK/rows"; : > "$ROWS"
@@ -140,6 +158,16 @@ while IFS= read -r line; do
         printf 'UNPROTECTED       %s\n                  owned by policy but @must_be_local does not match it: a miss serves STOCK bytes from the pinned hash instead of 404ing\n' "$path" >> "$FINDINGS"
         if [[ $present -eq 0 ]]; then
           printf '                  FIX ORDER: publish the bytes FIRST, then add the path to @must_be_local. Protecting an absent artifact 404s every build against this hash.\n' >> "$FINDINGS"
+        else
+          # Protection is GLOBAL. @must_be_local matches [0-9a-f]{40}, so
+          # adding a path protects it for EVERY mapped hash at once — and any
+          # mapped hash lacking the bytes starts 404ing the moment you do.
+          # Publishing for this cell is therefore not sufficient to make
+          # protecting safe. Name the hashes that would break.
+          blockers="$(missing_on_other_hashes "$path")"
+          if [[ -n "$blockers" ]]; then
+            printf '                  NOT SAFE TO PROTECT YET — @must_be_local matches ANY hash, so protecting\n                  this path 404s it for every mapped hash that lacks the bytes:\n%s\n' "$blockers" >> "$FINDINGS"
+          fi
         fi
       fi ;;
     compat-mirrored)

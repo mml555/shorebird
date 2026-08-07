@@ -108,9 +108,20 @@
 	#
 	# NOT owned, and deliberately so for now: sky_engine.zip and
 	# flutter_gpu.zip. Policy says we should own both (they are namespaced by
-	# engine revision and carry Dart-facing engine API source), but the bytes
-	# are not published yet. PUBLISH FIRST, THEN ADD THE PATHS HERE — protecting
-	# an absent artifact 404s every build against a custom hash.
+	# engine revision and carry Dart-facing engine API source), and 760e3fab
+	# now HAS them (published 2026-08-07 from the verified Android tree,
+	# content-identical to stock). They are still not protected here because
+	# PROTECTION IS GLOBAL:
+	#
+	#   the alternation matches [0-9a-f]{40}, i.e. ANY mapped hash. Adding
+	#   sky_engine.zip here protects it for all seven mapped hashes at once,
+	#   and the six that do not have the bytes — INCLUDING THE LIVE iOS ENGINE
+	#   70974f81 — would start 404ing it and fail every build.
+	#
+	# So: publish for every mapped hash you care about FIRST, then protect.
+	# `selfhost/cdn/audit_overlay.sh` prints exactly which hashes are still
+	# missing an artifact before you protect it; do not add paths here while it
+	# is still saying NOT SAFE TO PROTECT YET.
 	#
 	# Flow B IS owned for experimental hashes: the patch differ zips are built by
 	# selfhost/engine/publish_patch_tool.sh, artifacts_manifest.yaml is written

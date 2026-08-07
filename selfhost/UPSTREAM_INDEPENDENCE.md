@@ -272,7 +272,7 @@ tree-*independent*), `compat-mirrored` (stock, for a cell we do not build —
 **never** supports a self-built claim), and `denied` (route-protected and
 deliberately absent, because a 404 beats a silent toolchain mix).
 
-#### Audit as of 2026-08-06 — both cells FAIL on the same two artifacts
+#### Audit as of 2026-08-07 — Android cell has its bytes; iOS cell still blocked
 
 | | linux-android (`760e3fab`) | macos-ios (`70974f81`) |
 |---|---|---|
@@ -280,7 +280,42 @@ deliberately absent, because a 404 beats a silent toolchain mix).
 | owned-mirrored | 7 | 0 |
 | compat-mirrored | 1 | 1 |
 | denied | 6 | 4 |
-| **missing-required** | **2** | **2** |
+| **missing-required** | **0** ✅ | **2** |
+
+**Android, done 2026-08-07.** `sky_engine.zip` and `flutter_gpu.zip` published
+under `760e3fab` from the VPS tree, both **content-identical to stock** (zip
+bytes differ, which is expected and meaningless — mtimes and entry order). Two
+gates were checked before publishing, and both passed: the tree's
+`artifacts.zip` is byte-identical to the published engine (`ecdcb458…`), so it
+really is the tree that produced `760e3fab`; and its Dart checkout has no
+`sdk/lib` modifications, which is why content-identical is the *correct*
+outcome rather than a suspicious one. Recorded in
+`overlay/…/760e3fab…/sky_packages_provenance.txt`.
+
+**iOS is blocked on hardware, not on knowledge**: `/Volumes/build` (the
+external SSD holding the iOS engine tree) is not mounted. Same command once it
+is.
+
+Three things learned by running it for real, none of which were guessable:
+
+1. **The two packages come from different places.** `sky_engine` is build
+   output (`out/<config>/gen/dart-pkg/sky_engine`, 288 files); `flutter_gpu`
+   has **no build output at all** — the published zip is the source directory
+   `flutter/lib/gpu` (34 files) packaged verbatim. File lists were diffed
+   against stock and match exactly.
+2. **Both zips carry a root `LICENSE.zip_old_location.md`**, a licensing
+   pointer naming the upstream flutter/engine revision. We copy stock's
+   verbatim; it states where the LICENSE is hosted, and rewriting it would
+   misstate that. (It also independently corroborates that `83675ed2…` is the
+   upstream Flutter base — see the item 9 correction above.)
+3. **Protection is GLOBAL, and that changes the order of work.**
+   `@must_be_local` matches `[0-9a-f]{40}`, so protecting `sky_engine.zip`
+   protects it for **all seven mapped hashes at once**. Six of them do not have
+   the bytes — including the live iOS engine `70974f81` — so protecting after
+   only the Android publish would 404 the artifact for iOS and break every iOS
+   build. The per-cell plan does not survive contact with a hash-generic
+   matcher. `audit_overlay.sh` now detects this and prints **NOT SAFE TO
+   PROTECT YET** with the offending hashes named.
 
 Both misses are the same pair, and both were **invisible before the audit
 existed**: `sky_engine.zip` and `flutter_gpu.zip`. They are
