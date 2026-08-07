@@ -196,6 +196,7 @@ words:
   - mocktail
   - mset # From ./packages/redis_client
   - msvc
+  - mtimes
   - mult
   - multioption
   - multiport

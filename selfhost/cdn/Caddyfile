@@ -88,15 +88,23 @@
 	# copies, and with selfhost/cdn/artifact_policy.conf, which is the written
 	# ownership policy. selfhost/cdn/audit_overlay.sh checks all three agree.
 	#
-	# CORRECTION 2026-08-06: this comment used to say
-	# "Deliberately NOT owned: android-arm64-release/{darwin,windows}-*.zip".
-	# That was false — `android-arm64-release/` in the alternation below has no
-	# `$` anchor, so it matches EVERY file under that prefix, those two
-	# included, and they 404. The behavior is right (a stock host gen_snapshot
-	# served against our engine is the fork mix dart_sdk_compatibility.dart
-	# exists to refuse) and it is now what artifact_policy.conf records, as
-	# `denied`. Only the comment was wrong. Flow B's patch-windows-x64.zip IS
-	# genuinely unowned and falls through — recorded gap, no Windows builder.
+	# DO NOT "FIX" THE MISSING $ ANCHOR AFTER android-arm64-release/ —
+	# the darwin-x64.zip and windows-x64.zip 404s are INTENTIONAL.
+	#
+	# `android-arm64-release/` in the alternation below has no `$` anchor, so it
+	# matches every file under that prefix, including the darwin-x64 and
+	# windows-x64 HOST GEN_SNAPSHOTS. Those are `denied` in
+	# artifact_policy.conf: not part of the supported build matrix, so a
+	# custom-engine request must FAIL rather than fall through to stock.
+	# Pairing a stock host compiler with our engine is the fork mix
+	# dart_sdk_compatibility.dart exists to refuse, and it compiles cleanly
+	# before failing on the device — so "it built" would prove nothing.
+	# Anchoring the prefix would silently re-enable that fallback. Leave it.
+	#
+	# (This comment previously claimed those two were "deliberately NOT owned",
+	# which was the opposite of what the regex does. Behavior was right, comment
+	# was wrong. Flow B's patch-windows-x64.zip IS genuinely unowned and does
+	# fall through — recorded gap, no Windows builder.)
 	#
 	# NOT owned, and deliberately so for now: sky_engine.zip and
 	# flutter_gpu.zip. Policy says we should own both (they are namespaced by

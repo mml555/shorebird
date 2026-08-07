@@ -302,7 +302,7 @@ Four states, because two is not enough to describe what is actually going on:
 | `owned-built` | Produced from our tree and validated | **Yes** |
 | `owned-mirrored` | Served by us, sourced upstream because the artifact is tree-*independent* | No — we serve it, we did not compile it |
 | `compat-mirrored` | Stock, kept only for a platform/cell we do not build | **Never** |
-| `denied` | Route-protected and deliberately absent: 404 is the right answer | n/a |
+| `denied` | Not in the supported build matrix — custom-engine requests must fail rather than fall through to stock | n/a |
 
 `denied` exists because silent cross-toolchain mixing is worse than a loud
 failure. Stock `font-subset.zip` extracts into the same cache directory as
@@ -331,6 +331,35 @@ description of our hash.
 **Fix order, when the audit reports `UNPROTECTED`: publish the bytes first,
 then add the path to `@must_be_local`.** Protecting an artifact that does not
 exist yet 404s every build against that hash.
+
+### Closing the two open gaps
+
+`sky_engine.zip` and `flutter_gpu.zip` are the current `missing-required` on
+both cells. Run this on the build host for that cell, from the tree that
+produced the verified engine:
+
+```bash
+selfhost/engine/publish_sky_packages.sh --hash <hash> --engine-out <engine>/src/out/<config>
+selfhost/cdn/audit_overlay.sh --hash <hash> --cell <cell>     # missing-required: 0
+# only NOW add sky_engine\.zip$|flutter_gpu\.zip$ to @must_be_local
+selfhost/cdn/audit_overlay.sh --hash <hash> --cell <cell>     # AUDIT CLEAN
+```
+
+It fetches stock through the mirror, compares **content** (the extracted tree,
+file by file) rather than zip bytes — zip byte identity moves with mtimes and
+entry order and means little — records both hashes plus the verdict in
+`sky_packages_provenance.txt`, and publishes ours either way. Equality is a
+fact to record, never a reason to skip: publishing removes fallback from the
+correctness path. Do not copy these between engine hashes even when they
+compare equal; they are engine-revision namespaced and they are 1.5 MB and
+49 KB.
+
+[`engine/generate_manifest.sh`](../engine/generate_manifest.sh) writes
+`artifacts_manifest.yaml` for a custom hash from explicit inputs. It exists
+because the two cells were carrying manifests from two different upstream
+scripts that disagreed about `flutter_engine_revision` — one naming the
+upstream Flutter base (correct), one naming its own custom hash. The script
+refuses a base manifest that names the hash being generated for.
 
 ## Notes / caveats
 
