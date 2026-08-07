@@ -95,6 +95,30 @@ the app displays.
 `AIRGAP_SKIP_DEVICE=1` publishes without verifying, and says so loudly. A PASS
 under that flag means publication succeeded and nothing more.
 
+## iOS: two plist keys the beacon cannot work without
+
+The control plane lives on the Mac at a **link-local address over cleartext
+HTTP**, and iOS blocks both by default. `prepare_airgap_fixture.sh` injects
+these into `ios/Runner/Info.plist` every time it regenerates the project:
+
+| key | why |
+|---|---|
+| `NSLocalNetworkUsageDescription` | iOS 14+ gates local-network access behind a permission. Absent the key, it is denied. |
+| `NSAppTransportSecurity.NSAllowsLocalNetworking` | ATS blocks cleartext HTTP. This narrow form permits it for local addresses only — deliberately **not** `NSAllowsArbitraryLoads`, which would disable ATS wholesale. |
+
+**Both fail silently.** The app renders perfectly and the request simply never
+arrives, so it presents as "the beacon is broken" rather than as a permission
+problem. That cost a diagnostic cycle on 2026-08-07.
+
+The trap worth remembering:
+
+> **The native Shorebird updater reaching the control plane does NOT prove
+> Dart-side networking can.**
+
+The updater has its own HTTP stack and does not go through the same policy
+surface. A log full of healthy `POST /api/v1/patches/check` from the device
+tells you nothing about whether `dart:io` can reach the same URL.
+
 ## Abandoned releases
 
 **`1.1.0+1` (release id 40) on `cps-ios` is abandoned.** It was created by the

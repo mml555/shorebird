@@ -310,7 +310,11 @@ launch_fixture() {  # launch_fixture — install and run the fixture on the devi
   # Hold the attach instead and kill it once the app has had time to beacon.
   ios-deploy --bundle "$app" ${DEVICE:+--id "$DEVICE"} --noninteractive > "$log" 2>&1 &
   local pid=$!
-  sleep "${AIRGAP_LAUNCH_SECONDS:-25}"
+  # 25s was too tight: ios-deploy INSTALLS on every launch (~20s on this rig)
+  # before the app even starts, so the hold has to cover install + first frame +
+  # the beacon round trip. Measured ~28s to a rendered frame; 45 leaves room
+  # without making a passing run slow.
+  sleep "${AIRGAP_LAUNCH_SECONDS:-45}"
   kill "$pid" >/dev/null 2>&1 || true
   wait "$pid" 2>/dev/null || true
 
