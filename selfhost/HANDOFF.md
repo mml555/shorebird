@@ -1,8 +1,113 @@
 <!-- cspell:words dartsdk prebuilts bidiff vmcode aot daemonized crashprobe jewgo azureuser sshkey serverinfo -->
 <!-- cspell:words APFS CODEPATCH PRECOMPILER Werror caffeinate dartaotruntime SEGVs Specializer diskutil dumpsys flowgraph iface killgate libdart nodm nofail precompiler unapply -->
 <!-- cspell:words tearoff DNDEBUG SEGV LINKEDIT ourengine noinstall SELTOTAL hosttest unrun closurizing closurized closurize closurization bodyless pids footgun mtimes repointed rbtest Devirtualization genkernel misparse -->
+<!-- cspell:words airgap justlaunch noninteractive SIGTRAP dynmod absolutized -->
 
-# Handoff — engine improvements (as of 2026-08-04)
+# Handoff — engine improvements (as of 2026-08-06)
+
+## Current state — 2026-08-06. READ THIS SECTION BEFORE ANY OTHER
+
+Everything below this section is a dated working log, kept because the evidence
+chains and the traps are worth reading. **Where it disagrees with this section,
+this section wins.** Several older passages describe problems that are now
+solved; they are marked where they matter, but do not go re-opening a question
+because a 2026-08-04 paragraph phrases it as open.
+
+### The capability statement (authoritative — do not restate it more warmly)
+
+> **Android Dart code push and iOS asset push are complete and independent.
+> iOS Dart code push has a selected, de-risked architecture, but the production
+> compiler/runtime integration has not been built yet.**
+
+*Selected is not built.* Two kill-gate spikes passed and Route B was chosen on
+that evidence; the harness proved the *mechanism*, and produced no shippable
+path. Anything that reads like progress toward a working iOS code-push feature
+is wrong.
+
+### The boundary that was crossed
+
+**Independence is proven for the supported current flows.** Parity work is now a
+separate iOS code-push project, not a continuation of this one.
+
+The sealed air-gap acceptance run **PASSED on both platforms, 2026-08-06** —
+from an empty `bin/cache`, isolated caches (`PUB_CACHE`, `GRADLE_USER_HOME`,
+`XDG_CACHE_HOME`, `TMPDIR`), with the mirror refusing every upstream fetch:
+
+| Leg | Engine | Release | Patch | Stages | Isolation |
+|---|---|---|---|---|---|
+| iOS (macOS) | `70974f81` | `34.0.0+1` | 1 | bootstrap / ios / post-checks **PASS** | **OK** |
+| Android (Linux) | `760e3fab` | `1.5.0+1` | 1 | bootstrap / android / post-checks **PASS** | **OK** |
+
+Zero blocking refusals. Everything refused was the harness's own probe or
+`android-x86`, an ABI nothing here ships. **No `aot-tools.dill` refusal on
+either leg** — the assets-only iOS path really does not ask for it.
+
+The criterion is *"nothing CLOSED is required"*, **not "no network"**. GitHub and
+pub.dev stayed reachable and are reported as such. Depending on open-source
+infrastructure is fine; we mirror it for durability, not because reaching it is a
+failure. Do not "strengthen" this test into a no-network one — that was
+considered and rejected.
+
+Harness: [`scripts/airgap_run.sh`](scripts/airgap_run.sh) driving
+[`scripts/airgap_acceptance.sh`](scripts/airgap_acceptance.sh), post-checked by
+[`cdn/verify_warm.sh`](cdn/verify_warm.sh).
+
+### Independence inventory: 7 of 10 built
+
+Full detail in [`UPSTREAM_INDEPENDENCE.md`](UPSTREAM_INDEPENDENCE.md), which is
+the tracker of record.
+
+| Items | Status |
+|---|---|
+| 1 control plane, 2 Dart fork replacement, 3 prebuilt SDK, 4 CLI, 5 bundletool, 6 `patch` differ | **Built** ✅ |
+| 10 `shorebirdtech/flutter` git | **Built ✅ for CLI bootstrap** — durable private mirror at `mml555/shorebird-flutter-mirror` (1779 refs, pushed 2026-08-06), and the restore is **verified**, not plausible. ◐ engine builds still want a reachable gclient remote |
+| 7 `aot-tools.dill` / the linker | **In progress** ◐ — Route B selected, nothing built |
+| 8 engine artifact set, 9 GCS artifact manifest | **Mirrored** ◐ — the next work |
+
+### Order of work (decided 2026-08-06)
+
+1. ~~Update this file.~~ **Done — this section.**
+2. **Close independence items 8 and 9**, together, while the mirror/build
+   machinery is fresh: finish the engine artifact cells we actually intend to
+   own, mirror and seal the artifact-manifest path, re-run the warm/sealed
+   checks. Bounded infrastructure closure. **Do not mix Route B into this.**
+3. **Linux `const_finder`** if it is still quick (see caveats below).
+4. **Then** start Route B as a new greenfield implementation project, in this
+   order: arm64 patchable call emission → dynamic-interface retention → stable
+   target identity → versioned payload format → CLI packaging → transactional
+   updater/runtime activation → host integration tests → real-app size and
+   frame-time benchmark → physical-iPhone code-patch/rollback gate → sealed
+   independence regression for iOS code patches.
+
+**Do NOT start Track C (hot restart) yet.** It adds a second runtime lifecycle
+axis before Route B's core code-patch lifecycle exists. Finish basic iOS code
+patching first; hot restart layers onto a proven activation/rollback model. This
+is a decision, not an oversight — see [Track C](#track-c--hot-restart).
+
+### Live caveats carried forward
+
+Four things are knowingly not clean. None blocks the current flows; all are real.
+
+1. **Android icon tree-shaking stays disabled** pending a fork `linux-x64`
+   `const_finder`. [`engine/publish_font_subset.sh`](engine/publish_font_subset.sh)
+   is the macOS equivalent that was fixed — model the Linux one on it.
+   `--no-tree-shake-icons` remains mandatory on a self-built engine until then
+   (invariant 3 below explains why).
+2. **macOS host-level packet blocking was abandoned.** Tailscale reloads pf and
+   flushes any anchor, so a host seal cannot be held there. The *mirror* seal
+   carries the proof instead, and it is enforced inside the container regardless
+   — which is the stronger place for it anyway. Do not retry the pf route
+   expecting a different result.
+3. **The Gradle insecure-mirror workaround is temporary and may already be
+   removable.** A localhost-scoped init script at
+   `/data/gradle-home/init.d/selfhost-allow-insecure-mirror.gradle` on the build
+   box was added on 2026-08-05 because the mirror's HTTPS listener was down at
+   the time. HTTPS itself works and is verified (see [the plain-HTTP
+   section](#the-mirror-cannot-serve-a-release-over-plain-http-any-more)), so
+   **check whether the listener is back and delete the script if it is** — it can
+   never loosen a real remote repo, but it should not outlive its reason.
+4. **Engine builds still need a reachable gclient remote.** The durable Flutter
+   mirror closes CLI bootstrap, not the engine build checkout.
 
 ## 2026-08-04, later: Android proven on our own engine; iOS engine now builds
 
@@ -750,12 +855,15 @@ to any Metal compilation, including Impeller on iOS; and an earlier claim of min
 that "there is no public Dart revision to rebase onto" was **wrong** — I had tested
 Shorebird's private SHA instead of looking for vanilla's release tags.
 
-**Next up: [Track E](#track-e--ios-code-push-the-binder) below.** The iOS
-code-push kill gate **passed** on 2026-08-04 — interpreted patch execution is
-proven in a precompiled runtime, on our own engine, with no access to Shorebird's
-private Dart fork. What remains is one well-defined compiler feature, described
-there with file:line pointers. Read [`IOS_CODE_PUSH.md`](IOS_CODE_PUSH.md) for the
-full evidence chain first; it is the most important document in this directory now.
+**[Track E](#track-e--ios-code-push-the-binder) is not next — items 8 and 9 are.**
+See the order of work at the top of this file. The iOS code-push kill gate
+**passed** on 2026-08-04 — interpreted patch execution is proven in a precompiled
+runtime, on our own engine, with no access to Shorebird's private Dart fork — and
+an earlier version of this paragraph called what remains "one well-defined
+compiler feature". **That was an understatement**: the call-emission mode is step
+1 of ten, and the other nine are production work, not research. Read
+[`IOS_CODE_PUSH.md`](IOS_CODE_PUSH.md) for the full evidence chain before
+starting any of it.
 
 Also new: [`UPSTREAM_INDEPENDENCE.md`](UPSTREAM_INDEPENDENCE.md) is the single
 tracker for every remaining dependency on upstream Shorebird (7 of 10 items now
@@ -779,13 +887,27 @@ This file is the "where to put your hands" version.
 byte-identical to `main`.
 
 What is **no longer** true, despite what this section used to say:
-`experimental_hashes.map` is not checked in empty. It carries four entries — two
-passthrough aliases to the stock pin, the Route B Android engine `fc184af6…`, and
-our iOS engine `5a6b0b09…`. The mirror is therefore no longer a pure passthrough
-cache: for those hashes it serves our overlay and 404s a miss instead of falling
-back to stock. That is deliberate and is what makes the device proofs meaningful,
-but it means **the map, not the pin, is the switch to check** when you want to
-know whether a build used our engine. Verify the pin before and after any change:
+`experimental_hashes.map` is not checked in empty — its own header comment still
+claims it is, and that comment is wrong. As of 2026-08-06 it carries **seven**
+entries, and they are not interchangeable:
+
+| Hash | What it is |
+|---|---|
+| `760e3fab` | **the current Android engine**, device-verified 2026-07-31 |
+| `70974f81` | **the current iOS engine**, device-verified 2026-08-05 |
+| `fc184af6` | Route B Android, device-verified 2026-07-30, superseded but still valid on its own terms |
+| `5b1a8965` | `fc184af6` + the `PatchCarriesCode()` guard; never device-verified |
+| `9f4d3942` | `70974f81` built with `dart_dynamic_modules=true` — Track E's config, **not** the shipping one |
+| `70b2e762`, `bbddaa6e` | **DIAGNOSTIC engines. Do not ship.** Both make any unhandled Dart exception fatal |
+
+(`5a6b0b09…`, which this section used to name as our iOS engine, is superseded and
+is no longer in the map at all.)
+
+The mirror is therefore not a pure passthrough cache: for those hashes it serves
+our overlay and 404s a miss instead of falling back to stock. That is deliberate
+and is what makes the device proofs meaningful, but it means **the map, not the
+pin, is the switch to check** when you want to know whether a build used our
+engine — and *which* engine. Verify the pin before and after any change:
 
 ```bash
 python3 - <<'PY'
@@ -1060,9 +1182,19 @@ Assembling this was most of the work. The pieces and why each is needed:
 
 ### Track E — iOS code push (the binder)
 
-**Status: execution PROVEN, one compiler feature remains.** Full evidence and
-reasoning: [`IOS_CODE_PUSH.md`](IOS_CODE_PUSH.md). Harness and result:
+**Status: mechanism PROVEN in a harness; production integration NOT BUILT.**
+Route B was selected 2026-08-05 on the strength of two passing kill-gate spikes,
+and selection is where it stopped. Full evidence and reasoning:
+[`IOS_CODE_PUSH.md`](IOS_CODE_PUSH.md). Harness and result:
 [`engine/killgate/`](engine/killgate).
+
+**Start it only after independence items 8 and 9 are closed**, and treat it as a
+new greenfield project with its own milestones rather than a continuation of this
+branch's debugging work. The ten steps are listed in the order of work at the top
+of this file; the two that can still veto the whole approach — the real-app
+size/frame-time benchmark and the hot-path-patching product question — are steps 8
+and 9 deliberately, because they are cheap to run once the mode exists and
+expensive to discover after shipping.
 
 The premise this track overturned: we assumed iOS code push required reproducing
 Shorebird's private Dart fork, because it needs an interpreter for patched code.
@@ -1195,8 +1327,14 @@ First full build: ~8 minutes. Incremental after a runtime edit: ~1 minute.
 
 ### Track C — hot restart
 
-**Not started.** Needs the engine build loop, so agree the design before touching
-Rust or C++ — a wrong guess costs a multi-hour rebuild to discover.
+**Not started, and deliberately deferred (2026-08-06).** Do not begin it before
+iOS Dart code push works. It introduces a second runtime lifecycle axis, and
+Route B's core code-patch lifecycle — activation, rollback, crash recovery — does
+not exist yet to layer it onto. Sequencing it after Route B means it inherits a
+proven activation/rollback model instead of inventing one in parallel.
+
+When it does start: needs the engine build loop, so agree the design before
+touching Rust or C++ — a wrong guess costs a multi-hour rebuild to discover.
 
 Shape from `EXPERIMENTAL_ENGINE.md`: updater grows `readyToApply` alongside
 `restartRequired`; engine reloads the root isolate from the new `.vmcode`
@@ -1333,8 +1471,10 @@ Do not re-learn these:
 
 ## Live environment (may need reverting)
 
-- **Rig state as of 2026-08-05, left warm on purpose.** Everything needed for the
-  pending Apple `DdSupport` validation is in place:
+- **Rig state as of 2026-08-05, left warm on purpose.** The Apple `DdSupport`
+  validation it was staged for is **done** (see Pending actions), and the same
+  warm rig then carried the sealed acceptance run — keep it warm for items 8
+  and 9, which need the mirror and both build hosts:
   - Mac `bin/cache/dart-sdk` is **ours** (`6b58bb3a`). That is the fix, not
     residue — do not "restore" it. The CLI guard now enforces it.
   - `bin/internal/engine.version` **is back at stock `69f9831c`**, so any build
@@ -1443,8 +1583,10 @@ Do not re-learn these:
   healthy (phone at `169.254.145.84` on en17, 0% ping loss).
 
 - **Track E's next step: the new call-emission mode.** Specified above with
-  file:line pointers; nothing blocks starting it. It is arm64 codegen work, not
-  research. The `dartaotruntime`/`gen_snapshot` in
+  file:line pointers. It is arm64 codegen work, not research — but it is
+  **sequenced after independence items 8 and 9** (see the order of work at the
+  top of this file), so "nothing blocks it" is a statement about readiness, not
+  priority. The `dartaotruntime`/`gen_snapshot` in
   `/Volumes/build/ios-engine/.../out/host_release_arm64` already carry the native,
   the pool rewrite and the descriptor change, so the edit/build/test loop is ~1
   minute.
@@ -1475,12 +1617,14 @@ Do not re-learn these:
   gate program: +0.93% snapshot. See `engine/killgate/README.md` §Spike B and
   `engine/killgate/binding/`. Remaining Route B work is the call-emission
   mode (unchanged), platform-dill hygiene, iOS port, integration.
-- **iOS device verification of assets-only patches has not been run.** The CLI side
-  now skips the linker for `--assets-only`
-  (`ios_patcher.dart` / `ios_framework_patcher.dart`), which is what makes an iOS
-  patch producible without `aot-tools.dill`, and it has unit tests — but it has
-  never been exercised against a device. That is the cheapest remaining iOS win,
-  and it does **not** depend on Track E at all.
+- ~~**iOS device verification of assets-only patches has not been run.**~~
+  **DONE — twice, and it is the load-bearing iOS result.** Device-verified
+  2026-08-04 on Shorebird's prebuilt engine (release `5.0.0+1`), then again
+  2026-08-05 **on our own engine** (`70974f81`, release `27.0.0+1`), and a third
+  time inside the sealed acceptance run (release `34.0.0+1`). The CLI skips the
+  linker for `--assets-only` (`ios_patcher.dart` / `ios_framework_patcher.dart`),
+  which is what makes an iOS patch producible without `aot-tools.dill`. See the
+  RESOLVED sections above for the evidence chains.
 - ~~**Serve the `patch` differ from the overlay.**~~ **DONE 2026-08-05.**
   `patch-darwin-arm64.zip`, `patch-darwin-x64.zip` (cross-compiled,
   Rosetta-verified) and `patch-linux-x64.zip` (built on the Linux box) now sit
