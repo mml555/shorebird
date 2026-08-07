@@ -469,6 +469,31 @@ post_checks() {
 }
 
 
+# --- is the control plane's own state durable? -----------------------------------
+# Both rigs kept /data inside per-session scratchpads until 2026-08-07 — 1.2 GB
+# of app ids, releases, patches and artifacts one cleanup away from gone. An
+# acceptance run that writes its results into a directory scheduled for deletion
+# is not a durable proof, so refuse rather than warn.
+control_plane_durable() {
+  local c src bad=0
+  for c in "${AIRGAP_CPS_CONTAINER:-cps-ios}" "${AIRGAP_CPS_ANDROID_CONTAINER:-cps-android}"; do
+    docker inspect "$c" >/dev/null 2>&1 || continue
+    src="$(docker inspect "$c" --format '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Source}}{{end}}{{end}}' 2>/dev/null)"
+    [[ -n "$src" ]] || continue
+    case "$src" in
+      */scratchpad/*|/tmp/*|/private/tmp/*|/var/folders/*)
+        echo "$c stores /data in an EPHEMERAL path: $src" >&2; bad=1 ;;
+      *) echo "[data] $c -> $src" ;;
+    esac
+  done
+  if [[ $bad -eq 1 ]]; then
+    echo "  Move it: selfhost/scripts/relocate_control_plane_data.sh" >&2
+    echo "  Override with AIRGAP_ALLOW_EPHEMERAL_DATA=1 if you really mean it." >&2
+    [[ -n "${AIRGAP_ALLOW_EPHEMERAL_DATA:-}" ]]
+  fi
+}
+
+stage control-plane-durable control_plane_durable
 stage cli-revision cli_revision_check
 stage bootstrap bootstrap
 [[ "$DO_ANDROID" == "1" ]] && stage android android_release_patch

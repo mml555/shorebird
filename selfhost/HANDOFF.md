@@ -161,9 +161,13 @@ real.
    carries the proof instead, and it is enforced inside the container regardless
    — which is the stronger place for it anyway. Do not retry the pf route
    expecting a different result.
-2. **Engine builds still need a reachable gclient remote.** The durable Flutter
+2. ~~**Control-plane data lives in session scratchpads.**~~ **RESOLVED
+   2026-08-07** — 1.2 GB moved to `~/shorebird-rig/control-plane/`, and the
+   acceptance run now REFUSES to start if either rig's `/data` resolves inside
+   a scratch tree. See [`fixtures/CONTROL_PLANE_DATA.md`](fixtures/CONTROL_PLANE_DATA.md).
+3. **Engine builds still need a reachable gclient remote.** The durable Flutter
    mirror closes CLI bootstrap, not the engine build checkout.
-3. ~~**The iOS Dart checkout carries the Spike A measurement patch.**~~
+4. ~~**The iOS Dart checkout carries the Spike A measurement patch.**~~
    **RESOLVED 2026-08-07 — reverted, and `dart_patches.sh --verify` is green
    on all four patches.**
 
