@@ -95,6 +95,18 @@ the app displays.
 `AIRGAP_SKIP_DEVICE=1` publishes without verifying, and says so loudly. A PASS
 under that flag means publication succeeded and nothing more.
 
+## Abandoned releases
+
+**`1.1.0+1` (release id 40) on `cps-ios` is abandoned.** It was created by the
+2026-08-07 warm run that hung uploading artifacts to a stale USB link-local
+address, so it has no complete artifact set and nothing should be patched
+against it.
+
+It is documented rather than deleted because the control plane has **no
+release-delete endpoint** — `DELETE` exists only for org members, invitations
+and app collaborators. Building one to tidy a test rig is not worth it; just
+do not be surprised by the gap between release 40 and the next one.
+
 ## Per-run housekeeping
 
 **Bump `version:` in `pubspec.yaml` before each acceptance run.** The control
