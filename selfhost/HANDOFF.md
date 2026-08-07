@@ -64,6 +64,30 @@ the tracker of record.
 | 7 `aot-tools.dill` / the linker | **In progress** ◐ — Route B selected, nothing built |
 | 8 engine artifact set, 9 GCS artifact manifest | **Mirrored** ◐ — the next work |
 
+### Where the project actually is (2026-08-07)
+
+> **Infrastructure independence is complete, with one outstanding physical-iOS
+> device-network verification gap. Route B is the major engineering project.**
+
+| claim | status |
+|---|---|
+| iOS artifact independence | **PASS** |
+| iOS release → first frame on device | **PASS** |
+| iOS device → control-plane reach | **BLOCKED** — Local Network permission |
+| iOS assets-patch application on device | **NOT VERIFIED** |
+| Android full device lifecycle (release → Dart code patch → rollback) | **PASS** |
+
+The iPhone sends nothing to `cps-ios` — neither the Dart beacon nor the native
+updater — on either transport, while the app renders correctly. Next step is
+one device setting, tried once: Settings → Privacy & Security → Local Network →
+*Airgap Probe*. If that does not resolve it, **stop infrastructure work** and
+harden the iOS device rig alongside Route B's first physical-device
+integration, which needs reliable iPhone communication regardless. Details and
+the reasoning: [`UPSTREAM_INDEPENDENCE.md`](UPSTREAM_INDEPENDENCE.md).
+
+**Android does not carry the iOS device claim.** They are separate claims and
+merging them would manufacture a green check the iOS leg has not earned.
+
 ### Order of work (decided 2026-08-06)
 
 1. ~~Update this file.~~ **Done — this section.**
@@ -73,7 +97,10 @@ the tracker of record.
    from the policy.
 3. ~~**Linux `const_finder`**~~ — **done 2026-08-07**, and the Android
    default-path acceptance passed, closing #15 and the Gradle workaround.
-4. **Final sealed two-platform regression** — the last infrastructure task.
+4. ~~**Final sealed two-platform regression**~~ — **as far as it can go.** The
+   durable fixture, endpoint derivation and drift guard are in place and the
+   iOS leg builds, publishes and reaches first frame; what remains is the
+   device Local Network blocker above, not an infrastructure task.
 5. **Then** start Route B as a new greenfield implementation project, in this
    order: arm64 patchable call emission → dynamic-interface retention → stable
    target identity → versioned payload format → CLI packaging → transactional

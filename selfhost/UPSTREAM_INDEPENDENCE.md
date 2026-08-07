@@ -527,6 +527,53 @@ Items 5 and 7 are done — the tooling exists and runs. 1–4 need the publishes
 
 ## What "independent" will mean concretely
 
+## Status, 2026-08-07 — read this before the 2026-08-06 section below
+
+Two different claims were being blurred together. Split explicitly:
+
+| claim | status |
+|---|---|
+| iOS artifact independence | **PASS** |
+| iOS release reaches first frame on device | **PASS** |
+| iOS device → control-plane reach | **BLOCKED** |
+| iOS assets-patch application on device | **NOT VERIFIED** |
+| Android full device lifecycle | **PASS** |
+
+**Infrastructure and artifact independence is effectively closed.** On iOS the
+sealed system bootstraps from empty isolated caches, builds the release,
+publishes it, publishes the assets-only patch, touches no closed upstream
+Shorebird artifact, and runs the fixture to **first frame on the physical
+device**. Android additionally carries the full device proof — default-path
+release with icon tree-shaking, first frame, a real **Dart code** patch,
+patched behavior, and rollback (2026-08-07).
+
+### The one outstanding gap
+
+> **iOS device patch-fetch/application verification is blocked by device
+> Local Network permission state.**
+
+The iPhone sends **nothing** to `cps-ios` — not the Dart beacon and not the
+native Shorebird updater. Three independent senders failing identically, on
+both link-local and LAN transports, with the app rendering correctly and no
+error surfacing. That rules out the fixture, the harness and the transport;
+what is left is iOS denying the process local-network access, silently and
+without a prompt, which iOS does permanently once a denial is recorded. It is
+per-app, which is consistent with `com.jewgo.assetprobe` having worked in
+earlier runs while this new bundle id does not.
+
+**The next step is one device setting, tried once:**
+Settings → Privacy & Security → Local Network → *Airgap Probe* → enabled.
+
+If that resolves it, finish the cycle and close the gate. If the entry is
+absent, already enabled, or changes nothing, **stop infrastructure work here.**
+The iOS device networking/signing rig can be hardened alongside the first
+Route B physical-device integration, which needs reliable iPhone
+communication anyway.
+
+**Do not call the two-platform device gate passed** until the iPhone actually
+contacts `cps-ios` and applies the assets patch. Android must not be allowed
+to carry the iOS device claim — they are different claims.
+
 ## PASSED 2026-08-06 — both platforms, mirror sealed, from empty caches
 
 | Leg | Engine | Release | Patch | Stages | Isolation |
