@@ -1,5 +1,74 @@
+diff --git a/runtime/lib/object.cc b/runtime/lib/object.cc
+index a267382..b7f2dd1 100644
+--- a/runtime/lib/object.cc
++++ b/runtime/lib/object.cc
+@@ -674,10 +674,60 @@ DEFINE_NATIVE_ENTRY(Internal_attachBytecodeToFunction, 0, 3) {
+       OS::PrintErr("ATTACH: library not found: %s\n", library_uri.ToCString());
+       return Bool::False().ptr();
+     }
+-    target = lib.LookupFunctionAllowPrivate(target_name);
+-    if (target.IsNull()) {
+-      OS::PrintErr("ATTACH: function %s not found in %s\n", target_name.ToCString(), library_uri.ToCString());
+-      return Bool::False().ptr();
++    // "Name" resolves a top-level function; "Class.name" resolves a member.
++    //
++    // The class form exists so the call-form inventory can target instance
++    // methods, getters and constructors, not just top-level statics -- without
++    // it the harness can only measure the one shape that already works, which
++    // would make "everything we can test passes" a statement about the
++    // instrument rather than about Route B.
++    //
++    // Still a GATE-only mechanism: it depends on library dictionaries, which
++    // AOT drops, hence the vm:entry-point pragmas in the inventory program. A
++    // real linker identifies targets from the snapshot's tables at build time
++    // and needs none of this.
++    intptr_t dot = -1;
++    for (intptr_t i = 0; i < target_name.Length(); i++) {
++      if (target_name.CharAt(i) == '.') {
++        dot = i;
++        break;
++      }
++    }
++    if (dot > 0) {
++      const auto& class_name = String::Handle(
++          zone, String::SubString(thread, target_name, 0, dot));
++      const auto& member_name = String::Handle(
++          zone, String::SubString(thread, target_name, dot + 1,
++                                  target_name.Length() - dot - 1));
++      const auto& cls =
++          Class::Handle(zone, lib.LookupClassAllowPrivate(class_name));
++      if (cls.IsNull()) {
++        OS::PrintErr("ATTACH: class %s not found in %s\n",
++                     class_name.ToCString(), library_uri.ToCString());
++        return Bool::False().ptr();
++      }
++      // EnsureIsFinalized: LookupFunctionAllowPrivate walks the class's
++      // function array, which a class that is not yet finalized may not
++      // have populated.
++      const auto error = cls.EnsureIsFinalized(thread);
++      if (error != Error::null()) {
++        OS::PrintErr("ATTACH: could not finalize class %s\n",
++                     class_name.ToCString());
++        return Bool::False().ptr();
++      }
++      target = cls.LookupFunctionAllowPrivate(member_name);
++      if (target.IsNull()) {
++        OS::PrintErr("ATTACH: member %s not found on %s\n",
++                     member_name.ToCString(), class_name.ToCString());
++        return Bool::False().ptr();
++      }
++    } else {
++      target = lib.LookupFunctionAllowPrivate(target_name);
++      if (target.IsNull()) {
++        OS::PrintErr("ATTACH: function %s not found in %s\n",
++                     target_name.ToCString(), library_uri.ToCString());
++        return Bool::False().ptr();
++      }
+     }
+ 
+     // The gate's premise: the target is an ordinary AOT-compiled function.
 diff --git a/runtime/vm/compiler/backend/flow_graph_compiler.cc b/runtime/vm/compiler/backend/flow_graph_compiler.cc
-index fea1f23e..0ebbba12 100644
+index fea1f23..0ebbba1 100644
 --- a/runtime/vm/compiler/backend/flow_graph_compiler.cc
 +++ b/runtime/vm/compiler/backend/flow_graph_compiler.cc
 @@ -62,6 +62,24 @@ DEFINE_FLAG(bool,
@@ -28,7 +97,7 @@ index fea1f23e..0ebbba12 100644
  DECLARE_FLAG(charp, deoptimize_filter);
  DECLARE_FLAG(bool, intrinsify);
 diff --git a/runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc b/runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc
-index 0f90cbc2..d4e83a14 100644
+index 7eeaf01..ea88831 100644
 --- a/runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc
 +++ b/runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc
 @@ -27,6 +27,7 @@ namespace dart {
@@ -39,37 +108,18 @@ index 0f90cbc2..d4e83a14 100644
  
  void FlowGraphCompiler::ArchSpecificInitialization() {
    if (FLAG_precompiled_mode) {
-@@ -607,11 +608,68 @@ void FlowGraphCompiler::EmitOptimizedStaticCall(
-   ASSERT(!function.IsClosureFunction());
-   if (function.PrologueNeedsArgumentsDescriptor()) {
-     __ LoadObject(ARGS_DESC_REG, arguments_descriptor);
+@@ -401,6 +402,54 @@ void FlowGraphCompiler::GenerateStaticDartCall(intptr_t deopt_id,
+                                                const Function& target,
+                                                Code::EntryKind entry_kind) {
+   ASSERT(CanCallDart());
 +#if defined(DART_DYNAMIC_MODULES)
-+  } else if (FLAG_precompiled_mode && !arguments_descriptor.IsNull()) {
-+    // Patchability (selfhost): if this callee's body is later replaced with
-+    // bytecode, the call enters through the InterpretCall stub, which reads the
-+    // arguments descriptor out of ARGS_DESC_REG. Nothing else supplies it for a
-+    // resolved static call in AOT, so the stub read garbage and faulted.
-+    //
-+    // The descriptor is a compile-time constant here, so this costs one pool
-+    // entry plus one load per static call site, and only when dynamic modules
-+    // are enabled -- stock builds are untouched.
-+    __ LoadObject(ARGS_DESC_REG, arguments_descriptor);
-+#endif
-   } else {
-     if (!FLAG_precompiled_mode) {
-       __ LoadImmediate(ARGS_DESC_REG, 0);  // GC safe smi zero because of stub.
-     }
-   }
-+#if defined(DART_DYNAMIC_MODULES)
-+  if (FLAG_precompiled_mode && FLAG_patchable_static_calls &&
-+      !arguments_descriptor.IsNull()) {
-+    // Route B: the third call form. GenerateStaticDartCall's two existing forms
-+    // both resolve the callee at compile time -- a PC-relative branch bakes its
-+    // address, and the pool slot is patched by ProgramVisitor::BindStaticCalls
-+    // to hold the callee's Code. Neither consults the Function, so
-+    // Function::AttachBytecode cannot redirect them. That is exactly what the
-+    // kill gate observed: IsInterpreted flipped to 1 while every Dart call
-+    // shape still ran the old body.
++  if (FLAG_precompiled_mode && FLAG_patchable_static_calls) {
++    // Route B: the third call form. The two below both resolve the callee at
++    // compile time -- a PC-relative branch bakes its address, and the pool slot
++    // is patched by ProgramVisitor::BindStaticCalls to hold the callee's Code.
++    // Neither consults the Function, so Function::AttachBytecode cannot
++    // redirect them, which is what the kill gate kept observing: IsInterpreted
++    // flipped to 1 while every Dart call shape still ran the old body.
 +    //
 +    // This form dispatches through the Function itself:
 +    //
@@ -79,32 +129,37 @@ index 0f90cbc2..d4e83a14 100644
 +    // Normally entry_point_ IS the callee's AOT implementation, so the only
 +    // cost is one pool entry and one extra load, and the callee is unchanged --
 +    // a normal Dart entry does not read R0. After AttachBytecode, entry_point_
-+    // is the InterpretCall stub, whose register contract is precisely what is
-+    // in place here: R0 the Function, R4 the arguments descriptor (loaded
-+    // above, which is why this sits in EmitOptimizedStaticCall rather than in
-+    // GenerateStaticDartCall -- EmitTestAndCall also reaches the latter, for
-+    // polymorphic instance dispatch, and supplies no descriptor).
++    // is the InterpretCall stub, whose register contract is exactly what is in
++    // place here: R0 the Function, R4 the arguments descriptor.
 +    //
-+    // R0 is safe to write here: a static call's LocationSummary is kCall, so
-+    // every volatile register is clobbered, and R0 is the call's *output* --
-+    // nothing live occupies it at this point.
++    // BOTH callers guarantee R4. EmitOptimizedStaticCall loads it above (its
++    // arguments_descriptor is never null -- GenerateStaticCall dereferences it
++    // in ASSERTs before passing it), and EmitTestAndCall loads it in
++    // EmitTestAndCallLoadReceiver. If a third caller ever appears, check that
++    // before assuming this still holds: the failure mode is a patched callee
++    // reading a stale descriptor, which will not look like a call-emission bug.
++    //
++    // R0 is safe to write. For a static call, LocationSummary is kCall, so
++    // every volatile register is clobbered and R0 is the call's *output*. For
++    // EmitTestAndCall, R0 holds the receiver only as scratch for the smi test,
++    // which has already happened by the time any branch calls; the cid lives in
++    // R2, and the arguments the callee reads are on the stack.
 +    //
 +    // Deliberately NOT calling AddStaticCallTarget. That records a
 +    // Code::kCallViaCode site, and BindStaticCalls would then run
-+    // CodePatcher::PatchStaticCallAt over this sequence, which is not the
-+    // pool-load shape that patcher expects. Nothing here needs patching anyway
-+    // -- the indirection is resolved at run time, on every call -- and the
-+    // Function stays alive through the object-pool reference this emits.
-+    __ LoadObject(FUNCTION_REG, function);
++    // CodePatcher::PatchStaticCallAt over a sequence that is not the pool-load
++    // shape that patcher expects. Nothing here needs patching anyway -- the
++    // indirection is resolved at run time, on every call -- and the Function
++    // stays alive through the object-pool reference this emits.
++    __ LoadObject(FUNCTION_REG, target);
 +    CLOBBERS_LR(__ Call(compiler::FieldAddress(
 +        FUNCTION_REG,
 +        compiler::target::Function::entry_point_offset(entry_kind))));
-+    EmitCallsiteMetadata(source, deopt_id, UntaggedPcDescriptors::kOther, locs,
++    EmitCallsiteMetadata(source, deopt_id, kind, locs,
 +                         pending_deoptimization_env_);
-+    EmitDropArguments(size_with_type_args);
 +    return;
 +  }
 +#endif  // defined(DART_DYNAMIC_MODULES)
-   // Do not use the code from the function, but let the code be patched so that
-   // we can record the outgoing edges to other code.
-   GenerateStaticDartCall(deopt_id, source, UntaggedPcDescriptors::kOther, locs,
+   if (CanPcRelativeCall(target)) {
+     __ GenerateUnRelocatedPcRelativeCall();
+     AddPcRelativeCallTarget(target, entry_kind);

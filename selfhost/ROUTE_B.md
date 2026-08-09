@@ -1,5 +1,5 @@
 <!-- cspell:words killgate dynmod tearoff dartaotruntime disqualifiers APFS DNDEBUG packageable overengineer -->
-<!-- cspell:words sshkey publickey -->
+<!-- cspell:words sshkey publickey devirtualizes -->
 
 # Route B — iOS Dart code push. Start here.
 
@@ -75,14 +75,21 @@ forms — not before.
 | Interpreter executes the replacement | **Yes** — returned `NEW` via `DartEntry::InvokeFunction` | Spike B |
 | Symbol binding at load time | **Yes** — under `vm:entry-point` or the dynamic interface; +0.93 % snapshot on the gate program | Spike B |
 | Call site locatable and rewritable | **Yes** — 1 of 2,237 global-pool slots | Spike A |
-| Entering the interpreter *from* an AOT call site | **No** — this is the work | [`IOS_CODE_PUSH.md`](IOS_CODE_PUSH.md) |
+| Entering the interpreter *from* an AOT call site | **Yes, 2026-08-09** — `--patchable_static_calls` | step 1 below |
 
 Two routes were tried and ruled out for concrete reasons, both recorded in
 `IOS_CODE_PUSH.md`: supplying the descriptor at the call site is necessary but
-not sufficient (`InterpretCall` also wants the `Function` in `FUNCTION_REG`,
-which on arm64 is carrying an argument), and leaving calls unlinked would
-require `CallStaticFunction`, which patches the call site — writing executable
-memory, illegal on iOS.
+not sufficient on its own, and leaving calls unlinked would require
+`CallStaticFunction`, which patches the call site — writing executable memory,
+illegal on iOS.
+
+**One premise in that reasoning was wrong, and it mattered.** The note that
+`FUNCTION_REG` "on arm64 is carrying an argument" is not true at a static call
+site: `R0` is the call's *output* register, a static call's `LocationSummary` is
+`kCall` so every volatile register is already clobbered, and Dart arguments are
+passed on the stack. `R0` was free the whole time. Step 1 writes the `Function`
+into it and the callee never notices. If you are re-deriving this, check the
+register's actual liveness rather than inheriting the claim.
 
 ## Five things to build, then four to prove
 
@@ -102,22 +109,33 @@ Same program, only the flag differing, on the kill gate: **all four call shapes
 went OLD → NEW, `GATE: BASELINE` → `GATE: PASS`.** Snapshot cost +1.88 % on that
 program (881,560 → 898,144 bytes) against ~4 % for `--force_indirect_calls`.
 
-**Read that narrowly.** It is one call form, on a host macOS arm64 harness, on a
-toy program. It is not the iOS port, not a real app, and not either veto. Steps
-2–5 are untouched. See [`engine/route_b/README.md`](engine/route_b/README.md)
-for the emitted sequence, the two scope choices in the patch, and the gate's own
-constant-folding trap — which made a working mechanism report `direct : OLD` and
-cost a debugging detour.
+**Read that narrowly.** It is a host macOS arm64 harness, on a toy program. It is
+not the iOS port, not a real app, and not either veto. Steps 3–5 are untouched.
+See [`engine/route_b/README.md`](engine/route_b/README.md) for the emitted
+sequence, the measured call-form coverage, and the gate's own constant-folding
+trap — which made a working mechanism report `direct : OLD` and cost a debugging
+detour.
 
-### 2. Make the necessary symbols survive AOT
+### 2. ~~Make the necessary symbols survive AOT~~ — DONE 2026-08-09
 
-Patch bytecode has to refer to things already in the app and SDK, so release
-compilation must retain what a future patch might bind to rather than
-tree-shaking it away. This is where `dart_dynamic_modules` and the
-frontend/SDK setup matter.
+`engine/route_b/gen_dynamic_interface.dart` generates the release's dynamic
+interface from the app's own kernel; `measure_retention.sh` prices it;
+`verify_binding.sh` proves a patch calling `print()` binds *and* is reached.
 
-**Spike B already proved this model works** via the dynamic interface, at
-+0.93 % snapshot on the gate program. This is productizing, not researching.
+**The productization was not plumbing — it was a policy decision, and only
+measuring found it.** A `library:` item retains every public member of that
+library, so the obvious generator retains libraries. On the gate program:
+
+| retention breadth | plain | + call form |
+|---|---|---|
+| app libraries only | +0.89 % | +4.63 % |
+| **app + named SDK members** | **+0.90 %** | **+4.64 %** |
+| app + WHOLE `dart:core` | **+309.90 %** | +322.94 % |
+
+Whole-library retention of the app is free. Whole-library retention of
+`dart:core` is a **four-fold snapshot**. So the shipping policy is asymmetric —
+whole-library for the app, named members for the SDK — and that one choice is
++4.64 % against +323 %.
 
 ### 3. Stable target identities — the binder
 
@@ -171,23 +189,29 @@ shorebird patch     ->  bytecode payload + target bindings
 Either veto can still kill the approach, which is why they are gates and not
 chores.
 
-## The design decision to make before writing code
+## What "patchable" now covers — measured 2026-08-09
 
-**Define what "patchable" means in the first implementation, narrowly:**
+The narrow definition was *static Dart calls, explicitly compiled in Route-B
+patchable mode*, with widening deferred until an inventory existed. The
+inventory exists — `engine/route_b/inventory/` — and it is one program
+exercising each shape AOT actually emits:
 
-> Static Dart calls, explicitly compiled in Route-B patchable mode.
+| form | patchable |
+|---|---|
+| top-level static, static method | **yes** |
+| instance method (monomorphic), getter | **yes** — AOT devirtualizes these into static calls |
+| dynamic instance call (`EmitTestAndCall` cid chain) | **yes** |
+| statically-typed polymorphic call (**dispatch table**) | **no** |
 
-Do not start by covering every invocation shape — instance calls, dynamic
-dispatch, closures, tear-offs, getters/setters, constructors, FFI. The first
-job is proving one path end to end:
+Dispatch-table calls load a raw entry point out of a data table and set up
+neither `R0` nor `R4`, so there is no cheap version: rewriting the table is
+legal on iOS but insufficient, and making `EmitDispatchTableCall` go through the
+`Function` taxes **every instance call in the program** — straight onto the step
+7 veto. That decision wants the real-app benchmark first.
 
-```
-AOT caller -> Function-based patchable dispatch -> attached bytecode
-```
-
-Once that survives release/patch/rollback, inventory the call forms and expand
-on purpose. Every widening before then multiplies the ways the first proof can
-fail for reasons unrelated to the mechanism.
+**The consequence for step 5 is concrete:** patch coverage is not "any Dart
+function", and Shorebird's link percentage has a direct analogue here. Say so in
+the CLI rather than discovering it on a device.
 
 ### Where to work
 

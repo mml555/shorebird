@@ -87,17 +87,22 @@ elif git -C "$DART" apply --check -p1 -R "$RB" 2>/dev/null; then
 else
   die "step 1 patch does not apply cleanly to $DART"
 fi
-n=$(grep -c 'patchable_static_calls' \
-      "$DART/runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc" || echo 0)
-[[ "$n" -gt 0 ]] || die "step 1 patch reported success but its changes are not in the tree"
-say "  verified: patchable_static_calls present in flow_graph_compiler_arm64.cc"
+while IFS=: read -r sentinel file; do
+  n=$(grep -c "$sentinel" "$DART/$file" 2>/dev/null || echo 0)
+  printf '    %-30s %-56s %s\n' "$sentinel" "$file" "$n"
+  [[ "$n" -gt 0 ]] || die "step 1 patch reported success but $sentinel is not in the tree"
+done <<'ROUTEB_PROBES'
+patchable_static_calls:runtime/vm/compiler/backend/flow_graph_compiler.cc
+patchable_static_calls:runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc
+LookupClassAllowPrivate:runtime/lib/object.cc
+ROUTEB_PROBES
 
 cat <<EOF
 
 Route B checkout ready: $DEST_TREE
   flutter revision : $(git -C "$DEST_TREE" rev-parse --short HEAD)
   dart tree        : $DART
-  carries          : 0001/0004/0005/0006 + killgate attach-bytecode
+  carries          : 0001/0004/0005/0006 + killgate + Route B step 1
 
 Next: $HERE/build_host.sh
 EOF

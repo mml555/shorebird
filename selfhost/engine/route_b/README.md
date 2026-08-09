@@ -1,4 +1,5 @@
 <!-- cspell:words killgate dynmod dartaotruntime APFS gclient depot caffeinate -->
+<!-- cspell:words devirtualize devirtualizes devirtualized megamorphic movz uxtx -->
 
 # Route B — the dedicated build tree
 
@@ -92,20 +93,75 @@ Snapshot cost on that program: **+1.88 %** (881,560 → 898,144 bytes), against
 veto.** Step 7's real-app size and frame-time benchmark is the veto, and nothing
 here anticipates it.
 
-Two deliberate scope choices in the patch, both explained in its comments:
+One deliberate scope choice in the patch, explained in its comments: it does
+**not** call `AddStaticCallTarget`, because that records a
+`Code::kCallViaCode` site and `BindStaticCalls` would then run
+`CodePatcher::PatchStaticCallAt` over a sequence that is not the pool-load shape
+that patcher expects.
 
-- it lives in `EmitOptimizedStaticCall`, not `GenerateStaticDartCall`, because
-  `EmitTestAndCall` also reaches the latter for polymorphic instance dispatch
-  and supplies no arguments descriptor;
-- it does **not** call `AddStaticCallTarget`, because that records a
-  `Code::kCallViaCode` site and `BindStaticCalls` would then run
-  `CodePatcher::PatchStaticCallAt` over a sequence that is not the pool-load
-  shape that patcher expects.
+It first landed in `EmitOptimizedStaticCall` on the assumption that
+`EmitTestAndCall` — the other route into `GenerateStaticDartCall` — supplied no
+arguments descriptor. **That assumption was wrong**: `EmitTestAndCallLoadReceiver`
+loads `ARGS_DESC_REG` unconditionally. Checking it is what made the widening
+below a two-line move rather than a redesign, and the patch now records the
+precondition so a third caller cannot quietly break it.
 
-**What this is not.** It is one call form working in a host harness. Steps 2–5
-(symbol retention, stable target identity, the versioned container, and
-`shorebird patch` producing one) are untouched, and the iOS port and both vetoes
-are still ahead.
+**What this is not.** It is one call form working in a host harness. Steps 3–5
+(stable target identity, the versioned container, and `shorebird patch`
+producing one) are untouched, and the iOS port and both vetoes are still ahead.
+
+### Widening — measured, not assumed
+
+`inventory/` is a call-form inventory: one program exercising the shapes AOT
+actually emits, each patched in turn, so widening is driven by evidence rather
+than by guessing which shapes matter.
+
+```bash
+selfhost/engine/route_b/inventory/run_inventory.sh
+```
+
+| form | dispatch AOT chose | patchable |
+|---|---|---|
+| top-level static | form (c) | **yes** |
+| static method on a class | form (c) | **yes** |
+| instance method, monomorphic | devirtualized to a static call | **yes** |
+| instance getter | devirtualized to a static call | **yes** |
+| dynamic instance call | `EmitTestAndCall` cid chain | **yes** — after widening |
+| statically-typed polymorphic call | **dispatch table** | **no** |
+
+Two of those deserve comment. Monomorphic instance methods and getters came out
+patchable **for free** — AOT devirtualizes them into static calls, so form (c)
+already covered them; the inventory discovered that rather than the code
+enabling it. And the dynamic instance call needed the one real widening: it
+lowers to `EmitTestAndCall`, a cid-check chain whose branches were PC-relative
+direct calls, so form (c) moved from `EmitOptimizedStaticCall` into
+`GenerateStaticDartCall`, which both paths share. Its precondition — that
+`ARGS_DESC_REG` is loaded — holds for both callers, and the patch says where to
+check if a third one ever appears.
+
+**Dispatch-table calls are the one genuinely unreachable form, and they are a
+different order of work.** The call site is:
+
+```
+movz r0, #0xec                    ; folded (cid, selector) slot
+ldr  lr, [r21, lr uxtx scaled]    ; r21 = DISPATCH_TABLE_REG
+blr  lr
+```
+
+The table stores **raw entry-point addresses**, not `Function`s, and the site
+sets up neither `R0` nor `R4`. So there is no cheap version of this:
+
+- *Rewrite the table at patch time.* The table is data, so this is legal on iOS
+  — but the stub it would point at needs `R0`/`R4`, which the call site does not
+  provide. Not sufficient on its own.
+- *Change `EmitDispatchTableCall` to dispatch through the `Function`.* Correct,
+  and it taxes **every instance call in the program** — landing directly on the
+  step 7 size and frame-time veto.
+
+Deciding between those wants the real-app benchmark first, which is why this
+stops here rather than guessing. Note the practical consequence for step 5: a
+patch's coverage is *not* "any Dart function", and the link-percentage figure
+Shorebird reports has a direct analogue here.
 
 ## Step 2 — symbol retention, and the policy the measurement forced
 
