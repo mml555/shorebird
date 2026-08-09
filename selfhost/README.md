@@ -70,14 +70,20 @@ for the quick start and feature list.
 ## Capability statement (read this before claiming anything)
 
 > **Android Dart code push and iOS asset push are complete and independent.
-> iOS Dart code push has a selected architecture whose compiler and retention
-> layers now work on a host harness. The target-identity, packaging and CLI
-> layers are not built, none of it has run on iOS, and both vetoes are
-> unmeasured.**
+> iOS Dart code push has all five build steps working on a macOS host harness —
+> patchable call emission, retention, target identity, the patch container, and
+> patch production with a coverage verdict. None of it has run on iOS, and
+> neither veto has been measured.**
 
-*Two layers of five is not a feature.* A patch cannot yet be named, packaged,
-produced by the CLI, or applied on a device. Do not compress this into "iOS
-code push works on a host" — nothing ships from a host.
+*Five of five on a host is still not a shipped feature.* Nothing has been
+built for iOS, no patch has been applied on a device, and the size and
+frame-time vetoes — either of which can still kill the approach — are
+unmeasured on a real app. Do not compress this into "iOS code push works".
+
+What a host harness has now shown, end to end: a release built patchable, a
+Dart edit turned into a container by diffing kernels, that container refused
+when it does not match the release or cannot fully land, applied atomically to
+change running behavior, and rolled back.
 
 What works on iOS today, end to end and artifact-independent: a release built
 with our own engine and compiler, the app reaching first frame on a physical

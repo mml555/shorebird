@@ -18,15 +18,16 @@ not required reading before you start.
 ## The capability statement, as of 2026-08-09
 
 > **Android Dart code push and iOS asset push are complete and independent.
-> iOS Dart code push has a selected architecture whose compiler and retention
-> layers now work on a host harness. The target-identity, packaging and CLI
-> layers are not built, none of it has run on iOS, and both vetoes are
-> unmeasured.**
+> iOS Dart code push has all five build steps working on a macOS host harness —
+> patchable call emission, retention, target identity, the patch container, and
+> patch production with a coverage verdict. None of it has run on iOS, and
+> neither veto has been measured.**
 
-Steps 1 and 2 are done and steps 3-5 are not, so the statement moved -- but it
-moved by exactly two layers, on a macOS host, on a toy program. Do not let a
-passing harness be reported as a working feature; that is the same error the
-earlier wording existed to prevent.
+All five build steps are done, on a macOS host, on toy programs. What remains
+is step 6 (the physical-device gate) and step 7 (the two vetoes), and those are
+the steps that can still end this. Do not let a passing harness be reported as a
+working feature; that is the same error every earlier version of this wording
+existed to prevent.
 
 ## What you are building, in one shape change
 

@@ -42,16 +42,18 @@ because a 2026-08-04 paragraph phrases it as open.
 ### The capability statement (authoritative — do not restate it more warmly)
 
 > **Android Dart code push and iOS asset push are complete and independent.
-> iOS Dart code push has a selected architecture whose compiler and retention
-> layers now work on a host harness. The target-identity, packaging and CLI
-> layers are not built, none of it has run on iOS, and both vetoes are
-> unmeasured.**
+> iOS Dart code push has all five build steps working on a macOS host harness —
+> patchable call emission, retention, target identity, the patch container, and
+> patch production with a coverage verdict. None of it has run on iOS, and
+> neither veto has been measured.**
 
-*Two layers of five is not a feature.* Route B steps 1 and 2 went in on
-2026-08-09 and are real -- a patch binds to an SDK symbol and is reached by
-ordinary Dart call sites, measured on a macOS host. A patch still cannot be
-named, packaged, produced by the CLI, or applied on a device. Nothing ships
-from a host, and neither veto has been measured on a real app.
+*Five of five on a host is still not a shipped feature.* All five Route B
+build steps went in on 2026-08-09 and are real: a release is built patchable, a
+Dart edit becomes a container via a kernel diff, the container is refused when
+it does not match the release or cannot fully land, applied atomically, and
+rolled back. But nothing has been built for iOS, no patch has run on a device,
+and neither veto has been measured on a real app. Either veto can still kill
+the approach.
 
 ### The boundary that was crossed
 
