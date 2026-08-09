@@ -213,17 +213,37 @@ def cmd_plan(args):
     return 0
 
 
-def cmd_decode(args):
-    """Full decode of every media file, recording failures by path.
+def _tool_version(binary):
+    """First line of `<binary> -version`, or a marker if it cannot be run."""
+    try:
+        out = subprocess.run([binary, "-version"], capture_output=True, text=True)
+        return out.stdout.splitlines()[0] if out.stdout else "(no output)"
+    except (OSError, IndexError) as e:
+        return f"(unavailable: {e})"
 
-    -v error   only real problems on stderr, so a clean file is silent.
-    -xerror    stop at the first error rather than logging thousands of frames.
-    -map 0:v?  video and audio if present, '?' so a file lacking one is not
-    -map 0:a?  itself an error.
-    -f null -  decode everything, write nothing.
+
+def cmd_decode(args):
+    """Container parse, then full stream decode, with the two kept apart.
+
+    ffprobe answers "does the CONTAINER parse and what streams does it claim".
+    ffmpeg answers "do those streams actually decode end to end". Running both
+    is what separates a suspicious container from semantic corruption inside an
+    otherwise well-formed file, and those two findings deserve different
+    responses.
+
+    The report records the exact commands and the decoder versions. If a
+    handful of files fail, the question six months from now is whether the
+    finding was content-specific or decoder-version-specific, and that is
+    unanswerable after the fact unless it was written down at the time.
     """
     with open(args.manifest) as f:
         manifest = json.load(f)
+
+    probe_cmd = ["ffprobe", "-v", "error", "-show_entries",
+                 "format=duration,format_name:stream=codec_type,codec_name",
+                 "-of", "json", "FILE"]
+    decode_cmd = ["ffmpeg", "-v", "error", "-xerror", "-i", "FILE",
+                  "-map", "0:v?", "-map", "0:a?", "-f", "null", "-"]
 
     exts = {e.lower() for e in args.ext.split(",") if e}
     targets = [
@@ -232,48 +252,85 @@ def cmd_decode(args):
         and os.path.splitext(entry["path"])[1].lower().lstrip(".") in exts
     ]
 
-    failures, checked = [], 0
+    results, checked = [], 0
+    counts = {"clean": 0, "container": 0, "stream": 0, "missing": 0}
     for entry in targets:
         full = os.path.join(args.root, entry["path"])
+        rel = entry["path"]
         if not os.path.exists(full):
-            failures.append({"path": entry["path"], "kind": "missing", "detail": ""})
+            results.append({"path": rel, "kind": "missing", "detail": ""})
+            counts["missing"] += 1
             continue
-        proc = subprocess.run(
-            ["ffmpeg", "-v", "error", "-xerror", "-i", full,
-             "-map", "0:v?", "-map", "0:a?", "-f", "null", "-"],
-            capture_output=True, text=True,
-        )
+
+        probe = subprocess.run([a if a != "FILE" else full for a in probe_cmd],
+                               capture_output=True, text=True)
+        if probe.returncode != 0:
+            # The container itself does not parse. Nothing downstream is
+            # meaningful, so do not spend a full decode on it.
+            results.append({"path": rel, "kind": "container",
+                            "returncode": probe.returncode,
+                            "detail": probe.stderr.strip()[:500]})
+            counts["container"] += 1
+            print(f"  CONTAINER FAIL {rel}", file=sys.stderr)
+            checked += 1
+            continue
+
+        meta = ""
+        try:
+            info = json.loads(probe.stdout or "{}")
+            meta = (info.get("format", {}) or {}).get("duration", "")
+        except json.JSONDecodeError:
+            pass
+
+        dec = subprocess.run([a if a != "FILE" else full for a in decode_cmd],
+                             capture_output=True, text=True)
         checked += 1
-        if proc.returncode != 0 or proc.stderr.strip():
-            failures.append({
-                "path": entry["path"], "kind": "decode",
-                "returncode": proc.returncode,
-                "detail": proc.stderr.strip()[:500],
-            })
-            print(f"  DECODE FAIL {entry['path']}", file=sys.stderr)
+        if dec.returncode != 0 or dec.stderr.strip():
+            results.append({"path": rel, "kind": "stream",
+                            "returncode": dec.returncode,
+                            "duration": meta,
+                            "detail": dec.stderr.strip()[:500]})
+            counts["stream"] += 1
+            print(f"  STREAM FAIL {rel}", file=sys.stderr)
+        else:
+            counts["clean"] += 1
         print(f"\r  decoded {checked:,}/{len(targets):,}", end="", file=sys.stderr)
     print(file=sys.stderr)
 
-    out = {"decodeVersion": 1, "root": os.path.abspath(args.root),
-           "checked": checked, "failures": failures}
+    out = {
+        "decodeVersion": 2,
+        "root": os.path.abspath(args.root),
+        # Provenance: a finding is only interpretable against the decoder that
+        # produced it.
+        "tools": {"ffprobe": _tool_version("ffprobe"),
+                  "ffmpeg": _tool_version("ffmpeg")},
+        "commands": {"probe": " ".join(probe_cmd), "decode": " ".join(decode_cmd)},
+        "checked": checked,
+        "counts": counts,
+        "findings": results,
+    }
     with open(args.out, "w") as f:
         json.dump(out, f, indent=2)
         f.write("\n")
 
     print(f"wrote {args.out}")
-    print(f"  decoded  : {checked:,}")
-    print(f"  failures : {len(failures):,}")
-    if failures:
-        # Deliberately NOT called corruption. These files need a human decision
-        # before anything is copied over or deleted; some may have been
-        # malformed long before this drive misbehaved.
-        print("\nSUSPICIOUS FILES -- these decoded with errors. That is not by")
-        print("itself evidence of drive damage; compare against the I/O errors")
-        print("from `manifest`, which are. Review before copying or deleting:")
-        for entry in failures[:20]:
-            print(f"  {entry['path']}")
-        if len(failures) > 20:
-            print(f"  ... and {len(failures) - 20} more")
+    print(f"  ffmpeg   : {out['tools']['ffmpeg']}")
+    print(f"  checked  : {checked:,}")
+    print(f"  clean    : {counts['clean']:,}")
+    print(f"  container: {counts['container']:,}   (file will not parse)")
+    print(f"  stream   : {counts['stream']:,}   (parses, does not decode)")
+    print(f"  missing  : {counts['missing']:,}")
+    if counts["container"] or counts["stream"] or counts["missing"]:
+        # Never called corruption here. Read failures implicate the drive;
+        # these do not, on their own. Some of these files may have been
+        # malformed long before this drive ever misbehaved.
+        print("\nSUSPICIOUS FILES. This is NOT by itself evidence of drive")
+        print("damage -- compare against the I/O errors from `manifest`, which")
+        print("are. Review before copying or deleting anything:")
+        for entry in results[:20]:
+            print(f"  [{entry['kind']}] {entry['path']}")
+        if len(results) > 20:
+            print(f"  ... and {len(results) - 20} more")
         return 2
     return 0
 
