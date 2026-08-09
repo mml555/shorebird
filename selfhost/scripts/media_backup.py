@@ -25,13 +25,28 @@ What is still provable, and what each subcommand actually establishes:
              reserve. Never splits a file across roots: a split archive turns
              two incomplete backups into zero usable ones the moment either
              host is lost.
+  decode     the semantic pass. ffprobe proves only that the CONTAINER parses;
+             a full ffmpeg decode walks the actual video and audio streams and
+             catches truncated or corrupt frames a metadata probe misses. This
+             is the only check here that can find damage in bytes that read
+             back cleanly.
   verify     re-hashes files at a destination against the manifest. This one IS
              a real integrity proof, because the manifest was made from the
              same bytes being copied.
 
+A DECODE FAILURE IS NOT PROOF OF DRIVE DAMAGE. Old source files can already
+contain malformed streams, and some were probably always that way. The two
+findings are therefore kept apart everywhere in this tool:
+
+  I/O error   the drive could not return the bytes. Implicates the hardware.
+  decode fail the bytes came back, but the stream does not decode. SUSPICIOUS,
+              not conclusive -- it needs a human look before anything is
+              deleted or overwritten.
+
 Usage:
   media_backup.py manifest --root /Volumes/build/media --out media.json
   media_backup.py plan --manifest media.json --dest NAME:FREE_BYTES ... --out plan.json
+  media_backup.py decode --manifest media.json --root /Volumes/build/media --out decode.json
   media_backup.py verify --manifest media.json --root /path/to/backup [--only NAME]
 """
 
@@ -39,6 +54,7 @@ import argparse
 import hashlib
 import json
 import os
+import subprocess
 import sys
 
 # Read in 8 MiB chunks: large enough that syscall overhead is irrelevant over
@@ -197,6 +213,71 @@ def cmd_plan(args):
     return 0
 
 
+def cmd_decode(args):
+    """Full decode of every media file, recording failures by path.
+
+    -v error   only real problems on stderr, so a clean file is silent.
+    -xerror    stop at the first error rather than logging thousands of frames.
+    -map 0:v?  video and audio if present, '?' so a file lacking one is not
+    -map 0:a?  itself an error.
+    -f null -  decode everything, write nothing.
+    """
+    with open(args.manifest) as f:
+        manifest = json.load(f)
+
+    exts = {e.lower() for e in args.ext.split(",") if e}
+    targets = [
+        entry for entry in manifest["files"]
+        if not entry["error"]
+        and os.path.splitext(entry["path"])[1].lower().lstrip(".") in exts
+    ]
+
+    failures, checked = [], 0
+    for entry in targets:
+        full = os.path.join(args.root, entry["path"])
+        if not os.path.exists(full):
+            failures.append({"path": entry["path"], "kind": "missing", "detail": ""})
+            continue
+        proc = subprocess.run(
+            ["ffmpeg", "-v", "error", "-xerror", "-i", full,
+             "-map", "0:v?", "-map", "0:a?", "-f", "null", "-"],
+            capture_output=True, text=True,
+        )
+        checked += 1
+        if proc.returncode != 0 or proc.stderr.strip():
+            failures.append({
+                "path": entry["path"], "kind": "decode",
+                "returncode": proc.returncode,
+                "detail": proc.stderr.strip()[:500],
+            })
+            print(f"  DECODE FAIL {entry['path']}", file=sys.stderr)
+        print(f"\r  decoded {checked:,}/{len(targets):,}", end="", file=sys.stderr)
+    print(file=sys.stderr)
+
+    out = {"decodeVersion": 1, "root": os.path.abspath(args.root),
+           "checked": checked, "failures": failures}
+    with open(args.out, "w") as f:
+        json.dump(out, f, indent=2)
+        f.write("\n")
+
+    print(f"wrote {args.out}")
+    print(f"  decoded  : {checked:,}")
+    print(f"  failures : {len(failures):,}")
+    if failures:
+        # Deliberately NOT called corruption. These files need a human decision
+        # before anything is copied over or deleted; some may have been
+        # malformed long before this drive misbehaved.
+        print("\nSUSPICIOUS FILES -- these decoded with errors. That is not by")
+        print("itself evidence of drive damage; compare against the I/O errors")
+        print("from `manifest`, which are. Review before copying or deleting:")
+        for entry in failures[:20]:
+            print(f"  {entry['path']}")
+        if len(failures) > 20:
+            print(f"  ... and {len(failures) - 20} more")
+        return 2
+    return 0
+
+
 def cmd_verify(args):
     with open(args.manifest) as f:
         manifest = json.load(f)
@@ -253,6 +334,14 @@ def main():
     pl.add_argument("--reserve", type=int, default=DEFAULT_RESERVE)
     pl.add_argument("--out", required=True)
     pl.set_defaults(func=cmd_plan)
+
+    d = sub.add_parser("decode", help="full ffmpeg decode; finds damage that reads back cleanly")
+    d.add_argument("--manifest", required=True)
+    d.add_argument("--root", required=True)
+    d.add_argument("--out", required=True)
+    d.add_argument("--ext", default="mkv,mp4,avi,m4v,mov,ts,m2ts,wmv,flv,webm",
+                   help="comma-separated extensions to decode")
+    d.set_defaults(func=cmd_decode)
 
     v = sub.add_parser("verify", help="re-hash a destination against the manifest")
     v.add_argument("--manifest", required=True)

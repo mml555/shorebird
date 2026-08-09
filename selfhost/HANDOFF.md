@@ -1646,8 +1646,24 @@ Do not re-learn these:
     `screen -dmS <name> bash -c 'caffeinate -is ./script.sh'`. `caffeinate`
     prevents idle sleep, which is the other thing that killed one.
 - **Media on the SSD — THIS IS NOW THE ONLY COPY. Do not delete it.**
-  `/Volumes/build/media` holds 513 GB (2,055 files), **MD5-verified
-  byte-identical** on 2026-08-04. On 2026-08-05 both server copies were deleted
+  `/Volumes/build/media` holds 513 GB (2,055 files).
+
+  **CORRECTION 2026-08-09: there is no historical integrity baseline.** This
+  entry used to say the media was "MD5-verified byte-identical" on 2026-08-04,
+  which reads like something you can verify against today. You cannot: the
+  hashes were never retained — not here, not in the repo, not on disk. What the
+  surviving evidence supports is **path and byte-size equality** in August,
+  which is what the deletion decision below was actually made on. Treat any
+  content-integrity claim about the August state as unproven, and note that
+  APFS does not checksum user data, so the filesystem never held that proof
+  either.
+
+  `scripts/media_backup.py` is built around what remains provable: `manifest`
+  reads every byte (so I/O errors surface, and a NEW baseline is established
+  going forward), `decode` runs a full ffmpeg pass to catch truncated streams
+  that read back cleanly, and `verify` proves a copy matches its source. A
+  decode failure is recorded as *suspicious*, not as drive damage — some of
+  these files may have been malformed long before the drive misbehaved. On 2026-08-05 both server copies were deleted
   to free the build box, so the earlier note here — "the SSD copy is disposable
   if space is needed" — is **inverted and must not be followed**.
 
