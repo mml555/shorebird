@@ -52,6 +52,7 @@ Usage:
 
 import argparse
 import concurrent.futures
+import datetime
 import glob
 import hashlib
 import json
@@ -288,18 +289,96 @@ def cmd_decode(args):
         and os.path.splitext(entry["path"])[1].lower().lstrip(".") in exts
     ]
 
+    # Resume from the checkpoint. The unit of durability is ONE COMPLETED FILE,
+    # not one completed run: the first attempt at this pass was killed after
+    # ~10 minutes of work and lost every result, because the report was only
+    # written at the end. A 30-hour job must never be able to do that.
+    #
+    # Keyed by (path, source_md5) rather than path alone, so a file that has
+    # been re-copied or changed since is re-decoded instead of inheriting a
+    # verdict that was about different bytes.
+    done = {}
+    if args.checkpoint and os.path.exists(args.checkpoint):
+        with open(args.checkpoint) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError:
+                    # A torn final line is expected if the process died
+                    # mid-write. Skip it; that file is simply redone.
+                    continue
+                done[(rec["path"], rec.get("source_md5", ""))] = rec
+        print(f"  resuming: {len(done):,} already decoded", file=sys.stderr)
+
+    by_path = {e["path"]: e for e in targets}
+    pending = [e for e in targets if (e["path"], e["md5"]) not in done]
+
+    ffmpeg_v = _tool_version("ffmpeg")
     jobs = [(os.path.join(args.root, e["path"]), e["path"], probe_cmd, decode_cmd)
-            for e in targets]
-    results, checked = [], 0
-    counts = {"clean": 0, "container": 0, "stream": 0, "missing": 0}
-    with concurrent.futures.ProcessPoolExecutor(max_workers=args.jobs) as pool:
-        for kind, record in pool.map(_decode_one, jobs):
-            checked += 1
-            counts[kind] += 1
-            if record is not None:
-                results.append(record)
-                print(f"  {kind.upper()} FAIL {record['path']}", file=sys.stderr)
-            print(f"\r  decoded {checked:,}/{len(jobs):,}", end="", file=sys.stderr)
+            for e in pending]
+
+    results, counts = [], {"clean": 0, "container": 0, "stream": 0, "missing": 0}
+    for rec in done.values():
+        kind = rec["kind"]
+        counts[kind] = counts.get(kind, 0) + 1
+        if kind != "clean":
+            results.append(rec)
+
+    checked = len(done)
+    ckpt = None
+    if args.checkpoint:
+        # If a previous run died mid-write, the last line has no newline. Append
+        # one before adding anything, or the first new record concatenates onto
+        # the torn remnant and BOTH become unparseable -- silently costing the
+        # verdict for a file that had actually completed.
+        if os.path.exists(args.checkpoint) and os.path.getsize(args.checkpoint):
+            with open(args.checkpoint, "rb") as f:
+                f.seek(-1, os.SEEK_END)
+                needs_newline = f.read(1) != b"\n"
+            if needs_newline:
+                with open(args.checkpoint, "a") as f:
+                    f.write("\n")
+        ckpt = open(args.checkpoint, "a")
+    try:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=args.jobs) as pool:
+            futures = {pool.submit(_decode_one, j): j[1] for j in jobs}
+            # as_completed, not map: map yields in submission order, so one slow
+            # feature film would stall the checkpointing of everything finished
+            # behind it -- precisely the durability this is meant to provide.
+            for fut in concurrent.futures.as_completed(futures):
+                rel = futures[fut]
+                kind, record = fut.result()
+                checked += 1
+                counts[kind] += 1
+                entry = record or {"path": rel, "kind": "clean"}
+                if record is not None:
+                    results.append(record)
+                    print(f"  {kind.upper()} FAIL {rel}", file=sys.stderr)
+                if ckpt is not None:
+                    ckpt.write(json.dumps({
+                        "path": rel,
+                        "source_md5": by_path[rel]["md5"],
+                        "ffmpeg_version": ffmpeg_v,
+                        "container_status": "fail" if kind == "container" else "ok",
+                        "stream_status": "fail" if kind == "stream" else (
+                            "not_reached" if kind == "container" else "ok"),
+                        "kind": kind,
+                        "exit_code": entry.get("returncode", 0),
+                        "stderr_summary": entry.get("detail", "")[:500],
+                        "completed_at": datetime.datetime.now(
+                            datetime.timezone.utc).isoformat(),
+                    }) + "\n")
+                    # flush + fsync: the point of a checkpoint is that it
+                    # survives the process dying, and a buffered line does not.
+                    ckpt.flush()
+                    os.fsync(ckpt.fileno())
+                print(f"\r  decoded {checked:,}/{len(targets):,}", end="", file=sys.stderr)
+    finally:
+        if ckpt is not None:
+            ckpt.close()
     print(file=sys.stderr)
 
     out = {
@@ -325,6 +404,7 @@ def cmd_decode(args):
             }),
         },
         "jobs": args.jobs,
+        "checkpoint": os.path.abspath(args.checkpoint) if args.checkpoint else None,
         "findings": results,
     }
     with open(args.out, "w") as f:
@@ -491,6 +571,10 @@ def main():
     d.add_argument("--manifest", required=True)
     d.add_argument("--root", required=True)
     d.add_argument("--out", required=True)
+    d.add_argument("--checkpoint",
+                   help="JSONL, appended and fsynced after EVERY file; rerun "
+                        "with the same path to resume. Strongly recommended: "
+                        "without it an interruption loses the entire run.")
     d.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) - 2),
                    help="parallel decodes; ffmpeg is already multithreaded, so "
                         "leave headroom rather than using every core")
