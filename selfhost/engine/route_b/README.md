@@ -1,6 +1,6 @@
 <!-- cspell:words killgate dynmod dartaotruntime APFS gclient depot caffeinate -->
 <!-- cspell:words devirtualize devirtualizes devirtualized megamorphic movz uxtx -->
-<!-- cspell:words SBRBPTCH sbrb -->
+<!-- cspell:words SBRBPTCH sbrb routebios -->
 
 # Route B — the dedicated build tree
 
@@ -436,6 +436,42 @@ running on a device, which needs the iOS engine port. Half of the veto is open.
 And these are **macOS host snapshots**. Absolute bytes are not an iOS release
 size; the deltas are the transferable part, since both arms compile the same
 kernel with the same compiler and differ only in flags.
+
+## Step 8, in progress — the iOS port, and two different interpreters
+
+```bash
+screen -dmS routebios bash -c 'caffeinate -is selfhost/engine/route_b/build_ios.sh'
+```
+
+**The first failure was not the one the plan predicted.** Trap #1 says an iOS
+build carrying the killgate SDK edits dies at the AOT step with `Unexpected tag
+4 (Field)`. It never got that far — it failed in **97 seconds**, compiling C++:
+
+```
+FAILED: obj/flutter/runtime/shorebird/patch_cache.patch_cache.o
+patch_cache.cc:39: use of undeclared identifier 'Shorebird_ReadLinkHeader'
+```
+
+`patch_cache.cc` is the single file in the tree that calls into Shorebird's
+**private Dart fork**. The shipping iOS tree never compiles it, and the reason
+is a selfhost change already in the tree: patch `0002` moved that dependency
+from `is_ios` onto `shorebird_use_interpreter`, precisely so an iOS engine could
+build against vanilla Dart.
+
+**So the tree carries two unrelated things both called "the interpreter", and
+conflating them costs a build:**
+
+| flag | selects | Route B wants |
+|---|---|---|
+| `shorebird_use_interpreter` (defaults to `is_ios`) | **Shorebird's** interpreter path, backed by their private fork | **false** |
+| `dart_dynamic_modules` | **vanilla Dart's** interpreter, `InterpretCall`, `AttachBytecode` | **true** |
+
+The correct combination reads like a contradiction and is not:
+`shorebird_use_interpreter = false` *with* `dart_dynamic_modules = true` — no
+interpreter in their sense, the interpreter in ours. `tools/gn` has no
+pass-through for arbitrary args, so `build_ios.sh` appends the flag to
+`args.gn` and regenerates. Excluding `patch_cache` also drops the target count
+from 8,162 to 6,825.
 
 ## Smoke-test the tree before trusting it
 
