@@ -65,13 +65,19 @@ for the quick start and feature list.
 | Runtime (device → our server) | ✅ proven, no `api.shorebird.dev` |
 | Build-time (engine via CDN mirror) | ✅ proven for pinned revisions |
 | Engine/updater **source** | ✅ captured in `vendor/` (insurance) |
-| Engine **built from source** | ◐ **Android: proven** (device-verified, on our own vanilla-Dart VM). **iOS: proven for releases + assets patches** (device-verified 2026-08-05, own engine + own frontend); **iOS *Dart code* patches: NOT BUILT** — architecture selected and de-risked, production integration not started (see below) |
+| Engine **built from source** | ◐ **Android: proven** (device-verified, on our own vanilla-Dart VM). **iOS: proven for releases + assets patches** (device-verified 2026-08-05, own engine + own frontend); **iOS *Dart code* patches: NOT SHIPPABLE** — the compiler and retention layers work on a macOS host harness, nothing has run on iOS (see below) |
 
 ## Capability statement (read this before claiming anything)
 
 > **Android Dart code push and iOS asset push are complete and independent.
-> iOS Dart code push has a selected, de-risked architecture, but the
-> production compiler/runtime integration has not been built yet.**
+> iOS Dart code push has a selected architecture whose compiler and retention
+> layers now work on a host harness. The target-identity, packaging and CLI
+> layers are not built, none of it has run on iOS, and both vetoes are
+> unmeasured.**
+
+*Two layers of five is not a feature.* A patch cannot yet be named, packaged,
+produced by the CLI, or applied on a device. Do not compress this into "iOS
+code push works on a host" — nothing ships from a host.
 
 What works on iOS today, end to end and artifact-independent: a release built
 with our own engine and compiler, the app reaching first frame on a physical
@@ -92,24 +98,31 @@ round trip *was* device-verified on 2026-08-05 against an app that no longer
 exists; the durable fixture that replaced it has not yet cleared the device
 gap. See [`UPSTREAM_INDEPENDENCE.md`](UPSTREAM_INDEPENDENCE.md).
 
-What remains before iOS Dart **code** patches work — none of it started. The
-plan of record, with file:line pointers and the rig, is
-[`ROUTE_B.md`](ROUTE_B.md); in outline:
+What remains before iOS Dart **code** patches work. The plan of record, with
+file:line pointers and the rig, is [`ROUTE_B.md`](ROUTE_B.md); in outline:
 
-1. Implement Route B's patchable call-emission mode on arm64.
-2. Retain and bind app + SDK symbols via the dynamic-interface mechanism
-   Spike B proved.
-3. Package the bytecode payload with an explicit **versioned type/header** —
-   NOT the provisional `*.vmcode` filename trick, which is bring-up scaffolding
-   and must not become the contract.
-4. Integrate with the updater/runtime lifecycle.
-5. Pass the physical-device gate: release, Dart behavior actually changes
-   after the patch, sane patch-coverage (link-percentage equivalent), rollback.
-6. Measure the two vetoes: release size and frame-time impact, and whether
-   hot-path patches must stay native.
+1. ~~Patchable call-emission mode on arm64.~~ **Works on the host harness,
+   2026-08-09** — `--patchable_static_calls`. Covers static calls, static
+   methods, monomorphic instance calls, getters and dynamic instance calls;
+   **dispatch-table calls are not reachable** and are a much larger change.
+2. ~~Retain and bind app + SDK symbols.~~ **Works, 2026-08-09** — generated
+   dynamic interface, whole-library for the app and named members for the SDK.
+   The asymmetry is not stylistic: whole-library `dart:core` costs **+310 %**
+   snapshot against **+0.9 %** for the app.
+3. **Stable target identity** — which function in the installed release a given
+   bytecode belongs to. Not started.
+4. Package the payload with an explicit **versioned type/header** — NOT the
+   provisional `*.vmcode` filename trick, which is bring-up scaffolding and
+   must not become the contract. Not started.
+5. Make `shorebird patch` produce it, and integrate with the updater/runtime
+   lifecycle. Not started.
+6. Pass the physical-device gate: release, Dart behavior actually changes after
+   the patch, sane patch coverage, rollback. **Nothing has run on iOS.**
+7. Measure the two vetoes: release size and frame-time impact on a real app,
+   and whether hot-path patches must stay native. Either can still kill this.
 
-The spikes proved the *mechanism* in a harness. They did not produce a
-shippable path.
+Steps 1 and 2 are measured on a toy program on a macOS host. The combined
+snapshot cost there is **+4.64 %**, which is a dial-reading and not the veto.
 
 **Infrastructure and artifact independence are closed** as of 2026-08-07 —
 artifact ownership audited per cell, the acceptance fixture and its pub seed
@@ -144,10 +157,11 @@ rejected" is stale: two routes were spiked 2026-08-05 — Track E's binding crux
 **passed** ([`engine/killgate/README.md`](engine/killgate/README.md)) and the
 AOT-linker route's object-pool crux is measuring strongly positive
 ([`engine/spike/README.md`](engine/spike/README.md)). **Route B was selected**
-on that evidence — but selected is not built: the compiler, runtime,
-packaging and updater work listed in the capability statement above is all
-still ahead. `pkg/aot_tools` itself remains private-fork-only and can only
-ever be rewritten, never fetched.
+on that evidence. Since 2026-08-09 the compiler and retention layers are built
+and working on a macOS host harness (`selfhost/engine/route_b/`); target
+identity, packaging, the CLI and the iOS port are all still ahead, and both
+vetoes are unmeasured. `pkg/aot_tools` itself remains private-fork-only and can
+only ever be rewritten, never fetched.
 
 What that does and does not affect:
 
@@ -157,7 +171,7 @@ What that does and does not affect:
 | Building releases/patches on the current pin | ✅ unaffected (mirror is warm) |
 | Adopting a newer Flutter version | ✅ needs their published *prebuilts*, not source |
 | Building a **modified** engine, Android | ✅ proven — vanilla Dart + ~57 lines, device-verified |
-| Building a **modified** engine, iOS | ◐ proven for releases + assets patches; **Dart code** patches NOT BUILT (Route B selected, integration not started) |
+| Building a **modified** engine, iOS | ◐ proven for releases + assets patches; **Dart code** patches NOT SHIPPABLE — Route B steps 1–2 work on a host harness, steps 3–5 and the iOS port are not started |
 | Surviving Shorebird disappearing | ⚠️ partial — we hold the engine C++ and updater, not the VM fork to compile them |
 
 Whether to ask for access or rebuild that capability ourselves is scoped in

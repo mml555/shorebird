@@ -4,20 +4,29 @@
 # Route B — iOS Dart code push. Start here.
 
 **Read this first if you are picking up Route B.** It is the plan of record.
+
+> **Name collision, and it will cost you an hour.** `EXPERIMENTAL_ENGINE.md` and
+> `ENGINE_PARITY_PLAN.md` also say "Route B", and they mean something entirely
+> different: the *asset resolver* route for patched assets, which shipped and is
+> device-verified. This document's Route B is iOS Dart **code** push. Same two
+> words, unrelated subjects, different status.
 Background lives in [`IOS_CODE_PUSH.md`](IOS_CODE_PUSH.md) (evidence chain) and
 [`ENGINE_PARITY_PLAN.md`](ENGINE_PARITY_PLAN.md) (the staged plan this
 executes). [`HANDOFF.md`](HANDOFF.md) is the working log — useful, long, and
 not required reading before you start.
 
-## The capability statement, unchanged
+## The capability statement, as of 2026-08-09
 
 > **Android Dart code push and iOS asset push are complete and independent.
-> iOS Dart code push has a selected, de-risked architecture, but the production
-> compiler/runtime integration has not been built yet.**
+> iOS Dart code push has a selected architecture whose compiler and retention
+> layers now work on a host harness. The target-identity, packaging and CLI
+> layers are not built, none of it has run on iOS, and both vetoes are
+> unmeasured.**
 
-Selected is not built. Two kill-gate spikes passed and Route B was chosen on
-that evidence; the harness proved the *mechanism* and produced no shippable
-path. Do not let a passing spike be reported as a working feature.
+Steps 1 and 2 are done and steps 3-5 are not, so the statement moved -- but it
+moved by exactly two layers, on a macOS host, on a toy program. Do not let a
+passing harness be reported as a working feature; that is the same error the
+earlier wording existed to prevent.
 
 ## What you are building, in one shape change
 

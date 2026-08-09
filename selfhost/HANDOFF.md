@@ -42,13 +42,16 @@ because a 2026-08-04 paragraph phrases it as open.
 ### The capability statement (authoritative — do not restate it more warmly)
 
 > **Android Dart code push and iOS asset push are complete and independent.
-> iOS Dart code push has a selected, de-risked architecture, but the production
-> compiler/runtime integration has not been built yet.**
+> iOS Dart code push has a selected architecture whose compiler and retention
+> layers now work on a host harness. The target-identity, packaging and CLI
+> layers are not built, none of it has run on iOS, and both vetoes are
+> unmeasured.**
 
-*Selected is not built.* Two kill-gate spikes passed and Route B was chosen on
-that evidence; the harness proved the *mechanism*, and produced no shippable
-path. Anything that reads like progress toward a working iOS code-push feature
-is wrong.
+*Two layers of five is not a feature.* Route B steps 1 and 2 went in on
+2026-08-09 and are real -- a patch binds to an SDK symbol and is reached by
+ordinary Dart call sites, measured on a macOS host. A patch still cannot be
+named, packaged, produced by the CLI, or applied on a device. Nothing ships
+from a host, and neither veto has been measured on a real app.
 
 ### The boundary that was crossed
 
@@ -87,7 +90,7 @@ the tracker of record.
 |---|---|
 | 1 control plane, 2 Dart fork replacement, 3 prebuilt SDK, 4 CLI, 5 bundletool, 6 `patch` differ | **Built** ✅ |
 | 10 `shorebirdtech/flutter` git | **Built ✅ for CLI bootstrap** — durable private mirror at `mml555/shorebird-flutter-mirror` (1779 refs, pushed 2026-08-06), and the restore is **verified**, not plausible. ◐ engine builds still want a reachable gclient remote |
-| 7 `aot-tools.dill` / the linker | **In progress** ◐ — Route B selected, nothing built |
+| 7 `aot-tools.dill` / the linker | **In progress** ◐ — Route B steps 1–2 work on a host harness (2026-08-09); steps 3–5 and the iOS port not started |
 | 8 engine artifact set, 9 GCS artifact manifest | **Mirrored** ◐ — the next work |
 
 ### Where the project actually is (2026-08-07)
