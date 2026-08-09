@@ -138,9 +138,18 @@ void main(List<String> args) {
     for (final lib in component.libraries.where(isApp)) {
       final uri = lib.importUri.toString();
       for (final p in lib.procedures) {
-        if (p.name.text.startsWith('_')) {
-          privateMembers.add('$uri#${p.name.text}');
-        }
+        if (!p.name.text.startsWith('_')) continue;
+        // The VM disambiguates accessors as get:/set:, and the dynamic
+        // interface is matched against THOSE names. Emitting the bare name got
+        // a real Flutter app rejected outright:
+        //
+        //   A member with disambiguated name '_platform' was not found ...
+        //   Did you mean 'get:_platform' or 'set:_platform'?
+        //
+        // The toy programs had no private accessors, so this only appeared once
+        // the measurement moved to a real app -- which is the argument for
+        // measuring on one.
+        privateMembers.add('$uri#${_vmName(p)}');
       }
     }
   }
@@ -205,6 +214,14 @@ void main(List<String> args) {
     ..writeln('  sdk members   : ${members.length}')
     ..writeln('  sdk libraries : ${wholeSdk.length}');
 }
+
+/// How the VM names a member of this kind, which is what the dynamic interface
+/// is matched against.
+String _vmName(Procedure p) => switch (p.kind) {
+  ProcedureKind.Getter => 'get:${p.name.text}',
+  ProcedureKind.Setter => 'set:${p.name.text}',
+  _ => p.name.text,
+};
 
 Never _die(String message) {
   stderr.writeln('error: $message');

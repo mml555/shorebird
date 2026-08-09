@@ -211,10 +211,17 @@ and believe the result. The pieces are already in the shape the CLI needs.
 
 ### Then prove it
 
-6. **Host integration tests.**
-7. **Real-app size and frame-time benchmark.** ← veto
+6. ~~**Host integration tests.**~~ **DONE 2026-08-09** — `run_all.sh`, 7/7, one
+   command and one verdict. Runs the kill gate in BOTH arms, because a passing
+   arm alone is consistent with the flag being ignored.
+7. **Real-app size and frame-time benchmark.** ← veto — **size half DONE**,
+   frame-time half OPEN. On the real Flutter fixture (469 libraries, 25 MB
+   kernel): call form **+3.43 %**, shipping policy **+4.39 %**, and the naive
+   all-libraries retention **+275.58 %**. Frame time cannot be measured from a
+   snapshot; it needs the app running, which needs the iOS port.
 8. **Physical-iPhone gate** — release, Dart behavior actually changes, sane
-   patch coverage, rollback. ← veto
+   patch coverage, rollback. ← veto. Device→control-plane reach is now PASS, so
+   the rig is ready; the engine port is not.
 9. **Sealed independence regression for iOS code patches.**
 
 Either veto can still kill the approach, which is why they are gates and not

@@ -392,6 +392,51 @@ something. When step 6 lands, this is the pipeline to move behind the command �
 the pieces are already in the shape the CLI needs: a manifest per release, a
 build-id stamp, a coverage verdict, and a packer.
 
+## Steps 6 and 7 — one suite, and the first number that is not a toy
+
+```bash
+selfhost/engine/route_b/run_all.sh            # step 6: every host check
+selfhost/engine/route_b/measure_real_app.sh   # step 7: the size half
+```
+
+**Step 6.** By the end of step 5 the checks lived in five scripts across three
+directories, each with its own invocation and its own way of saying "passed" —
+which is how a suite quietly stops being run. `run_all.sh` is one command with
+one verdict (**7/7**), guards the tree before trusting any result, and runs the
+kill gate **twice**: with the patchable call form and without. That pairing is
+not ceremony — a passing arm alone is equally consistent with the flag being
+ignored.
+
+**Step 7, size half — measured on the real Flutter fixture**, 469 libraries and
+a 25 MB kernel, compiled against the Flutter platform dill with TFA on:
+
+| configuration | bytes | vs baseline |
+|---|---|---|
+| baseline (stock AOT) | 5,736,952 | — |
+| + call form | 5,933,888 | **+3.43 %** |
+| **+ call form + app-only retention** | **5,988,552** | **+4.39 %** |
+| + call form + ALL 469 libraries retained | 21,547,112 | **+275.58 %** |
+
+The shipping policy costs **+4.39 %** on a real app — within a percentage point
+of the toy's +4.64 %, which is the first evidence the toy numbers were not
+lying. The naive policy costs **3.75×**, and the gap between those two rows is
+the entire value of step 2's asymmetric retention decision.
+
+That real app also caught a bug the toys could not: private **accessors** were
+being emitted as bare names, and the VM matches the dynamic interface against
+its disambiguated `get:`/`set:` forms, so `gen_kernel` rejected the app outright
+with *"a member with disambiguated name `_platform` was not found"*. No toy here
+had a private getter.
+
+### What step 7 still does not answer
+
+**Frame time is not measured, and cannot be from a snapshot** — it needs the app
+running on a device, which needs the iOS engine port. Half of the veto is open.
+
+And these are **macOS host snapshots**. Absolute bytes are not an iOS release
+size; the deltas are the transferable part, since both arms compile the same
+kernel with the same compiler and differ only in flags.
+
 ## Smoke-test the tree before trusting it
 
 "It built" proves nothing about a fork/backend pairing — a mismatched
