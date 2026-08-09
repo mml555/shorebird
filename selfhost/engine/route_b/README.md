@@ -107,6 +107,58 @@ Two deliberate scope choices in the patch, both explained in its comments:
 `shorebird patch` producing one) are untouched, and the iOS port and both vetoes
 are still ahead.
 
+## Step 2 — symbol retention, and the policy the measurement forced
+
+Patch bytecode does not resolve against the base snapshot for free: AOT drops
+library dictionaries, and Spike B's first replacement died in
+`bytecode_reader.cc:1172` with *Unable to find function print in
+Library:'dart:core'*. Retention has to be declared at release time via
+`gen_kernel --dynamic-interface`.
+
+Spike B declared three members by hand. A release cannot — nobody knows which
+members a future patch will touch. `pkg/vm/dynamic_interface.md` offers the
+lever: a `library:` item with no `class:` retains every public class and member
+of that library. So the release chooses **breadth**, not symbols, and
+`gen_dynamic_interface.dart` generates that from the app's own kernel.
+
+**The obvious policy is not shippable, and the measurement is the reason.**
+`measure_retention.sh` sweeps breadth against the call form, on the gate program:
+
+| retention breadth | plain | + call form |
+|---|---|---|
+| none (stock AOT) | — | +1.88 % |
+| app libraries only | +0.89 % | +2.78 % |
+| **app + named SDK members** | **+0.90 %** | **+4.64 %** |
+| app + WHOLE `dart:core` | **+309.90 %** | +322.99 % |
+
+Retaining the app's own libraries whole is effectively free, and matches Spike
+B's +0.93 %. Retaining `dart:core` whole is a **four-fold snapshot** — a library
+item keeps every public member of every public class, and AOT can no longer
+tree-shake any of it.
+
+So the shipping policy is **asymmetric on purpose**: whole-library for the app,
+an explicit member list for the SDK. That one decision is the difference between
++4.64 % and +323 %. The default SDK list is deliberately tiny (`dart:core#print`)
+— widen it from evidence about what patches actually call, and re-run the sweep
+when you do. `--sdk-libraries` still exists so the expensive option stays
+measurable, not because anything should ship it.
+
+### Proving it functionally, not just by size
+
+```bash
+selfhost/engine/route_b/verify_binding.sh
+```
+
+runs steps 1 and 2 together: a replacement body that calls `print()` — an SDK
+symbol, retained by the generated interface — and checks the value arrives back
+through ordinary Dart call sites. The two halves fail differently on purpose:
+
+- no `BOUND` line → **retention** failed (step 2);
+- `BOUND` but call shapes `OLD` → **dispatch** failed (step 1).
+
+Passing 2026-08-09: `BOUND` once per call shape, all four returning
+`NEW-PRINTED`.
+
 ## Smoke-test the tree before trusting it
 
 "It built" proves nothing about a fork/backend pairing — a mismatched

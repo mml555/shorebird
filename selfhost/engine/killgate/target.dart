@@ -88,12 +88,20 @@ void main(List<String> args) {
   print('after  dynamic  : $viaDynamic');
   print('after  apply    : $viaApply');
 
+  // "not OLD", not "== NEW". The replacement body is supplied by whoever runs
+  // the gate, and Route B's binding harness returns 'NEW-PRINTED' rather than
+  // 'NEW' so that an SDK call inside the patch is observable. Testing equality
+  // against one literal made the gate print BASELINE on a run where all four
+  // shapes had in fact been replaced -- the instrument disagreeing with its own
+  // output four lines above it. Only OLD means "this call site was not
+  // redirected".
+  bool replaced(String s) => s != 'OLD';
   final anyNew =
-      direct == 'NEW' ||
-      viaTearOff == 'NEW' ||
-      viaDynamic == 'NEW' ||
-      viaApply == 'NEW';
-  if (ok && direct == 'NEW') {
+      replaced(direct) ||
+      replaced(viaTearOff) ||
+      replaced(viaDynamic) ||
+      replaced(viaApply);
+  if (ok && replaced(direct)) {
     print('GATE: PASS -- interpreted body replaced AOT body, direct calls included');
   } else if (ok && anyNew) {
     print(
