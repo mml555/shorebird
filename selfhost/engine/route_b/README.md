@@ -106,9 +106,9 @@ loads `ARGS_DESC_REG` unconditionally. Checking it is what made the widening
 below a two-line move rather than a redesign, and the patch now records the
 precondition so a third caller cannot quietly break it.
 
-**What this is not.** It is one call form working in a host harness. Steps 3–5
-(stable target identity, the versioned container, and `shorebird patch`
-producing one) are untouched, and the iOS port and both vetoes are still ahead.
+**What this is not.** It is one call form working in a host harness. Steps 4–5
+(the versioned container, and `shorebird patch` producing one) are untouched,
+and the iOS port and both vetoes are still ahead.
 
 ### Widening — measured, not assumed
 
@@ -214,6 +214,64 @@ through ordinary Dart call sites. The two halves fail differently on purpose:
 
 Passing 2026-08-09: `BOUND` once per call shape, all four returning
 `NEW-PRINTED`.
+
+## Step 3 — target identity, which was smaller than the plan expected
+
+The plan framed this as *"the runtime cannot lean on addresses or incidental
+object-pool positions"*, which reads like a release must carry a bespoke target
+table. It does not, and one probe settled it.
+
+```bash
+selfhost/engine/route_b/identity/probe_retention_lookup.sh
+```
+
+Step 2's whole-library retention lowers to `@pragma('dyn-module:callable')`,
+which the VM treats exactly like `vm:entry-point`. So with every
+`vm:entry-point` **stripped from the program**, all targets still resolve by
+name at run time. Step 3 is therefore naming and bookkeeping, not runtime
+lookup — do not build a target table.
+
+### The coverage hole that probe found
+
+A `library:` item retains **public members only** — pkg/vm's spec says so, and
+the consequence is concrete: attaching to a private function failed with
+`function _report not found` while its own library was retained whole. Real apps
+are mostly private code, so a release shipping that policy would have reported
+broad coverage and delivered very little.
+
+`gen_dynamic_interface.dart` now emits an explicit `member:` entry per private
+app member. Cost on the inventory program: **+0.01 %** (945,280 → 945,384
+bytes). The VM's `_name@<library key>` mangling is not our problem —
+`Library::LookupLocalObjectAllowPrivate` applies it, so the plain source name is
+what to emit and what to hand the runtime.
+
+### The manifest
+
+```bash
+selfhost/engine/route_b/identity/gen_target_manifest.dart --dill app.dill
+```
+
+emits `{library, class, name, kind, vmName, selector, reachable, reason}` per
+target. Structured fields, never a joined string: the harness split
+`Class.name` on the first dot and made callers know that a getter is stored as
+`get:name`, which is a VM internal leaking into what becomes a wire contract.
+`selector` is composed here so no caller has to know either rule.
+
+**`reachable` is the point of the manifest, not a decoration.** Step 1's
+inventory established that coverage is not "any Dart function", so each entry
+says what it is:
+
+| verdict | meaning |
+|---|---|
+| `yes` | static-shaped call — emitted as the patchable form |
+| `conditional` | instance member — reachable where the call site devirtualizes or uses the cid chain, **not** where it becomes a dispatch-table call |
+| `no` | abstract; call sites dispatch to implementations |
+
+`conditional` is deliberate rather than evasive: whether a given call site
+devirtualizes is decided per-site by the precompiler and is **not** visible in
+the kernel the manifest is generated from. Reporting a guess as a fact is how a
+link percentage becomes a lie. Turning `conditional` into a per-site count wants
+snapshot-side data, and belongs with step 5's coverage reporting.
 
 ## Smoke-test the tree before trusting it
 

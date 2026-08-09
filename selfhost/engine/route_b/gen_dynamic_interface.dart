@@ -56,6 +56,7 @@ void main(List<String> args) {
   var sdkMembers = _defaultSdkMembers;
   var sdkLibraries = const <String>[];
   var includeSdk = true;
+  var retainPrivate = true;
   final includePrefixes = <String>[];
 
   for (var i = 0; i < args.length; i++) {
@@ -84,6 +85,9 @@ void main(List<String> args) {
         sdkLibraries = next().split(',').where((s) => s.isNotEmpty).toList();
       case '--no-sdk':
         includeSdk = false;
+      case '--no-private':
+        // Present so the cost of private-member retention stays measurable.
+        retainPrivate = false;
       case '-h':
       case '--help':
         _usage();
@@ -118,6 +122,29 @@ void main(List<String> args) {
           .toList()
         ..sort();
 
+  // Private members are NOT covered by a `library:` item -- pkg/vm's spec says
+  // it retains "all _public_ classes and members", and the consequence is
+  // concrete: attaching to a private function failed with "function _report not
+  // found" even though its library was retained whole. Real apps are mostly
+  // private, so a release that skipped these would report broad coverage and
+  // deliver very little.
+  //
+  // They have to be named one by one, which is exactly what a generator is for.
+  // The VM's own mangling (_name@<library key>) is NOT our problem here:
+  // Library::LookupLocalObjectAllowPrivate applies it, so the plain source name
+  // is the right thing to emit.
+  final privateMembers = <String>[];
+  if (retainPrivate) {
+    for (final lib in component.libraries.where(isApp)) {
+      final uri = lib.importUri.toString();
+      for (final p in lib.procedures) {
+        if (p.name.text.startsWith('_')) {
+          privateMembers.add('$uri#${p.name.text}');
+        }
+      }
+    }
+  }
+
   final members = includeSdk ? sdkMembers : const <String>[];
   final wholeSdk = includeSdk ? sdkLibraries : const <String>[];
 
@@ -148,6 +175,17 @@ void main(List<String> args) {
         ..writeln("    member: '${entry.substring(i + 1)}'");
     }
   }
+  if (privateMembers.isNotEmpty) {
+    buf.writeln(
+      '  # Private app members -- a `library:` item does not cover these.',
+    );
+    for (final entry in privateMembers) {
+      final i = entry.indexOf('#');
+      buf
+        ..writeln("  - library: '${entry.substring(0, i)}'")
+        ..writeln("    member: '${entry.substring(i + 1)}'");
+    }
+  }
   if (wholeSdk.isNotEmpty) {
     buf.writeln(
       '  # WHOLE SDK libraries -- expensive, see measure_retention.sh.',
@@ -163,6 +201,7 @@ void main(List<String> args) {
   stderr
     ..writeln('wrote $outPath')
     ..writeln('  app libraries : ${appLibraries.length}')
+    ..writeln('  private app   : ${privateMembers.length}')
     ..writeln('  sdk members   : ${members.length}')
     ..writeln('  sdk libraries : ${wholeSdk.length}');
 }
@@ -182,5 +221,7 @@ gen_dynamic_interface.dart --dill <app.dill> [options]
   --sdk-members <l#m,...>  named SDK members to retain (default dart:core#print)
   --sdk-libraries <a,b,c>  WHOLE SDK libraries -- +310% for dart:core alone
   --no-sdk                 emit no SDK entries at all
+  --no-private             skip private app members (they are NOT covered by
+                           a library: item, so this narrows real coverage)
 ''');
 }

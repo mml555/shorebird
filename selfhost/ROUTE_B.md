@@ -146,15 +146,27 @@ Whole-library retention of the app is free. Whole-library retention of
 whole-library for the app, named members for the SDK — and that one choice is
 +4.64 % against +323 %.
 
-### 3. Stable target identities — the binder
+### 3. ~~Stable target identities — the binder~~ — DONE 2026-08-09
 
-The CLI and server need a deterministic answer to *"this bytecode belongs to
-which function in the installed release?"*, and the runtime cannot lean on
-addresses or incidental object-pool positions.
+Smaller than this plan expected, and a probe rather than an argument settled it.
+`identity/probe_retention_lookup.sh` strips **every** `vm:entry-point` from the
+program and every target still resolves by name: step 2's retention lowers to
+`dyn-module:callable`, which the VM treats as `vm:entry-point`. So there is no
+bespoke target table to build — the runtime half came free with step 2.
 
-**Do not overengineer this.** The identity contract only has to be stable
-between *a specific release* and patches built for that release. A universal
-Dart ABI is not the goal and would be a much larger project.
+What was real: a `library:` item retains **public members only**, so private
+functions were unreachable while their library was retained whole. Real apps are
+mostly private code. `gen_dynamic_interface.dart` now names them explicitly, at
+**+0.01 %**.
+
+`identity/gen_target_manifest.dart` emits `{library, class, name, kind, vmName,
+selector, reachable, reason}` per target — structured fields rather than a
+joined string, with the `get:`/`set:` mangling handled at the boundary instead
+of leaking into the contract. `reachable` is `yes` / `conditional` / `no`, where
+`conditional` is honest about instance members: whether a call site
+devirtualizes is decided per-site by the precompiler and is not visible in the
+kernel. Turning that into a count needs snapshot-side data and belongs with step
+5's coverage reporting.
 
 ### 4. Package and activate the patch
 
