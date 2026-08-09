@@ -102,17 +102,20 @@ the tracker of record.
 |---|---|
 | iOS artifact independence | **PASS** |
 | iOS release → first frame on device | **PASS** |
-| iOS device → control-plane reach | **BLOCKED** — Local Network permission |
+| iOS device → control-plane reach | **PASS** — 2026-08-09, once Local Network was granted |
 | iOS assets-patch application on device | **NOT VERIFIED** |
 | Android full device lifecycle (release → Dart code patch → rollback) | **PASS** |
 
-The iPhone sends nothing to `cps-ios` — neither the Dart beacon nor the native
-updater — on either transport, while the app renders correctly. Next step is
-one device setting, tried once: Settings → Privacy & Security → Local Network →
-*Airgap Probe*. If that does not resolve it, **stop infrastructure work** and
-harden the iOS device rig alongside Route B's first physical-device
-integration, which needs reliable iPhone communication regardless. Details and
-the reasoning: [`UPSTREAM_INDEPENDENCE.md`](UPSTREAM_INDEPENDENCE.md).
+~~The iPhone sends nothing to `cps-ios`.~~ **RESOLVED 2026-08-09 — it was the
+one device setting.** With Local Network granted to *Airgap Probe*, the fixture
+launched over LAN produced `POST /api/v1/patches/check -> 200` and
+`POST /patches/check -> 200` within a second of launch.
+
+Two things worth carrying forward. `prepare_ios_endpoint.sh --mode lan` now
+reports `device 10.0.0.227 reachable`, so the preflight is a usable signal
+rather than a formality. And the Dart beacon's `GET /selfhost-beacon/state`
+answers **403** — it reaches the server, so that is authorization, not
+connectivity; do not read that 403 as the old symptom returning.
 
 **Android does not carry the iOS device claim.** They are separate claims and
 merging them would manufacture a green check the iOS leg has not earned.

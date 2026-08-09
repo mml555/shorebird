@@ -89,14 +89,22 @@ device, and an assets-only patch published, downloaded, applied and rolled back.
 |---|---|
 | iOS artifact independence | **PASS** |
 | iOS release → first frame on device | **PASS** |
-| iOS device → control-plane reach | **BLOCKED** — device Local Network permission |
+| iOS device → control-plane reach | **PASS** — 2026-08-09, once Local Network was granted |
 | iOS assets-patch application on device | **NOT VERIFIED** on the current fixture |
 | Android full device lifecycle (release → Dart code patch → rollback) | **PASS** |
 
 Android must not be read as covering the iOS device claim. The assets-only
 round trip *was* device-verified on 2026-08-05 against an app that no longer
-exists; the durable fixture that replaced it has not yet cleared the device
-gap. See [`UPSTREAM_INDEPENDENCE.md`](UPSTREAM_INDEPENDENCE.md).
+exists, and the durable fixture that replaced it still has not been shown to
+APPLY a patch on device — that row stays NOT VERIFIED.
+
+**The device→control-plane gap closed on 2026-08-09.** Granting Local Network
+to *Airgap Probe* was the whole fix. The fixture, launched over LAN at
+`http://10.0.0.7:18080`, produced `POST /api/v1/patches/check -> 200` and
+`POST /patches/check -> 200` from the native updater. Note the Dart beacon's
+`GET /selfhost-beacon/state` returns **403** — it reaches the server, so it is
+not a connectivity problem, but that diagnostic endpoint is not usable as-is.
+See [`UPSTREAM_INDEPENDENCE.md`](UPSTREAM_INDEPENDENCE.md).
 
 What remains before iOS Dart **code** patches work. The plan of record, with
 file:line pointers and the rig, is [`ROUTE_B.md`](ROUTE_B.md); in outline:

@@ -281,11 +281,10 @@ selfhost/scripts/prepare_airgap_fixture.sh --leg ios --app-id <id>
 
 ## Before Step 1 — one thing left
 
-Items 2 and 3 were done on 2026-08-09 and are kept below as the record of what
-exists and what the baseline is. **Only item 1 is outstanding, it needs
-physical hands on the phone, and it does not block Step 1.**
+All three were done on 2026-08-09 and are kept below as the record of what
+exists and what the baseline is. Nothing here is outstanding.
 
-### 1. Check the iPhone Local Network setting, once — STILL OPEN
+### 1. ~~Check the iPhone Local Network setting~~ — DONE 2026-08-09, and it worked
 
 Settings → Privacy & Security → Local Network → *Airgap Probe*. If it resolves
 the device→control-plane gap, good. **If it does not, record the result and move
@@ -402,18 +401,18 @@ These are not hypotheticals; each one cost real time.
    are relying on may be silently violated. Turn the relevant `ASSERT` into
    `OS::PrintErr` + `Profiler::DumpStackTrace(false)` rather than trusting it.
 
-## The one open non-Route-B item
+## The one open non-Route-B item — CLOSED 2026-08-09
 
-**iOS device → control-plane reach is blocked** by device Local Network
-permission state. The iPhone sends nothing to `cps-ios` — neither the Dart
-beacon nor the native updater — on either transport, while the app renders
-correctly. Next step is one device setting, tried once: Settings → Privacy &
-Security → Local Network → *Airgap Probe*.
+**iOS device → control-plane reach is PASS.** It was the device setting, tried
+once: Settings → Privacy & Security → Local Network → *Airgap Probe*. The
+fixture launched over LAN produced `POST /api/v1/patches/check -> 200` and
+`POST /patches/check -> 200` from the native updater within a second.
 
-**This lands on Route B**, because step 9 needs reliable iPhone communication
-regardless. If the setting does not resolve it, harden the device rig as part
-of that step rather than as separate infrastructure work. Full reasoning:
-[`UPSTREAM_INDEPENDENCE.md`](UPSTREAM_INDEPENDENCE.md).
+This matters for step 6, which needs reliable iPhone communication regardless.
+Two notes for whoever gets there: `prepare_ios_endpoint.sh --mode lan` now
+reports the device as reachable, so the preflight is a real signal; and the Dart
+beacon's `GET /selfhost-beacon/state` answers **403** — it reaches the server,
+so that is authorization rather than the old connectivity symptom.
 
 ## What not to do
 
