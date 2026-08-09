@@ -1,5 +1,6 @@
 <!-- cspell:words killgate dynmod dartaotruntime APFS gclient depot caffeinate -->
 <!-- cspell:words devirtualize devirtualizes devirtualized megamorphic movz uxtx -->
+<!-- cspell:words SBRBPTCH sbrb -->
 
 # Route B — the dedicated build tree
 
@@ -272,6 +273,81 @@ devirtualizes is decided per-site by the precompiler and is **not** visible in
 the kernel the manifest is generated from. Reporting a guess as a fact is how a
 link percentage becomes a lie. Turning `conditional` into a per-site count wants
 snapshot-side data, and belongs with step 5's coverage reporting.
+
+## Step 4 — the container, and the rollback that did not exist
+
+```bash
+selfhost/engine/route_b/packaging/verify_container.sh     # 10 checks
+```
+
+The spikes shipped a `*.vmcode` file whose meaning came entirely from its
+filename and the fact that exactly one function was ever patched. A real patch
+carries several targets, must refuse the wrong release, and must be verifiable
+before anything is attached — none of which a naming convention can express.
+
+```
+magic       8 bytes   "SBRBPTCH"
+version     uint32    little endian
+headerLen   uint32    little endian
+header      JSON      release build id + targets + payload offsets/hashes
+payloads    raw bytecode blobs
+```
+
+Magic first so a truncated or misidentified file fails at byte 0 rather than
+somewhere inside the interpreter. Targets are named by **selector** (step 3's
+manifest), never by index — an index into anything the release computed is
+exactly the "incidental position" the plan warns against.
+
+**Release identity is the GNU build ID** the toolchain already emits into the
+snapshot, read at run time via `releaseBuildId()`. Patch bytecode is compiled
+against one release's kernel, so applying it elsewhere is undefined rather than
+merely unsupported — and would surface as a corrupt interpreted body, not an
+error.
+
+### The finding: upstream cannot roll back in AOT
+
+`Function::ClearBytecode()` — upstream's undo — calls `ClearCode()`, which is
+`UNREACHABLE()` under `DART_PRECOMPILED_RUNTIME` and, in the JIT, installs the
+`LazyCompile` stub. Correct there; meaningless in a runtime with no compiler.
+Worse, **`AttachBytecode` discards the original `Code` without saving it**, so
+even a working `ClearBytecode` would have had nothing to restore.
+
+So Route B supplies rollback itself: the attach path saves the original `Code`,
+and `RestoreCodeFromBytecode()` puts it back. The plan lists "preserve rollback"
+as part of step 4 — it turned out to be the part that did not exist.
+
+**Where that saved `Code` lives cost two attempts, and the first one is a trap
+worth naming.** Appending a field to `OBJECT_STORE_FIELD_LIST` looks tidy and
+fails twice over: the AOT deserializer leaves the appended slot holding a raw C
+`nullptr` — *not* the Dart null object — so `Object::IsNull()` reports false and
+the first use segfaults at `0xf`; and the slot may sit past the end of the
+deserialized `ObjectStore` allocation, so writing to it corrupts the heap rather
+than crashing honestly. (Inserting the field anywhere *earlier* fails louder and
+sooner: every following offset shifts and the build dies in `dart.cc`
+`CheckOffsets`.) The saved codes now live in persistent handles, which are GC
+roots and survive compaction.
+
+### What the 10 checks actually check
+
+| | |
+|---|---|
+| two targets, one container | both change together, both revert together |
+| wrong release | refused on build-id mismatch, nothing attached |
+| corrupt payload | refused on hash mismatch, nothing attached |
+| partial apply | one target unresolvable → the already-attached one is rolled back |
+
+The last is the case a one-target harness cannot test at all, which is why the
+release program has two functions. Hash verification lives in the **installer**,
+not only in the packer — a packer checking its own output proves nothing about a
+file that crossed a network — and it runs before any attach, because a
+transactional apply can unwind attachments but cannot unwind a corrupt body that
+already ran.
+
+**Still host-only.** The installer here is Dart because the harness is; in the
+product it belongs in the engine's C++ patch installer, alongside the existing
+Shorebird lifecycle rather than beside it. The order it establishes — verify,
+match release, attach tracking what succeeded, unwind on failure — is the part
+to copy.
 
 ## Smoke-test the tree before trusting it
 

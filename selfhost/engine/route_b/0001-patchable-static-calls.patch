@@ -1,72 +1,275 @@
 diff --git a/runtime/lib/object.cc b/runtime/lib/object.cc
-index a267382..b7f2dd1 100644
+index a267382..cfa4b91 100644
 --- a/runtime/lib/object.cc
 +++ b/runtime/lib/object.cc
-@@ -674,10 +674,60 @@ DEFINE_NATIVE_ENTRY(Internal_attachBytecodeToFunction, 0, 3) {
-       OS::PrintErr("ATTACH: library not found: %s\n", library_uri.ToCString());
-       return Bool::False().ptr();
-     }
--    target = lib.LookupFunctionAllowPrivate(target_name);
--    if (target.IsNull()) {
--      OS::PrintErr("ATTACH: function %s not found in %s\n", target_name.ToCString(), library_uri.ToCString());
--      return Bool::False().ptr();
-+    // "Name" resolves a top-level function; "Class.name" resolves a member.
-+    //
-+    // The class form exists so the call-form inventory can target instance
-+    // methods, getters and constructors, not just top-level statics -- without
-+    // it the harness can only measure the one shape that already works, which
-+    // would make "everything we can test passes" a statement about the
-+    // instrument rather than about Route B.
-+    //
-+    // Still a GATE-only mechanism: it depends on library dictionaries, which
-+    // AOT drops, hence the vm:entry-point pragmas in the inventory program. A
-+    // real linker identifies targets from the snapshot's tables at build time
-+    // and needs none of this.
-+    intptr_t dot = -1;
-+    for (intptr_t i = 0; i < target_name.Length(); i++) {
-+      if (target_name.CharAt(i) == '.') {
-+        dot = i;
-+        break;
-+      }
+@@ -4,10 +4,13 @@
+ 
+ #include "vm/bootstrap_natives.h"
+ 
++#include "platform/text_buffer.h"
++
+ #include "lib/invocation_mirror.h"
+ #include "vm/bytecode_reader.h"
+ #include "vm/code_patcher.h"
+ #include "vm/dart_api_impl.h"
++#include "vm/dart_api_state.h"
+ #include "vm/dart_entry.h"
+ #include "vm/exceptions.h"
+ #include "vm/heap/heap.h"
+@@ -627,6 +630,133 @@ DEFINE_NATIVE_ENTRY(Internal_loadDynamicModule, 0, 1) {
+ #endif  // defined(DART_DYNAMIC_MODULES)
+ }
+ 
++#if defined(DART_DYNAMIC_MODULES)
++// Resolve a Route B patch target: "name" is a top-level function, "Class.name"
++// a class member. Returns a null Function and prints why, on failure.
++//
++// Shared by attach and detach on purpose. A rollback that resolved targets even
++// slightly differently from the activation could revert the wrong thing, and
++// would do so only in the cases where the two disagreed -- the worst possible
++// place for a divergence to hide.
++//
++// GATE-side machinery: it leans on library dictionaries, which survive only
++// because Route B step 2 retains them. A real linker resolves targets from the
++// snapshot's own tables at build time and needs none of this.
++// Where a patched function's ORIGINAL Code is kept, so rollback can put it back.
++//
++// A process-wide table of persistent handles rather than an ObjectStore field.
++// Appending a field to OBJECT_STORE_FIELD_LIST looked like the tidy answer and
++// is a trap: the AOT deserializer leaves the appended slot holding a raw C
++// nullptr -- not the Dart null object -- so Object::IsNull() reports false and
++// the first use segfaults at offset 0xf. Worse, the slot may sit past the end
++// of the deserialized ObjectStore's allocation, so writing to it would corrupt
++// the heap rather than crash honestly.
++//
++// Persistent handles are GC roots and survive compaction, which is what this
++// needs: the entries have to outlive the attach call and stay valid across
++// collections.
++//
++// GATE-SCOPED. A process-wide static is wrong for a multi-isolate-group
++// embedder; the product belongs in the engine's patch installer, which already
++// owns per-app lifecycle state. Every access here happens under the program
++// lock, which is what makes the static safe in this harness.
++struct RouteBSavedCode {
++  PersistentHandle* function;
++  PersistentHandle* code;
++};
++static MallocGrowableArray<RouteBSavedCode>* route_b_saved_code = nullptr;
++
++static void RouteBSaveOriginalCode(Thread* thread,
++                                   const Function& function,
++                                   const Code& original) {
++  if (route_b_saved_code == nullptr) {
++    route_b_saved_code = new MallocGrowableArray<RouteBSavedCode>();
++  }
++  auto* const api_state = thread->isolate_group()->api_state();
++  auto* const fn_handle = api_state->AllocatePersistentHandle();
++  fn_handle->set_ptr(function.ptr());
++  auto* const code_handle = api_state->AllocatePersistentHandle();
++  code_handle->set_ptr(original.ptr());
++  route_b_saved_code->Add({fn_handle, code_handle});
++}
++
++// Returns the saved Code and forgets the entry, so a second detach of the same
++// target reports "nothing saved" rather than restoring a stale Code.
++static CodePtr RouteBTakeOriginalCode(const Function& function) {
++  if (route_b_saved_code == nullptr) return Code::null();
++  for (intptr_t i = route_b_saved_code->length() - 1; i >= 0; i--) {
++    const auto entry = (*route_b_saved_code)[i];
++    if (entry.function->ptr() != function.ptr()) continue;
++    const CodePtr result = Code::RawCast(entry.code->ptr());
++    auto* const api_state = IsolateGroup::Current()->api_state();
++    api_state->FreePersistentHandle(entry.function);
++    api_state->FreePersistentHandle(entry.code);
++    // Order is not meaningful, so fill the hole from the end rather than
++    // shifting; leaving holes would let a later lookup match a dead row.
++    (*route_b_saved_code)[i] =
++        (*route_b_saved_code)[route_b_saved_code->length() - 1];
++    route_b_saved_code->RemoveLast();
++    return result;
++  }
++  return Code::null();
++}
++
++static FunctionPtr ResolvePatchTarget(Thread* thread,
++                                      Zone* zone,
++                                      const String& library_uri,
++                                      const String& target_name) {
++  const auto& lib =
++      Library::Handle(zone, Library::LookupLibrary(thread, library_uri));
++  if (lib.IsNull()) {
++    OS::PrintErr("ATTACH: library not found: %s\n", library_uri.ToCString());
++    return Function::null();
++  }
++
++  intptr_t dot = -1;
++  for (intptr_t i = 0; i < target_name.Length(); i++) {
++    if (target_name.CharAt(i) == '.') {
++      dot = i;
++      break;
 +    }
-+    if (dot > 0) {
-+      const auto& class_name = String::Handle(
-+          zone, String::SubString(thread, target_name, 0, dot));
-+      const auto& member_name = String::Handle(
-+          zone, String::SubString(thread, target_name, dot + 1,
-+                                  target_name.Length() - dot - 1));
-+      const auto& cls =
-+          Class::Handle(zone, lib.LookupClassAllowPrivate(class_name));
-+      if (cls.IsNull()) {
-+        OS::PrintErr("ATTACH: class %s not found in %s\n",
-+                     class_name.ToCString(), library_uri.ToCString());
-+        return Bool::False().ptr();
-+      }
-+      // EnsureIsFinalized: LookupFunctionAllowPrivate walks the class's
-+      // function array, which a class that is not yet finalized may not
-+      // have populated.
-+      const auto error = cls.EnsureIsFinalized(thread);
-+      if (error != Error::null()) {
-+        OS::PrintErr("ATTACH: could not finalize class %s\n",
-+                     class_name.ToCString());
-+        return Bool::False().ptr();
-+      }
-+      target = cls.LookupFunctionAllowPrivate(member_name);
-+      if (target.IsNull()) {
-+        OS::PrintErr("ATTACH: member %s not found on %s\n",
-+                     member_name.ToCString(), class_name.ToCString());
-+        return Bool::False().ptr();
-+      }
-+    } else {
-+      target = lib.LookupFunctionAllowPrivate(target_name);
-+      if (target.IsNull()) {
-+        OS::PrintErr("ATTACH: function %s not found in %s\n",
-+                     target_name.ToCString(), library_uri.ToCString());
-+        return Bool::False().ptr();
-+      }
++  }
++  if (dot <= 0) {
++    const auto& fn =
++        Function::Handle(zone, lib.LookupFunctionAllowPrivate(target_name));
++    if (fn.IsNull()) {
++      OS::PrintErr("ATTACH: function %s not found in %s\n",
++                   target_name.ToCString(), library_uri.ToCString());
++    }
++    return fn.ptr();
++  }
++
++  const auto& class_name =
++      String::Handle(zone, String::SubString(thread, target_name, 0, dot));
++  const auto& member_name = String::Handle(
++      zone, String::SubString(thread, target_name, dot + 1,
++                              target_name.Length() - dot - 1));
++  const auto& cls = Class::Handle(zone, lib.LookupClassAllowPrivate(class_name));
++  if (cls.IsNull()) {
++    OS::PrintErr("ATTACH: class %s not found in %s\n", class_name.ToCString(),
++                 library_uri.ToCString());
++    return Function::null();
++  }
++  // EnsureIsFinalized: LookupFunctionAllowPrivate walks the class's function
++  // array, which a class that is not yet finalized may not have populated.
++  if (cls.EnsureIsFinalized(thread) != Error::null()) {
++    OS::PrintErr("ATTACH: could not finalize class %s\n",
++                 class_name.ToCString());
++    return Function::null();
++  }
++  const auto& fn =
++      Function::Handle(zone, cls.LookupFunctionAllowPrivate(member_name));
++  if (fn.IsNull()) {
++    OS::PrintErr("ATTACH: member %s not found on %s\n",
++                 member_name.ToCString(), class_name.ToCString());
++  }
++  return fn.ptr();
++}
++#endif  // defined(DART_DYNAMIC_MODULES)
++
+ DEFINE_NATIVE_ENTRY(Internal_attachBytecodeToFunction, 0, 3) {
+ #if defined(DART_DYNAMIC_MODULES)
+   GET_NON_NULL_NATIVE_ARGUMENT(TypedDataBase, module_bytes,
+@@ -668,15 +798,8 @@ DEFINE_NATIVE_ENTRY(Internal_attachBytecodeToFunction, 0, 3) {
      }
  
-     // The gate's premise: the target is an ordinary AOT-compiled function.
+     // Resolve the function to be replaced in the already-compiled program.
+-    const auto& lib =
+-        Library::Handle(zone, Library::LookupLibrary(thread, library_uri));
+-    if (lib.IsNull()) {
+-      OS::PrintErr("ATTACH: library not found: %s\n", library_uri.ToCString());
+-      return Bool::False().ptr();
+-    }
+-    target = lib.LookupFunctionAllowPrivate(target_name);
++    target = ResolvePatchTarget(thread, zone, library_uri, target_name);
+     if (target.IsNull()) {
+-      OS::PrintErr("ATTACH: function %s not found in %s\n", target_name.ToCString(), library_uri.ToCString());
+       return Bool::False().ptr();
+     }
+ 
+@@ -693,6 +816,16 @@ DEFINE_NATIVE_ENTRY(Internal_attachBytecodeToFunction, 0, 3) {
+       return Bool::False().ptr();
+     }
+ 
++    // Save the original Code BEFORE attaching, because nothing else will.
++    // AttachBytecode overwrites Function.code_ and keeps no record of what it
++    // replaced, and upstream's undo -- ClearBytecode -> ClearCode -- is
++    // UNREACHABLE under DART_PRECOMPILED_RUNTIME and installs the LazyCompile
++    // stub in the JIT, which is meaningless in a runtime with no compiler. AOT
++    // rollback is therefore ours to provide, and this is the only moment the
++    // original is still in hand.
++    RouteBSaveOriginalCode(thread, target, Code::Handle(zone,
++                                                        target.CurrentCode()));
++
+     // This is the operation under test: repoint an AOT function's entry at the
+     // InterpretCall stub, with this bytecode as its body.
+     OS::PrintErr("ATTACH: before -> IsInterpreted=%d HasBytecode=%d\n",
+@@ -763,6 +896,72 @@ DEFINE_NATIVE_ENTRY(Internal_attachBytecodeToFunction, 0, 3) {
+ #endif  // defined(DART_DYNAMIC_MODULES)
+ }
+ 
++DEFINE_NATIVE_ENTRY(Internal_detachBytecodeFromFunction, 0, 2) {
++#if defined(DART_DYNAMIC_MODULES)
++  GET_NON_NULL_NATIVE_ARGUMENT(String, library_uri, arguments->NativeArgAt(0));
++  GET_NON_NULL_NATIVE_ARGUMENT(String, target_name, arguments->NativeArgAt(1));
++
++  SafepointWriteRwLocker ml(thread, thread->isolate_group()->program_lock());
++
++  const auto& target = Function::Handle(
++      zone, ResolvePatchTarget(thread, zone, library_uri, target_name));
++  if (target.IsNull()) {
++    return Bool::False().ptr();
++  }
++  // Not an error, and worth keeping distinguishable: a transactional apply
++  // unwinds by detaching whatever it already attached, and the target it fails
++  // on has nothing attached yet. Treating that as a failure would turn a clean
++  // rollback into a second, louder failure.
++  if (!target.HasBytecode()) {
++    return Bool::False().ptr();
++  }
++
++  // NOT Function::ClearBytecode(): it calls ClearCode(), which is UNREACHABLE
++  // under DART_PRECOMPILED_RUNTIME and, in the JIT, installs the LazyCompile
++  // stub -- correct there, meaningless here. Restore the Code the release
++  // actually shipped, which the attach path saved for exactly this.
++  const auto& original = Code::Handle(zone, RouteBTakeOriginalCode(target));
++  if (original.IsNull()) {
++    OS::PrintErr("ATTACH: no saved code for this target\n");
++    return Bool::False().ptr();
++  }
++  target.RestoreCodeFromBytecode(original);
++  return Bool::True().ptr();
++#else
++  Exceptions::ThrowUnsupportedError(
++      "Detaching bytecode is not supported.");
++  return Object::null();
++#endif  // defined(DART_DYNAMIC_MODULES)
++}
++
++DEFINE_NATIVE_ENTRY(Internal_releaseBuildId, 0, 0) {
++#if defined(DART_PRECOMPILED_RUNTIME)
++  // Route B's release identity. Patch bytecode is compiled against one specific
++  // release's kernel, so applying it to a different build is undefined rather
++  // than merely unsupported -- and the failure would surface as a corrupt
++  // interpreted body, not as a clean error. The toolchain already emits a GNU
++  // build ID into the snapshot, so the check costs nothing to carry.
++  auto* const instructions = reinterpret_cast<const uint8_t*>(
++      thread->isolate_group()->source()->snapshot_instructions);
++  if (instructions == nullptr) {
++    return Object::null();
++  }
++  const auto& build_id = OS::GetAppBuildId(instructions);
++  if (build_id.data == nullptr || build_id.len <= 0) {
++    return Object::null();
++  }
++  TextBuffer buffer(2 * build_id.len + 1);
++  for (intptr_t i = 0; i < build_id.len; i++) {
++    buffer.Printf("%2.2x", build_id.data[i]);
++  }
++  return String::New(buffer.buffer());
++#else
++  // A JIT run has no AOT snapshot to identify. Null rather than a fabricated
++  // value, so callers cannot mistake "no identity" for "some identity".
++  return Object::null();
++#endif  // defined(DART_PRECOMPILED_RUNTIME)
++}
++
+ DEFINE_NATIVE_ENTRY(Internal_ensureDeeplyImmutable, 0, 1) {
+   GET_NATIVE_ARGUMENT(Instance, value, arguments->NativeArgAt(0));
+   value.EnsureDeeplyImmutable(zone);
+diff --git a/runtime/vm/bootstrap_natives.h b/runtime/vm/bootstrap_natives.h
+index a679258..7aba3a1 100644
+--- a/runtime/vm/bootstrap_natives.h
++++ b/runtime/vm/bootstrap_natives.h
+@@ -274,6 +274,8 @@ namespace dart {
+   V(Internal_instantiateClosure, 2)                                            \
+   V(Internal_loadDynamicModule, 1)                                             \
+   V(Internal_attachBytecodeToFunction, 3)                                      \
++  V(Internal_detachBytecodeFromFunction, 2)                                    \
++  V(Internal_releaseBuildId, 0)                                                \
+   V(Internal_allocateOneByteString, 1)                                         \
+   V(Internal_allocateTwoByteString, 1)                                         \
+   V(Internal_writeIntoOneByteString, 3)                                        \
 diff --git a/runtime/vm/compiler/backend/flow_graph_compiler.cc b/runtime/vm/compiler/backend/flow_graph_compiler.cc
 index fea1f23..0ebbba1 100644
 --- a/runtime/vm/compiler/backend/flow_graph_compiler.cc
@@ -163,3 +366,102 @@ index 7eeaf01..ea88831 100644
    if (CanPcRelativeCall(target)) {
      __ GenerateUnRelocatedPcRelativeCall();
      AddPcRelativeCallTarget(target, entry_kind);
+diff --git a/runtime/vm/object.cc b/runtime/vm/object.cc
+index f8109ed..a852383 100644
+--- a/runtime/vm/object.cc
++++ b/runtime/vm/object.cc
+@@ -8430,6 +8430,19 @@ void Function::ClearBytecode() const {
+   ClearCode();
+ }
+ 
++void Function::RestoreCodeFromBytecode(const Code& original) const {
++  ASSERT(IsolateGroup::Current()->program_lock()->IsCurrentThreadWriter());
++  ASSERT(HasBytecode());
++  ASSERT(!original.IsNull());
++  untag()->set_ic_data_array_or_bytecode(Object::null());
++  // SetInstructions, not AttachCode: AttachCode asserts the Code's function
++  // back-pointer, and an AOT Code object's function() is already this function
++  // -- but going through SetInstructions keeps this a pure restore of code_,
++  // entry_point_ and unchecked_entry_point_, which is exactly what
++  // AttachBytecode overwrote and nothing more.
++  SetInstructions(original);
++}
++
+ bool Function::IsInterpreted(FunctionPtr function) {
+   return function->untag()->code() == StubCode::InterpretCall().ptr();
+ }
+diff --git a/runtime/vm/object.h b/runtime/vm/object.h
+index f8bc544..b902aec 100644
+--- a/runtime/vm/object.h
++++ b/runtime/vm/object.h
+@@ -3284,6 +3284,15 @@ class Function : public Object {
+ #if defined(DART_DYNAMIC_MODULES)
+   void AttachBytecode(const Bytecode& bytecode) const;
+   void ClearBytecode() const;
++
++  // Route B (selfhost): the AOT-safe counterpart of ClearBytecode.
++  //
++  // ClearBytecode calls ClearCode, which is UNREACHABLE under
++  // DART_PRECOMPILED_RUNTIME and installs the LazyCompile stub in the JIT --
++  // correct there, meaningless in a runtime with no compiler. Rollback in AOT
++  // therefore has to put back the Code the release actually shipped, which the
++  // caller saved before attaching.
++  void RestoreCodeFromBytecode(const Code& original) const;
+   inline BytecodePtr GetBytecode() const;
+   static inline BytecodePtr GetBytecode(FunctionPtr function);
+   inline bool HasBytecode() const;
+diff --git a/sdk/lib/_internal/vm/lib/internal_patch.dart b/sdk/lib/_internal/vm/lib/internal_patch.dart
+index 80a14b0..9614b06 100644
+--- a/sdk/lib/_internal/vm/lib/internal_patch.dart
++++ b/sdk/lib/_internal/vm/lib/internal_patch.dart
+@@ -490,6 +490,19 @@ external bool _attachBytecodeToFunction(
+   String targetName,
+ );
+ 
++@patch
++bool detachBytecodeFromFunction(String libraryUri, String targetName) =>
++    _detachBytecodeFromFunction(libraryUri, targetName);
++
++@pragma("vm:external-name", "Internal_detachBytecodeFromFunction")
++external bool _detachBytecodeFromFunction(String libraryUri, String targetName);
++
++@patch
++String? releaseBuildId() => _releaseBuildId();
++
++@pragma("vm:external-name", "Internal_releaseBuildId")
++external String? _releaseBuildId();
++
+ @patch
+ @pragma("vm:entry-point")
+ abstract interface class IsolateGroup {
+diff --git a/sdk/lib/internal/internal.dart b/sdk/lib/internal/internal.dart
+index 0ce5e72..0773369 100644
+--- a/sdk/lib/internal/internal.dart
++++ b/sdk/lib/internal/internal.dart
+@@ -1159,6 +1159,26 @@ external bool attachBytecodeToFunction(
+   String targetName,
+ );
+ 
++/// Undoes [attachBytecodeToFunction] for [targetName] in [libraryUri],
++/// restoring the AOT body the release shipped with.
++///
++/// Route B step 4 needs this to be a real operation rather than a reinstall:
++/// activation has to be reversible for the same reason Shorebird's existing
++/// patch lifecycle is -- a patch that boots badly must be reversible without
++/// a store round trip. Returns false when the target is not currently
++/// interpreted, so "nothing to revert" stays distinguishable from a failure.
++external bool detachBytecodeFromFunction(String libraryUri, String targetName);
++
++/// The GNU build ID of the running AOT snapshot, lowercase hex, or null when
++/// the snapshot carries none.
++///
++/// This is Route B's release identity. Patch bytecode is compiled against one
++/// specific release's kernel, so applying it to a different build is undefined
++/// rather than merely unsupported; the build ID is emitted by the toolchain and
++/// readable at run time, which lets the check happen before anything is
++/// attached instead of as a crash afterwards.
++external String? releaseBuildId();
++
+ /// Helper class to create `bool Function(Object?)` functions which
+ /// perform an `v is T` type test.
+ ///

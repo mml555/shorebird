@@ -1,5 +1,5 @@
 <!-- cspell:words killgate dynmod tearoff dartaotruntime disqualifiers APFS DNDEBUG packageable overengineer -->
-<!-- cspell:words sshkey publickey devirtualizes -->
+<!-- cspell:words sshkey publickey devirtualizes SBRBPTCH -->
 
 # Route B — iOS Dart code push. Start here.
 
@@ -168,23 +168,27 @@ devirtualizes is decided per-site by the precompiler and is not visible in the
 kernel. Turning that into a count needs snapshot-side data and belongs with step
 5's coverage reporting.
 
-### 4. Package and activate the patch
+### 4. ~~Package and activate the patch~~ — DONE 2026-08-09 (host)
 
-A **versioned container**, not a filename convention — the spike's `*.vmcode`
-naming is bring-up scaffolding and must not become the contract. Roughly:
+`packaging/` — a versioned container (`SBRBPTCH`, magic first, JSON header, raw
+payloads), a packer, a reference installer, and `verify_container.sh`: **10
+checks, all passing**, covering an atomic two-target apply and revert plus three
+refusals — wrong release, corrupt payload, and a partial apply that rolls back
+what it already attached.
 
-```
-format version
-release compatibility identity
-target functions
-bytecode payload(s)
-metadata / hashes
-```
+Release identity is the GNU build ID the toolchain already emits into the
+snapshot, read at run time. Targets are named by step 3's selectors, never by
+index.
 
-Then the updater: download → validate against the installed release → bind
-targets → `AttachBytecode` → activate transactionally → preserve rollback.
-This is where Route B meets the existing Shorebird lifecycle rather than
-inventing a parallel one.
+**The rollback the plan asked to "preserve" did not exist.**
+`Function::ClearBytecode()` calls `ClearCode()`, which is `UNREACHABLE()` under
+`DART_PRECOMPILED_RUNTIME` and installs the `LazyCompile` stub in the JIT — and
+`AttachBytecode` discards the original `Code` without saving it, so there was
+nothing to restore either way. Route B now saves it and restores it. Where that
+save lives is a trap documented in
+[`engine/route_b/README.md`](engine/route_b/README.md): an `ObjectStore` field
+looks right and either shifts hardcoded offsets or leaves a raw C `nullptr` in a
+slot that may be past the end of the allocation.
 
 ### 5. Make `shorebird patch` produce it
 
