@@ -89,9 +89,24 @@ void main(List<String> args) {
       'is the remaining work',
     );
   } else if (ok) {
+    // This branch is the RECORDED BASELINE, not a failure -- it is what a
+    // healthy tree prints today, and it printed FAIL until 2026-08-09.
+    //
+    // Dart cannot see the whole answer from here. Whether the interpreter
+    // executes the attached bytecode is settled by the native's own line a few
+    // rows above -- "ATTACH: C++ invoke of target returned: NEW" -- because
+    // that call goes through DartEntry::InvokeFunction. `anyNew` only observes
+    // the four Dart-side call shapes, all of which are statically bound in AOT,
+    // so it cannot distinguish "the interpreter never ran" from "the
+    // interpreter ran but no call site dispatches through the Function".
+    //
+    // Claiming the former on this evidence sent a reader debugging a working
+    // build. Read the C++ line for execution; read this line for dispatch.
     print(
-      'GATE: FAIL -- attach succeeded but no call shape reached the new body; '
-      'the interpreter is not executing it',
+      'GATE: BASELINE -- attach succeeded; no Dart call shape reached the new '
+      'body. Check the "C++ invoke" line above for whether the interpreter ran '
+      'at all: if it returned NEW, this is the expected 2026-08-04 result and '
+      'the gap is call-site dispatch, which is Route B step 1',
     );
   } else {
     print(

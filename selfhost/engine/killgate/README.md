@@ -25,6 +25,13 @@ after  dynamic  : OLD
 after  apply    : OLD
 ```
 
+**The verdict line used to read `GATE: FAIL` on exactly this output** — the
+branch inspected only the four Dart-side call shapes and then asserted "the
+interpreter is not executing it", which the `C++ invoke` line two rows above
+disproves. It reads `GATE: BASELINE` since 2026-08-09. If you are looking at an
+older transcript, a `FAIL` accompanied by `C++ invoke ... returned: NEW` is a
+**pass** of the question this gate was built to ask.
+
 **Answered: yes.** In a precompiled (AOT) runtime, on macOS arm64, a function the
 snapshot already contained was repointed at interpreted bytecode
 (`IsInterpreted` 0 → 1) and **executed the new body**, returning `NEW` when invoked

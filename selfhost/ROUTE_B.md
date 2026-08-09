@@ -1,4 +1,5 @@
 <!-- cspell:words killgate dynmod tearoff dartaotruntime disqualifiers APFS DNDEBUG packageable overengineer -->
+<!-- cspell:words sshkey publickey -->
 
 # Route B — iOS Dart code push. Start here.
 
@@ -203,7 +204,8 @@ start, and if you find yourself doing it, check whether it is already solved.
 | iOS engine | `70974f81…` — our own, vanilla Dart + `engine/000x` patches, device-verified |
 | Android engine | `760e3fab…` — ditto, full device lifecycle proven |
 | iOS build host | this Mac, `/Volumes/build/ios-engine` (external SSD, APFS, **no spaces in the path** — depot_tools/gclient/GN break on them) |
-| Android build host | Hermes VPS, `ssh -p 13549 jewgo@20.120.104.70`, `/data/shorebird-engine` |
+| **Route B tree** | `/Volumes/build/route-b/flutter` — **created 2026-08-09**, its own checkout as required below. APFS clone of the iOS tree + the killgate patch; `dart_dynamic_modules = true` |
+| Android build host | Hermes VPS, `ssh -i sshkey20.120.104.70.pem -p 13549 jewgo@20.120.104.70`, `/data/shorebird-engine` — the `-i` is **not optional**, and without it you get `Permission denied (publickey)`, which reads like a dead box |
 | Control planes | `cps-ios` :18080, `cps-android` :18081 |
 | Rig state | `~/shorebird-rig/{control-plane,config,secrets}` — see [`fixtures/CONTROL_PLANE_DATA.md`](fixtures/CONTROL_PLANE_DATA.md) |
 | Acceptance fixture | [`fixtures/airgap_app`](fixtures/airgap_app) — committed, reproducible |
@@ -218,31 +220,53 @@ selfhost/scripts/prepare_ios_endpoint.sh --mode lan
 selfhost/scripts/prepare_airgap_fixture.sh --leg ios --app-id <id>
 ```
 
-## Before Step 1 — three things, and only three
+## Before Step 1 — one thing left
 
-Very little stands between here and the compiler work.
+Items 2 and 3 were done on 2026-08-09 and are kept below as the record of what
+exists and what the baseline is. **Only item 1 is outstanding, it needs
+physical hands on the phone, and it does not block Step 1.**
 
-### 1. Check the iPhone Local Network setting, once
+### 1. Check the iPhone Local Network setting, once — STILL OPEN
 
 Settings → Privacy & Security → Local Network → *Airgap Probe*. If it resolves
 the device→control-plane gap, good. **If it does not, record the result and move
 on exactly as planned** — device networking gets dealt with again at the
 physical-device gate, and it is not a reason to delay Step 1.
 
-### 2. Create a DEDICATED Route B Dart checkout
+### 2. ~~Create a DEDICATED Route B Dart checkout~~ — DONE 2026-08-09
 
-**This one is critical. Do not reuse either existing Dart tree.**
+**`/Volumes/build/route-b/flutter`.** Reproduced by
+[`engine/route_b/create_checkout.sh`](engine/route_b/create_checkout.sh), built
+by [`engine/route_b/build_host.sh`](engine/route_b/build_host.sh).
 
-Route B needs `dart_dynamic_modules = true`, the SDK changes, *and* VM/compiler
-changes. The killgate rig and the shipping iOS-engine rig carry incompatible
-assumptions about exactly those things — the killgate SDK edits compile into
-`platform_strong.dill` regardless of the GN flag, and mixing them into an iOS
-engine build fails the AOT step with `Unexpected tag 4 (Field)`, a message that
-names nothing useful.
+Why it had to be its own tree, kept because it is the reason not to "simplify"
+this later: Route B needs `dart_dynamic_modules = true`, the SDK changes, *and*
+VM/compiler changes at once. The killgate SDK edits touch
+`sdk/lib/_internal/vm/lib/internal_patch.dart` and `sdk/lib/internal/internal.dart`,
+which compile into `platform_strong.dill` **regardless of the GN flag**, so
+mixing them into an iOS engine build fails the AOT step with
+`Unexpected tag 4 (Field)` — a message that names nothing useful. Sharing a
+checkout here is precisely the ambient-state trap the previous session spent
+itself removing.
 
-Sharing a checkout here is precisely the ambient-state trap the previous session
-spent itself removing. Give Route B its own, and run
-`dart_patches.sh --dest <checkout> --verify` on **every** tree you build from.
+The clone is an **APFS copy-on-write clone** (`cp -Rc`): 43 GB in 84 seconds
+for **zero** additional bytes, versus a multi-hour `gclient sync`. Blocks stay
+shared until one side writes, so the two trees diverge only where you edit
+them. The cloned `out/` is dropped rather than kept — it carries the source
+tree's absolute paths and the wrong GN config.
+
+State as created, verified by content rather than by exit code:
+
+| | |
+|---|---|
+| flutter revision | `c15ef6379` (the pinned `flutter_revision`) |
+| Dart patches | `0001` / `0004` / `0005` / `0006` — `--verify` green before *and* after |
+| killgate patch | `0001-attach-bytecode-native.patch` applied; all four sentinels present |
+| engine-side patches | inherited by the clone (`shorebird_patch_assets_path`, `PatchCarriesCode`) |
+| GN | `dart_dynamic_modules = true`, `target_cpu = "arm64"`, Dart from source |
+
+Still true and still the rule: run `dart_patches.sh --dest <checkout> --verify`
+on **every** tree you build from, and after any `gclient sync`.
 
 ### 3. Re-run the rig preflight
 
@@ -253,8 +277,17 @@ but so you know you are starting from the recorded baseline:
 selfhost/cdn/audit_overlay.sh --hash 70974f811d448da19a927c581678ef1dbd33605c --cell macos-ios
 selfhost/cdn/audit_overlay.sh --hash 760e3fabffbf31b4e86919a0ef47d6ce5f182991 --cell linux-android
 selfhost/scripts/prepare_ios_endpoint.sh --mode lan
-selfhost/engine/dart_patches.sh --dest <route-b-checkout> --verify
+selfhost/engine/dart_patches.sh \
+  --dest /Volumes/build/route-b/flutter/engine/src/flutter/third_party/dart --verify
 ```
+
+**Baseline recorded 2026-08-09**, so you have something to compare against:
+both cells **AUDIT CLEAN** (macos-ios 13 owned-built, linux-android 18
+owned-built, 0 missing-required on each); `dart_patches.sh --verify` green on
+both the iOS tree and the Route B tree; `cps-ios` :18080 and `cps-android`
+:18081 up and healthy; iPhone 7 (`8cb4bc98…`, iOS 15.8.8) and Android
+`3f72a543` attached; Hermes reachable with `hermes-gateway` active and 373 GB
+free on `/data`; `/Volumes/build` mounted with 371 GB free.
 
 Then start Step 1.
 
@@ -263,6 +296,9 @@ Then start Step 1.
 These are not hypotheticals; each one cost real time.
 
 1. **The killgate rig and the iOS-engine rig cannot share one Dart checkout.**
+   *(Already acted on — `/Volumes/build/route-b` exists. Kept so nobody
+   "consolidates" the two trees later to save disk they are not actually
+   spending: the clone is copy-on-write.)*
    `engine/killgate/0001-attach-bytecode-native.patch` modifies
    `sdk/lib/_internal/vm/lib/internal_patch.dart` and `sdk/lib/internal/internal.dart`
    — **SDK sources**, which compile into `platform_strong.dill` regardless of
