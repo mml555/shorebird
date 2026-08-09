@@ -1658,6 +1658,14 @@ Do not re-learn these:
   APFS does not checksum user data, so the filesystem never held that proof
   either.
 
+  **Partial exception, found 2026-08-09: 202 files DO have a historical
+  baseline.** Eight `.sfv` manifests written by hkSFV on 2010-04-12, against
+  files dated 2007, ship inside the Full House directories and carry a CRC32
+  per file. `media_backup.py sfv` verified **202 of 202 OK, zero mismatches** —
+  content unchanged across sixteen years, both SSD detaches and the August
+  event included. That is real evidence and it is also only ~10% of the tree;
+  it says nothing about the other 1,853 files.
+
   `scripts/media_backup.py` is built around what remains provable: `manifest`
   reads every byte (so I/O errors surface, and a NEW baseline is established
   going forward), `decode` runs a full ffmpeg pass to catch truncated streams

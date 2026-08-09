@@ -51,11 +51,13 @@ Usage:
 """
 
 import argparse
+import glob
 import hashlib
 import json
 import os
 import subprocess
 import sys
+import zlib
 
 # Read in 8 MiB chunks: large enough that syscall overhead is irrelevant over
 # hundreds of GB, small enough not to matter for RAM.
@@ -335,6 +337,82 @@ def cmd_decode(args):
     return 0
 
 
+def cmd_sfv(args):
+    """Verify against .sfv checksum manifests already present in the tree.
+
+    THIS IS THE ONLY HISTORICAL INTEGRITY EVIDENCE THAT SURVIVES. The August
+    2026 MD5 verification retained nothing, but parts of this collection ship
+    with hkSFV manifests written in 2010 against files dated 2007 -- CRC32 per
+    file, produced long before any of the events in this repository. Where they
+    cover a file, they answer a question nothing else here can: is the content
+    the same as it was sixteen years ago?
+
+    CRC32 is weak against deliberate tampering and fine for this: it is being
+    used to detect bit-rot and truncation, not an adversary.
+
+    Coverage is partial by nature -- only what the original packager checksummed
+    -- so a clean run here does NOT extend to the rest of the tree.
+    """
+    entries = []
+    for sfv in sorted(glob.glob(os.path.join(args.root, "**", "*.sfv"), recursive=True)):
+        base = os.path.dirname(sfv)
+        for line in open(sfv, encoding="utf-8", errors="replace"):
+            line = line.strip()
+            # ';' introduces a comment; hkSFV puts its own listing there.
+            if not line or line.startswith(";"):
+                continue
+            name, _, crc = line.rpartition(" ")
+            if not name or len(crc.strip()) != 8:
+                continue
+            entries.append((os.path.join(base, name.strip()), crc.strip().lower(), sfv))
+
+    ok = mismatch = missing = 0
+    findings = []
+    for path, expected, sfv in entries:
+        if not os.path.exists(path):
+            findings.append({"path": path, "kind": "missing", "sfv": sfv})
+            missing += 1
+            continue
+        crc = 0
+        try:
+            with open(path, "rb") as f:
+                while True:
+                    block = f.read(CHUNK)
+                    if not block:
+                        break
+                    crc = zlib.crc32(block, crc)
+        except OSError as e:
+            findings.append({"path": path, "kind": "ioerror", "detail": str(e), "sfv": sfv})
+            mismatch += 1
+            continue
+        actual = f"{crc & 0xFFFFFFFF:08x}"
+        if actual != expected:
+            findings.append({"path": path, "kind": "mismatch",
+                             "expected": expected, "actual": actual, "sfv": sfv})
+            mismatch += 1
+            print(f"  CRC MISMATCH {os.path.basename(path)}", file=sys.stderr)
+        else:
+            ok += 1
+        print(f"\r  checked {ok + mismatch + missing:,}/{len(entries):,}", end="", file=sys.stderr)
+    print(file=sys.stderr)
+
+    out = {"sfvVersion": 1, "root": os.path.abspath(args.root),
+           "entries": len(entries), "ok": ok, "mismatch": mismatch,
+           "missing": missing, "findings": findings}
+    if args.out:
+        with open(args.out, "w") as f:
+            json.dump(out, f, indent=2)
+            f.write("\n")
+
+    print(f"  entries covered : {len(entries):,} of the tree")
+    print(f"  verified OK     : {ok:,}")
+    print(f"  mismatched      : {mismatch:,}")
+    print(f"  missing         : {missing:,}")
+    print("\nCoverage is partial -- only files the original packager checksummed.")
+    print("A clean result here says nothing about the rest of the tree.")
+    return 0 if (mismatch == 0 and missing == 0) else 2
+
+
 def cmd_verify(args):
     with open(args.manifest) as f:
         manifest = json.load(f)
@@ -399,6 +477,11 @@ def main():
     d.add_argument("--ext", default="mkv,mp4,avi,m4v,mov,ts,m2ts,wmv,flv,webm",
                    help="comma-separated extensions to decode")
     d.set_defaults(func=cmd_decode)
+
+    sf = sub.add_parser("sfv", help="verify against .sfv manifests already in the tree (historical CRC32)")
+    sf.add_argument("--root", required=True)
+    sf.add_argument("--out")
+    sf.set_defaults(func=cmd_sfv)
 
     v = sub.add_parser("verify", help="re-hash a destination against the manifest")
     v.add_argument("--manifest", required=True)
