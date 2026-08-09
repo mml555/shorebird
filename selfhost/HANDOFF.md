@@ -229,6 +229,23 @@ real.
    the patch file and `engine/spike/` tooling are the record, and re-applying
    is one command.
 
+   **Follow-up, 2026-08-09: the source revert left the artifact behind.** The
+   2026-08-07 revert cleaned the tree but rebuilt nothing, so
+   `out/host_release_arm64_nodm/gen_snapshot` still contained the
+   `dump_global_object_pool_to` flag string two days later — and `_nodm` is
+   exactly the out-dir `publish_ios_overlay.sh` reads `HOST_REL` from, whose
+   `dart-sdk-darwin-arm64.zip` ships `dart-sdk/bin/utils/gen_snapshot`. The
+   published overlay was checked and is **clean** (its copy is dated
+   2026-08-05 02:01, before the instrumented build), so nothing leaked; the
+   next publish would have leaked it. Rebuilt 2026-08-09 — 65 s, 2 targets,
+   flag count 1 → 0. Every other `gen_snapshot` on the tree
+   (`host_release_arm64`, `host_debug_arm64`, `ios_release`,
+   `ios_release/clang_x64`) was already clean.
+
+   **Second standing rule, from that: grep the artifact, not the source.** A
+   green `--verify` says the tree is right; it says nothing about binaries
+   built before it went green.
+
 ## 2026-08-04, later: Android proven on our own engine; iOS engine now builds
 
 Three results that change the picture, all verified rather than argued:
@@ -1716,11 +1733,17 @@ Do not re-learn these:
   Spike A pool identity — `engine/spike/README.md`), and the plan's rubric
   selects Route B on a both-pass, subject to two vetoes owned by this
   milestone: a real-app size/frame-time benchmark of the emission mode +
-  retention, and the hot-path-patching product question. Note the `_nodm`
+  retention, and the hot-path-patching product question. ~~Note the `_nodm`
   out-dir's gen_snapshot currently carries the spike-only
-  `--dump_global_object_pool_to` flag (working-tree edit, captured as
-  `engine/spike/0001-dump-global-object-pool.patch`; revert before any
-  publish from that tree).
+  `--dump_global_object_pool_to` flag.~~ **RESOLVED 2026-08-09 — rebuilt, 65 s,
+  2 targets; the flag string is gone.** The general lesson is worth more than
+  the fix: reverting the *source* on 2026-08-07 did not clean the *artifact*,
+  and `_nodm` is the tree `publish_ios_overlay.sh` takes `HOST_REL` from, whose
+  `dart-sdk-darwin-arm64.zip` ships `dart-sdk/bin/utils/gen_snapshot`. Nothing
+  instrumented was ever published — the overlay's copy predates the spike and
+  greps clean — but the next publish from that out-dir would have laundered it
+  in. **After reverting an experimental patch, rebuild every out-dir that
+  publishes, and grep the artifact, not the source.**
 - **The SDK changes exist only on the SSD**, captured as
   `engine/killgate/0001-attach-bytecode-native.patch` (176 insertions, 5 files).
   The checkout itself is **not** in git — reapply the patch to
@@ -1772,8 +1795,17 @@ Do not re-learn these:
 
 ## Loose ends
 
-- Release `1.0.1+2` is stranded in `draft` on the local server from a failed
-  upload — harmless, but clean it up.
+- ~~Release `1.0.1+2` is stranded in `draft` on the local server.~~ **Stale as of
+  2026-08-09 — that release no longer exists.** It lived on the disposable
+  `cps-e2e`/host-8080 rig, which the durable `cps-ios`/`cps-android` pair
+  replaced. A scan of every app on both rigs finds exactly one draft, and it is
+  the already-documented one: **`1.1.0+1` (release id 40) on `cps-ios`,
+  app `airgap-fixture`**, recorded as abandoned in
+  [`fixtures/CONTROL_PLANE_DATA.md`](fixtures/CONTROL_PLANE_DATA.md). It stays
+  documented rather than deleted **on purpose** — the control plane exposes no
+  release-delete endpoint, and reaching past the API into the database to
+  remove a row is a worse precedent than a recorded gap in the numbering. Do
+  not "finish the cleanup" by editing the database.
 - `overlay_publish.sh` now **has** run end to end (exit 0, 2026-07-30). One gap:
   it re-fetches the Maven modules for the ABIs we did not build from
   `--mirror` (default `localhost:8085`), so it must run somewhere the CDN mirror
@@ -1812,13 +1844,14 @@ Do not re-learn these:
   `libapp.so` with the stock engine.
 - ~~A dev API key was printed into a session transcript.~~ Rotated 2026-08-05
   along with `URL_SIGNING_SECRET`; see the rotation note above.
-- Branches `feat/experimental-engine-farm` and `feat/asset-patches` are fully
-  merged into this one and can be deleted.
+- ~~Branches `feat/experimental-engine-farm` and `feat/asset-patches` are fully
+  merged into this one and can be deleted.~~ **Deleted 2026-08-09** after
+  confirming both had zero commits absent from `feat/engine-improvements`.
 
 ## Verifying your work
 
 ```bash
-cd packages/code_push_server && dart analyze && dart test -x integration   # expect 251 pass
+cd packages/code_push_server && dart analyze && dart test -x integration   # expect 285 pass
 cd packages/shorebird_cli   && dart test test/src/code_push_client_wrapper_test.dart
 cd packages/shorebird_cli   && dart analyze lib test                       # expect 86 issues
 npx cspell --no-progress --no-summary selfhost packages/code_push_server/lib
