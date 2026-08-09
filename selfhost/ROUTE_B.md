@@ -190,18 +190,23 @@ save lives is a trap documented in
 looks right and either shifts hardcoded offsets or leaves a raw C `nullptr` in a
 slot that may be past the end of the allocation.
 
-### 5. Make `shorebird patch` produce it
+### 5. ~~Make `shorebird patch` produce it~~ — pipeline DONE 2026-08-09 (host)
 
-The point at which this becomes a feature instead of a VM experiment:
+`packaging/build_patch.dart` + `verify_patch_flow.sh`: **8 checks, all
+passing.** Release → edit → kernel diff → compile → pack → apply → revert.
 
-```
-shorebird release   ->  patchable AOT application
-  (change Dart)
-shorebird patch     ->  bytecode payload + target bindings
-                          -> existing updater
-                             -> AttachBytecode
-                                -> new Dart behavior
-```
+Change detection diffs the **kernel**, per member, printed from the AST: a
+source diff answers the wrong question, and a binary hash reports the whole
+program as changed when unrelated code moves.
+
+Coverage is the output. The tool refuses — non-zero, no container — when a
+changed member is unreachable, absent from the manifest, or when the edit **adds**
+a member, since a patch replaces bodies and bytecode referencing a new symbol
+cannot bind. That last refusal was a bug caught by its own test.
+
+**Not wired into `shorebird patch` yet, deliberately.** The iOS engine port has
+not happened, and a half-path behind the real command would let someone run it
+and believe the result. The pieces are already in the shape the CLI needs.
 
 ### Then prove it
 

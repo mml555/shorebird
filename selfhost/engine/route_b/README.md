@@ -349,6 +349,49 @@ Shorebird lifecycle rather than beside it. The order it establishes — verify,
 match release, attach tracking what succeeded, unwind on failure — is the part
 to copy.
 
+## Step 5 — producing a patch, and refusing to produce a misleading one
+
+```bash
+selfhost/engine/route_b/packaging/verify_patch_flow.sh    # 8 checks
+```
+
+The whole loop the CLI will eventually drive: release → edit a Dart function →
+kernel diff decides what changed → compile bytecode for exactly that → pack →
+apply → revert.
+
+**Change detection diffs the kernel, not the source.** A source diff answers
+"which lines did the author touch", which is the wrong question: whitespace
+changes source and not kernel, while a changed const or an inlined helper
+changes kernel well beyond the edited line. `build_patch.dart` prints each
+member from the kernel AST and compares — printed rather than hashed from the
+binary, because the binary carries offsets and canonical-name indices that shift
+when unrelated code moves, which would report the whole program as changed after
+a one-line edit.
+
+**Coverage is the output, not a footnote.** Each changed member is classified
+against step 3's manifest, and the tool exits non-zero rather than emit a
+container when any part of the change cannot land:
+
+| situation | why it is refused |
+|---|---|
+| changed member not reachable | the patch would install cleanly and do nothing for it |
+| changed member not in the manifest | unknown reachability is not the same as reachable |
+| **member added** | a patch replaces bodies; it cannot introduce members, and bytecode referencing a new symbol fails to bind at load |
+
+That last row was a bug in this tool, caught by its own test: it detected the
+addition and shipped anyway. Note also how the test had to be written — the
+first version added a function nobody called, AOT tree-shook it, and the tool
+correctly saw no change at all. An addition only matters once something
+references it, which is also exactly when it breaks binding.
+
+### Why this is not wired into `shorebird patch`
+
+The iOS engine port has not happened. Wiring a half-path into the shipping CLI
+would let someone run `shorebird patch`, get a container, and believe it means
+something. When step 6 lands, this is the pipeline to move behind the command —
+the pieces are already in the shape the CLI needs: a manifest per release, a
+build-id stamp, a coverage verdict, and a packer.
+
 ## Smoke-test the tree before trusting it
 
 "It built" proves nothing about a fork/backend pairing — a mismatched
