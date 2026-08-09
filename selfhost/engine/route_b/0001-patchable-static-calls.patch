@@ -1,0 +1,110 @@
+diff --git a/runtime/vm/compiler/backend/flow_graph_compiler.cc b/runtime/vm/compiler/backend/flow_graph_compiler.cc
+index fea1f23e..0ebbba12 100644
+--- a/runtime/vm/compiler/backend/flow_graph_compiler.cc
++++ b/runtime/vm/compiler/backend/flow_graph_compiler.cc
+@@ -62,6 +62,24 @@ DEFINE_FLAG(bool,
+             force_indirect_calls,
+             false,
+             "Do not emit PC relative calls.");
++// Route B (selfhost). AOT resolves a static call to its callee at compile time,
++// either as a PC-relative branch or as a pool slot the binder patches to hold
++// the callee's Code. Both bake the target, so Function::AttachBytecode -- which
++// repoints Function.code_ and Function.entry_point_ -- cannot redirect them.
++// That is precisely what the kill gate observed: IsInterpreted flipped to 1 and
++// every Dart call shape still ran the old body.
++//
++// Under this flag a static call instead loads the callee's Function and
++// branches through Function.entry_point_. Normally that field IS the AOT
++// implementation, so nothing changes except the call sequence; after
++// AttachBytecode it is the InterpretCall stub, and existing callers start
++// running patched Dart. See selfhost/ROUTE_B.md.
++DEFINE_FLAG(bool,
++            patchable_static_calls,
++            false,
++            "AOT/arm64: dispatch static Dart calls through the callee's "
++            "Function so AttachBytecode can redirect them (Route B). "
++            "Requires a build with dart_dynamic_modules=true.");
+ 
+ DECLARE_FLAG(charp, deoptimize_filter);
+ DECLARE_FLAG(bool, intrinsify);
+diff --git a/runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc b/runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc
+index 0f90cbc2..d4e83a14 100644
+--- a/runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc
++++ b/runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc
+@@ -27,6 +27,7 @@ namespace dart {
+ 
+ DEFINE_FLAG(bool, trap_on_deoptimization, false, "Trap on deoptimization.");
+ DECLARE_FLAG(bool, enable_simd_inline);
++DECLARE_FLAG(bool, patchable_static_calls);
+ 
+ void FlowGraphCompiler::ArchSpecificInitialization() {
+   if (FLAG_precompiled_mode) {
+@@ -607,11 +608,68 @@ void FlowGraphCompiler::EmitOptimizedStaticCall(
+   ASSERT(!function.IsClosureFunction());
+   if (function.PrologueNeedsArgumentsDescriptor()) {
+     __ LoadObject(ARGS_DESC_REG, arguments_descriptor);
++#if defined(DART_DYNAMIC_MODULES)
++  } else if (FLAG_precompiled_mode && !arguments_descriptor.IsNull()) {
++    // Patchability (selfhost): if this callee's body is later replaced with
++    // bytecode, the call enters through the InterpretCall stub, which reads the
++    // arguments descriptor out of ARGS_DESC_REG. Nothing else supplies it for a
++    // resolved static call in AOT, so the stub read garbage and faulted.
++    //
++    // The descriptor is a compile-time constant here, so this costs one pool
++    // entry plus one load per static call site, and only when dynamic modules
++    // are enabled -- stock builds are untouched.
++    __ LoadObject(ARGS_DESC_REG, arguments_descriptor);
++#endif
+   } else {
+     if (!FLAG_precompiled_mode) {
+       __ LoadImmediate(ARGS_DESC_REG, 0);  // GC safe smi zero because of stub.
+     }
+   }
++#if defined(DART_DYNAMIC_MODULES)
++  if (FLAG_precompiled_mode && FLAG_patchable_static_calls &&
++      !arguments_descriptor.IsNull()) {
++    // Route B: the third call form. GenerateStaticDartCall's two existing forms
++    // both resolve the callee at compile time -- a PC-relative branch bakes its
++    // address, and the pool slot is patched by ProgramVisitor::BindStaticCalls
++    // to hold the callee's Code. Neither consults the Function, so
++    // Function::AttachBytecode cannot redirect them. That is exactly what the
++    // kill gate observed: IsInterpreted flipped to 1 while every Dart call
++    // shape still ran the old body.
++    //
++    // This form dispatches through the Function itself:
++    //
++    //     R0 (FUNCTION_REG) <- the callee's Function, from the object pool
++    //     blr [R0 + Function::entry_point_]
++    //
++    // Normally entry_point_ IS the callee's AOT implementation, so the only
++    // cost is one pool entry and one extra load, and the callee is unchanged --
++    // a normal Dart entry does not read R0. After AttachBytecode, entry_point_
++    // is the InterpretCall stub, whose register contract is precisely what is
++    // in place here: R0 the Function, R4 the arguments descriptor (loaded
++    // above, which is why this sits in EmitOptimizedStaticCall rather than in
++    // GenerateStaticDartCall -- EmitTestAndCall also reaches the latter, for
++    // polymorphic instance dispatch, and supplies no descriptor).
++    //
++    // R0 is safe to write here: a static call's LocationSummary is kCall, so
++    // every volatile register is clobbered, and R0 is the call's *output* --
++    // nothing live occupies it at this point.
++    //
++    // Deliberately NOT calling AddStaticCallTarget. That records a
++    // Code::kCallViaCode site, and BindStaticCalls would then run
++    // CodePatcher::PatchStaticCallAt over this sequence, which is not the
++    // pool-load shape that patcher expects. Nothing here needs patching anyway
++    // -- the indirection is resolved at run time, on every call -- and the
++    // Function stays alive through the object-pool reference this emits.
++    __ LoadObject(FUNCTION_REG, function);
++    CLOBBERS_LR(__ Call(compiler::FieldAddress(
++        FUNCTION_REG,
++        compiler::target::Function::entry_point_offset(entry_kind))));
++    EmitCallsiteMetadata(source, deopt_id, UntaggedPcDescriptors::kOther, locs,
++                         pending_deoptimization_env_);
++    EmitDropArguments(size_with_type_args);
++    return;
++  }
++#endif  // defined(DART_DYNAMIC_MODULES)
+   // Do not use the code from the function, but let the code be patched so that
+   // we can record the outgoing edges to other code.
+   GenerateStaticDartCall(deopt_id, source, UntaggedPcDescriptors::kOther, locs,

@@ -74,6 +74,24 @@ PROBES
 say "re-verifying the four Dart patches after the killgate patch"
 "$REPO/selfhost/engine/dart_patches.sh" --dest "$DART" --verify
 
+# Step 1 itself. Kept as a patch rather than living only in the working tree,
+# because that is exactly the ambient-state trap the Spike A instrumentation set
+# (see HANDOFF.md): a working-tree edit is invisible, unversioned, and silently
+# inherited by every out-dir built from the tree.
+say "applying Route B step 1: the patchable static-call form"
+RB="$HERE/0001-patchable-static-calls.patch"
+if git -C "$DART" apply --check -p1 "$RB" 2>/dev/null; then
+  git -C "$DART" apply -p1 "$RB"
+elif git -C "$DART" apply --check -p1 -R "$RB" 2>/dev/null; then
+  say "  already applied"
+else
+  die "step 1 patch does not apply cleanly to $DART"
+fi
+n=$(grep -c 'patchable_static_calls' \
+      "$DART/runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc" || echo 0)
+[[ "$n" -gt 0 ]] || die "step 1 patch reported success but its changes are not in the tree"
+say "  verified: patchable_static_calls present in flow_graph_compiler_arm64.cc"
+
 cat <<EOF
 
 Route B checkout ready: $DEST_TREE

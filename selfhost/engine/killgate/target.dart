@@ -20,9 +20,22 @@ import 'dart:typed_data';
 // linker identifies patch targets from the snapshot's own tables at build time,
 // not by runtime name lookup, so it does not need every patchable function
 // pinned as an entry point.
+// The body must not be constant-foldable, and `=> 'OLD'` was. This cost a real
+// debugging detour on 2026-08-09: with Route B's patchable call form enabled the
+// disassembly showed a textbook indirect dispatch through Function.entry_point_,
+// the call executed, and `direct` still printed OLD. The reason was not the
+// mechanism. vm:never-inline stops the body being spliced into main, but it does
+// not stop the type-flow analysis concluding that greet() can only ever return
+// the constant 'OLD' and substituting that constant at the call site. The call
+// was still emitted and still ran -- its RESULT was simply no longer used, which
+// is visible in the disassembly as a `blr` whose r0 nobody reads.
+//
+// So the gate was measuring constant propagation, not dispatch. Routing the
+// value through DateTime.now() makes it opaque to that analysis at negligible
+// cost. Do not "simplify" this back to a constant literal.
 @pragma('vm:never-inline')
 @pragma('vm:entry-point')
-String greet() => 'OLD';
+String greet() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'OLD' : 'X';
 
 void main(List<String> args) {
   print('before: ${greet()}');

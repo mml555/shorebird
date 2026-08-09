@@ -90,14 +90,24 @@ The work is five real pieces. The remaining steps are validation, and they are
 deliberately last: each is cheap once the mechanism exists and expensive to
 discover after shipping.
 
-### 1. Patchable call emission — the core VM/compiler change
+### 1. ~~Patchable call emission~~ — WORKING AT THE HOST GATE, 2026-08-09
 
-For functions chosen as patchable, arm64 call generation must stop baking in a
-direct AOT target and instead emit a sequence carrying enough identity to
-dispatch through the `Function`. It has to line up with the existing
-`InterpretCall` calling convention. File:line below.
+`engine/route_b/0001-patchable-static-calls.patch`, behind
+`--patchable_static_calls`. arm64 static calls now load the callee's `Function`
+from the object pool and branch through `Function.entry_point_` instead of a
+baked target, which is exactly the `InterpretCall` register contract (R0 the
+Function, R4 the descriptor, the latter already supplied).
 
-**This is the first real engineering problem.** Everything else waits on it.
+Same program, only the flag differing, on the kill gate: **all four call shapes
+went OLD → NEW, `GATE: BASELINE` → `GATE: PASS`.** Snapshot cost +1.88 % on that
+program (881,560 → 898,144 bytes) against ~4 % for `--force_indirect_calls`.
+
+**Read that narrowly.** It is one call form, on a host macOS arm64 harness, on a
+toy program. It is not the iOS port, not a real app, and not either veto. Steps
+2–5 are untouched. See [`engine/route_b/README.md`](engine/route_b/README.md)
+for the emitted sequence, the two scope choices in the patch, and the gate's own
+constant-folding trap — which made a working mechanism report `direct : OLD` and
+cost a debugging detour.
 
 ### 2. Make the necessary symbols survive AOT
 

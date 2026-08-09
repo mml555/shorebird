@@ -57,6 +57,56 @@ screen -dmS routeb bash -c 'caffeinate -is selfhost/engine/route_b/build_host.sh
 tail -f /Volumes/build/route-b/logs/route_b_host_*.log
 ```
 
+## Step 1 — DONE 2026-08-09, at the host-gate level
+
+`0001-patchable-static-calls.patch` adds a third static-call form on arm64,
+behind `--patchable_static_calls`. AOT's two existing forms both resolve the
+callee at compile time — a PC-relative branch bakes its address, and the pool
+slot is patched by `BindStaticCalls` to hold the callee's `Code` — so neither
+consults the `Function`, and `AttachBytecode` cannot redirect them. The new form
+emits:
+
+```
+ldr r4, [pp, #N]   _ImmutableList          ; ARGS_DESC_REG  (already there)
+ldr r0, [pp, #M]   Function 'greet'        ; FUNCTION_REG
+ldr lr, [r0, #7]                           ; Function.entry_point_
+blr lr
+```
+
+Normally `entry_point_` *is* the AOT implementation, so nothing changes but the
+call sequence. After `AttachBytecode` it is the `InterpretCall` stub, whose
+register contract is exactly what the sequence establishes.
+
+Result on the kill gate, same program, only the flag differing:
+
+| call shape | flag off | flag on |
+|---|---|---|
+| direct | OLD | **NEW** |
+| tear-off | OLD | **NEW** |
+| dynamic | OLD | **NEW** |
+| apply | OLD | **NEW** |
+| verdict | `GATE: BASELINE` | **`GATE: PASS`** |
+
+Snapshot cost on that program: **+1.88 %** (881,560 → 898,144 bytes), against
+~4 % for `--force_indirect_calls` alone. **This is a toy program and not the
+veto.** Step 7's real-app size and frame-time benchmark is the veto, and nothing
+here anticipates it.
+
+Two deliberate scope choices in the patch, both explained in its comments:
+
+- it lives in `EmitOptimizedStaticCall`, not `GenerateStaticDartCall`, because
+  `EmitTestAndCall` also reaches the latter for polymorphic instance dispatch
+  and supplies no arguments descriptor;
+- it does **not** call `AddStaticCallTarget`, because that records a
+  `Code::kCallViaCode` site and `BindStaticCalls` would then run
+  `CodePatcher::PatchStaticCallAt` over a sequence that is not the pool-load
+  shape that patcher expects.
+
+**What this is not.** It is one call form working in a host harness. Steps 2–5
+(symbol retention, stable target identity, the versioned container, and
+`shorebird patch` producing one) are untouched, and the iOS port and both vetoes
+are still ahead.
+
 ## Smoke-test the tree before trusting it
 
 "It built" proves nothing about a fork/backend pairing — a mismatched
@@ -69,23 +119,28 @@ OUT=/Volumes/build/route-b/flutter/engine/src/out/host_release_arm64 \
   selfhost/engine/killgate/run.sh
 ```
 
-Expected today, and reproduced on this tree 2026-08-09:
+Without the flag you should get `GATE: BASELINE` — all four shapes `OLD`, with
+`C++ invoke ... returned: NEW`. That is the healthy pre-step-1 result: the
+interpreter runs the attached bytecode, nothing dispatches to it yet.
 
-```
-ATTACH: before -> IsInterpreted=0 HasBytecode=0
-ATTACH: after  -> IsInterpreted=1 HasBytecode=1
-ATTACH: C++ invoke of target returned: NEW     <-- the interpreter ran it
-after  direct/tear-off/dynamic/apply : OLD     <-- no call site dispatches yet
-GATE: BASELINE
-```
+With `GEN_SNAPSHOT_FLAGS=--patchable_static_calls`, expect `GATE: PASS` and all
+four shapes `NEW`. Run both — the pair is the evidence, since either alone is
+consistent with the flag doing nothing.
 
-**`BASELINE` is the healthy result.** The four `OLD` lines are the call-site
-dispatch gap that Route B step 1 exists to close, not a broken build. The
-authority on whether the interpreter executed is the `C++ invoke` line, which
-goes through `DartEntry::InvokeFunction`; the Dart-side shapes are all
-statically bound in AOT and cannot tell you. `GATE: INCONCLUSIVE` — attach
-returned false — is the one that means something is actually wrong with the
-build.
+`GATE: INCONCLUSIVE` (attach returned false) is the one verdict that means the
+build is actually wrong.
+
+### The gate's own trap, worth knowing before you trust a FAIL
+
+`greet()` deliberately routes its value through `DateTime.now()`. It used to be
+`=> 'OLD'`, and that made the gate measure the wrong thing: `vm:never-inline`
+stops the body being spliced into `main`, but it does not stop the type-flow
+analysis proving the result is always `'OLD'` and substituting the constant at
+the call site. The call was still emitted and still executed — its result was
+simply unused, visible in the disassembly as a `blr` whose `r0` nobody reads.
+
+The symptom is a working mechanism reporting `direct : OLD`. If you ever change
+the target program, keep the value opaque.
 
 ## What build_host.sh builds
 

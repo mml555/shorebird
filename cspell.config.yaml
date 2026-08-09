@@ -93,6 +93,12 @@ words:
   - Dedup
   - dedupe
   - deflavored
+  # Dart VM vocabulary, from the Route B compiler patches under selfhost/engine.
+  # Global rather than inline: a .patch file cannot carry a cspell comment
+  # without corrupting its own context lines, and these recur in every VM diff.
+  - deopt
+  - deoptimization
+  - deoptimize
   - destkey
   - develocity
   - devicectl
@@ -147,6 +153,7 @@ words:
   - immediates
   - incrbyfloat # From ./packages/redis_client
   - inlines
+  - intrinsify
   - intptr
   - ints
   - inwant
