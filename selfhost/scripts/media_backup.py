@@ -51,6 +51,7 @@ Usage:
 """
 
 import argparse
+import concurrent.futures
 import glob
 import hashlib
 import json
@@ -215,6 +216,39 @@ def cmd_plan(args):
     return 0
 
 
+def _decode_one(job):
+    """Probe then decode a single file. Returns (kind, record).
+
+    Module-level and self-contained so it can run in a process pool: the decode
+    is CPU-bound, and serially this pass projects to days on a collection of
+    feature-length video.
+    """
+    path, rel, probe_cmd, decode_cmd = job
+    if not os.path.exists(path):
+        return "missing", {"path": rel, "kind": "missing", "detail": ""}
+
+    probe = subprocess.run([a if a != "FILE" else path for a in probe_cmd],
+                           capture_output=True, text=True)
+    if probe.returncode != 0:
+        return "container", {"path": rel, "kind": "container",
+                             "returncode": probe.returncode,
+                             "detail": probe.stderr.strip()[:500]}
+    duration = ""
+    try:
+        info = json.loads(probe.stdout or "{}")
+        duration = (info.get("format", {}) or {}).get("duration", "")
+    except json.JSONDecodeError:
+        pass
+
+    dec = subprocess.run([a if a != "FILE" else path for a in decode_cmd],
+                         capture_output=True, text=True)
+    if dec.returncode != 0 or dec.stderr.strip():
+        return "stream", {"path": rel, "kind": "stream",
+                          "returncode": dec.returncode, "duration": duration,
+                          "detail": dec.stderr.strip()[:500]}
+    return "clean", None
+
+
 def _tool_version(binary):
     """First line of `<binary> -version`, or a marker if it cannot be run."""
     try:
@@ -254,49 +288,18 @@ def cmd_decode(args):
         and os.path.splitext(entry["path"])[1].lower().lstrip(".") in exts
     ]
 
+    jobs = [(os.path.join(args.root, e["path"]), e["path"], probe_cmd, decode_cmd)
+            for e in targets]
     results, checked = [], 0
     counts = {"clean": 0, "container": 0, "stream": 0, "missing": 0}
-    for entry in targets:
-        full = os.path.join(args.root, entry["path"])
-        rel = entry["path"]
-        if not os.path.exists(full):
-            results.append({"path": rel, "kind": "missing", "detail": ""})
-            counts["missing"] += 1
-            continue
-
-        probe = subprocess.run([a if a != "FILE" else full for a in probe_cmd],
-                               capture_output=True, text=True)
-        if probe.returncode != 0:
-            # The container itself does not parse. Nothing downstream is
-            # meaningful, so do not spend a full decode on it.
-            results.append({"path": rel, "kind": "container",
-                            "returncode": probe.returncode,
-                            "detail": probe.stderr.strip()[:500]})
-            counts["container"] += 1
-            print(f"  CONTAINER FAIL {rel}", file=sys.stderr)
+    with concurrent.futures.ProcessPoolExecutor(max_workers=args.jobs) as pool:
+        for kind, record in pool.map(_decode_one, jobs):
             checked += 1
-            continue
-
-        meta = ""
-        try:
-            info = json.loads(probe.stdout or "{}")
-            meta = (info.get("format", {}) or {}).get("duration", "")
-        except json.JSONDecodeError:
-            pass
-
-        dec = subprocess.run([a if a != "FILE" else full for a in decode_cmd],
-                             capture_output=True, text=True)
-        checked += 1
-        if dec.returncode != 0 or dec.stderr.strip():
-            results.append({"path": rel, "kind": "stream",
-                            "returncode": dec.returncode,
-                            "duration": meta,
-                            "detail": dec.stderr.strip()[:500]})
-            counts["stream"] += 1
-            print(f"  STREAM FAIL {rel}", file=sys.stderr)
-        else:
-            counts["clean"] += 1
-        print(f"\r  decoded {checked:,}/{len(targets):,}", end="", file=sys.stderr)
+            counts[kind] += 1
+            if record is not None:
+                results.append(record)
+                print(f"  {kind.upper()} FAIL {record['path']}", file=sys.stderr)
+            print(f"\r  decoded {checked:,}/{len(jobs):,}", end="", file=sys.stderr)
     print(file=sys.stderr)
 
     out = {
@@ -309,6 +312,19 @@ def cmd_decode(args):
         "commands": {"probe": " ".join(probe_cmd), "decode": " ".join(decode_cmd)},
         "checked": checked,
         "counts": counts,
+        # What this pass did NOT look at, and why. Without it a reader cannot
+        # tell "1,960 clean" from "2,055 clean", and the 95 difference is
+        # subtitles, artwork and metadata rather than an omission.
+        "skipped": {
+            "count": len(manifest["files"]) - len(targets),
+            "reason": "extension not in --ext (non-media: subtitles, art, nfo/sfv, pdf)",
+            "extensions": sorted({
+                os.path.splitext(f["path"])[1].lower().lstrip(".")
+                for f in manifest["files"]
+                if os.path.splitext(f["path"])[1].lower().lstrip(".") not in exts
+            }),
+        },
+        "jobs": args.jobs,
         "findings": results,
     }
     with open(args.out, "w") as f:
@@ -322,6 +338,7 @@ def cmd_decode(args):
     print(f"  container: {counts['container']:,}   (file will not parse)")
     print(f"  stream   : {counts['stream']:,}   (parses, does not decode)")
     print(f"  missing  : {counts['missing']:,}")
+    print(f"  skipped  : {out['skipped']['count']:,}   (non-media)")
     if counts["container"] or counts["stream"] or counts["missing"]:
         # Never called corruption here. Read failures implicate the drive;
         # these do not, on their own. Some of these files may have been
@@ -474,6 +491,9 @@ def main():
     d.add_argument("--manifest", required=True)
     d.add_argument("--root", required=True)
     d.add_argument("--out", required=True)
+    d.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) - 2),
+                   help="parallel decodes; ffmpeg is already multithreaded, so "
+                        "leave headroom rather than using every core")
     d.add_argument("--ext", default="mkv,mp4,avi,m4v,mov,ts,m2ts,wmv,flv,webm",
                    help="comma-separated extensions to decode")
     d.set_defaults(func=cmd_decode)
