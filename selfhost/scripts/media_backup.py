@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words APFS syscall dests
 """media_backup.py -- inventory, partition and verify the one irreplaceable asset.
 
 WHY THIS EXISTS. /Volumes/build/media is 513 GB across ~2,055 files and, since
