@@ -1801,7 +1801,7 @@ Do not re-learn these:
   replaced. A scan of every app on both rigs finds exactly one draft, and it is
   the already-documented one: **`1.1.0+1` (release id 40) on `cps-ios`,
   app `airgap-fixture`**, recorded as abandoned in
-  [`fixtures/CONTROL_PLANE_DATA.md`](fixtures/CONTROL_PLANE_DATA.md). It stays
+  [`fixtures/airgap_app/README.md`](fixtures/airgap_app/README.md). It stays
   documented rather than deleted **on purpose** — the control plane exposes no
   release-delete endpoint, and reaching past the API into the database to
   remove a row is a worse precedent than a recorded gap in the numbering. Do
