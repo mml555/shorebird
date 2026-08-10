@@ -49,6 +49,7 @@ for the quick start and feature list.
 - [`ENGINE_BUILD.md`](ENGINE_BUILD.md) + [`engine/`](engine) — build the engine from captured source (their private Dart VM fork is **no longer a blocker**: we build on vanilla Dart + a 57-line shim, see [`engine/dart-fork/`](engine/dart-fork))
 - [`IOS_CODE_PUSH.md`](IOS_CODE_PUSH.md) — iOS code push without their fork: the interpreter and dispatch are already upstream; what we owe is a binder
 - [`HANDOFF.md`](HANDOFF.md) — the dated working log: evidence chains and debugging traps. Long, and **not** required reading before starting Route B
+- [`MEDIA_PRESERVATION.md`](MEDIA_PRESERVATION.md) — the build-SSD preservation runbook: what is proven about the media and what is not, the order of operations and why decode does not gate the copy, and the standing rules after two mid-write detaches
 - [`fixtures/airgap_app/README.md`](fixtures/airgap_app/README.md) + [`fixtures/CONTROL_PLANE_DATA.md`](fixtures/CONTROL_PLANE_DATA.md) — the acceptance fixture, and where rig data / config / secrets live
 - [`ENGINE_IMPROVEMENTS.md`](ENGINE_IMPROVEMENTS.md) — **start here for engine work**: what is proven, what stays pinned, and the constraints that cost real debugging
 - [`EXPERIMENTAL_ENGINE.md`](EXPERIMENTAL_ENGINE.md) — engine/runtime improvement roadmap: what's reachable today, and Android → iOS carryover
