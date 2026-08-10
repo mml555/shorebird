@@ -473,6 +473,73 @@ pass-through for arbitrary args, so `build_ios.sh` appends the flag to
 `args.gn` and regenerates. Excluding `patch_cache` also drops the target count
 from 8,162 to 6,825.
 
+## Cold review, 2026-08-10 — three questions, and one risk that shrank
+
+Written up during the media copy, when the SSD was busy and nothing could be
+built. All of it is reading, not running.
+
+### 1. Is the saved-original-Code table safe against a double attach?
+
+**Yes.** `AttachBytecode` asserts the bytecode slot is empty, but `ASSERT` is
+compiled out in product builds, so a second attach would silently overwrite —
+and the rollback table would then record the **InterpretCall stub** as the
+"original", making a later detach restore the stub instead of the app's code.
+
+That cannot happen: the pre-existing *already interpreted* guard
+(`object.cc:809`) returns false before the save at `:826`. The ordering is what
+makes it safe, so do not reorder those.
+
+### 2. Does the unchecked entry point work, or is it just emitted?
+
+I expected this to be the weak spot: form (c) loads
+`Function::entry_point_offset(entry_kind)`, and for `kUnchecked` that is
+`unchecked_entry_point_`, which `SetInstructionsSafe` fills from the
+InterpretCall stub's *unchecked* entry. If a stub's unchecked entry differed
+from its normal one, those call sites would jump somewhere wrong.
+
+**Already exercised, and working.** In the inventory snapshot:
+
+| entry | field | call sites |
+|---|---|---|
+| normal | `[r0, #7]` | 1,107 |
+| **unchecked** | `[r0, #15]` | **842** |
+
+So ~43 % of call sites already take the unchecked path, and both the kill gate
+and the inventory pass. This was a real question with an evidence-backed answer,
+not an untested path.
+
+### 3. Dispatch-table calls — what would it actually cost?
+
+Still the coverage ceiling, and the scoping is unchanged by review: the table
+holds **raw entry-point addresses**, and the call site sets up neither `R0` nor
+`R4`. Rewriting the table at patch time is legal on iOS (it is data) but
+insufficient, because the stub it would point at needs those registers. Making
+`EmitDispatchTableCall` dispatch through the `Function` is correct and taxes
+**every instance call in the program**.
+
+The size half of the step 7 veto is now measured — the current call form costs
+**+3.43 %** on a real app — but instance calls vastly outnumber static ones, so
+extrapolating that figure to dispatch-table calls would be guessing. This still
+needs the frame-time measurement first.
+
+### 4. The `Unexpected tag 4 (Field)` risk has already been partly tested
+
+Trap #1 predicts that an iOS build carrying the killgate SDK edits dies at the
+AOT step, because those edits compile into `platform_strong.dill` regardless of
+the GN flag. The Route B tree does carry them (6 occurrences across the two SDK
+files).
+
+**And step 7 already put that to the test, for an unrelated reason.** Measuring
+real-app size required building this tree's own
+`flutter_patched_sdk/platform_strong.dill` and compiling the airgap fixture —
+**469 libraries** — against it with `--aot --tfa`, then snapshotting it. That
+worked. A poisoned platform dill should have failed exactly there.
+
+So the risk is **reduced, not eliminated**: the *host* AOT path is clean, and
+the iOS engine build's AOT step is a different invocation with a different
+platform dill target. But the most likely form of this failure has now had a
+chance to fire on a real Flutter app and did not.
+
 ## Smoke-test the tree before trusting it
 
 "It built" proves nothing about a fork/backend pairing — a mismatched
