@@ -67,3 +67,9 @@ fc184af6509a93eaf6fc068c6820639b324175a8 69f9831c360d9152862ec3897c67fb09ae843f3
 70b2e762e0c10306c3b0412ef46266886db1dd8a 69f9831c360d9152862ec3897c67fb09ae843f3b
 # bbddaa6e… diagnostic engine (unhandled-exception FATAL + settings-json log). Do not ship.
 bbddaa6e2da41fef8e950ed63e14b6d4400b69d7 69f9831c360d9152862ec3897c67fb09ae843f3b
+# b4817db8… Route B iOS engine (2026-08-10). dart_dynamic_modules=true,
+# shorebird_use_interpreter=false, carries the patchable static-call form and
+# AttachBytecode/restore. sky_engine.zip content DIFFERS from stock here — the
+# killgate SDK edits reach dart:_internal — so this hash must never fall through
+# to the pinned revision for that artifact.
+b4817db848cb7d79bde7b959df4164be85d3a6f6 69f9831c360d9152862ec3897c67fb09ae843f3b

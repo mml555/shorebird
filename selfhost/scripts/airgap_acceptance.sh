@@ -287,8 +287,26 @@ read_beacon() {
 
 launch_fixture() {  # launch_fixture — install and run the fixture on the device
   local ipa app stage log
-  ipa="$(find "$APP_DIR/build/ios/ipa" -name '*.ipa' 2>/dev/null | head -1)"
+  # NEWEST ipa, and prove it is newer than the archive that produced it.
+  #
+  # `head -1` of an unordered find was a silent false-positive path: a stale
+  # .ipa from an earlier engine sits happily beside a fresh archive, installs
+  # cleanly, and produces a device result that describes the WRONG build. This
+  # bit a real run on 2026-08-10, where a build/airgap-payload/ tree from three
+  # days and one engine earlier was still on disk and looked authoritative.
+  ipa="$(ls -t "$APP_DIR/build/ios/ipa"/*.ipa 2>/dev/null | head -1)"
   [[ -n "$ipa" ]] || { echo "no IPA under $APP_DIR/build/ios/ipa" >&2; return 1; }
+  local arch_app
+  arch_app="$(ls -td "$APP_DIR/build/ios/archive"/*.xcarchive 2>/dev/null | head -1)"
+  if [[ -n "$arch_app" && "$arch_app" -nt "$ipa" ]]; then
+    echo "STALE ARTIFACT: $ipa is older than $arch_app" >&2
+    echo "  A device result from this IPA would describe an earlier build." >&2
+    echo "  Rebuild, or delete the old .ipa before running." >&2
+    return 1
+  fi
+  # Print what is actually being installed. An unattributable device result is
+  # not evidence, and this is the cheapest possible attribution.
+  echo "installing: $ipa  (built $(date -r "$ipa" -u +%FT%TZ))"
 
   # --bundle wants an .app DIRECTORY, not the .ipa. Handed the archive,
   # ios-deploy installs it and then fails the debug phase with
@@ -300,6 +318,10 @@ launch_fixture() {  # launch_fixture — install and run the fixture on the devi
   unzip -qq "$ipa" -d "$stage" || { echo "could not unzip $ipa" >&2; return 1; }
   app="$(find "$stage/Payload" -maxdepth 1 -name '*.app' | head -1)"
   [[ -n "$app" ]] || { echo "no Payload/*.app inside $ipa" >&2; return 1; }
+  # Record the identity of the binary that is about to run on the device, so a
+  # screenshot can be tied to a specific build after the fact.
+  echo "  App sha256: $(shasum -a 256 "$app/Frameworks/App.framework/App" 2>/dev/null | cut -c1-32)"
+  echo "  engine interpretcall symbols: $(nm -a "$app/Frameworks/Flutter.framework/Flutter" 2>/dev/null | grep -ci interpretcall)  (0 = no interpreter, >0 = Route B)"
 
   # Keep the output. It was going to /dev/null, which is how the .ipa mistake
   # above stayed invisible; ios-deploy reports install AND launch failures here
