@@ -1,4 +1,4 @@
-<!-- cspell:words APFS ffprobe fsck enclosure -->
+<!-- cspell:words APFS ffprobe fsck enclosure diskutil -->
 
 # Media preservation — runbook and standing rules
 
@@ -48,7 +48,7 @@ failed twice.
 
 **Copy work accumulates; decode work does not.** A detach at hour 10 of a copy
 leaves 60 % preserved and `rsync --partial` resumes. A decode interrupted at
-hour 10 lost everything — demonstrated, not hypothesised, which is why decode
+hour 10 lost everything — demonstrated, not assumed, which is why decode
 now checkpoints per file.
 
 **Decode runs against the verified copies, never the SSD again.** Once
