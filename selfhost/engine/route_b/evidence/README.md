@@ -77,7 +77,8 @@ hook never armed — none of it reopens what is below.
 | `4b_step7_first_read_NEW.png` | after the patch: **`code patch: 2`**, `route B value: OLD` |
 
 Despite the filename, the second screenshot is the split result, not a pass. It
-is kept because `code patch: 2` is the delivery evidence.
+is kept because `code patch: 2` is the delivery evidence. The full sequence
+passed later on release 9.0.0+1; see below.
 
 ### What is closed
 
@@ -122,3 +123,61 @@ Engine `591a9f8d` adds a `<artifact>.routeb` report written beside the installed
 file. It makes the next run a hard fork: **no file** means the hook was never
 armed and the fault is in classification, before activation; **a file** names the
 exact boundary that failed.
+
+## 4b milestone 1 — the full sequence, 2026-08-10
+
+**All ten steps pass on release 9.0.0+1.** Route B code push is delivered by the
+real control plane, installed by the real updater, activated natively before
+`main`, persists across relaunch, and rolls back to pristine AOT.
+
+| step | file | shows |
+|---|---|---|
+| 1 | `4b_m1_step1_OLD.png` | fresh release: `route B value: OLD`, `code patch: none` |
+| 2–4 | `4b_m1_step2_download.png` | updater discovers, downloads, inflates, installs |
+| 5–7 | `4b_m1_step7_NEW.png` | **`route B value: NEW`**, `code patch: 1` |
+| 8 | `4b_m1_step8_relaunch_NEW.png` | still `NEW` from persisted lifecycle state |
+| 9 | `4b_m1_step9_rollback_seen.png` | after `withdraw?rollback=true` |
+| 10 | `4b_m1_step10_pristine_OLD.png` | **`OLD`**, `code patch: none` |
+
+`4b_m1_activation.routeb.txt` is the engine's own report, pulled off the device:
+
+```
+hook entered
+parsed, targets=1, built-for=3527f0133aaf33819a49d9953973f050
+running=3527f0133aaf33819a49d9953973f050
+applied 1/1 targets, entering main
+```
+
+Two identical blocks, one per launch — the hook re-activates from the persisted
+artifact on every boot rather than caching anything.
+
+After rollback the lifecycle removed the patch directory entirely and
+`pointers.json` reads all-null, so step 10 is running pristine AOT rather than a
+detached-but-present patch.
+
+### The failure that cost two releases, and its signature
+
+Releases 7.0.0+1 and 8.0.0+1 both reported **`applied 1/1 targets` and showed
+`OLD`**. Nothing was wrong with delivery, the container, the build-ID check or
+the attach — the report was honest. The releases were built **without**
+`--extra-gen-snapshot-options=--patchable_static_calls`, so AOT emitted the
+ordinary direct call: `AttachBytecode` really did make `routeBValue`
+interpreted, and the call site in `routeBProbe` branched straight to the AOT
+body without ever consulting `Function.entry_point_`.
+
+> **`applied N/N targets` plus `OLD` on screen means a NON-PATCHABLE RELEASE,
+> not a broken hook.**
+
+This is the most dangerous shape of failure in this project — a mechanism
+reporting truthful success while behaviour is unchanged — and the flag's absence
+is silent at every other layer. The release step now passes it, and the +4.53 %
+App binary growth (3,989,024 -> 4,169,856 bytes) is a cheap corroboration that
+it reached `gen_snapshot`; the CLI log confirms it directly.
+
+### What the diagnostic settled for free
+
+- **Build-ID derivation is correct.** `running=` and `built-for=` match, so
+  `OS::GetAppBuildId` does resolve to the App dylib's `LC_UUID` on iOS.
+- **Content sniffing works.** The hook is only armed on the `SniffFile` ->
+  `kOk` branch, so its firing is direct evidence — replacing the wrong inference
+  recorded above, which argued from "the app booted".

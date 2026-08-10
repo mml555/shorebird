@@ -17,14 +17,14 @@ not required reading before you start.
 
 ## The capability statement, as of 2026-08-10
 
-> **Android Dart code push and iOS asset push are complete and independent.
-> iOS Dart code push has its runtime mechanism PROVEN ON PHYSICAL HARDWARE, BOTH
-> VETOES CLOSED, and ACTIVATION PROVEN NATIVELY BEFORE `main` WITH NO DART-SIDE
-> COOPERATION — a shipped AOT call site redirected to attached bytecode and
-> restored to its original AOT `Code` on an iPhone, at +4.5 % size and +0.3 %
-> median frame time with zero added jank. Production delivery is not built:
-> `shorebird patch` cannot produce an iOS code patch, and no updater-selected
-> artifact reaches the activation function.**
+> **Android Dart code push and iOS asset push are complete and independent. The
+> ENTIRE iOS Dart code-push RUNTIME is now proven on physical hardware: control
+> plane -> updater download -> inflate -> install -> lifecycle promotion ->
+> native pre-main activation -> patched Dart running -> rollback to pristine
+> AOT, with no Dart-side cooperation, at +4.5 % size and +0.3 % median frame
+> time with zero added jank. What is NOT built is the PRODUCER: `shorebird
+> patch` cannot emit an iOS code patch, so the container that proved all of the
+> above was packed by hand.**
 
 The device gate passed on 2026-08-10, and seam 6 the same day. The question this
 project existed to answer -- can an AOT call site on iOS be redirected to
@@ -82,8 +82,20 @@ Full detail, including the rejection taxonomy and why it is tested by a shell
 script rather than the gtest target, is in
 [`engine/route_b/README.md`](engine/route_b/README.md).
 
-**Status: implemented and host-verified; the device sequence has NOT run.** Do
-not read this section as a working delivery path.
+**Status: PASSED on release 9.0.0+1, all ten steps** — fresh release `OLD`,
+updater delivers, relaunch `NEW`, relaunch still `NEW`, rollback, relaunch
+pristine `OLD`. Evidence and the engine's own on-device report are in
+[`engine/route_b/evidence/`](engine/route_b/evidence/README.md).
+
+Two releases were burned first on a failure worth memorising: **`applied N/N
+targets` in the report plus `OLD` on screen means the release was built without
+`--patchable_static_calls`, not that the hook is broken.** The attach genuinely
+succeeds; the call site simply never consults `Function.entry_point_`. Nothing
+else in the stack reports the flag's absence.
+
+The remaining work is genuinely only the producer: replace
+`ios_patcher.dart:198`'s private-linker gate with generation of exactly these
+bytes.
 
 ## What you are building, in one shape change
 
