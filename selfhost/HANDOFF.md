@@ -42,18 +42,23 @@ because a 2026-08-04 paragraph phrases it as open.
 ### The capability statement (authoritative — do not restate it more warmly)
 
 > **Android Dart code push and iOS asset push are complete and independent.
-> iOS Dart code push has all five build steps working on a macOS host harness —
-> patchable call emission, retention, target identity, the patch container, and
-> patch production with a coverage verdict. None of it has run on iOS, and
-> neither veto has been measured.**
+> iOS Dart code push has its runtime mechanism PROVEN ON PHYSICAL HARDWARE —
+> a shipped AOT call site redirected to attached bytecode and restored to its
+> original AOT `Code`, on an iPhone, in one process. Production delivery is not
+> built: `shorebird patch` cannot produce an iOS code patch, and nothing in the
+> engine or updater consumes a patch container. The frame-time veto is
+> unmeasured.**
 
-*Five of five on a host is still not a shipped feature.* All five Route B
-build steps went in on 2026-08-09 and are real: a release is built patchable, a
-Dart edit becomes a container via a kernel diff, the container is refused when
-it does not match the release or cannot fully land, applied atomically, and
-rolled back. But nothing has been built for iOS, no patch has run on a device,
-and neither veto has been measured on a real app. Either veto can still kill
-the approach.
+*The mechanism is proven; the product is not.* On 2026-08-10 the device gate
+passed on an iPhone 7: baseline OLD, attached NEW, detached OLD, in one process
+with no restart. That removes the fundamental uncertainty this project has
+carried since the start -- whether an AOT call site on iOS can be redirected to
+interpreted bytecode and restored afterwards.
+
+What remains is integration, plus one veto. `shorebird patch` cannot produce an
+iOS code patch, nothing in the engine consumes a patch container, the 4a payload
+was bundled as an asset and attached by test-only scaffolding, and the
+frame-time cost has never been measured on a device.
 
 ### The boundary that was crossed
 

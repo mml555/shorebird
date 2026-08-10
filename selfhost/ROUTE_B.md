@@ -18,16 +18,21 @@ not required reading before you start.
 ## The capability statement, as of 2026-08-09
 
 > **Android Dart code push and iOS asset push are complete and independent.
-> iOS Dart code push has all five build steps working on a macOS host harness —
-> patchable call emission, retention, target identity, the patch container, and
-> patch production with a coverage verdict. None of it has run on iOS, and
-> neither veto has been measured.**
+> iOS Dart code push has its runtime mechanism PROVEN ON PHYSICAL HARDWARE —
+> a shipped AOT call site redirected to attached bytecode and restored to its
+> original AOT `Code`, on an iPhone, in one process. Production delivery is not
+> built: `shorebird patch` cannot produce an iOS code patch, and nothing in the
+> engine or updater consumes a patch container. The frame-time veto is
+> unmeasured.**
 
-All five build steps are done, on a macOS host, on toy programs. What remains
-is step 6 (the physical-device gate) and step 7 (the two vetoes), and those are
-the steps that can still end this. Do not let a passing harness be reported as a
-working feature; that is the same error every earlier version of this wording
-existed to prevent.
+The device gate passed on 2026-08-10. The question this project existed to
+answer -- can an AOT call site on iOS be redirected to interpreted bytecode, and
+the original restored -- is answered yes, on hardware.
+
+What is left is no longer research. It is delivery integration (4b) and the
+frame-time veto, which can still make the approach unattractive even though it
+works. Do not let "the mechanism works" be reported as "code push works"; those
+are now genuinely different statements rather than degrees of the same one.
 
 ## What you are building, in one shape change
 

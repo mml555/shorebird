@@ -71,15 +71,19 @@ for the quick start and feature list.
 ## Capability statement (read this before claiming anything)
 
 > **Android Dart code push and iOS asset push are complete and independent.
-> iOS Dart code push has all five build steps working on a macOS host harness —
-> patchable call emission, retention, target identity, the patch container, and
-> patch production with a coverage verdict. None of it has run on iOS, and
-> neither veto has been measured.**
+> iOS Dart code push has its runtime mechanism PROVEN ON PHYSICAL HARDWARE —
+> a shipped AOT call site redirected to attached bytecode and restored to its
+> original AOT `Code`, on an iPhone, in one process. Production delivery is not
+> built: `shorebird patch` cannot produce an iOS code patch, and nothing in the
+> engine or updater consumes a patch container. The frame-time veto is
+> unmeasured.**
 
-*Five of five on a host is still not a shipped feature.* Nothing has been
-built for iOS, no patch has been applied on a device, and the size and
-frame-time vetoes — either of which can still kill the approach — are
-unmeasured on a real app. Do not compress this into "iOS code push works".
+*The mechanism is proven; the product is not.* The fundamental technical
+uncertainty is gone — Route B redirects and restores a real AOT call site on a
+real iPhone. What remains is integration and one open veto, and neither is a
+formality: a patch still cannot be produced by the CLI, delivered by the
+updater, or applied without test-only scaffolding, and the frame-time cost of
+making calls patchable has never been measured on a device.
 
 What a host harness has now shown, end to end: a release built patchable, a
 Dart edit turned into a container by diffing kernels, that container refused
