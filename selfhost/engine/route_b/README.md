@@ -1,6 +1,6 @@
 <!-- cspell:words killgate dynmod dartaotruntime APFS gclient depot caffeinate -->
 <!-- cspell:words devirtualize devirtualizes devirtualized megamorphic movz uxtx -->
-<!-- cspell:words SBRBPTCH sbrb routebios -->
+<!-- cspell:words SBRBPTCH sbrb routebios interpretcall -->
 
 # Route B — the dedicated build tree
 
@@ -539,6 +539,108 @@ So the risk is **reduced, not eliminated**: the *host* AOT path is clean, and
 the iOS engine build's AOT step is a different invocation with a different
 platform dill target. But the most likely form of this failure has now had a
 chance to fire on a real Flutter app and did not.
+
+## Step 4a — PASSED ON HARDWARE, 2026-08-10
+
+```
+route B baseline:  OLD
+route B attached:  NEW
+route B detached:  OLD
+route B note:      attach=true detach=true bytes=409
+```
+
+iPhone 7, iOS 15.8.8, arm64. All three states from the **same installed
+process** — no restart, no reinstall, no re-release between them. Evidence:
+[`fixtures/evidence/routeb_4a_device_gate.png`](../../fixtures/evidence/routeb_4a_device_gate.png).
+
+**The claim, exactly:**
+
+> Route B's arm64 iOS runtime mechanism is proven on physical hardware: a
+> shipped AOT call site can be redirected to attached bytecode and restored to
+> its original AOT `Code`.
+
+**And separately, without softening:**
+
+> Production delivery is not built. `shorebird patch` cannot produce an iOS code
+> patch (`ios_patcher.dart:198` gates on `aot-tools.dill`), and nothing in the
+> engine or updater consumes an `SBRBPTCH` container. The payload here was
+> bundled as an asset and attached in-process by test-only scaffolding.
+
+What each line establishes: **baseline** that the function ran its AOT body from
+a normally-emitted call site; **attached** that the *existing compiled call
+site* reached the interpreted replacement — the whole thesis; **detached** that
+the original `Code` came back, which vanilla Dart cannot do at all, since
+`ClearBytecode` calls `ClearCode` (`UNREACHABLE()` under
+`DART_PRECOMPILED_RUNTIME`) and `AttachBytecode` discards the original without
+saving it.
+
+Attribution: App `a230b37fd3a9f5b4e96405b04b1f1d94`, engine `b4817db848…`
+(2 `interpretcall` symbols), 409-byte payload, `code patch: none`.
+
+**Keep this gate.** It is the shortest possible proof that the engine mechanism
+still works, independent of CLI and updater complexity. When 4b lands, this
+stays as the thing you run first when delivery breaks, to tell "the mechanism
+regressed" from "the plumbing regressed".
+
+### Everything that fought us was infrastructure, not mechanism
+
+A mixed-provenance overlay, a GN path quirk in `zip.py`, the `dart:_internal`
+package-name rule, and a `dart2bytecode` target mismatch. The mechanism itself
+worked the first time it was handed a coherent build.
+
+Three that will recur:
+
+- **`dart:_internal` needs a package literally named `dynamic_modules`.** The
+  CFE checks `importer.path.startsWith("dynamic_modules/")`, and `importer.path`
+  for `package:airgap_probe/main.dart` is `airgap_probe/…` — so a subdirectory
+  does not satisfy it. Hence `fixtures/airgap_app/dynamic_modules/`.
+- **`dart2bytecode` needs `--target flutter`** to match the import-dill, or it
+  crashes with "Null check operator used on a null value", which says nothing
+  about targets.
+- **The payload is release-specific.** It is compiled against the app's own
+  pre-AOT kernel, so it goes stale the moment `main.dart` changes, and a stale
+  payload presents as `attach returned false` — a mechanism failure, apparently.
+  `assets/routeb_patch.bytecode.provenance` records what it was built against.
+
+## The seam 4a exposed
+
+Steps 1–5 prove host-side production, container and reference-install
+semantics. They do **not** constitute an iOS delivery path: nothing in the
+engine or the updater consumes an `SBRBPTCH` container, and
+`ios_patcher.dart:198` gates non-`--assets-only` patches on `aot-tools.dill`,
+Shorebird's linker, which we cannot build. That seam is 4b.
+
+4a therefore proves only the mechanism, on hardware, with the payload bundled
+as an asset and attached in-process — test-only scaffolding with no networking,
+no control plane and no persistence.
+
+### The publish seam it exposed
+
+`publish_ios_overlay.sh` defaults `HOST_REL` to the **shipping** tree
+(`/Volumes/build/ios-engine/.../host_release_arm64_nodm`). That default is
+correct for the shipping engine and silently wrong for Route B: the host
+toolchain zips — `flutter_patched_sdk_product` and `dart-sdk-darwin-arm64` —
+then come from a tree WITHOUT the killgate SDK edits, while `sky_engine.zip`
+comes from the Route B tree and has them.
+
+The result is an overlay that contradicts itself:
+
+| artifact | source tree | `attachBytecodeToFunction` |
+|---|---|---|
+| `sky_engine.zip` | Route B | **present** |
+| `flutter_patched_sdk_product` | shipping | **absent** |
+| `dart-sdk-darwin-arm64` | shipping | absent |
+
+An app compiles against the platform dill, so it cannot see a symbol its own
+SDK sources declare, and the failure is a CFE error naming the method rather
+than anything pointing at the overlay. The 2.0.0+1 release did not notice
+because it never referenced those symbols.
+
+**When publishing a Route B engine, set `HOST_REL` to the Route B tree's
+`out/host_release_arm64`.** The `_nodm` default exists because the shipping
+iOS toolchain must NOT carry dynamic modules; Route B wants the opposite, and
+the whole-toolchain-one-tree-one-GN-config invariant applies to the published
+zips exactly as it does to a local build.
 
 ## Smoke-test the tree before trusting it
 

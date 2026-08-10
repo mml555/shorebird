@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words interpretcall
 # airgap_acceptance.sh — the payload of the air-gap acceptance run.
 #
 # From an EMPTY Shorebird cache and isolated host caches (airgap_run.sh sets

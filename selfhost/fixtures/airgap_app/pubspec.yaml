@@ -6,12 +6,15 @@
 name: airgap_probe
 description: Canonical fixture for the sealed air-gap acceptance run.
 publish_to: none
-version: 2.0.0+1
+version: 2.1.0+1
 
 environment:
   sdk: ">=3.6.0 <4.0.0"
 
 dependencies:
+  # Test-only Route B hook; see dynamic_modules/lib/routeb.dart.
+  dynamic_modules:
+    path: dynamic_modules
   flutter:
     sdk: flutter
   # code_push_runtime, NOT shorebird_code_push. The native updater is never
@@ -33,3 +36,6 @@ flutter:
     # runtime. Caught by the first warm run of this fixture, 2026-08-07.
     - shorebird.yaml
     - assets/probe.json
+    # Route B 4a payload. Test-only: bundling the bytecode is what lets the
+    # hardware gate run without a delivery path.
+    - assets/routeb_patch.bytecode

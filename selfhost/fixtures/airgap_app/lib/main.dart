@@ -23,6 +23,13 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'dart:typed_data';
+
+// dart:_internal cannot be imported from this package (the CFE allows it only
+// from a package named dart_internal or dynamic_modules), so the two natives
+// are reached through a test-only wrapper package.
+import 'package:dynamic_modules/routeb.dart';
+
 import 'package:code_push_runtime/code_push_runtime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -30,6 +37,37 @@ import 'package:flutter/services.dart' show rootBundle;
 /// Bump this in a CODE patch to prove patched Dart is executing. An
 /// assets-only patch must leave it alone.
 const String kReleaseState = 'AIRGAP-FIXTURE-V1';
+
+// --- Route B step 4a: the device mechanism kill gate -------------------------
+//
+// TEST-ONLY SCAFFOLDING. This exists to answer one question on real hardware:
+// can an AOT function's body be replaced with bytecode, executed through the
+// interpreter, and the ORIGINAL AOT Code restored afterwards? It is deliberately
+// crude -- a payload bundled as an asset and attached in-process. It is NOT the
+// delivery path: no networking, no control plane, no container discovery, no
+// persistence. Delete or quarantine it once 4b exists.
+//
+// vm:never-inline, or the body is spliced into the caller and nothing can
+// change it. vm:entry-point, because AOT drops library dictionaries and the
+// attach native resolves targets by name -- a real linker works from the
+// snapshot's tables and needs neither.
+//
+// The value routes through DateTime.now() because a literal is constant-folded
+// by the type-flow analysis even under vm:never-inline: the call still runs,
+// its RESULT is simply replaced at the call site, and the gate then reports a
+// working mechanism as OLD. That cost a debugging detour on the host; see
+// selfhost/engine/killgate/target.dart.
+@pragma('vm:never-inline')
+@pragma('vm:entry-point')
+String routeBValue() =>
+    DateTime.now().millisecondsSinceEpoch >= 0 ? 'OLD' : 'X';
+
+/// ONE call site, exercised before, during and after the patch. Reading the
+/// same site three times is the actual claim -- that an ordinary compiled call
+/// reaches the replacement -- rather than three unrelated calls happening to
+/// agree.
+@pragma('vm:never-inline')
+String routeBProbe() => routeBValue();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,6 +103,15 @@ class ProbeBody extends StatefulWidget {
 class _ProbeBodyState extends State<ProbeBody> {
   String _asset = 'reading…';
 
+  // Route B 4a results, accumulated so a SINGLE screenshot carries the whole
+  // loop. Three separate screenshots taken over time would each be an
+  // unattributable moment; one image showing baseline/attached/detached
+  // together cannot be assembled from a partially-working mechanism.
+  String _rbBaseline = '—';
+  String _rbAttached = '—';
+  String _rbDetached = '—';
+  String _rbNote = 'running…';
+
   String get _assetsPatch => widget.runtime.assetsPatchNumber?.toString() ?? 'none';
   String get _codePatch => widget.runtime.patchNumber?.toString() ?? 'none';
 
@@ -72,6 +119,56 @@ class _ProbeBodyState extends State<ProbeBody> {
   void initState() {
     super.initState();
     _load();
+    _routeBGate();
+  }
+
+  /// The 4a sequence: read, attach, read, detach, read.
+  ///
+  /// Runs automatically at startup rather than behind a button, because the
+  /// evidence has to be capturable without driving the touchscreen.
+  Future<void> _routeBGate() async {
+    final baseline = routeBProbe();
+
+    String attached;
+    String detached;
+    String note;
+    try {
+      final raw = await rootBundle.load('assets/routeb_patch.bytecode');
+      final bytes = raw.buffer.asUint8List(
+        raw.offsetInBytes,
+        raw.lengthInBytes,
+      );
+      final ok = attachBytecode(
+        Uint8List.fromList(bytes),
+        'package:airgap_probe/main.dart',
+        'routeBValue',
+      );
+      attached = ok ? routeBProbe() : 'attach returned false';
+
+      // Rollback is part of the mechanism, not cleanup: vanilla AOT provides no
+      // working undo (ClearBytecode calls ClearCode, UNREACHABLE in a
+      // precompiled runtime), so Route B saves the original Code on attach and
+      // restores it here. If this does not return to OLD, 4a has failed even
+      // though patching worked.
+      final undone = detachBytecode(
+        'package:airgap_probe/main.dart',
+        'routeBValue',
+      );
+      detached = undone ? routeBProbe() : 'detach returned false';
+      note = 'attach=$ok detach=$undone bytes=${bytes.length}';
+    } on Object catch (e) {
+      attached = 'ERROR';
+      detached = 'ERROR';
+      note = '$e';
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _rbBaseline = baseline;
+      _rbAttached = attached;
+      _rbDetached = detached;
+      _rbNote = note;
+    });
   }
 
   Future<void> _load() async {
@@ -138,6 +235,11 @@ class _ProbeBodyState extends State<ProbeBody> {
           _row('release', kReleaseState),
           _row('asset', _asset),
           _row('assets patch', _assetsPatch),
+          const SizedBox(height: 8),
+          _row('route B baseline', _rbBaseline),
+          _row('route B attached', _rbAttached),
+          _row('route B detached', _rbDetached),
+          _row('route B note', _rbNote),
           _row('code patch', _codePatch),
         ],
       ),
