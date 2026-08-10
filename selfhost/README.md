@@ -71,12 +71,12 @@ for the quick start and feature list.
 ## Capability statement (read this before claiming anything)
 
 > **Android Dart code push and iOS asset push are complete and independent.
-> iOS Dart code push has its runtime mechanism PROVEN ON PHYSICAL HARDWARE —
-> a shipped AOT call site redirected to attached bytecode and restored to its
-> original AOT `Code`, on an iPhone, in one process. Production delivery is not
+> iOS Dart code push has its runtime mechanism PROVEN ON PHYSICAL HARDWARE and
+> BOTH VETOES CLOSED — a shipped AOT call site redirected to attached bytecode
+> and restored to its original AOT `Code` on an iPhone, at +4.5 % size and
+> +0.3 % median frame time with zero added jank. Production delivery is not
 > built: `shorebird patch` cannot produce an iOS code patch, and nothing in the
-> engine or updater consumes a patch container. The frame-time veto is
-> unmeasured.**
+> engine or updater consumes a patch container.**
 
 *The mechanism is proven; the product is not.* The fundamental technical
 uncertainty is gone — Route B redirects and restores a real AOT call site on a

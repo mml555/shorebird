@@ -42,12 +42,12 @@ because a 2026-08-04 paragraph phrases it as open.
 ### The capability statement (authoritative — do not restate it more warmly)
 
 > **Android Dart code push and iOS asset push are complete and independent.
-> iOS Dart code push has its runtime mechanism PROVEN ON PHYSICAL HARDWARE —
-> a shipped AOT call site redirected to attached bytecode and restored to its
-> original AOT `Code`, on an iPhone, in one process. Production delivery is not
+> iOS Dart code push has its runtime mechanism PROVEN ON PHYSICAL HARDWARE and
+> BOTH VETOES CLOSED — a shipped AOT call site redirected to attached bytecode
+> and restored to its original AOT `Code` on an iPhone, at +4.5 % size and
+> +0.3 % median frame time with zero added jank. Production delivery is not
 > built: `shorebird patch` cannot produce an iOS code patch, and nothing in the
-> engine or updater consumes a patch container. The frame-time veto is
-> unmeasured.**
+> engine or updater consumes a patch container.**
 
 *The mechanism is proven; the product is not.* On 2026-08-10 the device gate
 passed on an iPhone 7: baseline OLD, attached NEW, detached OLD, in one process
