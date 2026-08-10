@@ -1,4 +1,4 @@
-<!-- cspell:words APFS ffprobe fsck enclosure diskutil -->
+<!-- cspell:words APFS ffprobe fsck enclosure diskutil mountpoint caffeinate -->
 
 # Media preservation — runbook and standing rules
 
