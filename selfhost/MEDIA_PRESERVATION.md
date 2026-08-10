@@ -110,9 +110,12 @@ and six months from now that has to be attributable.
    `/System/Volumes/Data` — an empty mountpoint on the internal disk looks
    convincingly like the real thing), and only then resume. `rsync --partial`
    makes resuming easy; that is not a reason to resume onto a faulted volume.
-2. **Replace the cable/enclosure path before any further long build**, attended
-   or not. The drive has vanished mid-write twice, and once it enumerated at the
-   disk layer while showing **no device at all** on USB or Thunderbolt.
+2. **The path was judged sound on 2026-08-10** and no replacement was made.
+   History, so the record stays accurate: the drive vanished mid-write twice,
+   and once enumerated at the disk layer while showing no device at all on USB
+   or Thunderbolt. Against that, it then sustained a 513 GiB / 16.7-hour
+   transfer with no detach, no rsync error and no intervention. If it detaches
+   again, that is the point to change the cable rather than retry on it.
 3. **Re-check actual free bytes before each destination leg.** A ~17 GiB reserve
    is enough only if nothing else grew.
 4. **Keep manifest, plan and checkpoints off both backup volumes** as well as on
