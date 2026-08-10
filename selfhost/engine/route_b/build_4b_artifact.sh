@@ -63,6 +63,17 @@ BUILD_ID=$(dwarfdump --uuid "$APP_BIN" 2>/dev/null \
 echo "release build id : $BUILD_ID"
 echo "  from           : $APP_BIN"
 
+# REFUSE A NON-PATCHABLE RELEASE, before compiling anything.
+#
+# This is the invariant that cost releases 7.0.0+1 and 8.0.0+1: the patch
+# delivered, installed, validated, resolved its target and attached — "applied
+# 1/1 targets" — and the app showed OLD, because the release had been built
+# without --patchable_static_calls and AOT emitted direct calls. Nothing else in
+# the stack notices, so the producer has to.
+echo
+"$HERE/verify_patchable_release.sh" "$APP_BIN" || die "refusing to build a patch for a non-patchable release"
+echo
+
 W=$(mktemp -d)
 trap 'rm -rf "$W"' EXIT
 

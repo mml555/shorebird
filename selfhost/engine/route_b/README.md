@@ -853,6 +853,38 @@ boringssl and this is an integrity check rather than a security boundary. A NIST
 vector guards it. If that case ever fails, every integrity check in the file is
 meaningless.
 
+## The producer invariant: releases must be patchable, and it is DETECTED
+
+`applied N/N targets` in the `.routeb` report plus `OLD` on screen means the
+release was built without `--patchable_static_calls` — not that the hook is
+broken. The attach genuinely succeeds and the call site simply never consults
+`Function.entry_point_`.
+
+Nothing else in the stack reports the flag's absence, so this is a detector
+rather than a convention. `verify_patchable_release.sh` counts the two fixed
+instruction words the patchable form always ends in:
+
+```
+ldur lr, [r0, #7]    0xF840701E     ; Function.entry_point_
+blr  lr              0xD63F03C0
+```
+
+It is a property of the **shipped bytes**, so a stale build, a cached artifact
+or provenance that says the right thing cannot defeat it. Measured on the two
+releases that produced the failure and the fix:
+
+| release | built with the flag | pairs | per MB | verdict |
+|---|---|---|---|---|
+| 8.0.0+1 | no | 8 | 2 | **NOT PATCHABLE** |
+| 9.0.0+1 | yes | 7,109 | 1,788 | **PATCHABLE** |
+
+A non-patchable release still contains a few — AOT already dispatches some
+closure and tear-off calls through `entry_point_` regardless — which is why the
+test is a density threshold and not `> 0`. Three orders of magnitude apart, so
+the threshold is not a fine judgement call.
+
+`build_4b_artifact.sh` runs it and refuses before compiling anything.
+
 ## The patch series, and which tree each patch belongs to
 
 Three trees, and mixing them up produces a build that looks fine and behaves
