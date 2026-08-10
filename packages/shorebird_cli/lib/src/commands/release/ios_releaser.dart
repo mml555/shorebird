@@ -14,6 +14,7 @@ import 'package:shorebird_cli/src/flutter_version_constraints.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform/apple/apple.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/route_b.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
 import 'package:shorebird_cli/src/validators/validators.dart';
@@ -102,6 +103,7 @@ If left checked, Xcode will rewrite the build number in the uploaded IPA, so the
     final buildArgs = [...argResults.forwardedArgs];
     addSplitDebugInfoDefault(buildArgs);
     await addObfuscationMapArgs(buildArgs);
+    final wantsPatchableCalls = _addPatchableCallArgs(buildArgs);
 
     await artifactBuilder.buildIpa(
       codesign: codesign,
@@ -129,6 +131,10 @@ If left checked, Xcode will rewrite the build number in the uploaded IPA, so the
       throw ProcessExit(ExitCode.software.code);
     }
 
+    if (wantsPatchableCalls) {
+      _verifyPatchableRelease(appDirectory);
+    }
+
     // When code signing is requested (the default), `flutter build ipa` is
     // expected to export a signed .ipa. Flutter treats the export step as
     // optional and exits 0 even when it fails (e.g. no signing certificate),
@@ -146,6 +152,91 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
     }
 
     return xcarchiveDirectory;
+  }
+
+  /// Ask gen_snapshot for the patchable call form, on engines that can use it.
+  ///
+  /// Route B redirects a shipped AOT call site to attached bytecode by making
+  /// the call dispatch through the callee's `Function`. That is off by default,
+  /// so a release built without it CANNOT be patched -- and the failure is
+  /// silent in the worst way: the patch installs, validates, resolves its
+  /// target and attaches successfully, and the app's behaviour is unchanged,
+  /// because AOT emitted a direct call that never reads
+  /// `Function.entry_point_`.
+  ///
+  /// Only added for an engine that actually carries the interpreter. On a stock
+  /// engine the flag would cost size (~+4.5% on the reference app) and buy
+  /// nothing, since there is no `InterpretCall` for an attached function to
+  /// enter through.
+  ///
+  /// Returns whether the release is expected to come out patchable, which is
+  /// what [_verifyPatchableRelease] is then entitled to insist on.
+  bool _addPatchableCallArgs(List<String> buildArgs) {
+    final engine = File(
+      p.join(
+        shorebirdEnv.flutterDirectory.path,
+        'bin',
+        'cache',
+        'artifacts',
+        'engine',
+        'ios-release',
+        'Flutter.xcframework',
+        'ios-arm64',
+        'Flutter.framework',
+        'Flutter',
+      ),
+    );
+    if (!isRouteBEngine(engine)) return false;
+
+    // Respect an explicit choice. Someone measuring the flag's cost, or
+    // deliberately shipping a non-patchable build on a Route B engine, must be
+    // able to; we just will not verify what they did not ask for.
+    if (buildArgs.any((a) => a.contains('patchable_static_calls'))) {
+      return false;
+    }
+
+    logger.info(
+      '''This engine supports iOS Dart code push, so this release is being built with patchable call sites (~+4.5% app size). Without them a patch would install and change nothing.''',
+    );
+    buildArgs.add('--extra-gen-snapshot-options=--patchable_static_calls');
+    return true;
+  }
+
+  /// Refuse to publish a release that cannot actually be patched.
+  ///
+  /// Passing the flag and the flag taking effect are different claims, and only
+  /// the second is observable in the bytes that ship. Checking the built binary
+  /// catches a stale artifact cache, an engine that ignored the option, and a
+  /// future change to the call form -- none of which any log would report.
+  void _verifyPatchableRelease(Directory appDirectory) {
+    final appBinary = File(
+      p.join(appDirectory.path, 'Frameworks', 'App.framework', 'App'),
+    );
+    if (!appBinary.existsSync()) {
+      logger.warn(
+        '''Could not find ${appBinary.path} to verify patchable call sites; this release may not be patchable.''',
+      );
+      return;
+    }
+
+    final result = countPatchableCallSites(appBinary);
+    if (result.perMiB >= routeBPatchableSitesPerMiBThreshold) {
+      logger.detail(
+        '''Verified patchable call sites: ${result.sites} (${result.perMiB.round()}/MiB).''',
+      );
+      return;
+    }
+
+    logger.err(
+      '''
+This release was built with patchable call sites requested, but the compiled app does not contain them (${result.sites} sites, ${result.perMiB.round()}/MiB).
+
+Publishing it would produce a release that accepts patches and ignores them: a patch would install, report success, and never change what the app does.
+
+This usually means a stale engine artifact cache. Try:
+  ${lightCyan.wrap('shorebird cache clean')}''',
+    );
+    throw ProcessExit(ExitCode.software.code);
   }
 
   @override

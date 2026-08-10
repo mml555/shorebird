@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:args/args.dart';
 import 'package:crypto/crypto.dart';
@@ -105,6 +106,14 @@ void main() {
       when(() => argResults.rest).thenReturn([]);
       when(() => argResults.wasParsed(any())).thenReturn(false);
       when(() => argResults['flutter-version']).thenReturn('latest');
+
+      // Route B: the releaser asks whether the cached iOS engine carries the
+      // interpreter, to decide whether to request patchable call sites. An
+      // empty temp dir has no engine, so the default here is "stock engine,
+      // no patchable calls" — the behaviour every pre-existing test expects.
+      when(
+        () => shorebirdEnv.flutterDirectory,
+      ).thenReturn(Directory.systemTemp.createTempSync('flutter'));
 
       when(() => logger.progress(any())).thenReturn(progress);
 
@@ -625,6 +634,127 @@ $body
             xcarchiveDirectory: xcarchiveDirectory,
           ),
         ).called(1);
+      });
+
+      // Route B: an engine that can run iOS Dart code push must produce a
+      // release that can actually BE patched. The failure this guards is
+      // silent — a patch installs, validates, resolves its target, attaches,
+      // reports success, and the app behaves identically — so both halves are
+      // tested: request the flag, then verify the shipped bytes.
+      group('when the engine supports iOS Dart code push', () {
+        late Directory flutterDirectory;
+
+        File engineBinary() => File(
+          p.join(
+            flutterDirectory.path,
+            'bin',
+            'cache',
+            'artifacts',
+            'engine',
+            'ios-release',
+            'Flutter.xcframework',
+            'ios-arm64',
+            'Flutter.framework',
+            'Flutter',
+          ),
+        );
+
+        /// Write an App binary containing [sites] patchable call sequences.
+        void writeAppBinary({required int sites}) {
+          final words = Uint32List(1024 * 32)
+            ..fillRange(0, 1024 * 32, 0xD503201F);
+          for (var i = 0; i < sites; i++) {
+            words[i * 4] = 0xF840701E; // ldur lr, [r0, #7]
+            words[i * 4 + 1] = 0xD63F03C0; // blr lr
+          }
+          File(
+              p.join(
+                iosAppDirectory.path,
+                'Frameworks',
+                'App.framework',
+                'App',
+              ),
+            )
+            ..createSync(recursive: true)
+            ..writeAsBytesSync(words.buffer.asUint8List());
+        }
+
+        setUp(() {
+          flutterDirectory = Directory.systemTemp.createTempSync('flutter');
+          engineBinary()
+            ..createSync(recursive: true)
+            ..writeAsStringSync('...InterpretCall...');
+          when(
+            () => shorebirdEnv.flutterDirectory,
+          ).thenReturn(flutterDirectory);
+          writeAppBinary(sites: 4000);
+        });
+
+        test('requests patchable call sites', () async {
+          await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+          final captured =
+              verify(
+                    () => artifactBuilder.buildIpa(
+                      codesign: any(named: 'codesign'),
+                      flavor: any(named: 'flavor'),
+                      target: any(named: 'target'),
+                      args: captureAny(named: 'args'),
+                      base64PublicKey: any(named: 'base64PublicKey'),
+                      ddMaxBytes: any(named: 'ddMaxBytes'),
+                    ),
+                  ).captured.single
+                  as List<String>;
+
+          expect(
+            captured,
+            contains('--extra-gen-snapshot-options=--patchable_static_calls'),
+          );
+        });
+
+        test('does not override an explicit choice', () async {
+          when(() => argResults.rest).thenReturn([
+            '--extra-gen-snapshot-options=--no-patchable_static_calls',
+          ]);
+
+          await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+          final captured =
+              verify(
+                    () => artifactBuilder.buildIpa(
+                      codesign: any(named: 'codesign'),
+                      flavor: any(named: 'flavor'),
+                      target: any(named: 'target'),
+                      args: captureAny(named: 'args'),
+                      base64PublicKey: any(named: 'base64PublicKey'),
+                      ddMaxBytes: any(named: 'ddMaxBytes'),
+                    ),
+                  ).captured.single
+                  as List<String>;
+
+          expect(
+            captured,
+            isNot(
+              contains('--extra-gen-snapshot-options=--patchable_static_calls'),
+            ),
+          );
+        });
+
+        group('when the built app has no patchable call sites', () {
+          setUp(() => writeAppBinary(sites: 2));
+
+          test('fails rather than publishing an unpatchable release', () async {
+            await expectLater(
+              () => runWithOverrides(iosReleaser.buildReleaseArtifacts),
+              exitsWithCode(ExitCode.software),
+            );
+            verify(
+              () => logger.err(
+                any(that: contains('accepts patches and ignores them')),
+              ),
+            ).called(1);
+          });
+        });
       });
 
       group('when xcarchive not found after build', () {
