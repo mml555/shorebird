@@ -1,8 +1,42 @@
+diff --git a/runtime/include/dart_api.h b/runtime/include/dart_api.h
+index 253ad86..e60933c 100644
+--- a/runtime/include/dart_api.h
++++ b/runtime/include/dart_api.h
+@@ -4318,6 +4318,29 @@ Dart_GetObfuscationMap(uint8_t** buffer, intptr_t* buffer_length);
+  */
+ DART_EXPORT bool Dart_IsPrecompiledRuntime(void);
+ 
++/**
++ * Route B (selfhost): activate a patch on the CURRENT isolate.
++ *
++ * Replaces the body of \p target_name in \p library_uri with \p payload,
++ * to be executed by the interpreter, and records the original Code so the
++ * change can be reverted.
++ *
++ * Intended to be called from the embedder's root-isolate-create callback --
++ * after the isolate reaches Phase::Ready and before the Dart entrypoint runs --
++ * so a patch is live before any user Dart executes and no app cooperation is
++ * required. The isolate must be current.
++ *
++ * The embedder supplies the bytes: I/O belongs to the embedder, attachment
++ * belongs to the VM.
++ *
++ * \return true on success. On failure nothing is attached, so the caller may
++ * proceed into unpatched app code.
++ */
++DART_EXPORT bool Dart_RouteBActivatePatch(const uint8_t* payload,
++                                          intptr_t payload_length,
++                                          const char* library_uri,
++                                          const char* target_name);
++
+ /**
+  *  Print a native stack trace. Used for crash handling.
+  *
 diff --git a/runtime/lib/object.cc b/runtime/lib/object.cc
-index a267382..cfa4b91 100644
+index a267382..50bce09 100644
 --- a/runtime/lib/object.cc
 +++ b/runtime/lib/object.cc
-@@ -4,10 +4,13 @@
+@@ -4,10 +4,14 @@
  
  #include "vm/bootstrap_natives.h"
  
@@ -11,12 +45,13 @@ index a267382..cfa4b91 100644
  #include "lib/invocation_mirror.h"
  #include "vm/bytecode_reader.h"
  #include "vm/code_patcher.h"
++#include "include/dart_api.h"
  #include "vm/dart_api_impl.h"
 +#include "vm/dart_api_state.h"
  #include "vm/dart_entry.h"
  #include "vm/exceptions.h"
  #include "vm/heap/heap.h"
-@@ -627,6 +630,133 @@ DEFINE_NATIVE_ENTRY(Internal_loadDynamicModule, 0, 1) {
+@@ -627,6 +631,133 @@ DEFINE_NATIVE_ENTRY(Internal_loadDynamicModule, 0, 1) {
  #endif  // defined(DART_DYNAMIC_MODULES)
  }
  
@@ -150,7 +185,7 @@ index a267382..cfa4b91 100644
  DEFINE_NATIVE_ENTRY(Internal_attachBytecodeToFunction, 0, 3) {
  #if defined(DART_DYNAMIC_MODULES)
    GET_NON_NULL_NATIVE_ARGUMENT(TypedDataBase, module_bytes,
-@@ -668,15 +798,8 @@ DEFINE_NATIVE_ENTRY(Internal_attachBytecodeToFunction, 0, 3) {
+@@ -668,15 +799,8 @@ DEFINE_NATIVE_ENTRY(Internal_attachBytecodeToFunction, 0, 3) {
      }
  
      // Resolve the function to be replaced in the already-compiled program.
@@ -167,7 +202,7 @@ index a267382..cfa4b91 100644
        return Bool::False().ptr();
      }
  
-@@ -693,6 +816,16 @@ DEFINE_NATIVE_ENTRY(Internal_attachBytecodeToFunction, 0, 3) {
+@@ -693,6 +817,16 @@ DEFINE_NATIVE_ENTRY(Internal_attachBytecodeToFunction, 0, 3) {
        return Bool::False().ptr();
      }
  
@@ -184,7 +219,7 @@ index a267382..cfa4b91 100644
      // This is the operation under test: repoint an AOT function's entry at the
      // InterpretCall stub, with this bytecode as its body.
      OS::PrintErr("ATTACH: before -> IsInterpreted=%d HasBytecode=%d\n",
-@@ -763,6 +896,72 @@ DEFINE_NATIVE_ENTRY(Internal_attachBytecodeToFunction, 0, 3) {
+@@ -763,6 +897,155 @@ DEFINE_NATIVE_ENTRY(Internal_attachBytecodeToFunction, 0, 3) {
  #endif  // defined(DART_DYNAMIC_MODULES)
  }
  
@@ -224,6 +259,89 @@ index a267382..cfa4b91 100644
 +      "Detaching bytecode is not supported.");
 +  return Object::null();
 +#endif  // defined(DART_DYNAMIC_MODULES)
++}
++
++// Route B (selfhost): activate a patch on the current isolate, from C++.
++//
++// SEAM 6. The embedder calls this from settings.root_isolate_create_callback --
++// after the root isolate reaches Phase::Ready and inside its scope, but before
++// RunFromLibrary invokes main (dart_isolate.cc:163 vs :174). That window is what
++// lets a patch be live before ANY user Dart runs, so the app needs no
++// cooperation and there is no app-visible unpatched first frame.
++//
++// It lives beside the native rather than in dart_api_impl.cc so it can reuse
++// the same resolver and the same original-Code table the 4a device gate proved.
++// The delivery path must terminate in exactly this attach, never a second
++// mechanism.
++//
++// I/O is deliberately the embedder's: it passes bytes, the VM attaches them.
++DART_EXPORT bool Dart_RouteBActivatePatch(const uint8_t* payload,
++                                          intptr_t payload_length,
++                                          const char* library_uri,
++                                          const char* target_name) {
++#if defined(DART_DYNAMIC_MODULES)
++  Thread* thread = Thread::Current();
++  if (thread == nullptr || thread->isolate() == nullptr) {
++    OS::PrintErr("ROUTEB: no current isolate\n");
++    return false;
++  }
++  DARTSCOPE(thread);
++  Zone* zone = thread->zone();
++
++  if (payload == nullptr || payload_length <= 0) {
++    OS::PrintErr("ROUTEB: empty payload\n");
++    return false;
++  }
++
++  // Copy into malloc'd memory owned by an ExternalTypedData: the loader keeps a
++  // reference beyond this call, so the embedder's buffer cannot back it.
++  uint8_t* data = reinterpret_cast<uint8_t*>(::malloc(payload_length));
++  if (data == nullptr) return false;
++  memcpy(data, payload, payload_length);  // NOLINT
++  const ExternalTypedData& typed_data = ExternalTypedData::Handle(
++      zone, ExternalTypedData::New(kExternalTypedDataUint8ArrayCid, data,
++                                   payload_length));
++
++  const String& uri = String::Handle(zone, String::New(library_uri));
++  const String& name = String::Handle(zone, String::New(target_name));
++
++  auto& loaded = Function::Handle(zone);
++  auto& target = Function::Handle(zone);
++  {
++    SafepointWriteRwLocker ml(thread, thread->isolate_group()->program_lock());
++
++    bytecode::BytecodeLoader loader(thread, typed_data);
++    loaded = loader.LoadBytecode();
++    if (loaded.IsNull()) {
++      OS::PrintErr("ROUTEB: LoadBytecode returned null\n");
++      return false;
++    }
++    target = ResolvePatchTarget(thread, zone, uri, name);
++    if (target.IsNull()) return false;
++    if (target.IsInterpreted()) {
++      OS::PrintErr("ROUTEB: %s already interpreted\n", target_name);
++      return false;
++    }
++    const auto& bc = Bytecode::Handle(zone, loaded.GetBytecode());
++    if (bc.IsNull()) {
++      OS::PrintErr("ROUTEB: payload carries no bytecode\n");
++      return false;
++    }
++
++    // Everything validated before anything is mutated. A failure above leaves
++    // the program pristine, which is what lets the embedder proceed into main
++    // running unpatched AOT rather than a half-patched app.
++    RouteBSaveOriginalCode(thread, target, Code::Handle(zone,
++                                                        target.CurrentCode()));
++    target.AttachBytecode(bc);
++  }
++  OS::PrintErr("ROUTEB: activated %s in %s before main\n", target_name,
++               library_uri);
++  return true;
++#else
++  OS::PrintErr("ROUTEB: build lacks DART_DYNAMIC_MODULES\n");
++  return false;
++#endif
 +}
 +
 +DEFINE_NATIVE_ENTRY(Internal_releaseBuildId, 0, 0) {

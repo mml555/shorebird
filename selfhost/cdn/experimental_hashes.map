@@ -73,3 +73,15 @@ bbddaa6e2da41fef8e950ed63e14b6d4400b69d7 69f9831c360d9152862ec3897c67fb09ae843f3
 # killgate SDK edits reach dart:_internal — so this hash must never fall through
 # to the pinned revision for that artifact.
 b4817db848cb7d79bde7b959df4164be85d3a6f6 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B iOS engine + SEAM 6 pre-main activation hook (2026-08-10). Same tree
+# as b4817db8 plus Dart_RouteBActivatePatch and the chained
+# root_isolate_create_callback.
+#
+# INERT unless a Route B payload is actually present: the hook returns before
+# touching anything when neither the SHOREBIRD_ROUTEB_* env triple nor
+# assets/routeb_patch.bytecode is there, which is every ordinary app. Two
+# entries because the hook was iterated on; d393ed01 is the one the seam-6
+# gate passed against.
+3712040944c7ef4eb837263184a394afffa4c724 69f9831c360d9152862ec3897c67fb09ae843f3b
+d393ed0138d99601de407111df1feae74b0437eb 69f9831c360d9152862ec3897c67fb09ae843f3b

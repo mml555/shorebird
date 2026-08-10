@@ -15,24 +15,51 @@ Background lives in [`IOS_CODE_PUSH.md`](IOS_CODE_PUSH.md) (evidence chain) and
 executes). [`HANDOFF.md`](HANDOFF.md) is the working log — useful, long, and
 not required reading before you start.
 
-## The capability statement, as of 2026-08-09
+## The capability statement, as of 2026-08-10
 
 > **Android Dart code push and iOS asset push are complete and independent.
-> iOS Dart code push has its runtime mechanism PROVEN ON PHYSICAL HARDWARE and
-> BOTH VETOES CLOSED — a shipped AOT call site redirected to attached bytecode
-> and restored to its original AOT `Code` on an iPhone, at +4.5 % size and
-> +0.3 % median frame time with zero added jank. Production delivery is not
-> built: `shorebird patch` cannot produce an iOS code patch, and nothing in the
-> engine or updater consumes a patch container.**
+> iOS Dart code push has its runtime mechanism PROVEN ON PHYSICAL HARDWARE, BOTH
+> VETOES CLOSED, and ACTIVATION PROVEN NATIVELY BEFORE `main` WITH NO DART-SIDE
+> COOPERATION — a shipped AOT call site redirected to attached bytecode and
+> restored to its original AOT `Code` on an iPhone, at +4.5 % size and +0.3 %
+> median frame time with zero added jank. Production delivery is not built:
+> `shorebird patch` cannot produce an iOS code patch, and no updater-selected
+> artifact reaches the activation function.**
 
-The device gate passed on 2026-08-10. The question this project existed to
-answer -- can an AOT call site on iOS be redirected to interpreted bytecode, and
-the original restored -- is answered yes, on hardware.
+The device gate passed on 2026-08-10, and seam 6 the same day. The question this
+project existed to answer -- can an AOT call site on iOS be redirected to
+interpreted bytecode, and the original restored -- is answered yes, on hardware,
+from inside the engine, before any user Dart runs.
 
-What is left is no longer research. It is delivery integration (4b) and the
-frame-time veto, which can still make the approach unattractive even though it
-works. Do not let "the mechanism works" be reported as "code push works"; those
-are now genuinely different statements rather than degrees of the same one.
+What is left is no longer research. It is delivery integration (4b). Do not let
+"the mechanism works" be reported as "code push works"; those are now genuinely
+different statements rather than degrees of the same one.
+
+### Seam 6 — activation, and what it closed
+
+Every question about *where and when* a Route B patch becomes live is now
+settled, and all six in the good direction:
+
+| question | answer |
+|---|---|
+| Does an activation point exist upstream? | Yes — `settings.root_isolate_create_callback` |
+| Does it run after isolate readiness, before user Dart? | Yes — `dart_isolate.cc:163`, ahead of `RunFromLibrary` at `:174` |
+| Does the app have to cooperate? | No — the fixture contains no attach path at all |
+| Is the no-patch path inert? | Yes — the hook returns before touching anything |
+| Can the first Dart call already see the patch? | Yes — read once in `initState`, `NEW` |
+| Is new VM/isolate-lifecycle design needed? | No |
+
+Attribution is a **behavioral A/B**, not the native log chain originally
+specified: no engine log line of any kind survives to `idevicesyslog` on this
+device. Two builds one asset apart, `NEW` vs `OLD` — see
+[`engine/route_b/evidence/`](engine/route_b/evidence/README.md), which keeps the
+screenshots and states the limit.
+
+The file trigger is **test-only and stays that way**. The production next step is
+exactly one substitution: *test asset path → lifecycle-selected `SBRBPTCH`
+path*. Do not touch the producer first — make a real updater-selected artifact
+reach the activation function that just passed, and only then wire
+`shorebird patch` to build the container.
 
 ## What you are building, in one shape change
 
@@ -225,13 +252,16 @@ and believe the result. The pieces are already in the shape the CLI needs.
    time, five alternating paired runs on device: build p50 **+3.2 %**, total p50
    **+0.3 %**, total p95 **+1.1 %**, **0 janky frames in 3,000 per arm**. A real
    Dart-phase tax, no meaningful rendering-budget tax. **The veto is closed.**
-8. **Physical-iPhone gate** — release, Dart behavior actually changes, sane
-   patch coverage, rollback. ← veto. Device→control-plane reach is now PASS, so
-   the rig is ready; the engine port is not.
+8. ~~**Physical-iPhone gate**~~ **PASSED 2026-08-10**, in two parts.
+   **8a** — mechanism, with the payload bundled as an asset and attached from
+   Dart: `OLD → NEW → OLD` in one process on an iPhone. **Seam 6** — the same
+   redirect performed *natively before `main`*, from a build with no Dart-side
+   attach path, against a control that differs by one bundled asset. Delivery
+   is deliberately still absent from both; see the capability statement.
 9. **Sealed independence regression for iOS code patches.**
 
-Either veto can still kill the approach, which is why they are gates and not
-chores.
+Both vetoes are closed, so what remains cannot kill the approach — only make it
+more or less convenient to ship.
 
 ## What "patchable" now covers — measured 2026-08-09
 

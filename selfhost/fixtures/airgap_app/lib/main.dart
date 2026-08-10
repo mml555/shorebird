@@ -23,15 +23,10 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'dart:typed_data';
-
-// dart:_internal cannot be imported from this package (the CFE allows it only
-// from a package named dart_internal or dynamic_modules), so the two natives
-// are reached through a test-only wrapper package.
-import 'package:dynamic_modules/routeb.dart';
-
-import 'frame_bench.dart';
-
+// NOTE for seam 6: there is deliberately no import of `package:dynamic_modules`
+// and no `frame_bench.dart` here. The whole point of the seam-6 arm is that this
+// app has no way to attach bytecode to itself, so if `routeBValue` reads NEW,
+// the engine did it. Re-adding either import silently weakens the gate.
 import 'package:code_push_runtime/code_push_runtime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -110,8 +105,6 @@ class _ProbeBodyState extends State<ProbeBody> {
   // unattributable moment; one image showing baseline/attached/detached
   // together cannot be assembled from a partially-working mechanism.
   String _rbBaseline = '—';
-  String _rbAttached = '—';
-  String _rbDetached = '—';
   String _rbNote = 'running…';
 
   String get _assetsPatch => widget.runtime.assetsPatchNumber?.toString() ?? 'none';
@@ -121,55 +114,21 @@ class _ProbeBodyState extends State<ProbeBody> {
   void initState() {
     super.initState();
     _load();
-    _routeBGate();
+    _routeBRead();
   }
 
-  /// The 4a sequence: read, attach, read, detach, read.
+  /// SEAM 6: read the value once, as ordinary app code, and show it.
   ///
-  /// Runs automatically at startup rather than behind a button, because the
-  /// evidence has to be capturable without driving the touchscreen.
-  Future<void> _routeBGate() async {
-    final baseline = routeBProbe();
-
-    String attached;
-    String detached;
-    String note;
-    try {
-      final raw = await rootBundle.load('assets/routeb_patch.bytecode');
-      final bytes = raw.buffer.asUint8List(
-        raw.offsetInBytes,
-        raw.lengthInBytes,
-      );
-      final ok = attachBytecode(
-        Uint8List.fromList(bytes),
-        'package:airgap_probe/main.dart',
-        'routeBValue',
-      );
-      attached = ok ? routeBProbe() : 'attach returned false';
-
-      // Rollback is part of the mechanism, not cleanup: vanilla AOT provides no
-      // working undo (ClearBytecode calls ClearCode, UNREACHABLE in a
-      // precompiled runtime), so Route B saves the original Code on attach and
-      // restores it here. If this does not return to OLD, 4a has failed even
-      // though patching worked.
-      final undone = detachBytecode(
-        'package:airgap_probe/main.dart',
-        'routeBValue',
-      );
-      detached = undone ? routeBProbe() : 'detach returned false';
-      note = 'attach=$ok detach=$undone bytes=${bytes.length}';
-    } on Object catch (e) {
-      attached = 'ERROR';
-      detached = 'ERROR';
-      note = '$e';
-    }
-
+  /// There is deliberately no attach call here. If this reads NEW, the only
+  /// thing that can have replaced the body is the engine's pre-main hook --
+  /// the app cannot patch itself, and there is no window in which a user could
+  /// observe OLD first.
+  void _routeBRead() {
+    final v = routeBProbe();
     if (!mounted) return;
     setState(() {
-      _rbBaseline = baseline;
-      _rbAttached = attached;
-      _rbDetached = detached;
-      _rbNote = note;
+      _rbBaseline = v;
+      _rbNote = 'read once in initState; no Dart-side attach';
     });
   }
 
@@ -238,12 +197,8 @@ class _ProbeBodyState extends State<ProbeBody> {
           _row('asset', _asset),
           _row('assets patch', _assetsPatch),
           const SizedBox(height: 8),
-          _row('route B baseline', _rbBaseline),
-          _row('route B attached', _rbAttached),
-          _row('route B detached', _rbDetached),
+          _row('route B value', _rbBaseline),
           _row('route B note', _rbNote),
-          const SizedBox(height: 8),
-          const FrameBench(),
           _row('code patch', _codePatch),
         ],
       ),
