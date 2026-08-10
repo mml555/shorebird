@@ -85,3 +85,11 @@ b4817db848cb7d79bde7b959df4164be85d3a6f6 69f9831c360d9152862ec3897c67fb09ae843f3
 # gate passed against.
 3712040944c7ef4eb837263184a394afffa4c724 69f9831c360d9152862ec3897c67fb09ae843f3b
 d393ed0138d99601de407111df1feae74b0437eb 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B 4b milestone 1 (2026-08-10): lifecycle-selected SBRBPTCH delivery.
+# Adds, on top of d393ed01: base snapshots available on iOS independently of
+# SHOREBIRD_USE_INTERPRETER (without which every iOS patch install fails inside
+# inflate), content sniffing so a Route B container never reaches the VM
+# snapshot loader, and the pre-main hook consuming the lifecycle-selected path
+# with magic/version/build-ID validation.
+ba3522169dfff83140d6b3732acaf9e6a51e10ad 69f9831c360d9152862ec3897c67fb09ae843f3b

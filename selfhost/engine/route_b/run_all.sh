@@ -100,6 +100,13 @@ run "edit -> container -> apply -> revert" "step 5: 8 passed, 0 failed" \
   "$HERE/packaging/verify_patch_flow.sh"
 
 echo
+echo "4b — engine-side container reader"
+# The rejection taxonomy. kWrongRelease is absent on purpose: it needs a live
+# isolate, so it is proven on device in the milestone-1 sequence.
+run "container reader taxonomy" "TAXONOMY: all passed" \
+  "$HERE/packaging/verify_container_reader.sh"
+
+echo
 echo "--------------------------------------------------"
 failed=0
 for i in "${!names[@]}"; do

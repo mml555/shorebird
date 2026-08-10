@@ -756,19 +756,122 @@ via `FML_LOG` and none of it survives — no engine log line of any kind reaches
 included, because stderr is not routed there. Absence of `ROUTEB` lines is
 therefore evidence of nothing. The control is what carries the argument.
 
+## 4b milestone 1 — real updater bytes, and the three things it needed first
+
+The scope was meant to be one substitution: test asset path becomes the
+lifecycle-selected `SBRBPTCH` path. Tracing the runtime chain first turned up
+three hard dependencies, none of which are visible from the seam-6 side and all
+of which are delivery plumbing rather than producer work.
+
+### 1. A Route B iOS engine had no base reader at all
+
+`install_downloaded_patch` unconditionally inflates against the base snapshot,
+and on iOS `patch_base()` is `file_provider.open()` and nothing else. That
+returned a null handle — `FileCallbacksImpl::Open()` was gated on
+`SHOREBIRD_USE_INTERPRETER`, and so was `SetBaseSnapshot`, so there was nothing
+to hand back. **Every install failed inside `inflate()` before reading a byte.**
+
+The flag was standing in for "is iOS", because upstream has no iOS build where
+it is false. Route B is exactly that build. Two capabilities were coupled that
+are not the same question:
+
+```
+iOS patch installation needs base snapshot bytes   (inflate reads them)
+iOS must use Shorebird's private interpreter       (a different question)
+```
+
+`SHOREBIRD_NEEDS_BASE_SNAPSHOT` now keys on the platform; the private-fork
+`Shorebird_SetBaseSnapshots` call stays behind the interpreter flag alone.
+
+### 2. Content sniffing is a boot-safety invariant, not cleanup
+
+The lifecycle installs **every** code artifact as `patches/{N}/dlc.vmcode`
+whatever is inside it, so the filename carries no information and
+`PatchCarriesCode()` — which keys on `.vmcode` — says "code" for a Route B
+container too. With the interpreter off, iOS takes the `clear()` branch, which
+would make the container the app's only library path and hand a JSON-headed file
+to the VM snapshot loader. That is not a degraded patch, it is a failure to
+boot. The sniff therefore happens **before** `application_library_paths` is
+touched.
+
+### 3. The artifact goes through the normal inflate, and is base-independent
+
+No special-casing of transport: same bidiff+zstd, same download/resume/install/
+hash path. But a Route B container has nothing in common with the base snapshot,
+and diffing against the real base would force the producer to reproduce the
+device's exact byte stream — which needs `analyze_snapshot --dump_blobs`, a
+Shorebird-fork tool we cannot build.
+
+So `route_b_artifact` diffs against a one-byte synthetic base (an actually-empty
+base panics inside bidiff's suffix-array code) and the artifact comes out as
+pure literal inserts. That only helps if it is genuinely base-independent, so the
+tool **verifies rather than assumes**: every run reconstructs against an empty
+base and a 4 MB noise base and requires byte-identical output. Measured, a
+4,338-byte container becomes a 229-byte artifact, identical for every synthetic
+base length tried.
+
+### The rejection taxonomy
+
+Container parsing lives in `shell/common/shorebird/route_b_patch.cc`, never in
+`object.cc`: the VM receives validated `(library, selector, bytes)` triples and
+knows nothing about JSON, containers or releases. `Dart_RouteBActivatePatch`
+returns a `Dart_RouteBResult` rather than a bool so the VM-side outcomes are
+separable too.
+
+| outcome | where | means |
+|---|---|---|
+| `not-a-container` | reader | an ordinary code patch. Common, cheap, silent |
+| `unsupported-version` | reader | magic matched, version did not |
+| `malformed` | reader | truncated, unparseable, missing fields, bad offsets |
+| `payload-corrupt` | reader | payload does not match its declared sha256 |
+| `wrong-release` | hook | **checked before any target is resolved** |
+| `target-missing` | VM | retention or library-URI problem |
+| `invalid-bytecode` | VM | producer or corruption problem |
+| `already-interpreted` | VM | conflicting state |
+| `attach-failed` | VM | the attach itself |
+
+**Wrong-release must never degrade into `attach=false`.** That collapse cost this
+project days: a stale payload sent us looking at retention, bytecode metadata and
+the installer in turn, none of which were wrong.
+
+`Dart_RouteBReleaseBuildId()` exists because the check has to run in the hook,
+before targets, where no Dart has run and none can be. A null identity is
+refused, never treated as a wildcard.
+
+### Why the taxonomy is tested by a shell script
+
+The assertions are written as gtest cases in `route_b_patch_unittests.cc`, which
+is where they belong. **That target cannot link on a vanilla-Dart tree**: it
+pulls in `runtime/shorebird/patch_cache.cc`, which calls
+`Shorebird_ReadLinkHeader`, a symbol only Shorebird's private fork defines. So
+`packaging/verify_container_reader.sh` compiles the REAL parser against a stub
+and runs the same cases — no second copy of the logic exists. `kWrongRelease` is
+absent there because it needs a live isolate; it is proven on device.
+
+The SHA-256 in the reader is hand-written, because no shell target depends on
+boringssl and this is an integrity check rather than a security boundary. A NIST
+vector guards it. If that case ever fails, every integrity check in the file is
+meaningless.
+
 ## The patch series, and which tree each patch belongs to
 
-Two trees, and mixing them up produces a build that looks fine and behaves
+Three trees, and mixing them up produces a build that looks fine and behaves
 wrongly:
 
 | patch | tree | what it does |
 |---|---|---|
-| `0001-patchable-static-calls.patch` | **Dart** (`third_party/dart`) | form (c) call emission, `Dart_RouteBActivatePatch`, `RestoreCodeFromBytecode` |
+| `0001-patchable-static-calls.patch` | **Dart** (`third_party/dart`) | form (c) call emission, `Dart_RouteBActivatePatch`, `Dart_RouteBReleaseBuildId`, `RestoreCodeFromBytecode` |
 | `0002-seam6-premain-activation.patch` | **flutter** | the pre-main activation hook |
+| `0003-4b-lifecycle-delivery.patch` | **flutter** + **updater** | base decoupling, content sniffing, container reader, artifact producer |
 | `../0007-flutter-assets-only-patch-support.patch` | **flutter** | assets-only patch plumbing; `0002` applies on top of it |
 
+Note `third_party/updater` is its OWN git repo inside the engine checkout, so
+its files cannot be reconstructed from the engine tree's HEAD. `0003` spans both
+and was generated accordingly; getting that wrong silently produces a patch that
+adds `Cargo.toml` as a new file.
+
 `0001` applies on top of `../killgate/0001-attach-bytecode-native.patch`, not on
-bare upstream. All three were regenerated by reconstructing each file from its
+bare upstream. All of them were regenerated by reconstructing each file from its
 pinned base and diffing, then re-applied to a scratch tree and compared
 byte-for-byte against the live checkout — a patch that does not reproduce the
 tree it claims to describe is worse than no patch at all.

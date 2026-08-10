@@ -55,11 +55,35 @@ device. Two builds one asset apart, `NEW` vs `OLD` — see
 [`engine/route_b/evidence/`](engine/route_b/evidence/README.md), which keeps the
 screenshots and states the limit.
 
-The file trigger is **test-only and stays that way**. The production next step is
-exactly one substitution: *test asset path → lifecycle-selected `SBRBPTCH`
-path*. Do not touch the producer first — make a real updater-selected artifact
-reach the activation function that just passed, and only then wire
-`shorebird patch` to build the container.
+The file trigger is now gone: the hook consumes the **lifecycle-selected path**.
+See "4b milestone 1" below for what that substitution actually required.
+
+### 4b milestone 1 — the substitution, and its three prerequisites
+
+The plan was one substitution. Tracing the runtime chain first found three hard
+dependencies, all delivery plumbing rather than producer work, and all now
+implemented:
+
+1. **A Route B iOS engine had no base reader.** `FileCallbacksImpl::Open()` and
+   `SetBaseSnapshot` were both gated on `SHOREBIRD_USE_INTERPRETER`, which Route
+   B must set false — so `patch_base()` returned an error and **every** iOS
+   patch install failed inside `inflate()` before reading a byte. The flag was
+   standing in for "is iOS"; it now keys on the platform, with the private-fork
+   `Shorebird_SetBaseSnapshots` call still behind the flag.
+2. **Content sniffing, before `application_library_paths`.** The lifecycle
+   installs every code artifact as `patches/{N}/dlc.vmcode` whatever is in it, so
+   `PatchCarriesCode()` says "code" for a Route B container too — and handing one
+   to the VM snapshot loader is a failure to boot, not a degraded patch.
+3. **A base-independent artifact through the normal inflate.** Verified, not
+   assumed: the producer reconstructs against an empty base and a 4 MB noise base
+   and requires byte-identical output.
+
+Full detail, including the rejection taxonomy and why it is tested by a shell
+script rather than the gtest target, is in
+[`engine/route_b/README.md`](engine/route_b/README.md).
+
+**Status: implemented and host-verified; the device sequence has NOT run.** Do
+not read this section as a working delivery path.
 
 ## What you are building, in one shape change
 
