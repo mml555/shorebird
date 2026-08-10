@@ -289,6 +289,21 @@ def cmd_decode(args):
         and os.path.splitext(entry["path"])[1].lower().lstrip(".") in exts
     ]
 
+    # Restrict to one backup root's share. The collection is split across two
+    # hosts by the placement plan, so decoding a root against the whole manifest
+    # would report every file that lives on the OTHER root as missing -- burying
+    # real findings under ~900 false ones.
+    if args.only:
+        with open(args.only) as f:
+            plan = json.load(f)
+        wanted = set()
+        for dest in plan["destinations"]:
+            if dest["name"] == args.name:
+                wanted = set(dest["files"])
+        if not wanted:
+            sys.exit(f"error: no destination named {args.name} in {args.only}")
+        targets = [t for t in targets if t["path"] in wanted]
+
     # Resume from the checkpoint. The unit of durability is ONE COMPLETED FILE,
     # not one completed run: the first attempt at this pass was killed after
     # ~10 minutes of work and lost every result, because the report was only
@@ -526,10 +541,16 @@ def cmd_verify(args):
             sys.exit(f"error: no destination named {args.name} in {args.only}")
         expected = {p: v for p, v in expected.items() if p in wanted}
 
-    ok = missing = mismatch = 0
+    ok = missing = mismatch = skipped_absent = 0
     for rel, meta in sorted(expected.items()):
         full = os.path.join(args.root, rel)
         if not os.path.exists(full):
+            # --present-only exists to verify a copy that is still running.
+            # Catching a systematic corruption at 30% is worth far more than
+            # discovering it at 100%, and absent files are not yet news.
+            if args.present_only:
+                skipped_absent += 1
+                continue
             print(f"  MISSING  {rel}")
             missing += 1
             continue
@@ -545,6 +566,8 @@ def cmd_verify(args):
     print(f"\nverified : {ok:,}")
     print(f"missing  : {missing:,}")
     print(f"mismatch : {mismatch:,}")
+    if args.present_only:
+        print(f"not yet copied (ignored) : {skipped_absent:,}")
     return 0 if (missing == 0 and mismatch == 0) else 2
 
 
@@ -571,6 +594,8 @@ def main():
     d.add_argument("--manifest", required=True)
     d.add_argument("--root", required=True)
     d.add_argument("--out", required=True)
+    d.add_argument("--only", help="a plan.json, to decode only one root's share")
+    d.add_argument("--name", help="destination name within --only")
     d.add_argument("--checkpoint",
                    help="JSONL, appended and fsynced after EVERY file; rerun "
                         "with the same path to resume. Strongly recommended: "
@@ -590,6 +615,9 @@ def main():
     v = sub.add_parser("verify", help="re-hash a destination against the manifest")
     v.add_argument("--manifest", required=True)
     v.add_argument("--root", required=True)
+    v.add_argument("--present-only", action="store_true",
+                   help="ignore files not yet present; for verifying a copy "
+                        "that is still in progress")
     v.add_argument("--only", help="a plan.json, to verify only one destination's share")
     v.add_argument("--name", help="destination name within --only")
     v.set_defaults(func=cmd_verify)
