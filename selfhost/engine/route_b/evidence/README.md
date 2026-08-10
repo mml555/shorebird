@@ -60,3 +60,65 @@ idevicescreenshot seam6_patched.png
 
 Screenshots are downscaled (`sips -Z 900`) so the directory stays small; the
 text is still legible, which is all they are for.
+
+## 4b milestone 1 — delivery, 2026-08-10
+
+**Route B artifact delivery through the real iOS Shorebird updater lifecycle is
+proven. Native activation of the lifecycle-selected artifact remains under
+diagnosis.**
+
+Those are two claims and they are recorded separately on purpose. Whatever the
+activation diagnosis turns out to be — wrong release, target missing, or the
+hook never armed — none of it reopens what is below.
+
+| file | shows |
+|---|---|
+| `4b_step1_release_OLD.png` | release 7.0.0+1, `route B value: OLD`, `code patch: none` |
+| `4b_step7_first_read_NEW.png` | after the patch: **`code patch: 2`**, `route B value: OLD` |
+
+Despite the filename, the second screenshot is the split result, not a pass. It
+is kept because `code patch: 2` is the delivery evidence.
+
+### What is closed
+
+```
+control plane -> updater download -> inflate against the REAL base
+              -> hash verification -> install -> lifecycle promotion
+              -> selected as the active artifact
+```
+
+Direct evidence, not inference: the installed artifact was pulled back off the
+phone and compared.
+
+```
+$ ios-deploy --bundle_id dev.selfhost.airgapProbe \
+    --download=/Library/Application\ Support/shorebird/shorebird_updater --to /tmp/rbpull
+magic:  SBRBPTCH
+sha256: 80e650ce374acab6bf3dec6fba0a8b4570254e41be8d5d2bcaa4dd19cb4e5099
+        == the published container, byte-identical
+```
+
+That also settles the base-reader finding **empirically**: `inflate()` produced
+correct bytes rather than failing, so a Route B engine
+(`shorebird_use_interpreter = false`) can install a normal code artifact through
+the existing updater path. Before this change every such install died inside
+`inflate()` before reading a byte.
+
+### What is not closed, and why nothing here proves it
+
+The hook refused and left nothing to read — no engine log line of any kind
+reaches `idevicesyslog` on this device. The taxonomy existed and was unreadable,
+which is the seam-6 evidence gap one level up.
+
+**Do not treat "the app booted" as evidence the content sniff worked.** On iOS
+the base snapshot is also reachable through `App.framework`'s exported symbols,
+so clearing `application_library_paths` can be survivable. A successful boot
+therefore does not distinguish:
+
+- the container was correctly classified and kept out of snapshot loading, from
+- the container was misclassified and the app happened to survive it.
+
+Engine `591a9f8d` adds a `<artifact>.routeb` report written beside the installed
+file. It makes the next run a hard fork: **no file** means the hook was never
+armed and the fault is in classification, before activation; **a file** names the
+exact boundary that failed.
