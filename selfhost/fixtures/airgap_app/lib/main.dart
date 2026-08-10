@@ -30,6 +30,8 @@ import 'dart:typed_data';
 // are reached through a test-only wrapper package.
 import 'package:dynamic_modules/routeb.dart';
 
+import 'frame_bench.dart';
+
 import 'package:code_push_runtime/code_push_runtime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -240,6 +242,8 @@ class _ProbeBodyState extends State<ProbeBody> {
           _row('route B attached', _rbAttached),
           _row('route B detached', _rbDetached),
           _row('route B note', _rbNote),
+          const SizedBox(height: 8),
+          const FrameBench(),
           _row('code patch', _codePatch),
         ],
       ),

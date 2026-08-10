@@ -1,5 +1,5 @@
 <!-- cspell:words killgate dynmod tearoff dartaotruntime disqualifiers APFS DNDEBUG packageable overengineer -->
-<!-- cspell:words sshkey publickey devirtualizes SBRBPTCH -->
+<!-- cspell:words sshkey publickey devirtualizes SBRBPTCH janky -->
 
 # Route B — iOS Dart code push. Start here.
 
@@ -219,11 +219,12 @@ and believe the result. The pieces are already in the shape the CLI needs.
 6. ~~**Host integration tests.**~~ **DONE 2026-08-09** — `run_all.sh`, 7/7, one
    command and one verdict. Runs the kill gate in BOTH arms, because a passing
    arm alone is consistent with the flag being ignored.
-7. **Real-app size and frame-time benchmark.** ← veto — **size half DONE**,
-   frame-time half OPEN. On the real Flutter fixture (469 libraries, 25 MB
-   kernel): call form **+3.43 %**, shipping policy **+4.39 %**, and the naive
-   all-libraries retention **+275.58 %**. Frame time cannot be measured from a
-   snapshot; it needs the app running, which needs the iOS port.
+7. ~~**Real-app size and frame-time benchmark.**~~ **BOTH HALVES PASSED
+   2026-08-10.** Size, on the real fixture: call form **+3.43 %**, shipping
+   policy **+4.39 %** (naive all-libraries retention would be +275.58 %). Frame
+   time, five alternating paired runs on device: build p50 **+3.2 %**, total p50
+   **+0.3 %**, total p95 **+1.1 %**, **0 janky frames in 3,000 per arm**. A real
+   Dart-phase tax, no meaningful rendering-budget tax. **The veto is closed.**
 8. **Physical-iPhone gate** — release, Dart behavior actually changes, sane
    patch coverage, rollback. ← veto. Device→control-plane reach is now PASS, so
    the rig is ready; the engine port is not.

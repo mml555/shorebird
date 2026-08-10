@@ -1,6 +1,6 @@
 <!-- cspell:words killgate dynmod dartaotruntime APFS gclient depot caffeinate -->
 <!-- cspell:words devirtualize devirtualizes devirtualized megamorphic movz uxtx -->
-<!-- cspell:words SBRBPTCH sbrb routebios interpretcall -->
+<!-- cspell:words SBRBPTCH sbrb routebios interpretcall jank janky frametime -->
 
 # Route B — the dedicated build tree
 
@@ -641,6 +641,67 @@ because it never referenced those symbols.
 iOS toolchain must NOT carry dynamic modules; Route B wants the opposite, and
 the whole-toolchain-one-tree-one-GN-config invariant applies to the published
 zips exactly as it does to a local build.
+
+## Step 7 frame-time veto — PASSED 2026-08-10
+
+Five alternating paired runs on the iPhone 7. Same engine, same app source,
+same device, same 600-frame sample after 180 warmup frames, no patch applied.
+**Only `--patchable_static_calls` differs.** Order alternated C→R, R→C, … so a
+thermal trend over 20 minutes could not be credited to whichever arm ran second.
+
+Paired deltas (Route B − control, within each pair), four clean pairs:
+
+| layer | metric | median | range |
+|---|---|---|---|
+| **signal** | build p50 | **+3.2 %** | +2.7 … +4.6 % |
+| | build p95 | **+9.6 %** | +1.3 … +12.4 % |
+| **noise** | raster p50 | −1.6 % | −2.6 … +0.2 % |
+| | raster p95 | +0.8 % | −0.3 … +4.5 % |
+| **product** | total p50 | **+0.3 %** | −0.4 … +0.9 % |
+| | total p95 | **+1.1 %** | −0.1 … +2.6 % |
+| | jank | **0 / 3000 in both arms** | |
+
+Size on the same source, one flag: 4,005,536 → 4,186,368 bytes (**+4.5 %**),
+consistent with the +3.43 % measured on the host.
+
+**Verdict: PASS.** There is a real Dart-phase CPU tax and it should be recorded
+rather than described as free — but the user-visible frame cost is negligible
+and an iPhone 7 keeps ~40 % of its 60 Hz budget spare in both arms.
+
+Read `build p95 = +9.6 %` cautiously: it is positive in all four clean pairs but
+ranges +1.3 to +12.4 %, so the tail is much noisier than the median. The
+defensible statement is "build p50 ≈ +3 %, p95 positive but roughly +1–12 %".
+
+### Why the raster channel is in the table
+
+Raster runs no Dart, so the flag cannot affect it. It is there as the noise
+floor, and it earned its place: **pair 2's Route B run came out 35–40 % faster
+on every metric including raster**, which is impossible as a Route B effect and
+means that run simply did less work — occlusion or throttling. Without a channel
+the flag cannot influence, that run would have looked like a spectacular win and
+dragged the median the wrong way.
+
+Excluding it moves build p50 from +2.7 % to +3.2 % and total p95 from +0.9 % to
++1.1 %. **The verdict is identical either way**, which is the useful fact. The
+raw ten runs are kept in
+[`fixtures/evidence/routeb_frametime_5pairs.txt`](../../fixtures/evidence/routeb_frametime_5pairs.txt).
+
+### The workload had to be built
+
+The fixture's own screen is a static column of `Text`: it paints once and then
+produces no frames, so it could not measure frame time at all. `frame_bench.dart`
+drives continuous rebuilds of a 96-cell tree with real arithmetic per cell, so
+the framework's own static calls — the code the flag taxes — run thousands of
+times a second. Build is ~40 % of the frame here; a heavier Dart workload would
+raise the tax's visible share and a lighter one would bury it.
+
+### Consequence for dispatch-table calls: DEFERRED, on evidence
+
+We are already paying ~3 % build-phase tax on the static calls Route B
+intercepts. Taxing **every instance call** to move coverage from 5/6 to 6/6 is
+not justified by the coverage matrix alone. It needs evidence that missing
+dispatch-table calls actually blocks useful patches. This is deferred *on
+grounds*, not merely unfinished.
 
 ## Smoke-test the tree before trusting it
 
