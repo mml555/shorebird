@@ -1,4 +1,4 @@
-<!-- cspell:words prebuilts -->
+<!-- cspell:words prebuilts jank -->
 
 # Self-hosted Shorebird — documentation index
 

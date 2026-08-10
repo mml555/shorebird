@@ -1,5 +1,5 @@
 <!-- cspell:words killgate dynmod tearoff dartaotruntime disqualifiers APFS DNDEBUG packageable overengineer -->
-<!-- cspell:words sshkey publickey devirtualizes SBRBPTCH janky -->
+<!-- cspell:words sshkey publickey devirtualizes SBRBPTCH janky jank -->
 
 # Route B — iOS Dart code push. Start here.
 
