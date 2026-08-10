@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:args/args.dart';
 import 'package:mason_logger/mason_logger.dart';
@@ -1048,6 +1049,121 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
           ),
         ).thenReturn(projectRoot);
         when(() => engineConfig.localEngine).thenReturn(null);
+
+        // Route B: the patcher asks whether the cached iOS engine carries the
+        // interpreter, to decide whether a code patch even makes sense. An
+        // empty temp dir has no engine, so the default is "stock engine" —
+        // the existing linker behaviour every pre-existing test expects.
+        when(
+          () => shorebirdEnv.flutterDirectory,
+        ).thenReturn(Directory.systemTemp.createTempSync('flutter'));
+      });
+
+      // Route B (selfhost). On an engine that can run iOS Dart code push, a
+      // code patch is only meaningful against a release built with patchable
+      // call sites. This refusal is deliberately DISTINCT from "this patch
+      // cannot be represented": the remediation is a new release, not
+      // different Dart, and collapsing them sends people to debug the wrong
+      // half.
+      group('when the engine supports iOS Dart code push', () {
+        late Directory flutterDir;
+
+        void writeReleaseAppBinary({required int sites}) {
+          final words = Uint32List(1024 * 32)
+            ..fillRange(0, 1024 * 32, 0xD503201F);
+          for (var i = 0; i < sites; i++) {
+            words[i * 4] = 0xF840701E; // ldur lr, [r0, #7]
+            words[i * 4 + 1] = 0xD63F03C0; // blr lr
+          }
+          File(
+              p.join(projectRoot.path, 'Frameworks', 'App.framework', 'App'),
+            )
+            ..createSync(recursive: true)
+            ..writeAsBytesSync(words.buffer.asUint8List());
+        }
+
+        setUp(() {
+          flutterDir = Directory.systemTemp.createTempSync('flutter');
+          File(
+              p.join(
+                flutterDir.path,
+                'bin',
+                'cache',
+                'artifacts',
+                'engine',
+                'ios-release',
+                'Flutter.xcframework',
+                'ios-arm64',
+                'Flutter.framework',
+                'Flutter',
+              ),
+            )
+            ..createSync(recursive: true)
+            ..writeAsStringSync('...InterpretCall...');
+          when(() => shorebirdEnv.flutterDirectory).thenReturn(flutterDir);
+        });
+
+        group('when the release was not built with patchable calls', () {
+          setUp(() => writeReleaseAppBinary(sites: 2));
+
+          test('refuses, naming the release as the thing to fix', () async {
+            await expectLater(
+              () => runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                ),
+              ),
+              exitsWithCode(ExitCode.software),
+            );
+
+            verify(
+              () => logger.err(
+                any(
+                  that: allOf(
+                    contains('was not built with Route B patchable call sites'),
+                    contains('Create a new release'),
+                  ),
+                ),
+              ),
+            ).called(1);
+          });
+        });
+
+        group('when assets-only', () {
+          setUp(() {
+            writeReleaseAppBinary(sites: 2);
+            patcher.assetsOnly = true;
+            // The assets-only path still reads the AOT output it would have
+            // uploaded; the fixture does not create it by default.
+            File(p.join(projectRoot.path, 'build', 'out.aot'))
+              ..createSync(recursive: true)
+              ..writeAsBytesSync(List<int>.filled(64, 0));
+          });
+
+          test('does not check patchability', () async {
+            // An assets-only patch carries no Dart, so patchable call sites
+            // are irrelevant to it and refusing would be wrong.
+            await runWithOverrides(
+              () => patcher.createPatchArtifacts(
+                appId: appId,
+                releaseId: releaseId,
+                releaseArtifact: releaseArtifactFile,
+              ),
+            );
+
+            verifyNever(
+              () => logger.err(
+                any(
+                  that: contains(
+                    'was not built with Route B patchable call sites',
+                  ),
+                ),
+              ),
+            );
+          });
+        });
       });
 
       group('when patch .xcarchive does not exist', () {

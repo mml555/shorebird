@@ -19,6 +19,7 @@ import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/route_b.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_documentation.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
@@ -189,6 +190,21 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
       p.join(appDirectory.path, 'Frameworks', 'App.framework', 'App'),
     );
 
+    // Route B (selfhost): on an engine that supports iOS Dart code push, a code
+    // patch is only meaningful if the RELEASE was built with patchable call
+    // sites. Checked here, against the release artifact we just downloaded,
+    // because the alternative is the worst failure in this project: the patch
+    // builds, uploads, downloads, installs, validates, attaches, reports
+    // success — and the app behaves identically, because AOT emitted direct
+    // calls that never consult `Function.entry_point_`.
+    //
+    // Deliberately keyed on ENGINE capability rather than on "is iOS". A stock
+    // engine has no interpreter for an attached function to enter through, so
+    // it keeps the existing linker path untouched.
+    if (!assetsOnly && _engineSupportsIosCodePush()) {
+      _verifyReleaseIsPatchable(releaseArtifactFile);
+    }
+
     // An assets-only patch carries no code, and the patch command drops the code
     // bundles before upload — so linking here would produce a `.vmcode` that is
     // immediately discarded. Skipping it also drops the only dependency on
@@ -275,6 +291,53 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
         podfileLockHash: shorebirdEnv.iosPodfileLockHash,
       ),
     };
+  }
+
+  /// Whether the engine this patch is being built with can run Route B
+  /// patches at all.
+  ///
+  /// Keyed on the `InterpretCall` symbol rather than on the engine revision:
+  /// the revision is a sha1 of the Flutter binary and Xcode re-signs embedded
+  /// frameworks, changing the file without changing what it can do.
+  bool _engineSupportsIosCodePush() {
+    return isRouteBEngine(
+      File(
+        p.join(
+          shorebirdEnv.flutterDirectory.path,
+          'bin',
+          'cache',
+          'artifacts',
+          'engine',
+          'ios-release',
+          'Flutter.xcframework',
+          'ios-arm64',
+          'Flutter.framework',
+          'Flutter',
+        ),
+      ),
+    );
+  }
+
+  /// Refuse to build a code patch for a release that cannot accept one.
+  ///
+  /// This is a RELEASE-INCOMPATIBLE failure and it is deliberately distinct
+  /// from "this patch cannot be represented": the remediation is to cut a new
+  /// release, not to change the Dart being patched. Collapsing the two into a
+  /// generic patch failure sends people to debug the wrong half.
+  void _verifyReleaseIsPatchable(File releaseArtifactFile) {
+    if (isPatchableRelease(releaseArtifactFile)) return;
+
+    final counted = countPatchableCallSites(releaseArtifactFile);
+    logger.err(
+      '''
+This release was not built with Route B patchable call sites (${counted.sites} sites, ${counted.perMiB.round()}/MiB), so it cannot accept a Dart code patch.
+
+A patch built against it would install and report success without changing anything the app does.
+
+Create a new release with this engine and patch that instead. Releases built by
+this version of Shorebird request patchable call sites automatically.''',
+    );
+    throw ProcessExit(ExitCode.software.code);
   }
 
   @override
