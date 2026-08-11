@@ -1,7 +1,7 @@
 <!-- cspell:words dartaotruntime SBRBPTCH sbrbptch dynmod tearoff disqualifiers -->
 <!-- cspell:words unvalidated noninteractive prepass jank recognise -->
 <!-- cspell:words schedulable startable worktree oneline unheld diffstat -->
-<!-- cspell:words overclaim DFLUTTER -->
+<!-- cspell:words overclaim DFLUTTER Diagnosticable -->
 
 # Shorebird feature parity — the goal document
 
@@ -297,7 +297,7 @@ not an untested guess. Ordered roughly by expected cost.
 
 | | item | note |
 |---|---|---|
-| ☐ | **NOT BUILT** Replacement methods with explicit source parameters | the replacement's **own** signature, distinct from the call it makes. The entry-point contract is 0-or-1 positional, and `9192a594` did not widen it |
+| ☐ | **NOT BUILT** Replacement methods with explicit source parameters — **`G3.7 param-abi`, worth 33.2 %** | the replacement's **own** signature, distinct from the call it makes. The entry-point contract is 0-or-1 positional and the receiver already claims the one slot; `9192a594` did not widen it. **This single item is worth more than the entire privacy problem** — see the measurement above |
 | ☐ | **NOT BUILT** Setters / property assignments | |
 | ☐ | **NOT BUILT** Increment/decrement of receiver fields | compound of read + setter |
 | ☐ | **NOT BUILT** Cascades | |
@@ -320,6 +320,7 @@ not an untested guess. Ordered roughly by expected cost.
 | **`G3.5 closures-super`** | closures capturing `this`, `super` reads and calls, cascades | `super` writes now refuse explicitly (`cb50590d`); the rest untouched | `R7`, `R1` |
 | **`G3.6a app-private-decision`** | **is it reachable at all**, and what does §15 therefore require | **the critical path** — see the reframe below | `R3` read-only for the probe; **no `R7`, no cell, no device** |
 | **`G3.6b app-private-holes`** | close the two accepted-then-failed holes | queued behind `G3.6a`'s answer | `R7` **and a cell mint** — `analyze_coverage.dart` is in the manifest |
+| **`G3.7 param-abi`** | a replacement method may declare **its own parameters** | **the largest single unlock: 33.2 %**, and unlike `G3.6` its feasibility is *known* — the entry-point contract is a patch we already own (`0004`) | engine (`R3` + a mint), `R7`, `R1` |
 
 Three things fall out of that table, and two of them correct earlier drafts of
 this file.
@@ -345,10 +346,18 @@ mint. Splitting it into `G3.6a` (free: the measurement, the layer map, the
 decision) and `G3.6b` (expensive: the hole-closures) is what makes the free half
 actually free.
 
-**The ladder has no cheap next rung.** `G3.1`, `G3.2` and `G3.3` all closed within
-hours of each other; `G3.4` is refused by derivation; `G3.5` is real work with no
-leverage. That absence is itself the argument for spending the next slot on the
-**denominator** — `G3.6a` — rather than on more numerator.
+**The ladder has no cheap next rung, and the two big prizes are elsewhere.**
+`G3.1`, `G3.2` and `G3.3` all closed within hours of each other; `G3.4` is refused
+by derivation; `G3.5` is real work with no leverage. The measurement says the reach
+is bounded by two things the ladder does not touch: **privacy** (`G3.6`, →29.8 %)
+and **the parameter ABI** (`G3.7`, →33.2 %). Neither alone breaks a third; together
+they reach ~100 %.
+
+**So the ordering is: `G3.6a` first, then `G3.7`, and `G3.5` well behind both.**
+Not because privacy is worth more — it is worth slightly *less* — but because
+`G3.6`'s **feasibility is unknown** while `G3.7`'s is known. `G3.6a` is a cheap
+question whose answer re-prices everything; `G3.7` is expensive work whose cost is
+already understood. Answer the open question first, then spend.
 
 ### Private members
 
@@ -359,31 +368,59 @@ leverage. That absence is itself the argument for spending the next slot on the
 | ✅ | **PROVEN** Retention alone does not solve this — Dart privacy is library-scoped, and a private member nothing calls is tree-shaken out of the `--aot` prepass kernel before it can be named |
 | ☐ | **OPEN DESIGN** Decide whether full upstream parity requires solving existing app-private references — **`G3.6a`, and now the critical path** |
 
-### How big the private-member gap actually is — measured
+### How much of real Dart Route B can reach — measured from kernel
 
-Two independent agents measured what fraction of real Dart methods Route B's ABI
-can address, over `flutter/lib/src/material` (737 zero-parameter instance methods):
+Reproduce with [`coverage/measure_private_reach.dart`](engine/route_b/coverage/measure_private_reach.dart):
 
-| band | share |
-|---|---|
-| clean of app-private involvement | **7.3 %** (independent re-measure: 6.9 %) |
-| blocked by a **private receiver class** only | ~14.7 % |
-| blocked by a **private reference** only | ~18.6 % |
-| both | ~59.4 % |
+```
+dart --packages=$DART_TREE/.dart_tool/package_config.json \
+  selfhost/engine/route_b/coverage/measure_private_reach.dart \
+  selfhost/fixtures/airgap_app/build/app.dill \
+  --package package:flutter/src [--all-concrete]
+```
 
-On `examples/api` the clean share is lower still — 5.4 % and 4.0 % across the two
-measurements. And the archetypal real patch lives in `build(BuildContext)`, which
-the **one-positional-parameter ABI cannot address at all**, so the addressable
-share of patches developers actually write is likely *below* 7 %, not above it.
+It walks a real component, counts only the shape the entry-point contract can
+address, and classifies each body by the privacy its references would need. It
+excludes synthetic mixin applications (`_AppBarTheme&InheritedTheme&Diagnosticable`
+— the CFE composes those, nobody patches one) and abstract/external members, which
+are not patch targets under any future ABI. **An earlier draft of this section
+carried a regex estimate; these figures replace it.**
 
-Treat these as an order of magnitude, not a precise figure: both are regexes over
-declaration sites in framework code, not kernel measurements. Two independent
-runs agreeing within half a point is what makes the magnitude trustworthy.
+Measured on `app.dill` from the release-22 build:
 
-**This is the number that reframes §3.** The rung ladder widens the surface
-*inside* a 4–7 % slice. No number of rungs clears §15's gate *"no common
-application source pattern exposes Route B implementation restrictions"* — only
-`G3.6` can.
+| | `package:flutter/src` | `package:flutter/src/material` |
+|---|---|---|
+| concrete instance methods | 6,862 | 1,133 |
+| — excluded as synthetic mixin applications | 2,953 | 739 |
+| **patchable today** | **7.1 %** (486) | **2.4 %** (27) |
+| ceiling if **privacy** were fully solved, one-parameter ABI standing | 29.8 % (2,046) | 28.2 % (320) |
+| ceiling if the **parameter ABI** were fully widened, privacy standing | **33.2 %** (2,275) | **32.8 %** (372) |
+| declares its own parameters (out of contract) | 70.1 % (4,808) | 71.6 % (811) |
+| generic | 0.1 % (8) | 0.2 % (2) |
+
+**Two limits, near-equal, and independent.** Solving *either* alone leaves about
+two-thirds of real methods unreachable. Solving both reaches ~100 %. That is the
+finding, and it corrects a claim an earlier draft of this file made.
+
+**Do not extrapolate one from the other — measured, and the assumption fails.**
+Among in-contract (zero-parameter) methods only **8.4 %** are privacy-clean; among
+*all* concrete methods **33.2 %** are. Parameter-declaring methods are markedly
+more privacy-clean, because zero-parameter instance methods in Flutter skew toward
+`initState`/`dispose`/private-`State` helpers while parameter-taking methods skew
+toward public API. A projection from the first number to the second understates
+the parameter ABI's value by ~4×, which is exactly the error that would mis-rank
+the two goals.
+
+**The `acceptedThenFails` figure is the bug's blast radius, not a gap's size:**
+**183** methods framework-wide (47 in material) that the analyzer **accepts** and
+the producer then breaks on, by emitting a private class name as a parameter type.
+It should be zero. See the two holes below.
+
+**What this does to §15.** The gate *"no common application source pattern exposes
+Route B implementation restrictions"* is not reachable by the rung ladder — at
+7.1 % it is not close. But it is not privacy alone either: it needs `G3.6`
+**and** a parameter ABI, which is why the latter is promoted to `G3.7` below rather
+than left as one bullet among twelve.
 
 ### Two accepted-then-failed holes — bugs, not gaps
 
