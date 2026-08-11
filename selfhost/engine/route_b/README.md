@@ -1557,7 +1557,7 @@ So the widening ladder starts one rung lower than planned:
 | **A0 · dart:core reference** | can a body call a named core symbol? | **CLOSED ON DEVICE 2026-08-11** — see below |
 | A · app-symbol reference | can it call another app function? | **CLOSED ON DEVICE 2026-08-11** |
 | B · instance method, receiver unused | can a top-level replacement attach to `Foo.value`? | **CLOSED ON DEVICE 2026-08-11** |
-| C · `this` access | receiver/member addressing | untested |
+| C · `this` access | receiver/member addressing | **BLOCKED AT THE COMPILER 2026-08-11** |
 | D · private references | `_foo` is library-scoped identity | untested |
 
 ## Probe A0 — ANSWERED on the host, 2026-08-11
@@ -1780,6 +1780,56 @@ release 17 had exited early on a spurious `Exception:` match against a benign
 Comparing the installed `App`'s `LC_UUID` against the one the patch log prints
 ("packed N bytes for release …") settles this in one command, and is now the
 first thing to check when a patch does not appear.
+
+### Rung C — BLOCKED AT THE COMPILER, 2026-08-11
+
+`probes/c_receiver.sh` — split so a failure could not conflate receiver ABI with
+member binding. The split paid for itself: neither question was reached.
+
+| arm | shape | result |
+|---|---|---|
+| control | static, no args, receiver ignored | **PASS** — `NEW-B`, `APPLY ok: 1 target(s)` |
+| C0 | `String value(RouteBThing self)`, `self` IGNORED | **compiler refuses** |
+| C0b | a synthetic instance method `RouteBReplacement.value()` | **compiler refuses** |
+| C1 | `String value(RouteBThing self) => self.label` | **compiler refuses** |
+
+All three refusals are one rule, from `dart2bytecode`:
+
+```
+Dynamic Module Entry Point should be a static no-argument method: value
+  bytecode_generator.dart:737
+```
+
+**So rung C is not a retention problem and not an interpreter problem.** The
+interpreter is never reached — nothing is ever attached. A replacement body has
+no legal way to *declare* the receiver, by parameter or by instance-ness.
+
+Note what that implies about rung B, which passes: the receiver is almost
+certainly being passed at the call site exactly as it always was; the
+replacement simply ignores it, and is allowed to because it takes no arguments.
+The missing capability is declaring it, not delivering it.
+
+The remedy is therefore in the entry-point contract itself — relaxing
+`bytecode_generator.dart:737`, or a different mechanism for handing the
+replacement its receiver. Both are Dart-fork changes, which means a new engine
+hash and a new cell, and neither should be started before deciding which.
+
+**Do not** work around it by having the producer synthesize a `self` parameter,
+by widening retention, or by touching delivery: none of those is where the
+refusal comes from.
+
+### Before any device result: check the release identity
+
+```bash
+probes/assert_installed_release.sh <Runner.app> <patch.log>
+```
+
+Mandatory, not optional. A patch built for a release the device is not running
+shows `code patch: none`, which is indistinguishable from an attach failure by
+eye — it cost three launches during rung B before the `.ipa` staged turned out
+to be the previous release's. The script compares the installed `App`'s
+`LC_UUID` against the `packed ... for release <id>` line the producer prints,
+and refuses to let an unattributable device result be read as evidence.
 
 ### The SDK set is a budget
 
