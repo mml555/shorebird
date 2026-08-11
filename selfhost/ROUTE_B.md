@@ -117,6 +117,12 @@ the library is not retained; with the interface a release always declares, the
 parameter and the argument both survive. Corrected in the engine README; the
 lesson is about probe fidelity, not about Kernel.
 
+**Argument-bearing calls are device-proven too** — engine `8ebaad05`, release
+`21.0.0+1`. `String value() => tagged('ARG');` shipped as
+`String value(RouteBThing self) => self.tagged('ARG');` and the interpreted
+replacement passed its argument into the release's compiled method:
+`OLD` -> **`NEW-ARG`** -> relaunch -> rollback `OLD`. Evidence `evidence/arg_*`.
+
 Supported so far: `label`, `this.label`, `helper()`, `this.helper()`, and the
 same calls with arguments. Refused: cascades, `super`, setters, private members,
 and any access kind the producer does not recognise.

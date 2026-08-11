@@ -88,6 +88,15 @@ class RouteBThing {
   String helper() =>
       DateTime.now().millisecondsSinceEpoch >= 0 ? 'NEW-C2' : 'X';
 
+  /// The argument-bearing target. Its parameter survives compilation because
+  /// the release declares a dynamic interface retaining this library; without
+  /// one, `--aot` would eliminate a parameter only ever passed a constant, and
+  /// an interpreted `self.tagged('ARG')` would then meet a compiled method
+  /// taking none.
+  @pragma('vm:never-inline')
+  String tagged(String x) =>
+      DateTime.now().millisecondsSinceEpoch >= 0 ? 'NEW-$x' : 'X';
+
   /// The lowering surface. Two forms have been through the whole path:
   ///
   ///   String value() => label;      ->  value(RouteBThing self) => self.label
@@ -96,10 +105,11 @@ class RouteBThing {
   /// `this.label` and `this.helper()` are the same Kernel nodes as the bare
   /// spellings and differ only in the lexical edit; the host probe covers them.
   ///
-  /// PATCH FORM below; the release form is
-  /// `DateTime.now().millisecondsSinceEpoch >= 0 ? 'OLD' : helper()`.
+  /// PATCH FORM: a receiver call carrying an argument. The producer lowers only
+  /// the receiver — `tagged` becomes `self.tagged` — and `('ARG')` crosses over
+  /// as the source's own text, unparsed.
   @pragma('vm:never-inline')
-  String value() => helper();
+  String value() => tagged('ARG');
 }
 
 @pragma('vm:never-inline')
