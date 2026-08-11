@@ -25,6 +25,7 @@ class _Bundle {
       'dartaotruntime': contents['dartaotruntime'] ?? 'RUNTIME',
       'dart2bytecode.aot': contents['dart2bytecode.aot'] ?? 'SNAPSHOT',
       'vm_platform.dill': contents['vm_platform.dill'] ?? 'PLATFORM',
+      'route_b_analyze.aot': contents['route_b_analyze.aot'] ?? 'ANALYZER',
     };
     final recorded = <String, String>{};
     for (final entry in files.entries) {
@@ -206,6 +207,34 @@ void main() {
             'message',
             contains('missing vm_platform.dill'),
           ),
+        ),
+      );
+    });
+
+    test('reports INVALID when the coverage analyzer is missing', () async {
+      // A cell published before the analyzer existed is INVALID, not
+      // unavailable: something IS published for this engine, and the
+      // remediation is to republish the cell rather than to cut a release.
+      await expectLater(
+        resolve(
+          bundle: _Bundle.build(
+            tmp,
+            engineHash: engineHash,
+            omit: ['route_b_analyze.aot'],
+          ),
+        ),
+        throwsA(
+          isA<RouteBCompilerException>()
+              .having(
+                (e) => e.problem,
+                'problem',
+                RouteBCompilerProblem.invalid,
+              )
+              .having(
+                (e) => e.message,
+                'message',
+                contains('missing route_b_analyze.aot'),
+              ),
         ),
       );
     });

@@ -101,9 +101,11 @@ void main() {
       const runtime = 'runtime-bytes';
       const snapshot = 'snapshot-bytes';
       const dill = 'dill-bytes';
+      const analyzer = 'analyzer-bytes';
       add('dartaotruntime', runtime.codeUnits);
       add('dart2bytecode.aot', snapshot.codeUnits);
       add('vm_platform.dill', dill.codeUnits);
+      add('route_b_analyze.aot', analyzer.codeUnits);
       // sha256 of the three payloads above, so the resolver's hash check
       // passes on a bundle that is genuinely intact.
       String hash(String s) => sha256.convert(s.codeUnits).toString();
@@ -115,6 +117,7 @@ engine revision  : ${engineInProvenance ?? engineRevision}
 dart2bytecode.aot : ${hash(snapshot)}
 dartaotruntime    : ${hash(runtime)}
 vm_platform.dill  : ${hash(dill)}
+route_b_analyze.aot : ${hash(analyzer)}
 '''
             .codeUnits,
       );

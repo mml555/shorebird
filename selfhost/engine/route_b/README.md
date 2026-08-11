@@ -1089,21 +1089,121 @@ Plus 2,232 CLI unit tests, including: resolution keyed on the release engine
 while the environment holds a different one, each taxonomy branch, and
 `apple.runLinker` never reached.
 
-### Next — port the coverage analysis
+## Coverage analysis — PORTED, parity green 2026-08-10
 
-Mechanically. Same input → same target set → same verdicts as the host tooling in
-this directory. Do not reinterpret it while moving it. A divergence introduced
-during the port is indistinguishable from a genuine "unsupported target" result,
-which is the one thing the whole provenance chain exists to make trustworthy.
+`coverage/parity.sh` — **8/8**, three implementations, one kernel pair per case.
 
-Parity means all of it: same changed targets, same representable targets, same
-rejected targets, **the same rejection reason for each**, and the same
-whole-patch verdict. `Foo.bar → unsupported dispatch-table call` and
-`Foo.bar → target unreachable` are not interchangeable — one points at compiler
-coverage, the other at retention.
+### Where the analyzer had to live, and why that was forced
 
-And 4 changed / 3 representable / 1 unsupported rejects the **whole** patch.
-Never upload the 3/4 subset.
+`shorebird patch` cannot read a dill, and it cannot be taught to:
+
+| source of `package:kernel` | why not |
+|---|---|
+| pub.dev | the published copy is the abandoned pre-null-safety one, `sdk: '>=1.8.0 <3.0.0'` |
+| the vended Flutter SDK | ships no `pkg/` at all — `sdk_packages.yaml` is `packages: []` |
+| reimplement it | the member diff is defined as printed-AST equality, so `Printer` would have to be reimplemented too |
+
+It exists only inside an engine checkout. That constraint points the same way
+the provenance work already did: the kernel binary format is **versioned** and
+must match the frontend that emitted the dill, so a reader belongs to the
+release's toolchain, not to the machine running the patch.
+
+So `route_b_analyze.aot` joins the compiler cell. The cell is now **four files**
+— runtime, compiler, platform dill, analyzer — resolved as one by the release's
+engine hash, and `route_b_compiler.dart` requires all four. A cell published
+before the analyzer is *invalid*, not unavailable: something is published, and
+the fix is to republish rather than to cut a release.
+
+```bash
+selfhost/engine/route_b/build_route_b_analyzer.sh
+selfhost/engine/route_b/publish_route_b_compiler.sh --rev <engineHash>
+selfhost/engine/route_b/audit_route_b_compiler.sh  --hash <engineHash>
+```
+
+### What the harness compares
+
+`identity/gen_target_manifest.dart` and `packaging/build_patch.dart` are the
+reference and are **left untouched**. If the analyzer imported their code the
+harness would prove nothing — transcription error IS the risk it exists to
+catch.
+
+| implementation | what it is |
+|---|---|
+| reference | the two host tools, run exactly as they are today |
+| analyzer | `coverage/analyze_coverage.dart`, the transcription that ships in the cell |
+| cli | shorebird_cli's `RouteBCoverage` parser, via `coverage/cli_verdict.dart` |
+
+Compared exactly, never approximately: the whole target manifest (identity,
+`kind`, `vmName`, `selector`, `reachable`, `reason`), changed / added / removed
+sets, representable set, **conditional set**, rejected set, **the exact
+rejection reason for each**, and the whole-patch verdict. Plus a per-case
+`expected.json` pin, because three implementations can drift together.
+
+The reference reports rejection *counts*, so `compare.py` reconstructs
+per-target reasons from the reference manifest — the same place the reference
+gets them from. That reconstruction is the comparison point for "same reason for
+each".
+
+### The harness fails, and it was proven to
+
+A green harness proves nothing until it can go red. Two controls, both reverted:
+
+| injected divergence | caught |
+|---|---|
+| analyzer's abstract reason changed to `unsupported dispatch-table call` | 3 places: manifest identity, per-target rejection reason, and the pin |
+| CLI parser folds `conditional` into `representable` | representable set and conditional set, analyzer vs cli |
+
+The first is exactly the confusion the reason strings exist to prevent — one
+sends you to compiler coverage, the other to retention.
+
+### The corpus, and what it recorded
+
+| case | verdict | what it pins |
+|---|---|---|
+| `static_function` | accept | the baseline representable target |
+| `instance_method` | accept | instance member -> **conditional**, ships |
+| `dispatch_table` | accept | **the hole. See below.** |
+| `private_accessor` | accept | `get:`/`set:` mangling; top-level private getter representable, class accessors conditional |
+| `unreachable_target` | **reject** | abstract -> *"abstract; call sites dispatch to implementations"*, NOT a dispatch-table reason |
+| `tearoff_closure` | accept | torn-off function and closure-bearing body both stay representable |
+| `mixed_rejection` | **reject** | 4 changed / 3 representable / 1 unsupported -> whole patch refused, the one bad target named |
+| `added_member` | **reject** | an addition something references; also pins that `main` reads as changed under TFA |
+
+### The hole this exposed: `conditional` is not decidable from a kernel
+
+`instance_method` and `dispatch_table` produce **identical output**. Same
+bucket, same verdict, patch accepted. The second is a genuinely polymorphic call
+that AOT specializes into a dispatch-table call which no patch can reach.
+
+This is not a port defect — the reference behaves the same way, and it is
+inherent:
+
+> whether a given call **site** devirtualizes is decided per-site by the
+> precompiler, and is not present in the kernel the analysis reads.
+
+So the reference ships `conditional` targets, and the port preserves that
+deliberately. Tightening it to a refusal without per-site data would reject
+every instance-member patch, including the ones that work. Widening it to
+"representable" would report them as proven.
+
+Closing it needs snapshot-side data — per-call-site resolution against the
+release's own `App` binary, which the patcher already downloads. That is real
+work with a real input available, and it is the natural successor to this step.
+`corpus/dispatch_table/expected.json` pins the current answer so the gap is a
+recorded fact rather than a silence; the day it closes, that pin fails and has
+to be updated on purpose.
+
+### Not yet wired, and the one thing that blocks it
+
+The analysis runs end-to-end today — resolve the cell by the release's engine
+hash, run the cell's analyzer, parse, render the refusal — verified against the
+real published cell for `591a9f8d`. It is **not** in `ios_patcher` yet, because
+coverage needs the RELEASE's kernel and the release does not upload one.
+`ios_patcher` has the patch-side `app.dill`; the base-side dill has no source.
+
+That is the first task of producer wiring, and it is the same mechanism
+`route_b.json` already uses: put the release's pre-AOT kernel in the iOS
+supplement.
 
 The runtime is proven and should not be touched. After runtime has been proven,
 assume producer / provenance / release-construction first — including the

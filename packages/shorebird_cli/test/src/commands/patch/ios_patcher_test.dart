@@ -1147,6 +1147,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                 p.join(flutterDir.path, 'dart2bytecode.aot'),
               ),
               platformDill: File(p.join(flutterDir.path, 'vm_platform.dill')),
+              analyzer: File(p.join(flutterDir.path, 'route_b_analyze.aot')),
               provenance: 'engine revision  : $releaseEngineRevision',
             ),
           );

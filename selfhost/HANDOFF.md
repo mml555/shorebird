@@ -101,6 +101,8 @@ release-construction first when something fails.
 | one resolution, one engine cell, no ambient fallbacks | `route_b_compiler.dart` |
 | the release records the engine that built it, and the patch reads it back | `route_b_provenance.dart`, `ios_releaser.dart` |
 | the cell is fetched by the RELEASE's engine hash, never the machine's | `route_b_compiler_cache.dart`, `ios_patcher.dart` |
+| coverage analysis is version-matched to the release's frontend, not the machine's | `route_b/coverage/analyze_coverage.dart` (ships in the cell) |
+| the ported analysis is differentially checked against the untouched host tools | `route_b/coverage/parity.sh` — 8/8 |
 
 #### Three failure signatures that cost real time, now detected
 
@@ -142,28 +144,43 @@ Two consequences worth knowing before anything else:
   sidecar is the record today; the field is a wire-contract change gated by
   `compatibility.yaml`. Once both exist they must agree.
 
+#### Coverage port — DONE, parity green 2026-08-10
+
+Detail in [`engine/route_b/README.md`](engine/route_b/README.md) — "Coverage
+analysis". Three things carry forward:
+
+- **The analyzer ships in the compiler cell**, which is now four files.
+  `package:kernel` is unobtainable outside an engine checkout (the pub copy is
+  the dead pre-null-safety one; the vended SDK ships no `pkg/`), and the kernel
+  binary format is versioned anyway — so the reader belongs to the release's
+  toolchain. Rebuild ⇒ republish ⇒ audit, as before.
+- **`conditional` is not decidable from a kernel.** A monomorphic instance call
+  and a genuine dispatch-table call are byte-identical in the analysis: same
+  bucket, same verdict, patch accepted. The reference behaves the same way and
+  the port preserves it. Closing it needs per-call-site data from the release's
+  `App` binary, which the patcher already downloads.
+- **The parity harness was proven to fail**, not merely to pass — two injected
+  divergences, both caught, both reverted.
+
 #### Next session, in order
 
-1. **Port the coverage/target analysis** from `engine/route_b` into code the CLI
-   can call — **mechanically**. Acceptance is differential parity against the
-   host tooling on the same kernel: same changed targets, same representable
-   targets, same rejected targets, the same **rejection reason** for each, and
-   the same whole-patch verdict. A divergence introduced during the port is
-   indistinguishable from a genuine "unsupported target", which is the one thing
-   the provenance chain exists to make trustworthy. 4 changed / 3 representable
-   / 1 unsupported rejects the whole patch — never upload the 3/4 subset.
-2. **Wire the producer** into `ios_patcher`: compile the changed kernel with the
-   resolved cell, run coverage, derive the LC_UUID build ID, pack SBRBPTCH, hand
-   it to the existing bidiff/zstd + upload path. No updater, VM, container or
-   activation changes.
-3. **The automatic device gate**: fresh fixture `routeBValue() → OLD`,
+1. **Upload the release's kernel.** Coverage needs the base-side dill and the
+   release publishes none; `ios_patcher` has only the patch-side `app.dill`.
+   Same mechanism as `route_b.json` — the iOS supplement. This is the single
+   thing blocking producer wiring.
+2. **Wire the producer** into `ios_patcher`: coverage, then compile the changed
+   kernel with the resolved cell, derive the LC_UUID build ID, pack SBRBPTCH,
+   hand it to the existing bidiff/zstd + upload path. No updater, VM, container
+   or activation changes.
+3. **The automatic device gate**: fresh fixture `routeBValue() -> OLD`,
    `shorebird release ios`, change to `NEW`, `shorebird patch ios`, nothing
-   manual in between; device shows OLD → NEW → NEW after relaunch → OLD after
+   manual in between; device shows OLD -> NEW -> NEW after relaunch -> OLD after
    rollback, corroborated by `.routeb`.
 4. **The sealed regression**, then product hardening. Do NOT widen
    dispatch-table support first — 5/6 coverage works and the current form costs
    ~3 % of Dart build-phase CPU. Let real applications say whether the missing
-   form matters.
+   form matters. Per-call-site `conditional` resolution is the better next
+   coverage investment either way.
 
 ### The boundary that was crossed
 

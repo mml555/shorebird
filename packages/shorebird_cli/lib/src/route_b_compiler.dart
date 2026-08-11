@@ -59,6 +59,7 @@ class RouteBCompiler {
     required this.runtime,
     required this.compilerSnapshot,
     required this.platformDill,
+    required this.analyzer,
     required this.provenance,
   });
 
@@ -70,6 +71,10 @@ class RouteBCompiler {
 
   /// The platform dill the release was compiled against.
   final File platformDill;
+
+  /// The coverage analyzer, run by [runtime]. Version-matched to the frontend
+  /// that emitted the release's kernel.
+  final File analyzer;
 
   /// The bundle's own record, verbatim. Kept so a later failure can be
   /// attributed to a specific dart revision and set of hashes rather than to
@@ -96,6 +101,12 @@ const _requiredFiles = [
   'dartaotruntime',
   'dart2bytecode.aot',
   'vm_platform.dill',
+  // The coverage analyzer is part of the cell, not a CLI asset. It reads the
+  // RELEASE's kernel, and the kernel binary format is versioned, so a reader
+  // from another lineage would refuse the dill or misread it. Required, so a
+  // cell published before the analyzer existed fails loudly here rather than
+  // at the moment a patch needs it.
+  'route_b_analyze.aot',
 ];
 
 /// Resolve producer tooling for [engineHash], or throw.
@@ -226,6 +237,7 @@ the release or with your Dart changes.''',
     runtime: File(p.join(cell.path, 'dartaotruntime')),
     compilerSnapshot: File(p.join(cell.path, 'dart2bytecode.aot')),
     platformDill: File(p.join(cell.path, 'vm_platform.dill')),
+    analyzer: File(p.join(cell.path, 'route_b_analyze.aot')),
     provenance: provenance,
   );
 }
