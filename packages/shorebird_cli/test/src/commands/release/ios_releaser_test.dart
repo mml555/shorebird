@@ -49,6 +49,19 @@ class _NowhereFile implements File {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+RouteBCompiler _cell(Directory dir) => RouteBCompiler(
+  runtime: File(p.join(dir.path, 'dartaotruntime')),
+  compilerSnapshot: File(p.join(dir.path, 'dart2bytecode.aot')),
+  platformDill: File(p.join(dir.path, 'vm_platform.dill')),
+  analyzer: File(p.join(dir.path, 'route_b_analyze.aot')),
+  frontend: File(p.join(dir.path, 'route_b_gen_kernel.aot')),
+  interfaceGenerator: File(
+    p.join(dir.path, 'route_b_gen_dynamic_interface.aot'),
+  ),
+  flutterPlatformDill: File(p.join(dir.path, 'flutter_platform_strong.dill')),
+  provenance: 'engine revision  : engine-abc',
+);
+
 void main() {
   group(IosReleaser, () {
     late Apple apple;
@@ -108,6 +121,7 @@ void main() {
           platformDill: _nowhere,
           analyzer: _nowhere,
           frontend: _nowhere,
+          interfaceGenerator: _nowhere,
           flutterPlatformDill: _nowhere,
           provenance: '',
         ),
@@ -679,6 +693,7 @@ $body
       // tested: request the flag, then verify the shipped bytes.
       group('when the engine supports iOS Dart code push', () {
         late Directory flutterDirectory;
+        late Directory cellDirectory;
 
         File engineBinary() => File(
           p.join(
@@ -724,6 +739,71 @@ $body
             () => shorebirdEnv.flutterDirectory,
           ).thenReturn(flutterDirectory);
           writeAppBinary(sites: 4000);
+
+          // The retention prepass now runs for EVERY Route B release, before
+          // the build it must inform, so its tooling is stubbed for the whole
+          // group rather than only where provenance is asserted.
+          cellDirectory = Directory.systemTemp.createTempSync('cell');
+          when(
+            () => shorebirdEnv.shorebirdEngineRevision,
+          ).thenReturn('engine-abc');
+          when(() => shorebirdEnv.flutterRevision).thenReturn('flutter-def');
+          when(
+            () => shorebirdEnv.getShorebirdProjectRoot(),
+          ).thenReturn(projectRoot);
+          when(
+            () => shorebirdEnv.buildDirectory,
+          ).thenReturn(Directory(p.join(projectRoot.path, 'build')));
+          when(
+            () => routeBCompilerResolver.resolve(
+              engineRevision: any(named: 'engineRevision'),
+            ),
+          ).thenAnswer((_) async => _cell(cellDirectory));
+          when(
+            () => routeBReleaseKernelBuilder.buildPrepass(
+              compiler: any(named: 'compiler'),
+              projectRoot: any(named: 'projectRoot'),
+              entrypoint: any(named: 'entrypoint'),
+              buildArgs: any(named: 'buildArgs'),
+              outputFile: any(named: 'outputFile'),
+            ),
+          ).thenAnswer((invocation) {
+            final out = invocation.namedArguments[#outputFile] as File
+              ..createSync(recursive: true);
+            return out..writeAsStringSync('PREPASS-KERNEL');
+          });
+          when(
+            () => routeBReleaseKernelBuilder.generateDynamicInterface(
+              compiler: any(named: 'compiler'),
+              prepassKernel: any(named: 'prepassKernel'),
+              outputFile: any(named: 'outputFile'),
+              sdkMembers: any(named: 'sdkMembers'),
+            ),
+          ).thenAnswer((invocation) {
+            final out = invocation.namedArguments[#outputFile] as File
+              ..createSync(recursive: true);
+            return out..writeAsStringSync('callable:\n');
+          });
+          when(
+            () => routeBReleaseKernelBuilder.build(
+              compiler: any(named: 'compiler'),
+              projectRoot: any(named: 'projectRoot'),
+              entrypoint: any(named: 'entrypoint'),
+              buildArgs: any(named: 'buildArgs'),
+              outputFile: any(named: 'outputFile'),
+            ),
+          ).thenAnswer((invocation) {
+            final out = invocation.namedArguments[#outputFile] as File
+              ..createSync(recursive: true);
+            return out..writeAsStringSync('IMPORT-DILL-FROM-THIS-BUILD');
+          });
+          when(
+            () => routeBReleaseKernelBuilder.agreesWith(
+              compiler: any(named: 'compiler'),
+              importKernel: any(named: 'importKernel'),
+              aotKernel: any(named: 'aotKernel'),
+            ),
+          ).thenReturn(true);
         });
 
         test('requests patchable call sites', () async {
@@ -781,9 +861,119 @@ $body
         // Flutter revision, and fifteen engine hashes share this fork's one
         // pinned Flutter revision. So the release records it here, at the one
         // moment it is known to be true.
+        group('retention', () {
+          List<String> capturedBuildArgs() =>
+              verify(
+                    () => artifactBuilder.buildIpa(
+                      codesign: any(named: 'codesign'),
+                      flavor: any(named: 'flavor'),
+                      target: any(named: 'target'),
+                      args: captureAny(named: 'args'),
+                      base64PublicKey: any(named: 'base64PublicKey'),
+                      ddMaxBytes: any(named: 'ddMaxBytes'),
+                    ),
+                  ).captured.single
+                  as List<String>;
+
+          test('points the ONE real build at the generated interface', () async {
+            // A kernel PREPASS, not a second IPA build. The interface has to be
+            // generated from a kernel and the kernel comes from the build, so
+            // the circle is broken with a frontend-only compile — and its
+            // output must actually reach the build that ships.
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            verify(
+              () => routeBReleaseKernelBuilder.buildPrepass(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: any(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+              ),
+            ).called(1);
+            // ONE build. `capturedBuildArgs` verifies it exactly once, so a
+            // second full build would fail here rather than pass silently.
+            expect(
+              capturedBuildArgs(),
+              contains(
+                predicate<String>(
+                  (a) => a.startsWith(
+                    '--extra-frontend-options=--dynamic-interface=',
+                  ),
+                  'forwards the interface to frontend_server',
+                ),
+              ),
+            );
+          });
+
+          test('retains SDK members BY NAME, never a whole library', () async {
+            // A whole `dart:core` library item was measured at +310%. Named
+            // members cost +0.006-0.009%. The generator can still do the
+            // expensive thing via --sdk-libraries; a release must not.
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            final members =
+                verify(
+                      () => routeBReleaseKernelBuilder.generateDynamicInterface(
+                        compiler: any(named: 'compiler'),
+                        prepassKernel: any(named: 'prepassKernel'),
+                        outputFile: any(named: 'outputFile'),
+                        sdkMembers: captureAny(named: 'sdkMembers'),
+                      ),
+                    ).captured.single
+                    as List<String>;
+
+            expect(members, routeBRetainedSdkMembers);
+            expect(members, contains('dart:core#DateTime.now'));
+            expect(
+              members,
+              everyElement(predicate<String>((m) => m.contains('#'))),
+            );
+          });
+
+          test('reports the tax on every release', () async {
+            // Retention is release-time and every release pays it, so a
+            // widening cannot go unnoticed.
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            verify(
+              () => logger.info(
+                any(that: contains('named SDK members')),
+              ),
+            ).called(1);
+          });
+
+          test('builds anyway when retention cannot be declared', () async {
+            // The app is fine and installable; what is lost is the ability to
+            // patch it with a body that names a symbol. Refusing to publish
+            // would be the wrong trade.
+            when(
+              () => routeBReleaseKernelBuilder.buildPrepass(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: any(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+              ),
+            ).thenReturn(null);
+
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            expect(
+              capturedBuildArgs(),
+              isNot(
+                contains(
+                  predicate<String>(
+                    (a) => a.contains('--dynamic-interface='),
+                  ),
+                ),
+              ),
+            );
+          });
+        });
+
         group('route_b.json provenance', () {
           late Directory supplementDirectory;
-          late Directory cellDirectory;
 
           setUp(() {
             supplementDirectory = Directory.systemTemp.createTempSync(
@@ -799,47 +989,6 @@ $body
               () => shorebirdEnv.shorebirdEngineRevision,
             ).thenReturn('engine-abc');
             when(() => shorebirdEnv.flutterRevision).thenReturn('flutter-def');
-
-            // The release resolves the cell so the SECOND kernel is produced by
-            // the release engine's own frontend rather than by whatever this
-            // machine has.
-            cellDirectory = Directory.systemTemp.createTempSync('cell');
-            File(p.join(cellDirectory.path, '.dart_tool'))
-              ..createSync(recursive: true);
-            when(
-              () => routeBCompilerResolver.resolve(
-                engineRevision: any(named: 'engineRevision'),
-              ),
-            ).thenAnswer(
-              (_) async => RouteBCompiler(
-                runtime: File(p.join(cellDirectory.path, 'dartaotruntime')),
-                compilerSnapshot: File(
-                  p.join(cellDirectory.path, 'dart2bytecode.aot'),
-                ),
-                platformDill: File(
-                  p.join(cellDirectory.path, 'vm_platform.dill'),
-                ),
-                analyzer: File(
-                  p.join(cellDirectory.path, 'route_b_analyze.aot'),
-                ),
-                frontend: File(
-                  p.join(cellDirectory.path, 'route_b_gen_kernel.aot'),
-                ),
-                flutterPlatformDill: File(
-                  p.join(cellDirectory.path, 'flutter_platform_strong.dill'),
-                ),
-                provenance: 'engine revision  : engine-abc',
-              ),
-            );
-            // A project root with a package config, which the frontend needs.
-            File(
-                p.join(projectRoot.path, '.dart_tool', 'package_config.json'),
-              )
-              ..createSync(recursive: true)
-              ..writeAsStringSync('{"configVersion":2,"packages":[]}');
-            when(
-              () => shorebirdEnv.getShorebirdProjectRoot(),
-            ).thenReturn(projectRoot);
 
             // The frontend writes the import kernel; stubbed to the same
             // contract, since running a real gen_kernel here would test the

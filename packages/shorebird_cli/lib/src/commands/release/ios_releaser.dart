@@ -109,6 +109,19 @@ If left checked, Xcode will rewrite the build number in the uploaded IPA, so the
     await addObfuscationMapArgs(buildArgs);
     final wantsPatchableCalls = _addPatchableCallArgs(buildArgs);
 
+    // Route B retention, declared BEFORE the build that must honour it.
+    //
+    // A dynamic interface is generated from a kernel, and the kernel a release
+    // ships comes from this very build — so the circle is broken with a
+    // kernel-only PREPASS rather than by building the whole IPA twice and
+    // throwing one away. The extra cost is one frontend compilation.
+    final routeBCompiler = isRouteBEngine(_routeBEngineBinary)
+        ? await _resolveReleaseTooling()
+        : null;
+    if (routeBCompiler != null) {
+      _declareRetention(routeBCompiler, buildArgs);
+    }
+
     final buildResult = await artifactBuilder.buildIpa(
       codesign: codesign,
       flavor: flavor,
@@ -142,8 +155,9 @@ If left checked, Xcode will rewrite the build number in the uploaded IPA, so the
     // Independent of who asked for the flag: a release built by a Route B
     // engine records which engine that was, whether the flag came from us or
     // from the caller's own --extra-gen-snapshot-options.
-    if (isRouteBEngine(_routeBEngineBinary)) {
-      await _recordRouteBProvenance(
+    if (routeBCompiler != null) {
+      _recordRouteBProvenance(
+        routeBCompiler,
         appDirectory,
         buildResult.kernelFile,
         buildArgs,
@@ -197,11 +211,12 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
   ///
   /// See `route_b_provenance.dart` for why the supplement rather than a field
   /// on the release.
-  Future<void> _recordRouteBProvenance(
+  void _recordRouteBProvenance(
+    RouteBCompiler compiler,
     Directory appDirectory,
     File releaseKernel,
     List<String> buildArgs,
-  ) async {
+  ) {
     final supplement = artifactManager.getReleaseSupplementDirectory(
       platformSubdir: supplementPlatformSubdir,
       create: true,
@@ -235,7 +250,8 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
       // The second kernel, produced by the RELEASE ENGINE's own frontend rather
       // than by whatever this machine has. Both release kernels then come from
       // one lineage as a matter of structure, not of who ran the build.
-      await _captureImportKernel(
+      _captureImportKernel(
+        compiler: compiler,
         supplement: supplement,
         releaseKernel: releaseKernel,
         buildArgs: buildArgs,
@@ -273,24 +289,13 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
   /// fine and installable, and refusing to ship it because a patch-time input
   /// could not be prepared would be the wrong trade. The patch side reports the
   /// absence precisely.
-  Future<void> _captureImportKernel({
+  void _captureImportKernel({
+    required RouteBCompiler compiler,
     required Directory supplement,
     required File releaseKernel,
     required List<String> buildArgs,
     required Map<String, String> artifacts,
-  }) async {
-    final RouteBCompiler compiler;
-    try {
-      compiler = await routeBCompilerResolver.resolve(
-        engineRevision: shorebirdEnv.shorebirdEngineRevision,
-      );
-    } on Exception catch (error) {
-      logger.warn(
-        '''Could not resolve this engine's Route B tooling ($error); patches for this release will be refused.''',
-      );
-      return;
-    }
-
+  }) {
     final builder = routeBReleaseKernelBuilder;
     final importKernel = builder.build(
       compiler: compiler,
@@ -321,6 +326,67 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
       supplement,
       importKernel,
       as: routeBReleaseImportKernelFileName,
+    );
+  }
+
+  /// The compiler cell belonging to the engine this release is being built
+  /// with, or null if it cannot be resolved.
+  ///
+  /// Resolved ONCE and threaded, so the retention interface, the import kernel
+  /// and the patch-time compiler are provably one lineage rather than three
+  /// lookups that happen to agree.
+  Future<RouteBCompiler?> _resolveReleaseTooling() async {
+    try {
+      return await routeBCompilerResolver.resolve(
+        engineRevision: shorebirdEnv.shorebirdEngineRevision,
+      );
+    } on Exception catch (error) {
+      logger.warn(
+        '''Could not resolve this engine's Route B tooling ($error); this release will not be patchable.''',
+      );
+      return null;
+    }
+  }
+
+  /// Run the kernel prepass, generate the retention interface, and point the
+  /// real build at it.
+  ///
+  /// Every failure degrades to "this release retains nothing extra" with a
+  /// named reason. The app is fine and installable either way; what is lost is
+  /// the ability to patch it with a body that names a symbol.
+  void _declareRetention(RouteBCompiler compiler, List<String> buildArgs) {
+    final work = Directory(
+      p.join(shorebirdEnv.buildDirectory.path, 'route_b'),
+    );
+    final builder = routeBReleaseKernelBuilder;
+
+    final prepass = builder.buildPrepass(
+      compiler: compiler,
+      projectRoot: projectRoot,
+      entrypoint: target ?? p.join('lib', 'main.dart'),
+      buildArgs: buildArgs,
+      outputFile: File(p.join(work.path, 'prepass.dill')),
+    );
+    if (prepass == null) return;
+
+    final interface = builder.generateDynamicInterface(
+      compiler: compiler,
+      prepassKernel: prepass,
+      outputFile: File(p.join(work.path, 'dynamic_interface.yaml')),
+    );
+    if (interface == null) return;
+
+    // Reaches the release's kernel through Flutter's own pass-through, so the
+    // ONE real build honours it. frontend_server owns the flag.
+    buildArgs.add(
+      '--extra-frontend-options=--dynamic-interface=${interface.path}',
+    );
+
+    // The tax, every release, so a widening cannot go unnoticed. Named SDK
+    // retention measured at +0.006-0.009 % on the A0 probe; a whole `dart:core`
+    // library item measured at +310 %, which is why this list is names.
+    logger.info(
+      '''Route B retention: ${routeBRetainedSdkMembers.length} named SDK members, interface ${interface.lengthSync()} bytes.''',
     );
   }
 

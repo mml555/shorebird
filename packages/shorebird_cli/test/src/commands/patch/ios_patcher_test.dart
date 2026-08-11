@@ -151,6 +151,7 @@ void main() {
           platformDill: _nowhere,
           analyzer: _nowhere,
           frontend: _nowhere,
+          interfaceGenerator: _nowhere,
           flutterPlatformDill: _nowhere,
           provenance: '',
         ),
@@ -1308,6 +1309,9 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
               analyzer: File(p.join(flutterDir.path, 'route_b_analyze.aot')),
               frontend: File(
                 p.join(flutterDir.path, 'route_b_gen_kernel.aot'),
+              ),
+              interfaceGenerator: File(
+                p.join(flutterDir.path, 'route_b_gen_dynamic_interface.aot'),
               ),
               flutterPlatformDill: File(
                 p.join(flutterDir.path, 'flutter_platform_strong.dill'),

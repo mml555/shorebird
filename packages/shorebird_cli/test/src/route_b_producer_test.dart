@@ -28,6 +28,9 @@ void main() {
       platformDill: File(p.join(cell.path, 'vm_platform.dill')),
       analyzer: File(p.join(cell.path, 'route_b_analyze.aot')),
       frontend: File(p.join(cell.path, 'route_b_gen_kernel.aot')),
+      interfaceGenerator: File(
+        p.join(cell.path, 'route_b_gen_dynamic_interface.aot'),
+      ),
       flutterPlatformDill: File(
         p.join(cell.path, 'flutter_platform_strong.dill'),
       ),

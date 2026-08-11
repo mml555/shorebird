@@ -51,6 +51,28 @@ RouteBReleaseKernelBuilder get routeBReleaseKernelBuilder =>
 typedef RouteBKernelRunner =
     ProcessResult Function(String executable, List<String> arguments);
 
+/// The SDK members a release retains by NAME, so a future patch may call them.
+///
+/// Curated and small, on purpose. Probe A0 measured a named member at
+/// +0.006-0.009 % of the snapshot; a whole `dart:core` library item was
+/// measured at **+310 %**, a four-fold snapshot, because it keeps every public
+/// member of every public class and AOT can no longer tree-shake any of them.
+/// That option stays reachable through the generator's `--sdk-libraries` for
+/// debugging and is never product behaviour.
+///
+/// This list is therefore a BUDGET, not a wish. Widen it from evidence about
+/// what real patches call — every release pays for every name here, forever,
+/// and the release reports the tax so a widening cannot go unnoticed.
+const routeBRetainedSdkMembers = <String>[
+  // Spike B's canonical failure: the first replacement body ever written died
+  // on `print` (bytecode_reader.cc:1172).
+  'dart:core#print',
+  // Probe A0's shape, and the one the device gate actually needed.
+  'dart:core#DateTime.now',
+  'dart:core#DateTime.get:millisecondsSinceEpoch',
+  'dart:core#identical',
+];
+
 /// Build options that change kernel semantics and cannot be forwarded to
 /// `gen_kernel` faithfully.
 ///
@@ -100,6 +122,25 @@ class RouteBReleaseKernelBuilder {
     required List<String> buildArgs,
     required File outputFile,
     RouteBKernelRunner run = Process.runSync,
+  }) => _compile(
+    compiler: compiler,
+    projectRoot: projectRoot,
+    entrypoint: entrypoint,
+    buildArgs: buildArgs,
+    outputFile: outputFile,
+    // The only intentional difference from the release's own compilation.
+    modeArgs: const ['--no-aot', '--no-link-platform'],
+    run: run,
+  );
+
+  File? _compile({
+    required RouteBCompiler compiler,
+    required Directory projectRoot,
+    required String entrypoint,
+    required List<String> buildArgs,
+    required File outputFile,
+    required List<String> modeArgs,
+    required RouteBKernelRunner run,
   }) {
     final extraArgs = forwardedArgs(buildArgs);
     if (extraArgs == null) {
@@ -153,9 +194,7 @@ class RouteBReleaseKernelBuilder {
       compiler.flutterPlatformDill.path,
       '--target',
       'flutter',
-      // The only intentional difference from the release's own compilation.
-      '--no-aot',
-      '--no-link-platform',
+      ...modeArgs,
       '--packages',
       packageConfig.path,
       ...registrantArgs,
@@ -179,6 +218,67 @@ ${result.stderr}''',
       return null;
     }
 
+    return outputFile;
+  }
+
+  /// Compile the release's own AOT kernel, WITHOUT building the app.
+  ///
+  /// The dynamic interface has to be generated from a kernel, and the kernel a
+  /// release ships is produced by `flutter build ipa` — which is the circle.
+  /// This breaks it with a kernel-only prepass rather than by building the
+  /// whole IPA twice and discarding one: the extra cost is a frontend
+  /// compilation, not an Xcode archive.
+  File? buildPrepass({
+    required RouteBCompiler compiler,
+    required Directory projectRoot,
+    required String entrypoint,
+    required List<String> buildArgs,
+    required File outputFile,
+    RouteBKernelRunner run = Process.runSync,
+  }) => _compile(
+    compiler: compiler,
+    projectRoot: projectRoot,
+    entrypoint: entrypoint,
+    buildArgs: buildArgs,
+    outputFile: outputFile,
+    // --aot, because the interface should describe what a RELEASE contains.
+    // A non-AOT kernel lists members AOT would tree-shake, and retaining those
+    // would pay for symbols the release never had.
+    modeArgs: const ['--aot'],
+    run: run,
+  );
+
+  /// Generate the dynamic interface a release declares its retention with.
+  ///
+  /// Returns the file, or null with a warning. Never fatal: a release that
+  /// cannot declare retention is still a good release, it simply cannot be
+  /// patched with a body that names anything.
+  File? generateDynamicInterface({
+    required RouteBCompiler compiler,
+    required File prepassKernel,
+    required File outputFile,
+    List<String> sdkMembers = routeBRetainedSdkMembers,
+    RouteBKernelRunner run = Process.runSync,
+  }) {
+    outputFile.parent.createSync(recursive: true);
+    final result = run(compiler.runtime.path, [
+      compiler.interfaceGenerator.path,
+      '--dill',
+      prepassKernel.path,
+      '--out',
+      outputFile.path,
+      // BY NAME. The generator also accepts --sdk-libraries, which retains a
+      // whole library; that was measured at +310% and is not product behaviour.
+      '--sdk-members',
+      sdkMembers.join(','),
+    ]);
+    if (result.exitCode != 0 || !outputFile.existsSync()) {
+      logger.warn(
+        '''Could not generate this release's retention interface (exit ${result.exitCode}); patches for it will only be able to replace bodies that name nothing.
+${result.stderr}''',
+      );
+      return null;
+    }
     return outputFile;
   }
 

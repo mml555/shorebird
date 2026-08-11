@@ -231,9 +231,11 @@ abstract class CachedArtifact {
         // host is unreachable (an air-gapped install never can reach it). No
         // stamp file is written, so a later run retries the download.
         updateProgress.fail();
-        logger.warn('''
+        logger.warn(
+          '''
 Failed to download optional artifact $fileName from $url: $error
-Continuing without it; commands that need $fileName will not work until it can be downloaded.''');
+Continuing without it; commands that need $fileName will not work until it can be downloaded.''',
+        );
         return;
       }
       throw CacheUpdateFailure('''

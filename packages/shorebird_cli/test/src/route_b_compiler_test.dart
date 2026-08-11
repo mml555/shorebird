@@ -28,6 +28,8 @@ class _Bundle {
       'route_b_analyze.aot': contents['route_b_analyze.aot'] ?? 'ANALYZER',
       'route_b_gen_kernel.aot':
           contents['route_b_gen_kernel.aot'] ?? 'FRONTEND',
+      'route_b_gen_dynamic_interface.aot':
+          contents['route_b_gen_dynamic_interface.aot'] ?? 'INTERFACE-GEN',
       'flutter_platform_strong.dill':
           contents['flutter_platform_strong.dill'] ?? 'FLUTTER-PLATFORM',
     };

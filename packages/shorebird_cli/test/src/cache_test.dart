@@ -551,27 +551,30 @@ void main() {
           expect(requests, equals(expected));
         });
 
-        test('fetches bundletool from SHOREBIRD_BUNDLETOOL_URL when set', () async {
-          const mirrorUrl = 'https://mirror.example.com/bundletool.jar';
-          when(
-            () => platform.environment,
-          ).thenReturn({'SHOREBIRD_BUNDLETOOL_URL': mirrorUrl});
+        test(
+          'fetches bundletool from SHOREBIRD_BUNDLETOOL_URL when set',
+          () async {
+            const mirrorUrl = 'https://mirror.example.com/bundletool.jar';
+            when(
+              () => platform.environment,
+            ).thenReturn({'SHOREBIRD_BUNDLETOOL_URL': mirrorUrl});
 
-          await expectLater(
-            runWithOverrides(() => cache.updateAll(Duration.zero)),
-            completes,
-          );
+            await expectLater(
+              runWithOverrides(() => cache.updateAll(Duration.zero)),
+              completes,
+            );
 
-          final requests = verify(
-            () => httpClient.send(captureAny()),
-          ).captured.cast<http.BaseRequest>().map((r) => r.url).toList();
+            final requests = verify(
+              () => httpClient.send(captureAny()),
+            ).captured.cast<http.BaseRequest>().map((r) => r.url).toList();
 
-          expect(requests, contains(Uri.parse(mirrorUrl)));
-          expect(
-            requests.map((u) => u.host),
-            isNot(contains('github.com')),
-          );
-        });
+            expect(requests, contains(Uri.parse(mirrorUrl)));
+            expect(
+              requests.map((u) => u.host),
+              isNot(contains('github.com')),
+            );
+          },
+        );
 
         test('pulls correct artifact for Windows', () async {
           setMockPlatform(Platform.windows);

@@ -73,7 +73,8 @@ PROV="$W/PROVENANCE.txt"
 # 2. All three files present. A partial bundle is the failure mode the single
 #    artifact exists to prevent, so check it explicitly rather than assuming.
 for f in dartaotruntime dart2bytecode.aot vm_platform.dill route_b_analyze.aot \
-         route_b_gen_kernel.aot flutter_platform_strong.dill; do
+         route_b_gen_kernel.aot flutter_platform_strong.dill \
+         route_b_gen_dynamic_interface.aot; do
   [[ -f "$W/$f" ]] && ok "contains $f" || fail "missing $f"
 done
 
@@ -82,7 +83,8 @@ done
 #    drifted from its own record cannot be reasoned about later.
 recorded() { sed -nE "s/^$1[[:space:]]*:[[:space:]]*([0-9a-f]{64}).*/\1/p" "$PROV" | head -1; }
 for f in dart2bytecode.aot dartaotruntime vm_platform.dill route_b_analyze.aot \
-         route_b_gen_kernel.aot flutter_platform_strong.dill; do
+         route_b_gen_kernel.aot flutter_platform_strong.dill \
+         route_b_gen_dynamic_interface.aot; do
   [[ -f "$W/$f" ]] || continue
   want=$(recorded "$f")
   got=$(shasum -a 256 "$W/$f" | cut -d' ' -f1)

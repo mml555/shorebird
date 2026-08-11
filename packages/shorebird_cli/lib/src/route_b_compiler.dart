@@ -61,6 +61,7 @@ class RouteBCompiler {
     required this.platformDill,
     required this.analyzer,
     required this.frontend,
+    required this.interfaceGenerator,
     required this.flutterPlatformDill,
     required this.provenance,
   });
@@ -80,6 +81,10 @@ class RouteBCompiler {
 
   /// `gen_kernel`, run by [runtime]. The release's own frontend.
   final File frontend;
+
+  /// The dynamic-interface generator, run by [runtime]. Decides what a release
+  /// retains, and therefore what a future patch can name.
+  final File interfaceGenerator;
 
   /// The Flutter platform dill a real app is compiled against.
   ///
@@ -127,6 +132,9 @@ const _requiredFiles = [
   // harness compiles --target vm toys against; a real app is --target flutter,
   // and binding it against the VM platform fails at load time, on device.
   'flutter_platform_strong.dill',
+  // Retention is declared at release time, and must come from the same lineage
+  // as the compiler that will resolve those names later.
+  'route_b_gen_dynamic_interface.aot',
 ];
 
 /// Resolve producer tooling for [engineHash], or throw.
@@ -259,6 +267,9 @@ the release or with your Dart changes.''',
     platformDill: File(p.join(cell.path, 'vm_platform.dill')),
     analyzer: File(p.join(cell.path, 'route_b_analyze.aot')),
     frontend: File(p.join(cell.path, 'route_b_gen_kernel.aot')),
+    interfaceGenerator: File(
+      p.join(cell.path, 'route_b_gen_dynamic_interface.aot'),
+    ),
     flutterPlatformDill: File(
       p.join(cell.path, 'flutter_platform_strong.dill'),
     ),

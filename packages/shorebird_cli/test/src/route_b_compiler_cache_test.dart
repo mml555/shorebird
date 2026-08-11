@@ -103,12 +103,14 @@ void main() {
       const dill = 'dill-bytes';
       const analyzer = 'analyzer-bytes';
       const frontend = 'frontend-bytes';
+      const interfaceGen = 'interface-generator-bytes';
       const flutterPlatform = 'flutter-platform-bytes';
       add('dartaotruntime', runtime.codeUnits);
       add('dart2bytecode.aot', snapshot.codeUnits);
       add('vm_platform.dill', dill.codeUnits);
       add('route_b_analyze.aot', analyzer.codeUnits);
       add('route_b_gen_kernel.aot', frontend.codeUnits);
+      add('route_b_gen_dynamic_interface.aot', interfaceGen.codeUnits);
       add('flutter_platform_strong.dill', flutterPlatform.codeUnits);
       // sha256 of the three payloads above, so the resolver's hash check
       // passes on a bundle that is genuinely intact.
@@ -123,6 +125,7 @@ dartaotruntime    : ${hash(runtime)}
 vm_platform.dill  : ${hash(dill)}
 route_b_analyze.aot : ${hash(analyzer)}
 route_b_gen_kernel.aot : ${hash(frontend)}
+route_b_gen_dynamic_interface.aot : ${hash(interfaceGen)}
 flutter_platform_strong.dill : ${hash(flutterPlatform)}
 '''
             .codeUnits,
