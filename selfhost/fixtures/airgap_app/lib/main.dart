@@ -76,18 +76,30 @@ class RouteBThing {
   /// library-scoped and belongs to rung D, where it would contaminate this.
   String label = 'NEW-C1';
 
-  /// The first lowering surface: a bare instance getter. `this.label` is the
-  /// same Kernel node and needs no separate fixture — but a method nothing
-  /// calls is tree-shaken out of the --aot kernel before any tool sees it
-  /// (rung D found that the hard way), so a second form has to be CALLED to
-  /// be studied.
+  /// The call form's target. Routed through DateTime.now() so it is not
+  /// constant-folded into whoever calls it.
   ///
-  /// PATCH FORM. Nobody writes `self` here — this is an ordinary bare instance
-  /// getter, and the producer lowers it to
-  /// `String value(RouteBThing self) => self.label;`, which is the one shape
-  /// the entry-point contract accepts.
+  /// The RELEASE form of `value()` names it in a branch that never runs, which
+  /// is how it is retained: retention is declared from a kernel prepass, and a
+  /// method nothing calls is tree-shaken out of that kernel before the
+  /// interface is generated (rung D found this the hard way) — so the release
+  /// would ship with nothing for `self.helper()` to reach.
   @pragma('vm:never-inline')
-  String value() => label;
+  String helper() =>
+      DateTime.now().millisecondsSinceEpoch >= 0 ? 'NEW-C2' : 'X';
+
+  /// The lowering surface. Two forms have been through the whole path:
+  ///
+  ///   String value() => label;      ->  value(RouteBThing self) => self.label
+  ///   String value() => helper();   ->  value(RouteBThing self) => self.helper()
+  ///
+  /// `this.label` and `this.helper()` are the same Kernel nodes as the bare
+  /// spellings and differ only in the lexical edit; the host probe covers them.
+  ///
+  /// PATCH FORM below; the release form is
+  /// `DateTime.now().millisecondsSinceEpoch >= 0 ? 'OLD' : helper()`.
+  @pragma('vm:never-inline')
+  String value() => helper();
 }
 
 @pragma('vm:never-inline')

@@ -94,7 +94,31 @@ written, since the synthesized `ThisExpression` carries the access's own offset.
 Anything else — a call, a setter, `super`, a private member, unusual spacing
 around `this` — is refused, not guessed at.
 
-Only the getter forms are lowered so far. `foo()` is next.
+### The call form — CLOSED ON DEVICE 2026-08-11
+
+Engine `ebcf143f`, release `20.0.0+1`, same phone. `String value() => helper();`
+shipped as `String value(RouteBThing self) => self.helper();`, and the
+interpreted replacement dispatched into the release's own AOT `helper()`:
+`OLD` -> **`NEW-C2`** -> relaunch -> rollback `OLD`. Evidence `evidence/call_*`.
+
+Kernel puts an invocation's offset on the identifier exactly as it does a read,
+so the lexical edit did not change. What changed is which invocations the
+analyzer vouches for: public, zero-argument, receiver-bound.
+
+**Arguments are refused, and Kernel cannot be asked.** `gen_kernel --aot`
+eliminates a parameter whose argument is always the same constant, so in the
+release kernel `withArgs('x')` genuinely reads as a zero-argument call and
+`withArgs` itself declares no parameters — the `--no-aot` kernel of the same
+source says one. Measured, not assumed. The analyzer reads the AOT kernel by
+design, because that is the kernel that fed the release, so the source answers
+this one: whether a call is WRITTEN with arguments is syntax, the same division
+that already lets the source decide `this.` versus bare.
+
+Supported so far: `label`, `this.label`, `helper()`, `this.helper()`. Refused:
+arguments, cascades, `super`, setters, private members, and any access kind the
+producer does not recognise. `probes/lowering_matrix.sh` pins all of it against
+real Kernel, 13/13; `probes/lowered_forms.sh` runs all four spellings end to end
+on the host, 8/8.
 
 ### Seam 6 — activation, and what it closed
 
