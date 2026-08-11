@@ -93,10 +93,12 @@ void main() {
     });
 
     /// A zip carrying whatever the resolver is meant to validate.
-    List<int> bundleZip({String? engineInProvenance}) {
+    List<int> bundleZip({String? engineInProvenance, String? omit}) {
       final archive = Archive();
-      void add(String name, List<int> bytes) =>
-          archive.addFile(ArchiveFile(name, bytes.length, bytes));
+      void add(String name, List<int> bytes) {
+        if (name == omit) return;
+        archive.addFile(ArchiveFile(name, bytes.length, bytes));
+      }
 
       const runtime = 'runtime-bytes';
       const snapshot = 'snapshot-bytes';
