@@ -259,9 +259,13 @@ the source edit and the device: OLD -> NEW -> relaunch NEW -> rollback ->
 pristine OLD. Detail and screenshots in
 [`engine/route_b/README.md`](engine/route_b/README.md).
 
-**Say it exactly:** `shorebird release` and `shorebird patch` work end to end on
-iOS without Shorebird's private AOT linker, **for a replacement body that
-references nothing outside itself**.
+**Say it exactly:**
+
+> Current proven producer surface: a single-function replacement whose body
+> requires no external symbol resolution.
+
+The ordinary defects (1 and 2 below) are now regression tests. Finding 3 is not
+a defect — it is the next feature, and `ROUTE_B.md` carries the ladder.
 
 Three defects only hardware could find:
 

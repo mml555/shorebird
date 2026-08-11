@@ -16,25 +16,50 @@ Background lives in [`IOS_CODE_PUSH.md`](IOS_CODE_PUSH.md) (evidence chain) and
 executes). [`HANDOFF.md`](HANDOFF.md) is the working log — useful, long, and
 not required reading before you start.
 
-## The capability statement, as of 2026-08-10
+## The capability statement, as of 2026-08-11
 
-> **Android Dart code push and iOS asset push are complete and independent. The
-> ENTIRE iOS Dart code-push RUNTIME is now proven on physical hardware: control
-> plane -> updater download -> inflate -> install -> lifecycle promotion ->
-> native pre-main activation -> patched Dart running -> rollback to pristine
-> AOT, with no Dart-side cooperation, at +4.5 % size and +0.3 % median frame
-> time with zero added jank. What is NOT built is the PRODUCER: `shorebird
-> patch` cannot emit an iOS code patch, so the container that proved all of the
-> above was packed by hand.**
+> **Automatic iOS Dart code push works end to end without Shorebird's private
+> AOT linker.** `shorebird release ios` -> edit one function -> `shorebird patch
+> ios` -> control plane -> updater download -> inflate -> install -> lifecycle
+> promotion -> native pre-main activation -> patched Dart running -> relaunch
+> still patched -> rollback to pristine AOT. Nothing manual in between, at
+> +4.5 % size and +0.3 % median frame time with zero added jank.
+>
+> **Current proven producer surface: a single-function replacement whose body
+> requires no external symbol resolution.**
 
-The device gate passed on 2026-08-10, and seam 6 the same day. The question this
-project existed to answer -- can an AOT call site on iOS be redirected to
-interpreted bytecode, and the original restored -- is answered yes, on hardware,
-from inside the engine, before any user Dart runs.
+That second line is the whole boundary, and it is narrower than it sounds. A
+body may reference **nothing outside itself** — not another app function, and
+not `dart:core`. `=> 'NEW'` works. `=> DateTime.now().toString()` does not: it
+fails in the bytecode loader, *after* correct delivery, identity matching and
+activation.
 
-What is left is no longer research. It is delivery integration (4b). Do not let
-"the mechanism works" be reported as "code push works"; those are now genuinely
-different statements rather than degrees of the same one.
+Read that as the next FEATURE, not as a regression in the product path. The
+producer, the container, the updater, release identity, performance and rollback
+are all proven; what is missing is name binding for symbols the replacement
+references. See "the widening ladder" below.
+
+Device gate: 2026-08-11, iPhone 7 / iOS 15.8.8, release `10.0.0+1`, patch 2 —
+OLD -> NEW -> relaunch NEW -> rollback -> pristine OLD, with the container's
+stamp equal to the installed App's `LC_UUID`. Evidence in
+[`engine/route_b/evidence/`](engine/route_b/evidence/).
+
+### The widening ladder
+
+One question per rung, each on device, each through the ordinary `shorebird
+patch` path: **can this replacement body bind and execute?**
+
+| rung | probe | status |
+|---|---|---|
+| **A0** | a minimal named `dart:core` reference — `=> DateTime.now().toString()` | **FAILS.** `bytecode_reader.cc:1172`, *"Unable to find function DateTime.now"*. Primarily `gen_dynamic_interface.dart` / symbol-retention work |
+| **A** | a top-level replacement calling another public app function | untested |
+| **B** | a public instance method, no field access — the receiver/arg0 question | untested, must be answered ON DEVICE |
+| **C** | an instance method using `this` / fields | untested |
+| **D** | private / library-scoped references | untested; hardest, because `_foo`'s identity is tied to the original library rather than to its spelling |
+
+**Do not reopen delivery, the container, the updater, release identity,
+performance or rollback while climbing this.** Those layers are proven, and a
+widening probe that starts editing them has misdiagnosed its own failure.
 
 ### Seam 6 — activation, and what it closed
 

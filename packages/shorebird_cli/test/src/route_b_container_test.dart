@@ -130,23 +130,31 @@ void main() {
     });
 
     group('readMachOBuildId', () {
-      test('reads the LC_UUID of a real shipped App binary', () {
-        // The release identity the container is stamped with. Checked against
-        // `dwarfdump --uuid`, which is what the host tooling used.
+      test('agrees with dwarfdump on a real shipped App binary', () {
+        // The release identity the container is stamped with, checked against
+        // the tool the host pipeline used. Compared to `dwarfdump` rather than
+        // to a constant: the fixture's UUID legitimately changes every time it
+        // is rebuilt, and pinning it makes an ordinary release look like a
+        // regression here.
         final app = File(
           '../../selfhost/fixtures/airgap_app/build/ios/archive/'
           'Runner.xcarchive/Products/Applications/Runner.app/Frameworks/'
           'App.framework/App',
         );
-        if (!app.existsSync()) {
-          markTestSkipped('no built fixture App binary');
+        if (!app.existsSync() || !Platform.isMacOS) {
+          markTestSkipped('no built fixture App binary on a macOS host');
           return;
         }
 
-        expect(
-          readMachOBuildId(app.readAsBytesSync()),
-          '3527f0133aaf33819a49d9953973f050',
-        );
+        final dwarfdump = Process.runSync('dwarfdump', ['--uuid', app.path]);
+        final expected = RegExp(r'UUID: ([0-9A-Fa-f-]+)')
+            .firstMatch(dwarfdump.stdout as String)
+            ?.group(1)
+            ?.replaceAll('-', '')
+            .toLowerCase();
+        expect(expected, isNotNull, reason: 'dwarfdump reported no UUID');
+
+        expect(readMachOBuildId(app.readAsBytesSync()), expected);
       });
 
       test('returns null for a file that is not Mach-O', () {

@@ -1441,9 +1441,11 @@ Route B branch reuses the code rather than special-casing it.
 
 #### What this supports, stated narrowly
 
-**The complete automatic path works for the currently supported replacement
-shape**: a self-contained declaration. Not "arbitrary Dart functions can be
-patched."
+> Current proven producer surface: a single-function replacement whose body
+> requires no external symbol resolution.
+
+Not "arbitrary Dart functions can be patched", and not merely "a self-contained
+declaration" — see Probe A0, where a `dart:core` reference fails.
 
 Three failure kinds stay distinct all the way out, which is why the ordering is
 coverage → compile → pack:
@@ -1473,9 +1475,13 @@ between the source edit and the device.**
 
 Screenshots: `evidence/auto_1_release_OLD.png` … `auto_4_rollback_OLD.png`.
 
-**The claim, stated exactly:** `shorebird release` and `shorebird patch` work end
-to end on iOS without Shorebird's private AOT linker, **for a replacement body
-that references nothing outside itself**. Not "arbitrary Dart functions".
+**The claim, stated exactly:**
+
+> Current proven producer surface: a single-function replacement whose body
+> requires no external symbol resolution.
+
+Not "arbitrary Dart functions", and not "a self-contained declaration" — a body
+referencing `dart:core` is neither of those things and does not work.
 
 #### What the gate found that nothing else could
 

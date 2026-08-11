@@ -92,11 +92,16 @@ NEW, a relaunch is still NEW from persisted state, and a rollback returns the
 app to pristine AOT. The app contains no attach path of its own — the fixture
 cannot patch itself.
 
-What is missing is the producer: `shorebird patch` cannot emit an iOS code
-patch. It now resolves and validates the compiler cell belonging to the release's
-own engine, and then refuses — the compile, coverage and pack steps are not
-written. The container that proved everything above was **packed by hand**.
-Everything downstream of those bytes is proven; nothing upstream of them is.
+The producer now exists and is device-proven (2026-08-11): `shorebird release
+ios` -> edit -> `shorebird patch ios` -> OLD -> NEW -> relaunch NEW -> rollback
+-> pristine OLD, nothing manual in between.
+
+> Current proven producer surface: a single-function replacement whose body
+> requires no external symbol resolution.
+
+A body referencing another app symbol — or even `dart:core` — does not yet bind.
+That is the next feature, not a gap in the product path; see the widening ladder
+in [`ROUTE_B.md`](ROUTE_B.md).
 
 Also true on iOS today, artifact-independent: a release built with our own
 engine and compiler, the app reaching first frame on a physical device, and an
