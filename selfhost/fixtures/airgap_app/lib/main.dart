@@ -72,9 +72,13 @@ String routeBHelper() =>
 /// where the real call carries an implicit receiver? No fields, no helper
 /// calls, no arguments, no private names. Rung C is the receiver being used.
 class RouteBThing {
+  /// Rung C: PUBLIC receiver state. Public on purpose — private identity is
+  /// library-scoped and belongs to rung D, where it would contaminate this.
+  String label = 'NEW-C1';
+
   @pragma('vm:never-inline')
   String value() =>
-      DateTime.now().millisecondsSinceEpoch >= 0 ? 'NEW-B' : 'X';
+      DateTime.now().millisecondsSinceEpoch >= 0 ? 'OLD' : 'X';
 }
 
 @pragma('vm:never-inline')

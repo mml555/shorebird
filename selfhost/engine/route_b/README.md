@@ -1557,7 +1557,7 @@ So the widening ladder starts one rung lower than planned:
 | **A0 · dart:core reference** | can a body call a named core symbol? | **CLOSED ON DEVICE 2026-08-11** — see below |
 | A · app-symbol reference | can it call another app function? | **CLOSED ON DEVICE 2026-08-11** |
 | B · instance method, receiver unused | can a top-level replacement attach to `Foo.value`? | **CLOSED ON DEVICE 2026-08-11** |
-| C · `this` access | receiver/member addressing | **BLOCKED AT THE COMPILER 2026-08-11** |
+| C · `this` access | receiver/member addressing | **CLOSED ON DEVICE 2026-08-11** |
 | D · private references | `_foo` is library-scoped identity | **ANSWERED 2026-08-11 — two independent walls** |
 
 ## Probe A0 — ANSWERED on the host, 2026-08-11
@@ -1891,6 +1891,73 @@ is the workaround available today for a patch that needs a helper.
 
 So D's honest summary: **a patch can bring private code with it, and cannot call
 the app's own.**
+
+### Rung C — CLOSED ON DEVICE, 2026-08-11
+
+Engine `54fb8772…`, release `18.0.0+1`, iPhone 7. **One line of compiler
+change, and the receiver was already there.**
+
+```
+dyn-module:entry-point:  static + 0 args  ->  static + 0 or 1 positional args
+```
+
+`0004-dyn-module-entry-point-one-parameter.patch`, and nothing else: no receiver
+intrinsic, no VM change, no new Route B ABI. The experiment was whether the
+ordinary Dart calling convention already puts the receiver in argument 0 of a
+synthetic top-level replacement. It does.
+
+| stage | payload | device |
+|---|---|---|
+| baseline | — | `OLD` |
+| **C0** | `String value(RouteBThing self) => 'NEW-C0'` (self ignored) | **`NEW-C0`** · relaunch `NEW-C0` · rollback `OLD` |
+| **C1** | `String value(RouteBThing self) => self.label` | **`NEW-C1`** · relaunch `NEW-C1` · rollback `OLD` |
+
+Evidence `evidence/rungC_0…5`, payloads `evidence/rungC_C{0,1}_replacement.dart`.
+
+**The contract is pinned, not merely relaxed** — `probes/c_entrypoint_arity.sh`,
+6/6: 0 and 1 positional allowed; 2 positional, named, generic and instance
+methods all still refused, so this cannot drift into a general arity change.
+
+Both payloads were **hand-packed** (`probes/device_handpack.sh`) because the
+automatic producer slices declarations from app source and the app declares
+`String value()`, not `String value(RouteBThing self)`. Everything downstream of
+the replacement source was the product path: the release's own cell, container
+writer, one-byte-synthetic-base artifact, registration and promotion.
+
+#### Minting the new hash, and two rig facts it exposed
+
+The cell changed, so a new engine hash was minted even though the engine binary
+did not — the immutability rule. `54fb8772…` is content-addressed on the changed
+`dart2bytecode` snapshot, and republishing `591a9f8d` was correctly refused.
+
+Two things cost time and will again:
+
+- **`@must_be_local` 404s rather than falling back**, so a new hash needs its
+  own copy of the engine artifacts. `cp -Rc` (APFS clone) makes 205 MB free and
+  byte-identical, which the CDN then serves — verified by hash, and the served
+  `Flutter` still carries 2 `InterpretCall` symbols.
+- **Changing `engine.version` re-stamps the Flutter cache**, and the mirror
+  cannot fetch `ios/artifacts.zip` from upstream for ANY hash — stock included.
+  The cached artifacts were populated under identical fallback rules, so
+  stamping `engine.stamp`, `ios-sdk.stamp` and `engine-dart-sdk.stamp` to the
+  new hash is byte-equivalent to the download that cannot happen. The
+  `ios-release` engine was verified unchanged across the stamp.
+
+#### What C does NOT close
+
+The producer still cannot emit a one-parameter replacement from ordinary source.
+Turning
+
+```dart
+class RouteBThing { String value() => label; }
+```
+
+into `String value(RouteBThing self) => self.label` is implicit-`this` lowering,
+and it needs its own design: `this.x`, bare `x`, `foo()`, setters, cascades,
+closures capturing `this`, `super`, generics. **Do it at the kernel AST level**,
+where receiver and member identity are already explicit — the source-span slicer
+is right for the static cases and is where textual reconstruction stops being
+safe.
 
 ### The SDK set is a budget
 
