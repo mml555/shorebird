@@ -218,8 +218,12 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
       // old architecture as an accidental fallback, and it would fail somewhere
       // downstream with a message about a linker nobody asked for.
       final provenance = _readReleaseProvenance(releaseSupplementDir);
+      final releaseArtifacts = _verifyReleaseArtifacts(
+        releaseSupplementDir,
+        provenance,
+      );
       final compiler = await _resolveRouteBCompiler(provenance);
-      _requireRouteBProducer(compiler);
+      _requireRouteBProducer(compiler, releaseArtifacts);
     }
 
     // An assets-only patch carries no code, and the patch command drops the code
@@ -372,6 +376,44 @@ release with this engine and patch that instead. Nothing was uploaded.''',
     return provenance;
   }
 
+  /// Check every file the release says it uploaded, and hand back the ones
+  /// the producer needs.
+  ///
+  /// Hashes, not presence. The supplement is uploaded as a second network call
+  /// after the primary artifact, so a release can genuinely end up carrying a
+  /// truncated one — and the release kernel's whole value is that it is the
+  /// exact bytes this release compiled from, which a filename cannot establish.
+  ///
+  /// Filed as RELEASE-INCOMPATIBLE rather than tooling-invalid: the tooling is
+  /// fine, the release's own bytes are not, and no republish fixes that.
+  Map<String, File> _verifyReleaseArtifacts(
+    Directory supplement,
+    RouteBReleaseProvenance provenance,
+  ) {
+    if (!provenance.artifacts.containsKey(routeBReleaseKernelFileName)) {
+      logger.err(
+        '''
+This release did not upload the kernel it was compiled from, so there is nothing to compare this patch against.
+
+Releases cut by this version of Shorebird upload it automatically. Create a new
+release with this engine and patch that instead. Nothing was uploaded.''',
+      );
+      throw ProcessExit(ExitCode.software.code);
+    }
+
+    try {
+      return verifyRouteBReleaseArtifacts(supplement, provenance);
+    } on RouteBReleaseArtifactException catch (error) {
+      logger.err(
+        '''
+This release's uploaded artifacts do not match what it recorded: ${error.message}
+
+Nothing was uploaded. Create a new release and patch that instead.''',
+      );
+      throw ProcessExit(ExitCode.software.code);
+    }
+  }
+
   /// Resolve the compiler cell belonging to the release's engine.
   ///
   /// The two [RouteBCompilerProblem] cases are kept distinct all the way to the
@@ -431,12 +473,17 @@ it compiles, however, comes from the engine above.''',
   /// compilation, coverage analysis and packing that turn the resolved compiler
   /// into an SBRBPTCH container, so the message says exactly that rather than
   /// blaming tooling that is present and valid.
-  Never _requireRouteBProducer(RouteBCompiler compiler) {
+  Never _requireRouteBProducer(
+    RouteBCompiler compiler,
+    Map<String, File> releaseArtifacts,
+  ) {
     logger.err(
       '''
-The Route B compiler for this release resolved and validated, but this build of Shorebird cannot yet compile a patch with it.
+Everything this patch needs resolved and validated, but this build of Shorebird cannot yet compile it.
 
-  ${compiler.compilerSnapshot.path}
+  compiler       ${compiler.compilerSnapshot.path}
+  analyzer       ${compiler.analyzer.path}
+  release kernel ${releaseArtifacts[routeBReleaseKernelFileName]!.path}
 
 This is not a problem with your release, your Dart changes, or the tooling.
 Nothing was uploaded.''',

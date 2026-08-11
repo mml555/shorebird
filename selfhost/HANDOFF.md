@@ -103,6 +103,7 @@ release-construction first when something fails.
 | the cell is fetched by the RELEASE's engine hash, never the machine's | `route_b_compiler_cache.dart`, `ios_patcher.dart` |
 | coverage analysis is version-matched to the release's frontend, not the machine's | `route_b/coverage/analyze_coverage.dart` (ships in the cell) |
 | the ported analysis is differentially checked against the untouched host tools | `route_b/coverage/parity.sh` — 8/8 |
+| the release uploads the kernel it compiled, hashed, and the patch reads only that | `route_b_provenance.dart`, `ios_releaser.dart`, `ios_patcher.dart` |
 
 #### Three failure signatures that cost real time, now detected
 
@@ -164,23 +165,27 @@ analysis". Three things carry forward:
 
 #### Next session, in order
 
-1. **Upload the release's kernel.** Coverage needs the base-side dill and the
-   release publishes none; `ios_patcher` has only the patch-side `app.dill`.
-   Same mechanism as `route_b.json` — the iOS supplement. This is the single
-   thing blocking producer wiring.
-2. **Wire the producer** into `ios_patcher`: coverage, then compile the changed
-   kernel with the resolved cell, derive the LC_UUID build ID, pack SBRBPTCH,
-   hand it to the existing bidiff/zstd + upload path. No updater, VM, container
-   or activation changes.
-3. **The automatic device gate**: fresh fixture `routeBValue() -> OLD`,
-   `shorebird release ios`, change to `NEW`, `shorebird patch ios`, nothing
-   manual in between; device shows OLD -> NEW -> NEW after relaunch -> OLD after
-   rollback, corroborated by `.routeb`.
-4. **The sealed regression**, then product hardening. Do NOT widen
-   dispatch-table support first — 5/6 coverage works and the current form costs
-   ~3 % of Dart build-phase CPU. Let real applications say whether the missing
-   form matters. Per-call-site `conditional` resolution is the better next
-   coverage investment either way.
+1. **The second release kernel.** `dart2bytecode --import-dill` crashes on the
+   AOT kernel (`DillExtensionBuilder`, reproduced 2026-08-10), so the release
+   must also upload a `--no-aot --no-link-platform` kernel. `flutter build ipa`
+   does not produce one, and `gen_kernel.dart` needs `package:kernel` — which
+   points at a third cell artifact, the same answer the analyzer got. Generating
+   it at RELEASE time is fine; the invariant is only that the patch side must
+   not regenerate. `route_b.json`'s `artifacts` map already takes it additively.
+2. **Wire the producer branch**: coverage, then `dart2bytecode --target flutter`
+   with the resolved cell, derive the LC_UUID build ID, pack SBRBPTCH, hand it
+   to the existing bidiff/zstd + upload path.
+3. **Host-level equivalence**: a `shorebird patch` run must produce the same
+   SBRBPTCH as the known-good host tooling for the same input.
+4. **Fresh release**, then the automatic device gate: OLD -> `shorebird patch`
+   -> NEW -> relaunch NEW -> rollback OLD, nothing manual in between.
+5. **Sealed regression.**
+
+Do NOT widen dispatch-table support first. Kernel-only analysis provably cannot
+distinguish the relevant instance-call cases, 5/6 call forms are known
+patchable, and the current form costs ~3 % of Dart build-phase CPU. Closing it
+means inspecting the release `App` binary at call-site level — a coverage
+expansion, not a producer blocker.
 
 ### The boundary that was crossed
 

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:args/args.dart';
+import 'package:crypto/crypto.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
@@ -1084,7 +1085,26 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
         late Directory flutterDir;
         late Directory supplementDirectory;
 
-        void writeReleaseProvenance({required String engineRevision}) {
+        void writeReleaseProvenance({
+          required String engineRevision,
+          bool withKernel = true,
+          bool corruptKernel = false,
+        }) {
+          final artifacts = <String, String>{};
+          if (withKernel) {
+            final kernel = File(
+              p.join(supplementDirectory.path, routeBReleaseKernelFileName),
+            )..writeAsStringSync('RELEASE-KERNEL');
+            artifacts[routeBReleaseKernelFileName] = sha256
+                .convert(kernel.readAsBytesSync())
+                .toString();
+            if (corruptKernel) {
+              // The bytes the release recorded and the bytes it uploaded are
+              // different claims; the supplement is a second network call and
+              // can genuinely arrive truncated.
+              kernel.writeAsStringSync('TRUNCATED');
+            }
+          }
           writeRouteBReleaseProvenance(
             supplementDirectory,
             RouteBReleaseProvenance(
@@ -1092,6 +1112,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
               flutterRevision: 'cccccccc1111cccccccc2222cccccccc3333cccc',
               patchableCallSites: 4000,
               patchableCallSitesPerMiB: 1788,
+              artifacts: artifacts,
             ),
           );
         }
@@ -1272,6 +1293,73 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                 ).called(1);
               },
             );
+
+            test('refuses a release that uploaded no kernel', () async {
+              // Coverage diffs the patch against the release's OWN kernel.
+              // Without it there is nothing to compare, and regenerating one
+              // from source at patch time would answer a different question.
+              writeReleaseProvenance(
+                engineRevision: releaseEngineRevision,
+                withKernel: false,
+              );
+
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                exitsWithCode(ExitCode.software),
+              );
+
+              verifyNever(
+                () => routeBCompilerResolver.resolve(
+                  engineRevision: any(named: 'engineRevision'),
+                ),
+              );
+              verify(
+                () => logger.err(
+                  any(
+                    that: contains(
+                      'did not upload the kernel it was compiled from',
+                    ),
+                  ),
+                ),
+              ).called(1);
+            });
+
+            test('refuses a kernel that does not match its hash', () async {
+              writeReleaseProvenance(
+                engineRevision: releaseEngineRevision,
+                corruptKernel: true,
+              );
+
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                exitsWithCode(ExitCode.software),
+              );
+
+              verify(
+                () => logger.err(
+                  any(
+                    that: allOf(
+                      contains('do not match what it recorded'),
+                      contains(routeBReleaseKernelFileName),
+                    ),
+                  ),
+                ),
+              ).called(1);
+            });
 
             test('refuses a release whose provenance is unreadable', () async {
               File(

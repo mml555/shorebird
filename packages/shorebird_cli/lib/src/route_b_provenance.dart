@@ -33,7 +33,18 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
+
+/// The release's own kernel, as it fed that release's AOT compilation.
+///
+/// Not a kernel regenerated from the same source later. Coverage analysis
+/// compares the release's compiled members against the patch's, so a
+/// regenerated base would re-open the ambient-state problem one level up: the
+/// diff would answer "what differs from a kernel I just built" instead of
+/// "what differs from what shipped". `flutter build ipa` produces exactly one
+/// `app.dill` and it is captured straight out of that build.
+const routeBReleaseKernelFileName = 'release_app.dill';
 
 /// The Route B provenance sidecar's name inside a release's supplement.
 ///
@@ -50,6 +61,7 @@ class RouteBReleaseProvenance {
     required this.flutterRevision,
     required this.patchableCallSites,
     required this.patchableCallSitesPerMiB,
+    this.artifacts = const {},
   });
 
   /// Parses a sidecar's contents.
@@ -86,9 +98,23 @@ class RouteBReleaseProvenance {
       );
     }
 
+    final artifacts = <String, String>{};
+    if (decoded['artifacts'] case final Map<String, dynamic> recorded) {
+      for (final entry in recorded.entries) {
+        final hash = entry.value;
+        if (hash is! String || hash.isEmpty) {
+          throw FormatException(
+            '$routeBProvenanceFileName records no hash for ${entry.key}',
+          );
+        }
+        artifacts[entry.key] = hash;
+      }
+    }
+
     return RouteBReleaseProvenance(
       engineRevision: engineRevision,
       flutterRevision: flutterRevision,
+      artifacts: artifacts,
       // Evidence, not a gate: the patch side re-counts from the shipped bytes
       // rather than believing these. They are here so a later failure can be
       // attributed to a specific release rather than to "some release".
@@ -113,6 +139,16 @@ class RouteBReleaseProvenance {
   /// [patchableCallSites] per MiB of the shipped `App` binary.
   final double patchableCallSitesPerMiB;
 
+  /// Supplement-relative filename -> sha256, for every file the release owns
+  /// besides this record.
+  ///
+  /// A map rather than a named field per artifact, because the set is known to
+  /// be growing: `dart2bytecode --import-dill` cannot read the AOT kernel (its
+  /// CFE crashes in `DillExtensionBuilder`), so a second, non-AOT kernel is
+  /// coming. Adding an entry then costs a producer change and no reader change
+  /// — every recorded artifact is verified by the same loop.
+  final Map<String, String> artifacts;
+
   /// Renders the sidecar. Pretty-printed: it is small, it is read by people
   /// debugging a release, and it ships inside a zip either way.
   String toJson() => const JsonEncoder.withIndent('  ').convert({
@@ -120,6 +156,7 @@ class RouteBReleaseProvenance {
     'flutterRevision': flutterRevision,
     'patchableCallSites': patchableCallSites,
     'patchableCallSitesPerMiB': patchableCallSitesPerMiB,
+    'artifacts': artifacts,
   });
 }
 
@@ -153,4 +190,61 @@ File writeRouteBReleaseProvenance(
   supplement.createSync(recursive: true);
   return File(p.join(supplement.path, routeBProvenanceFileName))
     ..writeAsStringSync(provenance.toJson());
+}
+
+/// A release-owned file the patch cannot use.
+class RouteBReleaseArtifactException implements Exception {
+  /// {@macro route_b_release_artifact_exception}
+  RouteBReleaseArtifactException(this.message);
+
+  /// What is wrong, naming the file.
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+/// Verifies every artifact [provenance] records, and returns them by name.
+///
+/// Hashes are checked, not just presence. The supplement is uploaded as a
+/// separate call from the primary release artifact, so a release CAN end up
+/// with a truncated or half-written one; and the whole point of the release
+/// kernel is that it is the exact bytes the release compiled from, which a
+/// filename cannot establish.
+///
+/// Throws [RouteBReleaseArtifactException]; the caller decides how to file it.
+Map<String, File> verifyRouteBReleaseArtifacts(
+  Directory supplement,
+  RouteBReleaseProvenance provenance,
+) {
+  final resolved = <String, File>{};
+  for (final entry in provenance.artifacts.entries) {
+    final file = File(p.join(supplement.path, entry.key));
+    if (!file.existsSync()) {
+      throw RouteBReleaseArtifactException(
+        'the release records ${entry.key} but did not upload it',
+      );
+    }
+    final actual = sha256.convert(file.readAsBytesSync()).toString();
+    if (actual != entry.value) {
+      throw RouteBReleaseArtifactException(
+        '${entry.key} does not match the hash the release recorded '
+        '(recorded ${entry.value.substring(0, 16)}…, '
+        'got ${actual.substring(0, 16)}…)',
+      );
+    }
+    resolved[entry.key] = file;
+  }
+  return resolved;
+}
+
+/// Copies [kernel] into [supplement] as the release's own kernel and returns
+/// its sha256, for recording in the provenance sidecar.
+String captureRouteBReleaseKernel(Directory supplement, File kernel) {
+  supplement.createSync(recursive: true);
+  final destination = File(
+    p.join(supplement.path, routeBReleaseKernelFileName),
+  );
+  kernel.copySync(destination.path);
+  return sha256.convert(destination.readAsBytesSync()).toString();
 }

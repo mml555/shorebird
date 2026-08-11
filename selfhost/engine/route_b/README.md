@@ -1193,17 +1193,81 @@ work with a real input available, and it is the natural successor to this step.
 recorded fact rather than a silence; the day it closes, that pin fails and has
 to be updated on purpose.
 
-### Not yet wired, and the one thing that blocks it
+### The release-owned package — LANDED 2026-08-10
 
-The analysis runs end-to-end today — resolve the cell by the release's engine
-hash, run the cell's analyzer, parse, render the refusal — verified against the
-real published cell for `591a9f8d`. It is **not** in `ios_patcher` yet, because
-coverage needs the RELEASE's kernel and the release does not upload one.
-`ios_patcher` has the patch-side `app.dill`; the base-side dill has no source.
+Coverage diffs the patch against the release's own kernel, and the release now
+uploads one. The iOS supplement is the release-owned package:
 
-That is the first task of producer wiring, and it is the same mechanism
-`route_b.json` already uses: put the release's pre-AOT kernel in the iOS
-supplement.
+```
+route_b.json        engine hash, flutter revision, patchable-site evidence,
+                    and a sha256 per artifact below
+release_app.dill    the kernel THIS build compiled — captured straight out of
+                    `flutter build ipa`, not regenerated
+```
+
+**Captured, never regenerated.** `buildIpa` returns the `app.dill` it found in
+this build's output, and `ios_releaser` copies it into the supplement before
+anything else runs. A kernel rebuilt from the same source at patch time would
+answer *"what differs from a kernel I just built"* rather than *"what differs
+from what shipped"* — the ambient-state problem again, one level up.
+
+**Hashed, because recorded and uploaded are different claims.** The supplement
+is a second network call after the primary artifact, so a release can genuinely
+carry a truncated one. `verifyRouteBReleaseArtifacts` checks the sha256 of every
+recorded file and refuses on mismatch.
+
+`artifacts` is a map rather than a named field per file, because the set is
+known to be growing — see below. Adding an entry costs a producer change and no
+reader change.
+
+Failures on the patch side, all RELEASE-INCOMPATIBLE (the tooling is fine; no
+republish helps):
+
+| what | message |
+|---|---|
+| no kernel recorded | *"did not upload the kernel it was compiled from"* |
+| recorded but absent | *"records release_app.dill but did not upload it"* |
+| hash mismatch | *"does not match the hash the release recorded (recorded …, got …)"* |
+
+Proven end to end on real bytes: build the supplement, verify it from the
+supplement alone, resolve the cell by the recorded engine hash, analyze release
+kernel vs patch kernel, and get the 4-changed / 3-representable / 1-rejected
+whole-patch refusal naming the target. Then truncate the kernel and watch
+verification refuse it.
+
+### A second kernel is coming, and here is the evidence
+
+`dart2bytecode --import-dill` **cannot read the AOT kernel**. Not a
+documentation memory — the crash, against the shipped compiler:
+
+```
+$ dart2bytecode --platform vm_platform.dill --import-dill <aot kernel> -o out.bytecode repl.dart
+Unhandled exception:
+Crash when compiling:
+Null check operator used on a null value
+#0  new DillExtensionBuilder (package:front_end/src/dill/dill_extension_builder.dart:66:22)
+#1  DillLibraryBuilder.ensureLoaded (…:280:42)
+```
+
+So the producer needs two kernels from the release, for two different jobs:
+
+| kernel | job | produced by |
+|---|---|---|
+| `release_app.dill` (AOT/TFA) | coverage diff | `flutter build ipa`, captured — **landed** |
+| a `--no-aot --no-link-platform` kernel | `dart2bytecode --import-dill` | a separate `gen_kernel` run — **not landed** |
+
+The second is not produced by `flutter build ipa`, so it needs its own
+invocation at release time. Generating it at RELEASE time is legitimate — the
+ambient toolchain then *is* the release's toolchain, and the invariant is only
+that the PATCH side must not regenerate. What is not yet decided is which tool
+runs it: `gen_kernel.dart` needs `package:kernel` and so has the same problem
+the analyzer had, which points at a third cell artifact.
+
+### Still not wired into `ios_patcher`
+
+The branch resolves the cell, verifies the release package, and refuses — naming
+the compiler, the analyzer and the release kernel it has in hand. What is
+missing is the second kernel above, then the compile and the pack.
 
 The runtime is proven and should not be touched. After runtime has been proven,
 assume producer / provenance / release-construction first — including the

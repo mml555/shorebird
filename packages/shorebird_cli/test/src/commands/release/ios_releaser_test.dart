@@ -409,10 +409,16 @@ $body
 
       late Directory xcarchiveDirectory;
       late Directory iosAppDirectory;
+      // The kernel `flutter build ipa` produced. A real file, because the
+      // release's copy of it has to be byte-comparable against it.
+      late File buildKernel;
 
       setUp(() {
         xcarchiveDirectory = Directory.systemTemp.createTempSync();
         iosAppDirectory = Directory.systemTemp.createTempSync();
+        buildKernel = File(
+          p.join(Directory.systemTemp.createTempSync().path, 'app.dill'),
+        )..writeAsStringSync('APP-DILL-FROM-THIS-BUILD');
         when(() => argResults['codesign']).thenReturn(true);
         when(
           () => artifactBuilder.buildIpa(
@@ -421,9 +427,7 @@ $body
             target: any(named: 'target'),
             args: any(named: 'args'),
           ),
-        ).thenAnswer(
-          (_) async => AppleBuildResult(kernelFile: File('/path/to/app.dill')),
-        );
+        ).thenAnswer((_) async => AppleBuildResult(kernelFile: buildKernel));
 
         when(
           () => artifactManager.getIosAppDirectory(
@@ -777,6 +781,58 @@ $body
             // Evidence, not a gate: the patch side re-counts from the shipped
             // bytes rather than believing this.
             expect(provenance.patchableCallSites, 4000);
+          });
+
+          test('captures the kernel THIS build compiled', () async {
+            // Not a kernel regenerated from the same source later: coverage
+            // diffs the patch against these exact bytes, so a regenerated base
+            // would answer "what differs from a kernel I just built" instead of
+            // "what differs from what shipped".
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            final provenance = readRouteBReleaseProvenance(
+              supplementDirectory,
+            )!;
+            expect(
+              provenance.artifacts,
+              contains(routeBReleaseKernelFileName),
+            );
+
+            final captured = File(
+              p.join(supplementDirectory.path, routeBReleaseKernelFileName),
+            );
+            expect(captured.readAsStringSync(), buildKernel.readAsStringSync());
+            expect(
+              provenance.artifacts[routeBReleaseKernelFileName],
+              sha256.convert(buildKernel.readAsBytesSync()).toString(),
+            );
+            // And the pair verifies as a unit, which is what the patch side
+            // does before trusting either.
+            expect(
+              () => verifyRouteBReleaseArtifacts(
+                supplementDirectory,
+                provenance,
+              ),
+              returnsNormally,
+            );
+          });
+
+          test('records no kernel when the build produced none', () async {
+            // Not fatal at release time: the release is still installable. It
+            // simply cannot be patched, and the patch side says so by name.
+            buildKernel.deleteSync();
+
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            final provenance = readRouteBReleaseProvenance(
+              supplementDirectory,
+            )!;
+            expect(provenance.artifacts, isEmpty);
+            verify(
+              () => logger.warn(
+                any(that: contains("Could not capture this release's kernel")),
+              ),
+            ).called(1);
           });
 
           test('records it even when the caller asked for the flag', () async {

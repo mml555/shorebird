@@ -106,7 +106,7 @@ If left checked, Xcode will rewrite the build number in the uploaded IPA, so the
     await addObfuscationMapArgs(buildArgs);
     final wantsPatchableCalls = _addPatchableCallArgs(buildArgs);
 
-    await artifactBuilder.buildIpa(
+    final buildResult = await artifactBuilder.buildIpa(
       codesign: codesign,
       flavor: flavor,
       target: target,
@@ -140,7 +140,7 @@ If left checked, Xcode will rewrite the build number in the uploaded IPA, so the
     // engine records which engine that was, whether the flag came from us or
     // from the caller's own --extra-gen-snapshot-options.
     if (isRouteBEngine(_routeBEngineBinary)) {
-      _recordRouteBProvenance(appDirectory);
+      _recordRouteBProvenance(appDirectory, buildResult.kernelFile);
     }
 
     // When code signing is requested (the default), `flutter build ipa` is
@@ -190,7 +190,7 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
   ///
   /// See `route_b_provenance.dart` for why the supplement rather than a field
   /// on the release.
-  void _recordRouteBProvenance(Directory appDirectory) {
+  void _recordRouteBProvenance(Directory appDirectory, File releaseKernel) {
     final supplement = artifactManager.getReleaseSupplementDirectory(
       platformSubdir: supplementPlatformSubdir,
       create: true,
@@ -210,6 +210,25 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
         ? countPatchableCallSites(appBinary)
         : (sites: 0, perMiB: 0.0);
 
+    // The kernel THIS build compiled, taken from this build's own output.
+    // A patch's coverage analysis diffs against it, so a kernel regenerated
+    // from the same source at patch time would answer the wrong question --
+    // "what differs from a kernel I just built" rather than "what differs from
+    // what shipped". Captured here, while it is unambiguously the release's.
+    final artifacts = <String, String>{};
+    if (releaseKernel.existsSync()) {
+      artifacts[routeBReleaseKernelFileName] = captureRouteBReleaseKernel(
+        supplement,
+        releaseKernel,
+      );
+    } else {
+      // Not fatal at release time: the release itself is fine and installable.
+      // It simply cannot be patched, and the patch side says so by name.
+      logger.warn(
+        '''Could not capture this release's kernel (${releaseKernel.path}); patches for it will be refused.''',
+      );
+    }
+
     final engineRevision = shorebirdEnv.shorebirdEngineRevision;
     final file = writeRouteBReleaseProvenance(
       supplement,
@@ -218,10 +237,12 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
         flutterRevision: shorebirdEnv.flutterRevision,
         patchableCallSites: counted.sites,
         patchableCallSitesPerMiB: counted.perMiB,
+        artifacts: artifacts,
       ),
     );
     logger.detail(
-      '[route-b] recorded engine $engineRevision in ${file.path}',
+      '[route-b] recorded engine $engineRevision and '
+      '${artifacts.length} artifact(s) in ${file.path}',
     );
   }
 

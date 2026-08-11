@@ -47,6 +47,103 @@ void main() {
       });
     });
 
+    group('artifacts', () {
+      RouteBReleaseProvenance record(Map<String, String> artifacts) =>
+          RouteBReleaseProvenance(
+            engineRevision: 'engine-abc',
+            flutterRevision: 'flutter-def',
+            patchableCallSites: 1,
+            patchableCallSitesPerMiB: 1,
+            artifacts: artifacts,
+          );
+
+      test('round-trips through the sidecar', () {
+        writeRouteBReleaseProvenance(
+          supplement,
+          record({routeBReleaseKernelFileName: 'a' * 64}),
+        );
+
+        expect(
+          readRouteBReleaseProvenance(supplement)!.artifacts,
+          {routeBReleaseKernelFileName: 'a' * 64},
+        );
+      });
+
+      test('throws when an artifact has no hash', () {
+        File(
+          p.join(supplement.path, routeBProvenanceFileName),
+        ).writeAsStringSync(
+          '{"engineRevision":"e","flutterRevision":"f",'
+          '"artifacts":{"release_app.dill":null}}',
+        );
+
+        expect(
+          () => readRouteBReleaseProvenance(supplement),
+          throwsA(
+            isA<FormatException>().having(
+              (e) => e.message,
+              'message',
+              contains('no hash for release_app.dill'),
+            ),
+          ),
+        );
+      });
+
+      test('captures a kernel and verifies it back', () {
+        final built = File(p.join(supplement.path, 'source.dill'))
+          ..writeAsStringSync('KERNEL');
+        final hash = captureRouteBReleaseKernel(supplement, built);
+
+        final resolved = verifyRouteBReleaseArtifacts(
+          supplement,
+          record({routeBReleaseKernelFileName: hash}),
+        );
+
+        expect(
+          resolved[routeBReleaseKernelFileName]!.readAsStringSync(),
+          'KERNEL',
+        );
+      });
+
+      test('throws when a recorded artifact was never uploaded', () {
+        // The supplement is a second network call after the primary artifact,
+        // so "recorded" and "uploaded" are genuinely different claims.
+        expect(
+          () => verifyRouteBReleaseArtifacts(
+            supplement,
+            record({routeBReleaseKernelFileName: 'a' * 64}),
+          ),
+          throwsA(
+            isA<RouteBReleaseArtifactException>().having(
+              (e) => e.message,
+              'message',
+              contains('did not upload it'),
+            ),
+          ),
+        );
+      });
+
+      test('throws when the uploaded bytes are not the recorded ones', () {
+        final built = File(p.join(supplement.path, 'source.dill'))
+          ..writeAsStringSync('KERNEL');
+        captureRouteBReleaseKernel(supplement, built);
+
+        expect(
+          () => verifyRouteBReleaseArtifacts(
+            supplement,
+            record({routeBReleaseKernelFileName: 'a' * 64}),
+          ),
+          throwsA(
+            isA<RouteBReleaseArtifactException>().having(
+              (e) => e.message,
+              'message',
+              contains('does not match the hash the release recorded'),
+            ),
+          ),
+        );
+      });
+    });
+
     group('hasRouteBReleaseProvenance', () {
       test('is false when the release carries none', () {
         expect(hasRouteBReleaseProvenance(supplement), isFalse);
