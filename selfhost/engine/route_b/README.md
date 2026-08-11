@@ -953,6 +953,25 @@ build is also a precompiled runtime, so it exercises the same
 `DART_PRECOMPILED_RUNTIME` + `DART_DYNAMIC_MODULES` pairing with no signing, no
 device, and a roughly one-minute incremental loop.
 
+## Engine rebuild ⇒ compiler-cell republish ⇒ audit
+
+The compiler cell is engine-scoped, so a rebuilt engine has none until it is
+republished, and patching then fails with *tooling unavailable* for a release
+that is otherwise perfectly patchable — a confusing place to learn it.
+
+`publish_ios_overlay.sh` detects a Route B engine (it carries `InterpretCall`)
+and prints the three steps as part of its own next-steps output, so the
+dependency lives in the publish flow rather than in anyone's memory:
+
+```bash
+selfhost/engine/route_b/build_dart2bytecode.sh
+selfhost/engine/route_b/publish_route_b_compiler.sh --rev <engineHash>
+selfhost/engine/route_b/audit_route_b_compiler.sh  --hash <engineHash>
+```
+
+The audit must pass before patching. It fails loudly and names the publish
+command when a cell is missing.
+
 ## Next session starts here — compiler-cell selection
 
 Provenance is complete on both ends and **not yet load-bearing**:

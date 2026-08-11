@@ -205,3 +205,14 @@ echo "       $HASH $STOCK;"
 echo "  2) docker restart shorebird-cdn-cdn-cache-1   # re-read the bind mount"
 echo "  3) point the build's engine.version at $HASH and set"
 echo "     FLUTTER_STORAGE_BASE_URL to the mirror"
+# Route B: the compiler cell is engine-scoped, so a rebuilt engine has none
+# until it is republished. Patching would then fail with "tooling unavailable"
+# for a release that is otherwise perfectly patchable — a confusing place to
+# learn this, so it is part of publishing rather than a checklist elsewhere.
+if nm -a "$BIN" 2>/dev/null | grep -qi interpretcall; then
+  echo "  4) THIS IS A ROUTE B ENGINE — republish the compiler cell and audit it:"
+  echo "       selfhost/engine/route_b/build_dart2bytecode.sh"
+  echo "       selfhost/engine/route_b/publish_route_b_compiler.sh --rev $HASH"
+  echo "       selfhost/engine/route_b/audit_route_b_compiler.sh --hash $HASH"
+  echo "     Patches for releases on $HASH cannot be produced until this passes."
+fi
