@@ -51,7 +51,7 @@ patch` path: **can this replacement body bind and execute?**
 
 | rung | probe | status |
 |---|---|---|
-| **A0** | a minimal named `dart:core` reference — `=> DateTime.now().toString()` | **FAILS.** `bytecode_reader.cc:1172`, *"Unable to find function DateTime.now"*. Primarily `gen_dynamic_interface.dart` / symbol-retention work |
+| **A0** | a minimal named `dart:core` reference | **BINDS, on the host** (`probes/a0_core_binding.sh`, 3/3 each for `identical` and the real `DateTime` shape) for **+0.006–0.009 %** snapshot. The device failure was the absence of a dynamic interface, not a limit of one. NOT yet in the product path: `shorebird release` passes no interface |
 | **A** | a top-level replacement calling another public app function | untested |
 | **B** | a public instance method, no field access — the receiver/arg0 question | untested, must be answered ON DEVICE |
 | **C** | an instance method using `this` / fields | untested |

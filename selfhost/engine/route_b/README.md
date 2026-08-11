@@ -1528,16 +1528,90 @@ So the widening ladder starts one rung lower than planned:
 
 | probe | question | status |
 |---|---|---|
-| **A0 · dart:core reference** | can a body call `DateTime.now()`? | **NO** — `bytecode_reader.cc:1172`, measured |
-| A · app-symbol reference | can it call another app function? | untested; A0 suggests the same retention question |
+| **A0 · dart:core reference** | can a body call a named core symbol? | **YES, on the host** — see below |
+| A · app-symbol reference | can it call another app function? | untested |
 | B · instance method | can a top-level replacement attach to `Foo.value` and get the instance calling convention? | untested, must be ON DEVICE |
 | C · `this` access | receiver/member addressing | untested |
 | D · private references | `_foo` is library-scoped identity | untested |
 
-A0's shape — *what does the bytecode loader resolve names against, and what
-retains them* — is now the first question, and it is a retention/interface
-question rather than a producer one. `gen_dynamic_interface.dart` retains app
-libraries; nothing retains `dart:core` members by name.
+## Probe A0 — ANSWERED on the host, 2026-08-11
+
+`probes/a0_core_binding.sh identical` — **3/3** ·
+`probes/a0_core_binding.sh datetime` — **3/3**
+
+The device failure was NOT evidence about retention policy. It was evidence that
+the policy is **absent**: the product path has never passed a dynamic interface,
+and the fixture's target was reachable only because it carries a hand-written
+`@pragma('vm:entry-point')`. So A0 was answerable on the host, at a minute per
+cycle, instead of a release.
+
+Three arms, and the negative is the point:
+
+| arm | body | declared | result |
+|---|---|---|---|
+| control | `=> 'NEW-a'` | `dart:core#print` | binds — the harness works |
+| negative | uses the core symbol | `dart:core#print` | **`Unable to find function identical in Library:'dart:core'`** — the device's failure, on the host |
+| positive | same body | the symbol named | **binds**, `APPLY ok: 1 target(s)` |
+
+An arm that passes without its negative failing proves nothing — and the first
+version of this probe was exactly that trap: its target program only PRINTED a
+value and never applied the container, so all three arms "passed" for the same
+wrong reason. It now runs `packaging/container_target.dart`, which carries the
+reference installer.
+
+**A0.2 replays the exact body that failed on the phone**, and it binds with two
+named members:
+
+```
+dart:core#DateTime.now                          # a factory constructor
+dart:core#DateTime.get:millisecondsSinceEpoch   # an instance getter
+```
+
+`>= 0` on `int` needs no declaration — operators resolve without one.
+
+### What A0 actually required: class members were unexpressible
+
+`gen_dynamic_interface.dart` emitted only `library:` + `member:` pairs, so a
+class member became a TOP-LEVEL lookup and the annotator rejected the whole
+interface before compiling anything:
+
+```
+A member with disambiguated name 'DateTime.now' was not found in
+top-level of library 'dart:core'
+```
+
+`--sdk-members` now accepts `library#Class.member` beside `library#member`,
+splitting on the FIRST dot — a top-level Dart member cannot contain one, and the
+remainder may carry the VM's `get:`/`set:` disambiguation.
+
+Still **name-driven, never blanket**: whole `dart:core` was measured at **+310 %**
+and stays behind `--sdk-libraries`, reachable but never convenient.
+
+### The tax, measured
+
+| widening | interface | snapshot | named SDK entries |
+|---|---|---|---|
+| `dart:core#identical` | 1,059 → 1,063 B | 1,013,368 → 1,013,456 B (**+0.0087 %**) | 4 → 4 |
+| the `DateTime` pair | 1,059 → 1,167 B | 1,013,368 → 1,013,432 B (**+0.0063 %**) | 4 → 5 |
+
+Reported on every probe run, because retention is release-time and every release
+pays it. The point is to learn the contract, not to brute-force past it.
+
+### What A0 has NOT answered
+
+The binding contract, yes. The **product path, no**: `shorebird release` passes
+no dynamic interface at all. Wiring it needs
+
+- a generator the CLI can run — `gen_dynamic_interface.dart` needs
+  `package:kernel`, so it belongs in the compiler cell beside the analyzer and
+  the frontend; and
+- `--dynamic-interface` reaching the release's kernel build. `frontend_server`
+  accepts the flag (`frontend_server.dart:196`) and Flutter forwards
+  `--extra-frontend-options`, so the route exists — but the interface is
+  generated FROM the app's kernel, so the release builds twice.
+
+Until that lands the fixture's hand-written `vm:entry-point` is doing the
+retention work, and no shipping app has that.
 
 #### The widening questions, in the order to probe them
 
