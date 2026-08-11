@@ -78,6 +78,7 @@ class Cls {
 
 class Base {
   String helper() => 'base';
+  String inherited = 'base-field';
 }
 
 class RouteBThing extends Base {
@@ -90,6 +91,8 @@ class RouteBThing extends Base {
   String _hidden() => 'private method';
   String withArgs(String a) => a;
   String twoArgs(String a, {String b = 'b'}) => a + b;
+  String? maybe;
+  int count = 0;
 
 $2
 }
@@ -101,7 +104,9 @@ void main() {
     t.topLevelCall(), t.staticCall(), t.otherObject(), t.withArguments(),
     t.cascade(), t.superCall(), t.privateCall(), t.privateGet(),
     t.setterUse(), t.\$secretLen, t.constArg(), t.exprArg(), t.thisArg(),
-    t.namedArg(),
+    t.namedArg(), t.simpleSet(), t.thisSet(), t.setFromRead(), t.compoundSet(),
+    t.incrementSet(), t.ifNullSet(), t.privateSet(), t.superSet(),
+    t.cascadeSet(),
   ].join(','));
 }
 DART
@@ -126,6 +131,15 @@ BASE_BODIES=$(cat <<'DART'
   String exprArg() => 'b14';
   String thisArg() => 'b15';
   String namedArg() => 'b16';
+  String simpleSet() => 'b17';
+  String thisSet() => 'b18';
+  String setFromRead() => 'b19';
+  String compoundSet() => 'b20';
+  int incrementSet() => 0;
+  String ifNullSet() => 'b21';
+  String privateSet() => 'b22';
+  String superSet() => 'b23';
+  String cascadeSet() => 'b24';
   int get $secretLen => 0;
 DART
 )
@@ -148,6 +162,15 @@ PATCHED_BODIES=$(cat <<'DART'
   String exprArg() => withArgs(label);
   String thisArg() => this.withArgs('ARG');
   String namedArg() => twoArgs('a', b: 'B');
+  String simpleSet() => label = 'NEW-SET';
+  String thisSet() => this.label = 'NEW-SET';
+  String setFromRead() => label = label + 'Y';
+  String compoundSet() => label += 'X';
+  int incrementSet() { count++; return count; }
+  String ifNullSet() => maybe ??= 'Z';
+  String privateSet() => _secret = 'p';
+  String superSet() { super.inherited = 'S'; return 'x'; }
+  String cascadeSet() { this..label = 'c'; return label; }
   int get $secretLen => 1;
 DART
 )
@@ -254,7 +277,9 @@ check cascade        refused
 check superCall      refused
 check privateCall    refused
 check privateGet     refused
-check setterUse      refused
+# Was refused before writes were supported; now a statement-bodied write plus a
+# read, at two distinct offsets.
+check setterUse      lowered:2
 
 # ARGUMENTS. The edit is `withArgs` -> `self.withArgs`; everything after the
 # identifier is the source's own text, so there is nothing here for the lowering
@@ -265,6 +290,23 @@ check constArg       lowered:1
 check exprArg        lowered:2
 check thisArg        lowered:1
 check namedArg       lowered:1
+
+# WRITES. Same lexical shape as a read -- the offset is on the identifier and
+# `= <rhs>` is the source's own text.
+check simpleSet      lowered:1
+check thisSet        lowered:1
+# Genuinely two tokens at two offsets: `self.label = self.label + 'Y'`.
+check setFromRead    lowered:2
+# ONE TOKEN DOING TWO JOBS. Each of these reports a read and a write at the SAME
+# offset, so a single insertion point would have to carry two edits. Refused by
+# the collision, not by an operator list -- which is why `??=` and `++` need no
+# special case of their own.
+check compoundSet    refused
+check incrementSet   refused
+check ifNullSet      refused
+check privateSet     refused
+check superSet       refused
+check cascadeSet     refused
 
 echo
 echo "--------------------------------------------------"

@@ -83,6 +83,7 @@ s = s.replace(
     "void _state(String when) =>",
     """class RouteBThing {
   String label = 'NEW-C1';
+  String slot = 'UNSET';
 
   // Retained and exercised: a method nothing calls is tree-shaken out of the
   // --aot kernel, and then the release has nothing for `self.helper()` to
@@ -241,6 +242,19 @@ arm this_arg "String value() => this.tagged('ARG');" "$THISARG" NEW-ARG
 # An argument that is itself a receiver read: TWO accesses, both rewritten.
 EXPR="String value(RouteBThing self) => self.tagged(self.label);"
 arm expr_arg "String value() => tagged(label);" "$EXPR" NEW-NEW-C1
+
+# WRITES. The question is only whether a receiver-bound WRITE goes through the
+# same `self` mechanism reads and calls already use. The value the app prints is
+# the assignment's own result, so a write that silently did nothing would show
+# as the old value rather than passing by accident.
+SET="String value(RouteBThing self) => self.slot = 'NEW-SET';"
+arm bare_set "String value() => slot = 'NEW-SET';" "$SET" NEW-SET
+
+arm this_set "String value() => this.slot = 'NEW-SET';" "$SET" NEW-SET
+
+# Two tokens, two offsets: the read on the right-hand side is rewritten too.
+RHS="String value(RouteBThing self) => self.slot = self.label;"
+arm set_from_read "String value() => slot = label;" "$RHS" NEW-C1
 
 echo
 echo "--------------------------------------------------"

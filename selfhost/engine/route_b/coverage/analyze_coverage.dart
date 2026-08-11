@@ -44,7 +44,7 @@ import 'package:kernel/text/ast_to_text.dart';
 /// Bump when a consumer would have to change. The CLI refuses a version it does
 /// not know rather than reading fields that may have moved -- the `*.vmcode`
 /// filename convention is the cautionary tale for unversioned contracts.
-const analysisVersion = 5;
+const analysisVersion = 6;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -463,6 +463,29 @@ Map<String, Object?> _lowering(Class cls, Procedure p) {
   function.accept(visitor);
   unsupported.addAll(visitor.unsupported);
 
+  // ONE SOURCE TOKEN CANNOT BE TWO EDITS. `label += 'X'`, `count++` and
+  // `maybe ??= 'Z'` each report a read AND a write at the SAME offset, because
+  // one identifier is doing both jobs. The producer inserts a receiver prefix
+  // at an offset, so two edits there would yield `self.self.label`.
+  //
+  // Detected by the collision rather than by listing operators: it catches
+  // compound assignment, increment and if-null uniformly, including forms
+  // nobody has thought of yet. `label = label + 'Y'` is untouched by it --
+  // measured at two distinct offsets, because it really is two tokens.
+  final byOffset = <int, List<_Access>>{};
+  for (final a in visitor.accesses) {
+    byOffset.putIfAbsent(a.offset, () => []).add(a);
+  }
+  for (final entry in byOffset.entries) {
+    if (entry.value.length > 1) {
+      final kinds = entry.value.map((a) => a.kind).join('+');
+      unsupported.add(
+        'reads and writes `${entry.value.first.member}` in one expression '
+        '($kinds), which this lowering cannot rewrite as a single edit',
+      );
+    }
+  }
+
   return {
     'receiverType': cls.name,
     // Where the producer starts looking for the parameter list. Kernel puts
@@ -514,10 +537,31 @@ class _ReceiverUses extends RecursiveVisitor {
 
   @override
   void visitInstanceSet(InstanceSet node) {
-    if (node.receiver is ThisExpression) {
-      _consumed.add(node.receiver as ThisExpression);
-      unsupported.add('assigns to `${node.name.text}` on the receiver');
+    final receiver = node.receiver;
+    if (receiver is ThisExpression) {
+      _consumed.add(receiver);
+      final name = node.name.text;
+      if (name.startsWith('_')) {
+        unsupported.add('assigns to the private member `$name`');
+      } else {
+        // A write is the same lexical shape as a read: the offset is on the
+        // identifier and everything after it -- `= <whatever>` -- is the
+        // source's own text. The right-hand side is carried across untouched,
+        // and any receiver use INSIDE it is its own reported access, so
+        // `label = label + 'Y'` becomes `self.label = self.label + 'Y'`.
+        accesses.add(_Access(node.fileOffset, name, 'set'));
+      }
     }
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitSuperPropertySet(SuperPropertySet node) {
+    // Refused for the same reason `super.foo()` is: a synthetic top-level
+    // function has no `super`, and `self.foo = ...` would not mean the same
+    // thing. Without this the generated library simply fails to compile, which
+    // is loud but says nothing useful.
+    unsupported.add('assigns to `super.${node.name.text}`');
     node.visitChildren(this);
   }
 

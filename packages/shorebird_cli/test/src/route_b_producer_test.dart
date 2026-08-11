@@ -509,6 +509,84 @@ void main() {
         );
       });
 
+      test('lowers a bare receiver write', () {
+        expect(
+          lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: "String value() => label = 'NEW-SET';",
+              access: 'label',
+              kind: 'set',
+            ),
+          ),
+          contains(
+            "String value(RouteBThing self) => self.label = 'NEW-SET';",
+          ),
+        );
+      });
+
+      test('lowers an explicit this write', () {
+        expect(
+          lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: "String value() => this.label = 'NEW-SET';",
+              access: 'this.label',
+              kind: 'set',
+            ),
+          ),
+          contains(
+            "String value(RouteBThing self) => self.label = 'NEW-SET';",
+          ),
+        );
+      });
+
+      test('leaves the right-hand side untouched', () {
+        // The RHS is never parsed. A receiver use inside it is its own reported
+        // access, which is why the read here is rewritten too.
+        expect(
+          lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: "String value() => label = label + f(1, 'x');",
+              access: 'label',
+              kind: 'set',
+              also: '= label',
+            ),
+          ),
+          contains(
+            "String value(RouteBThing self) => "
+            "self.label = self.label + f(1, 'x');",
+          ),
+        );
+      });
+
+      test('refuses a read and a write at one position', () {
+        // `label += 'X'`, `count++` and `maybe ??= 'Z'` each report a read AND a
+        // write at the same identifier — measured, not assumed. Two insertions
+        // there would produce `self.self.label`. The analyzer refuses it; this
+        // is the producer's backstop for the two disagreeing.
+        expect(
+          () => lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: "String value() => label += 'X';",
+              access: 'label',
+              kind: 'set',
+              also: 'label',
+              alsoKind: 'get',
+            ),
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              contains('twice at one position'),
+            ),
+          ),
+        );
+      });
+
       test('refuses an access kind it does not know', () {
         // The analyzer and the producer are versioned together, so this should
         // be unreachable — which is why it must not be a silent fall-through

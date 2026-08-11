@@ -201,6 +201,21 @@ class RouteBProducer {
       File.fromUri(Uri.parse(span.fileUri)).readAsBytesSync(),
     );
 
+    // ONE EDIT PER OFFSET. `label += 'X'` reports a read and a write at the same
+    // identifier, and two insertions there would produce `self.self.label`. The
+    // analyzer refuses that, so reaching here means the two disagree — which is
+    // exactly when a silent wrong edit is most likely.
+    final seen = <int>{};
+    for (final access in lowering.accesses) {
+      if (!seen.add(access.offset)) {
+        throw RouteBUnsupportedTarget(
+          key,
+          'uses `${access.member}` twice at one position, which cannot be '
+          'rewritten as a single edit',
+        );
+      }
+    }
+
     // (offset, replacedLength, text), applied right-to-left so earlier offsets
     // stay valid.
     final edits = <(int, int, String)>[];
@@ -233,7 +248,7 @@ class RouteBProducer {
       // kind added later may not work that way, so refuse rather than guess --
       // the analyzer and the producer are versioned together for this reason,
       // and this is the backstop when that pairing is somehow wrong.
-      if (!const {'get', 'invoke'}.contains(access.kind)) {
+      if (!const {'get', 'set', 'invoke'}.contains(access.kind)) {
         throw RouteBUnsupportedTarget(
           key,
           'uses the receiver in a way this lowering does not know how to '
