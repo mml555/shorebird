@@ -1555,7 +1555,7 @@ So the widening ladder starts one rung lower than planned:
 | probe | question | status |
 |---|---|---|
 | **A0 · dart:core reference** | can a body call a named core symbol? | **CLOSED ON DEVICE 2026-08-11** — see below |
-| A · app-symbol reference | can it call another app function? | untested |
+| A · app-symbol reference | can it call another app function? | **CLOSED ON DEVICE 2026-08-11** |
 | B · instance method | can a top-level replacement attach to `Foo.value` and get the instance calling convention? | untested, must be ON DEVICE |
 | C · `this` access | receiver/member addressing | untested |
 | D · private references | `_foo` is library-scoped identity | untested |
@@ -1691,6 +1691,43 @@ retention applied. Something else differed between them. Until a controlled
 before/after is run on one source tree, the honest app-level numbers remain the
 step-2 measurements: app whole-library retention **+0.89 %**, whole `dart:core`
 **+310 %**.
+
+### Rung A — CLOSED ON DEVICE, 2026-08-11
+
+Release `16.0.0+1`, patch 1. The release declares:
+
+```dart
+@pragma('vm:never-inline')
+String routeBHelper() => …'NEW-helper'…;   // called by NOTHING in the release
+```
+
+and the patch changes one body to call it:
+
+```dart
+String routeBValue() => routeBHelper();
+```
+
+Device: **`NEW-helper`**, code patch 1 · relaunch **`NEW-helper`** · withdraw with
+rollback → **`OLD`**, code patch none. Evidence: `evidence/rungA_1…4`.
+
+`routeBHelper` survives tree-shaking only because the generated interface
+retains the app library whole — the application-retention half, which rung A
+existed to exercise. It is not named anywhere; the `library:` item covers it.
+
+#### What rung A required: the replacement must import its own library
+
+The producer emitted a synthetic library holding one declaration and no imports,
+so the compiler refused:
+
+```
+Error: Method not found: 'routeBHelper'
+```
+
+again as exit 254 with an empty stderr. The replacement now emits
+`import '<target library>';` and the compile is passed `--packages`, without
+which a `package:` URI cannot resolve at all. The local declaration shadows the
+imported one of the same name, so importing the library you are patching into is
+safe as well as necessary.
 
 ### The SDK set is a budget
 

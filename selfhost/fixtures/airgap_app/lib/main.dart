@@ -67,7 +67,8 @@ String routeBHelper() =>
 
 @pragma('vm:never-inline')
 @pragma('vm:entry-point')
-String routeBValue() => routeBHelper();
+String routeBValue() =>
+    DateTime.now().millisecondsSinceEpoch >= 0 ? 'OLD' : 'X';
 
 /// ONE call site, exercised before, during and after the patch. Reading the
 /// same site three times is the actual claim -- that an ordinary compiled call
