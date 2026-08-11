@@ -76,7 +76,10 @@ void main(List<String> args) {
         // package:your_app/ -- so a monorepo can retain several packages.
         includePrefixes.add(next());
       case '--sdk-members':
-        // library#member, comma separated.
+        // Comma separated. `library#member` for a top-level member,
+        // `library#Class.member` for a class member. The member half may carry
+        // the VM's get:/set: disambiguation, e.g.
+        // `dart:core#DateTime.get:millisecondsSinceEpoch`.
         sdkMembers = next().split(',').where((s) => s.isNotEmpty).toList();
       case '--sdk-libraries':
         // Whole-library SDK retention. Measured at +310% for dart:core alone --
@@ -179,9 +182,28 @@ void main(List<String> args) {
       if (i <= 0 || i == entry.length - 1) {
         _die("--sdk-members entry must be 'library#member', got: $entry");
       }
-      buf
-        ..writeln("  - library: '${entry.substring(0, i)}'")
-        ..writeln("    member: '${entry.substring(i + 1)}'");
+      final library = entry.substring(0, i);
+      final name = entry.substring(i + 1);
+
+      // `Class.member` retains a CLASS member; a bare name retains a top-level
+      // one. Without this a class member is emitted as a top-level `member:`
+      // and the annotator rejects the whole interface:
+      //
+      //   A member with disambiguated name 'DateTime.now' was not found in
+      //   top-level of library 'dart:core'
+      //
+      // Split on the FIRST dot: a top-level Dart member cannot contain one,
+      // and the remainder may legitimately carry the VM's `get:`/`set:`
+      // disambiguation, as in `DateTime.get:millisecondsSinceEpoch`.
+      final dot = name.indexOf('.');
+      buf.writeln("  - library: '$library'");
+      if (dot > 0) {
+        buf
+          ..writeln("    class: '${name.substring(0, dot)}'")
+          ..writeln("    member: '${name.substring(dot + 1)}'");
+      } else {
+        buf.writeln("    member: '$name'");
+      }
     }
   }
   if (privateMembers.isNotEmpty) {
