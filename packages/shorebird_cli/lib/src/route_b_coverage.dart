@@ -35,7 +35,7 @@ RouteBCoverageAnalyzer get routeBCoverageAnalyzer =>
 /// engine hash, so an unknown version means the CLI and the release's toolchain
 /// disagree about the format, and reading fields that may have moved is how you
 /// get a confident wrong answer.
-const supportedRouteBAnalysisVersion = 1;
+const supportedRouteBAnalysisVersion = 2;
 
 /// What a patch may do with a changed member.
 enum RouteBRepresentability {
@@ -84,6 +84,29 @@ class RouteBRejection {
   final String reason;
 }
 
+/// Where a changed member's new body lives in the patch's own source.
+///
+/// A span rather than text: the analyzer has the kernel's offsets, the producer
+/// has the file, and neither needs an opinion about how a replacement library
+/// is assembled.
+class RouteBSourceSpan {
+  /// {@macro route_b_source_span}
+  const RouteBSourceSpan({
+    required this.fileUri,
+    required this.start,
+    required this.end,
+  });
+
+  /// The file the frontend read, as a URI.
+  final String fileUri;
+
+  /// Byte offset of the declaration, annotations included.
+  final int start;
+
+  /// Byte offset just past its closing token.
+  final int end;
+}
+
 /// The whole-patch outcome.
 enum RouteBVerdict {
   /// Every changed member can be carried.
@@ -108,6 +131,7 @@ class RouteBCoverage {
     required this.conditional,
     required this.rejections,
     required this.refusalSummary,
+    this.sources = const {},
   });
 
   /// Parses the analyzer's JSON document.
@@ -182,8 +206,21 @@ class RouteBCoverage {
       );
     }
 
+    final sources = <String, RouteBSourceSpan>{};
+    if (map['sources'] case final Map<String, dynamic> recorded) {
+      for (final entry in recorded.entries) {
+        final span = entry.value as Map<String, dynamic>;
+        sources[entry.key] = RouteBSourceSpan(
+          fileUri: span['fileUri']! as String,
+          start: span['start']! as int,
+          end: span['end']! as int,
+        );
+      }
+    }
+
     return RouteBCoverage(
       verdict: verdict,
+      sources: sources,
       changed: strings('changed'),
       added: strings('added'),
       removed: strings('removed'),
@@ -224,6 +261,9 @@ class RouteBCoverage {
 
   /// The analyzer's aggregate refusal line, if it refused.
   final String? refusalSummary;
+
+  /// Where each changed member's new body lives, by `library#selector`.
+  final Map<String, RouteBSourceSpan> sources;
 
   /// The refusal, as the user will read it.
   ///

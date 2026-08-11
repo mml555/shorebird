@@ -1361,49 +1361,79 @@ Ported into the CLI, with the host tools left as the reference:
 depends on anything but the target list. So the host-equivalence gate can
 legitimately require exact SHA equality rather than a semantic comparison.
 
-### The gap: one payload is one function
+### The producer, on the narrow path — SBRBPTCH bytes match the reference
 
-`Dart_RouteBActivatePatch` is unambiguous:
+`selfhost/engine/route_b/host_equivalence.sh` — **3/3**, and the container is
+**byte-identical** to the packer that produced the container proven on hardware.
 
-```c
-loaded = loader.LoadBytecode();      // ONE Function from the payload
-const auto& bc = loaded.GetBytecode();
-target.AttachBytecode(bc);
+```
+coverage: accept, representable 1, spans 1
+container: 817 bytes  sha256=fdaeb7ab…
+  PASS  container sha256
+  PASS  container size
+  PASS  reference reader accepts both
 ```
 
-So each target needs its own payload containing exactly one replacement
-function — which is what `build_4b_artifact.sh` hand-wrote:
+Exact SHA is a fair gate here because the format has no timestamps and no
+ordering that depends on anything but the target list. Nothing is compared
+"semantically", because nothing needs to be.
 
-```dart
-@pragma('dyn-module:entry-point')
-String routeBValue() => 'NEW';
+#### How the producer gets a replacement body
+
+`Dart_RouteBActivatePatch` attaches the ONE `Function` that `LoadBytecode()`
+returns, so each target needs its own single-declaration library. The analyzer
+(now `analysisVersion: 2`) reports a SOURCE SPAN per changed member —
+`Procedure.fileStartOffset` through `fileEndOffset`, which spans the declaration
+including its annotations — and the producer slices the patch's own file:
+
+```
+coverage says routeBValue changed
+  → span: main.dart [157, 265)
+  → slice: "@pragma('vm:never-inline')\nString routeBValue() => … 'NEW' : 'X';"
+  → prepend @pragma('dyn-module:entry-point')
+  → dart2bytecode --target flutter --import-dill release_import.dill
+  → 569-byte payload
+  → SBRBPTCH, stamped with the release's LC_UUID
 ```
 
-The producer has to generate that source per changed target, and the two
-general alternatives are both closed:
+A span rather than text keeps the analyzer free of any opinion about how the
+replacement library is assembled, and it is sliced from BYTES rather than from a
+Dart `String`, so a non-ASCII character upstream cannot shift the offsets.
 
-| strategy | result |
+#### What this supports, stated narrowly
+
+**The complete automatic path works for the currently supported replacement
+shape**: a self-contained declaration. Not "arbitrary Dart functions can be
+patched."
+
+Three failure kinds stay distinct all the way out, which is why the ordering is
+coverage → compile → pack:
+
+| kind | meaning |
 |---|---|
-| compile the patched app's own entrypoint as `input.dart` | **crashes** — the library collides with `--import-dill` (`kernel_generator_impl.dart:179`) |
-| compile the whole patched app under an aliased package name | compiles (617 bytes), but `LoadBytecode()` returns one function, so nothing selects a target out of it |
-| synthetic per-target replacement library | **works** — and is what the device gate already proved |
+| coverage rejection | this change cannot be represented; the whole patch goes |
+| `RouteBUnsupportedTarget` | coverage said yes and the compiler or the span disagreed — a toolchain problem, not a Dart one |
+| container failure | the bytes could not be packed or read |
 
-This is the last architectural piece, and it is not orchestration. What it
-needs, per target:
+#### The widening questions, in the order to probe them
 
-- the new body's source, and the imports it references
-- an enclosing context for class members, which cannot be redeclared elsewhere
-- private members (`_foo`) resolve per-library, so a synthetic library cannot
-  name them
-- whether a top-level replacement can serve as an instance method body (the
-  interpreter receiving `this` as argument 0) is a RUNTIME question and is
-  unproven — the runtime is frozen, so it must be measured, not assumed
+Not designed, because the probes should decide. Each is device-observable and
+cheap:
 
-The narrow path that is already proven end to end — a top-level function with
-no references to app symbols — is exactly the shape of the device gate's
-fixture. Widening it is the next design decision, and it should be made with the
-same discipline as the rest: cheapest probe first, on the fixture, before any
-general scheme is written.
+| probe | question |
+|---|---|
+| A · top-level with references | can a synthetic library bind ordinary public app symbols? |
+| B · instance method, no field access | can a top-level replacement attach to `Foo.value` and receive the instance calling convention? This is the cheapest answer to the `this`/arg0 question |
+| C · instance method using `this` | if B works and C fails, the problem moved from attachment to receiver/member addressing |
+| D · private references | `_foo` is library-scoped identity, not spelling — likely the nastiest, and it may force generating in the original library identity, rewriting during kernel generation, or a binder |
+
+Do B on device. Do not infer it from kernel shape.
+
+**Do not** widen the container or the runtime to carry a whole replacement app
+just because `dart2bytecode` can compile one. The model stays explicit: changed
+target A → payload A, changed target B → payload B. The container already
+carries multiple target/payload records; each attachment remains the exact
+single-function mechanism proven on hardware.
 
 The runtime is proven and should not be touched. After runtime has been proven,
 assume producer / provenance / release-construction first — including the

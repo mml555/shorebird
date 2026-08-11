@@ -41,7 +41,10 @@ void main() {
             isA<FormatException>().having(
               (e) => e.message,
               'message',
-              allOf(contains('version 99'), contains('understands 1')),
+              allOf(
+                contains('version 99'),
+                contains('understands $supportedRouteBAnalysisVersion'),
+              ),
             ),
           ),
         );
@@ -101,6 +104,45 @@ void main() {
             ),
           ),
         );
+      });
+    });
+
+    group('sources', () {
+      test('carries each changed member\'s source span', () {
+        // A span, not text: the analyzer has the kernel's offsets and the
+        // producer has the file. One declaration per target is exactly what
+        // the runtime's one-payload-one-function contract needs.
+        final coverage = RouteBCoverage.fromJson(
+          jsonEncode({
+            'analysisVersion': supportedRouteBAnalysisVersion,
+            'verdict': 'accept',
+            'changed': ['a#alpha'],
+            'added': <String>[],
+            'removed': <String>[],
+            'patchable': ['a#alpha'],
+            'conditional': <String>[],
+            'sources': {
+              'a#alpha': {
+                'fileUri': 'file:///app/lib/main.dart',
+                'start': 10,
+                'end': 42,
+              },
+            },
+            'rejections': <Object>[],
+            'refusalSummary': null,
+          }),
+        );
+
+        expect(
+          coverage.sources['a#alpha']!.fileUri,
+          'file:///app/lib/main.dart',
+        );
+        expect(coverage.sources['a#alpha']!.start, 10);
+        expect(coverage.sources['a#alpha']!.end, 42);
+      });
+
+      test('is empty when the analysis carries none', () {
+        expect(RouteBCoverage.fromJson(document()).sources, isEmpty);
       });
     });
 

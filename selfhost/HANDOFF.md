@@ -108,6 +108,7 @@ release-construction first when something fails.
 | forwarded build inputs are checked, not promised | `RouteBReleaseKernelBuilder.agreesWith` |
 | coverage runs before any compile, and a rejection takes the whole patch | `ios_patcher.dart` |
 | the container and the release build ID are the CLI's own, deterministic | `route_b_container.dart` |
+| the CLI's container is byte-identical to the manually proven packer | `route_b/host_equivalence.sh` — 3/3 |
 
 #### Three failure signatures that cost real time, now detected
 
@@ -214,19 +215,42 @@ class members cannot be redeclared in another library, private members resolve
 per-library, and whether a top-level replacement can serve as an instance method
 body is a RUNTIME question against a frozen runtime.
 
+#### Producer, narrow path — DONE 2026-08-10
+
+`shorebird patch`'s own producer compiles a replacement body and packs an
+SBRBPTCH whose bytes are **identical** to the packer that produced the container
+proven on hardware (`host_equivalence.sh`, 3/3). Exact SHA is fair: the format
+has no timestamps and no ordering that depends on anything but the target list.
+
+The analyzer is now `analysisVersion: 2` and reports a source span per changed
+member (`Procedure.fileStartOffset` → `fileEndOffset`), which the producer
+slices — from bytes, not from a Dart String — to build one single-declaration
+library per target. That is the shape the runtime requires: `LoadBytecode()`
+returns ONE Function and that is what gets attached.
+
+**Claim it narrowly.** The complete automatic path works for the currently
+supported replacement shape — a self-contained declaration. NOT "arbitrary Dart
+functions can be patched."
+
 #### Next session, in order
 
-1. **Probe the replacement-source question** on the fixture, cheapest first:
-   top-level with app references, then a class method, then a private member.
-   Each is a device-observable yes/no.
-2. **Generate replacement sources** for whatever shape the probes support, and
-   refuse the rest by name — the coverage taxonomy already has the vocabulary.
-3. **Host-level equivalence**: `shorebird patch` must produce the same SBRBPTCH
-   bytes as the known-good host tooling for the same input. Exact SHA is fair —
-   the format is deterministic.
-4. **Fresh release**, then the automatic device gate: OLD -> `shorebird patch`
-   -> NEW -> relaunch NEW -> rollback OLD, nothing manual in between.
-5. **Sealed regression.**
+1. **The device gate**, on the narrow shape and nothing wider: fresh Route B
+   release with `routeBValue() => 'OLD'`, change to `'NEW'`, `shorebird patch
+   ios`, nothing manual in between; device shows OLD -> NEW -> NEW after
+   relaunch -> OLD after rollback, corroborated by `.routeb`.
+   Remaining wiring: hand the container to the artifact/upload path the way
+   `build_4b_artifact.sh` + `publish_4b_patch.sh` do (`route_b_artifact` turns a
+   container into the artifact the updater inflates).
+2. **Sealed regression.**
+3. **Then widen, by probe, in this order** — A public top-level with
+   references, B public instance method (the cheapest answer to the `this`/arg0
+   question, and it must be run ON DEVICE), C instance method using `this`,
+   D private/library-bound references. Let each result say what compiler
+   transformation is actually required.
+
+Do NOT teach the container or the runtime to carry a whole replacement app
+because dart2bytecode can compile one. One target, one payload — the mechanism
+already proven.
 
 ### The boundary that was crossed
 
