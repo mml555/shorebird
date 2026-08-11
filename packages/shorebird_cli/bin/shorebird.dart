@@ -29,6 +29,10 @@ import 'package:shorebird_cli/src/pubspec_editor.dart';
 import 'package:shorebird_cli/src/shorebird_android_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_cli_command_runner.dart';
+import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
+import 'package:shorebird_cli/src/route_b_coverage.dart';
+import 'package:shorebird_cli/src/route_b_producer.dart';
+import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_process.dart';
@@ -98,6 +102,13 @@ Command: shorebird ${args.join(' ')}
           powershellRef,
           processRef,
           pubspecEditorRef,
+          // Route B (selfhost). Registered here or `read` throws at the moment
+          // a Route B release or patch needs them — which unit tests cannot
+          // catch, because they inject every ref they use.
+          routeBCompilerResolverRef,
+          routeBCoverageAnalyzerRef,
+          routeBProducerRef,
+          routeBReleaseKernelBuilderRef,
           shorebirdAndroidArtifactsRef,
           shorebirdArtifactsRef,
           shorebirdEnvRef,
