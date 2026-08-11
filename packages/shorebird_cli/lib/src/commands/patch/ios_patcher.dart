@@ -20,6 +20,9 @@ import 'package:shorebird_cli/src/platform.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/route_b.dart';
+import 'package:shorebird_cli/src/route_b_compiler.dart';
+import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
+import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_documentation.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
@@ -190,25 +193,33 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
       p.join(appDirectory.path, 'Frameworks', 'App.framework', 'App'),
     );
 
-    // Route B (selfhost): on an engine that supports iOS Dart code push, a code
-    // patch is only meaningful if the RELEASE was built with patchable call
-    // sites. Checked here, against the release artifact we just downloaded,
-    // because the alternative is the worst failure in this project: the patch
-    // builds, uploads, downloads, installs, validates, attaches, reports
-    // success — and the app behaves identically, because AOT emitted direct
-    // calls that never consult `Function.entry_point_`.
+    // Route B (selfhost): a code patch against a Route B release is only
+    // meaningful if the RELEASE was built with patchable call sites. Checked
+    // here, against the release artifact we just downloaded, because the
+    // alternative is the worst failure in this project: the patch builds,
+    // uploads, downloads, installs, validates, attaches, reports success — and
+    // the app behaves identically, because AOT emitted direct calls that never
+    // consult `Function.entry_point_`.
     //
-    // Deliberately keyed on ENGINE capability rather than on "is iOS". A stock
-    // engine has no interpreter for an attached function to enter through, so
-    // it keeps the existing linker path untouched.
-    if (!assetsOnly && _engineSupportsIosCodePush()) {
+    // Two ways in, and the first is the real one. A release that carries Route
+    // B provenance says so itself, from its own uploaded bytes, so the branch
+    // is taken for the right releases even on a machine whose engine has been
+    // switched to something else. The local-engine check stays as a safety net
+    // for releases cut before provenance existed: without it, a Route B release
+    // built without the flag would fall through to the private AOT linker
+    // instead of getting the "not patchable, cut a new release" diagnosis.
+    if (!assetsOnly &&
+        (hasRouteBReleaseProvenance(releaseSupplementDir) ||
+            _engineSupportsIosCodePush())) {
       _verifyReleaseIsPatchable(releaseArtifactFile);
       // The release IS Route B. From here the only valid outcomes are a Route B
       // patch or an explicit refusal — never a fall through to the private
       // linker. Letting the legacy path catch a Route B release would leave the
       // old architecture as an accidental fallback, and it would fail somewhere
       // downstream with a message about a linker nobody asked for.
-      _requireRouteBProducer();
+      final provenance = _readReleaseProvenance(releaseSupplementDir);
+      final compiler = await _resolveRouteBCompiler(provenance);
+      _requireRouteBProducer(compiler);
     }
 
     // An assets-only patch carries no code, and the patch command drops the code
@@ -324,22 +335,111 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
     );
   }
 
+  /// The engine hash that must select the compiler cell, read from the
+  /// release's own uploaded bytes.
+  ///
+  /// A release with no provenance is RELEASE-INCOMPATIBLE, not "tooling
+  /// unavailable": nothing can be republished to make it patchable, because
+  /// there is no way to learn which of the fifteen engines published under this
+  /// Flutter revision built it. Guessing from the current environment is the
+  /// exact failure this record exists to prevent — it would validate a cell
+  /// whose every hash matched and whose lineage was wrong.
+  RouteBReleaseProvenance _readReleaseProvenance(Directory supplement) {
+    final RouteBReleaseProvenance? provenance;
+    try {
+      provenance = readRouteBReleaseProvenance(supplement);
+    } on FormatException catch (error) {
+      logger.err(
+        '''
+This release's Route B provenance could not be read: ${error.message}
+
+Nothing was uploaded. Create a new release and patch that instead.''',
+      );
+      throw ProcessExit(ExitCode.software.code);
+    }
+
+    if (provenance == null) {
+      logger.err(
+        '''
+This release does not record which engine built it, so the compiler that must produce its patches cannot be identified.
+
+Releases cut by this version of Shorebird record it automatically. Create a new
+release with this engine and patch that instead. Nothing was uploaded.''',
+      );
+      throw ProcessExit(ExitCode.software.code);
+    }
+
+    return provenance;
+  }
+
+  /// Resolve the compiler cell belonging to the release's engine.
+  ///
+  /// The two [RouteBCompilerProblem] cases are kept distinct all the way to the
+  /// user because their remediations are opposites: *unavailable* means nothing
+  /// was ever published for this engine, so a new release will not help;
+  /// *invalid* means the release is fine and the TOOLING is corrupt, so cutting
+  /// a new release would fix nothing. A download failure is a third thing again
+  /// and says nothing about the cell.
+  Future<RouteBCompiler> _resolveRouteBCompiler(
+    RouteBReleaseProvenance provenance,
+  ) async {
+    // Not (yet) a refusal. The patch's kernel is produced by whichever frontend
+    // this machine is set up with, and the bytecode will be produced by the
+    // release's engine — if those disagree the bytecode may fail to bind, on
+    // device, long after this command reported success. We have not yet
+    // demonstrated that, and manufacturing a gate ahead of the evidence would
+    // block work for a reason we cannot yet defend. Wiring the producer is what
+    // will settle whether this becomes an error.
+    final ambient = shorebirdEnv.shorebirdEngineRevision;
+    if (ambient != provenance.engineRevision) {
+      logger.warn(
+        '''
+This release was built by engine ${provenance.engineRevision}, but this machine is set up with engine $ambient.
+
+The patch will be compiled by the release's engine, which is correct. The kernel
+it compiles, however, comes from the engine above.''',
+      );
+    }
+
+    try {
+      final compiler = await routeBCompilerResolver.resolve(
+        engineRevision: provenance.engineRevision,
+      );
+      logger.detail(
+        '[route-b] resolved compiler for engine '
+        '${provenance.engineRevision}\n${compiler.provenance}',
+      );
+      return compiler;
+    } on RouteBCompilerException catch (error) {
+      logger.err(error.message);
+      throw ProcessExit(ExitCode.software.code);
+    } on RouteBCompilerDownloadException catch (error) {
+      logger.err(error.message);
+      throw ProcessExit(ExitCode.software.code);
+    }
+  }
+
   /// Refuse to proceed when the Route B producer is not available.
   ///
-  /// Reached only for a release that IS Route B capable, so falling back to the
-  /// private AOT linker here would be wrong twice over: it cannot work (we
-  /// cannot build `aot-tools.dill`), and it would quietly re-establish the old
-  /// architecture as the default for exactly the releases that have moved off
-  /// it. An explicit refusal keeps the branch honest until the producer lands.
-  void _requireRouteBProducer() {
+  /// Reached only for a release that IS Route B capable and whose compiler cell
+  /// has now been downloaded and validated, so falling back to the private AOT
+  /// linker here would be wrong twice over: it cannot work (we cannot build
+  /// `aot-tools.dill`), and it would quietly re-establish the old architecture
+  /// as the default for exactly the releases that have moved off it.
+  ///
+  /// Everything upstream of this line is real. What is missing is the
+  /// compilation, coverage analysis and packing that turn the resolved compiler
+  /// into an SBRBPTCH container, so the message says exactly that rather than
+  /// blaming tooling that is present and valid.
+  Never _requireRouteBProducer(RouteBCompiler compiler) {
     logger.err(
       '''
-This release supports iOS Dart code push, but the tooling that produces those patches is not available in this build of Shorebird.
+The Route B compiler for this release resolved and validated, but this build of Shorebird cannot yet compile a patch with it.
 
-Producing one requires dart2bytecode from the same engine toolchain as the release, which is not yet published as a Shorebird artifact.
+  ${compiler.compilerSnapshot.path}
 
-This is not a problem with your release or your Dart changes — the release is
-patchable. Nothing was uploaded.''',
+This is not a problem with your release, your Dart changes, or the tooling.
+Nothing was uploaded.''',
     );
     throw ProcessExit(ExitCode.software.code);
   }

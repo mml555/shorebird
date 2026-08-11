@@ -15,6 +15,7 @@ import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform/apple/apple.dart';
 import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/route_b.dart';
+import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
 import 'package:shorebird_cli/src/validators/validators.dart';
@@ -135,6 +136,13 @@ If left checked, Xcode will rewrite the build number in the uploaded IPA, so the
       _verifyPatchableRelease(appDirectory);
     }
 
+    // Independent of who asked for the flag: a release built by a Route B
+    // engine records which engine that was, whether the flag came from us or
+    // from the caller's own --extra-gen-snapshot-options.
+    if (isRouteBEngine(_routeBEngineBinary)) {
+      _recordRouteBProvenance(appDirectory);
+    }
+
     // When code signing is requested (the default), `flutter build ipa` is
     // expected to export a signed .ipa. Flutter treats the export step as
     // optional and exits 0 even when it fails (e.g. no signing certificate),
@@ -152,6 +160,69 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
     }
 
     return xcarchiveDirectory;
+  }
+
+  /// The iOS engine binary this build will link against.
+  File get _routeBEngineBinary => File(
+    p.join(
+      shorebirdEnv.flutterDirectory.path,
+      'bin',
+      'cache',
+      'artifacts',
+      'engine',
+      'ios-release',
+      'Flutter.xcframework',
+      'ios-arm64',
+      'Flutter.framework',
+      'Flutter',
+    ),
+  );
+
+  /// Record, with the release, which engine built it.
+  ///
+  /// This is the only moment the engine hash is knowable and true. At patch
+  /// time `shorebirdEnv.shorebirdEngineRevision` reads `engine.version` out of
+  /// the Flutter checkout, a mutable local file this fork's own scripts rewrite
+  /// to switch experimental engines — and fifteen engine hashes share the one
+  /// pinned Flutter revision, so `release.flutterRevision` cannot recover it
+  /// either. Written into the supplement, it travels with the release as bytes
+  /// and stops being a fact about whoever runs `shorebird patch`.
+  ///
+  /// See `route_b_provenance.dart` for why the supplement rather than a field
+  /// on the release.
+  void _recordRouteBProvenance(Directory appDirectory) {
+    final supplement = artifactManager.getReleaseSupplementDirectory(
+      platformSubdir: supplementPlatformSubdir,
+      create: true,
+    );
+    if (supplement == null) {
+      // No project root: nothing downstream can upload a supplement either.
+      logger.warn(
+        '''Could not record which engine built this release; patches for it will be refused.''',
+      );
+      return;
+    }
+
+    final appBinary = File(
+      p.join(appDirectory.path, 'Frameworks', 'App.framework', 'App'),
+    );
+    final counted = appBinary.existsSync()
+        ? countPatchableCallSites(appBinary)
+        : (sites: 0, perMiB: 0.0);
+
+    final engineRevision = shorebirdEnv.shorebirdEngineRevision;
+    final file = writeRouteBReleaseProvenance(
+      supplement,
+      RouteBReleaseProvenance(
+        engineRevision: engineRevision,
+        flutterRevision: shorebirdEnv.flutterRevision,
+        patchableCallSites: counted.sites,
+        patchableCallSitesPerMiB: counted.perMiB,
+      ),
+    );
+    logger.detail(
+      '[route-b] recorded engine $engineRevision in ${file.path}',
+    );
   }
 
   /// Ask gen_snapshot for the patchable call form, on engines that can use it.
@@ -172,21 +243,7 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
   /// Returns whether the release is expected to come out patchable, which is
   /// what [_verifyPatchableRelease] is then entitled to insist on.
   bool _addPatchableCallArgs(List<String> buildArgs) {
-    final engine = File(
-      p.join(
-        shorebirdEnv.flutterDirectory.path,
-        'bin',
-        'cache',
-        'artifacts',
-        'engine',
-        'ios-release',
-        'Flutter.xcframework',
-        'ios-arm64',
-        'Flutter.framework',
-        'Flutter',
-      ),
-    );
-    if (!isRouteBEngine(engine)) return false;
+    if (!isRouteBEngine(_routeBEngineBinary)) return false;
 
     // Respect an explicit choice. Someone measuring the flag's cost, or
     // deliberately shipping a non-patchable build on a Route B engine, must be

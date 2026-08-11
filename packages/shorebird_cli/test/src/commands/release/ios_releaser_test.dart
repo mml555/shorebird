@@ -24,6 +24,7 @@ import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/os/operating_system_interface.dart';
 import 'package:shorebird_cli/src/platform/apple/apple.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_process.dart';
@@ -738,6 +739,69 @@ $body
               contains('--extra-gen-snapshot-options=--patchable_static_calls'),
             ),
           );
+        });
+
+        // Compiler-cell selection at patch time must be release-relative.
+        // Nothing else can carry the engine hash: `Release` records only the
+        // Flutter revision, and fifteen engine hashes share this fork's one
+        // pinned Flutter revision. So the release records it here, at the one
+        // moment it is known to be true.
+        group('route_b.json provenance', () {
+          late Directory supplementDirectory;
+
+          setUp(() {
+            supplementDirectory = Directory.systemTemp.createTempSync(
+              'supplement',
+            );
+            when(
+              () => artifactManager.getReleaseSupplementDirectory(
+                platformSubdir: any(named: 'platformSubdir'),
+                create: any(named: 'create'),
+              ),
+            ).thenReturn(supplementDirectory);
+            when(
+              () => shorebirdEnv.shorebirdEngineRevision,
+            ).thenReturn('engine-abc');
+            when(() => shorebirdEnv.flutterRevision).thenReturn('flutter-def');
+          });
+
+          test('records the engine that built the release', () async {
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            final provenance = readRouteBReleaseProvenance(
+              supplementDirectory,
+            );
+            expect(provenance, isNotNull);
+            expect(provenance!.engineRevision, 'engine-abc');
+            expect(provenance.flutterRevision, 'flutter-def');
+            // Evidence, not a gate: the patch side re-counts from the shipped
+            // bytes rather than believing this.
+            expect(provenance.patchableCallSites, 4000);
+          });
+
+          test('records it even when the caller asked for the flag', () async {
+            // The flag's provenance and the engine's provenance are different
+            // facts. Someone passing --patchable_static_calls themselves still
+            // produced a release only one engine can compile patches for.
+            when(() => argResults.rest).thenReturn([
+              '--extra-gen-snapshot-options=--patchable_static_calls',
+            ]);
+
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            expect(
+              readRouteBReleaseProvenance(supplementDirectory)?.engineRevision,
+              'engine-abc',
+            );
+          });
+
+          test('records nothing on a stock engine', () async {
+            engineBinary().writeAsStringSync('...no interpreter here...');
+
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            expect(readRouteBReleaseProvenance(supplementDirectory), isNull);
+          });
         });
 
         group('when the built app has no patchable call sites', () {

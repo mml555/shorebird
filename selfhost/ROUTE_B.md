@@ -94,9 +94,9 @@ targets` in the report plus `OLD` on screen means the release was built without
 succeeds; the call site simply never consults `Function.entry_point_`. Nothing
 else in the stack reports the flag's absence.
 
-The remaining work is genuinely only the producer: replace
-`ios_patcher.dart:198`'s private-linker gate with generation of exactly these
-bytes.
+The remaining work is genuinely only the producer: `ios_patcher` already
+resolves the release's own compiler cell and refuses; what is missing is
+generation of exactly these bytes.
 
 ## What you are building, in one shape change
 
@@ -299,8 +299,10 @@ and believe the result. The pieces are already in the shape the CLI needs.
    rollback → pristine `OLD`. The container was packed by hand; everything
    downstream of those bytes is proven.
 9. **`shorebird patch` produces the container.** ← the only major seam left.
-   `ios_patcher.dart:198` still gates code patches on Shorebird's private AOT
-   linker. See "Next session starts here" in
+   Compiler-cell selection is CLOSED (2026-08-10): the release carries the
+   engine that built it and `ios_patcher` resolves the cell from those bytes.
+   What is missing is the coverage port, the compile, and the pack. See
+   "Compiler-cell selection" in
    [`engine/route_b/README.md`](engine/route_b/README.md).
 10. **Sealed independence regression for iOS code patches.**
 

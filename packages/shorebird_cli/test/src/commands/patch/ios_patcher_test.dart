@@ -26,6 +26,9 @@ import 'package:shorebird_cli/src/os/operating_system_interface.dart';
 import 'package:shorebird_cli/src/patch_diff_checker.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/route_b_compiler.dart';
+import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
+import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_documentation.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
@@ -61,6 +64,7 @@ void main() {
     late OperatingSystemInterface operatingSystemInterface;
     late PatchDiffChecker patchDiffChecker;
     late Progress progress;
+    late RouteBCompilerResolver routeBCompilerResolver;
     late ShorebirdArtifacts shorebirdArtifacts;
     late ShorebirdProcess shorebirdProcess;
     late ShorebirdEnv shorebirdEnv;
@@ -85,6 +89,7 @@ void main() {
           osInterfaceRef.overrideWith(() => operatingSystemInterface),
           patchDiffCheckerRef.overrideWith(() => patchDiffChecker),
           processRef.overrideWith(() => shorebirdProcess),
+          routeBCompilerResolverRef.overrideWith(() => routeBCompilerResolver),
           shorebirdArtifactsRef.overrideWith(() => shorebirdArtifacts),
           shorebirdEnvRef.overrideWith(() => shorebirdEnv),
           shorebirdFlutterRef.overrideWith(() => shorebirdFlutter),
@@ -120,6 +125,7 @@ void main() {
       patchDiffChecker = MockPatchDiffChecker();
       progress = MockProgress();
       projectRoot = Directory.systemTemp.createTempSync();
+      routeBCompilerResolver = MockRouteBCompilerResolver();
       logger = MockShorebirdLogger();
       shorebirdArtifacts = MockShorebirdArtifacts();
       shorebirdProcess = MockShorebirdProcess();
@@ -1066,7 +1072,29 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
       // different Dart, and collapsing them sends people to debug the wrong
       // half.
       group('when the engine supports iOS Dart code push', () {
+        // Two different engines under the same Flutter revision, which is the
+        // situation this fork is actually in: fifteen engine hashes are
+        // published under `c15ef637`, so nothing about the release's Flutter
+        // revision distinguishes them.
+        const releaseEngineRevision =
+            'aaaaaaaa1111aaaaaaaa2222aaaaaaaa3333aaaa';
+        const ambientEngineRevision =
+            'bbbbbbbb1111bbbbbbbb2222bbbbbbbb3333bbbb';
+
         late Directory flutterDir;
+        late Directory supplementDirectory;
+
+        void writeReleaseProvenance({required String engineRevision}) {
+          writeRouteBReleaseProvenance(
+            supplementDirectory,
+            RouteBReleaseProvenance(
+              engineRevision: engineRevision,
+              flutterRevision: 'cccccccc1111cccccccc2222cccccccc3333cccc',
+              patchableCallSites: 4000,
+              patchableCallSitesPerMiB: 1788,
+            ),
+          );
+        }
 
         void writeReleaseAppBinary({required int sites}) {
           final words = Uint32List(1024 * 32)
@@ -1101,6 +1129,27 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
             ..createSync(recursive: true)
             ..writeAsStringSync('...InterpretCall...');
           when(() => shorebirdEnv.flutterDirectory).thenReturn(flutterDir);
+
+          supplementDirectory = Directory.systemTemp.createTempSync(
+            'supplement',
+          );
+          when(
+            () => shorebirdEnv.shorebirdEngineRevision,
+          ).thenReturn(releaseEngineRevision);
+          when(
+            () => routeBCompilerResolver.resolve(
+              engineRevision: any(named: 'engineRevision'),
+            ),
+          ).thenAnswer(
+            (_) async => RouteBCompiler(
+              runtime: File(p.join(flutterDir.path, 'dartaotruntime')),
+              compilerSnapshot: File(
+                p.join(flutterDir.path, 'dart2bytecode.aot'),
+              ),
+              platformDill: File(p.join(flutterDir.path, 'vm_platform.dill')),
+              provenance: 'engine revision  : $releaseEngineRevision',
+            ),
+          );
         });
 
         group('when the release was not built with patchable calls', () {
@@ -1134,32 +1183,261 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
         group('when the release IS patchable', () {
           setUp(() => writeReleaseAppBinary(sites: 4000));
 
-          test('refuses instead of falling back to the linker', () async {
-            // A Route B release must never reach the private-linker path. That
-            // fallback cannot work here and would quietly leave the old
-            // architecture as the default for exactly the releases that moved
-            // off it.
-            await expectLater(
-              () => runWithOverrides(
-                () => patcher.createPatchArtifacts(
-                  appId: appId,
-                  releaseId: releaseId,
-                  releaseArtifact: releaseArtifactFile,
-                ),
-              ),
-              exitsWithCode(ExitCode.software),
-            );
-
-            verify(
-              () => logger.err(
-                any(
-                  that: allOf(
-                    contains('supports iOS Dart code push'),
-                    contains('Nothing was uploaded'),
+          test(
+            'refuses a release that does not record its engine',
+            () async {
+              // A release cut before provenance existed is
+              // RELEASE-INCOMPATIBLE, not "tooling unavailable": there is no
+              // way to learn which of the engines published under this Flutter
+              // revision built it, and guessing from the environment is the
+              // failure the record exists to prevent.
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
                   ),
                 ),
-              ),
-            ).called(1);
+                exitsWithCode(ExitCode.software),
+              );
+
+              verifyNever(
+                () => routeBCompilerResolver.resolve(
+                  engineRevision: any(named: 'engineRevision'),
+                ),
+              );
+              verify(
+                () => logger.err(
+                  any(
+                    that: allOf(
+                      contains('does not record which engine built it'),
+                      contains('Nothing was uploaded'),
+                    ),
+                  ),
+                ),
+              ).called(1);
+            },
+          );
+
+          group('when the release records its engine', () {
+            setUp(() {
+              writeReleaseProvenance(engineRevision: releaseEngineRevision);
+            });
+
+            test(
+              'resolves the compiler for the RELEASE engine, not the '
+              'environment',
+              () async {
+                // The whole point. This machine is set up with a DIFFERENT
+                // engine, and fifteen engine hashes share one Flutter
+                // revision, so an environment-relative lookup would validate a
+                // cell whose every hash matched and whose lineage was wrong.
+                when(
+                  () => shorebirdEnv.shorebirdEngineRevision,
+                ).thenReturn(ambientEngineRevision);
+
+                await expectLater(
+                  () => runWithOverrides(
+                    () => patcher.createPatchArtifacts(
+                      appId: appId,
+                      releaseId: releaseId,
+                      releaseArtifact: releaseArtifactFile,
+                      supplementDirectory: supplementDirectory,
+                    ),
+                  ),
+                  exitsWithCode(ExitCode.software),
+                );
+
+                verify(
+                  () => routeBCompilerResolver.resolve(
+                    engineRevision: releaseEngineRevision,
+                  ),
+                ).called(1);
+                verifyNever(
+                  () => routeBCompilerResolver.resolve(
+                    engineRevision: ambientEngineRevision,
+                  ),
+                );
+                verify(
+                  () => logger.warn(
+                    any(
+                      that: allOf(
+                        contains(releaseEngineRevision),
+                        contains(ambientEngineRevision),
+                      ),
+                    ),
+                  ),
+                ).called(1);
+              },
+            );
+
+            test('refuses a release whose provenance is unreadable', () async {
+              File(
+                p.join(supplementDirectory.path, 'route_b.json'),
+              ).writeAsStringSync('{not json');
+
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                exitsWithCode(ExitCode.software),
+              );
+
+              verifyNever(
+                () => routeBCompilerResolver.resolve(
+                  engineRevision: any(named: 'engineRevision'),
+                ),
+              );
+              verify(
+                () => logger.err(
+                  any(that: contains('provenance could not be read')),
+                ),
+              ).called(1);
+            });
+
+            test(
+              'reports an unpublished cell as tooling unavailable',
+              () async {
+                when(
+                  () => routeBCompilerResolver.resolve(
+                    engineRevision: any(named: 'engineRevision'),
+                  ),
+                ).thenThrow(
+                  RouteBCompilerException(
+                    RouteBCompilerProblem.unavailable,
+                    'has not been published for engine x',
+                  ),
+                );
+
+                await expectLater(
+                  () => runWithOverrides(
+                    () => patcher.createPatchArtifacts(
+                      appId: appId,
+                      releaseId: releaseId,
+                      releaseArtifact: releaseArtifactFile,
+                      supplementDirectory: supplementDirectory,
+                    ),
+                  ),
+                  exitsWithCode(ExitCode.software),
+                );
+
+                verify(
+                  () => logger.err(
+                    any(that: contains('has not been published for engine x')),
+                  ),
+                ).called(1);
+              },
+            );
+
+            test('reports a corrupt cell as tooling invalid', () async {
+              when(
+                () => routeBCompilerResolver.resolve(
+                  engineRevision: any(named: 'engineRevision'),
+                ),
+              ).thenThrow(
+                RouteBCompilerException(
+                  RouteBCompilerProblem.invalid,
+                  'failed validation: the bundle is missing dartaotruntime',
+                ),
+              );
+
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                exitsWithCode(ExitCode.software),
+              );
+
+              verify(
+                () => logger.err(
+                  any(
+                    that: contains(
+                      'the bundle is missing dartaotruntime',
+                    ),
+                  ),
+                ),
+              ).called(1);
+            });
+
+            test('reports an unreachable host as a download failure', () async {
+              // Neither "unavailable" nor "invalid": an unreachable host says
+              // nothing about the cell, and filing it under either would send
+              // someone to republish tooling that is fine.
+              when(
+                () => routeBCompilerResolver.resolve(
+                  engineRevision: any(named: 'engineRevision'),
+                ),
+              ).thenThrow(
+                RouteBCompilerDownloadException('Could not reach https://x'),
+              );
+
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                exitsWithCode(ExitCode.software),
+              );
+
+              verify(
+                () => logger.err(
+                  any(that: contains('Could not reach https://x')),
+                ),
+              ).called(1);
+            });
+
+            test('refuses instead of falling back to the linker', () async {
+              // A Route B release must never reach the private-linker path.
+              // That fallback cannot work here and would quietly leave the old
+              // architecture as the default for exactly the releases that
+              // moved off it.
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                exitsWithCode(ExitCode.software),
+              );
+
+              verifyNever(
+                () => apple.runLinker(
+                  kernelFile: any(named: 'kernelFile'),
+                  releaseArtifact: any(named: 'releaseArtifact'),
+                  splitDebugInfoArgs: any(named: 'splitDebugInfoArgs'),
+                  aotOutputFile: any(named: 'aotOutputFile'),
+                  vmCodeFile: any(named: 'vmCodeFile'),
+                ),
+              );
+              verify(
+                () => logger.err(
+                  any(
+                    that: allOf(
+                      contains('resolved and validated'),
+                      contains('Nothing was uploaded'),
+                    ),
+                  ),
+                ),
+              ).called(1);
+            });
           });
         });
 

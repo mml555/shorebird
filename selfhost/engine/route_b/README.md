@@ -973,12 +973,12 @@ selfhost/engine/route_b/audit_route_b_compiler.sh  --hash <engineHash>
 The audit must pass before patching. It fails loudly and names the publish
 command when a cell is missing.
 
-## Next session starts here — compiler-cell selection
+## Compiler-cell selection — CLOSED 2026-08-10
 
-Provenance is complete on both ends and **not yet load-bearing**:
-`ios_patcher.dart` still raises tooling-unavailable directly instead of calling
-`resolveRouteBCompiler`. Until it does, the strongest guarantee in this system
-sits beside production rather than inside it.
+The resolver is load-bearing. `ios_patcher.dart` calls
+`routeBCompilerResolver.resolve(engineRevision:)` with a hash that comes out of
+the release's own uploaded bytes, and the placeholder
+tooling-unavailable refusal is gone.
 
 ### The invariant
 
@@ -990,31 +990,120 @@ engine hash comes from ambient state. That failure wears the disguise of a
 passing check, which makes it worse than no check: every hash matches, the
 capability probe passes, and the compiler is still from the wrong lineage.
 
-### The open question, and why it is not yet answered
+### The question, answered — and it was worse than "probably the same"
 
-`cache.dart`'s `CachedArtifact` keys its storage URL on
-`shorebirdEnv.shorebirdEngineRevision` — the **current** engine. During
-`shorebird patch` that is *probably* the release's engine, because the command
-switches to the release's Flutter revision before the patcher runs. "Probably"
-is exactly the word that has cost this project days elsewhere. Verify it; do not
-assume it.
+The trace:
 
-### Sequence
+```
+patch_command.dart:442  shorebirdEnv.copyWith(
+                          flutterRevisionOverride: release.flutterRevision)
+patch_command.dart:552  runScoped(shorebirdEnvRef.overrideWith(...))
+        ↓  createPatchArtifacts runs inside that scope
+shorebird_env.dart:77   shorebirdEngineRevision
+                          = read(<flutterDir>/bin/internal/engine.version)
+```
 
-1. Trace `patch_command.dart` and prove which engine revision reaches
-   `ios_patcher`.
-2. If it is release-derived and stable, document the invariant at that site.
-3. If it is not, thread the release engine hash through explicitly.
-4. Add a fetcher keyed on that hash — no existing accessor does this.
-5. Replace `_requireRouteBProducer()` with
-   `resolveRouteBCompiler(releaseEngineHash)`.
-6. Preserve all three failures, with no fallback in any of them:
-   **release incompatible** · **tooling unavailable** · **tooling invalid**.
-7. Only then port the coverage analysis, **mechanically**: same input -> same
-   target set -> same verdicts as the host tooling in this directory. Do not
-   reinterpret it while moving it. A divergence introduced during the port is
-   indistinguishable from a genuine "unsupported target" result, which is the
-   one thing the whole provenance chain exists to make trustworthy.
+So the engine hash was release-relative **only up to the Flutter revision**, and
+the last hop was a mutable local file. Three facts turn that from a theoretical
+smell into a live hazard *in this fork specifically*:
+
+| fact | consequence |
+|---|---|
+| `release_assetsonly.sh:33`, `accept_android_default.sh:96`, `airgap_acceptance.sh:219` all `echo "$EXP" > bin/internal/engine.version` | the value is whatever the last engine switch wrote |
+| fifteen engine hashes live under `cdn/overlay/.../shorebird/`, and every one in `compatibility.yaml` shares Flutter revision `c15ef637` | `release.flutterRevision` cannot distinguish them |
+| `Release` carries `flutter_revision` and `flutter_version` — no engine field | the server could not answer it either |
+
+`Flutter.framework/Info.plist`'s `FlutterEngine` key is the *Flutter* revision
+(`c15ef637`), so the shipped bytes did not carry it either. There was no
+`release.engineHash` to pass.
+
+### Where the hash comes from now
+
+`ios_releaser` writes `route_b.json` into the iOS release supplement — the same
+artifact that already carries `obfuscation_map.json`, and which
+`patch_command` already downloads, extracts and hands to `createPatchArtifacts`:
+
+```json
+{ "engineRevision": "591a9f8d…", "flutterRevision": "c15ef637…",
+  "patchableCallSites": 7109, "patchableCallSitesPerMiB": 1788 }
+```
+
+Written for any release built by a Route B engine, whether the flag came from us
+or from the caller's own `--extra-gen-snapshot-options`. Recorded at the one
+moment it is knowable and true. Read back out of release bytes, so the value
+cannot come from the machine running `shorebird patch` at all — a stronger
+guarantee than threading it through as a parameter would have been.
+
+The call-site counts are **evidence, not a gate**: `_verifyReleaseIsPatchable`
+re-counts from the shipped `App` binary and that count is what decides.
+
+A server-side `engine_revision` field on the release is the eventual home. It is
+a wire-contract change gated by `compatibility.yaml`, so it is deliberately
+follow-on work; once it exists the two must agree.
+
+### What this costs
+
+**Releases cut before 2026-08-10 carry no sidecar and are refused.** That
+includes `9.0.0+1`, the release the whole runtime was proven on. The refusal is
+filed as RELEASE-INCOMPATIBLE, not tooling-unavailable, because nothing can be
+republished to fix it — there is no way to learn which of fifteen engines built
+it. The automatic end-to-end gate cuts a fresh release anyway.
+
+### The taxonomy, now real
+
+| what happened | filed as | remediation |
+|---|---|---|
+| release has no patchable call sites | release incompatible | cut a new release |
+| release records no engine | release incompatible | cut a new release |
+| release's provenance is unreadable | release incompatible | cut a new release |
+| nothing published for that engine (404) | **tooling unavailable** | `publish_route_b_compiler.sh --rev <hash>` |
+| cell present, fails hash / engine / probe | **tooling invalid** | bad cache or corruption; the release is fine |
+| host unreachable, or any non-404 status | download failure | neither of the above; says nothing about the cell |
+
+A download failure is deliberately outside `RouteBCompilerProblem`. Filing an
+unreachable host under *unavailable* would send someone to republish tooling
+that is fine; under *invalid*, to distrust a cell they never received.
+
+No fallback in any of them. A Route B release never reaches the private linker.
+
+### One thing left deliberately soft
+
+When the release's engine and the machine's engine differ, the patcher **warns
+and continues**. The patch's kernel is produced by whichever frontend this
+machine has, while the bytecode will be produced by the release's engine; if
+those disagree the bytecode may fail to bind on device. That has not been
+demonstrated, and manufacturing a gate ahead of the evidence would block work
+for a reason we cannot defend. Wiring the producer is what settles it.
+
+### Verified
+
+Against the real published cell (`591a9f8d`, `route-b-compiler-darwin-arm64.zip`
+in the overlay), not a fixture:
+
+- correct hash → **RESOLVED**, all three files, hashes matched, live
+  `dartaotruntime dart2bytecode.aot --help` probe passed
+- wrong hash → **REFUSED (invalid)**: *"the bundle records engine 591a9f8d…, not
+  the engine it was published under"*
+
+Plus 2,232 CLI unit tests, including: resolution keyed on the release engine
+while the environment holds a different one, each taxonomy branch, and
+`apple.runLinker` never reached.
+
+### Next — port the coverage analysis
+
+Mechanically. Same input → same target set → same verdicts as the host tooling in
+this directory. Do not reinterpret it while moving it. A divergence introduced
+during the port is indistinguishable from a genuine "unsupported target" result,
+which is the one thing the whole provenance chain exists to make trustworthy.
+
+Parity means all of it: same changed targets, same representable targets, same
+rejected targets, **the same rejection reason for each**, and the same
+whole-patch verdict. `Foo.bar → unsupported dispatch-table call` and
+`Foo.bar → target unreachable` are not interchangeable — one points at compiler
+coverage, the other at retention.
+
+And 4 changed / 3 representable / 1 unsupported rejects the **whole** patch.
+Never upload the 3/4 subset.
 
 The runtime is proven and should not be touched. After runtime has been proven,
 assume producer / provenance / release-construction first — including the

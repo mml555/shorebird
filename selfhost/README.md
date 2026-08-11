@@ -93,8 +93,9 @@ app to pristine AOT. The app contains no attach path of its own — the fixture
 cannot patch itself.
 
 What is missing is the producer: `shorebird patch` cannot emit an iOS code
-patch, because `ios_patcher.dart:198` gates code patches on Shorebird's private
-AOT linker. The container that proved everything above was **packed by hand**.
+patch. It now resolves and validates the compiler cell belonging to the release's
+own engine, and then refuses — the compile, coverage and pack steps are not
+written. The container that proved everything above was **packed by hand**.
 Everything downstream of those bytes is proven; nothing upstream of them is.
 
 Also true on iOS today, artifact-independent: a release built with our own

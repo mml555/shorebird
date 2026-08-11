@@ -67,9 +67,10 @@ Both vetoes closed the same day: +4.5 % size and, over five alternating paired
 runs, +0.3 % median frame time with 0 janky frames in 3,000 per arm.
 
 What remains is the producer. `shorebird patch` cannot emit an iOS code patch --
-`ios_patcher.dart:198` gates code patches on Shorebird's private AOT linker,
-which we cannot build -- so the container that proved everything above was
-packed by hand. Everything downstream of those bytes is proven.
+it now resolves and validates the release's own compiler cell and then refuses,
+because the compile / coverage / pack steps are not written -- so the container
+that proved everything above was packed by hand. Everything downstream of those
+bytes is proven.
 
 ### Route B state, 2026-08-10 — what is proven, what is next
 
@@ -98,6 +99,8 @@ release-construction first when something fails.
 | the compiler ships as one engine-scoped cell (runtime + snapshot + platform dill) | `route_b/publish_route_b_compiler.sh` |
 | the cell is audited for reconstructibility, not presence | `route_b/audit_route_b_compiler.sh` |
 | one resolution, one engine cell, no ambient fallbacks | `route_b_compiler.dart` |
+| the release records the engine that built it, and the patch reads it back | `route_b_provenance.dart`, `ios_releaser.dart` |
+| the cell is fetched by the RELEASE's engine hash, never the machine's | `route_b_compiler_cache.dart`, `ios_patcher.dart` |
 
 #### Three failure signatures that cost real time, now detected
 
@@ -114,22 +117,53 @@ release-construction first when something fails.
    snapshot still executed *and* still advertised `--target flutter`; only the
    hash caught it. Hashes and the capability probe are both required and neither
    substitutes for the other.
+4. **A compiler cell from the wrong lineage, chosen by a check that passed.**
+   The engine hash reaching `ios_patcher` came from
+   `<flutterDir>/bin/internal/engine.version` — a mutable local file this repo's
+   own scripts rewrite to switch experimental engines. Fifteen engine hashes
+   share the one pinned Flutter revision, and `Release` records no engine, so
+   nothing release-side could distinguish them. Closed 2026-08-10: the release
+   now carries `route_b.json` in its supplement and the patch reads the hash out
+   of those bytes.
+
+#### Provenance milestone — CLOSED 2026-08-10
+
+`resolveRouteBCompiler` is load-bearing, keyed on the release's own engine hash,
+with no ambient fallback and no linker fallback. Detail and the evidence chain
+in [`engine/route_b/README.md`](engine/route_b/README.md) — "Compiler-cell
+selection".
+
+Two consequences worth knowing before anything else:
+
+- **Releases cut before 2026-08-10 are refused**, including `9.0.0+1`, the
+  release the runtime was proven on. Filed as RELEASE-INCOMPATIBLE: nothing can
+  be republished to fix it. Cut a new release.
+- **A server-side `engine_revision` on the release is follow-on work.** The
+  sidecar is the record today; the field is a wire-contract change gated by
+  `compatibility.yaml`. Once both exist they must agree.
 
 #### Next session, in order
 
-Start at
-[`engine/route_b/README.md`](engine/route_b/README.md) — "Next session starts
-here". The first question is narrow and inspectable, not architectural:
-
-> Does `ios_patcher` receive the **release's** engine hash, or only the ambient
-> one? Compiler-cell selection must be release-relative, never
-> environment-relative.
-
-Then: make `resolveRouteBCompiler(releaseEngineHash)` load-bearing, port the
-coverage analysis **mechanically** (differential parity against the host tooling
-on target set, representability, exact rejection reason and whole-patch
-verdict), wire producer orchestration, and run the automatic end-to-end device
-gate.
+1. **Port the coverage/target analysis** from `engine/route_b` into code the CLI
+   can call — **mechanically**. Acceptance is differential parity against the
+   host tooling on the same kernel: same changed targets, same representable
+   targets, same rejected targets, the same **rejection reason** for each, and
+   the same whole-patch verdict. A divergence introduced during the port is
+   indistinguishable from a genuine "unsupported target", which is the one thing
+   the provenance chain exists to make trustworthy. 4 changed / 3 representable
+   / 1 unsupported rejects the whole patch — never upload the 3/4 subset.
+2. **Wire the producer** into `ios_patcher`: compile the changed kernel with the
+   resolved cell, run coverage, derive the LC_UUID build ID, pack SBRBPTCH, hand
+   it to the existing bidiff/zstd + upload path. No updater, VM, container or
+   activation changes.
+3. **The automatic device gate**: fresh fixture `routeBValue() → OLD`,
+   `shorebird release ios`, change to `NEW`, `shorebird patch ios`, nothing
+   manual in between; device shows OLD → NEW → NEW after relaunch → OLD after
+   rollback, corroborated by `.routeb`.
+4. **The sealed regression**, then product hardening. Do NOT widen
+   dispatch-table support first — 5/6 coverage works and the current form costs
+   ~3 % of Dart build-phase CPU. Let real applications say whether the missing
+   form matters.
 
 ### The boundary that was crossed
 
