@@ -1558,7 +1558,7 @@ So the widening ladder starts one rung lower than planned:
 | A · app-symbol reference | can it call another app function? | **CLOSED ON DEVICE 2026-08-11** |
 | B · instance method, receiver unused | can a top-level replacement attach to `Foo.value`? | **CLOSED ON DEVICE 2026-08-11** |
 | C · `this` access | receiver/member addressing | **BLOCKED AT THE COMPILER 2026-08-11** |
-| D · private references | `_foo` is library-scoped identity | untested |
+| D · private references | `_foo` is library-scoped identity | **ANSWERED 2026-08-11 — two independent walls** |
 
 ## Probe A0 — ANSWERED on the host, 2026-08-11
 
@@ -1830,6 +1830,67 @@ eye — it cost three launches during rung B before the `.ipa` staged turned out
 to be the previous release's. The script compares the installed `App`'s
 `LC_UUID` against the `packed ... for release <id>` line the producer prints,
 and refuses to let an unattributable device result be read as evidence.
+
+### Rung D — ANSWERED on the host, 2026-08-11
+
+`probes/d_private.sh`, entirely inside the static/no-arg shape so nothing here
+can be confused with rung C's blocker.
+
+| # | question | result |
+|---|---|---|
+| control | static, no args, no references | **PASS** — `NEW-D-ctl` |
+| 1 | does the release interface RETAIN a private app member? | **NO** — and the cause is not the generator |
+| 2 | can the replacement REFER to the app's private member? | **NO** — `Method not found: '_privateHelper'` at compile |
+| 3 | does private identity defeat a matching spelling? | **moot** — never reached |
+| 4 | can a replacement carry its OWN private helper? | **YES** — `NEW-D-own`, `APPLY ok: 1 target(s)` |
+
+**Two independent walls, and the second is the real one.**
+
+#### 1 — why the private member is not retained
+
+The interface is generated from the `--aot` prepass kernel, so TFA has already
+dropped anything unreachable: a private member nothing calls is gone before the
+generator can name it. Public members are unaffected, because the `library:`
+wildcard retains them at build time without being enumerated — which is exactly
+why rung A's `routeBHelper`, equally uncalled, survived.
+
+Confirmed by one-variable check rather than assumed — the same generator over
+the non-AOT kernel:
+
+```
+against base.dill  (--aot)     3 private members named, _privateHelper ABSENT
+against import.dill (--no-aot) 4 private members named, _privateHelper PRESENT
+```
+
+The candidate remedy is to enumerate privates from the non-AOT kernel. That
+names every private member including genuinely dead ones, so it needs its own
+measurement before adoption — step 2 put private naming at +0.01 % on the
+inventory program, but on a real app the set is much larger.
+
+#### 2 — the wall that retention cannot fix
+
+Dart privacy is library-scoped. The synthetic replacement is a different
+library, so it cannot name `_privateHelper` however it is spelled, and the
+compile fails before retention is consulted at all. **Fixing (1) would not make
+(2) work.**
+
+#### 4 — what DOES work, and is the practical answer
+
+A replacement may declare and call its own private helpers:
+
+```dart
+String _mine() => …;
+
+@pragma('dyn-module:entry-point')
+String alpha() => _mine();
+```
+
+That is a different claim from patching an existing private member — it ships
+new private code inside the payload rather than reaching into the app's — and it
+is the workaround available today for a patch that needs a helper.
+
+So D's honest summary: **a patch can bring private code with it, and cannot call
+the app's own.**
 
 ### The SDK set is a budget
 
