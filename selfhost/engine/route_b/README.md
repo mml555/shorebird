@@ -954,6 +954,32 @@ build is also a precompiled runtime, so it exercises the same
 `DART_PRECOMPILED_RUNTIME` + `DART_DYNAMIC_MODULES` pairing with no signing, no
 device, and a roughly one-minute incremental loop.
 
+## The cell is IMMUTABLE per engine hash
+
+> **An engine hash identifies the whole Route B toolchain cell, not just the
+> runtime binary. If the cell changes, mint a new engine hash — even when the
+> engine binary is byte-identical.**
+
+Republishing different bytes under one hash makes every consumer's cache a lie.
+A machine that already downloaded the old cell keeps a valid, correctly-hashed,
+**wrong** toolchain, and the only thing between that and a bad patch is whether
+someone remembered to clear a directory — operator state, which is what this
+project keeps removing.
+
+It has already happened. Adding the analyzer, then the frontend, then the
+interface generator each rewrote `591a9f8d`'s cell, and the resolver spent two
+releases refusing a stale cached bundle with a message about corruption.
+
+`publish_route_b_compiler.sh` now enforces it:
+
+- identical contents → idempotent no-op
+- different contents → **refused**, naming the new-hash remedy
+- `FORCE=1` → overrides, and is only correct while no consumer has fetched it
+
+The resolver still re-downloads once when a cached bundle fails validation, but
+that now covers a genuinely corrupt download rather than standing in for this
+invariant.
+
 ## Engine rebuild ⇒ compiler-cell republish ⇒ audit
 
 The compiler cell is engine-scoped, so a rebuilt engine has none until it is

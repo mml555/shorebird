@@ -142,6 +142,55 @@ EOF
 DEST="$OVERLAY/$BUCKET/shorebird/$REV"
 mkdir -p "$DEST"
 ZIP="$DEST/route-b-compiler-$PLAT.zip"
+
+# THE CELL IS IMMUTABLE PER ENGINE HASH.
+#
+# An engine hash identifies the whole Route B toolchain, not just the runtime
+# binary. Republishing different bytes under one hash makes every consumer's
+# cache a lie: a machine that already downloaded the old cell keeps a valid,
+# correctly-hashed, WRONG toolchain, and the only thing standing between that
+# and a bad patch is whether someone remembered to clear a directory. That is
+# operator state, which is exactly what this project keeps removing.
+#
+# It has already happened once. Adding the analyzer, then the frontend, then the
+# interface generator each rewrote 591a9f8d's cell, and the resolver spent two
+# releases refusing a stale cached bundle with a message about corruption.
+#
+# So: if the cell changes, MINT A NEW ENGINE HASH — even when the engine binary
+# is byte-identical. A hash is cheap; a silently-wrong toolchain is not.
+# Re-running with identical bytes is idempotent and allowed.
+if [[ -f "$ZIP" ]]; then
+  existing=$(shasum -a 256 "$ZIP" | cut -d' ' -f1)
+  candidate=$(cd "$STAGE" && zip -q -r -y - . | shasum -a 256 | cut -d' ' -f1)
+  # zip embeds timestamps, so identical CONTENTS can still differ byte for byte.
+  # Compare the payload the audit compares: the recorded hashes.
+  if unzip -p "$ZIP" PROVENANCE.txt 2>/dev/null | grep -q "^dart2bytecode.aot : $(shasum -a 256 "$STAGE/dart2bytecode.aot" | cut -d' ' -f1)$" \
+     && unzip -p "$ZIP" PROVENANCE.txt 2>/dev/null | grep -q "^route_b_analyze.aot : $(shasum -a 256 "$STAGE/route_b_analyze.aot" | cut -d' ' -f1)$" \
+     && unzip -p "$ZIP" PROVENANCE.txt 2>/dev/null | grep -q "^route_b_gen_kernel.aot : $(shasum -a 256 "$STAGE/route_b_gen_kernel.aot" | cut -d' ' -f1)$" \
+     && unzip -p "$ZIP" PROVENANCE.txt 2>/dev/null | grep -q "^route_b_gen_dynamic_interface.aot : $(shasum -a 256 "$STAGE/route_b_gen_dynamic_interface.aot" | cut -d' ' -f1)$"; then
+    note "identical cell already published for $REV — nothing to do"
+    exit 0
+  fi
+  if [[ "${FORCE:-}" != "1" ]]; then
+    die "a DIFFERENT cell is already published for engine $REV.
+
+The engine hash identifies the whole toolchain cell, not just the runtime
+binary, and consumers cache it by that hash. Overwriting it leaves every machine
+that already downloaded the old one holding a valid, correctly-hashed, WRONG
+toolchain.
+
+Mint a new engine hash for the new cell -- even if the engine binary is
+unchanged -- and publish under that:
+
+  selfhost/cdn/experimental_hashes.map      add <newHash> -> <fallback>
+  publish_route_b_compiler.sh --rev <newHash>
+
+FORCE=1 overrides, and is only correct while no consumer has fetched this cell.
+(existing $existing, candidate $candidate)"
+  fi
+  note "FORCE=1 -- overwriting the cell published for $REV"
+fi
+
 ( cd "$STAGE" && zip -q -r -y "$ZIP" . )
 
 note "published"
