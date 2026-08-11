@@ -1235,39 +1235,101 @@ kernel vs patch kernel, and get the 4-changed / 3-representable / 1-rejected
 whole-patch refusal naming the target. Then truncate the kernel and watch
 verification refuse it.
 
-### A second kernel is coming, and here is the evidence
+### Both release kernels — LANDED 2026-08-10
 
-`dart2bytecode --import-dill` **cannot read the AOT kernel**. Not a
-documentation memory — the crash, against the shipped compiler:
+A release owes the producer two kernels, because they answer different
+questions, and neither substitutes for the other:
 
-```
-$ dart2bytecode --platform vm_platform.dill --import-dill <aot kernel> -o out.bytecode repl.dart
-Unhandled exception:
-Crash when compiling:
-Null check operator used on a null value
-#0  new DillExtensionBuilder (package:front_end/src/dill/dill_extension_builder.dart:66:22)
-#1  DillLibraryBuilder.ensureLoaded (…:280:42)
-```
-
-So the producer needs two kernels from the release, for two different jobs:
-
-| kernel | job | produced by |
+| artifact | job | produced by |
 |---|---|---|
-| `release_app.dill` (AOT/TFA) | coverage diff | `flutter build ipa`, captured — **landed** |
-| a `--no-aot --no-link-platform` kernel | `dart2bytecode --import-dill` | a separate `gen_kernel` run — **not landed** |
+| `release_app.dill` | coverage diff | `flutter build ipa`, captured from its own output |
+| `release_import.dill` | `dart2bytecode --import-dill` | the cell's `gen_kernel`, `--no-aot --no-link-platform` |
 
-The second is not produced by `flutter build ipa`, so it needs its own
-invocation at release time. Generating it at RELEASE time is legitimate — the
-ambient toolchain then *is* the release's toolchain, and the invariant is only
-that the PATCH side must not regenerate. What is not yet decided is which tool
-runs it: `gen_kernel.dart` needs `package:kernel` and so has the same problem
-the analyzer had, which points at a third cell artifact.
+`dart2bytecode` cannot read the AOT kernel. Not a documentation memory — the
+crash, against the shipped compiler:
+
+```
+Crash when compiling: Null check operator used on a null value
+#0  new DillExtensionBuilder (package:front_end/src/dill/dill_extension_builder.dart:66:22)
+```
+
+#### The frontend comes from the cell, not from the machine
+
+"Generate it at release time, so the ambient toolchain IS the release toolchain"
+is true today and is exactly the kind of ambient invariant this project keeps
+removing. `route_b_gen_kernel.aot` is resolved by the release's engine hash, so
+both kernels are provably from one frontend lineage whatever the release machine
+has on it.
+
+The cell is now **six files**, and two of them are corrections:
+
+```
+dartaotruntime  dart2bytecode.aot  vm_platform.dill
+route_b_analyze.aot  route_b_gen_kernel.aot  flutter_platform_strong.dill
+```
+
+`flutter_platform_strong.dill` matters more than it looks. `vm_platform.dill` is
+the **VM** platform, which the host harness compiles `--target vm` toys against.
+A real app is `--target flutter`, and bytecode bound against the VM platform
+fails at load time, on device. Both now ship, named for what they are.
+
+#### Inputs are forwarded, and then checked
+
+The import kernel needs the release's own semantic inputs — package config,
+entrypoint, target, defines, experiments — differing **only** in the AOT and
+platform-linking mode. So the release's argument list is forwarded rather than
+rebuilt, and an option that cannot be carried faithfully makes the release
+decline to produce a kernel at all:
+
+- `--dart-define=K=V` → `-DK=V`, in order
+- `--enable-experiment=…` → unchanged
+- `--dart-define-from-file` → **declines.** Flutter parses `.json`/`.env` with
+  its own rules, and reimplementing that is exactly the hand-reconstruction to
+  avoid. The release stays valid and installable; it is simply not patchable,
+  and the patch side says which kernel is missing.
+
+Forwarding correctly is still a promise, so `agreesWith` turns it into a check:
+every non-accessor member of the AOT kernel must exist in the import kernel.
+
+**It caught a real gap on its first real run.** Flutter passes three arguments
+whenever the build generated a Dart plugin registrant —
+
+```
+--source <registrantUri>
+--source package:flutter/src/dart_plugin_registrant.dart
+-Dflutter.dart_plugin_registrant=<registrantUri>
+```
+
+— and omitting them cost **59 non-accessor members** on the reference app,
+starting with `_PluginRegistrant.register`. Derived now from the build's own
+generated file, spelled the way `compile.dart` spells it.
+
+#### Why accessors are excluded, on evidence
+
+After the registrant fix, 250 members still differed and **every one was a
+`get:`/`set:`, zero methods.** AOT lowering materializes a field's implicit
+accessors as real procedures; a non-AOT kernel leaves them as fields, which the
+analyzer's walk does not visit. So the exclusion is a correction to what the
+check compares, not a weakening to make it pass — the 59 genuine ones were all
+methods. Confirmed by negative control: drop the registrant again and the
+corrected check still reports 59 and refuses.
+
+#### Proven on the real fixture app
+
+| step | result |
+|---|---|
+| cell's `gen_kernel` produces the import kernel | 4.4 s, 54,788,896 bytes |
+| the two release kernels agree | **true** |
+| `dart2bytecode --import-dill` accepts it | exit 0, bytecode emitted |
+
+Both kernels are hashed into `route_b.json`'s `artifacts` map and the patch side
+requires and verifies both, naming which one is missing.
 
 ### Still not wired into `ios_patcher`
 
-The branch resolves the cell, verifies the release package, and refuses — naming
-the compiler, the analyzer and the release kernel it has in hand. What is
-missing is the second kernel above, then the compile and the pack.
+The branch resolves the cell, verifies the whole release package, and refuses —
+naming the compiler, the analyzer and both release kernels it has in hand. What
+is left is the compile and the pack.
 
 The runtime is proven and should not be touched. After runtime has been proven,
 assume producer / provenance / release-construction first — including the

@@ -102,10 +102,14 @@ void main() {
       const snapshot = 'snapshot-bytes';
       const dill = 'dill-bytes';
       const analyzer = 'analyzer-bytes';
+      const frontend = 'frontend-bytes';
+      const flutterPlatform = 'flutter-platform-bytes';
       add('dartaotruntime', runtime.codeUnits);
       add('dart2bytecode.aot', snapshot.codeUnits);
       add('vm_platform.dill', dill.codeUnits);
       add('route_b_analyze.aot', analyzer.codeUnits);
+      add('route_b_gen_kernel.aot', frontend.codeUnits);
+      add('flutter_platform_strong.dill', flutterPlatform.codeUnits);
       // sha256 of the three payloads above, so the resolver's hash check
       // passes on a bundle that is genuinely intact.
       String hash(String s) => sha256.convert(s.codeUnits).toString();
@@ -118,6 +122,8 @@ dart2bytecode.aot : ${hash(snapshot)}
 dartaotruntime    : ${hash(runtime)}
 vm_platform.dill  : ${hash(dill)}
 route_b_analyze.aot : ${hash(analyzer)}
+route_b_gen_kernel.aot : ${hash(frontend)}
+flutter_platform_strong.dill : ${hash(flutterPlatform)}
 '''
             .codeUnits,
       );

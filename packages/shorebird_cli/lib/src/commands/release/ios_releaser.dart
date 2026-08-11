@@ -15,7 +15,10 @@ import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform/apple/apple.dart';
 import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/route_b.dart';
+import 'package:shorebird_cli/src/route_b_compiler.dart';
+import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
+import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
 import 'package:shorebird_cli/src/validators/validators.dart';
@@ -140,7 +143,11 @@ If left checked, Xcode will rewrite the build number in the uploaded IPA, so the
     // engine records which engine that was, whether the flag came from us or
     // from the caller's own --extra-gen-snapshot-options.
     if (isRouteBEngine(_routeBEngineBinary)) {
-      _recordRouteBProvenance(appDirectory, buildResult.kernelFile);
+      await _recordRouteBProvenance(
+        appDirectory,
+        buildResult.kernelFile,
+        buildArgs,
+      );
     }
 
     // When code signing is requested (the default), `flutter build ipa` is
@@ -190,7 +197,11 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
   ///
   /// See `route_b_provenance.dart` for why the supplement rather than a field
   /// on the release.
-  void _recordRouteBProvenance(Directory appDirectory, File releaseKernel) {
+  Future<void> _recordRouteBProvenance(
+    Directory appDirectory,
+    File releaseKernel,
+    List<String> buildArgs,
+  ) async {
     final supplement = artifactManager.getReleaseSupplementDirectory(
       platformSubdir: supplementPlatformSubdir,
       create: true,
@@ -221,6 +232,15 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
         supplement,
         releaseKernel,
       );
+      // The second kernel, produced by the RELEASE ENGINE's own frontend rather
+      // than by whatever this machine has. Both release kernels then come from
+      // one lineage as a matter of structure, not of who ran the build.
+      await _captureImportKernel(
+        supplement: supplement,
+        releaseKernel: releaseKernel,
+        buildArgs: buildArgs,
+        artifacts: artifacts,
+      );
     } else {
       // Not fatal at release time: the release itself is fine and installable.
       // It simply cannot be patched, and the patch side says so by name.
@@ -243,6 +263,64 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
     logger.detail(
       '[route-b] recorded engine $engineRevision and '
       '${artifacts.length} artifact(s) in ${file.path}',
+    );
+  }
+
+  /// Produce and record the release's `--no-aot` kernel.
+  ///
+  /// Every failure here degrades to "this release is not patchable" with a
+  /// named reason, never to a release that fails to publish: the app itself is
+  /// fine and installable, and refusing to ship it because a patch-time input
+  /// could not be prepared would be the wrong trade. The patch side reports the
+  /// absence precisely.
+  Future<void> _captureImportKernel({
+    required Directory supplement,
+    required File releaseKernel,
+    required List<String> buildArgs,
+    required Map<String, String> artifacts,
+  }) async {
+    final RouteBCompiler compiler;
+    try {
+      compiler = await routeBCompilerResolver.resolve(
+        engineRevision: shorebirdEnv.shorebirdEngineRevision,
+      );
+    } on Exception catch (error) {
+      logger.warn(
+        '''Could not resolve this engine's Route B tooling ($error); patches for this release will be refused.''',
+      );
+      return;
+    }
+
+    final builder = routeBReleaseKernelBuilder;
+    final importKernel = builder.build(
+      compiler: compiler,
+      projectRoot: projectRoot,
+      // The release's own entrypoint, not a guess at one. `flutter build ipa`
+      // was handed exactly this.
+      entrypoint: target ?? p.join('lib', 'main.dart'),
+      buildArgs: buildArgs,
+      outputFile: File(
+        p.join(supplement.path, routeBReleaseImportKernelFileName),
+      ),
+    );
+    if (importKernel == null) return;
+
+    // Forwarding the release's inputs correctly is a promise until it is
+    // checked. If the two kernels disagree about what the program contains,
+    // this release must not advertise itself as patchable.
+    if (!builder.agreesWith(
+      compiler: compiler,
+      importKernel: importKernel,
+      aotKernel: releaseKernel,
+    )) {
+      importKernel.deleteSync();
+      return;
+    }
+
+    artifacts[routeBReleaseImportKernelFileName] = captureRouteBReleaseKernel(
+      supplement,
+      importKernel,
+      as: routeBReleaseImportKernelFileName,
     );
   }
 

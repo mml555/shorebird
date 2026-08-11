@@ -103,7 +103,9 @@ release-construction first when something fails.
 | the cell is fetched by the RELEASE's engine hash, never the machine's | `route_b_compiler_cache.dart`, `ios_patcher.dart` |
 | coverage analysis is version-matched to the release's frontend, not the machine's | `route_b/coverage/analyze_coverage.dart` (ships in the cell) |
 | the ported analysis is differentially checked against the untouched host tools | `route_b/coverage/parity.sh` — 8/8 |
-| the release uploads the kernel it compiled, hashed, and the patch reads only that | `route_b_provenance.dart`, `ios_releaser.dart`, `ios_patcher.dart` |
+| the release uploads BOTH kernels it owes, hashed, and the patch reads only those | `route_b_provenance.dart`, `ios_releaser.dart`, `ios_patcher.dart` |
+| the second kernel is built by the RELEASE engine's frontend, from the cell | `route_b_release_kernels.dart`, cell artifact `route_b_gen_kernel.aot` |
+| forwarded build inputs are checked, not promised | `RouteBReleaseKernelBuilder.agreesWith` |
 
 #### Three failure signatures that cost real time, now detected
 
@@ -163,29 +165,39 @@ analysis". Three things carry forward:
 - **The parity harness was proven to fail**, not merely to pass — two injected
   divergences, both caught, both reverted.
 
+#### Release-side prerequisites — DONE 2026-08-10
+
+Both release kernels land in the supplement, hashed, and the patch side requires
+and verifies both. The cell is six files: it also carries the release's own
+`gen_kernel` and — a correction worth knowing — `flutter_platform_strong.dill`,
+because `vm_platform.dill` is the **VM** platform and a real app is
+`--target flutter`.
+
+Two things the checks found rather than assumed:
+
+- **A missing Dart plugin registrant** cost 59 non-accessor members in the
+  import kernel. Flutter passes `--source`/`-Dflutter.dart_plugin_registrant`
+  when the build generates one; that is now derived from the build's own file.
+- **AOT materializes field accessors as procedures**, non-AOT does not, so 250
+  `get:`/`set:` differences are structural and excluded from the agreement
+  check — with a negative control proving the check still bites.
+
 #### Next session, in order
 
-1. **The second release kernel.** `dart2bytecode --import-dill` crashes on the
-   AOT kernel (`DillExtensionBuilder`, reproduced 2026-08-10), so the release
-   must also upload a `--no-aot --no-link-platform` kernel. `flutter build ipa`
-   does not produce one, and `gen_kernel.dart` needs `package:kernel` — which
-   points at a third cell artifact, the same answer the analyzer got. Generating
-   it at RELEASE time is fine; the invariant is only that the patch side must
-   not regenerate. `route_b.json`'s `artifacts` map already takes it additively.
-2. **Wire the producer branch**: coverage, then `dart2bytecode --target flutter`
-   with the resolved cell, derive the LC_UUID build ID, pack SBRBPTCH, hand it
-   to the existing bidiff/zstd + upload path.
-3. **Host-level equivalence**: a `shorebird patch` run must produce the same
+1. **Wire the producer branch** in `ios_patcher`: coverage (release_app.dill vs
+   the patch's app.dill), then `dart2bytecode --target flutter --import-dill
+   release_import.dill`, derive the LC_UUID build ID, pack SBRBPTCH, hand it to
+   the existing bidiff/zstd + upload path.
+2. **Host-level equivalence**: a `shorebird patch` run must produce the same
    SBRBPTCH as the known-good host tooling for the same input.
-4. **Fresh release**, then the automatic device gate: OLD -> `shorebird patch`
+3. **Fresh release**, then the automatic device gate: OLD -> `shorebird patch`
    -> NEW -> relaunch NEW -> rollback OLD, nothing manual in between.
-5. **Sealed regression.**
+4. **Sealed regression.**
 
 Do NOT widen dispatch-table support first. Kernel-only analysis provably cannot
-distinguish the relevant instance-call cases, 5/6 call forms are known
-patchable, and the current form costs ~3 % of Dart build-phase CPU. Closing it
-means inspecting the release `App` binary at call-site level — a coverage
-expansion, not a producer blocker.
+distinguish the relevant instance-call cases; closing it means call-site
+analysis of the release `App` binary, which is a coverage expansion rather than
+a producer blocker.
 
 ### The boundary that was crossed
 

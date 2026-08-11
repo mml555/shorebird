@@ -35,6 +35,7 @@ import 'package:shorebird_cli/src/patch_diff_checker.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/pubspec_editor.dart';
 import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
+import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/shorebird_android_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_cli_command_runner.dart';
@@ -170,6 +171,9 @@ class MockReleaseArtifact extends Mock implements ReleaseArtifact {}
 
 class MockRouteBCompilerResolver extends Mock
     implements RouteBCompilerResolver {}
+
+class MockRouteBReleaseKernelBuilder extends Mock
+    implements RouteBReleaseKernelBuilder {}
 
 class MockShorebirdAndroidArtifacts extends Mock
     implements ShorebirdAndroidArtifacts {}

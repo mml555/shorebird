@@ -26,6 +26,10 @@ class _Bundle {
       'dart2bytecode.aot': contents['dart2bytecode.aot'] ?? 'SNAPSHOT',
       'vm_platform.dill': contents['vm_platform.dill'] ?? 'PLATFORM',
       'route_b_analyze.aot': contents['route_b_analyze.aot'] ?? 'ANALYZER',
+      'route_b_gen_kernel.aot':
+          contents['route_b_gen_kernel.aot'] ?? 'FRONTEND',
+      'flutter_platform_strong.dill':
+          contents['flutter_platform_strong.dill'] ?? 'FLUTTER-PLATFORM',
     };
     final recorded = <String, String>{};
     for (final entry in files.entries) {

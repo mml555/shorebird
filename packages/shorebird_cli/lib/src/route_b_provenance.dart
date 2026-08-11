@@ -46,6 +46,13 @@ import 'package:path/path.dart' as p;
 /// `app.dill` and it is captured straight out of that build.
 const routeBReleaseKernelFileName = 'release_app.dill';
 
+/// The release's `--no-aot --no-link-platform` kernel.
+///
+/// A second kernel, not a duplicate: `dart2bytecode --import-dill` crashes its
+/// CFE on the AOT kernel above, and `flutter build ipa` emits no other. They
+/// answer different questions and both are required.
+const routeBReleaseImportKernelFileName = 'release_import.dill';
+
 /// The Route B provenance sidecar's name inside a release's supplement.
 ///
 /// Lives beside `obfuscation_map.json`, which already establishes the pattern:
@@ -238,13 +245,17 @@ Map<String, File> verifyRouteBReleaseArtifacts(
   return resolved;
 }
 
-/// Copies [kernel] into [supplement] as the release's own kernel and returns
-/// its sha256, for recording in the provenance sidecar.
-String captureRouteBReleaseKernel(Directory supplement, File kernel) {
+/// Copies [kernel] into [supplement] under [as] and returns its sha256, for
+/// recording in the provenance sidecar.
+String captureRouteBReleaseKernel(
+  Directory supplement,
+  File kernel, {
+  String as = routeBReleaseKernelFileName,
+}) {
   supplement.createSync(recursive: true);
-  final destination = File(
-    p.join(supplement.path, routeBReleaseKernelFileName),
-  );
-  kernel.copySync(destination.path);
+  final destination = File(p.join(supplement.path, as));
+  if (destination.absolute.path != kernel.absolute.path) {
+    kernel.copySync(destination.path);
+  }
   return sha256.convert(destination.readAsBytesSync()).toString();
 }

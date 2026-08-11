@@ -60,6 +60,8 @@ class RouteBCompiler {
     required this.compilerSnapshot,
     required this.platformDill,
     required this.analyzer,
+    required this.frontend,
+    required this.flutterPlatformDill,
     required this.provenance,
   });
 
@@ -75,6 +77,16 @@ class RouteBCompiler {
   /// The coverage analyzer, run by [runtime]. Version-matched to the frontend
   /// that emitted the release's kernel.
   final File analyzer;
+
+  /// `gen_kernel`, run by [runtime]. The release's own frontend.
+  final File frontend;
+
+  /// The Flutter platform dill a real app is compiled against.
+  ///
+  /// Distinct from [platformDill], which is the VM platform the host harness
+  /// uses. Getting these two confused produces bytecode that binds against the
+  /// wrong platform and fails on device rather than here.
+  final File flutterPlatformDill;
 
   /// The bundle's own record, verbatim. Kept so a later failure can be
   /// attributed to a specific dart revision and set of hashes rather than to
@@ -107,6 +119,14 @@ const _requiredFiles = [
   // cell published before the analyzer existed fails loudly here rather than
   // at the moment a patch needs it.
   'route_b_analyze.aot',
+  // The release's own frontend, so the --no-aot kernel dart2bytecode needs is
+  // produced by the same lineage as the AOT kernel flutter emitted, rather than
+  // by whatever gen_kernel the release machine happened to have.
+  'route_b_gen_kernel.aot',
+  // The FLUTTER platform, not the VM one. `vm_platform.dill` is what the host
+  // harness compiles --target vm toys against; a real app is --target flutter,
+  // and binding it against the VM platform fails at load time, on device.
+  'flutter_platform_strong.dill',
 ];
 
 /// Resolve producer tooling for [engineHash], or throw.
@@ -238,6 +258,10 @@ the release or with your Dart changes.''',
     compilerSnapshot: File(p.join(cell.path, 'dart2bytecode.aot')),
     platformDill: File(p.join(cell.path, 'vm_platform.dill')),
     analyzer: File(p.join(cell.path, 'route_b_analyze.aot')),
+    frontend: File(p.join(cell.path, 'route_b_gen_kernel.aot')),
+    flutterPlatformDill: File(
+      p.join(cell.path, 'flutter_platform_strong.dill'),
+    ),
     provenance: provenance,
   );
 }

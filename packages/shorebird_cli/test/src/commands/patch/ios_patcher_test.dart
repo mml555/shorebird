@@ -1092,17 +1092,26 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
         }) {
           final artifacts = <String, String>{};
           if (withKernel) {
-            final kernel = File(
-              p.join(supplementDirectory.path, routeBReleaseKernelFileName),
-            )..writeAsStringSync('RELEASE-KERNEL');
-            artifacts[routeBReleaseKernelFileName] = sha256
-                .convert(kernel.readAsBytesSync())
-                .toString();
+            for (final name in [
+              routeBReleaseKernelFileName,
+              routeBReleaseImportKernelFileName,
+            ]) {
+              final kernel = File(p.join(supplementDirectory.path, name))
+                ..writeAsStringSync('KERNEL-$name');
+              artifacts[name] = sha256
+                  .convert(kernel.readAsBytesSync())
+                  .toString();
+            }
             if (corruptKernel) {
               // The bytes the release recorded and the bytes it uploaded are
               // different claims; the supplement is a second network call and
               // can genuinely arrive truncated.
-              kernel.writeAsStringSync('TRUNCATED');
+              File(
+                p.join(
+                  supplementDirectory.path,
+                  routeBReleaseKernelFileName,
+                ),
+              ).writeAsStringSync('TRUNCATED');
             }
           }
           writeRouteBReleaseProvenance(
@@ -1169,6 +1178,12 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
               ),
               platformDill: File(p.join(flutterDir.path, 'vm_platform.dill')),
               analyzer: File(p.join(flutterDir.path, 'route_b_analyze.aot')),
+              frontend: File(
+                p.join(flutterDir.path, 'route_b_gen_kernel.aot'),
+              ),
+              flutterPlatformDill: File(
+                p.join(flutterDir.path, 'flutter_platform_strong.dill'),
+              ),
               provenance: 'engine revision  : $releaseEngineRevision',
             ),
           );

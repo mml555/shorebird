@@ -390,13 +390,26 @@ release with this engine and patch that instead. Nothing was uploaded.''',
     Directory supplement,
     RouteBReleaseProvenance provenance,
   ) {
-    if (!provenance.artifacts.containsKey(routeBReleaseKernelFileName)) {
+    // Two kernels, two jobs, both required. The AOT one is what coverage diffs
+    // against; the --no-aot one is the only thing dart2bytecode --import-dill
+    // can read. A release carrying one and not the other cannot be patched, and
+    // the message says which is missing rather than "something is missing".
+    const required = {
+      routeBReleaseKernelFileName: 'the kernel it was compiled from',
+      routeBReleaseImportKernelFileName:
+          'the kernel a patch has to be compiled against',
+    };
+    final missing = required.entries
+        .where((e) => !provenance.artifacts.containsKey(e.key))
+        .toList();
+    if (missing.isNotEmpty) {
       logger.err(
         '''
-This release did not upload the kernel it was compiled from, so there is nothing to compare this patch against.
+This release did not upload ${missing.map((e) => e.value).join(' or ')}, so a patch for it cannot be built.
 
-Releases cut by this version of Shorebird upload it automatically. Create a new
-release with this engine and patch that instead. Nothing was uploaded.''',
+Releases cut by this version of Shorebird upload both automatically; a release
+whose build could not produce them says so at release time. Create a new release
+with this engine and patch that instead. Nothing was uploaded.''',
       );
       throw ProcessExit(ExitCode.software.code);
     }
@@ -481,9 +494,10 @@ it compiles, however, comes from the engine above.''',
       '''
 Everything this patch needs resolved and validated, but this build of Shorebird cannot yet compile it.
 
-  compiler       ${compiler.compilerSnapshot.path}
-  analyzer       ${compiler.analyzer.path}
-  release kernel ${releaseArtifacts[routeBReleaseKernelFileName]!.path}
+  compiler        ${compiler.compilerSnapshot.path}
+  analyzer        ${compiler.analyzer.path}
+  release kernel  ${releaseArtifacts[routeBReleaseKernelFileName]!.path}
+  import kernel   ${releaseArtifacts[routeBReleaseImportKernelFileName]!.path}
 
 This is not a problem with your release, your Dart changes, or the tooling.
 Nothing was uploaded.''',

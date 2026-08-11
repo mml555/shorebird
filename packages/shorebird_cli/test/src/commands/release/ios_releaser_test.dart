@@ -24,7 +24,10 @@ import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/os/operating_system_interface.dart';
 import 'package:shorebird_cli/src/platform/apple/apple.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/route_b_compiler.dart';
+import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
+import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_process.dart';
@@ -36,6 +39,15 @@ import 'package:test/test.dart';
 
 import '../../matchers.dart';
 import '../../mocks.dart';
+
+/// A stand-in path for fallback values mocktail only needs to type-check.
+const _nowhere = _NowhereFile();
+
+class _NowhereFile implements File {
+  const _NowhereFile();
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 void main() {
   group(IosReleaser, () {
@@ -51,6 +63,8 @@ void main() {
     late Progress progress;
     late ShorebirdLogger logger;
     late OperatingSystemInterface operatingSystemInterface;
+    late RouteBCompilerResolver routeBCompilerResolver;
+    late RouteBReleaseKernelBuilder routeBReleaseKernelBuilder;
     late ShorebirdProcess shorebirdProcess;
     late ShorebirdEnv shorebirdEnv;
     late ShorebirdFlutter shorebirdFlutter;
@@ -71,6 +85,10 @@ void main() {
           loggerRef.overrideWith(() => logger),
           osInterfaceRef.overrideWith(() => operatingSystemInterface),
           processRef.overrideWith(() => shorebirdProcess),
+          routeBCompilerResolverRef.overrideWith(() => routeBCompilerResolver),
+          routeBReleaseKernelBuilderRef.overrideWith(
+            () => routeBReleaseKernelBuilder,
+          ),
           shorebirdEnvRef.overrideWith(() => shorebirdEnv),
           shorebirdFlutterRef.overrideWith(() => shorebirdFlutter),
           shorebirdValidatorRef.overrideWith(() => shorebirdValidator),
@@ -83,6 +101,17 @@ void main() {
       registerFallbackValue(Directory(''));
       registerFallbackValue(File(''));
       registerFallbackValue(ReleasePlatform.android);
+      registerFallbackValue(
+        const RouteBCompiler(
+          runtime: _nowhere,
+          compilerSnapshot: _nowhere,
+          platformDill: _nowhere,
+          analyzer: _nowhere,
+          frontend: _nowhere,
+          flutterPlatformDill: _nowhere,
+          provenance: '',
+        ),
+      );
     });
 
     setUp(() {
@@ -98,6 +127,8 @@ void main() {
       operatingSystemInterface = MockOperatingSystemInterface();
       progress = MockProgress();
       logger = MockShorebirdLogger();
+      routeBCompilerResolver = MockRouteBCompilerResolver();
+      routeBReleaseKernelBuilder = MockRouteBReleaseKernelBuilder();
       shorebirdProcess = MockShorebirdProcess();
       shorebirdEnv = MockShorebirdEnv();
       shorebirdFlutter = MockShorebirdFlutter();
@@ -752,6 +783,7 @@ $body
         // moment it is known to be true.
         group('route_b.json provenance', () {
           late Directory supplementDirectory;
+          late Directory cellDirectory;
 
           setUp(() {
             supplementDirectory = Directory.systemTemp.createTempSync(
@@ -767,6 +799,70 @@ $body
               () => shorebirdEnv.shorebirdEngineRevision,
             ).thenReturn('engine-abc');
             when(() => shorebirdEnv.flutterRevision).thenReturn('flutter-def');
+
+            // The release resolves the cell so the SECOND kernel is produced by
+            // the release engine's own frontend rather than by whatever this
+            // machine has.
+            cellDirectory = Directory.systemTemp.createTempSync('cell');
+            File(p.join(cellDirectory.path, '.dart_tool'))
+              ..createSync(recursive: true);
+            when(
+              () => routeBCompilerResolver.resolve(
+                engineRevision: any(named: 'engineRevision'),
+              ),
+            ).thenAnswer(
+              (_) async => RouteBCompiler(
+                runtime: File(p.join(cellDirectory.path, 'dartaotruntime')),
+                compilerSnapshot: File(
+                  p.join(cellDirectory.path, 'dart2bytecode.aot'),
+                ),
+                platformDill: File(
+                  p.join(cellDirectory.path, 'vm_platform.dill'),
+                ),
+                analyzer: File(
+                  p.join(cellDirectory.path, 'route_b_analyze.aot'),
+                ),
+                frontend: File(
+                  p.join(cellDirectory.path, 'route_b_gen_kernel.aot'),
+                ),
+                flutterPlatformDill: File(
+                  p.join(cellDirectory.path, 'flutter_platform_strong.dill'),
+                ),
+                provenance: 'engine revision  : engine-abc',
+              ),
+            );
+            // A project root with a package config, which the frontend needs.
+            File(
+                p.join(projectRoot.path, '.dart_tool', 'package_config.json'),
+              )
+              ..createSync(recursive: true)
+              ..writeAsStringSync('{"configVersion":2,"packages":[]}');
+            when(
+              () => shorebirdEnv.getShorebirdProjectRoot(),
+            ).thenReturn(projectRoot);
+
+            // The frontend writes the import kernel; stubbed to the same
+            // contract, since running a real gen_kernel here would test the
+            // engine rather than the releaser.
+            when(
+              () => routeBReleaseKernelBuilder.build(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: any(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+              ),
+            ).thenAnswer((invocation) {
+              final out = invocation.namedArguments[#outputFile] as File;
+              return out..writeAsStringSync('IMPORT-DILL-FROM-THIS-BUILD');
+            });
+            when(
+              () => routeBReleaseKernelBuilder.agreesWith(
+                compiler: any(named: 'compiler'),
+                importKernel: any(named: 'importKernel'),
+                aotKernel: any(named: 'aotKernel'),
+              ),
+            ).thenReturn(true);
           });
 
           test('records the engine that built the release', () async {
@@ -816,6 +912,114 @@ $body
               returnsNormally,
             );
           });
+
+          test('captures the import kernel from the RELEASE engine', () async {
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            // Resolved by engine hash, so both kernels come from one frontend
+            // lineage as a matter of structure rather than of who built.
+            verify(
+              () => routeBCompilerResolver.resolve(
+                engineRevision: 'engine-abc',
+              ),
+            ).called(1);
+
+            final provenance = readRouteBReleaseProvenance(
+              supplementDirectory,
+            )!;
+            expect(
+              provenance.artifacts.keys,
+              containsAll([
+                routeBReleaseKernelFileName,
+                routeBReleaseImportKernelFileName,
+              ]),
+            );
+            expect(
+              () => verifyRouteBReleaseArtifacts(
+                supplementDirectory,
+                provenance,
+              ),
+              returnsNormally,
+            );
+          });
+
+          test('compiles it for the release\'s own entrypoint', () async {
+            when(() => argResults['target']).thenReturn(null);
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            final entrypoint =
+                verify(
+                      () => routeBReleaseKernelBuilder.build(
+                        compiler: any(named: 'compiler'),
+                        projectRoot: any(named: 'projectRoot'),
+                        entrypoint: captureAny(named: 'entrypoint'),
+                        buildArgs: any(named: 'buildArgs'),
+                        outputFile: any(named: 'outputFile'),
+                      ),
+                    ).captured.single
+                    as String;
+            expect(entrypoint, p.join('lib', 'main.dart'));
+          });
+
+          test('records no import kernel when it cannot be built', () async {
+            // e.g. --dart-define-from-file, whose values cannot be carried
+            // across faithfully. The release is still fine; it is just not
+            // patchable, and the patch side names which kernel is missing.
+            when(
+              () => routeBReleaseKernelBuilder.build(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: any(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+              ),
+            ).thenReturn(null);
+
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            final provenance = readRouteBReleaseProvenance(
+              supplementDirectory,
+            )!;
+            expect(
+              provenance.artifacts,
+              isNot(contains(routeBReleaseImportKernelFileName)),
+            );
+          });
+
+          test(
+            'drops an import kernel that disagrees with the AOT one',
+            () async {
+              // Forwarding the release's inputs correctly is a promise until it
+              // is checked. A kernel that describes a different program must not
+              // be advertised as this release's.
+              when(
+                () => routeBReleaseKernelBuilder.agreesWith(
+                  compiler: any(named: 'compiler'),
+                  importKernel: any(named: 'importKernel'),
+                  aotKernel: any(named: 'aotKernel'),
+                ),
+              ).thenReturn(false);
+
+              await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+              final provenance = readRouteBReleaseProvenance(
+                supplementDirectory,
+              )!;
+              expect(
+                provenance.artifacts,
+                isNot(contains(routeBReleaseImportKernelFileName)),
+              );
+              expect(
+                File(
+                  p.join(
+                    supplementDirectory.path,
+                    routeBReleaseImportKernelFileName,
+                  ),
+                ).existsSync(),
+                isFalse,
+              );
+            },
+          );
 
           test('records no kernel when the build produced none', () async {
             // Not fatal at release time: the release is still installable. It
