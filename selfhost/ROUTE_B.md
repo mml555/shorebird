@@ -123,6 +123,17 @@ lesson is about probe fidelity, not about Kernel.
 replacement passed its argument into the release's compiled method:
 `OLD` -> **`NEW-ARG`** -> relaunch -> rollback `OLD`. Evidence `evidence/arg_*`.
 
+**Both `this.` spellings are device-proven** — release `21.0.0+1`, patches 2 and
+3: `this.label` read `NEW-C1`, `this.tagged('ARG')` read `NEW-ARG`, and the
+rollback returned `OLD`. Evidence `evidence/this_*`. They are the same Kernel
+nodes as the bare spellings but a different lexical edit — `this.` replaced
+rather than a prefix inserted — so they were their own items.
+
+`tagged` and not `helper` in that second patch, deliberately: on release 21
+nothing names `helper`, so the prepass would shake it out before retention is
+declared and the patch would have failed for a retention reason rather than a
+lowering one. The lexical edit is identical either way.
+
 Supported so far: `label`, `this.label`, `helper()`, `this.helper()`, and the
 same calls with arguments. Refused: cascades, `super`, setters, private members,
 and any access kind the producer does not recognise.

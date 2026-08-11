@@ -105,11 +105,12 @@ class RouteBThing {
   /// `this.label` and `this.helper()` are the same Kernel nodes as the bare
   /// spellings and differ only in the lexical edit; the host probe covers them.
   ///
-  /// PATCH FORM: a receiver call carrying an argument. The producer lowers only
-  /// the receiver — `tagged` becomes `self.tagged` — and `('ARG')` crosses over
-  /// as the source's own text, unparsed.
+  /// PATCH FORM: the EXPLICIT `this` spelling of a receiver CALL. `tagged` and
+  /// not `helper` on purpose — on this release nothing names `helper`, so the
+  /// prepass would shake it out before retention is declared and the patch
+  /// would fail for a retention reason rather than a lowering one.
   @pragma('vm:never-inline')
-  String value() => tagged('ARG');
+  String value() => this.tagged('ARG');
 }
 
 @pragma('vm:never-inline')
