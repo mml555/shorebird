@@ -53,8 +53,8 @@ patch` path: **can this replacement body bind and execute?**
 |---|---|---|
 | **A0** | a minimal named `dart:core` reference | **CLOSED ON DEVICE 2026-08-11** — release 15.0.0+1, patch 1, `DateTime.now()` body runs on the phone. Retention is declared by a kernel PREPASS (not a second build) and the interface travels in the supplement so the patch compiles against it |
 | **A** | a top-level replacement calling another public app function | **CLOSED ON DEVICE 2026-08-11** — release 16.0.0+1, patch 1. `routeBValue() => routeBHelper()` runs as `NEW-helper`. The helper is called by nothing in the release and survives only because the interface retains the app library whole |
-| **B** | a public instance method, no field access — the receiver/arg0 question | untested, must be answered ON DEVICE |
-| **C** | an instance method using `this` / fields | untested |
+| **B** | a public instance method, receiver present but UNUSED | **CLOSED ON DEVICE 2026-08-11** — release 17.0.0+1. A synthetic TOP-LEVEL replacement attached to an instance method's `Function` runs: `NEW-B`. No instance-shaped payload needed |
+| **C** | an instance method that ACTUALLY USES the receiver | untested — materially different from B, and the next rung |
 | **D** | private / library-scoped references | untested; hardest, because `_foo`'s identity is tied to the original library rather than to its spelling |
 
 **Do not reopen delivery, the container, the updater, release identity,

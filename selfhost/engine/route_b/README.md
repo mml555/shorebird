@@ -1556,7 +1556,7 @@ So the widening ladder starts one rung lower than planned:
 |---|---|---|
 | **A0 · dart:core reference** | can a body call a named core symbol? | **CLOSED ON DEVICE 2026-08-11** — see below |
 | A · app-symbol reference | can it call another app function? | **CLOSED ON DEVICE 2026-08-11** |
-| B · instance method | can a top-level replacement attach to `Foo.value` and get the instance calling convention? | untested, must be ON DEVICE |
+| B · instance method, receiver unused | can a top-level replacement attach to `Foo.value`? | **CLOSED ON DEVICE 2026-08-11** |
 | C · `this` access | receiver/member addressing | untested |
 | D · private references | `_foo` is library-scoped identity | untested |
 
@@ -1728,6 +1728,58 @@ again as exit 254 with an empty stderr. The replacement now emits
 which a `package:` URI cannot resolve at all. The local declaration shadows the
 imported one of the same name, so importing the library you are patching into is
 safe as well as necessary.
+
+### Rung B — CLOSED ON DEVICE, 2026-08-11
+
+One ABI question, and nothing else: **can bytecode compiled from a synthetic
+replacement execute when attached to an instance method's `Function`, where the
+real call carries an implicit receiver?**
+
+Release `17.0.0+1`:
+
+```dart
+class RouteBThing {
+  @pragma('vm:never-inline')
+  String value() => …'OLD'…;      // receiver present, never used
+}
+String routeBValue() => RouteBThing().value();
+```
+
+The patch changes only `RouteBThing.value`'s body. The producer did what it
+already does — sliced the declaration and emitted it as a **top-level** function
+in the synthetic library:
+
+```dart
+import 'package:airgap_probe/main.dart';
+
+@pragma('dyn-module:entry-point')
+@pragma('vm:never-inline')
+  String value() => …'NEW-B'…;
+```
+
+Device: **`NEW-B`**, code patch 1 · relaunch **`NEW-B`** · withdraw with rollback
+→ **`OLD`**, code patch none. Evidence: `evidence/rungB_1…3`.
+
+**The answer:** the attached bytecode does not care that its source function was
+top-level when the target is an instance method, *as long as the body ignores
+the receiver*. **No instance-shaped payload is needed for B**, so the
+`RouteBReplacement.value` probe was not required and the producer is unchanged.
+
+That result is scoped precisely. B says nothing about C — whether the
+replacement can SEE the receiver in the expected slot and resolve a member
+against it is a different question, and it is the next rung.
+
+#### A rig trap worth recording
+
+The first B1 run reported `code patch: none` three launches running, and the
+temptation was to read it as an attach failure. It was not: the wait loop for
+release 17 had exited early on a spurious `Exception:` match against a benign
+`aot-tools.dill` download warning, so the IPA staged and installed was release
+**16's**. The patch was built for a release the device was not running.
+
+Comparing the installed `App`'s `LC_UUID` against the one the patch log prints
+("packed N bytes for release …") settles this in one command, and is now the
+first thing to check when a patch does not appear.
 
 ### The SDK set is a budget
 

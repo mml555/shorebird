@@ -65,10 +65,21 @@ const String kReleaseState = 'AIRGAP-FIXTURE-V1';
 String routeBHelper() =>
     DateTime.now().millisecondsSinceEpoch >= 0 ? 'NEW-helper' : 'X';
 
+/// Rung B: an INSTANCE method target whose body ignores the receiver.
+///
+/// One ABI question and nothing else — can bytecode compiled from a synthetic
+/// TOP-LEVEL function execute when attached to an instance method's `Function`,
+/// where the real call carries an implicit receiver? No fields, no helper
+/// calls, no arguments, no private names. Rung C is the receiver being used.
+class RouteBThing {
+  @pragma('vm:never-inline')
+  String value() =>
+      DateTime.now().millisecondsSinceEpoch >= 0 ? 'NEW-B' : 'X';
+}
+
 @pragma('vm:never-inline')
 @pragma('vm:entry-point')
-String routeBValue() =>
-    DateTime.now().millisecondsSinceEpoch >= 0 ? 'OLD' : 'X';
+String routeBValue() => RouteBThing().value();
 
 /// ONE call site, exercised before, during and after the patch. Reading the
 /// same site three times is the actual claim -- that an ordinary compiled call
