@@ -76,9 +76,13 @@ class RouteBThing {
   /// library-scoped and belongs to rung D, where it would contaminate this.
   String label = 'NEW-C1';
 
+  /// The first lowering surface: a bare instance getter. `this.label` is the
+  /// same Kernel node and needs no separate fixture — but a method nothing
+  /// calls is tree-shaken out of the --aot kernel before any tool sees it
+  /// (rung D found that the hard way), so a second form has to be CALLED to
+  /// be studied.
   @pragma('vm:never-inline')
-  String value() =>
-      DateTime.now().millisecondsSinceEpoch >= 0 ? 'OLD' : 'X';
+  String value() => label;
 }
 
 @pragma('vm:never-inline')
