@@ -2046,6 +2046,59 @@ analyzer decides, against real Kernel, built like a release) and
 `probes/lowered_forms.sh` (14/14, seven spellings through the real cell and
 container on the host).
 
+#### Writes, and where widening stops — 2026-08-11
+
+Engine `aa915584`, release `22.0.0+1`. `String value() => slot = 'NEW-SET';`
+shipped as `String value(RouteBThing self) => self.slot = 'NEW-SET';` and read
+`NEW-SET` on the phone. Evidence `evidence/set_*`. `InstanceSet` puts its offset
+on the identifier exactly as a read does, so a write is the same edit and the
+right-hand side crosses over as source text.
+
+The refusal that came with it is the more durable result. Measured, not guessed:
+
+```
+label += 'X'         SET @240  GET @240     one token, two jobs
+count++              SET @269  GET @269
+maybe ??= 'Z'        GET @315  SET @315
+label = label + 'Y'  SET @447  GET @455     two tokens, two offsets
+```
+
+Enforced as *two accesses at one offset*, which covers compound assignment,
+increment and if-null uniformly and leaves the legitimate self-referential write
+alone. An operator list would have missed whatever the language adds next.
+
+**This is the frozen boundary of the lexical lowering:**
+
+> If one source token requires more than one semantic receiver operation,
+> refuse it.
+
+Everything the producer does today is *rewrite the receiver, preserve the Dart
+expression*. That is why arguments cost nothing: they were never interpreted.
+Compound writes are the first form that would require **reconstructing** Dart
+semantics rather than transporting them —
+
+* `slot += f()` is only `self.slot = self.slot + f()` once evaluation order, the
+  number of getter and setter invocations, operator dispatch and the expression's
+  own result value are all proven preserved;
+* `slot++` and `++slot` differ in what the expression yields;
+* `slot ??= f()` must short-circuit the right-hand side *and* the write;
+* an overloaded `+` makes the read/operate/write sequence dispatch-dependent.
+
+If that is ever needed it is a new lowering subsystem with explicit semantics per
+Kernel shape, not another branch in `_lower`. Adding it to the lexical editor is
+the failure mode this note exists to prevent.
+
+`super` is a different problem again, and not a harder version of the same one.
+Once the method becomes a synthetic top-level function there is no `super`, and
+`self.foo()` would re-dispatch into the override — a wrong patch that compiles.
+It needs the Kernel-resolved superclass target driving a representation the
+payload does not have. Refused explicitly for reads, calls and writes; the write
+case (`SuperPropertySet`) was unhandled until this pass and failed only by not
+compiling.
+
+The surface is now broad enough to exercise against representative real patches,
+and what those block on is better evidence for the next design than the ladder is.
+
 ### The SDK set is a budget
 
 `routeBRetainedSdkMembers` is curated and name-driven: `print`, `DateTime.now`,

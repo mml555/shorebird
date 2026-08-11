@@ -167,6 +167,75 @@ and any access kind the producer does not recognise.
 `probes/lowering_matrix.sh` pins all of it against real Kernel, 17/17;
 `probes/lowered_forms.sh` runs seven spellings end to end on the host, 14/14.
 
+### The instance surface, FROZEN 2026-08-11
+
+Widening stops here. Not because the next rungs are hard, but because the ones
+after this one stop being the same kind of problem.
+
+Everything above is one transformation: **rewrite the receiver, preserve the Dart
+expression.** Kernel says which identifier is receiver-bound and what it resolves
+to; the source supplies the syntax; the producer inserts or replaces a prefix at
+one offset and copies the rest verbatim. Nothing reconstructs Dart semantics,
+which is why arguments, named arguments and nested expressions cost nothing to
+support — they were never interpreted.
+
+#### Supported, for an instance target
+
+| form | example | lowered |
+|---|---|---|
+| public read | `label`, `this.label` | `self.label` |
+| public call | `helper()`, `this.helper()` | `self.helper()` |
+| public call with arguments | `helper('a', b: f(1))` | `self.helper('a', b: f(1))` |
+| simple public write | `slot = expr`, `this.slot = expr` | `self.slot = expr` |
+| receiver use inside an argument or RHS | `helper(label)` | `self.helper(self.label)` |
+| the replacement's own private helpers | | carried in the payload |
+
+All device-proven; see the rung sections above for engine, release and evidence.
+
+#### Refused by design — not "not yet"
+
+| form | |
+|---|---|
+| compound writes | `+=`, `-=`, `++`, `--`, `??=` |
+| `super` | `super.x`, `super.foo()`, `super.x = …` |
+| private members of the TARGET's library | `_secret`, `_hidden()` |
+| cascades | `this..foo()` |
+| `this` used other than to reach a member | passed, captured, stored |
+| unusual `this` spacing | `this . label` |
+| a replacement whose own signature takes parameters | entry-point contract is 0-or-1 positional |
+
+#### The boundary, stated once
+
+> **If one source token requires more than one semantic receiver operation,
+> refuse it.**
+
+That is what the "two accesses at one offset" check enforces. It is a product
+boundary, not an implementation limit, and it should be defended rather than
+chipped at.
+
+`slot += f()` is not `self.slot = self.slot + f()` unless you have proven
+evaluation order, the number of getter and setter invocations, operator
+dispatch, and the value the expression yields. `slot++` and `++slot` differ in
+result. `slot ??= f()` must short-circuit both the right-hand side *and* the
+write. Overloaded operators complicate the read/operate/write sequence again.
+None of that is transport; all of it is reconstruction.
+
+So if compound writes are ever needed, they are **a new lowering subsystem with
+explicit semantics per Kernel shape** — not another case in the lexical editor.
+`super` is separately different: there is no textual equivalent once the method
+becomes a synthetic top-level function, and `self.foo()` would re-dispatch into
+the override. It needs the Kernel-resolved superclass target driving a
+representation the payload does not currently have.
+
+**Let real patch demand decide which earns a design.** The surface above is
+already broad enough to run Route B against representative real-world patches,
+and what those block on is better evidence than what a ladder suggests next.
+
+> One loose end, deliberately not spent on: the analyzer's refusal text for a
+> compound write still reads *"cannot rewrite as a single edit"*, which sounds
+> like a limitation rather than a boundary. Rewording it changes the cell and so
+> costs a mint; fold it into the next mint that happens for another reason.
+
 ### Seam 6 — activation, and what it closed
 
 Every question about *where and when* a Route B patch becomes live is now
