@@ -50,3 +50,6 @@ selfhost/fixtures/airgap/acceptance.env
 # Local run logs (acceptance/warm runs).
 .logs/
 selfhost/fixtures/airgap/endpoint.stamp
+
+# Python bytecode from the compatibility-study harness
+__pycache__/
