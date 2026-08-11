@@ -54,10 +54,20 @@ const String kReleaseState = 'AIRGAP-FIXTURE-V1';
 // its RESULT is simply replaced at the call site, and the gate then reports a
 // working mechanism as OLD. That cost a debugging detour on the host; see
 // selfhost/engine/killgate/target.dart.
+/// Rung A: a PUBLIC APP symbol a patch may call.
+///
+/// Nothing in the release calls it. It survives tree-shaking only because the
+/// release's dynamic interface retains this library whole, which is exactly the
+/// application-retention half rung A is meant to exercise. Its value routes
+/// through DateTime.now() for the same reason every other body here does: a
+/// literal is constant-folded even under vm:never-inline.
+@pragma('vm:never-inline')
+String routeBHelper() =>
+    DateTime.now().millisecondsSinceEpoch >= 0 ? 'NEW-helper' : 'X';
+
 @pragma('vm:never-inline')
 @pragma('vm:entry-point')
-String routeBValue() =>
-    DateTime.now().millisecondsSinceEpoch >= 0 ? 'NEW' : 'X';
+String routeBValue() => routeBHelper();
 
 /// ONE call site, exercised before, during and after the patch. Reading the
 /// same site three times is the actual claim -- that an ordinary compiled call

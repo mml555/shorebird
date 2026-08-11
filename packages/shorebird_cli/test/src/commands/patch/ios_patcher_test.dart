@@ -1282,6 +1282,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
               importKernel: any(named: 'importKernel'),
               releaseBuildId: any(named: 'releaseBuildId'),
               workingDirectory: any(named: 'workingDirectory'),
+              projectRoot: any(named: 'projectRoot'),
             ),
           ).thenAnswer(
             (invocation) => Uint8List.fromList(
@@ -1831,6 +1832,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                             importKernel: any(named: 'importKernel'),
                             releaseBuildId: captureAny(named: 'releaseBuildId'),
                             workingDirectory: any(named: 'workingDirectory'),
+                            projectRoot: any(named: 'projectRoot'),
                           ),
                         ).captured.single
                         as String;

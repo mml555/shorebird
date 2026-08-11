@@ -662,6 +662,7 @@ it compiles, however, comes from the engine above.''',
         importKernel: importKernel,
         releaseBuildId: releaseBuildId,
         workingDirectory: workingDirectory,
+        projectRoot: projectRoot,
       );
     } on RouteBUnsupportedTarget catch (error) {
       logger.err(

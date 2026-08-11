@@ -84,6 +84,7 @@ class RouteBProducer {
     required File importKernel,
     required String releaseBuildId,
     required Directory workingDirectory,
+    required Directory projectRoot,
     RouteBCompileRunner run = Process.runSync,
   }) {
     // Every changed member that can land, in a stable order so the container is
@@ -105,8 +106,19 @@ class RouteBProducer {
       }
 
       final declaration = _slice(key, source);
+      final targetLibrary = key.split('#').first;
+      // IMPORT THE TARGET'S OWN LIBRARY. A replacement body may reference other
+      // members of the library it replaces a function in, and a synthetic
+      // library that imports nothing cannot see them:
+      //
+      //   Error: Method not found: 'routeBHelper'
+      //
+      // The local declaration shadows the imported one of the same name, so
+      // importing the library the target lives in is safe as well as necessary.
       final library = File(p.join(workingDirectory.path, 'replacement_$i.dart'))
-        ..writeAsStringSync('$entryPointPragma\n$declaration\n');
+        ..writeAsStringSync(
+          "import '$targetLibrary';\n\n$entryPointPragma\n$declaration\n",
+        );
       final payload = File(
         p.join(workingDirectory.path, 'replacement_$i.bytecode'),
       );
@@ -122,6 +134,9 @@ class RouteBProducer {
         'flutter',
         '--import-dill',
         importKernel.path,
+        // Needed for the `import` above to resolve a package: URI.
+        '--packages',
+        p.join(projectRoot.path, '.dart_tool', 'package_config.json'),
         '-o',
         payload.path,
         library.path,

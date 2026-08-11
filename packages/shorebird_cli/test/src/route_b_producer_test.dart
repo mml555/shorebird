@@ -95,6 +95,7 @@ void main() {
           importKernel: File(p.join(cell.path, 'release_import.dill')),
           releaseBuildId: 'deadbeef',
           workingDirectory: work,
+          projectRoot: project,
           run: compileOk,
         ),
       );
@@ -104,6 +105,10 @@ void main() {
       ).readAsStringSync();
       expect(generated, contains(RouteBProducer.entryPointPragma));
       expect(generated, contains(declaration));
+      // The body may reference other members of the library it replaces a
+      // function in, and a synthetic library importing nothing cannot see them
+      // — rung A died on exactly that with "Method not found: 'routeBHelper'".
+      expect(generated, startsWith("import 'package:app/main.dart';"));
     });
 
     test(
@@ -117,6 +122,7 @@ void main() {
             importKernel: File(p.join(cell.path, 'release_import.dill')),
             releaseBuildId: 'deadbeef',
             workingDirectory: work,
+            projectRoot: project,
             run: (executable, arguments) {
               args = arguments;
               return compileOk(executable, arguments);
@@ -139,6 +145,15 @@ void main() {
             p.join(cell.path, 'release_import.dill'),
           ]),
         );
+        // Without --packages the generated `import` cannot resolve a package
+        // URI, and dart2bytecode refuses with exit 254 and no stderr.
+        expect(
+          args,
+          containsAllInOrder([
+            '--packages',
+            p.join(project.path, '.dart_tool', 'package_config.json'),
+          ]),
+        );
       },
     );
 
@@ -150,6 +165,7 @@ void main() {
           importKernel: File(p.join(cell.path, 'release_import.dill')),
           releaseBuildId: 'deadbeef',
           workingDirectory: work,
+          projectRoot: project,
           run: compileOk,
         ),
       );
@@ -181,6 +197,7 @@ void main() {
           importKernel: File(p.join(cell.path, 'release_import.dill')),
           releaseBuildId: 'deadbeef',
           workingDirectory: work,
+          projectRoot: project,
           run: compileOk,
         ),
       );
@@ -200,6 +217,7 @@ void main() {
             importKernel: File(p.join(cell.path, 'release_import.dill')),
             releaseBuildId: 'deadbeef',
             workingDirectory: work,
+            projectRoot: project,
             run: compileOk,
           ),
         ),
@@ -225,6 +243,7 @@ void main() {
             importKernel: File(p.join(cell.path, 'release_import.dill')),
             releaseBuildId: 'deadbeef',
             workingDirectory: work,
+            projectRoot: project,
             run: (_, _) => ProcessResult(0, 1, '', 'boom'),
           ),
         ),
@@ -263,13 +282,15 @@ void main() {
           importKernel: File(p.join(cell.path, 'release_import.dill')),
           releaseBuildId: 'deadbeef',
           workingDirectory: work,
+          projectRoot: project,
           run: compileOk,
         ),
       );
 
       expect(
         File(p.join(work.path, 'replacement_0.dart')).readAsStringSync(),
-        '${RouteBProducer.entryPointPragma}\n$declaration\n',
+        "import 'package:app/main.dart';\n\n"
+            '${RouteBProducer.entryPointPragma}\n$declaration\n',
       );
     });
 
@@ -290,6 +311,7 @@ void main() {
             importKernel: File(p.join(cell.path, 'release_import.dill')),
             releaseBuildId: 'deadbeef',
             workingDirectory: work,
+            projectRoot: project,
             run: compileOk,
           ),
         ),
