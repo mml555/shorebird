@@ -51,7 +51,7 @@ patch` path: **can this replacement body bind and execute?**
 
 | rung | probe | status |
 |---|---|---|
-| **A0** | a minimal named `dart:core` reference | **BINDS, on the host** (`probes/a0_core_binding.sh`, 3/3 each for `identical` and the real `DateTime` shape) for **+0.006–0.009 %** snapshot. The device failure was the absence of a dynamic interface, not a limit of one. NOT yet in the product path: `shorebird release` passes no interface |
+| **A0** | a minimal named `dart:core` reference | **CLOSED ON DEVICE 2026-08-11** — release 15.0.0+1, patch 1, `DateTime.now()` body runs on the phone. Retention is declared by a kernel PREPASS (not a second build) and the interface travels in the supplement so the patch compiles against it |
 | **A** | a top-level replacement calling another public app function | untested |
 | **B** | a public instance method, no field access — the receiver/arg0 question | untested, must be answered ON DEVICE |
 | **C** | an instance method using `this` / fields | untested |

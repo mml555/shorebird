@@ -1528,7 +1528,7 @@ So the widening ladder starts one rung lower than planned:
 
 | probe | question | status |
 |---|---|---|
-| **A0 · dart:core reference** | can a body call a named core symbol? | **YES, on the host** — see below |
+| **A0 · dart:core reference** | can a body call a named core symbol? | **CLOSED ON DEVICE 2026-08-11** — see below |
 | A · app-symbol reference | can it call another app function? | untested |
 | B · instance method | can a top-level replacement attach to `Foo.value` and get the instance calling convention? | untested, must be ON DEVICE |
 | C · `this` access | receiver/member addressing | untested |
@@ -1597,21 +1597,84 @@ and stays behind `--sdk-libraries`, reachable but never convenient.
 Reported on every probe run, because retention is release-time and every release
 pays it. The point is to learn the contract, not to brute-force past it.
 
-### What A0 has NOT answered
+### A0 in the product path — CLOSED ON DEVICE, 2026-08-11
 
-The binding contract, yes. The **product path, no**: `shorebird release` passes
-no dynamic interface at all. Wiring it needs
+Release `15.0.0+1`, patch 1, iPhone 7. The replacement body is the one that
+crashed the phone on 2026-08-10:
 
-- a generator the CLI can run — `gen_dynamic_interface.dart` needs
-  `package:kernel`, so it belongs in the compiler cell beside the analyzer and
-  the frontend; and
-- `--dynamic-interface` reaching the release's kernel build. `frontend_server`
-  accepts the flag (`frontend_server.dart:196`) and Flutter forwards
-  `--extra-frontend-options`, so the route exists — but the interface is
-  generated FROM the app's kernel, so the release builds twice.
+```dart
+String routeBValue() =>
+    DateTime.now().millisecondsSinceEpoch >= 0 ? 'NEW' : 'X';
+```
 
-Until that lands the fixture's hand-written `vm:entry-point` is doing the
-retention work, and no shipping app has that.
+`route B value: NEW`, `code patch: 1`. Evidence:
+`evidence/a0_1_release_OLD.png`, `evidence/a0_2_patched_NEW_datetime.png`.
+
+The release flow is a **kernel prepass**, not two builds:
+
+```
+release inputs -> prepass kernel (--aot, the cell's gen_kernel)
+               -> the cell's gen_dynamic_interface
+               -> ONE flutter build ipa
+                  + --extra-front-end-options=--dynamic-interface=...
+```
+
+`route_b_gen_dynamic_interface.aot` joined the cell (now **seven files**), so one
+engine hash resolves the whole chain: kernel generator → interface generator →
+frontend/platform → bytecode compiler.
+
+### Four defects between "A0 works on the host" and "A0 works on the phone"
+
+Each cost a release, and none was findable without one:
+
+1. **A stale cached compiler cell.** A cell republished under the same engine
+   hash kept validating the old zip. It failed safe — the message already said
+   "a bad cache" — but never acted on it. An `invalid` verdict against a cached
+   bundle now re-downloads once.
+2. **`--extra-frontend-options` does not exist.** Flutter's flag is
+   `--extra-front-end-options`, hyphenated, and it is rejected at the START of
+   the build — long after the prepass reports success, so the log reads as
+   though retention worked and something unrelated broke.
+3. **The patch must use the release's interface.** A retention-annotated release
+   kernel and an un-annotated patch kernel disagree about almost everything:
+   coverage reported **464 of 4,830 changed members** for a one-line edit. The
+   interface is now uploaded in the supplement and the patch build compiles
+   against that exact file.
+4. **A claimed fix that was never applied.** The `cd` in that step failed, so
+   neither the change nor its test existed, and it was committed and reported
+   anyway. Two releases were burned before the installed source was checked
+   instead of the commit.
+
+### The tax
+
+Measured on the host, controlled (`probes/a0_core_binding.sh`):
+
+| widening | snapshot |
+|---|---|
+| `dart:core#identical` | +0.0087 % |
+| `DateTime.now` + `get:millisecondsSinceEpoch` | +0.0063 % |
+| whole `dart:core` (rejected) | **+310 %** |
+
+The release reports it every time: *"Route B retention: 4 named SDK members,
+interface 40,123 bytes."*
+
+**One number is NOT explained and should not be quoted as a retention cost.**
+The fixture's `App` binary was 16,027,264 B at release 14 and 22,060,336 B at
+release 15, with patchable call sites 28,819 → 42,670 — and *both* releases had
+retention applied. Something else differed between them. Until a controlled
+before/after is run on one source tree, the honest app-level numbers remain the
+step-2 measurements: app whole-library retention **+0.89 %**, whole `dart:core`
+**+310 %**.
+
+### The SDK set is a budget
+
+`routeBRetainedSdkMembers` is curated and name-driven: `print`, `DateTime.now`,
+`DateTime.get:millisecondsSinceEpoch`, `identical`. Whole-library retention stays
+reachable only through the generator's `--sdk-libraries`, for debugging.
+
+A patch naming an SDK symbol the release did not retain still fails — with the
+loader's own message. Widen the list from evidence about what real patches call,
+not ahead of it.
 
 #### The widening questions, in the order to probe them
 
