@@ -183,6 +183,9 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
     return xcarchiveDirectory;
   }
 
+  /// The interface this release declared its retention with, if any.
+  File? _retentionInterface;
+
   /// The iOS engine binary this build will link against.
   File get _routeBEngineBinary => File(
     p.join(
@@ -250,6 +253,14 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
       // The second kernel, produced by the RELEASE ENGINE's own frontend rather
       // than by whatever this machine has. Both release kernels then come from
       // one lineage as a matter of structure, not of who ran the build.
+      // The interface travels with the release for the patch build to reuse.
+      if (_retentionInterface case final interface?) {
+        artifacts[routeBInterfaceFileName] = captureRouteBReleaseKernel(
+          supplement,
+          interface,
+          as: routeBInterfaceFileName,
+        );
+      }
       _captureImportKernel(
         compiler: compiler,
         supplement: supplement,
@@ -375,6 +386,11 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
       outputFile: File(p.join(work.path, 'dynamic_interface.yaml')),
     );
     if (interface == null) return;
+
+    // Kept for the supplement: the PATCH build has to compile against the same
+    // interface, or its kernel and the release's disagree about almost every
+    // member and coverage refuses a one-line change.
+    _retentionInterface = interface;
 
     // Reaches the release's kernel through Flutter's own pass-through, so the
     // ONE real build honours it. frontend_server owns the flag.

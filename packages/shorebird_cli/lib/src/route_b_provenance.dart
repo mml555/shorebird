@@ -53,6 +53,14 @@ const routeBReleaseKernelFileName = 'release_app.dill';
 /// answer different questions and both are required.
 const routeBReleaseImportKernelFileName = 'release_import.dill';
 
+/// The retention interface the release was compiled with.
+///
+/// Uploaded with the release because the PATCH build must use the same one.
+/// A release kernel annotated with a dynamic interface and a patch kernel
+/// without one disagree about almost every member: the first attempt reported
+/// 4,830 changed members and refused, when one function had changed.
+const routeBInterfaceFileName = 'dynamic_interface.yaml';
+
 /// The Route B provenance sidecar's name inside a release's supplement.
 ///
 /// Lives beside `obfuscation_map.json`, which already establishes the pattern:

@@ -25,6 +25,7 @@ import 'package:shorebird_cli/src/platform.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_chooser.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/shorebird_command.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
@@ -689,6 +690,23 @@ Building with Flutter $flutterVersionString to determine the release version...
         '--split-debug-info=${p.join('build', 'shorebird', 'symbols')}',
       );
     }
+    // Route B (selfhost): the patch must compile against the SAME retention
+    // interface the release did. Without it the release kernel is annotated and
+    // the patch kernel is not, they disagree about almost every member, and
+    // coverage refuses a one-line change — measured at 4,830 changed members
+    // for a single edited function.
+    //
+    // Read from the release's supplement, like the obfuscation map above, and
+    // gated on the file existing so no other platform ever sees the flag.
+    final retentionInterface = supplementDirectory == null
+        ? null
+        : File(p.join(supplementDirectory.path, routeBInterfaceFileName));
+    if (retentionInterface != null && retentionInterface.existsSync()) {
+      extraBuildArgs.add(
+        '--extra-front-end-options=--dynamic-interface=${retentionInterface.path}',
+      );
+    }
+
     patcher.extraBuildArgs = extraBuildArgs;
 
     // Set up build tracing before any flutter build / aot_tools /
