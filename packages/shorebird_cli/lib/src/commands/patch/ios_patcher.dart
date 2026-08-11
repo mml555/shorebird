@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:mason_logger/mason_logger.dart';
@@ -24,6 +25,7 @@ import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
+import 'package:shorebird_cli/src/route_b_producer.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
@@ -169,6 +171,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
       throw ProcessExit(ExitCode.software.code);
     }
 
+    File? routeBContainer;
     final unzipProgress = logger.progress('Extracting release artifact');
 
     late final String releaseXcarchivePath;
@@ -239,16 +242,27 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
       }
 
       final buildId = _readReleaseBuildId(releaseArtifactFile);
-      _requireRouteBProducer(compiler, releaseArtifacts, coverage, buildId);
+      routeBContainer = _produceRouteBContainer(
+        compiler: compiler,
+        coverage: coverage,
+        importKernel: releaseArtifacts[routeBReleaseImportKernelFileName]!,
+        releaseBuildId: buildId,
+      );
     }
 
+    // A Route B patch never links: the container IS the payload, and linking
+    // would produce a `.vmcode` that is discarded. This also keeps a Route B
+    // release off `aot-tools.dill` entirely.
+    //
     // An assets-only patch carries no code, and the patch command drops the code
     // bundles before upload — so linking here would produce a `.vmcode` that is
     // immediately discarded. Skipping it also drops the only dependency on
     // `aot-tools.dill` (Shorebird's AOT linker, which we cannot build), which is
     // what makes an assets-only iOS patch possible without their toolchain.
     final useLinker =
-        !assetsOnly && AotTools.usesLinker(shorebirdEnv.flutterRevision);
+        routeBContainer == null &&
+        !assetsOnly &&
+        AotTools.usesLinker(shorebirdEnv.flutterRevision);
     if (useLinker) {
       apple.copySupplementFilesToSnapshotDirs(
         releaseSupplementDir: releaseSupplementDir,
@@ -281,10 +295,39 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
       lastBuildLinkMetadata = result.linkMetadata;
     }
 
-    final patchBuildFile = File(useLinker ? _vmcodeOutputPath : _aotOutputPath);
+    // The bytes the device must end up holding. For Route B that is the
+    // container; `hash` is taken from this file and `size` from the artifact
+    // below, because check_hash() on device runs against the INFLATED result.
+    final patchBuildFile =
+        routeBContainer ?? File(useLinker ? _vmcodeOutputPath : _aotOutputPath);
 
     final File patchFile;
-    if (useLinker && await aotTools.isGeneratePatchDiffBaseSupported()) {
+    if (routeBContainer != null) {
+      // The SAME differ every other platform uses, against a one-byte synthetic
+      // base. The updater inflates every code artifact against the running
+      // app's base snapshot — on iOS the four Dart blobs behind
+      // SnapshotsDataHandle — and a container has nothing in common with those
+      // bytes. Diffing against them would buy nothing AND force the producer to
+      // reproduce the device's exact base, which needs `analyze_snapshot
+      // --dump_blobs`, a Shorebird-fork tool we cannot build.
+      //
+      // Against a synthetic base the artifact is pure literal inserts, so
+      // reconstruction never reads the base and is correct on any device. An
+      // actually-empty base panics inside bidiff's suffix-array code, which is
+      // why it is one zero byte rather than none.
+      //
+      // Verified byte-for-byte against the reference `route_b_artifact` tool,
+      // which is why no separate publishing tool remains in the product path.
+      final syntheticBase = File(
+        p.join(shorebirdEnv.buildDirectory.path, 'route_b_base'),
+      )..writeAsBytesSync(Uint8List(1));
+      patchFile = File(
+        await artifactManager.createDiff(
+          releaseArtifactPath: syntheticBase.path,
+          patchArtifactPath: routeBContainer.path,
+        ),
+      );
+    } else if (useLinker && await aotTools.isGeneratePatchDiffBaseSupported()) {
       final patchBaseProgress = logger.progress('Generating patch diff base');
       final analyzeSnapshotPath = shorebirdArtifacts.getArtifactPath(
         artifact: ShorebirdArtifact.analyzeSnapshotIos,
@@ -596,28 +639,52 @@ it compiles, however, comes from the engine above.''',
   /// compilation, coverage analysis and packing that turn the resolved compiler
   /// into an SBRBPTCH container, so the message says exactly that rather than
   /// blaming tooling that is present and valid.
-  Never _requireRouteBProducer(
-    RouteBCompiler compiler,
-    Map<String, File> releaseArtifacts,
-    RouteBCoverage coverage,
-    String buildId,
-  ) {
-    final targets = [...coverage.representable, ...coverage.conditional];
-    logger.err(
-      '''
-This patch is representable and everything needed to build it resolved and validated, but this build of Shorebird cannot yet compile the replacement bodies.
-
-  release        $buildId
-  targets        ${targets.length} (${coverage.representable.length} static-shaped, ${coverage.conditional.length} instance)
-  compiler       ${compiler.compilerSnapshot.path}
-  import kernel  ${releaseArtifacts[routeBReleaseImportKernelFileName]!.path}
-
-${targets.map((t) => '    $t').join('\n')}
-
-This is not a problem with your release, your Dart changes, or the tooling.
-Nothing was uploaded.''',
+  /// Compile the replacement bodies and pack the container.
+  ///
+  /// A failure here is deliberately NOT a coverage rejection: coverage already
+  /// said these targets can be carried, so the compiler or the recorded source
+  /// span disagreeing is a toolchain problem. Reporting it as "your patch
+  /// cannot be represented" would send someone to change their Dart.
+  File _produceRouteBContainer({
+    required RouteBCompiler compiler,
+    required RouteBCoverage coverage,
+    required File importKernel,
+    required String releaseBuildId,
+  }) {
+    final workingDirectory = Directory(
+      p.join(shorebirdEnv.buildDirectory.path, 'route_b'),
     );
-    throw ProcessExit(ExitCode.software.code);
+    final Uint8List bytes;
+    try {
+      bytes = routeBProducer.produce(
+        compiler: compiler,
+        coverage: coverage,
+        importKernel: importKernel,
+        releaseBuildId: releaseBuildId,
+        workingDirectory: workingDirectory,
+      );
+    } on RouteBUnsupportedTarget catch (error) {
+      logger.err(
+        '''
+This patch changes a function this version of Shorebird cannot yet turn into a replacement body:
+
+  ${error.target}
+      ${error.reason}
+
+The whole patch is refused. This is not a problem with your release. Nothing was
+uploaded.''',
+      );
+      throw ProcessExit(ExitCode.software.code);
+    }
+
+    final container = File(p.join(workingDirectory.path, 'patch.sbrbptch'))
+      ..createSync(recursive: true)
+      ..writeAsBytesSync(bytes);
+    logger.detail(
+      '[route-b] packed ${bytes.length} bytes for release $releaseBuildId '
+      'at ${container.path}',
+    );
+    return container;
   }
 
   /// Refuse to build a code patch for a release that cannot accept one.

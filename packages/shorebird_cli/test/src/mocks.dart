@@ -36,6 +36,7 @@ import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/pubspec_editor.dart';
 import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
+import 'package:shorebird_cli/src/route_b_producer.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/shorebird_android_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
@@ -175,6 +176,8 @@ class MockRouteBCompilerResolver extends Mock
 
 class MockRouteBCoverageAnalyzer extends Mock
     implements RouteBCoverageAnalyzer {}
+
+class MockRouteBProducer extends Mock implements RouteBProducer {}
 
 class MockRouteBReleaseKernelBuilder extends Mock
     implements RouteBReleaseKernelBuilder {}

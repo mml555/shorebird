@@ -31,10 +31,17 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
+import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
+
+/// A reference to a [RouteBProducer] instance.
+final routeBProducerRef = create(RouteBProducer.new);
+
+/// The [RouteBProducer] available in the current zone.
+RouteBProducer get routeBProducer => read(routeBProducerRef);
 
 /// Runs the cell's bytecode compiler.
 typedef RouteBCompileRunner =

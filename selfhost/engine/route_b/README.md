@@ -1400,6 +1400,45 @@ A span rather than text keeps the analyzer free of any opinion about how the
 replacement library is assembled, and it is sliced from BYTES rather than from a
 Dart `String`, so a non-ASCII character upstream cannot shift the offsets.
 
+#### The artifact layer, answered in bytes
+
+The one unanswered question was SBRBPTCH → updater artifact. It is answered, and
+the answer keeps Route B inside the normal machinery.
+
+The updater inflates every code artifact against the running app's base
+snapshot — on iOS the four Dart blobs behind `SnapshotsDataHandle`. A container
+has nothing in common with those bytes, and diffing against them would force the
+producer to reproduce the device's exact base, which needs `analyze_snapshot
+--dump_blobs`, a Shorebird-fork tool we cannot build.
+
+So the artifact is diffed against a **one-byte synthetic base**, which makes it
+pure literal inserts: reconstruction never reads the base, and is therefore
+correct on any device. (An actually-empty base panics inside bidiff's
+suffix-array code, hence one zero byte rather than none.)
+
+`route_b_artifact` is `patch::make_patch(base, container)` — the same Rust crate
+the CLI's own `patch` executable wraps. Measured:
+
+| | |
+|---|---|
+| reference `route_b_artifact` | 624 bytes, self-verified against an empty base AND a 4 MB noise base |
+| CLI `patch` executable, one-byte base | 624 bytes |
+| comparison | **byte-for-byte identical** |
+
+So `ios_patcher` uses `artifactManager.createDiff` like every other platform,
+and **no separate publishing tool remains in the product path**.
+
+`hash` and `size` come from different files, and that is not a mistake:
+
+- `hash` = sha256(**container**) — `check_hash()` on device runs against the
+  INFLATED result, so the artifact's own digest would install fine and then fail
+  verification with a message about release mismatches that has nothing to do
+  with the cause.
+- `size` = bytes(**artifact**) — the server verifies what it received.
+
+This is the same split `ios_patcher` already used for the linker path, so the
+Route B branch reuses the code rather than special-casing it.
+
 #### What this supports, stated narrowly
 
 **The complete automatic path works for the currently supported replacement

@@ -108,7 +108,8 @@ release-construction first when something fails.
 | forwarded build inputs are checked, not promised | `RouteBReleaseKernelBuilder.agreesWith` |
 | coverage runs before any compile, and a rejection takes the whole patch | `ios_patcher.dart` |
 | the container and the release build ID are the CLI's own, deterministic | `route_b_container.dart` |
-| the CLI's container is byte-identical to the manually proven packer | `route_b/host_equivalence.sh` — 3/3 |
+| the CLI's container AND artifact are byte-identical to the manually proven tools | `route_b/host_equivalence.sh` — 5/5 |
+| Route B ships through the ordinary differ + upload; no separate publish tool | `ios_patcher.dart` |
 
 #### Three failure signatures that cost real time, now detected
 
@@ -232,25 +233,44 @@ returns ONE Function and that is what gets attached.
 supported replacement shape — a self-contained declaration. NOT "arbitrary Dart
 functions can be patched."
 
+#### Artifact layer — ANSWERED IN BYTES 2026-08-10
+
+The updater inflates code artifacts against the running app's base — on iOS the
+four Dart blobs behind `SnapshotsDataHandle` — which a container has nothing in
+common with, and which the producer cannot reproduce without `analyze_snapshot
+--dump_blobs`. So the artifact is diffed against a ONE-BYTE synthetic base,
+making it pure literal inserts that never read the base.
+
+`route_b_artifact` is `patch::make_patch(base, container)`, the same Rust crate
+the CLI's `patch` executable wraps — and their outputs are **byte-for-byte
+identical** (624 bytes). `ios_patcher` therefore uses `artifactManager.createDiff`
+like every other platform, and **no separate publishing script remains in the
+product path**.
+
+`hash` = sha256(CONTAINER) because `check_hash()` runs against the inflated
+result; `size` = bytes(ARTIFACT). Same split the linker path already used.
+
 #### Next session, in order
 
-1. **The device gate**, on the narrow shape and nothing wider: fresh Route B
-   release with `routeBValue() => 'OLD'`, change to `'NEW'`, `shorebird patch
-   ios`, nothing manual in between; device shows OLD -> NEW -> NEW after
-   relaunch -> OLD after rollback, corroborated by `.routeb`.
-   Remaining wiring: hand the container to the artifact/upload path the way
-   `build_4b_artifact.sh` + `publish_4b_patch.sh` do (`route_b_artifact` turns a
-   container into the artifact the updater inflates).
+1. **The device gate**, narrow shape only. Fresh release, because the newer
+   provenance requirements all matter: shipped App verified patchable, and the
+   supplement records the engine plus BOTH kernels.
+
+   ```
+   routeBValue() => 'OLD'   ->  shorebird release ios
+   change to 'NEW'          ->  shorebird patch ios
+   device: OLD -> NEW -> relaunch NEW -> rollback -> pristine OLD
+   ```
+
+   Nothing manual in between. Corroborate with `.routeb`.
 2. **Sealed regression.**
 3. **Then widen, by probe, in this order** — A public top-level with
-   references, B public instance method (the cheapest answer to the `this`/arg0
+   references, B public instance method (cheapest answer to the `this`/arg0
    question, and it must be run ON DEVICE), C instance method using `this`,
-   D private/library-bound references. Let each result say what compiler
-   transformation is actually required.
+   D private/library-bound references. Do NOT mix these into the gate.
 
-Do NOT teach the container or the runtime to carry a whole replacement app
-because dart2bytecode can compile one. One target, one payload — the mechanism
-already proven.
+One target, one payload. Do not teach the container or runtime to select a body
+out of a whole compiled app.
 
 ### The boundary that was crossed
 

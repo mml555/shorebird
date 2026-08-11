@@ -31,6 +31,7 @@ import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
+import 'package:shorebird_cli/src/route_b_producer.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
@@ -79,6 +80,7 @@ void main() {
     late Progress progress;
     late RouteBCompilerResolver routeBCompilerResolver;
     late RouteBCoverageAnalyzer routeBCoverageAnalyzer;
+    late RouteBProducer routeBProducer;
     late RouteBReleaseKernelBuilder routeBReleaseKernelBuilder;
     late ShorebirdArtifacts shorebirdArtifacts;
     late ShorebirdProcess shorebirdProcess;
@@ -106,6 +108,7 @@ void main() {
           processRef.overrideWith(() => shorebirdProcess),
           routeBCompilerResolverRef.overrideWith(() => routeBCompilerResolver),
           routeBCoverageAnalyzerRef.overrideWith(() => routeBCoverageAnalyzer),
+          routeBProducerRef.overrideWith(() => routeBProducer),
           routeBReleaseKernelBuilderRef.overrideWith(
             () => routeBReleaseKernelBuilder,
           ),
@@ -126,6 +129,21 @@ void main() {
       registerFallbackValue(ReleasePlatform.ios);
       registerFallbackValue(ShorebirdArtifact.genSnapshotIos);
       registerFallbackValue(Uri.parse('https://example.com'));
+      registerFallbackValue(
+        RouteBCoverage.fromJson(
+          jsonEncode({
+            'analysisVersion': supportedRouteBAnalysisVersion,
+            'verdict': 'accept',
+            'changed': <String>[],
+            'added': <String>[],
+            'removed': <String>[],
+            'patchable': <String>[],
+            'conditional': <String>[],
+            'rejections': <Object>[],
+            'refusalSummary': null,
+          }),
+        ),
+      );
       registerFallbackValue(
         const RouteBCompiler(
           runtime: _nowhere,
@@ -157,6 +175,7 @@ void main() {
       projectRoot = Directory.systemTemp.createTempSync();
       routeBCompilerResolver = MockRouteBCompilerResolver();
       routeBCoverageAnalyzer = MockRouteBCoverageAnalyzer();
+      routeBProducer = MockRouteBProducer();
       routeBReleaseKernelBuilder = MockRouteBReleaseKernelBuilder();
       logger = MockShorebirdLogger();
       shorebirdArtifacts = MockShorebirdArtifacts();
@@ -1239,6 +1258,37 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
               }),
             ),
           );
+          // The SAME differ every other platform uses. Route B passes it a
+          // one-byte synthetic base, which was verified byte-for-byte against
+          // the reference route_b_artifact tool.
+          when(
+            () => artifactManager.createDiff(
+              releaseArtifactPath: any(named: 'releaseArtifactPath'),
+              patchArtifactPath: any(named: 'patchArtifactPath'),
+            ),
+          ).thenAnswer((_) async {
+            final diff = File(p.join(projectRoot.path, 'route_b.artifact'))
+              ..createSync(recursive: true)
+              ..writeAsBytesSync(List<int>.filled(64, 7));
+            return diff.path;
+          });
+          // Stands in for compile+pack; the real bytes are gated by
+          // host_equivalence.sh against the reference packer.
+          when(
+            () => routeBProducer.produce(
+              compiler: any(named: 'compiler'),
+              coverage: any(named: 'coverage'),
+              importKernel: any(named: 'importKernel'),
+              releaseBuildId: any(named: 'releaseBuildId'),
+              workingDirectory: any(named: 'workingDirectory'),
+            ),
+          ).thenAnswer(
+            (invocation) => Uint8List.fromList(
+              utf8.encode(
+                'SBRBPTCH-for-${invocation.namedArguments[#releaseBuildId]}',
+              ),
+            ),
+          );
           // The patch build's own kernel, which coverage diffs against the
           // release's.
           File(p.join(projectRoot.path, 'build', 'app.dill'))
@@ -1352,16 +1402,13 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                   () => shorebirdEnv.shorebirdEngineRevision,
                 ).thenReturn(ambientEngineRevision);
 
-                await expectLater(
-                  () => runWithOverrides(
-                    () => patcher.createPatchArtifacts(
-                      appId: appId,
-                      releaseId: releaseId,
-                      releaseArtifact: releaseArtifactFile,
-                      supplementDirectory: supplementDirectory,
-                    ),
+                await runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
                   ),
-                  exitsWithCode(ExitCode.software),
                 );
 
                 verify(
@@ -1623,16 +1670,13 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
             });
 
             test('analyzes coverage against the RELEASE kernel', () async {
-              await expectLater(
-                () => runWithOverrides(
-                  () => patcher.createPatchArtifacts(
-                    appId: appId,
-                    releaseId: releaseId,
-                    releaseArtifact: releaseArtifactFile,
-                    supplementDirectory: supplementDirectory,
-                  ),
+              await runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                  supplementDirectory: supplementDirectory,
                 ),
-                exitsWithCode(ExitCode.software),
               );
 
               final captured = verify(
@@ -1760,44 +1804,48 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
               },
             );
 
-            test('stamps the release identity from the shipped bytes', () async {
-              await expectLater(
-                () => runWithOverrides(
+            test(
+              'stamps the container with the shipped release identity',
+              () async {
+                await runWithOverrides(
                   () => patcher.createPatchArtifacts(
                     appId: appId,
                     releaseId: releaseId,
                     releaseArtifact: releaseArtifactFile,
                     supplementDirectory: supplementDirectory,
                   ),
-                ),
-                exitsWithCode(ExitCode.software),
-              );
+                );
 
-              // The LC_UUID written into the fixture App binary (bytes 1..16),
-              // which is what OS::GetAppBuildId reports on device. Read from
-              // the shipped bytes, so re-signing cannot change it.
-              verify(
-                () => logger.err(
-                  any(that: contains('0102030405060708090a0b0c0d0e0f10')),
-                ),
-              ).called(1);
-            });
+                // The LC_UUID written into the fixture App binary (bytes 1..16),
+                // which is what OS::GetAppBuildId reports on device. Read from
+                // the shipped bytes, so re-signing cannot change it.
+                final buildId =
+                    verify(
+                          () => routeBProducer.produce(
+                            compiler: any(named: 'compiler'),
+                            coverage: any(named: 'coverage'),
+                            importKernel: any(named: 'importKernel'),
+                            releaseBuildId: captureAny(named: 'releaseBuildId'),
+                            workingDirectory: any(named: 'workingDirectory'),
+                          ),
+                        ).captured.single
+                        as String;
+                expect(buildId, '0102030405060708090a0b0c0d0e0f10');
+              },
+            );
 
-            test('refuses instead of falling back to the linker', () async {
+            test('ships the container through the normal artifact path', () async {
               // A Route B release must never reach the private-linker path.
               // That fallback cannot work here and would quietly leave the old
               // architecture as the default for exactly the releases that
               // moved off it.
-              await expectLater(
-                () => runWithOverrides(
-                  () => patcher.createPatchArtifacts(
-                    appId: appId,
-                    releaseId: releaseId,
-                    releaseArtifact: releaseArtifactFile,
-                    supplementDirectory: supplementDirectory,
-                  ),
+              final bundles = await runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                  supplementDirectory: supplementDirectory,
                 ),
-                exitsWithCode(ExitCode.software),
               );
 
               verifyNever(
@@ -1809,16 +1857,37 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                   vmCodeFile: any(named: 'vmCodeFile'),
                 ),
               );
-              verify(
-                () => logger.err(
-                  any(
-                    that: allOf(
-                      contains('resolved and validated'),
-                      contains('Nothing was uploaded'),
-                    ),
-                  ),
-                ),
-              ).called(1);
+
+              // Diffed against a ONE-BYTE synthetic base, not the release: the
+              // updater's base on iOS is the four Dart blobs, which a container
+              // has nothing in common with and which the producer cannot
+              // reproduce without a Shorebird-fork tool.
+              final base =
+                  verify(
+                        () => artifactManager.createDiff(
+                          releaseArtifactPath: captureAny(
+                            named: 'releaseArtifactPath',
+                          ),
+                          patchArtifactPath: any(named: 'patchArtifactPath'),
+                        ),
+                      ).captured.single
+                      as String;
+              expect(File(base).readAsBytesSync(), [0]);
+
+              // hash from the CONTAINER, size from the ARTIFACT: check_hash()
+              // on device runs against the inflated result.
+              final bundle = bundles[Arch.arm64]!;
+              expect(
+                bundle.hash,
+                sha256
+                    .convert(
+                      utf8.encode(
+                        'SBRBPTCH-for-0102030405060708090a0b0c0d0e0f10',
+                      ),
+                    )
+                    .toString(),
+              );
+              expect(bundle.size, 64);
             });
           });
         });
