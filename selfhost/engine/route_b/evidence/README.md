@@ -1,4 +1,5 @@
 <!-- cspell:words idevicesyslog idevicescreenshot noninteractive premain -->
+<!-- cspell:words SBRBPTCH behaviour rbpull safequit -->
 
 # Route B device evidence
 

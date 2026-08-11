@@ -2,6 +2,7 @@
 <!-- cspell:words APFS CODEPATCH PRECOMPILER Werror caffeinate dartaotruntime SEGVs Specializer diskutil dumpsys flowgraph iface killgate libdart nodm nofail precompiler unapply -->
 <!-- cspell:words tearoff DNDEBUG SEGV LINKEDIT ourengine noinstall SELTOTAL hosttest unrun closurizing closurized closurize closurization bodyless pids footgun mtimes repointed rbtest Devirtualization genkernel misparse -->
 <!-- cspell:words airgap justlaunch noninteractive SIGTRAP dynmod absolutized DEFAULTPATH SIGPIPE PIPESTATUS -->
+<!-- cspell:words SBRBPTCH inspectable janky premain representability routeb reconstructibility -->
 
 # Handoff — engine improvements (as of 2026-08-07)
 
@@ -41,24 +42,94 @@ because a 2026-08-04 paragraph phrases it as open.
 
 ### The capability statement (authoritative — do not restate it more warmly)
 
-> **Android Dart code push and iOS asset push are complete and independent.
-> iOS Dart code push has its runtime mechanism PROVEN ON PHYSICAL HARDWARE and
-> BOTH VETOES CLOSED — a shipped AOT call site redirected to attached bytecode
-> and restored to its original AOT `Code` on an iPhone, at +4.5 % size and
-> +0.3 % median frame time with zero added jank. Production delivery is not
-> built: `shorebird patch` cannot produce an iOS code patch, and nothing in the
-> engine or updater consumes a patch container.**
+> **Android Dart code push and iOS asset push are complete and independent. The
+> entire iOS Dart code-push RUNTIME is proven on physical hardware — control
+> plane -> updater download -> inflate -> hash check -> install -> lifecycle
+> promotion -> native pre-main activation -> patched Dart running -> relaunch
+> still patched -> rollback to pristine AOT, with no Dart-side cooperation, at
+> +4.5 % size and +0.3 % median frame time with zero added jank. What is NOT
+> built is the PRODUCER: `shorebird patch` cannot emit an iOS code patch, so the
+> container that proved all of the above was packed by hand.**
 
-*The mechanism is proven; the product is not.* On 2026-08-10 the device gate
-passed on an iPhone 7: baseline OLD, attached NEW, detached OLD, in one process
-with no restart. That removes the fundamental uncertainty this project has
-carried since the start -- whether an AOT call site on iOS can be redirected to
-interpreted bytecode and restored afterwards.
+*The runtime is proven; the producer is not.* Both are true at once and they are
+different claims -- do not let "iOS code push works on the device" become "iOS
+code push works".
 
-What remains is integration, plus one veto. `shorebird patch` cannot produce an
-iOS code patch, nothing in the engine consumes a patch container, the 4a payload
-was bundled as an asset and attached by test-only scaffolding, and the
-frame-time cost has never been measured on a device.
+On 2026-08-10, on an iPhone 7, in this order: the 4a gate (baseline OLD,
+attached NEW, detached OLD, one process, no restart), then seam 6 (the same
+redirect performed natively before `main`, from a build with no Dart-side attach
+path), then the full ten-step delivery sequence on release 9.0.0+1 -- fresh
+release OLD, control plane publishes, the real updater downloads and inflates
+and installs, relaunch reads NEW, relaunch again still NEW from persisted
+lifecycle state, rollback, relaunch reads pristine OLD.
+
+Both vetoes closed the same day: +4.5 % size and, over five alternating paired
+runs, +0.3 % median frame time with 0 janky frames in 3,000 per arm.
+
+What remains is the producer. `shorebird patch` cannot emit an iOS code patch --
+`ios_patcher.dart:198` gates code patches on Shorebird's private AOT linker,
+which we cannot build -- so the container that proved everything above was
+packed by hand. Everything downstream of those bytes is proven.
+
+### Route B state, 2026-08-10 — what is proven, what is next
+
+**Runtime: complete, on hardware. Do not touch it, and do not re-verify it.**
+After runtime has been proven, assume producer / provenance /
+release-construction first when something fails.
+
+| layer | state |
+|---|---|
+| patchable call emission | shipped, `--patchable_static_calls`, both vetoes closed |
+| symbol retention, target identity | done |
+| SBRBPTCH container, apply, rollback | done |
+| control plane -> updater -> inflate -> install | **proven on device** |
+| content sniffing (container never reaches the snapshot loader) | **proven on device** |
+| native pre-main activation, build-ID validated | **proven on device** |
+| persistence across relaunch, rollback to pristine AOT | **proven on device** |
+| **`shorebird patch` producing the container** | **NOT BUILT** |
+
+**Producer: the invariants landed before the code that needs them.**
+
+| guard | where |
+|---|---|
+| releases are patchable by construction *and* the shipped binary is verified | `ios_releaser.dart`, `route_b.dart` |
+| a code patch is refused against a non-patchable release | `ios_patcher.dart` |
+| a Route B release can never fall back to the private linker | `ios_patcher.dart` |
+| the compiler ships as one engine-scoped cell (runtime + snapshot + platform dill) | `route_b/publish_route_b_compiler.sh` |
+| the cell is audited for reconstructibility, not presence | `route_b/audit_route_b_compiler.sh` |
+| one resolution, one engine cell, no ambient fallbacks | `route_b_compiler.dart` |
+
+#### Three failure signatures that cost real time, now detected
+
+1. **`applied N/N targets` in the `.routeb` report, and `OLD` on screen.** The
+   release was built without `--patchable_static_calls`; AOT emitted direct
+   calls that never consult `Function.entry_point_`. The attach genuinely
+   succeeded. Burned releases 7.0.0+1 and 8.0.0+1. Now detected from the shipped
+   bytes on both the release and patch sides.
+2. **A refusal with nothing to read.** No engine log line of any kind reaches
+   `idevicesyslog` for a `--noninteractive` launch on this device, Flutter's own
+   included. The engine now writes `<artifact>.routeb` beside the installed
+   patch; pull it with `ios-deploy --download`.
+3. **A compiler bundle that runs but is not the one we published.** A tampered
+   snapshot still executed *and* still advertised `--target flutter`; only the
+   hash caught it. Hashes and the capability probe are both required and neither
+   substitutes for the other.
+
+#### Next session, in order
+
+Start at
+[`engine/route_b/README.md`](engine/route_b/README.md) — "Next session starts
+here". The first question is narrow and inspectable, not architectural:
+
+> Does `ios_patcher` receive the **release's** engine hash, or only the ambient
+> one? Compiler-cell selection must be release-relative, never
+> environment-relative.
+
+Then: make `resolveRouteBCompiler(releaseEngineHash)` load-bearing, port the
+coverage analysis **mechanically** (differential parity against the host tooling
+on target set, representability, exact rejection reason and whole-patch
+verdict), wire producer orchestration, and run the automatic end-to-end device
+gate.
 
 ### The boundary that was crossed
 

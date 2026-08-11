@@ -1,4 +1,5 @@
 <!-- cspell:words prebuilts jank -->
+<!-- cspell:words SBRBPTCH -->
 
 # Self-hosted Shorebird — documentation index
 
@@ -70,31 +71,37 @@ for the quick start and feature list.
 
 ## Capability statement (read this before claiming anything)
 
-> **Android Dart code push and iOS asset push are complete and independent.
-> iOS Dart code push has its runtime mechanism PROVEN ON PHYSICAL HARDWARE and
-> BOTH VETOES CLOSED — a shipped AOT call site redirected to attached bytecode
-> and restored to its original AOT `Code` on an iPhone, at +4.5 % size and
-> +0.3 % median frame time with zero added jank. Production delivery is not
-> built: `shorebird patch` cannot produce an iOS code patch, and nothing in the
-> engine or updater consumes a patch container.**
+> **Android Dart code push and iOS asset push are complete and independent. The
+> entire iOS Dart code-push RUNTIME is proven on physical hardware — control
+> plane -> updater download -> inflate -> hash check -> install -> lifecycle
+> promotion -> native pre-main activation -> patched Dart running -> relaunch
+> still patched -> rollback to pristine AOT, with no Dart-side cooperation, at
+> +4.5 % size and +0.3 % median frame time with zero added jank. What is NOT
+> built is the PRODUCER: `shorebird patch` cannot emit an iOS code patch, so the
+> container that proved all of the above was packed by hand.**
 
-*The mechanism is proven; the product is not.* The fundamental technical
-uncertainty is gone — Route B redirects and restores a real AOT call site on a
-real iPhone. What remains is integration and one open veto, and neither is a
-formality: a patch still cannot be produced by the CLI, delivered by the
-updater, or applied without test-only scaffolding, and the frame-time cost of
-making calls patchable has never been measured on a device.
+*The runtime is proven; the producer is not.* Both are true at once and they are
+different claims. Do not let "iOS code push works on the device" become "iOS
+code push works".
 
-What a host harness has now shown, end to end: a release built patchable, a
-Dart edit turned into a container by diffing kernels, that container refused
-when it does not match the release or cannot fully land, applied atomically to
-change running behavior, and rolled back.
+What has run on a physical iPhone, end to end (2026-08-10, release 9.0.0+1):
+fresh release reads OLD, the control plane serves a patch, the real updater
+downloads and inflates and hash-checks and installs it, the lifecycle promotes
+it, the engine activates it natively before `main`, the first Dart read returns
+NEW, a relaunch is still NEW from persisted state, and a rollback returns the
+app to pristine AOT. The app contains no attach path of its own — the fixture
+cannot patch itself.
 
-What works on iOS today, end to end and artifact-independent: a release built
-with our own engine and compiler, the app reaching first frame on a physical
-device, and an assets-only patch published, downloaded, applied and rolled back.
+What is missing is the producer: `shorebird patch` cannot emit an iOS code
+patch, because `ios_patcher.dart:198` gates code patches on Shorebird's private
+AOT linker. The container that proved everything above was **packed by hand**.
+Everything downstream of those bytes is proven; nothing upstream of them is.
 
-**Status split, so two different claims stay separate** (2026-08-07):
+Also true on iOS today, artifact-independent: a release built with our own
+engine and compiler, the app reaching first frame on a physical device, and an
+assets-only patch published, downloaded, applied and rolled back.
+
+**Status split, so different claims stay separate** (updated 2026-08-10):
 
 | claim | status |
 |---|---|
@@ -102,6 +109,8 @@ device, and an assets-only patch published, downloaded, applied and rolled back.
 | iOS release → first frame on device | **PASS** |
 | iOS device → control-plane reach | **PASS** — 2026-08-09, once Local Network was granted |
 | iOS assets-patch application on device | **NOT VERIFIED** on the current fixture |
+| iOS **Dart code patch** delivered + activated + rolled back on device | **PASS** — 2026-08-10, container packed by hand |
+| iOS Dart code patch **produced by `shorebird patch`** | **NOT BUILT** |
 | Android full device lifecycle (release → Dart code patch → rollback) | **PASS** |
 
 Android must not be read as covering the iOS device claim. The assets-only

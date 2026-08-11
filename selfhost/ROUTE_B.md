@@ -1,5 +1,6 @@
 <!-- cspell:words killgate dynmod tearoff dartaotruntime disqualifiers APFS DNDEBUG packageable overengineer -->
 <!-- cspell:words sshkey publickey devirtualizes SBRBPTCH janky jank -->
+<!-- cspell:words inspectable memorising -->
 
 # Route B — iOS Dart code push. Start here.
 
@@ -288,13 +289,20 @@ and believe the result. The pieces are already in the shape the CLI needs.
    time, five alternating paired runs on device: build p50 **+3.2 %**, total p50
    **+0.3 %**, total p95 **+1.1 %**, **0 janky frames in 3,000 per arm**. A real
    Dart-phase tax, no meaningful rendering-budget tax. **The veto is closed.**
-8. ~~**Physical-iPhone gate**~~ **PASSED 2026-08-10**, in two parts.
-   **8a** — mechanism, with the payload bundled as an asset and attached from
-   Dart: `OLD → NEW → OLD` in one process on an iPhone. **Seam 6** — the same
-   redirect performed *natively before `main`*, from a build with no Dart-side
-   attach path, against a control that differs by one bundled asset. Delivery
-   is deliberately still absent from both; see the capability statement.
-9. **Sealed independence regression for iOS code patches.**
+8. ~~**Physical-iPhone gate**~~ **PASSED 2026-08-10**, in three parts.
+   **8a** — mechanism, payload bundled as an asset and attached from Dart:
+   `OLD → NEW → OLD` in one process. **Seam 6** — the same redirect performed
+   *natively before `main`*, from a build with no Dart-side attach path, against
+   a control differing by one bundled asset. **4b milestone 1** — the whole
+   delivery chain, on release 9.0.0+1: control plane → updater → inflate →
+   install → lifecycle → pre-main activation → `NEW` → relaunch `NEW` →
+   rollback → pristine `OLD`. The container was packed by hand; everything
+   downstream of those bytes is proven.
+9. **`shorebird patch` produces the container.** ← the only major seam left.
+   `ios_patcher.dart:198` still gates code patches on Shorebird's private AOT
+   linker. See "Next session starts here" in
+   [`engine/route_b/README.md`](engine/route_b/README.md).
+10. **Sealed independence regression for iOS code patches.**
 
 Both vetoes are closed, so what remains cannot kill the approach — only make it
 more or less convenient to ship.
