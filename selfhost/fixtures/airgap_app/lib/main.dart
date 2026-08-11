@@ -76,6 +76,12 @@ class RouteBThing {
   /// library-scoped and belongs to rung D, where it would contaminate this.
   String label = 'NEW-C1';
 
+  /// The WRITE target, separate from `label` so a write arm cannot be confused
+  /// with a read arm. Its release value is what the app shows if the assignment
+  /// silently does nothing, so a broken write reads as `UNSET` rather than
+  /// passing by accident.
+  String slot = 'UNSET';
+
   /// The call form's target. Routed through DateTime.now() so it is not
   /// constant-folded into whoever calls it.
   ///
@@ -105,12 +111,12 @@ class RouteBThing {
   /// `this.label` and `this.helper()` are the same Kernel nodes as the bare
   /// spellings and differ only in the lexical edit; the host probe covers them.
   ///
-  /// PATCH FORM: the EXPLICIT `this` spelling of a receiver CALL. `tagged` and
-  /// not `helper` on purpose — on this release nothing names `helper`, so the
-  /// prepass would shake it out before retention is declared and the patch
-  /// would fail for a retention reason rather than a lowering one.
+  /// PATCH FORM: a receiver-bound WRITE. The producer lowers only the receiver
+  /// — `slot` becomes `self.slot` — and `= 'NEW-SET'` crosses over as the
+  /// source's own text. The value shown is the assignment's own result, so an
+  /// assignment that silently did nothing would read `UNSET`, not `NEW-SET`.
   @pragma('vm:never-inline')
-  String value() => this.tagged('ARG');
+  String value() => slot = 'NEW-SET';
 }
 
 @pragma('vm:never-inline')

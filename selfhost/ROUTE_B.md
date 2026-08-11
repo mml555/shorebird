@@ -134,8 +134,35 @@ nothing names `helper`, so the prepass would shake it out before retention is
 declared and the patch would have failed for a retention reason rather than a
 lowering one. The lexical edit is identical either way.
 
-Supported so far: `label`, `this.label`, `helper()`, `this.helper()`, and the
-same calls with arguments. Refused: cascades, `super`, setters, private members,
+### Receiver writes — CLOSED ON DEVICE 2026-08-11
+
+Engine `aa915584`, release `22.0.0+1`. `String value() => slot = 'NEW-SET';`
+shipped as `String value(RouteBThing self) => self.slot = 'NEW-SET';`:
+`OLD` -> **`NEW-SET`** -> relaunch -> rollback `OLD`. Evidence `evidence/set_*`.
+The value shown is the assignment's own result, so a write that silently did
+nothing would have read `UNSET`.
+
+A write is the same lexical edit as a read — Kernel puts `InstanceSet`'s offset
+on the identifier — and the right-hand side crosses over as source text. A
+receiver use inside it is its own access: `label = label + 'Y'` becomes
+`self.label = self.label + 'Y'`.
+
+**The compound refusal is derived, not enumerated.** Measured on real Kernel:
+
+```
+label += 'X'        SET @240  GET @240     one token, two jobs
+count++             SET @269  GET @269
+maybe ??= 'Z'       GET @315  SET @315
+label = label + 'Y' SET @447  GET @455     two tokens, two offsets
+```
+
+So the rule is *two accesses at one offset*, which covers compound assignment,
+increment and if-null uniformly — including forms nobody has enumerated — and
+leaves the legitimate self-referential write alone. Without it the producer
+would emit `self.self.label`.
+
+Supported so far: `label`, `this.label`, `helper()`, `this.helper()`, the same
+calls with arguments, and `slot = expr` / `this.slot = expr`. Refused: cascades, `super`, setters, private members,
 and any access kind the producer does not recognise.
 `probes/lowering_matrix.sh` pins all of it against real Kernel, 17/17;
 `probes/lowered_forms.sh` runs seven spellings end to end on the host, 14/14.
