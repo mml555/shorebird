@@ -203,6 +203,12 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
     // it keeps the existing linker path untouched.
     if (!assetsOnly && _engineSupportsIosCodePush()) {
       _verifyReleaseIsPatchable(releaseArtifactFile);
+      // The release IS Route B. From here the only valid outcomes are a Route B
+      // patch or an explicit refusal — never a fall through to the private
+      // linker. Letting the legacy path catch a Route B release would leave the
+      // old architecture as an accidental fallback, and it would fail somewhere
+      // downstream with a message about a linker nobody asked for.
+      _requireRouteBProducer();
     }
 
     // An assets-only patch carries no code, and the patch command drops the code
@@ -316,6 +322,26 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
         ),
       ),
     );
+  }
+
+  /// Refuse to proceed when the Route B producer is not available.
+  ///
+  /// Reached only for a release that IS Route B capable, so falling back to the
+  /// private AOT linker here would be wrong twice over: it cannot work (we
+  /// cannot build `aot-tools.dill`), and it would quietly re-establish the old
+  /// architecture as the default for exactly the releases that have moved off
+  /// it. An explicit refusal keeps the branch honest until the producer lands.
+  void _requireRouteBProducer() {
+    logger.err(
+      '''
+This release supports iOS Dart code push, but the tooling that produces those patches is not available in this build of Shorebird.
+
+Producing one requires dart2bytecode from the same engine toolchain as the release, which is not yet published as a Shorebird artifact.
+
+This is not a problem with your release or your Dart changes — the release is
+patchable. Nothing was uploaded.''',
+    );
+    throw ProcessExit(ExitCode.software.code);
   }
 
   /// Refuse to build a code patch for a release that cannot accept one.

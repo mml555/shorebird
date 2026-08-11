@@ -1131,6 +1131,38 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
           });
         });
 
+        group('when the release IS patchable', () {
+          setUp(() => writeReleaseAppBinary(sites: 4000));
+
+          test('refuses instead of falling back to the linker', () async {
+            // A Route B release must never reach the private-linker path. That
+            // fallback cannot work here and would quietly leave the old
+            // architecture as the default for exactly the releases that moved
+            // off it.
+            await expectLater(
+              () => runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                ),
+              ),
+              exitsWithCode(ExitCode.software),
+            );
+
+            verify(
+              () => logger.err(
+                any(
+                  that: allOf(
+                    contains('supports iOS Dart code push'),
+                    contains('Nothing was uploaded'),
+                  ),
+                ),
+              ),
+            ).called(1);
+          });
+        });
+
         group('when assets-only', () {
           setUp(() {
             writeReleaseAppBinary(sites: 2);
