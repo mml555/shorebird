@@ -1,6 +1,7 @@
 <!-- cspell:words dartaotruntime SBRBPTCH sbrbptch dynmod tearoff disqualifiers -->
 <!-- cspell:words unvalidated noninteractive prepass jank recognise -->
 <!-- cspell:words schedulable startable worktree oneline unheld diffstat -->
+<!-- cspell:words overclaim DFLUTTER -->
 
 # Shorebird feature parity — the goal document
 
@@ -17,7 +18,7 @@ that: which goals can run **simultaneously** and which are mutually exclusive,
 because the binding constraints here are physical (one phone per platform, one
 engine checkout, one canonical fixture) rather than organizational.
 
-**Last reviewed:** 2026-08-11 17:41, at `edbbd80b`.
+**Last reviewed:** 2026-08-11 18:4x, at `fa40f6ca`.
 
 **Verification scope of this pass.** §2 (rung ladder) and §3 (Dart language
 surface) were re-derived from the tree — commits, probes and evidence files.
@@ -256,27 +257,38 @@ This section answers the parity question directly:
 | ✅ | **PROVEN** Implicit receiver getter read — `String value() => label;` auto-lowered to the synthetic receiver form | rung C1, release `19.0.0+1`, `evidence/lowering_*` |
 | ✅ | **PROVEN** Implicit receiver method call — `String value() => helper();` → `self.helper()` | rung C2, release `20.0.0+1`, `evidence/call_*`, commit `b5aaeae1` |
 | ✅ | **PROVEN** Unicode-safe source offsets | |
-| ✅ | **PROVEN** Kernel resolution distinguishes receiver / local / top-level / static references | `probes/lowering_matrix.sh`, 13/13 against real Kernel |
+| ✅ | **PROVEN** Kernel resolution distinguishes receiver / local / top-level / static references | `probes/lowering_matrix.sh`, **26/26** against real Kernel as of `cb50590d` |
 | ✅ | **PROVEN** Compiler contract permits exactly 0 or 1 positional dynamic-module arguments | rung C engine relaxation |
 | ✅ | **PROVEN** Receiver call **carrying arguments** — `String value() => tagged('ARG');` → `self.tagged('ARG')` | engine `8ebaad05`, release `21.0.0+1`, iPhone 7, `evidence/arg_*`, commit `edbbd80b`. No new mechanism: the edit is still `tagged` → `self.tagged`, and `('ARG')` crossed over as source text nothing parsed |
+| ✅ | **PROVEN** Explicit `this.label` | release `21.0.0+1` patch 2, `evidence/this_1_label_NEW-C1.png`, commit `8907239a` |
+| ✅ | **PROVEN** Explicit `this.<method>(args)` | release `21.0.0+1` patch 3, `evidence/this_2_call_NEW-ARG.png`, commit `8907239a`. **Proven as `this.tagged('ARG')`, not `this.helper()`** — see the note below |
+| ✅ | **PROVEN** Receiver **write** — `String value() => slot = 'NEW-SET';` → `self.slot = 'NEW-SET'` | engine `aa915584`, release `22.0.0+1`, iPhone 7, `evidence/set_*`, commit `fa40f6ca`. Same `self` mechanism as reads and calls, no new transport |
 
-### Built, awaiting a device round-trip
+Two evidence notes worth keeping, because both are the kind of thing that decays
+into an overclaim:
 
-`label` and `helper()` are device-proven in their **bare** spelling. The `this.`
-spellings are the same Kernel node and differ only in the lexical edit — an
-insert versus a replace — so one passing says nothing about the other, and they
-are host-proven only.
+**The `this.` call was proven with arguments, not without.** `8907239a` used
+`this.tagged('ARG')` rather than `this.helper()`, deliberately: on release 21
+nothing names `helper`, so the kernel prepass would tree-shake it and the patch
+would have failed for a **retention** reason while looking like a lowering one.
+The lexical edit is identical either way, so nothing is lost — but the defensible
+claim is `this.<method>(args)`, and `ROUTE_B.md` lists `this.helper()`.
 
-| | item | evidence |
-|---|---|---|
-| ◐ | **BUILT** Explicit `this.label` | `probes/lowered_forms.sh`, host, 8/8 |
-| ◐ | **BUILT** Explicit `this.foo()` | `probes/lowered_forms.sh`, host, 8/8 |
+**The lowered artifact cannot distinguish the two spellings.** Both branches of
+the producer converge on byte-identical output, so what separates a `this.` arm
+from a bare arm is the *input source*, recorded in the commit message. Earlier
+gates shipped a `*_replacement.dart` beside the screenshots; these did not.
 
-> *Corrected this pass.* The prior review listed `this.label` as PROVEN and
-> `this.foo()` as NOT BUILT. Neither held: device evidence
-> (`evidence/lowering_*`) is the bare `label` spelling, and `this.helper()` lowers
-> and runs host-side. Both are now **BUILT** — one status, honestly applied to
-> both, per the update rule at the bottom of this file.
+### Superseded — the demotion that held
+
+> *Kept because the arc is the lesson, not the outcome.* A prior review listed
+> `this.label` as PROVEN and `this.foo()` as NOT BUILT. Neither held: the device
+> evidence at the time (`evidence/lowering_*`) was the **bare** `label` spelling,
+> and `this.helper()` lowered and ran host-side. Both were demoted to a single
+> honest **BUILT**, and `8907239a` then earned PROVEN for both within the hour by
+> running two patches on release 21. The rule paid for itself twice: it caught an
+> overclaim, and the correction cost one release's worth of rig time — because
+> both spellings rode an **existing** release rather than needing a new one.
 
 ### Refused today — the next language cases
 
@@ -299,25 +311,44 @@ not an untested guess. Ordered roughly by expected cost.
 
 ### `G3` sub-goals, and why they are mostly a queue
 
-| sub-goal | goal | blocked by | needs |
+| sub-goal | goal | status | needs |
 |---|---|---|---|
 | ~~**`G3.1 arg-abi`**~~ | an instance call **written with arguments** lowers and runs | **CLOSED ON DEVICE** — `9192a594` + `edbbd80b`, analyzer v5, cell `8ebaad05`, release `21.0.0+1` | released |
-| **`G3.2 this-spellings`** | `this.label` / `this.helper()` proven on device, not just host | — **ready now**, and `R1` is now free | `R1`, `R6` — no code change at all |
-| **`G3.3 setters`** | `label = 'x'` and property assignment | — **unblocked**, `G3.1` closed | `R7`, `R1` |
-| **`G3.4 compound`** | `++`/`--` on receiver fields | **`G3.3`** — read + setter composed | `R7`, `R1` |
-| **`G3.5 closures-super`** | closures capturing `this`, `super` reads and calls, cascades, operators | **`G3.1`** for anything argument-carrying; `super` reads are independent | `R7`, `R1` |
-| **`G3.6 app-private`** | decide whether parity requires naming existing app-private members | — **ready now** | **nothing** — pure design |
+| ~~**`G3.2 this-spellings`**~~ | the explicit `this.` spellings on device, not just host | **CLOSED ON DEVICE** — `8907239a`, two patches on release `21.0.0+1`, no new release and no cell mint | released |
+| ~~**`G3.3 setters`**~~ | `label = 'x'` and property assignment | **CLOSED ON DEVICE** — `cb50590d` + `fa40f6ca`, analyzer v6, cell `aa915584`, release `22.0.0+1` | released |
+| **`G3.4 compound`** | `++`/`--`/`+=`/`??=` on receiver fields | **REFUSED BY DERIVATION, not blocked** — see below | new mechanism, not a gate relaxation |
+| **`G3.5 closures-super`** | closures capturing `this`, `super` reads and calls, cascades | `super` writes now refuse explicitly (`cb50590d`); the rest untouched | `R7`, `R1` |
+| **`G3.6a app-private-decision`** | **is it reachable at all**, and what does §15 therefore require | **the critical path** — see the reframe below | `R3` read-only for the probe; **no `R7`, no cell, no device** |
+| **`G3.6b app-private-holes`** | close the two accepted-then-failed holes | queued behind `G3.6a`'s answer | `R7` **and a cell mint** — `analyze_coverage.dart` is in the manifest |
 
-Two things fall out of that table and they set the schedule:
+Three things fall out of that table, and two of them correct earlier drafts of
+this file.
 
-**`G3.1` is the gate for four of the six.** Setters, compound assignment, and
-most of the closure/operator corpus all carry arguments. Attempting any of them
-before the argument ABI exists means inventing a partial ABI and then replacing
-it — the most expensive ordering available.
+**The setters rung did not open the next rung — it closed it.** `cb50590d`
+derives its refusal as *two accesses reported at one source offset*, measured on
+real Kernel: `label += 'X'` SET@240/GET@240, `count++` SET@269/GET@269,
+`maybe ??= 'Z'` GET@315/SET@315, against the legitimate `label = label + 'Y'` at
+SET@447/GET@455. So compound assignment, increment and if-null are refused
+**uniformly and by derivation** rather than by an enumerated operator list — which
+also catches forms nobody enumerated. `G3.4` is therefore not "unblocked because
+`G3.3` closed"; it needs a mechanism that can distinguish two edits at one offset,
+and the lexical model cannot. An earlier draft of this table predicted the
+opposite.
 
-**`G3.2` and `G3.6` are free wins that contend with nothing.** `G3.2` is a device
-round-trip with no code change; `G3.6` is a decision with no hardware at all.
-Either can be picked up by someone who cannot get the phone or the build tree.
+**`G3.6` is not "pure design", and calling it that is why it kept getting
+scheduled as filler.** An earlier draft listed it as holding *nothing*, resources
+*"nothing — pure design"*. Both halves are wrong. Its decisive step is a
+**measurement**, not a decision. And its remediation touches
+`coverage/analyze_coverage.dart`, which is **one of the compiler cell's seven
+manifest files**, so it forces an analyzer version bump, an `R3` build and a cell
+mint. Splitting it into `G3.6a` (free: the measurement, the layer map, the
+decision) and `G3.6b` (expensive: the hole-closures) is what makes the free half
+actually free.
+
+**The ladder has no cheap next rung.** `G3.1`, `G3.2` and `G3.3` all closed within
+hours of each other; `G3.4` is refused by derivation; `G3.5` is real work with no
+leverage. That absence is itself the argument for spending the next slot on the
+**denominator** — `G3.6a` — rather than on more numerator.
 
 ### Private members
 
@@ -326,7 +357,49 @@ Either can be picked up by someone who cannot get the phone or the build tree.
 | ✅ | **PROVEN** A replacement payload can declare and call its own private helper |
 | ✅ | **KNOWN GAP** A synthetic replacement cannot call an *existing* private member of the application library |
 | ✅ | **PROVEN** Retention alone does not solve this — Dart privacy is library-scoped, and a private member nothing calls is tree-shaken out of the `--aot` prepass kernel before it can be named |
-| ☐ | **OPEN DESIGN** Decide whether full upstream parity requires solving existing app-private references |
+| ☐ | **OPEN DESIGN** Decide whether full upstream parity requires solving existing app-private references — **`G3.6a`, and now the critical path** |
+
+### How big the private-member gap actually is — measured
+
+Two independent agents measured what fraction of real Dart methods Route B's ABI
+can address, over `flutter/lib/src/material` (737 zero-parameter instance methods):
+
+| band | share |
+|---|---|
+| clean of app-private involvement | **7.3 %** (independent re-measure: 6.9 %) |
+| blocked by a **private receiver class** only | ~14.7 % |
+| blocked by a **private reference** only | ~18.6 % |
+| both | ~59.4 % |
+
+On `examples/api` the clean share is lower still — 5.4 % and 4.0 % across the two
+measurements. And the archetypal real patch lives in `build(BuildContext)`, which
+the **one-positional-parameter ABI cannot address at all**, so the addressable
+share of patches developers actually write is likely *below* 7 %, not above it.
+
+Treat these as an order of magnitude, not a precise figure: both are regexes over
+declaration sites in framework code, not kernel measurements. Two independent
+runs agreeing within half a point is what makes the magnitude trustworthy.
+
+**This is the number that reframes §3.** The rung ladder widens the surface
+*inside* a 4–7 % slice. No number of rungs clears §15's gate *"no common
+application source pattern exposes Route B implementation restrictions"* — only
+`G3.6` can.
+
+### Two accepted-then-failed holes — bugs, not gaps
+
+Both verified in the tree. Each is worse than a missing feature, because the
+analyzer **accepts** the target and the failure lands later, wearing a lowering
+bug's clothes — the most expensive failure class on this rig, since attributing it
+costs a full mint → release → repin → gate cycle.
+
+| | hole | mechanism |
+|---|---|---|
+| 🐞 | **A private receiver class is emitted verbatim as a parameter type** | `coverage/analyze_coverage.dart:490` emits `'receiverType': cls.name` with no privacy check; `route_b_producer.dart:243` inserts it straight in: `edits.add((open + 1, 0, '${lowering.receiverType} self'))`. A method on `_MyHomePageState` yields `_MyHomePageState self` in a synthetic library that cannot name it, and dies in dart2bytecode. **This is the ~15 % private-class band.** |
+| 🐞 | **Static and top-level bodies are never inspected** | the lowering pass at `coverage/analyze_coverage.dart:190-192` walks only `cls.procedures` and does `if (!changed.contains(key) \|\| p.isStatic) continue;`. For a static or top-level target the verdict is `accept` on **reachability alone** — a reachability statement wearing a language-surface statement's clothes. |
+
+Fixing either is `G3.6b`: both files are `R7`, and `analyze_coverage.dart` is in
+the cell manifest, so the fix costs a mint. Neither should be attempted while a
+rung's device gate holds those resources.
 
 That open design item is the one place where "our implementation may differ
 internally" might not be enough. Real apps are mostly private code, so a
@@ -334,8 +407,17 @@ permanent inability to reference existing app-private members would be a
 *developer-visible* parity gap, not an internal one. It needs a decision, not
 more probing.
 
-**Language parity: PARTIAL.** Normal application code is increasingly supported;
-upstream still has broader arbitrary-Dart patch coverage.
+**Language parity: PARTIAL, and narrower than the row count suggests.**
+
+An earlier draft said *"normal application code is increasingly supported."* That
+sentence is an accidental contract and the measurement above retires it. What is
+true: **the supported spellings are increasingly complete within a 4–7 % slice of
+real method shapes.** Reads, calls, argument-carrying calls, explicit `this.`, and
+writes are all device-proven — and essentially none of them can be used on a
+method that touches app-private code, which is 93–96 % of them.
+
+Upstream Shorebird patches arbitrary Dart. We patch a well-understood subset whose
+boundary is not the rung ladder but library-scoped privacy.
 
 ---
 
@@ -376,6 +458,23 @@ upstream still has broader arbitrary-Dart patch coverage.
 | ☐ | **NOT VALIDATED** Release + patch, same Android flavor |
 | ☐ | **NOT VALIDATED** Release + patch, same iOS flavor |
 | ☐ | **NOT VALIDATED** Wrong-flavor patch rejection |
+| ☐ | **KNOWN GAP** Route B never sees the flavor at all — `grep flavor` across `route_b*.dart` returns **zero** hits |
+
+> **`G4.2` has a false-green trap, and it is the reason to do the host probe
+> first.** `forwardedArgs` forwards only `--dart-define=` and
+> `--enable-experiment=`; `--flavor` is added to the `flutter` command separately
+> and never enters `buildArgs`. So Route B's prepass (which generates the retention
+> interface), its import kernel (which the patch binds against), and its
+> dart2bytecode invocation all compile with `appFlavor == null` while the shipped
+> release has a real value. A minimal flavored fixture that never *reads*
+> `appFlavor` turns both device rows green with the gap fully intact — buying an
+> accidental contract instead of a capability. Prove it host-side with
+> `-DFLUTTER_APP_FLAVOR` before booking `R2`.
+>
+> Worth lifting **out** of `G4.2` and doing first, because `G4.1` and `G4.3` both
+> reuse it: record the release's define set in provenance and thread it through the
+> prepass, the import kernel and dart2bytecode. That is mechanism; flavors is a
+> validation errand that happens to need it.
 
 ### Obfuscation / symbols
 
@@ -445,12 +544,32 @@ upstream still has broader arbitrary-Dart patch coverage.
 | ☐ | **NOT VALIDATED** Stable track |
 | ☐ | **NOT VALIDATED** Beta / staging / custom track |
 | ☐ | **NOT VALIDATED** Publish patch to a specific track |
-| ☐ | **NOT VALIDATED** Device receives only the selected track |
+| ☐ | **BLOCKED** Device receives only the selected track — see below |
 | ☐ | **NOT VALIDATED** Promote / move a rollout between tracks |
 | ☐ | **NOT VALIDATED** Rollback / withdraw within a tracked rollout |
 | ☐ | **NOT VALIDATED** Progressive rollout behavior, if supported by the upstream workflow |
 
-**Rollout parity: UNVALIDATED.**
+**Rollout parity: UNVALIDATED**, and one row is hard-blocked rather than merely
+untested.
+
+> **`channel` never reaches the device.** `compileShorebirdYaml` in
+> `vendor/flutter/packages/flutter_tools/lib/src/shorebird/shorebird_yaml.dart:68-70`
+> copies exactly `base_url`, `auto_update` and `patch_verification` — and **not**
+> `channel`. So the on-device auto-update path is permanently **stable-only**, and
+> "device receives only the selected track" cannot ride a normal release. That row
+> is coupled to `G8`'s fixture or to `shorebird preview`; it is **not** a free
+> `R1`/`R2` slot, which is what someone would otherwise discover mid-run.
+>
+> Tracks themselves are **not** a stub server-side — the wire and storage
+> implement them, and superseding is correctly scoped `WHERE channel_id = @c`. But
+> that scoping raises a definition question to settle **before** writing the
+> isolation tests: `promote` supersedes only *within* the target channel, so
+> set-track **adds** a track while §6 above says "move" and the CLI's own output
+> reads as a move. Whichever reading the test author holds becomes the contract.
+>
+> Also: no test in `packages/code_push_server/test` has ever created a
+> non-`stable` channel — `grep beta` returns nothing. The server half of `G6` is
+> real, absent work, not bookkeeping.
 
 ---
 
@@ -476,7 +595,21 @@ upstream still has broader arbitrary-Dart patch coverage.
 | ☐ | **NOT VALIDATED** Custom signing command |
 | ☐ | **NOT VALIDATED** KMS-backed signing workflow where supported upstream |
 
-**Signing parity: UNVALIDATED.**
+**Signing parity: UNVALIDATED**, but the Route B worry is resolved — in our favour.
+
+> **`SBRBPTCH` is covered for free, and this closes a question §7 previously
+> raised.** `vendor/updater/library/src/cache/signing.rs:37` is
+> `check_signature(message: &str, signature: &str, public_key: &str)` — it takes
+> the hash as a **string**, so signing is *structurally incapable* of caring
+> whether the artifact is an Android diff or a Route B container. No investigation
+> needed; the earlier note asking whether upstream's signing wraps our container
+> unchanged is answered yes.
+>
+> **`G7`'s server half is nearly empty**, so §16 oversells it as a peer lane to
+> `G6`. The server stores `hash_signature` verbatim and echoes it back; the package
+> depends on `archive`, `crypto` and `jose` and carries **no RSA library at all**.
+> `G7` reduces to one CLI test plus a `SIGNING.md` — do not size it as a
+> multi-day lane.
 
 ---
 
@@ -748,6 +881,7 @@ the same phone, the same engine checkout, or the same line of one YAML file.
 | **R9** | `cps-android` control plane, `:18081` | one Android release-cutting goal at a time; **separate instance from `R8` on purpose**, so the two legs' histories never contaminate each other |
 | **R10** | `packages/code_push_server` source + tests | standalone package, own lockfile. Cheap to work on concurrently with anything |
 | **R11** | the sealed CDN (docker compose) | **host-global.** Sealing it breaks every other goal's builds |
+| **R12** | `hermes-vps` — the Linux build host, with two reverse tunnels plus `adb reverse` on the Mac | needed by `G4.2`'s Android half (`accept_android_default.sh:17-19` makes the Linux-only constraint real, not folklore). **Additive capacity** — a separate machine nobody schedules against, and it was missing from this table until 2026-08-11 |
 
 ### Why the fixture is the real bottleneck
 
@@ -799,21 +933,27 @@ makes them *more* parallel-friendly than goals that look smaller.
 
 ### Lanes that genuinely run at once
 
-Four concurrent lanes, contending on nothing:
+Four concurrent lanes, contending on nothing. Updated 2026-08-11 18:4x, after the
+`G3.1`/`G3.2`/`G3.3` rungs all closed:
 
 | lane | goal | resources held |
 |---|---|---|
-| **Device — iOS** | `G3.1 arg-abi`, then its device gate | `R1`, `R3`, `R6`(ios leg), `R7`, `R8` |
-| **Device — Android** | `G4.2 flavors`(android) on its **own** flavored fixture | `R2`, `R9` |
-| **Hardware-free code** | `G10.1 stale-ipa` detection | CLI source + unit tests |
-| **Hardware-free design** | `G3.6 app-private` decision | nothing |
+| **Reachability** | `G3.6a app-private-decision` — the measurement, the layer map, the probe | `R3` **read-only** (compiles probe arms against the published cell) |
+| **Server** | `G6 tracks` server half — five of six non-device rows | `R10` only. No ports, no Postgres, no control-plane instance — so not even `R8`/`R9` |
+| **Device — Android** | `G4.2 flavors`(android), on its **own** flavored fixture | `R2`, `R9`, `R12` |
+| **Device — iOS** | `G3.5 closures-super`, or `G3.6b`'s hole-closures once `G3.6a` answers | `R1`, `R3`, `R6`, `R7`, `R11` (a mint) |
 
-Add a fifth when someone is available: the **server halves** of `G6 tracks` and
-`G7 signing` (`R10` only, no hardware, own test suite).
+The iOS lane is listed last on purpose: it is the **most expensive** lane, holding
+five resources at once, and after three rungs closing in one afternoon it is also
+the one with the least leverage left. `G3.4` is refused by derivation, so there is
+no cheap rung to feed it.
 
-That is the honest ceiling right now: **roughly four**, of which two are the
-device lanes and two need no hardware. Raise the ceiling by fixing `R6` — nothing
-else on this list buys as much parallelism per hour spent.
+`G7`'s server half does **not** make a fifth lane — it is one CLI test plus a
+`SIGNING.md` (see §7). Do not staff it as one.
+
+That is the honest ceiling: **four**, of which two need no device at all. Raise the
+ceiling by fixing `R6` — nothing else on this list buys as much parallelism per
+hour spent, and `G4.2`'s own flavored fixture is a down payment on exactly that.
 
 ---
 
@@ -881,24 +1021,28 @@ rows, so **clear your row when you stop**, even mid-goal.
 
 | resource | held by | goal | since | notes |
 |---|---|---|---|---|
-| `R1` iPhone 7 | — | — | released 17:40 | **free.** `G3.1`'s gate committed as `edbbd80b` |
+| `R1` iPhone 7 | — | — | released 18:2x | **free.** `G3.3`'s gate committed as `fa40f6ca` |
 | `R2` Android device | — | — | — | **free** |
-| `R3` route-b tree | — | — | released 17:40 | **free.** Cell `8ebaad05` minted and published |
+| `R3` route-b tree | *docs session* | `G3.6a` probe | 2026-08-11 18:4x | **read-only**: compiles probe arms against the published cell. No build, no mint |
 | `R4` ios-engine tree | — | — | — | **free** |
-| `R6` canonical fixture | — | — | released 17:40 | **free** at version `21.0.0+1`; next release bumps to 22 |
-| `R7` producer/analyzer | — | — | released 17:40 | **free** at analyzer **v5** |
-| `R8` `cps-ios` | — | — | released 17:40 | **free** |
+| `R6` canonical fixture | — | — | released 18:2x | **free** at version `22.0.0+1`; next release bumps to 23 |
+| `R7` producer/analyzer | — | — | released 18:2x | **free** at analyzer **v6**. `G3.6b` will want it — coordinate |
+| `R8` `cps-ios` | — | — | released 18:2x | **free** |
 | `R9` `cps-android` | — | — | — | **free** |
-| `R10` server source | — | — | — | **free** |
+| `R10` server source | — | — | — | **free** — the `G6` lane |
 | `R11` sealed CDN | — | — | — | **free** — and `G13` needs it exclusively |
-| this file | *docs session* | §15–17 | 2026-08-11 | docs only; holds no device, tree or fixture |
+| `R12` hermes-vps | — | — | — | **free** — additive capacity for `G4.2`'s Android half |
+| this file | *docs session* | §15–17, `G3.6a` | 2026-08-11 | docs + `R3` read-only; holds no device, no fixture, no `R7` |
 
-> **Everything is free as of 2026-08-11 17:41.** The `G3.1` holder released every
-> resource by committing `edbbd80b`, which is the protocol working as intended:
-> the claim's lifetime was the uncommitted-changes window, and committing ended
-> it. Rows here were inferred from the tree rather than declared, which is the
-> weakness this table exists to remove — declare yours rather than leaving the
-> next worker to infer.
+> **The table emptied itself twice on 2026-08-11, and both times that was the
+> protocol working.** The `G3.1` holder released every resource by committing
+> `edbbd80b`; the `G3.3` holder did the same at `fa40f6ca`. A claim's lifetime is
+> the uncommitted-changes window, and committing ends it — which is why the tell in
+> the next subsection is worth more than the table itself.
+>
+> Rows here have so far been **inferred from the tree rather than declared**, which
+> is the weakness this table exists to remove. Declare yours rather than leaving
+> the next worker to infer.
 
 ### Starting a new worker — the block to paste
 
@@ -950,33 +1094,41 @@ critical path is held.
 
 ### Start now — nothing blocks these, and they contend with nothing
 
-**Check §17's claims table first.** As of 2026-08-11 17:41 every resource is
-free — the `G3.1` holder released them by committing.
+**Check §17's claims table first.** Three rungs closed on 2026-08-11 between 17:29
+and 18:2x, so most of what an earlier draft of this list called "start now" is
+banked.
 
 | goal | lane | status |
 |---|---|---|
 | ~~**`G3.1 arg-abi`**~~ | iOS device | **CLOSED ON DEVICE** — `9192a594` + `edbbd80b`, release `21.0.0+1` |
+| ~~**`G3.2 this-spellings`**~~ | iOS device | **CLOSED ON DEVICE** — `8907239a`, two patches on release 21, no new release |
+| ~~**`G3.3 setters`**~~ | iOS device | **CLOSED ON DEVICE** — `cb50590d` + `fa40f6ca`, release `22.0.0+1` |
 | ~~**`G10.1 stale-ipa`**~~ | code, no hardware | **done** — `c57c6537` |
-| **`G3.3 setters`** | iOS device | **newly unblocked, and the critical path.** `G3.1`'s ABI is what it needed |
-| **`G3.2 this-spellings`** | iOS device | **free now.** No code change; folds into whatever release goes next |
-| **`G3.6 app-private`** | design, no hardware | **free.** A decision, not a probe. It may redefine what §15 requires |
-| **`G4.2 flavors`**(android) | Android device | **free** — `R2`/`R9` unheld, and a flavored fixture avoids `R6` entirely |
-| **`G6`/`G7` server halves** | `R10`, no hardware | **free** — own package, own test suite |
+| **`G3.6a app-private-decision`** | reachability | **START HERE.** The only goal that changes §15 rather than filling a row. Free: `R3` read-only, no `R7`, no mint, no device |
+| **`G6 tracks`** server half | `R10` | **run concurrently** — zero contended resources, five of six non-device rows absent today |
+| **`G4.2 flavors`**(android) | Android device | free, and its `--dart-define` threading is mechanism `G4.1`/`G4.3` reuse. Do the host probe **before** booking `R2` |
+| **`G3.5 closures-super`** | iOS device | available, but the expensive lane with the least leverage left |
 
-`G3.2` and `G3.3` both want `R1` and `R6`, so they are one lane, not two — but
-`G3.2` needs no code change, so a single release can carry both if whoever takes
-the lane wants them together.
+**Why `G3.6a` and not the next rung.** Three of the five `G3` sub-goals closed in
+one afternoon, `G3.4` turned out to be refused by derivation rather than next, and
+the measurement says every remaining rung widens a surface inside a 4–7 % slice.
+The ladder has no cheap step left, and the roof has not been located. Locate the
+roof.
 
 ### Then, in priority order
 
-5. **`G3.3 setters`** → **`G3.4 compound`** — both blocked by `G3.1`.
-6. **`G3.5 closures-super`** — `super` reads are startable earlier than the rest.
-7. **`G4.2 flavors`** — Android half needs no `R1`, so it can run in the Android
-   lane alongside iOS work today.
-8. **`G4.1 dart-defines`** matrix.
-9. **`G4.3 obfuscation-ios`** — the untested half; Android is proven.
-10. **`G7 signing`** — server half is hardware-free and startable any time.
-11. **`G6 tracks`** — same split.
+5. **`G3.6b app-private-holes`** — gated on `G3.6a`'s answer, because the answer
+   decides whether the fix is a refusal or a retarget pass. Costs `R7` + a mint.
+6. **`G4.1 dart-defines`** — specifically the **provenance + threading** work
+   lifted out of `G4.2`; `G4.3` reuses it too.
+7. **`G4.3 obfuscation-ios`** — the untested half; Android is proven.
+8. **`G3.5 closures-super`** — real work, low leverage. Deliberately below the
+   configuration goals now that the language surface is known to be private-bound.
+9. **`G3.4 compound`** — needs a mechanism that distinguishes two edits at one
+   source offset. Not a gate relaxation; do not schedule it as one.
+10. **`G6 tracks`** device row — blocked until `channel` reaches the device (§6),
+    so it follows `G8` or `shorebird preview` rather than standing alone.
+11. **`G7 signing`** — one CLI test plus a `SIGNING.md`. Small.
 12. **`G8 manual-api`** — needs its own fixture, so it does not contend on `R6`.
 13. **`G9 add-to-app`** — `G9.1`/`G9.2` are concurrent with each other.
 14. **`G10.2 noninteractive`** CI workflows.
