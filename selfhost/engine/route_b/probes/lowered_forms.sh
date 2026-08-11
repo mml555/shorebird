@@ -1,16 +1,23 @@
 #!/usr/bin/env bash
 # cspell:words dartaotruntime sbrbptch
 #
-# c1_lowered.sh -- the AUTOMATIC producer must reach rung C1's result.
+# lowered_forms.sh -- the AUTOMATIC producer must reach the hand-packed result,
+# for every receiver form it claims to support.
 #
-# c_receiver.sh proved C1 with a HAND-WRITTEN replacement:
+# c_receiver.sh proved rung C with HAND-WRITTEN replacements:
 #
 #     String value(RouteBThing self) => self.label;
+#     String value(RouteBThing self) => self.helper();
 #
-# while the app source it stood in for declares an ordinary instance getter
-# method with no parameters. This asks whether the CLI's analyzer and producer,
-# given only the two kernels, arrive at that same replacement on their own --
-# and whether the container they build still runs to NEW-C1.
+# while the app source they stand in for declares ordinary instance methods with
+# no parameters. This asks whether the CLI's analyzer and producer, given only
+# the two kernels, arrive at those same replacements on their own -- and whether
+# the containers they build still run.
+#
+# One arm per SPELLING, not per outcome. `label` and `this.label` are the same
+# Kernel node and differ only in the lexical edit -- an insert versus a replace
+# -- so one passing says nothing about the other. Same for `helper()` and
+# `this.helper()`.
 #
 # Two separate claims, checked separately, because they fail for different
 # reasons:
@@ -28,7 +35,7 @@
 # Host, not device: this is a producer question. The device round-trip is the
 # separate, later proof, and it runs the true Flutter platform.
 #
-#   c1_lowered.sh
+#   lowered_forms.sh
 set -euo pipefail
 
 SRC=${SRC:-/Volumes/build/route-b/flutter/engine/src}
@@ -77,6 +84,13 @@ s = s.replace(
     """class RouteBThing {
   String label = 'NEW-C1';
 
+  // Retained and exercised: a method nothing calls is tree-shaken out of the
+  // --aot kernel, and then the release has nothing for `self.helper()` to
+  // reach. Routed through DateTime.now() so it is not constant-folded.
+  @pragma('vm:never-inline')
+  String helper() =>
+      DateTime.now().millisecondsSinceEpoch >= 0 ? 'NEW-C2' : 'X';
+
   @pragma('vm:never-inline')
   %s
 }
@@ -87,7 +101,7 @@ void _state(String when) =>""" % os.environ['BODY'],
 s = s.replace(
     "print('$when alpha=${alpha()} beta=${beta()}');",
     "print('$when alpha=${alpha()} beta=${beta()} "
-    "thing=${RouteBThing().value()}');",
+    "thing=${RouteBThing().value()} helper=${RouteBThing().helper()}');",
     1,
 )
 p.write_text(s)
@@ -134,8 +148,8 @@ echo "  engine : $ENGINE"
 # Both supported spellings, run through the whole path separately. They are the
 # SAME kernel node and differ only in the lexical edit -- an insert versus a
 # replace -- so one passing says nothing about the other.
-arm() { # <label> <patch method source>
-  local label="$1" body="$2"
+arm() { # <label> <patch method source> <expected declaration> <expected value>
+  local label="$1" body="$2" wantDecl="$3" wantValue="$4"
   local dir="$WORK/$label"; mkdir -p "$dir"
 
   note "$label -- patch source: $(printf '%s' "$body" | tr -s ' \n' ' ')"
@@ -164,8 +178,7 @@ arm() { # <label> <patch method source>
   else
     got='<the producer wrote no replacement source>'
   fi
-  check "$label: lowered source is the source rung C1 proved" \
-    "$got" 'String value(RouteBThing self) => self.label;'
+  check "$label: lowered source is the source rung C proved" "$got" "$wantDecl"
 
   local container
   container=$(sed -n 's/^ *OUT=//p' "$dir/cli.log")
@@ -181,22 +194,34 @@ arm() { # <label> <patch method source>
   # that one enters the target from C++ with a null receiver, which for a body
   # dereferencing `self` throws NoSuchMethodError. Correct, and unrelated.
   local thing
-  thing=$(sed -n 's/^after .*thing=//p' "$dir/run.log" | tail -1)
+  # Stop at the space: the line also carries `helper=`, which is the control
+  # showing the release's own method still answers.
+  thing=$(sed -n 's/^after .*thing=\([^ ]*\).*/\1/p' "$dir/run.log" | tail -1)
   echo "  thing = ${thing:-<no value; the process did not get that far>}"
-  check "$label: the app reads the patched value" "$thing" 'NEW-C1'
-  [ "$thing" = 'NEW-C1' ] || sed 's/^/      /' "$dir/run.log" | head -8
+  check "$label: the app reads the patched value" "$thing" "$wantValue"
+  [ "$thing" = "$wantValue" ] || sed 's/^/      /' "$dir/run.log" | head -8
 }
+
+GET='String value(RouteBThing self) => self.label;'
+CALL='String value(RouteBThing self) => self.helper();'
 
 # An ordinary bare getter -- what an app author actually writes. Nobody types
 # `self` here; the lowering has to introduce both the parameter and the prefix.
-arm bare_getter "String value() => label;"
+arm bare_getter "String value() => label;" "$GET" NEW-C1
 
 # The explicit spelling. Same kernel node, different edit: `this.` is REPLACED
 # rather than prefixed, and getting that wrong yields `this.self.label`.
-arm explicit_this "String value() => this.label;"
+arm explicit_this "String value() => this.label;" "$GET" NEW-C1
+
+# A zero-argument call on the receiver. The edit is the same shape as the
+# getter's, but what it produces has to actually DISPATCH on the release's own
+# object -- which a text comparison alone would not catch.
+arm bare_call "String value() => helper();" "$CALL" NEW-C2
+
+arm this_call "String value() => this.helper();" "$CALL" NEW-C2
 
 echo
 echo "--------------------------------------------------"
-echo "C1 via the automatic producer: $pass passed, $fail failed"
+echo "lowered forms via the automatic producer: $pass passed, $fail failed"
 echo "work dir kept: $WORK"
 [ "$fail" -eq 0 ] || exit 1

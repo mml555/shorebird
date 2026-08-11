@@ -228,6 +228,50 @@ class RouteBProducer {
     edits.add((open + 1, 0, '${lowering.receiverType} self'));
 
     for (final access in lowering.accesses) {
+      // The edit below inserts or replaces a receiver prefix immediately before
+      // the identifier, which suits a read and a zero-argument call alike. A
+      // kind added later may not work that way, so refuse rather than guess --
+      // the analyzer and the producer are versioned together for this reason,
+      // and this is the backstop when that pairing is somehow wrong.
+      if (!const {'get', 'invoke'}.contains(access.kind)) {
+        throw RouteBUnsupportedTarget(
+          key,
+          'uses the receiver in a way this lowering does not know how to '
+          'rewrite (`${access.kind}` on `${access.member}`)',
+        );
+      }
+      // ARGUMENTS ARE REFUSED, AND KERNEL CANNOT BE ASKED. `gen_kernel --aot`
+      // eliminates a parameter whose argument is always the same constant, so
+      // in the release kernel `withArgs('x')` genuinely reads as a call with
+      // zero positional arguments -- the TARGET's own signature reports zero
+      // too. Measured: the same method declares one positional parameter in the
+      // --no-aot kernel and none in the --aot one. The analyzer reads the AOT
+      // kernel by design, because that is the kernel that fed the release, so
+      // its argument check can pass a call the source clearly writes arguments
+      // for.
+      //
+      // Whether a call is WRITTEN with arguments is a syntactic question, and
+      // syntax is what the source is for -- the same reasoning that lets the
+      // source decide `this.` versus bare. This is a refusal, so erring costs a
+      // rejected patch rather than a wrong one.
+      if (access.kind == 'invoke') {
+        final open = source.indexOf('(', access.offset);
+        final close = open < 0 ? -1 : source.indexOf(')', open);
+        if (open < 0 || close < 0 || close > span.end) {
+          throw RouteBUnsupportedTarget(
+            key,
+            'calls `${access.member}()` in a form this lowering cannot read',
+          );
+        }
+        if (source.substring(open + 1, close).trim().isNotEmpty) {
+          throw RouteBUnsupportedTarget(
+            key,
+            'calls `${access.member}()` with arguments, which this lowering '
+            'does not yet handle',
+          );
+        }
+      }
+
       const explicit = 'this.';
       final start = access.offset - explicit.length;
       if (start >= span.start &&

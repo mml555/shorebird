@@ -44,7 +44,7 @@ import 'package:kernel/text/ast_to_text.dart';
 /// Bump when a consumer would have to change. The CLI refuses a version it does
 /// not know rather than reading fields that may have moved -- the `*.vmcode`
 /// filename convention is the cautionary tale for unversioned contracts.
-const analysisVersion = 3;
+const analysisVersion = 4;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -523,9 +523,24 @@ class _ReceiverUses extends RecursiveVisitor {
 
   @override
   void visitInstanceInvocation(InstanceInvocation node) {
-    if (node.receiver is ThisExpression) {
-      _consumed.add(node.receiver as ThisExpression);
-      unsupported.add('calls `${node.name.text}()` on the receiver');
+    final receiver = node.receiver;
+    if (receiver is ThisExpression) {
+      _consumed.add(receiver);
+      final name = node.name.text;
+      final args = node.arguments;
+      if (name.startsWith('_')) {
+        unsupported.add('calls the private member `$name()`');
+      } else if (args.positional.isNotEmpty ||
+          args.named.isNotEmpty ||
+          args.types.isNotEmpty) {
+        // Arguments are deliberately a SEPARATE question from receiver
+        // rewriting. The lexical edit is identical either way -- it is the
+        // argument list that has its own behaviour -- so mixing the two would
+        // mean a failure could be about either.
+        unsupported.add('calls `$name()` with arguments on the receiver');
+      } else {
+        accesses.add(_Access(node.fileOffset, name, 'invoke'));
+      }
     }
     node.visitChildren(this);
   }

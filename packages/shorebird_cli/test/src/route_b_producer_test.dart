@@ -217,6 +217,8 @@ void main() {
         required String preamble,
         required String decl,
         required String access,
+        String member = 'label',
+        String kind = 'get',
         List<String> unsupported = const [],
       }) {
         source.writeAsStringSync('$preamble$decl');
@@ -244,13 +246,16 @@ void main() {
                 'accesses': [
                   if (access.isNotEmpty)
                     {
+                      // The analyzer points at the IDENTIFIER, which is the
+                      // tail of the spelling: `this.label` and `label` differ
+                      // only in what precedes it.
                       'offset':
                           start +
                           decl.indexOf(access) +
                           access.length -
-                          'label'.length,
-                      'member': 'label',
-                      'kind': 'get',
+                          member.length,
+                      'member': member,
+                      'kind': kind,
                     },
                 ],
                 'unsupported': unsupported,
@@ -353,6 +358,101 @@ void main() {
         expect(out, contains('return label; }'));
         expect(out, isNot(contains('self.label')));
         expect(out, contains('String value(RouteBThing self)'));
+      });
+
+      test('lowers a bare zero-argument receiver call', () {
+        expect(
+          lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: 'String value() => helper();',
+              access: 'helper',
+              member: 'helper',
+              kind: 'invoke',
+            ),
+          ),
+          contains('String value(RouteBThing self) => self.helper();'),
+        );
+      });
+
+      test('lowers an explicit this.helper()', () {
+        expect(
+          lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: 'String value() => this.helper();',
+              access: 'this.helper',
+              member: 'helper',
+              kind: 'invoke',
+            ),
+          ),
+          contains('String value(RouteBThing self) => self.helper();'),
+        );
+      });
+
+      test('lowers a call exactly under non-ASCII text before it', () {
+        expect(
+          lowered(
+            instanceCoverage(
+              preamble:
+                  '// em dashes \u2014 \u2014 before it\nclass RouteBThing {\n  ',
+              decl: 'String value() => helper();',
+              access: 'helper',
+              member: 'helper',
+              kind: 'invoke',
+            ),
+          ),
+          contains('String value(RouteBThing self) => self.helper();'),
+        );
+      });
+
+      test('refuses a call written with arguments', () {
+        // The ANALYZER cannot answer this. `gen_kernel --aot` eliminates a
+        // parameter whose argument is always the same constant, so the release
+        // kernel reports such a call as zero-argument and the target's own
+        // signature reports no parameters. Measured, not assumed. The source is
+        // what still says otherwise.
+        expect(
+          () => lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: "String value() => helper('x');",
+              access: 'helper',
+              member: 'helper',
+              kind: 'invoke',
+            ),
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              contains('with arguments'),
+            ),
+          ),
+        );
+      });
+
+      test('refuses an access kind it does not know', () {
+        // The analyzer and the producer are versioned together, so this should
+        // be unreachable — which is why it must not be a silent fall-through
+        // to an edit that happens to suit some other form.
+        expect(
+          () => lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: 'String value() => label;',
+              access: 'label',
+              kind: 'tearoff',
+            ),
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              contains('does not know how to rewrite'),
+            ),
+          ),
+        );
       });
 
       test('refuses a body the analyzer marked unsupported', () {
