@@ -17,7 +17,7 @@ that: which goals can run **simultaneously** and which are mutually exclusive,
 because the binding constraints here are physical (one phone per platform, one
 engine checkout, one canonical fixture) rather than organizational.
 
-**Last reviewed:** 2026-08-11 17:31, at `c57c6537`.
+**Last reviewed:** 2026-08-11 17:41, at `edbbd80b`.
 
 **Verification scope of this pass.** §2 (rung ladder) and §3 (Dart language
 surface) were re-derived from the tree — commits, probes and evidence files.
@@ -81,9 +81,9 @@ top-level app function, and a private helper the replacement declares itself. It
 library, and any access kind it does not recognise. Refusal is the designed
 failure mode: erring costs a rejected patch, never a wrong one.
 
-The last of those spellings is **new and not yet device-gated** — argument-
-carrying receiver calls landed in `9192a594` (analyzer v5, cell `8ebaad05`) and
-release `21.0.0+1` is the gate in flight. Everything before it is device-proven.
+All five spellings are device-proven, the last of them as of release `21.0.0+1`
+(engine `8ebaad05`, commit `edbbd80b`) — in the bare spelling; the two `this.`
+forms remain host-proven only, which §3 keeps separate on purpose.
 
 **Arguments were the wall, and the thing that made them hard is worth keeping in
 view because it will recur.** `gen_kernel --aot` eliminates a parameter whose
@@ -258,6 +258,7 @@ This section answers the parity question directly:
 | ✅ | **PROVEN** Unicode-safe source offsets | |
 | ✅ | **PROVEN** Kernel resolution distinguishes receiver / local / top-level / static references | `probes/lowering_matrix.sh`, 13/13 against real Kernel |
 | ✅ | **PROVEN** Compiler contract permits exactly 0 or 1 positional dynamic-module arguments | rung C engine relaxation |
+| ✅ | **PROVEN** Receiver call **carrying arguments** — `String value() => tagged('ARG');` → `self.tagged('ARG')` | engine `8ebaad05`, release `21.0.0+1`, iPhone 7, `evidence/arg_*`, commit `edbbd80b`. No new mechanism: the edit is still `tagged` → `self.tagged`, and `('ARG')` crossed over as source text nothing parsed |
 
 ### Built, awaiting a device round-trip
 
@@ -270,7 +271,6 @@ are host-proven only.
 |---|---|---|
 | ◐ | **BUILT** Explicit `this.label` | `probes/lowered_forms.sh`, host, 8/8 |
 | ◐ | **BUILT** Explicit `this.foo()` | `probes/lowered_forms.sh`, host, 8/8 |
-| ◐ | **BUILT** Receiver call **carrying arguments** — `self.tagged('ARG')` | commit `9192a594`; coverage analyzer **v5**, cell `8ebaad05`. The producer copies the argument list verbatim, so its shape is not part of the lowering. **Device gate in flight on release `21.0.0+1`** — do not mark PROVEN from this row |
 
 > *Corrected this pass.* The prior review listed `this.label` as PROVEN and
 > `this.foo()` as NOT BUILT. Neither held: device evidence
@@ -301,9 +301,9 @@ not an untested guess. Ordered roughly by expected cost.
 
 | sub-goal | goal | blocked by | needs |
 |---|---|---|---|
-| **`G3.1 arg-abi`** | an instance call **written with arguments** lowers and runs | **BUILT, gate in flight** — `9192a594`, analyzer v5, cell `8ebaad05`, release `21.0.0+1` | `R7` producer, then `R1` for the gate |
-| **`G3.2 this-spellings`** | `this.label` / `this.helper()` proven on device, not just host | — **ready now**, independent of `G3.1` | `R1`, `R6` — no code change at all |
-| **`G3.3 setters`** | `label = 'x'` and property assignment | **`G3.1`'s ABI now exists** — unblocked once release 21 gates | `R7`, `R1` |
+| ~~**`G3.1 arg-abi`**~~ | an instance call **written with arguments** lowers and runs | **CLOSED ON DEVICE** — `9192a594` + `edbbd80b`, analyzer v5, cell `8ebaad05`, release `21.0.0+1` | released |
+| **`G3.2 this-spellings`** | `this.label` / `this.helper()` proven on device, not just host | — **ready now**, and `R1` is now free | `R1`, `R6` — no code change at all |
+| **`G3.3 setters`** | `label = 'x'` and property assignment | — **unblocked**, `G3.1` closed | `R7`, `R1` |
 | **`G3.4 compound`** | `++`/`--` on receiver fields | **`G3.3`** — read + setter composed | `R7`, `R1` |
 | **`G3.5 closures-super`** | closures capturing `this`, `super` reads and calls, cascades, operators | **`G3.1`** for anything argument-carrying; `super` reads are independent | `R7`, `R1` |
 | **`G3.6 app-private`** | decide whether parity requires naming existing app-private members | — **ready now** | **nothing** — pure design |
@@ -881,20 +881,58 @@ rows, so **clear your row when you stop**, even mid-goal.
 
 | resource | held by | goal | since | notes |
 |---|---|---|---|---|
-| `R1` iPhone 7 | `shorebird-a0` | `G3.1` device gate | 2026-08-11 17:29 | release `21.0.0+1` |
-| `R3` route-b tree | `shorebird-a0` | `G3.1` | 2026-08-11 | cell `8ebaad05` minted |
-| `R6` canonical fixture | `shorebird-a0` | `G3.1` | 2026-08-11 17:29 | `tagged(String x)` added, version → 21 |
-| `R7` producer/analyzer | `shorebird-a0` | `G3.1` | 2026-08-11 | analyzer **v5** |
-| `R8` `cps-ios` | `shorebird-a0` | `G3.1` | 2026-08-11 | |
-| this file | *docs session* | §15–17 | 2026-08-11 | docs only; holds no device, tree or fixture |
+| `R1` iPhone 7 | — | — | released 17:40 | **free.** `G3.1`'s gate committed as `edbbd80b` |
 | `R2` Android device | — | — | — | **free** |
+| `R3` route-b tree | — | — | released 17:40 | **free.** Cell `8ebaad05` minted and published |
 | `R4` ios-engine tree | — | — | — | **free** |
+| `R6` canonical fixture | — | — | released 17:40 | **free** at version `21.0.0+1`; next release bumps to 22 |
+| `R7` producer/analyzer | — | — | released 17:40 | **free** at analyzer **v5** |
+| `R8` `cps-ios` | — | — | released 17:40 | **free** |
 | `R9` `cps-android` | — | — | — | **free** |
 | `R10` server source | — | — | — | **free** |
 | `R11` sealed CDN | — | — | — | **free** — and `G13` needs it exclusively |
+| this file | *docs session* | §15–17 | 2026-08-11 | docs only; holds no device, tree or fixture |
 
-> Rows above were inferred from the working tree, not declared by their holder.
-> Treat them as best-effort until `shorebird-a0` confirms.
+> **Everything is free as of 2026-08-11 17:41.** The `G3.1` holder released every
+> resource by committing `edbbd80b`, which is the protocol working as intended:
+> the claim's lifetime was the uncommitted-changes window, and committing ended
+> it. Rows here were inferred from the tree rather than declared, which is the
+> weakness this table exists to remove — declare yours rather than leaving the
+> next worker to infer.
+
+### Starting a new worker — the block to paste
+
+Any new session, agent or teammate gets this before touching anything. It is
+written to be self-contained, because a new worker shares no context with the
+ones already running.
+
+```
+Before running anything in this repo, read selfhost/PARITY.md §16 and §17.
+
+§16 lists the eleven contended resources (one phone per platform, one Route B
+engine checkout, one canonical fixture, two control planes). §17 is the protocol
+for sharing them. The short version:
+
+1. This is a SHARED working tree. Stage explicit paths — `git add <path>`. Never
+   -A, never `commit -a`, never stash/restore/checkout/branch-switch. Another
+   worker's in-flight edits are sitting unstaged next to yours.
+2. Do code work in your own `git worktree`. Docs a single worker owns can live in
+   the shared tree; anything under packages/ or selfhost/engine/route_b/ cannot.
+3. Check §17's claims table, then claim what you take IN THE SAME COMMIT as the
+   work — and clear your row when you stop, even mid-goal. A stale claim is worse
+   than no claim. R1 (the phone) and R3 (the engine checkout) cannot be shared and
+   cannot be detected; if you don't claim them, someone else will assume they're
+   free.
+4. Pick a goal ID (G1..G14) whose resources are unheld, and say which one you're
+   taking before you start. The queue at the bottom of PARITY.md is priority
+   order, not a schedule — §16 says what can actually run at once.
+5. An uncommitted fixture version bump beside a fresh line in
+   selfhost/cdn/experimental_hashes.map means a device gate is running RIGHT NOW.
+   Back off R1, R3 and R6 until those changes are committed.
+6. Never mark an item PROVEN from a host probe, a passing unit test, or a
+   generated container. See "Rule for updating this file" at the bottom of
+   PARITY.md. Host work earns BUILT.
+```
 
 ### What is safe to pick up right now
 
@@ -912,17 +950,22 @@ critical path is held.
 
 ### Start now — nothing blocks these, and they contend with nothing
 
-**Check §17's claims table first.** As of 2026-08-11 17:29 the entire iOS
-critical path is held by another session.
+**Check §17's claims table first.** As of 2026-08-11 17:41 every resource is
+free — the `G3.1` holder released them by committing.
 
 | goal | lane | status |
 |---|---|---|
-| ~~**`G3.1 arg-abi`**~~ | iOS device | **taken** — `9192a594`, device gate in flight on release 21 |
+| ~~**`G3.1 arg-abi`**~~ | iOS device | **CLOSED ON DEVICE** — `9192a594` + `edbbd80b`, release `21.0.0+1` |
 | ~~**`G10.1 stale-ipa`**~~ | code, no hardware | **done** — `c57c6537` |
+| **`G3.3 setters`** | iOS device | **newly unblocked, and the critical path.** `G3.1`'s ABI is what it needed |
+| **`G3.2 this-spellings`** | iOS device | **free now.** No code change; folds into whatever release goes next |
 | **`G3.6 app-private`** | design, no hardware | **free.** A decision, not a probe. It may redefine what §15 requires |
-| **`G4.2 flavors`**(android) | Android device | **free** — `R2`/`R9` are unheld, and a flavored fixture avoids `R6` entirely |
+| **`G4.2 flavors`**(android) | Android device | **free** — `R2`/`R9` unheld, and a flavored fixture avoids `R6` entirely |
 | **`G6`/`G7` server halves** | `R10`, no hardware | **free** — own package, own test suite |
-| **`G3.2 this-spellings`** | iOS device | **blocked on `R1`** — no code change needed, but the phone is held |
+
+`G3.2` and `G3.3` both want `R1` and `R6`, so they are one lane, not two — but
+`G3.2` needs no code change, so a single release can carry both if whoever takes
+the lane wants them together.
 
 ### Then, in priority order
 
