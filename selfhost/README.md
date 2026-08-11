@@ -38,6 +38,7 @@ for the quick start and feature list.
 - [`IDP_SETUP.md`](IDP_SETUP.md) — real Google / Microsoft login for `shorebird login`
 
 **Platform coverage**
+- [`PARITY.md`](PARITY.md) — **the goal document.** What full Android/iOS parity with upstream means, where we're holding against it, and the queue. Open this to decide what to work on next
 - [`PLATFORM_MATRIX.md`](PLATFORM_MATRIX.md) — what's verified on which platform
 - [`IOS_ONDEVICE.md`](IOS_ONDEVICE.md) — iOS code signing (auto / manual-CI / resign) + one-command ship flow
 - [`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md) — Windows / Linux notes

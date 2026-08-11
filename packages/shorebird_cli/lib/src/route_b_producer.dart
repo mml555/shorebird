@@ -240,38 +240,12 @@ class RouteBProducer {
           'rewrite (`${access.kind}` on `${access.member}`)',
         );
       }
-      // ARGUMENTS ARE REFUSED, AND KERNEL CANNOT BE ASKED. `gen_kernel --aot`
-      // eliminates a parameter whose argument is always the same constant, so
-      // in the release kernel `withArgs('x')` genuinely reads as a call with
-      // zero positional arguments -- the TARGET's own signature reports zero
-      // too. Measured: the same method declares one positional parameter in the
-      // --no-aot kernel and none in the --aot one. The analyzer reads the AOT
-      // kernel by design, because that is the kernel that fed the release, so
-      // its argument check can pass a call the source clearly writes arguments
-      // for.
-      //
-      // Whether a call is WRITTEN with arguments is a syntactic question, and
-      // syntax is what the source is for -- the same reasoning that lets the
-      // source decide `this.` versus bare. This is a refusal, so erring costs a
-      // rejected patch rather than a wrong one.
-      if (access.kind == 'invoke') {
-        final open = source.indexOf('(', access.offset);
-        final close = open < 0 ? -1 : source.indexOf(')', open);
-        if (open < 0 || close < 0 || close > span.end) {
-          throw RouteBUnsupportedTarget(
-            key,
-            'calls `${access.member}()` in a form this lowering cannot read',
-          );
-        }
-        if (source.substring(open + 1, close).trim().isNotEmpty) {
-          throw RouteBUnsupportedTarget(
-            key,
-            'calls `${access.member}()` with arguments, which this lowering '
-            'does not yet handle',
-          );
-        }
-      }
-
+      // The argument list, if any, is not touched: the edit below inserts or
+      // replaces a prefix immediately BEFORE the identifier, and everything
+      // after it is the source's own text. `helper('x')`, `helper(a, b: 1)`,
+      // `helper<T>(x)` all come across unchanged, and a receiver use inside the
+      // arguments is its own reported access -- `helper(label)` becomes
+      // `self.helper(self.label)` because both offsets are rewritten.
       const explicit = 'this.';
       final start = access.offset - explicit.length;
       if (start >= span.start &&

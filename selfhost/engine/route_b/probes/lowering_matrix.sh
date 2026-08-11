@@ -22,6 +22,12 @@
 # and all three are different Kernel nodes. Nothing about the spelling
 # distinguishes them.
 #
+# COMPILED THE WAY A RELEASE IS, with a dynamic interface. That is not a detail:
+# without one, `--aot` eliminates a parameter whose argument is always the same
+# constant, and `withArgs('x')` reads as a zero-argument call to a method taking
+# none. With the interface the library is retained and both survive. A probe
+# that skips it reaches conclusions about a compilation no release performs.
+#
 #   lowering_matrix.sh
 set -euo pipefail
 
@@ -33,6 +39,8 @@ WORK=${WORK:-$(mktemp -d)}
 DART_TREE=$SRC/flutter/third_party/dart
 DART=$OUT/dart-sdk/bin/dart
 GEN_KERNEL=$DART_TREE/pkg/vm/bin/gen_kernel.dart
+RB="$(cd "$HERE/.." >/dev/null 2>&1 && pwd)"
+KERNEL_PKGS="--packages=$DART_TREE/.dart_tool/package_config.json"
 ANALYZER=${ANALYZER:-$OUT/zip_archives/route_b_analyze.aot}
 RUNTIME=$OUT/dartaotruntime
 
@@ -81,6 +89,7 @@ class RouteBThing extends Base {
   String helper() => 'receiver';
   String _hidden() => 'private method';
   String withArgs(String a) => a;
+  String twoArgs(String a, {String b = 'b'}) => a + b;
 
 $2
 }
@@ -91,7 +100,8 @@ void main() {
     t.bareCall(), t.thisCall(), t.bareGet(), t.localShadow(),
     t.topLevelCall(), t.staticCall(), t.otherObject(), t.withArguments(),
     t.cascade(), t.superCall(), t.privateCall(), t.privateGet(),
-    t.setterUse(), t.\$secretLen,
+    t.setterUse(), t.\$secretLen, t.constArg(), t.exprArg(), t.thisArg(),
+    t.namedArg(),
   ].join(','));
 }
 DART
@@ -112,6 +122,10 @@ BASE_BODIES=$(cat <<'DART'
   String privateCall() => 'b10';
   String privateGet() => 'b11';
   String setterUse() => 'b12';
+  String constArg() => 'b13';
+  String exprArg() => 'b14';
+  String thisArg() => 'b15';
+  String namedArg() => 'b16';
   int get $secretLen => 0;
 DART
 )
@@ -130,6 +144,10 @@ PATCHED_BODIES=$(cat <<'DART'
   String privateCall() => _hidden();
   String privateGet() => _secret;
   String setterUse() { label = 'set'; return label; }
+  String constArg() => withArgs('ARG');
+  String exprArg() => withArgs(label);
+  String thisArg() => this.withArgs('ARG');
+  String namedArg() => twoArgs('a', b: 'B');
   int get $secretLen => 1;
 DART
 )
@@ -147,7 +165,14 @@ p.write_text(p.read_text().replace(
     "String helper() => 'top level';\nString main_helper() => helper();", 1))
 PY
 cp "$WORK/lib/main.dart" "$WORK/base_source.dart"
+# Prepass, then the interface, then the real kernel -- the release's own order.
 "$DART" "$GEN_KERNEL" --platform "$OUT/vm_platform.dill" --aot \
+  --packages "$WORK/.dart_tool/package_config.json" -o "$WORK/prepass.dill" "$URI" \
+  > "$WORK/base.log" 2>&1 || { sed 's/^/    /' "$WORK/base.log"; die "prepass did not compile"; }
+"$DART" $KERNEL_PKGS "$RB/gen_dynamic_interface.dart" --dill "$WORK/prepass.dill" \
+  --out "$WORK/di.yaml" --sdk-members 'dart:core#print' 2>/dev/null
+"$DART" "$GEN_KERNEL" --platform "$OUT/vm_platform.dill" --aot \
+  --dynamic-interface "$WORK/di.yaml" \
   --packages "$WORK/.dart_tool/package_config.json" -o "$WORK/base.dill" "$URI" \
   > "$WORK/base.log" 2>&1 || { sed 's/^/    /' "$WORK/base.log"; die "base did not compile"; }
 
@@ -160,6 +185,7 @@ p.write_text(p.read_text().replace(
     "String helper() => 'top level';\nString main_helper() => helper();", 1))
 PY
 "$DART" "$GEN_KERNEL" --platform "$OUT/vm_platform.dill" --aot \
+  --dynamic-interface "$WORK/di.yaml" \
   --packages "$WORK/.dart_tool/package_config.json" -o "$WORK/patched.dill" "$URI" \
   > "$WORK/patched.log" 2>&1 || { sed 's/^/    /' "$WORK/patched.log"; die "patch did not compile"; }
 
@@ -223,18 +249,22 @@ check staticCall     lowered:0  helper
 # receiver access -- on `other`. `helper` belongs to the Other instance and must
 # survive untouched; the lowered form is `self.other.helper()`.
 check otherObject    lowered:1  helper
-# ARGUMENTS ARE REFUSED BY THE PRODUCER, NOT HERE. `gen_kernel --aot` eliminates
-# a parameter whose argument is always the same constant, so this call really
-# does read as zero-argument in the release kernel -- `withArgs` itself declares
-# no parameters there, while the --no-aot kernel says one. The analyzer keeps
-# its check for the cases TFA leaves alone; the source-text gate is what
-# actually holds. See producer_refusals below.
 check withArguments  lowered:1
 check cascade        refused
 check superCall      refused
 check privateCall    refused
 check privateGet     refused
 check setterUse      refused
+
+# ARGUMENTS. The edit is `withArgs` -> `self.withArgs`; everything after the
+# identifier is the source's own text, so there is nothing here for the lowering
+# to understand. These cases exist to prove that, not to exercise a mechanism.
+check constArg       lowered:1
+# Two accesses, and the inner one is the point: `withArgs(label)` becomes
+# `self.withArgs(self.label)` because BOTH offsets are reported.
+check exprArg        lowered:2
+check thisArg        lowered:1
+check namedArg       lowered:1
 
 echo
 echo "--------------------------------------------------"

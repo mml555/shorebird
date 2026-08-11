@@ -91,6 +91,15 @@ s = s.replace(
   String helper() =>
       DateTime.now().millisecondsSinceEpoch >= 0 ? 'NEW-C2' : 'X';
 
+  // The argument-bearing target. Its only call passes a constant, which is the
+  // shape `--aot` eliminates the parameter for WHEN NO DYNAMIC INTERFACE IS
+  // DECLARED. A release declares one, and this probe builds like a release, so
+  // the parameter survives and the arity matches at runtime -- which is the
+  // thing actually worth proving.
+  @pragma('vm:never-inline')
+  String tagged(String x) =>
+      DateTime.now().millisecondsSinceEpoch >= 0 ? 'NEW-$x' : 'X';
+
   @pragma('vm:never-inline')
   %s
 }
@@ -101,7 +110,8 @@ void _state(String when) =>""" % os.environ['BODY'],
 s = s.replace(
     "print('$when alpha=${alpha()} beta=${beta()}');",
     "print('$when alpha=${alpha()} beta=${beta()} "
-    "thing=${RouteBThing().value()} helper=${RouteBThing().helper()}');",
+    "thing=${RouteBThing().value()} helper=${RouteBThing().helper()} "
+    "tagged=${RouteBThing().tagged('T')}');",
     1,
 )
 p.write_text(s)
@@ -219,6 +229,18 @@ arm explicit_this "String value() => this.label;" "$GET" NEW-C1
 arm bare_call "String value() => helper();" "$CALL" NEW-C2
 
 arm this_call "String value() => this.helper();" "$CALL" NEW-C2
+
+# ARGUMENTS. Nothing in the mechanism changes: the edit is still
+# `tagged` -> `self.tagged`, and the argument list crosses over as source text.
+ARG="String value(RouteBThing self) => self.tagged('ARG');"
+arm const_arg "String value() => tagged('ARG');" "$ARG" NEW-ARG
+
+THISARG="String value(RouteBThing self) => self.tagged('ARG');"
+arm this_arg "String value() => this.tagged('ARG');" "$THISARG" NEW-ARG
+
+# An argument that is itself a receiver read: TWO accesses, both rewritten.
+EXPR="String value(RouteBThing self) => self.tagged(self.label);"
+arm expr_arg "String value() => tagged(label);" "$EXPR" NEW-NEW-C1
 
 echo
 echo "--------------------------------------------------"

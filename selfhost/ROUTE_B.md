@@ -105,20 +105,23 @@ Kernel puts an invocation's offset on the identifier exactly as it does a read,
 so the lexical edit did not change. What changed is which invocations the
 analyzer vouches for: public, zero-argument, receiver-bound.
 
-**Arguments are refused, and Kernel cannot be asked.** `gen_kernel --aot`
-eliminates a parameter whose argument is always the same constant, so in the
-release kernel `withArgs('x')` genuinely reads as a zero-argument call and
-`withArgs` itself declares no parameters — the `--no-aot` kernel of the same
-source says one. Measured, not assumed. The analyzer reads the AOT kernel by
-design, because that is the kernel that fed the release, so the source answers
-this one: whether a call is WRITTEN with arguments is syntax, the same division
-that already lets the source decide `this.` versus bare.
+**Arguments need no gate.** The edit inserts a prefix immediately before the
+identifier and copies everything after it verbatim, so positional, named,
+generic and nested argument lists cross over untouched. `helper(label)` is two
+reported accesses and becomes `self.helper(self.label)`.
 
-Supported so far: `label`, `this.label`, `helper()`, `this.helper()`. Refused:
-arguments, cascades, `super`, setters, private members, and any access kind the
-producer does not recognise. `probes/lowering_matrix.sh` pins all of it against
-real Kernel, 13/13; `probes/lowered_forms.sh` runs all four spellings end to end
-on the host, 8/8.
+A note here previously claimed the AOT kernel cannot be trusted about arguments.
+That was measured, but on a probe that compiled without a dynamic interface —
+which no release does. `--aot` eliminates a constant-only parameter *only* when
+the library is not retained; with the interface a release always declares, the
+parameter and the argument both survive. Corrected in the engine README; the
+lesson is about probe fidelity, not about Kernel.
+
+Supported so far: `label`, `this.label`, `helper()`, `this.helper()`, and the
+same calls with arguments. Refused: cascades, `super`, setters, private members,
+and any access kind the producer does not recognise.
+`probes/lowering_matrix.sh` pins all of it against real Kernel, 17/17;
+`probes/lowered_forms.sh` runs seven spellings end to end on the host, 14/14.
 
 ### Seam 6 — activation, and what it closed
 

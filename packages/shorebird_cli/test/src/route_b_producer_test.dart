@@ -219,6 +219,11 @@ void main() {
         required String access,
         String member = 'label',
         String kind = 'get',
+        // A second receiver access, for an argument that itself touches the
+        // receiver: `helper(label)` is two accesses, not one.
+        String? also,
+        String alsoMember = 'label',
+        String alsoKind = 'get',
         List<String> unsupported = const [],
       }) {
         source.writeAsStringSync('$preamble$decl');
@@ -256,6 +261,16 @@ void main() {
                           member.length,
                       'member': member,
                       'kind': kind,
+                    },
+                  if (also != null)
+                    {
+                      'offset':
+                          start +
+                          decl.indexOf(also) +
+                          also.length -
+                          alsoMember.length,
+                      'member': alsoMember,
+                      'kind': alsoKind,
                     },
                 ],
                 'unsupported': unsupported,
@@ -406,29 +421,91 @@ void main() {
         );
       });
 
-      test('refuses a call written with arguments', () {
-        // The ANALYZER cannot answer this. `gen_kernel --aot` eliminates a
-        // parameter whose argument is always the same constant, so the release
-        // kernel reports such a call as zero-argument and the target's own
-        // signature reports no parameters. Measured, not assumed. The source is
-        // what still says otherwise.
+      test('lowers a call with one positional argument', () {
+        // The argument list is not rewritten, understood, or reconstructed —
+        // it is the source's own text, carried across.
         expect(
-          () => lowered(
+          lowered(
             instanceCoverage(
               preamble: 'class RouteBThing {\n  ',
-              decl: "String value() => helper('x');",
+              decl: "String value() => helper('ARG');",
               access: 'helper',
               member: 'helper',
               kind: 'invoke',
             ),
           ),
-          throwsA(
-            isA<RouteBUnsupportedTarget>().having(
-              (e) => e.reason,
-              'reason',
-              contains('with arguments'),
+          contains("String value(RouteBThing self) => self.helper('ARG');"),
+        );
+      });
+
+      test('lowers an argument that is itself a receiver read', () {
+        // Two accesses, and the edits are applied right-to-left so the earlier
+        // offset is still valid when it is reached.
+        expect(
+          lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: 'String value() => helper(label);',
+              access: 'helper',
+              member: 'helper',
+              kind: 'invoke',
+              also: '(label',
             ),
           ),
+          contains(
+            'String value(RouteBThing self) => self.helper(self.label);',
+          ),
+        );
+      });
+
+      test('lowers this.helper with an argument', () {
+        expect(
+          lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: "String value() => this.helper('x');",
+              access: 'this.helper',
+              member: 'helper',
+              kind: 'invoke',
+            ),
+          ),
+          contains("String value(RouteBThing self) => self.helper('x');"),
+        );
+      });
+
+      test('leaves a named argument exactly as written', () {
+        // Nothing here is parsed. If the edit is only `helper` -> `self.helper`,
+        // named arguments and nesting cannot be disturbed — this pins that.
+        expect(
+          lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: "String value() => helper('a', b: f(1, 2), c: [3]);",
+              access: 'helper',
+              member: 'helper',
+              kind: 'invoke',
+            ),
+          ),
+          contains(
+            "String value(RouteBThing self) => "
+            "self.helper('a', b: f(1, 2), c: [3]);",
+          ),
+        );
+      });
+
+      test('lowers a call with arguments under non-ASCII text', () {
+        expect(
+          lowered(
+            instanceCoverage(
+              preamble:
+                  '// dashes \u2014 \u2014 \u2014\nclass RouteBThing {\n  ',
+              decl: "String value() => helper('ARG');",
+              access: 'helper',
+              member: 'helper',
+              kind: 'invoke',
+            ),
+          ),
+          contains("String value(RouteBThing self) => self.helper('ARG');"),
         );
       });
 

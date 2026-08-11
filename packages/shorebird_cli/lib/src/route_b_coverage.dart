@@ -35,7 +35,7 @@ RouteBCoverageAnalyzer get routeBCoverageAnalyzer =>
 /// engine hash, so an unknown version means the CLI and the release's toolchain
 /// disagree about the format, and reading fields that may have moved is how you
 /// get a confident wrong answer.
-const supportedRouteBAnalysisVersion = 4;
+const supportedRouteBAnalysisVersion = 5;
 
 /// What a patch may do with a changed member.
 enum RouteBRepresentability {
@@ -124,7 +124,9 @@ class RouteBReceiverAccess {
   /// The member being read or called.
   final String member;
 
-  /// `get` for `label`, `invoke` for a zero-argument `helper()`. The surface
+  /// `get` for `label`, `invoke` for `helper()` with or without arguments. The
+  /// argument list is copied verbatim and never interpreted, so its shape is
+  /// not part of what the lowering has to understand. The surface
   /// widens one form at a time, and the producer refuses a kind it does not
   /// know rather than assuming its lexical edit happens to suit.
   final String kind;
