@@ -2,6 +2,7 @@
 <!-- cspell:words unvalidated noninteractive prepass jank recognise -->
 <!-- cspell:words schedulable startable worktree oneline unheld diffstat -->
 <!-- cspell:words overclaim DFLUTTER Diagnosticable -->
+<!-- cspell:words demangled specializer devirtualizes -->
 
 # Shorebird feature parity — the goal document
 
@@ -318,8 +319,11 @@ not an untested guess. Ordered roughly by expected cost.
 | ~~**`G3.3 setters`**~~ | `label = 'x'` and property assignment | **CLOSED ON DEVICE** — `cb50590d` + `fa40f6ca`, analyzer v6, cell `aa915584`, release `22.0.0+1` | released |
 | **`G3.4 compound`** | `++`/`--`/`+=`/`??=` on receiver fields | **REFUSED BY DERIVATION, not blocked** — see below | new mechanism, not a gate relaxation |
 | **`G3.5 closures-super`** | closures capturing `this`, `super` reads and calls, cascades | `super` writes now refuse explicitly (`cb50590d`); the rest untouched | `R7`, `R1` |
-| **`G3.6a app-private-decision`** | **is it reachable at all**, and what does §15 therefore require | **the critical path** — see the reframe below | `R3` read-only for the probe; **no `R7`, no cell, no device** |
-| **`G3.6b app-private-holes`** | close the two accepted-then-failed holes | queued behind `G3.6a`'s answer | `R7` **and a cell mint** — `analyze_coverage.dart` is in the manifest |
+| ~~**`G3.6a app-private-decision`**~~ | **is it reachable at all** | **ANSWERED 2026-08-11 — yes.** The CFE already has the mechanism (`resolveInLibrary`), Route B is denied it by one line, and the `dyn:`-forwarder objection is void in AOT. See below | done, no resources consumed but `R3` read-only |
+| **`G3.6b app-private-holes`** | close the two accepted-then-failed holes | unblocked by `G3.6a` | `R7` **and a cell mint** — `analyze_coverage.dart` is in the manifest |
+| **`G3.6c dynamic-receiver`** | emit `dynamic` instead of a private class name | **the cheapest real win on this page** — CLI-only, `route_b_producer.dart` is *not* in the cell manifest, so **no mint** and the gate rides an existing release | `R7`, then one patch on `R1` |
+| **`G3.6d private-retention`** | retain private classes, procedures **and fields** in the dynamic interface | three shapes, not one; the field case needs a pragma on the `Field` | generator only — no validator or CFE change |
+| **`G3.6e resolve-in-library`** | thread `resolveInLibrary` through dart2bytecode | the full fix: every category of app-private reference, proven by an in-tree test | CFE + dart2bytecode = `R3` + a mint |
 | **`G3.7 param-abi`** | a replacement method may declare **its own parameters** | **the largest single unlock: 33.2 %**, and unlike `G3.6` its feasibility is *known* — the entry-point contract is a patch we already own (`0004`) | engine (`R3` + a mint), `R7`, `R1` |
 
 Three things fall out of that table, and two of them correct earlier drafts of
@@ -353,11 +357,15 @@ is bounded by two things the ladder does not touch: **privacy** (`G3.6`, →29.8
 and **the parameter ABI** (`G3.7`, →33.2 %). Neither alone breaks a third; together
 they reach ~100 %.
 
-**So the ordering is: `G3.6a` first, then `G3.7`, and `G3.5` well behind both.**
-Not because privacy is worth more — it is worth slightly *less* — but because
-`G3.6`'s **feasibility is unknown** while `G3.7`'s is known. `G3.6a` is a cheap
-question whose answer re-prices everything; `G3.7` is expensive work whose cost is
-already understood. Answer the open question first, then spend.
+**`G3.6a` is answered, so the ordering is now settled by cost rather than by
+uncertainty:** `G3.6c` (dynamic receiver — CLI-only, no mint) → `G3.6d`
+(private retention — generator only) → `G3.7 param-abi` → `G3.6e`
+(`resolveInLibrary` — the full fix) → `G3.5`, `G3.4` last and possibly never.
+
+That order is not the order of *value*, it is value per resource. `G3.6c` is the
+only item on the page that widens real reach with **no cell mint, no new release
+and no engine change**, and the empirical study says its band — private `State`
+classes — is the single largest real-world blocker.
 
 ### Private members
 
@@ -421,6 +429,111 @@ Route B implementation restrictions"* is not reachable by the rung ladder — at
 7.1 % it is not close. But it is not privacy alone either: it needs `G3.6`
 **and** a parameter ABI, which is why the latter is promoted to `G3.7` below rather
 than left as one bullet among twelve.
+
+### `G3.6a` — ANSWERED 2026-08-11. It is reachable, and the mechanism already exists.
+
+The question was whether a synthetic replacement library can ever name an existing
+app-private member. **Yes**, and the front end already has the knob — it is used
+today for debugger expression evaluation.
+
+**Where the wall actually is: source-level scope construction in the CFE, and
+nowhere else.** `dill_library_builder.dart:220-230` puts every dill top-level
+declaration — private classes included (`:274-278`) — into the library's own name
+space, but guards the **export** name space with
+`if (!name.startsWith("_") && !name.contains('#'))`. Imports iterate only the
+export name space (`import.dart:106`), so `_MyHomePageState self` fails
+`typeNotFound`. Below the CFE there is **no privacy machinery for a class at all**:
+kernel's `Class.name` is a plain `String`, not a library-keyed `Name`, and
+dart2bytecode derives the key from the class node itself —
+`object_table.dart:2177-2187` emits `_PrivateNameHandle(library, node.name)` using
+the **app** library regardless of who references it. So P1 needs no retarget pass;
+it needs only for the name to resolve.
+
+**The knob.** `SourceCompilationUnitImpl(resolveInLibrary:)`, documented at
+`source_library_builder.dart:155-166`: *"A library to use for Names generated when
+compiling code in this library. This allows code generated in one library to use
+the private namespace of another, for example during expression compilation
+(debugging)."* With it set, a synthetic library statically resolves **every**
+category of another library's privates with zero errors — proven in-tree by
+`testcases/expression/private_stuff.expression.yaml.expect` (`Errors: {}`):
+private method, private field get *and* set, private getter, private setter,
+private static method, private static field, private named constructor, private
+top-level method, and a private extension. `expression_suite.dart:701-719` runs
+each of those a **second** time against a dill-bootstrapped compiler, so it holds
+for a library arriving via `--import-dill` — which is exactly Route B's shape.
+
+**Route B is denied it by one line.** `source_loader.dart:425` hard-codes
+`resolveInLibrary: null` for normal compilation. Verified in the tree.
+
+**The cheapest useful change is CLI-only and forces no cell mint.** Emit `dynamic`
+instead of the private class name at `route_b_producer.dart:243`, so the private
+*class* never appears in the synthetic library — the CFE accepts any name on a
+dynamic receiver with no privacy test (`inference_visitor_base.dart:6088-6089`).
+`route_b_producer.dart` is **not** in the cell manifest (`mint_route_b_cell.sh:57-65`
+lists only the seven build artifacts), so this buys the P1 band with no mint, no
+engine hash and no new release — its device confirmation rides an existing release
+as one more patch.
+
+**The forwarder objection is dead, and this is the important one.** The sharpest
+argument against `G3.6` was that a probe could not distinguish a wrong
+private-library key from a missing `dyn:` invocation forwarder, since both surface
+as `NoSuchMethodError`. **In AOT that confound does not exist.**
+`resolver.cc:56-72` probes for the forwarder with `create_if_absent=false` and, on
+a miss, falls through to the **unguarded** `lookup(cls, *demangled_name)` at
+`:66-67` — only the lazy *creation* at `:69-74` sits inside
+`#if !defined(DART_PRECOMPILED_RUNTIME)`. So a missing forwarder makes the call
+**succeed**. Its one observable form is the abort at `resolver.cc:117-121`, a
+`RELEASE_ASSERT` with file:line — never a `NoSuchMethodError`. Therefore
+**`NoSuchMethodError` ⇒ not a forwarder**, deducible with no instrument at all.
+Both adversarial refuters returned *not refuted* at high confidence, and this one
+strengthened the claim rather than surviving it.
+
+**The real second wall is retention, and it is three shapes rather than one.**
+`Precompiler::PruneDictionaries` (`precompiler.cc:3226-3350`, PRODUCT-only)
+physically **removes** objects — library-dictionary entries (`:3271-3288`), each
+class's `functions()` array (`:3312-3331`), and each class's `fields()` array
+(`:3333-3345`) — unless `HasApiUse`, which is populated only from entry-point
+pragmas. That rejects **absent** symbols, not retargeted names, so it refines the
+answer rather than reversing it. The consequence worth acting on: a private
+**field** needs a pragma on the `Field` itself (`precompiler.cc:1642-1649`), a
+shape `gen_dynamic_interface.dart` emits nothing for. The widening is not "also
+walk `lib.classes`" — it is private classes, private instance procedures, and
+private fields, separately.
+
+Encouragingly, the retention half needs **no** validator or CFE change:
+`LibraryIndex` resolves a private member as private to its named library
+(`library_index.dart:118-122`), so a dynamic-interface spec may legally name
+`#RouteBThing._secret`. It is a generator change only.
+
+**Two caveats, recorded rather than smoothed over.** Whether `PruneDictionaries`
+runs for Route B's exact artifact is *not* established — `out/host_release_arm64`
+contains both `gen_snapshot` and `gen_snapshot_product`, and which one the iOS
+release pipeline invokes was not determined. And the probe's app-side key oracle as
+first designed is likely inoperative: `aot_call_specializer.cc:794-806`
+devirtualizes `(RouteBThing() as dynamic)._echo()` from the propagated receiver
+cid, so no runtime resolution occurs and no trace line prints. Read the **module's**
+key instead — the module runs interpreted and the interpreter never devirtualizes.
+
+### Empirically corroborated, by a different method
+
+`fe3959bf` ran ten real commits through the frozen analyzer: **0/10 publishable**,
+with `private app member` the largest blocker at **39 occurrences across 9 of 10
+patches** — and the prediction recorded before the run did not name it. Seven of
+fourteen blocked targets were methods of one private `State` class, because in
+Flutter the `State` class is private *by convention*. Idiomatic `StatefulWidget`
+code collides with the synthetic-library model for reasons unrelated to syntax.
+
+That study and this section's structural measurement are independent methods and
+they agree: privacy first, the parameter ABI second (`signature/arity`, 8
+occurrences across 6 of 10 patches → `G3.7`), and **compound writes 0, `super` 2**
+— so `G3.4` and `G3.5` are empirically costing approximately nothing, which is the
+same conclusion the structural numbers reached from the other side.
+
+It also found a **third** accepted-then-failed hole, at the verdict level: the
+coverage verdict is computed from unreachable/unknown/added targets and never asks
+whether a representable target can be **lowered**, so it said `accept` for 5 of 10
+patches the producer would refuse. Safe — the producer throws — but any tool
+trusting the verdict overstates acceptance.
 
 ### Two accepted-then-failed holes — bugs, not gaps
 
