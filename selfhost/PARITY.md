@@ -1,5 +1,6 @@
 <!-- cspell:words dartaotruntime SBRBPTCH sbrbptch dynmod tearoff disqualifiers -->
 <!-- cspell:words unvalidated noninteractive prepass jank recognise -->
+<!-- cspell:words schedulable startable worktree oneline unheld diffstat -->
 
 # Shorebird feature parity — the goal document
 
@@ -9,13 +10,25 @@ for **how** iOS Dart code push works; this file is the record of **what still
 stands between us and upstream Shorebird**, and it is the file to open when
 deciding what to work on next.
 
-**Last reviewed:** 2026-08-11.
+**How it is organized.** Every section carries a named **goal** (`G1`…`G14`) with
+its own done-condition and the resources it holds, so a goal can be picked up and
+worked independently — *"we're on `G3.1` right now"*. §16 is the other half of
+that: which goals can run **simultaneously** and which are mutually exclusive,
+because the binding constraints here are physical (one phone per platform, one
+engine checkout, one canonical fixture) rather than organizational.
+
+**Last reviewed:** 2026-08-11 17:31, at `c57c6537`.
 
 **Verification scope of this pass.** §2 (rung ladder) and §3 (Dart language
-surface) were re-derived from the tree at `ec7974cf` — commits, probes and
-evidence files. Everything else carries forward from the prior review and is
-labelled with the status that review gave it; a carried-forward status is a claim
-about the last time someone looked, not about today.
+surface) were re-derived from the tree — commits, probes and evidence files.
+Everything else carries forward from the prior review and is labelled with the
+status that review gave it; a carried-forward status is a claim about the last
+time someone looked, not about today.
+
+> **⚠ This repo had two workers active on 2026-08-11.** Read **§17** before
+> running anything, and check its claims table before taking the phone, the Route
+> B checkout or the canonical fixture. The tree is shared — one worktree, one
+> branch — so `git add -A` and `git stash` are actively dangerous here.
 
 ---
 
@@ -56,27 +69,38 @@ identity, performance and rollback are proven and should not be reopened.**
 
 **The live boundary is the producer's Dart language surface.** Not delivery — a
 body the producer refuses fails *before* a patch exists, and a body it accepts
-runs. Today it accepts four spellings inside a replaced method:
+runs. Today it accepts these spellings inside a replaced method:
 
 ```dart
-label          this.label          helper()          this.helper()
+label     this.label     helper()     this.helper()     tagged('ARG')
 ```
 
 …plus a self-contained body, a `dart:core` reference, a call to another public
 top-level app function, and a private helper the replacement declares itself. It
-**refuses** arguments, cascades, `super`, setters, private members of the
-application library, and any access kind it does not recognise. Refusal is the
-designed failure mode: erring costs a rejected patch, never a wrong one.
+**refuses** cascades, `super`, setters, private members of the application
+library, and any access kind it does not recognise. Refusal is the designed
+failure mode: erring costs a rejected patch, never a wrong one.
 
-**The next wall is arguments, and it is a measurement, not an oversight.**
-`gen_kernel --aot` eliminates a parameter whose argument is always the same
-constant, so in the release kernel `withArgs('x')` genuinely reads as a
-zero-argument call to a zero-parameter method, while the `--no-aot` kernel of the
-same source says one. The analyzer reads the AOT kernel *by design* — that is the
-kernel that fed the release — so an argument gate built on Kernel alone passes
-silently. Widening past this means deciding the argument-carrying ABI without
-trusting the release kernel's arity. See `TFA` notes in
+The last of those spellings is **new and not yet device-gated** — argument-
+carrying receiver calls landed in `9192a594` (analyzer v5, cell `8ebaad05`) and
+release `21.0.0+1` is the gate in flight. Everything before it is device-proven.
+
+**Arguments were the wall, and the thing that made them hard is worth keeping in
+view because it will recur.** `gen_kernel --aot` eliminates a parameter whose
+argument is always the same constant, so in the release kernel `withArgs('x')`
+genuinely reads as a zero-argument call to a zero-parameter method, while the
+`--no-aot` kernel of the same source says one. The analyzer reads the AOT kernel
+*by design* — that is the kernel that fed the release — so any gate built on
+Kernel arity alone passes silently. The standing rule that falls out: **ask the
+release kernel what a name MEANS; never ask it what the programmer typed.**
+Syntax questions go to the source. See `TFA` notes in
 [`engine/route_b/README.md`](engine/route_b/README.md).
+
+The consequence for the fixture is not obvious and is easy to get wrong: an
+argument-bearing target only keeps its parameter because the release declares a
+dynamic interface retaining its library. Without that, `--aot` drops the
+parameter and an interpreted `self.tagged('ARG')` would meet a compiled method
+taking none.
 
 **Beyond the language surface, the unvalidated mass is workflow, not mechanism:**
 flavors, defines, obfuscation on iOS, signing, tracks/rollouts, the manual update
@@ -246,6 +270,7 @@ are host-proven only.
 |---|---|---|
 | ◐ | **BUILT** Explicit `this.label` | `probes/lowered_forms.sh`, host, 8/8 |
 | ◐ | **BUILT** Explicit `this.foo()` | `probes/lowered_forms.sh`, host, 8/8 |
+| ◐ | **BUILT** Receiver call **carrying arguments** — `self.tagged('ARG')` | commit `9192a594`; coverage analyzer **v5**, cell `8ebaad05`. The producer copies the argument list verbatim, so its shape is not part of the lowering. **Device gate in flight on release `21.0.0+1`** — do not mark PROVEN from this row |
 
 > *Corrected this pass.* The prior review listed `this.label` as PROVEN and
 > `this.foo()` as NOT BUILT. Neither held: device evidence
@@ -260,8 +285,7 @@ not an untested guess. Ordered roughly by expected cost.
 
 | | item | note |
 |---|---|---|
-| ☐ | **NOT BUILT** Instance calls with arguments | **the wall.** Kernel cannot be asked — TFA folds constant arguments away. Needs an argument ABI that does not trust the release kernel's arity |
-| ☐ | **NOT BUILT** Replacement methods with explicit source parameters | same family as above; the entry-point contract is 0-or-1 positional |
+| ☐ | **NOT BUILT** Replacement methods with explicit source parameters | the replacement's **own** signature, distinct from the call it makes. The entry-point contract is 0-or-1 positional, and `9192a594` did not widen it |
 | ☐ | **NOT BUILT** Setters / property assignments | |
 | ☐ | **NOT BUILT** Increment/decrement of receiver fields | compound of read + setter |
 | ☐ | **NOT BUILT** Cascades | |
@@ -277,9 +301,9 @@ not an untested guess. Ordered roughly by expected cost.
 
 | sub-goal | goal | blocked by | needs |
 |---|---|---|---|
-| **`G3.1 arg-abi`** | an instance call **written with arguments** lowers and runs | — **ready now** | `R7` producer, `R3` if the entry-point contract must widen past 0-or-1, then `R1` for the gate |
+| **`G3.1 arg-abi`** | an instance call **written with arguments** lowers and runs | **BUILT, gate in flight** — `9192a594`, analyzer v5, cell `8ebaad05`, release `21.0.0+1` | `R7` producer, then `R1` for the gate |
 | **`G3.2 this-spellings`** | `this.label` / `this.helper()` proven on device, not just host | — **ready now**, independent of `G3.1` | `R1`, `R6` — no code change at all |
-| **`G3.3 setters`** | `label = 'x'` and property assignment | **`G3.1`** — a setter *is* an argument-carrying receiver call; doing this first means solving the ABI twice | `R7`, `R1` |
+| **`G3.3 setters`** | `label = 'x'` and property assignment | **`G3.1`'s ABI now exists** — unblocked once release 21 gates | `R7`, `R1` |
 | **`G3.4 compound`** | `++`/`--` on receiver fields | **`G3.3`** — read + setter composed | `R7`, `R1` |
 | **`G3.5 closures-super`** | closures capturing `this`, `super` reads and calls, cascades, operators | **`G3.1`** for anything argument-carrying; `super` reads are independent | `R7`, `R1` |
 | **`G3.6 app-private`** | decide whether parity requires naming existing app-private members | — **ready now** | **nothing** — pure design |
@@ -545,7 +569,7 @@ under a shared `platform` (`aar` vs `aab`, `xcframework` vs `xcarchive`) — see
 | ☐ | **NOT VALIDATED** Fully noninteractive CI patch |
 | ☐ | **NOT VALIDATED** Token/auth failure produces a useful error |
 | ☐ | **KNOWN ISSUE** An empty `SHOREBIRD_TOKEN` can surface as a JSON `FormatException` |
-| ☐ | **KNOWN ISSUE** `shorebird release ios` silently uploads a stale IPA |
+| ✅ | **FIXED** `shorebird release ios` refuses a stale IPA left by an earlier build — commit `c57c6537` |
 | ☐ | **NOT VALIDATED** `shorebird preview` |
 | ☐ | **NOT VALIDATED** Normal upstream developer preview/testing workflow |
 
@@ -793,35 +817,137 @@ else on this list buys as much parallelism per hour spent.
 
 ---
 
+## 17. Two workers, one working tree — the coordination protocol
+
+§16 says which goals *may* run at once. This says how two workers actually avoid
+destroying each other's work, because as of 2026-08-11 that is not hypothetical:
+two sessions were working this repo simultaneously, and the second discovered the
+first only by reading `git status`.
+
+**The shared-state fact that governs everything below:** `git worktree list`
+returns exactly one entry, `/Users/mendell/shorebird`. Both workers edit the same
+files on the same branch. There is no isolation unless someone creates it.
+
+### The five rules, in order of how much damage they prevent
+
+1. **Stage explicit paths. Never `-A`, never `commit -a`.** The other worker's
+   in-flight edits are sitting unstaged in the tree. A broad stage commits their
+   half-finished device gate inside your unrelated commit.
+2. **Never `git stash`, `git restore .`, `git checkout .`, or switch branches in
+   the shared tree.** Each silently discards work in progress that belongs to
+   someone else. `git stash` is the worst of them: it looks reversible and is not,
+   once the other worker's next command writes over the same file.
+3. **Code work belongs in its own `git worktree`.** Anything under `packages/` or
+   `selfhost/engine/route_b/` — the code both workers are likely to touch. Docs
+   that only one worker owns (this file) are fine in the shared tree.
+4. **Claim before you take an exclusive resource** — see the table below. `R1`
+   (the phone) and `R3` (the Route B checkout) cannot be shared and **cannot be
+   detected**; there is no way to tell someone is mid-device-run except by them
+   having said so.
+5. **Read the tree before acting.** `git log --oneline -5` and `git status` cost
+   nothing and would have prevented the duplicated work described below.
+
+### The tell: how to spot a device gate in flight
+
+An **uncommitted `fixtures/airgap_app/pubspec.yaml` version bump** together with
+a **fresh line in `selfhost/cdn/experimental_hashes.map`** means someone has
+minted a cell and is cutting a release right now. Back off `R1`, `R3` and `R6`
+until those changes are committed. That exact pair appeared at 17:29 on
+2026-08-11 — release `21.0.0+1`, cell `8ebaad05` — while this document was being
+written two directories away.
+
+### What it cost to learn this — and it already happened
+
+Two things went wrong on 2026-08-11, both benign by luck rather than by design.
+
+**Duplicated planning.** Two of the four goals this file listed as *"start now —
+nothing blocks these"* were completed by the other session **while the list was
+being written**: `G3.1 arg-abi` (`9192a594`) and `G10.1 stale-ipa` (`c57c6537`).
+
+**A broad stage swallowed another worker's files.** `9192a594` is a commit about
+receiver call arguments. Its diffstat also contains all 649 lines of the first
+draft of *this file* and a one-line `README.md` index entry — neither of which has
+anything to do with arguments, and neither of which its author wrote. Nothing was
+lost, so this reads as harmless; reverse the timing and the same broad stage
+commits a half-finished device gate, or a `git stash` discards one.
+
+The lesson is not "coordinate more". It is that **an unclaimed resource looks
+exactly like an available one, and an unstaged file looks exactly like yours.**
+
+### Claims
+
+Update this table in the same commit as the work. Stale rows are worse than no
+rows, so **clear your row when you stop**, even mid-goal.
+
+| resource | held by | goal | since | notes |
+|---|---|---|---|---|
+| `R1` iPhone 7 | `shorebird-a0` | `G3.1` device gate | 2026-08-11 17:29 | release `21.0.0+1` |
+| `R3` route-b tree | `shorebird-a0` | `G3.1` | 2026-08-11 | cell `8ebaad05` minted |
+| `R6` canonical fixture | `shorebird-a0` | `G3.1` | 2026-08-11 17:29 | `tagged(String x)` added, version → 21 |
+| `R7` producer/analyzer | `shorebird-a0` | `G3.1` | 2026-08-11 | analyzer **v5** |
+| `R8` `cps-ios` | `shorebird-a0` | `G3.1` | 2026-08-11 | |
+| this file | *docs session* | §15–17 | 2026-08-11 | docs only; holds no device, tree or fixture |
+| `R2` Android device | — | — | — | **free** |
+| `R4` ios-engine tree | — | — | — | **free** |
+| `R9` `cps-android` | — | — | — | **free** |
+| `R10` server source | — | — | — | **free** |
+| `R11` sealed CDN | — | — | — | **free** — and `G13` needs it exclusively |
+
+> Rows above were inferred from the working tree, not declared by their holder.
+> Treat them as best-effort until `shorebird-a0` confirms.
+
+### What is safe to pick up right now
+
+Given those claims, the free lanes are the **Android device** (`R2`, `R9` — so
+`G4.2 flavors`(android)), the **server halves** of `G6`/`G7` (`R10`, no
+hardware), and `G3.6 app-private` (no resources at all). Everything on the iOS
+critical path is held.
+
+---
+
 ## Immediate parity queue
 
-Do these in order unless evidence changes the priority.
+**This is a priority order, not a schedule.** What can run *simultaneously* is
+§16's question, and the answer there is roughly four lanes. Read both.
 
-1. **Dart language corpus** — next: **instance calls with arguments**, and with
-   them the argument ABI. The gate cannot be built on Kernel arity (TFA folds
-   constant arguments away), so the design question comes before the code.
-2. Explicit source parameters / broader function ABI — same family as 1.
-3. Close the two host-only spellings (`this.label`, `this.helper()`) with device
-   round-trips. Cheap, and it removes an asterisk from a claim we already make.
-4. Setters and assignments.
-5. Closures / cascades / `super` / generic cases.
-6. Resolve or explicitly scope app-private-member parity (§3, OPEN DESIGN).
-7. Flavors.
-8. Dart defines / build argument matrix.
-9. Obfuscation — iOS Route B is the untested half.
-10. Patch signing.
-11. Tracks / rollouts.
-12. Manual update API.
-13. Add-to-app.
-14. CI / noninteractive workflows.
-15. Failure / recovery matrix.
-16. Desktop platforms.
+### Start now — nothing blocks these, and they contend with nothing
 
-Off-queue, small, and it prevents a class of wrong releases: make `shorebird
-release ios` **detect** the stale-IPA condition in §10 instead of uploading it.
+**Check §17's claims table first.** As of 2026-08-11 17:29 the entire iOS
+critical path is held by another session.
 
-Also off-queue and nearly free: reconcile [`README.md`](README.md) with this
-file — see *Known documentation drift* above.
+| goal | lane | status |
+|---|---|---|
+| ~~**`G3.1 arg-abi`**~~ | iOS device | **taken** — `9192a594`, device gate in flight on release 21 |
+| ~~**`G10.1 stale-ipa`**~~ | code, no hardware | **done** — `c57c6537` |
+| **`G3.6 app-private`** | design, no hardware | **free.** A decision, not a probe. It may redefine what §15 requires |
+| **`G4.2 flavors`**(android) | Android device | **free** — `R2`/`R9` are unheld, and a flavored fixture avoids `R6` entirely |
+| **`G6`/`G7` server halves** | `R10`, no hardware | **free** — own package, own test suite |
+| **`G3.2 this-spellings`** | iOS device | **blocked on `R1`** — no code change needed, but the phone is held |
+
+### Then, in priority order
+
+5. **`G3.3 setters`** → **`G3.4 compound`** — both blocked by `G3.1`.
+6. **`G3.5 closures-super`** — `super` reads are startable earlier than the rest.
+7. **`G4.2 flavors`** — Android half needs no `R1`, so it can run in the Android
+   lane alongside iOS work today.
+8. **`G4.1 dart-defines`** matrix.
+9. **`G4.3 obfuscation-ios`** — the untested half; Android is proven.
+10. **`G7 signing`** — server half is hardware-free and startable any time.
+11. **`G6 tracks`** — same split.
+12. **`G8 manual-api`** — needs its own fixture, so it does not contend on `R6`.
+13. **`G9 add-to-app`** — `G9.1`/`G9.2` are concurrent with each other.
+14. **`G10.2 noninteractive`** CI workflows.
+15. **`G5 lifecycle-matrix`** — the failure/recovery matrix.
+16. **`G13 sealed-independence`** — **last, and alone.** It seals the CDN.
+17. **`G14 desktop`** — deferred; do not start it early.
+
+### Off-queue and nearly free
+
+* Reconcile [`README.md`](README.md) with this file — see *Known documentation
+  drift* above. Ten minutes, and it stops the fork's front door from
+  understating the project by several rungs.
+* Give the canonical fixture per-goal clones (`R6`, §16). The single highest
+  parallelism-per-hour item on this page.
 
 ---
 
