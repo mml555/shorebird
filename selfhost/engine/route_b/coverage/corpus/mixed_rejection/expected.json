@@ -1,0 +1,23 @@
+{
+  "note": "The product rule, exactly as specified: 4 changed, 3 representable, 1 unsupported -> the WHOLE patch is refused and the one bad target is named with its reason. Shipping the 3 would leave the app running three functions from the patch and one from the release.",
+  "verdict": "reject",
+  "changed": [
+    "package:corpus/main.dart#Shape.describe",
+    "package:corpus/main.dart#alpha",
+    "package:corpus/main.dart#beta",
+    "package:corpus/main.dart#gamma"
+  ],
+  "patchable": [
+    "package:corpus/main.dart#alpha",
+    "package:corpus/main.dart#beta",
+    "package:corpus/main.dart#gamma"
+  ],
+  "conditional": [],
+  "unreachable": [
+    "package:corpus/main.dart#Shape.describe"
+  ],
+  "added": [],
+  "rejectionReasons": [
+    "abstract; call sites dispatch to implementations"
+  ]
+}

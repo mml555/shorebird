@@ -1,0 +1,20 @@
+{
+  "note": "The bug this tool's own test once shipped past. Note `main` is reported changed although its source is untouched: with --aot, TFA's inferred types move once alpha's body calls something new. That is the kernel diff working as designed -- it answers which COMPILED members differ, not which lines were edited.",
+  "verdict": "reject",
+  "changed": [
+    "package:corpus/main.dart#alpha",
+    "package:corpus/main.dart#main"
+  ],
+  "patchable": [
+    "package:corpus/main.dart#alpha",
+    "package:corpus/main.dart#main"
+  ],
+  "conditional": [],
+  "unreachable": [],
+  "added": [
+    "package:corpus/main.dart#addedHelper"
+  ],
+  "rejectionReasons": [
+    "a patch replaces bodies and cannot introduce members, so bytecode referencing them would fail to bind"
+  ]
+}

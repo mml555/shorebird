@@ -5,9 +5,14 @@
 build/
 
 # Test related files
-# Coverage directories used by Flutter & Dart tests
+# Coverage directories used by Flutter & Dart tests.
+# Anchored to package roots: an unanchored `coverage/` also matched
+# selfhost/engine/route_b/coverage/, which is SOURCE — the cell-shipped
+# analyzer, its parity harness and the pinned corpus — and silently kept all of
+# it out of the repository.
 logs/
-coverage/
+/coverage/
+packages/*/coverage/
 coverage_badge.svg
 
 # Cached files
