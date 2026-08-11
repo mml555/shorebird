@@ -378,8 +378,11 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
 
     // Reaches the release's kernel through Flutter's own pass-through, so the
     // ONE real build honours it. frontend_server owns the flag.
+    // `--extra-front-end-options`, hyphenated exactly like that. Flutter
+    // rejects `--extra-frontend-options` with "Could not find an option named",
+    // which surfaces as a failed build long after the prepass has succeeded.
     buildArgs.add(
-      '--extra-frontend-options=--dynamic-interface=${interface.path}',
+      '--extra-front-end-options=--dynamic-interface=${interface.path}',
     );
 
     // The tax, every release, so a widening cannot go unnoticed. Named SDK

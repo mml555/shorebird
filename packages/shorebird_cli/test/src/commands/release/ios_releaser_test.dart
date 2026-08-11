@@ -898,7 +898,9 @@ $body
               contains(
                 predicate<String>(
                   (a) => a.startsWith(
-                    '--extra-frontend-options=--dynamic-interface=',
+                    // Hyphenated exactly like this. Flutter rejects
+                    // `--extra-frontend-options` outright.
+                    '--extra-front-end-options=--dynamic-interface=',
                   ),
                   'forwards the interface to frontend_server',
                 ),
