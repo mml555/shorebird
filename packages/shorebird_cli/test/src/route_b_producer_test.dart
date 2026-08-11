@@ -208,6 +208,194 @@ void main() {
       );
     });
 
+    group('implicit-this lowering', () {
+      const key = 'package:app/main.dart#RouteBThing.value';
+
+      /// Builds coverage for one instance target whose declaration is [decl],
+      /// placed after [preamble] so offsets are realistic.
+      RouteBCoverage instanceCoverage({
+        required String preamble,
+        required String decl,
+        required String access,
+        List<String> unsupported = const [],
+      }) {
+        source.writeAsStringSync('$preamble$decl');
+        final start = preamble.length;
+        return RouteBCoverage.fromJson(
+          jsonEncode({
+            'analysisVersion': supportedRouteBAnalysisVersion,
+            'verdict': 'accept',
+            'changed': [key],
+            'added': <String>[],
+            'removed': <String>[],
+            'patchable': <String>[],
+            'conditional': [key],
+            'sources': {
+              key: {
+                'fileUri': source.uri.toString(),
+                'start': start,
+                'end': start + decl.length,
+              },
+            },
+            'lowering': {
+              key: {
+                'receiverType': 'RouteBThing',
+                'nameOffset': start + decl.indexOf('value'),
+                'accesses': [
+                  if (access.isNotEmpty)
+                    {
+                      'offset':
+                          start +
+                          decl.indexOf(access) +
+                          access.length -
+                          'label'.length,
+                      'member': 'label',
+                      'kind': 'get',
+                    },
+                ],
+                'unsupported': unsupported,
+              },
+            },
+            'rejections': <Object>[],
+            'refusalSummary': null,
+          }),
+        );
+      }
+
+      String lowered(RouteBCoverage coverage) {
+        runWithOverrides(
+          () => const RouteBProducer().produce(
+            compiler: compiler(),
+            coverage: coverage,
+            importKernel: File(p.join(cell.path, 'release_import.dill')),
+            releaseBuildId: 'deadbeef',
+            workingDirectory: work,
+            projectRoot: project,
+            run: compileOk,
+          ),
+        );
+        return File(p.join(work.path, 'replacement_0.dart')).readAsStringSync();
+      }
+
+      test('lowers a bare instance getter', () {
+        expect(
+          lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: 'String value() => label;',
+              access: 'label',
+            ),
+          ),
+          contains('String value(RouteBThing self) => self.label;'),
+        );
+      });
+
+      test('lowers an explicit this.label', () {
+        // The SAME Kernel node as the bare form; only the source distinguishes
+        // them, which is why the producer reads the text and the analyzer does
+        // not try to report it.
+        expect(
+          lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: 'String value() => this.label;',
+              access: 'this.label',
+            ),
+          ),
+          contains('String value(RouteBThing self) => self.label;'),
+        );
+      });
+
+      test('is exact under non-ASCII text before the target', () {
+        // The offsets are code units. Byte-slicing drifted 6 bytes on the real
+        // fixture and produced a library that began mid-word.
+        expect(
+          lowered(
+            instanceCoverage(
+              preamble: '// em dashes — — — before it\nclass RouteBThing {\n  ',
+              decl: 'String value() => label;',
+              access: 'label',
+            ),
+          ),
+          contains('String value(RouteBThing self) => self.label;'),
+        );
+      });
+
+      test('finds the parameter list past an annotation', () {
+        // @pragma('vm:never-inline') has parentheses of its own, earlier in
+        // the slice than the method's.
+        expect(
+          lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: "@pragma('vm:never-inline')\n  String value() => label;",
+              access: 'label',
+            ),
+          ),
+          contains('String value(RouteBThing self) => self.label;'),
+        );
+      });
+
+      test('touches nothing the kernel did not report', () {
+        // A local, a top-level symbol and a static member are different Kernel
+        // nodes and never appear as receiver accesses, so they must survive
+        // verbatim. This is the whole reason meaning comes from the kernel.
+        final out = lowered(
+          instanceCoverage(
+            preamble: 'class RouteBThing {\n  ',
+            decl:
+                'String value() { final label = topLevel + Cls.stat; '
+                'return label; }',
+            access: '',
+          ),
+        );
+        expect(out, contains('final label = topLevel + Cls.stat;'));
+        expect(out, contains('return label; }'));
+        expect(out, isNot(contains('self.label')));
+        expect(out, contains('String value(RouteBThing self)'));
+      });
+
+      test('refuses a body the analyzer marked unsupported', () {
+        expect(
+          () => lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: 'String value() => label;',
+              access: 'label',
+              unsupported: ['calls `foo()` on the receiver'],
+            ),
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              contains('calls `foo()` on the receiver'),
+            ),
+          ),
+        );
+      });
+
+      test('refuses rather than guess at unusual this spacing', () {
+        // `this . label` would otherwise become `this .self.label`.
+        expect(
+          () => lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: 'String value() => this . label;',
+              access: 'this . label',
+            ),
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              contains('cannot rewrite safely'),
+            ),
+          ),
+        );
+      });
+    });
+
     test('refuses a target the analysis gave no span for', () {
       expect(
         () => runWithOverrides(
@@ -290,7 +478,7 @@ void main() {
       expect(
         File(p.join(work.path, 'replacement_0.dart')).readAsStringSync(),
         "import 'package:app/main.dart';\n\n"
-            '${RouteBProducer.entryPointPragma}\n$declaration\n',
+        '${RouteBProducer.entryPointPragma}\n$declaration\n',
       );
     });
 

@@ -12,7 +12,11 @@
 //
 //   dart --packages=.dart_tool/package_config.json \
 //     selfhost/engine/route_b/producer/cli_produce.dart \
-//     <cell.zip> <base.dill> <patched.dill> <import.dill> <buildId> <outDir>
+//     <cell.zip> <base.dill> <patched.dill> <import.dill> <buildId> <outDir> \
+//     [projectRoot]
+//
+// projectRoot is where the replacement's `--packages` comes from; it defaults
+// to the directory holding base.dill, which is the corpus root in the harness.
 //
 // ignore_for_file: avoid_print
 import 'dart:convert';
@@ -61,6 +65,9 @@ Future<void> main(List<String> args) async {
       importKernel: importDill,
       releaseBuildId: buildId,
       workingDirectory: work,
+      projectRoot: Directory(
+        args.length > 6 ? args[6] : baseDill.parent.path,
+      ),
     ),
     values: {
       loggerRef.overrideWith(ShorebirdLogger.new),

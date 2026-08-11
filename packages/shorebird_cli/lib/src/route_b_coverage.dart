@@ -35,7 +35,7 @@ RouteBCoverageAnalyzer get routeBCoverageAnalyzer =>
 /// engine hash, so an unknown version means the CLI and the release's toolchain
 /// disagree about the format, and reading fields that may have moved is how you
 /// get a confident wrong answer.
-const supportedRouteBAnalysisVersion = 2;
+const supportedRouteBAnalysisVersion = 3;
 
 /// What a patch may do with a changed member.
 enum RouteBRepresentability {
@@ -107,6 +107,58 @@ class RouteBSourceSpan {
   final int end;
 }
 
+/// One receiver-based access the producer must rewrite.
+class RouteBReceiverAccess {
+  /// {@macro route_b_receiver_access}
+  const RouteBReceiverAccess({
+    required this.offset,
+    required this.member,
+    required this.kind,
+  });
+
+  /// Where the member's IDENTIFIER starts, in code units of the decoded
+  /// source. `label` and `this.label` are the same Kernel node and report the
+  /// same offset, so only the source text distinguishes them.
+  final int offset;
+
+  /// The member being read.
+  final String member;
+
+  /// Currently always `get`; the surface widens one form at a time.
+  final String kind;
+}
+
+/// What Kernel knows about turning an instance method into a static
+/// replacement that takes its receiver as argument 0.
+///
+/// Kernel decides MEANING — which accesses are receiver-based, what they
+/// resolve to, where their identifier starts. The producer supplies SYNTAX.
+/// Neither re-derives the other's job.
+class RouteBLowering {
+  /// {@macro route_b_lowering}
+  const RouteBLowering({
+    required this.receiverType,
+    required this.nameOffset,
+    required this.accesses,
+    required this.unsupported,
+  });
+
+  /// The class the receiver belongs to, used as the parameter's type.
+  final String receiverType;
+
+  /// Offset of the method's NAME. The producer scans forward from here for the
+  /// parameter list, because an annotation like `@pragma('vm:never-inline')`
+  /// has parentheses of its own.
+  final int nameOffset;
+
+  /// Every receiver access to rewrite.
+  final List<RouteBReceiverAccess> accesses;
+
+  /// Reasons this body is outside the supported surface. Non-empty means
+  /// refuse by name rather than lower on a guess.
+  final List<String> unsupported;
+}
+
 /// The whole-patch outcome.
 enum RouteBVerdict {
   /// Every changed member can be carried.
@@ -132,6 +184,7 @@ class RouteBCoverage {
     required this.rejections,
     required this.refusalSummary,
     this.sources = const {},
+    this.lowering = const {},
   });
 
   /// Parses the analyzer's JSON document.
@@ -218,9 +271,33 @@ class RouteBCoverage {
       }
     }
 
+    final lowering = <String, RouteBLowering>{};
+    if (map['lowering'] case final Map<String, dynamic> recorded) {
+      for (final entry in recorded.entries) {
+        final l = entry.value as Map<String, dynamic>;
+        lowering[entry.key] = RouteBLowering(
+          receiverType: l['receiverType']! as String,
+          nameOffset: l['nameOffset']! as int,
+          accesses: [
+            for (final a in (l['accesses'] as List<Object?>? ?? const []))
+              RouteBReceiverAccess(
+                offset: (a! as Map<String, dynamic>)['offset']! as int,
+                member: (a as Map<String, dynamic>)['member']! as String,
+                kind: a['kind']! as String,
+              ),
+          ],
+          unsupported: [
+            for (final u in (l['unsupported'] as List<Object?>? ?? const []))
+              u! as String,
+          ],
+        );
+      }
+    }
+
     return RouteBCoverage(
       verdict: verdict,
       sources: sources,
+      lowering: lowering,
       changed: strings('changed'),
       added: strings('added'),
       removed: strings('removed'),
@@ -264,6 +341,9 @@ class RouteBCoverage {
 
   /// Where each changed member's new body lives, by `library#selector`.
   final Map<String, RouteBSourceSpan> sources;
+
+  /// Implicit-`this` lowering facts, for changed INSTANCE members only.
+  final Map<String, RouteBLowering> lowering;
 
   /// The refusal, as the user will read it.
   ///

@@ -105,8 +105,14 @@ class RouteBProducer {
         );
       }
 
-      final declaration = _slice(key, source);
       final targetLibrary = key.split('#').first;
+      // An INSTANCE target is lowered: its receiver becomes an explicit first
+      // parameter, which the entry-point contract allows exactly one of. A
+      // static target keeps the fast path — the slice is already valid as a
+      // top-level function.
+      final declaration = coverage.lowering.containsKey(key)
+          ? _lower(key, source, coverage.lowering[key]!)
+          : _slice(key, source);
       // IMPORT THE TARGET'S OWN LIBRARY. A replacement body may reference other
       // members of the library it replaces a function in, and a synthetic
       // library that imports nothing cannot see them:
@@ -168,6 +174,96 @@ class RouteBProducer {
       releaseBuildId: releaseBuildId,
       targets: targets,
     );
+  }
+
+  /// The declaration, rewritten so the receiver is an explicit parameter.
+  ///
+  /// KERNEL DECIDED MEANING; this only supplies syntax. Every offset comes from
+  /// the analyzer, which resolved each access against the program — a local
+  /// named `label`, a top-level `label`, and a static `Cls.label` are different
+  /// Kernel nodes and never appear here, so no name resolution is re-derived.
+  ///
+  /// Two spellings reach this, and they are the SAME Kernel node:
+  ///
+  ///     String value() => label;         ->  insert `self.` before `label`
+  ///     String value() => this.label;    ->  replace `this.` with `self.`
+  ///
+  /// Which one it is can only be answered from the source text, because the
+  /// synthesized `ThisExpression` carries the access's own offset rather than
+  /// one of its own.
+  String _lower(String key, RouteBSourceSpan span, RouteBLowering lowering) {
+    if (lowering.unsupported.isNotEmpty) {
+      throw RouteBUnsupportedTarget(key, lowering.unsupported.join('; '));
+    }
+
+    // Code units, not bytes: the analyzer's offsets index the decoded source.
+    final source = utf8.decode(
+      File.fromUri(Uri.parse(span.fileUri)).readAsBytesSync(),
+    );
+
+    // (offset, replacedLength, text), applied right-to-left so earlier offsets
+    // stay valid.
+    final edits = <(int, int, String)>[];
+
+    // The receiver parameter goes into the method's own parameter list, found
+    // by scanning from the NAME — an annotation's parentheses come earlier and
+    // would otherwise match first.
+    final open = source.indexOf('(', lowering.nameOffset);
+    if (open < 0 || open >= span.end) {
+      throw RouteBUnsupportedTarget(
+        key,
+        'its parameter list could not be found',
+      );
+    }
+    final close = source.indexOf(')', open);
+    if (close < 0 || source.substring(open + 1, close).trim().isNotEmpty) {
+      // The analyzer already refuses methods with parameters; this catches a
+      // disagreement between the two rather than silently producing a method
+      // with two.
+      throw RouteBUnsupportedTarget(
+        key,
+        'its parameter list is not empty, which the lowering cannot extend',
+      );
+    }
+    edits.add((open + 1, 0, '${lowering.receiverType} self'));
+
+    for (final access in lowering.accesses) {
+      const explicit = 'this.';
+      final start = access.offset - explicit.length;
+      if (start >= span.start &&
+          start < source.length &&
+          source.substring(start, access.offset) == explicit) {
+        edits.add((start, explicit.length, 'self.'));
+        continue;
+      }
+      // `this` written with unusual spacing (`this . label`) would otherwise be
+      // rewritten to `this .self.label`. Refuse rather than guess: it is rare,
+      // and a wrong lowering compiles and then misbehaves on a device.
+      var back = access.offset - 1;
+      while (back >= 0 &&
+          (source[back] == ' ' ||
+              source[back] == '\n' ||
+              source[back] == '\r' ||
+              source[back] == '\t')) {
+        back--;
+      }
+      if (back >= 0 && source[back] == '.') {
+        throw RouteBUnsupportedTarget(
+          key,
+          'reads `${access.member}` through a receiver this lowering cannot '
+          'rewrite safely',
+        );
+      }
+      edits.add((access.offset, 0, 'self.'));
+    }
+
+    edits.sort((a, b) => b.$1.compareTo(a.$1));
+    var text = source.substring(span.start, span.end);
+    for (final (offset, length, replacement) in edits) {
+      final at = offset - span.start;
+      text = text.replaceRange(at, at + length, replacement);
+    }
+    return text;
   }
 
   /// The declaration's source text, from the patch's own file.
