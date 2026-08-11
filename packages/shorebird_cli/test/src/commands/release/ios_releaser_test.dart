@@ -1288,6 +1288,71 @@ $body
         });
       });
 
+      group(
+        'when codesigning and the ipa is left over from an earlier build',
+        () {
+          // The defect this exists for: `flutter build ipa` exits 0 when its
+          // export step fails, build/ios/ipa is not cleared between runs, and a
+          // presence check is then satisfied by the PREVIOUS release's .ipa. One
+          // release published with its predecessor's artifact before this check
+          // existed.
+          late File staleIpa;
+
+          setUp(() {
+            when(() => argResults['codesign']).thenReturn(true);
+            staleIpa =
+                File(p.join(projectRoot.path, 'build', 'ios', 'ipa', 'a.ipa'))
+                  ..createSync(recursive: true)
+                  ..setLastModifiedSync(
+                    xcarchiveDirectory.statSync().modified.subtract(
+                      const Duration(hours: 1),
+                    ),
+                  );
+            when(() => artifactManager.getIpa()).thenReturn(staleIpa);
+          });
+
+          test('refuses to release it', () async {
+            await expectLater(
+              () => runWithOverrides(iosReleaser.buildReleaseArtifacts),
+              exitsWithCode(ExitCode.software),
+            );
+
+            verify(
+              () => logger.err(
+                any(
+                  that: contains(
+                    'Found an .ipa older than the .xcarchive this build just '
+                    'produced',
+                  ),
+                ),
+              ),
+            ).called(1);
+          });
+        },
+      );
+
+      group('when codesigning and the ipa is from this build', () {
+        setUp(() {
+          when(() => argResults['codesign']).thenReturn(true);
+          when(() => artifactManager.getIpa()).thenReturn(
+            File(p.join(projectRoot.path, 'build', 'ios', 'ipa', 'a.ipa'))
+              ..createSync(recursive: true)
+              ..setLastModifiedSync(
+                xcarchiveDirectory.statSync().modified.add(
+                  const Duration(seconds: 5),
+                ),
+              ),
+          );
+        });
+
+        test('releases it', () async {
+          expect(
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts),
+            equals(xcarchiveDirectory),
+          );
+        });
+      });
+
       group('when not codesigning and ipa not found after build', () {
         setUp(() {
           when(() => argResults['codesign']).thenReturn(false);

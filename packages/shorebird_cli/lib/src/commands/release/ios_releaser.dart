@@ -170,14 +170,43 @@ If left checked, Xcode will rewrite the build number in the uploaded IPA, so the
     // so we must verify the .ipa was actually produced. Otherwise we would
     // report a successful release and point the user at an .ipa that does not
     // exist. See https://github.com/shorebirdtech/shorebird/issues/3807.
-    if (codesign && artifactManager.getIpa() == null) {
-      logger.err(
-        '''
+    if (codesign) {
+      final ipa = artifactManager.getIpa();
+      // EXISTING IS NOT ENOUGH — IT MUST BE THIS BUILD'S. The export writes into
+      // build/ios/ipa, which is not cleared between runs, so a failed export
+      // leaves the PREVIOUS release's .ipa sitting there passing a presence
+      // check. That is not hypothetical: a release published here with its
+      // predecessor's .ipa as its stored artifact, and nothing said so.
+      //
+      // The .xcarchive was produced moments ago by this same invocation, so an
+      // .ipa exported from it cannot be older. One that is, is a leftover.
+      // Only when the file can actually be stat'd: the presence check keeps its
+      // existing meaning otherwise, and this adds a refusal rather than
+      // changing what counts as present.
+      final stale =
+          ipa != null &&
+          ipa.existsSync() &&
+          ipa.lastModifiedSync().isBefore(
+            xcarchiveDirectory.statSync().modified,
+          );
+      if (ipa == null || stale) {
+        logger.err(
+          stale
+              ? '''
+Found an .ipa older than the .xcarchive this build just produced:
+
+  ${ipa!.path}
+
+It is left over from an earlier build, so the IPA export step of "flutter build ipa" must have failed for this one (for example, due to a missing or invalid code signing certificate). Review the build output above for the underlying error. Releasing would upload the earlier build's .ipa.
+
+Delete it and re-run, or if you do not need a signed IPA (for example, you will sign the .xcarchive in Xcode), re-run this command with --no-codesign.'''
+              : '''
 Unable to find generated IPA. This usually means that the IPA export step of "flutter build ipa" failed (for example, due to a missing or invalid code signing certificate). Review the build output above for the underlying error.
 
 If you do not need a signed IPA (for example, you will sign the .xcarchive in Xcode), re-run this command with --no-codesign.''',
-      );
-      throw ProcessExit(ExitCode.software.code);
+        );
+        throw ProcessExit(ExitCode.software.code);
+      }
     }
 
     return xcarchiveDirectory;

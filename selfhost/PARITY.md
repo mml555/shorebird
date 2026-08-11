@@ -273,6 +273,28 @@ not an untested guess. Ordered roughly by expected cost.
 | ☐ | **NOT BUILT** Broader async / closure corpus | |
 | ☐ | **NOT BUILT** Extensions / mixins / records / pattern cases as applicable | |
 
+### `G3` sub-goals, and why they are mostly a queue
+
+| sub-goal | goal | blocked by | needs |
+|---|---|---|---|
+| **`G3.1 arg-abi`** | an instance call **written with arguments** lowers and runs | — **ready now** | `R7` producer, `R3` if the entry-point contract must widen past 0-or-1, then `R1` for the gate |
+| **`G3.2 this-spellings`** | `this.label` / `this.helper()` proven on device, not just host | — **ready now**, independent of `G3.1` | `R1`, `R6` — no code change at all |
+| **`G3.3 setters`** | `label = 'x'` and property assignment | **`G3.1`** — a setter *is* an argument-carrying receiver call; doing this first means solving the ABI twice | `R7`, `R1` |
+| **`G3.4 compound`** | `++`/`--` on receiver fields | **`G3.3`** — read + setter composed | `R7`, `R1` |
+| **`G3.5 closures-super`** | closures capturing `this`, `super` reads and calls, cascades, operators | **`G3.1`** for anything argument-carrying; `super` reads are independent | `R7`, `R1` |
+| **`G3.6 app-private`** | decide whether parity requires naming existing app-private members | — **ready now** | **nothing** — pure design |
+
+Two things fall out of that table and they set the schedule:
+
+**`G3.1` is the gate for four of the six.** Setters, compound assignment, and
+most of the closure/operator corpus all carry arguments. Attempting any of them
+before the argument ABI exists means inventing a partial ABI and then replacing
+it — the most expensive ordering available.
+
+**`G3.2` and `G3.6` are free wins that contend with nothing.** `G3.2` is a device
+round-trip with no code change; `G3.6` is a decision with no hardware at all.
+Either can be picked up by someone who cannot get the phone or the build tree.
+
 ### Private members
 
 | | item |
@@ -294,6 +316,15 @@ upstream still has broader arbitrary-Dart patch coverage.
 ---
 
 ## 4. Release / build configuration parity
+
+> **`G4 · build-config` — goal:** a release built the way developers actually
+> build (defines, flavors, obfuscation) yields a patch that installs and runs —
+> or fails **at release time**, loudly, rather than producing a patch that is
+> quietly wrong for that configuration.
+> **Done when:** each configuration axis has a release→patch→run→rollback pass
+> on both platforms, and each *unsupported* axis has a test proving it refuses.
+> **Splits into three independently schedulable goals:**
+> `G4.1 dart-defines` · `G4.2 flavors` · `G4.3 obfuscation-ios`
 
 ### Basic release configuration
 
@@ -344,6 +375,13 @@ upstream still has broader arbitrary-Dart patch coverage.
 
 ## 5. Patch lifecycle / safety parity
 
+> **`G5 · lifecycle-matrix` — goal:** every failure path degrades to the
+> pristine release, never to a broken app. Interruption, corruption, wrong
+> release, wrong order — all land on working software.
+> **Done when:** each NOT VALIDATED row below has a deliberately-induced
+> failure and a verified recovery, on both platforms.
+> **Owns:** `R1` or `R2` (one leg at a time), `R6` fixture.
+
 | | item |
 |---|---|
 | ✅ | **PROVEN** Patch check |
@@ -369,6 +407,14 @@ upstream still has broader arbitrary-Dart patch coverage.
 
 ## 6. Tracks / rollouts / release management
 
+> **`G6 · tracks` — goal:** a patch reaches exactly the devices its track
+> selects, and no others.
+> **Done when:** a device on one track provably does *not* receive another
+> track's patch, and promotion/withdrawal move it as upstream's workflow does.
+> **Splits by layer:** the server/CLI half needs **no hardware** (`R10`
+> `code_push_server` source, own test suite) and is parallel-safe with almost
+> everything; only the "device receives only selected track" row needs `R1`/`R2`.
+
 | | item |
 |---|---|
 | ☐ | **INHERITED** Basic upstream track concepts |
@@ -385,6 +431,16 @@ upstream still has broader arbitrary-Dart patch coverage.
 ---
 
 ## 7. Patch signing / security
+
+> **`G7 · signing` — goal:** a patch that is not ours does not run.
+> **Done when:** a validly-signed patch runs on both platforms, a tampered one
+> is rejected on-device, and key rotation is a documented procedure someone
+> other than its author has followed.
+> **Splits by layer** like `G6`: signing/verification logic and the rejection
+> tests are hardware-free; the on-device rejection proof needs `R1`/`R2`.
+> **Route B wrinkle to check first:** the `SBRBPTCH` container is a distinct
+> artifact shape from an Android diff — confirm what upstream's signing actually
+> covers before assuming it wraps ours unchanged.
 
 | | item |
 |---|---|
@@ -412,13 +468,32 @@ upstream still has broader arbitrary-Dart patch coverage.
 | ☐ | **NOT VALIDATED** iOS Route B manual update path |
 | ☐ | **NOT VALIDATED** Restart-required / update-state behavior |
 
-**Manual API parity: UNVALIDATED.** Note the Route B wrinkle worth checking
-first: activation is *native and pre-main*, so "restart required" semantics may
-differ from Android's in a developer-visible way.
+**Manual API parity: UNVALIDATED.**
+
+> **`G8 · manual-api` — goal:** an app that drives updates itself, rather than
+> letting the updater do it, behaves the same on our stack as on upstream's.
+> **Done when:** check / download / disable-automatic all work from Dart on both
+> platforms, and the restart-required state is documented for Route B.
+> **The one real risk:** Route B activation is **native and pre-main**, so
+> "restart required" may genuinely differ from Android in a developer-visible
+> way. If it does, that is a §15 documentation obligation, not a bug to hide.
+> **Needs its own fixture** — the canonical one has no update-driving UI — which
+> makes this goal unusually parallel-friendly (see §16).
 
 ---
 
 ## 9. Add-to-app / hybrid Flutter apps
+
+> **`G9 · add-to-app` — goal:** Flutter embedded in a native host app patches,
+> persists and rolls back exactly like a standalone app.
+> **Done when:** release→patch→relaunch→rollback passes with Flutter embedded in
+> a native host, on both platforms.
+> **Splits cleanly by platform** — `G9.1 android` (AAR) and `G9.2 ios`
+> (xcframework) share no hardware and no fixture, so they are genuinely
+> concurrent with each other.
+> **The iOS-specific unknown:** pre-main activation assumes the engine starts the
+> way a standalone app's does. An embedded engine may not, and that is the row to
+> attack first — everything else in `G9.2` is downstream of it.
 
 Both platforms distinguish add-to-app releases **only by the `arch` string**
 under a shared `platform` (`aar` vs `aab`, `xcframework` vs `xcarchive`) — see
@@ -450,6 +525,15 @@ under a shared `platform` (`aar` vs `aab`, `xcframework` vs `xcarchive`) — see
 ---
 
 ## 10. CLI / CI workflow parity
+
+> **`G10 · cli-ci` — goal:** the whole workflow runs unattended, with no
+> interactive prompt, no ambient state, and **no silent wrong artifact**.
+> **Done when:** a release and a patch both complete from a clean checkout with
+> only a token in the environment, every auth failure names its cause, and the
+> stale-IPA condition below is *detected* rather than uploaded.
+> **`G10.1 stale-ipa` is the highest-value hardware-free goal on this list** —
+> it is CLI code plus unit tests, it needs no device and no fixture, and it
+> closes a hazard that has already shipped one wrong artifact.
 
 | | item |
 |---|---|
@@ -484,6 +568,15 @@ staleness, which is the actual fix. See commit `b5aaeae1`.
 
 Our additional capability, not an upstream parity requirement.
 
+> **`G11 · ios-symbolication` — goal:** a crash inside patched Route B code
+> symbolicates back to patch source, as it already does on Android.
+> **Done when:** a deliberate crash in an interpreted replacement produces a
+> symbolicated frame naming the patch's own function.
+> **Not blocked by `G3`** — the current four spellings are enough to write a
+> crashing body. **Open question to answer first:** interpreted bytecode frames
+> may not appear in an Apple crash report the way AOT frames do, which would make
+> this a different problem than the Android one rather than a port of it.
+
 | | item |
 |---|---|
 | ✅ | **SUPERSET / BUILT** Patch-scoped crash ingestion |
@@ -496,6 +589,13 @@ Our additional capability, not an upstream parity requirement.
 ---
 
 ## 12. Asset patching — superset
+
+> **`G12 · ios-engine-assets` — goal:** iOS reaches Android's engine-level asset
+> coverage — `rootBundle`, declared fonts, compiled shaders.
+> **Done when:** each row Android has proven has an iOS equivalent on device.
+> **Watch the resource cost:** the Android proofs needed engine work, so this may
+> take `R3`/`R4` and a cell mint — which makes it contend with `G3`'s
+> compiler-touching rungs despite looking unrelated.
 
 ### App-level assets
 
@@ -519,6 +619,15 @@ Our additional capability, not an upstream parity requirement.
 ---
 
 ## 13. Self-hosting / independence
+
+> **`G13 · sealed-independence` — goal:** the newest Route B release *and* code
+> patch both pass with every upstream network dependency physically unreachable.
+> **Done when:** `airgap_run.sh` + `airgap_acceptance.sh` pass against a sealed
+> CDN on a current release, including an iOS **code** patch (today's sealed proof
+> covers releases and assets-only patches).
+> **⚠ GLOBALLY EXCLUSIVE — this goal cannot share the machine.** Sealing the CDN
+> is a host-wide change: every other goal's builds start failing the moment it is
+> sealed. Schedule it alone, as the *last* thing in a batch, never alongside.
 
 | | item |
 |---|---|
@@ -545,6 +654,11 @@ not required — see §2, *No Shorebird private AOT linker required*.
 ---
 
 ## 14. Desktop platforms — deferred
+
+> **`G14 · desktop` — goal: none yet, deliberately.** Not scheduled, not
+> resourced, not blocking §15. Listed so it is visibly deferred rather than
+> forgotten. Do not start it to feel productive while a §3 device gate is
+> waiting for the phone.
 
 Intentionally out of scope until Android/iOS parity is complete. See
 [`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md).
@@ -586,6 +700,96 @@ checked:
 | ☐ | Every unsupported upstream workflow is explicitly documented rather than silently failing | this file |
 
 Two of fifteen. The two hardest, and the thirteen remaining are mostly breadth.
+
+---
+
+## 16. Working goals in parallel — what collides and what does not
+
+Parallelism here is limited by **physical and rig resources**, not by ambition.
+Two goals that look unrelated can still be mutually exclusive because they want
+the same phone, the same engine checkout, or the same line of one YAML file.
+
+### The contended resources
+
+| id | resource | exclusivity |
+|---|---|---|
+| **R1** | iPhone 7 / iOS 15.8.8, **wired** | **one goal at a time.** Wired or simulator only — never a wirelessly-paired device |
+| **R2** | Android CPH2551 / Android 16, **wired** | **one goal at a time**, but fully independent of `R1` |
+| **R3** | `/Volumes/build/route-b` — the Route B engine checkout | **one build at a time.** `dart_patches.sh --verify` before every build, and again after any `gclient sync` |
+| **R4** | `/Volumes/build/ios-engine` — the shipping iOS engine tree | **one build at a time**, independent of `R3`. Kept deliberately clean of the killgate SDK changes; **do not consolidate the two trees** |
+| **R5** | the build SSD itself | shared by `R3` + `R4`. Two heavy concurrent builds are a media risk, not just a slow one — see [`MEDIA_PRESERVATION.md`](MEDIA_PRESERVATION.md) |
+| **R6** | `selfhost/fixtures/airgap_app` — the canonical fixture | **the sharpest serializer.** See below |
+| **R7** | `route_b_producer.dart` + `coverage/analyze_coverage.dart` | versioned **together** (currently v4). Two goals editing these conflict in source, not just in schedule |
+| **R8** | `cps-ios` control plane, `:18080` | one iOS release-cutting goal at a time |
+| **R9** | `cps-android` control plane, `:18081` | one Android release-cutting goal at a time; **separate instance from `R8` on purpose**, so the two legs' histories never contaminate each other |
+| **R10** | `packages/code_push_server` source + tests | standalone package, own lockfile. Cheap to work on concurrently with anything |
+| **R11** | the sealed CDN (docker compose) | **host-global.** Sealing it breaks every other goal's builds |
+
+### Why the fixture is the real bottleneck
+
+`R6` is a single app directory carrying three pieces of mutable per-run state:
+
+1. **`shorebird.yaml`** is *generated*, and `prepare_airgap_fixture.sh --activate
+   <leg>` stamps it immediately before a run. The script says why in its own
+   comments: run the other leg concurrently and *"the last invocation is the one
+   the next leg would silently use"* — wrong `app_id`, wrong control plane, and a
+   result that looks valid.
+2. **`pubspec.yaml` `version:`** is what derives `--release-version`, and the
+   control plane **rejects a duplicate**. Two goals cutting releases race on one
+   integer.
+3. **`lib/main.dart`** is what every language rung edits. Two rungs in flight
+   means two people editing the same function.
+
+**So: the iOS leg and the Android leg cannot use the canonical fixture at the
+same time.** That is by design, and it is the single constraint most worth
+*engineering away* — a per-goal fixture clone with its own `app_id` and its own
+version line would unlock most of the parallelism this document wants. Until
+then, treat "who holds the fixture" as a thing to say out loud.
+
+Note the happy accident: goals that need a **new** fixture anyway (`G4.2`
+flavors, `G8` manual API, `G9` add-to-app) do not contend on `R6` at all, which
+makes them *more* parallel-friendly than goals that look smaller.
+
+### Hard exclusion rules
+
+1. **One iPhone goal at a time.** `G3.x` device gates, `G4.3`, `G5`(ios), `G6`
+   device row, `G7`(ios), `G8`(ios), `G9.2`, `G11`, `G12`, `G13` all want `R1`.
+2. **One canonical-fixture leg at a time** — iOS *or* Android, never both.
+3. **One `R7` editor at a time.** `G3.1`, `G3.3`, `G3.4`, `G3.5` all edit the
+   analyzer/producer pair. This is a source conflict as much as a scheduling one.
+4. **One `R3` build at a time**, and a cell mint is an `R3` operation — so
+   `G12` and any compiler-touching `G3` rung exclude each other even though they
+   share no subject matter.
+5. **`G13` runs alone.** `R11` is host-global; sealing the CDN fails everyone
+   else's builds. Last in a batch, never concurrent.
+
+### Traps — pairs that look parallel and are not
+
+| pair | why it collides |
+|---|---|
+| `G4.2 flavors`(android) + `G5 lifecycle`(android) | both want `R2` **and** the fixture version counter |
+| `G3.1 arg-abi` + `G3.3 setters` | `R7` source conflict, *and* `G3.3` is genuinely blocked by `G3.1` |
+| `G12 ios-engine-assets` + any compiler-touching `G3` rung | both want `R3` and a cell mint |
+| `G11 ios-symbolication` + `G3.2 this-spellings` | both want `R1`; neither needs the other, so it is pure contention |
+| anything + `G13` | `R11` is host-global |
+
+### Lanes that genuinely run at once
+
+Four concurrent lanes, contending on nothing:
+
+| lane | goal | resources held |
+|---|---|---|
+| **Device — iOS** | `G3.1 arg-abi`, then its device gate | `R1`, `R3`, `R6`(ios leg), `R7`, `R8` |
+| **Device — Android** | `G4.2 flavors`(android) on its **own** flavored fixture | `R2`, `R9` |
+| **Hardware-free code** | `G10.1 stale-ipa` detection | CLI source + unit tests |
+| **Hardware-free design** | `G3.6 app-private` decision | nothing |
+
+Add a fifth when someone is available: the **server halves** of `G6 tracks` and
+`G7 signing` (`R10` only, no hardware, own test suite).
+
+That is the honest ceiling right now: **roughly four**, of which two are the
+device lanes and two need no hardware. Raise the ceiling by fixing `R6` — nothing
+else on this list buys as much parallelism per hour spent.
 
 ---
 
