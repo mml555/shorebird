@@ -18,7 +18,16 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:scoped_deps/scoped_deps.dart';
+
 import 'package:shorebird_cli/src/route_b_compiler.dart';
+
+/// A reference to a [RouteBCoverageAnalyzer] instance.
+final routeBCoverageAnalyzerRef = create(RouteBCoverageAnalyzer.new);
+
+/// The [RouteBCoverageAnalyzer] available in the current zone.
+RouteBCoverageAnalyzer get routeBCoverageAnalyzer =>
+    read(routeBCoverageAnalyzerRef);
 
 /// The analyzer contract this build understands.
 ///

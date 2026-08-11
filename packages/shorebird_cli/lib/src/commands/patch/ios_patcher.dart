@@ -22,7 +22,10 @@ import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/route_b.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
+import 'package:shorebird_cli/src/route_b_container.dart';
+import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
+import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_documentation.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
@@ -223,7 +226,20 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
         provenance,
       );
       final compiler = await _resolveRouteBCompiler(provenance);
-      _requireRouteBProducer(compiler, releaseArtifacts);
+      _verifyReleaseKernelsAgree(compiler, releaseArtifacts);
+
+      // COVERAGE BEFORE BYTECODE, deliberately. A patch that cannot be
+      // represented has no business invoking a compiler, and more importantly
+      // the ordering keeps failure attribution clean: a coverage rejection, a
+      // compiler failure and a container failure are three different problems
+      // and must never be reachable through one another.
+      final coverage = _analyzeCoverage(compiler, releaseArtifacts);
+      if (coverage.verdict != RouteBVerdict.accept) {
+        _refuseCoverage(coverage);
+      }
+
+      final buildId = _readReleaseBuildId(releaseArtifactFile);
+      _requireRouteBProducer(compiler, releaseArtifacts, coverage, buildId);
     }
 
     // An assets-only patch carries no code, and the patch command drops the code
@@ -427,6 +443,100 @@ Nothing was uploaded. Create a new release and patch that instead.''',
     }
   }
 
+  /// Refuse a release whose two kernels do not describe the same program.
+  ///
+  /// The release side already checked this, on the machine that cut the
+  /// release. Checking it again here is not redundancy for its own sake: it
+  /// turns "two files happened to exist and hash correctly" into "same release
+  /// engine, same release inputs, two intentionally different lowering modes".
+  /// The producer must never be able to compile against an import kernel that
+  /// describes a different program from the one coverage analyzed.
+  void _verifyReleaseKernelsAgree(
+    RouteBCompiler compiler,
+    Map<String, File> releaseArtifacts,
+  ) {
+    final agrees = routeBReleaseKernelBuilder.agreesWith(
+      compiler: compiler,
+      importKernel: releaseArtifacts[routeBReleaseImportKernelFileName]!,
+      aotKernel: releaseArtifacts[routeBReleaseKernelFileName]!,
+    );
+    if (agrees) return;
+
+    logger.err(
+      '''
+The two kernels this release uploaded do not describe the same program, so a patch compiled against one would not match the other.
+
+Nothing was uploaded. Create a new release and patch that instead.''',
+    );
+    throw ProcessExit(ExitCode.software.code);
+  }
+
+  /// Classify what changed, against the release's own kernel.
+  RouteBCoverage _analyzeCoverage(
+    RouteBCompiler compiler,
+    Map<String, File> releaseArtifacts,
+  ) {
+    final patchKernel = File(_appDillCopyPath);
+    if (!patchKernel.existsSync()) {
+      logger.err(
+        '''Could not find the kernel this patch build produced at ${patchKernel.path}.''',
+      );
+      throw ProcessExit(ExitCode.software.code);
+    }
+
+    try {
+      return routeBCoverageAnalyzer.analyze(
+        compiler: compiler,
+        baseDill: releaseArtifacts[routeBReleaseKernelFileName]!,
+        patchedDill: patchKernel,
+      );
+    } on RouteBCompilerException catch (error) {
+      logger.err(error.message);
+      throw ProcessExit(ExitCode.software.code);
+    } on FormatException catch (error) {
+      logger.err(
+        'The Route B coverage analysis could not be read: ${error.message}',
+      );
+      throw ProcessExit(ExitCode.software.code);
+    }
+  }
+
+  /// Refuse the WHOLE patch, naming every target that cannot be carried.
+  ///
+  /// Never a subset. Shipping the representable part would leave the app
+  /// running some functions from the patch and some from the release — a state
+  /// nobody designed and nobody could reproduce.
+  Never _refuseCoverage(RouteBCoverage coverage) {
+    if (coverage.verdict == RouteBVerdict.inert) {
+      logger.err(
+        '''
+Nothing in this patch differs from the release, so it would install and change nothing.
+
+Nothing was uploaded.''',
+      );
+      throw ProcessExit(ExitCode.software.code);
+    }
+
+    logger.err(coverage.refusalMessage);
+    throw ProcessExit(ExitCode.software.code);
+  }
+
+  /// The release identity a container must be stamped with.
+  String _readReleaseBuildId(File releaseArtifactFile) {
+    final buildId = readMachOBuildId(releaseArtifactFile.readAsBytesSync());
+    if (buildId != null) return buildId;
+
+    // Never "any identity". A container with no release stamp would be applied
+    // to whatever it reached.
+    logger.err(
+      '''
+This release's App binary carries no build ID, so a patch for it could not be tied to it.
+
+Nothing was uploaded. Create a new release and patch that instead.''',
+    );
+    throw ProcessExit(ExitCode.software.code);
+  }
+
   /// Resolve the compiler cell belonging to the release's engine.
   ///
   /// The two [RouteBCompilerProblem] cases are kept distinct all the way to the
@@ -489,15 +599,20 @@ it compiles, however, comes from the engine above.''',
   Never _requireRouteBProducer(
     RouteBCompiler compiler,
     Map<String, File> releaseArtifacts,
+    RouteBCoverage coverage,
+    String buildId,
   ) {
+    final targets = [...coverage.representable, ...coverage.conditional];
     logger.err(
       '''
-Everything this patch needs resolved and validated, but this build of Shorebird cannot yet compile it.
+This patch is representable and everything needed to build it resolved and validated, but this build of Shorebird cannot yet compile the replacement bodies.
 
-  compiler        ${compiler.compilerSnapshot.path}
-  analyzer        ${compiler.analyzer.path}
-  release kernel  ${releaseArtifacts[routeBReleaseKernelFileName]!.path}
-  import kernel   ${releaseArtifacts[routeBReleaseImportKernelFileName]!.path}
+  release        $buildId
+  targets        ${targets.length} (${coverage.representable.length} static-shaped, ${coverage.conditional.length} instance)
+  compiler       ${compiler.compilerSnapshot.path}
+  import kernel  ${releaseArtifacts[routeBReleaseImportKernelFileName]!.path}
+
+${targets.map((t) => '    $t').join('\n')}
 
 This is not a problem with your release, your Dart changes, or the tooling.
 Nothing was uploaded.''',

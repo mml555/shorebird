@@ -1325,11 +1325,85 @@ corrected check still reports 59 and refuses.
 Both kernels are hashed into `route_b.json`'s `artifacts` map and the patch side
 requires and verifies both, naming which one is missing.
 
-### Still not wired into `ios_patcher`
+### Producer branch — orchestration landed, one gap left
 
-The branch resolves the cell, verifies the whole release package, and refuses —
-naming the compiler, the analyzer and both release kernels it has in hand. What
-is left is the compile and the pack.
+`ios_patcher` now runs, in this order:
+
+```
+verify the release is patchable (shipped bytes)
+verify route_b.json
+verify both release kernels by hash
+resolve the six-file cell by the release engine hash
+verify the two release kernels describe the same program   <-- in the PATCH path
+coverage: release_app.dill vs the patch's app.dill
+refuse the WHOLE patch on any rejection                    <-- before any compile
+derive LC_UUID from the shipped App
+                                                           <-- and stops here
+```
+
+**Coverage before bytecode, deliberately.** A patch that cannot be represented
+has no business invoking a compiler, and the ordering keeps attribution clean:
+a coverage rejection, a compiler failure and a container failure are three
+different problems and none is reachable through another.
+
+**The kernel-agreement check runs in the patch path too**, not only at release
+time. That turns "two files exist and hash correctly" into "same release engine,
+same release inputs, two intentionally different lowering modes".
+
+Ported into the CLI, with the host tools left as the reference:
+
+| piece | note |
+|---|---|
+| SBRBPTCH writer/reader | `route_b_container.dart`, byte-compatible with `packaging/patch_container.dart` |
+| LC_UUID | parsed from Mach-O in Dart — no `dwarfdump` dependency, and it agrees with it on the real fixture App (`3527f013…`) |
+
+**The container format is deterministic** — no timestamps, no ordering that
+depends on anything but the target list. So the host-equivalence gate can
+legitimately require exact SHA equality rather than a semantic comparison.
+
+### The gap: one payload is one function
+
+`Dart_RouteBActivatePatch` is unambiguous:
+
+```c
+loaded = loader.LoadBytecode();      // ONE Function from the payload
+const auto& bc = loaded.GetBytecode();
+target.AttachBytecode(bc);
+```
+
+So each target needs its own payload containing exactly one replacement
+function — which is what `build_4b_artifact.sh` hand-wrote:
+
+```dart
+@pragma('dyn-module:entry-point')
+String routeBValue() => 'NEW';
+```
+
+The producer has to generate that source per changed target, and the two
+general alternatives are both closed:
+
+| strategy | result |
+|---|---|
+| compile the patched app's own entrypoint as `input.dart` | **crashes** — the library collides with `--import-dill` (`kernel_generator_impl.dart:179`) |
+| compile the whole patched app under an aliased package name | compiles (617 bytes), but `LoadBytecode()` returns one function, so nothing selects a target out of it |
+| synthetic per-target replacement library | **works** — and is what the device gate already proved |
+
+This is the last architectural piece, and it is not orchestration. What it
+needs, per target:
+
+- the new body's source, and the imports it references
+- an enclosing context for class members, which cannot be redeclared elsewhere
+- private members (`_foo`) resolve per-library, so a synthetic library cannot
+  name them
+- whether a top-level replacement can serve as an instance method body (the
+  interpreter receiving `this` as argument 0) is a RUNTIME question and is
+  unproven — the runtime is frozen, so it must be measured, not assumed
+
+The narrow path that is already proven end to end — a top-level function with
+no references to app symbols — is exactly the shape of the device gate's
+fixture. Widening it is the next design decision, and it should be made with the
+same discipline as the rest: cheapest probe first, on the fixture, before any
+general scheme is written.
 
 The runtime is proven and should not be touched. After runtime has been proven,
 assume producer / provenance / release-construction first — including the

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -29,6 +30,8 @@ import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
+import 'package:shorebird_cli/src/route_b_coverage.dart';
+import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_documentation.dart';
@@ -45,6 +48,15 @@ import '../../fakes.dart';
 import '../../helpers.dart';
 import '../../matchers.dart';
 import '../../mocks.dart';
+
+/// A stand-in path for fallback values mocktail only needs to type-check.
+const _nowhere = _NowhereFile();
+
+class _NowhereFile implements File {
+  const _NowhereFile();
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 void main() {
   group(IosPatcher, () {
@@ -66,6 +78,8 @@ void main() {
     late PatchDiffChecker patchDiffChecker;
     late Progress progress;
     late RouteBCompilerResolver routeBCompilerResolver;
+    late RouteBCoverageAnalyzer routeBCoverageAnalyzer;
+    late RouteBReleaseKernelBuilder routeBReleaseKernelBuilder;
     late ShorebirdArtifacts shorebirdArtifacts;
     late ShorebirdProcess shorebirdProcess;
     late ShorebirdEnv shorebirdEnv;
@@ -91,6 +105,10 @@ void main() {
           patchDiffCheckerRef.overrideWith(() => patchDiffChecker),
           processRef.overrideWith(() => shorebirdProcess),
           routeBCompilerResolverRef.overrideWith(() => routeBCompilerResolver),
+          routeBCoverageAnalyzerRef.overrideWith(() => routeBCoverageAnalyzer),
+          routeBReleaseKernelBuilderRef.overrideWith(
+            () => routeBReleaseKernelBuilder,
+          ),
           shorebirdArtifactsRef.overrideWith(() => shorebirdArtifacts),
           shorebirdEnvRef.overrideWith(() => shorebirdEnv),
           shorebirdFlutterRef.overrideWith(() => shorebirdFlutter),
@@ -108,6 +126,17 @@ void main() {
       registerFallbackValue(ReleasePlatform.ios);
       registerFallbackValue(ShorebirdArtifact.genSnapshotIos);
       registerFallbackValue(Uri.parse('https://example.com'));
+      registerFallbackValue(
+        const RouteBCompiler(
+          runtime: _nowhere,
+          compilerSnapshot: _nowhere,
+          platformDill: _nowhere,
+          analyzer: _nowhere,
+          frontend: _nowhere,
+          flutterPlatformDill: _nowhere,
+          provenance: '',
+        ),
+      );
     });
 
     setUp(() {
@@ -127,6 +156,8 @@ void main() {
       progress = MockProgress();
       projectRoot = Directory.systemTemp.createTempSync();
       routeBCompilerResolver = MockRouteBCompilerResolver();
+      routeBCoverageAnalyzer = MockRouteBCoverageAnalyzer();
+      routeBReleaseKernelBuilder = MockRouteBReleaseKernelBuilder();
       logger = MockShorebirdLogger();
       shorebirdArtifacts = MockShorebirdArtifacts();
       shorebirdProcess = MockShorebirdProcess();
@@ -1126,12 +1157,25 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
           );
         }
 
+        /// A minimal Mach-O carrying an LC_UUID and [sites] patchable call
+        /// pairs, so both the patchability scan and the build-ID read work on
+        /// the same bytes they do in production.
         void writeReleaseAppBinary({required int sites}) {
+          const headerWords = 6; // 24-byte LC_UUID after a 32-byte header
           final words = Uint32List(1024 * 32)
             ..fillRange(0, 1024 * 32, 0xD503201F);
+          final header = ByteData.sublistView(words)
+            ..setUint32(0, 0xfeedfacf, Endian.little)
+            ..setUint32(16, 1, Endian.little) // ncmds
+            ..setUint32(32, 0x1b, Endian.little) // LC_UUID
+            ..setUint32(36, 24, Endian.little); // cmdsize
+          for (var i = 0; i < 16; i++) {
+            header.setUint8(40 + i, i + 1);
+          }
           for (var i = 0; i < sites; i++) {
-            words[i * 4] = 0xF840701E; // ldur lr, [r0, #7]
-            words[i * 4 + 1] = 0xD63F03C0; // blr lr
+            final at = (headerWords + 8) + i * 4;
+            words[at] = 0xF840701E; // ldur lr, [r0, #7]
+            words[at + 1] = 0xD63F03C0; // blr lr
           }
           File(
               p.join(projectRoot.path, 'Frameworks', 'App.framework', 'App'),
@@ -1166,6 +1210,40 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
           when(
             () => shorebirdEnv.shorebirdEngineRevision,
           ).thenReturn(releaseEngineRevision);
+          when(
+            () => routeBReleaseKernelBuilder.agreesWith(
+              compiler: any(named: 'compiler'),
+              importKernel: any(named: 'importKernel'),
+              aotKernel: any(named: 'aotKernel'),
+            ),
+          ).thenReturn(true);
+          when(
+            () => routeBCoverageAnalyzer.analyze(
+              compiler: any(named: 'compiler'),
+              baseDill: any(named: 'baseDill'),
+              patchedDill: any(named: 'patchedDill'),
+              includePrefixes: any(named: 'includePrefixes'),
+            ),
+          ).thenReturn(
+            RouteBCoverage.fromJson(
+              jsonEncode({
+                'analysisVersion': supportedRouteBAnalysisVersion,
+                'verdict': 'accept',
+                'changed': ['package:app/main.dart#routeBValue'],
+                'added': <String>[],
+                'removed': <String>[],
+                'patchable': ['package:app/main.dart#routeBValue'],
+                'conditional': <String>[],
+                'rejections': <Object>[],
+                'refusalSummary': null,
+              }),
+            ),
+          );
+          // The patch build's own kernel, which coverage diffs against the
+          // release's.
+          File(p.join(projectRoot.path, 'build', 'app.dill'))
+            ..createSync(recursive: true)
+            ..writeAsStringSync('PATCH-KERNEL');
           when(
             () => routeBCompilerResolver.resolve(
               engineRevision: any(named: 'engineRevision'),
@@ -1501,6 +1579,206 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
               verify(
                 () => logger.err(
                   any(that: contains('Could not reach https://x')),
+                ),
+              ).called(1);
+            });
+
+            test('refuses when the release kernels disagree', () async {
+              // Two files that exist and hash correctly are not the same claim
+              // as two lowerings of one program. The producer must never
+              // compile against an import kernel describing something else.
+              when(
+                () => routeBReleaseKernelBuilder.agreesWith(
+                  compiler: any(named: 'compiler'),
+                  importKernel: any(named: 'importKernel'),
+                  aotKernel: any(named: 'aotKernel'),
+                ),
+              ).thenReturn(false);
+
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                exitsWithCode(ExitCode.software),
+              );
+
+              verifyNever(
+                () => routeBCoverageAnalyzer.analyze(
+                  compiler: any(named: 'compiler'),
+                  baseDill: any(named: 'baseDill'),
+                  patchedDill: any(named: 'patchedDill'),
+                  includePrefixes: any(named: 'includePrefixes'),
+                ),
+              );
+              verify(
+                () => logger.err(
+                  any(that: contains('do not describe the same program')),
+                ),
+              ).called(1);
+            });
+
+            test('analyzes coverage against the RELEASE kernel', () async {
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                exitsWithCode(ExitCode.software),
+              );
+
+              final captured = verify(
+                () => routeBCoverageAnalyzer.analyze(
+                  compiler: any(named: 'compiler'),
+                  baseDill: captureAny(named: 'baseDill'),
+                  patchedDill: captureAny(named: 'patchedDill'),
+                  includePrefixes: any(named: 'includePrefixes'),
+                ),
+              ).captured;
+              expect(
+                (captured[0] as File).path,
+                p.join(supplementDirectory.path, routeBReleaseKernelFileName),
+              );
+              expect(
+                (captured[1] as File).path,
+                p.join(projectRoot.path, 'build', 'app.dill'),
+              );
+            });
+
+            test('refuses the WHOLE patch on any rejection', () async {
+              // 4 changed, 3 representable, 1 not. Shipping the 3 would leave
+              // the app running some functions from the patch and some from
+              // the release.
+              when(
+                () => routeBCoverageAnalyzer.analyze(
+                  compiler: any(named: 'compiler'),
+                  baseDill: any(named: 'baseDill'),
+                  patchedDill: any(named: 'patchedDill'),
+                  includePrefixes: any(named: 'includePrefixes'),
+                ),
+              ).thenReturn(
+                RouteBCoverage.fromJson(
+                  jsonEncode({
+                    'analysisVersion': supportedRouteBAnalysisVersion,
+                    'verdict': 'reject',
+                    'changed': ['a#alpha', 'a#beta', 'a#gamma', 'a#Shape.d'],
+                    'added': <String>[],
+                    'removed': <String>[],
+                    'patchable': ['a#alpha', 'a#beta', 'a#gamma'],
+                    'conditional': <String>[],
+                    'rejections': [
+                      {
+                        'target': 'a#Shape.d',
+                        'category': 'unreachable',
+                        'reason':
+                            'abstract; call sites dispatch to '
+                            'implementations',
+                      },
+                    ],
+                    'refusalSummary': '1 changed member(s) are not reachable',
+                  }),
+                ),
+              );
+
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                exitsWithCode(ExitCode.software),
+              );
+
+              verify(
+                () => logger.err(
+                  any(
+                    that: allOf(
+                      contains('1 of 4 changed members'),
+                      contains('a#Shape.d'),
+                      contains('abstract; call sites dispatch'),
+                      contains('The whole patch is refused'),
+                    ),
+                  ),
+                ),
+              ).called(1);
+            });
+
+            test(
+              'refuses an inert patch rather than shipping a no-op',
+              () async {
+                when(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: any(named: 'includePrefixes'),
+                  ),
+                ).thenReturn(
+                  RouteBCoverage.fromJson(
+                    jsonEncode({
+                      'analysisVersion': supportedRouteBAnalysisVersion,
+                      'verdict': 'inert',
+                      'changed': <String>[],
+                      'added': <String>[],
+                      'removed': <String>[],
+                      'patchable': <String>[],
+                      'conditional': <String>[],
+                      'rejections': <Object>[],
+                      'refusalSummary': null,
+                    }),
+                  ),
+                );
+
+                await expectLater(
+                  () => runWithOverrides(
+                    () => patcher.createPatchArtifacts(
+                      appId: appId,
+                      releaseId: releaseId,
+                      releaseArtifact: releaseArtifactFile,
+                      supplementDirectory: supplementDirectory,
+                    ),
+                  ),
+                  exitsWithCode(ExitCode.software),
+                );
+
+                verify(
+                  () => logger.err(
+                    any(that: contains('would install and change nothing')),
+                  ),
+                ).called(1);
+              },
+            );
+
+            test('stamps the release identity from the shipped bytes', () async {
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                exitsWithCode(ExitCode.software),
+              );
+
+              // The LC_UUID written into the fixture App binary (bytes 1..16),
+              // which is what OS::GetAppBuildId reports on device. Read from
+              // the shipped bytes, so re-signing cannot change it.
+              verify(
+                () => logger.err(
+                  any(that: contains('0102030405060708090a0b0c0d0e0f10')),
                 ),
               ).called(1);
             });

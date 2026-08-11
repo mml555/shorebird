@@ -106,6 +106,8 @@ release-construction first when something fails.
 | the release uploads BOTH kernels it owes, hashed, and the patch reads only those | `route_b_provenance.dart`, `ios_releaser.dart`, `ios_patcher.dart` |
 | the second kernel is built by the RELEASE engine's frontend, from the cell | `route_b_release_kernels.dart`, cell artifact `route_b_gen_kernel.aot` |
 | forwarded build inputs are checked, not promised | `RouteBReleaseKernelBuilder.agreesWith` |
+| coverage runs before any compile, and a rejection takes the whole patch | `ios_patcher.dart` |
+| the container and the release build ID are the CLI's own, deterministic | `route_b_container.dart` |
 
 #### Three failure signatures that cost real time, now detected
 
@@ -182,22 +184,49 @@ Two things the checks found rather than assumed:
   `get:`/`set:` differences are structural and excluded from the agreement
   check — with a negative control proving the check still bites.
 
+#### Producer branch — orchestration landed 2026-08-10
+
+`ios_patcher` verifies the release package, resolves the six-file cell, checks
+that the two release kernels describe the same program, runs coverage against
+the release's own kernel, refuses the whole patch on any rejection, derives the
+LC_UUID from the shipped bytes — and stops. Coverage runs BEFORE any compile so
+a coverage rejection, a compiler failure and a container failure stay three
+distinct problems.
+
+The SBRBPTCH writer and the Mach-O build-ID reader are ported into the CLI
+(`route_b_container.dart`); the host tools remain the reference. The format is
+deterministic, so the host-equivalence gate can require exact SHA equality.
+
+#### THE REMAINING GAP — read this before planning "just orchestration"
+
+`Dart_RouteBActivatePatch` calls `LoadBytecode()`, takes the ONE `Function` it
+returns, and attaches that function's bytecode to the target. So **one payload
+is one function**, and the producer must generate a synthetic replacement
+library per changed target. Both general alternatives are closed, measured:
+
+- compiling the patched app's own entrypoint against `--import-dill` **crashes**
+  (library collision, `kernel_generator_impl.dart:179`)
+- compiling the whole app under an aliased package name compiles, but nothing
+  selects a target out of a single loaded function
+
+Unknowns that must be probed on the fixture before any general scheme:
+class members cannot be redeclared in another library, private members resolve
+per-library, and whether a top-level replacement can serve as an instance method
+body is a RUNTIME question against a frozen runtime.
+
 #### Next session, in order
 
-1. **Wire the producer branch** in `ios_patcher`: coverage (release_app.dill vs
-   the patch's app.dill), then `dart2bytecode --target flutter --import-dill
-   release_import.dill`, derive the LC_UUID build ID, pack SBRBPTCH, hand it to
-   the existing bidiff/zstd + upload path.
-2. **Host-level equivalence**: a `shorebird patch` run must produce the same
-   SBRBPTCH as the known-good host tooling for the same input.
-3. **Fresh release**, then the automatic device gate: OLD -> `shorebird patch`
+1. **Probe the replacement-source question** on the fixture, cheapest first:
+   top-level with app references, then a class method, then a private member.
+   Each is a device-observable yes/no.
+2. **Generate replacement sources** for whatever shape the probes support, and
+   refuse the rest by name — the coverage taxonomy already has the vocabulary.
+3. **Host-level equivalence**: `shorebird patch` must produce the same SBRBPTCH
+   bytes as the known-good host tooling for the same input. Exact SHA is fair —
+   the format is deterministic.
+4. **Fresh release**, then the automatic device gate: OLD -> `shorebird patch`
    -> NEW -> relaunch NEW -> rollback OLD, nothing manual in between.
-4. **Sealed regression.**
-
-Do NOT widen dispatch-table support first. Kernel-only analysis provably cannot
-distinguish the relevant instance-call cases; closing it means call-site
-analysis of the release `App` binary, which is a coverage expansion rather than
-a producer blocker.
+5. **Sealed regression.**
 
 ### The boundary that was crossed
 
