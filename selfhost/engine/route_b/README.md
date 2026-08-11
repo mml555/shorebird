@@ -952,3 +952,52 @@ downloaded Metal Toolchain. Host before iOS is deliberate: a macOS release
 build is also a precompiled runtime, so it exercises the same
 `DART_PRECOMPILED_RUNTIME` + `DART_DYNAMIC_MODULES` pairing with no signing, no
 device, and a roughly one-minute incremental loop.
+
+## Next session starts here — compiler-cell selection
+
+Provenance is complete on both ends and **not yet load-bearing**:
+`ios_patcher.dart` still raises tooling-unavailable directly instead of calling
+`resolveRouteBCompiler`. Until it does, the strongest guarantee in this system
+sits beside production rather than inside it.
+
+### The invariant
+
+> **Compiler-cell selection must be release-relative, never
+> environment-relative.**
+
+A resolver can be perfectly correct and still validate the *wrong* cell if its
+engine hash comes from ambient state. That failure wears the disguise of a
+passing check, which makes it worse than no check: every hash matches, the
+capability probe passes, and the compiler is still from the wrong lineage.
+
+### The open question, and why it is not yet answered
+
+`cache.dart`'s `CachedArtifact` keys its storage URL on
+`shorebirdEnv.shorebirdEngineRevision` — the **current** engine. During
+`shorebird patch` that is *probably* the release's engine, because the command
+switches to the release's Flutter revision before the patcher runs. "Probably"
+is exactly the word that has cost this project days elsewhere. Verify it; do not
+assume it.
+
+### Sequence
+
+1. Trace `patch_command.dart` and prove which engine revision reaches
+   `ios_patcher`.
+2. If it is release-derived and stable, document the invariant at that site.
+3. If it is not, thread the release engine hash through explicitly.
+4. Add a fetcher keyed on that hash — no existing accessor does this.
+5. Replace `_requireRouteBProducer()` with
+   `resolveRouteBCompiler(releaseEngineHash)`.
+6. Preserve all three failures, with no fallback in any of them:
+   **release incompatible** · **tooling unavailable** · **tooling invalid**.
+7. Only then port the coverage analysis, **mechanically**: same input -> same
+   target set -> same verdicts as the host tooling in this directory. Do not
+   reinterpret it while moving it. A divergence introduced during the port is
+   indistinguishable from a genuine "unsupported target" result, which is the
+   one thing the whole provenance chain exists to make trustworthy.
+
+The runtime is proven and should not be touched. After runtime has been proven,
+assume producer / provenance / release-construction first — including the
+release-time `--patchable_static_calls` flag, which is upstream of runtime even
+though its symptom ("attached correctly, nothing changed") looks like a runtime
+failure.
