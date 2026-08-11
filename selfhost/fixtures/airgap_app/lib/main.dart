@@ -57,7 +57,7 @@ const String kReleaseState = 'AIRGAP-FIXTURE-V1';
 @pragma('vm:never-inline')
 @pragma('vm:entry-point')
 String routeBValue() =>
-    DateTime.now().millisecondsSinceEpoch >= 0 ? 'NEW' : 'X';
+    DateTime.now().millisecondsSinceEpoch >= 0 ? 'OLD' : 'X';
 
 /// ONE call site, exercised before, during and after the patch. Reading the
 /// same site three times is the actual claim -- that an ordinary compiled call

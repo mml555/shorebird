@@ -1454,6 +1454,85 @@ coverage → compile → pack:
 | `RouteBUnsupportedTarget` | coverage said yes and the compiler or the span disagreed — a toolchain problem, not a Dart one |
 | container failure | the bytes could not be packed or read |
 
+#### THE AUTOMATIC DEVICE GATE — PASSED 2026-08-11
+
+iPhone 7, iOS 15.8.8, USB. Release `10.0.0+1`, patch 2. **Nothing manual
+between the source edit and the device.**
+
+| step | evidence |
+|---|---|
+| `shorebird release ios` | "this release is being built with patchable call sites"; verified **7,109 sites (1,788/MiB)** |
+| release provenance | `[route-b] recorded engine 591a9f8d… and 2 artifact(s)`; `release_app.dill` 26 MB + `release_import.dill` 54.8 MB + `route_b.json` |
+| device, release | **route B value: OLD**, code patch: none |
+| one-line source edit | `routeBValue` body → `'NEW'` |
+| `shorebird patch ios` | cell resolved by the RELEASE engine hash → coverage → `[route-b] compiled routeBValue` → **packed 759 bytes for release `f1e3a7ba…`** → normal artifact → **Published Patch 2** |
+| release identity | the container's stamp equals the installed App's `LC_UUID` (`f1e3a7ba7ed93b24857e24911c130d85`) |
+| device, patched | **route B value: NEW**, code patch: **2** |
+| relaunch | **NEW**, code patch 2 — persisted |
+| withdraw + rollback | **route B value: OLD**, code patch: none — pristine AOT |
+
+Screenshots: `evidence/auto_1_release_OLD.png` … `auto_4_rollback_OLD.png`.
+
+**The claim, stated exactly:** `shorebird release` and `shorebird patch` work end
+to end on iOS without Shorebird's private AOT linker, **for a replacement body
+that references nothing outside itself**. Not "arbitrary Dart functions".
+
+#### What the gate found that nothing else could
+
+Three defects, none of which any host test could have produced:
+
+1. **The Route B scoped refs were never registered in production.** Every test
+   injected them, so `read` threw the first time a real release reached
+   `_captureImportKernel` — after the build had already verified 7,109 call
+   sites. Unit tests are structurally incapable of catching this.
+2. **Source spans are code-unit offsets, not byte offsets.** Three non-ASCII
+   characters in the fixture's comments put the slice 6 bytes early: the
+   generated library began mid-word (`dart.`) and ended before its `;`.
+   `dart2bytecode` refused it with **exit 254 and an empty stderr**. The corpus
+   is pure ASCII, where the two conventions coincide.
+3. **Probe A is already answered, and the answer is NO.** See below.
+
+#### Probe A, answered by accident: `dart:core` references do not resolve
+
+The fixture's real `routeBValue` routes through `DateTime.now()` to defeat
+constant folding. The producer faithfully copied that body — and the device said:
+
+```
+ROUTEB: hook entered
+ROUTEB: parsed, targets=1, built-for=f1e3a7ba7ed93b24857e24911c130d85
+ROUTEB: running=f1e3a7ba7ed93b24857e24911c130d85
+bytecode_reader.cc:1172: error: Unable to find function DateTime.now
+                                in Library:'dart:core' Class: DateTime
+```
+
+Delivery, identity matching and activation were all **correct**. The bytecode
+loader could not resolve a **core-library** reference from the replacement body.
+
+That reframes the supported shape, which was previously described here as "a
+self-contained declaration". It is narrower:
+
+> a replacement body may reference **nothing outside itself** — not app symbols,
+> and not `dart:core` either.
+
+The hand-written body the 4b milestone proved was `String routeBValue() => 'NEW';`
+— a bare literal. The gate above passed only once the patch's body was reduced to
+that same form.
+
+So the widening ladder starts one rung lower than planned:
+
+| probe | question | status |
+|---|---|---|
+| **A0 · dart:core reference** | can a body call `DateTime.now()`? | **NO** — `bytecode_reader.cc:1172`, measured |
+| A · app-symbol reference | can it call another app function? | untested; A0 suggests the same retention question |
+| B · instance method | can a top-level replacement attach to `Foo.value` and get the instance calling convention? | untested, must be ON DEVICE |
+| C · `this` access | receiver/member addressing | untested |
+| D · private references | `_foo` is library-scoped identity | untested |
+
+A0's shape — *what does the bytecode loader resolve names against, and what
+retains them* — is now the first question, and it is a retention/interface
+question rather than a producer one. `gen_dynamic_interface.dart` retains app
+libraries; nothing retains `dart:core` members by name.
+
 #### The widening questions, in the order to probe them
 
 Not designed, because the probes should decide. Each is device-observable and
