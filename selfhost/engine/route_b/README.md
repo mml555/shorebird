@@ -1986,6 +1986,52 @@ The kernel-AST transformer (Design A) stays parked. It needs `dart2bytecode` to
 accept a dill input — another fork change, another engine hash, another cell —
 and nothing yet shows kernel-guided textual edits cannot be made safely.
 
+#### The call form, and what the AOT kernel will not tell you — 2026-08-11
+
+Engine `ebcf143f`, release `20.0.0+1`. `String value() => helper();` shipped as
+`String value(RouteBThing self) => self.helper();` and read `NEW-C2` on the
+phone, with the interpreted replacement dispatching into the release's own AOT
+`helper()`. Evidence `evidence/call_*`.
+
+The lexical edit did not change: Kernel puts `InstanceInvocation.fileOffset` on
+the identifier exactly as it does for a read. The work was in the analyzer's
+judgement — public, zero-argument, receiver-bound — and in discovering that one
+part of that judgement cannot be made there at all.
+
+**`gen_kernel --aot` erases arguments.** A parameter whose argument is always
+the same constant is eliminated, so in the release kernel
+
+```
+withArgs('x')      reads as 0 positional arguments
+withArgs           declares 0 positional parameters
+```
+
+while the `--no-aot` kernel of the same source says one. Measured on both dills,
+not inferred. The analyzer reads the AOT kernel BY DESIGN — it is the kernel
+that fed the release, which is the whole provenance argument — so an argument
+gate built on Kernel silently passes.
+
+Whether a call is WRITTEN with arguments is a syntactic question, so the source
+answers it, exactly as it already answers `this.` versus bare. It is a refusal,
+so a false positive costs a rejected patch rather than a wrong one, and the
+analyzer keeps its own check for the cases TFA leaves alone.
+
+The general lesson is worth keeping: **the release kernel is authoritative about
+identity and resolution, and not about syntax.** It has been through TFA. Ask it
+what a name means; do not ask it what the programmer typed.
+
+A related consequence, unproven and not currently biting: a getter whose value
+TFA can fold would disappear from the AOT kernel, and the analyzer would report
+no access for it. That fails LOUDLY — the generated library would name an
+undefined symbol and `dart2bytecode` would refuse — rather than shipping
+something wrong. The device fixture's `label` is not folded; both
+`evidence/lowering_*` and `evidence/call_*` are against a fixture where it
+survives.
+
+The matrix is pinned in two places: `probes/lowering_matrix.sh` (13/13, what the
+analyzer decides, against real Kernel) and `probes/lowered_forms.sh` (8/8, all
+four spellings through the real cell and container on the host).
+
 ### The SDK set is a budget
 
 `routeBRetainedSdkMembers` is curated and name-driven: `print`, `DateTime.now`,
