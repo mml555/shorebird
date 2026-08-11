@@ -105,6 +105,22 @@ note "release, with retention declared the way a real release declares it"
 BUILD_ID=$("$AOT_RUNTIME" app.aot | sed -n 's/^BUILD_ID //p')
 [ -n "$BUILD_ID" ] || die "no release build id"
 
+# An arm the compiler is SUPPOSED to reject.
+run_arm_refuses() { # <label> <source> <ignored>
+  local label="$1" body="$2"
+  local dir="$WORK/$label"; mkdir -p "$dir"
+  printf "import '%s';\n\n%s\n" "$URI" "$body" > "$dir/repl.dart"
+  if "$DART" "$DART2BC" --platform "$OUT/vm_platform.dill" \
+      --import-dill import.dill --packages .dart_tool/package_config.json \
+      -o "$dir/repl.bytecode" "$dir/repl.dart" > "$dir/compile.log" 2>&1; then
+    echo "  FAIL  $label (compiled, but the contract must refuse it)"
+    fail=$((fail+1)); return
+  fi
+  { grep -m1 "Dynamic Module Entry Point" "$dir/compile.log" || true; } \
+    | sed 's/^/      /'
+  echo "  PASS  $label (refused, as the contract requires)"; pass=$((pass+1))
+}
+
 run_arm() { # <label> <replacement source, pragma included> <expected value>
   local label="$1" body="$2" want="$3"
   local dir="$WORK/$label"; mkdir -p "$dir"
@@ -129,6 +145,10 @@ run_arm() { # <label> <replacement source, pragma included> <expected value>
   "$AOT_RUNTIME" app.aot "$dir/patch.sbrb" > "$dir/run.log" 2>&1
   set -e
 
+  # The value the APP's own call site reads, not the harness's. The reference
+  # installer smoke-invokes the target from C++ with a NULL receiver right
+  # after attaching; for a body that dereferences `self` that throws
+  # NoSuchMethodError, which is correct and says nothing about the real call.
   local got
   got=$(sed -n 's/^after .*thing=//p' "$dir/run.log" | tail -1)
   grep -q '^APPLY' "$dir/run.log" && echo "  $(grep -m1 '^APPLY' "$dir/run.log")"
@@ -159,16 +179,16 @@ run_arm c0 \
 String value(RouteBThing self) => DateTime.now().millisecondsSinceEpoch >= 0 ? 'NEW-C0' : 'X';" \
   'NEW-C0'
 
-note "C0b — a synthetic INSTANCE method, the other way to carry a receiver"
-# The message C0 fails with says "static no-argument", so this asks whether the
-# entry-point rule rejects instance-ness as well as arity. If both are refused,
-# the boundary is the compiler's entry-point contract and not the interpreter.
-run_arm c0b \
+note "C0b — a synthetic INSTANCE method: still refused, deliberately"
+# The relaxation is one POSITIONAL PARAMETER and nothing else. Instance-ness
+# stays refused so "relax the restriction" cannot become a general loosening;
+# c_entrypoint_arity.sh pins the whole contract.
+run_arm_refuses c0b \
   "class RouteBReplacement {
   @pragma('dyn-module:entry-point')
   String value() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'NEW-C0b' : 'X';
 }" \
-  'NEW-C0b'
+  ''
 
 note "C1 — the receiver actually used, public member"
 # Public `label`, never `_label`: private identity is library-scoped and belongs
