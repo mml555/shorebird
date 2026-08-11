@@ -43,13 +43,15 @@ because a 2026-08-04 paragraph phrases it as open.
 ### The capability statement (authoritative — do not restate it more warmly)
 
 > **Android Dart code push and iOS asset push are complete and independent. The
-> entire iOS Dart code-push RUNTIME is proven on physical hardware — control
-> plane -> updater download -> inflate -> hash check -> install -> lifecycle
-> promotion -> native pre-main activation -> patched Dart running -> relaunch
-> still patched -> rollback to pristine AOT, with no Dart-side cooperation, at
-> +4.5 % size and +0.3 % median frame time with zero added jank. What is NOT
-> built is the PRODUCER: `shorebird patch` cannot emit an iOS code patch, so the
-> container that proved all of the above was packed by hand.**
+> entire iOS Dart code-push path — PRODUCER INCLUDED — is proven on physical
+> hardware: `shorebird release ios` -> one-line source edit -> `shorebird patch
+> ios` -> control plane -> updater download -> inflate -> hash check -> install
+> -> lifecycle promotion -> native pre-main activation -> patched Dart running
+> -> relaunch still patched -> rollback to pristine AOT, with no Dart-side
+> cooperation and nothing manual in between, at +4.5 % size and +0.3 % median
+> frame time with zero added jank. The limit is the REPLACEMENT BODY: it may
+> reference nothing outside itself, `dart:core` included. A body calling
+> `DateTime.now()` fails in the bytecode loader (Probe A0).**
 
 *The runtime is proven; the producer is not.* Both are true at once and they are
 different claims -- do not let "iOS code push works on the device" become "iOS
@@ -66,11 +68,11 @@ lifecycle state, rollback, relaunch reads pristine OLD.
 Both vetoes closed the same day: +4.5 % size and, over five alternating paired
 runs, +0.3 % median frame time with 0 janky frames in 3,000 per arm.
 
-What remains is the producer. `shorebird patch` cannot emit an iOS code patch --
-it now resolves and validates the release's own compiler cell and then refuses,
-because the compile / coverage / pack steps are not written -- so the container
-that proved everything above was packed by hand. Everything downstream of those
-bytes is proven.
+The producer exists and is proven on device (2026-08-11, release 10.0.0+1, patch
+2): `shorebird patch ios` resolves the release's own compiler cell, runs
+coverage, compiles the replacement body, packs the container and ships it
+through the ordinary artifact path. What is NOT proven is any replacement body
+that references something outside itself — see "Probe A0" below.
 
 ### Route B state, 2026-08-10 — what is proven, what is next
 
@@ -250,27 +252,61 @@ product path**.
 `hash` = sha256(CONTAINER) because `check_hash()` runs against the inflated
 result; `size` = bytes(ARTIFACT). Same split the linker path already used.
 
+#### THE AUTOMATIC DEVICE GATE — PASSED 2026-08-11
+
+iPhone 7, iOS 15.8.8, USB. Release `10.0.0+1`, patch 2, nothing manual between
+the source edit and the device: OLD -> NEW -> relaunch NEW -> rollback ->
+pristine OLD. Detail and screenshots in
+[`engine/route_b/README.md`](engine/route_b/README.md).
+
+**Say it exactly:** `shorebird release` and `shorebird patch` work end to end on
+iOS without Shorebird's private AOT linker, **for a replacement body that
+references nothing outside itself**.
+
+Three defects only hardware could find:
+
+1. the Route B scoped refs were never registered in production — every test
+   injected them, so `read` threw on the first real release, after it had
+   already verified 7,109 patchable call sites;
+2. source spans are code-unit offsets, not bytes — three non-ASCII characters
+   put the slice 6 bytes early and `dart2bytecode` refused with exit 254 and an
+   empty stderr;
+3. **Probe A0 answered NO** (below).
+
+#### Probe A0 — `dart:core` references do not resolve
+
+The fixture's real body calls `DateTime.now()`. Delivery, identity matching and
+activation were all correct, and then:
+
+```
+bytecode_reader.cc:1172: error: Unable to find function DateTime.now
+                                in Library:'dart:core' Class: DateTime
+```
+
+So the supported shape is narrower than "a self-contained declaration": a body
+may reference NOTHING outside itself, `dart:core` included. The 4b milestone's
+hand-written body was a bare literal, and the gate passed only once the patch's
+body was reduced to the same form.
+
 #### Next session, in order
 
-1. **The device gate**, narrow shape only. Fresh release, because the newer
-   provenance requirements all matter: shipped App verified patchable, and the
-   supplement records the engine plus BOTH kernels.
+1. **Probe A0 properly**: what does the bytecode loader resolve names against,
+   and what retains them? `gen_dynamic_interface.dart` retains app libraries;
+   nothing retains `dart:core` members by name. A retention/interface question,
+   not a producer one, and it now precedes probes A-D.
+2. **Then the rest of the ladder**, on device, in order: app-symbol reference,
+   public instance method (the `this`/arg0 question), `this` access, private
+   references.
+3. **Sealed regression** for the narrow path, which is now a complete product
+   path and worth locking down before it widens.
 
-   ```
-   routeBValue() => 'OLD'   ->  shorebird release ios
-   change to 'NEW'          ->  shorebird patch ios
-   device: OLD -> NEW -> relaunch NEW -> rollback -> pristine OLD
-   ```
-
-   Nothing manual in between. Corroborate with `.routeb`.
-2. **Sealed regression.**
-3. **Then widen, by probe, in this order** — A public top-level with
-   references, B public instance method (cheapest answer to the `this`/arg0
-   question, and it must be run ON DEVICE), C instance method using `this`,
-   D private/library-bound references. Do NOT mix these into the gate.
-
-One target, one payload. Do not teach the container or runtime to select a body
-out of a whole compiled app.
+Rig notes. `~/.shorebird` is a clone of this repo and the CLI snapshot is keyed
+on its git revision, so a code change needs
+`git -C ~/.shorebird checkout <rev> && rm bin/cache/shorebird.stamp`; it is
+currently on branch `device-gate` at the tip. Auth is
+`SHOREBIRD_TOKEN=$(docker exec cps-ios env | sed -n 's/^API_KEY=//p')` — the
+OAuth refresh token has expired. Reach the CDN over `http://localhost:8085`;
+the 8443 TLS cert fails Dart's verification.
 
 ### The boundary that was crossed
 
