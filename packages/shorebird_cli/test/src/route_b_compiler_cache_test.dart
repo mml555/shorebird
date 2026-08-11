@@ -300,22 +300,61 @@ flutter_platform_strong.dill : ${hash(flutterPlatform)}
         expect(cellDir.existsSync(), isFalse);
       });
 
-      test('reuses a bundle it already downloaded', () async {
-        stubDownload(bundleZip(engineInProvenance: 'some-other-engine'));
+      test('re-downloads once when a cached bundle fails validation', () async {
+        // A cell can be REPUBLISHED under the same engine hash — adding an
+        // artifact to it is exactly what the producer growing looks like — and
+        // the download is cached by hash and platform. Without this a stale
+        // bundle fails validation forever with a message that reads like
+        // corruption. It happened on the rig the day the interface generator
+        // joined the cell, and cost two releases before it was understood.
+        var served = 0;
+        when(() => httpClient.send(any())).thenAnswer((_) async {
+          served++;
+          return http.StreamedResponse(
+            // A stale cell first, then whatever is published now.
+            Stream.value(
+              served == 1
+                  ? bundleZip(omit: 'route_b_gen_dynamic_interface.aot')
+                  : bundleZip(engineInProvenance: 'some-other-engine'),
+            ),
+            HttpStatus.ok,
+          );
+        });
         stubRealExtraction();
 
-        Future<void> attempt() => expectLater(
+        // Still throws: the second cell is deliberately wrong too, because a
+        // capability probe cannot run against fake bytes. The claim under test
+        // is that it RE-FETCHED rather than failing on the cached copy forever.
+        await expectLater(
           runWithOverrides(
             () => resolver.resolve(engineRevision: engineRevision),
           ),
           throwsA(isA<RouteBCompilerException>()),
         );
 
-        await attempt();
-        await attempt();
+        expect(served, 2, reason: 'a stale cached bundle must be re-fetched');
+      });
 
-        // Validation re-runs every time — what is cached is the download, not
-        // the verdict.
+      test('does not re-download when nothing is published', () async {
+        // A 404 says the cell was never published, so re-fetching cannot help
+        // and retrying would only double the wait before the same answer.
+        when(() => httpClient.send(any())).thenAnswer(
+          (_) async => http.StreamedResponse(Stream.value(<int>[]), 404),
+        );
+
+        await expectLater(
+          runWithOverrides(
+            () => resolver.resolve(engineRevision: engineRevision),
+          ),
+          throwsA(
+            isA<RouteBCompilerException>().having(
+              (e) => e.problem,
+              'problem',
+              RouteBCompilerProblem.unavailable,
+            ),
+          ),
+        );
+
         verify(() => httpClient.send(any())).called(1);
       });
     });

@@ -64,16 +64,52 @@ class RouteBCompilerResolver {
   /// and [RouteBCompilerDownloadException] when it could not be fetched.
   Future<RouteBCompiler> resolve({required String engineRevision}) async {
     final root = cacheRoot;
-    return resolveRouteBCompiler(
-      engineHash: engineRevision,
-      cacheRoot: root,
-      fetchBundle: (hash) => _fetchBundle(hash, root),
-      extractTo: (archive, destination) => artifactManager.extractZip(
-        zipFile: archive,
-        outputDirectory: destination,
-      ),
-    );
+    try {
+      return await _resolve(engineRevision, root, allowCached: true);
+    } on RouteBCompilerException catch (error) {
+      // A cell can be REPUBLISHED under the same engine hash — adding an
+      // artifact to it is exactly what the producer growing looks like — and
+      // the download is cached by hash and platform. Without this, a stale
+      // bundle fails validation forever with a message that reads like
+      // corruption. It IS a bad cache, which is what the message already says;
+      // this acts on it.
+      //
+      // Only for `invalid`, and only once: a 404 means nothing is published so
+      // re-fetching cannot help, and a re-download that fails the same way must
+      // surface rather than loop.
+      final cached = _bundleFile(engineRevision, root);
+      if (error.problem != RouteBCompilerProblem.invalid ||
+          !cached.existsSync()) {
+        rethrow;
+      }
+      logger.detail(
+        '[route-b] cached bundle failed validation; re-downloading once',
+      );
+      cached.deleteSync();
+      return _resolve(engineRevision, root, allowCached: false);
+    }
   }
+
+  Future<RouteBCompiler> _resolve(
+    String engineRevision,
+    Directory root, {
+    required bool allowCached,
+  }) => resolveRouteBCompiler(
+    engineHash: engineRevision,
+    cacheRoot: root,
+    fetchBundle: (hash) => _fetchBundle(hash, root, allowCached: allowCached),
+    extractTo: (archive, destination) => artifactManager.extractZip(
+      zipFile: archive,
+      outputDirectory: destination,
+    ),
+  );
+
+  /// Where a downloaded bundle is kept.
+  ///
+  /// Deliberately not `<root>/<engineHash>`: that path is the validated cell,
+  /// and [resolveRouteBCompiler] deletes and re-creates it on every promotion.
+  static File _bundleFile(String engineHash, Directory root) =>
+      File(p.join(root.path, 'bundles', '$engineHash-$bundleFileName'));
 
   /// The bundle's platform-specific name, e.g. `route-b-compiler-darwin-arm64`.
   ///
@@ -91,13 +127,13 @@ class RouteBCompilerResolver {
     return 'route-b-compiler-$slug.zip';
   }
 
-  Future<File?> _fetchBundle(String engineHash, Directory root) async {
-    // Kept out of `<root>/<engineHash>`: that path is the validated cell, and
-    // resolveRouteBCompiler deletes and re-creates it on every promotion.
-    final cached = File(
-      p.join(root.path, 'bundles', '$engineHash-$bundleFileName'),
-    );
-    if (cached.existsSync()) {
+  Future<File?> _fetchBundle(
+    String engineHash,
+    Directory root, {
+    required bool allowCached,
+  }) async {
+    final cached = _bundleFile(engineHash, root);
+    if (allowCached && cached.existsSync()) {
       logger.detail('[route-b] using cached compiler bundle ${cached.path}');
       return cached;
     }
