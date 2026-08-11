@@ -13,6 +13,17 @@
 #
 # This is the cheapest discriminator available and it is now mandatory.
 #
+# RUN IT BEFORE THE PATCH BUILD. `shorebird patch ios` re-archives, overwriting
+# build/ios/archive/Runner.xcarchive with the PATCH build -- so afterwards this
+# compares the patch's own App binary against the patch's target and reports a
+# mismatch that means nothing. Capture the release's LC_UUID at install time and
+# use --expect from then on.
+#
+# Related trap on this rig: `shorebird release ios` fails the IPA export ("No
+# Accounts", "No profiles"). That is not fatal to the release or to a later
+# patch, but it leaves the PREVIOUS release's .ipa sitting in build/ios/ipa/
+# looking current. Install from the xcarchive, and delete the stale .ipa.
+#
 #   assert_installed_release.sh <path/to/Runner.app> <patch.log>
 #   assert_installed_release.sh <path/to/Runner.app> --expect <buildId>
 set -euo pipefail

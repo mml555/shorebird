@@ -1943,21 +1943,48 @@ Two things cost time and will again:
   new hash is byte-equivalent to the download that cannot happen. The
   `ios-release` engine was verified unchanged across the stamp.
 
-#### What C does NOT close
+#### What C did not close, and how it was closed — 2026-08-11
 
-The producer still cannot emit a one-parameter replacement from ordinary source.
-Turning
+C left the producer unable to emit a one-parameter replacement from ordinary
+source. Turning
 
 ```dart
 class RouteBThing { String value() => label; }
 ```
 
-into `String value(RouteBThing self) => self.label` is implicit-`this` lowering,
-and it needs its own design: `this.x`, bare `x`, `foo()`, setters, cascades,
-closures capturing `this`, `super`, generics. **Do it at the kernel AST level**,
-where receiver and member identity are already explicit — the source-span slicer
-is right for the static cases and is where textual reconstruction stops being
-safe.
+into `String value(RouteBThing self) => self.label` is implicit-`this` lowering.
+It is done for the getter forms, on device: engine `3568f73c`, release
+`19.0.0+1`, `OLD` -> `NEW-C1` -> relaunch -> rollback `OLD`, evidence
+`evidence/lowering_*`. The shipped text is byte-identical to what rung C packed
+by hand.
+
+**Kernel decides meaning; source text only supplies syntax.** Both halves matter
+and both were nearly got wrong:
+
+- The analyzer (`analysisVersion = 3`) reports, per instance target, the
+  receiver type, the method's name offset, and every receiver access with its
+  resolved member and the offset of the IDENTIFIER. The producer re-derives no
+  name resolution: a local `label`, a top-level `label` and `Cls.label` are
+  different Kernel nodes and simply never appear, so they are never touched.
+  There is a test for exactly that.
+- `label` and `this.label` are the SAME Kernel node, and the synthesized
+  `ThisExpression` carries the access's own `fileOffset` rather than one of its
+  own — so which one was written is NOT recoverable from the tree. That is the
+  single question the producer answers from source text, and it decides between
+  inserting `self.` and replacing `this.`.
+
+Everything else is refused rather than guessed: a call, a setter, `super`, a
+private member, a parameterised or generic method, or unusual spacing
+(`this . label`, which naive prefixing turns into `this .self.label` — it
+compiles, and then misbehaves on a device).
+
+Edits are applied right-to-left in **code units**. Byte offsets drifted six
+positions on a fixture with em dashes once already and produced a generated
+library that began mid-word.
+
+The kernel-AST transformer (Design A) stays parked. It needs `dart2bytecode` to
+accept a dill input — another fork change, another engine hash, another cell —
+and nothing yet shows kernel-guided textual edits cannot be made safely.
 
 ### The SDK set is a budget
 

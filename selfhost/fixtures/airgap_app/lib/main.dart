@@ -81,6 +81,11 @@ class RouteBThing {
   /// calls is tree-shaken out of the --aot kernel before any tool sees it
   /// (rung D found that the hard way), so a second form has to be CALLED to
   /// be studied.
+  ///
+  /// PATCH FORM. Nobody writes `self` here — this is an ordinary bare instance
+  /// getter, and the producer lowers it to
+  /// `String value(RouteBThing self) => self.label;`, which is the one shape
+  /// the entry-point contract accepts.
   @pragma('vm:never-inline')
   String value() => label;
 }

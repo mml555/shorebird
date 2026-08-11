@@ -61,6 +61,41 @@ patch` path: **can this replacement body bind and execute?**
 performance or rollback while climbing this.** Those layers are proven, and a
 widening probe that starts editing them has misdiagnosed its own failure.
 
+### The producer reaches rung C on its own — CLOSED ON DEVICE 2026-08-11
+
+Rung C was proven with a HAND-WRITTEN replacement, because the entry-point
+contract takes a static function and the app declares an instance method.
+That gap is closed: engine `3568f73c`, release `19.0.0+1`, iPhone 7. The
+fixture says
+
+```dart
+class RouteBThing {
+  String label = 'NEW-C1';
+  @pragma('vm:never-inline')
+  String value() => label;      // nobody writes `self`
+}
+```
+
+and `shorebird patch ios` shipped
+
+```dart
+String value(RouteBThing self) => self.label;
+```
+
+byte-identical to the hand-packed payload rung C proved. `OLD` -> `NEW-C1` ->
+relaunch `NEW-C1` -> rollback `OLD`. Evidence `evidence/lowering_*`.
+
+**Kernel decides meaning; source text only supplies syntax.** The analyzer
+reports which accesses are receiver-based, what they resolve to, and where the
+identifier starts — so a local `label`, a top-level `label` and `Cls.label`,
+which are different Kernel nodes, are never touched. The producer reads the
+source only to answer the one question the tree cannot: whether `this.` was
+written, since the synthesized `ThisExpression` carries the access's own offset.
+Anything else — a call, a setter, `super`, a private member, unusual spacing
+around `this` — is refused, not guessed at.
+
+Only the getter forms are lowered so far. `foo()` is next.
+
 ### Seam 6 — activation, and what it closed
 
 Every question about *where and when* a Route B patch becomes live is now

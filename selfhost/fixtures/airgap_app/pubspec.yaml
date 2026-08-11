@@ -6,7 +6,7 @@
 name: airgap_probe
 description: Canonical fixture for the sealed air-gap acceptance run.
 publish_to: none
-version: 18.0.0+1
+version: 19.0.0+1
 
 environment:
   sdk: ">=3.6.0 <4.0.0"
