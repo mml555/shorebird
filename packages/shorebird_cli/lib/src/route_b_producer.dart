@@ -164,16 +164,20 @@ class RouteBProducer {
         'its source file ${span.fileUri} is not on disk',
       );
     }
-    // Bytes, not characters: the analyzer's offsets are into the source as the
-    // frontend read it, and slicing a UTF-16 string would drift on any file
-    // containing a non-ASCII character.
-    final bytes = file.readAsBytesSync();
-    if (span.end > bytes.length || span.start < 0) {
+    // CODE UNITS, not bytes. The kernel's offsets index the DECODED source, so
+    // byte-slicing drifts by (utf8 length - code-unit length) of everything
+    // before the declaration. Measured on the fixture: three non-ASCII
+    // characters in the comments above `routeBValue` put the slice 6 bytes
+    // early, which produced a replacement library starting mid-word ("dart.")
+    // and truncated before its closing `;`. dart2bytecode then refused it with
+    // exit 254 and no stderr — a failure that says nothing about its cause.
+    final source = utf8.decode(file.readAsBytesSync());
+    if (span.end > source.length || span.start < 0) {
       throw RouteBUnsupportedTarget(
         key,
         'its recorded source span runs past the end of ${span.fileUri}',
       );
     }
-    return utf8.decode(bytes.sublist(span.start, span.end));
+    return source.substring(span.start, span.end);
   }
 }

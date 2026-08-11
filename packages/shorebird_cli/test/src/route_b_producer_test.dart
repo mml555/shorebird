@@ -235,6 +235,41 @@ void main() {
       );
     });
 
+    test('slices by code units, not bytes', () {
+      // The kernel's offsets index the DECODED source. Byte-slicing drifts by
+      // the UTF-8 overhead of everything before the declaration; on the real
+      // fixture three non-ASCII characters in the comments above the function
+      // put the slice 6 bytes early and produced a replacement library that
+      // began mid-word and ended before its closing `;`.
+      const preamble = '// em dashes — — — before the declaration\n';
+      source.writeAsStringSync('$preamble$declaration');
+      final start = preamble.length; // code units, as the kernel reports
+
+      runWithOverrides(
+        () => const RouteBProducer().produce(
+          compiler: compiler(),
+          coverage: coverage(
+            sources: {
+              'package:app/main.dart#routeBValue': {
+                'fileUri': source.uri.toString(),
+                'start': start,
+                'end': start + declaration.length,
+              },
+            },
+          ),
+          importKernel: File(p.join(cell.path, 'release_import.dill')),
+          releaseBuildId: 'deadbeef',
+          workingDirectory: work,
+          run: compileOk,
+        ),
+      );
+
+      expect(
+        File(p.join(work.path, 'replacement_0.dart')).readAsStringSync(),
+        '${RouteBProducer.entryPointPragma}\n$declaration\n',
+      );
+    });
+
     test('refuses a span that runs past the end of its file', () {
       expect(
         () => runWithOverrides(
