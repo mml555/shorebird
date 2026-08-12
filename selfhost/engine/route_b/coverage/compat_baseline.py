@@ -12,6 +12,12 @@ pre-G3.6d retention.
 import argparse, hashlib, json, pathlib, re, subprocess, zipfile
 
 REPO = pathlib.Path(__file__).resolve().parents[4]
+# The ENGINE tree is part of the baseline whether or not anyone says so: a cell
+# is built FROM it. Checking only the repo's cleanliness let a mint proceed over
+# 18 uncommitted files of half-finished CFE work that did not compile.
+import os
+ENGINE_DART = pathlib.Path(os.environ.get(
+    'DART_TREE', '/Volumes/build/route-b/flutter/engine/src/flutter/third_party/dart'))
 OVERLAY = REPO / 'selfhost/cdn/overlay/download.shorebird.dev/shorebird'
 # What Phase 0 was measured against. Recorded as constants so comparability is
 # computed from the artifact, never from memory of what the pilot ran on.
@@ -62,6 +68,10 @@ def main():
 
     dirty = subprocess.run(['git', '-C', str(REPO), 'status', '--porcelain'],
                            capture_output=True, text=True).stdout.strip()
+    engine_dirty = subprocess.run(
+        ['git', '-C', str(ENGINE_DART), 'status', '--porcelain'],
+        capture_output=True, text=True).stdout.strip()
+    engine_files = [l for l in engine_dirty.split('\n') if l]
 
     # THE HARD PRECONDITION, carried in the object rather than remembered.
     # `R3` and the G3.6 status live in another session's document, whose format
@@ -135,6 +145,15 @@ def main():
         'coverage_reader_commit': last_commit('packages/shorebird_cli/lib/src/route_b_coverage.dart'),
         'releaser_commit': last_commit('packages/shorebird_cli/lib/src/commands/release/ios_releaser.dart'),
         'patcher_commit': last_commit('packages/shorebird_cli/lib/src/commands/patch/ios_patcher.dart'),
+        'engine_tree': {
+            'path': str(ENGINE_DART),
+            'modified_file_count': len(engine_files),
+            'modified_files': engine_files,
+            'note': 'The Route B patch series lives as working-tree edits, so a '
+                    'nonzero count is normal — but the CONTENT matters. Run '
+                    'selfhost/engine/dart_patches.sh --verify and confirm the '
+                    'set is exactly the patch series before minting.',
+        },
         'working_tree_clean': dirty == '',
         'working_tree_dirty_paths': dirty.split('\n') if dirty else [],
         'preconditions': {
@@ -158,6 +177,8 @@ def main():
     print(f"analyzer v{version}  producer "
           f"{(baseline['producer_commit'] or {}).get('commit','?')[:10]}")
     print(f"working tree clean: {baseline['working_tree_clean']}")
+    print(f"engine tree modified files: {len(engine_files)}  "
+          f"(verify with dart_patches.sh --verify — a cell is built FROM this)")
     print('--- precondition evidence (judge these, do not assume):')
     for row in r3_rows or ['  <no R3 row found in PARITY.md>']:
         print(f'    R3   {row[:110]}')

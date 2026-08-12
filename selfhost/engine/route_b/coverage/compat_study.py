@@ -132,7 +132,8 @@ def sdk_constraint_at(repo, commit, pubspec):
     return ''
 
 
-def select(repo, source_glob, count, seed, exclude_path=None, pubspec='pubspec.yaml'):
+def select(repo, source_glob, count, seed, exclude_path=None, pubspec='pubspec.yaml',
+           window=None):
     all_commits = eligible_commits(repo, source_glob)
     funnel = {'touching Dart under the source root, no merges': len(all_commits)}
     selfre = re.compile(exclude_path) if exclude_path else None
@@ -172,6 +173,15 @@ def select(repo, source_glob, count, seed, exclude_path=None, pubspec='pubspec.y
     funnel[f'dropped: sdk constraint excludes Dart {".".join(map(str, PINNED_DART))}'] = dropped_sdk
     funnel['eligible after filtering'] = len(kept)
 
+    if window:
+        # A declared BUILD-COMPATIBILITY WINDOW: the N most recent eligible
+        # commits, sampled within. Historical trees stop building against a
+        # pinned toolchain at some depth, and pretending otherwise yields 0
+        # analysable cases. Narrowing the population is a stated limitation;
+        # silently sampling a population that cannot be measured is not.
+        kept = kept[:window]
+        funnel[f'window: most recent {window} eligible'] = len(kept)
+
     # Deterministic: same seed and same eligible set give the same sample. The
     # eligible set is hashed so a later rerun can PROVE it sampled the same
     # population rather than asserting it.
@@ -191,7 +201,7 @@ def select(repo, source_glob, count, seed, exclude_path=None, pubspec='pubspec.y
                 'eligible_commits': [c['commit'] for c in kept],
                 'selected': [c['commit'] for c in chosen],
                 'funnel': funnel, 'exclude_path': exclude_path,
-                'max_lines': MAX_LINES, 'glob': source_glob,
+                'max_lines': MAX_LINES, 'glob': source_glob, 'window': window,
                 'cell': CELL_HASH, 'analysis_version': FROZEN_VERSION,
                 'pinned_dart': '.'.join(map(str, PINNED_DART)), 'pubspec': pubspec}
     return chosen, funnel, manifest
@@ -356,6 +366,9 @@ def main():
     ap.add_argument('--out', required=True)
     ap.add_argument('--manifest', required=True)
     ap.add_argument('--pubspec', default='pubspec.yaml')
+    ap.add_argument('--window', type=int, default=None,
+                    help='restrict the population to the N most recent eligible '
+                         'commits before sampling; a declared limitation')
     ap.add_argument('--pub-get', default=None)
     ap.add_argument('--producer-commit', required=True,
                     help='the pinned producer commit; recorded on every row so a '
@@ -365,7 +378,7 @@ def main():
     a = ap.parse_args()
 
     cases, funnel, manifest = select(a.repo, a.glob, a.count, a.seed,
-                                     a.exclude_path, a.pubspec)
+                                     a.exclude_path, a.pubspec, a.window)
     print(f'--- {a.source}: selection funnel (seed {a.seed})')
     for k, v in funnel.items():
         print(f'    {v:>6}  {k}')

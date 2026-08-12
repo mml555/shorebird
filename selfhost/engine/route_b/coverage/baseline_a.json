@@ -1,4 +1,6 @@
 {
+  "VOID": true,
+  "void_reason": "Minted from an engine tree carrying 18 uncommitted files of in-progress G3.6e work that does not compile. Provenance is not reproducible. See the retraction in COMPATIBILITY_STUDY.md. The cell stays published because cells are immutable; it must not be used as a baseline.",
   "phase0_analysis_version": 6,
   "baseline_analysis_version": 6,
   "phase0_analyzer_hash": "4023835b353908bbf5b1e15ee45b81cfff8a16c727d11e93314159c59cc95de6",

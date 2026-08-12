@@ -1769,4 +1769,4 @@ When an item becomes PROVEN, record beside it whichever of these apply:
 * patch number;
 * platform / device;
 * evidence or probe name;
-* the commit containing the implementation and its gate.
+* the commit containing the implementation and its gate.| `R3` route-b tree | *paused docs session* | `G3.6e` in flight | 2026-08-12 | **NOT FREE.** The Dart tree carries 18 uncommitted files including a half-finished `resolvePrivateNamesInLibrary` that does not compile. The study session minted against it by mistake and has voided that baseline. Do not mint until `dart_patches.sh --verify` is green |

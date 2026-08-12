@@ -1,6 +1,6 @@
 # Real-patch compatibility study — scope
 
-**Status: Phase 0 complete. Phase 1 ATTEMPTED AND BLOCKED on corpus
+**Status: BASELINE A IS VOID — see the retraction at the end. Phase 0 complete. Phase 1 ATTEMPTED AND BLOCKED on corpus
 feasibility — the method needs a decision before it can run. See the end.** Analyzer frozen at **v6**, cell
 `aa9155840d6c1e71b015bbcff1e06eaea7e73e17`.
 
@@ -600,3 +600,77 @@ already in hand.
 If later work changes private-receiver behaviour again, *that* becomes baseline
 B and the before/after comparison arrives naturally, on a boundary the product
 actually crossed.
+
+
+---
+
+# RETRACTION — baseline A is void, and the original trigger was right
+
+Baseline A (`50d58cc313fdb985…`) **must not be used**, and the 100 Phase 1 rows
+run against it are withdrawn. The cell stays published because cells are
+immutable; it is recorded here as void rather than deleted.
+
+## What happened
+
+`R3` was taken for the mint on the strength of the claims table saying
+*read-only, no build, no mint*, and of the repo tree being clean. Both were true.
+Neither was the thing that mattered.
+
+The Route B **Dart tree** has 18 uncommitted modified files, and among them is
+in-progress `G3.6e` work — `resolvePrivateNamesInLibrary` threaded through
+`front_end` and `dart2bytecode`. **It does not compile:**
+
+```
+pkg/front_end/lib/src/source/source_loader.dart:433:32:
+Error: The getter 'resolvePrivateNamesInLibrary' isn't defined for the type
+'ProcessedOptions'.
+```
+
+`gen_kernel` is run from that tree's source, so every case failed at `prepass`
+for that reason and nothing else.
+
+## What this invalidates
+
+* **Baseline A's provenance.** The cell was built from an engine tree in a
+  half-edited state that no commit describes and nobody can reproduce. That is
+  precisely the "configuration that never existed" the baseline object exists to
+  prevent — and it walked straight past the object, because the object checked
+  the *repo* and a cell is built from the *engine tree*.
+* **This round's corpus conclusion.** Reporting "the app corpus is genuinely
+  infeasible" on the strength of 31 `prepass` failures was wrong: those failures
+  were the broken CFE. The *earlier* round's app evidence stands on its own and
+  is unaffected — Dart 2 SDK constraints and `intl` pinning against the pinned
+  Flutter SDK are real and were observed before the tree broke.
+
+## What it teaches, which is the part worth keeping
+
+**"`R3` released" cannot mean an empty table row.** The Route B patch series
+lives as working-tree edits, so the engine tree is *never* clean in the git
+sense; the question is whether its modifications are exactly the patch series or
+also somebody's half-finished feature. Only `dart_patches.sh --verify` answers
+that, and it was never part of the checklist.
+
+The original stop condition — *G3.6 complete AND `R3` released* — was therefore
+right for a stronger reason than the sequencing argument that produced it. G3.6e
+is not merely unstarted; it is **in flight, in the tree, and currently broken**.
+Overriding the trigger could not have worked, and the coherence argument for
+overriding it was sound in form and false in fact.
+
+## Added to the checklist
+
+`compat_baseline.py` now records the engine tree's modified-file list alongside
+the repo's, and prints it. It deliberately does not judge the set — that is
+`dart_patches.sh --verify`'s job — but a mint can no longer be taken without the
+count being visible in the baseline object.
+
+Precondition 0 gains a third clause:
+
+> `PARITY.md` says `G3.6` complete, **and** `R3` is released, **and**
+> `dart_patches.sh --verify` is green on the engine tree.
+
+## State
+
+Back to holding. Baseline A void, Phase 1 rows discarded, no corpus run in
+flight. `R3` is released by me but should be treated as **owned by the paused
+session's in-flight G3.6e work** until that work lands or is reverted by its
+author — it is not mine to clean up.
