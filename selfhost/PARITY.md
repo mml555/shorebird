@@ -3,7 +3,7 @@
 <!-- cspell:words schedulable startable worktree oneline unheld diffstat -->
 <!-- cspell:words overclaim DFLUTTER Diagnosticable -->
 <!-- cspell:words demangled specializer devirtualizes rationalised synthesises -->
-<!-- cspell:words subshell theorised -->
+<!-- cspell:words subshell theorised generalises -->
 
 # Shorebird feature parity — the goal document
 
