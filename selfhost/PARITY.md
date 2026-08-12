@@ -1329,13 +1329,15 @@ must come from observation.
 
 ##### Two constraints the recon found that change the plan above
 
-Reported by the activation-path recon, with anchors so the next session VERIFIES
-rather than trusts them — neither has been checked by hand yet, and the first one
-is expensive to get wrong.
+Reported by the activation-path recon. **Constraint 1 is now VERIFIED by hand**
+(`make_version.py:20-36` lists `object.cc` and `object.h` in `VM_SNAPSHOT_FILES`,
+and `lib/object.cc` is NOT in that list, so the bracket target is safe).
+Constraint 2 is still only reported — check it before relying on it.
 
 **1. Do not edit `runtime/vm/object.{cc,h}` or `include/dart_api.h`.**
-`vm/object.cc` and `vm/object.h` are reportedly listed in `VM_SNAPSHOT_FILES`
-(`third_party/dart/tools/make_version.py:20-35`), so touching them changes
+`vm/object.cc` and `vm/object.h` ARE listed in `VM_SNAPSHOT_FILES`
+(`third_party/dart/tools/make_version.py:20-36`, confirmed by reading it), so
+touching them changes
 `SNAPSHOT_HASH` — and the **already-published `App.framework` snapshot then stops
 loading** with "Wrong full snapshot version". That would silently convert a
 diagnostic change into a forced full release cycle, and it would look like a new
