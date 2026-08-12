@@ -3,6 +3,7 @@
 <!-- cspell:words schedulable startable worktree oneline unheld diffstat -->
 <!-- cspell:words overclaim DFLUTTER Diagnosticable -->
 <!-- cspell:words demangled specializer devirtualizes rationalised synthesises -->
+<!-- cspell:words subshell theorised -->
 
 # Shorebird feature parity — the goal document
 
@@ -321,8 +322,8 @@ not an untested guess. Ordered roughly by expected cost.
 | **`G3.5 closures-super`** | closures capturing `this`, `super` reads and calls, cascades | `super` writes now refuse explicitly (`cb50590d`); the rest untouched | `R7`, `R1` |
 | ~~**`G3.6a app-private-decision`**~~ | **is it reachable at all** | **ANSWERED 2026-08-11 — yes.** The CFE already has the mechanism (`resolveInLibrary`), Route B is denied it by one line, and the `dyn:`-forwarder objection is void in AOT. See below | done, no resources consumed but `R3` read-only |
 | **`G3.6b app-private-holes`** | close the two accepted-then-failed holes | unblocked by `G3.6a` | `R7` **and a cell mint** — `analyze_coverage.dart` is in the manifest |
-| **`G3.6c dynamic-receiver`** | emit `dynamic` instead of a private class name | **BUILT** — `route_b_producer.dart` emits `dynamic` for a private receiver class and keeps the concrete type for a public one; 42 CLI tests green. **Host and device unproven, and it is paired with `G3.6d` — see the prediction below** | done at `R7`; no mint |
-| **`G3.6d private-retention`** | retain private classes, procedures **and fields** in the dynamic interface | **BUILT, host-verified against the real annotator** — all seven private shapes are accepted and annotated `dyn-module:callable`. Cost not yet measured | generator only, as predicted — no validator or CFE change |
+| **`G3.6c dynamic-receiver`** | emit `dynamic` instead of a private class name | **BUILT, host-proven as a pair with `G3.6d`** — `probes/private_receiver.sh` 4/4, a patch on a private class runs. Device round-trip outstanding | done at `R7`; no mint |
+| **`G3.6d private-retention`** | retain private classes, procedures **and fields** in the dynamic interface | **BUILT, host-proven and shown LOAD-BEARING by a negative control.** Cost measured: **+0.01 %** | generator only, as predicted — no validator or CFE change |
 | **`G3.6e resolve-in-library`** | thread `resolveInLibrary` through dart2bytecode | the full fix: every category of app-private reference, proven by an in-tree test | CFE + dart2bytecode = `R3` + a mint |
 | **`G3.7 param-abi`** | a replacement method may declare **its own parameters** | **the largest single unlock: 33.2 %**, and unlike `G3.6` its feasibility is *known* — the entry-point contract is a patch we already own (`0004`) | engine (`R3` + a mint), `R7`, `R1` |
 
@@ -589,15 +590,90 @@ need naming one by one.
 filter at `:329-332` applies to *members*, and even there only to members whose
 name belongs to a *different* library — never true for an app's own privates.
 
-**Cost is NOT measured, and this file's own rule says it must be.** The whole
-asymmetric design exists because whole-`dart:core` was +310 %. Private top-level
-members were measured at +0.01 %, but the class-level shapes are far more
-numerous: across a Flutter app's entire dependency closure the generator emits
-**1,462 private classes and 6,626 private class members** (~27k YAML lines). A
-real release passes `--include package:app/` and sees only its own privates, but
-that number is unmeasured. `--no-private-classes` exists to isolate exactly this
-half for `measure_retention.sh`, following the precedent `--no-private` set.
-**Re-run the sweep before this ships on a real app.**
+### The pair, proven on the host — with a negative control
+
+`probes/private_receiver.sh`, **4/4**. A patch replaced a method on a **private
+class** end to end: producer → interface → release → container → install → the
+app's own call site reading the patched value. This is the first time Route B has
+touched the shape Flutter code actually uses, since a `StatefulWidget`'s `State`
+class is private by convention.
+
+```
+retained      (product path)          not_retained  (--no-private-classes)
+  private classes in interface: 15      private classes in interface: 0
+  lowered: dynamic self          ✅     lowered: dynamic self          ✅  ← identical
+  APPLY ok: 1 target(s)                 APPLY refused: target _Hidden.value
+  hidden = NEW-PRIV              ✅       did not attach; rolled back 0
+                                        hidden = OLD-priv              ✅
+```
+
+**The control is the point, and it says three things the positive arm cannot.**
+The lowering is *byte-identical* in both arms, so the control's failure is
+retention and not a lowering regression — the two walls really are separable.
+`G3.6d` is therefore **load-bearing**, not decoration: strip the `class:` items and
+the patch stops working. And the failure mode is the good one — the container
+**refuses at attach time and rolls back**, so an under-retained release keeps
+running its own code rather than crashing or silently doing nothing.
+
+Recorded because the prediction was scored: `G3.6c` alone was predicted to fail
+for a retention reason, and this is that prediction confirmed by construction
+rather than by argument.
+
+### The cost, measured — and it is free
+
+`measure_real_app.sh` now crosses two axes instead of one: library breadth (app
+only vs every library) × private-class breadth. On the real fixture, host AOT
+snapshots, deltas being the transferable part:
+
+| configuration | bytes | vs baseline |
+|---|---|---|
+| baseline (stock AOT) | 5,737,800 | — |
+| + call form | 5,934,664 | **+3.43 %** |
+| + app-only retention, no private classes | 5,991,488 | +4.42 % |
+| + app-only retention — **the shipping policy** | 5,992,176 | **+4.43 %** |
+| + ALL libraries, no private classes | 21,566,704 | +275.79 % |
+| + ALL libraries retained | — | **DOES NOT BUILD** |
+
+**The private-class axis, isolated: +0.01 % — 688 bytes.** Same order as the
+private top-level members already shipping, so the shape is free and `G3.6d` is
+shippable on cost. The whole shipping policy moves +4.39 % → **+4.43 %**, still
+inside the budget the step-7 veto was judged on. The +275.79 % reproduces the
++275.58 % the earlier sweep recorded for naive all-library retention, which is the
+check that both sweeps measured the same thing.
+
+### What the sweep broke, which is why it was worth running
+
+`G3.6d`'s first version was verified on a **toy** program and was wrong on real
+code. A single unresolvable entry fails the *whole* interface, and the framework
+produced two distinct kinds:
+
+* **`ThemeMode._enumToString`** — the front end synthesises enum machinery whose
+  `Name` is private to `dart:core`, not to the library declaring the enum, and
+  `library_index.dart:329-332` refuses to index a member whose name belongs to
+  another library. **112 entries.**
+* **`ScaffoldMessengerState.set:_accessibleNavigation`** — a Setter *Procedure* in
+  the `--aot` prepass kernel the generator reads, resolvable there as `set:…`,
+  with no such key in the pre-transform component the annotator indexes.
+
+The fix is structural rather than a pair of special cases: the generator now
+**validates every candidate through the same `LibraryIndex.getMember` the
+annotator uses** and reports the skips instead of swallowing them — 120 on the
+framework, **0 on the app-only shipping policy**, which is exactly why only the
+all-libraries arm ever failed.
+
+**The limit that remains, stated rather than smoothed.** That check indexes the
+kernel it is *given* — the `--aot` prepass — while the annotator indexes a fresh
+pre-transform component. Where AOT has reshaped a class the two disagree, and no
+filter available in the generator predicts the other component's shape. It does
+not affect the shipping policy (0 skipped, arm builds); it kills the naive
+all-libraries breadth, which now reports **DOES NOT BUILD** rather than a size.
+That is a stronger argument for the app-only policy than a number would have been.
+
+Two harness bugs were found and fixed alongside: `try_kernel` has to run
+`kernel` in a **subshell**, because `kernel` calls `die` and an `if kernel …`
+took the whole script down with it; and a first hypothesis about field-lowering
+was reverted rather than kept, because the entry count did not move — the shape
+was inspected directly instead of theorised about a third time.
 
 ### Empirically corroborated, by a different method
 

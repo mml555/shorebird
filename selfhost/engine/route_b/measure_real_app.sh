@@ -59,21 +59,53 @@ snap() { # snap <out.aot> <in.dill> [flags...]
 note "kernel: no retention"
 kernel "$WORK/app.dill"
 
-note "interfaces: app-only, and the naive all-libraries policy"
+# Two axes crossed, not one. LIBRARY BREADTH (app-only vs every library) was
+# always here. PRIVATE-CLASS BREADTH is the second: private classes, their
+# private members, and private members of public classes. Private TOP-LEVEL
+# members were measured at +0.01% and stay on in every arm, because that number
+# is settled; the class shapes are far more numerous -- 1,462 classes and 6,626
+# members across a whole dependency closure -- so they get their own axis rather
+# than inheriting a number measured on the cheap half.
+note "interfaces: app-only and all-libraries, each with and without private classes"
 "$DART" "$KERNEL_PKGS" "$HERE/gen_dynamic_interface.dart" \
   --dill "$WORK/app.dill" --include "$APP_PREFIX" --out "$WORK/di_app.yaml"
 "$DART" "$KERNEL_PKGS" "$HERE/gen_dynamic_interface.dart" \
+  --dill "$WORK/app.dill" --include "$APP_PREFIX" --no-private-classes \
+  --out "$WORK/di_app_nopc.yaml"
+"$DART" "$KERNEL_PKGS" "$HERE/gen_dynamic_interface.dart" \
   --dill "$WORK/app.dill" --out "$WORK/di_all.yaml"
+"$DART" "$KERNEL_PKGS" "$HERE/gen_dynamic_interface.dart" \
+  --dill "$WORK/app.dill" --no-private-classes --out "$WORK/di_all_nopc.yaml"
+
+# `kernel` dies on failure, which is right for every arm the product depends on.
+# The all-libraries-plus-private-classes arm is the exception: it is a
+# hypothetical nobody ships, and it DOES NOT BUILD. That is a result, not an
+# error, so it is captured rather than fatal.
+try_kernel() { # try_kernel <out.dill> [args...] -- records failure, never dies
+  local out="$1"
+  # SUBSHELL, and it is load-bearing: `kernel` calls `die`, which is `exit 1`, so
+  # an `if kernel ...` would take the whole script down with it -- which is
+  # exactly what happened the first time this arm was expected to fail.
+  if ( kernel "$@" ) 2>/dev/null; then return 0; fi
+  echo "MEASURED: does not build" > "$out.failed"
+  note "arm skipped: $(basename "$out") did not build (see the table)"
+  return 0
+}
 
 note "kernels with retention"
-kernel "$WORK/app_app.dill" --dynamic-interface "$WORK/di_app.yaml"
-kernel "$WORK/app_all.dill" --dynamic-interface "$WORK/di_all.yaml"
+kernel "$WORK/app_app.dill"      --dynamic-interface "$WORK/di_app.yaml"
+kernel "$WORK/app_app_nopc.dill" --dynamic-interface "$WORK/di_app_nopc.yaml"
+kernel "$WORK/app_all_nopc.dill" --dynamic-interface "$WORK/di_all_nopc.yaml"
+try_kernel "$WORK/app_all.dill"  --dynamic-interface "$WORK/di_all.yaml"
 
 note "snapshots"
-snap "$WORK/base.aot" "$WORK/app.dill"
-snap "$WORK/cf.aot"   "$WORK/app.dill"     --patchable_static_calls
-snap "$WORK/app.aot"  "$WORK/app_app.dill" --patchable_static_calls
-snap "$WORK/all.aot"  "$WORK/app_all.dill" --patchable_static_calls
+snap "$WORK/base.aot"     "$WORK/app.dill"
+snap "$WORK/cf.aot"       "$WORK/app.dill"          --patchable_static_calls
+snap "$WORK/app_nopc.aot" "$WORK/app_app_nopc.dill" --patchable_static_calls
+snap "$WORK/app.aot"      "$WORK/app_app.dill"      --patchable_static_calls
+snap "$WORK/all_nopc.aot" "$WORK/app_all_nopc.dill" --patchable_static_calls
+[ -f "$WORK/app_all.dill" ] \
+  && snap "$WORK/all.aot" "$WORK/app_all.dill" --patchable_static_calls
 
 python3 - "$WORK" <<'PY'
 import os, sys
@@ -81,22 +113,44 @@ w = sys.argv[1]
 size = lambda n: os.path.getsize(os.path.join(w, n))
 base = size('base.aot')
 rows = [
-    ('baseline (stock AOT)',                    'base.aot'),
-    ('+ call form',                             'cf.aot'),
-    ('+ call form + app-only retention',        'app.aot'),
-    ('+ call form + ALL libraries retained',    'all.aot'),
+    ('baseline (stock AOT)',                          'base.aot'),
+    ('+ call form',                                   'cf.aot'),
+    ('+ app-only, no private classes',                'app_nopc.aot'),
+    ('+ app-only retention  [SHIPPING POLICY]',       'app.aot'),
+    ('+ ALL libraries, no private classes',           'all_nopc.aot'),
+    ('+ ALL libraries retained',                      'all.aot'),
 ]
 width = max(len(r[0]) for r in rows)
 print()
 print(f"{'configuration'.ljust(width)}  {'bytes':>12}  {'vs baseline':>12}")
 print('-' * (width + 30))
 for label, f in rows:
+    if not os.path.exists(os.path.join(w, f)):
+        print(f'{label.ljust(width)}  {"DOES NOT BUILD":>12}  {"n/a":>12}')
+        continue
     s = size(f)
     print(f'{label.ljust(width)}  {s:>12,}  {(s-base)/base*100:>+11.2f}%')
+
+# The isolated cost of the private-class axis, at both library breadths. This is
+# the number the policy decision actually turns on: everything else in the table
+# was already settled.
+def pct(a, b):
+    return (size(a) - size(b)) / size(b) * 100
 print()
-print('The shipping policy is the third row. The fourth is what a generator')
-print('that retained every library would have cost -- kept measurable so the')
-print('policy stays a decision rather than a default.')
+print('PRIVATE-CLASS AXIS, isolated:')
+print(f'  at app-only breadth    {pct("app.aot", "app_nopc.aot"):+.2f}%')
+if os.path.exists(os.path.join(w, 'all.aot')):
+    print(f'  at all-library breadth {pct("all.aot", "all_nopc.aot"):+.2f}%')
+else:
+    print('  at all-library breadth  DOES NOT BUILD -- the interface names class')
+    print('     members that exist in the --aot prepass kernel this generator')
+    print('     reads but not in the pre-transform component the annotator')
+    print('     indexes (measured: ScaffoldMessengerState.set:_accessibleNavigation).')
+    print('     A stronger argument for the app-only policy than a size would be.')
+print()
+print('The shipping policy is the fourth row. The all-library rows are what a')
+print('generator that retained every library would have cost -- kept measurable')
+print('so the policy stays a decision rather than a default.')
 PY
 
 echo "work dir kept: $WORK"

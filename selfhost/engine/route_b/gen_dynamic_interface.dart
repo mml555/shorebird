@@ -30,6 +30,10 @@ import 'dart:io';
 
 import 'package:kernel/ast.dart';
 import 'package:kernel/binary/ast_from_binary.dart';
+// The same index the dynamic-interface annotator resolves entries through
+// (dynamic_module_validator.dart:306), so this generator can refuse to emit what
+// that annotator would reject.
+import 'package:kernel/library_index.dart';
 
 /// SDK symbols a patch may call into, as `library#member` pairs.
 ///
@@ -166,6 +170,67 @@ void main(List<String> args) {
   final privateMembers = <String>[];
   final privateClasses = <String>[];
   final privateClassMembers = <String>[];
+
+  // EMIT ONLY WHAT THE ANNOTATOR CAN RESOLVE, and prove it here rather than
+  // discovering it during the release build.
+  //
+  // A single unresolvable entry fails the WHOLE interface, so a generator that
+  // reasons about which names are nameable is a generator that eventually emits
+  // a wrong one. Two real cases proved that in one afternoon, both invisible to
+  // a toy program and both found only on a real Flutter component:
+  //
+  //   ThemeMode._enumToString          the front end synthesises enum machinery
+  //     whose Name is private to `dart:core`, not to the library declaring the
+  //     enum, and library_index.dart:329-332 refuses to index a member whose
+  //     name belongs to another library.
+  //   ScaffoldMessengerState.set:_accessibleNavigation
+  //     the field is indexed under its BARE name and no `set:` entry exists
+  //     beside it, so the accessor spelling that is right for a private Setter
+  //     procedure is wrong here.
+  //
+  // Rather than encode those two rules and wait for the third, ask the same
+  // index the annotator will use — `LibraryIndex`, via the same `getMember`
+  // called at dynamic_module_validator.dart:306. What it cannot find, a release
+  // must not name. Skips are COUNTED and reported, never silent: a rising skip
+  // count is a retention gap worth looking at, not a success.
+  //
+  // WHAT THIS CHECK CANNOT DO, stated because it took three attempts to accept:
+  // it indexes the kernel it is GIVEN, and that is the `--aot` prepass, while the
+  // annotator indexes a fresh pre-transform component. Where AOT has reshaped a
+  // class the two disagree, and a name valid in one is invalid in the other --
+  // measured: `ScaffoldMessengerState._accessibleNavigation` is a Setter
+  // *Procedure* in the prepass, resolvable as `set:_accessibleNavigation`, while
+  // the annotator's component has no such key. There is no filter available here
+  // that predicts the other component's shape.
+  //
+  // It does not matter for the SHIPPING policy, and that is the whole reason this
+  // is a note rather than a project: with `--include package:your_app/` the app's
+  // own libraries resolve cleanly (0 skipped, measured on the fixture). It bites
+  // only the naive all-libraries breadth, which retains the framework's privates
+  // and which no release should use -- see `measure_real_app.sh`, where that arm
+  // now reports "does not build" rather than a size.
+  final index = LibraryIndex.all(component);
+  var unresolvable = 0;
+  bool resolvableClass(String uri, String name) {
+    try {
+      index.getClass(uri, name);
+      return true;
+    } catch (_) {
+      unresolvable++;
+      return false;
+    }
+  }
+
+  bool resolvableMember(String uri, String container, String name) {
+    try {
+      index.getMember(uri, container, name);
+      return true;
+    } catch (_) {
+      unresolvable++;
+      return false;
+    }
+  }
+
   if (retainPrivate) {
     for (final lib in component.libraries.where(isApp)) {
       final uri = lib.importUri.toString();
@@ -178,15 +243,17 @@ void main(List<String> args) {
         // (739 vs 320), so retaining them would be pure cost.
         if (cls.name.contains('&')) continue;
 
-        if (cls.name.startsWith('_')) {
+        if (cls.name.startsWith('_') && resolvableClass(uri, cls.name)) {
           privateClasses.add('$uri#${cls.name}');
         }
         for (final p in cls.procedures) {
           if (!p.name.text.startsWith('_')) continue;
+          if (!resolvableMember(uri, cls.name, _vmName(p))) continue;
           privateClassMembers.add('$uri#${cls.name}#${_vmName(p)}');
         }
         for (final f in cls.fields) {
           if (!f.name.text.startsWith('_')) continue;
+          if (!resolvableMember(uri, cls.name, f.name.text)) continue;
           // A FIELD IS NAMED BARE, not `get:`/`set:`.
           // library_index.dart:320-326 applies the accessor prefixes only to a
           // Procedure; a Field is indexed under `member.name.text`. Naming the
@@ -201,11 +268,13 @@ void main(List<String> args) {
       // nothing even though the same `library:` item skipped it.
       for (final f in lib.fields) {
         if (!f.name.text.startsWith('_')) continue;
+        if (!resolvableMember(uri, '::', f.name.text)) continue;
         privateMembers.add('$uri#${f.name.text}');
       }
 
       for (final p in lib.procedures) {
         if (!p.name.text.startsWith('_')) continue;
+        if (!resolvableMember(uri, '::', _vmName(p))) continue;
         // The VM disambiguates accessors as get:/set:, and the dynamic
         // interface is matched against THOSE names. Emitting the bare name got
         // a real Flutter app rejected outright:
@@ -339,6 +408,11 @@ void main(List<String> args) {
     ..writeln('  private top-level    : ${privateMembers.length}')
     ..writeln('  private classes      : ${privateClasses.length}')
     ..writeln('  private class members: ${privateClassMembers.length}')
+    ..writeln(
+      '  unresolvable (skipped): $unresolvable'
+      '${unresolvable > 0 ? "  <- named in kernel, not indexable; see the "
+          "LibraryIndex note in this file" : ""}',
+    )
     ..writeln('  sdk members          : ${members.length}')
     ..writeln('  sdk libraries        : ${wholeSdk.length}');
 }
