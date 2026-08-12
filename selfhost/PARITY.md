@@ -586,7 +586,8 @@ gate accordingly:
 | ✅ | **7. Run Wonderous against those exact policies** — done, both tables recorded below. **One gap: P3's runtime reachability is inferred, not measured** |
 | ✅ | **8. Choose the policy explicitly** — **P2**. P3 is non-viable, not unselected |
 | ✅ | **9. `G3.6b`** — accept only when the release's emitted set proves member **+** enclosing-class capability **+** not-skipped. **Done.** 28 unit tests plus `cli_private_member.sh` 10/10. All five precommitted analyzer cases are matched, and two more were added that the precommitment did not ask for: a static of a private class still needs the class item, and the flag's own blast radius is bounded (see below) |
-| ◐ | **11. STILL OPEN, and the boundary is now exact.** Release `24.0.0+1` cut WITH `--patchable_static_calls`: **7,141 patchable sites, 1,775/MB — PATCHABLE**. Identity verified both ways (`assert_installed_release.sh`: installed `a022fbd1…` == patch target). Patch B published, downloaded, `code patch: 1`, trace says `applied 1/1 targets` — **and the value is still `NEW-SET`**. Patchability was a real defect, not the cause. What remains is the state the trace cannot see: attach returns success and the active entry point either never changes or the call site never consults it |
+| ◐ | **11. OPEN, and the branch is DECIDED: the fault is common to all replacements.** On release `24.0.0+1` (7,141 patchable sites, identity verified), BOTH bodies fail identically — `self._secret` (patch 1) and `'NEW-CTL'` (patch 2, no private reference at all). Same trace both times: `applied 1/1 targets`. Same behaviour both times: `NEW-SET`. So the private-bearing load/bind path is NOT implicated, and the thing to instrument is the generic **post-attach Function transition** — bytecode attached?, entry point before vs after, is that entry point the interpreted dispatch path |
+| ~~◐~~ | ~~**11. Earlier: still open, boundary exact**~~ Release `24.0.0+1` cut WITH `--patchable_static_calls`: **7,141 patchable sites, 1,775/MB — PATCHABLE**. Identity verified both ways (`assert_installed_release.sh`: installed `a022fbd1…` == patch target). Patch B published, downloaded, `code patch: 1`, trace says `applied 1/1 targets` — **and the value is still `NEW-SET`**. Patchability was a real defect, not the cause. What remains is the state the trace cannot see: attach returns success and the active entry point either never changes or the call site never consults it |
 | ~~✗~~ | ~~**11. Earlier: cause found in the release command**~~ The release `23.0.0+1` was cut WITHOUT `--patchable_static_calls`. `verify_patchable_release.sh` measures **8 patchable sites, 2 per MB** against a 100/MB threshold, and its own message is the observed symptom verbatim: *"a Route B patch will attach successfully and change nothing: AOT emitted direct calls that never consult `Function.entry_point_`."* The on-device diagnostic agrees exactly — `applied 1/1 targets`. Three independent facts, one cause. The device gate must be re-run against a release cut WITH the flag |
 | ~~◐~~ | ~~**11. The device gate is OPEN, and the matched control moved the boundary.**~~ `value() => 'NEW-CTL'` — no private reference, same release, same target, same cell, engine identity pinned throughout — **also did not apply** (`code patch: 3`, value unchanged). So the private-bearing bytecode is NOT the differentiator, and neither is engine identity. The container's `release.buildId` equals the installed app's `LC_UUID` (`2d497ada…`) and its selector is `RouteBThing.value`, so delivery, identity and targeting are all correct. What is left is container-parse → target-resolve → payload-load → `AttachBytecode`, on device, and that needs observation rather than another hypothesis |
 | ~~◐~~ | ~~**11. The device gate is OPEN.**~~ Two runs: patch 1 (engine mismatch) and patch 2 (identity matching, both gates passed) BOTH installed, reported themselves active, and left the value unchanged. Host passes the identical shape against the same published cell, so the producer/manifest/CFE chain is not what fails. Next: engine-side visibility into why the attach or bind fails on device |
@@ -1267,7 +1268,26 @@ sound. The divergence is in the delivery path, not in G3.6b.
 > bytecode afterwards, the entry point before vs after, or whether that entry point
 > is the interpreted dispatch path. `AttachBytecode` returning success is not
 > evidence that the active entry point changed, and every remaining hypothesis
-> lives in that one unobserved transition. Run the cheap discriminators FIRST,
+> lives in that one unobserved transition.
+>
+> **THE CONTROL, RERUN UNDER VALID PRECONDITIONS, DECIDES THE BRANCH.** Patch A on
+> release 23 was confounded by the missing `--patchable_static_calls`, so it could
+> not distinguish "common fault" from "private-payload fault". Rerun on release 24
+> — same target, same cell, 7,141 patchable sites, identity verified — it fails
+> exactly as the private one does: `applied 1/1 targets`, value `NEW-SET`,
+> `code patch: 2`.
+>
+> Two bodies, one with no private symbol anywhere, identical outcome. **The fault
+> is common to all replacements on this release.** That closes off the
+> private-bearing module/load/bind path as the suspect and selects the other
+> branch: instrument the generic post-attach Function transition — does the
+> Function have bytecode, what was the entry point before and after, and does the
+> after value correspond to the interpreted dispatch path.
+>
+> Also recorded: the engine-identity gate fired again mid-sequence, on its own,
+> when the stamp drifted to `69f9831c` between two patch commands. Third
+> observation of that drift, and the first where the refusal saved a run that
+> would otherwise have produced another uninterpretable result. Run the cheap discriminators FIRST,
 > in the order the runbook already specifies.
 
 **The cause: the build silently rewrote the engine stamp.** `shorebird patch`
