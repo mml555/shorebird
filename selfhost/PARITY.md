@@ -1541,16 +1541,21 @@ rows, so **clear your row when you stop**, even mid-goal.
 |---|---|---|---|---|
 | `R1` iPhone 7 | — | — | released 18:2x | **free.** `G3.3`'s gate committed as `fa40f6ca` |
 | `R2` Android device | — | — | — | **free** |
-| `R3` route-b tree | — | — | released 2026-08-12 | **free.** Taken briefly by the study session for the baseline-A mint (`50d58cc3…`) while the docs session was paused, and released on the same commit. The prior read-only `G3.6a` claim was stale — its holder had stopped without clearing the row |
+| `R3` route-b tree | **`G3.6e` session** | `G3.6e` + `G3.6b` | 2026-08-12 | **HELD, and this one WRITES.** Editing `pkg/front_end` and `pkg/dart2bytecode` SDK sources, then building. `dart_patches.sh --verify` before every build; do not `gclient sync` |
 | `R4` ios-engine tree | — | — | — | **free** |
 | `R6` canonical fixture | — | — | released 18:2x | **free** at version `22.0.0+1`; next release bumps to 23 |
-| `R7` producer/analyzer | — | — | released 18:2x | **free** at analyzer **v6**. `G3.6b` will want it — coordinate |
+| `R7` producer/analyzer | **`G3.6e` session** | `G3.6b` | 2026-08-12 | **HELD** — the analyzer's private-member refusals relax in step with the CFE change, and both share one mint |
 | `R8` `cps-ios` | — | — | released 18:2x | **free** |
 | `R9` `cps-android` | — | — | — | **free** |
 | `R10` server source | — | — | — | **free** — the `G6` lane |
-| `R11` sealed CDN | — | — | — | **free** — and `G13` needs it exclusively |
+| `R11` sealed CDN | **`G3.6e` session** | `G3.6e` mint | 2026-08-12 | **HELD** for a cell mint — `analyze_coverage.dart` and `dart2bytecode.aot` are both manifest files, so this is one address change, not two |
 | `R12` hermes-vps | — | — | — | **free** — additive capacity for `G4.2`'s Android half |
-| this file | *docs session* | §15–17, `G3.6a` | 2026-08-11 | docs + `R3` read-only; holds no device, no fixture, no `R7` |
+
+> **A stale row was cleared to write these.** The previous `G3.6a` read-only `R3`
+> claim outlived its holder, who stopped without clearing it — caught by the study
+> session, which is the table working as designed and is also exactly the weakness
+> flagged when it was introduced. The rule stands and now has a precedent: **clear
+> your row when you stop, even mid-goal.**
 
 > **The table emptied itself twice on 2026-08-11, and both times that was the
 > protocol working.** The `G3.1` holder released every resource by committing
