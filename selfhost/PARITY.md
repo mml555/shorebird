@@ -586,7 +586,8 @@ gate accordingly:
 | ✅ | **7. Run Wonderous against those exact policies** — done, both tables recorded below. **One gap: P3's runtime reachability is inferred, not measured** |
 | ✅ | **8. Choose the policy explicitly** — **P2**. P3 is non-viable, not unselected |
 | ✅ | **9. `G3.6b`** — accept only when the release's emitted set proves member **+** enclosing-class capability **+** not-skipped. **Done.** 28 unit tests plus `cli_private_member.sh` 10/10. All five precommitted analyzer cases are matched, and two more were added that the precommitment did not ask for: a static of a private class still needs the class item, and the flag's own blast radius is bounded (see below) |
-| ◐ | **11. The device gate is OPEN, and the matched control moved the boundary.** `value() => 'NEW-CTL'` — no private reference, same release, same target, same cell, engine identity pinned throughout — **also did not apply** (`code patch: 3`, value unchanged). So the private-bearing bytecode is NOT the differentiator, and neither is engine identity. The container's `release.buildId` equals the installed app's `LC_UUID` (`2d497ada…`) and its selector is `RouteBThing.value`, so delivery, identity and targeting are all correct. What is left is container-parse → target-resolve → payload-load → `AttachBytecode`, on device, and that needs observation rather than another hypothesis |
+| ✗ | **11. CAUSE FOUND, and it was operator error in the release command — no instrumentation needed.** The release `23.0.0+1` was cut WITHOUT `--patchable_static_calls`. `verify_patchable_release.sh` measures **8 patchable sites, 2 per MB** against a 100/MB threshold, and its own message is the observed symptom verbatim: *"a Route B patch will attach successfully and change nothing: AOT emitted direct calls that never consult `Function.entry_point_`."* The on-device diagnostic agrees exactly — `applied 1/1 targets`. Three independent facts, one cause. The device gate must be re-run against a release cut WITH the flag |
+| ~~◐~~ | ~~**11. The device gate is OPEN, and the matched control moved the boundary.**~~ `value() => 'NEW-CTL'` — no private reference, same release, same target, same cell, engine identity pinned throughout — **also did not apply** (`code patch: 3`, value unchanged). So the private-bearing bytecode is NOT the differentiator, and neither is engine identity. The container's `release.buildId` equals the installed app's `LC_UUID` (`2d497ada…`) and its selector is `RouteBThing.value`, so delivery, identity and targeting are all correct. What is left is container-parse → target-resolve → payload-load → `AttachBytecode`, on device, and that needs observation rather than another hypothesis |
 | ~~◐~~ | ~~**11. The device gate is OPEN.**~~ Two runs: patch 1 (engine mismatch) and patch 2 (identity matching, both gates passed) BOTH installed, reported themselves active, and left the value unchanged. Host passes the identical shape against the same published cell, so the producer/manifest/CFE chain is not what fails. Next: engine-side visibility into why the attach or bind fails on device |
 | ✅ | **10. One combined cell mint** — **`ee001fd78fcd5e78e976d35284bd13e1caffff63`**, donor `50d58cc3`, engine binary cloned byte-for-byte so only the CELL differs. `audit_route_b_compiler.sh` clean, and `cli_private_member.sh` **10/10 again against the PUBLISHED zip** — the staged run proved the bytes, this proves the publication. **Only the device round-trip remains** |
 
@@ -1217,6 +1218,38 @@ sound. The divergence is in the delivery path, not in G3.6b.
 > attach is real and execution fails later. None is distinguishable from outside
 > the engine, which is why the next step is the per-target diagnostic and not
 > another fix.
+>
+> **THIRD CORRECTION, and the last one: no engine instrumentation was needed.**
+> The `.routeb` diagnostic already exists on device and already answered it. Pulled
+> off the phone with `ios-deploy --download`, `patches/3/dlc.vmcode.routeb` reads:
+>
+>     hook entered
+>     parsed, targets=1, built-for=2d497adaa2713a2f9aa5da618125f077
+>     running=2d497adaa2713a2f9aa5da618125f077
+>     applied 1/1 targets, entering main
+>
+> Hook entered, container parsed, build IDs equal, attach reported success. So the
+> state was "attach succeeds and the target is never reached" — and the reason is
+> that **the release was cut without `--patchable_static_calls`**.
+> `verify_patchable_release.sh` reports **8 patchable sites, 2 per MB** against a
+> 100/MB threshold, and its own failure text is the symptom we spent the day
+> chasing, written down before we hit it: *"a Route B patch will attach
+> successfully and change nothing: AOT emitted direct calls that never consult
+> `Function.entry_point_`."*
+>
+> The measurement is on the PATCH build's archive, because later builds overwrote
+> the release's — a labelled proxy, not the release bytes. It is corroborated by
+> two independent facts: the release command carried no
+> `--extra-gen-snapshot-options=--patchable_static_calls`, and `_verifyPatchableRelease`
+> only runs when patchable calls were REQUESTED, so a release cut without the flag
+> is silent about it.
+>
+> **The lesson is procedural, not technical.** `assert_installed_release.sh` exists
+> and is documented as mandatory before interpreting ANY device result; a
+> patchability check on the release is the same class of gate and was skipped. Four
+> device runs and three wrong causal attributions were spent on a precondition that
+> one existing script answers in two seconds. Run the cheap discriminators FIRST,
+> in the order the runbook already specifies.
 
 **The cause: the build silently rewrote the engine stamp.** `shorebird patch`
 warned that the release was built by `ee001fd7` while the machine was "set up
