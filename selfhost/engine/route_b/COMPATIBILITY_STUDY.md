@@ -535,8 +535,15 @@ hours earlier against a baseline nobody shipped buys nothing.
 The trigger is the other session declaring **`G3.6` complete** in `PARITY.md`.
 Then, in order:
 
+0. **HARD PRECONDITION** — `PARITY.md` says `G3.6` is complete **and** `R3` is
+   unclaimed or released. Both, not either. `compat_baseline.py` records the
+   `R3` rows and any "G3.6 complete" line verbatim into the baseline object, and
+   reports when it finds none; it deliberately does not decide them, because
+   that table's format belongs to another session;
 1. `G3.6` declares complete;
-2. confirm the working tree is clean and the relevant commits have landed;
+2. confirm the working tree is clean and the relevant commits have landed —
+   `compat_baseline.py` refuses to emit a baseline over a dirty tree, since one
+   captured across uncommitted changes describes a tree nobody can check out;
 3. mint one cell from those exact sources;
 4. audit the published cell and check it resolves;
 5. record the immutable baseline tuple below;
