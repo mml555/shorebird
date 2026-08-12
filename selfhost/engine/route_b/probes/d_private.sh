@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words dartaotruntime SBRBPTCH sbrb
+# cspell:words dartaotruntime SBRBPTCH sbrb pathlib prepass
 #
 # d_private.sh -- Rung D: private / library-scoped identity.
 #
@@ -48,8 +48,8 @@ pass=0; fail=0
 mkdir -p "$WORK/lib" "$WORK/.dart_tool"
 
 cp "$RB/packaging/container_target.dart" "$WORK/lib/container_target.dart"
-python3 - "$WORK/lib/container_target.dart" <<'PY'
-import sys, pathlib
+RETAIN_PRIVATE="${RETAIN_PRIVATE:-}" python3 - "$WORK/lib/container_target.dart" <<'PY'
+import os, sys, pathlib
 p = pathlib.Path(sys.argv[1]); s = p.read_text()
 
 # A public field and an instance method whose body ignores the receiver. The
@@ -68,6 +68,32 @@ String _privateHelper() =>
 void _state(String when) =>""",
     1,
 )
+
+# RETAIN_PRIVATE=1 makes the RELEASE name `_privateHelper` in a branch that never
+# runs, which is the pattern `helper` and `tagged` already use in the other
+# fixtures: TFA keeps a member the program mentions, so the --aot prepass kernel
+# still contains it and the generator can name it in the interface.
+#
+# WHY THIS IS A KNOB AND NOT THE DEFAULT. Question (1) of this probe -- "a private
+# member NOTHING calls is tree-shaken before the interface can retain it" -- is a
+# real finding and the default must keep asking it. The knob exists so the
+# RETENTION wall and the PRIVACY wall can be tested one at a time; with both
+# conflated, a failure says only "something about privates is wrong".
+if os.environ.get('RETAIN_PRIVATE'):
+    s = s.replace(
+        "void _state(String when) =>",
+        """// Never true. Present so TFA keeps `_privateHelper` in the --aot kernel.
+final bool _keepPrivate = DateTime.now().millisecondsSinceEpoch < 0;
+String _retainPrivateHelper() => _keepPrivate ? _privateHelper() : '';
+
+void _state(String when) =>""",
+        1,
+    )
+    s = s.replace(
+        "print('BUILD_ID",
+        "if (_keepPrivate) print(_retainPrivateHelper());\n  print('BUILD_ID",
+        1,
+    )
 p.write_text(s)
 PY
 
@@ -105,8 +131,22 @@ run_arm() { # <label> <replacement source, pragma included> <expected value>
 
   printf "import '%s';\n\n%s\n" "$URI" "$body" > "$dir/repl.dart"
 
+  # RESOLVE_IN_LIBRARY=1 opts into the CFE mechanism G3.6e adds -- the compiled
+  # replacement also resolves names in the app library's own namespace, which is
+  # what the debugger's expression evaluation has always done. Default OFF, so
+  # this probe's recorded baseline is unchanged and the two runs are comparable:
+  # arm 2 (reference_private) is expected to FAIL without it and PASS with it.
+  local resolveArgs=()
+  if [[ -n "${RESOLVE_IN_LIBRARY:-}" ]]; then
+    resolveArgs=(--resolve-private-names-in-library "$URI")
+  fi
+
+  # `${arr[@]+"${arr[@]}"}` and not `"${arr[@]}"`: this rig's bash is 3.2, where
+  # expanding an EMPTY array under `set -u` is an unbound-variable error. The
+  # plain form aborted this probe's first flagged run at the control arm.
   if ! "$DART" "$DART2BC" --platform "$OUT/vm_platform.dill" \
-      --import-dill import.dill --packages .dart_tool/package_config.json \
+      --import-dill import.dill ${resolveArgs[@]+"${resolveArgs[@]}"} \
+      --packages .dart_tool/package_config.json \
       -o "$dir/repl.bytecode" "$dir/repl.dart" > "$dir/compile.log" 2>&1; then
     echo "  compile: REFUSED"
     # `|| true`: with `set -o pipefail` a non-matching grep aborts the whole

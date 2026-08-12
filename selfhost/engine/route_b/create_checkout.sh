@@ -97,12 +97,37 @@ patchable_static_calls:runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc
 LookupClassAllowPrivate:runtime/lib/object.cc
 ROUTEB_PROBES
 
+# Route B step 2's language half: the CFE option that lets a replacement resolve
+# names in the application library's PRIVATE namespace, which is the mechanism
+# the debugger has always used for expression evaluation. Same reasoning as step
+# 1 for keeping it a patch rather than a working-tree edit -- an unversioned SDK
+# edit is invisible and silently inherited by every out-dir built from the tree.
+say "applying Route B step 2: resolve-private-names-in-library (G3.6e)"
+RB5="$HERE/0005-cfe-resolve-private-names-in-library.patch"
+if git -C "$DART" apply --check -p1 "$RB5" 2>/dev/null; then
+  git -C "$DART" apply -p1 "$RB5"
+elif git -C "$DART" apply --check -p1 -R "$RB5" 2>/dev/null; then
+  say "  already applied"
+else
+  die "G3.6e patch does not apply cleanly to $DART"
+fi
+while IFS=: read -r sentinel file; do
+  n=$(grep -c "$sentinel" "$DART/$file" 2>/dev/null || echo 0)
+  printf '    %-34s %-52s %s\n' "$sentinel" "$file" "$n"
+  [[ "$n" -gt 0 ]] || die "G3.6e patch reported success but $sentinel is not in the tree"
+done <<'ROUTEB5_PROBES'
+resolvePrivateNamesInLibrary:pkg/front_end/lib/src/api_prototype/compiler_options.dart
+resolvePrivateNamesInLibrary:pkg/front_end/lib/src/base/processed_options.dart
+resolvePrivateNamesInLibrary:pkg/front_end/lib/src/source/source_loader.dart
+resolve-private-names-in-library:pkg/dart2bytecode/lib/dart2bytecode.dart
+ROUTEB5_PROBES
+
 cat <<EOF
 
 Route B checkout ready: $DEST_TREE
   flutter revision : $(git -C "$DEST_TREE" rev-parse --short HEAD)
   dart tree        : $DART
-  carries          : 0001/0004/0005/0006 + killgate + Route B step 1
+  carries          : 0001/0004/0005/0006 + killgate + Route B steps 1 and 2
 
 Next: $HERE/build_host.sh
 EOF
