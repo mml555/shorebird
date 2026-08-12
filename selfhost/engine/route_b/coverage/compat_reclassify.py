@@ -31,7 +31,7 @@ def derive(row):
         blocking_categories=cats,
         blocking_policies=sorted({b['policy'] for b in blockers}),
         primary_blocker=(cats[0] if len(cats) == 1 else None),
-        blocked_by_one=(not row['publishable']
+        blocked_by_one=(not row['predicted_publishable']
                         and row['representable_and_lowerable'] > 0),
     )
     return row

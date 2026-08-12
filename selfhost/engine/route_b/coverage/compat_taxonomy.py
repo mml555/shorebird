@@ -130,22 +130,33 @@ def outcomes_for(raw_analysis):
         if t in emit and (low.get('unsupported') or []))
 
     coverage = raw_analysis.get('verdict')            # accept | reject | inert
-    producer = 'refused' if unlowerable else 'ok'
-    publishable = coverage == 'accept' and producer == 'ok'
+    # PREDICTED, not observed. This study does not run the producer; it infers
+    # what the producer would do from the analyzer's lowering output. The
+    # inference is sound in one direction only:
+    #
+    #   analyzer reports unsupported  =>  the producer refuses
+    #
+    # but NOT the converse. The producer refuses for conditions the analyzer
+    # never reports -- an access kind it does not recognise, two edits at one
+    # offset, a non-empty parameter list, `this . label` spacing. So this is a
+    # LOWER BOUND on refusal and an UPPER BOUND on publishability, and it is
+    # named for what it is rather than borrowing the producer's authority.
+    predicted_producer = 'refused' if unlowerable else 'ok'
+    predicted_publishable = coverage == 'accept' and predicted_producer == 'ok'
 
     if coverage == 'inert':
         terminal = 'inert'
-    elif publishable:
-        terminal = 'publishable'
+    elif predicted_publishable:
+        terminal = 'predicted-publishable'
     elif coverage != 'accept':
         terminal = 'coverage-rejected'
     else:
-        terminal = 'producer-refused'
+        terminal = 'predicted-producer-refused'
 
     return {
         'coverage_verdict': coverage,
-        'producer_verdict': producer,
-        'publishable': publishable,
+        'predicted_producer_verdict': predicted_producer,
+        'predicted_publishable': predicted_publishable,
         'outcome': terminal,
         'unlowerable_emit_targets': unlowerable,
         'representable': len(emit),

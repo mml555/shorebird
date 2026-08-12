@@ -216,10 +216,10 @@ def digest(path):
 
 
 def run_case(case, worktree, entry, target, workdir, source, pub_get=None,
-             pub_get_dir='.'):
+             pub_get_dir='.', producer_commit=''):
     d = pathlib.Path(workdir) / f"{source}-{case['commit'][:10]}"
     d.mkdir(parents=True, exist_ok=True)
-    row = {'source': source, 'cell': CELL_HASH,
+    row = {'source': source, 'cell': CELL_HASH, 'producer_commit': producer_commit,
            **{k: case[k] for k in ('commit', 'parent', 'subject', 'date', 'churn')},
            'files': case['files']}
     t0 = time.time()
@@ -256,11 +256,12 @@ def run_case(case, worktree, entry, target, workdir, source, pub_get=None,
                                 'FLUTTER_STORAGE_BASE_URL':
                                 'http://localhost:8085'})
         if r.returncode != 0:
-            return {**row, 'outcome': 'pub-get-failed',
+            return {**row, 'outcome': 'dependency-resolution-failed',
                     'error': (r.stderr or r.stdout)[-500:]}
     ok, err = compile_kernel(worktree, entry, d / 'prepass.dill', target)
     if not ok:
-        return {**row, 'outcome': 'compile-failed', 'stage': 'prepass', 'error': err}
+        return {**row, 'outcome': 'toolchain-incompatible', 'stage': 'prepass',
+                'error': err}
 
     # THE CELL'S generator, not the repo's source. The repo copy is live -- it
     # changed under this study on 2026-08-11 -- and using it would mean claiming
@@ -271,11 +272,12 @@ def run_case(case, worktree, entry, target, workdir, source, pub_get=None,
                     '--dill', str(d / 'prepass.dill'), '--out', str(d / 'di.yaml'),
                     '--sdk-members', 'dart:core#print'], capture_output=True)
     if not (d / 'di.yaml').exists():
-        return {**row, 'outcome': 'compile-failed', 'stage': 'interface'}
+        return {**row, 'outcome': 'toolchain-incompatible', 'stage': 'interface'}
 
     ok, err = compile_kernel(worktree, entry, d / 'base.dill', target, d / 'di.yaml')
     if not ok:
-        return {**row, 'outcome': 'compile-failed', 'stage': 'base', 'error': err}
+        return {**row, 'outcome': 'toolchain-incompatible', 'stage': 'base',
+                'error': err}
 
     try:
         checkout(case['commit'])
@@ -283,7 +285,8 @@ def run_case(case, worktree, entry, target, workdir, source, pub_get=None,
         return {**row, 'outcome': 'checkout-failed', 'error': str(e)}
     ok, err = compile_kernel(worktree, entry, d / 'patched.dill', target, d / 'di.yaml')
     if not ok:
-        return {**row, 'outcome': 'compile-failed', 'stage': 'patched', 'error': err}
+        return {**row, 'outcome': 'toolchain-incompatible', 'stage': 'patched',
+                'error': err}
 
     # ITS OWN TERMINAL STATE, never acceptance or rejection: identical bytes mean
     # the change is not in the compiled program, or the checkout did not take.
@@ -329,7 +332,7 @@ def run_case(case, worktree, entry, target, workdir, source, pub_get=None,
         # get a winner chosen for them.
         primary_blocker=(cats[0] if len(cats) == 1 else None),
         # Otherwise-valid work killed by whole-patch refusal semantics.
-        blocked_by_one=(not row['publishable']
+        blocked_by_one=(not row['predicted_publishable']
                         and row['representable_and_lowerable'] > 0),
         seconds=round(time.time() - t0, 1),
     )
@@ -353,6 +356,9 @@ def main():
     ap.add_argument('--manifest', required=True)
     ap.add_argument('--pubspec', default='pubspec.yaml')
     ap.add_argument('--pub-get', default=None)
+    ap.add_argument('--producer-commit', required=True,
+                    help='the pinned producer commit; recorded on every row so a '
+                         'later baseline can be compared rather than confused')
     ap.add_argument('--pub-get-dir', default='.',
                     help='directory, relative to the worktree, to resolve in')
     a = ap.parse_args()
@@ -363,6 +369,7 @@ def main():
     for k, v in funnel.items():
         print(f'    {v:>6}  {k}')
     print(f"    eligible sha256 {manifest['eligible_sha256'][:16]}")
+    manifest['producer_commit'] = a.producer_commit
     pathlib.Path(a.manifest).write_text(json.dumps(manifest, indent=2))
     if not cases:
         sys.exit('no cases selected')
@@ -380,7 +387,7 @@ def main():
         wt = pool_wt.get()
         try:
             return run_case(case, wt, a.entry, a.target, a.workdir, a.source,
-                            a.pub_get, a.pub_get_dir)
+                            a.pub_get, a.pub_get_dir, a.producer_commit)
         except Exception as e:                       # noqa: BLE001
             return {'source': a.source, 'commit': case['commit'],
                     'subject': case['subject'], 'outcome': 'harness-error',

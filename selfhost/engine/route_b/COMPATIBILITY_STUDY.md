@@ -469,3 +469,77 @@ The harness is complete and unblocked otherwise: taxonomy, seeded manifests,
 three-outcome recording, `identical-kernels`, verified checkouts, worktree
 leasing, and reclassification from preserved `raw` all work. Only the corpus
 construction is open.
+
+
+---
+
+# Baseline for Phase 1 — and two reasons it is not pinnable yet
+
+Decided: **historical parent/child trees stay.** Revert-onto-HEAD answers a
+different question — *would this old edit be patchable against today's program?*
+— and it would move the very things being measured: privacy, class shape,
+signatures, reachability, member existence, call resolution. It would give real
+diffs and not real patches. It stays available as a separate, later study, and
+the two populations are never mixed.
+
+A historical pair that no longer builds is therefore **recorded, not rescued**:
+`toolchain-incompatible` and `dependency-resolution-failed` are terminal states
+in the funnel. Transplanting such a diff onto HEAD would quietly convert a
+failed historical-compatibility result into a different experiment.
+
+## Landed now
+
+* `producer_verdict` -> **`predicted_producer_verdict`**, and `publishable` ->
+  `predicted_publishable`. The study does not run the producer; it infers from
+  the analyzer's lowering output. The inference holds one way only —
+  *analyzer-unsupported implies the producer refuses* — but not the converse:
+  the producer also refuses for an unrecognised access kind, two edits at one
+  offset, a non-empty parameter list, and `this . label` spacing, none of which
+  the analyzer reports. So it is a **lower bound on refusal and an upper bound
+  on publishability**, and it is now named for that instead of borrowing the
+  producer's authority.
+* Terminal states renamed to `toolchain-incompatible` /
+  `dependency-resolution-failed`, plus `identical-kernels`.
+* `--producer-commit` is required and recorded on **every row** and in the
+  manifest, so a later baseline can be compared rather than confused.
+
+## Why the baseline cannot be pinned yet
+
+**1. The producer is settled; the CELL is not, and they disagree.**
+The producer's last change is `a28ba1d9` (G3.6c, private receiver class lowers
+to `dynamic`) and is clean. But `gen_dynamic_interface.dart` — a cell file —
+changed *after* it, twice: `059573ca` (G3.6d, retain private classes, class
+members and top-level fields) and `a2927e41`. The published cell
+`aa9155840d…` predates both.
+
+Pinning {analyzer v6 + cell `aa915584` + producer `a28ba1d9`} would pair a
+**post-G3.6c producer with pre-G3.6d retention**. Retention decides what is
+reachable, and reachability is a study input — `unreachable-target` was a
+`structural` blocker in Phase 0. That baseline would measure a configuration
+that has never existed.
+
+A coherent baseline needs a cell minted from current cell sources. That is an
+`R3` mint, and `R3` is currently held read-only by the other session.
+
+**2. More producer work is expected.** `PARITY.md`'s claims table notes `R7` is
+free but that **`G3.6b` will want it**. Starting Phase 1 against `a28ba1d9` and
+having `G3.6b` land mid-run reintroduces exactly the contamination the pinning
+is meant to prevent.
+
+## The proposal
+
+Wait for `G3.6` to land completely, then in one step:
+
+1. mint a cell from the then-current cell sources (analyzer still v6 unless it
+   moves — if it moves, the version bumps and the freeze constant with it);
+2. pin that cell hash **and** the producer commit as **baseline A**;
+3. audit the cell, record both in the manifest, and run 50 + 50 from zero;
+4. no producer or cell change enters the study after row 1.
+
+If `G3.6` later changes what a private receiver can do, that is **baseline B**,
+and the comparison — acceptance under A versus under B — is the product evidence
+worth having, precisely because neither run is contaminated by the other.
+
+Given Phase 0 put `private-app-member` at the top of the blocker table in 9 of
+10 patches, baseline A measured *before* private-receiver support and baseline B
+*after* is close to the ideal experiment for the question that actually matters.
