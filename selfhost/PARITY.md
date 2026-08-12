@@ -3,7 +3,7 @@
 <!-- cspell:words schedulable startable worktree oneline unheld diffstat -->
 <!-- cspell:words overclaim DFLUTTER Diagnosticable -->
 <!-- cspell:words demangled specializer devirtualizes rationalised synthesises -->
-<!-- cspell:words subshell theorised generalises -->
+<!-- cspell:words subshell theorised generalises generalisable symbolicator unrunnable -->
 
 # Shorebird feature parity — the goal document
 
@@ -22,11 +22,25 @@ engine checkout, one canonical fixture) rather than organizational.
 
 **Last reviewed:** 2026-08-11 18:4x, at `fa40f6ca`.
 
-**Verification scope of this pass.** §2 (rung ladder) and §3 (Dart language
-surface) were re-derived from the tree — commits, probes and evidence files.
-Everything else carries forward from the prior review and is labelled with the
-status that review gave it; a carried-forward status is a claim about the last
-time someone looked, not about today.
+**Verification scope.** §2 (rung ladder), §3 (Dart language surface) and — as of
+2026-08-11 — **§5, §6, §7, §8, §9, §10, §11 and §13** have been re-derived from the
+tree: commits, probes, evidence files and source. Sections still carrying a status
+forward from an earlier review say so where it matters.
+
+> **What that pass cost, and why it was worth it.** Eight sections were verified
+> row by row and **the statuses moved in both directions**. Rows filed as
+> *NOT VALIDATED* turned out to be **KNOWN GAP** — a device run would not have
+> closed them, because the code already answers. Rows filed as *BUILT* were
+> **PROVEN** and had been understating themselves. And two of my own recent
+> "corrections" were **wrong** and are called out where they sit: §6's `BLOCKED`
+> and its "no test has ever…" claim. The verifiers' proposals were then attacked
+> by two adversarial passes, which killed four — including one that claimed no CI
+> workflow invokes the CLI, contradicted by `e2e.yaml` driving it end to end.
+>
+> The generalisable part: **an unvalidated row invites "we should test that", while
+> a gap invites "we should decide whether we ship that."** Mislabelling the second
+> as the first is how a project keeps scheduling device time against questions the
+> source already settled.
 
 > **⚠ This repo had two workers active on 2026-08-11.** Read **§17** before
 > running anything, and check its claims table before taking the phone, the Route
@@ -822,26 +836,62 @@ boundary is not the rung ladder but library-scoped privacy.
 > failure and a verified recovery, on both platforms.
 > **Owns:** `R1` or `R2` (one leg at a time), `R6` fixture.
 
-| | item |
-|---|---|
-| ✅ | **PROVEN** Patch check |
-| ✅ | **PROVEN** Download |
-| ✅ | **PROVEN** Install |
-| ✅ | **PROVEN** Promotion |
-| ✅ | **PROVEN** Persistent patch selection |
-| ✅ | **PROVEN** Relaunch into patch |
-| ✅ | **PROVEN** Withdraw patch |
-| ✅ | **PROVEN** Roll back to pristine release code |
-| ✅ | **PROVEN** Release-ID mismatch detected before interpreting device results |
-| ✅ | **PROVEN** Invalid compiler-cell artifacts fail closed |
-| ✅ | **PROVEN** Incompatible/unpatchable Route B release rejected by the producer |
-| ☐ | **NOT VALIDATED** Automatic boot/crash rejection behavior parity |
-| ☐ | **NOT VALIDATED** Interrupted download / recovery matrix |
-| ☐ | **NOT VALIDATED** Corrupt downloaded patch behavior matrix |
-| ☐ | **NOT VALIDATED** Multiple sequential patches and rollback matrix |
-| ☐ | **NOT VALIDATED** Patch-from-older-release rejection matrix |
+**Verified against the code 2026-08-11.** Every row below was checked rather than
+carried forward, and six changed. The platform is now named per row, because the
+section previously implied both and several rows only ever held for one.
 
-**Lifecycle parity: CORE PROVEN / EDGE-CASE MATRIX INCOMPLETE.**
+| | item | platform |
+|---|---|---|
+| ✅ | **PROVEN** Patch check | Android + iOS |
+| ✅ | **PROVEN** Download — the installed artifact was pulled back off the phone and was byte-identical to the published container | Android + iOS |
+| ✅ | **PROVEN** Install | Android + iOS |
+| ✅ | **PROVEN** **Lifecycle** promotion to `next_boot` — `lifecycle.rs:752-770` | Android + iOS |
+| ✅ | **PROVEN** Persistent patch selection | Android + iOS |
+| ✅ | **PROVEN** Relaunch into patch | Android + iOS |
+| ✅ | **PROVEN** Withdraw patch | Android + iOS |
+| ✅ | **PROVEN** Roll back **to the pristine release** | Android + iOS |
+| 🐞 | **KNOWN GAP** Roll back to an **earlier patch** is impossible by construction | both |
+| ✅ | **PROVEN** Release-ID mismatch caught by a **host pre-flight probe** (`probes/assert_installed_release.sh`) | iOS only — test discipline, not a shipped property |
+| 🐞 | **KNOWN GAP** A wrong-release patch is downloaded, installed, promoted and **reported as a successful install** before anything refuses it | iOS |
+| ✅ | **PROVEN** Invalid compiler-cell artifacts fail closed | iOS only — no Android analogue |
+| ✅ | **PROVEN** Unpatchable release **detected** on real shipped bytes | iOS |
+| ◐ | **BUILT** …and **refused inside the patcher** — host tests only, never run against an unpatchable release through the product path | iOS |
+| 🐞 | **KNOWN GAP** Automatic boot/crash rejection — a patch that crashes in Dart is **never backed out** | iOS/Route B; narrow on Android |
+| 🐞 | **KNOWN GAP** Interrupted download — cross-cycle resume is structurally unreachable | both |
+| ◐ | **PARTIAL** Corrupt patch **in transit** — refuse-permanently established in source, device demo missing | both |
+| 🐞 | **KNOWN GAP** Corrupt patch **at rest** — refused silently forever: no tombstone, no event, retried every boot | iOS |
+| ◐ | **PARTIAL** Multiple sequential patches — three on one release are device-proven | iOS |
+| ☐ | **NOT VALIDATED** Patch-from-older-release rejection matrix | both |
+
+**Three of those gaps are safety claims that were filed as merely untested, and
+each is decidable from source without a device.**
+
+**Boot/crash rejection: the mechanism exists but its window closes before any Dart
+runs.** `ReportLaunchStart` fires during snapshot resolution
+(`runtime/dart_snapshot.cc:160`) and `ReportLaunchSuccess` fires in the **`Shell`
+constructor** (`shell/common/shell.cc:535-537`) — the engine's own test proves that
+path executes no Dart at all (`shell_unittests.cc:5119-5137` yields exactly
+`['ReportLaunchStart','ReportLaunchSuccess']`). The root isolate, and therefore
+`root_isolate_create_callback` where Route B activates, is created later via
+`Shell::RunEngine` (`shell.cc:750,782`). So "launch succeeded" is recorded before
+the patch has had a chance to fail.
+
+**Wrong-release patches are not refused by the updater on iOS, and a probe comment
+says otherwise.** The Route B artifact is deliberately **base-independent**
+(`0003-4b-lifecycle-delivery.patch:1067-1092`), so `check_hash` passes on any
+device, the patch installs, promotes, and reports `__patch_download__` and
+`__patch_install__`. Only the pre-main hook refuses it (`kWrongRelease`, same patch
+`:829-844`). `probes/assert_installed_release.sh:63-67` claims the updater "will
+correctly refuse a patch built for another release" — **that comment is wrong** and
+should be fixed where it sits.
+
+**Rollback lands only on the base release.** `record_boot_success` calls
+`cleanup_older_than(n)` (`lifecycle.rs:624-634`), deleting every patch below the one
+that booted, and `recompute_next_boot` (`:722-748`) falls back to `last_booted`
+only — its own doc-comment says it will not scan for other installed patches.
+Confirmed on device: withdrawing patch 1 showed `code patch: none`, not patch 0.
+
+**Lifecycle parity: CORE PROVEN / SAFETY EDGES ARE GAPS, NOT UNKNOWNS.**
 
 ---
 
@@ -850,10 +900,12 @@ boundary is not the rung ladder but library-scoped privacy.
 > **`G6 · tracks` — goal:** a patch reaches exactly the devices its track
 > selects, and no others.
 > **Done when:** a device on one track provably does *not* receive another
-> track's patch, and promotion/withdrawal move it as upstream's workflow does.
-> **Splits by layer:** the server/CLI half needs **no hardware** (`R10`
-> `code_push_server` source, own test suite) and is parallel-safe with almost
-> everything; only the "device receives only selected track" row needs `R1`/`R2`.
+> track's patch, and promotion **adds** a track / withdrawal removes one, as
+> upstream's workflow does. *(The verb is `add`, not `move` — settled by reading
+> `promote`, which supersedes only within the target channel.)*
+> **Splits by layer:** the server half needs **no hardware** (`R10`
+> `code_push_server` source, own test suite) and is largely **already built**;
+> only the "device receives only selected track" row needs `R1`/`R2`.
 
 | | item |
 |---|---|
@@ -861,32 +913,33 @@ boundary is not the rung ladder but library-scoped privacy.
 | ☐ | **NOT VALIDATED** Stable track |
 | ☐ | **NOT VALIDATED** Beta / staging / custom track |
 | ☐ | **NOT VALIDATED** Publish patch to a specific track |
-| ☐ | **BLOCKED** Device receives only the selected track — see below |
-| ☐ | **NOT VALIDATED** Promote / move a rollout between tracks |
-| ☐ | **NOT VALIDATED** Rollback / withdraw within a tracked rollout |
+| ☐ | **NOT VALIDATED** Device receives only the selected track — reachable today, see below |
+| ◐ | **BUILT** Promote a rollout to another track — and the verb is **ADD**, not move |
+| ◐ | **BUILT** Rollback / withdraw within a tracked rollout — channel-scoped, server-side |
 | ☐ | **NOT VALIDATED** Progressive rollout behavior, if supported by the upstream workflow |
 
-**Rollout parity: UNVALIDATED**, and one row is hard-blocked rather than merely
-untested.
+**Rollout parity: SERVER LARGELY BUILT / DEVICE UNVALIDATED.**
 
-> **`channel` never reaches the device.** `compileShorebirdYaml` in
-> `vendor/flutter/packages/flutter_tools/lib/src/shorebird/shorebird_yaml.dart:68-70`
-> copies exactly `base_url`, `auto_update` and `patch_verification` — and **not**
-> `channel`. So the on-device auto-update path is permanently **stable-only**, and
-> "device receives only the selected track" cannot ride a normal release. That row
-> is coupled to `G8`'s fixture or to `shorebird preview`; it is **not** a free
-> `R1`/`R2` slot, which is what someone would otherwise discover mid-run.
+> **Two corrections to an earlier version of this section, both of them mine.**
 >
-> Tracks themselves are **not** a stub server-side — the wire and storage
-> implement them, and superseding is correctly scoped `WHERE channel_id = @c`. But
-> that scoping raises a definition question to settle **before** writing the
-> isolation tests: `promote` supersedes only *within* the target channel, so
-> set-track **adds** a track while §6 above says "move" and the CLI's own output
-> reads as a move. Whichever reading the test author holds becomes the contract.
+> **I called the device row `BLOCKED` and said auto-update was "permanently
+> stable-only." That was wrong.** `compileShorebirdYaml` does copy only `base_url`,
+> `auto_update` and `patch_verification`, and it does omit `channel` — but the
+> conclusion does not follow: the row is reachable today by other means, so it is
+> **NOT VALIDATED**, not blocked. "Permanently" was the overreach. I had verified
+> one fact and inferred a second, which is the exact failure this document warns
+> about two sections earlier.
 >
-> Also: no test in `packages/code_push_server/test` has ever created a
-> non-`stable` channel — `grep beta` returns nothing. The server half of `G6` is
-> real, absent work, not bookkeeping.
+> **I also wrote that "no test has ever created a non-`stable` channel," and that
+> the server half of `G6` is "real, absent work."** Also wrong — the server half is
+> largely **done**. `grep beta` returning nothing was a bad proxy for coverage, and
+> I should not have promoted a negative grep to a claim about what exists.
+>
+> **What does hold:** tracks are real server-side, superseding is correctly scoped
+> `WHERE channel_id = @c`, and the promote semantics are settled by reading the
+> code — `promote` supersedes only *within* the target channel, so setting a track
+> **adds** one. Fix the language wherever it says "move", including in `G6`'s goal
+> statement above, before anyone writes a test that freezes the wrong reading.
 
 ---
 
@@ -902,17 +955,28 @@ untested.
 > artifact shape from an Android diff — confirm what upstream's signing actually
 > covers before assuming it wraps ours unchanged.
 
+**Verified against the code 2026-08-11**, and the result is worse than "unvalidated".
+
 | | item |
 |---|---|
 | ☐ | **INHERITED** Upstream signing machinery present in the fork |
+| 🐞 | **KNOWN GAP** The default `patch_verification: install_only` performs **no signature verification anywhere on the production path** |
 | ☐ | **NOT VALIDATED** Signed Android release + patch |
 | ☐ | **NOT VALIDATED** Signed iOS Route B release + patch |
-| ☐ | **NOT VALIDATED** Invalid signature rejected |
-| ☐ | **NOT VALIDATED** Key rotation workflow |
-| ☐ | **NOT VALIDATED** Custom signing command |
-| ☐ | **NOT VALIDATED** KMS-backed signing workflow where supported upstream |
+| ☐ | **INHERITED** Invalid signature rejected — **`Strict` mode only, and only at the NEXT BOOT**, after the patch has been downloaded, installed, promoted and reported as a successful download |
+| 🐞 | **KNOWN GAP** Key rotation — there is nothing to validate; no rotation mechanism exists |
+| ☐ | **NOT BUILT** A documented rotation procedure |
+| ☐ | **NOT VALIDATED** Custom signing command (`--sign-cmd`) |
+| 🐞 | **KNOWN GAP** The signing algorithm is fixed — a constraint the "KMS-backed" row assumed away |
+| ☐ | **NOT BUILT** KMS-backed signing — **aspirational**, folded into `--sign-cmd` rather than standing as its own parity obligation |
 
-**Signing parity: UNVALIDATED**, but the Route B worry is resolved — in our favour.
+**Signing parity: THE DEFAULT VERIFIES NOTHING.** That is the headline, and it is
+**inherited**, not a fork regression — worth saying plainly, because an
+unvalidated row invites "we should test that" while a gap invites "we should decide
+whether we ship that." The security boundary is the **device**, and only in
+`Strict` mode; the server stores and echoes `hash_signature` and verifies nothing.
+
+The Route B worry is resolved in our favour, and that part survived re-checking.
 
 > **`SBRBPTCH` is covered for free, and this closes a question §7 previously
 > raised.** `vendor/updater/library/src/cache/signing.rs:37` is
@@ -940,7 +1004,7 @@ untested.
 | ☐ | **NOT VALIDATED** Disable the automatic update flow |
 | ☐ | **NOT VALIDATED** Android manual update path |
 | ☐ | **NOT VALIDATED** iOS Route B manual update path |
-| ☐ | **NOT VALIDATED** Restart-required / update-state behavior |
+| 🐞 | **KNOWN GAP** Restart-required / update-state behavior — decided by the same once-per-process activation guard as §5 and §9, so what the API reports on iOS can be **wrong**, not merely unverified |
 
 **Manual API parity: UNVALIDATED.**
 
@@ -985,16 +1049,26 @@ under a shared `platform` (`aar` vs `aab`, `xcframework` vs `xcarchive`) — see
 
 ### iOS
 
+**Verified 2026-08-11, and it is blocked earlier than anyone thought.**
+
 | | item |
 |---|---|
-| ☐ | **INHERITED** Upstream add-to-app support |
-| ☐ | **NOT VALIDATED** Route B release |
-| ☐ | **NOT VALIDATED** Route B patch |
-| ☐ | **NOT VALIDATED** Embedded Flutter engine patch activation |
+| 🐞 | **KNOWN GAP** Upstream add-to-app support — the control plane's **arch gate** rejects the iOS add-to-app arch strings, and it fires *before* the `aot_tools` blocker everyone was expecting |
+| ☐ | **NOT BUILT** Route B release — nothing wires Route B to the `ios-framework` path, and the arch gate above blocks it regardless |
+| ☐ | **NOT BUILT** Route B patch |
+| 🐞 | **KNOWN GAP** Embedded engine activation — a **second, independently constructed `FlutterEngine` never arms the hook** and runs unpatched AOT |
 | ☐ | **NOT VALIDATED** Relaunch |
 | ☐ | **NOT VALIDATED** Rollback |
 
-**Add-to-app parity: UNVALIDATED.**
+**Add-to-app parity: iOS is BLOCKED, not unvalidated.** Two independent blockers
+sit in front of it, and the second is the one worth planning around: Route B arms
+its activation hook **once per process**, so an add-to-app host that creates a
+second engine — a common pattern — silently runs the *unpatched* code in it. Silent
+divergence between two engines in one app is a worse failure than a refusal.
+
+That same once-per-process guard is what decides §5's boot/crash gap and §8's
+restart-required behavior. **One mechanism, three sections** — worth fixing as one
+piece of work rather than three.
 
 ---
 
@@ -1019,7 +1093,7 @@ under a shared `platform` (`aar` vs `aab`, `xcframework` vs `xcarchive`) — see
 | ☐ | **NOT VALIDATED** Fully noninteractive CI patch |
 | ☐ | **NOT VALIDATED** Token/auth failure produces a useful error |
 | ☐ | **KNOWN ISSUE** An empty `SHOREBIRD_TOKEN` can surface as a JSON `FormatException` |
-| ✅ | **FIXED** `shorebird release ios` refuses a stale IPA left by an earlier build — commit `c57c6537` |
+| ◐ | **BUILT** `shorebird release ios` refuses a stale IPA left by an earlier build — commit `c57c6537`. Narrower than it sounds: the guard compares the `.ipa` against the `.xcarchive` produced moments earlier by the same invocation |
 | ☐ | **NOT VALIDATED** `shorebird preview` |
 | ☐ | **NOT VALIDATED** Normal upstream developer preview/testing workflow |
 
@@ -1053,12 +1127,22 @@ Our additional capability, not an upstream parity requirement.
 
 | | item |
 |---|---|
-| ✅ | **SUPERSET / BUILT** Patch-scoped crash ingestion |
-| ✅ | **SUPERSET / BUILT** Per-patch symbol retention |
+| ✅ | **SUPERSET / PROVEN** Patch-scoped crash ingestion |
+| ✅ | **SUPERSET / PROVEN** Per-patch symbol retention |
 | ✅ | **SUPERSET / PROVEN** Android patch symbolication on a real device |
-| ✅ | **SUPERSET / BUILT** Architecture-aware symbol selection |
-| ✅ | **SUPERSET / BUILT** Read-time symbolication (`?symbolicate=true` → `stack_symbolicated`) |
-| ☐ | **SUPERSET / NOT VALIDATED** iOS Route B patched-crash symbolication end to end |
+| ✅ | **SUPERSET / PROVEN** Architecture-aware symbol selection |
+| ✅ | **SUPERSET / PROVEN** Read-time symbolication (`?symbolicate=true` → `stack_symbolicated`) |
+| 🐞 | **SUPERSET / KNOWN GAP** iOS Route B patched-crash symbolication is **structurally unavailable**, not merely untried |
+
+**Four rows upgraded BUILT → PROVEN**, verified against the recorded device runs
+2026-08-11: they had automated tests *and* real device evidence, so BUILT was
+understating them.
+
+**The iOS row moved the other way, and it is the more important change.** An
+interpreted bytecode frame does not appear in a native crash report the way an AOT
+frame does, so there is nothing for the symbolicator to resolve. This is a
+different problem from the Android one, not a port of it — filing it as
+`NOT VALIDATED` implied a device run would close it, and it would not.
 
 ---
 
@@ -1109,21 +1193,44 @@ Our additional capability, not an upstream parity requirement.
 | ✅ | **PROVEN** Own database / state |
 | ✅ | **PROVEN** Own artifact / CDN path |
 | ✅ | **PROVEN** Own Android engine artifacts |
-| ✅ | **PROVEN** Own iOS engine artifacts |
-| ✅ | **PROVEN** Own Dart / frontend / backend toolchain for supported engine cells |
+| ◐ | **PROVEN for the audited cell `70974f81`** Own iOS engine artifacts — **NOT VALIDATED for the Route B cells actually in use**, which clone their engine artifacts from a donor hash |
+| ◐ | **PROVEN for the two audited EXPERIMENTAL cells** Own Dart / frontend / backend toolchain — see the vocabulary warning below |
 | ✅ | **PROVEN** Compiler-cell provenance |
 | ✅ | **PROVEN** Immutable compiler cells |
 | ✅ | **PROVEN** Own patch differ path |
 | ✅ | **PROVEN** Own Flutter source mirror |
-| ◐ | **BUILT** Artifact ownership audit |
-| ◐ | **BUILT** Air-gap fixture / sealed infrastructure |
-| ☐ | **NOT VALIDATED** Full latest Route B release + code patch acceptance with every upstream network dependency physically unavailable |
+| 🐞 | **BUILT but currently RED** Artifact ownership audit — failing for `macos-ios`, and never run against any Route B cell |
+| 🐞 | **BUILT but STALE** Air-gap fixture — the pub seed no longer matches the fixture's `pubspec.lock` |
+| ☐ | **NOT BUILT** A sealed **iOS code-patch** stage — the harness has none; both its iOS patch invocations pass `--assets-only` |
+| ☐ | **NOT VALIDATED** The sealed run itself, on a current release |
+
+**Verified 2026-08-11, and "SUBSTANTIALLY PROVEN" was doing too much work.**
+
+**The word "supported" in that toolchain row is inverted.**
+`compatibility.yaml:79` says `engine_from_source: false — the SUPPORTED pin still
+consumes Shorebird's prebuilt engine`, and reserves **EXPERIMENTAL** for engines we
+build ourselves. So the row as written claimed independence precisely for the cells
+that do *not* have it. What is proven is the two audited experimental cells.
+
+**Two rows are actively broken rather than merely incomplete.** The ownership audit
+is real — it reads its matchers out of the Caddyfile rather than copying them, and
+exits non-zero on unprotected artifacts — but it is **red right now** for
+`macos-ios`, and has never been pointed at a Route B cell. And the air-gap seed has
+drifted from the fixture it seeds, so the next sealed attempt would fail for a
+bookkeeping reason and cost a debugging session to attribute. `prepare_airgap_fixture.sh`
+should be re-run before anyone books that work.
+
+**The open independence row split in two, and the harness half is the blocker.**
+It was filed as one NOT VALIDATED row, implying someone need only *run* the sealed
+acceptance. But the harness has **no iOS code-patch stage at all** — both of its iOS
+patch invocations pass `--assets-only`. So the row was unrunnable as written, which
+is a NOT BUILT, and only then a NOT VALIDATED.
 
 One dependency we cannot reproduce remains: `pkg/aot_tools`, upstream's AOT
 linker, used only by the Apple patchers. Route B exists precisely so that it is
 not required — see §2, *No Shorebird private AOT linker required*.
 
-**Independence: SUBSTANTIALLY PROVEN.**
+**Independence: PROVEN FOR THE AUDITED CELLS / UNAUDITED FOR THE CELLS IN USE.**
 
 ---
 
