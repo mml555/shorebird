@@ -1440,7 +1440,18 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                     engineRevision: ambientEngineRevision,
                   ),
                 );
-                verify(
+                // AND IT NO LONGER WARNS. The mismatch used to print a warning
+                // here on the argument that the failure had not been shown; it
+                // was demonstrated on device on 2026-08-12 (release ee001fd7,
+                // frontend 69f9831c: patch published, `code patch: 1`, app
+                // running the release's code), so it is now refused in
+                // patch_command before anything is built or uploaded.
+                //
+                // Asserted as an absence because a warning printed beside a
+                // refusal reads as though the mismatch were a matter of degree
+                // — and because reaching this code at all means the refusal did
+                // not fire, which is what the patch_command tests cover.
+                verifyNever(
                   () => logger.warn(
                     any(
                       that: allOf(
@@ -1449,7 +1460,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                       ),
                     ),
                   ),
-                ).called(1);
+                );
               },
             );
 

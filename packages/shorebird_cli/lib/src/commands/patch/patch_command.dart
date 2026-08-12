@@ -707,6 +707,20 @@ Building with Flutter $flutterVersionString to determine the release version...
       );
     }
 
+    // THE ENGINE-IDENTITY INVARIANT, checked BEFORE the build so a refusal costs
+    // nothing: no kernel, no coverage, no bytecode, no artifact, no upload.
+    //
+    // Only for a Route B release. Every other release's patch is produced the
+    // way it always was, and a check that refused those would be inventing a
+    // constraint this evidence does not support.
+    if (supplementDirectory != null &&
+        hasRouteBReleaseProvenance(supplementDirectory)) {
+      _assertRouteBEngineIdentity(
+        supplementDirectory,
+        RouteBEngineCheck.beforeBuild,
+      );
+    }
+
     patcher.extraBuildArgs = extraBuildArgs;
 
     // Set up build tracing before any flutter build / aot_tools /
@@ -729,6 +743,24 @@ Building ${releasePlatform.displayName} patch with Flutter $flutterVersionString
 ''');
       patchArtifactFile = await _tryBuildingArtifact<File>(
         () => patcher.buildPatchArtifact(releaseVersion: release.version),
+      );
+    }
+
+    // AND AGAIN, because the build can restamp the cache underneath the first
+    // check. `shorebirdEngineRevision` re-reads `bin/internal/engine.version`
+    // from disk, so this sees the drift rather than a cached answer — and the
+    // drift is real: a build through a CDN that maps an experimental hash onto a
+    // stock one records the hash it actually downloaded.
+    //
+    // Still before coverage, bytecode and publication. The kernel exists by now
+    // and is thrown away, which is the correct trade: a wasted build costs
+    // minutes, and a patch that installs and does nothing costs a release cycle
+    // and the belief that the mechanism works.
+    if (supplementDirectory != null &&
+        hasRouteBReleaseProvenance(supplementDirectory)) {
+      _assertRouteBEngineIdentity(
+        supplementDirectory,
+        RouteBEngineCheck.afterBuild,
       );
     }
 
@@ -898,6 +930,44 @@ Release ${release.version} is in an incomplete state. It's possible that the ori
 Please re-run the release command for this version or create a new release.''');
       throw ProcessExit(ExitCode.software.code);
     }
+  }
+
+  /// Refuse a Route B patch whose kernel would come from a different engine
+  /// than the release's.
+  ///
+  /// A provenance/compatibility invariant, not a delivery one. Delivery did its
+  /// job in the run that motivated this: it downloaded, installed, promoted and
+  /// reported the patch. The defect was letting an incompatible artifact exist.
+  ///
+  /// A malformed sidecar is NOT a pass. `hasRouteBReleaseProvenance` already
+  /// said this is a Route B release, so an unreadable engine revision means the
+  /// invariant cannot be checked — and an unverifiable invariant is a refusal.
+  void _assertRouteBEngineIdentity(
+    Directory supplement,
+    RouteBEngineCheck check,
+  ) {
+    final String releaseEngine;
+    try {
+      final provenance = readRouteBReleaseProvenance(supplement);
+      if (provenance == null) return;
+      releaseEngine = provenance.engineRevision;
+    } on FormatException catch (error) {
+      logger.err('''
+This release's Route B provenance could not be read, so the engine it was built by cannot be established: ${error.message}
+
+A patch compiled against the wrong engine installs cleanly and does nothing, so
+this is refused rather than attempted. Nothing was uploaded.''');
+      throw ProcessExit(ExitCode.software.code);
+    }
+
+    final refusal = routeBEngineIdentityRefusal(
+      releaseEngineRevision: releaseEngine,
+      activeEngineRevision: shorebirdEnv.shorebirdEngineRevision,
+      check: check,
+    );
+    if (refusal == null) return;
+    logger.err(refusal);
+    throw ProcessExit(ExitCode.software.code);
   }
 
   /// Ensures the diff between the release and patch archives is safe to patch.

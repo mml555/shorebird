@@ -24,6 +24,7 @@ import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/patch_diff_checker.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_validator.dart';
@@ -751,6 +752,176 @@ void main() {
                   releaseId: release.id,
                   releaseArtifact: any(named: 'releaseArtifact'),
                   supplementDirectory: any(named: 'supplementDirectory'),
+                ),
+              ).called(1);
+            });
+          });
+
+          group('Route B engine identity', () {
+            // The hashes from the run that turned this warning into a refusal.
+            const releaseEngine = 'ee001fd78fcd5e78e976d35284bd13e1caffff63';
+            const stockEngine = '69f9831c360d9152862ec3897c67fb09ae843f3b';
+
+            /// A supplement that marks this as a Route B release built by
+            /// [engine]. Written through extractZip, which is where the real
+            /// supplement lands.
+            void routeBSupplement(String engine) {
+              when(
+                () => artifactManager.extractZip(
+                  zipFile: any(named: 'zipFile'),
+                  outputDirectory: any(named: 'outputDirectory'),
+                ),
+              ).thenAnswer((invocation) async {
+                final out =
+                    invocation.namedArguments[#outputDirectory] as Directory;
+                File(
+                  p.join(out.path, routeBProvenanceFileName),
+                ).writeAsStringSync(
+                  '{"engineRevision": "$engine", '
+                  '"flutterRevision": "$flutterRevision"}',
+                );
+              });
+            }
+
+            test('refuses the mismatch, and uploads nothing', () async {
+              // THE REPRODUCTION, at the command level. On device this exact
+              // pairing produced a patch that installed, promoted, reported
+              // itself active, and changed nothing.
+              routeBSupplement(releaseEngine);
+              when(
+                () => shorebirdEnv.shorebirdEngineRevision,
+              ).thenReturn(stockEngine);
+
+              await expectLater(
+                runWithOverrides(() => command.createPatch([patcher])),
+                throwsA(
+                  isA<ProcessExit>().having(
+                    (e) => e.exitCode,
+                    'exitCode',
+                    ExitCode.software.code,
+                  ),
+                ),
+              );
+
+              verify(
+                () => logger.err(
+                  any(
+                    that: allOf(
+                      contains(releaseEngine),
+                      contains(stockEngine),
+                      contains('Nothing was uploaded'),
+                    ),
+                  ),
+                ),
+              ).called(1);
+              // NOTHING UPLOADED is the load-bearing half. A refusal that still
+              // published would be the same defect wearing a message.
+              verifyNever(
+                () => codePushClientWrapper.publishPatch(
+                  appId: any(named: 'appId'),
+                  releaseId: any(named: 'releaseId'),
+                  track: any(named: 'track'),
+                  patchArtifactBundles: any(named: 'patchArtifactBundles'),
+                  metadata: any(named: 'metadata'),
+                ),
+              );
+            });
+
+            test('refuses BEFORE the patch is built', () async {
+              // Ordering is the point: a refusal after the build still costs a
+              // full compile, and — worse — the build is what restamps the
+              // cache, so a late-only check reports the drift it caused.
+              routeBSupplement(releaseEngine);
+              when(
+                () => shorebirdEnv.shorebirdEngineRevision,
+              ).thenReturn(stockEngine);
+
+              await expectLater(
+                runWithOverrides(() => command.createPatch([patcher])),
+                throwsA(isA<ProcessExit>()),
+              );
+
+              verifyNever(
+                () => patcher.buildPatchArtifact(
+                  releaseVersion: any(named: 'releaseVersion'),
+                ),
+              );
+            });
+
+            test('catches a stamp that drifts DURING the build', () async {
+              // THE REASON THERE ARE TWO CHECKS. On the real run the stamps
+              // agreed when the command started and the Flutter build rewrote
+              // `bin/internal/engine.version` to the hash it downloaded — so a
+              // single up-front check passes and the kernel is still produced by
+              // the wrong frontend.
+              routeBSupplement(releaseEngine);
+              var reads = 0;
+              when(() => shorebirdEnv.shorebirdEngineRevision).thenAnswer((_) {
+                // First read is the pre-build gate; everything after it is
+                // post-build, which is where the drift shows up.
+                reads++;
+                return reads == 1 ? releaseEngine : stockEngine;
+              });
+
+              await expectLater(
+                runWithOverrides(() => command.createPatch([patcher])),
+                throwsA(isA<ProcessExit>()),
+              );
+
+              // The build DID run — proving the first gate passed and the second
+              // one is what fired.
+              verify(
+                () => patcher.buildPatchArtifact(
+                  releaseVersion: any(named: 'releaseVersion'),
+                ),
+              ).called(1);
+              verify(
+                () => logger.err(
+                  any(that: contains('rewrote its own cache stamp')),
+                ),
+              ).called(1);
+              verifyNever(
+                () => codePushClientWrapper.publishPatch(
+                  appId: any(named: 'appId'),
+                  releaseId: any(named: 'releaseId'),
+                  track: any(named: 'track'),
+                  patchArtifactBundles: any(named: 'patchArtifactBundles'),
+                  metadata: any(named: 'metadata'),
+                ),
+              );
+            });
+
+            test('the control: matching hashes continue normally', () async {
+              // A gate that refused everything would pass the tests above. The
+              // normal path has to be asserted in the same breath.
+              routeBSupplement(releaseEngine);
+              when(
+                () => shorebirdEnv.shorebirdEngineRevision,
+              ).thenReturn(releaseEngine);
+
+              await runWithOverrides(() => command.createPatch([patcher]));
+
+              verify(
+                () => patcher.buildPatchArtifact(
+                  releaseVersion: any(named: 'releaseVersion'),
+                ),
+              ).called(1);
+            });
+
+            test('a release that is not Route B is unaffected', () async {
+              // The invariant is Route B's. Extending it to every release would
+              // invent a constraint this evidence does not support — and would
+              // break every ordinary patch cut on a machine whose engine stamp
+              // has moved for unrelated reasons.
+              when(
+                () => shorebirdEnv.shorebirdEngineRevision,
+              ).thenReturn(stockEngine);
+
+              await runWithOverrides(() => command.createPatch([patcher]));
+
+              verify(
+                () => patcher.buildPatchArtifact(
+                  releaseVersion: any(named: 'releaseVersion'),
                 ),
               ).called(1);
             });

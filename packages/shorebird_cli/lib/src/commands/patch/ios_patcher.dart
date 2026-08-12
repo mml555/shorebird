@@ -622,24 +622,18 @@ Nothing was uploaded. Create a new release and patch that instead.''',
   Future<RouteBCompiler> _resolveRouteBCompiler(
     RouteBReleaseProvenance provenance,
   ) async {
-    // Not (yet) a refusal. The patch's kernel is produced by whichever frontend
-    // this machine is set up with, and the bytecode will be produced by the
-    // release's engine — if those disagree the bytecode may fail to bind, on
-    // device, long after this command reported success. We have not yet
-    // demonstrated that, and manufacturing a gate ahead of the evidence would
-    // block work for a reason we cannot yet defend. Wiring the producer is what
-    // will settle whether this becomes an error.
-    final ambient = shorebirdEnv.shorebirdEngineRevision;
-    if (ambient != provenance.engineRevision) {
-      logger.warn(
-        '''
-This release was built by engine ${provenance.engineRevision}, but this machine is set up with engine $ambient.
-
-The patch will be compiled by the release's engine, which is correct. The kernel
-it compiles, however, comes from the engine above.''',
-      );
-    }
-
+    // THE WARNING THAT USED TO LIVE HERE IS NOW A REFUSAL, over in
+    // patch_command.dart (`_assertRouteBEngineIdentity`), and it runs twice:
+    // before the patch build and again after it, because the build restamps
+    // the cache.
+    //
+    // It said the bytecode "may fail to bind, on device, long after this
+    // command reported success", and that we had not shown it. On 2026-08-12 it
+    // was demonstrated on an iPhone 7: release `ee001fd7`, frontend `69f9831c`,
+    // patch published and reported `code patch: 1`, app still running the
+    // release's code. So the gate exists now, and it is deliberately NOT
+    // repeated here — a warning printed beside a refusal reads as though the
+    // mismatch were still a matter of degree.
     try {
       final compiler = await routeBCompilerResolver.resolve(
         engineRevision: provenance.engineRevision,

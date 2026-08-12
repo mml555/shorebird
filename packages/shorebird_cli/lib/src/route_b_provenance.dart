@@ -201,6 +201,76 @@ class RouteBReleaseProvenance {
   });
 }
 
+/// Where in the patch flow an engine-identity check ran.
+///
+/// Both checks exist because the FIRST one can pass and then stop being true:
+/// `flutter build` validates its cache mid-command and rewrites
+/// `bin/internal/engine.version` to the hash it actually downloaded, which under
+/// a CDN that maps an experimental hash onto a stock one is a DIFFERENT hash.
+enum RouteBEngineCheck {
+  /// Before the patch's Flutter build — so nothing is compiled or uploaded.
+  beforeBuild,
+
+  /// After it, because the build itself can restamp the cache underneath the
+  /// first check.
+  afterBuild,
+}
+
+/// THE INVARIANT: a Route B patch must not be produced from a frontend identity
+/// different from the release's recorded engine identity.
+///
+/// Returns null when they agree, or the refusal to print when they do not.
+///
+/// WHY THIS IS A REFUSAL AND NOT A WARNING. It was a warning until 2026-08-12,
+/// on the argument that the failure had not been demonstrated. It has now been
+/// demonstrated end to end on an iPhone 7: release `ee001fd7`, active frontend
+/// `69f9831c`, and the result was a patch that compiled, published, downloaded,
+/// installed, promoted, and reported `code patch: 1` while the app went on
+/// running the release's own code. Every signal said success. Nothing about the
+/// device's behaviour changed.
+///
+/// WHY BYTE-EQUIVALENT ARTIFACTS ARE NOT AN EXCEPTION. That run's two engine
+/// hashes addressed byte-identical engine artifacts — the experimental hash was
+/// minted by cloning the stock one. It still failed. What differs across the
+/// two identities is not the artifact bytes but which frontend produced the
+/// patch's KERNEL, and the bytecode is compiled by the release's cell against
+/// that kernel. So artifact equivalence is not kernel compatibility, and
+/// an equivalence exception would re-admit exactly the failure this refuses.
+String? routeBEngineIdentityRefusal({
+  required String releaseEngineRevision,
+  required String activeEngineRevision,
+  required RouteBEngineCheck check,
+}) {
+  if (releaseEngineRevision == activeEngineRevision) return null;
+  final drifted = check == RouteBEngineCheck.afterBuild;
+  return '''
+This release was built by engine $releaseEngineRevision, but the patch's kernel would come from engine $activeEngineRevision.
+
+${drifted ? '''
+The two agreed when this command started and no longer do: the Flutter build
+rewrote its own cache stamp. That is why the check runs twice — passing it once
+is not the same as it being true when the kernel is produced.''' : '''
+A patch is bytecode compiled by the RELEASE's engine against a kernel produced by
+the engine above. When those differ the bytecode does not bind to the release's
+code.'''}
+
+This is not a theoretical risk. It has been reproduced on device: the patch built,
+uploaded, downloaded, installed and reported itself active, and the app kept
+running the release's own code. Delivery cannot detect it and neither can the
+device, so it is refused here.
+
+Byte-identical engine artifacts are NOT sufficient — that case is precisely the
+one that failed, because what changed was the frontend that produced the kernel,
+not the artifacts.
+
+Nothing was uploaded. Point this checkout at $releaseEngineRevision and re-run:
+
+  echo $releaseEngineRevision > <flutterDir>/bin/internal/engine.version
+
+then restamp bin/cache/{engine,ios-sdk,engine-dart-sdk}.stamp to match. If a
+build has rewritten them again, re-check afterwards rather than before.''';
+}
+
 /// Whether an extracted release supplement carries Route B provenance at all.
 ///
 /// Separate from [readRouteBReleaseProvenance] because it answers a different

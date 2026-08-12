@@ -250,5 +250,104 @@ void main() {
         expect(read.patchableCallSitesPerMiB, 0);
       });
     });
+
+    group('routeBEngineIdentityRefusal', () {
+      // The two hashes from the run that made this a refusal instead of a
+      // warning: the release was cut by the experimental engine, and the CDN's
+      // fallback map left the machine's cache stamped with the stock one.
+      const releaseEngine = 'ee001fd78fcd5e78e976d35284bd13e1caffff63';
+      const stockEngine = '69f9831c360d9152862ec3897c67fb09ae843f3b';
+
+      test('refuses the exact mismatch that shipped a non-binding patch', () {
+        // THE REPRODUCTION. Release ee001fd7, active frontend 69f9831c: the
+        // patch built, uploaded, downloaded, installed, promoted and reported
+        // `code patch: 1`, and the app went on running the release's own code.
+        final refusal = routeBEngineIdentityRefusal(
+          releaseEngineRevision: releaseEngine,
+          activeEngineRevision: stockEngine,
+          check: RouteBEngineCheck.beforeBuild,
+        );
+
+        expect(refusal, isNotNull);
+        expect(
+          refusal,
+          allOf(
+            // BOTH hashes, because "an engine mismatch" sends nobody anywhere.
+            contains(releaseEngine),
+            contains(stockEngine),
+            // Stated as demonstrated, not as a risk. A reader who thinks this
+            // is theoretical will reach for a way around it.
+            contains('reproduced on device'),
+            contains('reported itself active'),
+            // And that nothing shipped, so the remedy is local.
+            contains('Nothing was uploaded'),
+          ),
+        );
+      });
+
+      test('says byte-identical artifacts are not an exception', () {
+        // The one wrong lesson available from that run: the two hashes
+        // addressed byte-identical engine artifacts, because the experimental
+        // hash was minted by cloning the stock one. It still failed. Anyone
+        // who notices the equivalence will propose allowing it, so the refusal
+        // answers that in the text rather than in a commit message.
+        expect(
+          routeBEngineIdentityRefusal(
+            releaseEngineRevision: releaseEngine,
+            activeEngineRevision: stockEngine,
+            check: RouteBEngineCheck.beforeBuild,
+          ),
+          contains('Byte-identical engine artifacts are NOT sufficient'),
+        );
+      });
+
+      test('the after-build refusal names the drift as drift', () {
+        // A mismatch found AFTER the build is a different event from one found
+        // before it: the first check passed, so the reader needs to know the
+        // build moved the stamp underneath them rather than that they
+        // configured it wrong.
+        final after = routeBEngineIdentityRefusal(
+          releaseEngineRevision: releaseEngine,
+          activeEngineRevision: stockEngine,
+          check: RouteBEngineCheck.afterBuild,
+        );
+
+        expect(
+          after,
+          allOf(
+            contains('agreed when this command started'),
+            contains('rewrote its own cache stamp'),
+          ),
+        );
+        // And the two are distinguishable, so a log says which gate fired.
+        expect(
+          after,
+          isNot(
+            routeBEngineIdentityRefusal(
+              releaseEngineRevision: releaseEngine,
+              activeEngineRevision: stockEngine,
+              check: RouteBEngineCheck.beforeBuild,
+            ),
+          ),
+        );
+      });
+
+      test('the matching control: identical hashes do not refuse', () {
+        // THE OTHER HALF OF THE ACCEPTANCE. A gate that refused everything
+        // would also pass the test above, so the normal path has to be asserted
+        // in the same breath.
+        for (final check in RouteBEngineCheck.values) {
+          expect(
+            routeBEngineIdentityRefusal(
+              releaseEngineRevision: releaseEngine,
+              activeEngineRevision: releaseEngine,
+              check: check,
+            ),
+            isNull,
+            reason: check.name,
+          );
+        }
+      });
+    });
   });
 }
