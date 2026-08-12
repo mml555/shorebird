@@ -146,3 +146,13 @@ ebcf143f28fb283c4e03a30cf769b87eccf0abe1 69f9831c360d9152862ec3897c67fb09ae843f3
 # collision rather than by an operator list. Engine binary and dart2bytecode
 # unchanged from 54fb8772.
 aa9155840d6c1e71b015bbcff1e06eaea7e73e17 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-12 from the cell
+# manifest (see mint_route_b_cell.sh). Engine binary is aa9155840d6c1e71b015bbcff1e06eaea7e73e17's,
+# cloned byte-for-byte; only the CELL differs.
+#
+# Baseline A for the real-patch compatibility study. Analyzer unchanged at
+# v6; gen_dynamic_interface rebuilt for G3.6d (retain private classes, class
+# members and top-level fields). Producer pinned at a28ba1d9 (G3.6c). Engine
+# binary and dart2bytecode unchanged from 54fb8772.
+50d58cc313fdb9850452a28948cd56f4e2632827 69f9831c360d9152862ec3897c67fb09ae843f3b

@@ -1476,7 +1476,7 @@ rows, so **clear your row when you stop**, even mid-goal.
 |---|---|---|---|---|
 | `R1` iPhone 7 | — | — | released 18:2x | **free.** `G3.3`'s gate committed as `fa40f6ca` |
 | `R2` Android device | — | — | — | **free** |
-| `R3` route-b tree | *docs session* | `G3.6a` probe | 2026-08-11 18:4x | **read-only**: compiles probe arms against the published cell. No build, no mint |
+| `R3` route-b tree | — | — | released 2026-08-12 | **free.** Taken briefly by the study session for the baseline-A mint (`50d58cc3…`) while the docs session was paused, and released on the same commit. The prior read-only `G3.6a` claim was stale — its holder had stopped without clearing the row |
 | `R4` ios-engine tree | — | — | — | **free** |
 | `R6` canonical fixture | — | — | released 18:2x | **free** at version `22.0.0+1`; next release bumps to 23 |
 | `R7` producer/analyzer | — | — | released 18:2x | **free** at analyzer **v6**. `G3.6b` will want it — coordinate |

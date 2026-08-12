@@ -38,7 +38,8 @@ DART = f'{OUT}/dart-sdk/bin/dart'
 GEN_KERNEL = f'{DART_TREE}/pkg/vm/bin/gen_kernel.dart'
 KERNEL_PKGS = f'--packages={DART_TREE}/.dart_tool/package_config.json'
 RB = pathlib.Path(__file__).resolve().parent.parent
-CELL_HASH = 'aa9155840d6c1e71b015bbcff1e06eaea7e73e17'
+# BASELINE A. Frozen for the whole study; see COMPATIBILITY_STUDY.md.
+CELL_HASH = '50d58cc313fdb9850452a28948cd56f4e2632827'
 CELL = pathlib.Path.home() / '.shorebird/bin/cache/artifacts/route-b-compiler' / CELL_HASH
 FROZEN_VERSION = 6
 
