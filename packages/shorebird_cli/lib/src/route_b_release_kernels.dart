@@ -260,6 +260,7 @@ ${result.stderr}''',
     required File outputFile,
     List<String> sdkMembers = routeBRetainedSdkMembers,
     String? appPackageName,
+    File? privateEnumerationKernel,
     RouteBKernelRunner run = Process.runSync,
   }) {
     outputFile.parent.createSync(recursive: true);
@@ -298,6 +299,25 @@ ${result.stderr}''',
       // framework and the SDK, handled by the named-member list below.
       '--include',
       'package:$packageName/',
+      // PRIVATE ENUMERATION SOURCE, and it is a correctness choice before it is a
+      // breadth one.
+      //
+      // Without this the private list comes from the `--aot` prepass, where TFA
+      // has already tree-shaken anything unreachable -- so a private member the
+      // release does not itself call cannot be named, and a patch whose purpose
+      // is to start calling one fails at load. Worse, the prepass has also had
+      // fields lowered into accessors, so it yields names like `get:_file` that
+      // the annotator's pre-transform component does not have, which fails the
+      // WHOLE interface (measured on a real app: ThrottledSaveLoadMixin).
+      //
+      // The caller supplies this only when the import kernel has been checked
+      // against the prepass. If they disagree the caller passes null and the
+      // release falls back to prepass-only enumeration -- a NARROWER release, not
+      // a failed one.
+      if (privateEnumerationKernel != null) ...[
+        '--private-dill',
+        privateEnumerationKernel.path,
+      ],
       // BY NAME. The generator also accepts --sdk-libraries, which retains a
       // whole library; that was measured at +310% and is not product behaviour.
       '--sdk-members',
@@ -338,10 +358,18 @@ ${result.stderr}''',
   /// check caught on its first real run. A whole missing library, a wrong
   /// entrypoint, a wrong package config or a wrong target all still surface
   /// here, because none of those lose only accessors.
+  /// [consequence] completes the sentence a disagreement prints. It exists
+  /// because this check now runs at two different points with two different
+  /// outcomes: late, against the real release kernel, where disagreement means
+  /// patches are refused; and early, against the prepass, where it only means
+  /// private enumeration falls back to the prepass and the release is narrower.
+  /// Printing "patches will be refused" for the second would be a lie that sends
+  /// the reader looking for a broken release.
   bool agreesWith({
     required RouteBCompiler compiler,
     required File importKernel,
     required File aotKernel,
+    String consequence = 'patches for this release will be refused',
     RouteBCoverageAnalyzer analyzer = const RouteBCoverageAnalyzer(),
   }) {
     final RouteBCoverage coverage;
@@ -353,7 +381,7 @@ ${result.stderr}''',
       );
     } on Exception catch (error) {
       logger.warn(
-        '''Could not check the two release kernels against each other ($error); patches for this release will be refused.''',
+        '''Could not check the two release kernels against each other ($error); $consequence.''',
       );
       return false;
     }
@@ -367,7 +395,7 @@ ${result.stderr}''',
     logger.warn(
       '''The two kernels this release produced do not describe the same program: ${missing.length} member(s) the release compiled are missing from the kernel a patch would be built against, starting with ${missing.first}.
 
-Patches for this release will be refused.''',
+${consequence.substring(0, 1).toUpperCase()}${consequence.substring(1)}.''',
     );
     return false;
   }

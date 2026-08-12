@@ -778,6 +778,10 @@ $body
               prepassKernel: any(named: 'prepassKernel'),
               outputFile: any(named: 'outputFile'),
               sdkMembers: any(named: 'sdkMembers'),
+              appPackageName: any(named: 'appPackageName'),
+              privateEnumerationKernel: any(
+                named: 'privateEnumerationKernel',
+              ),
             ),
           ).thenAnswer((invocation) {
             final out = invocation.namedArguments[#outputFile] as File
@@ -802,6 +806,7 @@ $body
               compiler: any(named: 'compiler'),
               importKernel: any(named: 'importKernel'),
               aotKernel: any(named: 'aotKernel'),
+              consequence: any(named: 'consequence'),
             ),
           ).thenReturn(true);
         });
@@ -921,6 +926,10 @@ $body
                         prepassKernel: any(named: 'prepassKernel'),
                         outputFile: any(named: 'outputFile'),
                         sdkMembers: captureAny(named: 'sdkMembers'),
+                        appPackageName: any(named: 'appPackageName'),
+                        privateEnumerationKernel: any(
+                          named: 'privateEnumerationKernel',
+                        ),
                       ),
                     ).captured.single
                     as List<String>;
@@ -1012,6 +1021,7 @@ $body
                 compiler: any(named: 'compiler'),
                 importKernel: any(named: 'importKernel'),
                 aotKernel: any(named: 'aotKernel'),
+                consequence: any(named: 'consequence'),
               ),
             ).thenReturn(true);
           });
@@ -1098,18 +1108,24 @@ $body
             when(() => argResults['target']).thenReturn(null);
             await runWithOverrides(iosReleaser.buildReleaseArtifacts);
 
-            final entrypoint =
-                verify(
-                      () => routeBReleaseKernelBuilder.build(
-                        compiler: any(named: 'compiler'),
-                        projectRoot: any(named: 'projectRoot'),
-                        entrypoint: captureAny(named: 'entrypoint'),
-                        buildArgs: any(named: 'buildArgs'),
-                        outputFile: any(named: 'outputFile'),
-                      ),
-                    ).captured.single
-                    as String;
-            expect(entrypoint, p.join('lib', 'main.dart'));
+            // TWO import kernels are compiled now, not one: an early one before
+            // the interface, whose only job is the private-enumeration agreement
+            // check, and the supplement copy after the real build. Every one of
+            // them must use the release's own entrypoint -- a guess at the
+            // entrypoint in either would describe a different program, which is
+            // the whole failure this test exists to catch. Asserting over all of
+            // them is stronger than the previous `.single`, not weaker.
+            final entrypoints = verify(
+              () => routeBReleaseKernelBuilder.build(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: captureAny(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+              ),
+            ).captured.cast<String>();
+            expect(entrypoints, isNotEmpty);
+            expect(entrypoints, everyElement(p.join('lib', 'main.dart')));
           });
 
           test('records no import kernel when it cannot be built', () async {
@@ -1137,6 +1153,100 @@ $body
             );
           });
 
+          // THE FALLBACK PATH, and the invariant it protects: a disagreement may
+          // REDUCE PATCHABILITY and must never turn into a failed release.
+          //
+          // Enumerating private members from the import kernel means building it
+          // before `flutter build ipa`, which is what makes a divergence dangerous
+          // -- without a fallback it would surface as a failed release inside the
+          // CFE rather than as a refused patch.
+          test(
+            'enumerates privates from the import kernel when they agree',
+            () {
+              return runWithOverrides(iosReleaser.buildReleaseArtifacts).then((
+                _,
+              ) {
+                final kernel =
+                    verify(
+                          () => routeBReleaseKernelBuilder
+                              .generateDynamicInterface(
+                                compiler: any(named: 'compiler'),
+                                prepassKernel: any(named: 'prepassKernel'),
+                                outputFile: any(named: 'outputFile'),
+                                sdkMembers: any(named: 'sdkMembers'),
+                                appPackageName: any(named: 'appPackageName'),
+                                privateEnumerationKernel: captureAny(
+                                  named: 'privateEnumerationKernel',
+                                ),
+                              ),
+                        ).captured.single
+                        as File?;
+                expect(kernel, isNotNull);
+
+                final evidence = readRouteBReleaseProvenance(
+                  supplementDirectory,
+                )!;
+                expect(
+                  evidence.artifacts,
+                  contains(routeBRetentionEvidenceFileName),
+                );
+              });
+            },
+          );
+
+          test(
+            'falls back to the prepass, and still releases, on disagreement',
+            () async {
+              // The early check and the late one are the same helper, so stubbing
+              // it false exercises both: private enumeration falls back AND the
+              // import kernel is dropped. The release must still succeed.
+              when(
+                () => routeBReleaseKernelBuilder.agreesWith(
+                  compiler: any(named: 'compiler'),
+                  importKernel: any(named: 'importKernel'),
+                  aotKernel: any(named: 'aotKernel'),
+                  consequence: any(named: 'consequence'),
+                ),
+              ).thenReturn(false);
+
+              await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+              // Narrower, not failed: the interface was still generated, and with
+              // NO private-enumeration kernel.
+              final kernel =
+                  verify(
+                        () =>
+                            routeBReleaseKernelBuilder.generateDynamicInterface(
+                              compiler: any(named: 'compiler'),
+                              prepassKernel: any(named: 'prepassKernel'),
+                              outputFile: any(named: 'outputFile'),
+                              sdkMembers: any(named: 'sdkMembers'),
+                              appPackageName: any(named: 'appPackageName'),
+                              privateEnumerationKernel: captureAny(
+                                named: 'privateEnumerationKernel',
+                              ),
+                            ),
+                      ).captured.single
+                      as File?;
+              expect(kernel, isNull);
+
+              // And the reason is recorded rather than inferred later.
+              final evidence = File(
+                p.join(
+                  supplementDirectory.path,
+                  routeBRetentionEvidenceFileName,
+                ),
+              );
+              expect(evidence.existsSync(), isTrue);
+              final recorded =
+                  jsonDecode(evidence.readAsStringSync())
+                      as Map<String, dynamic>;
+              expect(recorded['privateEnumerationSource'], 'prepass');
+              expect(recorded['importPrepassAgreement'], 'failed');
+              expect(recorded['fallbackReason'], isNotNull);
+            },
+          );
+
           test(
             'drops an import kernel that disagrees with the AOT one',
             () async {
@@ -1148,6 +1258,7 @@ $body
                   compiler: any(named: 'compiler'),
                   importKernel: any(named: 'importKernel'),
                   aotKernel: any(named: 'aotKernel'),
+                  consequence: any(named: 'consequence'),
                 ),
               ).thenReturn(false);
 

@@ -61,6 +61,20 @@ const routeBReleaseImportKernelFileName = 'release_import.dill';
 /// 4,830 changed members and refused, when one function had changed.
 const routeBInterfaceFileName = 'dynamic_interface.yaml';
 
+/// How the release's retention was produced, beside the interface that is its
+/// result.
+///
+/// The interface is the exact emitted set. This records the things the set alone
+/// cannot answer: which kernel supplied the PRIVATE half, whether the
+/// import/prepass agreement passed, and why it fell back if it did.
+///
+/// It exists so the analyzer can accept a private reference on the strength of
+/// what a release ACTUALLY retained rather than what the retention policy
+/// nominally promises. Those diverge exactly when the agreement check fails --
+/// which is a narrower release, not a failed one, and therefore invisible unless
+/// it is written down.
+const routeBRetentionEvidenceFileName = 'route_b_retention.json';
+
 /// The Route B provenance sidecar's name inside a release's supplement.
 ///
 /// Lives beside `obfuscation_map.json`, which already establishes the pattern:

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:mason_logger/mason_logger.dart';
@@ -215,6 +216,14 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
   /// The interface this release declared its retention with, if any.
   File? _retentionInterface;
 
+  /// How this release's retention was actually produced, if it was.
+  ///
+  /// The interface says WHAT was retained; this says which kernel supplied the
+  /// private half, whether the import/prepass agreement passed, and why it fell
+  /// back if it did. It travels with the release so a later patch reasons about
+  /// the contract this release really emitted rather than the one policy promises.
+  File? _retentionEvidence;
+
   /// The iOS engine binary this build will link against.
   File get _routeBEngineBinary => File(
     p.join(
@@ -288,6 +297,15 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
           supplement,
           interface,
           as: routeBInterfaceFileName,
+        );
+      }
+      // Travels with the interface, because the two are only meaningful together:
+      // the interface is the emitted set, this is how it came to be that set.
+      if (_retentionEvidence case final evidence?) {
+        artifacts[routeBRetentionEvidenceFileName] = captureRouteBReleaseKernel(
+          supplement,
+          evidence,
+          as: routeBRetentionEvidenceFileName,
         );
       }
       _captureImportKernel(
@@ -409,12 +427,88 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
     );
     if (prepass == null) return;
 
+    // THE PRIVATE-ENUMERATION SOURCE, decided here and recorded, because the
+    // analyzer must later read what this release actually did rather than infer
+    // it from a policy name.
+    //
+    // The import kernel is built BEFORE the interface, which is a reordering: it
+    // is the only kernel with the full private surface, since the prepass has been
+    // tree-shaken. It is also the kernel a patch will be built against, so if the
+    // two disagree the private names taken from it would describe a program the
+    // release does not contain.
+    //
+    // THE INVARIANT THIS PROTECTS: a disagreement may REDUCE PATCHABILITY, and
+    // must never turn into a failed release. So this path has no fatal branch --
+    // every outcome produces an interface and continues.
+    //
+    // Built into `work/`, deliberately NOT reusing or pre-empting the supplement
+    // copy that `_captureImportKernel` makes after the real build. That costs one
+    // extra kernel compile per release, and the alternative is a kernel produced
+    // before `flutter build ipa` standing in for one produced after it, which is
+    // exactly the divergence being guarded against.
+    final earlyImport = builder.build(
+      compiler: compiler,
+      projectRoot: projectRoot,
+      entrypoint: target ?? p.join('lib', 'main.dart'),
+      buildArgs: buildArgs,
+      outputFile: File(p.join(work.path, 'early_import.dill')),
+    );
+
+    File? privateEnumerationKernel;
+    final String enumerationSource;
+    final String? fallbackReason;
+    if (earlyImport == null) {
+      enumerationSource = 'prepass';
+      fallbackReason =
+          'the import kernel could not be built before the release';
+    } else if (!builder.agreesWith(
+      compiler: compiler,
+      importKernel: earlyImport,
+      aotKernel: prepass,
+      consequence:
+          'private enumeration falls back to the release prepass, so this '
+          'release will retain a narrower set of private members',
+    )) {
+      enumerationSource = 'prepass';
+      fallbackReason =
+          'the import kernel and the release prepass do not describe the same '
+          'program';
+    } else {
+      privateEnumerationKernel = earlyImport;
+      enumerationSource = 'import';
+      fallbackReason = null;
+    }
+
     final interface = builder.generateDynamicInterface(
       compiler: compiler,
       prepassKernel: prepass,
       outputFile: File(p.join(work.path, 'dynamic_interface.yaml')),
+      privateEnumerationKernel: privateEnumerationKernel,
     );
     if (interface == null) return;
+
+    // THE CONCRETE CONTRACT, written beside the interface and captured with it.
+    //
+    // G3.6b consumes THIS, not the policy: an analyzer that accepted a private
+    // reference because "private members are supported" would accept one this
+    // release fell back and never retained. The interface itself is the exact
+    // emitted set; this records which kernel produced it and why.
+    _retentionEvidence = File(p.join(work.path, 'retention.json'))
+      ..writeAsStringSync(
+        const JsonEncoder.withIndent('  ').convert({
+          'privateEnumerationSource': enumerationSource,
+          'importPrepassAgreement': earlyImport == null
+              ? 'not-checked'
+              : (fallbackReason == null ? 'passed' : 'failed'),
+          if (fallbackReason != null) 'fallbackReason': fallbackReason,
+          'interfaceBytes': interface.lengthSync(),
+        }),
+      );
+    if (fallbackReason != null) {
+      logger.info(
+        '''Route B retention: narrower contract — private members enumerated from the release prepass because $fallbackReason. The release is unaffected; patches referencing a private member the release does not itself use will be refused.''',
+      );
+    }
 
     // Kept for the supplement: the PATCH build has to compile against the same
     // interface, or its kernel and the release's disagree about almost every
