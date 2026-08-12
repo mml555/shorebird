@@ -1186,6 +1186,11 @@ different problem from the Android one, not a port of it — filing it as
 > **⚠ GLOBALLY EXCLUSIVE — this goal cannot share the machine.** Sealing the CDN
 > is a host-wide change: every other goal's builds start failing the moment it is
 > sealed. Schedule it alone, as the *last* thing in a batch, never alongside.
+> **⚠ PREREQUISITES, in this order, before sealing anything:** run
+> `prepare_airgap_fixture.sh` (the committed seed has drifted from the fixture);
+> get the ownership audit green for the cell in use; and add an iOS **code**-patch
+> stage to the harness, which it does not have. Two of the three are `NOT BUILT`
+> rather than merely undone — see the gates at the end of this section.
 
 | | item |
 |---|---|
@@ -1231,6 +1236,30 @@ linker, used only by the Apple patchers. Route B exists precisely so that it is
 not required — see §2, *No Shorebird private AOT linker required*.
 
 **Independence: PROVEN FOR THE AUDITED CELLS / UNAUDITED FOR THE CELLS IN USE.**
+
+### The three gates before this section may claim more
+
+*"Substantially proven"* is too strong while any of these is false, and the section
+stays conservative until **all three** are true again. This is a deliberate ratchet:
+the phrase was correct when written and drifted without anyone editing it, so the
+conditions are now written down instead of remembered.
+
+| | gate |
+|---|---|
+| ☐ | The **ownership audit is green** for the Route B / iOS cell actually in use — not only for the historically audited `70974f81` |
+| ☐ | The **air-gap fixture and its pub seed are current** with each other |
+| ☐ | The **sealed harness actually exercises iOS code patching** — today both its iOS patch invocations pass `--assets-only` |
+
+**Do not refresh the seed today.** `prepare_airgap_fixture.sh` is a **pre-run
+prerequisite**, not maintenance: it regenerates the fixture and reseeds the pub
+cache, and doing that while nobody is booking the sealed path churns the fixture
+for no result — `R6` is a contended resource (§16), and the drift costs nothing
+until someone runs the acceptance. Run it **immediately before** the next sealed
+attempt, then re-check `SEED.txt` against the fixture's `pubspec.lock`.
+
+The drift is recorded rather than fixed precisely so the next runner sees it before
+booking, rather than losing a session to a bookkeeping failure that looks like a
+sealing failure.
 
 ---
 
@@ -1587,6 +1616,47 @@ Two spellings that produce the same Kernel node are still two items: they differ
 in the lexical edit, so one passing says nothing about the other. That rule is
 what demoted `this.label` in §3, and it is the rule most likely to be broken
 again by someone in a hurry.
+
+### The classification rule
+
+> **If source already determines the behavior, it is a KNOWN GAP, not an
+> unvalidated question.**
+
+`NOT VALIDATED` means *nobody has run it*. `KNOWN GAP` means *we know what it
+does, and it is wrong or absent*. The difference is not cosmetic, because the two
+labels dispatch different work: an unvalidated row invites *"we should test that"*,
+which books a device and a release; a gap invites *"we should decide whether we
+ship that"*, which is a design call and needs no hardware at all.
+
+The 2026-08-11 verification pass moved seven rows across that line — boot/crash
+rejection, wrong-release install, rollback-to-earlier-patch, corrupt-at-rest,
+default signature verification, restart-required semantics, iOS symbolication. Each
+had been queued as something to validate, and each was already answered in the
+source. **Before adding a row to the device queue, check whether reading the code
+closes it.**
+
+### The correction rule
+
+> **A proposed correction needs evidence exactly as much as the original claim
+> did.**
+
+Corrections feel like rigour, so they get waved through — but a wrong correction is
+worse than a stale row, because it launders a guess into the document as a fact and
+arrives wearing the authority of a fix. Two independent things enforce this, and
+both have already paid:
+
+* **Verify the evidence at the cited location.** The adversarial passes over the
+  2026-08-11 corrections killed four. The sharpest was a claim that no CI workflow
+  invokes the CLI — `.github/workflows/e2e.yaml` drives `init`, `doctor`,
+  `release android`, `preview` and `patch android` end to end.
+* **A negative grep is not coverage, and one verified fact does not license an
+  inferred second.** Both of §6's retracted claims failed exactly there: `grep beta`
+  returning nothing became "the server half is absent work", and a real
+  channel-omission became "permanently stable-only".
+
+When a correction retracts an earlier claim of your own, **say so where the claim
+sat** rather than editing it silently. §6 keeps both retractions in place for that
+reason: a reader who acted on the old text needs to know it changed.
 
 When an item becomes PROVEN, record beside it whichever of these apply:
 

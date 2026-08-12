@@ -19,10 +19,13 @@
 # mismatch that means nothing. Capture the release's LC_UUID at install time and
 # use --expect from then on.
 #
-# Related trap on this rig: `shorebird release ios` fails the IPA export ("No
-# Accounts", "No profiles"). That is not fatal to the release or to a later
-# patch, but it leaves the PREVIOUS release's .ipa sitting in build/ios/ipa/
-# looking current. Install from the xcarchive, and delete the stale .ipa.
+# Related trap on this rig, now GUARDED but still worth knowing: `shorebird
+# release ios` fails the IPA export ("No Accounts", "No profiles"), which used to
+# leave the PREVIOUS release's .ipa sitting in build/ios/ipa/ looking current --
+# and one release published with the wrong artifact that way. Since c57c6537 the
+# release refuses an .ipa older than the .xcarchive its own invocation just
+# produced, so the silent substitution is no longer possible. Install from the
+# xcarchive regardless.
 #
 #   assert_installed_release.sh <path/to/Runner.app> <patch.log>
 #   assert_installed_release.sh <path/to/Runner.app> --expect <buildId>
@@ -61,9 +64,23 @@ cat >&2 <<EOF
 
 MISMATCH. The patch targets a release this .app is not.
 
-Anything you observe on the device now is a DELIVERY result, not an attach or
-ABI result: the updater will correctly refuse a patch built for another release,
-and the app will show "code patch: none".
+WHAT WILL ACTUALLY HAPPEN, because the obvious guess is wrong and it will cost
+you a debugging session: the updater does NOT refuse this patch. A Route B
+container is deliberately BASE-INDEPENDENT (0003-4b-lifecycle-delivery.patch,
+"a base-independent artifact through the normal inflate"), so check_hash passes
+on any device. The patch downloads, inflates, installs, is promoted, and reports
+BOTH __patch_download__ and __patch_install__ to the control plane. Every
+delivery signal you would look at says success.
+
+The refusal happens later and in one place only: the native pre-main hook
+compares the container's stamp to the App binary's LC_UUID and declines with
+kWrongRelease. The app then shows "code patch: none" -- the same thing you would
+see if delivery had failed, if the producer had emitted nothing, or if the
+release had been built without --patchable_static_calls.
+
+So "code patch: none" here means NOTHING about attach, binding or ABI. That is
+the whole reason this pre-flight exists: the four causes are indistinguishable
+after the fact, and three launches were spent learning it once already.
 
 Stage the .ipa from the release the patch was built against and reinstall.
 EOF
