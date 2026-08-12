@@ -4,7 +4,7 @@
 <!-- cspell:words overclaim DFLUTTER Diagnosticable -->
 <!-- cspell:words demangled specializer devirtualizes rationalised synthesises -->
 <!-- cspell:words subshell theorised generalises generalisable symbolicator unrunnable -->
-<!-- cspell:words characterisation backout NONAOT Wonderous analysed askable localises precommitted executably precommitment constructibility -->
+<!-- cspell:words characterisation backout NONAOT Wonderous analysed askable localises precommitted executably precommitment constructibility unreviewed favourable -->
 
 # Shorebird feature parity — the goal document
 
@@ -581,7 +581,7 @@ gate accordingly:
 | ✅ | **2. Rerun `probes/dead_body.sh`** against it | 2026-08-12 |
 | ✅ | **3. Require the live control to become mode 0** | `live=0` |
 | ✅ | **4. Observe what the dead arm becomes** — matrix committed in advance | `dead=0`, mode 3 **disproven** |
-| ☐ | **5. Settle the threat model** — is patch authority as strong as release authority? Upstream of everything below |
+| 🚧 | **5. Settle the threat model** — *does patch-publishing authority imply release-publishing authority?* **BLOCKING**: the same manifest reads two incompatible ways depending on the answer |
 | ☐ | **6. Define candidate permission policies** — P1 / P2 / P3 below |
 | ☐ | **7. Run Wonderous against those exact policies** — cost **and** granted capability, per arm |
 | ☐ | **8. Choose the policy explicitly** |
@@ -765,33 +765,53 @@ These are the exact arms Wonderous should price:
 | **P2 all app-private** | every private member and class of the app's own libraries: instance members, fields, accessors, **and construction of private classes** | broadest. What non-AOT enumeration currently produces |
 | **P3 a narrower middle**, *if one exists worth measuring* | e.g. private members of classes the release **already allocates**; or members but **not** classes, withholding constructibility | to be defined only if the mechanism supports it cleanly — an arbitrary middle is worse than either end |
 
-**Each arm must report both axes**, because a policy is a pair and not a number:
+**Each arm produces TWO tables, not one.** The failure mode to avoid is P1/P2/P3
+becoming *size profiles* — a policy is a pair, and the second half is the one that
+cannot be recovered later:
 
-* **cost** — snapshot/App delta and retained-member delta, per shape;
-* **capability** — the exact set of members and classes newly **callable** or
-  **constructible**. `privates_added.txt` already captures the first half; the
-  constructibility half is new and needs its own list, since a `class:` item grants it
-  without ever naming a constructor.
+**Table 1 — cost.** Binary/snapshot delta, interface delta, retained-member delta,
+split per shape.
 
-#### The threat model decides what "capability" means here
+**Table 2 — authority expansion.** A **capability manifest**, answering concretely:
 
-Worth settling before broad private retention is called security-adjacent in the
-product sense:
+| | the manifest must enumerate |
+|---|---|
+| 1 | private **top-level/static** members newly callable |
+| 2 | private **instance** members newly callable |
+| 3 | private **classes** newly **constructible** |
+| 4 | any **constructors or factories exposed implicitly** by class retention — the `_Dead()` case: granted with no constructor ever named |
+| 5 | any categories **skipped or refused**, and why |
 
-> **Is the patch publisher trusted as strongly as the original app publisher?**
+Rows 3-5 do not exist today. `privates_added.txt` covers rows 1-2; constructibility is
+inferred from nothing, and the skipped set is counted but not listed. Building the
+manifest is therefore part of the arms, not a report on them.
 
-* **If yes** — permitting access to app-private implementation details is primarily a
-  **compatibility / API-surface** decision. A patch author can already ship arbitrary
-  executable replacement logic, so reaching a private member is not a privilege
-  escalation; it is reach they effectively already have by other means.
-* **If patch authority is deliberately narrower than release authority** — then the
-  dynamic interface genuinely *is* a security boundary, and broad private retention is
-  materially more consequential.
+Row 5 matters as much as the others: a category the interface *could not* emit is a
+capability the release does **not** grant, and `G3.6b` must refuse against it. Without
+it the manifest describes an intent rather than a release.
 
-Either way the interface remains a **capability document**. But the threat model is
-what decides whether *"a patch can instantiate `_Dead`"* is a security problem, a
-maintainability problem, or simply the desired patch reach. **This is an open decision,
-not an implementation detail**, and it is upstream of choosing between P1, P2 and P3.
+#### 🚧 BLOCKING PRODUCT DECISION — settle before running the arms
+
+> **Does possession of patch-publishing authority imply authority equivalent to
+> publishing a new app release?**
+
+A binary question with two incompatible readings of the *same measurement*, which is
+exactly why it cannot wait until after:
+
+| answer | what P2/P3 become |
+|---|---|
+| **YES** — patch authority ≡ release authority | mainly **compatibility and maintenance** trade-offs. A patch author can already ship arbitrary executable replacement logic, so reaching a private member is reach they effectively have by other means — not a privilege escalation |
+| **NO** — patch authority is deliberately narrower | broad private retention is an **actual privilege expansion**, and the dynamic interface must be treated like an **allowlist / security policy** rather than a size knob |
+
+**Do not run the arms first.** The identical capability manifest reads as "acceptable
+API-surface growth" under YES and as "unreviewed privilege expansion" under NO. A
+measurement that can be interpreted two incompatible ways is not evidence, and
+whichever interpretation the reader happens to hold when the numbers land will feel
+like the obvious one.
+
+Either way the interface remains a **capability document**. The threat model decides
+only whether *"a patch can instantiate `_Dead`"* is a security problem, a
+maintainability problem, or simply the desired reach.
 
 #### `G3.6b`'s contract follows from this
 
@@ -2174,6 +2194,34 @@ both have already paid:
 When a correction retracts an earlier claim of your own, **say so where the claim
 sat** rather than editing it silently. §6 keeps both retractions in place for that
 reason: a reader who acted on the old text needs to know it changed.
+
+### The precommitment rule
+
+> **Before running an experiment whose favourable-looking outcome would be ambiguous,
+> write down what each possible result will mean.**
+
+Not for rigour's sake — it has now prevented **two** false greens in this project,
+which is why it is a rule and not a preference:
+
+* **the vacuous `+0.00 %`.** A retention-cost arm reported "+0.00 %, 8 bytes" on the
+  airgap fixture, which reads as *broad private retention is free*. The two generated
+  interfaces were **byte-identical**: the treatment priced nothing. Caught only because
+  the enumeration counts printed beside the sizes — and the fix was a gate that prints
+  **VACUOUS** and refuses to emit a percentage.
+* **`dead=0`.** The dead-body arm executed, which reads as *everything works, ship it*.
+  The precommitted matrix had already written that row as "no live-vs-dead boundary
+  exists to draw", so the result forced the reasoning to move instead of the
+  conclusion. Same row, opposite instinct.
+
+Both were **favourable-looking**, which is the tell. A red result gets interrogated;
+a green one gets banked. So:
+
+* state the outcomes and their meanings **before** the run, in the document or the
+  probe header where the next reader will find them;
+* keep a falsified prediction **beside** the evidence rather than editing it away —
+  `dead_body.sh`'s failing dead-arm assertion is preserved for exactly this reason;
+* a cost arm must prove its treatment **changed the thing being priced** before it
+  reports a delta.
 
 When an item becomes PROVEN, record beside it whichever of these apply:
 
