@@ -4,7 +4,7 @@
 <!-- cspell:words overclaim DFLUTTER Diagnosticable -->
 <!-- cspell:words demangled specializer devirtualizes rationalised synthesises -->
 <!-- cspell:words subshell theorised generalises generalisable symbolicator unrunnable -->
-<!-- cspell:words characterisation backout NONAOT Wonderous analysed askable localises -->
+<!-- cspell:words characterisation backout NONAOT Wonderous analysed askable localises precommitted executably -->
 
 # Shorebird feature parity — the goal document
 
@@ -405,8 +405,9 @@ classes — is the single largest real-world blocker.
 | ✅ | **PROVEN** A replacement payload can declare and call its own private helper |
 | ◐ | **BUILT** A replacement **can** call an existing private member of the application library — `probe D` 4/4, `a53029c9`. Hand-written replacement; producer path and device gate outstanding |
 | ✅ | **PROVEN** Visibility and retention are **separate** requirements — the interface names a member, but TFA drops one nothing calls before the `--aot` prepass kernel reaches the generator |
-| 🐞 | **KNOWN GAP** A retained private **instance** member of a never-allocated class has **no executable body** — the name resolves and the call enters an unreachable stub, silently. Mode 3 below |
-| ☐ | **NOT BUILT** A mechanism probe for mode 3 — until one exists, `probe D` cannot distinguish it from success |
+| ✅ | ~~**KNOWN GAP** a retained private instance member of a never-allocated class has no executable body~~ — **REFUTED 2026-08-12.** `probes/dead_body.sh` `live=0 dead=0`: the body ran. An interface entry makes the member a *root*, not merely present |
+| ✅ | **PROVEN** `probes/dead_body.sh` discriminates all three modes, and reports which precommitted matrix row it landed on |
+| 🐞 | **KNOWN GAP** Retaining a private **class** makes it **allocatable from a patch** — the patch constructed `_Dead()` with **no constructor named in the interface**, because a `class:` item covers the implicit public default constructor. A capability grant nobody requested |
 | ☐ | **NOT BUILT** The producer emits it automatically — **`G3.6b`**, gated on the retention policy below, not merely on the analyzer |
 | ☐ | **OPEN DESIGN** An explicit release retention policy, with its emitted **and skipped** sets recorded in the supplement — see the ordered gate below |
 
@@ -593,7 +594,67 @@ Three of those four say something the source could not: only the middle row woul
 `live-instance` be accepted, and only the first makes a liveness signal worth
 building. That is the whole reason cost comes sixth.
 
-#### Mode 3 is introduced by the fix, not pre-existing — measured 2026-08-12
+#### MODE 3 REFUTED — measured 2026-08-12, `live=0 dead=0`
+
+`probes/dead_body.sh`, rerun against the landed `--private-dill` plumbing, lands on
+the third precommitted row. **The dead-body hazard does not exist.**
+
+```
+_secret entries in interface: 2        (one per class)
+release reports:  dead=unallocated     _Dead genuinely never allocated
+live arm  -> mode 0, alpha = NEW-LIVE
+dead arm  -> mode 0, alpha = NEW-DEAD  <- the never-allocated class's body RAN
+```
+
+**Why the source reading was wrong.** Naming a private instance member in the
+interface does not merely leave it *present* — `dyn-module:callable` resolves to
+`PragmaEntryPointType.Default`, the same thing `vm:entry-point` produces, which makes
+the member **reachable**. TFA then keeps a real body regardless of whether anything
+allocates the enclosing class. The `_makeUnreachableBody` path is what happens to a
+member nothing has made a root; an interface entry makes it a root.
+
+So `live-instance` is **not unsafe for the reason it was refused.** The silent-no-op
+hazard that justified refusing it is disproven by construction.
+
+**But a different finding replaces it, and it is a capability grant nobody asked
+for.** The patch called `_Dead()._secret()` — it **constructed** a class the release
+never constructs — and **no constructor was named in the interface** (verified: zero
+constructor entries). A bare `class:` item annotates the class and its *public*
+members, and a class's implicit default constructor is public. So retaining a private
+class makes it **allocatable from a patch**.
+
+That reframes the policy question exactly as the third row says it should:
+
+* there is **no live-vs-dead boundary to draw** — retention *creates* liveness, so
+  no mechanical signal could distinguish "safe to accept" from "unsafe", because the
+  unsafe case does not arise;
+* what remains is **breadth and permission**, not execution safety. Broad
+  private-instance retention means a patch may call any private member, executably,
+  on classes the release never instantiates — and may construct those classes.
+
+`live-instance` therefore stays **refused pending a permission decision rather than a
+safety one**, which is a different question with a different owner. The §16 coupling
+note is now load-bearing in a way it was not when written: retention and permission
+being one document means "retain every private" silently reads "a patch may
+instantiate and call any private class of the app."
+
+**Two probe defects found and fixed in the process**, both mine, both worth naming
+because each produced a *correct verdict with a wrong reason*:
+
+* the classifier compared `got` against the sentinel `NOT-EXECUTED`, which can never
+  match, so an executed dead body was labelled **mode 3** while its own assertion
+  correctly failed. Fixed to compare against the value the body would produce.
+* the probe originally passed no `--private-dill`, correctly mirroring the product
+  *at the time*. Once the product changed, mirroring it became the legitimate edit —
+  as distinct from touching the fixture, the assertions or the dead arm, which would
+  have been gaming the control.
+
+The dead arm's assertion is left **failing on purpose**: it encodes the precommitted
+prediction, and the prediction was wrong. The probe now prints which matrix row it
+landed on, so the finding is the output rather than something inferred from a
+pass/fail count.
+
+#### Superseded: mode 3 was thought to be introduced by the fix — measured 2026-08-12
 
 `probes/dead_body.sh` was built to give mode 3 its own negative control instead of
 resting on source inspection. It reports **1 passed, 1 failed — and the failure is

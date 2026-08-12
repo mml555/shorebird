@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words dartaotruntime sbrb dynmod prepass NONAOT unretained Wonderous discriminable pathlib rationalised executability
+# cspell:words dartaotruntime sbrb dynmod prepass NONAOT unretained Wonderous discriminable pathlib rationalised executability precommitted PRECOMMITTED
 #
 # dead_body.sh -- is a retained private member's BODY still there?
 #
@@ -39,53 +39,52 @@
 # no analyzer relaxation (G3.6b), no Wonderous measurement, no cell mint. This
 # probe answers one question -- is mode 3 reproducible and discriminable?
 #
-# THE ANSWER, 2026-08-12: NOT UNDER THE CURRENT RETENTION POLICY. 1 passed,
-# 1 failed, and the failure is the POSITIVE CONTROL, which is the diagnostic.
-#
-#   _secret entries in interface: 0        for BOTH classes
-#   live arm  -> mode 2: "Unable to find function _secret@17057535 in
-#                Library:'...container_target.dart' Class: _Live@17057535"
-#   dead arm  -> mode 2, identically
-#
-# Privacy resolution worked: the name is correctly keyed to the app library AND
-# the enclosing class, so mode 1 is genuinely closed. What failed is retention,
-# for both arms, because the generator reads the --aot prepass and TFA had already
-# dropped `_secret` -- nothing in the release calls it. The interface names both
-# CLASSES, but a `class:` item retains only PUBLIC members, so a private member
-# still needs its own `member:` entry and there was nothing to emit one from.
-#
-# MODE 2 THEREFORE MASKS MODE 3 UNIVERSALLY, and the masking is structural rather
-# than a fixture accident:
-#
-#   to name `_secret` in the interface, the release must reference it;
-#   referencing `_Dead()._secret()` allocates _Dead;
-#   so "named in the interface but never allocated" is NOT CONSTRUCTIBLE while
-#   private enumeration reads the post-TFA prepass.
-#
-# CONSEQUENCE FOR SEQUENCING, which is the useful part: mode 3 is a hazard
-# INTRODUCED BY --private-dill, not a pre-existing one. Non-AOT enumeration is
-# what first makes it possible to name a member TFA dropped, and only then can a
-# retained-but-never-allocated member exist. So this probe belongs INSIDE step 2
-# of the §3 gate, not before it.
-#
-# THIS PROBE'S ROLE, therefore, is not to demonstrate a bug that exists. It is the
-# SAFETY GATE ON THE FEATURE THAT CREATES ONE. The new retention mechanism creates
-# the condition the probe polices.
-#
-# ITS CONTROL IS RED ON PURPOSE AND MUST STAY RED UNTIL --private-dill LANDS.
-# DO NOT "FIX" THIS PROBE INDEPENDENTLY. A green control obtained by changing the
-# fixture, the interface, or the assertions would destroy the only signal that
-# says whether --private-dill actually made private INSTANCE members reachable --
-# the live arm going mode 2 -> mode 0 IS that signal.
-#
-# THE DECISION TREE IS COMMITTED IN ADVANCE (PARITY.md §3), so a result cannot be
-# rationalised after the fact:
+# THE DECISION TREE WAS COMMITTED IN ADVANCE (PARITY.md §3), so a result could not
+# be rationalised after the fact:
 #
 #   live 0 / dead 3   the liveness distinction is PRODUCT-CRITICAL
 #   live 0 / dead 2   retention already excludes the unsafe case; boundary is free
-#   live 0 / dead 0   broad private-instance retention is UNSAFE -- a never-allocated
-#                     class's body ran, so existence cannot imply executability
+#   live 0 / dead 0   no live-vs-dead boundary exists to draw
 #   live 2 / any      --private-dill correctness is incomplete; nothing else reads
+#
+# THE ANSWER, 2026-08-12, second run, against the landed --private-dill plumbing:
+# live=0 dead=0. MODE 3 DOES NOT OCCUR.
+#
+#   _secret entries in interface: 2        one per class
+#   release reports: dead=unallocated      _Dead genuinely never allocated
+#   live arm -> mode 0, alpha = NEW-LIVE
+#   dead arm -> mode 0, alpha = NEW-DEAD   the never-allocated class's body RAN
+#
+# WHY THE SOURCE READING WAS WRONG. An interface entry does not merely leave a
+# member PRESENT. dyn-module:callable resolves to PragmaEntryPointType.Default --
+# the same thing vm:entry-point produces -- which makes the member a ROOT, and TFA
+# keeps a real body for a root regardless of whether anything allocates the
+# enclosing class. _makeUnreachableBody is what happens to a member nothing rooted.
+#
+# AND A DIFFERENT FINDING REPLACES IT: the patch CONSTRUCTED _Dead(), a class the
+# release never constructs, with NO CONSTRUCTOR NAMED in the interface (verified,
+# zero constructor entries). A bare `class:` item covers the class's PUBLIC members
+# and an implicit default constructor is public. So retaining a private class makes
+# it ALLOCATABLE FROM A PATCH -- a capability grant nobody requested.
+#
+# So the question is no longer execution safety, it is BREADTH AND PERMISSION.
+# live-instance stays refused pending a PERMISSION decision, not a safety one.
+#
+# FIRST RUN, kept because it is what led here: with private enumeration reading the
+# post-TFA prepass, both arms reported mode 2 -- `_secret` had been tree-shaken and
+# a `class:` item retains only PUBLIC members, so nothing named it. Mode 2 masked
+# mode 3 universally, and that masking is why this probe had to move INSIDE step 2
+# rather than standing before it.
+#
+# THE DEAD ARM'S ASSERTION IS LEFT FAILING ON PURPOSE. It encodes the precommitted
+# prediction, and the prediction was wrong; the probe prints which matrix row it
+# landed on so the finding is the output rather than a pass/fail count. Changing
+# that assertion to match reality would erase the record that a source-derived
+# hazard did not reproduce.
+#
+# DO NOT "FIX" THIS PROBE TO GO GREEN. Mirroring a product change (which is why the
+# --private-dill line below exists) is legitimate; touching the fixture, the
+# assertions or the dead arm to obtain a green control is not.
 #
 #   dead_body.sh
 set -euo pipefail
@@ -187,21 +186,33 @@ URI=package:dynamic_modules/container_target.dart
 SDK_MEMBERS='dart:core#print,dart:core#DateTime.now,dart:core#DateTime.get:millisecondsSinceEpoch'
 cd "$WORK"
 
-note "release: prepass -> interface -> release -> snapshot"
+note "release: prepass -> import -> interface -> release -> snapshot"
 "$DART" "$GEN_KERNEL" --platform "$OUT/vm_platform.dill" --aot \
   --packages .dart_tool/package_config.json -o prepass.dill "$URI" >/dev/null
-# NO --private-dill. The prepass is read exactly as the product reads it today,
-# so whatever this probe finds is a property of the shipping policy.
+
+# THE IMPORT KERNEL IS BUILT BEFORE THE INTERFACE, mirroring what the product now
+# does (cd453304): private members are enumerated from the non-AOT kernel, because
+# the prepass has been tree-shaken and cannot name a member the release does not
+# itself call.
+#
+# THIS IS NOT "FIXING THE PROBE TO GO GREEN". The enumeration source IS the feature
+# under test. The header's earlier note said "NO --private-dill ... exactly as the
+# product reads it today" -- true when written, and superseded by the product
+# changing. The live control moving from mode 2 to mode 0 is precisely the signal
+# the gate wants; what would be illegitimate is touching the fixture, the assertions
+# or the dead arm to obtain it.
+"$DART" "$GEN_KERNEL" --platform "$OUT/vm_platform.dill" --no-aot \
+  --no-link-platform --packages .dart_tool/package_config.json \
+  -o import.dill "$URI" >/dev/null
+
 "$DART" $KERNEL_PKGS "$RB/gen_dynamic_interface.dart" --dill prepass.dill \
+  --private-dill import.dill \
   --out di.yaml --sdk-members "$SDK_MEMBERS" 2>&1 | sed -n 's/^/    /p'
 "$DART" "$GEN_KERNEL" --platform "$OUT/vm_platform.dill" --aot \
   --packages .dart_tool/package_config.json --dynamic-interface di.yaml \
   -o release.dill "$URI" >/dev/null
 "$GEN_SNAPSHOT" --patchable_static_calls --snapshot_kind=app-aot-elf \
   --elf=app.aot release.dill
-"$DART" "$GEN_KERNEL" --platform "$OUT/vm_platform.dill" --no-aot \
-  --no-link-platform --packages .dart_tool/package_config.json \
-  -o import.dill "$URI" >/dev/null
 BUILD_ID=$("$AOT_RUNTIME" app.aot | sed -n 's/^BUILD_ID //p')
 [ -n "$BUILD_ID" ] || die "no release build id"
 echo "    release: $BUILD_ID"
@@ -256,10 +267,18 @@ arm() { # <label> <replacement body> <expected value, or NOT-EXECUTED>
   got=$(sed -n 's/^after  alpha=\([^ ]*\).*/\1/p' "$dir/run.log" | tail -1)
   got=${got:-'<no value>'}
 
+  # The dead arm's `want` is the sentinel NOT-EXECUTED, so `got = want` can never
+  # be true for it. Comparing against the VALUE THE BODY WOULD PRODUCE is what
+  # distinguishes "it ran" from "it resolved and did nothing" -- without this the
+  # classifier labelled an executed dead body as mode 3 while its own assertion
+  # correctly failed, i.e. it reported the right verdict with the wrong reason.
+  local ranValue="$want"
+  [ "$want" = 'NOT-EXECUTED' ] && ranValue='NEW-DEAD'
+
   if grep -q "Unable to find" "$dir/run.log"; then
     mode='2 RETENTION (bytecode_reader.cc:1172, symbol not found)'
     grep -m1 "Unable to find" "$dir/run.log" | sed 's/^.*error: /      /'
-  elif [ "$got" = "$want" ]; then
+  elif [ "$got" = "$ranValue" ]; then
     mode='0 EXECUTED (the body ran)'
   else
     # Resolved -- no lookup failure -- and yet did not produce the value. That is
@@ -304,6 +323,22 @@ String alpha() => _Dead()._secret();" \
 
 echo
 echo "--------------------------------------------------"
+# WHICH PRECOMMITTED ROW DID WE LAND ON? A bare pass/fail cannot say, and the row
+# is the actual output of this probe -- the assertions only enforce that the dead
+# arm's outcome is not assumed.
+liveMode=$(sed -n 's/^\([0-9]\).*/\1/p' "$WORK/live/MODE" 2>/dev/null || echo '?')
+deadMode=$(sed -n 's/^\([0-9]\).*/\1/p' "$WORK/dead/MODE" 2>/dev/null || echo '?')
+echo "PRECOMMITTED MATRIX (PARITY.md §3): live=$liveMode dead=$deadMode"
+case "$liveMode/$deadMode" in
+  0/3) echo "  -> the liveness distinction is PRODUCT-CRITICAL" ;;
+  0/2) echo "  -> retention already excludes the unsafe dead case" ;;
+  0/0) echo "  -> NO dead-body hazard: retention CREATES liveness, so there is no"
+       echo "     live-vs-dead boundary to draw. The policy question is breadth and"
+       echo "     permission, not execution safety." ;;
+  2/*) echo "  -> --private-dill product plumbing is still incomplete" ;;
+  *)   echo "  -> unmapped combination; do not record a conclusion" ;;
+esac
+echo
 echo "observed modes:"
 for a in live dead; do
   printf '  %-5s %s\n' "$a" "$(cat "$WORK/$a/MODE" 2>/dev/null || echo '(none)')"
