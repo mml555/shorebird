@@ -557,9 +557,34 @@ rather than a policy. In order:
 | | step |
 |---|---|
 | ☐ | **A never-allocated mechanism probe** — a `_NeverAllocated._secret()` arm whose *expected* result is pinned as **"name resolves, body was TFA-replaced with unreachable code."** Mode 3 gets its own negative control instead of resting on source inspection |
-| ☐ | **`--private-dill` landed as CORRECTNESS infrastructure**, not an optimization knob — control and treatment must reason about the same pre-TFA program shape, or `get:_file` versus `_file` means the experiment measures cross-kernel disagreement rather than retention policy |
+| ☐ | **`--private-dill` landed as CORRECTNESS infrastructure**, not an optimization knob — control and treatment must reason about the same pre-TFA program shape, or `get:_file` versus `_file` means the experiment measures cross-kernel disagreement rather than retention policy. **Ships with the guard below, mandatorily** |
 | ☐ | **An explicit release retention policy**, recorded in the supplement with its exact emitted **and skipped** sets — not "whatever non-AOT enumeration finds" |
 | ☐ | **Then** Wonderous prices *that* contract |
+
+#### MANDATORY with step 2 — the `--private-dill` guard
+
+`--private-dill` moves a build-order dependency, and that is the part to get right
+before the feature: enumerating from the non-AOT kernel means `release_import.dill`
+must be built **before** `flutter build ipa`, which converts any import-kernel /
+release divergence from *"patches get refused, the release is fine"* into *"the
+release build fails inside the CFE."* A patchability mismatch must never become a
+release outage.
+
+So the guard ships with the flag, not after it:
+
+```
+build release_import.dill first
+  → compare it against the release prepass
+    → agree?     use it for private enumeration
+    → disagree?  fall back to prepass-only enumeration, and preserve the
+                 NARROWER patchability contract
+```
+
+The fallback is the point. Degrading to a smaller patchable surface is a product
+decision the release can absorb silently; failing the build is not. And the narrower
+contract must actually be *recorded* on fallback, so `G3.6b` accepts against what the
+release really retained rather than what the policy nominally promises — the same
+per-target discipline as the contract below.
 
 #### The policy shape, and the bar for its second category
 
