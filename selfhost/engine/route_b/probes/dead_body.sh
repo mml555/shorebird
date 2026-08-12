@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words dartaotruntime sbrb dynmod prepass NONAOT unretained Wonderous discriminable pathlib
+# cspell:words dartaotruntime sbrb dynmod prepass NONAOT unretained Wonderous discriminable pathlib rationalised executability
 #
 # dead_body.sh -- is a retained private member's BODY still there?
 #
@@ -66,8 +66,26 @@
 # INTRODUCED BY --private-dill, not a pre-existing one. Non-AOT enumeration is
 # what first makes it possible to name a member TFA dropped, and only then can a
 # retained-but-never-allocated member exist. So this probe belongs INSIDE step 2
-# of the §3 gate, not before it -- and it is left RED on purpose: the control is a
-# pending gate, not a broken test, exactly as probe D's question (1) is.
+# of the §3 gate, not before it.
+#
+# THIS PROBE'S ROLE, therefore, is not to demonstrate a bug that exists. It is the
+# SAFETY GATE ON THE FEATURE THAT CREATES ONE. The new retention mechanism creates
+# the condition the probe polices.
+#
+# ITS CONTROL IS RED ON PURPOSE AND MUST STAY RED UNTIL --private-dill LANDS.
+# DO NOT "FIX" THIS PROBE INDEPENDENTLY. A green control obtained by changing the
+# fixture, the interface, or the assertions would destroy the only signal that
+# says whether --private-dill actually made private INSTANCE members reachable --
+# the live arm going mode 2 -> mode 0 IS that signal.
+#
+# THE DECISION TREE IS COMMITTED IN ADVANCE (PARITY.md §3), so a result cannot be
+# rationalised after the fact:
+#
+#   live 0 / dead 3   the liveness distinction is PRODUCT-CRITICAL
+#   live 0 / dead 2   retention already excludes the unsafe case; boundary is free
+#   live 0 / dead 0   broad private-instance retention is UNSAFE -- a never-allocated
+#                     class's body ran, so existence cannot imply executability
+#   live 2 / any      --private-dill correctness is incomplete; nothing else reads
 #
 #   dead_body.sh
 set -euo pipefail

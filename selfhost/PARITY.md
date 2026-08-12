@@ -4,7 +4,7 @@
 <!-- cspell:words overclaim DFLUTTER Diagnosticable -->
 <!-- cspell:words demangled specializer devirtualizes rationalised synthesises -->
 <!-- cspell:words subshell theorised generalises generalisable symbolicator unrunnable -->
-<!-- cspell:words characterisation backout NONAOT Wonderous analysed askable -->
+<!-- cspell:words characterisation backout NONAOT Wonderous analysed askable localises -->
 
 # Shorebird feature parity — the goal document
 
@@ -554,12 +554,44 @@ Cost is the *last* question, not the next one. A measurement taken before the
 contract is closed prices "whatever a particular generator happened to enumerate"
 rather than a policy. In order:
 
+**Mode 3 is not currently loose in the product.** It becomes possible only when
+non-AOT private enumeration starts retaining otherwise-dead private *instance*
+members. That localises the hazard to the feature that creates it, and reorders the
+gate accordingly:
+
 | | step |
 |---|---|
-| ◐ | ~~A never-allocated mechanism probe~~ — **BUILT and RUN: `probes/dead_body.sh`, and the answer is that mode 3 is NOT constructible under today's policy.** Mode 2 masks it universally. See below; the probe moves *inside* step 2 |
-| ☐ | **`--private-dill` landed as CORRECTNESS infrastructure**, not an optimization knob — control and treatment must reason about the same pre-TFA program shape, or `get:_file` versus `_file` means the experiment measures cross-kernel disagreement rather than retention policy. **Ships with the guard below, mandatorily** |
-| ☐ | **An explicit release retention policy**, recorded in the supplement with its exact emitted **and skipped** sets — not "whatever non-AOT enumeration finds" |
-| ☐ | **Then** Wonderous prices *that* contract |
+| ☐ | **1. Land `--private-dill` / non-AOT enumeration as CORRECTNESS infrastructure** — not an optimization knob. Ships with the guard below, mandatorily |
+| ☐ | **2. Rerun `probes/dead_body.sh`** against it |
+| ☐ | **3. Require the live control to become mode 0.** Until it does, nothing else in this list can be interpreted |
+| ☐ | **4. Observe what the dead arm becomes** — the decision tree below is committed to *in advance* |
+| ☐ | **5. Only then define the retained/permitted instance-private policy** |
+| ☐ | **6. Then** Wonderous prices *that* contract |
+
+**`dead_body.sh` has a stronger role than it was built for.** It is not proving a
+pre-existing hazard — it is the **safety gate on the feature that introduces one**.
+The new retention mechanism creates the condition the probe exists to police, which
+is why the probe belongs inside step 2 and not before it.
+
+**Its control stays RED until step 1 lands. Do not "fix" the probe independently.**
+A green control obtained by changing the probe would destroy the only signal that
+tells us whether `--private-dill` actually made private instance members reachable.
+
+#### The decision tree, committed before the run
+
+Written down now so the result cannot be rationalised afterward. Four outcomes,
+four different products:
+
+| live arm | dead arm | what it means |
+|---|---|---|
+| mode 0 | **mode 3** | the liveness distinction is **product-critical** — `live-instance` needs a mechanical liveness signal or stays refused permanently |
+| mode 0 | **mode 2** | the retention policy **already excludes** the unsafe dead case; the boundary falls out of the mechanism rather than needing to be designed |
+| mode 0 | **mode 0** | broad private-instance retention is **unsafe** — a never-allocated class's body executed, so nothing distinguishes executable from dead and the category cannot be accepted on existence |
+| **mode 2** | any | **`--private-dill` correctness is incomplete** — step 1 is not done, and steps 3-6 mean nothing yet |
+
+Three of those four say something the source could not: only the middle row would let
+`live-instance` be accepted, and only the first makes a liveness signal worth
+building. That is the whole reason cost comes sixth.
 
 #### Mode 3 is introduced by the fix, not pre-existing — measured 2026-08-12
 
