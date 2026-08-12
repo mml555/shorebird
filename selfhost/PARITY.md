@@ -351,7 +351,7 @@ not an untested guess. Ordered roughly by expected cost.
 | **`G3.4 compound`** | `++`/`--`/`+=`/`??=` on receiver fields | **REFUSED BY DERIVATION, not blocked** — see below | new mechanism, not a gate relaxation |
 | **`G3.5 closures-super`** | closures capturing `this`, `super` reads and calls, cascades | `super` writes now refuse explicitly (`cb50590d`); the rest untouched | `R7`, `R1` |
 | ~~**`G3.6a app-private-decision`**~~ | **is it reachable at all** | **ANSWERED 2026-08-11 — yes.** The CFE already has the mechanism (`resolveInLibrary`), Route B is denied it by one line, and the `dyn:`-forwarder objection is void in AOT. See below | done, no resources consumed but `R3` read-only |
-| **`G3.6b app-private-holes`** | close the two accepted-then-failed holes | unblocked by `G3.6a` | `R7` **and a cell mint** — `analyze_coverage.dart` is in the manifest |
+| **`G3.6b app-private-holes`** | close the two accepted-then-failed holes | **BUILT, host-proven with two negative controls.** Analyzer v7 REPORTS a private access with its manifest key; the CLI accepts it only against the release's own capability manifest. `cli_private_member.sh` **10/10**: granted → the app reads the patched private field; class withheld → refused in the CLI, naming the class; no manifest → refused, naming the absent evidence. Device round-trip outstanding | done at `R7`; the mint publishes it |
 | **`G3.6c dynamic-receiver`** | emit `dynamic` instead of a private class name | **BUILT, host-proven as a pair with `G3.6d`** — `probes/private_receiver.sh` 4/4, a patch on a private class runs. Device round-trip outstanding | done at `R7`; no mint |
 | **`G3.6d private-retention`** | retain private classes, procedures **and fields** in the dynamic interface | **BUILT, host-proven and shown LOAD-BEARING by a negative control.** Cost measured: **+0.01 %** | generator only, as predicted — no validator or CFE change |
 | **`G3.6e resolve-in-library`** | thread `resolveInLibrary` through dart2bytecode | **BUILT — rung D falls.** `probe D` 4/4, `a53029c9`, patch `0005`. Hand-written replacement; needs `G3.6b` for the producer path, then a device gate | done at `R3`; mint pending with `G3.6b` |
@@ -585,8 +585,8 @@ gate accordingly:
 | ✅ | **6. Define candidate permission policies** — in code as `--policy p1\|p2\|p3`, not in prose |
 | ✅ | **7. Run Wonderous against those exact policies** — done, both tables recorded below. **One gap: P3's runtime reachability is inferred, not measured** |
 | ✅ | **8. Choose the policy explicitly** — **P2**. P3 is non-viable, not unselected |
-| ☐ | **9. `G3.6b`** — accept only when the release's emitted set proves member **+** enclosing-class capability **+** not-skipped. **Next work; no more retention research needed** |
-| ☐ | **10. One combined cell mint**, then the automatic host path, then the device round-trip |
+| ✅ | **9. `G3.6b`** — accept only when the release's emitted set proves member **+** enclosing-class capability **+** not-skipped. **Done.** 28 unit tests plus `cli_private_member.sh` 10/10. All five precommitted analyzer cases are matched, and two more were added that the precommitment did not ask for: a static of a private class still needs the class item, and the flag's own blast radius is bounded (see below) |
+| ☐ | **10. One combined cell mint**, then the device round-trip. **The host path already ran** — against a staged, unpublished cell — so the mint publishes something proven rather than finding out |
 
 **Steps 1-4 are closed, and they changed what steps 5-10 are.** The gate was built to
 answer a safety question; the answer removed the safety question and left a capability
@@ -1089,6 +1089,61 @@ rather than a capability record.
 
 Recorded here so a future reader finds a decision with an expiry, rather than an
 accident that outlived its argument.
+
+#### `G3.6b` — BUILT 2026-08-12. And the flag turned out to be wider than the gate.
+
+The contract above is implemented in `route_b_capabilities.dart`, and the split it
+required is between the two things that cannot see each other:
+
+* the **analyzer** ships in a cell resolved by the release's engine hash, so it cannot
+  know what one release granted. It now REPORTS a private access carrying the manifest
+  key the release would have had to grant (`analysisVersion` 6 → 7), where v6 refused
+  outright;
+* the **CLI** holds the release's hash-verified capability manifest, so the accept /
+  refuse decision lives there.
+
+The key comes from the **interface target**, not from the class being patched.
+`this._controller` may resolve to a declaration on a superclass in the same library,
+and the manifest keys a member under the class that declares it — so keying on the
+patched class would refuse a member that was in fact granted. A private member whose
+key cannot be resolved is **refused, not reported**: an access with no key is
+indistinguishable from a public one downstream, which is the one direction where the
+mistake is silent.
+
+**THE FINDING THIS GOAL DID NOT EXPECT.**
+`--resolve-private-names-in-library` is **per-compile, not per-access.** Every design
+sentence before this point assumed the gate and the mechanism had the same shape: gate
+an access, unlock that access. They do not. Turning the flag on makes *every* private
+name in the replacement resolvable — a private type in the signature, a private
+top-level function, a private static, a private local — none of which the capability
+check ever looked at. Each would compile and then bind to nothing on a device.
+
+So the producer also scans the emitted declaration and refuses any private identifier
+that is not one of the granted accesses. Two calibrations, both asserted by test
+because both directions are failures:
+
+* a private name in a **comment** is not a reference — refusing `/// Reads
+  [_controller].` would make the safe path punish the documented patch;
+* a private name inside an **interpolation** IS a reference — `'${_other}'` is a real
+  reference wearing a string's clothes, so a string is dropped only when it cannot
+  interpolate.
+
+The flag is passed **only** for a target that actually carries a granted private
+access, so every shape already proven on device compiles under exactly the arguments
+it did before — and a cell that predates the flag keeps working for those targets.
+
+**Evidence.** `probes/cli_private_member.sh`, 10/10, one release and three manifests
+so a refusal can never be blamed on a differently-retained release:
+
+| arm | manifest | outcome |
+|---|---|---|
+| `granted` | member **and** class | the app reads `NEW-PRIV`; the compile is shown to carry `--resolve-private-names-in-library <target library>` |
+| `class_withheld` | member, class removed | **refused in the CLI**, naming the enclosing class it did not retain — P3's shape, where the grant is real and inert |
+| `no_manifest` | none | **refused in the CLI**, naming the absent evidence |
+
+The flag assertion reads the printed argument list rather than inferring from the
+value, because `self._secret` on a `dynamic` receiver compiles either way: the value
+alone cannot distinguish "the flag worked" from "something else did".
 
 ### `G3.6a` — ANSWERED 2026-08-11. It is reachable, and the mechanism already exists.
 
@@ -2172,14 +2227,14 @@ rows, so **clear your row when you stop**, even mid-goal.
 |---|---|---|---|---|
 | `R1` iPhone 7 | — | — | released 18:2x | **free.** `G3.3`'s gate committed as `fa40f6ca` |
 | `R2` Android device | — | — | — | **free** |
-| `R3` route-b tree | **`G3.6e` step 1** | `--private-dill` release plumbing | 2026-08-12 | **HELD, and it WRITES. Tree health: GREEN as of this claim** — `dart_patches.sh --verify` all 4 applied, front_end analyzes with no errors, `dart2bytecode` builds. **Do not mint while this is held**, and re-verify before you do |
+| `R3` route-b tree | **`G3.6b`** | the v7 cell artifacts + the host path | 2026-08-12 | **HELD, and it WRITES. Tree health: GREEN** — `dart_patches.sh --verify` all 4 applied (re-verified at this claim), `route_b_analyze.aot` and `route_b_gen_dynamic_interface.aot` rebuilt, `cli_private_member.sh` 10/10. The mint reads `$OUT/zip_archives`, so **this claim now covers the mint** rather than blocking it |
 | `R4` ios-engine tree | — | — | — | **free** |
 | `R6` canonical fixture | — | — | released 18:2x | **free** at version `22.0.0+1`; next release bumps to 23 |
-| `R7` producer/analyzer | **`G3.6e` step 1** | release-path plumbing only | 2026-08-12 | **HELD** for `route_b_release_kernels.dart` — the build-order guard lives there. Analyzer stays at **v6**, untouched: `G3.6b` is still frozen behind the §3 gate |
+| `R7` producer/analyzer | **`G3.6b`** | the analyzer relaxation and the capability gate | 2026-08-12 | **HELD.** Analyzer is now **v7**: a private receiver access is REPORTED with its manifest key instead of refused, and the accept/refuse decision moved to the CLI (`route_b_capabilities.dart`). `supportedRouteBAnalysisVersion` is 7 to match, so a v6 cell is refused — which is the gate working, and is what the mint below exists to satisfy |
 | `R8` `cps-ios` | — | — | released 18:2x | **free** |
 | `R9` `cps-android` | — | — | — | **free** |
 | `R10` server source | — | — | — | **free** — the `G6` lane |
-| `R11` sealed CDN | — | — | released 2026-08-12 | **free — no cell was minted.** `G3.6e` is proven on a locally built `dart2bytecode`, not a published cell; the mint waits for `G3.6b` so both manifest files move in one address change |
+| `R11` sealed CDN | **`G3.6b`** | the one combined mint | 2026-08-12 | **HELD — claimed because the mint is starting**, per the precommitment that no `R11` claim precedes it. Three cell files move in ONE address change: `route_b_analyze.aot` (v6→v7), `route_b_gen_dynamic_interface.aot` (`--policy`/`--manifest`), `dart2bytecode.aot` (`--resolve-private-names-in-library`). The host path closed first — `cli_private_member.sh` 10/10 against a staged, UNPUBLISHED cell — so the mint is publishing something already proven, not finding out |
 | `R12` hermes-vps | — | — | — | **free** — additive capacity for `G4.2`'s Android half |
 
 > **The rule has two precedents now, one in each direction.** A `G3.6a` read-only

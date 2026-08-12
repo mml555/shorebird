@@ -1,5 +1,5 @@
 // Copyright (c) 2026, the Shorebird self-host fork.
-// cspell:words prepass behaviour synthesises constructibility CONSTRUCTIBILITY
+// cspell:words prepass behaviour synthesises constructibility CONSTRUCTIBILITY targetable
 //
 // gen_dynamic_interface.dart -- emit a Route B dynamic interface from an app's
 // own kernel.
@@ -653,5 +653,25 @@ gen_dynamic_interface.dart --dill <app.dill> [options]
   --no-sdk                 emit no SDK entries at all
   --no-private             skip private app members (they are NOT covered by
                            a library: item, so this narrows real coverage)
+  --no-private-classes     skip private CLASSES and their members, keeping the
+                           top-level private shape only
+  --private-dill <path>    enumerate PRIVATE members from this kernel instead of
+                           from --dill. --dill is the --aot prepass, already
+                           tree-shaken, so a private member nothing in the
+                           release calls is gone before it can be named -- and
+                           starting to call one is exactly what a patch may do
+  --policy <p1|p2|p3>      which private shapes to retain. p2 is the product
+                           default: app-private members AND the private classes
+                           required to make those members patch-targetable.
+                           p3 grants the members without the classes and is
+                           recorded NON-VIABLE -- its grants are inert, because
+                           a patch cannot attach to a method of a class the
+                           release did not retain
+  --manifest <path>        write the CAPABILITY MANIFEST: what this release
+                           actually granted, per target. Not derivable by
+                           reading the emitted yaml, because a `class:` item
+                           also grants an implicit public constructor that
+                           appears in none of its lines. The patch side accepts
+                           a private reference against this file
 ''');
 }
