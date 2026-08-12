@@ -4,7 +4,7 @@
 <!-- cspell:words overclaim DFLUTTER Diagnosticable -->
 <!-- cspell:words demangled specializer devirtualizes rationalised synthesises -->
 <!-- cspell:words subshell theorised generalises generalisable symbolicator unrunnable -->
-<!-- cspell:words characterisation backout NONAOT Wonderous analysed askable localises precommitted executably precommitment constructibility unreviewed favourable synthesised -->
+<!-- cspell:words characterisation backout NONAOT Wonderous analysed askable localises precommitted executably precommitment constructibility unreviewed favourable synthesised targetable -->
 
 # Shorebird feature parity — the goal document
 
@@ -584,9 +584,9 @@ gate accordingly:
 | ✅ | **5. Settle the threat model** — **DECIDED**: within the Dart capabilities of the shipped app, patch authority is release-equivalent. Private reach is a compatibility question, not a security one — with a scope qualification and an expiry condition, both below |
 | ✅ | **6. Define candidate permission policies** — in code as `--policy p1\|p2\|p3`, not in prose |
 | ✅ | **7. Run Wonderous against those exact policies** — done, both tables recorded below. **One gap: P3's runtime reachability is inferred, not measured** |
-| ☐ | **8. Choose the policy explicitly** |
-| ☐ | **9. Then `G3.6b`** accepts only the concrete emitted/permitted set |
-| ☐ | **10. One mint, then the automatic path and the device gate** |
+| ✅ | **8. Choose the policy explicitly** — **P2**. P3 is non-viable, not unselected |
+| ☐ | **9. `G3.6b`** — accept only when the release's emitted set proves member **+** enclosing-class capability **+** not-skipped. **Next work; no more retention research needed** |
+| ☐ | **10. One combined cell mint**, then the automatic host path, then the device round-trip |
 
 **Steps 1-4 are closed, and they changed what steps 5-10 are.** The gate was built to
 answer a safety question; the answer removed the safety question and left a capability
@@ -816,6 +816,50 @@ once the numbers are visible. This is the precommitment rule applied before the 
 rather than after — its two prior saves (§the precommitment rule) were both retrospective
 rescues of a favourable-looking result, and this is the cheaper version.
 
+#### ✅ POLICY DECIDED 2026-08-12 — **P2**
+
+> **P2: retain and permit app-private members, and the private classes required to make
+> those members patch-targetable.**
+>
+> **The concrete capability manifest remains authoritative** — the policy names the
+> intent; the manifest records what a given release actually granted.
+
+**Why, in one comparison.** P3's collapse removed the middle, so the real choice was:
+
+| policy | private-instance reach | Wonderous cost |
+|---|---|---|
+| **P1** | ❌ no | +6.17 % |
+| **P2** | ✅ **yes** | +7.83 % |
+
+**≈224 KB / +1.66 pp** for the capability that addresses the **top measured blocker**:
+Phase 0 found private app members blocking **9 of 10** real patches, and
+`StatefulWidget`-style private classes are a large part of that shape. Under the settled
+threat model — patch authority is release-equivalent for Dart application authority — that
+is a compatibility trade-off worth taking, not a privilege question.
+
+**What `G3.6b` must therefore do.** Not "private is allowed". Accept a private target or
+reference **only when the release's emitted capability set proves all three**:
+
+| | condition |
+|---|---|
+| 1 | the **member** was emitted |
+| 2 | the required **enclosing class capability** exists — the condition P3's collapse proved is load-bearing, and the one a naive "private is allowed" rule would miss |
+| 3 | the capability is **not** in that release's skipped set, and not in the unconditional must-refuse set |
+
+The six `_enumToString` cases remain **unconditional refusals** under P2 as under every
+policy.
+
+#### 🔻 P3 IS NON-VIABLE — not merely unselected
+
+> **P3 names private instance members but cannot attach patches to methods of their
+> private enclosing classes; therefore its added member grants are operationally inert for
+> the intended use case.**
+
+Recorded this way deliberately. Its +6.78 % sits between P1 and P2 in the cost table, so a
+reader looking only at that number could rediscover P3 as an "optimization" — buying most
+of the reach for less. **It buys none of the reach.** The number is real and the capability
+behind it is not.
+
 #### 📊 ARM RESULTS — Wonderous, 2026-08-12. All three build; no vacuity.
 
 `probes/policy_arms.sh`, one pinned app state (`747b945a`), prepass and import kernel
@@ -828,7 +872,7 @@ prices a real difference.
 | arm | interface | snapshot | vs baseline |
 |---|---|---|---|
 | **P1** top-level + static | 15,817 | 14,361,952 | **+6.17 %** |
-| **P3** members, no classes | 63,342 | 14,444,232 | +6.78 % — **but its grants are INERT, see below** |
+| ~~**P3** members, no classes~~ | 63,342 | 14,444,232 | ~~+6.78 %~~ — **NON-VIABLE: buys none of the reach** |
 | **P2** everything | 76,336 | 14,586,296 | **+7.83 %** |
 
 **Table 2 — authority expansion**
