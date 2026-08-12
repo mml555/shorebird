@@ -828,7 +828,7 @@ prices a real difference.
 | arm | interface | snapshot | vs baseline |
 |---|---|---|---|
 | **P1** top-level + static | 15,817 | 14,361,952 | **+6.17 %** |
-| **P3** members, no classes | 63,342 | 14,444,232 | **+6.78 %** |
+| **P3** members, no classes | 63,342 | 14,444,232 | +6.78 % — **but its grants are INERT, see below** |
 | **P2** everything | 76,336 | 14,586,296 | **+7.83 %** |
 
 **Table 2 — authority expansion**
@@ -901,6 +901,41 @@ is a *public method of a private class*. Under P3 that class has no `class:` ite
 `library:` item covers only public classes — so whether the patch can **attach** at all is
 in question independently of whether `self._secret()` binds. A failure here is a *class
 capability required* result even though `_secret` itself was granted.
+
+#### 🔻 P3 COLLAPSES — measured 2026-08-12. Its granted members are INERT.
+
+`probes/p3_usability.sh`, a matched pair on one fixture differing **only** in policy:
+
+| policy | `_secret` named | bare `_Thing` class item | result |
+|---|---|---|---|
+| **P3** | ✅ | 0 | `APPLY refused: target _Thing.value did not attach` → `OLD` |
+| **P2** | ✅ | 1 | `APPLY ok` → **`NEW`** |
+
+**It fails at ATTACH, not at bind, and that distinction is the finding.** The replacement
+**compiled clean** — a 0-byte compile log — so `self._secret()` resolved perfectly well
+against the granted member. The patch never got as far as calling it: the target is a
+*public method of a private class*, and with no `class:` item that class is not retained,
+so `ResolvePatchTarget` cannot find `_Thing.value`.
+
+**So P3's 340 member grants are not wrong, they are inert.** Reaching any of them requires
+attaching to some method of their enclosing class, and that requires the class item P3
+withholds. The +82 KB P1 → P3 buys **nothing usable on its own**.
+
+**The precommitted second branch therefore applies:** P3 collapses toward P1, and **P2 is
+the only policy that buys the private-instance reach Phase 0 showed is needed.** The real
+choice is P1 vs P2 — the middle ground does not exist, and it took a probe rather than a
+manifest to find that out, because the manifest could only say the members were *named*.
+
+That also revises the cost framing. It is not "+82 KB for the useful part, +142 KB for the
+rest" — it is **+224 KB (P1 → P2, +6.17 % → +7.83 %) for reach that is unusable without
+class retention.** Constructibility is not a separable line item; it arrives with the class
+capability that attachment requires.
+
+**One assertion bug found and fixed in the probe itself.** The precondition check counted
+`class: '_Thing'` with grep, which also matches the `class:` line *inside* a member entry —
+so it reported P3 as granting a class item when P3 grants none. A bare class item is a
+`class:` line with no `member:` after it. Had that not been asserted at all, the probe would
+have produced the same verdict for an unverified reason.
 
 #### The six `_enumToString` entries are an unconditional must-refuse
 
