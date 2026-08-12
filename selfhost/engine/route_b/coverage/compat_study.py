@@ -2,24 +2,34 @@
 """compat_study.py -- what fraction of REAL changes can Route B patch, and why not.
 
 Measures; does not interpret. Every row keeps the analyzer's verbatim output
-alongside the study's normalized category, and the two are never merged: if the
-taxonomy changes, rows are reclassified from `raw` without recompiling a single
-kernel. That separation is the whole reason this is a script and not a
-spreadsheet.
+beside the study's derived classification, and the two are never merged: when the
+taxonomy changes -- it changed twice around Phase 0 -- rows are rederived by
+`compat_reclassify.py` without recompiling a kernel.
 
-The analyzer is FROZEN at v6 for the duration. A row whose analysis reports a
-different version is refused rather than recorded, so a rebuild in another
-session cannot move the thing being measured underneath the corpus.
+The analyzer is FROZEN at v6. A row whose analysis reports a different version is
+refused rather than recorded, so a rebuild in another session cannot move the
+thing being measured underneath the corpus.
+
+SELECTION IS DETERMINISTIC AND PRE-REGISTERED: every eligible commit is filtered
+mechanically, the survivors are shuffled with a fixed seed, and the first N are
+taken. Phase 0 took the most recent N and drew this session's own commits;
+seeded sampling makes the corpus reproducible and stops recent local history
+dominating it. The seed, the eligible-set hash, the funnel and the selection all
+go to a manifest.
 
 Compiles reproduce the RELEASE's own order -- prepass, then the dynamic
 interface, then base and patched against that interface. Skipping the interface
-measures a compilation no release performs: `--aot` eliminates a parameter only
-ever passed a constant, which already cost this repo one wrong conclusion.
+measures a compilation no release performs.
 
   compat_study.py --source app --repo <path> --entry lib/main.dart \
-      --target flutter --count 5 --jobs 3 --out rows.jsonl
+      --glob 'lib/**/*.dart' --target flutter --count 50 --seed 20260811 \
+      --jobs 3 --worktrees w1 w2 w3 --workdir W --out rows.jsonl \
+      --manifest app.manifest.json
 """
-import argparse, concurrent.futures, json, os, pathlib, queue, re, subprocess, sys, time
+import argparse, concurrent.futures, hashlib, json, os, pathlib, queue
+import random, re, subprocess, sys, time
+
+from compat_taxonomy import blockers_for, outcomes_for
 
 SRC = os.environ.get('SRC', '/Volumes/build/route-b/flutter/engine/src')
 OUT = os.environ.get('OUT', f'{SRC}/out/host_release_arm64')
@@ -32,53 +42,6 @@ CELL_HASH = 'aa9155840d6c1e71b015bbcff1e06eaea7e73e17'
 CELL = pathlib.Path.home() / '.shorebird/bin/cache/artifacts/route-b-compiler' / CELL_HASH
 FROZEN_VERSION = 6
 
-# --- classification -------------------------------------------------------
-#
-# EXACT MATCH ONLY, against the closed set of strings analyze_coverage.dart can
-# emit. Anything unmatched stays `other` and is printed; a classifier that
-# quietly folds the unrecognized into a known bin is how a study reports
-# confidence it has not earned.
-#
-# policy:
-#   architectural  Route B cannot do this under the replacement model at all
-#   deliberate     could be built; decided not to (see ROUTE_B.md, frozen surface)
-#   not-yet        no decision, simply unbuilt
-LOWERING_RULES = [
-    (re.compile(r'^reads the private member '), 'private-app-member', 'architectural'),
-    (re.compile(r'^assigns to the private member '), 'private-app-member', 'architectural'),
-    (re.compile(r'^calls the private member '), 'private-app-member', 'architectural'),
-    (re.compile(r'^reads `super\.'), 'super', 'deliberate'),
-    (re.compile(r'^calls `super\.'), 'super', 'deliberate'),
-    (re.compile(r'^assigns to `super\.'), 'super', 'deliberate'),
-    (re.compile(r'^reads and writes .* in one expression'), 'compound-write', 'deliberate'),
-    # Cascades land here too: `this..foo()` produces this exact string and is
-    # NOT distinguishable from `this` being captured, passed or stored. Recorded
-    # as one bucket because that is what the analyzer actually says.
-    (re.compile(r'^uses `this` other than to read a member$'), 'this-escape', 'deliberate'),
-    (re.compile(r'^invokes the getter .* on the receiver$'), 'getter-invocation', 'not-yet'),
-    (re.compile(r'^the method is generic$'), 'signature-arity', 'architectural'),
-    (re.compile(r'^the method takes parameters'), 'signature-arity', 'architectural'),
-    (re.compile(r'^is the receiver$'), 'this-escape', 'deliberate'),
-]
-# The analyzer labels these itself, so they need no string matching.
-REJECTION_CATEGORY = {
-    'added': ('added-member', 'architectural'),
-    'unreachable': ('unreachable', 'architectural'),
-    'unknown': ('dispatch-table-unknown', 'not-yet'),
-}
-
-
-def classify(raw):
-    for pattern, category, policy in LOWERING_RULES:
-        if pattern.search(raw):
-            return category, policy
-    return 'other', 'unclassified'
-
-
-# --- corpus selection -----------------------------------------------------
-#
-# Pre-registered and mechanical. Nothing inspects a diff's CONTENT before
-# selecting it; the funnel is returned so every exclusion is visible.
 EXCLUDE_FILE = re.compile(
     r'(_test\.dart$|\.g\.dart$|\.freezed\.dart$|\.mocks\.dart$'
     r'|/generated_|/l10n/|^test/|/test/)')
@@ -86,6 +49,39 @@ EXCLUDE_TOUCH = re.compile(
     r'^(pubspec\.(yaml|lock)|ios/|android/|macos/|windows/|linux/|assets/)'
     r'|/pubspec\.(yaml|lock)$|/(ios|android|macos|windows|linux|assets)/')
 MAX_LINES = 200
+# The toolchain is pinned, so history is only eligible where it can be BUILT.
+# Measured: 286 of the app's 400 most recent Dart-touching commits declare a
+# Dart 2 constraint, which Dart 3.12.2 can never resolve. This is a real
+# limitation on the corpus -- it restricts the population to the era the pinned
+# toolchain supports -- and it is applied mechanically and reported in the
+# funnel rather than left to fail as 100% compile errors.
+PINNED_DART = (3, 12, 2)
+
+
+def _ver(text):
+    parts = re.findall(r'\d+', text)[:3]
+    return tuple(int(x) for x in parts) + (0,) * (3 - len(parts))
+
+
+def sdk_admits_pinned(constraint):
+    c = (constraint or '').strip().strip('"\'')
+    if not c:
+        return False
+    if c.startswith('^'):
+        lo = _ver(c[1:])
+        return lo <= PINNED_DART < (lo[0] + 1, 0, 0)
+    lo = hi = None
+    m = re.search(r'>=\s*([\d.]+)', c)
+    if m:
+        lo = _ver(m.group(1))
+    m = re.search(r'<\s*([\d.]+)', c)
+    if m:
+        hi = _ver(m.group(1))
+    if lo and PINNED_DART < lo:
+        return False
+    if hi and PINNED_DART >= hi:
+        return False
+    return lo is not None or hi is not None
 
 
 def git(repo, *args):
@@ -93,55 +89,113 @@ def git(repo, *args):
                           capture_output=True, text=True).stdout
 
 
-def select(repo, source_glob, count, exclude_path=None):
-    funnel = {}
-    commits = git(repo, 'log', '--no-merges', '--format=%H', '--', source_glob).split()
-    funnel['touching Dart under the source root, no merges'] = len(commits)
+def eligible_commits(repo, source_glob):
+    """One `git log` pass: commit, subject, date, and every file with its churn.
+
+    Per-commit `git show` calls cost minutes over a thousand commits, and the
+    whole eligible set has to be filtered before shuffling or the sample is not
+    over the population it claims to be over.
+    """
+    # A unit separator, not NUL: git accepts either, but a NUL cannot be passed
+    # in a subprocess argument at all.
+    sep = '\x1f'
+    raw = git(repo, 'log', '--no-merges', f'--format={sep}%H{sep}%s{sep}%cI',
+              '--numstat', '--', source_glob)
+    commits, cur = [], None
+    for line in raw.split('\n'):
+        if line.startswith(sep):
+            _, sha, subject, date = line.split(sep, 3)
+            cur = {'commit': sha, 'subject': subject, 'date': date, 'files': []}
+            commits.append(cur)
+        elif line.strip() and cur is not None:
+            parts = line.split('\t')
+            if len(parts) == 3:
+                add, rem, path = parts
+                cur['files'].append((path, int(add) if add.isdigit() else 0,
+                                     int(rem) if rem.isdigit() else 0))
+    return commits
+
+
+def sdk_constraint_at(repo, commit, pubspec):
+    blob = git(repo, 'show', f'{commit}:{pubspec}')
+    grab = False
+    for line in blob.split('\n'):
+        if line.startswith('environment:'):
+            grab = True
+            continue
+        if grab:
+            if line.strip().startswith('sdk:'):
+                return line.split('sdk:', 1)[1]
+            if line and not line.startswith((' ', '\t')):
+                break
+    return ''
+
+
+def select(repo, source_glob, count, seed, exclude_path=None, pubspec='pubspec.yaml'):
+    all_commits = eligible_commits(repo, source_glob)
+    funnel = {'touching Dart under the source root, no merges': len(all_commits)}
+    selfre = re.compile(exclude_path) if exclude_path else None
 
     kept = []
-    dropped_touch = dropped_generated = dropped_large = dropped_self = 0
-    selfre = re.compile(exclude_path) if exclude_path else None
-    for c in commits:
-        files = [f for f in git(repo, 'show', '--name-only', '--format=', c).split('\n') if f]
-        if selfre and any(selfre.search(f) for f in files):
+    dropped_self = dropped_touch = dropped_generated = dropped_large = 0
+    dropped_sdk = 0
+    for c in all_commits:
+        paths = [f[0] for f in c['files']]
+        if selfre and any(selfre.search(p) for p in paths):
             dropped_self += 1
             continue
-        if any(EXCLUDE_TOUCH.search(f) for f in files):
+        if any(EXCLUDE_TOUCH.search(p) for p in paths):
             dropped_touch += 1
             continue
-        dart = [f for f in files if f.endswith('.dart') and not EXCLUDE_FILE.search(f)]
+        dart = [f for f in c['files']
+                if f[0].endswith('.dart') and not EXCLUDE_FILE.search(f[0])]
         if not dart:
             dropped_generated += 1
             continue
-        stat = git(repo, 'show', '--numstat', '--format=', c)
-        churn = 0
-        for line in stat.strip().split('\n'):
-            parts = line.split('\t')
-            if len(parts) == 3 and parts[2].endswith('.dart') and not EXCLUDE_FILE.search(parts[2]):
-                for n in parts[:2]:
-                    churn += int(n) if n.isdigit() else 0
+        churn = sum(a + r for _, a, r in dart)
         if churn > MAX_LINES:
             dropped_large += 1
             continue
-        parent = git(repo, 'rev-parse', f'{c}^').strip()
-        if not parent:
+        if not sdk_admits_pinned(sdk_constraint_at(repo, c['commit'], pubspec)):
+            dropped_sdk += 1
             continue
-        kept.append({'commit': c, 'parent': parent, 'files': dart, 'churn': churn,
-                     'subject': git(repo, 'log', '-1', '--format=%s', c).strip(),
-                     'date': git(repo, 'log', '-1', '--format=%cI', c).strip()})
-        if len(kept) >= count:
-            break
+        kept.append({'commit': c['commit'], 'subject': c['subject'],
+                     'date': c['date'], 'files': [f[0] for f in dart],
+                     'churn': churn})
 
     if exclude_path:
         funnel[f'dropped: matches --exclude-path {exclude_path}'] = dropped_self
     funnel['dropped: touches pubspec/native/assets'] = dropped_touch
     funnel['dropped: only generated or test Dart'] = dropped_generated
     funnel[f'dropped: over {MAX_LINES} changed Dart lines'] = dropped_large
-    funnel['selected'] = len(kept)
-    return kept, funnel
+    funnel[f'dropped: sdk constraint excludes Dart {".".join(map(str, PINNED_DART))}'] = dropped_sdk
+    funnel['eligible after filtering'] = len(kept)
+
+    # Deterministic: same seed and same eligible set give the same sample. The
+    # eligible set is hashed so a later rerun can PROVE it sampled the same
+    # population rather than asserting it.
+    eligible_hash = hashlib.sha256(
+        '\n'.join(c['commit'] for c in kept).encode()).hexdigest()
+    shuffled = list(kept)
+    random.Random(seed).shuffle(shuffled)
+    chosen = shuffled[:count]
+    funnel['selected by seeded shuffle'] = len(chosen)
+
+    for c in chosen:
+        c['parent'] = git(repo, 'rev-parse', f"{c['commit']}^").strip()
+    chosen = [c for c in chosen if c['parent']]
+
+    manifest = {'seed': seed, 'eligible_count': len(kept),
+                'eligible_sha256': eligible_hash,
+                'eligible_commits': [c['commit'] for c in kept],
+                'selected': [c['commit'] for c in chosen],
+                'funnel': funnel, 'exclude_path': exclude_path,
+                'max_lines': MAX_LINES, 'glob': source_glob,
+                'cell': CELL_HASH, 'analysis_version': FROZEN_VERSION,
+                'pinned_dart': '.'.join(map(str, PINNED_DART)), 'pubspec': pubspec}
+    return chosen, funnel, manifest
 
 
-# --- one case -------------------------------------------------------------
 def compile_kernel(worktree, entry, out_path, target, interface=None):
     platform = (f'{CELL}/flutter_platform_strong.dill' if target == 'flutter'
                 else f'{OUT}/vm_platform.dill')
@@ -157,22 +211,25 @@ def compile_kernel(worktree, entry, out_path, target, interface=None):
     return r.returncode == 0, (r.stderr or r.stdout)[-800:]
 
 
-def run_case(case, worktree, repo, entry, target, workdir, source):
-    tag = case['commit'][:10]
-    d = pathlib.Path(workdir) / f'{source}-{tag}'
+def digest(path):
+    return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
+
+
+def run_case(case, worktree, entry, target, workdir, source, pub_get=None):
+    d = pathlib.Path(workdir) / f"{source}-{case['commit'][:10]}"
     d.mkdir(parents=True, exist_ok=True)
-    row = {'source': source, 'cell': CELL_HASH, **{k: case[k] for k in
-           ('commit', 'parent', 'subject', 'date', 'churn')},
-           'files': case['files'], 'compile': 'ok'}
+    row = {'source': source, 'cell': CELL_HASH,
+           **{k: case[k] for k in ('commit', 'parent', 'subject', 'date', 'churn')},
+           'files': case['files']}
     t0 = time.time()
 
     def checkout(rev):
         # -f, AND VERIFIED. `flutter pub get` rewrites the tracked pubspec.lock,
-        # which makes a plain checkout refuse -- and the pilot showed that an
-        # unchecked failure is indistinguishable from a real result: both
-        # compiles run on the same tree, the dills are identical, and the
-        # analyzer honestly reports `inert`. Four of five app cases looked like
-        # a finding about Flutter and were a bug here.
+        # so a plain checkout refuses -- and an unchecked failure is
+        # indistinguishable from a real result: both compiles run on the same
+        # tree, the dills come out identical, and the analyzer honestly reports
+        # `inert`. Four of five Phase 0 app cases looked like a finding about
+        # Flutter and were a bug here.
         subprocess.run(['git', '-C', worktree, 'checkout', '--detach', '-q', '-f', rev],
                        capture_output=True)
         at = subprocess.run(['git', '-C', worktree, 'rev-parse', 'HEAD'],
@@ -183,45 +240,45 @@ def run_case(case, worktree, repo, entry, target, workdir, source):
     try:
         checkout(case['parent'])
     except RuntimeError as e:
-        row.update(compile='checkout_failed', error=str(e))
-        return row
+        return {**row, 'outcome': 'checkout-failed', 'error': str(e)}
+    if pub_get:
+        # Period-appropriate dependencies. HEAD's lockfile against year-old
+        # source produces API errors that look like compile failures and are
+        # really resolution drift.
+        r = subprocess.run(pub_get.split(), capture_output=True, text=True,
+                           cwd=worktree, env={**os.environ,
+                                              'FLUTTER_STORAGE_BASE_URL':
+                                              'http://localhost:8085'})
+        if r.returncode != 0:
+            return {**row, 'outcome': 'pub-get-failed',
+                    'error': (r.stderr or r.stdout)[-500:]}
     ok, err = compile_kernel(worktree, entry, d / 'prepass.dill', target)
     if not ok:
-        row.update(compile='prepass_failed', error=err)
-        return row
+        return {**row, 'outcome': 'compile-failed', 'stage': 'prepass', 'error': err}
+
     subprocess.run([DART, KERNEL_PKGS, str(RB / 'gen_dynamic_interface.dart'),
                     '--dill', str(d / 'prepass.dill'), '--out', str(d / 'di.yaml'),
-                    '--sdk-members', 'dart:core#print'],
-                   capture_output=True, text=True)
+                    '--sdk-members', 'dart:core#print'], capture_output=True)
     if not (d / 'di.yaml').exists():
-        row.update(compile='interface_failed')
-        return row
+        return {**row, 'outcome': 'compile-failed', 'stage': 'interface'}
+
     ok, err = compile_kernel(worktree, entry, d / 'base.dill', target, d / 'di.yaml')
     if not ok:
-        row.update(compile='base_failed', error=err)
-        return row
+        return {**row, 'outcome': 'compile-failed', 'stage': 'base', 'error': err}
 
     try:
         checkout(case['commit'])
     except RuntimeError as e:
-        row.update(compile='checkout_failed', error=str(e))
-        return row
+        return {**row, 'outcome': 'checkout-failed', 'error': str(e)}
     ok, err = compile_kernel(worktree, entry, d / 'patched.dill', target, d / 'di.yaml')
     if not ok:
-        row.update(compile='patched_failed', error=err)
-        return row
+        return {**row, 'outcome': 'compile-failed', 'stage': 'patched', 'error': err}
 
-    # A harness failure must never be able to masquerade as `inert`. If the two
-    # kernels are byte-identical the checkout did not take, whatever git said.
-    import hashlib
-    def digest(path):
-        return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
+    # ITS OWN TERMINAL STATE, never acceptance or rejection: identical bytes mean
+    # the change is not in the compiled program, or the checkout did not take.
     if digest(d / 'base.dill') == digest(d / 'patched.dill'):
-        row.update(compile='identical_kernels',
-                   error='base and patched compiled to the same bytes; the '
-                         'change is not in the compiled program, or the '
-                         'checkout did not take')
-        return row
+        return {**row, 'outcome': 'identical-kernels',
+                'error': 'base and patched compiled to the same bytes'}
 
     r = subprocess.run([f'{OUT}/dartaotruntime', str(CELL / 'route_b_analyze.aot'),
                         '--base-dill', str(d / 'base.dill'),
@@ -229,13 +286,14 @@ def run_case(case, worktree, repo, entry, target, workdir, source):
                         '--out', str(d / 'analysis.json')],
                        capture_output=True, text=True)
     if not (d / 'analysis.json').exists():
-        row.update(compile='analyze_failed', error=(r.stderr or r.stdout)[-800:])
-        return row
+        return {**row, 'outcome': 'analyze-failed',
+                'error': (r.stderr or r.stdout)[-800:]}
 
     raw = json.loads((d / 'analysis.json').read_text())
     if raw.get('analysisVersion') != FROZEN_VERSION:
-        raise SystemExit(f'FROZEN VIOLATION: analysis reports v{raw.get("analysisVersion")}, '
-                         f'study is pinned to v{FROZEN_VERSION}. Nothing recorded.')
+        raise SystemExit(f'FROZEN VIOLATION: analysis reports '
+                         f'v{raw.get("analysisVersion")}, study is pinned to '
+                         f'v{FROZEN_VERSION}. Nothing recorded.')
 
     # RAW IS KEPT WHOLE AND NEVER OVERWRITTEN. Everything below is derived.
     row['raw'] = {k: raw.get(k) for k in
@@ -244,57 +302,24 @@ def run_case(case, worktree, repo, entry, target, workdir, source):
                    'rejections', 'lowering', 'refusalSummary')}
     row['raw_path'] = str(d / 'analysis.json')
 
-    blockers = []
-    for rej in raw.get('rejections') or []:
-        cat, pol = REJECTION_CATEGORY.get(rej.get('category'), ('other', 'unclassified'))
-        blockers.append({'target': rej.get('target'), 'raw': rej.get('reason'),
-                         'raw_category': rej.get('category'), 'category': cat, 'policy': pol})
-    for target, low in (raw.get('lowering') or {}).items():
-        for reason in low.get('unsupported') or []:
-            cat, pol = classify(reason)
-            blockers.append({'target': target, 'raw': reason,
-                             'raw_category': 'lowering', 'category': cat, 'policy': pol})
-    for target in raw.get('removed') or []:
-        blockers.append({'target': target, 'raw': 'member removed by the change',
-                         'raw_category': 'removed', 'category': 'removed-member',
-                         'policy': 'architectural'})
-
-    # THE VERDICT IS NOT PUBLISHABILITY. Measured in the pilot: the analyzer can
-    # return `accept` for a patch the PRODUCER then refuses, because the verdict
-    # is computed from unreachable/unknown/added targets only and does not
-    # consider whether a representable target can actually be lowered. The
-    # product is still safe -- the producer throws and the whole patch is
-    # refused -- but it refuses later, with a different reason than the coverage
-    # summary gives, and a study that trusted the verdict would overstate
-    # acceptance.
-    #
-    # Publishable therefore means: the verdict accepts AND every target the
-    # producer would emit can be lowered.
-    emit = set(raw.get('patchable') or []) | set(raw.get('conditional') or [])
-    representable = len(emit)
-    unlowerable = {t for t, low in (raw.get('lowering') or {}).items()
-                   if t in emit and (low.get('unsupported') or [])}
-    accepted = raw.get('verdict') == 'accept' and not unlowerable
-    row['verdict_accepts'] = raw.get('verdict') == 'accept'
-    row['unlowerable_emit_targets'] = sorted(unlowerable)
+    blockers, _ = blockers_for(raw)
+    row.update(outcomes_for(raw))
     cats = sorted({b['category'] for b in blockers})
     row.update(
-        verdict=raw.get('verdict'),
-        patch_accepted=accepted,
         targets={'changed': len(raw.get('changed') or []),
                  'added': len(raw.get('added') or []),
                  'removed': len(raw.get('removed') or []),
-                 'representable': representable,
                  'unreachable': len(raw.get('unreachable') or []),
                  'unknown': len(raw.get('unknown') or [])},
         blockers=blockers,
         blocking_categories=cats,
-        # Only when it is MECHANICALLY determinable. Several independent causes
-        # do not get a winner chosen for them.
+        blocking_policies=sorted({b['policy'] for b in blockers}),
+        # Only when MECHANICALLY determinable. Several independent causes do not
+        # get a winner chosen for them.
         primary_blocker=(cats[0] if len(cats) == 1 else None),
-        # Rejected while at least one target WAS representable and lowerable:
-        # the whole-patch refusal cost something that could have shipped.
-        blocked_by_one=(not accepted and (representable - len(unlowerable)) > 0),
+        # Otherwise-valid work killed by whole-patch refusal semantics.
+        blocked_by_one=(not row['publishable']
+                        and row['representable_and_lowerable'] > 0),
         seconds=round(time.time() - t0, 1),
     )
     return row
@@ -306,27 +331,29 @@ def main():
     ap.add_argument('--repo', required=True)
     ap.add_argument('--entry', required=True)
     ap.add_argument('--glob', required=True)
-    ap.add_argument('--exclude-path', default=None,
-                    help='regex of paths whose commits are excluded; used to keep '
-                         'Route B\'s own source out of its corpus')
+    ap.add_argument('--exclude-path', default=None)
     ap.add_argument('--target', default='vm')
-    ap.add_argument('--count', type=int, default=5)
+    ap.add_argument('--count', type=int, default=50)
+    ap.add_argument('--seed', type=int, required=True)
     ap.add_argument('--jobs', type=int, default=1)
     ap.add_argument('--worktrees', nargs='+', required=True)
     ap.add_argument('--workdir', required=True)
     ap.add_argument('--out', required=True)
+    ap.add_argument('--manifest', required=True)
+    ap.add_argument('--pubspec', default='pubspec.yaml')
+    ap.add_argument('--pub-get', default=None)
     a = ap.parse_args()
 
-    cases, funnel = select(a.repo, a.glob, a.count, a.exclude_path)
-    print(f'--- {a.source}: selection funnel')
+    cases, funnel, manifest = select(a.repo, a.glob, a.count, a.seed,
+                                     a.exclude_path, a.pubspec)
+    print(f'--- {a.source}: selection funnel (seed {a.seed})')
     for k, v in funnel.items():
         print(f'    {v:>6}  {k}')
+    print(f"    eligible sha256 {manifest['eligible_sha256'][:16]}")
+    pathlib.Path(a.manifest).write_text(json.dumps(manifest, indent=2))
     if not cases:
         sys.exit('no cases selected')
 
-    # A worktree is LEASED, not assigned by index. Two cases sharing one
-    # worktree concurrently would check out over each other -- the flakiness
-    # would look like compile failure and be blamed on the corpus.
     if a.jobs > len(a.worktrees):
         sys.exit(f'--jobs {a.jobs} exceeds {len(a.worktrees)} worktrees')
     pool_wt = queue.Queue()
@@ -334,26 +361,33 @@ def main():
         pool_wt.put(wt)
 
     def leased(case):
+        # A worktree is LEASED, not assigned by index: two cases sharing one
+        # concurrently would check out over each other, and the flakiness would
+        # look like compile failure and be blamed on the corpus.
         wt = pool_wt.get()
         try:
-            return run_case(case, wt, a.repo, a.entry, a.target, a.workdir, a.source)
+            return run_case(case, wt, a.entry, a.target, a.workdir, a.source,
+                            a.pub_get)
+        except Exception as e:                       # noqa: BLE001
+            return {'source': a.source, 'commit': case['commit'],
+                    'subject': case['subject'], 'outcome': 'harness-error',
+                    'error': repr(e)}
         finally:
             pool_wt.put(wt)
 
-    rows = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=a.jobs) as pool:
-        futures = {pool.submit(leased, c): c for c in cases}
-        for f in concurrent.futures.as_completed(futures):
+    done = 0
+    with open(a.out, 'a') as fh, \
+            concurrent.futures.ThreadPoolExecutor(max_workers=a.jobs) as pool:
+        for f in concurrent.futures.as_completed(
+                [pool.submit(leased, c) for c in cases]):
             row = f.result()
-            rows.append(row)
-            print(f"    {row['commit'][:10]}  {row.get('compile'):15} "
-                  f"{str(row.get('verdict')):8} {row.get('seconds', '')}s  "
-                  f"{row['subject'][:52]}")
-
-    with open(a.out, 'a') as fh:
-        for row in rows:
             fh.write(json.dumps(row) + '\n')
-    print(f'--- wrote {len(rows)} rows to {a.out}')
+            fh.flush()
+            done += 1
+            print(f"    [{done}/{len(cases)}] {row['commit'][:10]}  "
+                  f"{row.get('outcome', '?'):18} {row.get('seconds', '')}s  "
+                  f"{row.get('subject', '')[:44]}")
+    print(f'--- wrote {done} rows to {a.out}')
 
 
 if __name__ == '__main__':

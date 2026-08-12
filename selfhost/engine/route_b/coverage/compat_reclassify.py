@@ -2,57 +2,37 @@
 """compat_reclassify.py -- rederive every study row from its preserved `raw`.
 
 The reason `compat_study.py` never overwrites the analyzer's output with the
-study's interpretation: when the taxonomy is wrong -- and in the pilot it was --
-the fix costs seconds instead of hours of kernel compiles.
+study's interpretation: when the taxonomy is wrong -- and around Phase 0 it was,
+twice -- the fix costs seconds instead of hours of kernel compiles.
 
-Reads rows.jsonl, rewrites only the derived fields, leaves `raw` untouched.
+Rewrites only derived fields. `raw` is never touched. Rows with no `raw`
+(compile-failed, identical-kernels, checkout-failed) keep their terminal state.
 
   compat_reclassify.py rows.jsonl
 """
 import json, sys
-from compat_study import classify, REJECTION_CATEGORY
+from compat_taxonomy import blockers_for, outcomes_for
 
 
 def derive(row):
     raw = row.get('raw')
     if not raw:
         return row
-    blockers = []
-    for rej in raw.get('rejections') or []:
-        cat, pol = REJECTION_CATEGORY.get(rej.get('category'), ('other', 'unclassified'))
-        blockers.append({'target': rej.get('target'), 'raw': rej.get('reason'),
-                         'raw_category': rej.get('category'), 'category': cat, 'policy': pol})
-    for target, low in (raw.get('lowering') or {}).items():
-        for reason in low.get('unsupported') or []:
-            cat, pol = classify(reason)
-            blockers.append({'target': target, 'raw': reason,
-                             'raw_category': 'lowering', 'category': cat, 'policy': pol})
-    for target in raw.get('removed') or []:
-        blockers.append({'target': target, 'raw': 'member removed by the change',
-                         'raw_category': 'removed', 'category': 'removed-member',
-                         'policy': 'architectural'})
-
-    emit = set(raw.get('patchable') or []) | set(raw.get('conditional') or [])
-    unlowerable = {t for t, low in (raw.get('lowering') or {}).items()
-                   if t in emit and (low.get('unsupported') or [])}
-    accepted = raw.get('verdict') == 'accept' and not unlowerable
+    blockers, _ = blockers_for(raw)
+    row.update(outcomes_for(raw))
     cats = sorted({b['category'] for b in blockers})
-
     row.update(
-        verdict=raw.get('verdict'),
-        verdict_accepts=raw.get('verdict') == 'accept',
-        patch_accepted=accepted,
-        unlowerable_emit_targets=sorted(unlowerable),
         targets={'changed': len(raw.get('changed') or []),
                  'added': len(raw.get('added') or []),
                  'removed': len(raw.get('removed') or []),
-                 'representable': len(emit),
                  'unreachable': len(raw.get('unreachable') or []),
                  'unknown': len(raw.get('unknown') or [])},
         blockers=blockers,
         blocking_categories=cats,
+        blocking_policies=sorted({b['policy'] for b in blockers}),
         primary_blocker=(cats[0] if len(cats) == 1 else None),
-        blocked_by_one=(not accepted and (len(emit) - len(unlowerable)) > 0),
+        blocked_by_one=(not row['publishable']
+                        and row['representable_and_lowerable'] > 0),
     )
     return row
 

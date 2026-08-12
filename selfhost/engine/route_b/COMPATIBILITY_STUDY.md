@@ -1,7 +1,7 @@
 # Real-patch compatibility study — scope
 
-**Status: Phase 0 complete (10 cases). Phase 1 NOT cleared — see the exit
-check.** Analyzer frozen at **v6**, cell
+**Status: Phase 0 complete. Phase 1 ATTEMPTED AND BLOCKED on corpus
+feasibility — the method needs a decision before it can run. See the end.** Analyzer frozen at **v6**, cell
 `aa9155840d6c1e71b015bbcff1e06eaea7e73e17`.
 
 ## The question
@@ -366,3 +366,87 @@ form to widen* and becomes:
 Those are three architecture questions, and the data says they matter roughly an
 order of magnitude more than the lexical ladder did. **Deciding them is not part
 of this study.**
+
+
+---
+
+# Phase 1 — attempted, blocked, and why
+
+Both requested changes were made and the study was rerun from scratch:
+
+* **taxonomy split** into `model` / `abi` / `structural` / `deliberate` /
+  `not-yet`, with raw reason + category + subtype all preserved separately
+  (`compat_taxonomy.py`);
+* **fixed-seed sampling** — filter mechanically, shuffle with seed `20260811`,
+  take the first 50; seed, eligible-set sha256, full eligible list, selection
+  and funnel written to a manifest (`compat_phase1_attempt/*.manifest.json`);
+* **three separate outcomes** recorded — coverage verdict, producer lowering
+  verdict, whole-patch publishable — with `identical-kernels` as its own
+  terminal state.
+
+**100 of 100 cases produced no analysis.** Not a result about Route B: a result
+about the method.
+
+| | app (Wonderous) | fork |
+|---|---|---|
+| eligible after filtering | 109 | 1025 |
+| sampled | 50 | 50 |
+| sampled date range | 2024-05 → 2026-07 | 2023-05 → 2026-07 |
+| dependency resolution failed | 19 | 46 |
+| compile failed | 31 | 4 |
+| **analysable** | **0** | **0** |
+
+## What went wrong, precisely
+
+Seeded sampling did exactly what it was asked to: it sampled the whole eligible
+history instead of the recent tip. That exposed what taking the most-recent N
+had been hiding — **historical trees do not build against a pinned toolchain.**
+
+* The first run reached commits from **2022-09** declaring `sdk: ">=2.16.0
+  <3.0.0"`. Dart 3.12.2 cannot resolve them at all. Measured: 286 of the app's
+  400 most recent Dart-touching commits declare a Dart 2 constraint.
+* An SDK-compatibility filter was added (mechanical, reported in the funnel:
+  290 of 422 app commits dropped, 129 of 1281 fork commits). The survivors still
+  fail, because a *compatible SDK constraint is not a resolvable dependency
+  set*: Wonderous at `^3.3.0` pins `intl ^0.19.0` while the pinned Flutter SDK
+  forces `intl 0.20.2`. Version solving fails before any compile.
+* Per-case `pub get` was added so dependencies match the commit rather than
+  HEAD. It cannot fix a constraint the pinned SDK contradicts.
+
+One of the two failure modes is mine and fixable: the fork's `pub get` ran at
+the worktree root, which has no `pubspec.yaml` at older commits (the workspace
+layout is newer than much of the history). That accounts for the fork's 46 and
+would move to `packages/shorebird_cli`. **The app's 19 + 31 are not a harness
+bug** — they are genuine dependency-era incompatibility.
+
+## The decision this needs
+
+Replaying historical *trees* against one pinned toolchain does not work, and no
+amount of filtering fixes it: the filter that would make it work is "commits
+recent enough to build today", which reintroduces exactly the recency bias
+seeded sampling was adopted to remove.
+
+The alternative that keeps real diffs and drops the incompatible context:
+
+> **base = HEAD with commit C reverted; patched = HEAD.**
+
+The change content is real and unmodified — it is C's own before/after — but it
+is rebased onto a tree that builds. Dependency resolution happens once, at HEAD,
+where it is known to work. Commits whose revert does not apply cleanly are
+excluded mechanically and reported in the funnel.
+
+What it costs, stated plainly: the corpus becomes *diffs that still apply to
+today's code*, which correlates with recency and with churn locality. That is a
+different population from "all historical changes", and the write-up would have
+to say so. It is a narrower claim, honestly labelled, rather than a broader one
+that cannot be computed.
+
+**Not adopted unilaterally.** Selection has already been amended twice under
+pressure of results, and changing what the corpus *is* — from historical trees
+to rebased diffs — is a bigger change than either. It is the study's meaning,
+not its plumbing.
+
+The harness is complete and unblocked otherwise: taxonomy, seeded manifests,
+three-outcome recording, `identical-kernels`, verified checkouts, worktree
+leasing, and reclassification from preserved `raw` all work. Only the corpus
+construction is open.
