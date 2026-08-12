@@ -4,7 +4,7 @@
 <!-- cspell:words overclaim DFLUTTER Diagnosticable -->
 <!-- cspell:words demangled specializer devirtualizes rationalised synthesises -->
 <!-- cspell:words subshell theorised generalises generalisable symbolicator unrunnable -->
-<!-- cspell:words characterisation backout NONAOT Wonderous analysed askable localises precommitted executably precommitment constructibility unreviewed favourable -->
+<!-- cspell:words characterisation backout NONAOT Wonderous analysed askable localises precommitted executably precommitment constructibility unreviewed favourable synthesised -->
 
 # Shorebird feature parity — the goal document
 
@@ -582,8 +582,8 @@ gate accordingly:
 | ✅ | **3. Require the live control to become mode 0** | `live=0` |
 | ✅ | **4. Observe what the dead arm becomes** — matrix committed in advance | `dead=0`, mode 3 **disproven** |
 | ✅ | **5. Settle the threat model** — **DECIDED**: within the Dart capabilities of the shipped app, patch authority is release-equivalent. Private reach is a compatibility question, not a security one — with a scope qualification and an expiry condition, both below |
-| ☐ | **6. Define candidate permission policies** — P1 / P2 / P3 below |
-| ☐ | **7. Run Wonderous against those exact policies** — cost **and** granted capability, per arm |
+| ✅ | **6. Define candidate permission policies** — in code as `--policy p1\|p2\|p3`, not in prose |
+| ✅ | **7. Run Wonderous against those exact policies** — done, both tables recorded below. **One gap: P3's runtime reachability is inferred, not measured** |
 | ☐ | **8. Choose the policy explicitly** |
 | ☐ | **9. Then `G3.6b`** accepts only the concrete emitted/permitted set |
 | ☐ | **10. One mint, then the automatic path and the device gate** |
@@ -815,6 +815,61 @@ Either is defensible as a *decision*; neither is defensible as a criterion disco
 once the numbers are visible. This is the precommitment rule applied before the fact
 rather than after — its two prior saves (§the precommitment rule) were both retrospective
 rescues of a favourable-looking result, and this is the cheaper version.
+
+#### 📊 ARM RESULTS — Wonderous, 2026-08-12. All three build; no vacuity.
+
+`probes/policy_arms.sh`, one pinned app state (`747b945a`), prepass and import kernel
+built once so the only per-arm difference is `--policy`. Baseline is the same app with
+**no** retention: 13,526,688 bytes. All three interface digests differ, so every delta
+prices a real difference.
+
+**Table 1 — cost**
+
+| arm | interface | snapshot | vs baseline |
+|---|---|---|---|
+| **P1** top-level + static | 15,817 | 14,361,952 | **+6.17 %** |
+| **P3** members, no classes | 63,342 | 14,444,232 | **+6.78 %** |
+| **P2** everything | 76,336 | 14,586,296 | **+7.83 %** |
+
+**Table 2 — authority expansion**
+
+| arm | top | static | instance | classes | implicit ctor | refused |
+|---|---|---|---|---|---|---|
+| **P1** | 27 | 26 | 0 | 0 | 0 | **346** |
+| **P3** | 27 | 26 | **340** | **0** | **0** | 6 |
+| **P2** | 27 | 26 | 340 | **119** | **119** | 6 |
+
+**The marginal split is the result, not the totals:**
+
+| step | cost | buys |
+|---|---|---|
+| P1 → P3 | **+82,280 bytes** | 340 private instance members |
+| P3 → P2 | **+142,064 bytes** | 119 private classes + their 119 implicit constructors |
+
+**Constructibility costs nearly twice what all 340 member grants cost.** The 119 class
+retentions are the expensive half of P2, and they are the half with no obvious patch use
+case — `_WondersAppState.new`, `_AppLocalizationsDelegate.new`, `_Text.new`. Meanwhile the
+members P3 grants are exactly the Phase 0 shape: `_WondersAppState#_imagesCached`,
+`ArtifactAPIService#_parseArtifactData`.
+
+**P3's structural hypothesis holds:** withholding the `class:` item withheld
+constructibility *and* implicit constructors while keeping all 340 members named.
+
+**The universally-refused set is 6 entries and every one is `_enumToString`** — the
+CFE-synthesised enum machinery whose `Name` belongs to `dart:core`. No policy can grant
+them, no patch author writes them, and `G3.6b` must refuse them regardless of policy.
+That is a reassuring shape for a must-refuse set: one known cause, no app-authored code.
+
+> **⚠️ NOT YET VERIFIED, and it is P3's load-bearing assumption.** The 340 members are
+> *named*, and `dead_body.sh` established that naming makes a member a root. But whether
+> a patch can **use** an instance member whose class carries no `class:` item is an
+> inference, not a measurement. In the real shape the receiver arrives from the lowering
+> (`self`), not from construction — so P3 should work for patching a method *on* that
+> class. **That needs an arm before P3 can be chosen.** If it fails, P3 collapses into P1
+> and the middle ground does not exist.
+
+**No policy is chosen here.** All four precommitted dimensions are reported; the choice
+is step 8 and it is deliberately a separate act from the measurement.
 
 #### ✅ THREAT MODEL — DECIDED 2026-08-12
 
