@@ -1,4 +1,4 @@
-<!-- cspell:words dartaotruntime SBRBPTCH sbrbptch dynmod tearoff disqualifiers -->
+<!-- cspell:words dartaotruntime SBRBPTCH sbrbptch dynmod tearoff disqualifiers IOUSB ioreg xctrace -->
 <!-- cspell:words unvalidated noninteractive prepass jank recognise -->
 <!-- cspell:words schedulable startable worktree oneline unheld diffstat -->
 <!-- cspell:words overclaim DFLUTTER Diagnosticable -->
@@ -1159,6 +1159,67 @@ the bytes; this proves the publication, and they are not the same claim — a bu
 assembled correctly and filed under the wrong hash, which is exactly what
 `PROVENANCE.txt`'s engine-revision check exists to catch.
 
+#### The device gate RAN, and it found a delivery-path bug — 2026-08-12
+
+`23.0.0+1` on the iPhone 7, patch 1 published at 591 B. The result is **not** a
+pass, and the way it failed is worth more than a pass would have been.
+
+| step | outcome |
+|---|---|
+| release cut with the new engine | ✅ policy `p2`, private enumeration from the non-AOT kernel, agreement **passed**, `RouteBThing#_secret` granted, manifest provenance-covered |
+| producer accepts against the P2 manifest | ✅ emitted `String value(RouteBThing self) => self._secret;` — public class keeps its concrete type, private field reached through the receiver |
+| patch published | ✅ 591 B, one target |
+| device downloads it | ✅ `__patch_download__`, patch 1 |
+| device applies it | ✅ app reports **code patch: 1** |
+| the patched body executes | ❌ **route B value still `NEW-SET`** — the release's own body |
+
+**The discriminator, run rather than reasoned.** The identical shape — public
+class, private field, typed receiver — was replayed on host against the same
+published cell: `APPLY ok`, value `NEW-PRIV`, byte-identical lowering. So the
+producer, the manifest gate, the CFE resolution and bytecode binding are all
+sound. The divergence is in the delivery path, not in G3.6b.
+
+**The cause: the build silently rewrote the engine stamp.** `shorebird patch`
+warned that the release was built by `ee001fd7` while the machine was "set up
+with" `69f9831c`, and afterwards:
+
+    bin/internal/engine.version   ee001fd7 -> 69f9831c
+    bin/cache/engine.stamp        ee001fd7 -> 69f9831c
+    bin/cache/ios-sdk.stamp       ee001fd7 -> 69f9831c
+    bin/cache/engine-dart-sdk.stamp   ee001fd7  (unchanged)
+
+`FLUTTER_STORAGE_BASE_URL` points at the sealed CDN, where
+`experimental_hashes.map` maps `ee001fd7 -> 69f9831c` so unmodified engine
+artifacts resolve. Flutter's cache then records **the hash it actually
+downloaded**. The map's whole purpose is that fallback, and the fallback is what
+destroys the engine identity — so the release recorded `ee001fd7` (stamps still
+correct at release time) while the patch's KERNEL came from a different
+frontend. The bytecode was compiled by the release's cell, correctly, against a
+kernel that did not match it; it bound to nothing, and the engine kept the
+compiled body. Delivery reports success; behaviour is unchanged.
+
+**This is the exact scenario `ios_patcher.dart` declined to gate on**, in a
+comment that said so: *"if those disagree the bytecode may fail to bind, on
+device, long after this command reported success. We have not yet demonstrated
+that... Wiring the producer is what will settle whether this becomes an error."*
+It is now demonstrated. **The warning should become a refusal**, and the stamp
+rewrite should be detected rather than tolerated — a patch whose kernel comes
+from a different engine than its release is not a patch, and it fails in the
+one way this project is organised against: silently, on hardware.
+
+Not fixed here, deliberately: it is a delivery-path change with its own
+acceptance, and everything else is frozen until the phone gate closes.
+
+#### Bookkeeping: v7 is not numerically comparable to Phase 0
+
+Analyzer v7 changes what `unsupported` contains — private receiver accesses moved
+out of it and became reported accesses. Phase 0's rows were recorded under v6 and
+classified by v6's reason strings. **No before/after acceptance percentage may be
+claimed across that boundary.** Phase 0 remains valid as historical and pilot
+evidence of which shapes real patches use; it is not a baseline for measuring
+G3.6b's effect. A v7 Baseline A, if one is wanted, has to be a fresh run over the
+same corpus, reported as its own number.
+
 **What is left, and it is not code.** The device round-trip. Also two environment
 mutations deliberately NOT done here, because each belongs to whoever owns that
 environment: the sealed CDN needs a reload for Caddy to pick up the new map entry, and no
@@ -2244,16 +2305,16 @@ rows, so **clear your row when you stop**, even mid-goal.
 
 | resource | held by | goal | since | notes |
 |---|---|---|---|---|
-| `R1` iPhone 7 | **`G3.6b` device gate** | the private-member round trip | 2026-08-12 | **HELD.** Wired (`ioreg -p IOUSB` shows `iPhone@00140000`), iOS 15.8.8, online to `xctrace` as `8cb4bc98…`. Note `devicectl` reports it `unavailable` — iOS 15 is not a CoreDevice, so the install transport is chosen by version, not by that listing |
+| `R1` iPhone 7 | — | — | released 2026-08-12 | **free.** Left with release `23.0.0+1` installed and patch 1 active (`code patch: 1`) but NOT applied — see the device-gate finding. The device is fine; the patch's kernel came from the wrong engine. Previously: Wired (`ioreg -p IOUSB` shows `iPhone@00140000`), iOS 15.8.8, online to `xctrace` as `8cb4bc98…`. Note `devicectl` reports it `unavailable` — iOS 15 is not a CoreDevice, so the install transport is chosen by version, not by that listing |
 | `R2` Android device | — | — | — | **free** |
 | `R3` route-b tree | — | — | released 2026-08-12 | **free. Tree health on release: GREEN** — `dart_patches.sh --verify` all 4 applied, `route_b_analyze.aot` + `route_b_gen_dynamic_interface.aot` rebuilt and now published in cell `ee001fd7`. Nothing uncommitted in the Dart subtree; `$OUT/zip_archives` holds the exact bytes that cell carries |
 | `R4` ios-engine tree | — | — | — | **free** |
-| `R6` canonical fixture | **`G3.6b` device gate** | `RouteBThing._secret` | 2026-08-12 | **HELD and MODIFIED.** Added one private field the release never reads — being unread is the condition under test, since retention then depends entirely on P2's `--private-dill` enumeration. Version bumps to 23 with this release |
+| `R6` canonical fixture | — | — | released 2026-08-12 | **free at version `23.0.0+1`.** `lib/main.dart` is left in its PATCH state (`value() => _secret`), not the release state — whoever resumes either reverts that line or treats it as the next patch's source. Previously: Added one private field the release never reads — being unread is the condition under test, since retention then depends entirely on P2's `--private-dill` enumeration. Version bumps to 23 with this release |
 | `R7` producer/analyzer | — | — | released 2026-08-12 | **free.** Analyzer is **v7** and `supportedRouteBAnalysisVersion` matches; the pair is published as cell `ee001fd7`, so the two are no longer skewed. Left committed at `1c3ffe13`, full `shorebird_cli` suite green |
-| `R8` `cps-ios` | **`G3.6b` device gate** | the release + patch | 2026-08-12 | **HELD.** Container up and healthy; one release and one patch will be published against it |
+| `R8` `cps-ios` | — | — | released 2026-08-12 | **free.** Release 69 (`23.0.0+1`) and patch 1 published against it. Previously: Container up and healthy; one release and one patch will be published against it |
 | `R9` `cps-android` | — | — | — | **free** |
 | `R10` server source | — | — | — | **free** — the `G6` lane |
-| `R11` sealed CDN | **`G3.6b` device gate** | serving `ee001fd7` to the release build | 2026-08-12 | **RE-CLAIMED.** `cdn-cache` recreated so Caddy re-read the hash map — new-hash fallback went 404 → 302, cell zip serves byte-identical to the audited copy, old-hash control unchanged. Running **unsealed** (`upstream/enabled.caddy`), deliberately: sealing is host-global and would break every other build. Prior state below.<br>**free — and the mint HAPPENED this time.** `ee001fd78fcd5e78e976d35284bd13e1caffff63`: three cell files in ONE address change — `route_b_analyze.aot` (v6→v7), `route_b_gen_dynamic_interface.aot` (`--policy`/`--manifest`), `dart2bytecode.aot` (`--resolve-private-names-in-library`). Audit clean; host path 10/10 against the published zip. **The CDN still needs a reload** for Caddy to serve the new map entry, and no Flutter checkout has been restamped — both are the next holder's, because both mutate someone's environment |
+| `R11` sealed CDN | — | — | released 2026-08-12 | **free, and serving `ee001fd7`.** `cdn-cache` is running unsealed. **Known hazard recorded:** the `ee001fd7 -> 69f9831c` map entry is what lets Flutter's cache rewrite the engine stamp mid-build, which is the device gate's failure. Previously: `cdn-cache` recreated so Caddy re-read the hash map — new-hash fallback went 404 → 302, cell zip serves byte-identical to the audited copy, old-hash control unchanged. Running **unsealed** (`upstream/enabled.caddy`), deliberately: sealing is host-global and would break every other build. Prior state below.<br>**free — and the mint HAPPENED this time.** `ee001fd78fcd5e78e976d35284bd13e1caffff63`: three cell files in ONE address change — `route_b_analyze.aot` (v6→v7), `route_b_gen_dynamic_interface.aot` (`--policy`/`--manifest`), `dart2bytecode.aot` (`--resolve-private-names-in-library`). Audit clean; host path 10/10 against the published zip. **The CDN still needs a reload** for Caddy to serve the new map entry, and no Flutter checkout has been restamped — both are the next holder's, because both mutate someone's environment |
 | `R12` hermes-vps | — | — | — | **free** — additive capacity for `G4.2`'s Android half |
 
 > **The rule has two precedents now, one in each direction.** A `G3.6a` read-only
