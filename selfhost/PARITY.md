@@ -586,7 +586,7 @@ gate accordingly:
 | ✅ | **7. Run Wonderous against those exact policies** — done, both tables recorded below. **One gap: P3's runtime reachability is inferred, not measured** |
 | ✅ | **8. Choose the policy explicitly** — **P2**. P3 is non-viable, not unselected |
 | ✅ | **9. `G3.6b`** — accept only when the release's emitted set proves member **+** enclosing-class capability **+** not-skipped. **Done.** 28 unit tests plus `cli_private_member.sh` 10/10. All five precommitted analyzer cases are matched, and two more were added that the precommitment did not ask for: a static of a private class still needs the class item, and the flag's own blast radius is bounded (see below) |
-| ☐ | **10. One combined cell mint**, then the device round-trip. **The host path already ran** — against a staged, unpublished cell — so the mint publishes something proven rather than finding out |
+| ✅ | **10. One combined cell mint** — **`ee001fd78fcd5e78e976d35284bd13e1caffff63`**, donor `50d58cc3`, engine binary cloned byte-for-byte so only the CELL differs. `audit_route_b_compiler.sh` clean, and `cli_private_member.sh` **10/10 again against the PUBLISHED zip** — the staged run proved the bytes, this proves the publication. **Only the device round-trip remains** |
 
 **Steps 1-4 are closed, and they changed what steps 5-10 are.** The gate was built to
 answer a safety question; the answer removed the safety question and left a capability
@@ -1144,6 +1144,25 @@ so a refusal can never be blamed on a differently-retained release:
 The flag assertion reads the printed argument list rather than inferring from the
 value, because `self._secret` on a `dynamic` receiver compiles either way: the value
 alone cannot distinguish "the flag worked" from "something else did".
+
+**Published as cell `ee001fd78fcd5e78e976d35284bd13e1caffff63`** (donor `50d58cc3`;
+engine binary cloned byte-for-byte, so only the cell differs). Three files moved in one
+address change, which is the point of having waited: `route_b_analyze.aot` v6→v7,
+`route_b_gen_dynamic_interface.aot` for `--policy`/`--manifest`, `dart2bytecode.aot` for
+`--resolve-private-names-in-library`. Minting them separately would have produced two
+addresses neither of which worked — the CLI pins the analyzer version, so a cell with the
+new analyzer and the old compiler is refused, and the reverse compiles a private
+reference nothing gated.
+
+The host path then ran **again, against the published zip**: 10/10. The staged run proved
+the bytes; this proves the publication, and they are not the same claim — a bundle can be
+assembled correctly and filed under the wrong hash, which is exactly what
+`PROVENANCE.txt`'s engine-revision check exists to catch.
+
+**What is left, and it is not code.** The device round-trip. Also two environment
+mutations deliberately NOT done here, because each belongs to whoever owns that
+environment: the sealed CDN needs a reload for Caddy to pick up the new map entry, and no
+Flutter checkout has been restamped to `ee001fd7`.
 
 ### `G3.6a` — ANSWERED 2026-08-11. It is reachable, and the mechanism already exists.
 
@@ -2227,14 +2246,14 @@ rows, so **clear your row when you stop**, even mid-goal.
 |---|---|---|---|---|
 | `R1` iPhone 7 | — | — | released 18:2x | **free.** `G3.3`'s gate committed as `fa40f6ca` |
 | `R2` Android device | — | — | — | **free** |
-| `R3` route-b tree | **`G3.6b`** | the v7 cell artifacts + the host path | 2026-08-12 | **HELD, and it WRITES. Tree health: GREEN** — `dart_patches.sh --verify` all 4 applied (re-verified at this claim), `route_b_analyze.aot` and `route_b_gen_dynamic_interface.aot` rebuilt, `cli_private_member.sh` 10/10. The mint reads `$OUT/zip_archives`, so **this claim now covers the mint** rather than blocking it |
+| `R3` route-b tree | — | — | released 2026-08-12 | **free. Tree health on release: GREEN** — `dart_patches.sh --verify` all 4 applied, `route_b_analyze.aot` + `route_b_gen_dynamic_interface.aot` rebuilt and now published in cell `ee001fd7`. Nothing uncommitted in the Dart subtree; `$OUT/zip_archives` holds the exact bytes that cell carries |
 | `R4` ios-engine tree | — | — | — | **free** |
 | `R6` canonical fixture | — | — | released 18:2x | **free** at version `22.0.0+1`; next release bumps to 23 |
-| `R7` producer/analyzer | **`G3.6b`** | the analyzer relaxation and the capability gate | 2026-08-12 | **HELD.** Analyzer is now **v7**: a private receiver access is REPORTED with its manifest key instead of refused, and the accept/refuse decision moved to the CLI (`route_b_capabilities.dart`). `supportedRouteBAnalysisVersion` is 7 to match, so a v6 cell is refused — which is the gate working, and is what the mint below exists to satisfy |
+| `R7` producer/analyzer | — | — | released 2026-08-12 | **free.** Analyzer is **v7** and `supportedRouteBAnalysisVersion` matches; the pair is published as cell `ee001fd7`, so the two are no longer skewed. Left committed at `1c3ffe13`, full `shorebird_cli` suite green |
 | `R8` `cps-ios` | — | — | released 18:2x | **free** |
 | `R9` `cps-android` | — | — | — | **free** |
 | `R10` server source | — | — | — | **free** — the `G6` lane |
-| `R11` sealed CDN | **`G3.6b`** | the one combined mint | 2026-08-12 | **HELD — claimed because the mint is starting**, per the precommitment that no `R11` claim precedes it. Three cell files move in ONE address change: `route_b_analyze.aot` (v6→v7), `route_b_gen_dynamic_interface.aot` (`--policy`/`--manifest`), `dart2bytecode.aot` (`--resolve-private-names-in-library`). The host path closed first — `cli_private_member.sh` 10/10 against a staged, UNPUBLISHED cell — so the mint is publishing something already proven, not finding out |
+| `R11` sealed CDN | — | — | released 2026-08-12 | **free — and the mint HAPPENED this time.** `ee001fd78fcd5e78e976d35284bd13e1caffff63`: three cell files in ONE address change — `route_b_analyze.aot` (v6→v7), `route_b_gen_dynamic_interface.aot` (`--policy`/`--manifest`), `dart2bytecode.aot` (`--resolve-private-names-in-library`). Audit clean; host path 10/10 against the published zip. **The CDN still needs a reload** for Caddy to serve the new map entry, and no Flutter checkout has been restamped — both are the next holder's, because both mutate someone's environment |
 | `R12` hermes-vps | — | — | — | **free** — additive capacity for `G4.2`'s Android half |
 
 > **The rule has two precedents now, one in each direction.** A `G3.6a` read-only
