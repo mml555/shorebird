@@ -1,5 +1,5 @@
 // Copyright (c) 2026, the Shorebird self-host fork.
-// cspell:words prepass behaviour synthesises
+// cspell:words prepass behaviour synthesises constructibility CONSTRUCTIBILITY
 //
 // gen_dynamic_interface.dart -- emit a Route B dynamic interface from an app's
 // own kernel.
