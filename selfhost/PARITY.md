@@ -581,7 +581,7 @@ gate accordingly:
 | ✅ | **2. Rerun `probes/dead_body.sh`** against it | 2026-08-12 |
 | ✅ | **3. Require the live control to become mode 0** | `live=0` |
 | ✅ | **4. Observe what the dead arm becomes** — matrix committed in advance | `dead=0`, mode 3 **disproven** |
-| 🚧 | **5. Settle the threat model** — *does patch-publishing authority imply release-publishing authority?* **BLOCKING**: the same manifest reads two incompatible ways depending on the answer |
+| ✅ | **5. Settle the threat model** — **DECIDED**: within the Dart capabilities of the shipped app, patch authority is release-equivalent. Private reach is a compatibility question, not a security one — with a scope qualification and an expiry condition, both below |
 | ☐ | **6. Define candidate permission policies** — P1 / P2 / P3 below |
 | ☐ | **7. Run Wonderous against those exact policies** — cost **and** granted capability, per arm |
 | ☐ | **8. Choose the policy explicitly** |
@@ -790,28 +790,61 @@ Row 5 matters as much as the others: a category the interface *could not* emit i
 capability the release does **not** grant, and `G3.6b` must refuse against it. Without
 it the manifest describes an intent rather than a release.
 
-#### 🚧 BLOCKING PRODUCT DECISION — settle before running the arms
+#### ✅ THREAT MODEL — DECIDED 2026-08-12
 
-> **Does possession of patch-publishing authority imply authority equivalent to
-> publishing a new app release?**
+> **Within the Dart capabilities of the already-released application, patch-publishing
+> authority is release-equivalent.**
 
-A binary question with two incompatible readings of the *same measurement*, which is
-exactly why it cannot wait until after:
+**The reasoning.** A patch publisher can already replace executable application logic.
+If that principal is malicious or compromised, denying it access to `_privateHelper`
+protects neither the app's data nor its integrity — it can ship different logic
+*around* the private member. Treating Dart library privacy as a security boundary
+would therefore add real complexity while providing no real boundary.
 
-| answer | what P2/P3 become |
-|---|---|
-| **YES** — patch authority ≡ release authority | mainly **compatibility and maintenance** trade-offs. A patch author can already ship arbitrary executable replacement logic, so reaching a private member is reach they effectively have by other means — not a privilege escalation |
-| **NO** — patch authority is deliberately narrower | broad private retention is an **actual privilege expansion**, and the dynamic interface must be treated like an **allowlist / security policy** rather than a size knob |
+**The qualification, which is the load-bearing half.** Patch authority is *not*
+literally equivalent to publishing a new App Store binary. It cannot inherently change:
 
-**Do not run the arms first.** The identical capability manifest reads as "acceptable
-API-surface growth" under YES and as "unreviewed privilege expansion" under NO. A
-measurement that can be interpreted two incompatible ways is not evidence, and
-whichever interpretation the reader happens to hold when the numbers land will feel
-like the obvious one.
+* native code;
+* entitlements;
+* signing identities;
+* OS permissions;
+* bundled frameworks.
 
-Either way the interface remains a **capability document**. The threat model decides
-only whether *"a patch can instantiate `_Dead`"* is a security problem, a
-maintainability problem, or simply the desired reach.
+So the rule is scoped precisely — **release-equivalent for *Dart application*
+authority**, not release-equivalent in general. Anyone applying it outside that scope is
+misapplying it.
+
+**Consequences, and they resolve the P1/P2/P3 question's frame:**
+
+* private reach is a **compatibility / patchability / maintenance** decision, not a
+  security one;
+* broad private retention is **not** a privilege escalation under this model, so **P2 is
+  a legitimate default candidate** — it should not be rejected in advance in favour
+  of P1 out of security caution;
+* **capability manifests remain mandatory.** Their purpose changes rather than
+  disappears: they document what future patches can actually *reach*, which is a
+  compatibility and support fact even when it is not a security fact;
+* **constructibility and the skipped/refused sets still matter**, because `G3.6b` must
+  consume the concrete release contract — what a release *did* retain, not what the
+  policy promised.
+
+> #### ⚠️ REVISIT CONDITION — this decision expires on a product change
+>
+> **If the product introduces delegated or lower-trust patch publishers — principals
+> intentionally less trusted than release publishers — this decision no longer holds.**
+>
+> At that point:
+>
+> * retention and permission must **split** (see the coupling note in §3, which is
+>   deliberately unsplit *because of* this decision);
+> * the dynamic interface becomes a real **allowlist / security boundary**;
+> * P2 stops being a default and broad private retention becomes a privilege question
+>   again.
+>
+> Recorded here rather than assumed, because the decision is correct *for the system
+> being built today* and silently wrong for a plausible future one. A reader who finds
+> "patch authority is release-equivalent" without this condition attached will apply it
+> to a product it was never argued for.
 
 #### `G3.6b`'s contract follows from this
 
@@ -839,10 +872,20 @@ forces the product decision to be visible: "retain every private" and "let a pat
 call any private member of the app" become the same sentence, which is the honest
 framing of what is being chosen.
 
-**Split them when, and only when, the two requirements diverge** — if broad retention
-turns out to be technically necessary while narrower patch permissions are wanted.
-At that point retention specification and patch allowlist become separate documents.
-Recorded here so that a future reader finds a decision rather than an accident.
+**The condition for splitting them is now precise, not a vague "if they diverge".**
+The threat-model decision above is what keeps them coupled: while patch authority is
+release-equivalent for Dart, "what the release retains" and "what a patch may reach"
+*should* be one document, because there is no principal for whom the second needs to be
+narrower than the first.
+
+**Split them when a lower-trust patch publisher exists** — a principal deliberately less
+trusted than the release publisher. That is the revisit condition on the threat-model
+decision, and it is the same event: at that point retention specification and patch
+allowlist become separate documents, and the interface becomes a security boundary
+rather than a capability record.
+
+Recorded here so a future reader finds a decision with an expiry, rather than an
+accident that outlived its argument.
 
 ### `G3.6a` — ANSWERED 2026-08-11. It is reachable, and the mechanism already exists.
 
