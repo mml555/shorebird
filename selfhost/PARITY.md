@@ -4,6 +4,7 @@
 <!-- cspell:words overclaim DFLUTTER Diagnosticable -->
 <!-- cspell:words demangled specializer devirtualizes rationalised synthesises -->
 <!-- cspell:words subshell theorised generalises generalisable symbolicator unrunnable -->
+<!-- cspell:words characterisation backout -->
 
 # Shorebird feature parity — the goal document
 
@@ -118,6 +119,15 @@ argument-bearing target only keeps its parameter because the release declares a
 dynamic interface retaining its library. Without that, `--aot` drops the
 parameter and an interpreted `self.tagged('ARG')` would meet a compiled method
 taking none.
+
+**The project is at a transition point, and the queue reflects it.** Core mechanism
+work is largely done; **structural coverage and safety semantics are now the real
+constraints**. Delivery and runtime are closed. Lexical widening is closed *and
+parked* — three rungs landed in one afternoon and the reach barely moved, because
+the limit was never syntax. What remains is two coverage questions (privacy scope,
+method ABI — near-equal, measured from two directions) and one safety question (the
+once-per-process activation model, `G15`, which turns one mechanism into three
+product failures).
 
 **Beyond the language surface, the unvalidated mass is workflow, not mechanism:**
 flavors, defines, obfuscation on iOS, signing, tracks/rollouts, the manual update
@@ -450,6 +460,14 @@ Route B implementation restrictions"* is not reachable by the rung ladder — at
 7.1 % it is not close. But it is not privacy alone either: it needs `G3.6`
 **and** a parameter ABI, which is why the latter is promoted to `G3.7` below rather
 than left as one bullet among twelve.
+
+**The stopping rule that follows, recorded so it survives enthusiasm.** Do **not**
+resume lexical rung work unless real compatibility data identifies a lexical blocker
+at meaningful frequency. Phase 0 measured compound writes at **0** occurrences and
+`super` at **2** across ten real commits, against private members at **39** in 9 of
+10 patches. Every rung costs a cell mint and a scarce device gate, so the default is
+now **no**, and only frequency evidence reopens it. `G3.4` and `G3.5` are parked
+under this rule rather than queued.
 
 ### `G3.6a` — ANSWERED 2026-08-11. It is reachable, and the mechanism already exists.
 
@@ -1067,8 +1085,9 @@ second engine — a common pattern — silently runs the *unpatched* code in it.
 divergence between two engines in one app is a worse failure than a refusal.
 
 That same once-per-process guard is what decides §5's boot/crash gap and §8's
-restart-required behavior. **One mechanism, three sections** — worth fixing as one
-piece of work rather than three.
+restart-required behavior. **One mechanism, three sections** — now tracked as a
+single project, [`G15 · activation-model`](#14b-the-activation-model--g15-and-the-first-cross-cutting-goal),
+rather than as a third of a diagnosis in each of three places.
 
 ---
 
@@ -1286,6 +1305,42 @@ arch that differs from their release arch (`win_archive` → `x86_64`, `bundle` 
 
 ---
 
+## 14b. The activation model — `G15`, and the first cross-cutting goal
+
+> **`G15 · activation-model` — goal:** Route B's activation is decided **once per
+> process**. Make it correct per engine and per boot instead.
+> **Done when:** a Dart-phase crash backs the patch out; the manual API reports a
+> restart-required state that is true on iOS; and a second `FlutterEngine` in the
+> same process runs the **same** program version as the first.
+> **Owns:** `R3` + a mint, `R1`. Engine work, not producer work.
+
+**Every other goal in this file is section-scoped. This one is not, and that is the
+point.** It was previously three rows in three sections, each filed as its own
+unvalidated question:
+
+| symptom | filed under | what it actually is |
+|---|---|---|
+| a Dart crash is never backed out | §5 | `ReportLaunchSuccess` fires in the `Shell` **constructor**, before the root isolate exists — so "launch succeeded" is recorded before the patch can fail |
+| restart-required may be misreported | §8 | the same guard decides it, so the API can report something **wrong**, not merely unverified |
+| a second engine silently runs unpatched AOT | §9 | the hook is armed once per process; engine two never arms it |
+
+**The second-engine case is the severe one.** It produces two Flutter engines in one
+process executing **different program versions**, with no error, no log, and no
+user-visible failure — the app simply behaves inconsistently depending on which
+engine served a screen. Add-to-app hosts create engines lazily and sometimes more
+than once, so this is a mainstream configuration, not a corner.
+
+**Why it ranks 4th and not 1st.** It constrains reliability, not reach: fixing it
+makes the ~7 % surface *trustworthy* without making it larger. Language reach
+(`G3.6e`, `G3.7`) changes what the product can do; this changes whether what it does
+can be depended on. Both are needed; reach was ranked first because a fundamental
+limitation there would reshape everything below it.
+
+Three sections keep their rows and now point here, rather than each carrying a third
+of the diagnosis.
+
+---
+
 ## 15. Definition of full Android/iOS parity
 
 We may claim **full Android/iOS Shorebird parity** only when every line below is
@@ -1307,9 +1362,19 @@ checked:
 | ☐ | Add-to-app passes on iOS | §9 |
 | ☐ | CI / noninteractive workflow passes | §10 |
 | ☐ | Rollback / rejection / failure matrix passes | §5 |
+| ☐ | **A Dart-phase crash backs the patch out** | §14b, `G15` |
+| ☐ | **Two engines in one process run the same program version** | §14b, `G15` |
 | ☐ | Every unsupported upstream workflow is explicitly documented rather than silently failing | this file |
 
-Two of fifteen. The two hardest, and the thirteen remaining are mostly breadth.
+**Two of seventeen** — and the characterisation an earlier draft gave is wrong now.
+It said "the thirteen remaining are mostly breadth." After the 2026-08-11
+verification pass they are not: several are **known blockers** rather than untested
+breadth, which is a worse position on paper and a better one in practice, because a
+blocker can be designed against and an unknown can only be scheduled against.
+
+Two gates were **added** rather than discovered unmet — `G15`'s crash-backout and
+same-version-per-engine — because they were previously hidden inside "rollback /
+rejection / failure matrix" as though a test run would settle them.
 
 ---
 
@@ -1545,49 +1610,83 @@ critical path is held.
 **This is a priority order, not a schedule.** What can run *simultaneously* is
 §16's question, and the answer there is roughly four lanes. Read both.
 
-### Start now — nothing blocks these, and they contend with nothing
+### The transition, and what it does to this queue
 
-**Check §17's claims table first.** Three rungs closed on 2026-08-11 between 17:29
-and 18:2x, so most of what an earlier draft of this list called "start now" is
-banked.
+**Core mechanism work is largely done. The real constraints are now structural
+coverage and safety semantics.** That is a different project from the one this file
+opened on, and the queue below reflects it. Established, not assumed:
 
-| goal | lane | status |
-|---|---|---|
-| ~~**`G3.1 arg-abi`**~~ | iOS device | **CLOSED ON DEVICE** — `9192a594` + `edbbd80b`, release `21.0.0+1` |
-| ~~**`G3.2 this-spellings`**~~ | iOS device | **CLOSED ON DEVICE** — `8907239a`, two patches on release 21, no new release |
-| ~~**`G3.3 setters`**~~ | iOS device | **CLOSED ON DEVICE** — `cb50590d` + `fa40f6ca`, release `22.0.0+1` |
-| ~~**`G10.1 stale-ipa`**~~ | code, no hardware | **done** — `c57c6537` |
-| **`G3.6a app-private-decision`** | reachability | **START HERE.** The only goal that changes §15 rather than filling a row. Free: `R3` read-only, no `R7`, no mint, no device |
-| **`G6 tracks`** server half | `R10` | **run concurrently** — zero contended resources, five of six non-device rows absent today |
-| **`G4.2 flavors`**(android) | Android device | free, and its `--dart-define` threading is mechanism `G4.1`/`G4.3` reuse. Do the host probe **before** booking `R2` |
-| **`G3.5 closures-super`** | iOS device | available, but the expensive lane with the least leverage left |
+* iOS delivery and runtime are **not** the bottleneck — §2 is closed.
+* **Lexical widening is not the bottleneck.** Three rungs closed in one afternoon
+  and the reach barely moved, because the limit was never syntax.
+* Compound writes and `super` have **low observed demand** — 0 and 2 occurrences
+  across ten real commits.
+* The dominant **coverage** limits are privacy scope and method ABI, measured at
+  near-equal weight from two independent directions.
+* The dominant **safety** gap is the once-per-process activation model, because one
+  mechanism produces three separate product failures.
 
-**Why `G3.6a` and not the next rung.** Three of the five `G3` sub-goals closed in
-one afternoon, `G3.4` turned out to be refused by derivation rather than next, and
-the measurement says every remaining rung widens a surface inside a 4–7 % slice.
-The ladder has no cheap step left, and the roof has not been located. Locate the
-roof.
+**The architectural question this reduces to:**
 
-### Then, in priority order
+> **Can Route B preserve the target library's identity/privacy, and carry the
+> target method's actual parameter contract?**
 
-5. **`G3.6b app-private-holes`** — gated on `G3.6a`'s answer, because the answer
-   decides whether the fix is a refusal or a retarget pass. Costs `R7` + a mint.
-6. **`G4.1 dart-defines`** — specifically the **provenance + threading** work
-   lifted out of `G4.2`; `G4.3` reuses it too.
-7. **`G4.3 obfuscation-ios`** — the untested half; Android is proven.
-8. **`G3.5 closures-super`** — real work, low leverage. Deliberately below the
-   configuration goals now that the language surface is known to be private-bound.
-9. **`G3.4 compound`** — needs a mechanism that distinguishes two edits at one
-   source offset. Not a gate relaxation; do not schedule it as one.
-10. **`G6 tracks`** device row — blocked until `channel` reaches the device (§6),
-    so it follows `G8` or `shorebird preview` rather than standing alone.
-11. **`G7 signing`** — one CLI test plus a `SIGNING.md`. Small.
+`G3.6e` and `G3.7` are that question, one clause each. If both land, the product
+surface changes materially. If either turns out to be a fundamental limitation,
+**that finding is worth more than another dozen syntax rungs**, because it bounds
+what the product can ever be rather than what it currently does.
+
+**Stopping rule for syntax widening.** Do **not** resume lexical rung work unless
+real compatibility data identifies a lexical blocker at meaningful frequency. Today
+the evidence points elsewhere, and every rung is a mint plus a scarce device gate.
+
+### Priority order
+
+1. **`G3.6c` + `G3.6d` device gate** — cheap closure of already host-proven work.
+   No new mint, rides an existing release as one more patch.
+2. **`G3.6e resolve-in-library`** — the highest-leverage language work. Privacy is
+   the strongest measured blocker from **both** directions: structural reach
+   (→29.8 %) and Phase 0's real commits (top blocker in 9 of 10). Feasibility is
+   established and the mechanism is located.
+3. **`G3.7 param-abi`** — comparable upside (→33.2 %), distinct from privacy, and
+   worth measuring **separately** so the two are never credited to each other.
+4. **`G15 activation-model`** — the highest-leverage safety/reliability project
+   after language reach. See below; it is one redesign, not three fixes.
+5. **§13 independence gates** — matters for the strength of the self-hosting claim,
+   but does **not** currently constrain Route B's language capability. That is why
+   it sits below a safety project despite being nearly done.
+
+### Then, in rough order
+
+6. **`G3.6b app-private-holes`** — the two accepted-then-failed holes. Costs `R7` +
+   a mint; fold into `G3.6e`'s mint rather than paying twice.
+7. **`G4.1 dart-defines`** — the **provenance + threading** work lifted out of
+   `G4.2`; `G4.3` reuses it.
+8. **`G4.3 obfuscation-ios`** — the untested half; Android is proven.
+9. **`G4.2 flavors`** — Android half needs no `R1`; do the host probe before `R2`.
+10. **`G6 tracks`** device row — follows `G8` or `shorebird preview`, since
+    `channel` does not reach the device.
+11. **`G7 signing`** — small in code, but see §7: the **default verifies nothing**,
+    which is a decision to make before it is work to do.
 12. **`G8 manual-api`** — needs its own fixture, so it does not contend on `R6`.
-13. **`G9 add-to-app`** — `G9.1`/`G9.2` are concurrent with each other.
+13. **`G9 add-to-app`** — iOS is blocked twice over; Android first.
 14. **`G10.2 noninteractive`** CI workflows.
-15. **`G5 lifecycle-matrix`** — the failure/recovery matrix.
-16. **`G13 sealed-independence`** — **last, and alone.** It seals the CDN.
-17. **`G14 desktop`** — deferred; do not start it early.
+15. **`G5 lifecycle-matrix`** — what remains after `G15` takes the safety gaps.
+16. **`G13 sealed-independence`** — the run itself: **last, and alone.**
+17. **`G3.5 closures-super`**, **`G3.4 compound`** — held by the stopping rule
+    above. Not scheduled; resume only on frequency evidence.
+18. **`G14 desktop`** — deferred; do not start it early.
+
+### Banked this session
+
+| goal | closed by |
+|---|---|
+| `G3.1 arg-abi` | `9192a594` + `edbbd80b`, release `21.0.0+1` |
+| `G3.2 this-spellings` | `8907239a`, two patches on release 21, no new release |
+| `G3.3 setters` | `cb50590d` + `fa40f6ca`, release `22.0.0+1` |
+| `G3.6a app-private-decision` | `d91e21d0` — answered: reachable, mechanism located |
+| `G3.6c` + `G3.6d` | `a28ba1d9`, `059573ca`, `a2927e41` — host-proven pair, +0.01 % |
+| `G10.1 stale-ipa` | `c57c6537` |
 
 ### Off-queue and nearly free
 
