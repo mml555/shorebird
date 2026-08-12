@@ -2,7 +2,7 @@
 <!-- cspell:words unvalidated noninteractive prepass jank recognise -->
 <!-- cspell:words schedulable startable worktree oneline unheld diffstat -->
 <!-- cspell:words overclaim DFLUTTER Diagnosticable -->
-<!-- cspell:words demangled specializer devirtualizes rationalised -->
+<!-- cspell:words demangled specializer devirtualizes rationalised synthesises -->
 
 # Shorebird feature parity — the goal document
 
@@ -322,7 +322,7 @@ not an untested guess. Ordered roughly by expected cost.
 | ~~**`G3.6a app-private-decision`**~~ | **is it reachable at all** | **ANSWERED 2026-08-11 — yes.** The CFE already has the mechanism (`resolveInLibrary`), Route B is denied it by one line, and the `dyn:`-forwarder objection is void in AOT. See below | done, no resources consumed but `R3` read-only |
 | **`G3.6b app-private-holes`** | close the two accepted-then-failed holes | unblocked by `G3.6a` | `R7` **and a cell mint** — `analyze_coverage.dart` is in the manifest |
 | **`G3.6c dynamic-receiver`** | emit `dynamic` instead of a private class name | **BUILT** — `route_b_producer.dart` emits `dynamic` for a private receiver class and keeps the concrete type for a public one; 42 CLI tests green. **Host and device unproven, and it is paired with `G3.6d` — see the prediction below** | done at `R7`; no mint |
-| **`G3.6d private-retention`** | retain private classes, procedures **and fields** in the dynamic interface | **now known to be `G3.6c`'s other half, not its successor.** Three shapes, not one; the field case needs a pragma on the `Field` | generator only — no validator or CFE change |
+| **`G3.6d private-retention`** | retain private classes, procedures **and fields** in the dynamic interface | **BUILT, host-verified against the real annotator** — all seven private shapes are accepted and annotated `dyn-module:callable`. Cost not yet measured | generator only, as predicted — no validator or CFE change |
 | **`G3.6e resolve-in-library`** | thread `resolveInLibrary` through dart2bytecode | the full fix: every category of app-private reference, proven by an in-tree test | CFE + dart2bytecode = `R3` + a mint |
 | **`G3.7 param-abi`** | a replacement method may declare **its own parameters** | **the largest single unlock: 33.2 %**, and unlike `G3.6` its feasibility is *known* — the entry-point contract is a patch we already own (`0004`) | engine (`R3` + a mint), `R7`, `R1` |
 
@@ -550,6 +550,54 @@ blocked by a private **member** as well as sitting on a private class. The
 P1-only band — private class, clean body — is structurally real (183 methods
 framework-wide) but rare in the edits developers actually make. `G3.6c`'s value is
 that it removes one of two walls cheaply, not that it ships a capability alone.
+
+### `G3.6d` — built, and verified against the real annotator
+
+The prediction above held: the retention half was a **generator change only**, no
+validator and no CFE change. `gen_dynamic_interface.dart` now emits three shapes
+it previously did not, and the emission was verified end to end on the host by
+running `gen_kernel --aot --dynamic-interface` over a program containing every
+shape and reading `--dump-detailed-dynamic-interface` back:
+
+| shape | emitted as | annotated? |
+|---|---|---|
+| private class | `class: '_Hidden'` | ✅ — **and its PUBLIC members** (`pub`, `publicMethod`), which is precisely `G3.6c`'s runtime need |
+| private method of a private class | `class: '_Hidden'` + `member: '_privMethod'` | ✅ |
+| private getter / setter | `member: 'get:_privGetter'` / `'set:_privSetter'` | ✅ |
+| private field, mutable and `final` | `member: '_privField'` / `'_privFinal'` | ✅ |
+| private member of a **public** class | `class: 'Public'` + `member: '_alsoPrivate'` | ✅ |
+| private top-level function | `member: '_topLevelPrivateFn'` | ✅ (already worked) |
+| private top-level **field** | `member: '_topLevelPrivateVar'` | ✅ — **a pre-existing gap**: the loop read only `lib.procedures`, so a private top-level variable was named by nothing |
+
+Three mechanics worth keeping, each measured rather than assumed:
+
+**A field is named BARE, not `get:`/`set:`.** `library_index.dart:320-326` applies
+the accessor prefixes only to a `Procedure`; a `Field` is indexed under
+`member.name.text`. Naming the field is also sufficient for both directions —
+`precompiler.cc:1642-1651` adds the field and synthesises its implicit getter and
+setter. Guessing `get:_x` here, by analogy with the private-accessor case already
+in the generator, would have failed the whole interface.
+
+**A `class:` item is the exact analogue of a `library:` item, one level down.**
+`dynamic_interface_annotator.dart:221-235`: `visitClass` annotates the class and
+then only `_visitPublicMembers` of its constructors, procedures and fields. So a
+class item buys a private class's public surface, and its private members still
+need naming one by one.
+
+**A private class resolves at all because the index does not filter classes.**
+`library_index.dart:189-190` keys containers by plain `class_.name`; the privacy
+filter at `:329-332` applies to *members*, and even there only to members whose
+name belongs to a *different* library — never true for an app's own privates.
+
+**Cost is NOT measured, and this file's own rule says it must be.** The whole
+asymmetric design exists because whole-`dart:core` was +310 %. Private top-level
+members were measured at +0.01 %, but the class-level shapes are far more
+numerous: across a Flutter app's entire dependency closure the generator emits
+**1,462 private classes and 6,626 private class members** (~27k YAML lines). A
+real release passes `--include package:app/` and sees only its own privates, but
+that number is unmeasured. `--no-private-classes` exists to isolate exactly this
+half for `measure_retention.sh`, following the precedent `--no-private` set.
+**Re-run the sweep before this ships on a real app.**
 
 ### Empirically corroborated, by a different method
 

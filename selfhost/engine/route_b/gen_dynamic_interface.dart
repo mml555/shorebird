@@ -57,6 +57,7 @@ void main(List<String> args) {
   var sdkLibraries = const <String>[];
   var includeSdk = true;
   var retainPrivate = true;
+  var retainPrivateClasses = true;
   final includePrefixes = <String>[];
 
   for (var i = 0; i < args.length; i++) {
@@ -91,6 +92,14 @@ void main(List<String> args) {
       case '--no-private':
         // Present so the cost of private-member retention stays measurable.
         retainPrivate = false;
+      case '--no-private-classes':
+        // Isolates the cost of the CLASS-level shapes (private classes and
+        // private members of classes) from the top-level shape that was already
+        // measured at +0.01%. The class shapes are far more numerous -- 1,462
+        // classes and 6,626 members across a Flutter app's whole dependency
+        // closure -- so they need their own line in measure_retention.sh rather
+        // than inheriting a number measured on the cheap half.
+        retainPrivateClasses = false;
       case '-h':
       case '--help':
         _usage();
@@ -136,10 +145,65 @@ void main(List<String> args) {
   // The VM's own mangling (_name@<library key>) is NOT our problem here:
   // Library::LookupLocalObjectAllowPrivate applies it, so the plain source name
   // is the right thing to emit.
+  // THREE SHAPES, NOT ONE, and each is retained by a different item. Measured
+  // against pkg/vm's own annotator rather than assumed:
+  //
+  //   dynamic_interface_annotator.dart:221-235  a `class:` item annotates the
+  //     class and then only `_visitPublicMembers` of it -- constructors,
+  //     procedures and fields whose name is NOT private. So a class item is the
+  //     exact analogue of a library item, one level down.
+  //   library_index.dart:189-190  containers are keyed by plain `class_.name`
+  //     with no privacy filter, so `class: '_FooState'` resolves.
+  //   library_index.dart:329-332  a private member IS indexable as long as its
+  //     name belongs to the library being indexed -- which is always true for an
+  //     app's own privates.
+  //
+  // Hence: private CLASSES need a class item (that is what makes a private
+  // class's PUBLIC members reachable, which is the whole runtime half of the
+  // `dynamic self` lowering); private members of any class need naming one by
+  // one; and top-level privates need naming, which is the only shape this
+  // generator handled before.
   final privateMembers = <String>[];
+  final privateClasses = <String>[];
+  final privateClassMembers = <String>[];
   if (retainPrivate) {
     for (final lib in component.libraries.where(isApp)) {
       final uri = lib.importUri.toString();
+
+      for (final cls in lib.classes) {
+        if (!retainPrivateClasses) break;
+        // Synthetic mixin applications (`_Foo&Bar&Baz`) are composed by the
+        // front end, are named in no source, and are patched by nobody. In
+        // flutter/src/material they outnumber real classes' in-contract methods
+        // (739 vs 320), so retaining them would be pure cost.
+        if (cls.name.contains('&')) continue;
+
+        if (cls.name.startsWith('_')) {
+          privateClasses.add('$uri#${cls.name}');
+        }
+        for (final p in cls.procedures) {
+          if (!p.name.text.startsWith('_')) continue;
+          privateClassMembers.add('$uri#${cls.name}#${_vmName(p)}');
+        }
+        for (final f in cls.fields) {
+          if (!f.name.text.startsWith('_')) continue;
+          // A FIELD IS NAMED BARE, not `get:`/`set:`.
+          // library_index.dart:320-326 applies the accessor prefixes only to a
+          // Procedure; a Field is indexed under `member.name.text`. Naming the
+          // field is also enough for both directions — precompiler.cc:1642-1651
+          // adds the field and synthesises its implicit getter and setter.
+          privateClassMembers.add('$uri#${cls.name}#${f.name.text}');
+        }
+      }
+
+      // Top-level private FIELDS were missed entirely before: this loop read
+      // only `lib.procedures`, so a private top-level variable was named by
+      // nothing even though the same `library:` item skipped it.
+      for (final f in lib.fields) {
+        if (!f.name.text.startsWith('_')) continue;
+        privateMembers.add('$uri#${f.name.text}');
+      }
+
       for (final p in lib.procedures) {
         if (!p.name.text.startsWith('_')) continue;
         // The VM disambiguates accessors as get:/set:, and the dynamic
@@ -208,13 +272,50 @@ void main(List<String> args) {
   }
   if (privateMembers.isNotEmpty) {
     buf.writeln(
-      '  # Private app members -- a `library:` item does not cover these.',
+      '  # Private top-level app members -- a `library:` item does not cover '
+      'these.',
     );
     for (final entry in privateMembers) {
       final i = entry.indexOf('#');
       buf
         ..writeln("  - library: '${entry.substring(0, i)}'")
         ..writeln("    member: '${entry.substring(i + 1)}'");
+    }
+  }
+  if (privateClasses.isNotEmpty) {
+    buf.writeln(
+      '  # PRIVATE CLASSES. A `library:` item retains public classes only, so '
+      'without',
+    );
+    buf.writeln(
+      '  # these a replacement lowered to `dynamic self` compiles and then '
+      'finds',
+    );
+    buf.writeln(
+      '  # nothing at run time. Each item also retains the class\'s PUBLIC '
+      'members.',
+    );
+    for (final entry in privateClasses) {
+      final i = entry.indexOf('#');
+      buf
+        ..writeln("  - library: '${entry.substring(0, i)}'")
+        ..writeln("    class: '${entry.substring(i + 1)}'");
+    }
+  }
+  if (privateClassMembers.isNotEmpty) {
+    buf.writeln(
+      '  # Private members of app classes -- covered by neither a `library:` '
+      'nor a',
+    );
+    buf.writeln(
+      '  # `class:` item, because both stop at public members.',
+    );
+    for (final entry in privateClassMembers) {
+      final parts = entry.split('#');
+      buf
+        ..writeln("  - library: '${parts[0]}'")
+        ..writeln("    class: '${parts[1]}'")
+        ..writeln("    member: '${parts[2]}'");
     }
   }
   if (wholeSdk.isNotEmpty) {
@@ -229,12 +330,17 @@ void main(List<String> args) {
   File(outPath).writeAsStringSync(buf.toString());
 
   // Report to stderr so stdout stays clean if anyone pipes this.
+  // Counts are broken out per shape because each one buys a different thing and
+  // costs differently. `measure_retention.sh` prices them; a jump in the class
+  // or class-member line is where a size regression would come from.
   stderr
     ..writeln('wrote $outPath')
-    ..writeln('  app libraries : ${appLibraries.length}')
-    ..writeln('  private app   : ${privateMembers.length}')
-    ..writeln('  sdk members   : ${members.length}')
-    ..writeln('  sdk libraries : ${wholeSdk.length}');
+    ..writeln('  app libraries        : ${appLibraries.length}')
+    ..writeln('  private top-level    : ${privateMembers.length}')
+    ..writeln('  private classes      : ${privateClasses.length}')
+    ..writeln('  private class members: ${privateClassMembers.length}')
+    ..writeln('  sdk members          : ${members.length}')
+    ..writeln('  sdk libraries        : ${wholeSdk.length}');
 }
 
 /// How the VM names a member of this kind, which is what the dynamic interface
