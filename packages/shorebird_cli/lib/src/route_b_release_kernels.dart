@@ -261,6 +261,7 @@ ${result.stderr}''',
     List<String> sdkMembers = routeBRetainedSdkMembers,
     String? appPackageName,
     File? privateEnumerationKernel,
+    File? manifestFile,
     RouteBKernelRunner run = Process.runSync,
   }) {
     outputFile.parent.createSync(recursive: true);
@@ -317,6 +318,22 @@ ${result.stderr}''',
       if (privateEnumerationKernel != null) ...[
         '--private-dill',
         privateEnumerationKernel.path,
+      ],
+      // THE CHOSEN POLICY, named rather than implied. P2 retains app-private
+      // members AND the private classes required to make those members
+      // patch-targetable. The second half is not optional: P3 withheld it and
+      // its member grants were operationally inert, because a patch cannot
+      // attach to a method of a class the release did not retain.
+      '--policy',
+      'p2',
+      // THE CAPABILITY MANIFEST, which is what the analyzer accepts against.
+      // Emitted by the generator rather than derived by reading the YAML back,
+      // because a `class:` item grants an implicit public constructor that
+      // appears in no line of the interface -- so a reader would understate
+      // what the release granted.
+      if (manifestFile != null) ...[
+        '--manifest',
+        manifestFile.path,
       ],
       // BY NAME. The generator also accepts --sdk-libraries, which retains a
       // whole library; that was measured at +310% and is not product behaviour.
