@@ -2244,16 +2244,16 @@ rows, so **clear your row when you stop**, even mid-goal.
 
 | resource | held by | goal | since | notes |
 |---|---|---|---|---|
-| `R1` iPhone 7 | — | — | released 18:2x | **free.** `G3.3`'s gate committed as `fa40f6ca` |
+| `R1` iPhone 7 | **`G3.6b` device gate** | the private-member round trip | 2026-08-12 | **HELD.** Wired (`ioreg -p IOUSB` shows `iPhone@00140000`), iOS 15.8.8, online to `xctrace` as `8cb4bc98…`. Note `devicectl` reports it `unavailable` — iOS 15 is not a CoreDevice, so the install transport is chosen by version, not by that listing |
 | `R2` Android device | — | — | — | **free** |
 | `R3` route-b tree | — | — | released 2026-08-12 | **free. Tree health on release: GREEN** — `dart_patches.sh --verify` all 4 applied, `route_b_analyze.aot` + `route_b_gen_dynamic_interface.aot` rebuilt and now published in cell `ee001fd7`. Nothing uncommitted in the Dart subtree; `$OUT/zip_archives` holds the exact bytes that cell carries |
 | `R4` ios-engine tree | — | — | — | **free** |
-| `R6` canonical fixture | — | — | released 18:2x | **free** at version `22.0.0+1`; next release bumps to 23 |
+| `R6` canonical fixture | **`G3.6b` device gate** | `RouteBThing._secret` | 2026-08-12 | **HELD and MODIFIED.** Added one private field the release never reads — being unread is the condition under test, since retention then depends entirely on P2's `--private-dill` enumeration. Version bumps to 23 with this release |
 | `R7` producer/analyzer | — | — | released 2026-08-12 | **free.** Analyzer is **v7** and `supportedRouteBAnalysisVersion` matches; the pair is published as cell `ee001fd7`, so the two are no longer skewed. Left committed at `1c3ffe13`, full `shorebird_cli` suite green |
-| `R8` `cps-ios` | — | — | released 18:2x | **free** |
+| `R8` `cps-ios` | **`G3.6b` device gate** | the release + patch | 2026-08-12 | **HELD.** Container up and healthy; one release and one patch will be published against it |
 | `R9` `cps-android` | — | — | — | **free** |
 | `R10` server source | — | — | — | **free** — the `G6` lane |
-| `R11` sealed CDN | — | — | released 2026-08-12 | **free — and the mint HAPPENED this time.** `ee001fd78fcd5e78e976d35284bd13e1caffff63`: three cell files in ONE address change — `route_b_analyze.aot` (v6→v7), `route_b_gen_dynamic_interface.aot` (`--policy`/`--manifest`), `dart2bytecode.aot` (`--resolve-private-names-in-library`). Audit clean; host path 10/10 against the published zip. **The CDN still needs a reload** for Caddy to serve the new map entry, and no Flutter checkout has been restamped — both are the next holder's, because both mutate someone's environment |
+| `R11` sealed CDN | **`G3.6b` device gate** | serving `ee001fd7` to the release build | 2026-08-12 | **RE-CLAIMED.** `cdn-cache` recreated so Caddy re-read the hash map — new-hash fallback went 404 → 302, cell zip serves byte-identical to the audited copy, old-hash control unchanged. Running **unsealed** (`upstream/enabled.caddy`), deliberately: sealing is host-global and would break every other build. Prior state below.<br>**free — and the mint HAPPENED this time.** `ee001fd78fcd5e78e976d35284bd13e1caffff63`: three cell files in ONE address change — `route_b_analyze.aot` (v6→v7), `route_b_gen_dynamic_interface.aot` (`--policy`/`--manifest`), `dart2bytecode.aot` (`--resolve-private-names-in-library`). Audit clean; host path 10/10 against the published zip. **The CDN still needs a reload** for Caddy to serve the new map entry, and no Flutter checkout has been restamped — both are the next holder's, because both mutate someone's environment |
 | `R12` hermes-vps | — | — | — | **free** — additive capacity for `G4.2`'s Android half |
 
 > **The rule has two precedents now, one in each direction.** A `G3.6a` read-only

@@ -82,6 +82,27 @@ class RouteBThing {
   /// passing by accident.
   String slot = 'UNSET';
 
+  /// RUNG D ON DEVICE: private receiver state, and the release NEVER READS IT.
+  ///
+  /// That absence is the test. Its retention cannot come from use, because
+  /// nothing uses it — the release keeps it only because retention enumerated
+  /// private members from the NON-AOT kernel (`--private-dill`) under policy
+  /// P2 and named it in the interface. The `--aot` prepass has already
+  /// tree-shaken it away, so a release that enumerated from the prepass alone
+  /// would ship with nothing here for a patch to reach.
+  ///
+  /// So a patch reading this proves the whole G3.6b path on hardware: P2
+  /// enumeration retained it, the manifest recorded the grant, the producer
+  /// accepted the reference against that manifest, and the CFE resolved the
+  /// private name in this library. If any link failed, the CLI would refuse
+  /// the patch before publication rather than ship something that binds to
+  /// nothing.
+  ///
+  /// ignore: unused_field — see above; being unused IS the condition under
+  /// test, and referencing it to satisfy the lint would destroy the test.
+  // ignore: unused_field
+  String _secret = 'NEW-PRIV';
+
   /// The call form's target. Routed through DateTime.now() so it is not
   /// constant-folded into whoever calls it.
   ///
