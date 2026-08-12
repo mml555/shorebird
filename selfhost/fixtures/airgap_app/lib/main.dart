@@ -137,7 +137,7 @@ class RouteBThing {
   /// source's own text. The value shown is the assignment's own result, so an
   /// assignment that silently did nothing would read `UNSET`, not `NEW-SET`.
   @pragma('vm:never-inline')
-  String value() => _secret;
+  String value() => 'NEW-CTL';
 }
 
 @pragma('vm:never-inline')

@@ -586,7 +586,8 @@ gate accordingly:
 | ✅ | **7. Run Wonderous against those exact policies** — done, both tables recorded below. **One gap: P3's runtime reachability is inferred, not measured** |
 | ✅ | **8. Choose the policy explicitly** — **P2**. P3 is non-viable, not unselected |
 | ✅ | **9. `G3.6b`** — accept only when the release's emitted set proves member **+** enclosing-class capability **+** not-skipped. **Done.** 28 unit tests plus `cli_private_member.sh` 10/10. All five precommitted analyzer cases are matched, and two more were added that the precommitment did not ask for: a static of a private class still needs the class item, and the flag's own blast radius is bounded (see below) |
-| ◐ | **11. The device gate is OPEN.** Two runs: patch 1 (engine mismatch) and patch 2 (identity matching, both gates passed) BOTH installed, reported themselves active, and left the value unchanged. Host passes the identical shape against the same published cell, so the producer/manifest/CFE chain is not what fails. Next: engine-side visibility into why the attach or bind fails on device |
+| ◐ | **11. The device gate is OPEN, and the matched control moved the boundary.** `value() => 'NEW-CTL'` — no private reference, same release, same target, same cell, engine identity pinned throughout — **also did not apply** (`code patch: 3`, value unchanged). So the private-bearing bytecode is NOT the differentiator, and neither is engine identity. The container's `release.buildId` equals the installed app's `LC_UUID` (`2d497ada…`) and its selector is `RouteBThing.value`, so delivery, identity and targeting are all correct. What is left is container-parse → target-resolve → payload-load → `AttachBytecode`, on device, and that needs observation rather than another hypothesis |
+| ~~◐~~ | ~~**11. The device gate is OPEN.**~~ Two runs: patch 1 (engine mismatch) and patch 2 (identity matching, both gates passed) BOTH installed, reported themselves active, and left the value unchanged. Host passes the identical shape against the same published cell, so the producer/manifest/CFE chain is not what fails. Next: engine-side visibility into why the attach or bind fails on device |
 | ✅ | **10. One combined cell mint** — **`ee001fd78fcd5e78e976d35284bd13e1caffff63`**, donor `50d58cc3`, engine binary cloned byte-for-byte so only the CELL differs. `audit_route_b_compiler.sh` clean, and `cli_private_member.sh` **10/10 again against the PUBLISHED zip** — the staged run proved the bytes, this proves the publication. **Only the device round-trip remains** |
 
 **Steps 1-4 are closed, and they changed what steps 5-10 are.** The gate was built to
@@ -1196,6 +1197,26 @@ sound. The divergence is in the delivery path, not in G3.6b.
 > another inference. `strings` over a kernel binary was tried and is not a
 > trustworthy instrument for it; two of its counts contradicted each other, so
 > nothing was concluded from it.
+>
+> **SECOND CORRECTION, same day, from the matched control the user asked for.**
+> The paragraph above says the remaining difference is the private-bearing
+> bytecode. It is not. Patch A (`value() => 'NEW-CTL'`, no private reference) on
+> the same release, target and cell, with engine identity pinned for the whole
+> command, **also installed and did not apply** — `code patch: 3`, value still
+> `NEW-SET`. The premise of the control was "if A applies and B does not, the
+> private path is the difference"; A did not apply, so the fault is common to both
+> and sits upstream of anything private.
+>
+> Also controlled away, by measurement rather than argument: the container records
+> `release.buildId` `2d497ada…`, which IS the installed app's `LC_UUID`, and its
+> selector is `RouteBThing.value`. Delivery, release identity and targeting are
+> therefore correct, and `code patch: N` only ever proved lifecycle promotion.
+>
+> The open question is now exactly four states and nothing wider: target not
+> found / bytecode rejected / attach claims success but the target stays AOT /
+> attach is real and execution fails later. None is distinguishable from outside
+> the engine, which is why the next step is the per-target diagnostic and not
+> another fix.
 
 **The cause: the build silently rewrote the engine stamp.** `shorebird patch`
 warned that the release was built by `ee001fd7` while the machine was "set up
