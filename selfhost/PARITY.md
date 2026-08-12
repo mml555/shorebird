@@ -1327,7 +1327,42 @@ lowering, retention, producer logic, or private handling. Four causal
 attributions have already been overturned by measurement in this goal; the fifth
 must come from observation.
 
-##### Two constraints the recon found that change the plan above
+##### FIXED CONSTRAINTS for the post-attach trace — decided, do not re-litigate
+
+Settled 2026-08-12 after the recon corrected the design. These are not
+suggestions and not open questions; the next session starts from them.
+
+1. **No snapshot-hash-changing VM edits.** Never `runtime/vm/object.{cc,h}` and
+   never `include/dart_api.h`. Verified below.
+2. **Instrument in `runtime/lib/object.cc`** with a traced sibling API,
+   preserving the existing 4-argument `Dart_RouteBActivatePatch` wrapper.
+3. **Sample before/after around `RouteBSaveOriginalCode` / `AttachBytecode`**,
+   including the comparison against `StubCode::InterpretCall().EntryPoint()`.
+4. **VM fills a POD record; `shorebird.cc` writes it.**
+5. **Persist to `<artifact>.routeb.trace`, NOT the existing `.routeb`.** This
+   overrides the earlier "persist into the existing diagnostic" instruction, and
+   the reason is the safety of the evidence already collected: `.routeb` carries
+   byte-for-byte committed evidence
+   (`selfhost/engine/route_b/evidence/4b_m1_activation.routeb.txt`) and ABSENCE
+   SEMANTICS that other probes read ("no file means never armed"). Appending to it
+   would put the new diagnostic in tension with both.
+6. **Export `RouteBReport` plus the new trace as patch `0006` BEFORE treating the
+   engine build as reproducible.** Today the mechanism behind every piece of
+   device evidence in this goal exists only in one working tree.
+7. **Then the full clean chain, in a fresh session:** rebuild host + iOS → mint
+   the cell → audit it → cut release 25 with `--patchable_static_calls` →
+   `preserve_release_evidence.sh` at install time → verify identity AND
+   patchability → run ONLY the public `'NEW-CTL'` control → classify.
+
+**Why constraint 1 is the load-bearing one.** The obvious reading of "extend the
+VM API with richer return data" is to edit `vm/object.h` and `dart_api.h`. That
+changes `SNAPSHOT_HASH`, the already-published `App.framework` stops loading, and
+the result presents as a NEW device failure on the very run meant to explain one.
+The instrumentation would have manufactured a fifth false cause. Four have already
+been retired by measurement in this goal; the trap was that the fifth would have
+looked like data.
+
+##### The recon findings behind those constraints
 
 Reported by the activation-path recon. **Constraint 1 is now VERIFIED by hand**
 (`make_version.py:20-36` lists `object.cc` and `object.h` in `VM_SNAPSHOT_FILES`,
