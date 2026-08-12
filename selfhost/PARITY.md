@@ -1325,7 +1325,56 @@ from a returned-success one.
 **The freeze holds until that trace exists:** no changes to `G3.6b`, `P2`, the
 lowering, retention, producer logic, or private handling. Four causal
 attributions have already been overturned by measurement in this goal; the fifth
-must come from observation. Run the cheap discriminators FIRST,
+must come from observation.
+
+##### Two constraints the recon found that change the plan above
+
+Reported by the activation-path recon, with anchors so the next session VERIFIES
+rather than trusts them — neither has been checked by hand yet, and the first one
+is expensive to get wrong.
+
+**1. Do not edit `runtime/vm/object.{cc,h}` or `include/dart_api.h`.**
+`vm/object.cc` and `vm/object.h` are reportedly listed in `VM_SNAPSHOT_FILES`
+(`third_party/dart/tools/make_version.py:20-35`), so touching them changes
+`SNAPSHOT_HASH` — and the **already-published `App.framework` snapshot then stops
+loading** with "Wrong full snapshot version". That would silently convert a
+diagnostic change into a forced full release cycle, and it would look like a new
+device failure. `dart_api.h` is a separate cost: it is included everywhere, so
+editing it turns a two-file rebuild into a whole-runtime rebuild.
+
+So `AttachBytecode` itself is not instrumented. It is **bracketed** from
+`runtime/lib/object.cc`, which is not a snapshot file: add
+`Dart_RouteBActivatePatchTraced(..., Dart_RouteBTrace*)` beside the existing
+export and keep a 4-argument `Dart_RouteBActivatePatch` wrapper that delegates
+with `nullptr`, so `dart_api.h` and its declared contract are untouched. The VM
+fills a POD struct; the EMBEDDER does the file I/O — the same division
+`lib/object.cc:951` already documents, and it avoids `fopen` while holding
+`program_lock` as a writer.
+
+Anchors in `runtime/lib/object.cc`: `ResolvePatchTarget` `:705` (3 callers at
+`:802`, `:908`, `:993` — give the trace param a default so they keep compiling),
+the export `:952`, `LoadBytecode()` `:988`, the `AlreadyInterpreted` early return
+`:1003`, and `RouteBSaveOriginalCode` / the attach at `:1017-1018` — which is
+where before/after must be sampled. `StubCode::InterpretCall().EntryPoint()` is
+the value to compare the post-attach entry point against, and `StubCode` is
+already in that translation unit.
+
+**2. `RouteBReport` IS NOT IN ANY REPO PATCH.** Patch `0003` reportedly still
+carries only the `FML_LOG` hook, so the `.routeb` mechanism that produced every
+piece of device evidence in this goal exists **only** in the working tree at
+`/Volumes/build/route-b`. It is one `rm -rf` from gone, and a fresh checkout would
+not have it. Export the current hook AND the new trace as
+`selfhost/engine/route_b/0006-route-b-activation-trace.patch` — treat this as
+part of the change, not cleanup afterwards.
+
+Also worth fixing while there: the per-target record is emitted only on the
+failure paths, so a SUCCEEDING target contributes nothing but the `applied N/N`
+tally. Write the new trace line for every target, success included — that gap is
+why `applied 1/1` was the whole story. Write to a SEPARATE
+`<artifact>.routeb.trace` and leave the existing `.routeb` lines byte-for-byte
+alone: `selfhost/engine/route_b/evidence/4b_m1_activation.routeb.txt` is committed
+against them, and "no file means never armed" is a convention other probes rely
+on. Run the cheap discriminators FIRST,
 > in the order the runbook already specifies.
 
 **The cause: the build silently rewrote the engine stamp.** `shorebird patch`
