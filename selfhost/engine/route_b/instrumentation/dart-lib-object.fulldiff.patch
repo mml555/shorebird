@@ -1,0 +1,597 @@
+diff --git a/runtime/lib/object.cc b/runtime/lib/object.cc
+index 39d530be..aaacdd6f 100644
+--- a/runtime/lib/object.cc
++++ b/runtime/lib/object.cc
+@@ -4,10 +4,14 @@
+ 
+ #include "vm/bootstrap_natives.h"
+ 
++#include "platform/text_buffer.h"
++
+ #include "lib/invocation_mirror.h"
+ #include "vm/bytecode_reader.h"
+ #include "vm/code_patcher.h"
++#include "include/dart_api.h"
+ #include "vm/dart_api_impl.h"
++#include "vm/dart_api_state.h"
+ #include "vm/dart_entry.h"
+ #include "vm/exceptions.h"
+ #include "vm/heap/heap.h"
+@@ -17,6 +21,10 @@
+ #include "vm/resolver.h"
+ #include "vm/runtime_entry.h"
+ #include "vm/stack_frame.h"
++#include "vm/stub_code.h"
++
++// Route B post-attach trace record. A NEW header, so dart_api.h is untouched.
++#include "include/dart_route_b_trace.h"
+ #include "vm/symbols.h"
+ 
+ namespace dart {
+@@ -627,6 +635,566 @@ DEFINE_NATIVE_ENTRY(Internal_loadDynamicModule, 0, 1) {
+ #endif  // defined(DART_DYNAMIC_MODULES)
+ }
+ 
++#if defined(DART_DYNAMIC_MODULES)
++// Resolve a Route B patch target: "name" is a top-level function, "Class.name"
++// a class member. Returns a null Function and prints why, on failure.
++//
++// Shared by attach and detach on purpose. A rollback that resolved targets even
++// slightly differently from the activation could revert the wrong thing, and
++// would do so only in the cases where the two disagreed -- the worst possible
++// place for a divergence to hide.
++//
++// GATE-side machinery: it leans on library dictionaries, which survive only
++// because Route B step 2 retains them. A real linker resolves targets from the
++// snapshot's own tables at build time and needs none of this.
++// Where a patched function's ORIGINAL Code is kept, so rollback can put it back.
++//
++// A process-wide table of persistent handles rather than an ObjectStore field.
++// Appending a field to OBJECT_STORE_FIELD_LIST looked like the tidy answer and
++// is a trap: the AOT deserializer leaves the appended slot holding a raw C
++// nullptr -- not the Dart null object -- so Object::IsNull() reports false and
++// the first use segfaults at offset 0xf. Worse, the slot may sit past the end
++// of the deserialized ObjectStore's allocation, so writing to it would corrupt
++// the heap rather than crash honestly.
++//
++// Persistent handles are GC roots and survive compaction, which is what this
++// needs: the entries have to outlive the attach call and stay valid across
++// collections.
++//
++// GATE-SCOPED. A process-wide static is wrong for a multi-isolate-group
++// embedder; the product belongs in the engine's patch installer, which already
++// owns per-app lifecycle state. Every access here happens under the program
++// lock, which is what makes the static safe in this harness.
++struct RouteBSavedCode {
++  PersistentHandle* function;
++  PersistentHandle* code;
++};
++static MallocGrowableArray<RouteBSavedCode>* route_b_saved_code = nullptr;
++
++static void RouteBSaveOriginalCode(Thread* thread,
++                                   const Function& function,
++                                   const Code& original) {
++  if (route_b_saved_code == nullptr) {
++    route_b_saved_code = new MallocGrowableArray<RouteBSavedCode>();
++  }
++  auto* const api_state = thread->isolate_group()->api_state();
++  auto* const fn_handle = api_state->AllocatePersistentHandle();
++  fn_handle->set_ptr(function.ptr());
++  auto* const code_handle = api_state->AllocatePersistentHandle();
++  code_handle->set_ptr(original.ptr());
++  route_b_saved_code->Add({fn_handle, code_handle});
++}
++
++// Returns the saved Code and forgets the entry, so a second detach of the same
++// target reports "nothing saved" rather than restoring a stale Code.
++static CodePtr RouteBTakeOriginalCode(const Function& function) {
++  if (route_b_saved_code == nullptr) return Code::null();
++  for (intptr_t i = route_b_saved_code->length() - 1; i >= 0; i--) {
++    const auto entry = (*route_b_saved_code)[i];
++    if (entry.function->ptr() != function.ptr()) continue;
++    const CodePtr result = Code::RawCast(entry.code->ptr());
++    auto* const api_state = IsolateGroup::Current()->api_state();
++    api_state->FreePersistentHandle(entry.function);
++    api_state->FreePersistentHandle(entry.code);
++    // Order is not meaningful, so fill the hole from the end rather than
++    // shifting; leaving holes would let a later lookup match a dead row.
++    (*route_b_saved_code)[i] =
++        (*route_b_saved_code)[route_b_saved_code->length() - 1];
++    route_b_saved_code->RemoveLast();
++    return result;
++  }
++  return Code::null();
++}
++
++static FunctionPtr ResolvePatchTarget(Thread* thread,
++                                      Zone* zone,
++                                      const String& library_uri,
++                                      const String& target_name) {
++  const auto& lib =
++      Library::Handle(zone, Library::LookupLibrary(thread, library_uri));
++  if (lib.IsNull()) {
++    OS::PrintErr("ATTACH: library not found: %s\n", library_uri.ToCString());
++    return Function::null();
++  }
++
++  intptr_t dot = -1;
++  for (intptr_t i = 0; i < target_name.Length(); i++) {
++    if (target_name.CharAt(i) == '.') {
++      dot = i;
++      break;
++    }
++  }
++  if (dot <= 0) {
++    const auto& fn =
++        Function::Handle(zone, lib.LookupFunctionAllowPrivate(target_name));
++    if (fn.IsNull()) {
++      OS::PrintErr("ATTACH: function %s not found in %s\n",
++                   target_name.ToCString(), library_uri.ToCString());
++    }
++    return fn.ptr();
++  }
++
++  const auto& class_name =
++      String::Handle(zone, String::SubString(thread, target_name, 0, dot));
++  const auto& member_name = String::Handle(
++      zone, String::SubString(thread, target_name, dot + 1,
++                              target_name.Length() - dot - 1));
++  const auto& cls = Class::Handle(zone, lib.LookupClassAllowPrivate(class_name));
++  if (cls.IsNull()) {
++    OS::PrintErr("ATTACH: class %s not found in %s\n", class_name.ToCString(),
++                 library_uri.ToCString());
++    return Function::null();
++  }
++  // EnsureIsFinalized: LookupFunctionAllowPrivate walks the class's function
++  // array, which a class that is not yet finalized may not have populated.
++  if (cls.EnsureIsFinalized(thread) != Error::null()) {
++    OS::PrintErr("ATTACH: could not finalize class %s\n",
++                 class_name.ToCString());
++    return Function::null();
++  }
++  const auto& fn =
++      Function::Handle(zone, cls.LookupFunctionAllowPrivate(member_name));
++  if (fn.IsNull()) {
++    OS::PrintErr("ATTACH: member %s not found on %s\n",
++                 member_name.ToCString(), class_name.ToCString());
++  }
++  return fn.ptr();
++}
++#endif  // defined(DART_DYNAMIC_MODULES)
++
++DEFINE_NATIVE_ENTRY(Internal_attachBytecodeToFunction, 0, 3) {
++#if defined(DART_DYNAMIC_MODULES)
++  GET_NON_NULL_NATIVE_ARGUMENT(TypedDataBase, module_bytes,
++                               arguments->NativeArgAt(0));
++  GET_NON_NULL_NATIVE_ARGUMENT(String, library_uri, arguments->NativeArgAt(1));
++  GET_NON_NULL_NATIVE_ARGUMENT(String, target_name, arguments->NativeArgAt(2));
++
++  // Copy into malloc'd memory owned by an ExternalTypedData, exactly as
++  // Internal_loadDynamicModule does: the loader keeps a reference to these
++  // bytes beyond this call, so they cannot live in the Dart heap.
++  const intptr_t length = module_bytes.LengthInBytes();
++  uint8_t* data = reinterpret_cast<uint8_t*>(::malloc(length));
++  if (data == nullptr) {
++    const auto& exception = Instance::Handle(
++        zone, thread->isolate_group()->object_store()->out_of_memory());
++    Exceptions::Throw(thread, exception);
++  }
++  {
++    NoSafepointScope no_safepoint;
++    memcpy(data, module_bytes.DataAddr(0), length);  // NOLINT
++  }
++  const ExternalTypedData& typed_data = ExternalTypedData::Handle(
++      zone,
++      ExternalTypedData::New(kExternalTypedDataUint8ArrayCid, data, length));
++
++  auto& loaded = Function::Handle(zone);
++  auto& target = Function::Handle(zone);
++
++  {
++    // AttachBytecode asserts the caller is the program_lock writer, and the
++    // loader requires it too.
++    SafepointWriteRwLocker ml(thread, thread->isolate_group()->program_lock());
++
++    bytecode::BytecodeLoader loader(thread, typed_data);
++    loaded = loader.LoadBytecode();
++    if (loaded.IsNull()) {
++      OS::PrintErr("ATTACH: LoadBytecode returned null\n");
++      return Bool::False().ptr();
++    }
++
++    // Resolve the function to be replaced in the already-compiled program.
++    target = ResolvePatchTarget(thread, zone, library_uri, target_name);
++    if (target.IsNull()) {
++      return Bool::False().ptr();
++    }
++
++    // The gate's premise: the target is an ordinary AOT-compiled function.
++    // If it is already interpreted, the test proves nothing.
++    if (target.IsInterpreted()) {
++      OS::PrintErr("ATTACH: target already interpreted\n");
++      return Bool::False().ptr();
++    }
++
++    const auto& bc = Bytecode::Handle(zone, loaded.GetBytecode());
++    if (bc.IsNull()) {
++      OS::PrintErr("ATTACH: loaded entry carries no bytecode (%s)\n", loaded.ToCString());
++      return Bool::False().ptr();
++    }
++
++    // Save the original Code BEFORE attaching, because nothing else will.
++    // AttachBytecode overwrites Function.code_ and keeps no record of what it
++    // replaced, and upstream's undo -- ClearBytecode -> ClearCode -- is
++    // UNREACHABLE under DART_PRECOMPILED_RUNTIME and installs the LazyCompile
++    // stub in the JIT, which is meaningless in a runtime with no compiler. AOT
++    // rollback is therefore ours to provide, and this is the only moment the
++    // original is still in hand.
++    RouteBSaveOriginalCode(thread, target, Code::Handle(zone,
++                                                        target.CurrentCode()));
++
++    // This is the operation under test: repoint an AOT function's entry at the
++    // InterpretCall stub, with this bytecode as its body.
++    OS::PrintErr("ATTACH: before -> IsInterpreted=%d HasBytecode=%d\n",
++                 target.IsInterpreted() ? 1 : 0, target.HasBytecode() ? 1 : 0);
++    // Captured BEFORE the attach: object pool slots still reference this Code,
++    // and AttachBytecode does not touch them.
++    const auto& old_code = Code::Handle(zone, target.CurrentCode());
++    target.AttachBytecode(bc);
++    // Confirm the VM state actually changed. If this says IsInterpreted=1 and
++    // callers still reach the old body, the gap is call-site binding, not the
++    // primitive.
++    OS::PrintErr("ATTACH: after  -> IsInterpreted=%d HasBytecode=%d\n",
++                 target.IsInterpreted() ? 1 : 0, target.HasBytecode() ? 1 : 0);
++
++    // THE BINDER, in miniature. AttachBytecode repoints Function.code_ and the
++    // entry point, but a pool slot was baked with its target resolved at snapshot
++    // time and still holds the old Code -- which is why every call shape kept
++    // running the old body. AOT uses one global pool, so this is a single walk.
++    //
++    // Pool entries are DATA, which is what makes this legal on iOS: no executable
++    // page is written. PC-relative call sites cannot be fixed this way at all,
++    // which is why the release has to be built with --force_indirect_calls (or a
++    // loading-unit split) for a patch to be able to land.
++    const auto& new_code = Code::Handle(zone, target.CurrentCode());
++    const auto& pool = ObjectPool::Handle(
++        zone, thread->isolate_group()->object_store()->global_object_pool());
++    if (pool.IsNull()) {
++      OS::PrintErr("ATTACH: no global object pool\n");
++    } else {
++      intptr_t rewritten = 0;
++      intptr_t code_slots = 0;
++      auto& entry = Object::Handle(zone);
++      for (intptr_t i = 0; i < pool.Length(); i++) {
++        if (pool.TypeAt(i) != ObjectPool::EntryType::kTaggedObject) continue;
++        entry = pool.ObjectAt(i);
++        if (entry.ptr() == old_code.ptr()) {
++          pool.SetObjectAt(i, new_code);
++          rewritten++;
++        } else if (entry.IsCode()) {
++          code_slots++;
++        }
++      }
++      OS::PrintErr("ATTACH: pool len=%" Pd ", rewrote %" Pd " slot(s) "
++                   "(other Code slots=%" Pd ")\n",
++                   pool.Length(), rewritten, code_slots);
++    }
++  }
++
++  // Invoke the target from C++, OUTSIDE the program_lock (invoking Dart while
++  // holding it would deadlock). This is the discriminator: if this prints NEW,
++  // the interpreter executes the attached bytecode correctly and every Dart-side
++  // call shape is simply bound to the old code. If it prints OLD, the attach
++  // changed state that nothing consults.
++  {
++    const auto& result =
++        Object::Handle(zone, DartEntry::InvokeFunction(target, Object::empty_array()));
++    if (result.IsError()) {
++      OS::PrintErr("ATTACH: C++ invoke error: %s\n", Error::Cast(result).ToErrorCString());
++    } else {
++      OS::PrintErr("ATTACH: C++ invoke of target returned: %s\n", result.ToCString());
++    }
++  }
++
++  return Bool::True().ptr();
++#else
++  // Built without dart_dynamic_modules: report it rather than pretending.
++  return Bool::False().ptr();
++#endif  // defined(DART_DYNAMIC_MODULES)
++}
++
++DEFINE_NATIVE_ENTRY(Internal_detachBytecodeFromFunction, 0, 2) {
++#if defined(DART_DYNAMIC_MODULES)
++  GET_NON_NULL_NATIVE_ARGUMENT(String, library_uri, arguments->NativeArgAt(0));
++  GET_NON_NULL_NATIVE_ARGUMENT(String, target_name, arguments->NativeArgAt(1));
++
++  SafepointWriteRwLocker ml(thread, thread->isolate_group()->program_lock());
++
++  const auto& target = Function::Handle(
++      zone, ResolvePatchTarget(thread, zone, library_uri, target_name));
++  if (target.IsNull()) {
++    return Bool::False().ptr();
++  }
++  // Not an error, and worth keeping distinguishable: a transactional apply
++  // unwinds by detaching whatever it already attached, and the target it fails
++  // on has nothing attached yet. Treating that as a failure would turn a clean
++  // rollback into a second, louder failure.
++  if (!target.HasBytecode()) {
++    return Bool::False().ptr();
++  }
++
++  // NOT Function::ClearBytecode(): it calls ClearCode(), which is UNREACHABLE
++  // under DART_PRECOMPILED_RUNTIME and, in the JIT, installs the LazyCompile
++  // stub -- correct there, meaningless here. Restore the Code the release
++  // actually shipped, which the attach path saved for exactly this.
++  const auto& original = Code::Handle(zone, RouteBTakeOriginalCode(target));
++  if (original.IsNull()) {
++    OS::PrintErr("ATTACH: no saved code for this target\n");
++    return Bool::False().ptr();
++  }
++  target.RestoreCodeFromBytecode(original);
++  return Bool::True().ptr();
++#else
++  Exceptions::ThrowUnsupportedError(
++      "Detaching bytecode is not supported.");
++  return Object::null();
++#endif  // defined(DART_DYNAMIC_MODULES)
++}
++
++// Route B (selfhost): activate a patch on the current isolate, from C++.
++//
++// SEAM 6. The embedder calls this from settings.root_isolate_create_callback --
++// after the root isolate reaches Phase::Ready and inside its scope, but before
++// RunFromLibrary invokes main (dart_isolate.cc:163 vs :174). That window is what
++// lets a patch be live before ANY user Dart runs, so the app needs no
++// cooperation and there is no app-visible unpatched first frame.
++//
++// It lives beside the native rather than in dart_api_impl.cc so it can reuse
++// the same resolver and the same original-Code table the 4a device gate proved.
++// The delivery path must terminate in exactly this attach, never a second
++// mechanism.
++//
++// I/O is deliberately the embedder's: it passes bytes, the VM attaches them.
++// Defined below. Declared here because the four-argument export delegates to it
++// and C++ needs the shape first.
++static int32_t RouteBActivatePatchImpl(const uint8_t* payload,
++                                       intptr_t payload_length,
++                                       const char* library_uri,
++                                       const char* target_name,
++                                       Dart_RouteBTrace* trace);
++
++// The original four-argument entry point, unchanged in signature and behaviour.
++//
++// Kept as a delegating wrapper so `include/dart_api.h` needs no edit: that header
++// is included across the runtime, and more to the point `vm/object.{cc,h}` are in
++// VM_SNAPSHOT_FILES, so drifting toward them changes SNAPSHOT_HASH and the
++// already-published App.framework stops loading. Everything the trace needs is
++// reachable from here, which is not a snapshot file.
++DART_EXPORT int32_t Dart_RouteBActivatePatch(const uint8_t* payload,
++                                             intptr_t payload_length,
++                                             const char* library_uri,
++                                             const char* target_name) {
++  return Dart_RouteBActivatePatchTraced(payload, payload_length, library_uri,
++                                        target_name, nullptr);
++}
++
++DART_ROUTE_B_EXPORT int32_t Dart_RouteBActivatePatchTraced(
++    const uint8_t* payload,
++    intptr_t payload_length,
++    const char* library_uri,
++    const char* target_name,
++    Dart_RouteBTrace* trace) {
++  // EVERY FIELD SET BEFORE ANY CAN BE READ. An unreached field must read as "not
++  // observed", never as whatever the caller's stack happened to hold -- a
++  // plausible-looking zero here would be indistinguishable from a real
++  // measurement, which is the failure mode this whole record exists to end.
++  if (trace != nullptr) {
++    const Dart_RouteBTrace empty = {
++        /*result=*/DART_ROUTE_B_TRACE_UNSET,
++        /*attach_entered=*/0,
++        /*attach_returned=*/0,
++        /*has_bytecode_pre=*/DART_ROUTE_B_TRACE_UNSET,
++        /*has_bytecode_post=*/DART_ROUTE_B_TRACE_UNSET,
++        /*is_interpreted_pre=*/DART_ROUTE_B_TRACE_UNSET,
++        /*is_interpreted_post=*/DART_ROUTE_B_TRACE_UNSET,
++        /*code_pre=*/0,
++        /*code_post=*/0,
++        /*code_pre_size=*/DART_ROUTE_B_TRACE_UNSET,
++        /*entry_point_pre=*/0,
++        /*entry_point_post=*/0,
++        /*unchecked_entry_point_pre=*/0,
++        /*unchecked_entry_point_post=*/0,
++        /*interpret_call_entry_point=*/0,
++        /*entry_point_post_is_interpret_call=*/DART_ROUTE_B_TRACE_UNSET,
++        /*bytecode_size=*/DART_ROUTE_B_TRACE_UNSET,
++    };
++    *trace = empty;
++  }
++  const int32_t rc = RouteBActivatePatchImpl(payload, payload_length,
++                                             library_uri, target_name, trace);
++  if (trace != nullptr) trace->result = rc;
++  return rc;
++}
++
++static int32_t RouteBActivatePatchImpl(const uint8_t* payload,
++                                       intptr_t payload_length,
++                                       const char* library_uri,
++                                       const char* target_name,
++                                       Dart_RouteBTrace* trace) {
++#if defined(DART_DYNAMIC_MODULES)
++  Thread* thread = Thread::Current();
++  if (thread == nullptr || thread->isolate() == nullptr) {
++    OS::PrintErr("ROUTEB: no current isolate\n");
++    return Dart_RouteB_NoIsolate;
++  }
++  DARTSCOPE(thread);
++  Zone* zone = thread->zone();
++
++  if (payload == nullptr || payload_length <= 0) {
++    OS::PrintErr("ROUTEB: empty payload\n");
++    return Dart_RouteB_EmptyPayload;
++  }
++
++  // Copy into malloc'd memory owned by an ExternalTypedData: the loader keeps a
++  // reference beyond this call, so the embedder's buffer cannot back it.
++  uint8_t* data = reinterpret_cast<uint8_t*>(::malloc(payload_length));
++  if (data == nullptr) return Dart_RouteB_OutOfMemory;
++  memcpy(data, payload, payload_length);  // NOLINT
++  const ExternalTypedData& typed_data = ExternalTypedData::Handle(
++      zone, ExternalTypedData::New(kExternalTypedDataUint8ArrayCid, data,
++                                   payload_length));
++
++  const String& uri = String::Handle(zone, String::New(library_uri));
++  const String& name = String::Handle(zone, String::New(target_name));
++
++  auto& loaded = Function::Handle(zone);
++  auto& target = Function::Handle(zone);
++  {
++    SafepointWriteRwLocker ml(thread, thread->isolate_group()->program_lock());
++
++    bytecode::BytecodeLoader loader(thread, typed_data);
++    loaded = loader.LoadBytecode();
++    if (loaded.IsNull()) {
++      OS::PrintErr("ROUTEB: LoadBytecode returned null\n");
++      return Dart_RouteB_InvalidBytecode;
++    }
++    target = ResolvePatchTarget(thread, zone, uri, name);
++    if (target.IsNull()) {
++      // Distinct from a bytecode problem on purpose: this one is almost always
++      // a retention failure (the dynamic interface did not keep the symbol) or
++      // a library-URI typo, and reporting it as "attach failed" is exactly the
++      // opaque outcome Route B keeps having to dig itself out of.
++      OS::PrintErr("ROUTEB: target %s not found in %s\n", target_name,
++                   library_uri);
++      return Dart_RouteB_TargetMissing;
++    }
++    if (target.IsInterpreted()) {
++      OS::PrintErr("ROUTEB: %s already interpreted\n", target_name);
++      return Dart_RouteB_AlreadyInterpreted;
++    }
++    const auto& bc = Bytecode::Handle(zone, loaded.GetBytecode());
++    if (bc.IsNull()) {
++      OS::PrintErr("ROUTEB: payload carries no bytecode\n");
++      return Dart_RouteB_InvalidBytecode;
++    }
++
++    // Everything validated before anything is mutated. A failure above leaves
++    // the program pristine, which is what lets the embedder proceed into main
++    // running unpatched AOT rather than a half-patched app.
++    const auto& original = Code::Handle(zone, target.CurrentCode());
++
++    // THE STATE BEFORE. Sampled here and not earlier: this is the last moment at
++    // which the Function is still untouched, so anything recorded now is what the
++    // attach is about to act on.
++    if (trace != nullptr) {
++      trace->bytecode_size = bc.Size();
++      trace->has_bytecode_pre = target.HasBytecode() ? 1 : 0;
++      trace->is_interpreted_pre = target.IsInterpreted() ? 1 : 0;
++      trace->code_pre = static_cast<uint64_t>(original.ptr());
++      trace->code_pre_size = original.IsNull() ? DART_ROUTE_B_TRACE_UNSET
++                                               : original.Size();
++      trace->entry_point_pre = static_cast<uint64_t>(target.entry_point());
++      trace->unchecked_entry_point_pre =
++          original.IsNull()
++              ? 0
++              : static_cast<uint64_t>(original.UncheckedEntryPoint());
++      // Captured in the SAME run rather than compared against a remembered
++      // constant: stub addresses are per-snapshot, so a stale expectation would
++      // read as a mismatch and invent a failure.
++      trace->interpret_call_entry_point =
++          static_cast<uint64_t>(StubCode::InterpretCall().EntryPoint());
++      trace->attach_entered = 1;
++    }
++
++    RouteBSaveOriginalCode(thread, target, original);
++    target.AttachBytecode(bc);
++
++    // THE STATE AFTER, sampled before the write lock is released so nothing else
++    // can have run in between. `AttachBytecode` ends in
++    // `SetInstructions(StubCode::InterpretCall())`, so a real attach MUST show
++    // `entry_point_post == interpret_call_entry_point`. Recording both values
++    // rather than just the comparison keeps the raw evidence: a reader can tell
++    // "moved to the wrong place" from "did not move at all".
++    if (trace != nullptr) {
++      trace->attach_returned = 1;
++      trace->has_bytecode_post = target.HasBytecode() ? 1 : 0;
++      trace->is_interpreted_post = target.IsInterpreted() ? 1 : 0;
++      const auto& after = Code::Handle(zone, target.CurrentCode());
++      trace->code_post = static_cast<uint64_t>(after.ptr());
++      trace->entry_point_post = static_cast<uint64_t>(target.entry_point());
++      trace->unchecked_entry_point_post =
++          after.IsNull() ? 0
++                         : static_cast<uint64_t>(after.UncheckedEntryPoint());
++      trace->entry_point_post_is_interpret_call =
++          (trace->entry_point_post == trace->interpret_call_entry_point) ? 1 : 0;
++    }
++  }
++  OS::PrintErr("ROUTEB: activated %s in %s before main\n", target_name,
++               library_uri);
++  return Dart_RouteB_Ok;
++#else
++  OS::PrintErr("ROUTEB: build lacks DART_DYNAMIC_MODULES\n");
++  return Dart_RouteB_Unsupported;
++#endif
++}
++
++// The release identity of the running snapshot, as lowercase hex, or nullptr.
++//
++// Same GNU build ID that Internal_releaseBuildId exposes to Dart. It is
++// duplicated as a C API rather than shared because the caller is the embedder's
++// pre-main hook: it must reject a patch built for another release BEFORE
++// resolving targets, and at that point no Dart has run and none can be run.
++//
++// The returned string is owned by the caller and must be freed with free().
++DART_EXPORT char* Dart_RouteBReleaseBuildId() {
++#if defined(DART_PRECOMPILED_RUNTIME)
++  Thread* thread = Thread::Current();
++  if (thread == nullptr || thread->isolate() == nullptr) return nullptr;
++  auto* const instructions = reinterpret_cast<const uint8_t*>(
++      thread->isolate_group()->source()->snapshot_instructions);
++  if (instructions == nullptr) return nullptr;
++  const auto& build_id = OS::GetAppBuildId(instructions);
++  if (build_id.data == nullptr || build_id.len <= 0) return nullptr;
++  char* out = reinterpret_cast<char*>(::malloc(2 * build_id.len + 1));
++  if (out == nullptr) return nullptr;
++  for (intptr_t i = 0; i < build_id.len; i++) {
++    snprintf(out + 2 * i, 3, "%2.2x", build_id.data[i]);
++  }
++  out[2 * build_id.len] = '\0';
++  return out;
++#else
++  // A JIT run has no AOT snapshot to identify. Null rather than a fabricated
++  // value, so callers cannot mistake "no identity" for "some identity".
++  return nullptr;
++#endif
++}
++
++DEFINE_NATIVE_ENTRY(Internal_releaseBuildId, 0, 0) {
++#if defined(DART_PRECOMPILED_RUNTIME)
++  // Route B's release identity. Patch bytecode is compiled against one specific
++  // release's kernel, so applying it to a different build is undefined rather
++  // than merely unsupported -- and the failure would surface as a corrupt
++  // interpreted body, not as a clean error. The toolchain already emits a GNU
++  // build ID into the snapshot, so the check costs nothing to carry.
++  auto* const instructions = reinterpret_cast<const uint8_t*>(
++      thread->isolate_group()->source()->snapshot_instructions);
++  if (instructions == nullptr) {
++    return Object::null();
++  }
++  const auto& build_id = OS::GetAppBuildId(instructions);
++  if (build_id.data == nullptr || build_id.len <= 0) {
++    return Object::null();
++  }
++  TextBuffer buffer(2 * build_id.len + 1);
++  for (intptr_t i = 0; i < build_id.len; i++) {
++    buffer.Printf("%2.2x", build_id.data[i]);
++  }
++  return String::New(buffer.buffer());
++#else
++  // A JIT run has no AOT snapshot to identify. Null rather than a fabricated
++  // value, so callers cannot mistake "no identity" for "some identity".
++  return Object::null();
++#endif  // defined(DART_PRECOMPILED_RUNTIME)
++}
++
+ DEFINE_NATIVE_ENTRY(Internal_ensureDeeplyImmutable, 0, 1) {
+   GET_NATIVE_ARGUMENT(Instance, value, arguments->NativeArgAt(0));
+   value.EnsureDeeplyImmutable(zone);
