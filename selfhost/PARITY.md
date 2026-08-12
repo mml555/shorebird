@@ -4,7 +4,7 @@
 <!-- cspell:words overclaim DFLUTTER Diagnosticable -->
 <!-- cspell:words demangled specializer devirtualizes rationalised synthesises -->
 <!-- cspell:words subshell theorised generalises generalisable symbolicator unrunnable -->
-<!-- cspell:words characterisation backout NONAOT Wonderous analysed -->
+<!-- cspell:words characterisation backout NONAOT Wonderous analysed askable -->
 
 # Shorebird feature parity — the goal document
 
@@ -556,10 +556,49 @@ rather than a policy. In order:
 
 | | step |
 |---|---|
-| ☐ | **A never-allocated mechanism probe** — a `_NeverAllocated._secret()` arm whose *expected* result is pinned as **"name resolves, body was TFA-replaced with unreachable code."** Mode 3 gets its own negative control instead of resting on source inspection |
+| ◐ | ~~A never-allocated mechanism probe~~ — **BUILT and RUN: `probes/dead_body.sh`, and the answer is that mode 3 is NOT constructible under today's policy.** Mode 2 masks it universally. See below; the probe moves *inside* step 2 |
 | ☐ | **`--private-dill` landed as CORRECTNESS infrastructure**, not an optimization knob — control and treatment must reason about the same pre-TFA program shape, or `get:_file` versus `_file` means the experiment measures cross-kernel disagreement rather than retention policy. **Ships with the guard below, mandatorily** |
 | ☐ | **An explicit release retention policy**, recorded in the supplement with its exact emitted **and skipped** sets — not "whatever non-AOT enumeration finds" |
 | ☐ | **Then** Wonderous prices *that* contract |
+
+#### Mode 3 is introduced by the fix, not pre-existing — measured 2026-08-12
+
+`probes/dead_body.sh` was built to give mode 3 its own negative control instead of
+resting on source inspection. It reports **1 passed, 1 failed — and the failure is
+the positive control**, which is the diagnostic:
+
+```
+_secret entries in interface: 0          for BOTH classes
+live arm  -> mode 2: Unable to find function _secret@17057535
+             in Library:'…container_target.dart' Class: _Live@17057535
+dead arm  -> mode 2, identically
+```
+
+The fixture worked as designed — the release reported `live=live dead=unallocated`,
+so `_Live` really was allocated and `_Dead` really was not. And **privacy resolution
+is genuinely closed**: the failing name is correctly keyed to the app library *and*
+the enclosing class. What failed is retention, for **both** arms, because the
+generator reads the `--aot` prepass and TFA had already dropped `_secret` — nothing
+in the release calls it. The interface names both **classes**, but a `class:` item
+retains only *public* members (§3's own finding), so a private member needs its own
+`member:` entry and there was nothing to emit one from.
+
+**So mode 2 masks mode 3 universally, and the masking is structural:**
+
+* to name `_secret` in the interface, the release must reference it;
+* referencing `_Dead()._secret()` **allocates** `_Dead`;
+* so *"named in the interface but never allocated"* is **not constructible** while
+  private enumeration reads the post-TFA prepass.
+
+**Mode 3 is therefore a hazard introduced by `--private-dill`, not a pre-existing
+one.** Non-AOT enumeration is what first makes it possible to name a member TFA
+dropped, and only then can a retained-but-never-allocated member exist at all. The
+probe moves **inside step 2** and is left **red on purpose** — its control is a
+pending gate, not a broken test, exactly as `probe D`'s question (1) is.
+
+That also sharpens the policy bar rather than relaxing it: `live-instance` stays
+refused, and the probe is now the instrument that will decide whether "live" has a
+mechanically detectable boundary the moment step 2 makes the question askable.
 
 #### MANDATORY with step 2 — the `--private-dill` guard
 
