@@ -2,7 +2,7 @@
 <!-- cspell:words unvalidated noninteractive prepass jank recognise -->
 <!-- cspell:words schedulable startable worktree oneline unheld diffstat -->
 <!-- cspell:words overclaim DFLUTTER Diagnosticable -->
-<!-- cspell:words demangled specializer devirtualizes -->
+<!-- cspell:words demangled specializer devirtualizes rationalised -->
 
 # Shorebird feature parity — the goal document
 
@@ -321,8 +321,8 @@ not an untested guess. Ordered roughly by expected cost.
 | **`G3.5 closures-super`** | closures capturing `this`, `super` reads and calls, cascades | `super` writes now refuse explicitly (`cb50590d`); the rest untouched | `R7`, `R1` |
 | ~~**`G3.6a app-private-decision`**~~ | **is it reachable at all** | **ANSWERED 2026-08-11 — yes.** The CFE already has the mechanism (`resolveInLibrary`), Route B is denied it by one line, and the `dyn:`-forwarder objection is void in AOT. See below | done, no resources consumed but `R3` read-only |
 | **`G3.6b app-private-holes`** | close the two accepted-then-failed holes | unblocked by `G3.6a` | `R7` **and a cell mint** — `analyze_coverage.dart` is in the manifest |
-| **`G3.6c dynamic-receiver`** | emit `dynamic` instead of a private class name | **the cheapest real win on this page** — CLI-only, `route_b_producer.dart` is *not* in the cell manifest, so **no mint** and the gate rides an existing release | `R7`, then one patch on `R1` |
-| **`G3.6d private-retention`** | retain private classes, procedures **and fields** in the dynamic interface | three shapes, not one; the field case needs a pragma on the `Field` | generator only — no validator or CFE change |
+| **`G3.6c dynamic-receiver`** | emit `dynamic` instead of a private class name | **BUILT** — `route_b_producer.dart` emits `dynamic` for a private receiver class and keeps the concrete type for a public one; 42 CLI tests green. **Host and device unproven, and it is paired with `G3.6d` — see the prediction below** | done at `R7`; no mint |
+| **`G3.6d private-retention`** | retain private classes, procedures **and fields** in the dynamic interface | **now known to be `G3.6c`'s other half, not its successor.** Three shapes, not one; the field case needs a pragma on the `Field` | generator only — no validator or CFE change |
 | **`G3.6e resolve-in-library`** | thread `resolveInLibrary` through dart2bytecode | the full fix: every category of app-private reference, proven by an in-tree test | CFE + dart2bytecode = `R3` + a mint |
 | **`G3.7 param-abi`** | a replacement method may declare **its own parameters** | **the largest single unlock: 33.2 %**, and unlike `G3.6` its feasibility is *known* — the entry-point contract is a patch we already own (`0004`) | engine (`R3` + a mint), `R7`, `R1` |
 
@@ -513,6 +513,43 @@ first designed is likely inoperative: `aot_call_specializer.cc:794-806`
 devirtualizes `(RouteBThing() as dynamic)._echo()` from the propagated receiver
 cid, so no runtime resolution occurs and no trace line prints. Read the **module's**
 key instead — the module runs interpreted and the interpreter never devirtualizes.
+
+### `G3.6c` is built — and a prediction, recorded before anyone books the rig
+
+`route_b_producer.dart` now emits `dynamic self` when the receiver class is
+private and keeps the concrete type when it is public, so every spelling already
+proven on device lowers to byte-identical source. 42 CLI tests green, including a
+regression guard for the public case. **That is BUILT, not PROVEN** — it is a text
+transformation verified by unit test.
+
+**Prediction: `G3.6c` alone will fail, and for a retention reason.** Recorded now
+so the result scores against it rather than being rationalised afterwards.
+
+`gen_dynamic_interface.dart:143-144` walks `lib.procedures` — **top-level**
+privates only — and never walks `lib.classes`. A `library:` item retains, per
+pkg/vm's own spec, *"all **public** classes and members"*. So for
+`class _RouteBState { String label; }`:
+
+* the class is not public, so the `library:` item does not retain it;
+* its members are not named individually, because the generator's private loop
+  never descends into classes.
+
+Nothing retains it. And per `Precompiler::PruneDictionaries` the objects are
+**physically removed**, not merely unnamed — so the runtime dynamic lookup cannot
+find them however the name is keyed. `G3.6c` fixes the **compile** half (the
+private class name no longer has to resolve); the **runtime** half is `G3.6d`.
+
+**So `G3.6c` and `G3.6d` are one goal in two files, not a sequence.** Shipping
+`G3.6c` by itself converts a compile-time failure into a runtime one, which is
+strictly worse per this file's own standards. Do them together, and expect the
+first host arm to fail until `G3.6d` lands.
+
+This also explains a detail in the empirical study that would otherwise look
+incidental: every blocked `_FullscreenVideoViewerState` method in `fe3959bf` is
+blocked by a private **member** as well as sitting on a private class. The
+P1-only band — private class, clean body — is structurally real (183 methods
+framework-wide) but rare in the edits developers actually make. `G3.6c`'s value is
+that it removes one of two walls cheaply, not that it ships a capability alone.
 
 ### Empirically corroborated, by a different method
 

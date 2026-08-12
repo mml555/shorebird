@@ -224,6 +224,7 @@ void main() {
         String? also,
         String alsoMember = 'label',
         String alsoKind = 'get',
+        String receiverType = 'RouteBThing',
         List<String> unsupported = const [],
       }) {
         source.writeAsStringSync('$preamble$decl');
@@ -246,7 +247,7 @@ void main() {
             },
             'lowering': {
               key: {
-                'receiverType': 'RouteBThing',
+                'receiverType': receiverType,
                 'nameOffset': start + decl.indexOf('value'),
                 'accesses': [
                   if (access.isNotEmpty)
@@ -307,6 +308,57 @@ void main() {
             ),
           ),
           contains('String value(RouteBThing self) => self.label;'),
+        );
+      });
+
+      test('a private receiver class lowers to `dynamic`', () {
+        // `_RouteBState self` would resolve to nothing: privacy is
+        // library-scoped and the replacement is its own library. The front end
+        // accepts any member name on a dynamic receiver, so `dynamic` lets the
+        // private class go unnamed. In Flutter this is the common case, because
+        // a StatefulWidget's State class is private by convention.
+        expect(
+          lowered(
+            instanceCoverage(
+              preamble: 'class _RouteBState {\n  ',
+              decl: 'String value() => label;',
+              access: 'label',
+              receiverType: '_RouteBState',
+            ),
+          ),
+          contains('String value(dynamic self) => self.label;'),
+        );
+      });
+
+      test('a public receiver class keeps its concrete type', () {
+        // The guard against a regression, not a new behaviour: every spelling
+        // already proven on device must lower to byte-identical source, so the
+        // substitution has to be conditional rather than universal.
+        expect(
+          lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: 'String value() => label;',
+              access: 'label',
+            ),
+          ),
+          contains('String value(RouteBThing self) => self.label;'),
+        );
+      });
+
+      test('a private receiver class lowers a write to `dynamic` too', () {
+        expect(
+          lowered(
+            instanceCoverage(
+              preamble: 'class _RouteBState {\n  ',
+              decl: "String value() => slot = 'NEW';",
+              access: 'slot',
+              member: 'slot',
+              kind: 'set',
+              receiverType: '_RouteBState',
+            ),
+          ),
+          contains("String value(dynamic self) => self.slot = 'NEW';"),
         );
       });
 

@@ -240,7 +240,30 @@ class RouteBProducer {
         'its parameter list is not empty, which the lowering cannot extend',
       );
     }
-    edits.add((open + 1, 0, '${lowering.receiverType} self'));
+    // A PRIVATE receiver class cannot be WRITTEN here at all. Dart privacy is
+    // library-scoped and the replacement is its own library, so `_FooState self`
+    // resolves to nothing and the compile fails with "Type not found" -- after
+    // the analyzer already said `accept`, because the analyzer reports the class
+    // name without asking whether a foreign library could name it.
+    //
+    // `dynamic` sidesteps the question rather than answering it: the front end
+    // accepts any member name on a dynamic receiver with no privacy test, so the
+    // private class name never has to appear. The cost is that every access on
+    // `self` becomes a dynamic call resolved by name at run time instead of an
+    // interface call resolved at compile time.
+    //
+    // Only for a private class. A public receiver keeps its concrete type, so
+    // every spelling already proven on device lowers to byte-identical source.
+    //
+    // This does NOT make private MEMBERS reachable: `self._x` on a dynamic
+    // receiver would compile and then fail at run time, because the module's
+    // library key is not the app's. The analyzer refuses those bodies, and it
+    // must keep refusing them -- a compile-time refusal is worth far more than a
+    // runtime NoSuchMethodError. See PARITY.md §3, `G3.6c` vs `G3.6d`/`G3.6e`.
+    final receiverType = lowering.receiverType.startsWith('_')
+        ? 'dynamic'
+        : lowering.receiverType;
+    edits.add((open + 1, 0, '$receiverType self'));
 
     for (final access in lowering.accesses) {
       // The edit below inserts or replaces a receiver prefix immediately before
