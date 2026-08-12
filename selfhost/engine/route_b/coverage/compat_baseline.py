@@ -30,6 +30,67 @@ CELL_FILES = ['dart2bytecode.aot', 'dartaotruntime', 'vm_platform.dill',
               'route_b_gen_dynamic_interface.aot', 'flutter_platform_strong.dill']
 
 
+def verify_engine_tree():
+    """The evidence half of the precondition, run rather than remembered.
+
+    An empty claims row is coordination metadata; `dart_patches.sh --verify` is
+    evidence about the actual engine source state. Baseline A was minted over 18
+    uncommitted files of half-finished CFE work because only the first was ever
+    checked.
+    """
+    script = REPO / 'selfhost/engine/dart_patches.sh'
+    r = subprocess.run([str(script), '--dest', str(ENGINE_DART), '--verify'],
+                       capture_output=True, text=True)
+    return {'ran': str(script), 'exit_code': r.returncode,
+            'green': r.returncode == 0,
+            'output_tail': (r.stdout + r.stderr)[-2000:]}
+
+
+def patch_series():
+    """Identity of every patch the engine tree is supposed to be carrying,
+    and the exact set of files those patches touch."""
+    out, touched = [], set()
+    for d in ('selfhost/engine', 'selfhost/engine/route_b'):
+        for f in sorted((REPO / d).glob('*.patch')):
+            text = f.read_text(errors='replace')
+            files = sorted({m.group(1) for m in
+                            re.finditer(r'^\+\+\+ b/(\S+)', text, re.M)})
+            touched.update(files)
+            out.append({'patch': str(f.relative_to(REPO)),
+                        'sha256': hashlib.sha256(f.read_bytes()).hexdigest(),
+                        'files': files})
+    return out, touched
+
+
+def unexpected_engine_edits(engine_files, touched):
+    """Modified engine files the patch series does not account for.
+
+    MEASURED, AND IT IS THE GAP THAT LET BASELINE A THROUGH:
+    `dart_patches.sh --verify` returns GREEN on a tree carrying 18 modified
+    files including a half-finished CFE feature, because it checks the base
+    commit and that each patch IS applied -- not that nothing ELSE is. Green is
+    necessary and not sufficient; this is the sufficient half.
+    """
+    modified = set()
+    for line in engine_files:
+        # Porcelain is 'XY <path>'; split on whitespace rather than slicing a
+        # fixed width, which ate a leading character and put a truncated path
+        # into the evidence.
+        parts = line.strip().split(None, 1)
+        if len(parts) == 2:
+            modified.add(parts[1].strip('"'))
+    # Patch paths are relative to the Dart checkout; series files under
+    # selfhost/engine/ may target the engine src root instead, so match on
+    # suffix as well as equality.
+    unexplained = []
+    for m in sorted(modified):
+        if m in touched or any(t.endswith('/' + m) or m.endswith('/' + t)
+                               for t in touched):
+            continue
+        unexplained.append(m)
+    return unexplained
+
+
 def last_commit(path):
     out = subprocess.run(['git', '-C', str(REPO), 'log', '-1', '--format=%H %cI %s',
                           '--', path], capture_output=True, text=True).stdout.strip()
@@ -125,7 +186,39 @@ def main():
             'is explicitly proven behaviour-neutral '
             '(--analyzer-change-proven-neutral).')
 
+    verifier = verify_engine_tree()
+    series, touched = patch_series()
+    unexplained = unexpected_engine_edits(engine_files, touched)
+    dart_base = subprocess.run(['git', '-C', str(ENGINE_DART), 'rev-parse', 'HEAD'],
+                               capture_output=True, text=True).stdout.strip()
+
+    # THE CHAIN, AND IT IS A CHAIN: approved Dart base + approved patch series ->
+    # verified engine tree -> minted cell -> audited cell -> baseline -> corpus.
+    # A break anywhere makes everything downstream describe a configuration that
+    # was never built, so a baseline is VOID unless every link is evidenced.
+    void_reasons = []
+    if unexplained:
+        void_reasons.append(
+            f'{len(unexplained)} engine file(s) are modified but not accounted '
+            f'for by the patch series: {", ".join(unexplained[:6])}'
+            + (' …' if len(unexplained) > 6 else ''))
+    if not verifier['green']:
+        void_reasons.append(
+            f"dart_patches.sh --verify exited {verifier['exit_code']}: the engine "
+            f"tree is not the approved base plus the approved series")
+    if dirty:
+        void_reasons.append('the repo working tree is dirty')
+    if not address == a.cell:
+        void_reasons.append('the recomputed cell address does not match the '
+                            'published hash')
+
     baseline = {
+        'VOID': bool(void_reasons),
+        'void_reasons': void_reasons,
+        'engine_verification': verifier,
+        'engine_edits_not_in_patch_series': unexplained,
+        'dart_base_revision': dart_base,
+        'patch_series': series,
         'phase0_analysis_version': PHASE0_ANALYSIS_VERSION,
         'baseline_analysis_version': baseline_version,
         'phase0_analyzer_hash': PHASE0_ANALYZER_HASH,
@@ -177,18 +270,22 @@ def main():
     print(f"analyzer v{version}  producer "
           f"{(baseline['producer_commit'] or {}).get('commit','?')[:10]}")
     print(f"working tree clean: {baseline['working_tree_clean']}")
-    print(f"engine tree modified files: {len(engine_files)}  "
-          f"(verify with dart_patches.sh --verify — a cell is built FROM this)")
+    print(f"engine tree modified files: {len(engine_files)}")
+    print(f"dart base: {dart_base[:12]}  patch series: {len(series)} patches")
+    print(f"engine edits NOT in the patch series: {len(unexplained)}"
+          + (f'  {unexplained[:4]}' if unexplained else ''))
+    print(f"dart_patches.sh --verify: "
+          f"{'GREEN' if verifier['green'] else 'RED (exit ' + str(verifier['exit_code']) + ')'}")
     print('--- precondition evidence (judge these, do not assume):')
     for row in r3_rows or ['  <no R3 row found in PARITY.md>']:
         print(f'    R3   {row[:110]}')
     for row in g36_rows or ['  <no "G3.6 complete" line found in PARITY.md>']:
         print(f'    G3.6 {row[:110]}')
     print(f'wrote {a.out}')
-    if dirty:
-        raise SystemExit('REFUSING: the working tree is dirty. A baseline '
-                         'captured over uncommitted changes describes a tree '
-                         'nobody can check out again.')
+    if void_reasons:
+        raise SystemExit('BASELINE IS VOID — ' + '; '.join(void_reasons) +
+                         '. The file was written so the failure is on record, '
+                         'but it must not be used as a study baseline.')
 
 
 if __name__ == '__main__':
