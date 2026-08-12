@@ -354,7 +354,7 @@ not an untested guess. Ordered roughly by expected cost.
 | **`G3.6b app-private-holes`** | close the two accepted-then-failed holes | unblocked by `G3.6a` | `R7` **and a cell mint** — `analyze_coverage.dart` is in the manifest |
 | **`G3.6c dynamic-receiver`** | emit `dynamic` instead of a private class name | **BUILT, host-proven as a pair with `G3.6d`** — `probes/private_receiver.sh` 4/4, a patch on a private class runs. Device round-trip outstanding | done at `R7`; no mint |
 | **`G3.6d private-retention`** | retain private classes, procedures **and fields** in the dynamic interface | **BUILT, host-proven and shown LOAD-BEARING by a negative control.** Cost measured: **+0.01 %** | generator only, as predicted — no validator or CFE change |
-| **`G3.6e resolve-in-library`** | thread `resolveInLibrary` through dart2bytecode | the full fix: every category of app-private reference, proven by an in-tree test | CFE + dart2bytecode = `R3` + a mint |
+| **`G3.6e resolve-in-library`** | thread `resolveInLibrary` through dart2bytecode | **BUILT — rung D falls.** `probe D` 4/4, `a53029c9`, patch `0005`. Hand-written replacement; needs `G3.6b` for the producer path, then a device gate | done at `R3`; mint pending with `G3.6b` |
 | **`G3.7 param-abi`** | a replacement method may declare **its own parameters** | **the largest single unlock: 33.2 %**, and unlike `G3.6` its feasibility is *known* — the entry-point contract is a patch we already own (`0004`) | engine (`R3` + a mint), `R7`, `R1` |
 
 Three things fall out of that table, and two of them correct earlier drafts of
@@ -403,9 +403,18 @@ classes — is the single largest real-world blocker.
 | | item |
 |---|---|
 | ✅ | **PROVEN** A replacement payload can declare and call its own private helper |
-| ✅ | **KNOWN GAP** A synthetic replacement cannot call an *existing* private member of the application library |
-| ✅ | **PROVEN** Retention alone does not solve this — Dart privacy is library-scoped, and a private member nothing calls is tree-shaken out of the `--aot` prepass kernel before it can be named |
-| ☐ | **OPEN DESIGN** Decide whether full upstream parity requires solving existing app-private references — **`G3.6a`, and now the critical path** |
+| ◐ | **BUILT** A replacement **can** call an existing private member of the application library — `probe D` 4/4, `a53029c9`. Hand-written replacement; producer path and device gate outstanding |
+| ✅ | **PROVEN** Visibility and retention are **separate** requirements — the interface names a member, but TFA drops one nothing calls before the `--aot` prepass kernel reaches the generator |
+| ☐ | **NOT BUILT** The producer emits it automatically — **`G3.6b`**, the analyzer still refuses private members |
+| ☐ | **OPEN DESIGN** A retention policy for private members a *future* patch may need — see the retention note above |
+
+> **Superseded 2026-08-12.** The second row read **KNOWN GAP: "a synthetic
+> replacement cannot call an existing private member"**, and the fourth was an OPEN
+> DESIGN question about whether parity required solving it. Both are retired: it
+> can, the front end always could, and what remains is automation plus retention.
+> Kept visible because the gap was load-bearing in several earlier decisions — the
+> `dynamic self` workaround (`G3.6c`) exists because of it, and it was cited as the
+> reason the ~7 % reach figure had a hard ceiling.
 
 ### How much of real Dart Route B can reach — measured from kernel
 
@@ -468,6 +477,54 @@ at meaningful frequency. Phase 0 measured compound writes at **0** occurrences a
 10 patches. Every rung costs a cell mint and a scarce device gate, so the default is
 now **no**, and only frequency evidence reopens it. `G3.4` and `G3.5` are parked
 under this rule rather than queued.
+
+### `G3.6e` — RUNG D FALLS 2026-08-12. Privacy was never one wall.
+
+`probe D`, 4/4 with `RETAIN_PRIVATE=1 RESOLVE_IN_LIBRARY=1`: a replacement in its
+own synthetic library called an **existing private member of the release**, and the
+value reached the app's own call site — `OLD-a` → `NEW-D`. Commit `a53029c9`.
+
+**Privacy was two separable requirements, not a fundamental limitation:**
+
+1. **compile the replacement in the target library's private namespace** — solved
+   cleanly by `resolveInLibrary`, a front-end mechanism that already existed for
+   debugger expression evaluation and was hard-coded off for normal compiles;
+2. **ensure the referenced private member still exists in the release** — a
+   *retention* question, entirely separate from visibility.
+
+**The runtime failure of (2) is the strongest evidence for (1).** Without retention
+the error was `bytecode_reader.cc:1172 Unable to find function
+_privateHelper@17057535 in Library:'package:dynamic_modules/container_target.dart'`
+— the VM looked for the **keyed private symbol in the app library**, not in the
+synthetic module. Private identity is being carried correctly; the symbol was simply
+absent. A privacy failure and a retention failure look nothing alike, which is why
+separating them was worth the extra knob.
+
+#### Invariants — deliberate properties, not incidental ones
+
+Each of these was chosen, and each would be tempting to "simplify" away by someone
+who did not pay for it:
+
+| invariant | why |
+|---|---|
+| `--resolve-private-names-in-library` stays **off by default and explicit** | it widens name resolution; nothing should get that by accident, and an ordinary compile must behave exactly as before |
+| a **missing library is a hard failure**, never a silent fallback | falling back compiles with narrower resolution than asked for, and the resulting "private member not found" points at the *replacement source* — sending the reader to debug the lowering when the fault is a missing `--import-dill` |
+| `RETAIN_PRIVATE` stays **separate** from privacy resolution | conflated, a passing probe cannot say whether visibility or reachability did the work; separated, each failure names its own wall |
+| status stays **BUILT** until the analyzer/producer path **and** a device round-trip both pass | today's arm is a hand-written replacement, exactly as rung C was proven before the producer caught up |
+
+#### The retention half is not solved in general, and here is the shape of it
+
+The interface generator reads the **`--aot` prepass** kernel by design — that is the
+kernel that fed the release. But TFA has already dropped anything unreachable, so a
+private member *nothing in the release calls* is gone before the generator can name
+it. That is precisely why `probe D`'s question (1) still fails by default.
+
+This matters because a patch's whole purpose can be to start calling a private
+helper the old code did not call. The promising direction, not yet tried: declare the
+private-member list from the **non-AOT** kernel. The interface is an *input* to the
+release build, so naming a member there makes TFA keep it — which would retain
+everything rather than only what already survived. That trades snapshot size for
+patchability and needs `measure_retention.sh` before it ships.
 
 ### `G3.6a` — ANSWERED 2026-08-11. It is reachable, and the mechanism already exists.
 
@@ -1631,15 +1688,25 @@ opened on, and the queue below reflects it. Established, not assumed:
 * The dominant **safety** gap is the once-per-process activation model, because one
   mechanism produces three separate product failures.
 
-**The architectural question this reduces to:**
+**The architectural question, restated 2026-08-12 because half of it is answered.**
 
-> **Can Route B preserve the target library's identity/privacy, and carry the
-> target method's actual parameter contract?**
+It was: *can Route B preserve the target library's identity/privacy, and carry the
+target method's actual parameter contract?* The privacy clause is **answered yes** —
+`G3.6e` closed rung D on the host, and the mechanism was already in the front end.
+So the question is no longer whether the model permits it. It is:
 
-`G3.6e` and `G3.7` are that question, one clause each. If both land, the product
-surface changes materially. If either turns out to be a fundamental limitation,
-**that finding is worth more than another dozen syntax rungs**, because it bounds
-what the product can ever be rather than what it currently does.
+> **Can the product do it automatically — preserve and target the correct library
+> identity, and retain the private release members a future patch may need?**
+
+That is a materially more tractable problem than the earlier framing implied.
+"Synthetic-library privacy is impossible" was the top Phase 0 blocker; it has become
+two engineering tasks with known shapes — an analyzer/producer path (`G3.6b`) and a
+retention policy (see §3's retention note). Neither is a research question.
+
+`G3.7` remains the other clause, and it is untouched: the parameter contract. If it
+turns out to be a fundamental limitation, **that finding is worth more than another
+dozen syntax rungs**, because it bounds what the product can ever be rather than
+what it currently does.
 
 **Stopping rule for syntax widening.** Do **not** resume lexical rung work unless
 real compatibility data identifies a lexical blocker at meaningful frequency. Today
