@@ -790,6 +790,32 @@ Row 5 matters as much as the others: a category the interface *could not* emit i
 capability the release does **not** grant, and `G3.6b` must refuse against it. Without
 it the manifest describes an intent rather than a release.
 
+**The manifest must model the EFFECTIVE capability set, not parse interface lines.**
+Retaining a class grants its implicit public constructor — `_Dead()` was constructed
+with **no constructor entry anywhere in the interface text**. A manifest built by reading
+the YAML would miss exactly the capability that was hardest to discover. So it is emitted
+by the generator, which knows what it granted, rather than derived afterwards by a reader
+that can only see what was written down.
+
+#### ⛔ PRECOMMITTED DECISION DIMENSIONS — recorded 2026-08-12, before the tooling exists
+
+Written before any arm can produce a number, so the criterion cannot be chosen to fit
+the winner. **All four are reported for every arm, and none of them is the criterion on
+its own:**
+
+| | dimension | why it cannot be dropped |
+|---|---|---|
+| 1 | **patchability gained** | the point of the exercise. A cheap arm that unlocks nothing is not a win |
+| 2 | **binary cost** | interface / snapshot / App deltas, per shape |
+| 3 | **capability breadth** | what future patches can reach — a compatibility and support fact under the settled threat model, not a security one |
+| 4 | **skipped/refused coverage** | what the arm *could not* grant. An arm that grants little because it silently failed is not the same as one that grants little by design |
+
+**Do not let "smallest binary" or "largest reach" become the criterion after the fact.**
+Either is defensible as a *decision*; neither is defensible as a criterion discovered
+once the numbers are visible. This is the precommitment rule applied before the fact
+rather than after — its two prior saves (§the precommitment rule) were both retrospective
+rescues of a favourable-looking result, and this is the cheaper version.
+
 #### ✅ THREAT MODEL — DECIDED 2026-08-12
 
 > **Within the Dart capabilities of the already-released application, patch-publishing
