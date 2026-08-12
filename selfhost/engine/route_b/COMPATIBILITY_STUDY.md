@@ -526,20 +526,54 @@ free but that **`G3.6b` will want it**. Starting Phase 1 against `a28ba1d9` and
 having `G3.6b` land mid-run reintroduces exactly the contamination the pinning
 is meant to prevent.
 
-## The proposal
+## The procedure — wait, then one coherent mint
 
-Wait for `G3.6` to land completely, then in one step:
+No mid-flight mint. Coordinating one while `R3` is still owned by active work
+recreates exactly the incoherence the study exists to avoid, and starting a few
+hours earlier against a baseline nobody shipped buys nothing.
 
-1. mint a cell from the then-current cell sources (analyzer still v6 unless it
-   moves — if it moves, the version bumps and the freeze constant with it);
-2. pin that cell hash **and** the producer commit as **baseline A**;
-3. audit the cell, record both in the manifest, and run 50 + 50 from zero;
-4. no producer or cell change enters the study after row 1.
+The trigger is the other session declaring **`G3.6` complete** in `PARITY.md`.
+Then, in order:
 
-If `G3.6` later changes what a private receiver can do, that is **baseline B**,
-and the comparison — acceptance under A versus under B — is the product evidence
-worth having, precisely because neither run is contaminated by the other.
+1. `G3.6` declares complete;
+2. confirm the working tree is clean and the relevant commits have landed;
+3. mint one cell from those exact sources;
+4. audit the published cell and check it resolves;
+5. record the immutable baseline tuple below;
+6. freeze it;
+7. run historical-tree 50 + 50 from zero.
 
-Given Phase 0 put `private-app-member` at the top of the blocker table in 9 of
-10 patches, baseline A measured *before* private-receiver support and baseline B
-*after* is close to the ideal experiment for the question that actually matters.
+### Baseline A — an atomic tuple
+
+Recorded together or not at all. `compat_baseline.py` captures it, so no field
+is transcribed by hand:
+
+| field | |
+|---|---|
+| analyzer version and `route_b_analyze.aot` sha256 | |
+| full compiler-cell manifest hash | the cell address, over all seven files |
+| producer commit | |
+| `gen_dynamic_interface` version inside that cell | source commit + aot sha256 |
+| release/patch CLI commit | if distinct from the producer commit |
+| corpus seed and both eligible-set hashes | one per source |
+
+After row 1, no producer or cell change enters the study.
+
+## CORRECTION — there is no A-before / B-after in this study
+
+An earlier version of this document claimed baseline A measured *before*
+private-receiver support and B *after* would be "close to the ideal experiment".
+**That is wrong, and it was wrong when written.** Baseline A is being minted
+*after* `G3.6` completes, so it already contains private-receiver support. This
+study cannot produce that comparison.
+
+Manufacturing it — deliberately minting an older coherent baseline just to have
+something to compare against — would be constructing an experiment to fit a
+narrative rather than measuring the product. Phase 0 already established that
+private scope matters, in 9 of 10 patches. **Phase 1's job is to measure the
+coherent product that actually exists next**, not to re-derive a conclusion
+already in hand.
+
+If later work changes private-receiver behaviour again, *that* becomes baseline
+B and the before/after comparison arrives naturally, on a boundary the product
+actually crossed.
