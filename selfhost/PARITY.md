@@ -586,6 +586,7 @@ gate accordingly:
 | ✅ | **7. Run Wonderous against those exact policies** — done, both tables recorded below. **One gap: P3's runtime reachability is inferred, not measured** |
 | ✅ | **8. Choose the policy explicitly** — **P2**. P3 is non-viable, not unselected |
 | ✅ | **9. `G3.6b`** — accept only when the release's emitted set proves member **+** enclosing-class capability **+** not-skipped. **Done.** 28 unit tests plus `cli_private_member.sh` 10/10. All five precommitted analyzer cases are matched, and two more were added that the precommitment did not ask for: a static of a private class still needs the class item, and the flag's own blast radius is bounded (see below) |
+| ◐ | **11. The device gate is OPEN.** Two runs: patch 1 (engine mismatch) and patch 2 (identity matching, both gates passed) BOTH installed, reported themselves active, and left the value unchanged. Host passes the identical shape against the same published cell, so the producer/manifest/CFE chain is not what fails. Next: engine-side visibility into why the attach or bind fails on device |
 | ✅ | **10. One combined cell mint** — **`ee001fd78fcd5e78e976d35284bd13e1caffff63`**, donor `50d58cc3`, engine binary cloned byte-for-byte so only the CELL differs. `audit_route_b_compiler.sh` clean, and `cli_private_member.sh` **10/10 again against the PUBLISHED zip** — the staged run proved the bytes, this proves the publication. **Only the device round-trip remains** |
 
 **Steps 1-4 are closed, and they changed what steps 5-10 are.** The gate was built to
@@ -1178,6 +1179,23 @@ class, private field, typed receiver — was replayed on host against the same
 published cell: `APPLY ok`, value `NEW-PRIV`, byte-identical lowering. So the
 producer, the manifest gate, the CFE resolution and bytecode binding are all
 sound. The divergence is in the delivery path, not in G3.6b.
+
+> **CORRECTION, 2026-08-12, in place per the correction rule.** The paragraph
+> below attributed the non-applying patch to the engine-identity mismatch. **That
+> attribution was wrong.** Patch 2 was built with `engine.version` holding
+> `ee001fd7` for the whole command — both identity gates passed, the mismatch was
+> gone — and the device still reported `code patch: 2` with the value unchanged at
+> `NEW-SET`. So the mismatch was real, and refusing it is right on its own terms,
+> but it was **not** the cause of the patch not applying.
+>
+> What the mismatch was: an incompatibility that had to be closed before anything
+> else could be trusted, and it is now a hard refusal (`9440d56a`). What remains:
+> the device does not apply a private-member patch even with matching identity,
+> while the identical shape passes on host against the same published cell. That
+> is still open, and it needs engine-side visibility into the attach/bind — not
+> another inference. `strings` over a kernel binary was tried and is not a
+> trustworthy instrument for it; two of its counts contradicted each other, so
+> nothing was concluded from it.
 
 **The cause: the build silently rewrote the engine stamp.** `shorebird patch`
 warned that the release was built by `ee001fd7` while the machine was "set up
