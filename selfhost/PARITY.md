@@ -4,7 +4,7 @@
 <!-- cspell:words overclaim DFLUTTER Diagnosticable -->
 <!-- cspell:words demangled specializer devirtualizes rationalised synthesises -->
 <!-- cspell:words subshell theorised generalises generalisable symbolicator unrunnable -->
-<!-- cspell:words characterisation backout NONAOT Wonderous analysed askable localises precommitted executably -->
+<!-- cspell:words characterisation backout NONAOT Wonderous analysed askable localises precommitted executably precommitment constructibility -->
 
 # Shorebird feature parity — the goal document
 
@@ -524,30 +524,45 @@ it. `--private-dill` enumerates from the **non-AOT** kernel instead, and the
 interface being an *input* to the release build is what makes TFA keep what it names.
 Proven: `probe D` 4/4 with `PRIVATE_FROM_NONAOT=1` and no `RETAIN_PRIVATE`.
 
-**A third failure mode exists that the probe cannot currently detect, and it is the
-one the product will actually hit.** Found by an adversarial pass over this design
-(read from source, `high` confidence, mechanism not refuted):
+**TWO failure modes, not three.** A third was predicted from source and **falsified
+experimentally** on 2026-08-12 — kept below as history, because how it was wrong is
+what settled the policy question:
 
-| # | failure | how it presents |
-|---|---|---|
-| 1 | **visibility** — the replacement cannot name the member | compile error: *"the getter '_secret' isn't defined"* |
-| 2 | **retention** — the member is not in the release | load error: `bytecode_reader.cc:1172 Unable to find function` |
-| 3 | 🐞 **dead body** — the member is retained, and its body is not | **nothing.** The name resolves and the call enters an unreachable-code stub |
+| # | failure | how it presents | status |
+|---|---|---|---|
+| 1 | **visibility** — the replacement cannot name the member | compile error: *"the getter '_secret' isn't defined"* | closed by `G3.6e` |
+| 2 | **retention** — the member is not in the release | load error: `bytecode_reader.cc:1172 Unable to find function` | closed by `--private-dill` |
+| 3 | ~~**dead body** — retained with no executable body~~ | ~~nothing; the call enters an unreachable stub~~ | **DISPROVEN — does not occur** |
 
-Mode 3 comes from the difference between a `DirectSelector` and an
-`InterfaceSelector`. A private **top-level or static** member named in the interface
-becomes a raw direct call, so TFA analyses and retains its body — that is
-`_privateHelper`, the proven shape. A private **instance** member whose enclosing
-class is never *allocated* becomes an interface selector over the class's cone type;
-with nothing allocated in that cone the body never becomes reachable, and TFA pass 2
-keeps the declaration while replacing the body (`transformer.dart:2348-2360`
-`_makeUnreachableBody`, or `isAbstract = true` with a null body at `:2294-2302`).
-`gen_snapshot` then records a retain reason and emits no code
-(`precompiler.cc:1667-1675`).
+<details>
+<summary>The mode-3 prediction, and why it was wrong (kept deliberately)</summary>
 
-**So existence in the AOT kernel does not imply an executable body**, and mode 3 is
-silent — which makes it strictly worse than the two loud failures it hides behind.
-`probe D` cannot tell it from success, because `probe D`'s target is top-level.
+It came from the `DirectSelector` / `InterfaceSelector` distinction. A private
+top-level or static member named in the interface becomes a raw direct call, so TFA
+analyses and retains its body. A private **instance** member whose enclosing class is
+never *allocated* becomes an interface selector over that class's cone type — and with
+nothing in the cone, the reasoning went, the body never becomes reachable and TFA pass
+2 replaces it (`transformer.dart:2348-2360`).
+
+**The step that reasoning skipped:** an interface entry does not merely leave a member
+present. `dyn-module:callable` resolves to `PragmaEntryPointType.Default`, the same
+thing `vm:entry-point` produces, which makes the member a **root** — and TFA keeps a
+real body for a root regardless of allocation. `_makeUnreachableBody` is what happens
+to a member nothing rooted, which a retained member by definition is not.
+
+`probes/dead_body.sh` measured `live=0 dead=0`: the never-allocated class's body ran.
+The failed prediction and the probe's failing dead-arm assertion are both preserved —
+rewriting either would erase the evidence that a source-derived safety hazard did not
+reproduce.
+
+</details>
+
+**What this removes and what it leaves.** It removes a safety boundary: there is no
+live-vs-dead distinction to detect, because retention *creates* liveness. It leaves a
+**capability** question, discovered in the same run — the patch constructed `_Dead()`
+with no constructor named in the interface, because a `class:` item covers the
+implicit public default constructor. Retaining a private class makes it
+**constructible from a patch**.
 
 #### Ordered gate before any cost number
 
@@ -560,39 +575,52 @@ non-AOT private enumeration starts retaining otherwise-dead private *instance*
 members. That localises the hazard to the feature that creates it, and reorders the
 gate accordingly:
 
-| | step |
-|---|---|
-| ☐ | **1. Land `--private-dill` / non-AOT enumeration as CORRECTNESS infrastructure** — not an optimization knob. Ships with the guard below, mandatorily |
-| ☐ | **2. Rerun `probes/dead_body.sh`** against it |
-| ☐ | **3. Require the live control to become mode 0.** Until it does, nothing else in this list can be interpreted |
-| ☐ | **4. Observe what the dead arm becomes** — the decision tree below is committed to *in advance* |
-| ☐ | **5. Only then define the retained/permitted instance-private policy** |
-| ☐ | **6. Then** Wonderous prices *that* contract |
-
-**`dead_body.sh` has a stronger role than it was built for.** It is not proving a
-pre-existing hazard — it is the **safety gate on the feature that introduces one**.
-The new retention mechanism creates the condition the probe exists to police, which
-is why the probe belongs inside step 2 and not before it.
-
-**Its control stays RED until step 1 lands. Do not "fix" the probe independently.**
-A green control obtained by changing the probe would destroy the only signal that
-tells us whether `--private-dill` actually made private instance members reachable.
-
-#### The decision tree, committed before the run
-
-Written down now so the result cannot be rationalised afterward. Four outcomes,
-four different products:
-
-| live arm | dead arm | what it means |
+| | step | |
 |---|---|---|
-| mode 0 | **mode 3** | the liveness distinction is **product-critical** — `live-instance` needs a mechanical liveness signal or stays refused permanently |
-| mode 0 | **mode 2** | the retention policy **already excludes** the unsafe dead case; the boundary falls out of the mechanism rather than needing to be designed |
-| mode 0 | **mode 0** | broad private-instance retention is **unsafe** — a never-allocated class's body executed, so nothing distinguishes executable from dead and the category cannot be accepted on existence |
-| **mode 2** | any | **`--private-dill` correctness is incomplete** — step 1 is not done, and steps 3-6 mean nothing yet |
+| ✅ | **1. Land `--private-dill` / non-AOT enumeration as CORRECTNESS infrastructure** with its guard | `cd453304` |
+| ✅ | **2. Rerun `probes/dead_body.sh`** against it | 2026-08-12 |
+| ✅ | **3. Require the live control to become mode 0** | `live=0` |
+| ✅ | **4. Observe what the dead arm becomes** — matrix committed in advance | `dead=0`, mode 3 **disproven** |
+| ☐ | **5. Settle the threat model** — is patch authority as strong as release authority? Upstream of everything below |
+| ☐ | **6. Define candidate permission policies** — P1 / P2 / P3 below |
+| ☐ | **7. Run Wonderous against those exact policies** — cost **and** granted capability, per arm |
+| ☐ | **8. Choose the policy explicitly** |
+| ☐ | **9. Then `G3.6b`** accepts only the concrete emitted/permitted set |
+| ☐ | **10. One mint, then the automatic path and the device gate** |
 
-Three of those four say something the source could not: only the middle row would let
-`live-instance` be accepted, and only the first makes a liveness signal worth
-building. That is the whole reason cost comes sixth.
+**Steps 1-4 are closed, and they changed what steps 5-10 are.** The gate was built to
+answer a safety question; the answer removed the safety question and left a capability
+question, so the tail of the list is new rather than merely renumbered.
+
+**`dead_body.sh` did its job by being wrong in the useful direction.** It was built as
+the safety gate on the feature that was thought to introduce a hazard; it demonstrated
+the hazard does not exist. Its dead-arm assertion still fails, and stays failing: it
+encodes the precommitted prediction, and preserving a falsified prediction beside the
+evidence is worth more than a green suite.
+
+**Do not "fix" the probe to go green.** Mirroring a *product* change is legitimate —
+that is why it now passes `--private-dill`. Touching the fixture, the assertions or
+the dead arm to obtain a green control is not: the live arm moving mode 2 → mode 0 is
+the only signal that says whether private instance members actually became reachable.
+
+#### The decision tree, committed before the run — and the row it landed on
+
+Written down in advance so the result could not be rationalised afterward. It landed
+on the third row:
+
+| | live arm | dead arm | what it means |
+|---|---|---|---|
+| | mode 0 | mode 3 | the liveness distinction is **product-critical** — `live-instance` needs a mechanical liveness signal or stays refused permanently |
+| | mode 0 | mode 2 | the retention policy **already excludes** the unsafe dead case; the boundary falls out of the mechanism rather than needing to be designed |
+| **← observed** | **mode 0** | **mode 0** | **no live-vs-dead boundary exists to draw** — a never-allocated class's body executed, so nothing distinguishes executable from dead, and the question stops being safety and becomes capability |
+| | mode 2 | any | **`--private-dill` correctness is incomplete** — step 1 is not done, and nothing below it reads |
+
+**The precommitment earned its keep.** The observed row was written as "broad
+private-instance retention is **unsafe** unless liveness can be distinguished" — and
+the run showed *why* it cannot be distinguished: retention **creates** liveness, so the
+unsafe case never arises. Same row, and the reasoning had to move to meet it. Had the
+matrix not been fixed in advance, `dead=0` could as easily have been read as
+"everything works, ship it."
 
 #### MODE 3 REFUTED — measured 2026-08-12, `live=0 dead=0`
 
@@ -718,21 +746,52 @@ contract must actually be *recorded* on fallback, so `G3.6b` accepts against wha
 release really retained rather than what the policy nominally promises — the same
 per-target discipline as the contract below.
 
-#### The policy shape, and the bar for its second category
+#### The question is no longer safety — it is which capabilities to grant
 
-Two categories, and the second is conditional on evidence that does not exist yet:
+The old framing was *"can we prove live-instance is safe?"*, and it is answered: there
+is nothing to prove, because a retained member is executable. The `live-instance`
+category as written — refused pending a mechanical liveness signal — is therefore
+**retired**, and replaced by:
 
-```
-private patchability:
-  - top-level/static     proven: DirectSelector, body analysed and retained
-  - live-instance        REFUSED until "live" is mechanically provable
-```
+> **Which private capabilities are we willing to grant a patch, and what does each
+> policy cost?**
 
-**"Live-instance" must not mean "the class and member exist in the AOT kernel."**
-Mode 3 is precisely existence coexisting with a dead stub. Until there is a reliable
-signal that the class was actually allocated and the body remained executable, that
-category is **refused** rather than accepted optimistically — refusing costs a
-rejected patch, accepting costs a silent no-op at runtime.
+**Candidate policies, to be measured against each other rather than argued about.**
+These are the exact arms Wonderous should price:
+
+| policy | grants | notes |
+|---|---|---|
+| **P1 top-level/static only** | private top-level functions and fields, private statics | the shape `probe D` proved. Narrowest, and the only one whose cost is already known to be ~+0.01 % |
+| **P2 all app-private** | every private member and class of the app's own libraries: instance members, fields, accessors, **and construction of private classes** | broadest. What non-AOT enumeration currently produces |
+| **P3 a narrower middle**, *if one exists worth measuring* | e.g. private members of classes the release **already allocates**; or members but **not** classes, withholding constructibility | to be defined only if the mechanism supports it cleanly — an arbitrary middle is worse than either end |
+
+**Each arm must report both axes**, because a policy is a pair and not a number:
+
+* **cost** — snapshot/App delta and retained-member delta, per shape;
+* **capability** — the exact set of members and classes newly **callable** or
+  **constructible**. `privates_added.txt` already captures the first half; the
+  constructibility half is new and needs its own list, since a `class:` item grants it
+  without ever naming a constructor.
+
+#### The threat model decides what "capability" means here
+
+Worth settling before broad private retention is called security-adjacent in the
+product sense:
+
+> **Is the patch publisher trusted as strongly as the original app publisher?**
+
+* **If yes** — permitting access to app-private implementation details is primarily a
+  **compatibility / API-surface** decision. A patch author can already ship arbitrary
+  executable replacement logic, so reaching a private member is not a privilege
+  escalation; it is reach they effectively already have by other means.
+* **If patch authority is deliberately narrower than release authority** — then the
+  dynamic interface genuinely *is* a security boundary, and broad private retention is
+  materially more consequential.
+
+Either way the interface remains a **capability document**. But the threat model is
+what decides whether *"a patch can instantiate `_Dead`"* is a security problem, a
+maintainability problem, or simply the desired patch reach. **This is an open decision,
+not an implementation detail**, and it is upstream of choosing between P1, P2 and P3.
 
 #### `G3.6b`'s contract follows from this
 
