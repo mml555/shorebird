@@ -54,12 +54,10 @@
     "date": "2026-08-11T13:44:19-04:00",
     "subject": "fix(cli): the replacement library must import the library it patches into"
   },
-  "working_tree_clean": false,
-  "working_tree_dirty_paths": [
-    "?? selfhost/engine/route_b/coverage/baseline_a.json"
-  ],
+  "working_tree_clean": true,
+  "working_tree_dirty_paths": [],
   "preconditions": {
-    "checked_at_repo_head": "d843213f895b96c61251b70ccddd4fd39eae59a8",
+    "checked_at_repo_head": "0bbc3dd585657df6332ebccd423b4d0a75828bbd",
     "parity_r3_rows_verbatim": [
       "| `R3` route-b tree | \u2014 | \u2014 | released 2026-08-12 | **free.** Taken briefly by the study session for the baseline-A mint (`50d58cc3\u2026`) while the docs session was paused, and released on the same commit. The prior read-only `G3.6a` claim was stale \u2014 its holder had stopped without clearing the row |"
     ],
