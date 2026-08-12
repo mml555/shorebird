@@ -1287,7 +1287,45 @@ sound. The divergence is in the delivery path, not in G3.6b.
 > Also recorded: the engine-identity gate fired again mid-sequence, on its own,
 > when the stamp drifted to `69f9831c` between two patch commands. Third
 > observation of that drift, and the first where the refusal saved a run that
-> would otherwise have produced another uninterpretable result. Run the cheap discriminators FIRST,
+> would otherwise have produced another uninterpretable result.
+
+#### The next session's task, bounded — 2026-08-12 handoff
+
+`applied 1/1` is now precisely scoped: **`Dart_RouteBActivatePatch` returned
+success**, and nothing more. The next experiment must establish what changed
+inside the target `Function` after that return.
+
+Where it lives, so nobody re-greps for it:
+`flutter/shell/common/shorebird/shorebird.cc` — report path `:205`, first record
+`:227`, the per-target `Dart_RouteBActivatePatch` call `:278`, the `applied`
+counter `:282`, the final record `:304`. The counter increments on the call's
+`int32_t` return, which is why the current trace cannot distinguish a real attach
+from a returned-success one.
+
+1. Extend the engine/VM boundary just enough to record post-attach `Function`
+   state: bytecode attached before/after, `entry_point_` before/after,
+   `unchecked_entry_point_` if it matters for this call form, the original AOT
+   `Code` identity, whether the post-attach entry point IS the interpreted
+   dispatch entry Route B expects, and the attach result itself.
+2. Rebuild host + iOS engine. 3. Mint the new cell (`dartaotruntime` and
+   `vm_platform.dill` both move, so the address changes). 4. Cut release 25 **with
+   `--patchable_static_calls`**. 5. `preserve_release_evidence.sh` at install
+   time. 6. Verify `LC_UUID` **and** patchability before interpreting anything.
+7. Run ONLY the public `'NEW-CTL'` control — no private-name noise.
+8. Classify into exactly one bucket:
+
+| # | observation | meaning |
+|---|---|---|
+| 1 | no bytecode after attach | `AttachBytecode` did not persist the attachment |
+| 2 | bytecode present, entry point unchanged | attachment exists, active dispatch stays AOT |
+| 3 | entry point changed, but not to interpreter dispatch | wrong post-attach transition |
+| 4 | bytecode + interpreted entry installed, app still OLD | the call site bypasses that `Function` despite patchability verifying — inspect the caller |
+| 5 | interpreter entered | execution / body selection is the next layer |
+
+**The freeze holds until that trace exists:** no changes to `G3.6b`, `P2`, the
+lowering, retention, producer logic, or private handling. Four causal
+attributions have already been overturned by measurement in this goal; the fifth
+must come from observation. Run the cheap discriminators FIRST,
 > in the order the runbook already specifies.
 
 **The cause: the build silently rewrote the engine stamp.** `shorebird patch`
