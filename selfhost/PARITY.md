@@ -868,6 +868,49 @@ That is a reassuring shape for a must-refuse set: one known cause, no app-author
 > class. **That needs an arm before P3 can be chosen.** If it fails, P3 collapses into P1
 > and the middle ground does not exist.
 
+#### ⛔ PRECOMMITTED — the P3 usability arm, written before it runs
+
+The probe uses the real product shape: a private class the **app** allocates, a public
+method patched, and the private member reached through the receiver the lowering supplies.
+
+```dart
+class _Thing {
+  String _secret() => 'NEW';
+  String value()   => 'OLD';   // the patch target
+}
+// patched to:  String value(dynamic self) => self._secret();
+```
+
+Under `--policy p3`: `_secret` **is** named, `_Thing` has **no `class:` item**, the patch
+**does not construct** `_Thing`, and the receiver arrives from the app's own instance call.
+Expected result `NEW`.
+
+| outcome | what it means for the choice |
+|---|---|
+| **passes** | P3 is a real middle ground, and on the measured numbers the **strongest default candidate** |
+| **fails, because class capability is required** | P3 **collapses toward P1** — and P2 becomes the only policy that buys the private-instance reach Phase 0 showed is needed |
+| **fails for an unrelated mechanism** | **do not choose any policy** until the failure is classified. A collapse and a bug are different findings |
+
+**Why this single probe decides it.** The measurements already say P1 → P3 buys the
+capability shape users actually need for **+82 KB**, while P3 → P2 spends a further
+**+142 KB** primarily on constructibility with no demonstrated demand. So the choice turns
+on one question — whether P3's reach is real — and not on another broad measurement.
+
+**Note the second thing this arm tests, which the manifest cannot show.** The patch target
+is a *public method of a private class*. Under P3 that class has no `class:` item, and a
+`library:` item covers only public classes — so whether the patch can **attach** at all is
+in question independently of whether `self._secret()` binds. A failure here is a *class
+capability required* result even though `_secret` itself was granted.
+
+#### The six `_enumToString` entries are an unconditional must-refuse
+
+Pinned now so they cannot later make policy coverage look incomplete. They are
+CFE-synthesised enum machinery whose `Name` belongs to `dart:core`, unresolvable by
+`LibraryIndex` under **every** policy, and written by no patch author. `G3.6b`'s contract
+refuses them **unconditionally** rather than treating them as a coverage gap a future
+policy might close — no policy can close them, and counting them against a policy would
+understate every arm equally.
+
 **No policy is chosen here.** All four precommitted dimensions are reported; the choice
 is step 8 and it is deliberately a separate act from the measurement.
 
