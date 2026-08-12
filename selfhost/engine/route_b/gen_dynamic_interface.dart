@@ -27,6 +27,7 @@
 //     gen_dynamic_interface.dart --dill app.dill --out di.yaml
 //
 // ignore_for_file: avoid_print
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:kernel/ast.dart';
@@ -55,6 +56,53 @@ const _defaultSdkMembers = <String>[
   'dart:core#print',
 ];
 
+/// A named private-retention policy.
+///
+/// POLICIES LIVE IN CODE, NOT IN PROSE. An arm described only in a document cannot be
+/// run twice and cannot be diffed; naming them here means `--policy p2` is the whole
+/// definition and every run of it is the same run.
+///
+/// The three are chosen to bracket the decision rather than to sample it: P1 is the
+/// only shape already proven, P2 is everything the mechanism can reach, and P3 exists
+/// to test ONE specific hypothesis -- that withholding class retention withholds
+/// constructibility while keeping member reach.
+enum _Policy {
+  /// Private TOP-LEVEL and STATIC members only. No private classes, and no private
+  /// INSTANCE members.
+  ///
+  /// The shape `probe D` proved: a private top-level function named in the interface
+  /// becomes a raw direct call, TFA analyses its body, and it works. Statics are
+  /// included because they dispatch the same way -- what distinguishes this policy is
+  /// the absence of a RECEIVER, not the absence of a class.
+  p1('top-level and static privates only'),
+
+  /// Every private member and class of the app's own libraries.
+  ///
+  /// What non-AOT enumeration produces when nothing is withheld: instance members,
+  /// fields, accessors, private classes -- and, as a consequence rather than an entry,
+  /// construction of those classes.
+  p2('all app-private members and classes'),
+
+  /// Private members INCLUDING instance members, but NO private `class:` items.
+  ///
+  /// The hypothesis under test: a `class:` item is what grants an implicit public
+  /// constructor, so withholding it should withhold CONSTRUCTIBILITY while leaving
+  /// member reach intact. If that holds, P3 is a real middle ground. If the members
+  /// turn out to be unreachable without their class retained, P3 collapses into P1 and
+  /// the middle ground does not exist -- which is itself the answer.
+  p3('private members without private class retention');
+
+  const _Policy(this.describe);
+
+  /// Human-readable, carried into the manifest so a recorded arm explains itself.
+  final String describe;
+
+  bool get retainsPrivateClasses => this == _Policy.p2;
+  bool get retainsPrivateInstanceMembers => this != _Policy.p1;
+  bool get retainsPrivateTopLevel => true;
+  bool get retainsPrivateStatics => true;
+}
+
 void main(List<String> args) {
   String? dillPath;
   String? privateDillPath;
@@ -64,6 +112,8 @@ void main(List<String> args) {
   var includeSdk = true;
   var retainPrivate = true;
   var retainPrivateClasses = true;
+  var policy = _Policy.p2;
+  String? manifestPath;
   final includePrefixes = <String>[];
 
   for (var i = 0; i < args.length; i++) {
@@ -117,6 +167,23 @@ void main(List<String> args) {
       case '--no-private':
         // Present so the cost of private-member retention stays measurable.
         retainPrivate = false;
+      case '--policy':
+        // The arm's whole definition. See _Policy for what each grants and, for
+        // p3, the specific hypothesis it exists to test.
+        final name = next();
+        policy = _Policy.values.firstWhere(
+          (p) => p.name == name,
+          orElse: () => _die(
+            "unknown --policy '$name'; expected one of "
+            '${_Policy.values.map((p) => p.name).join(", ")}',
+          ),
+        );
+        retainPrivateClasses = policy.retainsPrivateClasses;
+      case '--manifest':
+        // The CAPABILITY MANIFEST, emitted by the tool that did the granting.
+        // Deliberately not derivable by reading the interface: a `class:` item
+        // grants an implicit public constructor that appears in no line of it.
+        manifestPath = next();
       case '--no-private-classes':
         // Isolates the cost of the CLASS-level shapes (private classes and
         // private members of classes) from the top-level shape that was already
@@ -207,6 +274,21 @@ void main(List<String> args) {
   final privateClasses = <String>[];
   final privateClassMembers = <String>[];
 
+  // THE CAPABILITY MANIFEST'S OWN SETS, kept beside the emission rather than
+  // reconstructed from it.
+  //
+  // `privateStatics` is a subset of privateClassMembers, tracked separately because
+  // P1 grants statics while withholding instance members, and a manifest that could
+  // not tell them apart could not describe P1 at all.
+  //
+  // `implicitlyConstructible` is the row that does not exist in the interface text.
+  // `refused` is the row that exists nowhere at all today: it records what a policy
+  // or the index declined, so `G3.6b` can refuse against a concrete absence rather
+  // than inferring one.
+  final privateStatics = <String>[];
+  final implicitlyConstructible = <String>[];
+  final refused = <String>[];
+
   // EMIT ONLY WHAT THE ANNOTATOR CAN RESOLVE, and prove it here rather than
   // discovering it during the release build.
   //
@@ -247,12 +329,16 @@ void main(List<String> args) {
   // now reports "does not build" rather than a size.
   final index = LibraryIndex.all(privateComponent);
   var unresolvable = 0;
+  // Skips are now LISTED, not only counted. A count says how much was withheld; the
+  // list says WHICH capability the release does not grant, which is what `G3.6b` has
+  // to refuse against. Previously this incremented a counter and discarded the name.
   bool resolvableClass(String uri, String name) {
     try {
       index.getClass(uri, name);
       return true;
     } catch (_) {
       unresolvable++;
+      refused.add('$uri#$name (class, not indexable)');
       return false;
     }
   }
@@ -263,6 +349,11 @@ void main(List<String> args) {
       return true;
     } catch (_) {
       unresolvable++;
+      refused.add(
+        container == '::'
+            ? '$uri#$name (top-level, not indexable)'
+            : '$uri#$container#$name (member, not indexable)',
+      );
       return false;
     }
   }
@@ -272,24 +363,64 @@ void main(List<String> args) {
       final uri = lib.importUri.toString();
 
       for (final cls in lib.classes) {
-        if (!retainPrivateClasses) break;
+        // NO EARLY BREAK. P1 withholds private classes AND private instance members
+        // but still grants private STATICS, which only exist inside classes -- an
+        // early break skipped them and made P1 report zero statics while its own
+        // definition is "top-level and static". The per-shape gates below are what
+        // enforce the policy; the walk itself must always happen.
         // Synthetic mixin applications (`_Foo&Bar&Baz`) are composed by the
         // front end, are named in no source, and are patched by nobody. In
         // flutter/src/material they outnumber real classes' in-contract methods
         // (739 vs 320), so retaining them would be pure cost.
         if (cls.name.contains('&')) continue;
 
-        if (cls.name.startsWith('_') && resolvableClass(uri, cls.name)) {
+        if (retainPrivateClasses &&
+            cls.name.startsWith('_') &&
+            resolvableClass(uri, cls.name)) {
           privateClasses.add('$uri#${cls.name}');
+          // EFFECTIVE CAPABILITY, not an interface line. A `class:` item annotates
+          // the class AND its public members, and a class's implicit default
+          // constructor is public -- which is how a patch constructed `_Dead()`
+          // with no constructor named anywhere in the YAML. Recording it here is
+          // the only way the manifest can describe what was actually granted.
+          for (final c in cls.constructors) {
+            if (c.name.text.startsWith('_')) continue;
+            implicitlyConstructible.add(
+              '$uri#${cls.name}.${c.name.text.isEmpty ? "new" : c.name.text}',
+            );
+          }
+          // A factory is a Procedure, not a Constructor, and is granted by the
+          // same class item.
+          for (final p in cls.procedures) {
+            if (!p.isFactory || p.name.text.startsWith('_')) continue;
+            implicitlyConstructible.add(
+              '$uri#${cls.name}.${p.name.text.isEmpty ? "new" : p.name.text} '
+              '(factory)',
+            );
+          }
         }
         for (final p in cls.procedures) {
           if (!p.name.text.startsWith('_')) continue;
+          if (!policy.retainsPrivateInstanceMembers && !p.isStatic) {
+            refused.add('$uri#${cls.name}#${_vmName(p)} (instance, policy)');
+            continue;
+          }
           if (!resolvableMember(uri, cls.name, _vmName(p))) continue;
+          if (p.isStatic) {
+            privateStatics.add('$uri#${cls.name}#${_vmName(p)}');
+          }
           privateClassMembers.add('$uri#${cls.name}#${_vmName(p)}');
         }
         for (final f in cls.fields) {
           if (!f.name.text.startsWith('_')) continue;
+          if (!policy.retainsPrivateInstanceMembers && !f.isStatic) {
+            refused.add('$uri#${cls.name}#${f.name.text} (instance, policy)');
+            continue;
+          }
           if (!resolvableMember(uri, cls.name, f.name.text)) continue;
+          if (f.isStatic) {
+            privateStatics.add('$uri#${cls.name}#${f.name.text}');
+          }
           // A FIELD IS NAMED BARE, not `get:`/`set:`.
           // library_index.dart:320-326 applies the accessor prefixes only to a
           // Procedure; a Field is indexed under `member.name.text`. Naming the
@@ -433,6 +564,50 @@ void main(List<String> args) {
   }
 
   File(outPath).writeAsStringSync(buf.toString());
+
+  // THE CAPABILITY MANIFEST. Five categories, and the last two are the ones that
+  // exist nowhere else:
+  //
+  //   privateTopLevelCallable    top-level privates a patch may now call
+  //   privateStaticsCallable     private statics -- separated from instance members
+  //                              because P1 grants these and withholds those
+  //   privateInstanceCallable    private instance members a patch may now call
+  //   privateClassesConstructible    classes a patch may now INSTANTIATE
+  //   implicitlyConstructible    the constructors and factories that came with them,
+  //                              named in NO line of the interface
+  //   refused                    what was NOT granted, and why
+  //
+  // Emitted by the generator rather than derived by a reader, because a reader can
+  // only see what was written down and the fourth category never is.
+  if (manifestPath != null) {
+    final instanceCallable = privateClassMembers
+        .where((m) => !privateStatics.contains(m))
+        .toList();
+    File(manifestPath).writeAsStringSync(
+      '${const JsonEncoder.withIndent('  ').convert({
+        'policy': policy.name,
+        'policyDescription': policy.describe,
+        'privateEnumerationSource': privateDillPath == null
+            ? 'dill (the --aot prepass)'
+            : 'private-dill (non-AOT)',
+        'appLibraries': appLibraries.length,
+        'counts': {
+          'privateTopLevelCallable': privateMembers.length,
+          'privateStaticsCallable': privateStatics.length,
+          'privateInstanceCallable': instanceCallable.length,
+          'privateClassesConstructible': privateClasses.length,
+          'implicitlyConstructible': implicitlyConstructible.length,
+          'refused': refused.length,
+        },
+        'privateTopLevelCallable': privateMembers,
+        'privateStaticsCallable': privateStatics,
+        'privateInstanceCallable': instanceCallable,
+        'privateClassesConstructible': privateClasses,
+        'implicitlyConstructible': implicitlyConstructible,
+        'refused': refused,
+      })}\n',
+    );
+  }
 
   // Report to stderr so stdout stays clean if anyone pipes this.
   // Counts are broken out per shape because each one buys a different thing and
