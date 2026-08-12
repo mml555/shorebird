@@ -68,22 +68,25 @@ for the quick start and feature list.
 | Runtime (device → our server) | ✅ proven, no `api.shorebird.dev` |
 | Build-time (engine via CDN mirror) | ✅ proven for pinned revisions |
 | Engine/updater **source** | ✅ captured in `vendor/` (insurance) |
-| Engine **built from source** | ◐ **Android: proven** (device-verified, on our own vanilla-Dart VM). **iOS: proven for releases + assets patches** (device-verified 2026-08-05, own engine + own frontend); **iOS *Dart code* patches: NOT SHIPPABLE** — the compiler and retention layers work on a macOS host harness, nothing has run on iOS (see below) |
+| Engine **built from source** | ◐ **Android: proven** (device-verified, on our own vanilla-Dart VM). **iOS: proven** for releases, assets patches **and Dart code patches** — the whole chain is device-verified on our own engine and frontend, without upstream's private AOT linker. What limits iOS code push is now the *language surface* a patch may use, not the mechanism: see [`PARITY.md`](PARITY.md) §3 |
 
 ## Capability statement (read this before claiming anything)
 
-> **Android Dart code push and iOS asset push are complete and independent. The
-> entire iOS Dart code-push RUNTIME is proven on physical hardware — control
-> plane -> updater download -> inflate -> hash check -> install -> lifecycle
-> promotion -> native pre-main activation -> patched Dart running -> relaunch
-> still patched -> rollback to pristine AOT, with no Dart-side cooperation, at
-> +4.5 % size and +0.3 % median frame time with zero added jank. What is NOT
-> built is the PRODUCER: `shorebird patch` cannot emit an iOS code patch, so the
-> container that proved all of the above was packed by hand.**
+> **Android Dart code push, iOS asset push and iOS Dart code push are all
+> complete and independent, end to end on physical hardware — `shorebird release
+> ios` -> edit a function -> `shorebird patch ios` -> control plane -> updater
+> download -> inflate -> hash check -> install -> lifecycle promotion -> native
+> pre-main activation -> patched Dart running -> relaunch still patched ->
+> rollback to pristine AOT, with no Dart-side cooperation, nothing packed by
+> hand, and no upstream private AOT linker. +4.4 % size, +0.3 % median frame
+> time, zero added jank. What is NOT complete is the LANGUAGE SURFACE a patch may
+> use: about 7 % of real instance methods are addressable, bounded by
+> library-scoped privacy and a one-parameter ABI.**
 
-*The runtime is proven; the producer is not.* Both are true at once and they are
-different claims. Do not let "iOS code push works on the device" become "iOS
-code push works".
+*The mechanism is proven; the reach is narrow.* Both are true at once and they are
+different claims. Do not let "iOS code push works" become "any iOS patch works" —
+that substitution is the one this document exists to prevent, and it replaces an
+earlier version of the same warning about the producer, which is now built.
 
 What has run on a physical iPhone, end to end (2026-08-10, release 9.0.0+1):
 fresh release reads OLD, the control plane serves a patch, the real updater
@@ -97,12 +100,23 @@ The producer now exists and is device-proven (2026-08-11): `shorebird release
 ios` -> edit -> `shorebird patch ios` -> OLD -> NEW -> relaunch NEW -> rollback
 -> pristine OLD, nothing manual in between.
 
-> Current proven producer surface: a single-function replacement whose body
-> requires no external symbol resolution.
+> Current proven producer surface: a single-function replacement that may read,
+> write and call **public** members of its own receiver, reference `dart:core`,
+> and call another public top-level app function.
 
-A body referencing another app symbol — or even `dart:core` — does not yet bind.
-That is the next feature, not a gap in the product path; see the widening ladder
-in [`ROUTE_B.md`](ROUTE_B.md).
+Device-proven spellings, each through the ordinary `shorebird patch ios` path:
+`label`, `this.label`, `helper()`, `this.<method>(args)`, `tagged('ARG')` and
+`slot = 'NEW'`. A body that names an **existing private member** of the app does
+not yet bind — which matters more than the list above suggests, because Flutter's
+`State` classes are private by convention.
+
+**Read the size of that limit before planning around it.** Measured from kernel
+over `package:flutter/src`: about **7 %** of concrete instance methods are
+addressable today, and the two things bounding it are library-scoped privacy and
+the one-positional-parameter ABI — roughly equal in weight, neither reachable by
+widening spellings. [`PARITY.md`](PARITY.md) §3 has the numbers, the reproducible
+measurement, and what each fix would buy; [`ROUTE_B.md`](ROUTE_B.md) has the
+mechanism.
 
 Also true on iOS today, artifact-independent: a release built with our own
 engine and compiler, the app reaching first frame on a physical device, and an
@@ -116,8 +130,8 @@ assets-only patch published, downloaded, applied and rolled back.
 | iOS release → first frame on device | **PASS** |
 | iOS device → control-plane reach | **PASS** — 2026-08-09, once Local Network was granted |
 | iOS assets-patch application on device | **NOT VERIFIED** on the current fixture |
-| iOS **Dart code patch** delivered + activated + rolled back on device | **PASS** — 2026-08-10, container packed by hand |
-| iOS Dart code patch **produced by `shorebird patch`** | **NOT BUILT** |
+| iOS **Dart code patch** delivered + activated + rolled back on device | **PASS** — first on 2026-08-10 with a hand-packed container; superseded by the producer-generated passes below |
+| iOS Dart code patch **produced by `shorebird patch`** | **PASS** — 2026-08-11, releases 19–22, six device gates. See [`PARITY.md`](PARITY.md) §3 for which source spellings are covered |
 | Android full device lifecycle (release → Dart code patch → rollback) | **PASS** |
 
 Android must not be read as covering the iOS device claim. The assets-only
@@ -206,7 +220,7 @@ What that does and does not affect:
 | Building releases/patches on the current pin | ✅ unaffected (mirror is warm) |
 | Adopting a newer Flutter version | ✅ needs their published *prebuilts*, not source |
 | Building a **modified** engine, Android | ✅ proven — vanilla Dart + ~57 lines, device-verified |
-| Building a **modified** engine, iOS | ◐ proven for releases + assets patches; **Dart code** patches NOT SHIPPABLE — Route B steps 1–2 work on a host harness, steps 3–5 and the iOS port are not started |
+| Building a **modified** engine, iOS | ✅ proven for releases, assets patches **and Dart code patches** — device-verified, no private AOT linker. Route B's remaining work is the patchable language surface, not the engine |
 | Surviving Shorebird disappearing | ⚠️ partial — we hold the engine C++ and updater, not the VM fork to compile them |
 
 Whether to ask for access or rebuild that capability ourselves is scoped in

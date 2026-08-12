@@ -113,16 +113,22 @@ exercised against our stack. That is a cheap-per-item, many-items problem — th
 opposite shape of the Route B work, and worth batching once the language corpus
 stops moving.
 
-### Known documentation drift — fix before anyone new reads it
+### Documentation drift — reconciled 2026-08-11
 
-[`README.md`](README.md) is **behind this file and behind `ROUTE_B.md`**. Its
-independence table still says *"iOS Dart code patches: NOT SHIPPABLE — the
-compiler and retention layers work on a macOS host harness, nothing has run on
-iOS"*, and its capability statement still describes the producer surface as *"a
-single-function replacement whose body requires no external symbol resolution"*.
-Both were true before the rung ladder was climbed; neither is true now. A reader
-who starts at `README.md` will form a materially wrong picture of the project's
-state.
+[`README.md`](README.md) had fallen **behind this file and behind `ROUTE_B.md`** by
+several rungs: its independence table said *"iOS Dart code patches: NOT
+SHIPPABLE"*, its capability statement said the **producer** was what was missing,
+and its status table listed *"iOS Dart code patch produced by `shorebird patch`"*
+as **NOT BUILT**. All three predated the rung ladder. A reader starting at the
+front door formed a materially wrong picture.
+
+Now reconciled, and the warning it carries was **retargeted rather than deleted**.
+It used to say *"do not let 'iOS code push works on the device' become 'iOS code
+push works'"* — a producer caveat that no longer applies. It now says *"do not let
+'iOS code push works' become 'any iOS patch works'"*, which is the same discipline
+pointed at the limit that is actually live: the ~7 % language surface. The lesson
+generalises — when a caveat is overtaken by progress, the honest move is usually to
+re-aim it at the new boundary, not to drop it and declare the thing done.
 
 ---
 
@@ -1449,9 +1455,9 @@ roof.
 
 ### Off-queue and nearly free
 
-* Reconcile [`README.md`](README.md) with this file — see *Known documentation
-  drift* above. Ten minutes, and it stops the fork's front door from
-  understating the project by several rungs.
+* ~~Reconcile [`README.md`](README.md) with this file~~ — **done 2026-08-11.**
+  Three stale claims corrected and the producer caveat re-aimed at the language
+  surface; see *Documentation drift* above.
 * Give the canonical fixture per-goal clones (`R6`, §16). The single highest
   parallelism-per-hour item on this page.
 
