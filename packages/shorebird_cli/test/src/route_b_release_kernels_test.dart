@@ -232,5 +232,94 @@ void main() {
         expect(result, isNull);
       });
     });
+
+    // THIS GROUP EXISTS BECAUSE ITS ABSENCE SHIPPED A REGRESSION.
+    //
+    // generateDynamicInterface had no tests at all, and nothing asserted the
+    // argv it builds. So when the generator began emitting private classes by
+    // default, this call site -- which passed no --include, and therefore asked
+    // for EVERY non-`dart:` library -- started producing an interface that does
+    // not compile, and every existing test still passed. The breadth flag is
+    // the whole product policy; it belongs under assertion.
+    group('generateDynamicInterface', () {
+      late Directory cell;
+      late ShorebirdLogger logger;
+      late File prepass;
+      late File output;
+
+      RouteBCompiler compiler() => RouteBCompiler(
+        runtime: File(p.join(cell.path, 'dartaotruntime')),
+        compilerSnapshot: File(p.join(cell.path, 'dart2bytecode.aot')),
+        platformDill: File(p.join(cell.path, 'vm_platform.dill')),
+        analyzer: File(p.join(cell.path, 'route_b_analyze.aot')),
+        frontend: File(p.join(cell.path, 'route_b_gen_kernel.aot')),
+        interfaceGenerator: File(
+          p.join(cell.path, 'route_b_gen_dynamic_interface.aot'),
+        ),
+        flutterPlatformDill: File(
+          p.join(cell.path, 'flutter_platform_strong.dill'),
+        ),
+        provenance: '',
+      );
+
+      R runWithOverrides<R>(R Function() body) => runScoped(
+        body,
+        values: {loggerRef.overrideWith(() => logger)},
+      );
+
+      setUp(() {
+        cell = Directory.systemTemp.createTempSync('cell');
+        logger = MockShorebirdLogger();
+        final work = Directory.systemTemp.createTempSync('work');
+        prepass = File(p.join(work.path, 'prepass.dill'))
+          ..writeAsStringSync('KERNEL');
+        output = File(p.join(work.path, 'dynamic_interface.yaml'));
+      });
+
+      test('restricts breadth to the app package', () {
+        // Without this the generator treats every non-`dart:` library as the
+        // app: 598 library items on the acceptance fixture, the breadth
+        // measured at +275% -- and, with private classes emitted, an interface
+        // that does not build at all.
+        late List<String> args;
+        final result = runWithOverrides(
+          () => const RouteBReleaseKernelBuilder().generateDynamicInterface(
+            compiler: compiler(),
+            prepassKernel: prepass,
+            outputFile: output,
+            appPackageName: 'my_app',
+            run: (executable, arguments) {
+              args = arguments;
+              output.writeAsStringSync('callable:');
+              return ProcessResult(0, 0, '', '');
+            },
+          ),
+        );
+
+        expect(result, isNotNull);
+        expect(args, containsAllInOrder(['--include', 'package:my_app/']));
+      });
+
+      test('does not generate an interface without a package name', () {
+        // Refusing beats guessing. A release that cannot declare retention is
+        // still a good release -- it just cannot be patched with a body that
+        // names anything -- whereas a release built from an all-libraries
+        // interface does not compile.
+        final result = runWithOverrides(
+          () => const RouteBReleaseKernelBuilder().generateDynamicInterface(
+            compiler: compiler(),
+            prepassKernel: prepass,
+            outputFile: output,
+            appPackageName: '',
+            run: (_, _) => throw StateError('should not run'),
+          ),
+        );
+
+        expect(result, isNull);
+        verify(
+          () => logger.warn(any(that: contains('package name'))),
+        ).called(1);
+      });
+    });
   });
 }

@@ -39,6 +39,7 @@ import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
+import 'package:shorebird_cli/src/shorebird_env.dart';
 
 /// A reference to a [RouteBReleaseKernelBuilder] instance.
 final routeBReleaseKernelBuilderRef = create(RouteBReleaseKernelBuilder.new);
@@ -258,15 +259,45 @@ ${result.stderr}''',
     required File prepassKernel,
     required File outputFile,
     List<String> sdkMembers = routeBRetainedSdkMembers,
+    String? appPackageName,
     RouteBKernelRunner run = Process.runSync,
   }) {
     outputFile.parent.createSync(recursive: true);
+
+    // APP-ONLY BREADTH, and it is not optional. Without --include the generator
+    // treats EVERY non-`dart:` library as "the app" -- 598 library items on the
+    // acceptance fixture, the breadth measured at +275% in measure_real_app.sh.
+    //
+    // It got worse than expensive. Since the generator began emitting private
+    // classes and private class members by default, all-libraries breadth
+    // produces an interface that DOES NOT BUILD: it names class members that
+    // exist in the `--aot` prepass this reads but not in the pre-transform
+    // component the annotator indexes. That arm is recorded as DOES NOT BUILD
+    // in PARITY.md, and this call site was generating exactly it.
+    //
+    // So the prefix is a correctness requirement, not a size tuning knob. If
+    // the package name is unavailable the interface is not generated at all: an
+    // unpatchable release is a good release, one that cannot be built is not.
+    final packageName = appPackageName ?? shorebirdEnv.getPubspecYaml()?.name;
+    if (packageName == null || packageName.isEmpty) {
+      logger.warn(
+        "Could not determine this app's package name, so this release's "
+        'retention interface was not generated; patches for it will only be '
+        'able to replace bodies that name nothing.',
+      );
+      return null;
+    }
+
     final result = run(compiler.runtime.path, [
       compiler.interfaceGenerator.path,
       '--dill',
       prepassKernel.path,
       '--out',
       outputFile.path,
+      // The app's own libraries, whole. Everything outside this prefix is the
+      // framework and the SDK, handled by the named-member list below.
+      '--include',
+      'package:$packageName/',
       // BY NAME. The generator also accepts --sdk-libraries, which retains a
       // whole library; that was measured at +310% and is not product behaviour.
       '--sdk-members',
