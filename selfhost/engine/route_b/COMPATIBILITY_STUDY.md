@@ -563,6 +563,22 @@ is transcribed by hand:
 | `gen_dynamic_interface` version inside that cell | source commit + aot sha256 |
 | release/patch CLI commit | if distinct from the producer commit |
 | corpus seed and both eligible-set hashes | one per source |
+| Phase 0 comparability | version + hash before and after, verdict, and reason |
+
+### Did `G3.6` change analyzer SEMANTICS, or only cell contents?
+
+Recorded at mint time, computed from the artifact rather than from memory:
+
+| condition | `phase0_comparable` |
+|---|---|
+| same version **and** same hash | **yes** — Phase 0 is directly comparable |
+| same version, different hash | **no**, unless the change is explicitly proven behaviour-neutral (`--analyzer-change-proven-neutral`, whose justification is recorded verbatim) |
+| version > 6 | **no** — Phase 0 is pilot and historical evidence only; no numerical Phase 0 ↔ Phase 1 comparison |
+
+**This does not gate Phase 1.** Baseline A measures whatever coherent
+analyzer / cell / producer product exists once `G3.6` closes. The flag exists so
+that an invalid before/after claim cannot be made later, when the pilot's
+numbers are the only ones lying around.
 
 After row 1, no producer or cell change enters the study.
 

@@ -13,6 +13,12 @@ import argparse, hashlib, json, pathlib, re, subprocess, zipfile
 
 REPO = pathlib.Path(__file__).resolve().parents[4]
 OVERLAY = REPO / 'selfhost/cdn/overlay/download.shorebird.dev/shorebird'
+# What Phase 0 was measured against. Recorded as constants so comparability is
+# computed from the artifact, never from memory of what the pilot ran on.
+PHASE0_ANALYSIS_VERSION = 6
+PHASE0_ANALYZER_HASH = ('4023835b353908bbf5b1e15ee45b81cf'
+                        'ff8a16c727d11e93314159c59cc95de6')
+
 CELL_FILES = ['dart2bytecode.aot', 'dartaotruntime', 'vm_platform.dill',
               'route_b_analyze.aot', 'route_b_gen_kernel.aot',
               'route_b_gen_dynamic_interface.aot', 'flutter_platform_strong.dill']
@@ -32,6 +38,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--cell', required=True)
     ap.add_argument('--out', required=True)
+    ap.add_argument('--analyzer-change-proven-neutral', metavar='JUSTIFICATION',
+                    help='ONLY for the same-version-different-hash case, and '
+                         'only with evidence: the parity corpus rerun clean on '
+                         'the new analyzer, or the diff shown to be non-semantic. '
+                         'The justification is recorded verbatim in the baseline.')
     a = ap.parse_args()
 
     zp = OVERLAY / a.cell / 'route-b-compiler-darwin-arm64.zip'
@@ -69,7 +80,48 @@ def main():
             if 'G3.6' in line and 'complete' in line.lower():
                 g36_rows.append(line.strip())
 
+    # DID G3.6 CHANGE ANALYZER SEMANTICS, OR ONLY CELL CONTENTS? This does not
+    # gate Phase 1 -- baseline A measures whatever coherent product exists after
+    # G3.6 closes. It exists to stop an invalid before/after claim being made
+    # afterwards, when the pilot's numbers are the only ones lying around.
+    baseline_version = int(version)
+    baseline_hash = digests['route_b_analyze.aot']
+    same_version = baseline_version == PHASE0_ANALYSIS_VERSION
+    same_hash = baseline_hash == PHASE0_ANALYZER_HASH
+
+    if baseline_version > PHASE0_ANALYSIS_VERSION:
+        comparable, reason = 'no', (
+            f'analyzer version moved {PHASE0_ANALYSIS_VERSION} -> '
+            f'{baseline_version}. Phase 0 is pilot and historical evidence only; '
+            f'no numerical Phase 0 <-> Phase 1 comparison is valid.')
+    elif baseline_version < PHASE0_ANALYSIS_VERSION:
+        comparable, reason = 'no', (
+            f'analyzer version went BACKWARDS {PHASE0_ANALYSIS_VERSION} -> '
+            f'{baseline_version}, which should not happen; investigate before '
+            f'using this baseline at all.')
+    elif same_version and same_hash:
+        comparable, reason = 'yes', (
+            'same analyzer version and same binary hash: Phase 0 is directly '
+            'comparable.')
+    elif a.analyzer_change_proven_neutral:
+        comparable, reason = 'yes', (
+            'same version, DIFFERENT binary hash, change asserted '
+            'behaviour-neutral with justification: '
+            + a.analyzer_change_proven_neutral)
+    else:
+        comparable, reason = 'no', (
+            'same analyzer version but a different binary hash: the analyzer '
+            'changed without a version bump. Not comparable unless the change '
+            'is explicitly proven behaviour-neutral '
+            '(--analyzer-change-proven-neutral).')
+
     baseline = {
+        'phase0_analysis_version': PHASE0_ANALYSIS_VERSION,
+        'baseline_analysis_version': baseline_version,
+        'phase0_analyzer_hash': PHASE0_ANALYZER_HASH,
+        'baseline_analyzer_hash': baseline_hash,
+        'phase0_comparable': comparable,
+        'reason': reason,
         'cell_hash_published': a.cell,
         'cell_address_recomputed': address,
         'cell_address_matches': address == a.cell,
@@ -102,6 +154,7 @@ def main():
     pathlib.Path(a.out).write_text(json.dumps(baseline, indent=2))
     print(f"cell address recomputed: {address}  matches published: "
           f"{baseline['cell_address_matches']}")
+    print(f"phase 0 comparable: {comparable}  -- {reason}")
     print(f"analyzer v{version}  producer "
           f"{(baseline['producer_commit'] or {}).get('commit','?')[:10]}")
     print(f"working tree clean: {baseline['working_tree_clean']}")
