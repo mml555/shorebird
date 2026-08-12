@@ -446,6 +446,25 @@ pressure of results, and changing what the corpus *is* — from historical trees
 to rebased diffs — is a bigger change than either. It is the study's meaning,
 not its plumbing.
 
+## Freeze: two leaks found, one still open
+
+`analyze_coverage.dart` is untouched since `cb50590d` and the cell's
+`route_b_analyze.aot` still hashes to `4023835b…`, so what the study *measures*
+is frozen. Two things around it were not:
+
+* **The harness ran the repo's `gen_dynamic_interface.dart`**, not the cell's
+  `route_b_gen_dynamic_interface.aot`. The repo copy is live and changed under
+  the study on 2026-08-11 (`a2927e41`). Using it means claiming a frozen cell
+  while running an unfrozen tool inside it. Fixed: the cell's generator is now
+  invoked, which is what shipping it in the cell is for.
+* **The PRODUCER is not frozen and is being changed** — `a28ba1d9` makes a
+  private receiver class lower to `dynamic`. The study does not run the
+  producer; it derives a producer verdict from the analyzer's lowering data as
+  "any unsupported lowering means refused". That model is now potentially stale
+  in the accepting direction. No results are invalidated because no Phase 1 data
+  exists, but **the freeze has to cover the producer as well, or the derived
+  verdict has to be pinned to a producer commit.** Open.
+
 The harness is complete and unblocked otherwise: taxonomy, seeded manifests,
 three-outcome recording, `identical-kernels`, verified checkouts, worktree
 leasing, and reclassification from preserved `raw` all work. Only the corpus

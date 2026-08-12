@@ -215,7 +215,8 @@ def digest(path):
     return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
 
 
-def run_case(case, worktree, entry, target, workdir, source, pub_get=None):
+def run_case(case, worktree, entry, target, workdir, source, pub_get=None,
+             pub_get_dir='.'):
     d = pathlib.Path(workdir) / f"{source}-{case['commit'][:10]}"
     d.mkdir(parents=True, exist_ok=True)
     row = {'source': source, 'cell': CELL_HASH,
@@ -245,10 +246,15 @@ def run_case(case, worktree, entry, target, workdir, source, pub_get=None):
         # Period-appropriate dependencies. HEAD's lockfile against year-old
         # source produces API errors that look like compile failures and are
         # really resolution drift.
+        # In the package directory, not the worktree root: this fork's root has
+        # no pubspec.yaml at older commits, because the workspace layout is
+        # newer than much of the history. Running at the root there fails with
+        # "Found no pubspec.yaml", which reads as a corpus problem and is not.
         r = subprocess.run(pub_get.split(), capture_output=True, text=True,
-                           cwd=worktree, env={**os.environ,
-                                              'FLUTTER_STORAGE_BASE_URL':
-                                              'http://localhost:8085'})
+                           cwd=str(pathlib.Path(worktree) / pub_get_dir),
+                           env={**os.environ,
+                                'FLUTTER_STORAGE_BASE_URL':
+                                'http://localhost:8085'})
         if r.returncode != 0:
             return {**row, 'outcome': 'pub-get-failed',
                     'error': (r.stderr or r.stdout)[-500:]}
@@ -256,7 +262,12 @@ def run_case(case, worktree, entry, target, workdir, source, pub_get=None):
     if not ok:
         return {**row, 'outcome': 'compile-failed', 'stage': 'prepass', 'error': err}
 
-    subprocess.run([DART, KERNEL_PKGS, str(RB / 'gen_dynamic_interface.dart'),
+    # THE CELL'S generator, not the repo's source. The repo copy is live -- it
+    # changed under this study on 2026-08-11 -- and using it would mean claiming
+    # a frozen cell while running an unfrozen tool inside it. The cell ships
+    # route_b_gen_dynamic_interface.aot precisely so this is pinned.
+    subprocess.run([f'{OUT}/dartaotruntime',
+                    str(CELL / 'route_b_gen_dynamic_interface.aot'),
                     '--dill', str(d / 'prepass.dill'), '--out', str(d / 'di.yaml'),
                     '--sdk-members', 'dart:core#print'], capture_output=True)
     if not (d / 'di.yaml').exists():
@@ -342,6 +353,8 @@ def main():
     ap.add_argument('--manifest', required=True)
     ap.add_argument('--pubspec', default='pubspec.yaml')
     ap.add_argument('--pub-get', default=None)
+    ap.add_argument('--pub-get-dir', default='.',
+                    help='directory, relative to the worktree, to resolve in')
     a = ap.parse_args()
 
     cases, funnel, manifest = select(a.repo, a.glob, a.count, a.seed,
@@ -367,7 +380,7 @@ def main():
         wt = pool_wt.get()
         try:
             return run_case(case, wt, a.entry, a.target, a.workdir, a.source,
-                            a.pub_get)
+                            a.pub_get, a.pub_get_dir)
         except Exception as e:                       # noqa: BLE001
             return {'source': a.source, 'commit': case['commit'],
                     'subject': case['subject'], 'outcome': 'harness-error',
