@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words dartaotruntime SBRBPTCH sbrb pathlib prepass
+# cspell:words dartaotruntime SBRBPTCH sbrb pathlib prepass NONAOT
 #
 # d_private.sh -- Rung D: private / library-scoped identity.
 #
@@ -112,16 +112,39 @@ cd "$WORK"
 note "release, with retention declared the way a real release declares it"
 "$DART" "$GEN_KERNEL" --platform "$OUT/vm_platform.dill" --aot \
   --packages .dart_tool/package_config.json -o base.dill "$URI" >/dev/null
+
+# The import kernel is built BEFORE the interface now, not after. It does not
+# depend on the interface -- it is the non-AOT kernel of the same source -- and
+# PRIVATE_FROM_NONAOT needs it as an INPUT to the interface generation.
+"$DART" "$GEN_KERNEL" --platform "$OUT/vm_platform.dill" --no-aot \
+  --no-link-platform --packages .dart_tool/package_config.json \
+  -o import.dill "$URI" >/dev/null
+
+# PRIVATE_FROM_NONAOT=1 enumerates private members from the NON-AOT kernel.
+#
+# The default reads the --aot prepass, where TFA has already dropped anything
+# unreachable -- so a private member nothing calls cannot be named, which is
+# question (1) of this probe. The interface is an INPUT to the release build, so
+# naming a member there is what keeps it; the point of this knob is to find out
+# whether that holds for a member TFA would otherwise have removed.
+#
+# Kept separate from RETAIN_PRIVATE on purpose. RETAIN_PRIVATE makes the RELEASE
+# mention the member; this makes the INTERFACE name it. If they were one knob a
+# pass could not say which mechanism did the work.
+privateDillArgs=()
+if [[ -n "${PRIVATE_FROM_NONAOT:-}" ]]; then
+  privateDillArgs=(--private-dill import.dill)
+fi
 "$DART" $KERNEL_PKGS "$RB/gen_dynamic_interface.dart" --dill base.dill \
+  ${privateDillArgs[@]+"${privateDillArgs[@]}"} \
   --out di.yaml --sdk-members 'dart:core#print,dart:core#DateTime.now,dart:core#DateTime.get:millisecondsSinceEpoch' 2>/dev/null
 "$DART" "$GEN_KERNEL" --platform "$OUT/vm_platform.dill" --aot \
   --packages .dart_tool/package_config.json --dynamic-interface di.yaml \
   -o release.dill "$URI" >/dev/null
 "$GEN_SNAPSHOT" --patchable_static_calls --snapshot_kind=app-aot-elf \
   --elf=app.aot release.dill
-"$DART" "$GEN_KERNEL" --platform "$OUT/vm_platform.dill" --no-aot \
-  --no-link-platform --packages .dart_tool/package_config.json \
-  -o import.dill "$URI" >/dev/null
+# (import.dill was built above, before the interface, because the interface may
+# now take it as an input.)
 BUILD_ID=$("$AOT_RUNTIME" app.aot | sed -n 's/^BUILD_ID //p')
 [ -n "$BUILD_ID" ] || die "no release build id"
 

@@ -1,4 +1,5 @@
 // Copyright (c) 2026, the Shorebird self-host fork.
+// cspell:words prepass behaviour synthesises
 //
 // gen_dynamic_interface.dart -- emit a Route B dynamic interface from an app's
 // own kernel.
@@ -56,6 +57,7 @@ const _defaultSdkMembers = <String>[
 
 void main(List<String> args) {
   String? dillPath;
+  String? privateDillPath;
   String outPath = 'dynamic_interface.yaml';
   var sdkMembers = _defaultSdkMembers;
   var sdkLibraries = const <String>[];
@@ -74,6 +76,25 @@ void main(List<String> args) {
     switch (a) {
       case '--dill':
         dillPath = next();
+      case '--private-dill':
+        // Enumerate PRIVATE members from this kernel instead of from --dill.
+        //
+        // WHY A SECOND KERNEL. --dill is the `--aot` prepass, and that is correct
+        // for everything else: it is the kernel that fed the release. But TFA has
+        // already tree-shaken it, so a private member NOTHING IN THE RELEASE CALLS
+        // is gone before this generator can name it -- and a patch's whole purpose
+        // can be to start calling a private helper the old code did not. Naming it
+        // here is what would keep it, because the interface is an INPUT to the
+        // release build; but it cannot be named if it is not in the kernel read.
+        //
+        // Pass the NON-AOT kernel (the release_import.dill a release already
+        // produces) to enumerate the full private surface. Public retention is
+        // unaffected: a `library:` item covers it either way.
+        //
+        // Off by default because it is a size trade, not a free win --
+        // measure_real_app.sh prices it, and the policy should be chosen from that
+        // number rather than assumed.
+        privateDillPath = next();
       case '--out':
         outPath = next();
       case '--include':
@@ -119,6 +140,21 @@ void main(List<String> args) {
   BinaryBuilder(
     File(dillPath).readAsBytesSync(),
   ).readComponent(component);
+
+  // The kernel the PRIVATE enumeration walks. Defaults to --dill, so behaviour is
+  // unchanged unless --private-dill is passed.
+  //
+  // Its LibraryIndex is built separately and used for the private candidates,
+  // because resolvability has to be checked against the kernel the name came
+  // from -- checking a non-AOT name against the AOT index would reintroduce
+  // exactly the cross-kernel mismatch that cost two failed builds.
+  var privateComponent = component;
+  if (privateDillPath != null) {
+    privateComponent = Component();
+    BinaryBuilder(
+      File(privateDillPath).readAsBytesSync(),
+    ).readComponent(privateComponent);
+  }
 
   // Which libraries are "the app"? Default: everything that is not a platform
   // library, since the platform half is handled by the SDK allowlist and
@@ -209,7 +245,7 @@ void main(List<String> args) {
   // only the naive all-libraries breadth, which retains the framework's privates
   // and which no release should use -- see `measure_real_app.sh`, where that arm
   // now reports "does not build" rather than a size.
-  final index = LibraryIndex.all(component);
+  final index = LibraryIndex.all(privateComponent);
   var unresolvable = 0;
   bool resolvableClass(String uri, String name) {
     try {
@@ -232,7 +268,7 @@ void main(List<String> args) {
   }
 
   if (retainPrivate) {
-    for (final lib in component.libraries.where(isApp)) {
+    for (final lib in privateComponent.libraries.where(isApp)) {
       final uri = lib.importUri.toString();
 
       for (final cls in lib.classes) {

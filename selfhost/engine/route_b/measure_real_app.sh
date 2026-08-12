@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# cspell:words dynmod killgate airgap tfa getsize ljust
+# cspell:words dynmod killgate airgap tfa getsize ljust nopc nonaot NONAOT
+# cspell:words prepass SUBSHELL
 #
 # measure_real_app.sh -- Route B step 7, size half, on a REAL Flutter app.
 #
@@ -92,9 +93,24 @@ try_kernel() { # try_kernel <out.dill> [args...] -- records failure, never dies
   return 0
 }
 
+# A THIRD axis: which kernel the PRIVATE enumeration reads.
+#
+# The --aot prepass has already been tree-shaken, so a private member nothing in
+# the release calls cannot be named there -- and a patch's purpose can be to start
+# calling one. The non-AOT kernel has the full private surface. Proven to work on
+# the toy fixture (probe D 4/4 with PRIVATE_FROM_NONAOT=1 and no RETAIN_PRIVATE),
+# at +6.0% on that program -- which is exactly why it needs a real-app number
+# before any policy is chosen. This arm is that number.
+note "interface: app-only with privates enumerated from the NON-AOT kernel"
+kernel "$WORK/app_nonaot_import.dill" --no-aot --no-link-platform
+"$DART" "$KERNEL_PKGS" "$HERE/gen_dynamic_interface.dart" \
+  --dill "$WORK/app.dill" --include "$APP_PREFIX" \
+  --private-dill "$WORK/app_nonaot_import.dill" --out "$WORK/di_app_np.yaml"
+
 note "kernels with retention"
 kernel "$WORK/app_app.dill"      --dynamic-interface "$WORK/di_app.yaml"
 kernel "$WORK/app_app_nopc.dill" --dynamic-interface "$WORK/di_app_nopc.yaml"
+kernel "$WORK/app_app_np.dill"   --dynamic-interface "$WORK/di_app_np.yaml"
 kernel "$WORK/app_all_nopc.dill" --dynamic-interface "$WORK/di_all_nopc.yaml"
 try_kernel "$WORK/app_all.dill"  --dynamic-interface "$WORK/di_all.yaml"
 
@@ -103,6 +119,7 @@ snap "$WORK/base.aot"     "$WORK/app.dill"
 snap "$WORK/cf.aot"       "$WORK/app.dill"          --patchable_static_calls
 snap "$WORK/app_nopc.aot" "$WORK/app_app_nopc.dill" --patchable_static_calls
 snap "$WORK/app.aot"      "$WORK/app_app.dill"      --patchable_static_calls
+snap "$WORK/app_np.aot"   "$WORK/app_app_np.dill"   --patchable_static_calls
 snap "$WORK/all_nopc.aot" "$WORK/app_all_nopc.dill" --patchable_static_calls
 [ -f "$WORK/app_all.dill" ] \
   && snap "$WORK/all.aot" "$WORK/app_all.dill" --patchable_static_calls
@@ -117,6 +134,7 @@ rows = [
     ('+ call form',                                   'cf.aot'),
     ('+ app-only, no private classes',                'app_nopc.aot'),
     ('+ app-only retention  [SHIPPING POLICY]',       'app.aot'),
+    ('+ app-only, privates from NON-AOT kernel',      'app_np.aot'),
     ('+ ALL libraries, no private classes',           'all_nopc.aot'),
     ('+ ALL libraries retained',                      'all.aot'),
 ]
@@ -139,6 +157,13 @@ def pct(a, b):
 print()
 print('PRIVATE-CLASS AXIS, isolated:')
 print(f'  at app-only breadth    {pct("app.aot", "app_nopc.aot"):+.2f}%')
+if os.path.exists(os.path.join(w, 'app_np.aot')):
+    print()
+    print('PRIVATE-ENUMERATION-SOURCE AXIS, isolated (--aot prepass -> non-AOT):')
+    print(f'  at app-only breadth    {pct("app_np.aot", "app.aot"):+.2f}%')
+    print('  This is the price of being able to reference a private member the')
+    print('  release does not itself call. Choose the retention policy from this')
+    print('  number, not from the toy fixture, where it measured +6.0%.')
 if os.path.exists(os.path.join(w, 'all.aot')):
     print(f'  at all-library breadth {pct("all.aot", "all_nopc.aot"):+.2f}%')
 else:
