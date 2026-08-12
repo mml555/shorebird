@@ -4,7 +4,7 @@
 <!-- cspell:words overclaim DFLUTTER Diagnosticable -->
 <!-- cspell:words demangled specializer devirtualizes rationalised synthesises -->
 <!-- cspell:words subshell theorised generalises generalisable symbolicator unrunnable -->
-<!-- cspell:words characterisation backout -->
+<!-- cspell:words characterisation backout NONAOT Wonderous analysed -->
 
 # Shorebird feature parity — the goal document
 
@@ -405,8 +405,10 @@ classes — is the single largest real-world blocker.
 | ✅ | **PROVEN** A replacement payload can declare and call its own private helper |
 | ◐ | **BUILT** A replacement **can** call an existing private member of the application library — `probe D` 4/4, `a53029c9`. Hand-written replacement; producer path and device gate outstanding |
 | ✅ | **PROVEN** Visibility and retention are **separate** requirements — the interface names a member, but TFA drops one nothing calls before the `--aot` prepass kernel reaches the generator |
-| ☐ | **NOT BUILT** The producer emits it automatically — **`G3.6b`**, the analyzer still refuses private members |
-| ☐ | **OPEN DESIGN** A retention policy for private members a *future* patch may need — see the retention note above |
+| 🐞 | **KNOWN GAP** A retained private **instance** member of a never-allocated class has **no executable body** — the name resolves and the call enters an unreachable stub, silently. Mode 3 below |
+| ☐ | **NOT BUILT** A mechanism probe for mode 3 — until one exists, `probe D` cannot distinguish it from success |
+| ☐ | **NOT BUILT** The producer emits it automatically — **`G3.6b`**, gated on the retention policy below, not merely on the analyzer |
+| ☐ | **OPEN DESIGN** An explicit release retention policy, with its emitted **and skipped** sets recorded in the supplement — see the ordered gate below |
 
 > **Superseded 2026-08-12.** The second row read **KNOWN GAP: "a synthetic
 > replacement cannot call an existing private member"**, and the fourth was an OPEN
@@ -512,19 +514,99 @@ who did not pay for it:
 | `RETAIN_PRIVATE` stays **separate** from privacy resolution | conflated, a passing probe cannot say whether visibility or reachability did the work; separated, each failure names its own wall |
 | status stays **BUILT** until the analyzer/producer path **and** a device round-trip both pass | today's arm is a hand-written replacement, exactly as rung C was proven before the producer caught up |
 
-#### The retention half is not solved in general, and here is the shape of it
+#### The retention half — THREE failure modes, not two
 
 The interface generator reads the **`--aot` prepass** kernel by design — that is the
 kernel that fed the release. But TFA has already dropped anything unreachable, so a
 private member *nothing in the release calls* is gone before the generator can name
-it. That is precisely why `probe D`'s question (1) still fails by default.
+it. `--private-dill` enumerates from the **non-AOT** kernel instead, and the
+interface being an *input* to the release build is what makes TFA keep what it names.
+Proven: `probe D` 4/4 with `PRIVATE_FROM_NONAOT=1` and no `RETAIN_PRIVATE`.
 
-This matters because a patch's whole purpose can be to start calling a private
-helper the old code did not call. The promising direction, not yet tried: declare the
-private-member list from the **non-AOT** kernel. The interface is an *input* to the
-release build, so naming a member there makes TFA keep it — which would retain
-everything rather than only what already survived. That trades snapshot size for
-patchability and needs `measure_retention.sh` before it ships.
+**A third failure mode exists that the probe cannot currently detect, and it is the
+one the product will actually hit.** Found by an adversarial pass over this design
+(read from source, `high` confidence, mechanism not refuted):
+
+| # | failure | how it presents |
+|---|---|---|
+| 1 | **visibility** — the replacement cannot name the member | compile error: *"the getter '_secret' isn't defined"* |
+| 2 | **retention** — the member is not in the release | load error: `bytecode_reader.cc:1172 Unable to find function` |
+| 3 | 🐞 **dead body** — the member is retained, and its body is not | **nothing.** The name resolves and the call enters an unreachable-code stub |
+
+Mode 3 comes from the difference between a `DirectSelector` and an
+`InterfaceSelector`. A private **top-level or static** member named in the interface
+becomes a raw direct call, so TFA analyses and retains its body — that is
+`_privateHelper`, the proven shape. A private **instance** member whose enclosing
+class is never *allocated* becomes an interface selector over the class's cone type;
+with nothing allocated in that cone the body never becomes reachable, and TFA pass 2
+keeps the declaration while replacing the body (`transformer.dart:2348-2360`
+`_makeUnreachableBody`, or `isAbstract = true` with a null body at `:2294-2302`).
+`gen_snapshot` then records a retain reason and emits no code
+(`precompiler.cc:1667-1675`).
+
+**So existence in the AOT kernel does not imply an executable body**, and mode 3 is
+silent — which makes it strictly worse than the two loud failures it hides behind.
+`probe D` cannot tell it from success, because `probe D`'s target is top-level.
+
+#### Ordered gate before any cost number
+
+Cost is the *last* question, not the next one. A measurement taken before the
+contract is closed prices "whatever a particular generator happened to enumerate"
+rather than a policy. In order:
+
+| | step |
+|---|---|
+| ☐ | **A never-allocated mechanism probe** — a `_NeverAllocated._secret()` arm whose *expected* result is pinned as **"name resolves, body was TFA-replaced with unreachable code."** Mode 3 gets its own negative control instead of resting on source inspection |
+| ☐ | **`--private-dill` landed as CORRECTNESS infrastructure**, not an optimization knob — control and treatment must reason about the same pre-TFA program shape, or `get:_file` versus `_file` means the experiment measures cross-kernel disagreement rather than retention policy |
+| ☐ | **An explicit release retention policy**, recorded in the supplement with its exact emitted **and skipped** sets — not "whatever non-AOT enumeration finds" |
+| ☐ | **Then** Wonderous prices *that* contract |
+
+#### The policy shape, and the bar for its second category
+
+Two categories, and the second is conditional on evidence that does not exist yet:
+
+```
+private patchability:
+  - top-level/static     proven: DirectSelector, body analysed and retained
+  - live-instance        REFUSED until "live" is mechanically provable
+```
+
+**"Live-instance" must not mean "the class and member exist in the AOT kernel."**
+Mode 3 is precisely existence coexisting with a dead stub. Until there is a reliable
+signal that the class was actually allocated and the body remained executable, that
+category is **refused** rather than accepted optimistically — refusing costs a
+rejected patch, accepting costs a silent no-op at runtime.
+
+#### `G3.6b`'s contract follows from this
+
+Not "private members are supported". Mechanically:
+
+> **Accept a private reference only when the release supplement proves that concrete
+> private target was retained and permitted.**
+
+Per-target, from recorded evidence, not per-category from a policy name. A
+category-level rule would accept `_FooState._bar` because "private instance members
+are retained" while that specific `_bar` sat in the skipped set — or worse, was
+retained as a dead stub.
+
+#### An intentional coupling, documented rather than split
+
+The dynamic interface currently does **two jobs**:
+
+1. **retention** — what code survives TFA into the release;
+2. **permission** — what a future patch is allowed to reference, since the same
+   `DynamicInterfaceSpecification` is what the validator checks a patch against.
+
+That coupling is now load-bearing, and it is **deliberately not split yet**.
+Broadening retention and permission together is *useful* at this stage because it
+forces the product decision to be visible: "retain every private" and "let a patch
+call any private member of the app" become the same sentence, which is the honest
+framing of what is being chosen.
+
+**Split them when, and only when, the two requirements diverge** — if broad retention
+turns out to be technically necessary while narrower patch permissions are wanted.
+At that point retention specification and patch allowlist become separate documents.
+Recorded here so that a future reader finds a decision rather than an accident.
 
 ### `G3.6a` — ANSWERED 2026-08-11. It is reachable, and the mechanism already exists.
 
@@ -843,9 +925,19 @@ boundary is not the rung ladder but library-scoped privacy.
 | | item |
 |---|---|
 | ✅ | **PROVEN** Standard Android release |
-| ✅ | **PROVEN** Standard iOS release |
+| ✅ | **PROVEN** Standard iOS release — on the acceptance fixture |
+| 🐞 | **KNOWN GAP** A Route B iOS release of a **real third-party app** does not build: Wonderous fails its retention-interface annotation even at app-only breadth (`get:_file` for `ThrottledSaveLoadMixin`, where the annotator's component has `_file` bare). Enumerating privates from the non-AOT kernel avoids it |
 | ✅ | **PROVEN** Release-specific patch provenance |
 | ✅ | **PROVEN** Plugin registrant inputs preserved in Route B release kernels |
+
+> **The fixture was hiding this.** Standard iOS release was PROVEN on
+> `airgap_app` — one library, no mixins, no lowered private fields — and the first
+> real third-party app tried does not compile. Two distinct defects, one now fixed:
+> the CLI asked for **every** library (fixed, `d40de830`, and it had **no test**
+> asserting the argv that decides the whole retention policy), and app-only breadth
+> is **still** not sufficient because the same cross-kernel shape mismatch recurs
+> inside an app's own libraries. `--private-dill` is therefore correctness
+> infrastructure, not an optimization knob.
 
 ### Dart defines
 
