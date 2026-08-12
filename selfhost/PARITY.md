@@ -1786,10 +1786,10 @@ rows, so **clear your row when you stop**, even mid-goal.
 |---|---|---|---|---|
 | `R1` iPhone 7 | — | — | released 18:2x | **free.** `G3.3`'s gate committed as `fa40f6ca` |
 | `R2` Android device | — | — | — | **free** |
-| `R3` route-b tree | — | — | released 2026-08-12 | **free.** `G3.6e`'s SDK edits are exported as `route_b/0005-*.patch` and wired into `create_checkout.sh` with content sentinels, so the tree can be recreated without them living only in the working copy |
+| `R3` route-b tree | **`G3.6e` step 1** | `--private-dill` release plumbing | 2026-08-12 | **HELD, and it WRITES. Tree health: GREEN as of this claim** — `dart_patches.sh --verify` all 4 applied, front_end analyzes with no errors, `dart2bytecode` builds. **Do not mint while this is held**, and re-verify before you do |
 | `R4` ios-engine tree | — | — | — | **free** |
 | `R6` canonical fixture | — | — | released 18:2x | **free** at version `22.0.0+1`; next release bumps to 23 |
-| `R7` producer/analyzer | — | — | released 2026-08-12 | **free** at analyzer **v6**, untouched. `G3.6b` must not start before the retention policy exists — see the ordered gate in §3 |
+| `R7` producer/analyzer | **`G3.6e` step 1** | release-path plumbing only | 2026-08-12 | **HELD** for `route_b_release_kernels.dart` — the build-order guard lives there. Analyzer stays at **v6**, untouched: `G3.6b` is still frozen behind the §3 gate |
 | `R8` `cps-ios` | — | — | released 18:2x | **free** |
 | `R9` `cps-android` | — | — | — | **free** |
 | `R10` server source | — | — | — | **free** — the `G6` lane |
@@ -1809,6 +1809,36 @@ rows, so **clear your row when you stop**, even mid-goal.
 > `provenance.txt` (app commit `747b945a`, lockfile and toolchain hashes, both
 > interface hashes). It is not a claim on anything — it is a known-state starting
 > point for when the §3 gate closes.
+
+> ### A WRITE claim must report TREE HEALTH, not just ownership
+>
+> **This cost another session a mint, and the claims table as designed could not
+> have prevented it.** While `G3.6e` held `R3` and was mid-edit, the Dart tree spent
+> a window not compiling — `source_loader.dart` referenced
+> `resolvePrivateNamesInLibrary` before `processed_options.dart` exposed it. The
+> study session built against exactly that window, minted a cell, and had to void
+> the baseline.
+>
+> The claim row said **HELD**. It did not say **BROKEN**, and those are different
+> facts: "someone owns this" tells you not to edit, while "this does not currently
+> compile" tells you not to *build*. A reader who correctly respected the claim by
+> not editing could still lose work by reading.
+>
+> So a write claim now carries a **tree-health field**, and the holder updates it
+> when the state changes:
+>
+> * **GREEN** — `dart_patches.sh --verify` passes, the changed sources analyze
+>   without errors, and the affected artifact builds. Safe to build against.
+> * **RED / mid-edit** — do not build, do not mint. Say so *while* it is true, not
+>   afterwards.
+>
+> The peer's own row was right about the important half and wrong about the current
+> state: 18 uncommitted files is the **documented baseline** of this tree, not a
+> hazard — killgate, Route B step 1, the four `dart_patches.sh` patches, `0005`, and
+> a stray `.DS_Store`. None of them are committed *by design*, which is why
+> `dart_patches.sh` exists at all. The load-bearing part of that row — "does not
+> compile" — was true when written and is not true now, which is precisely why the
+> field has to be maintained rather than asserted once.
 
 > **The table emptied itself twice on 2026-08-11, and both times that was the
 > protocol working.** The `G3.1` holder released every resource by committing
@@ -2032,4 +2062,4 @@ When an item becomes PROVEN, record beside it whichever of these apply:
 * patch number;
 * platform / device;
 * evidence or probe name;
-* the commit containing the implementation and its gate.| `R3` route-b tree | *paused docs session* | `G3.6e` in flight | 2026-08-12 | **NOT FREE.** The Dart tree carries 18 uncommitted files including a half-finished `resolvePrivateNamesInLibrary` that does not compile. The study session minted against it by mistake and has voided that baseline. Do not mint until `dart_patches.sh --verify` is green |
+* the commit containing the implementation and its gate.
