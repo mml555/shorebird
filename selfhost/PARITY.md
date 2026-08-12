@@ -1690,21 +1690,29 @@ rows, so **clear your row when you stop**, even mid-goal.
 |---|---|---|---|---|
 | `R1` iPhone 7 | — | — | released 18:2x | **free.** `G3.3`'s gate committed as `fa40f6ca` |
 | `R2` Android device | — | — | — | **free** |
-| `R3` route-b tree | **`G3.6e` session** | `G3.6e` + `G3.6b` | 2026-08-12 | **HELD, and this one WRITES.** Editing `pkg/front_end` and `pkg/dart2bytecode` SDK sources, then building. `dart_patches.sh --verify` before every build; do not `gclient sync` |
+| `R3` route-b tree | — | — | released 2026-08-12 | **free.** `G3.6e`'s SDK edits are exported as `route_b/0005-*.patch` and wired into `create_checkout.sh` with content sentinels, so the tree can be recreated without them living only in the working copy |
 | `R4` ios-engine tree | — | — | — | **free** |
 | `R6` canonical fixture | — | — | released 18:2x | **free** at version `22.0.0+1`; next release bumps to 23 |
-| `R7` producer/analyzer | **`G3.6e` session** | `G3.6b` | 2026-08-12 | **HELD** — the analyzer's private-member refusals relax in step with the CFE change, and both share one mint |
+| `R7` producer/analyzer | — | — | released 2026-08-12 | **free** at analyzer **v6**, untouched. `G3.6b` must not start before the retention policy exists — see the ordered gate in §3 |
 | `R8` `cps-ios` | — | — | released 18:2x | **free** |
 | `R9` `cps-android` | — | — | — | **free** |
 | `R10` server source | — | — | — | **free** — the `G6` lane |
-| `R11` sealed CDN | **`G3.6e` session** | `G3.6e` mint | 2026-08-12 | **HELD** for a cell mint — `analyze_coverage.dart` and `dart2bytecode.aot` are both manifest files, so this is one address change, not two |
+| `R11` sealed CDN | — | — | released 2026-08-12 | **free — no cell was minted.** `G3.6e` is proven on a locally built `dart2bytecode`, not a published cell; the mint waits for `G3.6b` so both manifest files move in one address change |
 | `R12` hermes-vps | — | — | — | **free** — additive capacity for `G4.2`'s Android half |
 
-> **A stale row was cleared to write these.** The previous `G3.6a` read-only `R3`
-> claim outlived its holder, who stopped without clearing it — caught by the study
-> session, which is the table working as designed and is also exactly the weakness
-> flagged when it was introduced. The rule stands and now has a precedent: **clear
-> your row when you stop, even mid-goal.**
+> **The rule has two precedents now, one in each direction.** A `G3.6a` read-only
+> `R3` claim once outlived its holder and had to be cleared by someone else — the
+> weakness flagged when this table was introduced. Then `G3.6e` held `R3`, `R7` and
+> `R11` and **released all three on stopping**, mid-goal, with the reason recorded
+> in each row rather than the row simply vanishing. That second form is the one to
+> copy: **clear your row when you stop, even mid-goal, and say what state you left
+> the resource in.**
+>
+> One unclaimed artifact is deliberately preserved rather than deleted:
+> `scratchpad/wonderous-retention/` holds the interrupted cost run with its
+> `provenance.txt` (app commit `747b945a`, lockfile and toolchain hashes, both
+> interface hashes). It is not a claim on anything — it is a known-state starting
+> point for when the §3 gate closes.
 
 > **The table emptied itself twice on 2026-08-11, and both times that was the
 > protocol working.** The `G3.1` holder released every resource by committing
