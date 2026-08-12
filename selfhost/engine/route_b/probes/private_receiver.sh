@@ -46,9 +46,11 @@ GEN_KERNEL=$DART_TREE/pkg/vm/bin/gen_kernel.dart
 GEN_SNAPSHOT=$OUT/gen_snapshot
 AOT_RUNTIME=$OUT/dartaotruntime
 PKGS_DIR=$DART_TREE/third_party/pkg/core/pkgs
-# The v6 cell: its analyzer reports receiver writes, and the CLI pins
-# supportedRouteBAnalysisVersion to 6. An older cell is refused by the resolver,
-# which is the invariant keeping a patch on the toolchain that built its release.
+# The v6 cell: its analyzer reports receiver writes. NOTE: the CLI now pins
+# supportedRouteBAnalysisVersion to 7 (G3.6b), so this cell no longer satisfies
+# the CLI's gate and this probe needs the re-minted v7 cell. The refusal is the
+# invariant working, not a failure: it keeps a patch on the toolchain that built
+# its release.
 ENGINE=${ENGINE:-aa9155840d6c1e71b015bbcff1e06eaea7e73e17}
 CELL_ZIP=${CELL_ZIP:-$REPO/selfhost/cdn/overlay/download.shorebird.dev/shorebird/$ENGINE/route-b-compiler-darwin-arm64.zip}
 

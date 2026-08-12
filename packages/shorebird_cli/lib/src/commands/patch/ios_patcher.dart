@@ -21,6 +21,7 @@ import 'package:shorebird_cli/src/platform.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/route_b.dart';
+import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
@@ -247,6 +248,13 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
         coverage: coverage,
         importKernel: releaseArtifacts[routeBReleaseImportKernelFileName]!,
         releaseBuildId: buildId,
+        // WHAT THIS RELEASE GRANTED, from the release's own hash-verified
+        // artifact. Absent for a release cut before manifests existed, and the
+        // producer reads absence as "nothing provable" rather than as
+        // permission — so an older release keeps working for everything that
+        // worked before and refuses only the private references it cannot
+        // vouch for.
+        capabilities: _readReleaseCapabilities(releaseArtifacts),
       );
     }
 
@@ -514,6 +522,29 @@ Nothing was uploaded. Create a new release and patch that instead.''',
     throw ProcessExit(ExitCode.software.code);
   }
 
+  /// The capability set the release recorded, or null if it recorded none.
+  ///
+  /// A manifest that is present but unreadable is treated as absent rather than
+  /// as a hard failure: it can only ever WIDEN what a patch may do, so failing
+  /// closed costs a private reference and failing open would grant one the
+  /// release never emitted. The artifact is hash-verified before it gets here,
+  /// so an unreadable one means a generator wrote something this build does not
+  /// understand.
+  RouteBCapabilities? _readReleaseCapabilities(
+    Map<String, File> releaseArtifacts,
+  ) {
+    final manifest = releaseArtifacts[routeBCapabilityManifestFileName];
+    if (manifest == null) return null;
+    final capabilities = RouteBCapabilities.read(manifest);
+    if (capabilities == null) {
+      logger.detail(
+        '[route-b] ${manifest.path} could not be read; private references '
+        'will be refused for want of evidence',
+      );
+    }
+    return capabilities;
+  }
+
   /// Classify what changed, against the release's own kernel.
   RouteBCoverage _analyzeCoverage(
     RouteBCompiler compiler,
@@ -650,6 +681,7 @@ it compiles, however, comes from the engine above.''',
     required RouteBCoverage coverage,
     required File importKernel,
     required String releaseBuildId,
+    RouteBCapabilities? capabilities,
   }) {
     final workingDirectory = Directory(
       p.join(shorebirdEnv.buildDirectory.path, 'route_b'),
@@ -663,6 +695,7 @@ it compiles, however, comes from the engine above.''',
         releaseBuildId: releaseBuildId,
         workingDirectory: workingDirectory,
         projectRoot: projectRoot,
+        capabilities: capabilities,
       );
     } on RouteBUnsupportedTarget catch (error) {
       logger.err(

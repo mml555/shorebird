@@ -75,6 +75,18 @@ const routeBInterfaceFileName = 'dynamic_interface.yaml';
 /// it is written down.
 const routeBRetentionEvidenceFileName = 'route_b_retention.json';
 
+/// The capability set the release actually granted, per target.
+///
+/// Separate from the interface it was generated beside, because the interface
+/// text cannot answer the question a patch has to ask. Retaining a class grants
+/// an implicit public constructor that appears in NO line of the interface, and
+/// a member emitted without its enclosing class is operationally inert -- so a
+/// reader of the YAML would both understate and overstate what was granted.
+///
+/// Separate from the retention evidence too: the evidence says HOW the set was
+/// produced, this says WHAT is in it.
+const routeBCapabilityManifestFileName = 'route_b_capabilities.json';
+
 /// The Route B provenance sidecar's name inside a release's supplement.
 ///
 /// Lives beside `obfuscation_map.json`, which already establishes the pattern:

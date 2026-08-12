@@ -224,6 +224,13 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
   /// the contract this release really emitted rather than the one policy promises.
   File? _retentionEvidence;
 
+  /// The capability set this release granted, per target, if it recorded one.
+  ///
+  /// The patch side accepts a private reference against THIS. Null means the
+  /// release granted nothing provable, which refuses private references rather
+  /// than permitting them.
+  File? _retentionManifest;
+
   /// The iOS engine binary this build will link against.
   File get _routeBEngineBinary => File(
     p.join(
@@ -307,6 +314,18 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
           evidence,
           as: routeBRetentionEvidenceFileName,
         );
+      }
+      // The capability set itself, which is what the patch side gates on. It is
+      // in `artifacts` so its hash is provenance-covered like every other
+      // release artifact: a manifest that could be edited between release and
+      // patch would be a way to grant capabilities the release never emitted.
+      if (_retentionManifest case final capabilities?) {
+        artifacts[routeBCapabilityManifestFileName] =
+            captureRouteBReleaseKernel(
+              supplement,
+              capabilities,
+              as: routeBCapabilityManifestFileName,
+            );
       }
       _captureImportKernel(
         compiler: compiler,
@@ -479,13 +498,23 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
       fallbackReason = null;
     }
 
+    // THE CAPABILITY MANIFEST, generated with the interface and by the same
+    // pass. It is what the PATCH side accepts a private reference against, so
+    // it describes this release's emitted set rather than the policy's intent
+    // -- the two diverge exactly when the fallback above happens.
+    final manifest = File(p.join(work.path, routeBCapabilityManifestFileName));
     final interface = builder.generateDynamicInterface(
       compiler: compiler,
       prepassKernel: prepass,
       outputFile: File(p.join(work.path, 'dynamic_interface.yaml')),
       privateEnumerationKernel: privateEnumerationKernel,
+      manifestFile: manifest,
     );
     if (interface == null) return;
+    // Only if it was actually written. A generator too old to know --manifest
+    // succeeds and emits nothing, and an absent manifest must read as "granted
+    // nothing provable" rather than as an empty grant.
+    if (manifest.existsSync()) _retentionManifest = manifest;
 
     // THE CONCRETE CONTRACT, written beside the interface and captured with it.
     //

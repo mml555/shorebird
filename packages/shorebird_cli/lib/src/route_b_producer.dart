@@ -1,3 +1,5 @@
+// cspell:words ungated
+//
 // Route B (selfhost): turning an accepted coverage verdict into a container.
 //
 // ONE TARGET, ONE PAYLOAD. Not a design preference — the runtime contract.
@@ -19,13 +21,23 @@
 // declaration, sliced from the patch's own source at the span the analyzer
 // reports, and compiled against the release's import kernel.
 //
-// That covers the shape proven on hardware: a self-contained declaration. It
-// does NOT yet cover a body that references other app symbols, an instance
-// member (which cannot be redeclared in another library), or a private name
-// (`_foo` is library-scoped identity, not spelling). Those are runtime and
-// compiler-contract questions to be probed on device, in that order, and until
-// they are answered this refuses by name rather than emitting something
-// plausible.
+// That covers the shape proven on hardware: a self-contained declaration, and
+// an instance member lowered so its receiver is an explicit parameter.
+//
+// A PRIVATE NAME is now carried, under two conditions that are checked here and
+// nowhere else:
+//
+//   1 the release's own capability manifest granted that exact member, and the
+//     private class enclosing it (see route_b_capabilities.dart); and
+//   2 every private identifier in the emitted declaration is one of those
+//     granted accesses.
+//
+// The second condition exists because `--resolve-private-names-in-library`
+// makes EVERY private name in the replacement resolvable, not only the ones the
+// analyzer classified. Without it, a private name the gate never saw would
+// compile and then fail to bind on a device -- the exact silent failure this
+// path is organised against. So an unrecognized private identifier refuses the
+// target by name.
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -33,6 +45,7 @@ import 'dart:typed_data';
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
+import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
@@ -78,6 +91,10 @@ class RouteBProducer {
   ///
   /// [workingDirectory] receives the generated sources and payloads; they are
   /// kept rather than cleaned so a failed patch can be inspected.
+  ///
+  /// [capabilities] is the release's own capability manifest. Null means the
+  /// release published none, which is not permission: a private reference is
+  /// then refused for want of evidence.
   Uint8List produce({
     required RouteBCompiler compiler,
     required RouteBCoverage coverage,
@@ -85,6 +102,7 @@ class RouteBProducer {
     required String releaseBuildId,
     required Directory workingDirectory,
     required Directory projectRoot,
+    RouteBCapabilities? capabilities,
     RouteBCompileRunner run = Process.runSync,
   }) {
     // Every changed member that can land, in a stable order so the container is
@@ -110,9 +128,17 @@ class RouteBProducer {
       // parameter, which the entry-point contract allows exactly one of. A
       // static target keeps the fast path — the slice is already valid as a
       // top-level function.
-      final declaration = coverage.lowering.containsKey(key)
-          ? _lower(key, source, coverage.lowering[key]!)
+      final lowering = coverage.lowering[key];
+      final declaration = lowering != null
+          ? _lower(key, source, lowering, capabilities)
           : _slice(key, source);
+      // ONLY WHERE A GRANTED PRIVATE REFERENCE IS ACTUALLY CARRIED. The flag
+      // changes how the whole compile resolves private names, so it is not free
+      // to pass everywhere: a target that needs nothing private compiles under
+      // exactly the rules already proven on device, and an older cell that does
+      // not know the flag keeps working for those targets.
+      final resolvesPrivateNames =
+          lowering?.accesses.any((a) => a.privateTarget != null) ?? false;
       // IMPORT THE TARGET'S OWN LIBRARY. A replacement body may reference other
       // members of the library it replaces a function in, and a synthetic
       // library that imports nothing cannot see them:
@@ -140,6 +166,15 @@ class RouteBProducer {
         'flutter',
         '--import-dill',
         importKernel.path,
+        // The CFE resolves the replacement's private names AS IF it were the
+        // target library, which is what makes `self._controller` mean the app's
+        // member rather than an unresolvable name in a synthetic library.
+        // Rung D proved this on host; the release must still have retained the
+        // member, which is what the manifest gate above establishes.
+        if (resolvesPrivateNames) ...[
+          '--resolve-private-names-in-library',
+          targetLibrary,
+        ],
         // Needed for the `import` above to resolve a package: URI.
         '--packages',
         p.join(projectRoot.path, '.dart_tool', 'package_config.json'),
@@ -191,9 +226,49 @@ class RouteBProducer {
   /// Which one it is can only be answered from the source text, because the
   /// synthesized `ThisExpression` carries the access's own offset rather than
   /// one of its own.
-  String _lower(String key, RouteBSourceSpan span, RouteBLowering lowering) {
+  String _lower(
+    String key,
+    RouteBSourceSpan span,
+    RouteBLowering lowering,
+    RouteBCapabilities? capabilities,
+  ) {
     if (lowering.unsupported.isNotEmpty) {
       throw RouteBUnsupportedTarget(key, lowering.unsupported.join('; '));
+    }
+
+    // WHAT THE RELEASE ACTUALLY GRANTED, asked per access. The analyzer reports
+    // a private access with the key the release would have had to grant; it
+    // does not decide, because the manifest is a per-release artifact and the
+    // analyzer ships in a cell resolved by engine hash.
+    //
+    // Checked BEFORE any edit is computed, so a refused patch never produces a
+    // half-lowered source file for someone to find later and wonder about.
+    for (final access in lowering.accesses) {
+      final target = access.privateTarget;
+      if (target == null) continue;
+      if (capabilities == null) {
+        // No manifest is not permission. A release built before the manifest
+        // existed granted nothing provable, and guessing on its behalf is the
+        // failure this whole path is organised against: it would compile and
+        // then throw NoSuchMethodError on a device.
+        throw RouteBUnsupportedTarget(
+          key,
+          'references the private member `${access.member}`, and this release '
+          'published no capability manifest — so there is no evidence it was '
+          'retained. Re-release with a toolchain that records one.',
+        );
+      }
+      final refusal = capabilities.refuseInstanceMember(
+        library: target.library,
+        className: target.className,
+        member: target.name,
+      );
+      if (refusal != null) {
+        throw RouteBUnsupportedTarget(
+          key,
+          describeRouteBRefusal(refusal, access.member),
+        );
+      }
     }
 
     // Code units, not bytes: the analyzer's offsets index the decoded source.
@@ -255,11 +330,13 @@ class RouteBProducer {
     // Only for a private class. A public receiver keeps its concrete type, so
     // every spelling already proven on device lowers to byte-identical source.
     //
-    // This does NOT make private MEMBERS reachable: `self._x` on a dynamic
-    // receiver would compile and then fail at run time, because the module's
-    // library key is not the app's. The analyzer refuses those bodies, and it
-    // must keep refusing them -- a compile-time refusal is worth far more than a
-    // runtime NoSuchMethodError. See PARITY.md §3, `G3.6c` vs `G3.6d`/`G3.6e`.
+    // `dynamic` alone does NOT make private MEMBERS reachable: `self._x` would
+    // compile and then fail at run time, because the module's library key is
+    // not the app's. What closes that is `--resolve-private-names-in-library`
+    // (G3.6e), passed above only for a target whose private accesses the
+    // release manifest granted. Two separate mechanisms, both required:
+    // `dynamic` lets the private class go unnamed, the flag makes the private
+    // MEMBER mean the app's. See PARITY.md §3, `G3.6c`/`G3.6e`/`G3.6b`.
     final receiverType = lowering.receiverType.startsWith('_')
         ? 'dynamic'
         : lowering.receiverType;
@@ -319,8 +396,107 @@ class RouteBProducer {
       final at = offset - span.start;
       text = text.replaceRange(at, at + length, replacement);
     }
+
+    // THE BACKSTOP FOR THE COMPILER FLAG. Every private access above was
+    // checked against the release's manifest, but the flag that makes them
+    // resolvable is not per-access: it applies to the whole compile. So a
+    // private name of any other shape -- a private TYPE in the signature, a
+    // private top-level function, a private static, a private local -- would
+    // also resolve, ungated, and fail on the device instead of here.
+    //
+    // Checked on the emitted text rather than by enumerating Kernel node kinds,
+    // because the text is what the compiler will read and there is no long tail
+    // of node types to keep in step. Unrecognized means REFUSED, so a shape
+    // nobody has thought of yet is loud rather than plausible.
+    final granted = {
+      for (final a in lowering.accesses)
+        if (a.privateTarget != null) a.member,
+    };
+    // The declaration's own name may be private -- patching `_helper` is
+    // ordinary -- and it is a declaration here, not a reference.
+    final own = key.split('#').last.split('.').last;
+    for (final name in _privateIdentifiers(text)) {
+      if (granted.contains(name) || name == own) continue;
+      throw RouteBUnsupportedTarget(
+        key,
+        'its body names `$name`, a private identifier this analysis did not '
+        'resolve to a member the release granted. Private references are '
+        'carried only when the release manifest shows the exact member was '
+        'retained.',
+      );
+    }
     return text;
   }
+
+  /// Every private identifier in [text] that could be a reference.
+  ///
+  /// Comments are dropped: a private name in a doc comment is not a reference,
+  /// and `/// Reads [_controller].` must not refuse a patch.
+  ///
+  /// A string literal is dropped ONLY if it cannot interpolate. `'a_b'` is
+  /// text; `'${_controller}'` is a reference, and masking it would hide the one
+  /// thing this scan exists to catch. A raw string is kept for the same reason
+  /// in reverse -- it cannot interpolate, but keeping it only ever refuses,
+  /// which is the safe direction.
+  static Set<String> _privateIdentifiers(String text) {
+    final code = StringBuffer();
+    var i = 0;
+    while (i < text.length) {
+      if (text.startsWith('//', i)) {
+        while (i < text.length && text[i] != '\n') {
+          i++;
+        }
+        continue;
+      }
+      if (text.startsWith('/*', i)) {
+        // Dart block comments nest, so a depth count is not paranoia.
+        var depth = 1;
+        i += 2;
+        while (i < text.length && depth > 0) {
+          if (text.startsWith('/*', i)) {
+            depth++;
+            i += 2;
+          } else if (text.startsWith('*/', i)) {
+            depth--;
+            i += 2;
+          } else {
+            i++;
+          }
+        }
+        continue;
+      }
+      final c = text[i];
+      if (c == "'" || c == '"') {
+        final delim = text.startsWith(c * 3, i) ? c * 3 : c;
+        var j = i + delim.length;
+        final content = StringBuffer();
+        while (j < text.length && !text.startsWith(delim, j)) {
+          if (text[j] == r'\') {
+            j += 2;
+            continue;
+          }
+          content.write(text[j]);
+          j++;
+        }
+        i = j < text.length ? j + delim.length : text.length;
+        if (content.toString().contains(r'$')) code.write(content);
+        continue;
+      }
+      code.write(c);
+      i++;
+    }
+    return _privateIdentifier
+        .allMatches(code.toString())
+        .map((m) => m[0]!)
+        // `_` and `__` are wildcard parameters, not names.
+        .where((n) => n.replaceAll('_', '').isNotEmpty)
+        .toSet();
+  }
+
+  /// A private identifier, anchored so `my_var` does not read as `_var`.
+  static final _privateIdentifier = RegExp(
+    r'(?<![A-Za-z0-9_$])_[A-Za-z0-9_$]*',
+  );
 
   /// The declaration's source text, from the patch's own file.
   String _slice(String key, RouteBSourceSpan span) {

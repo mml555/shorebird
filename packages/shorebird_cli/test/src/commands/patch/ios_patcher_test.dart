@@ -28,6 +28,7 @@ import 'package:shorebird_cli/src/os/operating_system_interface.dart';
 import 'package:shorebird_cli/src/patch_diff_checker.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
@@ -1140,8 +1141,20 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
           required String engineRevision,
           bool withKernel = true,
           bool corruptKernel = false,
+          String? capabilityManifest,
         }) {
           final artifacts = <String, String>{};
+          if (capabilityManifest != null) {
+            final manifest = File(
+              p.join(
+                supplementDirectory.path,
+                routeBCapabilityManifestFileName,
+              ),
+            )..writeAsStringSync(capabilityManifest);
+            artifacts[routeBCapabilityManifestFileName] = sha256
+                .convert(manifest.readAsBytesSync())
+                .toString();
+          }
           if (withKernel) {
             for (final name in [
               routeBReleaseKernelFileName,
@@ -1283,6 +1296,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
               releaseBuildId: any(named: 'releaseBuildId'),
               workingDirectory: any(named: 'workingDirectory'),
               projectRoot: any(named: 'projectRoot'),
+              capabilities: any(named: 'capabilities'),
             ),
           ).thenAnswer(
             (invocation) => Uint8List.fromList(
@@ -1833,12 +1847,91 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                             releaseBuildId: captureAny(named: 'releaseBuildId'),
                             workingDirectory: any(named: 'workingDirectory'),
                             projectRoot: any(named: 'projectRoot'),
+                            capabilities: any(named: 'capabilities'),
                           ),
                         ).captured.single
                         as String;
                 expect(buildId, '0102030405060708090a0b0c0d0e0f10');
               },
             );
+
+            test('hands the producer the release\'s own capability set', () {
+              // The producer decides a private reference against THIS, so the
+              // manifest has to arrive from the release's hash-verified
+              // artifact. Reading it anywhere else -- regenerating it, or
+              // trusting the policy name -- would let a patch reference a member
+              // this release never retained.
+              writeReleaseProvenance(
+                engineRevision: releaseEngineRevision,
+                capabilityManifest: jsonEncode({
+                  'policy': 'p2',
+                  'privateInstanceCallable': ['package:app/main.dart#_S#_c'],
+                  'privateClassesConstructible': ['package:app/main.dart#_S'],
+                }),
+              );
+
+              return runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                  supplementDirectory: supplementDirectory,
+                ),
+              ).then((_) {
+                final capabilities =
+                    verify(
+                          () => routeBProducer.produce(
+                            compiler: any(named: 'compiler'),
+                            coverage: any(named: 'coverage'),
+                            importKernel: any(named: 'importKernel'),
+                            releaseBuildId: any(named: 'releaseBuildId'),
+                            workingDirectory: any(named: 'workingDirectory'),
+                            projectRoot: any(named: 'projectRoot'),
+                            capabilities: captureAny(named: 'capabilities'),
+                          ),
+                        ).captured.single
+                        as RouteBCapabilities?;
+                expect(capabilities, isNotNull);
+                expect(capabilities!.policy, 'p2');
+                expect(
+                  capabilities.refuseInstanceMember(
+                    library: 'package:app/main.dart',
+                    className: '_S',
+                    member: '_c',
+                  ),
+                  isNull,
+                );
+              });
+            });
+
+            test('passes no capability set when the release recorded none', () {
+              // A release cut before manifests existed. Null is not an empty
+              // grant: the producer refuses a private reference for want of
+              // evidence, and everything that worked before still works.
+              return runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                  supplementDirectory: supplementDirectory,
+                ),
+              ).then((_) {
+                final capabilities =
+                    verify(
+                          () => routeBProducer.produce(
+                            compiler: any(named: 'compiler'),
+                            coverage: any(named: 'coverage'),
+                            importKernel: any(named: 'importKernel'),
+                            releaseBuildId: any(named: 'releaseBuildId'),
+                            workingDirectory: any(named: 'workingDirectory'),
+                            projectRoot: any(named: 'projectRoot'),
+                            capabilities: captureAny(named: 'capabilities'),
+                          ),
+                        ).captured.single
+                        as RouteBCapabilities?;
+                expect(capabilities, isNull);
+              });
+            });
 
             test('ships the container through the normal artifact path', () async {
               // A Route B release must never reach the private-linker path.

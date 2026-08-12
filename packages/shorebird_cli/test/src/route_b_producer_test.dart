@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
+import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
@@ -226,6 +227,9 @@ void main() {
         String alsoKind = 'get',
         String receiverType = 'RouteBThing',
         List<String> unsupported = const [],
+        // The manifest key the analyzer reports for a PRIVATE access. Set to
+        // 'library#Class#name' to make the first access private.
+        String? private,
       }) {
         source.writeAsStringSync('$preamble$decl');
         final start = preamble.length;
@@ -262,6 +266,12 @@ void main() {
                           member.length,
                       'member': member,
                       'kind': kind,
+                      if (private != null)
+                        'private': {
+                          'library': private.split('#')[0],
+                          'class': private.split('#')[1],
+                          'name': private.split('#')[2],
+                        },
                     },
                   if (also != null)
                     {
@@ -283,7 +293,11 @@ void main() {
         );
       }
 
-      String lowered(RouteBCoverage coverage) {
+      /// The compiler arguments of the last run, so a test can assert on the
+      /// flag as well as on the source.
+      var lastArguments = <String>[];
+
+      String lowered(RouteBCoverage coverage, {RouteBCapabilities? granting}) {
         runWithOverrides(
           () => const RouteBProducer().produce(
             compiler: compiler(),
@@ -292,11 +306,27 @@ void main() {
             releaseBuildId: 'deadbeef',
             workingDirectory: work,
             projectRoot: project,
-            run: compileOk,
+            capabilities: granting,
+            run: (executable, arguments) {
+              lastArguments = arguments;
+              return compileOk(executable, arguments);
+            },
           ),
         );
         return File(p.join(work.path, 'replacement_0.dart')).readAsStringSync();
       }
+
+      /// A release manifest granting exactly [instance] and [classes].
+      RouteBCapabilities grants({
+        List<String> instance = const [],
+        List<String> classes = const [],
+      }) => RouteBCapabilities.fromJson(
+        jsonEncode({
+          'policy': 'p2',
+          'privateInstanceCallable': instance,
+          'privateClassesConstructible': classes,
+        }),
+      );
 
       test('lowers a bare instance getter', () {
         expect(
@@ -700,6 +730,197 @@ void main() {
             ),
           ),
         );
+      });
+
+      group('private members, against the release manifest', () {
+        RouteBCoverage privateRead({String member = '_controller'}) =>
+            instanceCoverage(
+              preamble: 'class _RouteBState {\n  ',
+              decl: 'String value() => $member;',
+              access: member,
+              member: member,
+              receiverType: '_RouteBState',
+              private: 'package:app/main.dart#_RouteBState#$member',
+            );
+
+        test('carries a granted private member, and asks the CFE for it', () {
+          // Both halves. The lowering is the same edit a public read gets, and
+          // the FLAG is what makes `self._controller` mean the app's member
+          // rather than an unresolvable name in a synthetic library. Without it
+          // the source would compile as written and bind to nothing.
+          expect(
+            lowered(
+              privateRead(),
+              granting: grants(
+                instance: ['package:app/main.dart#_RouteBState#_controller'],
+                classes: ['package:app/main.dart#_RouteBState'],
+              ),
+            ),
+            contains('String value(dynamic self) => self._controller;'),
+          );
+          expect(
+            lastArguments,
+            containsAllInOrder([
+              '--resolve-private-names-in-library',
+              'package:app/main.dart',
+            ]),
+          );
+        });
+
+        test('does not ask for private resolution when nothing is private', () {
+          // A REGRESSION GUARD, and the reason the flag is conditional: every
+          // target already proven on device must compile under exactly the
+          // arguments it did before, including on a cell that predates the
+          // flag.
+          lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: 'String value() => label;',
+              access: 'label',
+            ),
+          );
+          expect(
+            lastArguments,
+            isNot(contains('--resolve-private-names-in-library')),
+          );
+        });
+
+        test('refuses a private member whose class was not retained', () {
+          // P3's failure. The member is granted and the source would compile;
+          // the patch could not attach to a method of a class the release did
+          // not retain, so this has to be refused HERE rather than on device.
+          expect(
+            () => lowered(
+              privateRead(),
+              granting: grants(
+                instance: ['package:app/main.dart#_RouteBState#_controller'],
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('private enclosing class this release did not retain'),
+              ),
+            ),
+          );
+        });
+
+        test('refuses a private member the release never granted', () {
+          expect(
+            () => lowered(
+              privateRead(),
+              granting: grants(classes: ['package:app/main.dart#_RouteBState']),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('which this release did not retain'),
+              ),
+            ),
+          );
+        });
+
+        test('refuses a private member when there is no manifest at all', () {
+          // No manifest is not permission. A release built before the manifest
+          // existed granted nothing provable, and the alternative — assuming —
+          // compiles and then throws NoSuchMethodError on a device.
+          expect(
+            () => lowered(privateRead()),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('published no capability manifest'),
+              ),
+            ),
+          );
+        });
+
+        test('refuses a private identifier the gate never saw', () {
+          // THE BACKSTOP. The flag is per-compile, not per-access: once it is
+          // on, `_other()` resolves too, and nothing above checked it. Refusing
+          // the target is the only safe reading, because the alternative binds
+          // to nothing on a device.
+          expect(
+            () => lowered(
+              instanceCoverage(
+                preamble: 'class _RouteBState {\n  ',
+                decl: 'String value() => _controller + _other();',
+                access: '_controller',
+                member: '_controller',
+                receiverType: '_RouteBState',
+                private: 'package:app/main.dart#_RouteBState#_controller',
+              ),
+              granting: grants(
+                instance: ['package:app/main.dart#_RouteBState#_controller'],
+                classes: ['package:app/main.dart#_RouteBState'],
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('names `_other`'),
+              ),
+            ),
+          );
+        });
+
+        test('a private name in a comment is not a reference', () {
+          // The backstop must not refuse what it cannot break. A doc comment
+          // naming `[_controller]` is documentation, and refusing it would make
+          // the safe path punish the well-documented patch.
+          expect(
+            lowered(
+              instanceCoverage(
+                preamble: 'class _RouteBState {\n  ',
+                decl:
+                    '/// Reads [_absent] and [_gone].\n'
+                    '  String value() => _controller;',
+                access: '_controller',
+                member: '_controller',
+                receiverType: '_RouteBState',
+                private: 'package:app/main.dart#_RouteBState#_controller',
+              ),
+              granting: grants(
+                instance: ['package:app/main.dart#_RouteBState#_controller'],
+                classes: ['package:app/main.dart#_RouteBState'],
+              ),
+            ),
+            contains('String value(dynamic self) => self._controller;'),
+          );
+        });
+
+        test('a private name inside an interpolation IS a reference', () {
+          // The other side of the same rule, and the reason strings are not
+          // masked wholesale: `'${_other}'` is a real reference wearing a
+          // string's clothes.
+          expect(
+            () => lowered(
+              instanceCoverage(
+                preamble: 'class _RouteBState {\n  ',
+                decl: r"String value() => '${_other} $_controller';",
+                access: '_controller',
+                member: '_controller',
+                receiverType: '_RouteBState',
+                private: 'package:app/main.dart#_RouteBState#_controller',
+              ),
+              granting: grants(
+                instance: ['package:app/main.dart#_RouteBState#_controller'],
+                classes: ['package:app/main.dart#_RouteBState'],
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('names `_other`'),
+              ),
+            ),
+          );
+        });
       });
     });
 

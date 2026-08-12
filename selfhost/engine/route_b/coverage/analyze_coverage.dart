@@ -44,7 +44,14 @@ import 'package:kernel/text/ast_to_text.dart';
 /// Bump when a consumer would have to change. The CLI refuses a version it does
 /// not know rather than reading fields that may have moved -- the `*.vmcode`
 /// filename convention is the cautionary tale for unversioned contracts.
-const analysisVersion = 6;
+///
+/// 7: a private receiver access is REPORTED as an access carrying its manifest
+///    key, where 6 refused it outright. A version-6 consumer reading a
+///    version-7 document would see the access with no `unsupported` reason
+///    beside it and lower it unconditionally -- accepting a private reference
+///    the release may never have retained. That is exactly the silent-accept
+///    this contract is versioned to prevent, so the bump is mandatory.
+const analysisVersion = 7;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -495,17 +502,61 @@ Map<String, Object?> _lowering(Class cls, Procedure p) {
     'nameOffset': p.fileOffset,
     'accesses': [
       for (final a in visitor.accesses)
-        {'offset': a.offset, 'member': a.member, 'kind': a.kind},
+        {
+          'offset': a.offset,
+          'member': a.member,
+          'kind': a.kind,
+          if (a.private != null) 'private': a.private,
+        },
     ],
     'unsupported': unsupported,
   };
 }
 
 class _Access {
-  _Access(this.offset, this.member, this.kind);
+  _Access(this.offset, this.member, this.kind, {this.private});
   final int offset;
   final String member;
   final String kind;
+
+  /// Set when [member] is private, naming what the release would have had to
+  /// retain for this access to bind. Null for a public access.
+  ///
+  /// The analyzer does NOT decide whether the release retained it. It cannot:
+  /// the capability manifest is a per-release artifact and this tool ships in
+  /// the compiler cell, resolved by engine hash. So it reports the key and the
+  /// CLI matches it against the manifest the release actually published.
+  final Map<String, Object?>? private;
+}
+
+/// The manifest key for a private member reached off the receiver.
+///
+/// Resolved from the interface target rather than from the enclosing class of
+/// the method being patched, because `this._controller` may be DECLARED on a
+/// superclass in the same library -- and the manifest keys a member under the
+/// class that declares it. Guessing the patched class would refuse a member
+/// that was in fact granted.
+///
+/// The name follows `LibraryIndex`: a Field is keyed BARE, a Procedure carries
+/// the VM's `get:`/`set:` disambiguation. That is the same rule
+/// gen_dynamic_interface.dart applied when it emitted the manifest, and the two
+/// have to agree exactly or every lookup misses.
+Map<String, Object?>? _privateKey(Member? target) {
+  if (target == null) return null;
+  final cls = target.enclosingClass;
+  if (cls == null) return null;
+  final name = target is Procedure
+      ? switch (target.kind) {
+          ProcedureKind.Getter => 'get:${target.name.text}',
+          ProcedureKind.Setter => 'set:${target.name.text}',
+          _ => target.name.text,
+        }
+      : target.name.text;
+  return {
+    'library': target.enclosingLibrary.importUri.toString(),
+    'class': cls.name,
+    'name': name,
+  };
 }
 
 /// Every use of the receiver, and a reason for each one that is not supported.
@@ -518,19 +569,48 @@ class _ReceiverUses extends RecursiveVisitor {
   /// InstanceGet and once as its own synthesized receiver.
   final _consumed = <ThisExpression>{};
 
+  /// Record one receiver access.
+  ///
+  /// PRIVATE IS REPORTED HERE, NOT REFUSED. Rung D proved a synthetic
+  /// replacement library CAN name a private member of the release, given
+  /// `--resolve-private-names-in-library` and a release that retained it. The
+  /// second half is a per-release fact recorded in that release's capability
+  /// manifest, and this tool ships in the compiler cell resolved by engine
+  /// hash -- so it reports the key and the CLI matches it against the manifest
+  /// the release actually published.
+  ///
+  /// A private member whose key cannot be resolved is REFUSED, not reported:
+  /// an access with no key is indistinguishable from a public one downstream,
+  /// and that is the one direction where the mistake is silent.
+  void _record(int offset, String name, String kind, Member? target) {
+    if (!name.startsWith('_')) {
+      accesses.add(_Access(offset, name, kind));
+      return;
+    }
+    final key = _privateKey(target);
+    if (key == null) {
+      unsupported.add(
+        '${_phrase(kind)} the private member `$name`, which resolves to no '
+        'declaration this analysis can name -- so no release manifest can '
+        'show it was retained',
+      );
+      return;
+    }
+    accesses.add(_Access(offset, name, kind, private: key));
+  }
+
+  static String _phrase(String kind) => switch (kind) {
+    'set' => 'assigns to',
+    'invoke' => 'calls',
+    _ => 'reads',
+  };
+
   @override
   void visitInstanceGet(InstanceGet node) {
     final receiver = node.receiver;
     if (receiver is ThisExpression) {
       _consumed.add(receiver);
-      final name = node.name.text;
-      if (name.startsWith('_')) {
-        // Rung D: private identity is library-scoped, so a synthetic
-        // replacement library cannot name it however it is spelled.
-        unsupported.add('reads the private member `$name`');
-      } else {
-        accesses.add(_Access(node.fileOffset, name, 'get'));
-      }
+      _record(node.fileOffset, node.name.text, 'get', node.interfaceTarget);
     }
     node.visitChildren(this);
   }
@@ -540,17 +620,12 @@ class _ReceiverUses extends RecursiveVisitor {
     final receiver = node.receiver;
     if (receiver is ThisExpression) {
       _consumed.add(receiver);
-      final name = node.name.text;
-      if (name.startsWith('_')) {
-        unsupported.add('assigns to the private member `$name`');
-      } else {
-        // A write is the same lexical shape as a read: the offset is on the
-        // identifier and everything after it -- `= <whatever>` -- is the
-        // source's own text. The right-hand side is carried across untouched,
-        // and any receiver use INSIDE it is its own reported access, so
-        // `label = label + 'Y'` becomes `self.label = self.label + 'Y'`.
-        accesses.add(_Access(node.fileOffset, name, 'set'));
-      }
+      // A write is the same lexical shape as a read: the offset is on the
+      // identifier and everything after it -- `= <whatever>` -- is the
+      // source's own text. The right-hand side is carried across untouched,
+      // and any receiver use INSIDE it is its own reported access, so
+      // `label = label + 'Y'` becomes `self.label = self.label + 'Y'`.
+      _record(node.fileOffset, node.name.text, 'set', node.interfaceTarget);
     }
     node.visitChildren(this);
   }
@@ -570,22 +645,22 @@ class _ReceiverUses extends RecursiveVisitor {
     final receiver = node.receiver;
     if (receiver is ThisExpression) {
       _consumed.add(receiver);
-      final name = node.name.text;
-      if (name.startsWith('_')) {
-        unsupported.add('calls the private member `$name()`');
-      } else {
-        // ARGUMENTS NEED NO PERMISSION. The producer's edit inserts a receiver
-        // prefix immediately before this identifier and copies everything after
-        // it verbatim, so the argument list -- positional, named, generic,
-        // nested, however spelled -- is carried across as source text and never
-        // interpreted. There is nothing about it for the lowering to get wrong,
-        // and so nothing to gate on.
-        //
-        // Receiver uses INSIDE the arguments are a different matter, and they
-        // are handled by the ordinary recursion: `helper(label)` reports two
-        // accesses and becomes `self.helper(self.label)`.
-        accesses.add(_Access(node.fileOffset, name, 'invoke'));
-      }
+      // ARGUMENTS NEED NO PERMISSION. The producer's edit inserts a receiver
+      // prefix immediately before this identifier and copies everything after
+      // it verbatim, so the argument list -- positional, named, generic,
+      // nested, however spelled -- is carried across as source text and never
+      // interpreted. There is nothing about it for the lowering to get wrong,
+      // and so nothing to gate on.
+      //
+      // Receiver uses INSIDE the arguments are a different matter, and they
+      // are handled by the ordinary recursion: `helper(label)` reports two
+      // accesses and becomes `self.helper(self.label)`.
+      _record(
+        node.fileOffset,
+        node.name.text,
+        'invoke',
+        node.interfaceTarget,
+      );
     }
     node.visitChildren(this);
   }

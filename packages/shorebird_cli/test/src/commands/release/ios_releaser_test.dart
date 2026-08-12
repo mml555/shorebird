@@ -782,6 +782,7 @@ $body
               privateEnumerationKernel: any(
                 named: 'privateEnumerationKernel',
               ),
+              manifestFile: any(named: 'manifestFile'),
             ),
           ).thenAnswer((invocation) {
             final out = invocation.namedArguments[#outputFile] as File
@@ -930,6 +931,7 @@ $body
                         privateEnumerationKernel: any(
                           named: 'privateEnumerationKernel',
                         ),
+                        manifestFile: any(named: 'manifestFile'),
                       ),
                     ).captured.single
                     as List<String>;
@@ -1178,6 +1180,7 @@ $body
                                 privateEnumerationKernel: captureAny(
                                   named: 'privateEnumerationKernel',
                                 ),
+                                manifestFile: any(named: 'manifestFile'),
                               ),
                         ).captured.single
                         as File?;
@@ -1225,6 +1228,7 @@ $body
                               privateEnumerationKernel: captureAny(
                                 named: 'privateEnumerationKernel',
                               ),
+                              manifestFile: any(named: 'manifestFile'),
                             ),
                       ).captured.single
                       as File?;
@@ -1246,6 +1250,70 @@ $body
               expect(recorded['fallbackReason'], isNotNull);
             },
           );
+
+          test('captures the capability manifest the generator wrote', () async {
+            // WHAT THE PATCH SIDE GATES ON. A private reference is accepted
+            // against this file and nothing else, so a release that generated
+            // one and did not upload it would refuse every private patch while
+            // looking correctly configured.
+            //
+            // In `artifacts` rather than merely on disk: its hash is then
+            // provenance-covered like every other release artifact, and a
+            // manifest editable between release and patch would be a way to
+            // grant capabilities the release never emitted.
+            when(
+              () => routeBReleaseKernelBuilder.generateDynamicInterface(
+                compiler: any(named: 'compiler'),
+                prepassKernel: any(named: 'prepassKernel'),
+                outputFile: any(named: 'outputFile'),
+                sdkMembers: any(named: 'sdkMembers'),
+                appPackageName: any(named: 'appPackageName'),
+                privateEnumerationKernel: any(
+                  named: 'privateEnumerationKernel',
+                ),
+                manifestFile: any(named: 'manifestFile'),
+              ),
+            ).thenAnswer((invocation) {
+              (invocation.namedArguments[#manifestFile] as File?)
+                ?..createSync(recursive: true)
+                ..writeAsStringSync('{"policy":"p2"}');
+              final out = invocation.namedArguments[#outputFile] as File
+                ..createSync(recursive: true);
+              return out..writeAsStringSync('callable:\n');
+            });
+
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            final provenance = readRouteBReleaseProvenance(
+              supplementDirectory,
+            )!;
+            expect(
+              provenance.artifacts,
+              contains(routeBCapabilityManifestFileName),
+            );
+            expect(
+              File(
+                p.join(
+                  supplementDirectory.path,
+                  routeBCapabilityManifestFileName,
+                ),
+              ).existsSync(),
+              isTrue,
+            );
+          });
+
+          test('records no manifest when the generator wrote none', () async {
+            // A generator too old to know `--manifest` succeeds and writes
+            // nothing. Recording the name anyway would advertise a capability
+            // artifact the release does not have, and the patch side would then
+            // fail verification rather than fall back to refusing privates.
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            expect(
+              readRouteBReleaseProvenance(supplementDirectory)!.artifacts,
+              isNot(contains(routeBCapabilityManifestFileName)),
+            );
+          });
 
           test(
             'drops an import kernel that disagrees with the AOT one',

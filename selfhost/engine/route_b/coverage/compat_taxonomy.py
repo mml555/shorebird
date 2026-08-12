@@ -33,6 +33,14 @@ import re
 # emit. Anything unmatched stays `other`/`unclassified` and is printed; a
 # classifier that quietly folds the unrecognized into a known bin is how a study
 # reports confidence it has not earned.
+#
+# PINNED TO analysisVersion 6, which is what Baseline A's cell emits and what
+# every recorded row was classified under. The three `private member` rules below
+# no longer exist in v7: it REPORTS a private access with the manifest key the
+# release must have granted, and the accept/refuse decision moved to the CLI.
+# Reclassifying the frozen rows under v7 would restate a measurement instead of
+# repeating it, so the pin is the point -- compat_study.py refuses outright if
+# the analyzer it runs is not v6.
 LOWERING_RULES = [
     (re.compile(r'^reads the private member '),
      'private-app-member', 'model', 'private-read'),

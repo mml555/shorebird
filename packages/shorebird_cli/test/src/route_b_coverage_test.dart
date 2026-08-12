@@ -234,5 +234,66 @@ void main() {
         expect(coverage.changed, isEmpty);
       });
     });
+
+    group('lowering', () {
+      /// One instance target with two accesses: a public one and a private one.
+      String withAccesses() => jsonEncode({
+        'analysisVersion': supportedRouteBAnalysisVersion,
+        'verdict': 'accept',
+        'changed': [target],
+        'added': <String>[],
+        'removed': <String>[],
+        'patchable': <String>[],
+        'conditional': [target],
+        'rejections': <Object>[],
+        'refusalSummary': null,
+        'lowering': {
+          target: {
+            'receiverType': '_Shape',
+            'nameOffset': 10,
+            'accesses': [
+              {'offset': 20, 'member': 'label', 'kind': 'get'},
+              {
+                'offset': 30,
+                'member': '_controller',
+                'kind': 'get',
+                'private': {
+                  // The DECLARING class, which need not be the class being
+                  // patched: a private member may be inherited within the
+                  // library, and the manifest keys it where it is declared.
+                  'library': 'package:app/main.dart',
+                  'class': '_ShapeBase',
+                  'name': 'get:_controller',
+                },
+              },
+            ],
+            'unsupported': <String>[],
+          },
+        },
+      });
+
+      test('carries the manifest key of a private access', () {
+        final lowering = RouteBCoverage.fromJson(
+          withAccesses(),
+        ).lowering[target]!;
+
+        expect(lowering.accesses.first.privateTarget, isNull);
+        final private = lowering.accesses.last.privateTarget!;
+        expect(private.library, 'package:app/main.dart');
+        expect(private.className, '_ShapeBase');
+        // VM-shaped: an accessor keeps the `get:` the manifest keys it under.
+        expect(private.name, 'get:_controller');
+      });
+
+      test('a private access is no longer an unsupported reason', () {
+        // The relaxation itself. Version 6 put `reads the private member
+        // \`_controller\`` in `unsupported`, which refused the whole target
+        // before any manifest was consulted.
+        expect(
+          RouteBCoverage.fromJson(withAccesses()).lowering[target]!.unsupported,
+          isEmpty,
+        );
+      });
+    });
   });
 }

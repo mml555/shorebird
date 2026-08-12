@@ -35,7 +35,13 @@ RouteBCoverageAnalyzer get routeBCoverageAnalyzer =>
 /// engine hash, so an unknown version means the CLI and the release's toolchain
 /// disagree about the format, and reading fields that may have moved is how you
 /// get a confident wrong answer.
-const supportedRouteBAnalysisVersion = 6;
+///
+/// 7 added `private` to a receiver access: version 6 refused a private member
+/// outright, and 7 reports it with the manifest key the release must have
+/// granted. Reading a 7 document as a 6 would see the access with no
+/// `unsupported` reason and lower it unconditionally, which is the silent
+/// accept this gate exists for.
+const supportedRouteBAnalysisVersion = 7;
 
 /// What a patch may do with a changed member.
 enum RouteBRepresentability {
@@ -107,6 +113,30 @@ class RouteBSourceSpan {
   final int end;
 }
 
+/// What the release would have had to retain for a private access to bind.
+///
+/// The key is the analyzer's, resolved from the interface target: a private
+/// member may be DECLARED on a superclass in the same library, and the release
+/// manifest keys it under the class that declares it.
+class RouteBPrivateTarget {
+  /// {@macro route_b_private_target}
+  const RouteBPrivateTarget({
+    required this.library,
+    required this.className,
+    required this.name,
+  });
+
+  /// Import URI of the library declaring the member.
+  final String library;
+
+  /// The class declaring it.
+  final String className;
+
+  /// Its VM-shaped name: bare for a field, `get:`/`set:`-prefixed for an
+  /// accessor, matching what `LibraryIndex` keys and what the manifest holds.
+  final String name;
+}
+
 /// One receiver-based access the producer must rewrite.
 class RouteBReceiverAccess {
   /// {@macro route_b_receiver_access}
@@ -114,6 +144,7 @@ class RouteBReceiverAccess {
     required this.offset,
     required this.member,
     required this.kind,
+    this.privateTarget,
   });
 
   /// Where the member's IDENTIFIER starts, in code units of the decoded
@@ -131,6 +162,12 @@ class RouteBReceiverAccess {
   /// widens one form at a time, and the producer refuses a kind it does not
   /// know rather than assuming its lexical edit happens to suit.
   final String kind;
+
+  /// Non-null when [member] is private, naming the capability the release must
+  /// have granted. The analyzer reports it; the decision is the CLI's, because
+  /// the capability manifest is a per-release artifact and the analyzer ships
+  /// in the compiler cell.
+  final RouteBPrivateTarget? privateTarget;
 }
 
 /// What Kernel knows about turning an instance method into a static
@@ -289,6 +326,14 @@ class RouteBCoverage {
                 offset: (a! as Map<String, dynamic>)['offset']! as int,
                 member: (a as Map<String, dynamic>)['member']! as String,
                 kind: a['kind']! as String,
+                privateTarget: switch (a['private']) {
+                  final Map<String, dynamic> t => RouteBPrivateTarget(
+                    library: t['library']! as String,
+                    className: t['class']! as String,
+                    name: t['name']! as String,
+                  ),
+                  _ => null,
+                },
               ),
           ],
           unsupported: [
