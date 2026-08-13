@@ -207,6 +207,7 @@ support — they were never interpreted.
 | release-private instance **read** | `_secret` | `self._secret`, granted via G3.6b/P2 |
 | release-private **getter** call | `_codePatch` | `self._codePatch`, granted via G3.6b/P2 |
 | a target method **on a private class** | any of the above, inside `_Foo` | receiver lowered as `dynamic self` (G3.6c) + `class: '_Foo'` retention (G3.6d) |
+| a target method with **its own required positional parameters** | `tagged(String x)` | `tagged(Self self, String x)` — G3.7, patch `0006`. **Host-proven, not yet on device** |
 
 All device-proven; see the rung sections above for engine, release and evidence.
 The private read closed on release `31.0.0+1` patch 2, 2026-08-13: the producer
@@ -228,7 +229,8 @@ rather than of use.
 | cascades | `this..foo()` |
 | `this` used other than to reach a member | passed, captured, stored |
 | unusual `this` spacing | `this . label` |
-| a replacement whose own signature takes parameters | entry-point contract is 0-or-1 positional |
+| a replacement whose signature takes NAMED parameters | the `ArgumentsDescriptor`'s names must match and that is unexercised |
+| a replacement whose signature takes OPTIONAL positionals | their defaults live in the AOT function the replacement stands in for, and nothing carries them across |
 
 #### The boundary, stated once
 

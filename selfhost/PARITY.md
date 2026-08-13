@@ -337,7 +337,7 @@ not an untested guess. Ordered roughly by expected cost.
 
 | | item | note |
 |---|---|---|
-| ☐ | **NOT BUILT** Replacement methods with explicit source parameters — **`G3.7 param-abi`, worth 33.2 %** | the replacement's **own** signature, distinct from the call it makes. The entry-point contract is 0-or-1 positional and the receiver already claims the one slot; `9192a594` did not widen it. **This single item is worth more than the entire privacy problem** — see the measurement above |
+| ◐ | **BUILT 2026-08-13, host-proven with two negative controls** Replacement methods with explicit source parameters — **`G3.7 param-abi`, worth 33.2 %**. `g37_param_abi.sh` 4/4: a one-parameter and a two-parameter target patched and executed through the real producer path; named and optional-positional targets refused at patch time against IDENTICAL release bytes. Contract in patch `0006`, pinned by `c_entrypoint_arity.sh` 8/8. Device gate needs a mint | the replacement's **own** signature, distinct from the call it makes. The entry-point contract is 0-or-1 positional and the receiver already claims the one slot; `9192a594` did not widen it. **This single item is worth more than the entire privacy problem** — see the measurement above |
 | ☐ | **NOT BUILT** Setters / property assignments | |
 | ☐ | **NOT BUILT** Increment/decrement of receiver fields | compound of read + setter |
 | ☐ | **NOT BUILT** Cascades | |
@@ -363,7 +363,7 @@ not an untested guess. Ordered roughly by expected cost.
 | **`G3.6c dynamic-receiver`** | emit `dynamic` instead of a private class name | **BUILT, host-proven as a pair with `G3.6d`** — `probes/private_receiver.sh` 4/4, a patch on a private class runs. Device round-trip outstanding | done at `R7`; no mint |
 | **`G3.6d private-retention`** | retain private classes, procedures **and fields** in the dynamic interface | **BUILT, host-proven and shown LOAD-BEARING by a negative control.** Cost measured: **+0.01 %** | generator only, as predicted — no validator or CFE change |
 | **`G3.6e resolve-in-library`** | thread `resolveInLibrary` through dart2bytecode | **PROVEN 2026-08-13 for a private FIELD READ.** Both of its own done-criteria are met by release `31.0.0+1` patch 2 (`c7661317`): the **producer** path, not a hand-written replacement, and a **device** round-trip — `value() => _secret` → `NEW-PRIV` on an iPhone 7. `route_b_producer.dart:175` passes `--resolve-private-names-in-library` only when the manifest grants the member, and per this goal's own failure table a missing visibility mechanism fails at COMPILE time; the patch compiled and ran, so the mechanism was in the path. Host: `probe D` 4/4, `a53029c9`, patch `0005`. **A private METHOD/GETTER call is host-proven only** | done at `R3`; no mint needed |
-| **`G3.7 param-abi`** | a replacement method may declare **its own parameters** | **the largest single unlock: 33.2 %**, and unlike `G3.6` its feasibility is *known* — the entry-point contract is a patch we already own (`0004`) | engine (`R3` + a mint), `R7`, `R1` |
+| **`G3.7 param-abi`** | a replacement method may declare **its own parameters** | **BUILT 2026-08-13.** Feasibility is no longer inferred: patch `0006` widens the contract from 0-or-1 to any number of REQUIRED positionals, the analyzer refuses exactly what the compiler refuses (`analysisVersion` 8), the producer inserts the receiver in front of a verbatim-copied parameter list, and `g37_param_abi.sh` 4/4 proves arguments arrive **in order and by type** — `int b` = 7 landed in slot `b`, so this is not mere arity. Device gate outstanding: the cell carries `dart2bytecode.aot`, so it needs a mint | mint + `R1` remain |
 
 Three things fall out of that table, and two of them correct earlier drafts of
 this file.
@@ -2995,8 +2995,13 @@ the evidence points elsewhere, and every rung is a mint plus a scarce device gat
    the strongest measured blocker from **both** directions: structural reach
    (→29.8 %) and Phase 0's real commits (top blocker in 9 of 10). Feasibility is
    established and the mechanism is located.
-3. **`G3.7 param-abi`** — comparable upside (→33.2 %), distinct from privacy, and
-   worth measuring **separately** so the two are never credited to each other.
+3. **`G3.7 param-abi`** — **BUILT on host 2026-08-13, device gate outstanding.**
+   Measured separately from privacy exactly as this line required, and the two were
+   never credited to each other: privacy closed on device via releases 31–32, and
+   this closed on host via `g37_param_abi.sh` with its own release and its own
+   controls. What remains is a mint, because the contract lives in
+   `dart2bytecode.aot` inside the cell — so it should ride the next mint that
+   happens for another reason rather than paying for one alone.
 4. **`G15 activation-model`** — the highest-leverage safety/reliability project
    after language reach. See below; it is one redesign, not three fixes.
 5. **§13 independence gates** — matters for the strength of the self-hosting claim,

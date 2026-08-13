@@ -306,15 +306,23 @@ class RouteBProducer {
       );
     }
     final close = source.indexOf(')', open);
-    if (close < 0 || source.substring(open + 1, close).trim().isNotEmpty) {
-      // The analyzer already refuses methods with parameters; this catches a
-      // disagreement between the two rather than silently producing a method
-      // with two.
+    if (close < 0) {
       throw RouteBUnsupportedTarget(
         key,
-        'its parameter list is not empty, which the lowering cannot extend',
+        'its parameter list is not closed',
       );
     }
+    // G3.7: the target's OWN parameters stay, and the receiver goes in FRONT of
+    // them. The existing list is copied verbatim -- exactly as the argument list
+    // of a call is copied verbatim -- so nothing here reconstructs Dart syntax:
+    // no types are parsed, no defaults are interpreted, no names are rewritten.
+    //
+    // The analyzer refuses named parameters, optional positionals and generics,
+    // matching the compiler contract clause for clause, so a non-empty list
+    // reaching this point is a list of required positionals. A separator is
+    // needed only when there is something to separate from.
+    final existingParams = source.substring(open + 1, close).trim();
+    final separator = existingParams.isEmpty ? '' : ', ';
     // A PRIVATE receiver class cannot be WRITTEN here at all. Dart privacy is
     // library-scoped and the replacement is its own library, so `_FooState self`
     // resolves to nothing and the compile fails with "Type not found" -- after
@@ -340,7 +348,7 @@ class RouteBProducer {
     final receiverType = lowering.receiverType.startsWith('_')
         ? 'dynamic'
         : lowering.receiverType;
-    edits.add((open + 1, 0, '$receiverType self'));
+    edits.add((open + 1, 0, '$receiverType self$separator'));
 
     for (final access in lowering.accesses) {
       // The edit below inserts or replaces a receiver prefix immediately before

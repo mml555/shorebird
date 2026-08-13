@@ -607,6 +607,40 @@ void main() {
         );
       });
 
+      test('G3.7: keeps the target\'s own parameters and puts self first', () {
+        // The entry-point contract permits any number of required positionals
+        // (patch 0006), so the receiver is inserted IN FRONT of the existing
+        // list rather than into an empty one. The list is copied verbatim: no
+        // type is parsed and no name is rewritten.
+        expect(
+          lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: "String tagged(String x) => 'NEW-\$x' + label;",
+              access: 'label',
+              kind: 'get',
+            ),
+          ),
+          contains(
+            "String tagged(RouteBThing self, String x) => 'NEW-\$x' + self.label;",
+          ),
+        );
+      });
+
+      test('G3.7: a multi-parameter target keeps every parameter, in order', () {
+        expect(
+          lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: 'String pair(String a, int b) => label;',
+              access: 'label',
+              kind: 'get',
+            ),
+          ),
+          contains('String pair(RouteBThing self, String a, int b) => self.label;'),
+        );
+      });
+
       test('lowers an explicit this write', () {
         expect(
           lowered(

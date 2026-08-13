@@ -41,7 +41,7 @@ RouteBCoverageAnalyzer get routeBCoverageAnalyzer =>
 /// granted. Reading a 7 document as a 6 would see the access with no
 /// `unsupported` reason and lower it unconditionally, which is the silent
 /// accept this gate exists for.
-const supportedRouteBAnalysisVersion = 7;
+const supportedRouteBAnalysisVersion = 8;
 
 /// What a patch may do with a changed member.
 enum RouteBRepresentability {

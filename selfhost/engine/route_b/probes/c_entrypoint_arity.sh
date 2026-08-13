@@ -3,18 +3,35 @@
 #
 # c_entrypoint_arity.sh -- the compiler contract, pinned.
 #
-# Rung C is blocked because `dyn-module:entry-point` must be a static
-# no-argument method. The fork relaxes that to at most ONE positional
-# parameter, and this asserts the new contract is exactly that and nothing
-# wider -- "relax the restriction" must not quietly become a general arity
-# change.
+# Upstream requires `dyn-module:entry-point` to be a static NO-ARGUMENT method.
+# The fork has relaxed that twice, and this probe is where each relaxation was
+# pinned so the next one cannot happen by accident.
 #
-#   static, 0 positional   allowed
-#   static, 1 positional   allowed      <- the whole point
-#   static, 2 positional   REFUSED
-#   static, 1 named        REFUSED
-#   static, generic        REFUSED
-#   instance method        REFUSED
+#   patch 0004, rung C : zero OR ONE positional -- the receiver needs a slot.
+#   G3.7, 2026-08-13   : ANY number of REQUIRED positional -- a target method
+#                        with its own parameters lowers to
+#                        f(Receiver self, T1 a, ...), and the cap at one is what
+#                        made the largest measured slice of real methods
+#                        unpatchable (33.2 % structural reach; parameters appear
+#                        in 6 of 10 real patches).
+#
+#   static, 0 positional          allowed
+#   static, 1 positional          allowed
+#   static, 2 positional          allowed   <- G3.7 flipped this one
+#   static, 3 positional          allowed
+#   static, OPTIONAL positional   REFUSED   <- the new boundary, and the reason
+#                                              the check tests
+#                                              requiredParameterCount rather
+#                                              than a bare length
+#   static, 1 named               REFUSED
+#   static, generic               REFUSED
+#   instance method               REFUSED
+#
+# WHY OPTIONAL POSITIONALS STAY REFUSED. Their default values live in the AOT
+# function the replacement is standing in for, and nothing carries them across.
+# Allowing them would compile and then bind against a caller that never passes
+# the argument, which is the silent-on-device failure shape this project is
+# organised against.
 #
 # Compile-only: this says nothing about whether the receiver actually arrives
 # in argument 0. That is C0, on a device, and it is deliberately a separate
@@ -71,8 +88,16 @@ String f() => 'ok';"
 arm one_positional allow "@pragma('dyn-module:entry-point')
 String f(Object self) => 'ok';"
 
-arm two_positional refuse "@pragma('dyn-module:entry-point')
+arm two_positional allow "@pragma('dyn-module:entry-point')
 String f(Object a, Object b) => 'ok';"
+
+arm three_positional allow "@pragma('dyn-module:entry-point')
+String f(Object a, Object b, Object c) => 'ok';"
+
+# The boundary G3.7 introduces. Without this arm the requiredParameterCount test
+# is untested, and a later "simplification" to a bare length check would pass.
+arm optional_positional refuse "@pragma('dyn-module:entry-point')
+String f(Object a, [Object? b]) => 'ok';"
 
 arm one_named refuse "@pragma('dyn-module:entry-point')
 String f({Object? a}) => 'ok';"

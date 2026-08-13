@@ -51,7 +51,19 @@ import 'package:kernel/text/ast_to_text.dart';
 ///    beside it and lower it unconditionally -- accepting a private reference
 ///    the release may never have retained. That is exactly the silent-accept
 ///    this contract is versioned to prevent, so the bump is mandatory.
-const analysisVersion = 7;
+///
+/// 8 (G3.7): a method with its own REQUIRED POSITIONAL parameters is no longer
+///    `unsupported`. The entry-point contract now permits any number of them
+///    (`bytecode_generator.dart`, patch `0006`), so the receiver no longer has to
+///    be the only parameter. The bump is mandatory in the same way 7's was, and
+///    in the opposite direction: a version-7 CONSUMER would still be refusing
+///    these targets while a version-8 document reports them as lowerable, so the
+///    two would disagree about what a release can accept. Named parameters,
+///    optional positionals and generics stay `unsupported` here, matching the
+///    compiler contract exactly -- the analyzer must never report a shape the
+///    compiler will reject, because the refusal would then arrive at compile time
+///    with a message about bytecode rather than about the patch.
+const analysisVersion = 8;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -451,16 +463,23 @@ Map<String, Object?> _lowering(Class cls, Procedure p) {
   final unsupported = <String>[];
 
   final function = p.function;
-  if (function.positionalParameters.isNotEmpty ||
-      function.namedParameters.isNotEmpty) {
-    // The entry-point contract allows exactly one positional parameter, and the
-    // receiver already claims it. Methods with their own parameters are a
-    // separate ABI question and must get their own probe rather than
-    // piggybacking on this one.
-    unsupported.add(
-      'the method takes parameters; the single allowed entry-point parameter '
-      'is the receiver',
-    );
+  // G3.7: the method's OWN required positional parameters are now supported. The
+  // entry-point contract permits any number of them, so the receiver no longer has
+  // to be the only parameter, and the producer copies the source's parameter list
+  // verbatim while inserting the receiver in front of it.
+  //
+  // These three stay refused, and each mirrors a clause of the compiler contract
+  // rather than a separate opinion. Keeping them aligned is the point: an analyzer
+  // that reported a shape the compiler rejects would move the refusal from patch
+  // time to compile time, where the message talks about bytecode instead of about
+  // the patch.
+  if (function.namedParameters.isNotEmpty) {
+    unsupported.add('the method takes named parameters');
+  }
+  if (function.requiredParameterCount != function.positionalParameters.length) {
+    // Their default values live in the AOT function the replacement stands in
+    // for, and nothing carries them across.
+    unsupported.add('the method takes optional positional parameters');
   }
   if (function.typeParameters.isNotEmpty) {
     unsupported.add('the method is generic');
