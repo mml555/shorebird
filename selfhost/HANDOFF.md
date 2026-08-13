@@ -6,6 +6,40 @@
 
 # Handoff — engine improvements (as of 2026-08-07)
 
+## 2026-08-13, 15:21 — G4.2's patch half, and two corrections worth more than it
+
+Session ran `selfhost/plans/` as an autonomous board. One piece landed: **H2 steps 5
+and 6** (`9ca65dd0`), which is `BUILT`, host only. No resource was claimed: no device,
+no mint, no container, no release, no fixture version bump — so there is nothing to
+clear in §17's table, and it is left exactly as found.
+
+**What is now true.** `g42_flavor_flow.sh` reports 13/13 and its row 4 pins the fix
+instead of asserting the gap `25f8a3b8` closed; the patch side resolves the flavor, so
+`--flavor foo` patching a `--flavor foo` release is no longer refused. Both counts and
+the negative control are in `evidence/g42_flavored_fixture/g42_flavor_flow.txt`.
+
+**Two things the next worker needs, and neither is about flavors.**
+
+1. **The installed CLI does not carry the flavor fix.** `~/.shorebird` is pinned at
+   `ba4e1c02`; the fix landed after it (`de11eecf`/`4fb03725`), and
+   `grep -c _resolvedFlavor ~/.shorebird/…/patch/ios_patcher.dart` is **0**. H2's
+   "already satisfied" section said the opposite and is corrected in place. **Re-sync
+   before any flavored patch arm** or the matching case refuses from the stale CLI —
+   release 34's failure mode, and it looks like a fixture defect at the terminal.
+
+2. **Never run a negative control by editing in place in this tree.** A fix was
+   commented out for ~60 seconds to prove its tests fail without it; another worker
+   committed inside that window and captured the *disabled* state plus four tests,
+   three of which failed against it (`de11eecf`), which `4fb03725` then repaired.
+   Nothing was lost, and only because the window was short. Now house rule 9 in
+   `plans/README.md`: use a scratch worktree, or land the fix and revert in a
+   throwaway. **A deliberately-broken file looks exactly like a mistake.**
+
+**What remains of H2**: steps 1-4, 7 and 9 — `selfhost/fixtures/flavored_app` and
+`selfhost/scripts/prepare_flavored_fixture.sh` are both still ABSENT, so `--flavor`
+cannot build in this repo and **no device arm of `G4.2` is constructible**. That is a
+prerequisite gap, not a failed gate.
+
 ## If you are picking this up: read [`ROUTE_B.md`](ROUTE_B.md), not this file
 
 The infrastructure track is **closed**. The remaining project is Route B — iOS
