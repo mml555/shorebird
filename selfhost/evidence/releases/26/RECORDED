@@ -16,3 +16,32 @@ If you aren't sure why this command failed, re-run with the --verbose flag to se
 You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
 /Users/mendell/Library/Application Support/shorebird/logs/1786579486656_shorebird.log re-archives over
 build/ios/archive, so after the first patch it holds the patch build instead.
+DEVICE RESULT — public control patch, 2026-08-12
+  patch body : String value(RouteBThing self) => 'NEW-CTL';
+  app shows  : NEW-SET  (the release body), code patch: 1
+  trace      : patch1.routeb.trace
+
+CLASSIFIED: bucket 4. Buckets 1-3 are eliminated by measurement, not argument:
+
+  bc_pre=0  -> bc_post=1                    bytecode DID remain attached  (not 1)
+  ep_pre=0x1079e5ca8 -> ep_post=0x107914044 the entry point DID move      (not 2)
+  interpret_call_ep=0x107914044             and it moved to EXACTLY the
+  ep_post_is_interpret_call=1               InterpretCall stub            (not 3)
+  interp_pre=0 -> interp_post=1             Function::IsInterpreted() true
+  code_pre=0x1088bcd81 -> code_post=0x103f95cb1   a different Code is installed
+  rc=0, attach_entered=1, attach_returned=1
+
+So the attach is REAL and CORRECT. Bytecode is attached, the Function reports
+itself interpreted, and both entry_point_ and unchecked_entry_point_ equal the
+InterpretCall stub captured in the same run. The engine did everything it claimed.
+
+The app still executes the AOT body. Therefore the CALL SITE does not consult
+this Function's entry_point_ — bucket 4 — despite the release measuring 7,141
+patchable sites at 1,775 per MB.
+
+NOT YET ESTABLISHED, and not to be assumed: WHY that call site bypasses it.
+`routeBValue()` calls `RouteBThing().value()`, an INSTANCE call, while
+--patchable_static_calls is by its name about static calls. That is a hypothesis
+with an obvious shape, and this project has retired four such. The next step is
+to look at the actual call-site instructions for routeBValue, not to reason from
+the flag's name.
