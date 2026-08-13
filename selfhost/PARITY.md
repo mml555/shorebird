@@ -3289,6 +3289,32 @@ shared-state mutation.
    precondition above proved the Route B engine path was active. Release 33 exited
    0 and was worthless.
 
+**WHAT ACTUALLY NEEDS THE PHONE — scheduling, not semantics.** Two of the four
+`G3.7` arms have a success condition that occurs BEFORE device execution, so running
+them inside the contended window spends the scarce resource on nothing.
+
+| phone REQUIRED | why |
+|---|---|
+| `G15` final two-engine device gate | two `rbtrace` records on the shipping engine; only a real launch produces them |
+| `G3.7` `two(String a, int b)` behavioural arm | require **`PARAM-a-7`** on the preserved release-38 binary. `PARAM-7-a` would be a transposition, which is the point of the literals |
+
+| phone NOT required, once release 38 EXISTS | why |
+|---|---|
+| `named({String x})` refusal | proves **CLI refusal + NO container**. Expected: *"the method takes named parameters"* |
+| `opt(String a, [String b])` refusal | proves **CLI refusal + NO container**. Expected: *"the method takes optional positional parameters"* |
+
+For both controls, **reaching the device invalidates the arm** — a container that
+exists at all means the analyzer did not refuse. And a refusal citing *"not in the
+interface"* is the WRONG REASON and counts as a failure, which is what the
+dead-branch retention in `value()` exists to prevent.
+
+> **Cut and preserve release 38 while the device is available, but DEFER the two
+> refusal controls until after the phone is released.**
+
+So the contended window holds exactly three things: the `R8` app creation, the
+`G15` gate, and `G3.7`'s `two` arm — plus both release cuts, which must happen there
+because the refusal arms need release 38 to patch against.
+
 Cell `4df8f9b6…` untouched throughout.
 
 That last clause is the operative one and it is not housekeeping. This gate's whole
