@@ -84,6 +84,39 @@ host proof that `--flavor` reaches the compiler. `selfhost/fixtures/flavored_app
 `selfhost/scripts/prepare_flavored_fixture.sh` are both ABSENT, so nothing there has
 been started.
 
+## Measured against the pin, 2026-08-13 — do not re-derive
+
+The generated tree now exists (`flutter create --platforms=ios,android
+--project-name flavored_probe --org dev.selfhost .` under the pinned Flutter), and
+these are facts about it rather than predictions:
+
+| fact | value |
+|---|---|
+| baseline `project.pbxproj` sha256 | `18152845ff6073752b926099b37b738d0415b49575fe11be1bdca3f7c1997387`, recorded at `fixtures/flavored_app/ios_overlay/BASELINE.project.pbxproj.sha256` |
+| configuration lists to extend | **three**: `97C146E91CF9000F007C117D` (PBXProject "Runner"), `97C147051CF9000F007C117D` (PBXNativeTarget "Runner"), `331C8087294A63A400263BE5` (PBXNativeTarget "RunnerTests") |
+| existing configurations | `Debug`/`Release`/`Profile`, three occurrences each |
+| `baseConfigurationReference` present on | only **three** blocks — `:374` (Release.xcconfig), `:554` (Debug.xcconfig), `:577` (Release.xcconfig). The others inherit, so a transform must not assume every block has one |
+| `PRODUCT_BUNDLE_IDENTIFIER` occurrences | 6, all one id — which is why two flavors cannot co-install without the overlay |
+| RunnerTests | present, and its list needs the flavored configurations too, or a scheme's Test action references a configuration that does not exist |
+
+**DONE and committed:** `ios_overlay/Flutter/{Foo,Bar}.xcconfig` (each `#include
+"Generated.xcconfig"` first, then a distinct `PRODUCT_BUNDLE_IDENTIFIER`,
+`PRODUCT_NAME`, `DISPLAY_NAME`), and
+`ios_overlay/Runner.xcodeproj/xcshareddata/xcschemes/{Foo,Bar}.xcscheme`, derived
+from the generated `Runner.xcscheme` by rewriting `buildConfiguration` — verified
+as 3 × `Debug-Foo` (Test/Run/Analyze), 1 × `Profile-Foo`, 1 × `Release-Foo`.
+
+**NOT DONE — the single remaining piece of step 3:** the overlay's
+`project.pbxproj`. It needs 6 `XCBuildConfiguration` blocks per configuration list
+(3 modes × 2 flavors) added to all three lists, each flavored block pointing
+`baseConfigurationReference` at the new flavor xcconfig, plus 2 new
+`PBXFileReference` entries added to the `Flutter` group. The `xcodeproj` ruby gem
+is not importable here, so author it with a text transform, commit the RESULT (the
+gate is a sha, not a script), and verify with `xcodebuild -list -project
+ios/Runner.xcodeproj` showing schemes `Bar`/`Foo`/`Runner` and the six new
+configurations. Until it lands the committed schemes reference configurations that
+do not exist, so **the overlay is incomplete and must not be described as green.**
+
 ## Steps
 
 1. **Create the fixture's committed sources.** `selfhost/fixtures/flavored_app/{pubspec.yaml, pubspec.lock, lib/main.dart, assets/probe.json, shorebird.yaml.template, README.md, ios_overlay/, android_overlay/}`. Mirror `airgap_app`'s committed/generated split, which `prepare_airgap_fixture.sh:19-25` states explicitly. Depth is identical, so `code_push_runtime`'s `path: ../../../packages/code_push_runtime` (`airgap_app/pubspec.yaml:26-27`) copies unchanged. `pubspec.yaml` carries `version: 1.0.0+1`, `flutter: uses-material-design: true`, `assets: [shorebird.yaml, assets/probe.json]` (the CLI refuses to build without `shorebird.yaml` declared), and **`default-flavor: foo`**. **How you know:** `flutter pub get` resolves and `git status --porcelain selfhost/fixtures/flavored_app` lists only those paths.

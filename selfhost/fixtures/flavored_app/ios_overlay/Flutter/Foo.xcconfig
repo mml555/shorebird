@@ -1,0 +1,17 @@
+// Flavor xcconfig for 'foo'. Referenced as baseConfigurationReference by the
+// three Foo configurations (Debug-Foo, Release-Foo, Profile-Foo) that the overlay's
+// project.pbxproj adds.
+//
+// Generated.xcconfig FIRST: it is written by the Flutter tool on every build and
+// carries FLUTTER_ROOT, the target file, and the build mode. Anything set here
+// overrides it, which is why the identity keys live below the include and not
+// above it.
+#include "Generated.xcconfig"
+
+// DISTINCT IDENTITY, so the two flavors can co-install and a device result can
+// never be attributed to the wrong one. The generated project uses a single
+// PRODUCT_BUNDLE_IDENTIFIER for every configuration, which would let a 'bar'
+// build silently replace a 'foo' build on the phone.
+PRODUCT_BUNDLE_IDENTIFIER = dev.selfhost.flavoredProbe.foo
+PRODUCT_NAME = flavored_probe_foo
+DISPLAY_NAME = Flavored Foo

@@ -1,0 +1,65 @@
+# The FLAVORED fixture. See README.md in this directory.
+#
+# Deliberately a SECOND fixture rather than a flavor added to airgap_app:
+# PARITY.md §16 records that G4.2/G8/G9 do not contend on the canonical fixture
+# (`R6`) at all, and the whole value of this one is that taking it costs nobody
+# the phone-and-release counter that R6 carries.
+#
+# The version here is NOT the airgap counter. Nothing in this fixture is wired
+# to `airgap_acceptance.sh`, so bumping it burns no release integer on
+# cps-ios — but a release cut from it does consume one, so bump before a
+# release run and never during host arms.
+name: flavored_probe
+description: Fixture for the G4.2/G4.3 flavor arms — one app, two flavors, one app_id.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+# NO code_push_runtime, and NO dynamic_modules — both of which airgap_app has.
+# This is a decision with a reason, recorded because the opposite reads as an
+# omission:
+#
+#   * The arms this fixture exists for are decided on "patched value on device"
+#     (PARITY.md, "G4.2/G4.3: the mismatch arms and the matching arms are
+#     DIFFERENT CLAIMS"), not on a patch NUMBER. The runtime's contribution —
+#     assetsPatchNumber separate from patchNumber — is what the airgap fixture
+#     needs and this one does not.
+#   * code_push_runtime depends on shorebird_code_push and path_provider, both
+#     of which have native sides, so a Podfile appears and `pod install` runs.
+#     CocoaPods generates one `Pods-Runner.<configuration>.xcconfig` per build
+#     configuration, and this fixture ADDS SIX configurations. A missing pod
+#     xcconfig for `Release-Foo` fails as "CocoaPods did not set the base
+#     configuration" — which reads as a defect in the flavor overlay and is not
+#     one. Zero plugins means no Podfile, so the overlay's own xcconfigs are the
+#     only base configurations in play and a flavor failure is a flavor failure.
+#
+# Reversible in one direction only, which is why it went this way: adding the
+# dependency later is a pubspec line plus a re-run of
+# selfhost/scripts/prepare_flavored_fixture.sh. Removing it after the overlay
+# has been committed with pod includes baked into six configurations is not.
+
+flutter:
+  uses-material-design: true
+
+  # The `default-flavor: foo` arm — PARITY.md's fifth row, "release flavored by
+  # `default-flavor` ONLY, patch same", the path with no command-line token to
+  # notice. `flutter_manifest.dart:439` reads this key at the pin, and the CLI's
+  # own resolution mirrors it (`route_b_build_config.dart:115-124`:
+  # `cliFlavor ?? defaultFlavor`). A build with NO `--flavor` token must
+  # therefore produce `V1/foo`, not `V1/none`.
+  default-flavor: foo
+
+  assets:
+    # shorebird.yaml MUST be declared here — the CLI refuses to build without it
+    # ("Your pubspec.yaml does not have shorebird.yaml as a flutter asset"),
+    # because the updater reads app_id and base_url out of the bundled copy at
+    # runtime. It is GENERATED (see shorebird.yaml.template), so a plain
+    # `flutter build` fails until prepare_flavored_fixture.sh has written one.
+    - shorebird.yaml
+    - assets/probe.json
