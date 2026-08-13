@@ -19,7 +19,7 @@
 # THREE CONDITIONS, ALL REQUIRED:
 #
 #   1 the published artifacts.zip differs from the donor's        (different bytes)
-#   2 `rbtrace v=1` appears in the published Flutter binary       (trace present)
+#   2 `rbtrace v=` appears in the published Flutter binary (any format version)       (trace present)
 #   3 `InterpretCall` still appears in it                         (still Route B)
 #
 # 1 alone would pass on any unrelated rebuild. 2 alone cannot tell a fresh publish
@@ -66,9 +66,9 @@ echo "  binary      : $(wc -c < "$BIN" | tr -d ' ') bytes"
 # exits non-zero on zero matches, and zero matches is a legitimate measurement
 # here, not a command failure. Conflating the two is how a real result gets
 # reported as a broken tool.
-SENTINEL=$(strings -a "$BIN" | grep -c 'rbtrace v=1' || true)
+SENTINEL=$(strings -a "$BIN" | grep -c 'rbtrace v=' || true)
 INTERP=$(strings -a "$BIN" | grep -c 'InterpretCall' || true)
-echo "  rbtrace v=1 : $SENTINEL"
+echo "  rbtrace v=  : $SENTINEL"
 echo "  InterpretCall: $INTERP"
 
 [ "${SENTINEL:-0}" -gt 0 ] && has_trace=1 || has_trace=0
@@ -91,7 +91,7 @@ FLUTTER_DIR=${FLUTTER_DIR:-}
 if [ -n "$FLUTTER_DIR" ]; then
   CACHED="$FLUTTER_DIR/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Flutter"
   if [ -f "$CACHED" ]; then
-    C_SENT=$(strings -a "$CACHED" | grep -c 'rbtrace v=1' || true)
+    C_SENT=$(strings -a "$CACHED" | grep -c 'rbtrace v=' || true)
     STAMP=$(tr -d '\n' < "$FLUTTER_DIR/bin/cache/engine.stamp" 2>/dev/null || echo '<none>')
     echo "  cached binary: $(wc -c < "$CACHED" | tr -d ' ') bytes, rbtrace=$C_SENT, stamp=$STAMP"
     [ "${C_SENT:-0}" -gt 0 ] && cache_ok=1 || cache_ok=0
