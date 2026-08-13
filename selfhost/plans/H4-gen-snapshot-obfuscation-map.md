@@ -42,6 +42,61 @@ It also includes one piece of honest bookkeeping that costs nothing and is easy 
 7. **[promoted precondition (c) — warm the cache before the release that matters.]** Run one throwaway `shorebird release ios` (or `flutter precache`) on the new hash and confirm the gen_snapshot binary exists on disk *before* cutting the release you intend to keep. Release 33 was DISCARDED because a cleared cache plus a first build made `isRouteBEngine` read a Flutter binary that did not exist yet; the CLI took the non-Route-B path and **reported success** with 8 sites at 2/MB.
 8. **Do not skip `assert_mint_ready.sh`.** `build_ios_release.sh` exits 0 whether or not ninja succeeded. `bash /Users/mendell/shorebird/selfhost/engine/route_b/probes/assert_mint_ready.sh` must print `VERDICT=success`. `unknown` is not success.
 
+## Steps 1-2 EXECUTED — 2026-08-13, measured, not re-derivable by reading
+
+**Step 1 settled: BRANCH B.** `grep -rn "load_obfuscation_map\|load-obfuscation-map"` over
+`$D/runtime/` returns NOTHING, and our built `gen_snapshot_arm64 --help` advertises
+`--save-obfuscation-map=<map-filename>` only. The feature must be written.
+
+**Step 2 recovered, verbatim, from the previous pin's fork binary**
+(`~/.shorebird/bin/cache/flutter/309dd657…/bin/cache/artifacts/engine/ios-release/gen_snapshot_arm64`).
+This IS the contract — put it in the patch header as the derivation:
+
+```
+--load_obfuscation_map=
+--load_obfuscation_map=%s
+Empty value for option load_obfuscation_map
+--load-obfuscation-map=<...> should only be specified when obfuscation is enabled
+    by the --obfuscate flag.
+Obfuscation map is already initialized.
+Could not load obfuscation map: file callbacks not set
+Could not open obfuscation map file: %s
+Invalid obfuscation map: expected '['
+Invalid obfuscation map: expected '"'
+Invalid obfuscation map: unterminated string
+Invalid obfuscation map: odd number of entries (expected pairs)
+Path to a JSON obfuscation map file to load before kernel translation. Used for
+    consistent obfuscation across patch builds.
+```
+
+Five design facts follow from those strings alone, and none of them is a guess:
+1. the option is a STRING_OPTIONS_LIST entry with empty-value validation, exactly
+   like `save`;
+2. its validation MIRRORS save's (`--obfuscate` required);
+3. loading twice is an ERROR, not a merge — "already initialized";
+4. the file is read through the EMBEDDER FILE CALLBACKS, not `fopen` — which is why
+   the setter belongs in the runtime beside `Dart_GetObfuscationMap`, not in `bin/`;
+5. the parser is hand-written over a flat JSON array of PAIRS, not a `{}` object.
+
+**Seams verified in OUR tree** (the plan's line numbers were first-draft; these are
+measured):
+
+| seam | where, verified |
+|---|---|
+| the option list | `runtime/bin/gen_snapshot.cc:117` — `V(save_obfuscation_map, obfuscation_map_filename)` |
+| the getter to sit beside | `runtime/include/dart_api.h:4312`, impl `runtime/vm/dart_api_impl.cc:7157` |
+| the state to populate | `runtime/vm/compiler/aot/precompiler.h:511-520` — `ObjectStore::obfuscation_map()` is a 2-element Array, `kSavedStateNameIndex = 0`, `kSavedStateRenamesIndex = 1` |
+
+One correction to the plan: the validation string it cites at `gen_snapshot.cc:313-318`
+does NOT appear in our tree with that wording — grep for the phrase returns nothing,
+so locate save's validation by its option name rather than by the message text.
+
+**NOT STARTED: step 3 onward.** The Dart change, the engine rebuild, the mint. Step 3
+mutates the Dart checkout on `R3`, which is shared and not in git, so it should be
+started only by a session that can carry it to a `dart_patches.sh --verify` green in
+the same sitting — a half-applied edit there is invisible to `git status` and would be
+inherited silently by the next build.
+
 ## Steps
 
 1. **Settle the branch question first — does upstream Dart have a load path at all?** This decides the whole order, so it is step 1 and both outcomes are precommitted below.
