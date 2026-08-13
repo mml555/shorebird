@@ -262,8 +262,14 @@ class _ProbeBodyState extends State<ProbeBody> {
   @override
   void initState() {
     super.initState();
-    _load();
+    // _routeBRead FIRST, and the order is load-bearing now that the beacon
+    // carries route_b. It is synchronous, so running it before _load() removes
+    // any dependence on when the asset-bundle await resumes: the values are set
+    // before the beacon can possibly be built. Relying on await timing would make
+    // the sealed harness's code-patch gate flaky rather than wrong, which is
+    // worse.
     _routeBRead();
+    _load();
   }
 
   /// SEAM 6: read the value once, as ordinary app code, and show it.
@@ -318,6 +324,15 @@ class _ProbeBodyState extends State<ProbeBody> {
           'asset': asset,
           'assets_patch': _assetsPatch,
           'code_patch': _codePatch,
+          // The Route B values, so a CODE patch can be ASSERTED rather than read
+          // off a screenshot. This file's own header says the harness "asserts on
+          // the log instead of parsing pixels" and that "screenshots stay as
+          // human-readable evidence, never the mechanism" — which was true for
+          // every field except the one a code patch actually changes. Until these
+          // two were beaconed, the sealed harness could not gate on a code patch
+          // at all, and every Route B device result today was read by eye.
+          'route_b': _rbBaseline,
+          'private_class': _rbPrivateClass,
         },
       );
       final client = HttpClient()..connectionTimeout = const Duration(seconds: 5);

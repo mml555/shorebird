@@ -299,7 +299,22 @@ launch_fixture() {  # launch_fixture — install and run the fixture on the devi
   [[ -n "$ipa" ]] || { echo "no IPA under $APP_DIR/build/ios/ipa" >&2; return 1; }
   local arch_app
   arch_app="$(ls -td "$APP_DIR/build/ios/archive"/*.xcarchive 2>/dev/null | head -1)"
-  if [[ -n "$arch_app" && "$arch_app" -nt "$ipa" ]]; then
+  #
+  # AFTER A CODE PATCH THE ARCHIVE IS NEWER ON PURPOSE, and the mtime heuristic
+  # then fires on the correct artifact. `shorebird patch` re-archives into
+  # build/ios/archive -- that archive is the PATCH build, with the replacement
+  # compiled straight into the release -- and leaves build/ios/ipa alone. So when
+  # a caller supplies AIRGAP_EXPECT_UUID we take IDENTITY over mtime, which is
+  # strictly stronger: it proves the .ipa IS the release the patch targets rather
+  # than inferring it from timestamps. Installing the patch build instead would
+  # display the patched value with the patch mechanism playing no part -- the
+  # strongest false positive this rig can produce.
+  if [[ -n "${AIRGAP_EXPECT_UUID:-}" ]]; then
+    if [[ -n "$arch_app" && "$arch_app" -nt "$ipa" ]]; then
+      echo "  note: archive is newer than the .ipa — expected after a patch build;"
+      echo "        proceeding on the LC_UUID assertion below, not on mtime."
+    fi
+  elif [[ -n "$arch_app" && "$arch_app" -nt "$ipa" ]]; then
     echo "STALE ARTIFACT: $ipa is older than $arch_app" >&2
     echo "  A device result from this IPA would describe an earlier build." >&2
     echo "  Rebuild, or delete the old .ipa before running." >&2
@@ -322,6 +337,13 @@ launch_fixture() {  # launch_fixture — install and run the fixture on the devi
   # Record the identity of the binary that is about to run on the device, so a
   # screenshot can be tied to a specific build after the fact.
   echo "  App sha256: $(shasum -a 256 "$app/Frameworks/App.framework/App" 2>/dev/null | cut -c1-32)"
+  # GATE: the bytes about to run ARE the release the patch was built for. Only
+  # asserted when a caller supplies the expectation, so the assets-only path keeps
+  # its previous behaviour exactly.
+  if [[ -n "${AIRGAP_EXPECT_UUID:-}" ]]; then
+    "$AIRGAP_REPO/selfhost/engine/route_b/probes/assert_installed_release.sh" \
+      "$app" --expect "$AIRGAP_EXPECT_UUID" || return 1
+  fi
   echo "  engine interpretcall symbols: $(nm -a "$app/Frameworks/Flutter.framework/Flutter" 2>/dev/null | grep -ci interpretcall)  (0 = no interpreter, >0 = Route B)"
 
   # Keep the output. It was going to /dev/null, which is how the .ipa mistake
@@ -394,6 +416,120 @@ assert_beacon() {  # assert_beacon <label> <expect-asset> <expect-assets-patch>
 # report of what it rendered.
 BAKED='{"origin": "BAKED-INTO-RELEASE"}'
 PATCHED='{"origin": "PATCHED-AIRGAP"}'
+
+# --- stage 3b: ios CODE patch (Route B), VERIFIED ON DEVICE ----------------------
+#
+# WHY THIS STAGE HAD TO EXIST. Both of the harness's iOS patch invocations passed
+# --assets-only, so the sealed acceptance proved releases and asset overlays and
+# said nothing about a CODE patch -- the thing Route B is for. §13 filed that as
+# one NOT VALIDATED row, implying someone need only run it; the row was
+# unrunnable, which is a NOT BUILT.
+#
+# IT FAILS CLOSED, and the order below is the claim. Each gate rules out a way a
+# device result can be unattributable, and every one of them was learned by paying
+# for it:
+#
+#   1 release identity PRESERVED    the patch build re-archives over
+#                                   build/ios/archive, so the release's own bytes
+#                                   must be copied aside BEFORE patching or the
+#                                   only thing left to compare against is a
+#                                   labelled proxy.
+#   2 release PATCHABILITY          a release cut without --patchable_static_calls
+#                                   attaches a patch and changes nothing; it
+#                                   reports `applied N/N` while the app runs its
+#                                   own code.
+#   3 RESULT CONSUMPTION            if the target's call site discards the call's
+#                                   result, the patched body runs and the app
+#                                   still shows the release value. Six device runs
+#                                   and five wrong causal attributions were spent
+#                                   on this one.
+#   4 patch published, NOT assets   --assets-only must never satisfy this stage.
+#   5 installed identity UNCHANGED  the .ipa installed after patching must be the
+#                                   same bytes as before: the patch build's
+#                                   archive contains the replacement compiled in,
+#                                   and installing THAT shows the patched value
+#                                   for the wrong reason -- the strongest false
+#                                   positive available here.
+#   6 the patched value OBSERVED    from the beacon, not a screenshot, and it must
+#                                   differ from the release's own value.
+#
+# The fixture's `value()` body is edited transiently and restored from a byte-exact
+# copy, because the producer compiles the replacement FROM SOURCE. The committed
+# body is the release form and must stay non-foldable -- see the comment on
+# RouteBThing.value.
+CODE_PATCH_VALUE='AIRGAP-CODE-PATCH'
+
+assert_beacon_code() {  # assert_beacon_code <label> <expect-route-b> <expect-code-patch>
+  local got; got="$(read_beacon 3m)"
+  echo "  beacon [$1]: ${got:-<none>}"
+  [[ -n "$got" ]] || { echo "no beacon seen — did the app reach $SHOREBIRD_HOSTED_URL?" >&2; return 1; }
+  case "$got" in *"route_b=$2"*) ;;
+    *) echo "expected route_b=$2 — the patched body did not reach the app" >&2; return 1 ;; esac
+  case "$got" in *"code_patch=$3"*) ;;
+    *) echo "expected code_patch=$3" >&2; return 1 ;; esac
+  # The release CONSTANT must not move: a code patch to one method must not be
+  # able to masquerade as a whole-app replacement.
+  case "$got" in *"release=AIRGAP-FIXTURE-V1"*) ;;
+    *) echo "release line changed under a code patch" >&2; return 1 ;; esac
+}
+
+ios_code_patch() {
+  cd "$APP_DIR" || return 1
+  local RB="$AIRGAP_REPO/selfhost/engine/route_b"
+  local P="$RB/probes"
+  local rel; rel="$(app_release_version)"
+  [[ -n "$rel" ]] || { echo "could not read version: from $APP_DIR/pubspec.yaml" >&2; return 1; }
+  local ver="${rel%%.*}"
+  local arch; arch="$(ls -td "$APP_DIR/build/ios/archive"/*.xcarchive 2>/dev/null | head -1)"
+  [[ -n "$arch" ]] || { echo "no .xcarchive — run the ios stage first" >&2; return 1; }
+
+  # 1. Release identity, preserved BEFORE anything can overwrite the archive.
+  echo "-- gate 1: preserving the release's own bytes"
+  "$P/preserve_release_evidence.sh" "$ver" "$arch" || return 1
+  local ev="$AIRGAP_REPO/selfhost/evidence/releases/$ver"
+  local uuid; uuid="$(tr -d '\n' < "$ev/LC_UUID")"
+  [[ -n "$uuid" ]] || { echo "no preserved LC_UUID" >&2; return 1; }
+
+  # 2. Patchability, on the preserved bytes rather than on the working archive.
+  echo "-- gate 2: release patchability"
+  "$RB/verify_patchable_release.sh" "$ev/App" || return 1
+
+  # 3. Result consumption for the fixture's target.
+  echo "-- gate 3: the call site consumes the call's result"
+  "$P/assert_result_consumed.sh" "$ev/App" --fixture-signature || return 1
+
+  # 4. Publish a CODE patch. No --assets-only, and the edit is transient.
+  echo "-- gate 4: publishing a code patch"
+  local main="$APP_DIR/lib/main.dart"
+  local keep; keep="$(mktemp)"; cp "$main" "$keep"
+  # shellcheck disable=SC2064
+  trap "cp '$keep' '$main'; rm -f '$keep'" RETURN
+  CODE_PATCH_VALUE="$CODE_PATCH_VALUE" python3 - "$main" <<'PYEDIT' || return 1
+import os, sys, pathlib
+p = pathlib.Path(sys.argv[1]); s = p.read_text()
+old = """  String value() => DateTime.now().millisecondsSinceEpoch >= 0
+      ? 'OLD-rel'
+      : '${helper()}${tagged('ARG')}$label';"""
+if s.count(old) != 1:
+    sys.exit("the fixture's release body is not the expected non-foldable form; "
+             "refusing to guess at a patch edit")
+p.write_text(s.replace(old, "  String value() => '%s';" % os.environ['CODE_PATCH_VALUE'], 1))
+PYEDIT
+  "$SHOREBIRD_ROOT/bin/shorebird" patch ios --no-confirm \
+    --release-version="$rel" || return 1
+  cp "$keep" "$main"   # restore immediately; the trap is the backstop
+
+  # 5 + 6. Two launches: the first discovers and downloads, the second runs it.
+  # AIRGAP_EXPECT_UUID is what turns gate 5 on: launch_fixture asserts the staged
+  # .ipa's App LC_UUID against the PRESERVED release's, and takes that assertion
+  # over its mtime staleness heuristic, which after a patch build fires on the
+  # correct artifact. Without the variable the assets-only path behaves exactly as
+  # it did before.
+  echo "-- gate 5+6: device, after the code patch"
+  AIRGAP_EXPECT_UUID="$uuid" launch_fixture || return 1
+  AIRGAP_EXPECT_UUID="$uuid" launch_fixture code-patched || return 1
+  assert_beacon_code code-patched "$CODE_PATCH_VALUE" 1 || return 1
+}
 
 ios_release_patch() {
   cd "$APP_DIR"
@@ -530,6 +666,10 @@ stage cli-revision cli_revision_check
 stage bootstrap bootstrap
 [[ "$DO_ANDROID" == "1" ]] && stage android android_release_patch
 [[ "$DO_IOS" == "1" ]] && stage ios ios_release_patch
+# Deliberately a SEPARATE stage: an assets-only pass must never be able to satisfy
+# the code-patch claim, and keeping them apart is what makes the summary line
+# honest about which one ran.
+[[ "$DO_IOS" == "1" && -z "${AIRGAP_SKIP_CODE_PATCH:-}" ]] && stage ios-code-patch ios_code_patch
 stage post-checks post_checks
 
 echo ""

@@ -2459,6 +2459,16 @@ different problem from the Android one, not a port of it — filing it as
 > get the ownership audit green for the cell in use; and add an iOS **code**-patch
 > stage to the harness, which it does not have. Two of the three are `NOT BUILT`
 > rather than merely undone — see the gates at the end of this section.
+>
+> **STATUS 2026-08-13.** Prerequisite 3 (the code-patch stage) is **BUILT** — see
+> the row below. Prerequisite 2 went from 4 audit findings to **1** for the cell in
+> use (`881e4129`); what remains is `patch-linux-x64.zip`, which needs the Linux
+> builder and is deliberately kept separate from the harness work — the two are
+> independent prerequisites and mixing them would blur which one is blocking.
+> Prerequisite 1 (the drifted seed) is **untouched**: re-running
+> `prepare_airgap_fixture.sh` regenerates the pub seed and the `flutter create`
+> output, so it belongs to the sealed session itself rather than to a session that
+> is also building other things.
 
 | | item |
 |---|---|
@@ -2474,7 +2484,7 @@ different problem from the Android one, not a port of it — filing it as
 | ✅ | **PROVEN** Own Flutter source mirror |
 | ◐ | **BUILT, and now RUN against a Route B cell for the first time — 2026-08-13.** `audit_overlay.sh --hash 881e4129 --cell macos-ios` went from **4 findings to 1**. Fixed: the compiler cell was `UNPROTECTED` (owned by policy, unmatched by `@must_be_local`, so a miss served STOCK bytes from the pinned hash — the CLI resolves that cell BY the release's engine hash precisely to guarantee provenance, so a silent substitution is the worst case, not a cosmetic one); `sky_engine.zip`/`flutter_gpu.zip` published and protected per-cell; `artifacts_manifest.yaml` emitted; `patch-darwin-x64.zip` cross-built natively. **Remaining: `patch-linux-x64.zip`, which needs the Linux builder** |
 | 🐞 | **BUILT but STALE** Air-gap fixture — the pub seed no longer matches the fixture's `pubspec.lock` |
-| ☐ | **NOT BUILT** A sealed **iOS code-patch** stage — the harness has none; both its iOS patch invocations pass `--assets-only` |
+| ◐ | **BUILT 2026-08-13, NOT YET RUN** A sealed **iOS code-patch** stage — `airgap_acceptance.sh` gains `stage ios-code-patch`, wired separately from the assets-only stage so an assets pass can never satisfy the code-patch claim. It **fails closed** through six ordered gates, each ruling out a way a device result becomes unattributable: release identity preserved before the patch build can overwrite the archive → release patchability on the preserved bytes → **result-consumption** for the fixture's target → a patch published WITHOUT `--assets-only` → installed-binary identity unchanged (`AIRGAP_EXPECT_UUID` makes `launch_fixture` assert LC_UUID and take that over its mtime heuristic, which after a patch build fires on the correct artifact) → the patched value read from the **beacon**, not a screenshot. Running it needs the sealed environment plus the device, so it is BUILT, not PROVEN |
 | ☐ | **NOT VALIDATED** The sealed run itself, on a current release |
 
 **Verified 2026-08-11, and "SUBSTANTIALLY PROVEN" was doing too much work.**
