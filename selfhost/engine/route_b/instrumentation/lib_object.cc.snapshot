@@ -1017,6 +1017,7 @@ DART_ROUTE_B_EXPORT int32_t Dart_RouteBActivatePatchTraced(
         /*code_entry_point_post=*/0,
         /*code_unchecked_entry_point_pre=*/0,
         /*code_unchecked_entry_point_post=*/0,
+        /*caller_scan_status=*/DART_ROUTE_B_SCAN_NOT_REQUESTED,
         /*caller_resolved=*/DART_ROUTE_B_TRACE_UNSET,
         /*caller_pool_functions=*/DART_ROUTE_B_TRACE_UNSET,
         /*caller_pool_matches_target=*/DART_ROUTE_B_TRACE_UNSET,
@@ -1174,29 +1175,50 @@ static int32_t RouteBActivatePatchImpl(const uint8_t* payload,
         const auto& caller =
             Function::Handle(zone, ResolvePatchTarget(thread, zone, uri, cname));
         trace->caller_resolved = caller.IsNull() ? 0 : 1;
-        if (!caller.IsNull() && caller.HasCode()) {
+        if (caller.IsNull()) {
+          trace->caller_scan_status = DART_ROUTE_B_SCAN_CALLER_UNRESOLVED;
+        } else {
+          // NOT gated on HasCode(). That gate is what silently skipped release
+          // 28's scan, and replacing it with another predicate would repeat the
+          // mistake in a new costume. The code is read the same way the target's
+          // is read a few lines above, and a null result is REPORTED rather than
+          // treated as a reason to do nothing.
           const auto& ccode = Code::Handle(zone, caller.CurrentCode());
-          const auto& pool = ObjectPool::Handle(zone, ccode.object_pool());
-          int32_t seen = 0, matches = 0;
-          if (!pool.IsNull()) {
-            auto& entry = Object::Handle(zone);
-            for (intptr_t i = 0; i < pool.Length(); i++) {
-              if (pool.TypeAt(i) != ObjectPool::EntryType::kTaggedObject) {
-                continue;
+          if (ccode.IsNull()) {
+            trace->caller_scan_status =
+                DART_ROUTE_B_SCAN_CALLER_RESOLVED_NO_CODE;
+          } else {
+            const auto& pool = ObjectPool::Handle(zone, ccode.object_pool());
+            if (pool.IsNull()) {
+              trace->caller_scan_status = DART_ROUTE_B_SCAN_NULL_POOL;
+            } else {
+              int32_t seen = 0, matches = 0;
+              auto& entry = Object::Handle(zone);
+              for (intptr_t i = 0; i < pool.Length(); i++) {
+                if (pool.TypeAt(i) != ObjectPool::EntryType::kTaggedObject) {
+                  continue;
+                }
+                entry = pool.ObjectAt(i);
+                if (!entry.IsFunction()) continue;
+                seen++;
+                if (entry.ptr() == target.ptr()) {
+                  matches++;
+                } else if (trace->caller_pool_other_fn == 0) {
+                  trace->caller_pool_other_fn =
+                      static_cast<uint64_t>(entry.ptr());
+                }
               }
-              entry = pool.ObjectAt(i);
-              if (!entry.IsFunction()) continue;
-              seen++;
-              if (entry.ptr() == target.ptr()) {
-                matches++;
-              } else if (trace->caller_pool_other_fn == 0) {
-                trace->caller_pool_other_fn =
-                    static_cast<uint64_t>(entry.ptr());
-              }
+              trace->caller_pool_functions = seen;
+              trace->caller_pool_matches_target = matches;
+              // EMPTY_POOL is distinct from SCANNED: a pool with no Function
+              // entries at all cannot answer an identity question, and calling it
+              // "scanned, 0 matches" would be the same false attribution the
+              // sentinel prevented.
+              trace->caller_scan_status =
+                  (seen > 0) ? DART_ROUTE_B_SCAN_SCANNED
+                             : DART_ROUTE_B_SCAN_EMPTY_POOL;
             }
           }
-          trace->caller_pool_functions = seen;
-          trace->caller_pool_matches_target = matches;
         }
       }
     }

@@ -31,6 +31,14 @@ DECIDING = ('fn_uep_post', 'interpret_call_ep')
 
 UNSET = -1
 
+# Only SCANNED licenses reading the counters. Release 28 resolved a caller and never
+# walked the pool; with counters alone that was indistinguishable from a real
+# "0 matches" — which would have been an identity mismatch, the conclusion under
+# test, produced by a skipped branch.
+SCAN = {0: 'NOT_REQUESTED', 1: 'CALLER_UNRESOLVED', 2: 'CALLER_RESOLVED_NO_CODE',
+        3: 'NULL_POOL', 4: 'EMPTY_POOL', 5: 'SCANNED'}
+SCANNED = 5
+
 
 def parse(line):
     out = {}
@@ -55,7 +63,7 @@ def main():
         print('note: %d records; classifying the last' % len(lines))
     t = parse(lines[-1])
 
-    if t.get('v') != 2:
+    if t.get('v') not in (2, 3):
         # Exit 2, distinct from 1. A caller chaining on the exit code must be able
         # to tell "refused to classify" from "classified as did-not-move"; sharing
         # a code would turn a tooling refusal into a substantive result.
@@ -121,8 +129,53 @@ def main():
     # this is the live one.
     print()
     print('=' * 60)
+    status = t.get('caller_scan_status')
+    # A v2 record that asked for a caller cannot be classified for identity: it
+    # carries counters with no scan state, which is precisely the ambiguity that
+    # made release 28 unreadable. Falling through to the field verdict here would
+    # report exit 0 and hide the gap — that regression was introduced and caught
+    # before first use.
+    if status is None and t.get('caller_resolved', UNSET) != UNSET:
+        print('IDENTITY NOT MEASURED — this record predates caller_scan_status.')
+        print('  caller_resolved=%s pool_functions=%s matches_target=%s'
+              % (t.get('caller_resolved'), t.get('caller_pool_functions'),
+                 t.get('caller_pool_matches_target')))
+        print('Without a scan state, a zero count and a skipped scan are')
+        print('indistinguishable. Re-run on a v3 engine.')
+        return 3
+    if status is not None and status != 0:
+        name = SCAN.get(status, 'UNKNOWN(%s)' % status)
+        if status != SCANNED:
+            print('IDENTITY NOT MEASURED — caller_scan_status=%s.' % name)
+            print('The pool was not walked, so the counters carry no information:')
+            print('  caller_pool_functions=%s  matches_target=%s'
+                  % (t.get('caller_pool_functions'),
+                     t.get('caller_pool_matches_target')))
+            print('Neither a zero count nor a zero match may participate in')
+            print('classification. Fix the measurement and re-run.')
+            return 3
+        seen = t.get('caller_pool_functions', UNSET)
+        matches = t.get('caller_pool_matches_target', UNSET)
+        fn = t.get('fn', 0)
+        print('caller scan     : SCANNED, %s pooled Function(s)' % seen)
+        if matches and matches > 0:
+            print('IDENTITY MATCHES: the caller\'s pool holds the patched Function.')
+            print('  patched fn 0x%x found among %d pooled Function(s)' % (fn, seen))
+            print()
+            print('Object identity is DISPROVEN as the cause. The contradiction moves')
+            print('to how the call loads or observes that object at run time.')
+            return 0
+        print('IDENTITY MISMATCH: the caller dispatches through a DIFFERENT Function.')
+        print('  patched fn      0x%x' % fn)
+        print('  caller pool has 0x%x (and %d pooled Function(s), 0 matching)'
+              % (t.get('caller_pool_other_fn', 0), seen))
+        print()
+        print('CAUSE FOUND: ResolvePatchTarget patched one Function object while the')
+        print('caller dispatches through another representation of the same target.')
+        return 1
+
     cres = t.get('caller_resolved', UNSET)
-    if cres != UNSET:
+    if False:
         seen = t.get('caller_pool_functions', UNSET)
         matches = t.get('caller_pool_matches_target', UNSET)
         other = t.get('caller_pool_other_fn', 0)

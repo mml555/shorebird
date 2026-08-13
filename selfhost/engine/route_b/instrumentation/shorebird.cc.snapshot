@@ -248,7 +248,7 @@ std::string FormatRouteBTrace(const Dart_RouteBTrace& t,
                               const std::string& selector,
                               size_t payload_length) {
   std::ostringstream o;
-  o << "rbtrace v=1"
+  o << "rbtrace v=3"
     << " lib=" << library
     << " sel=" << selector
     << " paylen=" << payload_length
@@ -262,6 +262,7 @@ std::string FormatRouteBTrace(const Dart_RouteBTrace& t,
     << " bc_size=" << t.bytecode_size
     << " code_pre_size=" << t.code_pre_size
     << " uep_post_is_interpret_call=" << t.entry_point_post_is_interpret_call
+    << " caller_scan_status=" << t.caller_scan_status
     << " caller_resolved=" << t.caller_resolved
     << " caller_pool_fns=" << t.caller_pool_functions
     << " caller_pool_matches=" << t.caller_pool_matches_target;
@@ -349,18 +350,26 @@ void InstallRouteBActivationHook(Settings& settings, const std::string& path) {
         int applied = 0;
         for (const auto& target : container.targets) {
           Dart_RouteBTrace trace;
-          // Caller name deliberately NOT derived here. The obvious derivation
-          // ("routeB" + method name) is a property of one fixture, and guessing
-          // a caller inside the engine would put fixture naming into a shipped
-          // binary and quietly produce caller_resolved=0 -- or worse, resolve
-          // the WRONG function and invite a confident comparison against it.
-          // The VM side accepts a caller name when one is passed deliberately;
-          // until then the trace answers the field question, which is what is
-          // actually in doubt.
+          // DIAGNOSTIC-ONLY, one experiment, one exact pair.
+          //
+          // NOT a derivation. An earlier attempt built the caller name from the
+          // selector ("routeB" + method), which is one fixture's convention and
+          // could silently resolve the WRONG function and invite a confident
+          // comparison against it. This is a literal pair: for exactly this
+          // selector, the caller under investigation is this top-level function.
+          // Anything else passes nullptr and the caller fields stay UNSET, which
+          // the record and the classifier both report as NOT MEASURED rather than
+          // as a zero result.
+          //
+          // Remove with the investigation. It has no place in a product engine.
+          const char* caller = nullptr;
+          if (target.selector == "RouteBThing.value") {
+            caller = "routeBValue";
+          }
           const int32_t result = Dart_RouteBActivatePatchTraced(
               target.bytecode, static_cast<intptr_t>(target.length),
               target.library.c_str(), target.selector.c_str(), &trace,
-              nullptr);
+              caller);
           // FOR EVERY TARGET, SUCCESS INCLUDED. The success path below `continue`s,
           // so until now a target that "worked" contributed nothing but the
           // applied N/N tally — which is exactly how `applied 1/1` came to be the

@@ -117,10 +117,31 @@ typedef struct {
   uint64_t code_unchecked_entry_point_pre;
   uint64_t code_unchecked_entry_point_post;
 
+// WHY THE SCAN REPORTS A STATE AND NOT JUST COUNTS.
+//
+// Release 28 resolved the caller and left the counters at their UNSET sentinel,
+// because the scan was gated on Function::HasCode() and that returned false. Had
+// the counters defaulted to 0 the record would have read "0 pooled Functions, 0
+// matching" -- an identity MISMATCH, the exact conclusion under test, produced by
+// a branch that never ran. The sentinel caught it; a state makes it impossible.
+//
+// Six states, because "did not scan" has five distinguishable causes and they have
+// different remedies. Only SCANNED licenses reading the counters at all.
+#define DART_ROUTE_B_SCAN_NOT_REQUESTED 0
+#define DART_ROUTE_B_SCAN_CALLER_UNRESOLVED 1
+#define DART_ROUTE_B_SCAN_CALLER_RESOLVED_NO_CODE 2
+#define DART_ROUTE_B_SCAN_NULL_POOL 3
+#define DART_ROUTE_B_SCAN_EMPTY_POOL 4
+#define DART_ROUTE_B_SCAN_SCANNED 5
+
   // THE CALLER-SIDE IDENTITY, so the comparison needs no external pool reader.
   // When a caller name is supplied, its Code's object pool is scanned for
   // Function entries: how many were seen, how many are THIS target, and the
   // first pointer that is not.
+  // NOT_REQUESTED is the zero value on purpose: a future bug that forgets to set
+  // this reads as "did not scan", which the classifier refuses, rather than as a
+  // measurement.
+  int32_t caller_scan_status;
   int32_t caller_resolved;
   int32_t caller_pool_functions;
   int32_t caller_pool_matches_target;
