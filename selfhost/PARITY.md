@@ -2044,8 +2044,8 @@ boundary is not the rung ladder but library-scoped privacy.
 | | item |
 |---|---|
 | ◐ | **BUILT** `--dart-define` forwarded into Route B release/import generation |
-| ☐ | **PARTIAL** Full `--dart-define` release → patch acceptance matrix |
-| ☐ | **KNOWN GAP** `--dart-define-from-file` causes Route B patchability to be *declined* rather than supported |
+| ◐ | **BUILT 2026-08-13** Full `--dart-define` release → patch acceptance matrix — `G4.1`. The release records its configuration in provenance; the patch **refuses before any compilation** when the effective set differs. 21 matrix tests plus the threading test |
+| ☐ | **KNOWN GAP** `--dart-define-from-file` causes Route B patchability to be *declined* rather than supported. `G4.1` keeps it a decline and now says which of two reasons applies: a release that predates configuration provenance is *not comparable*, and one built with this option *never can be* — neither collapses into "no defines" |
 
 ### Flavors / schemes
 
@@ -3077,8 +3077,14 @@ the evidence points elsewhere, and every rung is a mint plus a scarce device gat
 
 6. **`G3.6b app-private-holes`** — the two accepted-then-failed holes. Costs `R7` +
    a mint; fold into `G3.6e`'s mint rather than paying twice.
-7. **`G4.1 dart-defines`** — the **provenance + threading** work lifted out of
-   `G4.2`; `G4.3` reuses it.
+7. **`G4.1 dart-defines`** — **BUILT 2026-08-13.** The seam `G4.3` was supposed to
+   reuse now exists: `RouteBBuildConfig` separates **raw invocation provenance**
+   (audit) from **effective compiler configuration** (compatibility), fingerprints
+   the latter, records it in release provenance, refuses a mismatched patch before
+   the compiler is resolved, and threads the release's defines into
+   `dart2bytecode`. Its canonical form is **measured, not assumed** —
+   `probes/g41_define_semantics.sh` 4/4. Obfuscation should now be another field
+   flowing through this mechanism rather than a second bespoke system.
 8. **`G4.3 obfuscation-ios`** — the untested half; Android is proven.
 9. **`G4.2 flavors`** — Android half needs no `R1`; do the host probe before `R2`.
 10. **`G6 tracks`** device row — follows `G8` or `shorebird preview`, since

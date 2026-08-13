@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
+import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
@@ -139,6 +140,9 @@ void main() {
           ]),
         );
         expect(args, containsAllInOrder(['--target', 'flutter']));
+        // G4.1: with no build config there are no -D args at all, so a
+        // release that used no defines does not get an empty one invented.
+        expect(args.where((a) => a.startsWith('-D')), isEmpty);
         expect(
           args,
           containsAllInOrder([
@@ -157,6 +161,41 @@ void main() {
         );
       },
     );
+
+    test('G4.1: threads the release define set into the compile, sorted', () {
+      late List<String> args;
+      runWithOverrides(
+        () => const RouteBProducer().produce(
+          compiler: compiler(),
+          coverage: coverage(),
+          importKernel: File(p.join(cell.path, 'release_import.dill')),
+          releaseBuildId: 'deadbeef',
+          workingDirectory: work,
+          projectRoot: project,
+          // Supplied in the "wrong" order deliberately: order is not semantic
+          // (probes/g41_define_semantics.sh measured byte-identical kernels), and
+          // a deterministic emission order keeps the compile reproducible from
+          // the recorded configuration.
+          buildConfig: RouteBBuildConfig.fromBuildArgs([
+            '--dart-define=b=2',
+            '--dart-define=a=1',
+          ]),
+          run: (executable, arguments) {
+            args = arguments;
+            return compileOk(executable, arguments);
+          },
+        ),
+      );
+
+      // Without these, a replacement reading
+      // `const String.fromEnvironment('a')` compiles against the DEFAULT while
+      // the release around it holds '1'. Both are literals by the time anything
+      // runs, so no runtime check could ever see the divergence.
+      expect(args.where((a) => a.startsWith('-D')).toList(), [
+        '-Da=1',
+        '-Db=2',
+      ]);
+    });
 
     test('packs a container the reader accepts', () {
       final bytes = runWithOverrides(
@@ -627,19 +666,24 @@ void main() {
         );
       });
 
-      test('G3.7: a multi-parameter target keeps every parameter, in order', () {
-        expect(
-          lowered(
-            instanceCoverage(
-              preamble: 'class RouteBThing {\n  ',
-              decl: 'String pair(String a, int b) => label;',
-              access: 'label',
-              kind: 'get',
+      test(
+        'G3.7: a multi-parameter target keeps every parameter, in order',
+        () {
+          expect(
+            lowered(
+              instanceCoverage(
+                preamble: 'class RouteBThing {\n  ',
+                decl: 'String pair(String a, int b) => label;',
+                access: 'label',
+                kind: 'get',
+              ),
             ),
-          ),
-          contains('String pair(RouteBThing self, String a, int b) => self.label;'),
-        );
-      });
+            contains(
+              'String pair(RouteBThing self, String a, int b) => self.label;',
+            ),
+          );
+        },
+      );
 
       test('lowers an explicit this write', () {
         expect(

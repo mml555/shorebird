@@ -45,6 +45,7 @@ import 'dart:typed_data';
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
+import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
@@ -103,6 +104,7 @@ class RouteBProducer {
     required Directory workingDirectory,
     required Directory projectRoot,
     RouteBCapabilities? capabilities,
+    RouteBBuildConfig? buildConfig,
     RouteBCompileRunner run = Process.runSync,
   }) {
     // Every changed member that can land, in a stable order so the container is
@@ -166,6 +168,19 @@ class RouteBProducer {
         'flutter',
         '--import-dill',
         importKernel.path,
+        // G4.1: THE RELEASE'S DEFINES, threaded into the replacement's own
+        // compilation. `const String.fromEnvironment` resolves at compile time, so
+        // without these a replacement reading a define would silently bake in the
+        // DEFAULT while the release around it holds the real value -- a divergence
+        // no runtime check can see, because both are literals by then.
+        //
+        // Emitted in sorted key order because order is not semantic (measured by
+        // probes/g41_define_semantics.sh), which also makes the recorded compile
+        // command reproducible.
+        //
+        // The patcher has already refused a mismatch before reaching here, so these
+        // are the release's values and the patch's values at once.
+        ...?buildConfig?.compilerArgs,
         // The CFE resolves the replacement's private names AS IF it were the
         // target library, which is what makes `self._controller` mean the app's
         // member rather than an unresolvable name in a synthetic library.

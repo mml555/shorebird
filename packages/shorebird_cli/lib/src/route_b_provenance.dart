@@ -35,6 +35,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
+import 'package:shorebird_cli/src/route_b_build_config.dart';
 
 /// The release's own kernel, as it fed that release's AOT compilation.
 ///
@@ -103,6 +104,7 @@ class RouteBReleaseProvenance {
     required this.patchableCallSites,
     required this.patchableCallSitesPerMiB,
     this.artifacts = const {},
+    this.buildConfig,
   });
 
   /// Parses a sidecar's contents.
@@ -152,10 +154,21 @@ class RouteBReleaseProvenance {
       }
     }
 
+    // G4.1. ABSENT and UNFINGERPRINTABLE are different states and neither may
+    // read as "no defines": a release built before this field existed cannot be
+    // compared at all, and a release built with --dart-define-from-file cannot
+    // either. Both come back null here, and the patch side distinguishes them from
+    // an empty-but-known configuration, which IS comparable.
+    RouteBBuildConfig? buildConfig;
+    if (decoded['buildConfig'] case final Map<String, dynamic> recorded) {
+      buildConfig = RouteBBuildConfig.fromJson(recorded);
+    }
+
     return RouteBReleaseProvenance(
       engineRevision: engineRevision,
       flutterRevision: flutterRevision,
       artifacts: artifacts,
+      buildConfig: buildConfig,
       // Evidence, not a gate: the patch side re-counts from the shipped bytes
       // rather than believing these. They are here so a later failure can be
       // attributed to a specific release rather than to "some release".
@@ -190,6 +203,16 @@ class RouteBReleaseProvenance {
   /// — every recorded artifact is verified by the same loop.
   final Map<String, String> artifacts;
 
+  /// The build configuration this release was compiled with, or null when it
+  /// cannot be compared — either the release predates this field, or it used an
+  /// option whose effective define set cannot be determined
+  /// ([routeBUnfingerprintableOptions]).
+  ///
+  /// Null is NOT "no defines". A release with an empty configuration records an
+  /// empty [RouteBBuildConfig], which a patch can match; null means the comparison
+  /// is unavailable, and the patch side says which of the two it is.
+  final RouteBBuildConfig? buildConfig;
+
   /// Renders the sidecar. Pretty-printed: it is small, it is read by people
   /// debugging a release, and it ships inside a zip either way.
   String toJson() => const JsonEncoder.withIndent('  ').convert({
@@ -198,6 +221,7 @@ class RouteBReleaseProvenance {
     'patchableCallSites': patchableCallSites,
     'patchableCallSitesPerMiB': patchableCallSitesPerMiB,
     'artifacts': artifacts,
+    if (buildConfig != null) 'buildConfig': buildConfig!.toJson(),
   });
 }
 

@@ -25,6 +25,7 @@ import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
+import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
@@ -229,6 +230,22 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
         releaseSupplementDir,
         provenance,
       );
+      // G4.1: THE DEFINES MUST MATCH, CHECKED BEFORE ANY COMPILATION.
+      //
+      // `const String.fromEnvironment` resolves at COMPILE time, so a patch built
+      // with a different effective define set than its release does not fail -- it
+      // bakes in a different constant and ships. Nothing downstream can catch it,
+      // because by then the wrong value is already a literal.
+      //
+      // Placed here deliberately: before the compiler is resolved, before coverage,
+      // before any kernel, bytecode or container exists. It is NOT before the
+      // patch's own `flutter build ipa`, which runs in `buildPatchArtifact` --
+      // the release supplement, and so the release's provenance, is not downloaded
+      // until after that. Refusing ahead of that build means fetching the
+      // supplement earlier in the patcher lifecycle, which is its own change;
+      // that build alone produces nothing shippable.
+      _verifyBuildConfigAgrees(provenance);
+
       final compiler = await _resolveRouteBCompiler(provenance);
       _verifyReleaseKernelsAgree(compiler, releaseArtifacts);
 
@@ -255,6 +272,10 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
         // worked before and refuses only the private references it cannot
         // vouch for.
         capabilities: _readReleaseCapabilities(releaseArtifacts),
+        // G4.1. The release's own effective define set, already proven to match
+        // this patch's by _verifyBuildConfigAgrees above, so the replacement
+        // compiles with the constants the release compiled with.
+        buildConfig: provenance.buildConfig,
       );
     }
 
@@ -676,6 +697,7 @@ Nothing was uploaded. Create a new release and patch that instead.''',
     required File importKernel,
     required String releaseBuildId,
     RouteBCapabilities? capabilities,
+    RouteBBuildConfig? buildConfig,
   }) {
     final workingDirectory = Directory(
       p.join(shorebirdEnv.buildDirectory.path, 'route_b'),
@@ -690,6 +712,7 @@ Nothing was uploaded. Create a new release and patch that instead.''',
         workingDirectory: workingDirectory,
         projectRoot: projectRoot,
         capabilities: capabilities,
+        buildConfig: buildConfig,
       );
     } on RouteBUnsupportedTarget catch (error) {
       logger.err(
@@ -721,6 +744,55 @@ uploaded.''',
   /// from "this patch cannot be represented": the remediation is to cut a new
   /// release, not to change the Dart being patched. Collapsing the two into a
   /// generic patch failure sends people to debug the wrong half.
+  /// Refuses when this patch's effective build configuration differs from the
+  /// release's.
+  ///
+  /// Compares the EFFECTIVE define set, never the command line: two invocations
+  /// that supply the same defines in a different order compile to byte-identical
+  /// kernels (measured by `probes/g41_define_semantics.sh`), so refusing on
+  /// textual inequality would reject a patch with nothing wrong with it.
+  void _verifyBuildConfigAgrees(RouteBReleaseProvenance provenance) {
+    final releaseConfig = provenance.buildConfig;
+    final patchArgs = [...argResults.forwardedArgs, ...extraBuildArgs];
+    final patchConfig = RouteBBuildConfig.fromBuildArgs(patchArgs);
+
+    if (releaseConfig == null) {
+      // Two different causes with different remediations, so they are named
+      // rather than collapsed: a release cut before this field existed cannot be
+      // compared, and a release built with an unfingerprintable option never can.
+      logger.warn(
+        '''This release records no comparable build configuration, so its --dart-define values cannot be checked against this patch's. If it was built with ${routeBUnfingerprintableOptions.join(', ')}, that is expected and permanent; if it predates configuration provenance, cut a new release to get the check.''',
+      );
+      return;
+    }
+    if (patchConfig == null) {
+      logger.err(
+        '''This patch was invoked with ${routeBUnfingerprintableOptions.join(', ')}, whose effective define set cannot be determined, so it cannot be shown to match the release's.''',
+      );
+      throw ProcessExit(ExitCode.usage.code);
+    }
+    if (releaseConfig.agreesWith(patchConfig)) {
+      logger.detail(
+        '[route-b] build configuration matches the release '
+        '(fingerprint ${releaseConfig.fingerprint})',
+      );
+      return;
+    }
+
+    logger
+      ..err('''
+This patch's Dart defines differ from the release's, so its compiled constants would not match the release it patches:
+
+${releaseConfig.describeDifference(patchConfig)}
+
+release fingerprint: ${releaseConfig.fingerprint}
+patch fingerprint:   ${patchConfig.fingerprint}''')
+      ..info(
+        '''Re-run `shorebird patch` with the same --dart-define values the release was built with. Order and redundant repetitions do not matter; the effective values do.''',
+      );
+    throw ProcessExit(ExitCode.usage.code);
+  }
+
   void _verifyReleaseIsPatchable(File releaseArtifactFile) {
     if (isPatchableRelease(releaseArtifactFile)) return;
 
