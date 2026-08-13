@@ -191,3 +191,10 @@ ffdec413f2d12a253a03753a428b8465cc8cacc3 69f9831c360d9152862ec3897c67fb09ae843f3
 #
 # Trace v3: caller_scan_status first-class (NOT_REQUESTED..SCANNED), HasCode() gate removed, identity refused unless SCANNED. Address includes ios_artifacts_sha256.
 d6aad559e9da328edb729d5ed7c69c21bc0380ee 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-13 from the cell
+# manifest (see mint_route_b_cell.sh). Engine binary is d6aad559e9da328edb729d5ed7c69c21bc0380ee's,
+# cloned byte-for-byte; only the CELL differs.
+#
+# Trace v4: exact-entry pool identity. Reads ONE global-pool entry at the measured call-site offset 0xd4a8, index via ObjectPool::IndexFromOffset. Mismatch requires two positively identified Functions; caller name removed.
+881e4129ce06e8d61019e0ed892f3be7c039763e 69f9831c360d9152862ec3897c67fb09ae843f3b

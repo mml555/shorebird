@@ -1,0 +1,59 @@
+release        : 30
+preserved from : build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework/App
+preserved at   : 2026-08-13T03:16:59Z
+LC_UUID        : a57cb6bad4b139878b356bc3b289850a
+patchable      : 7,141  (1,775 per MB)
+size           : 4219056 bytes
+
+These are the RELEASE's own bytes. Compare later patches against them:
+
+  assert_installed_release.sh <app-or-archive> --expect a57cb6bad4b139878b356bc3b289850a
+
+The working archive is NOT a substitute: Try logging out with shorebird logout and logging in again.
+
+If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
+
+You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
+/Users/mendell/Library/Application Support/shorebird/logs/1786591019751_shorebird.log re-archives over
+build/ios/archive, so after the first patch it holds the patch build instead.
+
+DEVICE RESULT — release 30, engine 881e4129, trace schema v4
+  gates    : audit ok (published zip == ios_artifacts_sha256), 5/5 diagnostic gate
+             (donor 09e1c3a7), consumed cache carries v=4 SPECIFICALLY,
+             shipped engine v=4, patchable 7,141 / 1,775 per MB,
+             LC_UUID a57cb6ba asserted both ways
+  patch    : String value(RouteBThing self) => 'NEW-CTL';
+  app      : NEW-SET, code patch 1 (still unchanged)
+
+CLASSIFIER: exit 0 — IDENTITY MATCHES. Captured directly, not via a pipeline.
+  verdict + classifier revision in verdict.txt beside this file.
+
+  pool_offset   0xd4a8  -> pool_index 6803 of pool_length 15432
+                (index from ObjectPool::IndexFromOffset, the VM's own rule)
+  pool_entry    0x10783dfc1   is_function = 1
+  patched fn    0x10783dfc1
+  equal         YES
+
+So the exact entry the kUnchecked call site loads IS the Function that was patched.
+Object identity is ELIMINATED as the cause.
+
+THE STATE IS NOW FULLY CORNERED. Every static fact says this patch should take
+effect:
+
+  * the container parses, build IDs match, attach returns Ok (release 26 -> 30)
+  * Function::entry_point_ AND unchecked_entry_point_ both move to the same-run
+    InterpretCall stub (release 27, v2, measured at the Function layer)
+  * the call site is a Route-B-emitted kUnchecked Function-entry-point load at
+    offset 0xf (release 26, disassembled from preserved bytes)
+  * the pool entry that call site loads is the patched Function itself (release 30)
+  * the release is patchable, the engine is the diagnostic one, and the installed
+    binary is the release the patch targets -- all gated before reading
+
+And the app still executes the original AOT body.
+
+WHAT IS LEFT is no longer about identity or state. It is about WHEN and WHETHER
+that load happens: whether the call site executes before the pre-main attach,
+whether its entry point was already materialised into the caller's instruction
+stream, or whether the observed value was produced by a path other than this call.
+Those are execution-order and observation questions, and NONE of them has been
+measured. No further attribution until one is.
