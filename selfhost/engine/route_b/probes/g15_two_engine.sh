@@ -97,7 +97,21 @@ check "the host tripwires on an implicit engine" \
 check "and REFUSES rather than interpreting" \
   "$(code "$HOST" | grep -c 'showRefusal')" 2
 
-echo "5. the overlay is committed, not generated"
+echo "5. the patch target both engines execute"
+# Two boots are not a gate: arming is only observable when a patch ATTACHES, and
+# an rbtrace record comes from the attach. So a target on the live path is what
+# turns two boots into two attaches.
+check "engineMark exists" "$(grep -c 'String engineMark()' "$DART")" 1
+check "and is never-inlined (or the body is spliced into its caller)" \
+  "$(grep -B2 'String engineMark()' "$DART" | grep -c "vm:never-inline")" 1
+check "and is an entry point (AOT drops library dictionaries)" \
+  "$(grep -B2 'String engineMark()' "$DART" | grep -c "vm:entry-point")" 1
+check "and is NON-FOLDABLE (a constant body has its RESULT folded away)" \
+  "$(grep -A1 'String engineMark()' "$DART" | grep -c 'DateTime.now()')" 1
+check "and its result reaches BOTH engines' markers via _identity" \
+  "$(grep -c 'mark=' "$DART")" 1
+
+echo "6. the overlay is committed, not generated"
 # The whole reason ios_overlay/ exists: ios/ is gitignored, so a host edited in
 # place is deleted by the next materialize.
 if git -C "$REPO" check-ignore -q "$HOST"; then ig=ignored; else ig=tracked-path; fi

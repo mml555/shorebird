@@ -32,6 +32,34 @@ void main() => _boot('one');
 @pragma('vm:entry-point')
 void engineTwoMain() => _boot('two');
 
+/// `G15`'s PATCH TARGET — the one thing a patch replaces, executed by BOTH engines.
+///
+/// WHY THE HARNESS NEEDS THIS AT ALL. Arming is only observable when a patch
+/// attaches: `InstallRouteBActivationHook` is inert on an empty `route_b_path`, and
+/// an `rbtrace` record is written by the attach itself. So "two engines booted" is
+/// not yet a gate — a target both engines EXECUTE is what turns two boots into two
+/// attaches.
+///
+/// Its shape is copied from `airgap_app`'s proven targets rather than invented:
+///
+///   * `vm:never-inline` — without it the body is spliced into `_boot` and there is
+///     nothing left to replace. `_identity` below is deliberately NOT the target for
+///     exactly this reason.
+///   * `DateTime.now()` routing — a body returning one compile-time constant has its
+///     RESULT folded at the call site, so the patch attaches, executes, and cannot
+///     be seen. Six device runs were lost to that.
+///   * `vm:entry-point` — AOT drops library dictionaries, and the attach resolves
+///     targets by name.
+///
+/// Its value goes into each engine's OWN marker file, which is what makes a
+/// one-engine failure localisable: engine one reading `MARK-PATCHED` while engine two
+/// reads `MARK-REL` is `G15` failing for engine two specifically, and that reading is
+/// available from the markers alone, independent of the trace.
+@pragma('vm:never-inline')
+@pragma('vm:entry-point')
+String engineMark() =>
+    DateTime.now().millisecondsSinceEpoch >= 0 ? 'MARK-REL' : 'X';
+
 /// The per-engine identity written to the marker and printed to the log.
 ///
 /// Includes the isolate's own debug name as well as the label the entrypoint
@@ -41,6 +69,7 @@ String _identity(String label) {
   final iso = Isolate.current.debugName ?? 'unknown';
   return 'engine=$label isolate=$iso '
       'entrypoint=${label == 'one' ? 'main' : 'engineTwoMain'} '
+      'mark=${engineMark()} '
       'flutter_view=${ui.PlatformDispatcher.instance.views.length}';
 }
 
