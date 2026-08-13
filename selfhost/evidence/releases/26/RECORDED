@@ -168,3 +168,50 @@ verify_patchable_release.sh establishes "Route B call forms are PRESENT in this
 release", NOT "this release's calls are patchable". The census makes the gap
 concrete: 7,102 patchable pairs against 25,494 direct bl and 22,878 register-
 indirect calls.
+
+CORRECTION — BRANCH 3 IS WRONG. The base object IS the target Function.
+
+Read from flow_graph_compiler_arm64.cc (the fork's own emission, guarded by
+`#if defined(DART_DYNAMIC_MODULES)`), not inferred from the offset:
+
+    __ LoadObject(FUNCTION_REG, target);
+    __ Call(FieldAddress(FUNCTION_REG,
+                         Function::entry_point_offset(entry_kind)));
+
+BOTH sites come from this one path. The only difference is entry_kind:
+
+    B  routeBProbe -> routeBValue        kNormal    -> 0x7
+    A  routeBValue -> RouteBThing.value  kUnchecked -> 0xf
+
+Site A's `ldr x4,[x27,#0xf8]` matches that code's own comment -- "EmitOptimizedStaticCall
+loads it above (its arguments_descriptor is never null)" -- so A is the optimized
+static-call caller of the same emission, not a switchable call.
+EmitInstanceCallAOT is positively excluded: it clears R4 to zero
+(`LoadImmediate(R4, 0)`) and uses LoadDoubleWordFromPoolIndex, neither of which
+appears at A.
+
+So `0xf` here is Function::unchecked_entry_point_ on the TARGET Function, and the
+earlier SingleTargetCache reading is withdrawn. The offset was genuinely
+ambiguous; the emission source is not.
+
+WHICH MAKES THE CONTRADICTION SHARPER, NOT RESOLVED. The trace recorded
+uep_post == ep_post == interpret_call_ep, so the patched Function's unchecked
+entry point WAS moved to the interpreter stub. A call through offset 0xf on that
+same Function should therefore have reached the interpreter. It did not.
+
+The live question is now exactly Function-object IDENTITY, the user's branch 2:
+is the Function in the caller's object pool the same object ResolvePatchTarget
+found and AttachBytecode mutated? Two concrete leads, neither yet checked:
+
+  * the dSYM lists BOTH `RouteBThing.value` (0xddca8) and `RouteBThing.value (#2)`
+    (0xddcb4) -- the normal and unchecked entries into one Code -- so the two
+    entry points are 12 bytes apart in the ORIGINAL code, and the pre-attach
+    trace recorded ep_pre == uep_pre == 0x1079e5ca8, i.e. EQUAL. For a function
+    with a distinct unchecked entry those should differ. That mismatch is worth
+    understanding before anything else.
+  * ResolvePatchTarget resolves by name through LibraryIndex; a tear-off,
+    forwarder or a second Function sharing the name would resolve to a different
+    object than the pool holds.
+
+That is the next thing to look at, and it needs neither a release nor a device --
+the trace already carries ep_pre/uep_pre, and the dSYM carries both entry symbols.
