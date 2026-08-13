@@ -91,6 +91,24 @@ One correction to the plan: the validation string it cites at `gen_snapshot.cc:3
 does NOT appear in our tree with that wording — grep for the phrase returns nothing,
 so locate save's validation by its option name rather than by the message text.
 
+**STEP 7 BUILT AHEAD OF STEP 3, deliberately.**
+`probes/g43_obfuscation_map_load.sh` exists and reports **NOT RUNNABLE (exit 2)**
+today, naming the absent flag. Writing the acceptance criteria before the
+implementation means the fix cannot be graded against its author's expectations —
+and the probe's own header says why the flag alone is not the gate: accepting
+`--load-obfuscation-map` and then renaming INCONSISTENTLY would be worse than
+refusing it, because the patch would build, ship, and bind to names the release does
+not have. Its three arms: the flag is advertised; every rename in map A survives
+into B; and no two identifiers in B share an obfuscated name — the cursor question,
+made measurable.
+
+**THE MAP FORMAT, MEASURED** from the real 629 KB map our own engine wrote for
+release 35 (`airgap_app/build/shorebird/obfuscation_map.json`): a FLAT JSON ARRAY of
+strings, even length, consecutive `[original, renamed]` pairs — 39,660 entries,
+19,830 pairs — and it DOES contain empty-string pairs, which the parser must
+tolerate rather than reject. That is the parser's input contract and it agrees with
+the reference binary's four error strings.
+
 **NOT STARTED: step 3 onward.** The Dart change, the engine rebuild, the mint. Step 3
 mutates the Dart checkout on `R3`, which is shared and not in git, so it should be
 started only by a session that can carry it to a `dart_patches.sh --verify` green in
