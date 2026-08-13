@@ -115,7 +115,23 @@ already cost somebody real work. The full statements live in
 8. **The CLI under test must be the CLI you changed.** `~/.shorebird` is its own
    checkout with a `fork` remote and does **not** move when you commit. Release 34 was
    discarded for exactly this, and its failure looks precisely like a `G3.7` failure.
-9. **Never run a negative control by editing in place in the shared tree.** Copy the
+9. **Claim the PATH, before the first file exists — not just an `R-id`.** Every
+   protection in §17 is keyed to the claims table, and the table is keyed to
+   `R-ids`, so **a resource that does not exist yet cannot be claimed.** An order
+   that creates something new — `H2`'s whole value is that it is a *second*
+   fixture, owning no `R6` — has no row to hold, and `git status` then shows one
+   untracked directory that two workers each correctly read as their own. **This
+   cost real duplicated work on 2026-08-13:** two sessions took `H2` four minutes
+   apart, one committed the other's unstaged transform while describing it as not
+   done, and the other clobbered that commit's `xcconfig`s sixty seconds later.
+   Nothing was lost, by ordering rather than by design — the third such escape.
+   A claims row naming the path, with no `R-id` at all, would have prevented it: a
+   claim is a statement of intent, not a property of an existing artifact.
+10. **A commit message is not evidence of its own contents — `git show --stat`
+    is.** When two workers are live, read the diffstat of any commit you build on.
+    The worker whose broad stage swallowed your files does not know it happened,
+    and will tell you in good faith that the work is still owed.
+11. **Never run a negative control by editing in place in the shared tree.** Copy the
    subject into a scratch worktree, or land the fix first and revert in a throwaway.
    **This cost real attribution on 2026-08-13:** a fix to `ios_patcher.dart` was
    deliberately commented out for sixty seconds to prove its tests fail without it,
