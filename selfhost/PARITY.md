@@ -2232,12 +2232,12 @@ Confirmed on device: withdrawing patch 1 showed `code patch: none`, not patch 0.
 | | item |
 |---|---|
 | ☐ | **INHERITED** Upstream signing machinery present in the fork |
-| 🐞 | **KNOWN GAP** The default `patch_verification: install_only` performs **no signature verification anywhere on the production path** |
+| 🐞 | **KNOWN GAP** The default configuration performs **no signature verification anywhere on the production path** — headline unchanged, **mechanism CORRECTED 2026-08-13**. This row read *"The default `patch_verification: install_only` performs…"*; the first clause is **false and is retracted**: `install_only` is not the default. `yaml.rs:7-8` marks **`Strict`** `#[default]`. What actually disables verification is the *second* gate — `lifecycle.rs:796-803` runs `check_signature` only `if let Some(public_key)`, and otherwise logs "No public key configured; skipping signature verification", which is the state unless `--public-key-path` was passed at release time. The only install-time verifier (`cache/updater_state.rs:363`) is **`#[cfg(test)]`-gated at `:348`** and documents that no production caller reaches it, while the real install path `record_install_complete` (`lifecycle.rs:897-922`) verifies nothing. So "install" in `InstallOnly` is wrong in both directions. Kept as a retraction rather than edited away: a reader who checked the old mechanism would have found `Strict` and disbelieved a conclusion that is correct. Working: [`SIGNING.md`](SIGNING.md), [`evidence/g7-signing/verification_path.md`](evidence/g7-signing/verification_path.md) |
 | ☐ | **NOT VALIDATED** Signed Android release + patch |
 | ☐ | **NOT VALIDATED** Signed iOS Route B release + patch |
 | ☐ | **INHERITED** Invalid signature rejected — **`Strict` mode only, and only at the NEXT BOOT**, after the patch has been downloaded, installed, promoted and reported as a successful download |
-| 🐞 | **KNOWN GAP** Key rotation — there is nothing to validate; no rotation mechanism exists |
-| ☐ | **NOT BUILT** A documented rotation procedure |
+| 🐞 | **KNOWN GAP** Key rotation — there is nothing to validate; no rotation mechanism exists. **Unchanged 2026-08-13:** writing the procedure down does not create a mechanism, and the row below moving to BUILT is about the *document*, not the capability |
+| ◐ | **BUILT 2026-08-13** A documented rotation procedure — [`SIGNING.md`](SIGNING.md) carries the manual procedure (new keypair → **new release** with `--public-key-path` → sign subsequent patches with the match; older live releases keep the old key). **No mechanism was invented**, and the consequence is stated where a reader will hit it: a compromised private key **cannot be revoked** — every shipped release trusts its baked-in key until users move to a release built with a new one. Rotation is a re-release, not a revocation |
 | ☐ | **NOT VALIDATED** Custom signing command (`--sign-cmd`) |
 | 🐞 | **KNOWN GAP** The signing algorithm is fixed — a constraint the "KMS-backed" row assumed away |
 | ☐ | **NOT BUILT** KMS-backed signing — **aspirational**, folded into `--sign-cmd` rather than standing as its own parity obligation |
@@ -3397,8 +3397,15 @@ worthless.
    the device gate and the Android half.
 10. **`G6 tracks`** device row — follows `G8` or `shorebird preview`, since
     `channel` does not reach the device.
-11. **`G7 signing`** — small in code, but see §7: the **default verifies nothing**,
-    which is a decision to make before it is work to do.
+11. **`G7 signing`** — **the decision is MADE, 2026-08-13: option (ii), "loud opt-in"**
+    — keep the permissive default, warn when a release is cut with no public key.
+    Written up with its rejected alternatives in [`SIGNING.md`](SIGNING.md); (iii)
+    fail-closed was rejected because it breaks this fork's own acceptance scripts,
+    whose Android and iOS legs are PROVEN *unsigned*. **A written decision upgrades
+    no status** — §7's rows stay KNOWN GAP / NOT BUILT. What remains is one
+    `logger.warn` beside `release_command.dart:423-431` (which already warns in the
+    opposite direction) plus a test, and a golden across the Dart-PEM /
+    Rust-base64-DER seam that nothing crosses today.
 12. **`G8 manual-api`** — needs its own fixture, so it does not contend on `R6`.
 13. **`G9 add-to-app`** — iOS is blocked twice over; Android first.
 14. **`G10.2 noninteractive`** CI workflows.
@@ -3419,6 +3426,7 @@ worthless.
 | `G3.6c` + `G3.6d` | `a28ba1d9`, `059573ca`, `a2927e41` — host-proven pair, +0.01 % |
 | `G10.1 stale-ipa` | `c57c6537` |
 | `G6 tracks` (server half) | this commit — named `beta`/`staging`/`canary` asserted independent, supersession pinned by a negative control, rollout reclassified **KNOWN GAP (client surface)**. Device row deliberately still NOT VALIDATED |
+| `G7 signing` (the decision) | this commit — option (ii) chosen with rejected options recorded, `SIGNING.md` written, §7's mechanism sentence retracted and corrected. **No status upgraded** |
 
 ### Off-queue and nearly free
 

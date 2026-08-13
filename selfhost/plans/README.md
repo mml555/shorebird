@@ -70,7 +70,7 @@ owed real hardware; three of the top four need none.
 | [`G3.7`](G3.7-param-abi-device-gate.md) | the parameter-ABI device verdict — the last clause of the architectural question, 33.2 % of structural reach | BUILT, device owed | `R1` `R6` `R8` | **R1** | no |
 | [`G4.2`/`G4.3`](G4.2-G4.3-config-device-gate.md) | the configuration arms, each annotated for constructibility, plus the independent Android lane | BUILT, device owed | `R2` `R9` `R12` | **R2** | no |
 | [`G3.6b`](G3.6b-app-private-holes.md) | the two accepted-then-failed private holes turned into refusals with named evidence | PARTIAL | `R7` `R3` | no | yes |
-| [`G6`/`G7`/`G8`/`G10.2`](G6-G7-G8-G10.2-no-hardware-lanes.md) | four small orders under one roof — the whole set an agent can take with **zero** contended hardware | PARTIAL — **lane B (`G6` server half) done**, 291 tests green with a negative control; lanes A (`G7`), C (`G8`), D (`G10.2`) untouched | `R10` | no | no |
+| [`G6`/`G7`/`G8`/`G10.2`](G6-G7-G8-G10.2-no-hardware-lanes.md) | four small orders under one roof — the whole set an agent can take with **zero** contended hardware | PARTIAL — **lanes A (`G7`) and B (`G6` server half) done**: the signing decision is made and `SIGNING.md` written, 291 server tests green with a negative control. Lanes C (`G8`) and D (`G10.2`) untouched | `R10` | no | no |
 | [`L1`](L1-leverage-lane.md) | fixture clones (raises the §16 parallelism ceiling), then Android add-to-app, the `G5` remainder, and the sealed `G13` run **last and alone** | NOT BUILT | many | both | no |
 | [`M0`](M0-cell-mint-and-identity.md) | how to mint a cell and close its identity — plus cell `4df8f9b6`'s worked example and the repair its audit still owes | BUILT | `R11` `R3` | no | — |
 
