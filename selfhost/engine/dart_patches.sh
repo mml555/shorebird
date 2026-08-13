@@ -29,8 +29,10 @@ PINNED_DART_COMMIT="d684a576a6aa954ae107a03b2b4e1d61c3bebe93"
 
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 
-# Order matters only in that each patch must apply to the pinned base; they
-# touch disjoint files today, but keep them in series order anyway.
+# Order matters. Through 0006 the patches touched disjoint files, so the series
+# order was only a convention; 0008 is the first one that does NOT — it edits
+# runtime/vm/compiler/aot/precompiler.cc, which 0005 also edits (0005's hunks
+# sit near lines 79, 551 and 1830, clear of 0008's). 0008 must come after 0005.
 #
 # Deliberately NOT in this list:
 #   0002 — flutter tree (GN), not the Dart tree.
@@ -40,6 +42,7 @@ PATCHES=(
   "$HERE/0004-dart-tearoff-selector-guard.patch"
   "$HERE/0005-dart-precompiler-link-info-and-tearoffs.patch"
   "$HERE/0006-dart-no-dispatch-call-for-hash-slots.patch"
+  "$HERE/0008-dart-load-obfuscation-map.patch"
 )
 
 DEST=""

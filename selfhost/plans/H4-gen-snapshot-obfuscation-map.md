@@ -120,33 +120,104 @@ the reference binary's four error strings.
 | **the collision hazard is real, not hypothetical** | `precompiler.cc:4037` — `} while (renames_.GetOrNull(renamed_) == renamed_.ptr());` loops only while the candidate is an IDENTITY rename. A name already used as a VALUE is not rejected |
 | the cursor buffer | `char name_[100]`, `precompiler.h:601` |
 
-**THE CURSOR DECISION, made and to be measured rather than assumed.** The JSON
+**THE CURSOR DECISION, made and to be measured rather than assumed.** ~~The JSON
 carries pairs only, so the cursor must be reconstructed. Set it to the greatest
 generated-looking value in the loaded map — comparing by LENGTH first, then
 lexicographically, over values that are entirely `[a-z]` — because that is the order
-`NewAtomicRename` generates in. Leaving it empty restarts at `a` and, by
-`:4037` above, hands a second identifier a name the release already spent.
+`NewAtomicRename` generates in.~~ **REFUTED BY MEASUREMENT — see "What step 3
+executed" below.** The premise (reconstruct the cursor as the greatest generated
+value) is right; the *rule* is wrong three times over. Leaving it empty restarts at
+`a` and, by `:4037` above, hands a second identifier a name the release already spent.
 `probes/g43_obfuscation_map_load.sh` arm (c) is exactly this measurement, and it must
 be run BOTH ways: with the cursor restored (expect 0 collisions) and, once, with it
 deliberately zeroed to confirm the probe can SEE a collision. A probe that cannot
 fail proves nothing.
 
-**SHAPE THAT KEEPS THE VM SURFACE SMALL:** parse the JSON in `bin/gen_snapshot.cc`,
+**SHAPE THAT KEEPS THE VM SURFACE SMALL:** ~~parse the JSON in `bin/gen_snapshot.cc`,
 where the reference binary's parser errors live, and hand the VM a flat
 `const char** pairs, intptr_t count`. Then the new API is
 `Dart_LoadObfuscationMap(const char** pairs, intptr_t count)` delegating to a new
-`Obfuscator::LoadState(Thread*, const char**, intptr_t)` in `precompiler.cc` — no
-JSON parsing inside the VM, and no embedder file-callback plumbing. This DIVERGES
-from the reference binary, which read the file itself through the callbacks
-(`Could not load obfuscation map: file callbacks not set`); the divergence is
-deliberate and should be stated in the patch header rather than left for someone to
-notice.
+`Obfuscator::LoadState(Thread*, const char**, intptr_t)` in `precompiler.cc`.~~
+**REFUTED BY MEASUREMENT — this shape cannot work; see below.** It would place the
+load *after* the obfuscation state is already seeded and already renaming, i.e. it
+would accept the flag and rename inconsistently — the one outcome this order exists
+to prevent. The claim that our shape "DIVERGES from the reference binary" was also
+wrong in the other direction: the reference used a VM flag and embedder file
+callbacks, and so, now, do we. We **converge** with it.
 
-**NOT STARTED: step 3 onward.** The Dart change, the engine rebuild, the mint. Step 3
-mutates the Dart checkout on `R3`, which is shared and not in git, so it should be
-started only by a session that can carry it to a `dart_patches.sh --verify` green in
-the same sitting — a half-applied edit there is invisible to `git status` and would be
-inherited silently by the next build.
+## What step 3 executed — 2026-08-13, and the two plan claims it REFUTED
+
+Step 3 is **DONE on the host**. `selfhost/engine/0008-dart-load-obfuscation-map.patch`
+exists, is appended to `dart_patches.sh`, and
+`dart_patches.sh --dest $D --verify` → **`OK: all 5 patches applied on the pinned
+base.`** The host `gen_snapshot` rebuilt clean and advertises the flag. Steps 6
+(iOS rebuild), 8 (mint) and 10–13 are **not** started.
+
+**REFUTATION 1 — the chosen shape could not have worked.** The plan put the loader
+behind a `Dart_LoadObfuscationMap` called from `bin/gen_snapshot.cc`. Measured under
+lldb on the host binary, breaking on `Obfuscator::InitializeRenamingMap`:
+
+```
+frame #0  dart::Obfuscator::InitializeRenamingMap()
+frame #1  dart::Obfuscator::Obfuscator(dart::Thread*, dart::String const&)
+frame #2  dart::BootstrapFromKernelSingleProgram(...)
+frame #3  dart::Object::Init(dart::IsolateGroup*, ...)
+frame #4  dart::CreateIsolate(...)
+frame #5  Dart_CreateIsolateGroupFromKernel
+frame #6  dart::bin::main(int, char**)
+```
+
+`Dart_Precompile` had not yet been reached. The map is seeded *inside*
+`Dart_CreateIsolateGroupFromKernel`, so by the time `bin/` regains control it exists
+and kernel translation has begun renaming — `kernel_translation_helper.cc` builds an
+`Obfuscator` in **seven** places. An embedder-side call could only merge into a live
+map. Related plan errors, corrected: library/script URLs are **not** renamed during
+kernel translation (they are renamed at the end of precompilation, in
+`Precompiler::Obfuscate`), and `dart_api_impl.cc:7157` / `dart_api.h:4312` are **not**
+seams — no new embedder API is added.
+
+The correct seam is the fresh-start branch of the `Obfuscator` constructor, reached
+via a VM flag. Two controls prove the reference fork binary did the same: it carries
+`--load_obfuscation_map=%s` (a forwarding format; no `--<flag>=%s` string exists in
+ours), and `Dart_GetObfuscationMap` appears as a string in **both** binaries while no
+`Dart_*Obfuscation*` Load/Set symbol appears in either.
+
+**REFUTATION 2 — the cursor rule was wrong three times over.** `NextName` gives
+`inc(a)=b … inc(z)=A … inc(Z)=a & carry`, a fresh position starts at `a`, and
+`name_[0]` is the LEAST significant digit. The renames are a **bijective base-52
+numeral written little-endian**. So the plan's "greatest value entirely `[a-z]`, by
+length then lexicographic" is wrong because (i) the alphabet is `[a-zA-Z]`, (ii) the
+most significant digit is the LAST character, so plain lexicographic reads it
+backwards, and (iii) identity renames (`key == value`, e.g. `dynamic`) are not
+generated names and must be excluded. Simulated against the generator, the plan's
+rule lands **6** names early at 500 generated names, **10** at 3,000, and **2,398**
+at 20,000 — and release 35's real map has 19,830 pairs.
+
+**REFUTATION 3 — the step-7 probe could not fail.** `g43_obfuscation_map_load.sh`
+compiled *the same kernel twice*, so every identifier was already in the loaded map,
+`NewAtomicRename` was never called, and the cursor was never consulted. All three
+cursor modes reported 0 collisions. Rewritten to compile a "release" and then a
+"patch" containing new identifiers — which is what a patch build actually is — the
+modes separate cleanly:
+
+| specimen | mode 1 (correct) | mode 0 (no restore) | mode 2 (refuted rule) |
+|---|---|---|---|
+| same kernel twice | 0 collisions | **0** — cannot fail | **0** — cannot fail |
+| release, then release+new | **0 collisions** | **44** | **81** |
+
+Drift is **0 in every mode**, so consistency (arm c) passes even with a wrong cursor:
+arm (d) is the only arm that catches this, and the new arm (e) is the only thing that
+proves arm (d) is alive. Collisions have the predicted shape — a new patch identifier
+sharing a name with a release one, e.g. `_Ua <- {_pf2b, _RegExpMatch}`.
+
+**The instrument.** `--obfuscation_cursor_mode` ships with the patch: `1` correct
+(default), `0` no restore, `2` the refuted rule. It exists so the probe can
+demonstrate it distinguishes *correct* from *almost correct*, not merely *present*
+from *absent*.
+
+**STILL NOT STARTED: steps 6, 8–13.** The iOS engine rebuild, the mint, the release
+and the device arm. `R3`'s Dart checkout is captured in `0008` and `--verify` is
+green, so the shared-tree hazard below is closed for this edit.
 
 ## Steps
 
