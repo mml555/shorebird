@@ -2917,6 +2917,116 @@ void main() {
       },
     );
 
+    // The named tracks §6 lists by name. The code path is generic — channels are
+    // get-or-create by name (`api.dart:1550` `_createChannel`) — and the test
+    // above already drives one non-stable channel, so what this adds is COVERAGE
+    // OF THE NAMED ROWS, not a new capability. Recorded that way deliberately:
+    // §6 has twice retracted a claim in this area, once for reading a negative
+    // grep as absent work and once for inferring "permanently stable-only" from
+    // a real omission.
+    //
+    // The second half is the one worth having. Supersession is scoped by
+    // `WHERE channel_id = @c AND status = @a AND patch_id <> @p`
+    // (`repository.dart:1205`), so promoting onto one track must not disturb
+    // another — and because a patch can be live on two tracks at once, the verb
+    // is ADD, not move. If this half ever fails, stop and re-read the query
+    // rather than editing the expectation.
+    test(
+      'named tracks are independent, and promotion adds rather than moves',
+      () async {
+        final s = await seedApp();
+        final appId = s.appId;
+
+        Future<int> readyPatch() async {
+          final p = await jsonOf(
+            await send(
+              'POST',
+              '/api/v1/apps/$appId/patches',
+              bearer: _bootstrapKey,
+              json: {'release_id': s.releaseId},
+            ),
+          );
+          final id = p['id'] as int;
+          await uploadPatchArtifact(appId, id);
+          return id;
+        }
+
+        Future<int> channel(String name) async {
+          final c = await jsonOf(
+            await send(
+              'POST',
+              '/api/v1/apps/$appId/channels',
+              bearer: _bootstrapKey,
+              json: {'channel': name},
+            ),
+          );
+          return c['id'] as int;
+        }
+
+        Future<void> promote(int patchId, int channelId) async {
+          final r = await send(
+            'POST',
+            '/api/v1/apps/$appId/patches/promote',
+            bearer: _bootstrapKey,
+            json: {'patch_id': patchId, 'channel_id': channelId},
+          );
+          expect(r.statusCode, HttpStatus.noContent);
+        }
+
+        /// What a device on [track] is told to install. `client_id` varies per
+        /// track because `eligibleForRollout` buckets on it (`rollout.dart:19`)
+        /// and fails closed without one.
+        Future<int?> check(String track) async {
+          final r = await jsonOf(
+            await send(
+              'POST',
+              '/api/v1/patches/check',
+              json: {
+                'app_id': appId,
+                'release_version': '1.0.0',
+                'platform': 'android',
+                'arch': 'aarch64',
+                'channel': track,
+                'client_id': 'device-on-$track',
+                'patch_number': 0,
+              },
+            ),
+          );
+          final patch = r['patch'];
+          return patch == null ? null : (patch as Map)['number'] as int?;
+        }
+
+        final beta = await channel('beta');
+        final staging = await channel('staging');
+        final patch1 = await readyPatch();
+        final patch2 = await readyPatch();
+        final patch3 = await readyPatch();
+
+        // Three named tracks, three different patches, all live at once.
+        await promote(patch1, beta);
+        await promote(patch2, staging);
+        await promote(patch3, s.channelId);
+
+        expect(await check('beta'), 1);
+        expect(await check('staging'), 2);
+        expect(await check('stable'), 3);
+
+        // A device asking for a track nobody promoted onto gets nothing — not
+        // stable's patch by accident, which is the failure that would make every
+        // assertion above meaningless.
+        expect(await check('canary'), isNull);
+
+        // Promote staging's patch onto beta as well. Two things must hold: beta
+        // supersedes its OWN previous patch, and staging keeps serving patch2
+        // because the same patch is now live on two tracks simultaneously.
+        await promote(patch2, beta);
+
+        expect(await check('beta'), 2);
+        expect(await check('staging'), 2);
+        expect(await check('stable'), 3);
+      },
+    );
+
     // The `channel` field is what `shorebird patches list` prints as the track
     // and `patches info` shows as "Track:". It was hardcoded null, so a patch
     // promoted seconds earlier still displayed "[no track]".
