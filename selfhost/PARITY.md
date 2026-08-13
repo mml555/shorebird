@@ -3374,6 +3374,39 @@ The `param` row is still not displayed, and no longer needs to be for the arm to
 it can ride the next re-cut (`H2`'s flavored fixture) since the 1334 px screen does
 have room for an eighth row.
 
+### Two ways a device arm becomes unattributable — both met on 2026-08-13
+
+**1. Launching the patch build instead of the release.** `shorebird patch ios`
+re-archives over `build/ios/archive`; that archive is the patch build, with the
+replacement compiled straight into a fresh AOT binary. Launching it shows the patched
+value with the patch mechanism playing no part, and it AGREES WITH THE ARM'S
+PREDICTION — the strongest false positive available here. It happened: release 37's
+first arm read `param=PARAM-ARG` from LC_UUID `2da6f295…`, not the preserved
+`31869a1e…`. See `evidence/releases/37/DISCARDED-2026-08-13.txt`.
+
+The rule at `:1417` and `launch_fixture`'s own comment both already said so, and both
+were bypassed by hand-rolling `ios-deploy --bundle <archive>/Runner.app`.
+`assert_installed_release.sh` was run and passed — before the patch build, when the
+archive was still the release. **A correct check at the wrong moment is not a guard.**
+So the fix is an instrument, not a third note: `probes/launch_release_bytes.sh` makes
+identity a precondition of launching, resolving the `.ipa` (which the patch build
+leaves alone) against `evidence/releases/<n>/LC_UUID` and refusing on mismatch.
+
+The tell was on the same beacon line: `code_patch=none` reads the updater's active
+patch number, and a patched device cannot report `none`. **When the headline row and
+its corroborating row disagree, believe the corroborating row.**
+
+**2. Uninstalling the app between arms.** `ios-deploy --uninstall_only` resets iOS's
+Local Network consent for the bundle. The fixture then blocks on "would like to find
+and connect to devices on your local network" BEFORE any code runs: no
+`patches/check`, no patch download, no beacon — while `ios-deploy` still reports
+`success`. It is silent in every log this rig reads and looks exactly like a dead
+gate. One tap on OK clears it and consent persists until the next uninstall.
+
+**Never uninstall the fixture to clear updater state.** And note that a displayed
+fixture row would NOT have rescued this: no consent means no patch is ever fetched,
+so the app renders its release value however it is read.
+
 ### Consumption is not reachability
 
 > **Result consumption proves observability of a call RESULT, not execution
