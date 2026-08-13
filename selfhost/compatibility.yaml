@@ -83,12 +83,26 @@ independence:
                              # device-verified). iOS — PROVEN from source for
                              # releases + assets patches (engine 70974f81, own
                              # frontend, device-verified); iOS Dart CODE patches
-                             # are NOT BUILT — Route B selected and de-risked by
-                             # the 2026-08-05 spikes (engine/killgate/README.md,
-                             # engine/spike/), but the call-emission mode,
-                             # symbol retention, versioned payload header,
-                             # updater integration and device gate are all still
-                             # ahead. Selected != shippable.
+                             # are PROVEN — CORRECTED 2026-08-13. This block
+                             # said NOT BUILT, and listed the call-emission
+                             # mode, symbol retention, versioned payload header,
+                             # updater integration and device gate as "all still
+                             # ahead". Every one of those closed between
+                             # 2026-08-09 and 2026-08-11 and the text was never
+                             # revisited, so the file that calls itself the
+                             # single source of truth (line 6) was the most
+                             # pessimistic document in the repo. Actual state:
+                             # `shorebird release ios` -> edit -> `shorebird
+                             # patch ios` -> control plane -> updater -> install
+                             # -> native pre-main activation -> patched Dart ->
+                             # relaunch -> rollback, device-verified, no
+                             # upstream private AOT linker. First full chain on
+                             # release 9.0.0+1 (2026-08-10); producer-generated
+                             # since 19.0.0+1. See selfhost/PARITY.md §2 (twelve
+                             # PROVEN rows). What is NOT proven is the language
+                             # SURFACE a patch may use — PARITY.md §3. Do not
+                             # let this field's `false` be read as covering that
+                             # claim: `false` is about the SUPPORTED pin only.
                              # The private dart-sdk fork remains unfetchable; the
                              # engine/000x patches are what make vanilla Dart work.
                              # Still consuming Shorebird's prebuilt engine binary.

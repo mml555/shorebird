@@ -58,7 +58,7 @@ specific thing*. Read the plan for your piece; open `PARITY.md` when you need th
 **Independence (advanced)**
 - [`ROUTE_B.md`](ROUTE_B.md) — **start here to work on iOS Dart code push.** Plan of record: the one call-shape change it reduces to, the five pieces to build, the deliberately tiny first success criterion, file:line pointers, the pre-Step-1 items, and the traps
 - [`engine/route_b/`](engine/route_b) — the dedicated Route B build tree: why it cannot share a checkout, and the two scripts that create and build it
-- [`UPSTREAM_INDEPENDENCE.md`](UPSTREAM_INDEPENDENCE.md) — every dependency on upstream Shorebird, whether *mirrored* or *built*, and what removing it takes. Items 1–6 and 8–10 are closed; 7 is Route B
+- [`UPSTREAM_INDEPENDENCE.md`](UPSTREAM_INDEPENDENCE.md) — every dependency on upstream Shorebird, whether *mirrored* or *built*, and what removing it takes. **All ten are now closed** — item 7, their AOT linker, is *obviated* rather than owned: Route B needs no linker, so nothing on the iOS path calls it (corrected 2026-08-13; this line read "Items 1–6 and 8–10 are closed; 7 is Route B")
 - [`CDN_INDEPENDENCE.md`](CDN_INDEPENDENCE.md) + [`cdn/`](cdn) — build-time CDN mirror (default, recommended)
 - [`ENGINE_BUILD.md`](ENGINE_BUILD.md) + [`engine/`](engine) — build the engine from captured source (their private Dart VM fork is **no longer a blocker**: we build on vanilla Dart + a 57-line shim, see [`engine/dart-fork/`](engine/dart-fork))
 - [`IOS_CODE_PUSH.md`](IOS_CODE_PUSH.md) — iOS code push without their fork: the interpreter and dispatch are already upstream; what we owe is a binder
@@ -168,8 +168,12 @@ to *Airgap Probe* was the whole fix. The fixture, launched over LAN at
 not a connectivity problem, but that diagnostic endpoint is not usable as-is.
 See [`UPSTREAM_INDEPENDENCE.md`](UPSTREAM_INDEPENDENCE.md).
 
-What remains before iOS Dart **code** patches work. The plan of record, with
-file:line pointers and the rig, is [`ROUTE_B.md`](ROUTE_B.md); in outline:
+~~What remains before iOS Dart **code** patches work.~~ **ALL SEVEN STEPS ARE
+CLOSED — corrected 2026-08-13.** This outline stayed frozen at its 2026-08-09
+state while the capability statement above it moved, so a reader who scrolled
+this far was told the opposite of what the front of this file says. It is kept
+rather than deleted because that is the failure mode worth seeing. The plan of
+record, which was maintained, is [`ROUTE_B.md`](ROUTE_B.md).
 
 1. ~~Patchable call-emission mode on arm64.~~ **Works on the host harness,
    2026-08-09** — `--patchable_static_calls`. Covers static calls, static
@@ -179,20 +183,36 @@ file:line pointers and the rig, is [`ROUTE_B.md`](ROUTE_B.md); in outline:
    dynamic interface, whole-library for the app and named members for the SDK.
    The asymmetry is not stylistic: whole-library `dart:core` costs **+310 %**
    snapshot against **+0.9 %** for the app.
-3. **Stable target identity** — which function in the installed release a given
-   bytecode belongs to. Not started.
-4. Package the payload with an explicit **versioned type/header** — NOT the
-   provisional `*.vmcode` filename trick, which is bring-up scaffolding and
-   must not become the contract. Not started.
-5. Make `shorebird patch` produce it, and integrate with the updater/runtime
-   lifecycle. Not started.
-6. Pass the physical-device gate: release, Dart behavior actually changes after
-   the patch, sane patch coverage, rollback. **Nothing has run on iOS.**
-7. Measure the two vetoes: release size and frame-time impact on a real app,
-   and whether hot-path patches must stay native. Either can still kill this.
+3. ~~Stable target identity — which function in the installed release a given
+   bytecode belongs to. Not started.~~ **DONE 2026-08-09** —
+   [`ROUTE_B.md`](ROUTE_B.md) *"3. ~~Stable target identities — the binder~~"*.
+   Targets are named by **selector**, never by index.
+4. ~~Package the payload with an explicit versioned type/header — NOT the
+   provisional `*.vmcode` filename trick. Not started.~~ **DONE 2026-08-09.**
+   The `*.vmcode` trick never became the contract: the shipped container is
+   `SBRBPTCH` + a `uint32` format version + a JSON header
+   (`../packages/shorebird_cli/lib/src/route_b_container.dart`).
+5. ~~Make `shorebird patch` produce it, and integrate with the updater/runtime
+   lifecycle. Not started.~~ **DONE 2026-08-09 (host), wired into the real
+   command 2026-08-10** — `route_b_producer.dart`, called from
+   `commands/patch/ios_patcher.dart`.
+6. ~~Pass the physical-device gate… **Nothing has run on iOS.**~~ **PASSED
+   2026-08-10** on release `9.0.0+1`, and producer-generated since `19.0.0+1`.
+   See [`PARITY.md`](PARITY.md) §2, which carries twelve PROVEN rows including
+   rollback to pristine AOT. This sentence was false from 2026-08-10 onward and
+   is the single most misleading line this file has carried.
+7. ~~Measure the two vetoes… Either can still kill this.~~ **BOTH CLOSED
+   2026-08-10** — **+4.5 %** size and **+0.3 %** median frame time with zero
+   added jank, measured on the real fixture on device. Neither killed it.
 
-Steps 1 and 2 are measured on a toy program on a macOS host. The combined
-snapshot cost there is **+4.64 %**, which is a dial-reading and not the veto.
+~~Steps 1 and 2 are measured on a toy program on a macOS host. The combined
+snapshot cost there is **+4.64 %**, which is a dial-reading and not the veto.~~
+Superseded: the toy-program dial-reading was replaced by the on-device
+measurement in step 7.
+
+**What actually remains on iOS is the language surface**, not any step above —
+see the capability statement at the top of this file and
+[`PARITY.md`](PARITY.md) §3.
 
 **Infrastructure and artifact independence are closed** as of 2026-08-07 —
 artifact ownership audited per cell, the acceptance fixture and its pub seed
