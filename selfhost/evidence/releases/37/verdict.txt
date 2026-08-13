@@ -108,6 +108,33 @@ ONE RUN DISCARDED — see DISCARDED-2026-08-13.txt
   prediction exactly, which is what made it dangerous. `code_patch=none` on the same
   line was the tell.
 
+WHAT WAS SWEPT INTO THIS EVIDENCE'S COMMIT AND IS NOT PART OF IT
+
+`de11eecf`, the commit that banked this verdict, also contains a
+`packages/shorebird_cli` change its message never mentions: `_resolvedFlavor` in
+`ios_patcher.dart`, which was sitting uncommitted in the shared worktree and was
+staged by `git add -A`. History is not being rewritten for it; this is the durable
+correction, because an eventual squash makes commit messages non-authoritative
+anyway.
+
+**It did not participate in release 37.** `airgap_app` declares no
+`default-flavor` and the patch invocation carried no `--flavor`, so
+`_resolvedFlavor` resolved to null on the release side and the patch side alike and
+never entered the fingerprint comparison. Independently: the INSTALLED CLI
+(`~/.shorebird` at `ba4e1c02`) does not contain that code at all — `grep -c` is 0 —
+so the binary that produced this evidence could not have used it either way.
+
+THE PROCESS FIX, which is the part that generalises
+
+> **Never `git add -A` (or `commit -a`) in a shared worktree.** Stage explicit
+> paths. The rule already existed at `plans/H2-*.md` precondition 3 and was still
+> broken here, and what it costs is not tidiness: a CLI behaviour change rode into
+> a commit about a device gate, where nobody reviewing either would look for it.
+
+A related inference to distrust, from the same episode: `git log <installed-rev>..HEAD
+-- <path>` coming back EMPTY does not mean the installed checkout matches the working
+tree. It is also empty when the change is uncommitted. Read the installed file.
+
 A GAP IN THIS DIRECTORY, recorded rather than glossed
 
   Release 37's dSYM was NOT copied aside before the patch build, and the patch build
