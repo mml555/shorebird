@@ -3230,8 +3230,20 @@ process success counts as either.
 | the process merely launches and shows patched behaviour somewhere | **NOT a `G15` result.** "Some engine ran patched code" is the reading this gate exists to make impossible |
 
 The simulator probe stays labelled exactly as it is: **shape proof, not arming
-proof.** Nothing in this lane touches `H2`, the cell, or the CDN before that
-booking.
+proof.**
+
+> **`G15` REQUIRES NO MORE IMPLEMENTATION. The next action is the device release
+> when `R6`/`R8` is available. Until then, DO NOT MUTATE THE CELL FOR `G15`'s
+> SAKE.**
+
+That last clause is the operative one and it is not housekeeping. This gate's whole
+interpretation is built on immutable cell `4df8f9b6139b67d2cfe9f6aa8212372cade36278`
+— the specimen, the trace schema, the arming patch `0007`, and the precommitted
+verdict above all refer to it. `--load-obfuscation-map` is the next mint boundary
+(the only remaining prerequisite that changes engine/toolchain semantics), and
+opening it before this booking would mix a new engine lineage into a gate designed
+around that one. Anything arriving from a different lineage is a different
+experiment, whatever the trace says.
 | `G4.2`/`G4.3` config | release cut WITH a flavor and WITH `--obfuscate`; provenance carrying the fingerprint | the release's `buildConfig` + each arm's CLI log or device beacon | two different claims, split below |
 
 **`G3.7` and `G15` are independent in both directions.** `G3.7` is a producer/ABI
