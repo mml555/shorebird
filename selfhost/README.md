@@ -21,6 +21,18 @@ cd packages/code_push_server
 See [`../packages/code_push_server/README.md`](../packages/code_push_server/README.md)
 for the quick start and feature list.
 
+## ▶ Picking up work
+
+[**`plans/`**](plans) — **one file per piece of work**, each written so a fresh agent can
+execute it alone: preconditions with commands, steps with real file:line anchors,
+precommitted outcomes, exit criteria, evidence paths, and the commit to make.
+[`plans/README.md`](plans/README.md) is the index — it says what taking each piece gets
+you, what it holds, and which pieces need no hardware at all.
+
+The split, because it matters: [`PARITY.md`](PARITY.md) is *what* parity means and
+*where we stand* — the authority on any status. [`plans/`](plans) is *how to do the next
+specific thing*. Read the plan for your piece; open `PARITY.md` when you need the why.
+
 ## Documents by purpose
 
 **Understand the system**
@@ -38,7 +50,7 @@ for the quick start and feature list.
 - [`IDP_SETUP.md`](IDP_SETUP.md) — real Google / Microsoft login for `shorebird login`
 
 **Platform coverage**
-- [`PARITY.md`](PARITY.md) — **the goal document.** What full Android/iOS parity with upstream means, where we're holding against it, and the queue. Open this to decide what to work on next
+- [`PARITY.md`](PARITY.md) — **the goal document.** What full Android/iOS parity with upstream means, where we're holding against it, and the queue. Open this to decide what to work on next — then open [`plans/`](plans) for the executable work order for the piece you picked
 - [`PLATFORM_MATRIX.md`](PLATFORM_MATRIX.md) — what's verified on which platform
 - [`IOS_ONDEVICE.md`](IOS_ONDEVICE.md) — iOS code signing (auto / manual-CI / resign) + one-command ship flow
 - [`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md) — Windows / Linux notes
