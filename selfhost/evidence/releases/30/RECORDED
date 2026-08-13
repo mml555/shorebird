@@ -184,6 +184,22 @@ of being handed one — reassembled from the `add xR, x27, #hi, lsl #12` /
 `ldr xR, [xR, #lo]` pair rather than assumed — so a stale 0xd4a8 now surfaces as
 a different derived value, not as a verdict.
 
+AND IT IS BOUNDED, NOT MERELY DETECTED. Derivation says whether the offset moved;
+it does not by itself stop a moved offset from being read as evidence. The
+release-31 admissibility rule does that, precommitted in PARITY.md beside the
+release-31 outcome table: pool-identity evidence is admissible only if the offset
+derived from preserved release-31 App bytes equals the engine instrument's
+hardcoded 0xd4a8, and otherwise every pool identity field and classifier identity
+verdict from that run is NOT MEASURED. The decision stays offset-independent —
+NEW-CTL proves dispatch, OLD-rel with uep_post_is_interpret_call=1 authorizes v5.
+
+preserve_release_evidence.sh MUST RUN AT INSTALL TIME, BEFORE THE FIRST PATCH
+BUILD. Otherwise the derivation has no authoritative bytes to work from: the patch
+build re-archives over build/ios/archive, exactly as the note at the top of this
+file records, and a labelled proxy cannot establish the release's own offset.
+Skipping it does not produce a weaker result; it produces no admissible pool
+evidence at all.
+
 WHAT REMAINS UNMEASURED, stated exactly: whether the post-attach call reaches
 InterpretCall. The fold made the UI blind, so "never entered the interpreter" and
 "entered it and its answer was discarded" produced identical screens for six

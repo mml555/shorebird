@@ -1386,6 +1386,35 @@ sound. The divergence is in the delivery path, not in G3.6b.
 > | app shows `OLD-rel`, trace still `identity matches` | the fold was real and insufficient. NOW build the v5 execution marker under the constraints below — and it will be the first run whose UI can distinguish its two outcomes. |
 > | app shows `OLD-rel`, gate said DISCARDED | the release was cut from a stale fixture. Not a result; re-cut. |
 > | `assert_result_consumed.sh` reports UNDECIDED or NOT LOCATED | measurement incomplete. Fix the locator before the device is touched, exactly as `caller_scan_status` refuses to be read as a zero. |
+>
+> ##### Release 31 identity admissibility — precommitted, before the release exists
+>
+> > Release 31 pool-identity evidence is admissible only if the call-site pool
+> > offset derived from preserved release-31 `App` bytes equals the engine
+> > instrument's hardcoded `0xd4a8`. If it differs, or authoritative release bytes
+> > were not preserved before patching, all pool identity fields and classifier
+> > identity verdicts from release 31 are **NOT MEASURED**. The release-31 decision
+> > remains offset-independent: `NEW-CTL` proves dispatch; `OLD-rel` with
+> > `uep_post_is_interpret_call=1` authorizes v5.
+>
+> The fixture body changed, so codegen moved, so `0xd4a8` — measured from release
+> 26 and hardcoded at `shorebird.cc:370` — is likely stale for release 31. A stale
+> offset reads a different pool entry, and if that entry is a `Function` the
+> classifier returns exit 1, IDENTITY MISMATCH: a false attribution manufactured
+> by the instrument on the run meant to resolve one. Correcting the offset means a
+> new engine hash and a new cell, which is precisely what release 31 exists to
+> avoid — so the offset is not fixed, it is DECLARED INADMISSIBLE when it moves.
+>
+> **`probes/preserve_release_evidence.sh` must run at install time, BEFORE the
+> first patch build.** Step 1 is destructible: the patch build re-archives over
+> `build/ios/archive`, so after patch 1 the archive holds the patch build and what
+> remains is a labelled proxy, not the release bytes (release 30's `RECORDED` says
+> so, having paid for it). Without preservation the offset cannot be derived from
+> authoritative bytes at all, and the pool fields are inadmissible by default.
+>
+> Object identity is NOT reopened by any of this: release 30 settled it on its own
+> frozen bytes. Release 31 tests observable dispatch with a consumed result, and
+> nothing else.
 
 `applied 1/1` is now precisely scoped: **`Dart_RouteBActivatePatch` returned
 success**, and nothing more. The next experiment must establish what changed
