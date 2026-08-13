@@ -2466,13 +2466,13 @@ different problem from the Android one, not a port of it — filing it as
 | ✅ | **PROVEN** Own database / state |
 | ✅ | **PROVEN** Own artifact / CDN path |
 | ✅ | **PROVEN** Own Android engine artifacts |
-| ◐ | **PROVEN for the audited cell `70974f81`** Own iOS engine artifacts — **NOT VALIDATED for the Route B cells actually in use**, which clone their engine artifacts from a donor hash |
+| ◐ | **PROVEN for `70974f81`; the Route B cell `881e4129` is now audited too (2026-08-13), 1 finding left.** Its engine artifacts are still donor-cloned, and that is now measured rather than assumed: `sky_engine.zip` for `881e4129` **genuinely differs from stock** in `internal_patch.dart` and `internal/internal.dart` — the two files the killgate patch edits — and the mirror had been serving STOCK bytes for them under our hash. Published, protected, diff kept beside the zip as `sky_engine.content-diff.txt`. `publish_sky_packages.sh`'s header predicted exactly this case |
 | ◐ | **PROVEN for the two audited EXPERIMENTAL cells** Own Dart / frontend / backend toolchain — see the vocabulary warning below |
 | ✅ | **PROVEN** Compiler-cell provenance |
 | ✅ | **PROVEN** Immutable compiler cells |
 | ✅ | **PROVEN** Own patch differ path |
 | ✅ | **PROVEN** Own Flutter source mirror |
-| 🐞 | **BUILT but currently RED** Artifact ownership audit — failing for `macos-ios`, and never run against any Route B cell |
+| ◐ | **BUILT, and now RUN against a Route B cell for the first time — 2026-08-13.** `audit_overlay.sh --hash 881e4129 --cell macos-ios` went from **4 findings to 1**. Fixed: the compiler cell was `UNPROTECTED` (owned by policy, unmatched by `@must_be_local`, so a miss served STOCK bytes from the pinned hash — the CLI resolves that cell BY the release's engine hash precisely to guarantee provenance, so a silent substitution is the worst case, not a cosmetic one); `sky_engine.zip`/`flutter_gpu.zip` published and protected per-cell; `artifacts_manifest.yaml` emitted; `patch-darwin-x64.zip` cross-built natively. **Remaining: `patch-linux-x64.zip`, which needs the Linux builder** |
 | 🐞 | **BUILT but STALE** Air-gap fixture — the pub seed no longer matches the fixture's `pubspec.lock` |
 | ☐ | **NOT BUILT** A sealed **iOS code-patch** stage — the harness has none; both its iOS patch invocations pass `--assets-only` |
 | ☐ | **NOT VALIDATED** The sealed run itself, on a current release |

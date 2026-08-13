@@ -44,6 +44,12 @@ Usage:
                     <overlay>/<bucket>/shorebird/<rev>/.
   --rev <sha>       Engine revision the CLI will ask for (required with --overlay).
   --bucket <name>   Default: download.shorebird.dev
+  --platform <p>    Cross-compile instead of building for this host. Only
+                    darwin-x64 from an arm64 mac is supported, and only because
+                    the x86_64-apple-darwin Rust target makes it a NATIVE cross
+                    build -- no Rosetta, which is how this artifact used to be
+                    produced. Refuses if the target is not installed rather than
+                    silently packaging a host binary under the wrong name.
 EOF
 }
 
@@ -53,6 +59,7 @@ while [[ $# -gt 0 ]]; do
     --overlay) OVERLAY="${2:?}"; shift 2 ;;
     --rev) REV="${2:?}"; shift 2 ;;
     --bucket) BUCKET="${2:?}"; shift 2 ;;
+    --platform) PLATFORM="${2:?}"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) die "unknown argument: $1" ;;
   esac
@@ -65,26 +72,49 @@ command -v cargo >/dev/null || die "cargo not found"
 command -v zip   >/dev/null || die "zip not found"
 
 # --- name the artifact the way PatchArtifact.storageUrl does -------------------
-case "$(uname -s)" in
-  Darwin) case "$(uname -m)" in
-            arm64) PLAT=darwin-arm64 ;;
-            x86_64) PLAT=darwin-x64 ;;
-            *) die "unsupported macOS arch: $(uname -m)" ;;
-          esac ;;
-  Linux)  [[ "$(uname -m)" == "x86_64" ]] || die "only linux-x64 is packaged"
-          PLAT=linux-x64 ;;
-  *) die "unsupported host: $(uname -s) (Windows must be built on Windows)" ;;
-esac
-note "host artifact: patch-$PLAT.zip"
+CARGO_TARGET_ARG=()
+if [[ -n "${PLATFORM:-}" ]]; then
+  # An explicit platform is a CROSS build, and the only one supported is
+  # darwin-x64 from an arm64 mac. It exists because the audit lists
+  # patch-darwin-x64.zip as required for every engine hash, and it was previously
+  # produced by re-running this script under Rosetta -- a manual step that is easy
+  # to skip and leaves the artifact missing, which is exactly what the audit found
+  # for the Route B diagnostic engine.
+  [[ "$PLATFORM" == "darwin-x64" ]] \
+    || die "--platform supports only darwin-x64 (got $PLATFORM); linux-x64 must be built on the Linux box"
+  [[ "$(uname -s)" == "Darwin" ]] || die "--platform darwin-x64 requires a mac host"
+  rustup target list --installed 2>/dev/null | grep -qx x86_64-apple-darwin \
+    || die "rust target x86_64-apple-darwin is not installed (rustup target add x86_64-apple-darwin)"
+  PLAT=darwin-x64
+  CARGO_TARGET_ARG=(--target x86_64-apple-darwin)
+  note "CROSS build: $PLAT (native cross, no Rosetta)"
+else
+  case "$(uname -s)" in
+    Darwin) case "$(uname -m)" in
+              arm64) PLAT=darwin-arm64 ;;
+              x86_64) PLAT=darwin-x64 ;;
+              *) die "unsupported macOS arch: $(uname -m)" ;;
+            esac ;;
+    Linux)  [[ "$(uname -m)" == "x86_64" ]] || die "only linux-x64 is packaged"
+            PLAT=linux-x64 ;;
+    *) die "unsupported host: $(uname -s) (Windows must be built on Windows)" ;;
+  esac
+  note "host artifact: patch-$PLAT.zip"
+fi
 
 # --- build --------------------------------------------------------------------
 BUILD_DIR="${TMPDIR:-/tmp}/selfhost-patch-build"
 note "building patch (release) from vendor/updater"
 CARGO_TARGET_DIR="$BUILD_DIR" cargo build --release \
+  "${CARGO_TARGET_ARG[@]+"${CARGO_TARGET_ARG[@]}"}" \
   --manifest-path "$REPO_ROOT/vendor/updater/Cargo.toml" \
   -p patch --bin patch >/dev/null
 
-BIN="$BUILD_DIR/release/patch"
+if [[ -n "${PLATFORM:-}" ]]; then
+  BIN="$BUILD_DIR/x86_64-apple-darwin/release/patch"
+else
+  BIN="$BUILD_DIR/release/patch"
+fi
 [[ -x "$BIN" ]] || die "build produced no executable at $BIN"
 
 # Sanity: the CLI invokes it as `patch <base> <new> <out>`. If the interface ever
@@ -92,9 +122,22 @@ BIN="$BUILD_DIR/release/patch"
 # Captured into a variable rather than piped: printing usage exits non-zero, and
 # under `pipefail` that would fail the check even when the text matches.
 IFACE="$("$BIN" 2>&1 || true)"
-grep -q 'Usage: patch <base> <new> <output>' <<<"$IFACE" \
-  || die "unexpected CLI interface from the built binary: $IFACE"
-note "interface check passed"
+if grep -q 'Usage: patch <base> <new> <output>' <<<"$IFACE"; then
+  note "interface check passed"
+elif [[ -n "${PLATFORM:-}" ]] && grep -qiE "bad CPU type|exec format|cannot execute" <<<"$IFACE"; then
+  # A darwin-x64 binary cannot run on an arm64 host without Rosetta. That is not
+  # a build failure, and dying here would make the cross path unusable on a
+  # machine without Rosetta -- the very manual dependency it removes. Say so
+  # loudly instead of implying the check passed, and prove the ARCHITECTURE
+  # instead, which is what actually distinguishes a cross build from a host one
+  # mislabelled with the wrong name.
+  note "interface check SKIPPED: cross binary cannot execute on $(uname -m)"
+  file "$BIN" | grep -q 'x86_64' \
+    || die "cross build did not produce an x86_64 binary: $(file "$BIN")"
+  note "architecture check passed (file reports x86_64)"
+else
+  die "unexpected CLI interface from the built binary: $IFACE"
+fi
 
 # --- package ------------------------------------------------------------------
 STAGE="$(mktemp -d)"
