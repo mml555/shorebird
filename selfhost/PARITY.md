@@ -2276,7 +2276,7 @@ The Route B worry is resolved in our favour, and that part survived re-checking.
 | ☐ | **NOT VALIDATED** Disable the automatic update flow |
 | ☐ | **NOT VALIDATED** Android manual update path |
 | ☐ | **NOT VALIDATED** iOS Route B manual update path |
-| 🐞 | **KNOWN GAP** Restart-required / update-state behavior — decided by the same once-per-process activation guard as §5 and §9, so what the API reports on iOS can be **wrong**, not merely unverified |
+| 🐞 | **KNOWN GAP** Restart-required / update-state behavior — `G15`'s, and out of scope for §8. **CAUSE CORRECTED 2026-08-13:** this row said "decided by the same **once-per-process activation guard**" as §5 and §9, and that phrase is one this file already retracted — nothing is armed once per process; arming is attempted on every `ConfigureShorebird`, and it was the *early return* above it, gated on an updater init that fails on its second call, that skipped it (fixed by patch `0007`, its three arming tests executing per patch `0008`). The row's conclusion is unchanged and still right; only the mechanism it names was stale. Repeating a retracted cause is how a reader re-derives a bug that was already found |
 
 **Manual API parity: UNVALIDATED.**
 
