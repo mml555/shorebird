@@ -96,3 +96,35 @@ The instrument should be ONE targeted runtime event at the interpreter boundary,
 attributable to this target -- not another census. This investigation has produced
 two censuses already and neither decided anything; the deciding evidence has every
 time been a single value measured at the exact point in question.
+
+THE EXECUTION INSTRUMENT'S REQUIRED STATE SET
+
+The tree is:
+
+    post-attach call observed?
+      no  -> measurement incomplete
+      yes -> InterpretCall entered?
+               no  -> runtime call-path contradiction
+               yes -> interpreted execution / displayed-value path
+
+"Not observed" must never collapse into "did not enter". That collapse is the same
+defect three times over in this investigation -- pool counters defaulting to 0
+instead of UNSET, the HasCode() gate skipping a scan silently, and NULL_POOL being
+reportable as an empty result -- and each time it would have produced a confident
+wrong verdict. So the marker records a STATE, not a boolean:
+
+    NOT_INSTRUMENTED   the build carries no marker (a v-bump must make this
+                       impossible to confuse with a real observation)
+    NOT_OBSERVED       instrumented, activation completed, no call recorded for
+                       this target -> measurement incomplete, NOT a bypass
+    CALL_OBSERVED      the site executed post-attach
+    INTERPRET_ENTERED  execution reached InterpretCall for THIS Function
+
+and the verdict "runtime call-path contradiction" requires CALL_OBSERVED without
+INTERPRET_ENTERED -- two positive observations, exactly as the identity mismatch
+verdict required two positively identified Functions.
+
+Attribution matters as much as presence: the marker must be attributable to this
+target's Function, not to "some interpreted call happened". A global interpreter
+counter would be another census, and the two censuses in this investigation decided
+nothing.
