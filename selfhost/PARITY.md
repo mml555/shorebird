@@ -2080,7 +2080,7 @@ boundary is not the rung ladder but library-scoped privacy.
 |---|---|
 | ◐ | **BUILT** Obfuscation-related symbol retention machinery |
 | ✅ | **PROVEN** Android patched crash symbolication with an obfuscated patch |
-| ☐ | **NOT VALIDATED** Route B iOS release + patch under obfuscation |
+| ◐ | **BUILT 2026-08-13** Route B iOS release + patch under obfuscation — `G4.3`. `probes/g43_obfuscation_semantics.sh` 8/8 classifies each flag BY MEASUREMENT: `--obfuscate` changes the **stripped program** bytes, so it is semantic and fingerprinted; `--split-debug-info` and its **path** change the ELF's DWARF only, so they are recorded for audit and excluded from compatibility. **A container built for an obfuscated release APPLIES** (`APPLY ok`, `OLD-obf` → `NEW-obf`) while the interface and manifest stay source-named — obfuscation is a gen_snapshot-stage transform and `gen_kernel` accepts neither flag, so provenance cannot carry transformed identities. Device gate still owed |
 | ☐ | **NOT VALIDATED** Full upstream-equivalent obfuscation matrix |
 
 ### Other Flutter build arguments
@@ -3085,7 +3085,14 @@ the evidence points elsewhere, and every rung is a mint plus a scarce device gat
    `dart2bytecode`. Its canonical form is **measured, not assumed** —
    `probes/g41_define_semantics.sh` 4/4. Obfuscation should now be another field
    flowing through this mechanism rather than a second bespoke system.
-8. **`G4.3 obfuscation-ios`** — the untested half; Android is proven.
+8. **`G4.3 obfuscation-ios`** — **BUILT 2026-08-13, host-proven.** It became a field
+   flowing through `G4.1`'s seam rather than a second bespoke system, exactly as
+   that goal predicted: `obfuscate` joined the effective configuration,
+   `splitDebugInfoPath` went to raw provenance only. The classification was
+   MEASURED, and the first measurement was wrong in the dangerous direction —
+   hashing the whole ELF made the symbol PATH look semantic, which would have made
+   two machines emitting the identical program incompatible over filesystem
+   layout. Hashing the stripped program corrected it. Device gate still owed.
 9. **`G4.2 flavors`** — Android half needs no `R1`; do the host probe before `R2`.
 10. **`G6 tracks`** device row — follows `G8` or `shorebird preview`, since
     `channel` does not reach the device.

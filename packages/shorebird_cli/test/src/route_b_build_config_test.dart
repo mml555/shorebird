@@ -103,6 +103,120 @@ void main() {
       });
     });
 
+    group('G4.3: obfuscation is effective, its symbol path is not', () {
+      // Every expectation here traces to probes/g43_obfuscation_semantics.sh,
+      // which compiles one kernel through gen_snapshot five ways:
+      //   --obfuscate            changes the STRIPPED program  -> semantic
+      //   --split-debug-info     changes the ELF, not the program -> output only
+      //   path A vs path B       changes the ELF, not the program -> not semantic
+      test('false / false -> agrees', () {
+        expect(config([]).agreesWith(config([])), isTrue);
+      });
+
+      test('true / true -> agrees', () {
+        expect(
+          config(['--obfuscate']).agreesWith(config(['--obfuscate'])),
+          isTrue,
+        );
+      });
+
+      test('true / false -> refuses, naming obfuscation', () {
+        final release = config(['--obfuscate']);
+        final patch = config([]);
+        expect(release.agreesWith(patch), isFalse);
+        expect(
+          release.describeDifference(patch),
+          contains('--obfuscate: on in the release, off in this patch'),
+        );
+      });
+
+      test('false / true -> refuses', () {
+        final release = config([]);
+        final patch = config(['--obfuscate']);
+        expect(release.agreesWith(patch), isFalse);
+        expect(
+          release.describeDifference(patch),
+          contains('--obfuscate: off in the release, on in this patch'),
+        );
+      });
+
+      test('same obfuscation, DIFFERENT symbol paths -> agrees', () {
+        // The case that would break if the path were fingerprinted: two machines
+        // emitting the byte-identical program would become incompatible purely
+        // because their filesystem layouts differ.
+        final a = config([
+          '--obfuscate',
+          '--split-debug-info=/builds/machine-a/symbols',
+        ]);
+        final b = config([
+          '--obfuscate',
+          '--split-debug-info=/Users/someone/other/symbols',
+        ]);
+        expect(a.agreesWith(b), isTrue);
+        expect(a.describeDifference(b), isEmpty);
+      });
+
+      test('same obfuscation, one side with NO symbol path -> agrees', () {
+        expect(
+          config([
+            '--obfuscate',
+            '--split-debug-info=/tmp/syms',
+          ]).agreesWith(config(['--obfuscate'])),
+          isTrue,
+        );
+      });
+
+      test('the path is still RECORDED, in both spellings', () {
+        // Excluded from compatibility, not thrown away: a reader debugging a
+        // release needs to know where the symbols went.
+        expect(
+          config(['--split-debug-info=/tmp/syms']).splitDebugInfoPath,
+          '/tmp/syms',
+        );
+        expect(
+          config(['--split-debug-info', '/tmp/syms']).splitDebugInfoPath,
+          '/tmp/syms',
+        );
+      });
+
+      test('the path is absent from the canonical form', () {
+        // Asserted directly, so a later change that folds it in fails here rather
+        // than in the field.
+        expect(
+          config([
+            '--obfuscate',
+            '--split-debug-info=/tmp/syms',
+          ]).canonicalForm,
+          isNot(contains('/tmp/syms')),
+        );
+      });
+
+      test('obfuscation survives the json round trip', () {
+        final c = config(['--obfuscate', '--split-debug-info=/tmp/syms']);
+        final back = RouteBBuildConfig.fromJson(c.toJson());
+        expect(back.obfuscate, isTrue);
+        expect(back.splitDebugInfoPath, '/tmp/syms');
+        expect(back.agreesWith(c), isTrue);
+      });
+
+      test('obfuscation and defines are independent', () {
+        expect(
+          config([
+            '--obfuscate',
+            '--dart-define=A=1',
+          ]).agreesWith(config(['--dart-define=A=1'])),
+          isFalse,
+        );
+        expect(
+          config([
+            '--obfuscate',
+            '--dart-define=A=1',
+          ]).agreesWith(config(['--obfuscate', '--dart-define=A=1'])),
+          isTrue,
+        );
+      });
+    });
+
     group('empty and absent are different configurations', () {
       test('A= is defined-empty, not absent', () {
         // Probe rule 3. A "drop empty values" canonicaliser would call these

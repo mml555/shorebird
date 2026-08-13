@@ -43,6 +43,30 @@ import 'package:crypto/crypto.dart';
 /// The prefix Flutter uses to supply a define on a build invocation.
 const _dartDefineFlag = '--dart-define=';
 
+/// Flutter's obfuscation flag, as it appears in a build invocation.
+///
+/// SEMANTIC, measured: `probes/g43_obfuscation_semantics.sh` compiles one kernel
+/// with and without it and the STRIPPED program bytes differ. So a release built
+/// obfuscated and a patch built plain are different programs, and the patch must
+/// be refused rather than warned about.
+const _obfuscateFlag = '--obfuscate';
+
+/// Flutter's symbol-output flag, as it appears in a build invocation.
+///
+/// NOT SEMANTIC, and this is the one worth being explicit about because it is the
+/// tempting mistake. `probes/g43_obfuscation_semantics.sh` measures it two ways:
+///
+///   * adding the flag changes the emitted ELF but NOT the stripped program;
+///   * pointing it at path A versus path B changes the emitted ELF but NOT the
+///     stripped program.
+///
+/// Both differences live entirely in DWARF. So the path is an output DESTINATION,
+/// and putting it in the fingerprint would make two machines that produce the
+/// byte-identical program incompatible purely because their filesystem layouts
+/// differ. It is recorded for audit and deliberately excluded from compatibility —
+/// excluded on evidence, not overlooked.
+const _splitDebugInfoFlag = '--split-debug-info';
+
 /// Options whose meaning cannot be reduced to an effective define set here.
 ///
 /// `--dart-define-from-file` is parsed by Flutter with its own `.json`/`.env`
@@ -64,6 +88,8 @@ class RouteBBuildConfig {
   const RouteBBuildConfig({
     required this.rawArgs,
     required this.effectiveDefines,
+    this.obfuscate = false,
+    this.splitDebugInfoPath,
   });
 
   /// Derives the configuration from a build invocation's arguments.
@@ -75,7 +101,25 @@ class RouteBBuildConfig {
   /// can match, and "unknown" is not.
   static RouteBBuildConfig? fromBuildArgs(List<String> buildArgs) {
     final defines = <String, String>{};
-    for (final arg in buildArgs) {
+    var obfuscate = false;
+    String? splitDebugInfoPath;
+    for (var i = 0; i < buildArgs.length; i++) {
+      final arg = buildArgs[i];
+      if (arg == _obfuscateFlag) {
+        obfuscate = true;
+        continue;
+      }
+      // Both spellings, because a caller may pass either and the two mean the
+      // same thing to Flutter.
+      if (arg.startsWith('$_splitDebugInfoFlag=')) {
+        splitDebugInfoPath = arg.substring(_splitDebugInfoFlag.length + 1);
+        continue;
+      }
+      if (arg == _splitDebugInfoFlag && i + 1 < buildArgs.length) {
+        splitDebugInfoPath = buildArgs[i + 1];
+        i++;
+        continue;
+      }
       final unfingerprintable = routeBUnfingerprintableOptions.any(
         (option) => arg == option || arg.startsWith('$option='),
       );
@@ -95,6 +139,8 @@ class RouteBBuildConfig {
     return RouteBBuildConfig(
       rawArgs: List.unmodifiable(buildArgs),
       effectiveDefines: Map.unmodifiable(defines),
+      obfuscate: obfuscate,
+      splitDebugInfoPath: splitDebugInfoPath,
     );
   }
 
@@ -114,6 +160,8 @@ class RouteBBuildConfig {
       effectiveDefines: Map.unmodifiable(<String, String>{
         for (final entry in defines.entries) '${entry.key}': '${entry.value}',
       }),
+      obfuscate: json['obfuscate'] == true,
+      splitDebugInfoPath: json['splitDebugInfoPath'] as String?,
     );
   }
 
@@ -123,18 +171,28 @@ class RouteBBuildConfig {
   /// What the compiler effectively received. Compatibility is decided on this.
   final Map<String, String> effectiveDefines;
 
+  /// Whether the program was obfuscated. Part of the EFFECTIVE configuration:
+  /// the stripped program bytes differ with and without it.
+  final bool obfuscate;
+
+  /// Where symbols were written, when they were. AUDIT ONLY — never part of
+  /// compatibility, for the reason recorded at [_splitDebugInfoFlag].
+  final String? splitDebugInfoPath;
+
   /// The canonical text the fingerprint is taken over.
   ///
   /// Sorted by key (probe rule 2), and each pair length-prefixed so that no
   /// combination of keys and values can be re-parsed into a different set —
   /// `a=b:c` and `a=b`,`c=` must not collide.
+  /// Note what is NOT here: [splitDebugInfoPath]. Excluded on the evidence in
+  /// [_splitDebugInfoFlag], not by omission.
   String get canonicalForm {
     final keys = effectiveDefines.keys.toList()..sort();
     final parts = keys.map((k) {
       final v = effectiveDefines[k]!;
       return '${k.length}:$k=${v.length}:$v';
     });
-    return parts.join(';');
+    return 'obfuscate=${obfuscate ? 1 : 0};${parts.join(';')}';
   }
 
   /// A short, stable identifier for the effective configuration.
@@ -152,6 +210,13 @@ class RouteBBuildConfig {
   /// not matter at all.
   String describeDifference(RouteBBuildConfig other) {
     final lines = <String>[];
+    if (obfuscate != other.obfuscate) {
+      lines.add(
+        '  --obfuscate: '
+        '${obfuscate ? "on" : "off"} in the release, '
+        '${other.obfuscate ? "on" : "off"} in this patch',
+      );
+    }
     final keys = {
       ...effectiveDefines.keys,
       ...other.effectiveDefines.keys,
@@ -180,6 +245,10 @@ class RouteBBuildConfig {
       for (final key in effectiveDefines.keys.toList()..sort())
         key: effectiveDefines[key],
     },
+    'obfuscate': obfuscate,
+    // Recorded so a reader can see WHERE the symbols went, and deliberately not
+    // part of the fingerprint below.
+    if (splitDebugInfoPath != null) 'splitDebugInfoPath': splitDebugInfoPath,
     // Recorded rather than recomputed on read, so a future change to the
     // canonicalisation is detectable instead of silently re-deriving a different
     // answer from old data.
