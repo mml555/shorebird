@@ -1,0 +1,59 @@
+release        : 29
+preserved from : build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework/App
+preserved at   : 2026-08-13T02:41:20Z
+LC_UUID        : affa39a037373b30aa88642751fe1592
+patchable      : 7,141  (1,775 per MB)
+size           : 4219056 bytes
+
+These are the RELEASE's own bytes. Compare later patches against them:
+
+  assert_installed_release.sh <app-or-archive> --expect affa39a037373b30aa88642751fe1592
+
+The working archive is NOT a substitute: Try logging out with shorebird logout and logging in again.
+
+If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
+
+You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
+/Users/mendell/Library/Application Support/shorebird/logs/1786588880500_shorebird.log re-archives over
+build/ios/archive, so after the first patch it holds the patch build instead.
+
+DEVICE RESULT — release 29, engine d6aad559, trace schema v3
+  gates    : audit ok (published zip == ios_artifacts_sha256), 5/5 diagnostic gate
+             (donor 987be890), consumed cache carries v=3 SPECIFICALLY (v2 count 0),
+             shipped engine v=3, patchable 7,141 / 1,775 per MB,
+             LC_UUID affa39a0 asserted both ways
+  patch    : String value(RouteBThing self) => 'NEW-CTL';
+  app      : NEW-SET (unchanged)
+
+CLASSIFIER: exit 3 — IDENTITY NOT MEASURED. NO ATTRIBUTION.
+  verdict + classifier revision recorded in verdict.txt beside this file.
+
+  caller_scan_status = NULL_POOL   (3)
+  caller_resolved    = 1
+  counters           = UNSET, and therefore inadmissible
+
+WHAT NULL_POOL MEANS, and why the approach was wrong rather than the run:
+removing the HasCode() gate worked -- the caller resolved AND its Code was
+obtained. `Code::object_pool()` then returned null, because AOT runs in bare-
+instructions mode with ONE GLOBAL pool: object.cc:18451 returns
+`IsolateGroup::Current()->object_store()->global_object_pool()`. Per-Code pools do
+not exist in this configuration.
+
+So scanning "the caller's pool" is not a thing in AOT. The v1 draft of this code
+walked global_object_pool() and was closer to right; narrowing it to the caller's
+own Code was the regression.
+
+AND THE STATE MACHINE EARNED ITS KEEP AGAIN. NULL_POOL is reported as its own
+cause. With counters alone this would have read "0 pooled Functions, 0 matching" --
+an identity mismatch, the conclusion under test, from a null dereference guard.
+Three runs now (28, 29) have been saved from that by refusing to classify.
+
+THE REAL PROBLEM WITH THE GLOBAL POOL, stated before anyone builds it: a global
+scan can only answer "is the patched Function in the pool at all", NOT "is it the
+entry THIS call site loads". The call site's pool INDEX is what identifies the
+entry, and release 26's disassembly already gives it: pool offset 0xd4a8 at the
+kUnchecked site. So the next measurement is not a scan -- it is to read the global
+pool at that specific index and compare the Function there with function_ptr.
+
+That is a different instrument from the one built, and it needs the caller's pool
+INDEX, not its name.
