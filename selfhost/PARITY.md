@@ -2333,10 +2333,19 @@ under a shared `platform` (`aar` vs `aab`, `xcframework` vs `xcarchive`) — see
 | ☐ | **NOT VALIDATED** Rollback |
 
 **Add-to-app parity: iOS is BLOCKED, not unvalidated.** Two independent blockers
-sit in front of it, and the second is the one worth planning around: Route B arms
-its activation hook **once per process**, so an add-to-app host that creates a
-second engine — a common pattern — silently runs the *unpatched* code in it. Silent
-divergence between two engines in one app is a worse failure than a refusal.
+sit in front of it, and the second is the one worth planning around: an add-to-app
+host that creates a second engine — a common pattern — silently ran the *unpatched*
+code in it. Silent divergence between two engines in one app is a worse failure than
+a refusal.
+
+**MECHANISM CORRECTED — this section said "Route B arms its activation hook once per
+process", and that was wrong.** Nothing is armed once per process: arming is
+attempted on every `ConfigureShorebird`, and it was the *early return* above it —
+gated on an updater init that deliberately fails on its second call — that skipped
+it. Retracted in §14b, fixed by patch `0007`, and its three arming tests now
+EXECUTE (patch `0008`, 3/3). The EFFECT this section describes was real; the cause
+was not what it said. Correcting it where the claim sits rather than rewriting it
+silently, per this file's own correction rule.
 
 That same once-per-process guard is what decides §5's boot/crash gap and §8's
 restart-required behavior. **One mechanism, three sections** — now tracked as a
@@ -3205,7 +3214,24 @@ preserved specimen, and its own recorded verdict referencing the one cell identi
 |---|---|---|---|
 | `G3.7` param-abi | release cut with the new cell; `assert_result_consumed.sh` on the target's call site | `evidence/releases/<n>/` + the lowered replacement showing `(Self self, T a)` | whether the AOT caller's ARGUMENTS arrive, in order and by type, in an interpreted body |
 | `G3.7` one-param arm — **MET 2026-08-13** | release 37 + patch 1, launched under `launch_release_bytes.sh`'s identity refusal | `evidence/releases/37/verdict.txt`, `patch1_replacement_0.dart` showing `(RouteBThing self, String who)`, `patch1.routeb.trace` | whether ONE positional argument arrives and is observable. Order is NOT in this verdict: one argument cannot demonstrate it |
-| `G15` second engine | a host that creates TWO `FlutterEngine`s in one process — the fixture as it stands creates one, so this gate needs its own harness before it can run | both engines' `.routeb` reports | whether engine two is armed at all |
+| `G15` second engine | ~~a host that creates TWO `FlutterEngine`s in one process — the fixture as it stands creates one~~ — **SATISFIED 2026-08-13**: `fixtures/twoengine_app`, structurally proven at `evidence/g15/`. What remains is `R6`/`R8` + a device and a release cut against cell `4df8f9b6` | ~~both engines' `.routeb` reports~~ — **there is only ONE report.** `RouteBReport` appends to `artifact_path + ".routeb"` and both engines resolve the same lifecycle-selected path, so the specimen is the sibling **`.routeb.trace`**, one `rbtrace` line per attach | whether engine two is armed at all |
+
+**PRECOMMITTED DEVICE VERDICT for `G15`'s final gate — written before it is booked,
+so the booking cannot shape the reading.** The discriminator is the trace's LINE
+COUNT plus per-line target evidence; neither the shared `.routeb` file nor generic
+process success counts as either.
+
+| observation | verdict |
+|---|---|
+| two independently attributable engine launches AND two `rbtrace` records after activation, each showing the expected attach/arming transition (`bc_pre=0 → bc_post=1`, `uep_post_is_interpret_call=1`) | **`G15` PASS** — both engines arm on the shipping engine |
+| fewer than two traces | **`G15` FAILURE or INCOMPLETE OBSERVATION, and which one depends on WHICH engine's evidence is missing.** A trace absent for engine two with engine two proven launched is a failure; a trace absent because engine two never booted is an incomplete observation and not a `G15` result. The launch attribution is what separates them, which is why the harness makes it a file-system fact |
+| two traces whose `fn=` values are identical | **INVESTIGATE, not an automatic failure.** Each engine has its own isolate and heap-allocated `Function`, so differing `fn=` is the PREDICTION — never measured. Identical values could equally mean the instrument reported one engine twice |
+| two traces but an attach transition missing on one | that engine did not arm: a `G15` failure localised to it, which is the outcome the whole per-engine attribution exists to make sayable |
+| the process merely launches and shows patched behaviour somewhere | **NOT a `G15` result.** "Some engine ran patched code" is the reading this gate exists to make impossible |
+
+The simulator probe stays labelled exactly as it is: **shape proof, not arming
+proof.** Nothing in this lane touches `H2`, the cell, or the CDN before that
+booking.
 | `G4.2`/`G4.3` config | release cut WITH a flavor and WITH `--obfuscate`; provenance carrying the fingerprint | the release's `buildConfig` + each arm's CLI log or device beacon | two different claims, split below |
 
 **`G3.7` and `G15` are independent in both directions.** `G3.7` is a producer/ABI
