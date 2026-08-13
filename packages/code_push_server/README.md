@@ -22,9 +22,12 @@ cd packages/code_push_server
 ./setup.sh
 ```
 
-That's it. `setup.sh` generates all secrets, starts everything in Docker
-(server + Postgres + MinIO), waits until it's healthy, and prints your server
-URL, API key, and the exact commands to ship an app. No Dart SDK, no manual
+That's it. `setup.sh` generates all secrets, starts **one container** in
+Docker — embedded SQLite + local-disk artifacts — waits until it's healthy, and
+prints your server URL, API key, and the exact commands to ship an app.
+(Corrected 2026-08-13: this said "server + Postgres + MinIO". That is the
+`--scale` stack, and the claim contradicted *Two ways to run* below, which
+correctly calls one container the default.) No Dart SDK, no manual
 config, no editing secrets by hand.
 
 Then, from your Flutter app:
@@ -123,8 +126,11 @@ in [`../../selfhost/IOS_ONDEVICE.md`](../../selfhost/IOS_ONDEVICE.md).
   one volume.
 - **Scale — Postgres + S3/MinIO.** For horizontal scale (multiple stateless
   replicas) or an existing managed database. Selected automatically the moment
-  `DATABASE_URL` / `S3_ENDPOINT` are set (that's what `./setup.sh --domain` and
-  `docker-compose.prod.yaml` do). Same features, same wire contract, same code —
+  `DATABASE_URL` / `S3_ENDPOINT` are set — which is what `./setup.sh --scale
+  --domain <host>` and `docker-compose.prod.yaml` do (**corrected 2026-08-13**:
+  this said `./setup.sh --domain`, which starts the single-container stack with
+  a TLS overlay and sets neither variable; the Quick-start section above already
+  had it right, so this file disagreed with itself). Same features, same wire contract, same code —
   only the storage backends differ. Advanced analytics charts require this mode.
 
 ## How it fits together

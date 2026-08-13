@@ -492,15 +492,24 @@ the server offers the same `download_url` string again.
 
 ### Gaps / recommendations (NOT changing server code — research findings)
 
-1. **Failure events are invisible in metrics (main gap).** `patchMetrics` only
-   counts `__patch_download__` and `__patch_install__`
-   (`repository.dart` `patchMetrics` (:1693)); the admin UI shows only downloads/installs
-   (`api.dart:1597`). `__patch_install_failure__` and
-   `__patch_update_failure__` are **stored but never surfaced**. These are the
-   most operationally important signals — they are how you detect a bad patch in
-   the field. **Recommend** adding
-   `COUNT(*) FILTER (WHERE type='__patch_install_failure__') AS install_failures`
-   and `… '__patch_update_failure__' AS update_failures` to `patchMetrics`, and
+1. ~~**Failure events are invisible in metrics (main gap).**~~ **DONE — this
+   recommendation has shipped, corrected 2026-08-13.** `patchMetrics`
+   (`repository.dart:1693`) already carries the two clauses this section asked
+   for, verbatim:
+   `COUNT(*) FILTER (WHERE type = '__patch_install_failure__') AS install_failures`
+   and `COUNT(*) FILTER (WHERE type = '__patch_update_failure__') AS update_failures`,
+   and `GET /apps/{appId}/metrics` returns both — `API_REFERENCE.md` documents
+   them as shipped, so the two documents were contradicting each other. Left in
+   place rather than deleted because a live "main gap" that is actually closed
+   costs somebody a re-implementation, which is the specific waste worth naming.
+   The original text follows.
+
+   ~~`patchMetrics` only counts `__patch_download__` and `__patch_install__`;
+   the admin UI (`api.dart:1597`) shows only downloads/installs.
+   `__patch_install_failure__` and `__patch_update_failure__` are stored but
+   never surfaced. These are the most operationally important signals — they are
+   how you detect a bad patch in the field. **Recommend** adding the two
+   `COUNT(*) FILTER` clauses to `patchMetrics`, and
    consider using them to auto-halt a rollout. Also capture the event `message`
    (crash-recovery / engine-report / update-failure diagnostics) — it carries
    `patch_number`, timing, file size, and a truncated root-cause string that is

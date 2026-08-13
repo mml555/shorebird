@@ -19,13 +19,29 @@ where `<token>` is either an **API key** (`sb_api_…`, bootstrap or per-user) o
 **session JWT** from `shorebird login`. Public endpoints (no auth): `/healthz`,
 `/readyz`, `/console`, `/admin/ui`, `/download/*` (signed), `/login`, `/token`,
 `/oauth/callback`, `/api/logout`, `/.well-known/jwks.json`, `/patches/check`,
-`/patches/assets`, `/crashes`,
-`/patches/events`.
+`/patches/assets`, `/crashes`, `/patches/events`, `/metrics`, `GET /`, and
+`/diagnostics/speedtest`.
 
-**Errors.** Non-2xx responses are `{"code": "...", "message": "...", "details"?: …}`.
-Common statuses: `400` bad request, `401` missing/invalid auth, `403` cross-tenant
-/ insufficient role, `404` not found, `409` state-machine violation (e.g. finalize
-before verified, promote a non-ready patch).
+> `/diagnostics/speedtest`, `/metrics` and `GET /` added to this list 2026-08-13.
+> The speedtest is unauthenticated on **both** verbs — `GET` streams up to
+> 16,000,000 zero bytes (`?size=` clamped) and any other verb drains and discards
+> an upload, returning `204`. It is separately rate-limited (`speed:<ip>`, 6/min)
+> precisely because it is public and moves 16 MB a call. Omitting a public
+> bandwidth endpoint from the public list is the kind of gap an operator writing
+> firewall or WAF rules from this document would inherit.
+
+**Errors.** Non-2xx JSON responses are `{"code": "...", "message": "..."}` — exactly
+two keys. Common statuses: `400` bad request, `403` **all auth failures**, `404` not
+found, `409` state-machine violation (e.g. finalize before verified, promote a
+non-ready patch).
+
+> Corrected 2026-08-13. This block listed `401` for "missing/invalid auth" and an
+> optional `details` key; the API emits neither. A missing bearer and an invalid
+> credential both return **`403 {"code":"forbidden"}`** — the single
+> `HttpStatus.unauthorized` in the server is the HTML login form re-render, not a
+> JSON API response — and `_err` builds a two-key body with no `details`. A client
+> written from the old text would branch on a 401 that never arrives and treat a
+> genuine auth failure as an authorization bug.
 
 **Auth context.** An API key resolves to a user; the bootstrap key maps to user 1
 (owner of the default org). App-scoped requests require the user to own the app's
@@ -44,6 +60,7 @@ These are exactly what the pinned Shorebird CLI calls for `init` / `release` /
 |---|---|---|---|
 | GET | `/organizations` | — | `{"organizations":[{"organization":{"id","name","organization_type"},"role"}]}` (corrected 2026-08-13 — this row said `org_type`; the server emits `organization_type`, `api.dart:1069`) |
 | GET | `/users/me` | — | `PrivateUser` `{id,email,jwt_issuer,…}` (404 → treated as null by CLI) |
+| POST | `/users` | `{"display_name"?}` | `PrivateUser` — **added 2026-08-13, was undocumented** in a table introduced as "every HTTP endpoint the server exposes". Authenticated; the CLI calls it to create/rename the account behind a session JWT. It upserts on the **authenticated caller's email**, never on anything in the body |
 
 ### Apps
 
@@ -77,7 +94,9 @@ mismatch fails the artifact (`400` on upload) and the release cannot finalize.
 |---|---|---|---|
 | POST | `/apps/{appId}/patches` | `{"release_id":1,"metadata":{},"notes"?}` | `{"id","number","notes"}` |
 | POST | `/apps/{appId}/patches/{patchId}/artifacts` | multipart: `arch,platform,hash,size,hash_signature?,podfile_lock_hash?` | `{…,"url","upload_method"}` |
-| POST | `/apps/{appId}/patches/promote` | `{"patch_id":1,"channel_id":1}` | 204 · **409** if the patch isn't `ready` |
+| POST | `/apps/{appId}/patches/promote` | `{"patch_id":1,"channel_id":1,"rollout"?:0-100}` | 204 · **400** if `rollout` is outside 0-100 · **409** if the patch isn't `ready` |
+
+> `rollout` (optional, default `100`) added to this row 2026-08-13 — it was undocumented, and it is the only non-admin way to promote straight into a partial rollout (`_promotePatch`). PARITY.md §6 already counts it as part of the built rollout surface.
 | PATCH | `/apps/{appId}/patches/{patchId}` | `{"notes"?}` | `{"id","number","notes"}` |
 
 ### Release & patch notes
@@ -157,7 +176,7 @@ patch's `size`; the device verifies the hash after inflating.
 
 | Method | Path | Response |
 |---|---|---|
-| GET | `/apps/{appId}/metrics` | `{"patches":[{"patch_number","downloads","installs","install_failures","update_failures","unique_clients"}]}` |
+| GET | `/apps/{appId}/metrics` | `{"patches":[{"patch_number","downloads","installs","install_failures","update_failures","unique_clients"}]}` — plus **top-level** `total_events`, `unique_clients` and an `events_by_type` map, which the handler spreads alongside `patches` (`return _json({...app, 'patches': patches})`). Noted 2026-08-13; `unique_clients` appears at both levels with different meanings — per-app at the top, per-patch inside. |
 
 ### Crashes (read, with symbolication)
 
@@ -213,9 +232,18 @@ The updater reads `base_url` from the bundled `shorebird.yaml` and calls these �
 ```json
 { "app_id":"<uuid>", "release_version":"1.0.0+1", "platform":"android",
   "arch":"aarch64", "channel":"stable", "client_id":"<uuid>",
-  "patch_number": 0,
+  "current_patch_number": 1,
   "supported_patch_kinds": ["code","assets"] }
 ```
+
+> `current_patch_number` is what the pinned updater actually sends, and it is
+> **omitted entirely on a fresh install** rather than sent as `0` (corrected
+> 2026-08-13 — this block documented only `patch_number: 0`). `patch_number` is
+> the LEGACY spelling and is still accepted: the server reads
+> `current_patch_number ?? patch_number ?? 0`. Documenting only the legacy name
+> left `API_REFERENCE.md` and `UPDATER_CONTRACT.md` §2 describing two different
+> request shapes for the same endpoint.
+
 Response:
 ```json
 { "patch_available": true,
