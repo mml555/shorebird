@@ -120,3 +120,51 @@ Function's unchecked entry point the call should have reached the interpreter â€
 it did not, which points at a different object rather than a different field.
 That is a hypothesis; the way to settle it is to identify the pool entry, not to
 reason from offsets.
+
+WHAT 0x7 AND 0xf ARE â€” from raw_object.h, not from the numbers
+
+  UntaggedFunction          entry_point_ is the FIRST field after the header
+                            -> untagged 8  -> tagged 0x7
+                            unchecked_entry_point_ next
+                            -> untagged 16 -> tagged 0xf
+  UntaggedSingleTargetCache POINTER_FIELD(CodePtr, target) then uword entry_point_
+                            -> target untagged 8, entry_point_ untagged 16
+                            -> tagged 0xf
+
+So 0x7 is unambiguous: Function::entry_point_. That is the field
+--patchable_static_calls emits loads from, and the field AttachBytecode moves.
+
+0xf is AMBIGUOUS on offset alone: Function::unchecked_entry_point_ and
+SingleTargetCache::entry_point_ both land there. The offset cannot decide it.
+
+THE TRACE DECIDES IT. patch1.routeb.trace recorded:
+
+  ep_pre  = 0x1079e5ca8 -> ep_post  = 0x107914044
+  uep_pre = 0x1079e5ca8 -> uep_post = 0x107914044   <-- BOTH moved
+  interpret_call_ep = 0x107914044
+
+If site A read the PATCHED Function's unchecked_entry_point_, it would have
+reached the interpreter, because that field was updated. It did not. Therefore the
+base register at site A does NOT hold the Function that was patched.
+
+CLASSIFIED AS BRANCH 3 of the precommitted tree: 0xf is an entry-point field on
+some OTHER object -- a switchable-call cache or equivalent -- whose cached entry
+point was resolved when the snapshot was built and is not updated by
+AttachBytecode. Corroborating detail, not proof: site A loads an arguments
+descriptor (`ldr x4,[x27,#0xf8]`) immediately before the call, which is the
+switchable-call shape; control B's static call loads none.
+
+The deferred dispatch-table limitation is therefore no longer deferred or
+theoretical. It is the measured mechanism by which a correctly patched Function
+is bypassed on device.
+
+STILL NOT ESTABLISHED: the concrete class of the object at object-pool offset
+0xd4a8 (`add x0,x27,#0xd,lsl#12 ; ldr x0,[x0,#0x4a8]`). Identifying it names the
+mechanism exactly instead of by elimination, and needs a pool reader -- not
+another release and not another device run.
+
+TERMINOLOGY, because the loose phrasing cost a debugging cycle:
+verify_patchable_release.sh establishes "Route B call forms are PRESENT in this
+release", NOT "this release's calls are patchable". The census makes the gap
+concrete: 7,102 patchable pairs against 25,494 direct bl and 22,878 register-
+indirect calls.
