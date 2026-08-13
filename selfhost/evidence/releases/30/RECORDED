@@ -128,3 +128,22 @@ Attribution matters as much as presence: the marker must be attributable to this
 target's Function, not to "some interpreted call happened". A global interpreter
 counter would be another census, and the two censuses in this investigation decided
 nothing.
+
+HAZARD: THE HARDCODED POOL OFFSET CAN GO STALE INTO A FALSE MISMATCH
+
+0xd4a8 was measured from release 26's disassembly and is hardcoded in the
+diagnostic embedder. It happened to remain correct through release 30 -- index 6803
+resolved to the patched Function -- but nothing enforces that. Any change to the
+fixture, the release, or codegen can move the call site's pool offset.
+
+A stale offset does not fail loudly. It reads SOME other pool entry, and if that
+entry is a Function the classifier returns exit 1: IDENTITY MISMATCH. That is a
+false attribution of exactly the kind five measurements were built to prevent,
+produced by the instrument rather than the system.
+
+BEFORE ANY FUTURE RUN THAT USES THIS OFFSET: re-derive it from that release's own
+dSYM and disassembly, the way release 26's was. The check is cheap -- symbolize
+routeBValue, disassemble its range, read the `ldr x0, [x0, #...]` immediate that
+precedes `ldur x30, [x0, #0xf]`. Better still, have the trace record the offset it
+was given AND assert the entry's owner class/name matches the target, so a stale
+offset lands in ENTRY_NOT_FUNCTION or a name mismatch rather than in a verdict.
