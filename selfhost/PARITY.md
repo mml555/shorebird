@@ -3253,11 +3253,19 @@ records are equally consistent with ONE attach per launch across two launches. T
 absolute count did not exclude that and the first reading of this gate did not say
 so; a challenge did. `+2 per launch` is what shows two attaches in one process.
 
-**KNOWN HARNESS DEFECT, and it does not affect the verdict:** engine one's UI does
-not render — the screen is black during a live launch. The markers are written by
-Dart before `runApp` and the `rbtrace` records by the engine during
-`AttachBytecode`, so nothing in the evidence chain passes through rendering. It is a
-harness bug to fix before this fixture is reused for anything that reads pixels.
+**A HARNESS DEFECT, ROOT-CAUSED AND FIXED SAME DAY, which did not affect the
+verdict:** engine one's UI rendered black during a live launch. Cause: the app was
+SCENE-based — `flutter create` emits `UIApplicationSceneManifest` naming a
+`SceneDelegate` *and a second storyboard reference*, and when a scene manifest exists
+the SCENE owns the window, so the host's `window` assignment is ignored. Deleting
+`UIMainStoryboardFile` had removed only one of the two storyboard routes. The prepare
+script now deletes the manifest as well; the indigo `ENGINE one` screen renders, both
+engines still boot, and `implicit_engine=0` holds more strongly than before, since
+that scene config was the last route to an implicit engine.
+
+The verdict never depended on it: markers are written by Dart before `runApp` and
+`rbtrace` by the engine at `AttachBytecode`, and `mark=` is the patched body's return
+VALUE.
 
 Patch `0007` is therefore proven on hardware: the pre-fix symptom was engine two
 silently running unpatched AOT, because arming sat below an early return gated on an

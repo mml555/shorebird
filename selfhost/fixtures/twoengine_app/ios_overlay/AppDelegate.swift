@@ -130,7 +130,7 @@ import UIKit
 
     // Arming is a SEPARATE observation and is not made here. Saying so in the log
     // is cheaper than a future reader inferring it from a green boot.
-    record("arming_observed=0 reason=stock_engine_simulator_structural_only")
+    record("arming_observed=0 reason=host_does_not_observe_arming")
     writeHostMarker()
 
     // Build the window ourselves — engine one gets the visible view, engine two

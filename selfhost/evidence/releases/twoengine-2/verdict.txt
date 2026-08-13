@@ -94,7 +94,7 @@ GATES RUN BEFORE INTERPRETATION
      breath
   4. the release body restored byte-exactly before the launch, verified by grep
 
-A REAL HARNESS DEFECT: THE SCREEN IS BLACK, and why the verdict survives it
+A REAL HARNESS DEFECT: THE SCREEN WAS BLACK — ROOT-CAUSED AND FIXED SAME DAY
 
 Engine one's UI does not render — the screen is black while the app runs, not the
 indigo `_HarnessApp`. Confirmed by screenshot DURING a live launch, not merely
@@ -110,11 +110,27 @@ call:
   * `mark=MARK-PATCHED` in both markers is the patched body's RETURN VALUE, which
     requires execution, not display.
 
-Nothing in the chain passes through rendering. But the defect is real, it is a
-harness bug rather than a Route B finding, and a two-engine harness whose visible
-engine shows nothing should not be presented as finished: FIX BEFORE the harness is
-reused for any gate that reads pixels. It also means this fixture cannot currently
-serve a screenshot-based arm.
+Nothing in the chain passes through rendering.
+
+**ROOT CAUSE: the app was SCENE-based.** `flutter create` emits
+`UIApplicationSceneManifest` naming a `SceneDelegate` *and a second storyboard
+reference* (`UISceneStoryboardFile = Main`). When a scene manifest is present the
+SCENE owns the window, so the `window` this host assigns in
+`didFinishLaunchingWithOptions` is ignored. Deleting `UIMainStoryboardFile` had
+removed only ONE of the two storyboard routes.
+
+**FIXED** — `prepare_twoengine_fixture.sh` now deletes the scene manifest too,
+returning UIKit to the legacy delegate window lifecycle that this host implements.
+Verified on the simulator: the indigo `ENGINE one` screen renders with its identity
+line, both engines still boot, and `implicit_engine=0` still holds — in fact more
+strongly, since the scene config was the last route to an implicit engine.
+Evidence: `evidence/g15/render-after-scene-fix.png`,
+`evidence/g15/host-after-scene-fix.marker`.
+
+Also fixed while here: the host's `reason=` string, which said
+`stock_engine_simulator_structural_only` even on a device run against our engine. It
+is now `host_does_not_observe_arming`, which is true in every context — the host
+cannot know which engine or platform it is on.
 
 ONE WORDING DEFECT IN THE HOST MARKER, recorded rather than hidden
 

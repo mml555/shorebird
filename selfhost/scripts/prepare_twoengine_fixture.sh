@@ -31,6 +31,7 @@
 # already present and rewrites only the overlay and config.
 #
 #   prepare_twoengine_fixture.sh [--app-id ID] [--base-url URL] [--flutter PATH]
+#                                [--team TEAM_ID]
 set -euo pipefail
 
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
@@ -43,6 +44,9 @@ BASE_URL="${TWOENGINE_BASE_URL:-http://localhost:18080}"
 # the structural claim must not be made against a Route B experimental engine, or
 # a green boot could be misread as saying something about arming.
 FLUTTER="${TWOENGINE_FLUTTER:-/opt/homebrew/bin/flutter}"
+# Signing team. AUTO-DETECTED by default rather than hardcoded, so the script does
+# not carry someone's Team ID and still works on another machine.
+TEAM="${TWOENGINE_TEAM:-}"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
@@ -51,6 +55,7 @@ while [ $# -gt 0 ]; do
     --app-id)   APP_ID="${2:?--app-id needs a value}"; shift 2 ;;
     --base-url) BASE_URL="${2:?--base-url needs a value}"; shift 2 ;;
     --flutter)  FLUTTER="${2:?--flutter needs a path}"; shift 2 ;;
+    --team)     TEAM="${2:?--team needs a Team ID}"; shift 2 ;;
     -h|--help)  sed -n '1,32p' "$0"; exit 0 ;;
     *)          die "unknown flag: $1" ;;
   esac
@@ -84,6 +89,65 @@ if /usr/libexec/PlistBuddy -c "Print :UIMainStoryboardFile" "$PLIST" >/dev/null 
   echo "==> UIMainStoryboardFile DELETED (no implicit engine)"
 else
   echo "==> UIMainStoryboardFile already absent"
+fi
+
+# 3a. THE SCENE MANIFEST, and this is the fix for a BLACK SCREEN.
+#
+# Deleting UIMainStoryboardFile is NOT sufficient: `flutter create` also emits
+# UIApplicationSceneManifest naming a SceneDelegate AND a second storyboard
+# reference (`UISceneStoryboardFile = Main`). When a scene manifest is present the
+# SCENE owns the window, so a `window` assigned in
+# application(_:didFinishLaunchingWithOptions:) is IGNORED -- the harness ran
+# correctly, wrote both markers, attached in both engines, and showed a black
+# screen. Measured 2026-08-13, and the arming evidence was unaffected because
+# markers are written before runApp and rbtrace by the engine at attach; but a
+# harness whose visible engine renders nothing is not finished.
+#
+# Removing the manifest returns UIKit to the legacy UIApplicationDelegate window
+# lifecycle, which is what this host implements. It also deletes the LAST route to
+# an implicit engine: the scene config pointed at Main.storyboard even after
+# UIMainStoryboardFile was gone.
+if /usr/libexec/PlistBuddy -c "Print :UIApplicationSceneManifest" "$PLIST" >/dev/null 2>&1; then
+  /usr/libexec/PlistBuddy -c "Delete :UIApplicationSceneManifest" "$PLIST"
+  echo "==> UIApplicationSceneManifest DELETED (the host owns the window)"
+else
+  echo "==> UIApplicationSceneManifest already absent"
+fi
+
+# 3b. THE SIGNING TEAM, and this is why it is a step rather than an assumption.
+#
+# `flutter create` writes no DEVELOPMENT_TEAM, so CODE_SIGN_STYLE = Automatic has
+# nothing to match and `flutter build ipa` fails at EXPORT with "No profiles for
+# 'dev.selfhost.twoengineProbe' were found" plus "No Accounts" -- after a
+# successful archive, which makes it look like a signing-account problem rather
+# than a missing setting. Measured 2026-08-13, and it cost a release attempt.
+#
+# The team is auto-detected from an installed WILDCARD profile (`<TEAM>.*`), which
+# is what already covers this fixture's sibling `dev.selfhost.airgapProbe`. A
+# wildcard match means no new profile has to be created for a new bundle id.
+if [ -z "$TEAM" ]; then
+  for prof in "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"/*.mobileprovision; do
+    [ -f "$prof" ] || continue
+    appid=$(security cms -D -i "$prof" 2>/dev/null |
+      plutil -extract Entitlements.application-identifier raw - 2>/dev/null)
+    case "$appid" in
+      *.\*) TEAM="${appid%%.*}"; break ;;
+    esac
+  done
+fi
+if [ -n "$TEAM" ]; then
+  PBX=ios/Runner.xcodeproj/project.pbxproj
+  if grep -q "DEVELOPMENT_TEAM" "$PBX"; then
+    echo "==> DEVELOPMENT_TEAM already present"
+  else
+    # After every PRODUCT_BUNDLE_IDENTIFIER line, so every target and every
+    # configuration is covered without parsing the pbxproj.
+    /usr/bin/sed -i '' "s|^\(.*\)PRODUCT_BUNDLE_IDENTIFIER = \(.*\);|\1PRODUCT_BUNDLE_IDENTIFIER = \2;\n\1DEVELOPMENT_TEAM = $TEAM;|" "$PBX"
+    echo "==> DEVELOPMENT_TEAM = $TEAM injected ($(grep -c DEVELOPMENT_TEAM "$PBX") sites)"
+  fi
+else
+  echo "==> WARNING: no wildcard provisioning profile found and no --team given." >&2
+  echo "    The archive will succeed and the IPA EXPORT will fail. Pass --team." >&2
 fi
 
 # 4. local-network keys, same as the airgap fixture's script
