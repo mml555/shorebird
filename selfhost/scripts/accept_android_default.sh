@@ -122,8 +122,22 @@ else
   say "DEFAULT patch"
   # NO --artifact here: it is a `release` flag only, and passing it makes the
   # patch command dump usage and exit 64 with no error line, which reads like a
-  # different failure entirely. NO --no-confirm either — this CLI does not have
-  # it on `patch`, hence `yes |`.
+  # different failure entirely.
+  #
+  # CORRECTED 2026-08-13. This used to read "NO --no-confirm either — this CLI
+  # does not have it on `patch`, hence `yes |`", and the reason given was false:
+  # patch_command.dart:115-118 registers addFlag('confirm', hide: true), and
+  # addFlag is negatable by default, so `--no-confirm` parses and is read at
+  # :215. It is `hide: true`, so it never appears in --help — the likely origin
+  # of the mistake. The release invocation twenty lines above already passes it.
+  #
+  # `yes |` is LEFT IN PLACE deliberately, and not because of that clause. This
+  # harness runs unattended on hermes-vps against a device gate that is still
+  # owed, and nothing in the correcting session could verify a behavioural
+  # change to it. Removing the pipe would also remove the SIGPIPE handling
+  # below, which is load-bearing. Whoever next runs this leg on hardware is the
+  # one who can safely swap `yes |` for `--no-confirm`.
+  #
   # `yes |` makes the exit status 141 (SIGPIPE) once shorebird stops reading,
   # even on success — so take the status from PIPESTATUS, not from $?.
   set +e
