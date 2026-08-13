@@ -124,6 +124,25 @@ class RouteBThing {
   String tagged(String x) =>
       DateTime.now().millisecondsSinceEpoch >= 0 ? 'NEW-$x' : 'X';
 
+  /// G3.7's DEVICE TARGET: a parameterised method the app ACTUALLY EXECUTES.
+  ///
+  /// Deliberately separate from `tagged`, which is called only inside `value()`'s
+  /// dead branch. That branch exists to keep `tagged` retained past tree-shaking,
+  /// and retention is not reachability: a patch to a method nothing executes runs
+  /// never, while `assert_result_consumed.sh` still reports its call site CONSUMED
+  /// — correctly, because the result feeds a string interpolation. See PARITY's
+  /// "Consumption is not reachability".
+  ///
+  /// So this one is called from `initState` and its value is BEACONED, which is
+  /// what makes the parameter-ABI arm observable rather than merely compiled. The
+  /// argument is passed at the call site so the patched body has something to
+  /// receive: G3.7's claim is that arguments arrive, in order and by type.
+  ///
+  /// Non-foldable for the same reason as every other target here.
+  @pragma('vm:never-inline')
+  String paramValue(String who) =>
+      DateTime.now().millisecondsSinceEpoch >= 0 ? 'OLD-$who' : 'X';
+
   /// The lowering surface. Two forms have been through the whole path:
   ///
   ///   String value() => label;      ->  value(RouteBThing self) => self.label
@@ -252,6 +271,18 @@ class _ProbeBodyState extends State<ProbeBody> {
   String _rbBaseline = '—';
   String _rbNote = 'running…';
 
+  /// G3.7's parameterised target's value.
+  ///
+  /// BEACON-ONLY DOES NOT WORK ON THIS RIG, measured 2026-08-13: `cps-ios` logs the
+  /// beacon as `GET /selfhost-beacon/state -> 403` with NO QUERY STRING, so a value
+  /// carried only in the query is unobservable — and `read_beacon` in
+  /// `airgap_acceptance.sh` greps for `state?...`, which that line never matches.
+  /// The value therefore has to be DISPLAYED to be read, and a future release should
+  /// add a row for it (the screen already carries seven on a 1334 px device, so the
+  /// layout needs the padding trimmed or a row retired). Kept beaconed as well,
+  /// because the query string is the right mechanism the moment the log carries it.
+  String _rbParam = '—';
+
   /// The private-class target's value, stored so the call's RESULT is consumed by
   /// something observable. A displayed field is the cheapest consumer there is.
   String _rbPrivateClass = '—';
@@ -285,10 +316,15 @@ class _ProbeBodyState extends State<ProbeBody> {
     // class, so the call site is a patchable instance call and the value below is
     // whatever the Function's entry point produced.
     final pc = privateClassValue();
+    // G3.7: an ordinary call WITH AN ARGUMENT, on the path initState takes. The
+    // baseline observation is what demonstrates reachability; nothing about this is
+    // provable by reading the source.
+    final pv = RouteBThing().paramValue('ARG');
     if (!mounted) return;
     setState(() {
       _rbBaseline = v;
       _rbPrivateClass = pc;
+      _rbParam = pv;
       _rbNote = 'read once in initState; no Dart-side attach';
     });
   }
@@ -333,6 +369,7 @@ class _ProbeBodyState extends State<ProbeBody> {
           // at all, and every Route B device result today was read by eye.
           'route_b': _rbBaseline,
           'private_class': _rbPrivateClass,
+          'param': _rbParam,
         },
       );
       final client = HttpClient()..connectionTimeout = const Duration(seconds: 5);

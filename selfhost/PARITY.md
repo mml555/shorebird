@@ -2083,7 +2083,7 @@ boundary is not the rung ladder but library-scoped privacy.
 |---|---|
 | ◐ | **BUILT** Obfuscation-related symbol retention machinery |
 | ✅ | **PROVEN** Android patched crash symbolication with an obfuscated patch |
-| ⛔ | **DEVICE GATE BLOCKED — prerequisite missing: `--load-obfuscation-map` in our gen_snapshot.** Found by running it, 2026-08-13. When the release was obfuscated the patcher passes `--obfuscate --load-obfuscation-map=<the release's map> --strip` to the patch build **on its own**, mirroring the release rather than taking the flag from the user — so a "patch without obfuscation" arm is not even constructible through the CLI. And our engine's `gen_snapshot_arm64` advertises only `--save-obfuscation-map`: the map was written and passed correctly (629 KB), the flag does not exist, and the AOT step exits **255** long before Route B is reached (`Target aot_assembly_release failed: AOT snapshotter exited with code 255`). So an obfuscated release cannot be patched on this engine at all, and release 35 is therefore **unpatchable by construction** rather than a specimen. `--load-obfuscation-map` is a Dart-fork capability we do not carry; adding it is engine work with its own mint. The host-side result below is unaffected |
+| 🐞 | **KNOWN ENGINE GAP — not "device validation outstanding".** Our `gen_snapshot` cannot consume an obfuscation map, so an obfuscated release is unpatchable on this engine. The CLI is already correct: the patcher asks for the RELEASE's own map, which is exactly right; the engine simply cannot take it. Per the classification rule this is a gap to decide about shipping, not a question to schedule a device for. Detail as measured: Found by running it, 2026-08-13. When the release was obfuscated the patcher passes `--obfuscate --load-obfuscation-map=<the release's map> --strip` to the patch build **on its own**, mirroring the release rather than taking the flag from the user — so a "patch without obfuscation" arm is not even constructible through the CLI. And our engine's `gen_snapshot_arm64` advertises only `--save-obfuscation-map`: the map was written and passed correctly (629 KB), the flag does not exist, and the AOT step exits **255** long before Route B is reached (`Target aot_assembly_release failed: AOT snapshotter exited with code 255`). So an obfuscated release cannot be patched on this engine at all, and release 35 is therefore **unpatchable by construction** rather than a specimen. `--load-obfuscation-map` is a Dart-fork capability we do not carry; adding it is engine work with its own mint. The host-side result below is unaffected |
 | ◐ | **BUILT 2026-08-13** Route B iOS release + patch under obfuscation — `G4.3`. `probes/g43_obfuscation_semantics.sh` 8/8 classifies each flag BY MEASUREMENT: `--obfuscate` changes the **stripped program** bytes, so it is semantic and fingerprinted; `--split-debug-info` and its **path** change the ELF's DWARF only, so they are recorded for audit and excluded from compatibility. **A container built for an obfuscated release APPLIES** (`APPLY ok`, `OLD-obf` → `NEW-obf`) while the interface and manifest stay source-named — obfuscation is a gen_snapshot-stage transform and `gen_kernel` accepts neither flag, so provenance cannot carry transformed identities. Device gate still owed |
 | ☐ | **NOT VALIDATED** Full upstream-equivalent obfuscation matrix |
 
@@ -3316,6 +3316,61 @@ Two spellings that produce the same Kernel node are still two items: they differ
 in the lexical edit, so one passing says nothing about the other. That rule is
 what demoted `this.label` in §3, and it is the rule most likely to be broken
 again by someone in a hurry.
+
+### `G3.7`'s release-37 claim, precommitted and deliberately narrow
+
+Body: `String paramValue(String who) => 'PARAM-$who';` — the live caller passes
+`'ARG'`.
+
+> **`param=PARAM-ARG` on the preserved release-37 binary proves that the live
+> caller's sole positional `String` argument is transferred into the interpreted
+> replacement and is observable by the replacement body. A body that ignores its
+> parameter is insufficient evidence.**
+
+**What it does NOT prove: argument ORDER.** There is one argument, so there is no
+order to get wrong. Multi-argument ordering needs its own two-or-more-parameter
+specimen, and the host probe's `two_params` arm (`-Da`… `int b` = 7 landing in slot
+`b`) is where that currently rests — host-proven only. Do not let "order" enter this
+verdict.
+
+**And the body stays minimal on purpose.** Calling methods on `who` to "prove type"
+would drag binding and dependency reach into a gate meant to isolate the parameter
+ABI, so a failure could no longer be attributed. Interpolating the received value is
+the clean discriminator: it cannot succeed unless the argument arrived with a usable
+value, and it introduces nothing else.
+
+### The beacon's query string is not in the log — 2026-08-13
+
+`cps-ios` logs `GET /selfhost-beacon/state -> 403 (0ms)`, path only. So a fixture
+value carried ONLY in the beacon's query string cannot be read back, and
+`read_beacon` in `airgap_acceptance.sh` — which greps `/selfhost-beacon/state?[^" ]*`
+— can never match that line. Any value a gate must assert has to be **displayed**
+(screenshot-readable) until the control plane logs query strings, or the endpoint
+returns something other than 403.
+
+This bit the `G3.7` arm directly: `paramValue`'s result was made beacon-only to avoid
+an eighth row on a 1334 px screen, and was then unobservable. Consumption
+(`--at 0xc0968` → CONSUMED) and the release specimen are both fine; only the readout
+is missing, so the arm is one fixture row away rather than blocked on anything deep.
+
+### Consumption is not reachability
+
+> **Result consumption proves observability of a call RESULT, not execution
+> reachability of the TARGET.**
+
+`assert_result_consumed.sh` answers "if this call returns a value, does anything
+read it" — a property of the caller's instructions. It cannot answer "does this call
+ever run", which is a property of the path the app takes. Both are required for a
+behavioural device arm, and they fail differently: a discarded result makes a working
+patch invisible (releases 25–30), while an unreachable call site makes a working
+patch never execute.
+
+Found the second way on 2026-08-13: the fixture's only parameterised method is called
+solely inside `value()`'s dead branch, and the gate reports that site **CONSUMED** —
+correctly. **The dead-branch retention trick is valid for keeping symbols available
+and cannot serve as a behavioural specimen.** A parameter-ABI gate needs a target on
+an independently demonstrated live path — demonstrated by the baseline observation
+itself, not by reading the source.
 
 ### The classification rule
 
