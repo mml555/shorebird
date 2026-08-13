@@ -2,7 +2,12 @@
 #
 # classifier_regression.sh -- the classifier's compatibility contract, as a test.
 #
-# Three REAL preserved device traces with known semantics, not hand-built fixtures.
+# FIVE REAL preserved device traces with known semantics, not hand-built fixtures.
+#
+# This is a regression corpus for the REASONING, not just for the parser. Each entry
+# is a hypothesis that was retired by measurement, and its trace is the exact record
+# that retired it -- so a future classifier edit that would have accepted the wrong
+# conclusion fails here instead of on a device three releases later.
 # Two classifier regressions were already caught by running exactly these:
 #
 #   * adding caller_scan_status made a v2 caller-bearing record fall through to the
@@ -32,6 +37,8 @@ echo "classifier: $(git -C "$EV" log -1 --format=%h -- "$C" 2>/dev/null || echo 
 expect 26 2 "v1 record: uep_ meant Code accessors, not comparable with v3"
 expect 27 0 "v2, no caller: the FIELD question is still decidable"
 expect 28 3 "v2 with a caller but no scan state: identity not measurable"
+expect 29 3 "v3, NULL_POOL: AOT has one global pool, so no per-Code pool to scan"
+expect 30 0 "v4, exact entry read: pool entry IS the patched Function"
 
 echo
 echo "classifier_regression: $pass passed, $fail failed"
