@@ -3,10 +3,40 @@
 Definitive wire + behavior contract for the Rust updater embedded in Shorebird's
 Flutter engine, as required by our self-hosted `code_push_server`.
 
-Source of truth: the `shorebirdtech/updater` Rust crate (NOT in this repo).
+Source of truth: ~~the `shorebirdtech/updater` Rust crate (NOT in this repo)~~ —
+**corrected 2026-08-13.** The crate **is** in this repo, vendored at
+[`../vendor/updater`](../vendor/updater) (221 tracked files), and it has been
+**forked past the pinned revision**: patch-kind negotiation was added on
+2026-07-30 by `c7963536` so a patch can carry assets and no code. Read
+`vendor/updater/library/src/network.rs` as the authority on the wire types.
 Cross-referenced against on-device observations in
 [`BEHAVIORAL_FINDINGS.md`](./BEHAVIORAL_FINDINGS.md) and our server in
 `packages/code_push_server/lib/src/api.dart` + `repository.dart`.
+
+> **⚠ This document predates the fork and does not describe two fields that are
+> on the wire today.** It was last edited `d11bb058` (2026-07-29); the fork
+> landed the day after, and nothing here was revisited. Until the body below is
+> reworked, treat these two as part of the contract:
+>
+> * **Request** — `supported_patch_kinds: Vec<String>`, always sent as
+>   `["code","assets"]` (`network.rs:290,307`; no `skip_serializing_if`, so it
+>   is never omitted). It is a **capability gate**: our server withholds an
+>   assets-only patch unless the client names `assets`
+>   (`api.dart` `_patchesCheck`, the `supportedKinds.contains(assetsPatchKind)`
+>   branch).
+> * **Response `patch` object** — a fifth field `kind`
+>   (`network.rs:228 pub kind: PatchPayloadKind`), always present from our
+>   server: `code` normally, `assets` for an assets-only payload.
+>
+> So the request is **eight** fields, not seven, and the patch object is
+> **five**, not four — including in §6's requirement table. `compatibility.yaml`
+> already documents `supported_patch_kinds`, so this file also disagreed with the
+> pin manifest.
+>
+> **The server-side `api.dart:NNN` anchors throughout this document are stale**
+> and were verified wrong on 2026-08-13: that file has grown to 3074 lines and
+> the cited ranges now point at unrelated code. Locate by symbol instead —
+> `_patchesCheck`, `_isPublic`, `_signedUrl` — which do not drift.
 
 Citations use `library/src/<file>.rs:<line>` against the pinned updater commit below.
 
@@ -26,7 +56,10 @@ Citations use `library/src/<file>.rs:<line>` against the pinned updater commit b
   before this one. Those findings carry forward: `updater_rev` in the Flutter
   fork's `DEPS` is byte-identical at both revisions
   (`1f85c4ab1ee5b540269b9859c75e1bffbb9050c7`), so the on-device updater — and
-  therefore this entire contract — did not change with the engine bump. **Everything below is pinned to
+  therefore this entire contract — did not change **with the engine bump**.
+  (Scoped 2026-08-13: that sentence is true of the *bump* and was read as
+  "the contract has not changed", which is false — our own fork changed it a day
+  later. See the fork warning at the top.) **Everything below is pinned to
   updater HEAD and should be treated as "latest".** All behaviors documented
   here (HTTP Range/resume, `PatchVerificationMode` strict/install_only,
   `__patch_update_failure__`, `current_patch_number`) are present at this HEAD;

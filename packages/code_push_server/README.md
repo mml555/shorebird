@@ -5,8 +5,13 @@ unmodified, pinned Shorebird CLI and on-device updater talk to this server, so n
 runtime code-push request depends on `api.shorebird.dev` — and there's no
 per-app/per-user pricing.
 
-Device-verified end-to-end on Android, iOS, and macOS (release → patch → boot →
-rollback, signed patches).
+Device-verified end-to-end on **Android and iOS** (release → patch → boot →
+rollback). Corrected 2026-08-13: this line also claimed **macOS** and **signed
+patches**, and the status authority holds neither — `selfhost/PARITY.md:2570`
+lists macOS `DEFERRED` in every column, and `:2236-2237` list signed
+Android/iOS release+patch as `NOT VALIDATED`. The server does pass
+`hash_signature` through end to end (see the feature table below); what is
+unvalidated is the signed *workflow* on device, which is a different claim.
 
 ---
 

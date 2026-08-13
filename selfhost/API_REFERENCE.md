@@ -42,7 +42,7 @@ These are exactly what the pinned Shorebird CLI calls for `init` / `release` /
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| GET | `/organizations` | — | `{"organizations":[{"organization":{"id","name","org_type"},"role"}]}` |
+| GET | `/organizations` | — | `{"organizations":[{"organization":{"id","name","organization_type"},"role"}]}` (corrected 2026-08-13 — this row said `org_type`; the server emits `organization_type`, `api.dart:1069`) |
 | GET | `/users/me` | — | `PrivateUser` `{id,email,jwt_issuer,…}` (404 → treated as null by CLI) |
 
 ### Apps
@@ -56,7 +56,7 @@ These are exactly what the pinned Shorebird CLI calls for `init` / `release` /
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/apps/{appId}/releases` | `{"version":"1.0.0+1","flutter_revision":"…","flutter_version"?,"display_name"?,"notes"?}` | `{"release":{"id","version","flutter_revision","status","notes",…}}` |
+| POST | `/apps/{appId}/releases` | `{"version":"1.0.0+1","flutter_revision":"…","flutter_version"?,"display_name"?,"notes"?}` | `{"release":{"id","app_id","version","flutter_revision","flutter_version","display_name","platform_statuses","created_at","updated_at","notes","metadata"}}` — corrected 2026-08-13: this row said `"status"`, and `_releaseJson` (`api.dart:2834-2849`) emits **no `status` key at all**. Per-platform state is `platform_statuses`, which the pinned CLI casts **unguarded** (`shorebird_code_push_protocol/.../release.dart`), so omitting it is a client crash, not a missing field. (`status` *is* a valid request field on `PATCH` below — different row) |
 | GET | `/apps/{appId}/releases` | — | `{"releases":[Release]}` |
 | PATCH | `/apps/{appId}/releases/{releaseId}` | `{"status"?:"active","platform"?:"android","metadata"?,"notes"?}` | 204 · **409** if set `active` before all artifacts verified (fail-closed finalize) |
 
