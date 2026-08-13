@@ -29,6 +29,16 @@
 #   LC_UUID      that binary's LC_UUID, lowercased and dash-stripped
 #   RECORDED     when, from where, and the patchability measurement
 #   App.dSYM.DWARF   the DWARF binary, WHEN an .xcarchive was given
+#   App.ipa      the INSTALLABLE signed bundle, when one is found beside the build
+#
+# WHY THE .ipa TOO, learned the hard way on 2026-08-13. The preserved App is a
+# Mach-O, not something that can be installed: reproducing a device run needs a
+# signed bundle. `shorebird patch ios` re-runs `flutter build ipa`, so whether the
+# release's .ipa survives the first patch build is an ACCIDENT of whether that
+# export succeeds. For airgap_app it fails (its export method has no matching
+# profile) and the .ipa survived; for twoengine_app it succeeds and the release's
+# .ipa was overwritten by the patch build, leaving no installable release bytes at
+# all and costing a re-cut. Do not rely on the accident.
 #
 # WHY THE dSYM IS COPIED HERE AND NOT LEFT WHERE IT LIES. `shorebird patch ios`
 # re-archives over build/ios/archive, and it overwrites the dSYMs too — so the
@@ -105,6 +115,34 @@ else
   echo "             Symbol-based location will be impossible for this release" >&2
   echo "             once a patch build overwrites the archive. If you need it," >&2
   echo "             stop and re-cut BEFORE patching." >&2
+fi
+
+# The installable bundle, whose UUID must match the App we just preserved -- a
+# bundle from another build would be the patch-build false positive in a new
+# costume.
+IPA=""
+case "$TARGET" in
+  *.xcarchive) IPA="$(ls -t "$(dirname "$TARGET")/../ipa"/*.ipa 2>/dev/null | head -1)" ;;
+esac
+if [ -n "$IPA" ] && [ -f "$IPA" ]; then
+  tmpd=$(mktemp -d)
+  if unzip -qq "$IPA" -d "$tmpd" 2>/dev/null; then
+    ipa_app="$(find "$tmpd/Payload" -maxdepth 1 -name '*.app' | head -1)"
+    iuuid=$(dwarfdump --uuid "$ipa_app/Frameworks/App.framework/App" 2>/dev/null |
+      sed -n 's/^UUID: \([0-9A-Fa-f-]*\).*/\1/p' | tr -d '-' | tr '[:upper:]' '[:lower:]')
+    if [ "$iuuid" = "$UUID" ]; then
+      cp "$IPA" "$OUT/App.ipa"
+      echo "  ipa      : preserved ($(basename "$IPA"))"
+    else
+      echo "  ipa      : REJECTED -- $(basename "$IPA") carries $iuuid, not $UUID." >&2
+      echo "             Not the release's bytes; installing it would describe" >&2
+      echo "             another build." >&2
+    fi
+  fi
+  rm -rf "$tmpd"
+else
+  echo "  ipa      : ABSENT -- no installable bundle preserved. A later device run" >&2
+  echo "             cannot be reproduced from this directory." >&2
 fi
 
 # Patchability travels WITH the identity, because interpreting a device result

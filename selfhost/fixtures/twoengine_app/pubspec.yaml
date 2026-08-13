@@ -8,7 +8,7 @@
 name: twoengine_probe
 description: Structural harness — two independently constructed FlutterEngines in one process.
 publish_to: none
-version: 1.0.0+1
+version: 2.0.0+1
 
 environment:
   sdk: ">=3.6.0 <4.0.0"

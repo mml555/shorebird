@@ -72,8 +72,16 @@ uuid_of() { # <path-to-App-macho> -> lowercase hex uuid
     awk '/LC_UUID/{f=1} f&&/uuid/{gsub(/-/,"",$2); print tolower($2); exit}'
 }
 
-IPA="$(ls -t "$APP_DIR/build/ios/ipa"/*.ipa 2>/dev/null | head -1)"
-[ -n "$IPA" ] || die "no .ipa under $APP_DIR/build/ios/ipa"
+# PREFER THE PRESERVED BUNDLE. build/ios/ipa is destroyed by a patch build whenever
+# that build's export succeeds, so treating it as the release's bundle is relying on
+# an accident (measured 2026-08-13: it held for airgap_app, not for twoengine_app).
+if [ -f "$EVID/App.ipa" ]; then
+  IPA="$EVID/App.ipa"
+  echo "using the PRESERVED bundle (build/ios/ipa can be a patch build)"
+else
+  IPA="$(ls -t "$APP_DIR/build/ios/ipa"/*.ipa 2>/dev/null | head -1)"
+fi
+[ -n "$IPA" ] || die "no .ipa: neither $EVID/App.ipa nor $APP_DIR/build/ios/ipa/*.ipa"
 
 STAGE="$APP_DIR/build/airgap-payload"
 rm -rf "$STAGE"; mkdir -p "$STAGE"

@@ -3233,9 +3233,32 @@ process success counts as either.
 The simulator probe stays labelled exactly as it is: **shape proof, not arming
 proof.**
 
-> **`G15` REQUIRES NO MORE IMPLEMENTATION. The next action is the device release
-> when `R6`/`R8` is available. Until then, DO NOT MUTATE THE CELL FOR `G15`'s
-> SAKE.**
+> **`G15`'s FINAL DEVICE GATE: PASS — 2026-08-13.** Both engines in one process arm
+> Route B on the shipping engine. Every precommitted row met, on cell `4df8f9b6…`
+> untouched. Verdict: `evidence/releases/twoengine-2/verdict.txt`.
+
+```
+engine=one  isolate=main          entrypoint=main          mark=MARK-PATCHED
+engine=two  isolate=engineTwoMain entrypoint=engineTwoMain mark=MARK-PATCHED
+2 rbtrace records, both sel=engineMark, both bc_pre=0 -> bc_post=1,
+  uep_post_is_interpret_call=1, fn_uep_post == interpret_call_ep (0x102f20044)
+fn= 0x1038cbdf1  vs  0x10794bdf1     <- DISTINCT, as predicted
+patch1.routeb    8 lines, NO engine discriminator  <- why the trace is the specimen
+```
+
+Patch `0007` is therefore proven on hardware: the pre-fix symptom was engine two
+silently running unpatched AOT, because arming sat below an early return gated on an
+updater init that deliberately fails its second call. Two records with two distinct
+heap-allocated `Function`s is that path executing twice. The mechanism now holds at
+three independent layers — `0008`'s executing unit tests, the structural harness
+(stock Flutter, `arming_observed=0` by construction), and this gate.
+
+The `fn=` "investigate" branch was not entered, and the shared-report prediction was
+confirmed: reading "one report" as "one engine armed" would have been wrong twice.
+
+**Still open in `G15`'s wider project:** crash-backout and restart-required (§14b's
+other two symptoms) share `ReportLaunchSuccess` in the `Shell` constructor and are
+untouched by `0007` or by this gate.
 
 **THE SHARED BOOKING CARRIES TWO INDEPENDENT PAYLOADS** — `G3.7`'s remaining
 parameter-shape arms and this gate — with **separate releases, specimens and
