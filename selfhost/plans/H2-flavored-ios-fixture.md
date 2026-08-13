@@ -41,9 +41,30 @@ changing nothing:
 
 * **step 5, the patch-side flavor.** `ios_patcher.dart:766` defines `_resolvedFlavor`
   and `:774-776` passes it into `RouteBBuildConfig.fromBuildArgs`, mirroring
-  `ios_releaser.dart:269`. It landed at or before `ba4e1c02`, so the INSTALLED CLI
-  carries it too (`git log ba4e1c02..HEAD -- packages/shorebird_cli` is empty) and
-  precondition 5's re-sync is not needed for this reason alone.
+  `ios_releaser.dart:269`.
+
+  ⚠ **CORRECTED 2026-08-13, and the retracted half is the load-bearing one.** This
+  entry first read *"It landed at or before `ba4e1c02`, so the INSTALLED CLI carries
+  it too (`git log ba4e1c02..HEAD -- packages/shorebird_cli` is empty) and
+  precondition 5's re-sync is not needed for this reason alone."* **Both clauses are
+  false, measured:**
+
+  ```
+  git log --oneline ba4e1c02..HEAD -- packages/shorebird_cli
+    4fb03725 docs(selfhost): say what the screenshot shows, …
+    de11eecf test(selfhost): the sole positional argument arrives — release 37, on device
+  grep -c _resolvedFlavor ~/.shorebird/…/patch/ios_patcher.dart   ->  0
+  ```
+
+  The fix landed **today**, at `de11eecf`/`4fb03725` — *after* `ba4e1c02`, which is
+  what `~/.shorebird` is pinned to. **The installed CLI does NOT carry it**, so
+  **precondition 5's re-sync is MANDATORY before any flavored patch arm.** Skip it
+  and `shorebird patch --flavor foo` against a `--flavor foo` release refuses the
+  MATCHING case, reporting `FLUTTER_APP_FLAVOR: "foo" in the release, absent in this
+  patch` — a refusal produced by the stale CLI, indistinguishable at the terminal
+  from a fixture defect or a real `G4.2` incompatibility. This is release 34's
+  failure mode exactly, and it is why "the CLI under test must be the CLI you
+  changed" is a promoted precondition rather than advice.
 * **step 6, the probe's row 4 — DONE BUT UNCOMMITTED, and that qualification is
   load-bearing.** `g42_flavor_flow.sh` reports **13 passed, 0 failed** and its own
   closing text reads "Rows 4a/4b now pin the fix, so a regression fails here instead

@@ -115,6 +115,16 @@ already cost somebody real work. The full statements live in
 8. **The CLI under test must be the CLI you changed.** `~/.shorebird` is its own
    checkout with a `fork` remote and does **not** move when you commit. Release 34 was
    discarded for exactly this, and its failure looks precisely like a `G3.7` failure.
+9. **Never run a negative control by editing in place in the shared tree.** Copy the
+   subject into a scratch worktree, or land the fix first and revert in a throwaway.
+   **This cost real attribution on 2026-08-13:** a fix to `ios_patcher.dart` was
+   deliberately commented out for sixty seconds to prove its tests fail without it,
+   and in that window another worker committed the tree — capturing the *disabled*
+   state plus four tests, three of which failed against it (`de11eecf`), which a
+   third commit then had to repair (`4fb03725`). Nothing was lost, and only because
+   the window was short. The generalisable part is the same as §17's: **an unstaged
+   file looks exactly like yours, and a deliberately-broken file looks exactly like a
+   mistake.**
 
 ---
 

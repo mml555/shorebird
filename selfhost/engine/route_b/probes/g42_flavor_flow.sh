@@ -63,6 +63,7 @@ CMD=$FLUTTER/packages/flutter_tools/lib/src/runner/flutter_command.dart
 MANIFEST=$FLUTTER/packages/flutter_tools/lib/src/flutter_manifest.dart
 RELEASER=$REPO/packages/shorebird_cli/lib/src/commands/release/ios_releaser.dart
 KERNELS=$REPO/packages/shorebird_cli/lib/src/route_b_release_kernels.dart
+PATCHER=$REPO/packages/shorebird_cli/lib/src/commands/patch/ios_patcher.dart
 
 echo "G4.2: how a flavor reaches the compiler, and who does not receive it"
 echo
@@ -100,16 +101,35 @@ cite "the tool prefers the CLI flavor, else the manifest default" \
 echo "        So deriving the define from the COMMAND LINE alone is insufficient:"
 echo "        a release can be flavored with nothing on the command line to see."
 
-note "4. and Route B's own kernels are not given it -- the predicted false green"
+note "4. and BOTH Route B halves are now given it -- the fix, pinned"
+# RE-AIMED. This row asserted "the kernel forwarder does not mention flavor at
+# all", which was the gap it was written to expose. `25f8a3b8` closed that half
+# and touched no probe, so the row went on asserting a bug that no longer
+# existed: measured 11/12 before this edit, and the `12/12` recorded in
+# PARITY §4 describes the pre-fix run. A probe that stops asserting is worth
+# less than one that asserts the wrong thing loudly, so the assertion is
+# INVERTED rather than deleted -- it now fails if either half regresses.
 cite "the CLI passes flavor OUTSIDE buildArgs (a separate buildIpa parameter)" \
   "$RELEASER" "flavor: flavor,"
 cite "forwardedArgs carries only --dart-define= and --enable-experiment=" \
   "$KERNELS" "arg\.startsWith\('--dart-define='\)"
-if grep -qE "flavor" "$KERNELS"; then k=mentions-flavor; else k=no-flavor; fi
-check "the kernel forwarder does not mention flavor at all" "$k" no-flavor
-echo "        So the prepass that generates the retention interface, and the import"
-echo "        kernel a patch binds against, are both compiled with NO"
-echo "        FLUTTER_APP_FLAVOR while the shipped release has a real value."
+# Half one, the RELEASE kernels: the prepass and the import kernel must be
+# compiled with the same define the shipped release carries, or retention and
+# coverage describe a different program than the one on the device.
+if grep -qE '^\s*forwarded\.add\('"'"'-DFLUTTER_APP_FLAVOR=' "$KERNELS"; then
+  k=forwards-flavor; else k=no-flavor; fi
+check "the kernel forwarder synthesises FLUTTER_APP_FLAVOR" "$k" forwards-flavor
+# Half two, the PATCH side: `--flavor` never arrives through forwardedArgs, so
+# the configuration comparison had to synthesise it too. Until it did, the arm
+# that got refused was the MATCHING one -- release --flavor foo patched with
+# --flavor foo -- reporting FLUTTER_APP_FLAVOR "absent in this patch" for a
+# patch whose program had the identical flavor.
+if grep -qE 'flavor: _resolvedFlavor' "$PATCHER"; then
+  p=resolves-flavor; else p=drops-flavor; fi
+check "the patch side compares with the resolved flavor" "$p" resolves-flavor
+echo "        So the prepass, the import kernel and the patch-side comparison"
+echo "        all see the same effective FLUTTER_APP_FLAVOR the shipped release"
+echo "        carries. Row 5 is what makes that matter: it is a different program."
 
 note "5. does that define change the compiler-visible program? (measured)"
 mkdir -p "$WORK/m"
@@ -157,8 +177,12 @@ echo "    effectiveDefines['FLUTTER_APP_FLAVOR'] and NOT as a second field."
 echo "  * the config layer must SYNTHESISE it (from --flavor or the manifest"
 echo "    default), because a legal invocation never carries it as a --dart-define."
 echo "  * --flavor itself belongs in raw provenance, like splitDebugInfoPath."
-echo "  * THE GAP: Route B's prepass and import kernel are compiled without it"
-echo "    today, so retention/coverage describe a different program than shipped."
-echo "    Threading it is the G4.2 fix; this probe is the reason it is a fix and"
-echo "    not a validation errand."
+echo "  * THE GAP THIS PROBE FOUND IS CLOSED, on the host, in both halves:"
+echo "    the release kernels get the define (25f8a3b8) and the patch-side"
+echo "    comparison resolves it. Rows 4a/4b now pin the fix, so a regression"
+echo "    fails here instead of on a phone."
+echo "  * WHAT IS STILL OWED: every arm above is a HOST arm. No flavored iOS"
+echo "    fixture exists yet (selfhost/plans/H2-flavored-ios-fixture.md), so"
+echo "    --flavor cannot BUILD here and no device arm is constructible."
+echo "    Host-proven earns BUILT, never PROVEN."
 [ "$fail" -eq 0 ] || exit 1
