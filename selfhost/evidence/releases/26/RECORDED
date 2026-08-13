@@ -215,3 +215,62 @@ found and AttachBytecode mutated? Two concrete leads, neither yet checked:
 
 That is the next thing to look at, and it needs neither a release nor a device --
 the trace already carries ep_pre/uep_pre, and the dSYM carries both entry symbols.
+
+STEP 1 ANSWERED — ResolvePatchTarget resolved the RIGHT Function
+
+The image slide falls out of the trace itself: ep_pre 0x1079e5ca8 minus the dSYM's
+`RouteBThing.value` 0xddca8 gives base 0x107908000. Every other address then
+checks out against the preserved binary:
+
+  RouteBThing.value        file 0xddca8 -> 0x1079e5ca8  == trace ep_pre  EXACT
+  RouteBThing.value (#2)   file 0xddcb4 -> 0x1079e5cb4  (the unchecked entry, +12)
+  routeBValue              file 0xdda34 -> 0x1079e5a34
+  interpret_call_ep 0x107914044 -> file 0xc044, inside the VM snapshot
+                           instructions (0x4000..0xea40) where stubs live
+
+So the Function the patcher found has entry_point_ equal to this binary's
+RouteBThing.value normal entry. Identity at the entry-point level is CONFIRMED;
+the name-based resolution did not pick a foreign function.
+
+AND THE ATTACH DOES UPDATE THE FIELD THE CALLER READS. From object.cc:
+
+  void Function::SetInstructionsSafe(const Code& value) const {
+    untag()->set_code<release>(value.ptr());
+    StoreNonPointer(&untag()->entry_point_,           value.EntryPoint());
+    StoreNonPointer(&untag()->unchecked_entry_point_, value.UncheckedEntryPoint());
+  }
+
+AttachBytecode ends in SetInstructions(StubCode::InterpretCall()), so BOTH
+Function fields are written -- including unchecked_entry_point_ at 0xf, which is
+exactly the field site A loads. That is now established from source, not inferred
+from the trace.
+
+A DEFECT IN MY OWN INSTRUMENTATION, which the mapping exposed
+
+  trace->unchecked_entry_point_pre  = original.UncheckedEntryPoint();   // Code
+  trace->unchecked_entry_point_post = after.UncheckedEntryPoint();      // Code
+
+Those are CODE accessors. The trace never recorded Function::unchecked_entry_point_
+-- the field under suspicion. It coincidentally agrees post-attach (for a stub the
+two entries are equal), but pre-attach it reported the NORMAL entry 0x1079e5ca8
+where the binary carries a distinct unchecked entry at 0x1079e5cb4, +12.
+
+So the "pre-value mismatch" is a defect in what I measured, not established VM
+behaviour. It must not be read as evidence about the VM.
+
+WHAT THE NEXT TRACE MUST RECORD, and it needs no pool reader:
+
+  * the Function OBJECT address (target.ptr()), so identity is directly comparable
+  * Function::unchecked_entry_point_ itself, pre and post -- read through
+    Function, not Code
+  * Code::EntryPoint() and Code::UncheckedEntryPoint() kept separately, so the
+    two levels can never be conflated again
+
+With the Function object address in the trace, the caller/patcher identity test
+becomes a comparison against the pool entry rather than a classification exercise.
+
+CORRECTED ARCHITECTURAL STATEMENT, narrow:
+The failing call site is a Route-B-emitted kUnchecked Function-entry-point call.
+AttachBytecode provably updates the resolved Function's unchecked entry point.
+Whether the caller and the patcher reference the same Function object is still
+open, and the trace as built cannot answer it.
