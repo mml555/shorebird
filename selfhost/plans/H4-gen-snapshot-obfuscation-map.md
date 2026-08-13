@@ -109,6 +109,39 @@ strings, even length, consecutive `[original, renamed]` pairs — 39,660 entries
 tolerate rather than reject. That is the parser's input contract and it agrees with
 the reference binary's four error strings.
 
+**STEP 3'S IMPLEMENTATION FACTS, ALL MEASURED — write the code from these**
+
+| fact | measured at |
+|---|---|
+| the state is `Array[2]`: `[0]` = the rename cursor as a `String`, `[1]` = an `ObfuscationMap` hash table | `precompiler.cc:3991-3994` (`SaveState`) |
+| a fresh Obfuscator only calls `InitializeRenamingMap()` when `obfuscation_map()` is NULL | `precompiler.cc:3832-3848` |
+| so a PRE-SET map must already contain the identity renames — and a saved map does, because they were serialized with it | follows from the above |
+| the table type and insertion API | `precompiler.h:445` `typedef UnorderedHashMap<ObfuscationMapTraits> ObfuscationMap`; `precompiler.cc:3959` `renames_.UpdateOrInsert(name, renamed_)`; `:4116` `ObfuscationMap renames_map(renames.ptr())`; `:3993` `renames_.Release()` |
+| **the collision hazard is real, not hypothetical** | `precompiler.cc:4037` — `} while (renames_.GetOrNull(renamed_) == renamed_.ptr());` loops only while the candidate is an IDENTITY rename. A name already used as a VALUE is not rejected |
+| the cursor buffer | `char name_[100]`, `precompiler.h:601` |
+
+**THE CURSOR DECISION, made and to be measured rather than assumed.** The JSON
+carries pairs only, so the cursor must be reconstructed. Set it to the greatest
+generated-looking value in the loaded map — comparing by LENGTH first, then
+lexicographically, over values that are entirely `[a-z]` — because that is the order
+`NewAtomicRename` generates in. Leaving it empty restarts at `a` and, by
+`:4037` above, hands a second identifier a name the release already spent.
+`probes/g43_obfuscation_map_load.sh` arm (c) is exactly this measurement, and it must
+be run BOTH ways: with the cursor restored (expect 0 collisions) and, once, with it
+deliberately zeroed to confirm the probe can SEE a collision. A probe that cannot
+fail proves nothing.
+
+**SHAPE THAT KEEPS THE VM SURFACE SMALL:** parse the JSON in `bin/gen_snapshot.cc`,
+where the reference binary's parser errors live, and hand the VM a flat
+`const char** pairs, intptr_t count`. Then the new API is
+`Dart_LoadObfuscationMap(const char** pairs, intptr_t count)` delegating to a new
+`Obfuscator::LoadState(Thread*, const char**, intptr_t)` in `precompiler.cc` — no
+JSON parsing inside the VM, and no embedder file-callback plumbing. This DIVERGES
+from the reference binary, which read the file itself through the callbacks
+(`Could not load obfuscation map: file callbacks not set`); the divergence is
+deliberate and should be stated in the patch header rather than left for someone to
+notice.
+
 **NOT STARTED: step 3 onward.** The Dart change, the engine rebuild, the mint. Step 3
 mutates the Dart checkout on `R3`, which is shared and not in git, so it should be
 started only by a session that can carry it to a `dart_patches.sh --verify` green in
