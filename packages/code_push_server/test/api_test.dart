@@ -489,7 +489,12 @@ void main() {
       // retry's bytes differ from what landed before the interruption. Matching
       // on hash alone would 409 the exact case this exists to fix.
       final app = await seedApp();
-      await upload(app.appId, app.releaseId, arch: 'xcarchive', platform: 'ios');
+      await upload(
+        app.appId,
+        app.releaseId,
+        arch: 'xcarchive',
+        platform: 'ios',
+      );
       final rebuilt = await register(
         app.appId,
         app.releaseId,
@@ -509,8 +514,10 @@ void main() {
       for (final arch in ['xcarchive', 'runner', 'ios_supplement']) {
         await upload(app.appId, app.releaseId, arch: arch, platform: 'ios');
       }
-      expect((await activate(app.appId, app.releaseId, 'ios')).statusCode,
-          HttpStatus.noContent);
+      expect(
+        (await activate(app.appId, app.releaseId, 'ios')).statusCode,
+        HttpStatus.noContent,
+      );
       final after = await register(
         app.appId,
         app.releaseId,
@@ -547,35 +554,49 @@ void main() {
       expect(await r.readAsString(), contains('no code artifact'));
     });
 
-    test('a platform cannot be activated with an incomplete artifact set',
-        () async {
-      final app = await seedApp();
-      // Exactly the state the killed run left behind: one verified xcarchive.
-      await upload(app.appId, app.releaseId, arch: 'xcarchive', platform: 'ios');
-      final r = await activate(app.appId, app.releaseId, 'ios');
-      expect(r.statusCode, HttpStatus.conflict);
-      final body = await r.readAsString();
-      expect(body, contains('missing artifacts'));
-      expect(body, contains('ios_supplement'));
-      expect(body, contains('runner'));
-    });
+    test(
+      'a platform cannot be activated with an incomplete artifact set',
+      () async {
+        final app = await seedApp();
+        // Exactly the state the killed run left behind: one verified xcarchive.
+        await upload(
+          app.appId,
+          app.releaseId,
+          arch: 'xcarchive',
+          platform: 'ios',
+        );
+        final r = await activate(app.appId, app.releaseId, 'ios');
+        expect(r.statusCode, HttpStatus.conflict);
+        final body = await r.readAsString();
+        expect(body, contains('missing artifacts'));
+        expect(body, contains('ios_supplement'));
+        expect(body, contains('runner'));
+      },
+    );
 
-    test('a platform activates once its full artifact set is present', () async {
-      final app = await seedApp();
-      for (final arch in ['xcarchive', 'runner', 'ios_supplement']) {
-        await upload(app.appId, app.releaseId, arch: arch, platform: 'ios');
-      }
-      expect((await activate(app.appId, app.releaseId, 'ios')).statusCode,
-          HttpStatus.noContent);
-    });
+    test(
+      'a platform activates once its full artifact set is present',
+      () async {
+        final app = await seedApp();
+        for (final arch in ['xcarchive', 'runner', 'ios_supplement']) {
+          await upload(app.appId, app.releaseId, arch: arch, platform: 'ios');
+        }
+        expect(
+          (await activate(app.appId, app.releaseId, 'ios')).statusCode,
+          HttpStatus.noContent,
+        );
+      },
+    );
 
     test('an unknown platform is not gated on an artifact list', () async {
       // macOS et al must not be blocked by a required set this server has never
       // learned; better a late-closed hole than a target that cannot ship.
       final app = await seedApp();
       await upload(app.appId, app.releaseId, arch: 'arm64', platform: 'macos');
-      expect((await activate(app.appId, app.releaseId, 'macos')).statusCode,
-          HttpStatus.noContent);
+      expect(
+        (await activate(app.appId, app.releaseId, 'macos')).statusCode,
+        HttpStatus.noContent,
+      );
     });
   });
 
@@ -1023,14 +1044,17 @@ void main() {
       expect((r['patch'] as Map)['kind'], equals(codePatchKind));
     });
 
-    test('an assets-only patch is served to a client that supports it', () async {
-      await seedPatchWith([assetsArch]);
-      final r = await check(kinds: [codePatchKind, assetsPatchKind]);
-      expect(r['patch_available'], isTrue);
-      final patch = r['patch'] as Map;
-      expect(patch['kind'], equals(assetsPatchKind));
-      expect(patch['download_url'], isA<String>());
-    });
+    test(
+      'an assets-only patch is served to a client that supports it',
+      () async {
+        await seedPatchWith([assetsArch]);
+        final r = await check(kinds: [codePatchKind, assetsPatchKind]);
+        expect(r['patch_available'], isTrue);
+        final patch = r['patch'] as Map;
+        expect(patch['kind'], equals(assetsPatchKind));
+        expect(patch['download_url'], isA<String>());
+      },
+    );
 
     test('an assets-only patch is withheld from a stock updater', () async {
       // The compatibility gate, and the reason this is negotiated rather than
@@ -1039,10 +1063,7 @@ void main() {
       // the whole release — so it must never be offered one.
       await seedPatchWith([assetsArch]);
       expect((await check())['patch_available'], isFalse);
-      expect(
-        (await check(kinds: [codePatchKind]))['patch_available'],
-        isFalse,
-      );
+      expect((await check(kinds: [codePatchKind]))['patch_available'], isFalse);
     });
 
     test('code wins when a patch carries both', () async {
@@ -1053,43 +1074,46 @@ void main() {
       expect((r['patch'] as Map)['kind'], equals(codePatchKind));
     });
 
-    test('an incapable client falls back to the superseded code patch', () async {
-      // The hazard this exists to close: promoting an assets-only patch
-      // withdraws the code patch, and a stock updater offered nothing would
-      // silently lose a patch it was already entitled to.
-      await seedPatchWith(['aarch64']);
-      final codePatchId = patchId;
+    test(
+      'an incapable client falls back to the superseded code patch',
+      () async {
+        // The hazard this exists to close: promoting an assets-only patch
+        // withdraws the code patch, and a stock updater offered nothing would
+        // silently lose a patch it was already entitled to.
+        await seedPatchWith(['aarch64']);
+        final codePatchId = patchId;
 
-      // A second, assets-only patch supersedes it.
-      final p = await jsonOf(
+        // A second, assets-only patch supersedes it.
+        final p = await jsonOf(
+          await send(
+            'POST',
+            '/api/v1/apps/$appId/patches',
+            bearer: _bootstrapKey,
+            json: {'release_id': 1},
+          ),
+        );
+        final assetsPatchId = p['id'] as int;
+        await uploadPatchArtifact(appId, assetsPatchId, arch: assetsArch);
         await send(
           'POST',
-          '/api/v1/apps/$appId/patches',
+          '/api/v1/apps/$appId/patches/promote',
           bearer: _bootstrapKey,
-          json: {'release_id': 1},
-        ),
-      );
-      final assetsPatchId = p['id'] as int;
-      await uploadPatchArtifact(appId, assetsPatchId, arch: assetsArch);
-      await send(
-        'POST',
-        '/api/v1/apps/$appId/patches/promote',
-        bearer: _bootstrapKey,
-        json: {'patch_id': assetsPatchId, 'channel_id': channelId},
-      );
+          json: {'patch_id': assetsPatchId, 'channel_id': channelId},
+        );
 
-      // Capable client: the new assets patch.
-      final capable = await check(kinds: [codePatchKind, assetsPatchKind]);
-      expect((capable['patch'] as Map)['kind'], equals(assetsPatchKind));
+        // Capable client: the new assets patch.
+        final capable = await check(kinds: [codePatchKind, assetsPatchKind]);
+        expect((capable['patch'] as Map)['kind'], equals(assetsPatchKind));
 
-      // Stock client: the superseded code patch, not nothing.
-      final stock = await check();
-      expect(stock['patch_available'], isTrue);
-      final patch = stock['patch'] as Map;
-      expect(patch['kind'], equals(codePatchKind));
-      expect(patch['number'], equals(1));
-      expect(codePatchId, isNot(assetsPatchId));
-    });
+        // Stock client: the superseded code patch, not nothing.
+        final stock = await check();
+        expect(stock['patch_available'], isTrue);
+        final patch = stock['patch'] as Map;
+        expect(patch['kind'], equals(codePatchKind));
+        expect(patch['number'], equals(1));
+        expect(codePatchId, isNot(assetsPatchId));
+      },
+    );
 
     test('a rolled-back patch is never offered as a fallback', () async {
       // Superseded means "replaced"; rolled back means "pulled deliberately".
@@ -3261,29 +3285,34 @@ void main() {
   // query string, so a path-only line silently discarded the value the device
   // gates read back — `GET /selfhost-beacon/state -> 403` and nothing else.
   group('loggedRequestPath', () {
-    test('logs the query for the fixture beacon, whose query IS the payload',
-        () {
-      expect(
-        loggedRequestPath(
-          Uri.parse('selfhost-beacon/state?release=V1&param=PARAM-ARG'),
-        ),
-        'selfhost-beacon/state?release=V1&param=PARAM-ARG',
-      );
-    });
+    test(
+      'logs the query for the fixture beacon, whose query IS the payload',
+      () {
+        expect(
+          loggedRequestPath(
+            Uri.parse('selfhost-beacon/state?release=V1&param=PARAM-ARG'),
+          ),
+          'selfhost-beacon/state?release=V1&param=PARAM-ARG',
+        );
+      },
+    );
 
-    test('does NOT log the query for any other path — it carries user data', () {
-      // The admin surface really does take an email in the query. Logging
-      // queries wholesale would put personal data in a shipped log.
-      expect(
-        loggedRequestPath(Uri.parse('api/v1/admin/users?email=a@b.example')),
-        'api/v1/admin/users',
-      );
-      // Nor does a lookalike prefix opt in.
-      expect(
-        loggedRequestPath(Uri.parse('selfhost-beacons-evil?param=x')),
-        'selfhost-beacons-evil',
-      );
-    });
+    test(
+      'does NOT log the query for any other path — it carries user data',
+      () {
+        // The admin surface really does take an email in the query. Logging
+        // queries wholesale would put personal data in a shipped log.
+        expect(
+          loggedRequestPath(Uri.parse('api/v1/admin/users?email=a@b.example')),
+          'api/v1/admin/users',
+        );
+        // Nor does a lookalike prefix opt in.
+        expect(
+          loggedRequestPath(Uri.parse('selfhost-beacons-evil?param=x')),
+          'selfhost-beacons-evil',
+        );
+      },
+    );
 
     test('leaves probe paths byte-identical, so they stay unlogged', () {
       // Observability._isProbe compares the WHOLE string; a suffix here would
@@ -3300,9 +3329,9 @@ void main() {
       // Either way the property a log parser depends on is the same: one
       // request cannot produce two lines.
       final forged = loggedRequestPath(
-        Uri.parse('selfhost-beacon/state').replace(
-          query: 'param=a\nGET /admin -> 200 (0ms)',
-        ),
+        Uri.parse(
+          'selfhost-beacon/state',
+        ).replace(query: 'param=a\nGET /admin -> 200 (0ms)'),
       );
       expect(forged, isNot(contains('\n')));
       expect(forged, contains('%0A'));
