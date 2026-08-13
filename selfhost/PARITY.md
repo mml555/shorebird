@@ -1416,6 +1416,51 @@ sound. The divergence is in the delivery path, not in G3.6b.
 > frozen bytes. Release 31 tests observable dispatch with a consumed result, and
 > nothing else.
 
+#### RELEASE 31 RAN, AND THE FIRST ROW FIRED — 2026-08-13
+
+iPhone 7, iOS 15.8.8, engine `881e4129`, trace schema v4. Gates first: diagnostic
+engine 3/3, the CLI's own `_verifyPatchableRelease` at 7,142 sites (the flag was
+deliberately not passed by hand, because passing it *disables* that check),
+`assert_result_consumed.sh` **CONSUMED** at derived offset `0xd4a0`, and
+`assert_installed_release.sh` exit 0 at all five launches.
+
+| | on screen | code patch |
+|---|---|---|
+| baseline | `OLD-rel` | none |
+| patch 1 — `value() => 'NEW-CTL'` | **`NEW-CTL`** | 1 |
+| patch 2 — `value() => _secret` | **`NEW-PRIV`** | 2 |
+
+**The question this goal opened on is answered: the post-attach call executes and
+reaches `InterpretCall`.** `bc_pre=0→1`, `interp_pre=0→1`, both `Function` entry
+points moved to the same-run `InterpretCall` stub, and the replacement's return
+value reached the UI. Established through the UI, not through a new instrument —
+**the v5 execution marker was never built**, because its authorizing branch did not
+fire. All three launches installed byte-identical bytes (`App` sha256 `573bb796…`,
+`LC_UUID 49bfcd9b…`), so the binary that displayed `OLD-rel` is the binary that
+displayed both patched values; the only variable was the patch.
+
+**G3.6b is closed on hardware.** Patch 2 reads a private field the release never
+reads, so P2 retention, the manifest grant, the producer's acceptance and the
+CFE's private-name resolution all had to hold for it to execute.
+
+**Nothing was ever broken except the observation channel.** Releases 23–30 spent
+six device runs and five overturned attributions on a mechanism that already
+worked. Both patches here succeeded on the first attempt, on the first release cut
+after the fold was removed.
+
+**The admissibility rule fired on first use, against a real false attribution.**
+The classifier returns exit **1 — IDENTITY MISMATCH, "CAUSE FOUND"** for BOTH
+patches, reading the engine's stale `0xd4a8`: index 6803 holds a *different*
+`Function` in release 31, and it *is* a `Function`, so the classifier's own "two
+positively identified Functions" safeguard was satisfied by a wrong input and could
+not catch itself. Only the external rule knew the input was invalid. That is the
+difference between a safeguard and a precondition, and it is why the rule is
+external by design.
+
+Evidence: `evidence/releases/31/{App,LC_UUID,RECORDED,patch1.*,patch2.*,verdict.txt}`,
+screenshots `engine/route_b/evidence/r31_{1,2,3}_*.png`. Release 30 stays the
+IDENTITY specimen; release 31 is the EXECUTION specimen.
+
 `applied 1/1` is now precisely scoped: **`Dart_RouteBActivatePatch` returned
 success**, and nothing more. The next experiment must establish what changed
 inside the target `Function` after that return.

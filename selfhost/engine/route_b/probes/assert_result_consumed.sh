@@ -169,6 +169,7 @@ corpus() {
 28 1 0xd4a8 folded
 29 1 0xd4a8 folded
 30 1 0xd4a8 folded; the IDENTITY specimen, settled on these frozen bytes
+31 0 0xd4a0 CONSUMED: the fixed release body, and the offset moved one slot
 "
   echo "corpus: preserved releases, each against its own declared expectation"
   for app in "$dir"/*/App; do
