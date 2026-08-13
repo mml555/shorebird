@@ -55,13 +55,20 @@ usage: assert_result_consumed.sh <binary|.app|.xcarchive> [locator]
        assert_result_consumed.sh --corpus     # the six preserved failing releases
 
 locators (default: --fixture-signature):
-  --symbol NAME         sites inside the function symbol NAME. Needs symbols:
-                        a host app-aot-elf has them; a shipped iOS App does not,
-                        so pass its dSYM's DWARF binary instead.
+  --symbol NAME         sites inside the function symbol NAME. Works when the
+                        DISASSEMBLED binary carries symbols, which a host
+                        app-aot-elf does and a shipped iOS App does not.
+  --symbols PATH        resolve --symbol NAME against PATH's symbol table instead
+                        (a dSYM's DWARF binary), while still disassembling the
+                        target. Required for a shipped App: its dSYM has the Dart
+                        symbols but NO code, so pointing --symbol at the dSYM
+                        alone reports NOT LOCATED — measured, once, by doing it.
   --pool-offset 0xNNN   sites whose Function is loaded from this pool byte
                         offset. Also the way to RE-DERIVE the offset the
                         .routeb.trace is given -- a stale one silently reads a
                         different pool entry.
+  --at 0xADDR           the single site whose `blr` is at ADDR. Use it to name one
+                        site out of a caller that has several.
   --fixture-signature   sites preceded by three field initialiser stores at
                         +0x7/+0xf/+0x17, which is how `routeBValue()` appears in
                         a stripped airgap_probe release.
@@ -109,8 +116,18 @@ class RouteBThing {
   String value() => $2
 }
 
+// No vm:entry-point pragma here, deliberately. It makes the compiler emit a
+// SECOND body under the same name, so locating by symbol then matches two call
+// sites and the gate correctly refuses to collapse them. Nothing in this selftest
+// attaches by name -- it reads bytes -- so the pragma bought an ambiguity and
+// nothing else. (Before the multi-site check existed, worst-verdict-wins made
+// these arms pass with two sites, which is passing by accident.)
+//
+// NO BACKTICKS IN THIS HEREDOC. It is unquoted so that the body interpolates, so
+// backticks are command substitution -- the first draft of this very comment ran
+// vm:entry-point as a command. Same defect as the one fixed in
+// preserve_release_evidence.sh, caught here by shellcheck SC2215.
 @pragma('vm:never-inline')
-@pragma('vm:entry-point')
 String routeBValue() => RouteBThing().value();
 
 void main() { print(routeBValue()); }
@@ -170,6 +187,7 @@ corpus() {
 29 1 0xd4a8 folded
 30 1 0xd4a8 folded; the IDENTITY specimen, settled on these frozen bytes
 31 0 0xd4a0 CONSUMED: the fixed release body, and the offset moved one slot
+32 0 0xd4a0 CONSUMED: adds the private-class target for the G3.6c/G3.6d gate
 "
   echo "corpus: preserved releases, each against its own declared expectation"
   for app in "$dir"/*/App; do
@@ -224,13 +242,21 @@ corpus() {
 TARGET="$1"; shift
 LOCATOR=--fixture-signature
 LOCARG=
+SYMSRC=
 while [ $# -gt 0 ]; do
   case "$1" in
-    --symbol|--pool-offset) LOCATOR="$1"; LOCARG="${2:-}"; [ -n "$LOCARG" ] || usage; shift 2 ;;
+    --symbol|--pool-offset|--at) LOCATOR="$1"; LOCARG="${2:-}"; [ -n "$LOCARG" ] || usage; shift 2 ;;
+    --symbols)              SYMSRC="${2:-}"; [ -n "$SYMSRC" ] || usage; shift 2 ;;
     --fixture-signature)    LOCATOR="$1"; LOCARG=; shift ;;
     *) usage ;;
   esac
 done
+if [ -n "$SYMSRC" ]; then
+  # Accept the .dSYM bundle or the DWARF binary inside it, whichever is handed over.
+  [ -d "$SYMSRC" ] && [ -f "$SYMSRC/Contents/Resources/DWARF/App" ] &&
+    SYMSRC="$SYMSRC/Contents/Resources/DWARF/App"
+  [ -f "$SYMSRC" ] || { echo "ERROR: no symbol source at $SYMSRC" >&2; exit 3; }
+fi
 
 # Accept whichever level of the bundle the caller happens to have -- the same
 # shapes verify_patchable_release.sh accepts, so the two gates take one argument.
@@ -249,10 +275,52 @@ command -v xcrun >/dev/null || { echo "ERROR: xcrun not found" >&2; exit 3; }
 # script's own body arrives on stdin as a heredoc, so a pipe would be silently
 # empty -- which the detector reports as NOT LOCATED, i.e. the one failure mode
 # that must never be mistaken for a verdict. It was, once, while writing this.
-python3 - "$TARGET" "$LOCATOR" "$LOCARG" <<'PY'
+python3 - "$TARGET" "$LOCATOR" "$LOCARG" "$SYMSRC" <<'PY'
 import re, subprocess, sys
 
 binary, locator, locarg = sys.argv[1], sys.argv[2], sys.argv[3]
+symsrc = sys.argv[4] if len(sys.argv) > 4 else ''
+
+# ---- name -> address range, from a SEPARATE symbol source --------------------
+#
+# A shipped App.framework binary carries four symbols, none of them Dart's. Its
+# dSYM carries every Dart symbol and NO code: `__text` is a header with no
+# contents, so disassembling the dSYM yields nothing and the locator reports NOT
+# LOCATED. That is measured, not assumed -- it is what happened the first time
+# this gate was pointed at a dSYM.
+#
+# So the name is resolved in the dSYM and the CODE is read from the real binary.
+# Both come from the same link, so the addresses correspond; release 26's manual
+# procedure ("symbolize routeBValue, disassemble its range") is exactly this, and
+# this is that procedure stopped being manual.
+symrange = None
+if symsrc and locator == '--symbol':
+    nm = subprocess.run(['nm', '-n', symsrc], capture_output=True, text=True)
+    syms = []
+    for line in nm.stdout.splitlines():
+        parts = line.split(' ', 2)
+        if len(parts) == 3 and parts[0].strip():
+            try:
+                syms.append((int(parts[0], 16), parts[2].strip()))
+            except ValueError:
+                pass
+    # An exact match first; a Dart method appears as `Class.method`, and the
+    # compiler also emits `(#2)` duplicates whose range must not be confused with
+    # the primary body.
+    hits = [i for i, (_, n) in enumerate(syms)
+            if n == locarg or n.endswith('.' + locarg)]
+    if not hits:
+        print(f"binary : {binary}")
+        print(f"RESULT: NOT LOCATED — no symbol matching {locarg!r} in {symsrc}")
+        sys.exit(2)
+    i = hits[0]
+    start = syms[i][0]
+    end = syms[i + 1][0] if i + 1 < len(syms) else start + 0x400
+    symrange = (start, end, syms[i][1])
+    if len(hits) > 1:
+        print(f"note   : {len(hits)} symbols matched {locarg!r}; using "
+              f"{syms[i][1]} at 0x{start:x}. Others: "
+              + ', '.join(f"{syms[h][1]}@0x{syms[h][0]:x}" for h in hits[1:]))
 
 dump = subprocess.run(
     ['xcrun', 'llvm-objdump', '-d', '--no-show-raw-insn', '--print-imm-hex', binary],
@@ -403,9 +471,17 @@ def has_field_init_signature(blr_i):
                 push_at = j
     return seen == [0x7, 0xf, 0x17] and push_at is not None
 
-if locator == '--symbol':
+if locator == '--symbol' and symrange:
+    lo, hi, resolved = symrange
+    picked = [s for s in sites if lo <= insns[s[0]][0] < hi]
+    what = f"symbol {resolved} at 0x{lo:x}-0x{hi:x} (resolved in {symsrc})"
+elif locator == '--symbol':
     picked = [s for s in sites if sym_of.get(s[0]) == locarg]
     what = f"symbol {locarg}"
+elif locator == '--at':
+    want = int(locarg, 16)
+    picked = [s for s in sites if insns[s[0]][0] == want]
+    what = f"the site at {locarg}"
 elif locator == '--pool-offset':
     want = int(locarg, 16)
     picked = [s for s in sites if s[1] == want]
@@ -428,6 +504,41 @@ if not picked:
     print("result-consumption is UNKNOWN. Check the locator before reading any")
     print("device result — with --symbol, confirm the binary carries Dart symbols")
     print("(a shipped App does not; its dSYM does).")
+    sys.exit(2)
+
+# MULTIPLE SITES MUST NOT COLLAPSE TO THE WORST ONE.
+#
+# A caller with several patchable calls -- read a value, read another, then call a
+# void method -- legitimately discards the void call's result, and "worst verdict
+# wins" reports that as the fold. Measured: `_ProbeBodyState._routeBRead` in release
+# 32 has three sites, two storing their result into a field and one calling
+# `setState`, which returns void. Collapsing them produced RESULT DISCARDED for a
+# release whose targets are both consumed -- a false fold report from the very gate
+# built to stop false attributions.
+#
+# So a DISCARDED verdict is only claimed when the located set IS the site in
+# question. More than one site is AMBIGUOUS: every verdict is printed, and the exit
+# is 2 (measurement incomplete), never 1.
+if len(picked) > 1:
+    print(f"{len(picked)} sites matched this locator. Verdicts, in address order:")
+    print()
+    for blr_i, off, entry in picked:
+        addr, _, _ = insns[blr_i]
+        v, at = verdict(blr_i)
+        offs = f"0x{off:x}" if off is not None else "not derivable"
+        print(f"site 0x{addr:x}   pool offset {offs}   entry {entry}   {v}")
+        for j in range(blr_i, min(at + 1, len(insns))):
+            a, m, o = insns[j]
+            print(f"      {a:>8x}: {m:<6} {o}")
+        print()
+    print("RESULT: AMBIGUOUS — more than one call site matched, so no single verdict")
+    print("is claimed. A void call discards its result legitimately, and a caller")
+    print("with several calls will always contain one. Name the site you mean:")
+    print()
+    print("    --at 0x<address of the blr>        (from the list above)")
+    print("    --pool-offset 0x<offset>           (if you know the target's slot)")
+    print()
+    print("This is measurement incomplete, not a pass and not a fold.")
     sys.exit(2)
 
 worst = 0

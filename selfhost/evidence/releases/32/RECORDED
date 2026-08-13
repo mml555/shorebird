@@ -1,0 +1,37 @@
+release        : 32
+preserved from : selfhost/fixtures/airgap_app/build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework/App
+preserved at   : 2026-08-13T06:31:36Z
+LC_UUID        : 0ac0b80e4835345a96fd895652c2ffa4
+patchable      : 7,144  (1,775 per MB)
+size           : 4219232 bytes
+
+These are the RELEASE's own bytes. Compare later patches against them:
+
+  assert_installed_release.sh <app-or-archive> --expect 0ac0b80e4835345a96fd895652c2ffa4
+
+The working archive is NOT a substitute: `shorebird patch ios` re-archives over
+build/ios/archive, so after the first patch it holds the patch build instead.
+
+DEVICE RESULT — release 32, engine 881e4129, trace schema v4, iPhone 7 (iOS 15.8.8)
+
+  G3.6c + G3.6d PROVEN ON DEVICE, 2026-08-13. A method on a PRIVATE CLASS
+  (`_ProbeBodyState`, which extends Flutter's `State`) was patched through the
+  ordinary `shorebird patch ios` path:
+
+    baseline                                   private class OLD-pc, code patch none
+    patch 1  privateClassValue() => 'NEW-PC'   private class NEW-PC, code patch 1
+
+  The prediction recorded in PARITY before the run ("this passes") held. Both walls
+  verified by artifact: `dynamic self` in the emitted replacement (G3.6c) and
+  `class: '_ProbeBodyState'` in the interface this release shipped (G3.6d), both
+  preserved beside this file.
+
+  `route B value` stayed OLD-rel throughout — one patch, one declared target, one
+  changed value.
+
+  Pool identity was NOT REQUESTED for this target (pool_status=0), because the
+  embedder's hardcoded offset is keyed to the other selector. Nothing to void here;
+  contrast release 31, where the same constant was applied to a moved site.
+
+  Full reading in verdict.txt. Screenshots at
+  selfhost/engine/route_b/evidence/r32_{1,2}_*.png.

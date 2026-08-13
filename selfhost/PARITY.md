@@ -1825,6 +1825,77 @@ Recorded because the prediction was scored: `G3.6c` alone was predicted to fail
 for a retention reason, and this is that prediction confirmed by construction
 rather than by argument.
 
+#### The device gate — outcomes precommitted BEFORE the run, 2026-08-13
+
+Written before release 32 is cut, per the precommitment rule, so a
+favourable-looking result cannot be banked without the reasoning moving.
+
+**Preconditions established, not assumed.** No mint: the published cell for engine
+`881e4129` already carries the `G3.6d` generator — `route_b_gen_dynamic_interface.aot`
+contains both the `class: '` emission template and the distinctive
+*"item, because both stop at public members"* literal from
+`gen_dynamic_interface.dart`. `G3.6c` is CLI-side and in this tree. So this rides a
+new RELEASE (the private class must exist in it), not a new engine.
+
+**Target.** `_ProbeBodyState.privateClassValue()` in the airgap fixture — a method
+on a **private class extending Flutter's `State`**, which is the shape that makes
+privacy the measured blocker rather than an academic one. Non-foldable by the same
+`DateTime.now()` rule as every other target, and its result is stored into state and
+displayed, so the call's result is consumed.
+
+**Prediction: this passes.** The pair is host-proven 4/4 with a negative control that
+fails when the `class:` items are stripped, the cell carries the generator, and the
+producer emits `dynamic self` for a private receiver class. Recorded so the result
+scores against it.
+
+| observation | meaning |
+|---|---|
+| the private-class value changes on device | `G3.6c`+`G3.6d` **PROVEN**: a method on a private class is patchable through the ordinary path. The Flutter `State` shape is addressable |
+| baseline persists, `code patch: N` present, trace shows attach ok and `uep_post_is_interpret_call=1` | attach succeeded and the private class's member did not bind or execute. Inspect the `dynamic_interface.yaml` the RELEASE actually shipped for its `class:` item before touching anything else — host proof does not transfer to a differently-generated interface |
+| the container refuses at attach and rolls back | the good failure mode the host control demonstrated: under-retained release, keeps running its own code. Read the release's interface, not the engine |
+| the CLI refuses before publishing | the `G3.6c` producer/analyzer path rejected a private-class target. That is a producer result and NOT a device result; record the refusal text verbatim |
+| `assert_result_consumed.sh --symbol` is DISCARDED or UNDECIDED for the new target | measurement invalid. Re-cut; no behavioural attribution from that release |
+
+**The gate is run by symbol this time.** The release archive carries
+`dSYMs/App.framework.dSYM` with Dart symbols, so the new target's call site is
+located by name rather than by the fixture-shaped structural locator, which only
+ever matched `routeBValue`.
+
+##### RAN 2026-08-13 — PASSED, and the prediction held
+
+Release `32.0.0+1`, iPhone 7 / iOS 15.8.8, engine `881e4129`, patch 1 at 781 B.
+
+| | private class row | code patch |
+|---|---|---|
+| baseline | `OLD-pc` | none |
+| patch 1 — `privateClassValue() => 'NEW-PC'` | **`NEW-PC`** | 1 |
+
+**Both walls verified by their own artifacts, not by the host probe.** `G3.6c`:
+the producer emitted `String privateClassValue(dynamic self) => 'NEW-PC';` —
+`dynamic self`, without naming the private class. `G3.6d`: the interface THIS
+RELEASE shipped carries `class: '_ProbeBodyState'`. Both preserved in
+`evidence/releases/32/`. The host negative control had already shown the identical
+lowering fails when the `class:` items are stripped, so the pair is a conjunction
+rather than one feature counted twice.
+
+**A specificity control nobody planned.** `route B value` stayed `OLD-rel` across
+the same launches: one patch, one declared target, one changed value. The result is
+"the named thing changed", not "something changed".
+
+**The instrument reported NOT_REQUESTED and that was correct.** `pool_status=0` for
+this target, because the embedder's hardcoded `0xd4a8` is keyed to
+`RouteBThing.value`. Not-requested never became a zero — the contrast with release
+31, where that same constant was applied to a moved call site and produced a false
+IDENTITY MISMATCH, is the whole argument for keeping the two states apart.
+
+**Three defects in the gate itself, found by using it and fixed in the same pass:**
+a dSYM has the Dart symbols but no code, so `--symbol` against one reports NOT
+LOCATED (now `--symbols PATH` resolves the name there and disassembles the real
+binary); "worst verdict wins" across a caller's several call sites reported a fold
+for an ordinary void `setState` (now multi-site is AMBIGUOUS, exit 2, with `--at
+0xADDR` to name one); and that in turn showed the selftest had been passing partly
+by accident, because `vm:entry-point` emitted a second `routeBValue` body.
+
 ### The cost, measured — and it is free
 
 `measure_real_app.sh` now crosses two axes instead of one: library breadth (app
@@ -2873,8 +2944,12 @@ the evidence points elsewhere, and every rung is a mint plus a scarce device gat
 
 ### Priority order
 
-1. **`G3.6c` + `G3.6d` device gate** — cheap closure of already host-proven work.
-   No new mint, rides an existing release as one more patch.
+1. ~~**`G3.6c` + `G3.6d` device gate**~~ — **DONE 2026-08-13.** Release `32.0.0+1`
+   patch 1: a method on the private class `_ProbeBodyState` patched on device,
+   `OLD-pc` → `NEW-PC`. No mint was needed; the published cell already carried the
+   `G3.6d` generator. It did need a new RELEASE, because the private class has to
+   exist in the release bytes — "rides an existing release" was wrong about that,
+   and it is the only part of the estimate that missed.
 2. **`G3.6e resolve-in-library`** — the highest-leverage language work. Privacy is
    the strongest measured blocker from **both** directions: structural reach
    (→29.8 %) and Phase 0's real commits (top blocker in 9 of 10). Feasibility is

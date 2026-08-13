@@ -224,12 +224,37 @@ class ProbeBody extends StatefulWidget {
 class _ProbeBodyState extends State<ProbeBody> {
   String _asset = 'reading…';
 
+  /// G3.6c + G3.6d DEVICE GATE: a method on a PRIVATE CLASS.
+  ///
+  /// This class is private and extends Flutter's `State`, which is the shape that
+  /// makes privacy the measured blocker rather than an academic one — `State`
+  /// subclasses are private by convention, so a patch that cannot reach a private
+  /// class cannot reach most real Flutter code.
+  ///
+  /// Two walls have to be down at once for a patch here to run: the producer must
+  /// lower the receiver as `dynamic self` because the class name is not resolvable
+  /// (`G3.6c`), and the release's dynamic interface must carry a `class:` item so
+  /// the private class and its members survive `PruneDictionaries` (`G3.6d`). The
+  /// host probe fails when the `class:` items are stripped, so this is a real
+  /// conjunction and not one feature counted twice.
+  ///
+  /// Non-foldable for the same reason as every other target in this file: a body
+  /// returning one constant has its RESULT replaced at the call site and the gate
+  /// then reports a working mechanism as OLD. See `RouteBThing.value`.
+  @pragma('vm:never-inline')
+  String privateClassValue() =>
+      DateTime.now().millisecondsSinceEpoch >= 0 ? 'OLD-pc' : 'X';
+
   // Route B 4a results, accumulated so a SINGLE screenshot carries the whole
   // loop. Three separate screenshots taken over time would each be an
   // unattributable moment; one image showing baseline/attached/detached
   // together cannot be assembled from a partially-working mechanism.
   String _rbBaseline = '—';
   String _rbNote = 'running…';
+
+  /// The private-class target's value, stored so the call's RESULT is consumed by
+  /// something observable. A displayed field is the cheapest consumer there is.
+  String _rbPrivateClass = '—';
 
   String get _assetsPatch => widget.runtime.assetsPatchNumber?.toString() ?? 'none';
   String get _codePatch => widget.runtime.patchNumber?.toString() ?? 'none';
@@ -249,9 +274,15 @@ class _ProbeBodyState extends State<ProbeBody> {
   /// observe OLD first.
   void _routeBRead() {
     final v = routeBProbe();
+    // The private-class read, at the same moment and through the same kind of
+    // ordinary call. `privateClassValue()` is an instance method on THIS private
+    // class, so the call site is a patchable instance call and the value below is
+    // whatever the Function's entry point produced.
+    final pc = privateClassValue();
     if (!mounted) return;
     setState(() {
       _rbBaseline = v;
+      _rbPrivateClass = pc;
       _rbNote = 'read once in initState; no Dart-side attach';
     });
   }
@@ -298,8 +329,11 @@ class _ProbeBodyState extends State<ProbeBody> {
     }
   }
 
+  // vertical: 5 rather than 8 — the seventh row (the private-class target) has to
+  // fit on an iPhone 7's 1334 px without a RenderFlex overflow stripe, and an
+  // overflowing screenshot is an unreadable result rather than a failed one.
   Widget _row(String label, String value) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
+    padding: const EdgeInsets.symmetric(vertical: 5),
     child: Column(
       children: [
         Text('$label:', style: const TextStyle(fontSize: 14)),
@@ -322,6 +356,7 @@ class _ProbeBodyState extends State<ProbeBody> {
           _row('assets patch', _assetsPatch),
           const SizedBox(height: 8),
           _row('route B value', _rbBaseline),
+          _row('private class', _rbPrivateClass),
           _row('route B note', _rbNote),
           _row('code patch', _codePatch),
         ],
