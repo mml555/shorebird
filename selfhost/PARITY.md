@@ -2571,13 +2571,61 @@ unvalidated question:
 |---|---|---|
 | a Dart crash is never backed out | §5 | `ReportLaunchSuccess` fires in the `Shell` **constructor**, before the root isolate exists — so "launch succeeded" is recorded before the patch can fail |
 | restart-required may be misreported | §8 | the same guard decides it, so the API can report something **wrong**, not merely unverified |
-| a second engine silently runs unpatched AOT | §9 | the hook is armed once per process; engine two never arms it |
+| a second engine silently runs unpatched AOT | §9 | ~~the hook is armed once per process; engine two never arms it~~ — **mechanism corrected 2026-08-13, see below. The effect was real; the cause was not what this row said.** |
 
 **The second-engine case is the severe one.** It produces two Flutter engines in one
 process executing **different program versions**, with no error, no log, and no
 user-visible failure — the app simply behaves inconsistently depending on which
 engine served a screen. Add-to-app hosts create engines lazily and sometimes more
 than once, so this is a mainstream configuration, not a corner.
+
+#### The second-engine mechanism, corrected from source — 2026-08-13, patch `0007`
+
+**Nothing is "armed once per process".** Arming is attempted on every
+`ConfigureShorebird` call. It sat BELOW an early return whose condition is "the
+updater initialized", and the updater *deliberately refuses to initialize twice* —
+`third_party/updater/library/src/config.rs`, `set_config()`:
+
+```rust
+if config.is_some() {
+  bail!("Updater already initialized, ignoring second shorebird_init call.");
+}
+```
+
+whose own comment says that "happens regularly with apps that use Firebase
+Messaging". So for engine two `shorebird_init` returns false **by design**,
+`init_result` is false, `if (!init_result) return;` fires, and
+`InstallRouteBActivationHook` is never reached.
+
+**So the fix is a one-statement move, not a redesign of the activation model** —
+arm above the guard. Safe in both directions: on a second call the updater is
+already initialized so `route_b_path` was resolved normally; on a genuine init
+failure `NextBootPatchPath` yields nothing, `route_b_path` is empty, and the hook
+is inert by contract. The auto-update thread start stays below the guard, which is
+what that early return is actually for.
+
+**The precedent is one line above the change.** `shorebird_report_launch_start` was
+moved out of `ConfigureShorebird` for the same class of reason — *"fixes issues with
+FlutterEngineGroup and other cases where ConfigureShorebird() is called but no Shell
+is created"*. Launch reporting was fixed for multi-engine; the Route B arming was
+left behind the guard.
+
+**Verification state, stated exactly.** `shorebird.cc` compiles, and three new tests
+pinning the arming contract (inert on empty path; armed even when the container file
+is absent, because it is opened later from the callback; an existing callback CHAINED
+rather than replaced) compile too — where there was previously no coverage at all.
+**The tests are NOT RUN**: `shorebird_unittests` cannot link in this tree because it
+also compiles `patch_cache_unittests.cc`, whose subject calls
+`Shorebird_ReadLinkHeader`, a symbol only Shorebird's PRIVATE Dart fork defines. That
+is pre-existing, and it is the same trap `build_ios_release.sh` documents for
+`shorebird_use_interpreter`. To run them: build the target in the shipping iOS tree,
+or add a test target excluding that file. **The two-engine behaviour is not yet
+verified on a device; that gate needs a mint.** So this is a corrected diagnosis plus
+a compile-verified fix — not a closed gate.
+
+The other two symptoms (crash-backout, restart-required) are a *different*
+mechanism — `ReportLaunchSuccess` firing in the `Shell` constructor — and are
+untouched by `0007`.
 
 **Why it ranks 4th and not 1st.** It constrains reliability, not reach: fixing it
 makes the ~7 % surface *trustworthy* without making it larger. Language reach
@@ -3003,7 +3051,14 @@ the evidence points elsewhere, and every rung is a mint plus a scarce device gat
    `dart2bytecode.aot` inside the cell — so it should ride the next mint that
    happens for another reason rather than paying for one alone.
 4. **`G15 activation-model`** — the highest-leverage safety/reliability project
-   after language reach. See below; it is one redesign, not three fixes.
+   after language reach. **PARTIALLY ADVANCED 2026-08-13**: the severe symptom (a
+   second engine in one process running unpatched AOT) had its mechanism corrected
+   from source and fixed by a one-statement move, patch `0007` — arming sat below an
+   early return gated on an updater init that deliberately fails on its second call.
+   Compile-verified, tests written but unrunnable in this tree, device gate needs a
+   mint. **It was NOT one redesign: it is two mechanisms.** The crash-backout and
+   restart-required symptoms share `ReportLaunchSuccess` firing in the `Shell`
+   constructor and are untouched by `0007`.
 5. **§13 independence gates** — matters for the strength of the self-hosting claim,
    but does **not** currently constrain Route B's language capability. That is why
    it sits below a safety project despite being nearly done.
