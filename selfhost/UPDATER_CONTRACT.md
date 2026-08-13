@@ -369,10 +369,24 @@ diff, streamed to `dlc.vmcode`. On Android the base is read from the split APKs
 ### Hash algorithm + WHAT it covers (confirms our finding)
 - **Algorithm:** SHA-256, hex-encoded, streamed (`cache/signing.rs:7-23`,
   `hash_file`).
-- **Covers the INFLATED OUTPUT, not the downloaded diff.** `check_hash` runs on
-  `installed_path` — i.e. `dlc.vmcode`, the reconstructed `libapp.so` — AFTER
-  inflate (`updater.rs:589-607`; `check_hash` at `updater.rs:325-348`). So
-  `Patch.hash` in the check response = `sha256(full reconstructed libapp.so)`.
+- **Covers the INFLATED OUTPUT, not the downloaded diff — for `kind: code`.**
+  `check_hash` runs on `installed_path` — i.e. `dlc.vmcode`, the reconstructed
+  `libapp.so` — AFTER inflate (`updater.rs:668-689`; `check_hash` at
+  `updater.rs:327`). So for a code patch `Patch.hash` = `sha256(full
+  reconstructed libapp.so)`.
+- **For `kind: assets` the rule INVERTS** (added 2026-08-13 — the rule above was
+  stated unconditionally and is wrong for the fork's second payload kind).
+  `check_hash` runs on the **downloaded bytes, before install**
+  (`updater.rs:690-706`), because an asset bundle is self-contained and there is
+  no reconstruction step whose output could be verified — the archive *is* the
+  artifact. So for an assets patch `Patch.hash` = `sha256(the bytes you serve)`,
+  which is the one case where the server *could* recompute it.
+- **The installed filename differs too, and it is load-bearing.** A code patch
+  installs to `dlc.vmcode`; an assets patch installs to `dlc.assets`
+  (`cache/lifecycle.rs:417`). The absence of the `.vmcode` substring is
+  deliberate — it is how both `TryLoadFromPatch` and `PatchCarriesCode` decide
+  whether a patch carries code, so `dlc.assets.vmcode` would boot-loop Android.
+  `lifecycle.rs:415` says exactly this.
 - **Server implication (already correct in our server):** the server can NOT
   recompute a patch's hash from the uploaded bytes (it only has the diff). Our
   server verifies **hash for release artifacts only** and **size only for patch
