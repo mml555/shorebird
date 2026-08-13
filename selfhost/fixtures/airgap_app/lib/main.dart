@@ -136,7 +136,11 @@ class RouteBThing {
   /// So this one is called from `initState` and its value is BEACONED, which is
   /// what makes the parameter-ABI arm observable rather than merely compiled. The
   /// argument is passed at the call site so the patched body has something to
-  /// receive: G3.7's claim is that arguments arrive, in order and by type.
+  /// receive. The claim this supports is narrower than G3.7's full one: a SINGLE
+  /// positional argument is transferred and is observable by the replacement. With
+  /// one parameter there is no ORDER to get wrong, so ordering needs its own
+  /// two-or-more-parameter specimen and must not be read out of this one.
+  /// Proven on device 2026-08-13 — see evidence/releases/37/verdict.txt.
   ///
   /// Non-foldable for the same reason as every other target here.
   @pragma('vm:never-inline')

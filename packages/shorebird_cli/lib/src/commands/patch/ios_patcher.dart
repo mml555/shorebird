@@ -751,10 +751,31 @@ uploaded.''',
   /// that supply the same defines in a different order compile to byte-identical
   /// kernels (measured by `probes/g41_define_semantics.sh`), so refusing on
   /// textual inequality would reject a patch with nothing wrong with it.
+  ///
+  /// The flavor this patch actually compiles with, by Flutter's precedence —
+  /// mirroring `IosReleaser`'s getter of the same name, so the release half and
+  /// the patch half resolve it identically.
+  ///
+  /// `--flavor` never arrives through the build args: `forwardedArgs` carries
+  /// only `--dart-define=` and `--enable-experiment=`, and this CLI passes
+  /// flavor to `buildIpa` as a separate parameter. So the patch side
+  /// synthesized NO `FLUTTER_APP_FLAVOR` while a flavored release records a
+  /// real one, and the configuration check refused the MATCHING case —
+  /// `--flavor foo` patching a `--flavor foo` release — reporting a defines
+  /// difference that was an artifact of the comparison, not of the programs.
+  String? get _resolvedFlavor => RouteBBuildConfig.resolveFlavor(
+    cliFlavor: flavor,
+    pubspecFlutterSection: shorebirdEnv.getPubspecYaml()?.flutter,
+  );
+
   void _verifyBuildConfigAgrees(RouteBReleaseProvenance provenance) {
     final releaseConfig = provenance.buildConfig;
     final patchArgs = [...argResults.forwardedArgs, ...extraBuildArgs];
-    final patchConfig = RouteBBuildConfig.fromBuildArgs(patchArgs);
+    final patchConfig = RouteBBuildConfig.fromBuildArgs(
+      patchArgs,
+      // NEGATIVE CONTROL — restored immediately after this run.
+      // flavor: _resolvedFlavor,
+    );
 
     if (releaseConfig == null) {
       // Two different causes with different remediations, so they are named

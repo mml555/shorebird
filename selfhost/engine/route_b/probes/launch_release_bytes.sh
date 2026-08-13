@@ -24,6 +24,7 @@
 #
 #   launch_release_bytes.sh <release-number> [--wait SECONDS] [--app-dir DIR]
 #                                            [--container NAME] [--no-launch]
+#                                            [--screenshot PATH]
 #
 # exit 0  launched, and a beacon was read (printed as the last line)
 # exit 1  IDENTITY REFUSED -- the .ipa is not the preserved release
@@ -39,6 +40,7 @@ WAIT=45
 APP_DIR="$REPO/selfhost/fixtures/airgap_app"
 CONTAINER="${AIRGAP_CPS_CONTAINER:-cps-ios}"
 LAUNCH=1
+SHOT=
 
 die() { echo "ERROR: $*" >&2; exit 3; }
 
@@ -48,6 +50,7 @@ while [ $# -gt 0 ]; do
     --app-dir)   APP_DIR="${2:?--app-dir needs a path}"; shift 2 ;;
     --container) CONTAINER="${2:?--container needs a name}"; shift 2 ;;
     --no-launch) LAUNCH=0; shift ;;
+    --screenshot) SHOT="${2:?--screenshot needs a path}"; shift 2 ;;
     -h|--help)   sed -n '1,32p' "$0"; exit 0 ;;
     -*)          die "unknown flag: $1" ;;
     *)           [ -z "$REL" ] || die "one release number only"; REL="$1"; shift ;;
@@ -123,6 +126,16 @@ echo "  launching (ios-deploy pid $DEPLOY_PID), waiting ${WAIT}s"
 # `sleep` in the foreground on purpose: the process must outlive the wait, and
 # backgrounding the wait instead is what truncated a run on 2026-08-13.
 sleep "$WAIT"
+
+# BEFORE the kill, or there is nothing on screen to photograph: killing
+# ios-deploy terminates the app (evidence/README.md:63).
+if [ -n "$SHOT" ]; then
+  if idevicescreenshot "$SHOT" >/dev/null 2>&1; then
+    echo "  screenshot: $SHOT"
+  else
+    echo "  (screenshot unavailable)"
+  fi
+fi
 
 ELAPSED=$(( $(date -u +%s) - SINCE_MARK + 5 ))
 BEACON="$(docker logs "$CONTAINER" --since "${ELAPSED}s" 2>&1 |

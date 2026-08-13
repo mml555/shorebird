@@ -3057,7 +3057,20 @@ the evidence points elsewhere, and every rung is a mint plus a scarce device gat
    the strongest measured blocker from **both** directions: structural reach
    (→29.8 %) and Phase 0's real commits (top blocker in 9 of 10). Feasibility is
    established and the mechanism is located.
-3. **`G3.7 param-abi`** — **BUILT on host 2026-08-13, device gate outstanding.**
+3. **`G3.7 param-abi`** — **ONE-PARAMETER ARM PROVEN ON DEVICE 2026-08-13; the
+   gate stays OPEN.** Release 37, patch 1: `param=PARAM-ARG` with `code_patch=1`,
+   reproduced on an independent third launch, from the preserved release bytes
+   (`31869a1e…`) under a launch-time identity refusal — and the engine's own
+   diagnostic names the selector, `sel=RouteBThing.paramValue`, `bc_pre=0 →
+   bc_post=1`, `unchecked_entry_point_` moved to `InterpretCall`. Banked claim,
+   verbatim from `evidence/releases/37/verdict.txt`: **the live caller's SOLE
+   POSITIONAL String argument is transferred into the interpreted replacement and is
+   observable by the replacement body.** NOT banked: argument **order** — with one
+   parameter there is none to get wrong, so ordering still rests on the host
+   `two_params` arm — and not `named`/`opt`, whose refusal controls have no live
+   fixture shapes. Three of the four arms this gate names are therefore still host-only.
+   Prior state, kept because the distinction is the point:
+   **BUILT on host 2026-08-13, device gate outstanding.**
    Measured separately from privacy exactly as this line required, and the two were
    never credited to each other: privacy closed on device via releases 31–32, and
    this closed on host via `g37_param_abi.sh` with its own release and its own
@@ -3113,6 +3126,7 @@ preserved specimen, and its own recorded verdict referencing the one cell identi
 | gate | preconditions of its own | specimen | verdict is about |
 |---|---|---|---|
 | `G3.7` param-abi | release cut with the new cell; `assert_result_consumed.sh` on the target's call site | `evidence/releases/<n>/` + the lowered replacement showing `(Self self, T a)` | whether the AOT caller's ARGUMENTS arrive, in order and by type, in an interpreted body |
+| `G3.7` one-param arm — **MET 2026-08-13** | release 37 + patch 1, launched under `launch_release_bytes.sh`'s identity refusal | `evidence/releases/37/verdict.txt`, `patch1_replacement_0.dart` showing `(RouteBThing self, String who)`, `patch1.routeb.trace` | whether ONE positional argument arrives and is observable. Order is NOT in this verdict: one argument cannot demonstrate it |
 | `G15` second engine | a host that creates TWO `FlutterEngine`s in one process — the fixture as it stands creates one, so this gate needs its own harness before it can run | both engines' `.routeb` reports | whether engine two is armed at all |
 | `G4.2`/`G4.3` config | release cut WITH a flavor and WITH `--obfuscate`; provenance carrying the fingerprint | the release's `buildConfig` + each arm's CLI log or device beacon | two different claims, split below |
 

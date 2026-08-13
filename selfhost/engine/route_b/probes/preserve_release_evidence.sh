@@ -28,6 +28,19 @@
 #   App          the App.framework binary — the bytes the build id is read from
 #   LC_UUID      that binary's LC_UUID, lowercased and dash-stripped
 #   RECORDED     when, from where, and the patchability measurement
+#   App.dSYM.DWARF   the DWARF binary, WHEN an .xcarchive was given
+#
+# WHY THE dSYM IS COPIED HERE AND NOT LEFT WHERE IT LIES. `shorebird patch ios`
+# re-archives over build/ios/archive, and it overwrites the dSYMs too — so the
+# release's symbols are destroyed by the first patch build, exactly like the App
+# binary. That happened to release 37 on 2026-08-13: its consumption measurement
+# had already been taken (`--symbol` against the then-live dSYM), but the dSYM
+# itself was never copied aside, so no LATER question about that release can be
+# answered by symbol. The stripped App alone cannot name a call site.
+#
+# The dSYM's own UUID is checked against the App's before it is kept. A dSYM from
+# a different build is worse than no dSYM: it resolves names to addresses that
+# belong to other bytes, and the resulting site would look located.
 set -euo pipefail
 
 VERSION=${1:?usage: preserve_release_evidence.sh <release-version> <Runner.app|.xcarchive>}
@@ -66,6 +79,33 @@ UUID=$(dwarfdump --uuid "$OUT/App" | sed -n 's/^UUID: \([0-9A-Fa-f-]*\).*/\1/p' 
   | tr -d '-' | tr '[:upper:]' '[:lower:]')
 [ -n "$UUID" ] || die "could not read an LC_UUID from the preserved binary"
 printf '%s\n' "$UUID" > "$OUT/LC_UUID"
+
+# The dSYM, when the caller handed us an archive that still has one. Best effort
+# and loud about it: a missing dSYM does not invalidate the App bytes, but it
+# must never be silently absent, because absence is only discoverable later, when
+# it is too late to fix.
+DWARF=""
+case "$TARGET" in
+  *.xcarchive)
+    DWARF="$TARGET/dSYMs/App.framework.dSYM/Contents/Resources/DWARF/App" ;;
+esac
+if [ -n "$DWARF" ] && [ -f "$DWARF" ]; then
+  duuid=$(dwarfdump --uuid "$DWARF" | sed -n 's/^UUID: \([0-9A-Fa-f-]*\).*/\1/p' \
+    | tr -d '-' | tr '[:upper:]' '[:lower:]')
+  if [ "$duuid" = "$UUID" ]; then
+    cp "$DWARF" "$OUT/App.dSYM.DWARF"
+    echo "  dSYM     : preserved ($duuid)"
+  else
+    echo "  dSYM     : REJECTED — belongs to $duuid, not $UUID." >&2
+    echo "             A dSYM from another build resolves names to addresses in" >&2
+    echo "             other bytes, so a located site would be a fiction." >&2
+  fi
+else
+  echo "  dSYM     : ABSENT${DWARF:+ at $DWARF}" >&2
+  echo "             Symbol-based location will be impossible for this release" >&2
+  echo "             once a patch build overwrites the archive. If you need it," >&2
+  echo "             stop and re-cut BEFORE patching." >&2
+fi
 
 # Patchability travels WITH the identity, because interpreting a device result
 # needs both and they were separated once already — a release that was never

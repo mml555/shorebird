@@ -30,6 +30,7 @@ import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
+import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
@@ -1142,6 +1143,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
           bool withKernel = true,
           bool corruptKernel = false,
           String? capabilityManifest,
+          RouteBBuildConfig? buildConfig,
         }) {
           final artifacts = <String, String>{};
           if (capabilityManifest != null) {
@@ -1186,6 +1188,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
               patchableCallSites: 4000,
               patchableCallSitesPerMiB: 1788,
               artifacts: artifacts,
+              buildConfig: buildConfig,
             ),
           );
         }
@@ -1403,6 +1406,156 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
               ).called(1);
             },
           );
+
+          group('when the release records a FLAVOR', () {
+            // G4.2. `--flavor` never reaches the configuration comparison
+            // through the build args: `forwardedArgs` carries only
+            // `--dart-define=` and `--enable-experiment=`, and the CLI passes
+            // flavor to `buildIpa` as a separate parameter. So the patch side
+            // synthesized no FLUTTER_APP_FLAVOR at all, and the arm that got
+            // refused was the MATCHING one.
+            //
+            // Flutter reduces `--flavor foo` to exactly one compiler fact, the
+            // FLUTTER_APP_FLAVOR define, which is why the release side records
+            // it in `effectiveDefines` rather than as a second fingerprint
+            // field.
+            RouteBBuildConfig flavored(String? flavor) => RouteBBuildConfig(
+              rawArgs: [if (flavor != null) '--flavor=$flavor'],
+              effectiveDefines: {
+                if (flavor != null) 'FLUTTER_APP_FLAVOR': flavor,
+              },
+            );
+
+            /// A patcher invoked with `--flavor $flavor`, which the shared
+            /// `patcher` cannot express: it is built with `flavor: null`.
+            IosPatcher patcherWithFlavor(String? flavor) => IosPatcher(
+              argParser: argParser,
+              argResults: argResults,
+              flavor: flavor,
+              target: null,
+            );
+
+            Future<void> runPatch(IosPatcher subject) async {
+              try {
+                await runWithOverrides(
+                  () => subject.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                );
+              } on Object {
+                // Only the configuration check is under test here. Whether the
+                // stages after it complete is the subject of other tests, and
+                // failing there must not read as a flavor result.
+              }
+            }
+
+            setUp(() {
+              writeReleaseProvenance(
+                engineRevision: releaseEngineRevision,
+                buildConfig: flavored('foo'),
+              );
+              when(() => shorebirdEnv.getPubspecYaml()).thenReturn(null);
+            });
+
+            test('accepts a patch built with the SAME flavor', () async {
+              // The regression test for the fix. Before it, this case was
+              // refused, reporting FLUTTER_APP_FLAVOR "absent in this patch"
+              // for a patch whose program had the identical flavor.
+              await runPatch(patcherWithFlavor('foo'));
+
+              verifyNever(
+                () => logger.err(any(that: contains('Dart defines differ'))),
+              );
+              verify(
+                () => logger.detail(
+                  any(that: contains('build configuration matches the release')),
+                ),
+              ).called(1);
+            });
+
+            test('refuses a patch built with a DIFFERENT flavor', () async {
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcherWithFlavor('bar').createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                exitsWithCode(ExitCode.usage),
+              );
+
+              verify(
+                () => logger.err(
+                  any(
+                    that: allOf(
+                      contains('Dart defines differ'),
+                      contains(
+                        'FLUTTER_APP_FLAVOR: "foo" in the release, '
+                        '"bar" in this patch',
+                      ),
+                    ),
+                  ),
+                ),
+              ).called(1);
+            });
+
+            test('refuses an UNFLAVORED patch of a flavored release', () async {
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcherWithFlavor(null).createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                exitsWithCode(ExitCode.usage),
+              );
+
+              verify(
+                () => logger.err(
+                  any(
+                    that: contains(
+                      'FLUTTER_APP_FLAVOR: "foo" in the release, '
+                      'absent in this patch',
+                    ),
+                  ),
+                ),
+              ).called(1);
+            });
+
+            test(
+              'accepts a patch flavored ONLY by pubspec default-flavor',
+              () async {
+                // The path with no command-line token to notice: a release can
+                // be flavored entirely by `default-flavor`, and reading the flag
+                // alone would record "no flavor" for it.
+                final pubspec = MockPubspec();
+                when(
+                  () => pubspec.flutter,
+                ).thenReturn({'default-flavor': 'foo'});
+                when(() => shorebirdEnv.getPubspecYaml()).thenReturn(pubspec);
+
+                await runPatch(patcherWithFlavor(null));
+
+                verifyNever(
+                  () => logger.err(any(that: contains('Dart defines differ'))),
+                );
+                verify(
+                  () => logger.detail(
+                    any(
+                      that: contains('build configuration matches the release'),
+                    ),
+                  ),
+                ).called(1);
+              },
+            );
+          });
 
           group('when the release records its engine', () {
             setUp(() {
