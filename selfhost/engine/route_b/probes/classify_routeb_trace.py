@@ -39,6 +39,12 @@ SCAN = {0: 'NOT_REQUESTED', 1: 'CALLER_UNRESOLVED', 2: 'CALLER_RESOLVED_NO_CODE'
         3: 'NULL_POOL', 4: 'EMPTY_POOL', 5: 'SCANNED'}
 SCANNED = 5
 
+# Exact-entry identity. A MISMATCH requires two positively identified Functions;
+# not-a-Function, out-of-range and unreadable are their own states.
+POOL = {0: 'NOT_REQUESTED', 1: 'POOL_NULL', 2: 'INDEX_OUT_OF_RANGE',
+        3: 'ENTRY_NOT_TAGGED', 4: 'ENTRY_NOT_FUNCTION', 5: 'READ'}
+POOL_READ = 5
+
 
 def parse(line):
     out = {}
@@ -63,7 +69,7 @@ def main():
         print('note: %d records; classifying the last' % len(lines))
     t = parse(lines[-1])
 
-    if t.get('v') not in (2, 3):
+    if t.get('v') not in (2, 3, 4):
         # Exit 2, distinct from 1. A caller chaining on the exit code must be able
         # to tell "refused to classify" from "classified as did-not-move"; sharing
         # a code would turn a tooling refusal into a substantive result.
@@ -143,6 +149,40 @@ def main():
     # this is the live one.
     print()
     print('=' * 60)
+    # EXACT-ENTRY identity takes precedence: it answers the question the scan
+    # could not even pose.
+    pstatus = t.get('pool_status')
+    if pstatus is not None and pstatus != 0:
+        pname = POOL.get(pstatus, 'UNKNOWN(%s)' % pstatus)
+        print('pool offset     : 0x%x  -> index %s of %s'
+              % (t.get('pool_offset', 0), t.get('pool_index'),
+                 t.get('pool_length')))
+        print('pool entry      : 0x%x  is_function=%s'
+              % (t.get('pool_entry_ptr', 0), t.get('pool_entry_is_function')))
+        if pstatus != POOL_READ:
+            print()
+            print('IDENTITY NOT MEASURED — pool_status=%s.' % pname)
+            print('Nothing was positively identified, so no comparison is')
+            print('admissible. In particular ENTRY_NOT_FUNCTION is NOT a mismatch.')
+            return 3
+        eq = t.get('pool_entry_equals_target')
+        fn = t.get('fn', 0)
+        print()
+        if eq == 1:
+            print('IDENTITY MATCHES: the exact call-site pool entry IS the patched')
+            print('Function.  entry 0x%x == patched 0x%x'
+                  % (t.get('pool_entry_ptr', 0), fn))
+            print()
+            print('Object identity is DISPROVEN as the cause. The contradiction moves')
+            print('to how the call loads or observes that object at run time.')
+            return 0
+        print('IDENTITY MISMATCH: the call site loads a DIFFERENT Function object.')
+        print('  call-site entry 0x%x' % t.get('pool_entry_ptr', 0))
+        print('  patched         0x%x' % fn)
+        print()
+        print('CAUSE FOUND: two positively identified Function objects, not equal.')
+        return 1
+
     status = t.get('caller_scan_status')
     # A v2 record that asked for a caller cannot be classified for identity: it
     # carries counters with no scan state, which is precisely the ambiguity that

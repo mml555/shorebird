@@ -117,6 +117,30 @@ typedef struct {
   uint64_t code_unchecked_entry_point_pre;
   uint64_t code_unchecked_entry_point_post;
 
+// EXACT-ENTRY IDENTITY, which replaces the pool SCAN.
+//
+// Release 29 returned NULL_POOL: AOT runs bare-instructions mode with ONE global
+// object pool, so Code::object_pool() is null and "the caller's pool" does not
+// exist. But a scan was never the right instrument anyway -- it could only answer
+// "is the patched Function in the pool at all", not "is it the entry THIS call site
+// loads". The identifying fact is the call site's pool OFFSET, which release 26's
+// disassembly supplies: 0xd4a8 at the kUnchecked site.
+//
+// The index is derived with ObjectPool::IndexFromOffset(), the VM's own rule
+// (object.h:5820), never by dividing the offset by an assumed slot width. This
+// investigation has already shown twice that plausible layout arithmetic is not
+// evidence.
+//
+// A MISMATCH VERDICT REQUIRES TWO POSITIVELY IDENTIFIED FUNCTIONS. Not-a-Function,
+// out-of-range and unreadable are their own states and must never collapse into
+// "different".
+#define DART_ROUTE_B_POOL_NOT_REQUESTED 0
+#define DART_ROUTE_B_POOL_NULL 1
+#define DART_ROUTE_B_POOL_INDEX_OUT_OF_RANGE 2
+#define DART_ROUTE_B_POOL_ENTRY_NOT_TAGGED 3
+#define DART_ROUTE_B_POOL_ENTRY_NOT_FUNCTION 4
+#define DART_ROUTE_B_POOL_READ 5
+
 // WHY THE SCAN REPORTS A STATE AND NOT JUST COUNTS.
 //
 // Release 28 resolved the caller and left the counters at their UNSET sentinel,
@@ -142,6 +166,16 @@ typedef struct {
   // this reads as "did not scan", which the classifier refuses, rather than as a
   // measurement.
   int32_t caller_scan_status;
+
+  // Exact-entry identity. pool_offset is the call-site offset handed in;
+  // pool_index is what the VM's IndexFromOffset makes of it.
+  int32_t pool_status;
+  int64_t pool_offset;
+  int64_t pool_index;
+  int64_t pool_length;
+  uint64_t pool_entry_ptr;
+  int32_t pool_entry_is_function;
+  int32_t pool_entry_equals_target;
   int32_t caller_resolved;
   int32_t caller_pool_functions;
   int32_t caller_pool_matches_target;
@@ -168,7 +202,8 @@ DART_ROUTE_B_EXPORT int32_t Dart_RouteBActivatePatchTraced(
     const char* library_uri,
     const char* target_name,
     Dart_RouteBTrace* trace,
-    const char* caller_name);
+    const char* caller_name,
+    int64_t pool_offset);
 
 #if defined(__cplusplus)
 }  // extern "C"

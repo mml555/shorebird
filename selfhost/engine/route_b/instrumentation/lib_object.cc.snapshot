@@ -960,7 +960,8 @@ static int32_t RouteBActivatePatchImpl(const uint8_t* payload,
                                        const char* library_uri,
                                        const char* target_name,
                                        Dart_RouteBTrace* trace,
-                                       const char* caller_name);
+                                       const char* caller_name,
+                                       int64_t pool_offset);
 
 // Read a uword field out of a Function at the VM's OWN offset, i.e. the exact
 // bytes the generated call loads. Not an accessor on Function because adding one
@@ -982,7 +983,7 @@ DART_EXPORT int32_t Dart_RouteBActivatePatch(const uint8_t* payload,
                                              const char* library_uri,
                                              const char* target_name) {
   return Dart_RouteBActivatePatchTraced(payload, payload_length, library_uri,
-                                        target_name, nullptr, nullptr);
+                                        target_name, nullptr, nullptr, 0);
 }
 
 DART_ROUTE_B_EXPORT int32_t Dart_RouteBActivatePatchTraced(
@@ -991,7 +992,8 @@ DART_ROUTE_B_EXPORT int32_t Dart_RouteBActivatePatchTraced(
     const char* library_uri,
     const char* target_name,
     Dart_RouteBTrace* trace,
-    const char* caller_name) {
+    const char* caller_name,
+    int64_t pool_offset) {
   // EVERY FIELD SET BEFORE ANY CAN BE READ. An unreached field must read as "not
   // observed", never as whatever the caller's stack happened to hold -- a
   // plausible-looking zero here would be indistinguishable from a real
@@ -1018,6 +1020,13 @@ DART_ROUTE_B_EXPORT int32_t Dart_RouteBActivatePatchTraced(
         /*code_unchecked_entry_point_pre=*/0,
         /*code_unchecked_entry_point_post=*/0,
         /*caller_scan_status=*/DART_ROUTE_B_SCAN_NOT_REQUESTED,
+        /*pool_status=*/DART_ROUTE_B_POOL_NOT_REQUESTED,
+        /*pool_offset=*/0,
+        /*pool_index=*/DART_ROUTE_B_TRACE_UNSET,
+        /*pool_length=*/DART_ROUTE_B_TRACE_UNSET,
+        /*pool_entry_ptr=*/0,
+        /*pool_entry_is_function=*/DART_ROUTE_B_TRACE_UNSET,
+        /*pool_entry_equals_target=*/DART_ROUTE_B_TRACE_UNSET,
         /*caller_resolved=*/DART_ROUTE_B_TRACE_UNSET,
         /*caller_pool_functions=*/DART_ROUTE_B_TRACE_UNSET,
         /*caller_pool_matches_target=*/DART_ROUTE_B_TRACE_UNSET,
@@ -1030,7 +1039,7 @@ DART_ROUTE_B_EXPORT int32_t Dart_RouteBActivatePatchTraced(
   }
   const int32_t rc = RouteBActivatePatchImpl(payload, payload_length,
                                              library_uri, target_name, trace,
-                                             caller_name);
+                                             caller_name, pool_offset);
   if (trace != nullptr) trace->result = rc;
   return rc;
 }
@@ -1040,7 +1049,8 @@ static int32_t RouteBActivatePatchImpl(const uint8_t* payload,
                                        const char* library_uri,
                                        const char* target_name,
                                        Dart_RouteBTrace* trace,
-                                       const char* caller_name) {
+                                       const char* caller_name,
+                                       int64_t pool_offset) {
 #if defined(DART_DYNAMIC_MODULES)
   Thread* thread = Thread::Current();
   if (thread == nullptr || thread->isolate() == nullptr) {
@@ -1166,6 +1176,41 @@ static int32_t RouteBActivatePatchImpl(const uint8_t* payload,
            trace->interpret_call_entry_point)
               ? 1
               : 0;
+
+      // EXACT-ENTRY IDENTITY. One entry, named by the call site's own offset.
+      if (pool_offset != 0) {
+        trace->pool_offset = pool_offset;
+        const auto& pool = ObjectPool::Handle(
+            zone, thread->isolate_group()->object_store()->global_object_pool());
+        if (pool.IsNull()) {
+          trace->pool_status = DART_ROUTE_B_POOL_NULL;
+        } else {
+          // The VM's own rule, not arithmetic of mine.
+          const intptr_t idx = ObjectPool::IndexFromOffset(
+              static_cast<intptr_t>(pool_offset));
+          trace->pool_index = idx;
+          trace->pool_length = pool.Length();
+          if (idx < 0 || idx >= pool.Length()) {
+            trace->pool_status = DART_ROUTE_B_POOL_INDEX_OUT_OF_RANGE;
+          } else if (pool.TypeAt(idx) != ObjectPool::EntryType::kTaggedObject) {
+            trace->pool_status = DART_ROUTE_B_POOL_ENTRY_NOT_TAGGED;
+          } else {
+            const auto& entry = Object::Handle(zone, pool.ObjectAt(idx));
+            trace->pool_entry_ptr = static_cast<uint64_t>(entry.ptr());
+            if (!entry.IsFunction()) {
+              // NOT a mismatch. A mismatch means two positively identified
+              // Functions were compared.
+              trace->pool_entry_is_function = 0;
+              trace->pool_status = DART_ROUTE_B_POOL_ENTRY_NOT_FUNCTION;
+            } else {
+              trace->pool_entry_is_function = 1;
+              trace->pool_entry_equals_target =
+                  (entry.ptr() == target.ptr()) ? 1 : 0;
+              trace->pool_status = DART_ROUTE_B_POOL_READ;
+            }
+          }
+        }
+      }
 
       // CALLER-SIDE IDENTITY, so no external pool reader is needed. Scan the
       // caller's own object pool for Function entries and compare them with the
