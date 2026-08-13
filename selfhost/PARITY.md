@@ -3384,9 +3384,10 @@ sealed harness both hard-fail on an empty read (`[[ -n "$got" ]] || return 1`), 
 broken channel made them unrunnable too. It never faked a pass — worth stating, since
 a silent-pass version of this defect would have been far worse than an unrunnable one.
 
-The `param` row is still not displayed, and no longer needs to be for the arm to run;
-it can ride the next re-cut (`H2`'s flavored fixture) since the 1334 px screen does
-have room for an eighth row.
+The `param` row is still not displayed, and no longer needs to be for the arm to run.
+It should ride the next `airgap_app` re-cut — the one carrying `G3.7`'s missing
+`two`/`named`/`opt` shapes — since the 1334 px screen does have room for an eighth
+row. **Not `H2`**: that plan excludes changes to `airgap_app` by design.
 
 ### Two ways a device arm becomes unattributable — both met on 2026-08-13
 

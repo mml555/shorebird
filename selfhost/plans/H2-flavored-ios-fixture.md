@@ -34,6 +34,28 @@ It deliberately does **not** include: the device arms themselves (they belong to
 5. **THE CLI UNDER TEST MUST BE THE CLI YOU CHANGED** (`c0619d13`'s promoted precondition d). `git -C ~/.shorebird log --oneline -1` → `ba4e1c02` on branch `selfhost-under-test`, and `grep -n 'supportedRouteBAnalysisVersion' ~/.shorebird/packages/shorebird_cli/lib/src/route_b_coverage.dart` → `= 8`. **After step 5 this is stale**: re-sync with `git -C ~/.shorebird fetch fork <branch> && git -C ~/.shorebird checkout --detach FETCH_HEAD`, then `grep -n '_resolvedFlavor' ~/.shorebird/packages/shorebird_cli/lib/src/commands/patch/ios_patcher.dart` must hit before any patch arm is believed. Release 34 was DISCARDED for exactly this class of mistake.
 6. **Only if step 8 runs** -- the three cache preconditions from `mint_route_b_cell.sh:193-222`, all of which fail in the direction that looks like success: (a) **never establish a revision by writing cache stamps** -- delete `bin/cache/{artifacts,dart-sdk,downloads}` and `bin/cache/*.stamp` and verify the CONSUMED bytes; (b) **reload the mirror before any client fetch** and clear `<flutterDir>/bin/cache/downloads`, because the Caddyfile's `order cache before respond` means a cached fallback beats the 404 ownership would return; (c) **warm the cache before the release that matters** -- `isRouteBEngine` (`route_b.dart:29`, called at `ios_releaser.dart:120`) returns false when the `ios_release` Flutter binary does not yet EXIST, which is how release 33 silently took the non-Route-B path and reported success.
 
+## Already satisfied — verified 2026-08-13, do not redo
+
+Steps **5** and **6** are DONE, and re-doing them would look like progress while
+changing nothing:
+
+* **step 5, the patch-side flavor.** `ios_patcher.dart:766` defines `_resolvedFlavor`
+  and `:774-776` passes it into `RouteBBuildConfig.fromBuildArgs`, mirroring
+  `ios_releaser.dart:269`. It landed at or before `ba4e1c02`, so the INSTALLED CLI
+  carries it too (`git log ba4e1c02..HEAD -- packages/shorebird_cli` is empty) and
+  precondition 5's re-sync is not needed for this reason alone.
+* **step 6, the probe's row 4.** `g42_flavor_flow.sh` now reports **13 passed, 0
+  failed** and its own closing text reads "Rows 4a/4b now pin the fix, so a
+  regression fails here instead of on a phone." The prediction that it would report
+  11/12 described the state before that re-aim.
+
+What remains is steps **1-4** and **7**: the fixture sources, the live `flavorState()`
+observable, the iOS overlay (schemes, six configurations, flavor xcconfigs, distinct
+bundle ids, a sha-gated `project.pbxproj`), `prepare_flavored_fixture.sh`, and the
+host proof that `--flavor` reaches the compiler. `selfhost/fixtures/flavored_app` and
+`selfhost/scripts/prepare_flavored_fixture.sh` are both ABSENT, so nothing there has
+been started.
+
 ## Steps
 
 1. **Create the fixture's committed sources.** `selfhost/fixtures/flavored_app/{pubspec.yaml, pubspec.lock, lib/main.dart, assets/probe.json, shorebird.yaml.template, README.md, ios_overlay/, android_overlay/}`. Mirror `airgap_app`'s committed/generated split, which `prepare_airgap_fixture.sh:19-25` states explicitly. Depth is identical, so `code_push_runtime`'s `path: ../../../packages/code_push_runtime` (`airgap_app/pubspec.yaml:26-27`) copies unchanged. `pubspec.yaml` carries `version: 1.0.0+1`, `flutter: uses-material-design: true`, `assets: [shorebird.yaml, assets/probe.json]` (the CLI refuses to build without `shorebird.yaml` declared), and **`default-flavor: foo`**. **How you know:** `flutter pub get` resolves and `git status --porcelain selfhost/fixtures/flavored_app` lists only those paths.
