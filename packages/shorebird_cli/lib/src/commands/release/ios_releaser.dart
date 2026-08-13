@@ -260,6 +260,17 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
   ///
   /// See `route_b_provenance.dart` for why the supplement rather than a field
   /// on the release.
+  /// The flavor that actually reaches the compiler, by Flutter's precedence.
+  ///
+  /// `--flavor` if given, else `pubspec.yaml`'s `default-flavor` — a release can be
+  /// flavored with nothing on the command line, and reading only the flag would
+  /// record "no flavor" for it. Nothing in this CLI read `default-flavor` before
+  /// G4.2, which is exactly why that path had no way to be noticed.
+  String? get _resolvedFlavor => RouteBBuildConfig.resolveFlavor(
+    cliFlavor: flavor,
+    pubspecFlutterSection: shorebirdEnv.getPubspecYaml()?.flutter,
+  );
+
   void _recordRouteBProvenance(
     RouteBCompiler compiler,
     Directory appDirectory,
@@ -357,7 +368,10 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
         // release used an option whose effective define set cannot be determined
         // (--dart-define-from-file); the patch side distinguishes that from an
         // empty-but-known configuration, which is comparable.
-        buildConfig: RouteBBuildConfig.fromBuildArgs(buildArgs),
+        buildConfig: RouteBBuildConfig.fromBuildArgs(
+          buildArgs,
+          flavor: _resolvedFlavor,
+        ),
       ),
     );
     logger.detail(
@@ -388,6 +402,9 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
       // was handed exactly this.
       entrypoint: target ?? p.join('lib', 'main.dart'),
       buildArgs: buildArgs,
+      // G4.2: a patch BINDS against this kernel, so it must carry the release's
+      // flavor too.
+      flavor: _resolvedFlavor,
       outputFile: File(
         p.join(supplement.path, routeBReleaseImportKernelFileName),
       ),
@@ -449,6 +466,10 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
       projectRoot: projectRoot,
       entrypoint: target ?? p.join('lib', 'main.dart'),
       buildArgs: buildArgs,
+      // G4.2: the prepass decides RETENTION, so it must describe the same program
+      // the release ships. Without this it was compiled with no
+      // FLUTTER_APP_FLAVOR while the release had one.
+      flavor: _resolvedFlavor,
       outputFile: File(p.join(work.path, 'prepass.dill')),
     );
     if (prepass == null) return;

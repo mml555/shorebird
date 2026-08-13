@@ -236,6 +236,121 @@ void main() {
       });
     });
 
+    group('G4.2: flavor is one define, resolved the way Flutter does', () {
+      // Measured in probes/g42_flavor_flow.sh: --flavor becomes exactly
+      // dartDefines += FLUTTER_APP_FLAVOR=<flavor> (flutter_command.dart:1517),
+      // a user cannot supply that define themselves (:1511, :1508), and
+      // resolution is cliFlavor ?? default-flavor (:1505).
+      RouteBBuildConfig flavored(String? cli, {String? manifest}) =>
+          RouteBBuildConfig.fromBuildArgs(
+            [],
+            flavor: RouteBBuildConfig.resolveFlavor(
+              cliFlavor: cli,
+              pubspecFlutterSection: manifest == null
+                  ? null
+                  : {'default-flavor': manifest},
+            ),
+          )!;
+
+      test('no flavor / no flavor -> agrees', () {
+        expect(flavored(null).agreesWith(flavored(null)), isTrue);
+        expect(flavored(null).effectiveDefines, isEmpty);
+      });
+
+      test('foo / foo -> agrees', () {
+        expect(flavored('foo').agreesWith(flavored('foo')), isTrue);
+      });
+
+      test('foo / bar -> refuses, naming the define', () {
+        final release = flavored('foo');
+        final patch = flavored('bar');
+        expect(release.agreesWith(patch), isFalse);
+        expect(
+          release.describeDifference(patch),
+          contains('FLUTTER_APP_FLAVOR: "foo" in the release, "bar" in this'),
+        );
+      });
+
+      test('foo / omitted -> refuses', () {
+        expect(flavored('foo').agreesWith(flavored(null)), isFalse);
+      });
+
+      test('omitted / foo -> refuses', () {
+        expect(flavored(null).agreesWith(flavored('foo')), isFalse);
+      });
+
+      test('the flavor becomes a define, not a second field', () {
+        final c = flavored('foo');
+        expect(c.effectiveDefines, {'FLUTTER_APP_FLAVOR': 'foo'});
+        // Recorded for audit, and NOT compared separately: one compiler fact must
+        // have one compatibility input or the two can drift.
+        expect(c.flavor, 'foo');
+      });
+
+      test(
+        'REGRESSION: default-flavor alone equals an explicit CLI flavor',
+        () {
+          // The path most likely to regress, because there is no command-line
+          // token to notice. A release flavored only by pubspec must produce the
+          // SAME effective Route B configuration as one flavored by the flag.
+          final viaManifest = flavored(null, manifest: 'foo');
+          final viaFlag = flavored('foo');
+          expect(viaManifest.effectiveDefines, {'FLUTTER_APP_FLAVOR': 'foo'});
+          expect(viaManifest.agreesWith(viaFlag), isTrue);
+          expect(viaManifest.fingerprint, viaFlag.fingerprint);
+        },
+      );
+
+      test('the CLI flavor wins over the manifest default', () {
+        // flutter_command.dart:1505 — cliFlavor ?? defaultFlavor.
+        expect(
+          RouteBBuildConfig.resolveFlavor(
+            cliFlavor: 'cli',
+            pubspecFlutterSection: {'default-flavor': 'manifest'},
+          ),
+          'cli',
+        );
+      });
+
+      test('an empty or absent manifest default resolves to no flavor', () {
+        expect(
+          RouteBBuildConfig.resolveFlavor(pubspecFlutterSection: {}),
+          isNull,
+        );
+        expect(
+          RouteBBuildConfig.resolveFlavor(
+            pubspecFlutterSection: {'default-flavor': ''},
+          ),
+          isNull,
+        );
+        expect(
+          RouteBBuildConfig.resolveFlavor(
+            pubspecFlutterSection: {'default-flavor': 42},
+          ),
+          isNull,
+        );
+      });
+
+      test('the flavor wins over a same-named define already present', () {
+        // Mirrors Flutter's xcodebuild-stage removeWhere-then-add
+        // (flutter/issues/169598): the fingerprint must represent the FINAL value
+        // reaching the compiler. Such an invocation is a tool error upstream, so
+        // this is defence in depth rather than a supported input.
+        final c = RouteBBuildConfig.fromBuildArgs(
+          ['--dart-define=FLUTTER_APP_FLAVOR=stale'],
+          flavor: 'fresh',
+        )!;
+        expect(c.effectiveDefines['FLUTTER_APP_FLAVOR'], 'fresh');
+      });
+
+      test('survives the json round trip', () {
+        final c = flavored('foo');
+        final back = RouteBBuildConfig.fromJson(c.toJson());
+        expect(back.flavor, 'foo');
+        expect(back.agreesWith(c), isTrue);
+      });
+    });
+
     group('canonical form', () {
       test('is order-independent and duplicate-collapsed', () {
         expect(

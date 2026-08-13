@@ -2051,6 +2051,7 @@ boundary is not the rung ladder but library-scoped privacy.
 
 | | item |
 |---|---|
+| ◐ | **BUILT 2026-08-13** the Route B half of flavors — `G4.2`. The predicted false green was CONFIRMED BY READING, not by a device run, and it is narrower than "flavors unsupported": *the shipped flavored release receives `FLUTTER_APP_FLAVOR`, while Route B's prepass and import kernel did not, so retention and binding could be computed against a different Dart program than the one that shipped.* Fixed by resolving the flavor Flutter's way (`--flavor`, else pubspec `default-flavor`) and threading `-DFLUTTER_APP_FLAVOR` into the prepass, the import kernel and the fingerprint. `probes/g42_flavor_flow.sh` 12/12 |
 | ☐ | **INHERITED** Android flavors |
 | ☐ | **INHERITED** iOS flavors / schemes |
 | ☐ | **NOT VALIDATED** Release + patch, same Android flavor |
@@ -3093,7 +3094,12 @@ the evidence points elsewhere, and every rung is a mint plus a scarce device gat
    hashing the whole ELF made the symbol PATH look semantic, which would have made
    two machines emitting the identical program incompatible over filesystem
    layout. Hashing the stripped program corrected it. Device gate still owed.
-9. **`G4.2 flavors`** — Android half needs no `R1`; do the host probe before `R2`.
+9. **`G4.2 flavors`** — **the Route B half is BUILT 2026-08-13**; the host probe that
+   this line asked for came first and found the gap by reading, so no `R2` was spent
+   discovering it. Flavor is represented as ONE compiler fact —
+   `effectiveDefines['FLUTTER_APP_FLAVOR']` — never as a second fingerprint field,
+   because Flutter itself reduces `--flavor` to exactly that define. What remains is
+   the device gate and the Android half.
 10. **`G6 tracks`** device row — follows `G8` or `shorebird preview`, since
     `channel` does not reach the device.
 11. **`G7 signing`** — small in code, but see §7: the **default verifies nothing**,

@@ -43,6 +43,19 @@ import 'package:crypto/crypto.dart';
 /// The prefix Flutter uses to supply a define on a build invocation.
 const _dartDefineFlag = '--dart-define=';
 
+/// The define Flutter uses to carry the app flavor into Dart.
+///
+/// SEMANTIC, and it reaches the compiler as an ORDINARY DEFINE — which is why
+/// flavor is represented here and NOT as a second compatibility field. Two inputs
+/// describing one compiler fact could only drift apart.
+///
+/// It must be SYNTHESISED from the resolved flavor rather than looked for among the
+/// dart-defines, because a legal invocation can never supply it directly:
+/// `flutter_command.dart` exits if it appears in `--dart-define`,
+/// `--dart-define-from-file`, or the environment. Measured in
+/// `probes/g42_flavor_flow.sh`, which cites each of those lines.
+const _appFlavorDefine = 'FLUTTER_APP_FLAVOR';
+
 /// Flutter's obfuscation flag, as it appears in a build invocation.
 ///
 /// SEMANTIC, measured: `probes/g43_obfuscation_semantics.sh` compiles one kernel
@@ -90,7 +103,25 @@ class RouteBBuildConfig {
     required this.effectiveDefines,
     this.obfuscate = false,
     this.splitDebugInfoPath,
+    this.flavor,
   });
+
+  /// The flavor that actually reaches the compiler, by Flutter's own precedence.
+  ///
+  /// `flutter_command.dart`: `cliFlavor ?? defaultFlavor`. Deriving it from the
+  /// command line alone would silently record "no flavor" for a release flavored
+  /// entirely by `pubspec.yaml`'s `default-flavor` — a release with no
+  /// command-line token to notice, which is the path most likely to regress.
+  static String? resolveFlavor({
+    String? cliFlavor,
+    Map<String, dynamic>? pubspecFlutterSection,
+  }) {
+    if (cliFlavor != null && cliFlavor.isNotEmpty) return cliFlavor;
+    final fromManifest = pubspecFlutterSection?['default-flavor'];
+    return fromManifest is String && fromManifest.isNotEmpty
+        ? fromManifest
+        : null;
+  }
 
   /// Derives the configuration from a build invocation's arguments.
   ///
@@ -99,7 +130,10 @@ class RouteBBuildConfig {
   /// be fingerprinted", which the caller must treat as its own state rather than
   /// as an empty configuration: an empty set is a real configuration that a patch
   /// can match, and "unknown" is not.
-  static RouteBBuildConfig? fromBuildArgs(List<String> buildArgs) {
+  static RouteBBuildConfig? fromBuildArgs(
+    List<String> buildArgs, {
+    String? flavor,
+  }) {
     final defines = <String, String>{};
     var obfuscate = false;
     String? splitDebugInfoPath;
@@ -136,11 +170,19 @@ class RouteBBuildConfig {
       // Last-wins, per probe rule 1.
       defines[key] = value;
     }
+    // THE FLAVOR WINS, mirroring Flutter's own last-write-wins: at xcodebuild time
+    // it does `dartDefines.removeWhere(FLUTTER_APP_FLAVOR)` then re-adds its value
+    // (`common.dart`, flutter/issues/169598). So the fingerprint represents the
+    // FINAL value that reaches the compiler, not the first one written.
+    if (flavor != null && flavor.isNotEmpty) {
+      defines[_appFlavorDefine] = flavor;
+    }
     return RouteBBuildConfig(
       rawArgs: List.unmodifiable(buildArgs),
       effectiveDefines: Map.unmodifiable(defines),
       obfuscate: obfuscate,
       splitDebugInfoPath: splitDebugInfoPath,
+      flavor: flavor,
     );
   }
 
@@ -162,6 +204,7 @@ class RouteBBuildConfig {
       }),
       obfuscate: json['obfuscate'] == true,
       splitDebugInfoPath: json['splitDebugInfoPath'] as String?,
+      flavor: json['flavor'] as String?,
     );
   }
 
@@ -178,6 +221,15 @@ class RouteBBuildConfig {
   /// Where symbols were written, when they were. AUDIT ONLY — never part of
   /// compatibility, for the reason recorded at [_splitDebugInfoFlag].
   final String? splitDebugInfoPath;
+
+  /// The resolved flavor. AUDIT ONLY: its compiler effect is already carried by
+  /// `effectiveDefines['FLUTTER_APP_FLAVOR']`, and comparing it separately would
+  /// be a second compatibility input for one compiler fact.
+  ///
+  /// Recorded because a reader debugging a release needs to know a flavor was in
+  /// play, and because "flavored via the manifest" and "flavored via the flag" are
+  /// worth telling apart when something goes wrong.
+  final String? flavor;
 
   /// The canonical text the fingerprint is taken over.
   ///
@@ -246,6 +298,7 @@ class RouteBBuildConfig {
         key: effectiveDefines[key],
     },
     'obfuscate': obfuscate,
+    if (flavor != null) 'flavor': flavor,
     // Recorded so a reader can see WHERE the symbols went, and deliberately not
     // part of the fingerprint below.
     if (splitDebugInfoPath != null) 'splitDebugInfoPath': splitDebugInfoPath,

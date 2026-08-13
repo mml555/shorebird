@@ -95,7 +95,22 @@ class RouteBReleaseKernelBuilder {
   ///
   /// Returns null when the release used an option whose meaning cannot be
   /// carried across, so the caller declines rather than guesses.
-  static List<String>? forwardedArgs(List<String> buildArgs) {
+  /// [flavor] is the RESOLVED flavor, and passing it is the G4.2 fix.
+  ///
+  /// THE BUG IT CLOSES, stated narrowly: the shipped flavored release receives
+  /// FLUTTER_APP_FLAVOR, while these kernels did not — so retention and binding
+  /// could be computed against a different Dart program than the one that shipped.
+  /// This CLI passes flavor to `buildIpa` as a separate parameter, so it never
+  /// entered `buildArgs` and could not be forwarded from there.
+  ///
+  /// It is synthesised rather than expected among the defines because a legal
+  /// invocation can never carry it as one: Flutter exits if a user supplies
+  /// FLUTTER_APP_FLAVOR via --dart-define, --dart-define-from-file, or the
+  /// environment. See `probes/g42_flavor_flow.sh`, which cites each line.
+  static List<String>? forwardedArgs(
+    List<String> buildArgs, {
+    String? flavor,
+  }) {
     final forwarded = <String>[];
     for (final arg in buildArgs) {
       final unforwardable = routeBUnforwardableOptions.any(
@@ -111,6 +126,13 @@ class RouteBReleaseKernelBuilder {
         forwarded.add(arg);
       }
     }
+    // Appended last so it wins over anything already present, mirroring Flutter's
+    // own xcodebuild-stage removeWhere-then-add (flutter/issues/169598) and
+    // gen_kernel's last-wins duplicate handling, which
+    // probes/g41_define_semantics.sh measured.
+    if (flavor != null && flavor.isNotEmpty) {
+      forwarded.add('-DFLUTTER_APP_FLAVOR=$flavor');
+    }
     return forwarded;
   }
 
@@ -122,6 +144,7 @@ class RouteBReleaseKernelBuilder {
     required String entrypoint,
     required List<String> buildArgs,
     required File outputFile,
+    String? flavor,
     RouteBKernelRunner run = Process.runSync,
   }) => _compile(
     compiler: compiler,
@@ -129,6 +152,7 @@ class RouteBReleaseKernelBuilder {
     entrypoint: entrypoint,
     buildArgs: buildArgs,
     outputFile: outputFile,
+    flavor: flavor,
     // The only intentional difference from the release's own compilation.
     modeArgs: const ['--no-aot', '--no-link-platform'],
     run: run,
@@ -142,8 +166,9 @@ class RouteBReleaseKernelBuilder {
     required File outputFile,
     required List<String> modeArgs,
     required RouteBKernelRunner run,
+    String? flavor,
   }) {
-    final extraArgs = forwardedArgs(buildArgs);
+    final extraArgs = forwardedArgs(buildArgs, flavor: flavor);
     if (extraArgs == null) {
       logger.warn(
         '''This release uses ${routeBUnforwardableOptions.join(', ')}, whose values cannot be carried into the kernel a patch would be compiled against. Patches for it will be refused.''',
@@ -235,12 +260,14 @@ ${result.stderr}''',
     required String entrypoint,
     required List<String> buildArgs,
     required File outputFile,
+    String? flavor,
     RouteBKernelRunner run = Process.runSync,
   }) => _compile(
     compiler: compiler,
     projectRoot: projectRoot,
     entrypoint: entrypoint,
     buildArgs: buildArgs,
+    flavor: flavor,
     outputFile: outputFile,
     // --aot, because the interface should describe what a RELEASE contains.
     // A non-AOT kernel lists members AOT would tree-shake, and retaining those
