@@ -56,8 +56,13 @@ BEFORE / AFTER, read from the control plane's request log
 
   The first launch after consent (19:06) read param=OLD-ARG / code_patch=none and
   logged `__patch_download__` for patch 1: the updater fetches on one launch and
-  applies on the next, so a single launch is not a result either way. Screenshot of
-  the applied state: r37_patch1_PARAM.png.
+  applies on the next, so a single launch is not a result either way.
+
+  r37_patch1_PARAM.png is the applied state, and the file name overpromises: the
+  screen shows `code patch: 1` with `route B value: OLD-rel` and `private class:
+  OLD-pc` — the active patch and the unmoved controls — but NOT `param`, which is
+  beacon-only on this fixture. The banked value comes from the beacon line above.
+  The `param` row can ride the next re-cut; the 1334 px screen has room.
 
   THE CONTROLS HELD. `route_b` and `private_class` did not move: exactly one method
   was replaced, so this is not a whole-app replacement masquerading as a method

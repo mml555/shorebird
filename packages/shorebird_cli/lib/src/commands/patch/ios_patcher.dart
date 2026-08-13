@@ -773,8 +773,7 @@ uploaded.''',
     final patchArgs = [...argResults.forwardedArgs, ...extraBuildArgs];
     final patchConfig = RouteBBuildConfig.fromBuildArgs(
       patchArgs,
-      // NEGATIVE CONTROL — restored immediately after this run.
-      // flavor: _resolvedFlavor,
+      flavor: _resolvedFlavor,
     );
 
     if (releaseConfig == null) {
