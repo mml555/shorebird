@@ -3243,8 +3243,20 @@ engine=two  isolate=engineTwoMain entrypoint=engineTwoMain mark=MARK-PATCHED
 2 rbtrace records, both sel=engineMark, both bc_pre=0 -> bc_post=1,
   uep_post_is_interpret_call=1, fn_uep_post == interpret_call_ep (0x102f20044)
 fn= 0x1038cbdf1  vs  0x10794bdf1     <- DISTINCT, as predicted
-patch1.routeb    8 lines, NO engine discriminator  <- why the trace is the specimen
+2 records after the gate launch -> 4 after one MORE launch (+2 per launch)
+patch1.routeb    8 -> 16 lines, NO engine discriminator  <- why the trace is the specimen
 ```
+
+**THE INCREMENT IS THE EVIDENCE, NOT THE COUNT.** `RouteBReport` appends, so two
+records are equally consistent with ONE attach per launch across two launches. The
+absolute count did not exclude that and the first reading of this gate did not say
+so; a challenge did. `+2 per launch` is what shows two attaches in one process.
+
+**KNOWN HARNESS DEFECT, and it does not affect the verdict:** engine one's UI does
+not render — the screen is black during a live launch. The markers are written by
+Dart before `runApp` and the `rbtrace` records by the engine during
+`AttachBytecode`, so nothing in the evidence chain passes through rendering. It is a
+harness bug to fix before this fixture is reused for anything that reads pixels.
 
 Patch `0007` is therefore proven on hardware: the pre-fix symptom was engine two
 silently running unpatched AOT, because arming sat below an early return gated on an

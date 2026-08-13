@@ -24,8 +24,18 @@ THE PRECOMMITTED VERDICT, ROW BY ROW — every condition met
      reading of interleaved log lines. Distinct isolates and distinct entrypoints
      rule out one engine reporting twice.
 
-  2. TWO `rbtrace` RECORDS AFTER ACTIVATION — the specimen is the trace, not the
-     shared `.routeb` report:
+  2. TWO `rbtrace` RECORDS PER LAUNCH — and the INCREMENT is the evidence, not the
+     absolute count. `RouteBReport` APPENDS, so a file holding two records is
+     equally consistent with one attach per launch across two launches. Measured
+     both ways:
+
+     after the gate launch        2 records, 2 distinct fn=
+     after one further launch     4 records, 4 distinct fn=
+
+     +2 per launch is two attaches in ONE process. The absolute count alone did
+     not exclude the one-per-launch reading, and this was caught by a challenge
+     rather than by the plan: the file's append semantics were known and were not
+     applied to the count.
 
      rbtrace v=4 lib=package:twoengine_probe/main.dart sel=engineMark …
      rbtrace v=4 lib=package:twoengine_probe/main.dart sel=engineMark …
@@ -83,6 +93,28 @@ GATES RUN BEFORE INTERPRETATION
      60b9ba16…, and named the archive (e7d63e06…) as a PATCH BUILD in the same
      breath
   4. the release body restored byte-exactly before the launch, verified by grep
+
+A REAL HARNESS DEFECT: THE SCREEN IS BLACK, and why the verdict survives it
+
+Engine one's UI does not render — the screen is black while the app runs, not the
+indigo `_HarnessApp`. Confirmed by screenshot DURING a live launch, not merely
+after. The window and root `FlutterViewController` are constructed from engine one,
+which was already `run()` headlessly, and no frame appears.
+
+It does not touch this verdict, and the reason is structural rather than a judgement
+call:
+
+  * the per-engine markers are written by Dart inside `_boot` BEFORE `runApp`, so
+    they attest that each root isolate ran and executed `engineMark()`;
+  * the `rbtrace` records are written by the ENGINE during `AttachBytecode`;
+  * `mark=MARK-PATCHED` in both markers is the patched body's RETURN VALUE, which
+    requires execution, not display.
+
+Nothing in the chain passes through rendering. But the defect is real, it is a
+harness bug rather than a Route B finding, and a two-engine harness whose visible
+engine shows nothing should not be presented as finished: FIX BEFORE the harness is
+reused for any gate that reads pixels. It also means this fixture cannot currently
+serve a screenshot-based arm.
 
 ONE WORDING DEFECT IN THE HOST MARKER, recorded rather than hidden
 
