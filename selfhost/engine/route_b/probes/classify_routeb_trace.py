@@ -72,6 +72,20 @@ def main():
               'fields. Re-run with a v2 engine.' % t.get('v'), file=sys.stderr)
         return 2
 
+    # PROVENANCE OF THE VERDICT ITSELF. The classification rules have already
+    # changed twice; a recorded verdict with no classifier version is not
+    # reproducible. Printed into the output so it lands in the preserved evidence
+    # rather than having to be reconstructed from commit dates.
+    import os
+    import subprocess as _sp
+    _here = os.path.dirname(os.path.abspath(__file__))
+    try:
+        _rev = _sp.run(['git', '-C', _here, 'log', '-1', '--format=%h', '--',
+                        os.path.abspath(__file__)],
+                       capture_output=True, text=True).stdout.strip() or 'unknown'
+    except Exception:
+        _rev = 'unknown'
+    print('classifier    : %s   (trace schema v%s)' % (_rev, t.get('v')))
     print('target        : %s %s' % (t.get('lib'), t.get('sel')))
     print('rc            : %s   attach_entered=%s attach_returned=%s'
           % (t.get('rc'), t.get('attach_entered'), t.get('attach_returned')))
