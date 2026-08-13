@@ -3259,8 +3259,37 @@ Four prerequisites, checked 2026-08-13 so the device is not the place they surfa
    build**, or the patch build overwrites the archive AND its dSYM. It now preserves
    the dSYM too and rejects one whose UUID does not match the App's.
 
-The order that wastes least device time: create the app and re-materialize (1, 2)
-BEFORE the booking, since neither needs hardware.
+**HARDWARE-INDEPENDENT PREREQUISITES: DONE 2026-08-13.** Prerequisite 1 (the `R8`
+app creation) is deliberately left for the booked session, because it is actual
+shared-state mutation.
+
+* **2 — `twoengine_app/ios` re-materialized with the PINNED Flutter**
+  (`c15ef6379…`, itself 3.44.8, revision `c15ef63794`). Checked first, because the
+  overlay conforms to `FlutterImplicitEngineDelegate` and a pin without that
+  protocol would not compile: it IS present, in the pinned embedder's
+  `FlutterEngine.h`. After re-materializing, the shape holds — 2 engine
+  constructions, `UIMainStoryboardFile` absent, `NSAllowsLocalNetworking` present.
+  **Experiment B's structural claim still rests on the STOCK-generated evidence at
+  `evidence/g15/`, and must not be re-run against this tree**: the pinned Flutter's
+  `engine.version` IS the cell, so a simulator run here would no longer be the
+  unconfounded structural experiment.
+* **3 — the Route B engine path is provably active.** `isRouteBEngine` is exactly
+  "the binary exists AND its raw bytes contain the ASCII `InterpretCall`"
+  (`route_b.dart:29-34`), so it was evaluated identically rather than assumed:
+  `engine.version` `4df8f9b6…`; the `ios-release` cache warm (4 entries); the
+  Flutter binary present at 19,071,568 bytes with sha `e828f8efeb623d1d…` — the
+  cell's own engine; `InterpretCall` PRESENT ⇒ **`isRouteBEngine == true`**.
+* **4 — `airgap_app` bumped `37.0.0+1` → `38.0.0+1`.**
+
+**RELEASE-LEVEL INVARIANTS for the booking, not setup notes:**
+
+1. Each release gets its own preserved `App` + dSYM **before any patch build**.
+2. `twoengine_app` must carry a real control-plane `app_id` before its release.
+3. **A successful `shorebird release` is NOT evidence of Route B** unless the
+   precondition above proved the Route B engine path was active. Release 33 exited
+   0 and was worthless.
+
+Cell `4df8f9b6…` untouched throughout.
 
 That last clause is the operative one and it is not housekeeping. This gate's whole
 interpretation is built on immutable cell `4df8f9b6139b67d2cfe9f6aa8212372cade36278`
