@@ -337,6 +337,7 @@ not an untested guess. Ordered roughly by expected cost.
 
 | | item | note |
 |---|---|---|
+| ⛔ | **DEVICE GATE BLOCKED — prerequisite missing: a parameterised target on the LIVE path.** Found 2026-08-13 before cutting the patch. The fixture's only parameterised method, `tagged(String x)`, is called just once — inside `value()`'s DEAD branch, which exists to keep it retained past tree-shaking while the live branch returns a constant. A patch to it would execute never and show nothing. Note what this defeats: `assert_result_consumed.sh` reports that site **CONSUMED**, correctly, because its result feeds a string interpolation — so **consumption is necessary but not sufficient; reachability is a separate property no byte-level gate can see**. The fixture needs a parameterised target called on the path the app actually takes; that is a fixture change and its own release |
 | ◐ | **BUILT 2026-08-13, host-proven with two negative controls** Replacement methods with explicit source parameters — **`G3.7 param-abi`, worth 33.2 %**. `g37_param_abi.sh` 4/4: a one-parameter and a two-parameter target patched and executed through the real producer path; named and optional-positional targets refused at patch time against IDENTICAL release bytes. Contract in patch `0006`, pinned by `c_entrypoint_arity.sh` 8/8. Device gate needs a mint | the replacement's **own** signature, distinct from the call it makes. The entry-point contract is 0-or-1 positional and the receiver already claims the one slot; `9192a594` did not widen it. **This single item is worth more than the entire privacy problem** — see the measurement above |
 | ☐ | **NOT BUILT** Setters / property assignments | |
 | ☐ | **NOT BUILT** Increment/decrement of receiver fields | compound of read + setter |
@@ -2051,6 +2052,7 @@ boundary is not the rung ladder but library-scoped privacy.
 
 | | item |
 |---|---|
+| ⛔ | **DEVICE GATE BLOCKED — prerequisite missing: a flavored iOS fixture.** The airgap fixture has one Xcode scheme (`Runner`) and no flavor xcconfigs, so `--flavor` cannot build here at all, and without a release whose provenance records a flavor there is nothing to mismatch against. **No release may stand in as flavor evidence.** Same class as `G15`'s missing two-engine host: a prerequisite, not a failed gate. The host-side result below is unaffected and remains valid |
 | ◐ | **BUILT 2026-08-13** the Route B half of flavors — `G4.2`. The predicted false green was CONFIRMED BY READING, not by a device run, and it is narrower than "flavors unsupported": *the shipped flavored release receives `FLUTTER_APP_FLAVOR`, while Route B's prepass and import kernel did not, so retention and binding could be computed against a different Dart program than the one that shipped.* Fixed by resolving the flavor Flutter's way (`--flavor`, else pubspec `default-flavor`) and threading `-DFLUTTER_APP_FLAVOR` into the prepass, the import kernel and the fingerprint. `probes/g42_flavor_flow.sh` 12/12 |
 | ☐ | **INHERITED** Android flavors |
 | ☐ | **INHERITED** iOS flavors / schemes |
@@ -2081,6 +2083,7 @@ boundary is not the rung ladder but library-scoped privacy.
 |---|---|
 | ◐ | **BUILT** Obfuscation-related symbol retention machinery |
 | ✅ | **PROVEN** Android patched crash symbolication with an obfuscated patch |
+| ⛔ | **DEVICE GATE BLOCKED — prerequisite missing: `--load-obfuscation-map` in our gen_snapshot.** Found by running it, 2026-08-13. When the release was obfuscated the patcher passes `--obfuscate --load-obfuscation-map=<the release's map> --strip` to the patch build **on its own**, mirroring the release rather than taking the flag from the user — so a "patch without obfuscation" arm is not even constructible through the CLI. And our engine's `gen_snapshot_arm64` advertises only `--save-obfuscation-map`: the map was written and passed correctly (629 KB), the flag does not exist, and the AOT step exits **255** long before Route B is reached (`Target aot_assembly_release failed: AOT snapshotter exited with code 255`). So an obfuscated release cannot be patched on this engine at all, and release 35 is therefore **unpatchable by construction** rather than a specimen. `--load-obfuscation-map` is a Dart-fork capability we do not carry; adding it is engine work with its own mint. The host-side result below is unaffected |
 | ◐ | **BUILT 2026-08-13** Route B iOS release + patch under obfuscation — `G4.3`. `probes/g43_obfuscation_semantics.sh` 8/8 classifies each flag BY MEASUREMENT: `--obfuscate` changes the **stripped program** bytes, so it is semantic and fingerprinted; `--split-debug-info` and its **path** change the ELF's DWARF only, so they are recorded for audit and excluded from compatibility. **A container built for an obfuscated release APPLIES** (`APPLY ok`, `OLD-obf` → `NEW-obf`) while the interface and manifest stay source-named — obfuscation is a gen_snapshot-stage transform and `gen_kernel` accepts neither flag, so provenance cannot carry transformed identities. Device gate still owed |
 | ☐ | **NOT VALIDATED** Full upstream-equivalent obfuscation matrix |
 
@@ -3155,6 +3158,55 @@ things were checked rather than inferred:
    binary.
 3. **The address covers it.** `ios_artifacts_sha256` is in the cell manifest, so a
    future embedder-only change cannot reuse this address.
+
+**TWO PRECONDITIONS, now permanent, because both were broken here and both failed
+in the direction that looks like success.**
+
+> **Never establish a new engine revision by writing cache stamps.** A stamp asserts
+> what the cache ALREADY contains, so writing the new revision into it tells Flutter
+> there is nothing to fetch — and the build consumes the OLD engine while every
+> report names the new one. Measured: with the stamps written, the cached `Flutter`
+> was still `396a0b0c…` (`881e4129`'s) under a checkout claiming `4df8f9b6`. Remove
+> the cache state and force consumption of the published bytes:
+> `rm -rf bin/cache/{artifacts,dart-sdk,downloads}`, `rm -f bin/cache/*.stamp`, then
+> set `engine.version`. **Verify the CONSUMED bytes, not the published ones.**
+
+> **After minting a new experimental hash, reload the mirror's hash map BEFORE any
+> client fetch, then clear any cache that could hold fallback bytes.** The mint
+> appends the hash to `experimental_hashes.map` itself, so Caddy has not read it yet;
+> a fetch before the reload is served fallback bytes from the pinned hash. **This is
+> the part `@must_be_local` cannot protect**: the Caddyfile sets `order cache before
+> respond` deliberately, so once a fallback response is cached under that hash's URL,
+> a cache HIT beats the 404 ownership would return. Clearing
+> `<flutterDir>/bin/cache/downloads` matters too — a poisoned download survives on
+> the client side. And export `FLUTTER_STORAGE_BASE_URL` /
+> `SHOREBIRD_STORAGE_BASE_URL` at the mirror, or the fetch goes to Google, where an
+> experimental hash does not exist.
+
+> **After clearing cache state, WARM IT BEFORE cutting a release you intend to be
+> patchable.** `isRouteBEngine` reads
+> `bin/cache/artifacts/engine/ios-release/.../Flutter` and returns false when the file
+> does not EXIST — and after a cache clear it does not exist yet, because the engine
+> artifacts are fetched later, during the build itself. So the very first release
+> after a clear silently takes the NON-Route-B path: no `--patchable_static_calls`, no
+> retention declaration, no provenance, and a perfectly normal-looking success
+> message. Measured on release 33, which came out at **8 patchable sites (2 per MB)**
+> against a 100/MB threshold and carried no `route_b_provenance.json` — while the
+> engine it consumed was verifiably the right one (`e828f8ef`). Warm with a throwaway
+> build or `flutter precache`, confirm the binary exists, then cut the release that
+> matters. Release 33 is a DISCARDED specimen for exactly this reason.
+
+> **The CLI under test must be the CLI you changed.** `~/.shorebird` is its own
+> checkout of this repo — it has a `fork` remote pointing at the working tree — and it
+> does NOT move when you commit. Release 34 was cut by the CLI at `9440d56a` and
+> therefore recorded **no `buildConfig` at all**, so it could not serve as the
+> `G4.3` compatibility specimen no matter how correct the release was. Worse in the
+> other direction: that CLI pinned `supportedRouteBAnalysisVersion = 7` while the
+> minted cell ships analyzer **v8**, so every patch against this cell would have been
+> refused as too new — a refusal that looks exactly like a `G3.7` failure and is
+> nothing of the kind. Sync first:
+> `git -C ~/.shorebird fetch fork <branch> && git -C ~/.shorebird checkout --detach FETCH_HEAD`,
+> then assert the field and the pin are actually present before cutting.
 
 **Mint-readiness was gated, not eyeballed.** `probes/assert_mint_ready.sh` re-derives
 the verdict from the primitives the invariant names — the ninja exit the build

@@ -41,6 +41,21 @@
 # interpreter never ran" from "the interpreter ran and its answer was thrown
 # away". Run this BEFORE booking the rig, not after.
 #
+# CONSUMPTION IS NECESSARY, NOT SUFFICIENT: IT CANNOT SEE REACHABILITY.
+#
+# A call site whose result is consumed may still never EXECUTE. The airgap fixture
+# has exactly that shape on purpose: `tagged('ARG')` is called only inside
+# `value()`'s dead branch, which exists to keep `tagged` retained past
+# tree-shaking, and the live branch returns a constant instead. This gate reports
+# that site CONSUMED -- correctly, its result feeds a string interpolation -- and a
+# patch to `tagged` would still be invisible on device, because the branch never
+# runs.
+#
+# So a device arm needs BOTH properties: the result consumed (this gate) and the
+# call site reachable on the path the app actually takes (nothing here can tell
+# you that). Found on 2026-08-13 while trying to run G3.7's device arm against
+# release 36, before the patch was cut rather than after a null result.
+#
 # WHAT IT CANNOT DO. It sees one call site at a time and it sees only what the
 # locator finds. "Not located" is therefore its own exit code: a target this
 # script cannot find is NOT a target whose result is consumed. That distinction
@@ -188,6 +203,9 @@ corpus() {
 30 1 0xd4a8 folded; the IDENTITY specimen, settled on these frozen bytes
 31 0 0xd4a0 CONSUMED: the fixed release body, and the offset moved one slot
 32 0 0xd4a0 CONSUMED: adds the private-class target for the G3.6c/G3.6d gate
+34 2 - DISCARDED: obfuscated, and the structural locator finds no site at all
+35 0 0xd4a8 obfuscated; unpatchable by construction, no --load-obfuscation-map
+36 0 0xd4a0 CONSUMED: the G3.7-intended specimen, cut by a CLI matching the cell
 "
   echo "corpus: preserved releases, each against its own declared expectation"
   for app in "$dir"/*/App; do
@@ -208,6 +226,9 @@ corpus() {
     if out=$("$0" "$app" --fixture-signature 2>&1); then rc=0; else rc=$?; fi
     off=$(printf '%s' "$out" | sed -n 's/.*pool offset   : \([^ ]*\).*/\1/p' | head -1)
     n=$((n+1))
+    # `-` means no offset is expected, which is the honest declaration for a
+    # specimen the locator cannot locate at all (exit 2).
+    [ "$want_off" = "-" ] && want_off=""
     if [ "$rc" = "$want_rc" ] && [ "$off" = "$want_off" ]; then
       echo "  PASS  release $rel -> exit $rc at $off   ($(printf '%s' "$row" | cut -d' ' -f4-))"
     else
