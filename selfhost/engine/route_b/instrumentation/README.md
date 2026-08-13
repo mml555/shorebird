@@ -4,6 +4,27 @@ The diagnostic that answers "what happened to the target `Function` after
 `AttachBytecode` returned". Written 2026-08-12, **compiles**, not yet run on
 device.
 
+## STOP — the v5 execution marker is DEFERRED, 2026-08-13
+
+The planned next step here was a fourth schema revision carrying a four-state
+execution marker (`NOT_INSTRUMENTED` / `NOT_OBSERVED` / `CALL_OBSERVED` /
+`INTERPRET_ENTERED`), to settle whether the post-attach call reaches
+`InterpretCall`. **Do not build it yet.**
+
+The releases it was meant to explain could not have shown a patch at all: the
+caller does not read what the patchable call returns. The release body returned a
+compile-time constant and the type-flow analysis substituted that constant at the
+call site — `dda8c: blr x30` followed immediately by `dda90/94` reloading a pool
+constant into `x0`. Present in all six preserved releases; see PARITY.md's FIFTH
+CORRECTION, `evidence/releases/30/RECORDED`, and
+`probes/assert_result_consumed.sh`, which detects it from the shipped bytes.
+
+So the marker would have been built to observe a mechanism through a UI that
+could not report the answer. The v4 trace below plus a release whose call site
+consumes the result answers the same question with **no engine change, no cell
+mint, and no host rebuild**. Build v5 only if that rerun still shows the release
+value — the constraints and anchors documented below hold unchanged if it does.
+
 ## Why this directory exists instead of a `0006-*.patch`
 
 Constraint 6 of the handoff says to export this as `0006` before treating the

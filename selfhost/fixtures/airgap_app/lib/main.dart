@@ -132,12 +132,51 @@ class RouteBThing {
   /// `this.label` and `this.helper()` are the same Kernel nodes as the bare
   /// spellings and differ only in the lexical edit; the host probe covers them.
   ///
-  /// PATCH FORM: a receiver-bound WRITE. The producer lowers only the receiver
-  /// — `slot` becomes `self.slot` — and `= 'NEW-SET'` crosses over as the
-  /// source's own text. The value shown is the assignment's own result, so an
-  /// assignment that silently did nothing would read `UNSET`, not `NEW-SET`.
+  /// THE COMMITTED BODY IS THE **RELEASE** FORM, AND IT MUST NOT BE FOLDABLE.
+  ///
+  /// A patch body is a TRANSIENT edit to this line: you change it, cut the
+  /// patch, and the release form belongs back here. Whatever is here when a
+  /// RELEASE is cut decides whether any patch can ever be observed — because if
+  /// this body's result is a compile-time constant, the type-flow analysis
+  /// substitutes that constant AT THE CALL SITE in `routeBValue()`. The call is
+  /// still emitted and still runs, Route B's dispatch still works, and the
+  /// returned value is dead before anything can read it:
+  ///
+  ///     blr  x30                       ; the patched Function really is called
+  ///     add  x0, x27, #0xd, lsl #12    ; and its answer is overwritten here
+  ///     ldr  x0, [x0, #0x488]          ; with the release's own constant
+  ///
+  /// `vm:never-inline` does NOT prevent this. It stops the body being spliced
+  /// into the caller; it does not stop the RESULT being replaced.
+  ///
+  /// THIS HAS NOW COST TWO INVESTIGATIONS. `selfhost/engine/killgate/target.dart`
+  /// recorded it on 2026-08-09. It recurred here on 2026-08-11 when the release
+  /// form became `=> slot = 'NEW-SET'` — one constant — and releases 25 through
+  /// 30 then spent six device runs and five overturned causal attributions on a
+  /// patch that attached perfectly and could not possibly show. The comments
+  /// above were already warning about it; comments were not enough, so the
+  /// invariant now has a detector:
+  ///
+  ///     probes/assert_result_consumed.sh <App> --fixture-signature
+  ///
+  /// Run it on the release binary BEFORE interpreting any device result.
+  ///
+  /// The dead branch is not decoration either: it NAMES `helper` and `tagged` so
+  /// they survive the kernel prepass the dynamic interface is generated from. A
+  /// method nothing calls is tree-shaken before the interface can name it, and a
+  /// patch body calling `self.helper()` would then bind to nothing (rung D found
+  /// that the hard way). The `DateTime.now()` guard is what keeps both branches
+  /// alive: it is opaque to the analysis, so neither the fold nor the shaking
+  /// happens.
+  ///
+  /// PATCH FORM, for reference — a receiver-bound WRITE. The producer lowers only
+  /// the receiver — `slot` becomes `self.slot` — and `= 'NEW-SET'` crosses over
+  /// as the source's own text. The value shown is the assignment's own result, so
+  /// an assignment that silently did nothing would read `UNSET`, not `NEW-SET`.
   @pragma('vm:never-inline')
-  String value() => 'NEW-CTL';
+  String value() => DateTime.now().millisecondsSinceEpoch >= 0
+      ? 'OLD-rel'
+      : '${helper()}${tagged('ARG')}$label';
 }
 
 @pragma('vm:never-inline')

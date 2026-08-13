@@ -147,3 +147,46 @@ routeBValue, disassemble its range, read the `ldr x0, [x0, #...]` immediate that
 precedes `ldur x30, [x0, #0xf]`. Better still, have the trace record the offset it
 was given AND assert the entry's owner class/name matches the target, so a stale
 offset lands in ENTRY_NOT_FUNCTION or a name mismatch rather than in a verdict.
+
+RESOLVED 2026-08-13 — FROM THESE PRESERVED BYTES, WITH NO DEVICE AND NO BUILD
+
+The question above ("does this exact call site execute, and does execution reach
+InterpretCall?") was the wrong next measurement. It presumes the app could report
+the answer. It cannot: the call site does not read what the call returns.
+
+  dda80: add  x0, x27, #0xd, lsl #12   ; PP + 0xd000
+  dda84: ldr  x0, [x0, #0x4a8]         ; pool[0xd4a8] = the patched Function
+  dda88: ldur x30, [x0, #0xf]          ; unchecked_entry_point_, read fresh
+  dda8c: blr  x30                      ; the call RUNS — dispatch is real
+  dda90: add  x0, x27, #0xd, lsl #12
+  dda94: ldr  x0, [x0, #0x488]         ; x0 OVERWRITTEN with a pool constant
+  dda98: ret                           ; and THAT is what the app displays
+
+pool[0xd488] is the constant the release's own value() body stores into `slot`
+— at 0xddca8: load pool[0xd488], stur x0,[x1,#0xf], return, where +0xf is `slot`
+per the field cluster at 0xdda54-74. So the NEW-SET on screen is the RELEASE's
+constant, materialised in the caller. NEW-CTL appears nowhere in this binary.
+
+The release body was `String value() => slot = 'NEW-SET';`. A single
+compile-time constant result, so the type-flow analysis substituted it at the
+call site. vm:never-inline does not prevent this — it stops the body being
+spliced into the caller, not the RESULT being replaced. Same finding as
+selfhost/engine/killgate/target.dart, 2026-08-09: "a `blr` whose r0 nobody
+reads".
+
+Present in all six preserved releases (25-30), one located site each, same
+address, pool offset re-derived from each release's own bytes:
+
+  probes/assert_result_consumed.sh <App> --fixture-signature   -> exit 1, 0xd4a8
+
+THE HAZARD ABOVE IS CLOSED BY THAT SAME COMMAND. It derives the offset instead
+of being handed one — reassembled from the `add xR, x27, #hi, lsl #12` /
+`ldr xR, [xR, #lo]` pair rather than assumed — so a stale 0xd4a8 now surfaces as
+a different derived value, not as a verdict.
+
+WHAT REMAINS UNMEASURED, stated exactly: whether the post-attach call reaches
+InterpretCall. The fold made the UI blind, so "never entered the interpreter" and
+"entered it and its answer was discarded" produced identical screens for six
+runs. The rerun on a fixed release answers it through the UI; only if that rerun
+still shows the release value does the v5 execution marker become the next step.
+Precommitted outcomes: PARITY.md, "The next session's task", superseded banner.

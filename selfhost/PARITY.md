@@ -4,6 +4,7 @@
 <!-- cspell:words overclaim DFLUTTER Diagnosticable -->
 <!-- cspell:words demangled specializer devirtualizes rationalised synthesises -->
 <!-- cspell:words subshell theorised generalises generalisable symbolicator unrunnable -->
+<!-- cspell:words foldable foldability materialised objdump ldur stur restages -->
 <!-- cspell:words characterisation backout NONAOT Wonderous analysed askable localises precommitted executably precommitment constructibility unreviewed favourable synthesised targetable -->
 
 # Shorebird feature parity — the goal document
@@ -1289,7 +1290,102 @@ sound. The divergence is in the delivery path, not in G3.6b.
 > observation of that drift, and the first where the refusal saved a run that
 > would otherwise have produced another uninterpretable result.
 
+> **FIFTH CORRECTION, 2026-08-13 — the cause, and it was in the RELEASE's own
+> bytes the whole time.** Everything above this line is a correct account of
+> dispatch and a wrong account of what the fixture was able to show. **The call
+> site does not read what the call returns.**
+>
+> Preserved release 30, disassembled at the exact pool offset the trace was given:
+>
+>     dda80: add  x0, x27, #0xd, lsl #12   ; PP + 0xd000
+>     dda84: ldr  x0, [x0, #0x4a8]         ; pool[0xd4a8] = the patched Function
+>     dda88: ldur x30, [x0, #0xf]          ; unchecked_entry_point_, read fresh
+>     dda8c: blr  x30                      ; the call RUNS — dispatch is real
+>     dda90: add  x0, x27, #0xd, lsl #12
+>     dda94: ldr  x0, [x0, #0x488]         ; x0 OVERWRITTEN with a pool constant
+>     dda98: ret                           ; and THAT is what the app displays
+>
+> `pool[0xd488]` is the constant the release's own `value()` body stores into
+> `slot` — visible at `0xddca8`: load `pool[0xd488]`, `stur x0, [x1, #0xf]`
+> (`slot`, per the field cluster at `0xdda54-74`), return. So the displayed
+> `NEW-SET` is the release's own constant, materialised in the CALLER. `NEW-CTL`
+> does not occur anywhere in the release binary; the value was never stale patch
+> state.
+>
+> **Why.** The release body was `String value() => slot = 'NEW-SET';`. Its result
+> is a single compile-time constant, so the type-flow analysis substituted that
+> constant at the call site. The call is still emitted and still runs; only its
+> RESULT is dead. `vm:never-inline` does not prevent this — it stops the body
+> being spliced into the caller, not the result being replaced.
+>
+> **This is the second occurrence, not the first.**
+> `selfhost/engine/killgate/target.dart` recorded it on 2026-08-09 in these
+> words: *"the call was still emitted and still ran — its RESULT was simply no
+> longer used, which is visible in the disassembly as a `blr` whose r0 nobody
+> reads."* The fixture's own comments repeat the warning three times. It recurred
+> on 2026-08-11 (`fa40f6ca`) when the release form became `=> slot = 'NEW-SET'`.
+>
+> **Scope of the measurement, so nobody has to take this on faith.**
+>
+> | evidence | result |
+> |---|---|
+> | preserved releases 25, 26, 27, 28, 29, 30 | the same fold, one located site each, at the same address |
+> | pool offset, re-derived per release from its own bytes | `0xd4a8` every time — the hazard flagged in `fb70b5bb` is closed by measurement, not by trust |
+> | the second site loading `pool[0xd4a8]` (`0xddcf0`, checked entry) | CONSUMED — a forwarder, not on the fixture's path |
+> | host counterfactual, three arms | `slot = 'NEW-SET'` folds; `'NEW-SET'` folds; `DateTime.now()… ? … : 'X'` does not |
+>
+> **And it explains the last unexplained asymmetry.** "Identical shape passes on
+> host" was true and was never a delivery-path clue: `probes/lowered_forms.sh`
+> builds its release ONCE with `? 'OLD-c' : 'X'` and only restages the patch
+> source per arm, so the host caller has always consumed the result. Host and
+> device differed in the RELEASE body, which is the only body that decides this.
+>
+> **What this does NOT settle.** Whether the post-attach call reaches
+> `InterpretCall` is still unmeasured. The fold made the UI blind: downstream of
+> it, "the interpreter never ran" and "the interpreter ran and its answer was
+> discarded" produce identical screens. So five attributions have now been
+> overturned by measurement, and the sixth is not yet an attribution — it is a
+> reason the previous six device runs cannot speak to dispatch at all.
+>
+> **Landed with it, because a comment already failed three times:**
+> `probes/assert_result_consumed.sh` — reads the shipped bytes, locates the site
+> by symbol / pool offset / fixture signature, and reports CONSUMED, DISCARDED or
+> UNDECIDED, with "not located" as its own exit code. It carries a `--selftest`
+> that builds the three host arms and asserts the detector separates them, and
+> its first draft's over-matching locator (77 sites per release) is written up in
+> the script as the failure it would have caused. The fixture's release body is
+> now the `DateTime.now()`-routed form returning `'OLD-rel'`, whose dead branch
+> also restores `helper`/`tagged` retention that the 2026-08-11 edit had dropped;
+> both verified through the host toolchain (CONSUMED, and both methods present in
+> the snapshot).
+>
+> **Per the classification rule, this was a KNOWN GAP, not an open question.** The
+> answer sat in `evidence/releases/25/App` from the moment it was preserved. Four
+> device runs, one engine instrumentation design and five causal attributions were
+> spent on a fact that `llvm-objdump` prints in four seconds.
+
 #### The next session's task, bounded — 2026-08-12 handoff
+
+> **SUPERSEDED 2026-08-13 by the FIFTH CORRECTION above.** The post-attach trace
+> this section specifies (schema v5, the four-state execution marker) is no longer
+> the next step, and building it first would have measured dispatch through a UI
+> that could not report the answer. Its FIXED CONSTRAINTS below remain correct and
+> apply unchanged **if** the rerun described here still shows the release value.
+> Do not start the engine work before that rerun: the rerun needs no engine
+> change, no cell mint and no host rebuild.
+>
+> **The rerun, and its outcomes precommitted per the precommitment rule.** Cut
+> release 31 from the fixed fixture on the engine already published
+> (`881e4129`), gate it with `verify_patchable_release.sh` AND
+> `assert_result_consumed.sh` AND `assert_installed_release.sh`, then publish the
+> single public control patch.
+>
+> | observation | meaning |
+> |---|---|
+> | app shows the patch's value | dispatch reaches the interpreter and executes the replacement. The whole chain is proven end to end; schema v5 was never needed, and `applied 1/1` finally means what it appeared to mean. |
+> | app shows `OLD-rel`, trace still `identity matches` | the fold was real and insufficient. NOW build the v5 execution marker under the constraints below — and it will be the first run whose UI can distinguish its two outcomes. |
+> | app shows `OLD-rel`, gate said DISCARDED | the release was cut from a stale fixture. Not a result; re-cut. |
+> | `assert_result_consumed.sh` reports UNDECIDED or NOT LOCATED | measurement incomplete. Fix the locator before the device is touched, exactly as `caller_scan_status` refuses to be read as a zero. |
 
 `applied 1/1` is now precisely scoped: **`Dart_RouteBActivatePatch` returned
 success**, and nothing more. The next experiment must establish what changed

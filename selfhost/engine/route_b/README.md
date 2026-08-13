@@ -2,6 +2,7 @@
 <!-- cspell:words devirtualize devirtualizes devirtualized megamorphic movz uxtx -->
 <!-- cspell:words SBRBPTCH sbrb routebios interpretcall jank janky frametime -->
 <!-- cspell:words behaviour boringssl getenv inspectable ldur memorising noninteractive premain reconstructibility representability -->
+<!-- cspell:words foldability foldable xcarchive -->
 
 # Route B — the dedicated build tree
 
@@ -1830,6 +1831,32 @@ eye — it cost three launches during rung B before the `.ipa` staged turned out
 to be the previous release's. The script compares the installed `App`'s
 `LC_UUID` against the `packed ... for release <id>` line the producer prints,
 and refuses to let an unattributable device result be read as evidence.
+
+### Before any device result: check the call site reads the result
+
+```bash
+probes/assert_result_consumed.sh <App-or-.app-or-.xcarchive> --fixture-signature
+probes/assert_result_consumed.sh <App> --pool-offset 0xd4a8      # re-derives it
+probes/assert_result_consumed.sh app.aot --symbol routeBValue    # host, symbols
+```
+
+Equally mandatory, and for the same reason as the release-identity check: it
+prevents an unattributable result from being read as evidence. Releases 25-30
+each attached a patch perfectly — `applied 1/1`, both `Function` entry points
+moved to the same-run `InterpretCall` stub, the pool entry the call site names
+verified as the patched Function — and each displayed the release's own value,
+because the release body returned a compile-time constant and the type-flow
+analysis substituted that constant AT THE CALL SITE. The call runs; its result is
+dead. `vm:never-inline` does not cover it.
+
+That cost six device runs and five overturned causal attributions, having already
+cost a host detour on 2026-08-09 (`killgate/target.dart`). A folded call site
+makes the app blind: no runtime instrument downstream can separate "the
+interpreter never ran" from "it ran and its answer was discarded". Run this on
+the release binary BEFORE booking the rig.
+
+`--selftest` builds three host arms whose foldability is known and asserts the
+detector separates them — a detector with no negative control is not evidence.
 
 ### Rung D — ANSWERED on the host, 2026-08-11
 
