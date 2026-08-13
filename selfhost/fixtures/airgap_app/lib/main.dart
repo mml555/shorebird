@@ -147,6 +147,50 @@ class RouteBThing {
   String paramValue(String who) =>
       DateTime.now().millisecondsSinceEpoch >= 0 ? 'OLD-$who' : 'X';
 
+  /// G3.7's ORDERING specimen: two positional parameters of DIFFERENT types.
+  ///
+  /// `paramValue` above proved a single positional String arrives and is
+  /// observable. It cannot prove ORDER — with one argument there is none to get
+  /// wrong — so that claim needs its own specimen, which is this one. `int b` must
+  /// land in slot `b`: a patch reading `'PARAM-$a-$b'` and rendering `PARAM-a-7`
+  /// shows both that the arguments arrive in the declared order and that an int is
+  /// not boxed into the wrong slot.
+  ///
+  /// Body copied verbatim from `probes/g37_param_abi.sh`'s `R_TWO`, so the device
+  /// specimen and the host arm are the same program rather than two similar ones.
+  ///
+  /// LIVE, and called from `_routeBRead` — retention is not reachability.
+  @pragma('vm:never-inline')
+  String two(String a, int b) =>
+      DateTime.now().millisecondsSinceEpoch >= 0 ? 'OLD-$a-$b' : 'X';
+
+  /// REFUSAL CONTROL 1: named parameters. `R_NAMED`, verbatim.
+  ///
+  /// The analyzer must refuse a patch targeting this, naming *"the method takes
+  /// named parameters"*. Its evidence is the CLI log AND THE ABSENCE OF A
+  /// CONTAINER — an arm that reaches the device has already failed.
+  ///
+  /// NO LIVE CALL SITE, deliberately: a refusal control that executes would be a
+  /// second behavioural target rather than a control. But it IS named in
+  /// `value()`'s dead branch, because without that the `--aot` prepass shakes it
+  /// out before the dynamic interface is generated, and the CLI then refuses the
+  /// patch for the WRONG REASON — "not in the interface" instead of "takes named
+  /// parameters". A refusal for the wrong reason is worse than no arm: it looks
+  /// green.
+  @pragma('vm:never-inline')
+  String named({String x = 'd'}) =>
+      DateTime.now().millisecondsSinceEpoch >= 0 ? 'OLD-$x' : 'X';
+
+  /// REFUSAL CONTROL 2: optional positionals. `R_OPT`, verbatim.
+  ///
+  /// Expected refusal: *"the method takes optional positional parameters"*. The
+  /// reason it stays refused is not squeamishness — a default value lives in the
+  /// AOT function the replacement stands in for, so an interpreted body would have
+  /// to reconstruct it. Retained the same way as `named`, for the same reason.
+  @pragma('vm:never-inline')
+  String opt(String a, [String b = 'd']) =>
+      DateTime.now().millisecondsSinceEpoch >= 0 ? 'OLD-$a$b' : 'X';
+
   /// The lowering surface. Two forms have been through the whole path:
   ///
   ///   String value() => label;      ->  value(RouteBThing self) => self.label
@@ -199,7 +243,7 @@ class RouteBThing {
   @pragma('vm:never-inline')
   String value() => DateTime.now().millisecondsSinceEpoch >= 0
       ? 'OLD-rel'
-      : '${helper()}${tagged('ARG')}$label';
+      : '${helper()}${tagged('ARG')}${named()}${opt('a')}$label';
 }
 
 @pragma('vm:never-inline')
@@ -287,6 +331,10 @@ class _ProbeBodyState extends State<ProbeBody> {
   /// because the query string is the right mechanism the moment the log carries it.
   String _rbParam = '—';
 
+  /// `two()`'s result. Consumed by being displayed, which is what makes the
+  /// ordering arm observable rather than merely compiled.
+  String _rbTwo = '—';
+
   /// The private-class target's value, stored so the call's RESULT is consumed by
   /// something observable. A displayed field is the cheapest consumer there is.
   String _rbPrivateClass = '—';
@@ -324,11 +372,16 @@ class _ProbeBodyState extends State<ProbeBody> {
     // baseline observation is what demonstrates reachability; nothing about this is
     // provable by reading the source.
     final pv = RouteBThing().paramValue('ARG');
+    // Literal 'a' and 7, so the expected patched value is PARAM-a-7 and a
+    // transposition would render PARAM-7-a — visibly wrong rather than merely
+    // different.
+    final tw = RouteBThing().two('a', 7);
     if (!mounted) return;
     setState(() {
       _rbBaseline = v;
       _rbPrivateClass = pc;
       _rbParam = pv;
+      _rbTwo = tw;
       _rbNote = 'read once in initState; no Dart-side attach';
     });
   }
@@ -374,6 +427,7 @@ class _ProbeBodyState extends State<ProbeBody> {
           'route_b': _rbBaseline,
           'private_class': _rbPrivateClass,
           'param': _rbParam,
+          'two': _rbTwo,
         },
       );
       final client = HttpClient()..connectionTimeout = const Duration(seconds: 5);
@@ -414,6 +468,13 @@ class _ProbeBodyState extends State<ProbeBody> {
           _row('route B value', _rbBaseline),
           _row('private class', _rbPrivateClass),
           _row('route B note', _rbNote),
+          // Displayed as well as beaconed. When iOS Local Network consent is
+          // missing the beacon cannot send AT ALL, and a displayed row is then the
+          // only thing separating "the app ran and shows its release value" from
+          // "the app never ran". Nine rows at ~53pt is ~503pt of the iPhone 7's
+          // 667pt logical height, so this still fits without a RenderFlex stripe.
+          _row('param', _rbParam),
+          _row('two params', _rbTwo),
           _row('code patch', _codePatch),
         ],
       ),
