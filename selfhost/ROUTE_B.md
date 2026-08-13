@@ -25,19 +25,34 @@ not required reading before you start.
 > still patched -> rollback to pristine AOT. Nothing manual in between, at
 > +4.5 % size and +0.3 % median frame time with zero added jank.
 >
-> **Current proven producer surface: a single-function replacement whose body
-> requires no external symbol resolution.**
+> **Current proven producer surface: a single-function replacement whose every
+> reference resolves inside the release's declared retention** — literals, the
+> target receiver's own members (public, and release-private instance state
+> through the G3.6b/P2 capability path), retained public app symbols, and named
+> SDK members carried in the release's dynamic interface.
 
-That second line is the whole boundary, and it is narrower than it sounds. A
-body may reference **nothing outside itself** — not another app function, and
-not `dart:core`. `=> 'NEW'` works. `=> DateTime.now().toString()` does not: it
-fails in the bytecode loader, *after* correct delivery, identity matching and
-activation.
+**This does not establish arbitrary dependency reach from replacement bytecode.**
+A reference binds only if the release retained it: the dynamic interface is
+declared by a kernel prepass at release time, and a private member additionally
+requires a grant in that release's capability manifest. Anything outside that
+closure has nothing to bind against. Independently, the producer refuses compound
+writes, `super`, cascades, `this` used as anything but a path to a member, and
+replacement signatures taking parameters — by design, before a patch exists.
+"Ordinary Dart patches work" remains too strong.
 
-Read that as the next FEATURE, not as a regression in the product path. The
-producer, the container, the updater, release identity, performance and rollback
-are all proven; what is missing is name binding for symbols the replacement
-references. See "the widening ladder" below.
+The closure rule is the boundary; "a self-contained body" was the historical
+approximation of it, and it stopped being accurate once retention could be
+declared from a kernel prepass. See the widening ladder below, then the frozen
+instance surface for what is refused by design.
+
+> **Superseded, 2026-08-13, and it had gone self-contradictory.** This section
+> previously said a body may reference *"nothing outside itself — not another app
+> function, and not `dart:core`"*, with `=> DateTime.now().toString()` given as
+> failing in the bytecode loader. The ladder table immediately below it has
+> recorded A0 as **closed on device** since 2026-08-11, with a `DateTime.now()`
+> body running on the phone. The statement was stale against its own evidence
+> twenty lines later — which is the argument for reviewing a capability boundary
+> deliberately instead of letting each rung edit it in passing.
 
 Device gate: 2026-08-11, iPhone 7 / iOS 15.8.8, release `10.0.0+1`, patch 2 —
 OLD -> NEW -> relaunch NEW -> rollback -> pristine OLD, with the container's
@@ -189,8 +204,17 @@ support — they were never interpreted.
 | simple public write | `slot = expr`, `this.slot = expr` | `self.slot = expr` |
 | receiver use inside an argument or RHS | `helper(label)` | `self.helper(self.label)` |
 | the replacement's own private helpers | | carried in the payload |
+| release-private instance **read** | `_secret` | `self._secret`, granted via G3.6b/P2 |
 
 All device-proven; see the rung sections above for engine, release and evidence.
+The private read closed on release `31.0.0+1` patch 2, 2026-08-13: the producer
+emitted exactly `String value(RouteBThing self) => self._secret;` and the phone
+displayed `NEW-PRIV` (`evidence/releases/31/`, commit `c7661317`).
+
+**READ, not access.** A private **write** (`_secret = x`) has NOT been
+device-proven and this row must not be read as implying one. The target's release
+never reads `_secret` either, which is what made it a real test of retention
+rather than of use.
 
 #### Refused by design — not "not yet"
 
@@ -198,7 +222,7 @@ All device-proven; see the rung sections above for engine, release and evidence.
 |---|---|
 | compound writes | `+=`, `-=`, `++`, `--`, `??=` |
 | `super` | `super.x`, `super.foo()`, `super.x = …` |
-| private members of the TARGET's library | `_secret`, `_hidden()` |
+| private **calls** in the target's library | `_hidden()` — the private READ is supported; see above |
 | cascades | `this..foo()` |
 | `this` used other than to reach a member | passed, captured, stored |
 | unusual `this` spacing | `this . label` |

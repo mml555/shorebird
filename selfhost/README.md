@@ -100,21 +100,30 @@ The producer now exists and is device-proven (2026-08-11): `shorebird release
 ios` -> edit -> `shorebird patch ios` -> OLD -> NEW -> relaunch NEW -> rollback
 -> pristine OLD, nothing manual in between.
 
-> Current proven producer surface: a single-function replacement that may read,
-> write and call **public** members of its own receiver, reference `dart:core`,
-> and call another public top-level app function.
+> Current proven producer surface: a single-function replacement whose **every
+> reference resolves inside the release's declared retention** — literals, its own
+> receiver's public members, a **read** of a release-private instance field
+> granted through G3.6b/P2, `dart:core`, and another public top-level app
+> function.
+
+[`ROUTE_B.md`](ROUTE_B.md) and [`PARITY.md`](PARITY.md) §3 are authoritative for
+that boundary; this is a summary, not a third definition of it. What the closure
+rule excludes and what the producer refuses by design are listed there.
 
 Device-proven spellings, each through the ordinary `shorebird patch ios` path:
-`label`, `this.label`, `helper()`, `this.<method>(args)`, `tagged('ARG')` and
-`slot = 'NEW'`. A body that names an **existing private member** of the app does
-not yet bind — which matters more than the list above suggests, because Flutter's
-`State` classes are private by convention.
+`label`, `this.label`, `helper()`, `this.<method>(args)`, `tagged('ARG')`,
+`slot = 'NEW'`, and `_secret` (release `31.0.0+1` patch 2, 2026-08-13, lowered to
+`self._secret`). A private **read** is proven; a private **write** is not.
 
 **Read the size of that limit before planning around it.** Measured from kernel
 over `package:flutter/src`: about **7 %** of concrete instance methods are
 addressable today, and the two things bounding it are library-scoped privacy and
 the one-positional-parameter ABI — roughly equal in weight, neither reachable by
-widening spellings. [`PARITY.md`](PARITY.md) §3 has the numbers, the reproducible
+widening spellings. **That 7 % predates the 2026-08-13 private-read result and has
+not been re-measured**: the privacy half of the bound has partly moved, and
+`PARITY.md`'s bookkeeping rule forbids restating the figure across the analyzer
+v6→v7 boundary, so no new number is claimed here — a fresh run would have to be
+reported as its own. [`PARITY.md`](PARITY.md) §3 has the numbers, the reproducible
 measurement, and what each fix would buy; [`ROUTE_B.md`](ROUTE_B.md) has the
 mechanism.
 

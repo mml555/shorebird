@@ -94,11 +94,18 @@ runs. Today it accepts these spellings inside a replaced method:
 label     this.label     helper()     this.helper()     tagged('ARG')
 ```
 
-…plus a self-contained body, a `dart:core` reference, a call to another public
-top-level app function, and a private helper the replacement declares itself. It
-**refuses** cascades, `super`, setters, private members of the application
-library, and any access kind it does not recognise. Refusal is the designed
-failure mode: erring costs a rejected patch, never a wrong one.
+…plus a `dart:core` reference, a call to another public top-level app function, a
+private helper the replacement declares itself, and — since release `31.0.0+1`
+patch 2 — a **read** of a release-private instance field granted through
+G3.6b/P2 (`_secret`, lowered to `self._secret`). It **refuses** cascades,
+`super`, compound writes, and any access kind it does not recognise. Refusal is
+the designed failure mode: erring costs a rejected patch, never a wrong one.
+
+The rule the accepted set follows is not "a self-contained body" — that was the
+historical approximation. It is that **every reference must resolve inside the
+release's declared retention**: the dynamic interface from the kernel prepass, plus a
+capability-manifest grant for a private member. A private **write** is not
+proven and is not claimed.
 
 All five spellings are device-proven, the last of them as of release `21.0.0+1`
 (engine `8ebaad05`, commit `edbbd80b`) — in the bare spelling; the two `this.`
@@ -352,7 +359,7 @@ not an untested guess. Ordered roughly by expected cost.
 | **`G3.4 compound`** | `++`/`--`/`+=`/`??=` on receiver fields | **REFUSED BY DERIVATION, not blocked** — see below | new mechanism, not a gate relaxation |
 | **`G3.5 closures-super`** | closures capturing `this`, `super` reads and calls, cascades | `super` writes now refuse explicitly (`cb50590d`); the rest untouched | `R7`, `R1` |
 | ~~**`G3.6a app-private-decision`**~~ | **is it reachable at all** | **ANSWERED 2026-08-11 — yes.** The CFE already has the mechanism (`resolveInLibrary`), Route B is denied it by one line, and the `dyn:`-forwarder objection is void in AOT. See below | done, no resources consumed but `R3` read-only |
-| **`G3.6b app-private-holes`** | close the two accepted-then-failed holes | **BUILT, host-proven with two negative controls.** Analyzer v7 REPORTS a private access with its manifest key; the CLI accepts it only against the release's own capability manifest. `cli_private_member.sh` **10/10**: granted → the app reads the patched private field; class withheld → refused in the CLI, naming the class; no manifest → refused, naming the absent evidence. Device round-trip outstanding | done at `R7`; the mint publishes it |
+| **`G3.6b app-private-holes`** | close the two accepted-then-failed holes | **PROVEN on device 2026-08-13** (was BUILT, host-proven with two negative controls). Analyzer v7 REPORTS a private access with its manifest key; the CLI accepts it only against the release's own capability manifest. `cli_private_member.sh` **10/10**: granted → the app reads the patched private field; class withheld → refused in the CLI, naming the class; no manifest → refused, naming the absent evidence. **Device round-trip CLOSED 2026-08-13**: release `31.0.0+1` patch 2, `value() => _secret` lowered to `self._secret`, displayed `NEW-PRIV` on an iPhone 7 from byte-identical installed release bytes (`c7661317`). PROVEN for a private **read**; a private write is not claimed | done at `R7`; the mint publishes it |
 | **`G3.6c dynamic-receiver`** | emit `dynamic` instead of a private class name | **BUILT, host-proven as a pair with `G3.6d`** — `probes/private_receiver.sh` 4/4, a patch on a private class runs. Device round-trip outstanding | done at `R7`; no mint |
 | **`G3.6d private-retention`** | retain private classes, procedures **and fields** in the dynamic interface | **BUILT, host-proven and shown LOAD-BEARING by a negative control.** Cost measured: **+0.01 %** | generator only, as predicted — no validator or CFE change |
 | **`G3.6e resolve-in-library`** | thread `resolveInLibrary` through dart2bytecode | **BUILT — rung D falls.** `probe D` 4/4, `a53029c9`, patch `0005`. Hand-written replacement; needs `G3.6b` for the producer path, then a device gate | done at `R3`; mint pending with `G3.6b` |

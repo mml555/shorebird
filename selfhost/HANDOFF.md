@@ -49,13 +49,28 @@ because a 2026-08-04 paragraph phrases it as open.
 > -> lifecycle promotion -> native pre-main activation -> patched Dart running
 > -> relaunch still patched -> rollback to pristine AOT, with no Dart-side
 > cooperation and nothing manual in between, at +4.5 % size and +0.3 % median
-> frame time with zero added jank. The limit is the REPLACEMENT BODY: it may
-> reference nothing outside itself, `dart:core` included. A body calling
-> `DateTime.now()` fails in the bytecode loader (Probe A0).**
+> frame time with zero added jank. The limit is the REPLACEMENT BODY'S REFERENCE
+> CLOSURE: every reference must resolve inside the release's declared retention —
+> literals, the receiver's own members including release-private instance state
+> granted through G3.6b/P2, retained public app symbols, and named SDK members in
+> the release's dynamic interface. Release 31, 2026-08-13, proved both ends on an
+> iPhone 7 from byte-identical installed release bytes: `=> 'NEW-CTL'` and
+> `=> _secret`. This does not establish arbitrary dependency reach; see
+> [`ROUTE_B.md`](ROUTE_B.md)'s frozen surface for what the producer refuses by
+> design.**
 
-*The runtime is proven; the producer is not.* Both are true at once and they are
-different claims -- do not let "iOS code push works on the device" become "iOS
-code push works".
+*The mechanism is proven; arbitrary dependency reach is not.* Both are true at
+once and they are different claims -- do not let "iOS code push works" become
+"any iOS patch works".
+
+> **Superseded, 2026-08-13.** This statement previously ended *"it may reference
+> nothing outside itself, `dart:core` included. A body calling `DateTime.now()`
+> fails in the bytecode loader (Probe A0)"*, and the line above it read *"the
+> runtime is proven; the producer is not"*. Both were true when written and both
+> were overtaken: A0 closed on device (release `15.0.0+1`, `PARITY.md` §3), the
+> producer is device-proven, and release 31 closed the private path. The caveat
+> was RE-AIMED at the boundary that is actually live rather than dropped, which is
+> the precedent `PARITY.md`'s documentation-drift section sets for exactly this.
 
 On 2026-08-10, on an iPhone 7, in this order: the 4a gate (baseline OLD,
 attached NEW, detached OLD, one process, no restart), then seam 6 (the same
@@ -261,8 +276,16 @@ pristine OLD. Detail and screenshots in
 
 **Say it exactly:**
 
-> Current proven producer surface: a single-function replacement whose body
-> requires no external symbol resolution.
+> Current proven producer surface: a single-function replacement whose every
+> reference resolves inside the release's declared retention — literals, the
+> receiver's own members (public, and a release-private instance **read** granted
+> through G3.6b/P2), retained public app symbols, and named SDK members in the
+> release's dynamic interface.
+
+*(Updated 2026-08-13. This blockquote previously read "whose body requires no
+external symbol resolution", which was accurate for 2026-08-10 and was overtaken
+by A0, rung A and release 31. It is quoted verbatim by whoever reads "say it
+exactly", so a stale version of it propagates further than an ordinary line.)*
 
 The ordinary defects (1 and 2 below) are now regression tests. Finding 3 is not
 a defect — it is the next feature, and `ROUTE_B.md` carries the ladder.
