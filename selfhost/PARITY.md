@@ -3119,8 +3119,25 @@ the evidence points elsewhere, and every rung is a mint plus a scarce device gat
    second engine in one process running unpatched AOT) had its mechanism corrected
    from source and fixed by a one-statement move, patch `0007` — arming sat below an
    early return gated on an updater init that deliberately fails on its second call.
-   Compile-verified, tests written but unrunnable in this tree, device gate needs a
-   mint. **It was NOT one redesign: it is two mechanisms.** The crash-backout and
+   **`0007` IS NOW HOST-TESTED, NOT MERELY COMPILE-VERIFIED — 2026-08-13.** Its three
+   arming tests had never executed: `shorebird_unittests` also compiles
+   `patch_cache_unittests.cc` and deps `//flutter/runtime/shorebird:patch_cache`,
+   whose `patch_cache.cc` calls `Shorebird_ReadLinkHeader` — a symbol only
+   Shorebird's private Dart fork defines — so the tree held an object file and **no
+   linked binary**. A slim sibling target carrying `shorebird_unittests.cc` alone
+   (patch `0008`) links at 257/257 and reports `[ PASSED ] 3 tests`:
+   `RouteBArmingIsInertWithoutAPatch`, `RouteBArmingInstallsACallbackForAPatch`,
+   `RouteBArmingChainsAnExistingCallback`. Dropping the dep is legitimate rather than
+   a workaround, and the link is the proof: `//flutter/runtime` gates patch_cache on
+   `shorebird_use_interpreter` (`is_ios`, unset in this host `args.gn`), so the
+   symbol is genuinely unneeded — which also rules out the precommitted alternative
+   that it arrives through `//flutter/runtime` anyway and the tests must move to the
+   shipping iOS tree. **This says NOTHING about two engines**, which is `G15`'s own
+   gate and still needs a host constructing two `FlutterEngine`s in one process.
+   Two stale clauses corrected while here: the tests are no longer "unrunnable in
+   this tree", and the device gate no longer "needs a mint" — cell
+   `4df8f9b6139b67d2cfe9f6aa8212372cade36278` carries the iOS donor with `0007`.
+   **It was NOT one redesign: it is two mechanisms.** The crash-backout and
    restart-required symptoms share `ReportLaunchSuccess` firing in the `Shell`
    constructor and are untouched by `0007`.
 5. **§13 independence gates** — matters for the strength of the self-hosting claim,
