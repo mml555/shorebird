@@ -9,13 +9,16 @@ These are the RELEASE's own bytes. Compare later patches against them:
 
   assert_installed_release.sh <app-or-archive> --expect a57cb6bad4b139878b356bc3b289850a
 
-The working archive is NOT a substitute: Try logging out with shorebird logout and logging in again.
-
-If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
-
-You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
-/Users/mendell/Library/Application Support/shorebird/logs/1786591019751_shorebird.log re-archives over
+The working archive is NOT a substitute: `shorebird patch ios` re-archives over
 build/ios/archive, so after the first patch it holds the patch build instead.
+
+[REPAIRED 2026-08-13. The two lines above arrived with a CLI error message spliced
+into the middle of the sentence. Not a measurement and not a device observation:
+`preserve_release_evidence.sh` wrote this record through an UNQUOTED heredoc, so
+the backticks around `shorebird patch ios` were command substitution and the
+script RAN that command, pasting its output into the file. Here it failed on an
+expired refresh token, which is the text that landed. Fixed at the source by
+escaping the backticks; nothing else in this record was touched.]
 
 DEVICE RESULT — release 30, engine 881e4129, trace schema v4
   gates    : audit ok (published zip == ios_artifacts_sha256), 5/5 diagnostic gate

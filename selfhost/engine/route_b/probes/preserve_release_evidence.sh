@@ -53,7 +53,7 @@ BIN="$APP/Frameworks/App.framework/App"
 if [ -e "$OUT/LC_UUID" ]; then
   existing=$(tr -d '\n' < "$OUT/LC_UUID")
   incoming=$(dwarfdump --uuid "$BIN" | sed -n 's/^UUID: \([0-9A-Fa-f-]*\).*/\1/p' \
-    | tr -d '-' | tr 'A-Z' 'a-z')
+    | tr -d '-' | tr '[:upper:]' '[:lower:]')
   [ "$existing" = "$incoming" ] || die \
     "$OUT already holds evidence for a DIFFERENT binary ($existing, incoming $incoming). Refusing to overwrite; move it aside deliberately."
   echo "already preserved: $VERSION -> $existing"
@@ -63,7 +63,7 @@ fi
 mkdir -p "$OUT"
 cp "$BIN" "$OUT/App"
 UUID=$(dwarfdump --uuid "$OUT/App" | sed -n 's/^UUID: \([0-9A-Fa-f-]*\).*/\1/p' \
-  | tr -d '-' | tr 'A-Z' 'a-z')
+  | tr -d '-' | tr '[:upper:]' '[:lower:]')
 [ -n "$UUID" ] || die "could not read an LC_UUID from the preserved binary"
 printf '%s\n' "$UUID" > "$OUT/LC_UUID"
 
@@ -89,7 +89,7 @@ These are the RELEASE's own bytes. Compare later patches against them:
 
   assert_installed_release.sh <app-or-archive> --expect $UUID
 
-The working archive is NOT a substitute: `shorebird patch ios` re-archives over
+The working archive is NOT a substitute: \`shorebird patch ios\` re-archives over
 build/ios/archive, so after the first patch it holds the patch build instead.
 EOF
 

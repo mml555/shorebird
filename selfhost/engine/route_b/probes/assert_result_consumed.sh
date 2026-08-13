@@ -140,39 +140,71 @@ DART
 
 # ---- corpus -----------------------------------------------------------------
 #
-# The six preserved releases are the failing runs this detector explains, so they
-# are also the only regression test that can prove it still explains them. Needs
-# no toolchain and no device: the bytes are in the repo.
+# The preserved releases are the runs this detector explains, so they are also the
+# only regression test that can prove it still explains them. Needs no toolchain
+# and no device: the bytes are in the repo.
 #
-# An EMPTY corpus fails. "Found nothing to check" reads as a pass in every naive
-# harness, and that exact collapse -- not-measured masquerading as measured -- is
-# what the pool counters, the scan states and this script's exit 2 all exist to
+# EACH SPECIMEN DECLARES ITS OWN EXPECTATION. The first version asserted one
+# global expectation -- "folded, at 0xd4a8" -- which was true for every release
+# that existed when it was written and became FALSE the moment the fix shipped:
+# release 31 is CONSUMED, at 0xd4a0. A corpus that encodes today's answer as a
+# universal law fails on the very evidence that proves the fix worked, which is
+# the wrong direction for a regression test to point.
+#
+# Membership is checked BOTH WAYS. A preserved release absent from the table is a
+# FAILURE, not a skip: a new specimen must state what it proves. A tabled release
+# absent from disk is also a failure, because evidence going missing must never
+# read as an empty pass. That collapse -- not-measured masquerading as measured --
+# is what the pool counters, the scan states and this script's exit 2 exist to
 # prevent.
 corpus() {
   local HERE; HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
   local dir="$HERE/../../../evidence/releases"
   local n=0 fail=0
-  echo "corpus: the preserved releases whose patches attached and showed nothing"
+  # <release> <expected-exit> <expected-offset> <what it is>
+  local TABLE="
+25 1 0xd4a8 folded: release body returned one constant
+26 1 0xd4a8 folded, and the release the 0xd4a8 offset was measured from
+27 1 0xd4a8 folded
+28 1 0xd4a8 folded
+29 1 0xd4a8 folded
+30 1 0xd4a8 folded; the IDENTITY specimen, settled on these frozen bytes
+"
+  echo "corpus: preserved releases, each against its own declared expectation"
   for app in "$dir"/*/App; do
     [ -f "$app" ] || continue
-    local rel out rc off
+    local rel out rc off row want_rc want_off
     rel=$(basename "$(dirname "$app")")
+    row=$(printf '%s\n' "$TABLE" | awk -v r="$rel" '$1==r {print; exit}')
+    if [ -z "$row" ]; then
+      echo "  FAIL  release $rel is preserved but UNDECLARED — add it to the table"
+      echo "        with what it is expected to prove; an unexplained specimen is"
+      echo "        not a passing one"
+      fail=$((fail+1)); n=$((n+1)); continue
+    fi
+    want_rc=$(printf '%s' "$row" | awk '{print $2}')
+    want_off=$(printf '%s' "$row" | awk '{print $3}')
     # `out=$(...); rc=$?` would abort under `set -e` before rc is ever read --
-    # the detector's normal answer here is a nonzero exit. Caught by this corpus
-    # reporting zero releases, which is why an empty corpus must fail loudly.
+    # the detector's normal answer for a folded release is a nonzero exit.
     if out=$("$0" "$app" --fixture-signature 2>&1); then rc=0; else rc=$?; fi
     off=$(printf '%s' "$out" | sed -n 's/.*pool offset   : \([^ ]*\).*/\1/p' | head -1)
     n=$((n+1))
-    if [ "$rc" = 1 ] && [ "$off" = "0xd4a8" ]; then
-      echo "  PASS  release $rel -> exit 1 DISCARDED, offset re-derived $off"
+    if [ "$rc" = "$want_rc" ] && [ "$off" = "$want_off" ]; then
+      echo "  PASS  release $rel -> exit $rc at $off   ($(printf '%s' "$row" | cut -d' ' -f4-))"
     else
-      echo "  FAIL  release $rel -> exit $rc, offset ${off:-<none>}; expected exit 1 at 0xd4a8"
+      echo "  FAIL  release $rel -> exit $rc at ${off:-<none>}; expected exit $want_rc at $want_off"
       fail=$((fail+1))
     fi
   done
-  if [ "$n" -lt 6 ]; then
-    echo "  FAIL  corpus has $n releases, expected at least 6 — evidence went missing,"
-    echo "        which is a failure and not an empty pass"
+  # Every tabled release must be on disk.
+  local missing
+  while read -r rel _; do
+    [ -n "$rel" ] || continue
+    [ -f "$dir/$rel/App" ] || { missing="$missing $rel"; }
+  done <<< "$(printf '%s\n' "$TABLE" | sed '/^$/d')"
+  if [ -n "$missing" ]; then
+    echo "  FAIL  declared but not preserved:$missing — evidence went missing, which"
+    echo "        is a failure and not an empty pass"
     fail=$((fail+1))
   fi
   echo
