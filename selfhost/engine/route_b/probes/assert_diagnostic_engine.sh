@@ -76,6 +76,33 @@ check "the diagnostic is present in the published binary" "$has_trace"
 [ "${INTERP:-0}" -gt 0 ] && has_interp=1 || has_interp=0
 check "the Route B interpreter path is still present" "$has_interp"
 
+# 4. THE BYTES THE BUILD WILL ACTUALLY CONSUME.
+#
+# Checking the published overlay is necessary and NOT sufficient. Release 25 was
+# cut with all three checks above green and still shipped the donor's engine: the
+# stamps had been hand-written, so Flutter believed it already held this hash's
+# artifacts and never fetched them. The cache was the Aug-10 donor build; the
+# stamp said otherwise. A stamp is a CLAIM about bytes, and this compares the
+# bytes.
+#
+# Skipped only when no Flutter cache is named, because the publish-side use of
+# this script runs before any checkout is pointed at the hash.
+FLUTTER_DIR=${FLUTTER_DIR:-}
+if [ -n "$FLUTTER_DIR" ]; then
+  CACHED="$FLUTTER_DIR/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Flutter"
+  if [ -f "$CACHED" ]; then
+    C_SENT=$(strings -a "$CACHED" | grep -c 'rbtrace v=1' || true)
+    STAMP=$(tr -d '\n' < "$FLUTTER_DIR/bin/cache/engine.stamp" 2>/dev/null || echo '<none>')
+    echo "  cached binary: $(wc -c < "$CACHED" | tr -d ' ') bytes, rbtrace=$C_SENT, stamp=$STAMP"
+    [ "${C_SENT:-0}" -gt 0 ] && cache_ok=1 || cache_ok=0
+    check "the CONSUMED cache holds the diagnostic engine, not just the overlay" "$cache_ok"
+    [ "$STAMP" = "$HASH" ] && stamp_ok=1 || stamp_ok=0
+    check "the cache stamp names this hash" "$stamp_ok"
+  else
+    check "a cached iOS engine exists at $FLUTTER_DIR" 0
+  fi
+fi
+
 echo
 echo "--------------------------------------------------"
 echo "assert_diagnostic_engine: $pass passed, $fail failed"
