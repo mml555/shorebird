@@ -205,6 +205,8 @@ support — they were never interpreted.
 | receiver use inside an argument or RHS | `helper(label)` | `self.helper(self.label)` |
 | the replacement's own private helpers | | carried in the payload |
 | release-private instance **read** | `_secret` | `self._secret`, granted via G3.6b/P2 |
+| release-private **getter** call | `_codePatch` | `self._codePatch`, granted via G3.6b/P2 |
+| a target method **on a private class** | any of the above, inside `_Foo` | receiver lowered as `dynamic self` (G3.6c) + `class: '_Foo'` retention (G3.6d) |
 
 All device-proven; see the rung sections above for engine, release and evidence.
 The private read closed on release `31.0.0+1` patch 2, 2026-08-13: the producer
@@ -222,7 +224,7 @@ rather than of use.
 |---|---|
 | compound writes | `+=`, `-=`, `++`, `--`, `??=` |
 | `super` | `super.x`, `super.foo()`, `super.x = …` |
-| private **calls** in the target's library | `_hidden()` — the private READ is supported; see above |
+| private **method** calls taking arguments | `_hidden('x')` — host-proven only. Private reads and private GETTER calls are supported and device-proven; a getter is a `Procedure`, so this is expected to work, which is exactly why it needs measuring rather than assuming |
 | cascades | `this..foo()` |
 | `this` used other than to reach a member | passed, captured, stored |
 | unusual `this` spacing | `this . label` |

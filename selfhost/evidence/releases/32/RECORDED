@@ -35,3 +35,12 @@ DEVICE RESULT — release 32, engine 881e4129, trace schema v4, iPhone 7 (iOS 15
 
   Full reading in verdict.txt. Screenshots at
   selfhost/engine/route_b/evidence/r32_{1,2}_*.png.
+
+  PATCH 2, same release, 2026-08-13: `privateClassValue() => _codePatch` — a PRIVATE
+  GETTER on the private class — displayed `2`, the live updater patch number, in the
+  private-class row. Not a constant in any build: the interpreted body traversed
+  self -> widget -> runtime -> patchNumber. Lowered as `self._codePatch`; grants for
+  `get:_codePatch` and `get:_assetsPatch` recorded in patch2.capabilities.json under
+  policy p2 with refused=0. Closes the `get:` keying half of G3.6d on device, which
+  its own table listed as emitted but never executed. A private METHOD call taking
+  arguments remains host-only.

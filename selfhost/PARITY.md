@@ -362,7 +362,7 @@ not an untested guess. Ordered roughly by expected cost.
 | **`G3.6b app-private-holes`** | close the two accepted-then-failed holes | **PROVEN on device 2026-08-13** (was BUILT, host-proven with two negative controls). Analyzer v7 REPORTS a private access with its manifest key; the CLI accepts it only against the release's own capability manifest. `cli_private_member.sh` **10/10**: granted → the app reads the patched private field; class withheld → refused in the CLI, naming the class; no manifest → refused, naming the absent evidence. **Device round-trip CLOSED 2026-08-13**: release `31.0.0+1` patch 2, `value() => _secret` lowered to `self._secret`, displayed `NEW-PRIV` on an iPhone 7 from byte-identical installed release bytes (`c7661317`). PROVEN for a private **read**; a private write is not claimed | done at `R7`; the mint publishes it |
 | **`G3.6c dynamic-receiver`** | emit `dynamic` instead of a private class name | **BUILT, host-proven as a pair with `G3.6d`** — `probes/private_receiver.sh` 4/4, a patch on a private class runs. Device round-trip outstanding | done at `R7`; no mint |
 | **`G3.6d private-retention`** | retain private classes, procedures **and fields** in the dynamic interface | **BUILT, host-proven and shown LOAD-BEARING by a negative control.** Cost measured: **+0.01 %** | generator only, as predicted — no validator or CFE change |
-| **`G3.6e resolve-in-library`** | thread `resolveInLibrary` through dart2bytecode | **BUILT — rung D falls.** `probe D` 4/4, `a53029c9`, patch `0005`. Hand-written replacement; needs `G3.6b` for the producer path, then a device gate | done at `R3`; mint pending with `G3.6b` |
+| **`G3.6e resolve-in-library`** | thread `resolveInLibrary` through dart2bytecode | **PROVEN 2026-08-13 for a private FIELD READ.** Both of its own done-criteria are met by release `31.0.0+1` patch 2 (`c7661317`): the **producer** path, not a hand-written replacement, and a **device** round-trip — `value() => _secret` → `NEW-PRIV` on an iPhone 7. `route_b_producer.dart:175` passes `--resolve-private-names-in-library` only when the manifest grants the member, and per this goal's own failure table a missing visibility mechanism fails at COMPILE time; the patch compiled and ran, so the mechanism was in the path. Host: `probe D` 4/4, `a53029c9`, patch `0005`. **A private METHOD/GETTER call is host-proven only** | done at `R3`; no mint needed |
 | **`G3.7 param-abi`** | a replacement method may declare **its own parameters** | **the largest single unlock: 33.2 %**, and unlike `G3.6` its feasibility is *known* — the entry-point contract is a patch we already own (`0004`) | engine (`R3` + a mint), `R7`, `R1` |
 
 Three things fall out of that table, and two of them correct earlier drafts of
@@ -2950,7 +2950,48 @@ the evidence points elsewhere, and every rung is a mint plus a scarce device gat
    `G3.6d` generator. It did need a new RELEASE, because the private class has to
    exist in the release bytes — "rides an existing release" was wrong about that,
    and it is the only part of the estimate that missed.
-2. **`G3.6e resolve-in-library`** — the highest-leverage language work. Privacy is
+2. ~~**`G3.6e resolve-in-library`**~~ — **CLOSED 2026-08-13 BY PRIORITY 1's RUN, for
+   a private field read.** No separate device gate was needed: `G3.6b` and `G3.6e`
+   are the same code path approached from opposite ends, so release 31 patch 2
+   proved both at once. The queue had them as two items with two device gates; one
+   run closed both, and the only thing still host-only is a private
+   METHOD-or-GETTER call, which is what the release-32 patch 2 arm below tests.
+
+   ##### The private-CALL arm — outcomes precommitted, 2026-08-13
+   Release 31 proved a private FIELD read. A private getter is a `Procedure`, keyed
+   `get:_name` rather than bare, and `G3.6d`'s table lists that shape as emitted and
+   annotated but it has never run on a device. Release 32 already carries private
+   getters on a private class (`_codePatch`, `_assetsPatch` on `_ProbeBodyState`), so
+   this rides release 32 as patch 2 — **no new release, no mint**.
+
+   Patch body: `String privateClassValue() => _codePatch;`
+
+   | observation | meaning |
+   |---|---|
+   | private-class row shows the patch number (`2`) | a private GETTER call from a patch works on device. `G3.6e` extends from field reads to procedures, and `G3.6d`'s `get:` keying is proven rather than merely emitted |
+   | the CLI refuses, naming `get:_codePatch` | the manifest did not grant the getter. A producer/retention result, NOT a device result — read the release's `route_b_capabilities.json` |
+   | container refuses at attach and rolls back | the getter was granted but not retained: the `get:` key does not reach `PruneDictionaries` the way the bare field key does. That is a real finding about `G3.6d`'s keying, and the one outcome worth the run even though it fails |
+   | row still shows `OLD-pc` with `code patch: 2` | attach succeeded and the getter did not execute; inspect before assuming, because the field-read path is known good on this exact release |
+
+   **RAN 2026-08-13 — row 1. The private-class row showed `2`, code patch 2**, from
+   `privateClassValue(dynamic self) => self._codePatch`, 851 B, bytecode size 19.
+   Grants recorded in `evidence/releases/32/patch2.capabilities.json`:
+   `get:_codePatch` and `get:_assetsPatch` under policy `p2`, `refused: 0`.
+
+   **The displayed value is runtime data, not a constant.** `_codePatch` returns
+   `widget.runtime.patchNumber?.toString()`, so the interpreted body traversed
+   `self → widget → runtime → patchNumber → toString()` inside the release's live
+   object graph. It is reachable from neither neighbouring state — the release body
+   returns `OLD-pc` and patch 1 returned `NEW-PC` — so `2` cannot be a stale value or
+   a baked-in one. That makes it a stronger execution proof than any literal.
+
+   So `G3.6d`'s `get:` keying is now executed rather than merely emitted, and
+   `G3.6e` extends from fields to procedures. **A private METHOD call taking
+   arguments is still host-only**: a getter is a `Procedure`, so the same resolution
+   and keying path is exercised, but "the same path is very likely" is not a
+   measurement.
+
+3. **`G3.6e` (superseded numbering, kept so later references still resolve)** — the highest-leverage language work. Privacy is
    the strongest measured blocker from **both** directions: structural reach
    (→29.8 %) and Phase 0's real commits (top blocker in 9 of 10). Feasibility is
    established and the mechanism is located.
