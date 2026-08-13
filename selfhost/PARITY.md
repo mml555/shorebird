@@ -3132,8 +3132,32 @@ the evidence points elsewhere, and every rung is a mint plus a scarce device gat
    `shorebird_use_interpreter` (`is_ios`, unset in this host `args.gn`), so the
    symbol is genuinely unneeded — which also rules out the precommitted alternative
    that it arrives through `//flutter/runtime` anyway and the tests must move to the
-   shipping iOS tree. **This says NOTHING about two engines**, which is `G15`'s own
-   gate and still needs a host constructing two `FlutterEngine`s in one process.
+   shipping iOS tree. **This says NOTHING about two engines** — but that host now EXISTS.
+   **EXPERIMENT B, MEASURED 2026-08-13:** `selfhost/fixtures/twoengine_app` puts two
+   independently constructed `FlutterEngine`s in one process, and every precommitted
+   condition was observed SEPARATELY (`evidence/g15/`): `implicit_engine=0` (no third
+   engine — the tripwire never fired), `projects_distinct=1` with differing
+   identities, `engines_constructed=2 engine_one_run=1 engine_two_run=1`, two Dart
+   markers differing byte-wise, and each entrypoint logged exactly once
+   (`isolate=main` / `isolate=engineTwoMain`). Stock Flutter 3.44.8 on a simulator,
+   deliberately: the host itself records `arming_observed=0
+   reason=stock_engine_simulator_structural_only`, so this is the missing
+   PRECONDITION and **must never be reported as a `G15` result**. It is independent
+   of the unit tests above in BOTH directions — a simulator failure would not
+   invalidate them, and 3/3 passing says nothing about second-engine behaviour.
+   Two shapes are refused rather than interpreted, because each would look green: a
+   third implicit engine (`UIMainStoryboardFile` deleted, plus a tripwire that shows
+   a refusal screen and constructs nothing), and a shared `FlutterDartProject`
+   (which hands engine two an already-armed callback, so it would run patched code
+   even without `0007`) — with **no fallback** retrying the shared shape.
+   `probes/g15_two_engine.sh` guards it at 16/16 and its header says it is a
+   regression guard, not arming evidence.
+   **Still open for `G15`:** a release cut against cell `4df8f9b6` with this harness,
+   on our engine. And one fact recorded before it can mislead — both engines append
+   to ONE `.routeb` file, so the discriminator is the sibling `.routeb.trace`
+   (release 32's carries exactly one `rbtrace` line; two attaches should give two,
+   and identical `fn=` values would be something to investigate, not an automatic
+   failure).
    Two stale clauses corrected while here: the tests are no longer "unrunnable in
    this tree", and the device gate no longer "needs a mint" — cell
    `4df8f9b6139b67d2cfe9f6aa8212372cade36278` carries the iOS donor with `0007`.
