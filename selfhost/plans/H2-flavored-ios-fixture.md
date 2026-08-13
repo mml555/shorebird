@@ -44,10 +44,17 @@ changing nothing:
   `ios_releaser.dart:269`. It landed at or before `ba4e1c02`, so the INSTALLED CLI
   carries it too (`git log ba4e1c02..HEAD -- packages/shorebird_cli` is empty) and
   precondition 5's re-sync is not needed for this reason alone.
-* **step 6, the probe's row 4.** `g42_flavor_flow.sh` now reports **13 passed, 0
-  failed** and its own closing text reads "Rows 4a/4b now pin the fix, so a
-  regression fails here instead of on a phone." The prediction that it would report
-  11/12 described the state before that re-aim.
+* **step 6, the probe's row 4 — DONE BUT UNCOMMITTED, and that qualification is
+  load-bearing.** `g42_flavor_flow.sh` reports **13 passed, 0 failed** and its own
+  closing text reads "Rows 4a/4b now pin the fix, so a regression fails here instead
+  of on a phone." The prediction of 11/12 described the state before that re-aim.
+  **But the re-aim lives only in the working tree**: the last commit touching that
+  file is `f8855734`, the original 12-row version that still asserts the gap, and
+  `selfhost/evidence/g42_flavored_fixture/g42_flavor_flow.txt` is untracked. It was
+  authored outside the session that wrote this note, so it is deliberately left
+  unstaged rather than swept into an unrelated commit. **Check `git status` before
+  believing this row is pinned** — if those changes are gone, the committed probe
+  asserts a bug that no longer exists and will report 11/12 again.
 
 What remains is steps **1-4** and **7**: the fixture sources, the live `flavorState()`
 observable, the iOS overlay (schemes, six configurations, flavor xcconfigs, distinct
