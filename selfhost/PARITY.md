@@ -3074,6 +3074,80 @@ the evidence points elsewhere, and every rung is a mint plus a scarce device gat
    but does **not** currently constrain Route B's language capability. That is why
    it sits below a safety project despite being nearly done.
 
+### The next session is ONE MINT carrying THREE INDEPENDENT GATES — precommitted 2026-08-13
+
+Written before the cycle is spent, because the expensive resource is no longer
+unresolved design: it is the mint/device cycle. Four surfaces are already built and
+each is owed only a device verdict, and three of them depend on the same cell.
+
+**What the mint must contain, and why each piece is in it.** Nothing goes in for
+tidiness; each artifact is there because a gate's semantics depend on it.
+
+| artifact | why it must be re-minted | gate that needs it |
+|---|---|---|
+| `dart2bytecode.aot` | carries patch `0006`, the entry-point contract widened to any number of REQUIRED positionals | `G3.7` |
+| `route_b_analyze.aot` | `analysisVersion` 8: parameterised targets are no longer `unsupported`, and the CLI's pin already moved | `G3.7` |
+| the iOS engine | patch `0007`, arming moved above the `!init_result` return | `G15` |
+| `route_b_gen_dynamic_interface.aot` | already carries `G3.6d`; re-minted only because the cell is one immutable unit | — |
+
+The iOS engine build is the long pole and is the reason this is a session boundary
+rather than a step: `build_ios_release.sh`, detached, `screen -dmS routebios bash -c
+'caffeinate -is /Volumes/build/route-b/build_ios_release.sh'`.
+
+**Cell identity is established ONCE, then never re-argued.** Record the engine hash,
+the per-artifact sha256s from `PROVENANCE.txt`, `assert_diagnostic_engine.sh` (the
+trace sentinel and `InterpretCall` must both be present in the SHIPPED binary), and
+`audit_route_b_compiler.sh` (reconstructibility, not presence). Publish, then
+`audit_overlay.sh` for the new hash — and note that `route-b-compiler-*.zip` is now
+protected hash-generically, so a missing cell 404s instead of silently serving the
+pinned hash's bytes.
+
+**INDEPENDENCE OF INTERPRETATION IS THE RULE.** The gates share a toolchain
+specimen; they do not share a verdict. A failure in one must not contaminate the
+others, and the mechanism is that each gate gets its own preconditions, its own
+preserved specimen, and its own recorded verdict referencing the one cell identity:
+
+| gate | preconditions of its own | specimen | verdict is about |
+|---|---|---|---|
+| `G3.7` param-abi | release cut with the new cell; `assert_result_consumed.sh` on the target's call site | `evidence/releases/<n>/` + the lowered replacement showing `(Self self, T a)` | whether the AOT caller's ARGUMENTS arrive, in order and by type, in an interpreted body |
+| `G15` second engine | a host that creates TWO `FlutterEngine`s in one process — the fixture as it stands creates one, so this gate needs its own harness before it can run | both engines' `.routeb` reports | whether engine two is armed at all |
+| `G4.2`/`G4.3` config | release cut WITH a flavor and WITH `--obfuscate`; provenance carrying the fingerprint | the release's `buildConfig` + each arm's CLI log or device beacon | two different claims, split below |
+
+**`G3.7` and `G15` are independent in both directions.** `G3.7` is a producer/ABI
+question answered by a patch that executes; `G15` is a runtime arming question
+answered by a second engine's report. Neither can explain the other's failure, and
+neither may be reported as blocked by the other.
+
+**`G15` needs a harness that does not exist yet.** The airgap fixture creates one
+engine. Until something creates two in one process, `G15`'s device row is
+NOT RUNNABLE rather than merely unrun — the same distinction that reclassified the
+sealed code-patch row from NOT VALIDATED to NOT BUILT. Say so rather than booking a
+device for it.
+
+#### `G4.2`/`G4.3`: the mismatch arms and the matching arms are DIFFERENT CLAIMS
+
+Precommitted, because conflating them is how "configuration compatibility works"
+would get credited to a patch that merely ran.
+
+| arm | expected | what it proves | where it is decided |
+|---|---|---|---|
+| release `--flavor foo`, patch `--flavor bar` | **REFUSED** | the fingerprint compares effective configuration | CLI, **before any patch artifact exists** |
+| release `--obfuscate`, patch plain | **REFUSED** | obfuscation is semantic | CLI, before artifact production |
+| release `--flavor foo`, patch `--flavor foo` | patched value on device | the matching path still produces a patch that EXECUTES | device |
+| release `--obfuscate`, patch `--obfuscate` | patched value on device | obfuscation does not break target resolution *through the real pipeline* | device |
+| release flavored by `default-flavor` ONLY, patch same | patched value on device | the path with no command-line token to notice | device |
+
+A refusal arm that reaches the device has already failed: its whole claim is that
+nothing was produced. So its evidence is the CLI's log and the ABSENCE of a
+container, not a screenshot. Conversely a matching arm that only shows "the CLI
+accepted it" proves nothing about execution.
+
+**One release can carry several matching arms** (flavored + obfuscated together),
+but a mismatch arm must not share a release with the matching arm it is contrasted
+against — same-release contrast is what made the earlier private-member control
+meaningful, and different-release contrast is what made release 23's control
+worthless.
+
 ### Then, in rough order
 
 6. **`G3.6b app-private-holes`** — the two accepted-then-failed holes. Costs `R7` +
