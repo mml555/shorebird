@@ -2248,14 +2248,36 @@ Do not re-learn these:
 
 ## Verifying your work
 
+**Run CI's commands, not approximations of them — rewritten 2026-08-13, and the
+rewrite is the point.** This block used to say `dart analyze lib test # expect 86
+issues` for the CLI and listed **no `dart format` check for it at all**. Both
+were wrong in the direction that hides failures: CI runs `--fatal-warnings`, so
+counting *infos* cannot see a warning, and a gate absent from the runbook is a
+gate nobody checks. The CLI's format gate was RED from 2026-08-10 and its
+analyze gate RED from 2026-08-11; both went three days unnoticed while this
+block reported healthy. Expected counts are recorded below as of 2026-08-13, but
+**the exit code is the gate — a count is a corroborating reading, not the test.**
+
 ```bash
-cd packages/code_push_server && dart analyze && dart test -x integration   # expect 285 pass
-cd packages/shorebird_cli   && dart test test/src/code_push_client_wrapper_test.dart
-cd packages/shorebird_cli   && dart analyze lib test                       # expect 86 issues
+# code_push_server — CI: .github/workflows/code_push_server.yaml:43,46,58
+cd packages/code_push_server && dart format --output=none --set-exit-if-changed . \
+  && dart analyze --fatal-infos --fatal-warnings \
+  && dart test -x integration                    # expect exit 0; 291 pass
+
+# shorebird_cli — CI: .github/actions/dart_package/action.yaml:61,66
+#   (analyze_directories defaults to "lib test", :28-30), reached via
+#   .github/workflows/main.yaml:159-164
+cd packages/shorebird_cli && dart format --output=none --set-exit-if-changed . \
+  && dart analyze --fatal-warnings lib test \
+  && dart test -r failures-only                  # expect exit 0; 2413 pass, 1 skipped
+
 npx cspell --no-progress --no-summary selfhost packages/code_push_server/lib
 ```
 
-`shorebird_cli`'s **86 analyzer infos are pre-existing on `main`** — that is the
-baseline, so compare against it rather than trying to reach zero. Repo
-conventions: semantic-commit PR titles, inline `cspell:words` for one or two
-files and the global config beyond that, prefer new commits over amending.
+`shorebird_cli` still carries **237 analyzer infos inherited from `main`** — that
+is the baseline, so compare against it rather than trying to reach zero. But
+infos are exactly the noise the two RED gates hid in: `--fatal-warnings` is what
+separates the inherited floor from a fork-introduced regression, which is why the
+count is no longer the check. Repo conventions: semantic-commit PR titles, inline
+`cspell:words` for one or two files and the global config beyond that, prefer new
+commits over amending.

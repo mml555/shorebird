@@ -197,7 +197,7 @@ If left checked, Xcode will rewrite the build number in the uploaded IPA, so the
               ? '''
 Found an .ipa older than the .xcarchive this build just produced:
 
-  ${ipa!.path}
+  ${ipa.path}
 
 It is left over from an earlier build, so the IPA export step of "flutter build ipa" must have failed for this one (for example, due to a missing or invalid code signing certificate). Review the build output above for the underlying error. Releasing would upload the earlier build's .ipa.
 

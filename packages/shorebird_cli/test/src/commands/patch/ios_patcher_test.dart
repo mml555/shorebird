@@ -1471,7 +1471,9 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
               );
               verify(
                 () => logger.detail(
-                  any(that: contains('build configuration matches the release')),
+                  any(
+                    that: contains('build configuration matches the release'),
+                  ),
                 ),
               ).called(1);
             });
