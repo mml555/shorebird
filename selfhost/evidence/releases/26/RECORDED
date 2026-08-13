@@ -78,3 +78,45 @@ calls are not patchable". But the host probes patch an INSTANCE method --
 under the same flag. So the call FORM is patchable in principle on host, and the
 iOS failure is not explained by "it is an instance call" alone. Worth holding
 before anyone spends a build on that hypothesis.
+
+CALL SITE CLASSIFIED — from release 26's own bytes, 2026-08-12
+
+Symbolized with release 26's OWN dSYM, recovered from the uploaded xcarchive on
+the control plane (release id 72) because the local archive had been overwritten
+by a later patch build. dSYM UUID 0d0bd99aaa143b5a8bdf8cb9382a3e52 == this
+specimen's LC_UUID, verified before use. Sanity controls: _routeBRead 0xdd8f8 <
+routeBProbe 0xdd9f0 < routeBValue 0xdda34 < new RouteBThing 0xddaac, i.e. source
+order, so no plausible-looking offset was accepted silently.
+
+  B (control) routeBProbe -> routeBValue        top-level static call
+      ldr  x0, [x0, #0x480]
+      ldur x30, [x0, #0x7]      <-- offset 0x7
+      blr  x30
+
+  A (failing) routeBValue -> RouteBThing.value  instance call
+      bl   0xddaac              <-- direct, the allocation of RouteBThing
+      str  x1, [x15]            <-- receiver pushed
+      ldr  x4, [x27, #0xf8]     <-- arguments descriptor
+      ldr  x0, [x0, #0x4a8]
+      ldur x30, [x0, #0xf]      <-- offset 0xf, NOT 0x7
+      blr  x30
+
+BOTH are indirect calls through a loaded object. They differ in the FIELD they
+load: 0x7 for the static call, 0xf for this instance call.
+verify_patchable_release.sh counts exactly `ldur lr,[x0,#7] ; blr lr`, so site A
+was never among the 7,102 pairs. The release WAS patchable — that verdict is
+true — and it never covered this site. Nothing about the flag was broken.
+
+AGAINST THE PRECOMMITTED TREE, this is not cleanly branch 1: it is not a direct
+`bl`. It is closest to branch 3 — the caller consults an object's entry-point
+field — but a DIFFERENT field from the one the patchable form uses, so "compare
+which Function object was patched" is now the precise next question.
+
+NOT ESTABLISHED, and not to be inferred from these bytes alone: what object sits
+at object-pool offset 0x4a8, and what field 0xf is on it. Both `Function`
+(entry_point_ vs unchecked_entry_point_) and `Code` are candidates. The trace
+recorded uep_post == ep_post == interpret_call_ep, so IF 0xf were this same
+Function's unchecked entry point the call should have reached the interpreter —
+it did not, which points at a different object rather than a different field.
+That is a hypothesis; the way to settle it is to identify the pool entry, not to
+reason from offsets.
