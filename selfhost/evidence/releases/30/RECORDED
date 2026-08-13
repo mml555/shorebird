@@ -57,3 +57,42 @@ whether its entry point was already materialised into the caller's instruction
 stream, or whether the observed value was produced by a path other than this call.
 Those are execution-order and observation questions, and NONE of them has been
 measured. No further attribution until one is.
+
+TWO HYPOTHESES DEMOTED WITHOUT A NEW BUILD
+
+(a) "the entry point was already materialised into the caller's instruction
+    stream, and went stale". The preserved call-site bytes argue against it: the
+    site loads the Function FROM THE POOL and then loads unchecked_entry_point_
+    from that object, on every execution --
+
+        ldr  x0, [x0, #0x4a8]     ; the Function, from the global pool
+        ldur x30, [x0, #0xf]      ; its unchecked entry, read fresh
+        blr  x30
+
+    There is no embedded target address at that site to have gone stale. Only some
+    additional runtime rewriting could reinstate this, and none has been measured.
+
+(b) "NEW-SET was produced before activation, or retained from elsewhere". Excluded
+    by ordering already in evidence, not by argument: the hook is
+    root_isolate_create_callback, which fires after Phase::Ready but BEFORE
+    RunFromLibrary invokes main (lib/object.cc:940-944), and the .routeb record's
+    last line -- "applied 1/1 targets, entering main" -- is written before it
+    returns. The fixture reads the value in initState, which cannot run until main
+    has started. So the call that produced the displayed value ran AFTER activation
+    completed.
+
+WHAT THAT LEAVES, and the next question is now one line:
+
+    After activation, does this exact call site execute, and does execution reach
+    InterpretCall?
+
+    2  executes, never reaches InterpretCall -> runtime contradicts the static
+       load/field/object evidence; instrument immediately around the load and call
+    3  reaches InterpretCall for this Function but the UI stays NEW-SET -> dispatch
+       is solved and the problem moves to bytecode selection/execution or the
+       displayed-value path
+
+The instrument should be ONE targeted runtime event at the interpreter boundary,
+attributable to this target -- not another census. This investigation has produced
+two censuses already and neither decided anything; the deciding evidence has every
+time been a single value measured at the exact point in question.
