@@ -6,6 +6,58 @@
 
 # Handoff — engine improvements (as of 2026-08-07)
 
+## 2026-08-13, 15:55 — two sessions took H2 at once. Read this before trusting `41758dd3`'s message
+
+**The headline, because it will mislead somebody otherwise: `41758dd3`'s commit
+message is wrong about its own diffstat.** It says the overlay's `project.pbxproj`
+is "NOT DONE … the next session authors the transform". The commit *contains* that
+file (1217 lines) and the `derive_overlay.py` that produced it (164 lines). Both
+were written by a second session and were sitting unstaged when `41758dd3` staged
+broadly. **A session that believes the message writes a second transform over a
+working one.** Corrected in place in `plans/H2-flavored-ios-fixture.md`.
+
+**What happened, on the clock.** Two sessions worked `H2` simultaneously, neither
+aware of the other, because the fixture is NEW: it has no `R-id`, so §17's claims
+table could not have shown it held, and `git status` showed one untracked directory
+that each session read as its own.
+
+| 15:41:59 | session B's `flutter create` populates `flavored_app/` seconds after session A writes `pubspec.yaml` |
+| 15:44:18 | B writes `ios_overlay/BASELINE.project.pbxproj.sha256` — the sha A had computed one minute earlier |
+| 15:46:02 | A writes `derive_overlay.py`; 15:46:11 it emits the overlay `project.pbxproj` |
+| 15:46:32 | **B commits `41758dd3`**, sweeping in A's two files, and reports them as not done |
+| 15:47:22 | A writes its `Foo/Bar.xcconfig`, **clobbering B's committed versions** |
+| 15:53 | A restores B's xcconfigs byte-exact from `HEAD`, verifies the overlay, and stops |
+
+Nothing was lost, and again only by luck of ordering — the same conclusion as the
+2026-08-11 entry and the negative-control entry above it. Three instances now.
+
+**The generalisable part is new, though.** §17's protections are keyed to the claims
+table, and **a resource that does not exist yet cannot be claimed**. Both prior
+instances were about *staging* discipline; this one is about *identity*: the very
+first commit that creates a fixture is the one with no way to reserve it. The cheap
+fix is a claims row for the path, written before the first file, even with no `R-id`.
+
+**What is now established about H2** (host only, no device, no mint, no release):
+
+* The overlay is structurally valid and **Xcode resolves it** — `xcodebuild -list`
+  shows nine configurations (`Debug`/`Release`/`Profile` × plain, `-Foo`, `-Bar`)
+  and schemes `Bar`/`Foo`/`Runner`, run against a scratch copy so the shared fixture
+  was untouched. **BUILT for structural validity only** — it is a project-file
+  query, not a build, and says nothing about the flavor reaching the compiler.
+* **Step 7's paths are wrong as written.** The committed xcconfigs set
+  `PRODUCT_NAME = flavored_probe_foo`/`_bar`, and `application_package.dart:188-190`
+  derives the artifact path from it, so the arms are at `flavored_probe_foo.app`,
+  not `Runner.app`. The no-token `default-flavor` arm resolves to the SAME path as
+  `--flavor foo` (`flutter_command.dart:1503-1505`, `flavor = cliFlavor ??
+  defaultFlavor`), so those two arms differ in what they prove, not in what they
+  produce.
+* Still absent: `prepare_flavored_fixture.sh`, and every one of step 7's builds.
+
+**Resources:** none claimed, none held, none released — this session took no device,
+no mint, no container, no release and no fixture version bump. `flavored_app/` is
+left exactly as `41758dd3` committed it, with the two xcconfigs restored to B's
+authorship.
+
 ## 2026-08-13, 15:21 — G4.2's patch half, and two corrections worth more than it
 
 Session ran `selfhost/plans/` as an autonomous board. One piece landed: **H2 steps 5

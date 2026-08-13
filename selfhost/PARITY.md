@@ -2052,7 +2052,7 @@ boundary is not the rung ladder but library-scoped privacy.
 
 | | item |
 |---|---|
-| ⛔ | **DEVICE GATE BLOCKED — prerequisite missing: a flavored iOS fixture.** The airgap fixture has one Xcode scheme (`Runner`) and no flavor xcconfigs, so `--flavor` cannot build here at all, and without a release whose provenance records a flavor there is nothing to mismatch against. **No release may stand in as flavor evidence.** Same class as `G15`'s missing two-engine host: a prerequisite, not a failed gate. The host-side result below is unaffected and remains valid |
+| ⛔ | **DEVICE GATE BLOCKED — the prerequisite is now PARTIAL, and the cause has moved.** It read *"prerequisite missing: a flavored iOS fixture"*, and the reason given — the airgap fixture has one Xcode scheme (`Runner`) and no flavor xcconfigs — remains true of `airgap_app` and is no longer the binding constraint: **`selfhost/fixtures/flavored_app` exists as of `41758dd3`**, and its overlay is structurally valid — `xcodebuild -list` resolves nine configurations (`Debug`/`Release`/`Profile` × plain, `-Foo`, `-Bar`) and schemes `Bar`/`Foo`/`Runner` (2026-08-13, scratch copy, shared fixture untouched). **That is BUILT for structural validity only** — a project-file query, not a build. What blocks the gate now is that **`prepare_flavored_fixture.sh` does not exist and not one host arm has run**, so nothing yet shows `FLUTTER_APP_FLAVOR` reaching the compiler. **No release may stand in as flavor evidence**, and no release may be cut against this fixture before step 7's arms are green. Same class as `G15`'s missing two-engine host: a prerequisite, not a failed gate. The host-side result below is unaffected and remains valid |
 | ◐ | **BUILT 2026-08-13** the Route B half of flavors — `G4.2`. The predicted false green was CONFIRMED BY READING, not by a device run, and it is narrower than "flavors unsupported": *the shipped flavored release receives `FLUTTER_APP_FLAVOR`, while Route B's prepass and import kernel did not, so retention and binding could be computed against a different Dart program than the one that shipped.* Fixed by resolving the flavor Flutter's way (`--flavor`, else pubspec `default-flavor`) and threading `-DFLUTTER_APP_FLAVOR` into the prepass, the import kernel and the fingerprint. `probes/g42_flavor_flow.sh` **13/13** — and the `12/12` recorded here until 2026-08-13 was a PRE-FIX run. Measured on `dc732dbb` the probe reported **11/12**: `25f8a3b8` closed the kernel-forwarder gap and touched no probe, so row 4 went on asserting a bug that no longer existed. The row was INVERTED rather than deleted and split into two (kernel forwarder, and patch side), which is the 12→13 check count. Both runs kept in `evidence/g42_flavored_fixture/g42_flavor_flow.txt` |
 | ☐ | **INHERITED** Android flavors |
 | ☐ | **INHERITED** iOS flavors / schemes |
@@ -2844,6 +2844,41 @@ commits a half-finished device gate, or a `git stash` discards one.
 The lesson is not "coordinate more". It is that **an unclaimed resource looks
 exactly like an available one, and an unstaged file looks exactly like yours.**
 
+### 2026-08-13: the third instance, and the one this table could not have prevented
+
+Two sessions took **`H2`** — the flavored fixture — within four minutes of each
+other, and neither could have discovered the other by following the protocol
+above. The full clock is in `HANDOFF.md`'s 15:55 entry; what matters here is why
+the existing rules did not bite:
+
+**A resource that does not exist yet cannot be claimed.** Every protection in this
+section is keyed to the claims table, and the table is keyed to `R-ids`. `H2`
+creates a **new** fixture — its own order says "owns: none exclusive… a NEW
+fixture, so no `R6`" — so there was no row to hold, nothing to read as taken, and
+`git status` showed a single untracked directory that each session correctly read
+as its own work. Both prior instances were about **staging** discipline; this one
+is about **identity**, and it is the one case where "read the tree first" returns
+a clean answer to both workers simultaneously.
+
+**The fix is cheap: claim the PATH, before the first file exists.** A row naming
+`selfhost/fixtures/flavored_app` with no `R-id` at all would have been enough. A
+claim is a statement of intent, not a property of an existing artifact.
+
+**What it cost, and what it nearly cost.** `41758dd3` staged broadly and captured
+the other session's unstaged `derive_overlay.py` and overlay `project.pbxproj`,
+then **described them as not done** — so its message contradicts its own diffstat,
+and a reader who trusted the message would author a second transform over a
+working one. In the other direction, the second session then overwrote that
+commit's two `xcconfig` files sixty seconds later, and restored them byte-exact
+from `HEAD` on noticing. Nothing was lost, for the third time by ordering rather
+than by design.
+
+**So the promoted rule is: a commit message is not evidence of its own contents.**
+`git show --stat` is. When two workers are live, read the diffstat of any commit
+you are about to build on — the 2026-08-11 entry says a broad stage swallows
+files, and this one says the swallowing worker will not know it happened and will
+tell you so in good faith.
+
 ### Claims
 
 Update this table in the same commit as the work. Stale rows are worse than no
@@ -2862,6 +2897,7 @@ rows, so **clear your row when you stop**, even mid-goal.
 | `R10` server source | — | — | — | **free** — the `G6` lane |
 | `R11` sealed CDN | — | — | released 2026-08-12 | **free, and serving `ee001fd7`.** `cdn-cache` is running unsealed. **Known hazard recorded:** the `ee001fd7 -> 69f9831c` map entry is what lets Flutter's cache rewrite the engine stamp mid-build, which is the device gate's failure. Previously: `cdn-cache` recreated so Caddy re-read the hash map — new-hash fallback went 404 → 302, cell zip serves byte-identical to the audited copy, old-hash control unchanged. Running **unsealed** (`upstream/enabled.caddy`), deliberately: sealing is host-global and would break every other build. Prior state below.<br>**free — and the mint HAPPENED this time.** `ee001fd78fcd5e78e976d35284bd13e1caffff63`: three cell files in ONE address change — `route_b_analyze.aot` (v6→v7), `route_b_gen_dynamic_interface.aot` (`--policy`/`--manifest`), `dart2bytecode.aot` (`--resolve-private-names-in-library`). Audit clean; host path 10/10 against the published zip. **The CDN still needs a reload** for Caddy to serve the new map entry, and no Flutter checkout has been restamped — both are the next holder's, because both mutate someone's environment |
 | `R12` hermes-vps | — | — | — | **free** — additive capacity for `G4.2`'s Android half |
+| `selfhost/fixtures/flavored_app` (no `R-id`) | — | `H2` | released 2026-08-13 15:55 | **free. TREE HEALTH: GREEN** — committed at `41758dd3`; `xcodebuild -list` resolves all six flavored configurations and schemes `Bar`/`Foo`/`Runner`; the two `xcconfig`s are restored byte-exact to `41758dd3`'s content after a concurrent clobber. The generated `ios/`/`android/` are the pinned Flutter's (`c15ef637…`, verified byte-identical to a scratch regeneration, baseline `18152845…`) and are **not** overlaid — `prepare_flavored_fixture.sh` does not exist yet, so applying the overlay is still manual. **This row exists because the path had no `R-id` and therefore could not be claimed, which is exactly how two sessions took `H2` at once** — see the 2026-08-13 subsection above. Claim a path, not just an `R-id` |
 
 > **The rule has two precedents now, one in each direction.** A `G3.6a` read-only
 > `R3` claim once outlived its holder and had to be cleared by someone else — the

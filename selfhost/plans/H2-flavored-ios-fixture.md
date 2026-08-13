@@ -117,6 +117,62 @@ ios/Runner.xcodeproj` showing schemes `Bar`/`Foo`/`Runner` and the six new
 configurations. Until it lands the committed schemes reference configurations that
 do not exist, so **the overlay is incomplete and must not be described as green.**
 
+> ### ⚠ CORRECTED 2026-08-13 15:53 — the paragraph above is FALSE, and it is false in the direction that costs a session
+>
+> **The overlay's `project.pbxproj` landed in the very commit whose message says it
+> did not.** `41758dd3`'s diffstat carries
+> `ios_overlay/Runner.xcodeproj/project.pbxproj` (1217 lines) and
+> `ios_overlay/derive_overlay.py` (164 lines), because both were sitting unstaged in
+> the shared tree when that commit staged broadly — §17's 2026-08-11 hazard, second
+> instance. Measured at `41758dd3`:
+>
+> ```
+> git show HEAD:…/ios_overlay/Runner.xcodeproj/project.pbxproj | shasum -a 256
+>   3681ff26006e10efe0af0fcb1b113fd55115a9532a6ed0e007bbbaf52b2d2296
+> …| grep -oE "name = (Debug|Release|Profile)-(Foo|Bar);" | sort | uniq -c
+>   3 each of Debug-Foo Debug-Bar Release-Foo Release-Bar Profile-Foo Profile-Bar
+> ```
+>
+> Three occurrences of each name is one per configuration list — project, `Runner`,
+> `RunnerTests` — i.e. exactly the 18 blocks the paragraph above asks a next session
+> to author. **A session that follows that text writes a second transform over a
+> working one.** The derivation is `ios_overlay/derive_overlay.py`, which sha-gates
+> its input against the baseline and exits 2 on a mismatch rather than overlaying.
+>
+> **And Xcode accepts it** — the check that paragraph asks for, run 2026-08-13
+> against a scratch copy of `ios/` with the overlay applied, so the shared fixture
+> was not touched:
+>
+> ```
+> xcodebuild -list -project Runner.xcodeproj
+>   Build Configurations: Debug Release Profile Debug-Foo Debug-Bar
+>                         Release-Foo Release-Bar Profile-Foo Profile-Bar
+>   Schemes: Bar FlutterFramework FlutterGeneratedPluginSwiftPackage Foo Runner
+> ```
+>
+> `xcodeproj.dart:587-589` names the scheme `sentenceCase(flavor)` = `Foo`, and
+> `:590-598` names the configuration `Release-Foo`; both are present, so
+> `--flavor foo` can now resolve. **That earns BUILT for the overlay's structural
+> validity ONLY.** It is a project-file query, not a build: nothing here shows the
+> flavor reaching the compiler, which is step 7's `strings` grep and is still unrun.
+>
+> **Step 7's paths are now wrong, and this is the load-bearing consequence.** The
+> committed xcconfigs set `PRODUCT_NAME = flavored_probe_foo` / `_bar`, and
+> `application_package.dart:188-190` builds the artifact path as
+> `build/ios/<type>/$_appProductName.app` from exactly that setting. So step 7's
+> `build/ios/iphoneos/Runner.app/…` does not exist for a flavored build; the arms
+> are at `flavored_probe_foo.app` and `flavored_probe_bar.app`. The **no-token
+> `default-flavor` arm lands on the SAME path as the `--flavor foo` arm**, because
+> `flutter_command.dart:1503-1505` is `flavor = cliFlavor ?? defaultFlavor` and that
+> one value feeds scheme and configuration selection — so arms 1 and 3 differ in
+> what they prove, not in what they produce, and **step 7 must record the bundle
+> path per arm rather than assume one.** Two flavors also no longer collide at a
+> single `Runner.app`, which is the `G10.1 stale-ipa` class of misattribution
+> (`c57c6537`) — that is the tradeoff `PRODUCT_NAME` buys, and it is worth its cost;
+> the alternative (leave `PRODUCT_NAME` alone, keep the paths stable, accept that
+> consecutive flavor builds overwrite each other) was written and then reverted in
+> favour of the committed version, which was authored first.
+
 ## Steps
 
 1. **Create the fixture's committed sources.** `selfhost/fixtures/flavored_app/{pubspec.yaml, pubspec.lock, lib/main.dart, assets/probe.json, shorebird.yaml.template, README.md, ios_overlay/, android_overlay/}`. Mirror `airgap_app`'s committed/generated split, which `prepare_airgap_fixture.sh:19-25` states explicitly. Depth is identical, so `code_push_runtime`'s `path: ../../../packages/code_push_runtime` (`airgap_app/pubspec.yaml:26-27`) copies unchanged. `pubspec.yaml` carries `version: 1.0.0+1`, `flutter: uses-material-design: true`, `assets: [shorebird.yaml, assets/probe.json]` (the CLI refuses to build without `shorebird.yaml` declared), and **`default-flavor: foo`**. **How you know:** `flutter pub get` resolves and `git status --porcelain selfhost/fixtures/flavored_app` lists only those paths.

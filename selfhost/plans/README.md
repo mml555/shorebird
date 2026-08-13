@@ -63,8 +63,8 @@ owed real hardware; three of the top four need none.
 
 | order | what taking it gets you | status | owns | device | mint |
 |---|---|---|---|---|---|
-| [`H1`](H1-live-parameterised-target.md) | a parameterised target the app actually calls, observable in the beacon — unblocks `G3.7`'s device arm | NOT BUILT | `R6` `R8` `R1` | R1, one launch | no |
-| [`H2`](H2-flavored-ios-fixture.md) | a flavored iOS fixture — unblocks three of `G4.2`'s five arms | NOT BUILT | new fixture | no | no |
+| [`H1`](H1-live-parameterised-target.md) | a parameterised target the app actually calls, observable in the beacon — unblocks `G3.7`'s device arm | **PARTIAL** — the target went live at `08a2f3cc`; the READOUT is the gap (`_rbParam` is beaconed, never displayed, and the beacon carries no query string on this rig) | `R6` `R8` `R1` | R1, one launch | no |
+| [`H2`](H2-flavored-ios-fixture.md) | a flavored iOS fixture — unblocks three of `G4.2`'s five arms | **PARTIAL** — sources + iOS overlay landed at `41758dd3`, `xcodebuild -list` resolves all six flavored configurations; `prepare_flavored_fixture.sh` and step 7's host arms remain | new fixture | no | no |
 | [`H3`](H3-two-engine-harness.md) | two engines in one process + patch `0007`'s tests actually running — makes `G15`'s device row runnable instead of NOT RUNNABLE | NOT BUILT | `R3` `R5` | no | no |
 | [`H4`](H4-gen-snapshot-obfuscation-map.md) | decides whether obfuscated iOS patching is reachable at all, or a documented gap | NOT RUNNABLE | `R3` `R4` | later | yes |
 | [`G3.7`](G3.7-param-abi-device-gate.md) | the parameter-ABI device verdict — the last clause of the architectural question, 33.2 % of structural reach | BUILT, device owed | `R1` `R6` `R8` | **R1** | no |
