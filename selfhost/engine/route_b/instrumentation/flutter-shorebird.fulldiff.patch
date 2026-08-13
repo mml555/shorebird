@@ -1,5 +1,5 @@
 diff --git a/engine/src/flutter/shell/common/shorebird/shorebird.cc b/engine/src/flutter/shell/common/shorebird/shorebird.cc
-index a539528d9d..2d51f01090 100644
+index a539528d9d..a810ba4d59 100644
 --- a/engine/src/flutter/shell/common/shorebird/shorebird.cc
 +++ b/engine/src/flutter/shell/common/shorebird/shorebird.cc
 @@ -4,6 +4,7 @@
@@ -74,7 +74,7 @@ index a539528d9d..2d51f01090 100644
  
  class FileCallbacksImpl {
   public:
-@@ -138,6 +169,242 @@ std::string GetValueFromYaml(const std::string& yaml, const std::string& key) {
+@@ -138,6 +169,262 @@ std::string GetValueFromYaml(const std::string& yaml, const std::string& key) {
    return "";
  }
  
@@ -170,15 +170,26 @@ index a539528d9d..2d51f01090 100644
 +    << " interp_post=" << t.is_interpreted_post
 +    << " bc_size=" << t.bytecode_size
 +    << " code_pre_size=" << t.code_pre_size
-+    << " ep_post_is_interpret_call=" << t.entry_point_post_is_interpret_call;
++    << " uep_post_is_interpret_call=" << t.entry_point_post_is_interpret_call
++    << " caller_resolved=" << t.caller_resolved
++    << " caller_pool_fns=" << t.caller_pool_functions
++    << " caller_pool_matches=" << t.caller_pool_matches_target;
++  // TWO LAYERS, LABELLED AS SUCH. v1 printed Code values under `uep_*` and the
++  // resulting mismatch read as a genuine VM anomaly for an entire investigation.
 +  o << std::hex << std::showbase
++    << " fn=" << t.function_ptr
++    << " fn_ep_pre=" << t.fn_entry_point_pre
++    << " fn_ep_post=" << t.fn_entry_point_post
++    << " fn_uep_pre=" << t.fn_unchecked_entry_point_pre
++    << " fn_uep_post=" << t.fn_unchecked_entry_point_post
 +    << " code_pre=" << t.code_pre
 +    << " code_post=" << t.code_post
-+    << " ep_pre=" << t.entry_point_pre
-+    << " ep_post=" << t.entry_point_post
-+    << " uep_pre=" << t.unchecked_entry_point_pre
-+    << " uep_post=" << t.unchecked_entry_point_post
-+    << " interpret_call_ep=" << t.interpret_call_entry_point;
++    << " code_ep_pre=" << t.code_entry_point_pre
++    << " code_ep_post=" << t.code_entry_point_post
++    << " code_uep_pre=" << t.code_unchecked_entry_point_pre
++    << " code_uep_post=" << t.code_unchecked_entry_point_post
++    << " interpret_call_ep=" << t.interpret_call_entry_point
++    << " caller_pool_other_fn=" << t.caller_pool_other_fn;
 +  return o.str();
 +}
 +
@@ -247,9 +258,18 @@ index a539528d9d..2d51f01090 100644
 +        int applied = 0;
 +        for (const auto& target : container.targets) {
 +          Dart_RouteBTrace trace;
++          // Caller name deliberately NOT derived here. The obvious derivation
++          // ("routeB" + method name) is a property of one fixture, and guessing
++          // a caller inside the engine would put fixture naming into a shipped
++          // binary and quietly produce caller_resolved=0 -- or worse, resolve
++          // the WRONG function and invite a confident comparison against it.
++          // The VM side accepts a caller name when one is passed deliberately;
++          // until then the trace answers the field question, which is what is
++          // actually in doubt.
 +          const int32_t result = Dart_RouteBActivatePatchTraced(
 +              target.bytecode, static_cast<intptr_t>(target.length),
-+              target.library.c_str(), target.selector.c_str(), &trace);
++              target.library.c_str(), target.selector.c_str(), &trace,
++              nullptr);
 +          // FOR EVERY TARGET, SUCCESS INCLUDED. The success path below `continue`s,
 +          // so until now a target that "worked" contributed nothing but the
 +          // applied N/N tally — which is exactly how `applied 1/1` came to be the
@@ -317,7 +337,7 @@ index a539528d9d..2d51f01090 100644
  /// Newer api, used by Desktop implementations.
  /// Does not directly manipulate Settings.
  // TODO(eseidel): Consolidate this with the other ConfigureShorebird() API.
-@@ -256,26 +523,69 @@ void ConfigureShorebird(std::string code_cache_path,
+@@ -256,26 +543,69 @@ void ConfigureShorebird(std::string code_cache_path,
    // package:shorebird_code_push.
    // https://github.com/shorebirdtech/shorebird/issues/950
  
@@ -396,7 +416,7 @@ index a539528d9d..2d51f01090 100644
    } else {
      FML_LOG(INFO) << "Shorebird updater: no active patch.";
    }
-@@ -296,20 +606,39 @@ void ConfigureShorebird(std::string code_cache_path,
+@@ -296,20 +626,39 @@ void ConfigureShorebird(std::string code_cache_path,
      FML_LOG(INFO)
          << "Shorebird auto_update disabled, not checking for updates.";
    }

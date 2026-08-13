@@ -1,5 +1,5 @@
 diff --git a/runtime/lib/object.cc b/runtime/lib/object.cc
-index 39d530be..aaacdd6f 100644
+index 39d530be..8886bc5a 100644
 --- a/runtime/lib/object.cc
 +++ b/runtime/lib/object.cc
 @@ -4,10 +4,14 @@
@@ -28,7 +28,7 @@ index 39d530be..aaacdd6f 100644
  #include "vm/symbols.h"
  
  namespace dart {
-@@ -627,6 +635,566 @@ DEFINE_NATIVE_ENTRY(Internal_loadDynamicModule, 0, 1) {
+@@ -627,6 +635,640 @@ DEFINE_NATIVE_ENTRY(Internal_loadDynamicModule, 0, 1) {
  #endif  // defined(DART_DYNAMIC_MODULES)
  }
  
@@ -356,7 +356,16 @@ index 39d530be..aaacdd6f 100644
 +                                       intptr_t payload_length,
 +                                       const char* library_uri,
 +                                       const char* target_name,
-+                                       Dart_RouteBTrace* trace);
++                                       Dart_RouteBTrace* trace,
++                                       const char* caller_name);
++
++// Read a uword field out of a Function at the VM's OWN offset, i.e. the exact
++// bytes the generated call loads. Not an accessor on Function because adding one
++// would mean editing vm/object.h, which is a VM_SNAPSHOT_FILES member.
++static uword RouteBFunctionField(const Function& fn, intptr_t offset) {
++  return *reinterpret_cast<uword*>(static_cast<uword>(fn.ptr()) -
++                                   kHeapObjectTag + offset);
++}
 +
 +// The original four-argument entry point, unchanged in signature and behaviour.
 +//
@@ -370,7 +379,7 @@ index 39d530be..aaacdd6f 100644
 +                                             const char* library_uri,
 +                                             const char* target_name) {
 +  return Dart_RouteBActivatePatchTraced(payload, payload_length, library_uri,
-+                                        target_name, nullptr);
++                                        target_name, nullptr, nullptr);
 +}
 +
 +DART_ROUTE_B_EXPORT int32_t Dart_RouteBActivatePatchTraced(
@@ -378,7 +387,8 @@ index 39d530be..aaacdd6f 100644
 +    intptr_t payload_length,
 +    const char* library_uri,
 +    const char* target_name,
-+    Dart_RouteBTrace* trace) {
++    Dart_RouteBTrace* trace,
++    const char* caller_name) {
 +  // EVERY FIELD SET BEFORE ANY CAN BE READ. An unreached field must read as "not
 +  // observed", never as whatever the caller's stack happened to hold -- a
 +  // plausible-looking zero here would be indistinguishable from a real
@@ -392,13 +402,22 @@ index 39d530be..aaacdd6f 100644
 +        /*has_bytecode_post=*/DART_ROUTE_B_TRACE_UNSET,
 +        /*is_interpreted_pre=*/DART_ROUTE_B_TRACE_UNSET,
 +        /*is_interpreted_post=*/DART_ROUTE_B_TRACE_UNSET,
++        /*function_ptr=*/0,
 +        /*code_pre=*/0,
 +        /*code_post=*/0,
 +        /*code_pre_size=*/DART_ROUTE_B_TRACE_UNSET,
-+        /*entry_point_pre=*/0,
-+        /*entry_point_post=*/0,
-+        /*unchecked_entry_point_pre=*/0,
-+        /*unchecked_entry_point_post=*/0,
++        /*fn_entry_point_pre=*/0,
++        /*fn_entry_point_post=*/0,
++        /*fn_unchecked_entry_point_pre=*/0,
++        /*fn_unchecked_entry_point_post=*/0,
++        /*code_entry_point_pre=*/0,
++        /*code_entry_point_post=*/0,
++        /*code_unchecked_entry_point_pre=*/0,
++        /*code_unchecked_entry_point_post=*/0,
++        /*caller_resolved=*/DART_ROUTE_B_TRACE_UNSET,
++        /*caller_pool_functions=*/DART_ROUTE_B_TRACE_UNSET,
++        /*caller_pool_matches_target=*/DART_ROUTE_B_TRACE_UNSET,
++        /*caller_pool_other_fn=*/0,
 +        /*interpret_call_entry_point=*/0,
 +        /*entry_point_post_is_interpret_call=*/DART_ROUTE_B_TRACE_UNSET,
 +        /*bytecode_size=*/DART_ROUTE_B_TRACE_UNSET,
@@ -406,7 +425,8 @@ index 39d530be..aaacdd6f 100644
 +    *trace = empty;
 +  }
 +  const int32_t rc = RouteBActivatePatchImpl(payload, payload_length,
-+                                             library_uri, target_name, trace);
++                                             library_uri, target_name, trace,
++                                             caller_name);
 +  if (trace != nullptr) trace->result = rc;
 +  return rc;
 +}
@@ -415,7 +435,8 @@ index 39d530be..aaacdd6f 100644
 +                                       intptr_t payload_length,
 +                                       const char* library_uri,
 +                                       const char* target_name,
-+                                       Dart_RouteBTrace* trace) {
++                                       Dart_RouteBTrace* trace,
++                                       const char* caller_name) {
 +#if defined(DART_DYNAMIC_MODULES)
 +  Thread* thread = Thread::Current();
 +  if (thread == nullptr || thread->isolate() == nullptr) {
@@ -488,8 +509,16 @@ index 39d530be..aaacdd6f 100644
 +      trace->code_pre = static_cast<uint64_t>(original.ptr());
 +      trace->code_pre_size = original.IsNull() ? DART_ROUTE_B_TRACE_UNSET
 +                                               : original.Size();
-+      trace->entry_point_pre = static_cast<uint64_t>(target.entry_point());
-+      trace->unchecked_entry_point_pre =
++      trace->function_ptr = static_cast<uint64_t>(target.ptr());
++      // FUNCTION fields, at the VM's own offsets -- the bytes the call loads.
++      trace->fn_entry_point_pre = static_cast<uint64_t>(
++          RouteBFunctionField(target, Function::entry_point_offset()));
++      trace->fn_unchecked_entry_point_pre = static_cast<uint64_t>(
++          RouteBFunctionField(target, Function::unchecked_entry_point_offset()));
++      // CODE values, kept separate. v1 recorded these under the fn_ names.
++      trace->code_entry_point_pre =
++          original.IsNull() ? 0 : static_cast<uint64_t>(original.EntryPoint());
++      trace->code_unchecked_entry_point_pre =
 +          original.IsNull()
 +              ? 0
 +              : static_cast<uint64_t>(original.UncheckedEntryPoint());
@@ -516,12 +545,57 @@ index 39d530be..aaacdd6f 100644
 +      trace->is_interpreted_post = target.IsInterpreted() ? 1 : 0;
 +      const auto& after = Code::Handle(zone, target.CurrentCode());
 +      trace->code_post = static_cast<uint64_t>(after.ptr());
-+      trace->entry_point_post = static_cast<uint64_t>(target.entry_point());
-+      trace->unchecked_entry_point_post =
++      trace->fn_entry_point_post = static_cast<uint64_t>(
++          RouteBFunctionField(target, Function::entry_point_offset()));
++      trace->fn_unchecked_entry_point_post = static_cast<uint64_t>(
++          RouteBFunctionField(target, Function::unchecked_entry_point_offset()));
++      trace->code_entry_point_post =
++          after.IsNull() ? 0 : static_cast<uint64_t>(after.EntryPoint());
++      trace->code_unchecked_entry_point_post =
 +          after.IsNull() ? 0
 +                         : static_cast<uint64_t>(after.UncheckedEntryPoint());
++      // THE FIELD THE FAILING SITE ACTUALLY LOADS is the unchecked one, so that
++      // is what this compares -- v1 compared the normal entry and could not have
++      // caught a stale unchecked field.
 +      trace->entry_point_post_is_interpret_call =
-+          (trace->entry_point_post == trace->interpret_call_entry_point) ? 1 : 0;
++          (trace->fn_unchecked_entry_point_post ==
++           trace->interpret_call_entry_point)
++              ? 1
++              : 0;
++
++      // CALLER-SIDE IDENTITY, so no external pool reader is needed. Scan the
++      // caller's own object pool for Function entries and compare them with the
++      // Function just patched.
++      if (caller_name != nullptr) {
++        const String& cname = String::Handle(zone, String::New(caller_name));
++        const auto& caller =
++            Function::Handle(zone, ResolvePatchTarget(thread, zone, uri, cname));
++        trace->caller_resolved = caller.IsNull() ? 0 : 1;
++        if (!caller.IsNull() && caller.HasCode()) {
++          const auto& ccode = Code::Handle(zone, caller.CurrentCode());
++          const auto& pool = ObjectPool::Handle(zone, ccode.object_pool());
++          int32_t seen = 0, matches = 0;
++          if (!pool.IsNull()) {
++            auto& entry = Object::Handle(zone);
++            for (intptr_t i = 0; i < pool.Length(); i++) {
++              if (pool.TypeAt(i) != ObjectPool::EntryType::kTaggedObject) {
++                continue;
++              }
++              entry = pool.ObjectAt(i);
++              if (!entry.IsFunction()) continue;
++              seen++;
++              if (entry.ptr() == target.ptr()) {
++                matches++;
++              } else if (trace->caller_pool_other_fn == 0) {
++                trace->caller_pool_other_fn =
++                    static_cast<uint64_t>(entry.ptr());
++              }
++            }
++          }
++          trace->caller_pool_functions = seen;
++          trace->caller_pool_matches_target = matches;
++        }
++      }
 +    }
 +  }
 +  OS::PrintErr("ROUTEB: activated %s in %s before main\n", target_name,

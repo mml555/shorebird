@@ -36,10 +36,23 @@
 // Spelled out rather than reusing `DART_EXPORT`, so this header needs no
 // `dart_api.h` include and the coupling to it stays at zero. Same effect for the
 // platforms Route B builds for.
-#if defined(_WIN32)
-#define DART_ROUTE_B_EXPORT __declspec(dllexport)
+// `extern "C"` is the load-bearing half, and leaving it out cost a full iOS link:
+// the DEFINITION lives inside `namespace dart`, so without C linkage it becomes
+// `dart::Dart_RouteBActivatePatchTraced` and the embedder's call fails with
+// `undefined symbol`. `DART_EXPORT` works precisely because it expands to
+// `DART_EXTERN_C ...` -- extern "C" ignores the enclosing namespace for linkage.
+#if defined(__cplusplus)
+#define DART_ROUTE_B_EXTERN_C extern "C"
 #else
-#define DART_ROUTE_B_EXPORT __attribute__((visibility("default")))
+#define DART_ROUTE_B_EXTERN_C
+#endif
+
+#if defined(_WIN32)
+#define DART_ROUTE_B_EXPORT DART_ROUTE_B_EXTERN_C __declspec(dllexport)
+#else
+#define DART_ROUTE_B_EXPORT                                                    \
+  DART_ROUTE_B_EXTERN_C __attribute__((visibility("default")))                 \
+      __attribute((used))
 #endif
 
 #if defined(__cplusplus)
@@ -72,19 +85,46 @@ typedef struct {
   int32_t is_interpreted_pre;
   int32_t is_interpreted_post;
 
+  // THE PATCHER-SIDE FUNCTION IDENTITY. Without it the caller/patcher comparison
+  // is impossible, which is what stalled v1: the trace could say the field moved
+  // but never which OBJECT's field.
+  uint64_t function_ptr;
+
   // Code object IDENTITY, not contents: the raw pointer is enough to tell "the
   // same Code is still installed" from "a different one is".
   uint64_t code_pre;
   uint64_t code_post;
   int64_t code_pre_size;
 
-  // The active dispatch address, which is the whole question. `AttachBytecode`
-  // ends in `SetInstructions(StubCode::InterpretCall())`, so a real attach must
-  // move `entry_point_` to the InterpretCall stub.
-  uint64_t entry_point_pre;
-  uint64_t entry_point_post;
-  uint64_t unchecked_entry_point_pre;
-  uint64_t unchecked_entry_point_post;
+  // TWO LAYERS, NEVER COLLAPSED. v1 labelled Code accessors as if they were the
+  // Function's fields, and the mismatch that produced looked exactly like a real
+  // VM anomaly -- it sent an investigation after a Function-identity bug that the
+  // data never supported. The generated call reads the FUNCTION field, so that is
+  // what has to be measured; the Code values are kept beside it precisely so the
+  // two can be compared instead of confused.
+  //
+  // `fn_*` are read out of UntaggedFunction at the VM's own offsets -- the same
+  // bytes, at the same addresses, that `ldur x30,[x0,#0x7]` and `[x0,#0xf]` load.
+  uint64_t fn_entry_point_pre;
+  uint64_t fn_entry_point_post;
+  uint64_t fn_unchecked_entry_point_pre;
+  uint64_t fn_unchecked_entry_point_post;
+
+  // `code_*` are Code::EntryPoint()/UncheckedEntryPoint() -- what v1 actually
+  // recorded under the fn_ names.
+  uint64_t code_entry_point_pre;
+  uint64_t code_entry_point_post;
+  uint64_t code_unchecked_entry_point_pre;
+  uint64_t code_unchecked_entry_point_post;
+
+  // THE CALLER-SIDE IDENTITY, so the comparison needs no external pool reader.
+  // When a caller name is supplied, its Code's object pool is scanned for
+  // Function entries: how many were seen, how many are THIS target, and the
+  // first pointer that is not.
+  int32_t caller_resolved;
+  int32_t caller_pool_functions;
+  int32_t caller_pool_matches_target;
+  uint64_t caller_pool_other_fn;
 
   // The value `entry_point_post` is SUPPOSED to equal, captured in the same run
   // rather than compared against a constant recorded elsewhere — stub addresses
@@ -106,7 +146,8 @@ DART_ROUTE_B_EXPORT int32_t Dart_RouteBActivatePatchTraced(
     intptr_t payload_length,
     const char* library_uri,
     const char* target_name,
-    Dart_RouteBTrace* trace);
+    Dart_RouteBTrace* trace,
+    const char* caller_name);
 
 #if defined(__cplusplus)
 }  // extern "C"
