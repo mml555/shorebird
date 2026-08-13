@@ -198,3 +198,18 @@ d6aad559e9da328edb729d5ed7c69c21bc0380ee 69f9831c360d9152862ec3897c67fb09ae843f3
 #
 # Trace v4: exact-entry pool identity. Reads ONE global-pool entry at the measured call-site offset 0xd4a8, index via ObjectPool::IndexFromOffset. Mismatch requires two positively identified Functions; caller name removed.
 881e4129ce06e8d61019e0ed892f3be7c039763e 69f9831c360d9152862ec3897c67fb09ae843f3b
+#
+# 11e56957: the G15 iOS engine. Route B tree, incremental rebuild of
+# shell/common/shorebird/shorebird.cc carrying patch 0007 — InstallRouteBActivationHook
+# moved ABOVE the `!init_result` early return, so a SECOND FlutterEngine in one
+# process is armed too. Same byte SIZE as 881e4129's Flutter (19,071,568) and
+# DIFFERENT bytes (e828f8ef vs 396a0b0c), which is what a statement reorder looks
+# like; verified rather than assumed, because equal size invited the wrong conclusion.
+11e5695710275f829ef1e4a45636d39454ca1769 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-13 from the cell
+# manifest (see mint_route_b_cell.sh). Engine binary is 11e5695710275f829ef1e4a45636d39454ca1769's,
+# cloned byte-for-byte; only the CELL differs.
+#
+# G15 arming fix (patch 0007) + G3.7 entry-point contract (patch 0006) + analysisVersion 8
+4df8f9b6139b67d2cfe9f6aa8212372cade36278 69f9831c360d9152862ec3897c67fb09ae843f3b

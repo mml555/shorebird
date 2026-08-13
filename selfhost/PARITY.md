@@ -3124,6 +3124,45 @@ NOT RUNNABLE rather than merely unrun — the same distinction that reclassified
 sealed code-patch row from NOT VALIDATED to NOT BUILT. Say so rather than booking a
 device for it.
 
+#### THE MINT LANDED — cell identity, established once, 2026-08-13
+
+**Engine hash `4df8f9b6139b67d2cfe9f6aa8212372cade36278`.** Every gate below refers
+to this and does not re-argue it.
+
+| | |
+|---|---|
+| cell address | `4df8f9b6139b67d2cfe9f6aa8212372cade36278` (sha256 over the cell manifest, first 40 hex) |
+| iOS engine donor | `11e5695710275f829ef1e4a45636d39454ca1769` — the newly built Route B engine, published from `out/ios_release` |
+| `ios_artifacts_sha256` | `8b0ea72b80d8fbd6ae81dd0e7a8e7fded0b740c5815e4101755362ab266d7f9f`, participating in the address |
+| `dart2bytecode.aot` | `0420da14…` — patch `0006`, `G3.7`'s widened entry-point contract |
+| `route_b_analyze.aot` | `3e674b47…` — `analysisVersion` 8 |
+| Flutter binary | `e828f8ef…`, 19,071,568 bytes, Dart `6b58bb3a` |
+| `audit_route_b_compiler.sh` | **AUDIT CLEAN** — reconstructible; every recorded hash matches, and the published `ios-release/artifacts.zip` matches `ios_artifacts_sha256` |
+| `assert_diagnostic_engine.sh` | **3/3** — the `rbtrace v=` sentinel and `InterpretCall` are both present in the SHIPPED binary |
+
+**The identity chain was closed by measurement at each link, not by assumption.**
+The G15 change is an embedder-only edit, and the mint's own header records that such
+a change once "computed the SAME address for a different engine" — so three separate
+things were checked rather than inferred:
+
+1. **The build really contains it.** `shorebird.shorebird.o` was recompiled inside
+   the build window, and the resulting `Flutter` **differs** from `881e4129`'s
+   (`e828f8ef` vs `396a0b0c`) — while being the *same byte size*, 19,071,568, which
+   is exactly what moving one statement produces and exactly the coincidence that
+   would have made "same size, must be unchanged" a plausible wrong conclusion.
+2. **The published zip is that build.** The `Flutter` inside
+   `4df8f9b6/ios-release/artifacts.zip` hashes to `e828f8ef…`, equal to the built
+   binary.
+3. **The address covers it.** `ios_artifacts_sha256` is in the cell manifest, so a
+   future embedder-only change cannot reuse this address.
+
+**Mint-readiness was gated, not eyeballed.** `probes/assert_mint_ready.sh` re-derives
+the verdict from the primitives the invariant names — the ninja exit the build
+recorded with `$?` and nothing piped, plus the existence of the framework — because
+`build_ios_release.sh` exits 0 whether or not ninja succeeded. It also reports a
+DISAGREEMENT between a build's own summary line and its primitives as a defect rather
+than preferring either. **Mint only from `VERDICT=success`; `unknown` is not success.**
+
 #### `G4.2`/`G4.3`: the mismatch arms and the matching arms are DIFFERENT CLAIMS
 
 Precommitted, because conflating them is how "configuration compatibility works"
