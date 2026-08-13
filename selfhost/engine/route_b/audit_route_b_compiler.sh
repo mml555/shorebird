@@ -106,6 +106,33 @@ else
   fail "records engine ${FILED:-<none>} but is published under $HASH"
 fi
 
+# THE iOS ENGINE DIGEST, recomputed rather than trusted.
+#
+# mint_route_b_cell.sh puts ios_artifacts_sha256 into the manifest that derives the
+# address, so if the published zip and that digest ever diverge the address is
+# claiming an engine it does not have -- exactly the defect that let an
+# embedder-only change reuse address 4288817249400e62. A manifest entry nobody
+# recomputes is decoration.
+#
+# Absent for addresses minted before this existed (442860e6, 4288817..., and
+# earlier). Those keep their original semantics -- host cell only -- and are not
+# retrofitted: they are historical evidence now. So a missing entry is reported and
+# is NOT a failure.
+IOS_ZIP="$OVERLAY/flutter_infra_release/flutter/$HASH/ios-release/artifacts.zip"
+IOS_WANT=$(sed -n 's/^ios_artifacts_sha256 *: *//p' "$PROV" | head -1)
+if [[ -z "$IOS_WANT" ]]; then
+  echo "  --      no ios_artifacts_sha256 recorded (pre-dates iOS-in-address; host-cell identity only)"
+elif [[ ! -f "$IOS_ZIP" ]]; then
+  fail "records ios_artifacts_sha256 but no published ios-release/artifacts.zip"
+else
+  IOS_GOT=$(shasum -a 256 "$IOS_ZIP" | cut -d' ' -f1)
+  if [[ "$IOS_GOT" == "$IOS_WANT" ]]; then
+    ok "published ios-release/artifacts.zip matches ios_artifacts_sha256"
+  else
+    fail "ios artifacts drifted (recorded ${IOS_WANT:0:16}…, actual ${IOS_GOT:0:16}…)"
+  fi
+fi
+
 # 5. Dart revision matches the cell, when the caller knows what to expect.
 DART_REV=$(sed -nE 's/^dart revision[[:space:]]*:[[:space:]]*([0-9a-f]+).*/\1/p' "$PROV" | head -1)
 if [[ -z "$DART_REV" ]]; then

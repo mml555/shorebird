@@ -120,6 +120,7 @@ Route B producer tooling — one logical artifact, seven files.
 Never substitute any of them independently.
 
 engine revision  : $REV
+${ROUTE_B_IOS_ARTIFACTS_SHA256:+ios_artifacts_sha256 : $ROUTE_B_IOS_ARTIFACTS_SHA256}
 built            : $(date -u +%FT%TZ)
 host out         : $OUT
 dart revision    : $DART_REV

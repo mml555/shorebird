@@ -35,6 +35,7 @@ OVERLAY=${OVERLAY:-$SELFHOST/cdn/overlay}
 MAP=${MAP:-$SELFHOST/cdn/experimental_hashes.map}
 DONOR=""
 DRY=0
+IOS_ARTIFACTS=""
 NOTE=${NOTE:-}
 
 die() { echo "ERROR: $*" >&2; exit 1; }
@@ -43,6 +44,9 @@ note() { echo "==> $*"; }
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --donor) DONOR="${2:?}"; shift 2 ;;
+    # The FINAL published ios-release/artifacts.zip. Its digest joins the manifest,
+    # so the address means "this host cell AND this engine" -- see below.
+    --ios-artifacts) IOS_ARTIFACTS="${2:?}"; shift 2 ;;
     --note) NOTE="${2:?}"; shift 2 ;;
     --dry-run) DRY=1; shift ;;
     -h|--help) sed -n '3,24p' "${BASH_SOURCE[0]}"; exit 0 ;;
@@ -64,12 +68,43 @@ files=(
   "flutter_platform_strong.dill:$FLUTTER_PLATFORM"
 )
 
+# THE iOS ENGINE JOINS THE IDENTITY.
+#
+# The seven files above are the HOST compiler cell. They do not cover the iOS
+# engine, and an embedder-only change (shell/common/shorebird/shorebird.cc) moves
+# the runtime bytes while leaving every one of them byte-identical -- so the mint
+# computed the SAME address for a different engine. Measured, not supposed: a
+# --dry-run after such a change reproduced 4288817249400e62 exactly.
+#
+# That made the address claim more than its inputs supported, which is the same
+# defect as release 25's stamp claiming artifacts the cache never fetched. So the
+# digest of the FINAL PUBLISHED zip participates in the address, and is recorded
+# under its own name so provenance can be inspected rather than inferred from the
+# aggregate.
+#
+# The zip bytes, not the unpacked binary and not a directory: a re-zip is not
+# byte-identical (mtimes), so the digest must be of the artifact that actually
+# ships. This script therefore INSTALLS that exact file rather than re-creating it.
+#
+# SCOPE, stated so it is not over-read: this closes the iOS ambiguity in front of
+# us. An Android-only runtime change would leave the same hole. Either every
+# published platform artifact eventually joins the manifest, or this address is
+# defined as the Route-B/iOS cell identity. It is currently the latter.
+IOS_DIGEST=""
+if [[ -n "$IOS_ARTIFACTS" ]]; then
+  [[ -f "$IOS_ARTIFACTS" ]] || die "no iOS artifacts zip at $IOS_ARTIFACTS"
+  IOS_DIGEST=$(shasum -a 256 "$IOS_ARTIFACTS" | cut -d' ' -f1)
+fi
+
 MANIFEST=$(mktemp)
-for pair in "${files[@]}"; do
-  name=${pair%%:*}; path=${pair#*:}
-  [[ -f "$path" ]] || die "missing cell file $name at $path"
-  printf '%s %s\n' "$name" "$(shasum -a 256 "$path" | cut -d' ' -f1)"
-done | sort > "$MANIFEST"
+{
+  for pair in "${files[@]}"; do
+    name=${pair%%:*}; path=${pair#*:}
+    [[ -f "$path" ]] || die "missing cell file $name at $path"
+    printf '%s %s\n' "$name" "$(shasum -a 256 "$path" | cut -d' ' -f1)"
+  done
+  [[ -n "$IOS_DIGEST" ]] && printf 'ios_artifacts_sha256 %s\n' "$IOS_DIGEST"
+} | sort > "$MANIFEST"
 
 REV=$(shasum -a 256 "$MANIFEST" | cut -c1-40)
 note "cell manifest"
@@ -90,6 +125,21 @@ else
   # engine honest rather than approximate.
   note "cloning engine artifacts from $DONOR (APFS clone, ~0 bytes)"
   [[ "$DRY" == 1 ]] || cp -Rc "$ENGINE_SRC" "$ENGINE_DST"
+fi
+
+# THE EXACT ZIP THAT WAS HASHED, installed rather than regenerated. If these ever
+# diverge the address is a lie, so audit_route_b_compiler.sh recomputes this digest
+# and requires equality.
+if [[ -n "$IOS_ARTIFACTS" ]]; then
+  note "installing the hashed iOS artifacts.zip under $REV"
+  if [[ "$DRY" != 1 ]]; then
+    mkdir -p "$ENGINE_DST/ios-release"
+    cp "$IOS_ARTIFACTS" "$ENGINE_DST/ios-release/artifacts.zip"
+    got=$(shasum -a 256 "$ENGINE_DST/ios-release/artifacts.zip" | cut -d' ' -f1)
+    [[ "$got" == "$IOS_DIGEST" ]] || die \
+      "installed iOS artifacts digest $got != hashed $IOS_DIGEST"
+    echo "    ios-release/artifacts.zip: ${IOS_DIGEST:0:16} (verified in place)"
+  fi
 fi
 
 # The bidiff tool is engine-hash-scoped too, and a patch cannot be built
@@ -131,7 +181,10 @@ note "publishing the cell"
 if [[ "$DRY" == 1 ]]; then
   echo "    (dry run) publish_route_b_compiler.sh --rev $REV"
 else
-  "$HERE/publish_route_b_compiler.sh" --rev "$REV"
+  # The digest that DERIVED the address is the one recorded, so audit compares
+  # the published zip against the same number the identity was built from.
+  ROUTE_B_IOS_ARTIFACTS_SHA256="$IOS_DIGEST" \
+    "$HERE/publish_route_b_compiler.sh" --rev "$REV"
 fi
 
 echo

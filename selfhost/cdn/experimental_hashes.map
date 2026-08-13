@@ -170,3 +170,17 @@ ee001fd78fcd5e78e976d35284bd13e1caffff63 69f9831c360d9152862ec3897c67fb09ae843f3
 #
 # Diagnostic build: post-attach Function trace. dartaotruntime carries the instrumented libdart (lib/object.cc: Dart_RouteBActivatePatchTraced + pre/post sampling around AttachBytecode). SNAPSHOT_HASH verified UNCHANGED (old cell's dart2bytecode.aot runs under the new dartaotruntime). iOS engine artifacts must be REPUBLISHED under this hash, not donor-cloned.
 442860e6337a75a78df381d2bf60ed91e49e3d83 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-13 from the cell
+# manifest (see mint_route_b_cell.sh). Engine binary is 442860e6337a75a78df381d2bf60ed91e49e3d83's,
+# cloned byte-for-byte; only the CELL differs.
+#
+# Trace v2: Function fields and Code accessors recorded separately (v1 conflated them). Adds function_ptr, fn_ep/fn_uep pre+post read at the VM's own offsets, code_ep/code_uep kept separate; deciding comparison is fn_uep_post vs same-run InterpretCall. Caller-pool identity supported but NOT wired (no caller name passed) — those fields read UNSET.
+4288817249400e62ab2f136a913251f35ee86f0f 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-13 from the cell
+# manifest (see mint_route_b_cell.sh). Engine binary is 4288817249400e62ab2f136a913251f35ee86f0f's,
+# cloned byte-for-byte; only the CELL differs.
+#
+# Trace v2 + deliberate caller identity (RouteBThing.value -> routeBValue, diagnostic-only). FIRST address whose manifest includes ios_artifacts_sha256, so it identifies the host cell AND the iOS engine: an embedder-only change previously reproduced 4288817249400e62 for different runtime bytes.
+ffdec413f2d12a253a03753a428b8465cc8cacc3 69f9831c360d9152862ec3897c67fb09ae843f3b

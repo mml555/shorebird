@@ -116,8 +116,40 @@ def main():
             print('note: %r not found as a text symbol in the dSYM; skipping mapping'
                   % want)
 
+    # IDENTITY VERDICT, mechanical, and only when the caller was actually asked.
+    # Reported before the field verdict because once the field question is settled
+    # this is the live one.
     print()
     print('=' * 60)
+    cres = t.get('caller_resolved', UNSET)
+    if cres != UNSET:
+        seen = t.get('caller_pool_functions', UNSET)
+        matches = t.get('caller_pool_matches_target', UNSET)
+        other = t.get('caller_pool_other_fn', 0)
+        fn = t.get('fn', 0)
+        if cres == 0 or seen in (UNSET, 0):
+            print('IDENTITY UNDECIDED — caller_resolved=%s pool_functions=%s.'
+                  % (cres, seen))
+            print('Fix the measurement. Do NOT infer a mismatch from an empty scan:')
+            print('an unresolved caller and a caller with no pooled Functions are')
+            print('different failures and neither is evidence about identity.')
+            return 3
+        if matches and matches > 0:
+            print('IDENTITY MATCHES: the caller\'s pool holds the patched Function.')
+            print('  patched fn 0x%x found among %d pooled Function(s)' % (fn, seen))
+            print()
+            print('Object identity is DISPROVEN as the cause. The contradiction moves')
+            print('to how the call loads or observes that object at run time.')
+            return 0
+        print('IDENTITY MISMATCH: the caller dispatches through a DIFFERENT Function.')
+        print('  patched fn      0x%x' % fn)
+        print('  caller pool has 0x%x (and %d pooled Function(s), 0 matching)'
+              % (other, seen))
+        print()
+        print('CAUSE FOUND: ResolvePatchTarget patched one Function object while the')
+        print('caller dispatches through another representation of the same target.')
+        return 1
+
     post, expect = t.get(DECIDING[0]), t.get(DECIDING[1])
     if post is None or expect is None or post == 0 or expect == 0:
         print('UNDECIDED — %s or %s missing. Fix instrumentation before reasoning.'
