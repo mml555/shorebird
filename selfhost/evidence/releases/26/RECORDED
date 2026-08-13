@@ -45,3 +45,36 @@ NOT YET ESTABLISHED, and not to be assumed: WHY that call site bypasses it.
 with an obvious shape, and this project has retired four such. The next step is
 to look at the actual call-site instructions for routeBValue, not to reason from
 the flag's name.
+
+CALL-FORM CENSUS of this release's __text (2,331,456 bytes, 582,864 instructions)
+
+  patchable pairs   7,102   ldur lr,[x0,#7] ; blr lr   -- consults entry_point_
+  direct bl        25,494   fixed AOT target           -- NOT patchable
+  blr <reg>        22,878   register-indirect, incl. dispatch-table
+
+Patchable calls are 21.8% of direct-call sites. So --patchable_static_calls
+converts a MINORITY of calls, and "7,141 patchable sites" is a global property
+that says nothing about any particular site. The instrumentation's own threshold
+(100/MB) was only ever a yes/no on whether the flag reached gen_snapshot.
+
+STILL OPEN, and deliberately not guessed: which of these three forms the site
+`routeBValue -> RouteBThing.value` actually uses. Establishing it needs
+symbolization, and three routes were tried and failed on the preserved bytes:
+
+  nm                      4 symbols only; AOT code is one blob
+                          (_kDartIsolateSnapshotInstructions)
+  analyze_snapshot_arm64  refuses the file: it dlopen()s the dylib, and this is
+                          an iOS Mach-O ("incompatible platform ... have 'iOS',
+                          need 'macOS'")
+  split debug info        none emitted by this release
+
+Dart function NAMES are retained in the snapshot (routeBValue, routeBProbe,
+RouteBThing, value, _ProbeBodyState all present as strings), so the name table
+exists and symbolization is possible in principle.
+
+A NOTE THAT CUTS AGAINST THE OBVIOUS ANSWER. The obvious reading is "instance
+calls are not patchable". But the host probes patch an INSTANCE method --
+`_Hidden.value()` in cli_private_member.sh -- and it applies (APPLY ok, NEW-PRIV)
+under the same flag. So the call FORM is patchable in principle on host, and the
+iOS failure is not explained by "it is an instance call" alone. Worth holding
+before anyone spends a build on that hypothesis.
