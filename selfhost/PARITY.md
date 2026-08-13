@@ -3339,19 +3339,40 @@ ABI, so a failure could no longer be attributed. Interpolating the received valu
 the clean discriminator: it cannot succeed unless the argument arrived with a usable
 value, and it introduces nothing else.
 
-### The beacon's query string is not in the log — 2026-08-13
+### The beacon's query string was not in the log — FIXED 2026-08-13
 
-`cps-ios` logs `GET /selfhost-beacon/state -> 403 (0ms)`, path only. So a fixture
-value carried ONLY in the beacon's query string cannot be read back, and
-`read_beacon` in `airgap_acceptance.sh` — which greps `/selfhost-beacon/state?[^" ]*`
-— can never match that line. Any value a gate must assert has to be **displayed**
-(screenshot-readable) until the control plane logs query strings, or the endpoint
-returns something other than 403.
+`cps-ios` logged `GET /selfhost-beacon/state -> 403 (0ms)`, path only, because
+`api.dart:_logRequests` passed `req.url.path`. So a fixture value carried ONLY in the
+beacon's query string could not be read back, and `read_beacon` in
+`airgap_acceptance.sh` — which greps `/selfhost-beacon/state?[^" ]*` — could never
+match that line.
 
-This bit the `G3.7` arm directly: `paramValue`'s result was made beacon-only to avoid
-an eighth row on a 1334 px screen, and was then unobservable. Consumption
-(`--at 0xc0968` → CONSUMED) and the release specimen are both fine; only the readout
-is missing, so the arm is one fixture row away rather than blocked on anything deep.
+**This was an OBSERVATION-CHANNEL defect, not a `G3.7` mechanism block**, and the
+distinction chose the fix. The live call, the consumed result and the parameter target
+were all already established on release 37's own bytes; only the gate's ability to READ
+the outcome was missing. A displayed fixture row would also have worked, but it would
+have forced a re-cut and retired a specimen that was already qualified — pure drift for
+no new evidence. Repairing the channel keeps release 37 as the basis.
+
+`loggedRequestPath` (`api.dart`) now logs the query **for the beacon path only**. Not
+for everything: the admin surface takes `?email=`, so logging queries wholesale would
+put personal data into a log that gets tailed and pasted into issues. Measured
+immediately after, on the unpatched release-37 bundle:
+
+```
+GET /selfhost-beacon/state?release=AIRGAP-FIXTURE-V1&asset=BAKED-INTO-RELEASE
+&assets_patch=none&code_patch=none&route_b=OLD-rel&private_class=OLD-pc&param=OLD-ARG
+  -> 403 (0ms)
+```
+
+It repaired three assertions, not one: `assert_beacon` and `assert_beacon_code` in the
+sealed harness both hard-fail on an empty read (`[[ -n "$got" ]] || return 1`), so the
+broken channel made them unrunnable too. It never faked a pass — worth stating, since
+a silent-pass version of this defect would have been far worse than an unrunnable one.
+
+The `param` row is still not displayed, and no longer needs to be for the arm to run;
+it can ride the next re-cut (`H2`'s flavored fixture) since the 1334 px screen does
+have room for an eighth row.
 
 ### Consumption is not reachability
 

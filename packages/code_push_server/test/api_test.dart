@@ -3145,6 +3145,67 @@ void main() {
       expect((await patchFromList(patchId))['notes'], isNull);
     });
   });
+
+  // The request log used to record `req.url.path` only. That is right for every
+  // path but one: the air-gap fixture's beacon carries its whole payload in the
+  // query string, so a path-only line silently discarded the value the device
+  // gates read back — `GET /selfhost-beacon/state -> 403` and nothing else.
+  group('loggedRequestPath', () {
+    test('logs the query for the fixture beacon, whose query IS the payload',
+        () {
+      expect(
+        loggedRequestPath(
+          Uri.parse('selfhost-beacon/state?release=V1&param=PARAM-ARG'),
+        ),
+        'selfhost-beacon/state?release=V1&param=PARAM-ARG',
+      );
+    });
+
+    test('does NOT log the query for any other path — it carries user data', () {
+      // The admin surface really does take an email in the query. Logging
+      // queries wholesale would put personal data in a shipped log.
+      expect(
+        loggedRequestPath(Uri.parse('api/v1/admin/users?email=a@b.example')),
+        'api/v1/admin/users',
+      );
+      // Nor does a lookalike prefix opt in.
+      expect(
+        loggedRequestPath(Uri.parse('selfhost-beacons-evil?param=x')),
+        'selfhost-beacons-evil',
+      );
+    });
+
+    test('leaves probe paths byte-identical, so they stay unlogged', () {
+      // Observability._isProbe compares the WHOLE string; a suffix here would
+      // start flooding the log at the scrape interval.
+      for (final p in ['healthz', 'readyz', 'metrics']) {
+        expect(loggedRequestPath(Uri.parse(p)), p);
+      }
+    });
+
+    test('cannot be used to forge a second log line', () {
+      // Uri percent-encodes the newline before we ever see it, so the encoding
+      // is what actually holds here; the sanitizer inside loggedRequestPath is
+      // a second line of defense for a query string that did not come from Uri.
+      // Either way the property a log parser depends on is the same: one
+      // request cannot produce two lines.
+      final forged = loggedRequestPath(
+        Uri.parse('selfhost-beacon/state').replace(
+          query: 'param=a\nGET /admin -> 200 (0ms)',
+        ),
+      );
+      expect(forged, isNot(contains('\n')));
+      expect(forged, contains('%0A'));
+    });
+
+    test('clips an unbounded query', () {
+      final long = loggedRequestPath(
+        Uri.parse('selfhost-beacon/state?param=${'x' * 900}'),
+      );
+      expect(long.length, lessThan(600));
+      expect(long, endsWith('(clipped)'));
+    });
+  });
 }
 
 /// Stands in for the socket peer that `shelf_io` would supply.

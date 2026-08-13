@@ -19,6 +19,42 @@ import 'package:crypto/crypto.dart';
 import 'package:mime/mime.dart';
 import 'package:shelf/shelf.dart';
 
+/// The path of [url] as it should appear in the request log.
+///
+/// Ordinarily the path ALONE. Query strings on this API carry user data — the
+/// admin surface takes `?email=`, for one — so logging them wholesale would put
+/// personal data into a log that is shipped, tailed, and pasted into issues.
+///
+/// The air-gap fixture's beacon is the deliberate exception, and it is the
+/// reason this function exists. That beacon is a plain unauthenticated GET
+/// whose QUERY STRING *is* the payload: the device fixture reports its rendered
+/// state by asking for `/selfhost-beacon/state?release=…&param=…`, no endpoint
+/// is served (the 403 is the expected response), and the acceptance harness
+/// reads the values back out of this log line. Logging only the path made every
+/// beacon-based device assertion unrunnable — the value arrived and was thrown
+/// away one layer above where it was needed.
+///
+/// Two properties this must keep, because a log line is parsed by machines:
+///   * the query is CLIPPED, so an unbounded URL cannot write an unbounded line;
+///   * bytes outside printable ASCII become `?`, so a caller cannot inject a
+///     newline and forge a second log line. Percent-encoding normally prevents
+///     that on its own; this does not rely on it.
+String loggedRequestPath(Uri url) {
+  const beaconPrefix = 'selfhost-beacon/';
+  const maxQuery = 512;
+
+  final path = url.path;
+  final query = url.query;
+  if (query.isEmpty || !path.startsWith(beaconPrefix)) return path;
+
+  final safe = query
+      .replaceAll(RegExp(r'[^\x20-\x7E]'), '?')
+      .replaceAll('"', '%22');
+  return safe.length > maxQuery
+      ? '$path?${safe.substring(0, maxQuery)}(clipped)'
+      : '$path?$safe';
+}
+
 /// The client's network identity: the socket [remoteIp], or a hop from
 /// `X-Forwarded-For` when [isTrustedProxy] says the peer is one of our own
 /// reverse proxies (`Config.trustsProxy`).
@@ -216,7 +252,7 @@ class Api {
           sw.stop();
           obs.request(
             req.method,
-            req.url.path,
+            loggedRequestPath(req.url),
             res.statusCode,
             sw.elapsedMilliseconds,
           );
