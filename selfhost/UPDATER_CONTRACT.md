@@ -33,10 +33,15 @@ Cross-referenced against on-device observations in
 > already documents `supported_patch_kinds`, so this file also disagreed with the
 > pin manifest.
 >
-> **The server-side `api.dart:NNN` anchors throughout this document are stale**
-> and were verified wrong on 2026-08-13: that file has grown to 3074 lines and
-> the cited ranges now point at unrelated code. Locate by symbol instead —
-> `_patchesCheck`, `_isPublic`, `_signedUrl` — which do not drift.
+> **The server-side anchors were ALL stale and have been re-anchored
+> (2026-08-13).** Every `api.dart:NNN` / `repository.dart:NNN` citation in this
+> file pointed at unrelated code — that file has grown to 3074 lines, so
+> `:147-151` landed in an artifact-table comment, `:703` in a releases route and
+> `:745-753` in the IdP block. 32 citations were re-pointed and now lead with a
+> **symbol name** (`_patchesCheck`, `_patchesEvents`, `_download`, `_isPublic`,
+> `_signedUrl`, `rolledBackPatchNumbers`, `insertEvent`, `patchMetrics`) with the
+> line as a hint. **Cite the symbol, not the line** — line anchors into a file
+> this active decay within days, and a wrong anchor reads as authority.
 
 Citations use `library/src/<file>.rs:<line>` against the pinned updater commit below.
 
@@ -77,7 +82,7 @@ The updater **hardcodes** the `/api/v1/` prefix (`network.rs:15-21`):
 
 `base_url` comes from `shorebird.yaml` (`base_url:` key) or defaults to
 Shorebird's cloud. Our server routes both `/api/v1/patches/*` and bare
-`/patches/*` (`api.dart:147-151`), so both forms work; the updater only ever
+`/patches/*` (`api.dart` `_isPublic` (:369) + device router (:533)), so both forms work; the updater only ever
 sends the `/api/v1/` form.
 
 Downloads go to whatever absolute `download_url` the check response carries — a
@@ -214,11 +219,11 @@ mismatch. **Queued to disk** with
   — the patch this process is actually running (`updater.rs:409-422`).
 - It **supersedes** a legacy `patch_number` field the server may still read for
   old clients (`network.rs:250-257`). Our server accepts either plus a `0`
-  fallback (`api.dart:619-621`).
+  fallback (`api.dart:1992`).
 - `channel` is currently informational (staged rollout is future work per the
   source comment, `network.rs:236-237`), but our server DOES key patches by
   channel and does deterministic per-client rollout bucketing
-  (`api.dart:617,650-658`).
+  (`api.dart` `_patchesCheck` (:1970)).
 
 ### Response (`PatchCheckResponse`, `network.rs:288-298`)
 
@@ -285,8 +290,8 @@ server withdrew patch 2 with rollback → check returned
 Withdraw **without** rollback (number simply absent from the array) only stops
 the server offering it to new checks; already-installed devices keep running it.
 Our server distinguishes these via the `rollback` query flag on
-`/admin/.../withdraw` (`api.dart:745-753`), and `rolledBackPatchNumbers` only
-returns patches with `cp.rolled_back = true` (`repository.dart:625-631`).
+`/admin/.../withdraw` (`api.dart` withdraw branch (:2532-2556)), and `rolledBackPatchNumbers` only
+returns patches with `cp.rolled_back = true` (`repository.dart` `rolledBackPatchNumbers` (:1352)).
 
 ---
 
@@ -297,7 +302,7 @@ Exactly the `{ "event": { … } }` object from §1. One event per POST.
 `send_patch_event` builds `CreatePatchEventRequest { event }` and POSTs it as
 JSON (`network.rs:301-307`, `report_event_default` at `network.rs:136-140`).
 Unauthenticated (no bearer). Any 2xx is success; our server returns `204`
-(`api.dart:703`). Response body is ignored.
+(`api.dart` `_patchesEvents`, `204` at :2439). Response body is ignored.
 
 ### Queue / retry / offline behavior
 This is the subtle part — two different delivery paths:
@@ -329,17 +334,17 @@ This is the subtle part — two different delivery paths:
 ### Dedup identifiers
 The updater sends **no** dedup id and no idempotency key. Dedup is entirely the
 server's job. Our server derives a dedupe key from six fields
-(`api.dart:683-686`):
+(`api.dart` `_patchesEvents` (:2407+)):
 
 ```
 client_id | app_id | release_version | patch_number | type | timestamp
 ```
 
 `insertEvent` is append-only with this key as the uniqueness guard
-(`repository.dart:726`, called at `api.dart:687-698`); duplicates are ignored.
+(`repository.dart` `insertEvent` (:1497), called at `api.dart` `_patchesEvents` (:2423)); duplicates are ignored.
 This is robust for the immediate events (unique timestamps) and safe for the
 queued failure events. Malformed JSON is still stored raw with no dedupe key
-(`api.dart:700-702`).
+(`api.dart` `_patchesEvents` (:2437)).
 
 ---
 
@@ -371,11 +376,11 @@ diff, streamed to `dlc.vmcode`. On Android the base is read from the split APKs
 - **Server implication (already correct in our server):** the server can NOT
   recompute a patch's hash from the uploaded bytes (it only has the diff). Our
   server verifies **hash for release artifacts only** and **size only for patch
-  artifacts** (`api.dart:523-524`, `checkHash: art.ownerKind == 'release'`).
+  artifacts** (`api.dart:1777,1850`, `checkHash: art.ownerKind == 'release'`).
   This is the correct behavior and matches `BEHAVIORAL_FINDINGS.md`; a server
   that sha256-checked the uploaded patch diff would reject every patch. The
   CLI-provided patch `hash` (the inflate-output hash) is stored and echoed
-  verbatim in the check response (`api.dart:668`).
+  verbatim in the check response (`api.dart:2099,2164`).
 - Hash mismatch after inflate → patch marked `Bad{InstallHashMismatch}`, error
   returned, `__patch_update_failure__` queued (`updater.rs:595-607`).
 
@@ -399,7 +404,7 @@ diff, streamed to `dlc.vmcode`. On Android the base is read from the split APKs
 - If no `patch_public_key` is configured, signature verification is skipped
   (`cache/lifecycle.rs:716-722`). **Server is a pure pass-through** of
   `hash_signature` — it stores whatever the CLI registered
-  (`api.dart:439,669`) and never generates or validates signatures. Confirms
+  (`api.dart:1549` on upload, `:2099`/`:2164` on serve) and never generates or validates signatures. Confirms
   `BEHAVIORAL_FINDINGS.md`: signing is fully device-side.
 
 ### HTTP Range / resume / mid-download failure
@@ -435,7 +440,7 @@ the server offers the same `download_url` string again.
 
 > **Interaction gap with our rotating signed URLs (important):** our
 > `download_url` embeds `exp`/`sig` that **rotate on every check**
-> (`api.dart:770-773`). `decide_start` compares the stored `url` to the freshly
+> (`api.dart` `_signedUrl`, used at :2097/:2162). `decide_start` compares the stored `url` to the freshly
 > offered one by exact string (`cache/lifecycle.rs:433-434,445`). Because the
 > query string differs every check, the comparison fails → `DownloadAction::
 > Fresh` → **resume across update cycles never triggers**; the partial is
@@ -444,8 +449,8 @@ the server offers the same `download_url` string again.
 > optimization. If resume matters (large patches, flaky networks), sign a
 > **stable** URL (e.g. move `exp`/`sig` into headers, or make the signed path
 > component stable across a patch's lifetime). Our server does correctly return
-> `206` + `Content-Range` + `Accept-Ranges: bytes` (`api.dart:562-579`) and even
-> has a `fail_after` fault-injection knob (`api.dart:560,592-607`) for testing
+> `206` + `Content-Range` + `Accept-Ranges: bytes` (`api.dart` `_download` (:1889-1932)) and even
+> has a `fail_after` fault-injection knob (`api.dart` `_download`, `fail_after` at :1903) for testing
 > truncation — so the server side of resume is ready; only the URL rotation
 > undercuts it.
 
@@ -474,23 +479,23 @@ the server offers the same `download_url` string again.
 ### What the server MUST do (and does)
 | Contract requirement | Server status |
 |---|---|
-| Accept `POST /api/v1/patches/check` with the 7 request fields, treat `current_patch_number`/legacy `patch_number` as "don't offer ≤ this" | ✅ `api.dart:611-646` |
-| Respond with `patch_available` + optional `patch{number,download_url,hash,hash_signature}` + `rolled_back_patch_numbers` | ✅ `api.dart:623-672` |
-| Send a valid **hex** `hash` = the CLI-registered inflate-output hash (echo, don't recompute) | ✅ `api.dart:668` |
-| Verify **size** (not hash) for patch artifacts; hash only for release artifacts | ✅ `api.dart:523-524` — correct per contract |
-| Pass `hash_signature` through untouched | ✅ `api.dart:439,669` |
-| Serve downloads with `Content-Length`, honor `Range` with `206` + `Content-Range` + `Accept-Ranges` | ✅ `api.dart:562-589` |
-| Populate `rolled_back_patch_numbers` from patches withdrawn with rollback=true | ✅ `api.dart:637`, `repository.dart:625-631` |
-| Accept unauthenticated `POST /api/v1/patches/events` with the `{event:{…}}` wrapper, 2xx | ✅ `api.dart:675-703` (`204`) |
-| Dedup events (no client-side dedup exists) | ✅ 6-field dedupe key, `api.dart:683-686`, `repository.dart:726` |
+| Accept `POST /api/v1/patches/check` with the **8** request fields (7 + `supported_patch_kinds`; corrected 2026-08-13), treat `current_patch_number`/legacy `patch_number` as "don't offer ≤ this" | ✅ `api.dart` `_patchesCheck` (:1970) |
+| Respond with `patch_available` + optional `patch{number,download_url,hash,hash_signature,kind}` (**5** fields — `kind` added by our own fork, corrected 2026-08-13) + `rolled_back_patch_numbers` | ✅ `api.dart` `_patchesCheck` response block (:2085-2170) |
+| Send a valid **hex** `hash` = the CLI-registered inflate-output hash (echo, don't recompute) | ✅ `api.dart:2099,2164` |
+| Verify **size** (not hash) for patch artifacts; hash only for release artifacts | ✅ `api.dart:1777,1850` — correct per contract |
+| Pass `hash_signature` through untouched | ✅ `api.dart:1549` on upload, `:2099`/`:2164` on serve |
+| Serve downloads with `Content-Length`, honor `Range` with `206` + `Content-Range` + `Accept-Ranges` | ✅ `api.dart` `_download` (:1889), `206` at :1925 |
+| Populate `rolled_back_patch_numbers` from patches withdrawn with rollback=true | ✅ `api.dart:2000`, `repository.dart` `rolledBackPatchNumbers` (:1352) |
+| Accept unauthenticated `POST /api/v1/patches/events` with the `{event:{…}}` wrapper, 2xx | ✅ `api.dart` `_patchesEvents` (:2407) (`204`) |
+| Dedup events (no client-side dedup exists) | ✅ 6-field dedupe key, `api.dart` `_patchesEvents` (:2407+), `repository.dart` `insertEvent` (:1497) |
 | Store all event `type`s, including the two failure types, generically | ✅ generic `insertEvent`, won't crash on any type string |
 
 ### Gaps / recommendations (NOT changing server code — research findings)
 
 1. **Failure events are invisible in metrics (main gap).** `patchMetrics` only
    counts `__patch_download__` and `__patch_install__`
-   (`repository.dart:786-791`); the admin UI shows only downloads/installs
-   (`api.dart:893-895`). `__patch_install_failure__` and
+   (`repository.dart` `patchMetrics` (:1693)); the admin UI shows only downloads/installs
+   (`api.dart:1597`). `__patch_install_failure__` and
    `__patch_update_failure__` are **stored but never surfaced**. These are the
    most operationally important signals — they are how you detect a bad patch in
    the field. **Recommend** adding
@@ -506,7 +511,7 @@ the server offers the same `download_url` string again.
    `BEHAVIORAL_FINDINGS.md`). To close: inject a boot crash (kill the app between
    launch-start and launch-success, e.g. crash in `main()` of the patched code)
    to produce `__patch_install_failure__`; serve a corrupt/truncated patch (our
-   `fail_after` download knob, `api.dart:560`) or a wrong `hash` to produce
+   `fail_after` download knob, `api.dart` `_download` `fail_after` (:1903)) or a wrong `hash` to produce
    `__patch_update_failure__`. Note both are **queued** and arrive on the
    **following** update cycle, capped at 3 per cycle — a test must trigger a
    second check to see them, and must not queue >3.
@@ -524,7 +529,7 @@ the server offers the same `download_url` string again.
    protects against doubles; nothing protects against drops.
 
 5. **No auth on events (by design).** `/patches/events` is public
-   (`api.dart:53-66`). `client_id` is a random per-install UUID with no meaning
+   (`api.dart` `_isPublic` (:344-378)). `client_id` is a random per-install UUID with no meaning
    outside Shorebird (`network.rs:247-249`) and is spoofable. Treat event data as
    untrusted/attacker-influenceable for anything security-sensitive.
 
@@ -533,4 +538,4 @@ the server offers the same `download_url` string again.
    (`#[serde(default)]`). The server can add response fields without breaking
    old updaters. Conversely, if you rely on `current_patch_number`, remember old
    clients send the legacy `patch_number` instead — our server already handles
-   both (`api.dart:619-621`).
+   both (`api.dart:1992`).
