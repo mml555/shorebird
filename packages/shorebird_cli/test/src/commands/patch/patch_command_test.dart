@@ -1081,7 +1081,8 @@ void main() {
 
                 test('logs the real cause and exits before building', () async {
                   await expectLater(
-                    () => runWithOverrides(() => command.createPatch([patcher])),
+                    () =>
+                        runWithOverrides(() => command.createPatch([patcher])),
                     exitsWithCode(ExitCode.software),
                   );
 
