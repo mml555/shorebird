@@ -112,10 +112,39 @@ if [[ -t 1 ]]; then
 fi
 if [[ -t 0 ]]; then
   die "stdin is a TTY. Redirect it:  $0 ... < /dev/null > run.log 2>&1
-     canAcceptUserInput (shorebird_env.dart:292-293) tests stdin, not stdout."
+     canAcceptUserInput (shorebird_env.dart:327-328) tests stdin, not stdout."
 fi
 note "stdout is a TTY          : no"
-note "stdin  is a TTY          : no"
+
+# ---------------------------------------------------------------------------
+# STDIN: WHAT BASH SEES AND WHAT THE CLI SEES ARE NOT THE SAME THING, and this
+# script used to print only the first while measuring the second. MEASURED
+# 2026-08-14 on Darwin arm64 AND linux_x64 (Dart 3.12.2), both identical:
+#
+#     stdin shape        bash [ -t 0 ]     Dart stdin.hasTerminal
+#     < /dev/null        false             TRUE      <-- disagree
+#     < /dev/zero        false             TRUE      <-- disagree
+#     < regular file     false             false
+#     | pipe             false             false
+#
+# Dart classifies stdin by st_mode, not by isatty: a CHARACTER DEVICE is
+# reported as StdioType.terminal, and /dev/null is a character device. So
+# `< /dev/null` -- this script's own recommended idiom, above -- is the one
+# redirect that makes the CLI believe stdin IS a terminal.
+#
+# That is NOT a reason to stop using it. `< /dev/null` is what a cron job, a
+# systemd timer and `docker run` without `-i` actually give you, so it is the
+# realistic posture and it is the one where the hole bites. It IS a reason to
+# stop reporting it as "stdin is not a TTY", because the CLI disagrees.
+# ---------------------------------------------------------------------------
+if [[ -c /dev/stdin ]]; then
+  note "stdin  is a TTY          : no (bash isatty) / YES to the CLI -- stdin is a"
+  note "                           CHARACTER DEVICE, which Dart reports as"
+  note "                           StdioType.terminal. canAcceptUserInput is TRUE."
+  note "                           Attribute refusals to stdout, not to stdin."
+else
+  note "stdin  is a TTY          : no (bash isatty, and Dart agrees -- not a chardev)"
+fi
 
 # CI must be unset — for ATTRIBUTION, not for arm 1 (see header).
 ci_offenders=()

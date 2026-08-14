@@ -62,15 +62,23 @@ Hint: Re-run with a TTY-attached stdout, or provide the required input via a com
 
 WHY THIS REFUSAL IS ATTRIBUTABLE TO THE STREAMS
 -----------------------------------------------
+*** CORRECTED 2026-08-14 — the second line below was FALSE. See
+*** STDIN_CHARDEV_2026-08-14.txt. `< /dev/null` makes stdin.hasTerminal TRUE,
+*** because Dart classifies stdin by st_mode and /dev/null is a CHARACTER
+*** DEVICE, which it reports as StdioType.terminal. Measured on Darwin and
+*** linux_x64, both identical. So exactly ONE stream test was true, not two,
+*** and the refusals are attributable to STDOUT ALONE.
+
 In arm A no `--json` was passed and every CI-detection variable was unset (the
 preflight asserts this and was observed refusing when they are set — see the
-guard sweep). So of the four ways a run can be non-interactive, exactly two
-were true, and both are stream tests:
+guard sweep). So of the four ways a run can be non-interactive, ~~exactly two
+were true, and both are stream tests~~ **exactly one was true**:
 
   isInteractive       false because stdout is not a terminal
-                      (interactive_mode.dart:18-22)
-  canAcceptUserInput  false because stdin.hasTerminal is false
-                      (shorebird_env.dart:292-293)
+                      (interactive_mode.dart:18-22)          <-- THE REFUSAL
+  canAcceptUserInput  ~~false because stdin.hasTerminal is false~~
+                      **TRUE** — stdin was `/dev/null`, a character device
+                      (shorebird_env.dart:327-328; the :292-293 anchor drifted)
 
 `_failIfNonInteractive` (shorebird_logger.dart:135-141) therefore threw, and
 shorebird_cli_command_runner.dart:297-315 converted it — the human-readable

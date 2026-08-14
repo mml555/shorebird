@@ -1,0 +1,135 @@
+`< /dev/null` MAKES stdin.hasTerminal TRUE — the open inconsistency, resolved
+==============================================================================
+
+THE INCONSISTENCY, as it stood
+------------------------------
+Two committed claims could not both be true.
+
+  harness_arms.md:242   "patch_command.dart:402's `else if
+                         (shorebirdEnv.canAcceptUserInput)` is false in every
+                         non-interactive posture", so the release chooser is
+                         UNREACHABLE and a second release "buys nothing".
+
+  PARITY.md:2383        arm 3 ran `patch android --no-confirm`, no
+                        --release-version, stdin < /dev/null, stdout redirected
+                        -- and the log NAMED the chooser: "Which release would
+                        you like to patch?"  It was reached.
+
+Source said unreachable; the device-side log said reached. One was wrong.
+
+THE MEASUREMENT
+---------------
+A standalone Dart program, stdin varied, everything else held:
+
+  stdin shape        bash [ -t 0 ]   Dart stdin.hasTerminal   stdioType(stdin)
+  ---------------    -------------   ----------------------   ----------------
+  < /dev/null        false           TRUE                     terminal
+  < /dev/zero        false           TRUE                     terminal
+  < regular file     false           false                    file
+  | pipe             false           false                    pipe
+  0<&- (closed)      -               false                    pipe
+
+  Darwin arm64  : as above
+  linux_x64     : IDENTICAL (Dart SDK 3.12.2, /data/android/flutter/bin/dart)
+
+So this is not a macOS quirk and not a Dart-version quirk.
+
+THE MECHANISM
+-------------
+Dart classifies stdin by st_mode, NOT by isatty. A CHARACTER DEVICE is reported
+as StdioType.terminal, and /dev/null is a character device:
+
+  $ stat -f "%N: %Sp %HT" /dev/null /dev/zero
+    /dev/null: crw-rw-rw- Character Device
+    /dev/zero: crw-rw-rw- Character Device
+
+/dev/zero behaving identically is the control: it isolates "character device"
+as the cause rather than anything specific to /dev/null.
+
+This is the EXACT ANALOGUE of a hazard this fork had already found on the other
+stream and written down at interactive_mode.dart:15-17 -- "Stdout.hasTerminal is
+winsize-based, not isatty-based". Same class of bug, opposite direction: stdout's
+predicate says "not a terminal" when it is one; stdin's says "terminal" when it
+is not. The fork worked around the stdout half and did not know the stdin half
+existed.
+
+Note that `stdin.echoMode` THREW StdinException in all three redirected arms.
+echoMode calls tcgetattr, which IS isatty-accurate. The accurate probe was
+sitting next to the inaccurate one the whole time.
+
+WHICH CLAIM WAS WRONG
+---------------------
+harness_arms.md:242 was wrong, and the arm-3 log was right.
+
+Under `< /dev/null` with stdout redirected:
+
+  isInteractive        FALSE   (stdout is not a terminal)
+  canAcceptUserInput   TRUE    (stdin "is" a terminal, CI unset, no --json)
+
+so patch_command.dart:406's `else if (canAcceptUserInput)` is TAKEN, the chooser
+IS reached, chooseOne calls _failIfNonInteractive, whose guard is
+`if (isInteractive && canAcceptUserInput) return` -- false because of STDOUT --
+and it throws. Exit 64, chooser named. Every observation reconciles; only the
+explanation was wrong.
+
+detector_selftest.txt's "WHY THIS REFUSAL IS ATTRIBUTABLE TO THE STREAMS"
+section says "of the four ways a run can be non-interactive, exactly two were
+true, and both are stream tests", listing canAcceptUserInput as false "because
+stdin.hasTerminal is false". Wrong: ONE was true, not two. The refusals are
+still attributable to the streams -- but to STDOUT ALONE.
+
+WHY IT MATTERS BEYOND BOOKKEEPING
+---------------------------------
+The two branches at patch_command.dart:406 are materially different:
+
+  canAcceptUserInput TRUE  -> promptForRelease() -> non-TTY stdout -> EXIT 64
+  canAcceptUserInput FALSE -> else: "The release version to patch was not
+                              specified. Building with Flutter <v> to determine
+                              the release version..." -> THE PATCH PROCEEDS
+
+So the stdin shape alone decides between a hard failure and a working patch,
+and `< /dev/null` selects the failure.
+
+EXPOSURE, stated precisely
+--------------------------
+Real CI is mostly SAFE, for a reason unrelated to stdin: GitHub Actions and
+friends set CI=true, and canAcceptUserInput is
+`stdin.hasTerminal && !isRunningOnCI && !isJsonMode` -- isRunningOnCI rescues it.
+
+What is exposed is a non-interactive runner that does NOT set a CI variable and
+whose stdin is /dev/null:
+
+  * cron jobs and systemd timers
+  * `docker run` without -i (and without CI=true)
+  * nohup / at / a build script invoked by an agent
+
+Those get canAcceptUserInput == true and take the prompting branch.
+
+This harness reproduces that posture deliberately -- it unsets CI *for
+attribution* -- which is exactly why it tripped over the hole. The harness was
+right to use `< /dev/null`; it is what cron and docker actually hand you. It was
+wrong to REPORT it as "stdin is not a TTY" when the CLI disagrees.
+
+WHAT CHANGED
+------------
+ci_noninteractive.sh's preflight no longer prints bash's isatty verdict as if it
+were the CLI's. It now detects `[[ -c /dev/stdin ]]` and says so:
+
+  stdin  is a TTY          : no (bash isatty) / YES to the CLI -- stdin is a
+                             CHARACTER DEVICE, which Dart reports as
+                             StdioType.terminal. canAcceptUserInput is TRUE.
+                             Attribute refusals to stdout, not to stdin.
+
+Self-tested: chardev / regular file / pipe are distinguished correctly. A real
+TTY never reaches the block -- the `[[ -t 0 ]]` die at :113 fires first.
+
+`< /dev/null` is KEPT at :176 and :376. Changing it would make the harness test a
+posture no CI system produces, and would silently invalidate arm 3's result.
+
+NOT CHANGED, and deliberately
+-----------------------------
+shorebird_env.dart's predicate is upstream code. Making canAcceptUserInput
+isatty-accurate (e.g. probing echoMode, or stdioType plus a tcgetattr check) is a
+BEHAVIOUR CHANGE to the upstream CLI: it would flip cron/docker runs from "exit
+64" to "proceeds", which is almost certainly the intent but is not this lane's
+call to make silently. Recorded as a decision, not taken as a fix.

@@ -237,11 +237,22 @@ points at, and the PROVEN definition the script quotes is `:3582-3583`.)
 harness must publish **two** releases or it proves less than it appears:
 `release_chooser.dart:80-82` skips the release-selection prompt entirely when
 exactly one release exists."* The one-release short-circuit at
-`release_chooser.dart:80-82` is real, but it is **moot for a non-interactive
+`release_chooser.dart:80-82` is real, but ~~it is **moot for a non-interactive
 harness**: the chooser is never reached at all, because
 `patch_command.dart:402`'s `else if (shorebirdEnv.canAcceptUserInput)` is false
 in every non-interactive posture. Publishing a second release would buy the
-harness nothing. Proposed replacement clause:
+harness nothing.~~
+
+> **REFUTED BY MEASUREMENT 2026-08-14 — this paragraph was wrong and arm 3's log
+> was right.** `canAcceptUserInput` is **TRUE** under `< /dev/null`, because Dart
+> classifies stdin by `st_mode` and `/dev/null` is a **character device**, which
+> it reports as `StdioType.terminal` (Darwin and linux_x64, identical;
+> `/dev/zero` behaves the same, isolating chardev as the cause). So the chooser
+> **is** reached, `chooseOne` hits `_failIfNonInteractive`, and that throws
+> because **`isInteractive` is false on STDOUT** — not because of stdin. Exit 64,
+> chooser named, exactly as arm 3 recorded. The second release therefore **does**
+> buy the harness something. Full derivation and the exposure statement:
+> `STDIN_CHARDEV_2026-08-14.txt`. Proposed replacement clause:
 
 > Fully noninteractive CI patch — same. **A second release buys nothing here:**
 > `patch_command.dart:402` only reaches the release chooser when
