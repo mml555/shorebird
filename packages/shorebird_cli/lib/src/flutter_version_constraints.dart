@@ -85,30 +85,14 @@ final buildTraceSupportConstraint = FlutterSupportConstraint(
   minVersion: Version(3, 41, 7),
 );
 
-/// Flutter versions whose `gen_snapshot` understands the
-/// `--load-obfuscation-map` VM flag.
-///
-/// Background: shorebirdtech/shorebird#3864. Patching an obfuscated release
-/// replays the release's obfuscation map into the patch build via
-/// `--extra-gen-snapshot-options=--load-obfuscation-map=<map>`. That flag is
-/// a Shorebird-fork engine addition; engines older than this floor ship only
-/// `--save-obfuscation-map`, so gen_snapshot rejects the flag outright:
-///
-/// ```text
-/// Setting VM flags failed: Unrecognized flags: load_obfuscation_map
-/// Dart snapshot generator failed with exit code 255
-/// ```
-///
-/// The relevant version is the *release's* pinned Flutter revision, not the
-/// user's currently-installed pin: the patch is built with the release's
-/// toolchain.
-///
-/// If a Shorebird fork back-ports the flag into a pre-floor Flutter line, add
-/// that line's engine-bearing Flutter revisions to
-/// [FlutterSupportConstraint.allowedRevisions] rather than lowering the floor.
-final loadObfuscationMapSupportConstraint = FlutterSupportConstraint(
-  minVersion: Version(3, 44, 0),
-);
+// NOTE: `--load-obfuscation-map` support deliberately has NO constraint here,
+// and adding one would be a regression. Every other rule in this file keys off
+// a Flutter version because the capability arrives with a Flutter release; that
+// flag does not. It arrives with a minted engine cell, and two cells at the
+// *same* Flutter revision disagree about it, so any version comparison is
+// inert against it. It is measured from the gen_snapshot binary instead — see
+// `GenSnapshotProbe.supportsLoadObfuscationMap` in `gen_snapshot_probe.dart`,
+// which carries the evidence.
 
 /// Flutter versions where the Android Gradle Plugin (AGP) is the entity
 /// responsible for stripping `libapp.so` and emitting the matching

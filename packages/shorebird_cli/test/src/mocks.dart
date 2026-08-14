@@ -28,6 +28,7 @@ import 'package:shorebird_cli/src/doctor.dart';
 import 'package:shorebird_cli/src/engine_config.dart';
 import 'package:shorebird_cli/src/executables/devicectl/apple_device.dart';
 import 'package:shorebird_cli/src/executables/executables.dart';
+import 'package:shorebird_cli/src/gen_snapshot_probe.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/network_checker.dart';
 import 'package:shorebird_cli/src/os/os.dart';
@@ -113,6 +114,8 @@ class MockFile extends Mock implements File {}
 class MockFileSetDiff extends Mock implements FileSetDiff {}
 
 class MockFlavorValidator extends Mock implements FlavorValidator {}
+
+class MockGenSnapshotProbe extends Mock implements GenSnapshotProbe {}
 
 class MockGit extends Mock implements Git {}
 

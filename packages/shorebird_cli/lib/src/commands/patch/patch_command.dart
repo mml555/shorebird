@@ -18,6 +18,7 @@ import 'package:shorebird_cli/src/deployment_track.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/extensions/string.dart';
 import 'package:shorebird_cli/src/formatters/formatters.dart';
+import 'package:shorebird_cli/src/gen_snapshot_probe.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/patch_diff_checker.dart';
@@ -622,24 +623,54 @@ Building with Flutter $flutterVersionString to determine the release version...
     }
 
     // Replaying the release's obfuscation map into the patch build requires a
-    // gen_snapshot that understands --load-obfuscation-map. Engines older than
-    // loadObfuscationMapSupportConstraint only have --save-obfuscation-map and
-    // abort with "Unrecognized flags: load_obfuscation_map" (exit code 255) for
-    // every arch, deep inside the Flutter build. Refuse here instead: a
-    // rejected patch beats a confusing build failure, and dropping the map to
-    // build anyway would produce a patch obfuscated differently than the
-    // release, which is silently broken at runtime.
-    if (obfuscationMapFile != null &&
-        !await shorebirdFlutter.supportsLoadObfuscationMap(
-          flutterRevision: release.flutterRevision,
-        )) {
-      logger.err(
-        '''
-This release was built with obfuscation, but the Flutter version it was built with (revision ${release.flutterRevision}) predates support for the gen_snapshot --load-obfuscation-map flag, which is required to build a patch that matches the release's obfuscation.
-
-Patching an obfuscated release requires the release to have been built with Flutter ${loadObfuscationMapSupportConstraint.minVersion} or later. Create a new release with a newer Flutter version and patch that release instead.''',
+    // gen_snapshot that understands --load-obfuscation-map. A gen_snapshot
+    // without it aborts with "Unrecognized flags: load_obfuscation_map" (exit
+    // code 255) for every arch, deep inside the Flutter build. Refuse here
+    // instead: a rejected patch beats a confusing build failure, and dropping
+    // the map to build anyway would produce a patch obfuscated differently
+    // than the release, which is silently broken at runtime.
+    //
+    // The question is asked of the BINARY, not of a Flutter version, and the
+    // binary is the release's — `installRevision` above has already put the
+    // release's toolchain on disk, while `shorebirdEnv` is not switched over
+    // to it until the `copyWith` further down. A version gate here would be
+    // inert against the hazard it names; see
+    // GenSnapshotProbe.supportsLoadObfuscationMap for the two-cells /
+    // one-flutter-revision fact that makes that so.
+    if (obfuscationMapFile != null) {
+      final support = await genSnapshotProbe.supportsLoadObfuscationMap(
+        flutterRevision: release.flutterRevision,
+        platform: releasePlatform,
       );
-      throw ProcessExit(ExitCode.software.code);
+      switch (support) {
+        case GenSnapshotFlagSupport.absent:
+          logger.err(
+            '''
+This release was built with obfuscation, but the gen_snapshot that would build the patch does not carry the --load-obfuscation-map flag, so the patch cannot reproduce the release's obfuscation.
+
+  Release Flutter revision: ${release.flutterRevision}
+  gen_snapshot: ${genSnapshotProbe.resolveGenSnapshots(flutterRevision: release.flutterRevision, platform: releasePlatform).map((f) => f.path).join('\n                ')}
+
+The flag is an engine capability, not a Flutter version: two engines built from the same Flutter revision can differ on it. Cut a new release with an engine whose gen_snapshot carries the flag, and patch that release instead.''',
+          );
+          throw ProcessExit(ExitCode.software.code);
+        case GenSnapshotFlagSupport.indeterminate:
+          // Deliberately fail OPEN, and only here. We could not read a
+          // gen_snapshot at all, so we know nothing — and refusing on
+          // no-evidence would break working setups whose layout we simply
+          // failed to enumerate (a --local-engine tree, an arch directory
+          // that is not precached yet). Proceeding costs nothing we were not
+          // already paying: gen_snapshot rejects unknown VM flags loudly
+          // rather than ignoring them, so the worst case is today's exit-255
+          // build failure, never a silently mis-obfuscated patch. The refusal
+          // above, by contrast, fires only on measured evidence.
+          logger.warn(
+            '''
+Could not verify that gen_snapshot supports --load-obfuscation-map for Flutter revision ${release.flutterRevision}. If it does not, the patch build will fail with "Unrecognized flags: load_obfuscation_map".''',
+          );
+        case GenSnapshotFlagSupport.present:
+          break;
+      }
     }
 
     // If the user explicitly passed --obfuscate but the release has no

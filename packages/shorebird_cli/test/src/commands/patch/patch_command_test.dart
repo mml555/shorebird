@@ -19,6 +19,7 @@ import 'package:shorebird_cli/src/config/config.dart';
 import 'package:shorebird_cli/src/dart_sdk_compatibility.dart';
 import 'package:shorebird_cli/src/deployment_track.dart';
 import 'package:shorebird_cli/src/executables/executables.dart';
+import 'package:shorebird_cli/src/gen_snapshot_probe.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/patch_diff_checker.dart';
@@ -128,6 +129,7 @@ void main() {
     late Cache cache;
     late DartSdkCompatibility dartSdkCompatibility;
     late CodePushClientWrapper codePushClientWrapper;
+    late GenSnapshotProbe genSnapshotProbe;
     late ShorebirdLogger logger;
     late Patcher patcher;
     late Progress progress;
@@ -152,6 +154,7 @@ void main() {
             () => dartSdkCompatibility,
           ),
           codePushClientWrapperRef.overrideWith(() => codePushClientWrapper),
+          genSnapshotProbeRef.overrideWith(() => genSnapshotProbe),
           loggerRef.overrideWith(() => logger),
           shorebirdEnvRef.overrideWith(() => shorebirdEnv),
           shorebirdFlutterRef.overrideWith(() => shorebirdFlutter),
@@ -189,6 +192,7 @@ void main() {
       cache = MockCache();
       dartSdkCompatibility = MockDartSdkCompatibility();
       codePushClientWrapper = MockCodePushClientWrapper();
+      genSnapshotProbe = MockGenSnapshotProbe();
       logger = MockShorebirdLogger();
       progress = MockProgress();
       patcher = MockPatcher();
@@ -928,12 +932,57 @@ void main() {
           });
 
           group('when the supplement contains an obfuscation map', () {
+            // The release's Flutter revision MUST differ from the locally
+            // pinned one (`flutterRevision`, which is what
+            // `shorebirdEnv.flutterRevision` returns until the `copyWith`
+            // near the end of createPatch). Reusing one constant for both
+            // makes `verify(... flutterRevision: X)` unable to tell the two
+            // sources apart, so a gate that read the LOCAL pin — a real bug,
+            // since the pin is still local at that point in createPatch —
+            // would pass the test. Keep these distinct.
+            const obfuscatedReleaseFlutterRevision =
+                'release-pinned-revision-not-the-local-one';
+            final obfuscatedRelease = Release(
+              id: release.id,
+              appId: appId,
+              version: releaseVersion,
+              flutterRevision: obfuscatedReleaseFlutterRevision,
+              flutterVersion: flutterVersion,
+              displayName: '1.2.3+1',
+              platformStatuses: const {releasePlatform: ReleaseStatus.active},
+              createdAt: DateTime(2023),
+              updatedAt: DateTime(2023),
+            );
+
             // Wire up extractZip to actually write the obfuscation_map.json
             // so PatchCommand's `if (obfuscationMapFile != null)` block
-            // fires. The flutter-version gating that drops --strip on
-            // Android 3.44+ depends on `release.flutterRevision` resolving
-            // to a Version, so we mock that per-test.
+            // fires.
             setUp(() {
+              expect(
+                obfuscatedRelease.flutterRevision,
+                isNot(flutterRevision),
+                reason:
+                    '''the release revision and the local pin must be distinguishable''',
+              );
+              when(
+                () => codePushClientWrapper.getRelease(
+                  appId: any(named: 'appId'),
+                  releaseVersion: any(named: 'releaseVersion'),
+                ),
+              ).thenAnswer((_) async => obfuscatedRelease);
+              when(
+                () => codePushClientWrapper.getReleases(
+                  appId: any(named: 'appId'),
+                ),
+              ).thenAnswer((_) async => [obfuscatedRelease]);
+              when(
+                () => logger.chooseOne<Release>(
+                  any(),
+                  choices: any(named: 'choices'),
+                  display: any(named: 'display'),
+                  hint: any(named: 'hint'),
+                ),
+              ).thenReturn(obfuscatedRelease);
               when(
                 () => artifactManager.extractZip(
                   zipFile: any(named: 'zipFile'),
@@ -947,10 +996,17 @@ void main() {
                 ).writeAsStringSync('{}');
               });
               when(
-                () => shorebirdFlutter.supportsLoadObfuscationMap(
+                () => genSnapshotProbe.supportsLoadObfuscationMap(
                   flutterRevision: any(named: 'flutterRevision'),
+                  platform: any(named: 'platform'),
                 ),
-              ).thenAnswer((_) async => true);
+              ).thenAnswer((_) async => GenSnapshotFlagSupport.present);
+              when(
+                () => genSnapshotProbe.resolveGenSnapshots(
+                  flutterRevision: any(named: 'flutterRevision'),
+                  platform: any(named: 'platform'),
+                ),
+              ).thenReturn([File('/path/to/gen_snapshot')]);
             });
 
             test(
@@ -1002,14 +1058,15 @@ void main() {
             );
 
             group(
-              '''when the release's engine does not support --load-obfuscation-map''',
+              '''when the release's gen_snapshot does not carry --load-obfuscation-map''',
               () {
                 setUp(() {
                   when(
-                    () => shorebirdFlutter.supportsLoadObfuscationMap(
+                    () => genSnapshotProbe.supportsLoadObfuscationMap(
                       flutterRevision: any(named: 'flutterRevision'),
+                      platform: any(named: 'platform'),
                     ),
-                  ).thenAnswer((_) async => false);
+                  ).thenAnswer((_) async => GenSnapshotFlagSupport.absent);
                   // Stubbed so that, absent the capability check, the patch
                   // would build and upload normally: these tests must fail
                   // because the CLI failed to refuse, not because a
@@ -1034,15 +1091,20 @@ void main() {
                   expect(
                     message,
                     contains(
-                      '''predates support for the gen_snapshot --load-obfuscation-map flag''',
+                      '''does not carry the --load-obfuscation-map flag''',
                     ),
                   );
-                  expect(message, contains(release.flutterRevision));
                   expect(
                     message,
-                    contains(
-                      '''Flutter ${loadObfuscationMapSupportConstraint.minVersion} or later''',
-                    ),
+                    contains(obfuscatedRelease.flutterRevision),
+                  );
+                  // The message must name the binary that was interrogated,
+                  // not a version floor: the reader needs to know which
+                  // gen_snapshot answered.
+                  expect(message, contains('/path/to/gen_snapshot'));
+                  expect(
+                    message,
+                    contains('an engine capability, not a Flutter version'),
                   );
 
                   // The whole point of the check is to fail before the build:
@@ -1059,7 +1121,7 @@ void main() {
                 });
 
                 test(
-                  '''is checked against the release's Flutter revision, not the local pin''',
+                  '''is probed for the release's Flutter revision, not the local pin''',
                   () async {
                     await expectLater(
                       () => runWithOverrides(
@@ -1068,13 +1130,70 @@ void main() {
                       exitsWithCode(ExitCode.software),
                     );
 
+                    // Distinct values, so this cannot pass if the
+                    // implementation reads shorebirdEnv.flutterRevision.
                     verify(
-                      () => shorebirdFlutter.supportsLoadObfuscationMap(
-                        flutterRevision: release.flutterRevision,
+                      () => genSnapshotProbe.supportsLoadObfuscationMap(
+                        flutterRevision: obfuscatedReleaseFlutterRevision,
+                        platform: releasePlatform,
                       ),
                     ).called(1);
+                    verifyNever(
+                      () => genSnapshotProbe.supportsLoadObfuscationMap(
+                        flutterRevision: flutterRevision,
+                        platform: any(named: 'platform'),
+                      ),
+                    );
                   },
                 );
+              },
+            );
+
+            group(
+              '''when gen_snapshot support cannot be determined''',
+              () {
+                setUp(() {
+                  when(
+                    () => genSnapshotProbe.supportsLoadObfuscationMap(
+                      flutterRevision: any(named: 'flutterRevision'),
+                      platform: any(named: 'platform'),
+                    ),
+                  ).thenAnswer(
+                    (_) async => GenSnapshotFlagSupport.indeterminate,
+                  );
+                  when(
+                    () => shorebirdFlutter.shouldPreStripLibappInGenSnapshot(
+                      platform: any(named: 'platform'),
+                      flutterRevision: any(named: 'flutterRevision'),
+                    ),
+                  ).thenAnswer((_) async => true);
+                });
+
+                test('warns and proceeds with the patch', () async {
+                  await runWithOverrides(() => command.createPatch(patcher));
+
+                  final message =
+                      verify(() => logger.warn(captureAny())).captured.last
+                          as String;
+                  expect(
+                    message,
+                    contains(
+                      '''Could not verify that gen_snapshot supports --load-obfuscation-map''',
+                    ),
+                  );
+                  expect(
+                    message,
+                    contains(obfuscatedRelease.flutterRevision),
+                  );
+                  verify(
+                    () => patcher.createPatchArtifacts(
+                      appId: appId,
+                      releaseId: obfuscatedRelease.id,
+                      releaseArtifact: any(named: 'releaseArtifact'),
+                      supplementDirectory: any(named: 'supplementDirectory'),
+                    ),
+                  ).called(1);
+                });
               },
             );
           });
