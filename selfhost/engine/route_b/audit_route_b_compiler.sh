@@ -15,7 +15,17 @@
 #   * a platform dill that is not the one the release was compiled against
 #   * a dart revision that does not match the engine cell
 #
-# So this proves the CONTENTS. Six checks, and AUDIT CLEAN means the cell can be
+# THE THIRD BULLET WAS NAMED HERE AND NOT ACTUALLY CHECKED, for as long as this
+# script has existed. Check 3 compared flutter_platform_strong.dill only against
+# the bundle's OWN PROVENANCE.txt -- self-consistency, not agreement with what a
+# build downloads. Measured 2026-08-14: every published cell serves a
+# flutter_patched_sdk_product.zip whose platform_strong.dill is 55e02ed8 with
+# `attachBytecodeToFunction` x0, while the dill that COMPUTED those same cell
+# addresses is 9f5a5f75 with x8. The address certified one dill for months while
+# the download delivered another, and this audit said CLEAN throughout. Check 4b
+# below is that missing comparison; see evidence/g15/hooks_delivery_verdict.txt.
+#
+# So this proves the CONTENTS. Seven checks, and AUDIT CLEAN means the cell can be
 # rebuilt and would produce the same compiler -- not that a file is there.
 #
 #   audit_route_b_compiler.sh --hash <engineRevision> [--dart-rev <sha>]
@@ -131,6 +141,52 @@ else
   else
     fail "ios artifacts drifted (recorded ${IOS_WANT:0:16}…, actual ${IOS_GOT:0:16}…)"
   fi
+fi
+
+# 4b. THE DILL THE ADDRESS CERTIFIES MUST BE THE DILL A BUILD DOWNLOADS.
+#
+# `flutter_platform_strong.dill` is one of the seven files that COMPUTE the cell
+# address (mint_route_b_cell.sh:31,68). Separately, an app's release kernel is
+# compiled against `flutter_patched_sdk_product/platform_strong.dill`, taken from
+# the zip published beside the engine under that same address --
+# artifacts.dart:757 and :1323 select the `_product` variant for BuildMode.release.
+# Nothing held those two in agreement, and they are not in agreement: the mint
+# APFS-clones the donor cell's copy (mint_route_b_cell.sh:127) and the original
+# came from publish_ios_overlay.sh's HOST_REL default, which points at a DIFFERENT
+# TREE (R4's out/host_release_arm64_nodm) from the one the iOS engine is built in.
+#
+# Consequence, and it is why this is a FINDING and not a note: a dart:ui or
+# dart:_internal change made in the tree that owns the engine does not reach any
+# app built against the cell, while every audit reports CLEAN. That is the same
+# shape as sky_engine serving stock Dart-SDK patch sources under self-hosted
+# hashes -- one level further down, in the artifact that every release consumes.
+#
+# THIS CHECK IS EXPECTED TO FIRE ON EVERY CELL MINTED BEFORE THE PUBLICATION
+# REPAIR. That is the point: it converts a silent divergence into a loud one. Do
+# not suppress it to restore a green line.
+PSDK_ZIP="$OVERLAY/flutter_infra_release/flutter/$HASH/flutter_patched_sdk_product.zip"
+CELL_DILL="$W/flutter_platform_strong.dill"
+if [[ ! -f "$CELL_DILL" ]]; then
+  echo "  --      no flutter_platform_strong.dill in the bundle to compare against"
+elif [[ ! -f "$PSDK_ZIP" ]]; then
+  fail "no published flutter_patched_sdk_product.zip -- release builds fall through to STOCK"
+else
+  PD=$(mktemp -d)
+  if unzip -q -o "$PSDK_ZIP" 'flutter_patched_sdk_product/platform_strong.dill' \
+       -d "$PD" 2>/dev/null &&
+     [[ -f "$PD/flutter_patched_sdk_product/platform_strong.dill" ]]; then
+    SERVED=$(shasum -a 256 "$PD/flutter_patched_sdk_product/platform_strong.dill" |
+             cut -d' ' -f1)
+    CELLD=$(shasum -a 256 "$CELL_DILL" | cut -d' ' -f1)
+    if [[ "$SERVED" == "$CELLD" ]]; then
+      ok "served platform dill is the one the address was computed over"
+    else
+      fail "PLATFORM DILL SPLIT: address computed over ${CELLD:0:16}…, builds download ${SERVED:0:16}… — a dart:ui/dart:_internal change in the engine's tree does NOT reach apps built on this cell"
+    fi
+  else
+    fail "published flutter_patched_sdk_product.zip carries no platform_strong.dill"
+  fi
+  rm -rf "$PD"
 fi
 
 # 5. Dart revision matches the cell, when the caller knows what to expect.
