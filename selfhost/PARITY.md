@@ -2692,7 +2692,7 @@ checked:
 | ☐ | Add-to-app passes on iOS | §9 |
 | ☐ | CI / noninteractive workflow passes | §10 |
 | ☐ | Rollback / rejection / failure matrix passes | §5 |
-| ☐ | **A Dart-phase crash backs the patch out** | §14b, `G15` |
+| ☐ | **A Dart-phase crash backs the patch out** — **MEASURED AND FAILING 2026-08-14, on device.** Patch `0009` moved launch-success out of the `Shell` constructor to `Engine::Run` returning, and that is STILL TOO EARLY: `Run` reports the entrypoint was *invoked*, not that it succeeded, so a patch throwing inside `main()` records **three consecutive SUCCESSES** while Dart fails every time — `last_booted_patch: 1`, `boot_attempt_count: 0`, patch `Installed`, no `PatchInstallFailure` queued. The failure is not slow to detect, it is INVISIBLE to the mechanism. Evidence: `evidence/g15/crashbackout_verdict.txt` + the device state beside it | §14b, `G15` |
 | ☐ | **Two engines in one process run the same program version** | §14b, `G15` |
 | ☐ | Every unsupported upstream workflow is explicitly documented rather than silently failing | this file |
 
@@ -3341,6 +3341,30 @@ confirmed: reading "one report" as "one engine armed" would have been wrong twic
 **Still open in `G15`'s wider project:** crash-backout and restart-required (§14b's
 other two symptoms) share `ReportLaunchSuccess` in the `Shell` constructor and are
 untouched by `0007` or by this gate.
+
+> **BOTH SYMPTOMS ATTACKED 2026-08-14, ONE CLOSED AND ONE MEASURED FAILING.** Cell
+> `80e493e4` carries patch `0009` (bank launch success when `Engine::Run` returns,
+> not in the `Shell` constructor) and `0010` (retry below a boot-attempt threshold
+> instead of tombstoning on a single un-succeeded boot).
+>
+> **The false-backout arm PASSES on device, twice.** A GOOD patch killed inside the
+> success window stayed `Installed` and ran: `route B value: NEW-kill` after each
+> kill, corroborated by the device's own `patches/1/state.json` (`Installed`, not
+> `Bad{BootCrash}`), `last_booted_patch: 1`, and an EMPTY `queued_events`. The
+> `boot_attempt_count` / `last_boot_attempt_patch` fields exist in that device's
+> `pointers.json` at all only because `0010` added them, which is independent proof
+> of which engine ran. `evidence/g15/arm2_verdict.txt`.
+>
+> **Crash-backout FAILS, and `0009`'s seam is the reason.** `Engine::Run` returns
+> `Success` when the entrypoint is INVOKED, regardless of what the isolate then does,
+> so a patch throwing inside `main()` banked three successes while crashing every
+> launch. `0009` is strictly better than the constructor and still not far enough.
+> `evidence/g15/crashbackout_verdict.txt`.
+>
+> **One decision to re-open rather than inherit:** first-frame was refuted as the
+> seam because it widens the false-backout window — correct at the time, and that
+> risk is now MITIGATED by `0010`'s counter, which did not exist when the objection
+> was made. Re-examine it rather than treating it as settled.
 
 **THE SHARED BOOKING CARRIES TWO INDEPENDENT PAYLOADS** — `G3.7`'s remaining
 parameter-shape arms and this gate — with **separate releases, specimens and
