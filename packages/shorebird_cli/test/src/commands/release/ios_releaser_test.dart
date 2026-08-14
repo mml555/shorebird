@@ -759,6 +759,12 @@ $body
               engineRevision: any(named: 'engineRevision'),
             ),
           ).thenAnswer((_) async => _cell(cellDirectory));
+          // `flavor` is named in these stubs on purpose. Without it a FLAVORED
+          // release matches neither, both return null, and `_declareRetention`
+          // returns before it reaches the private-enumeration decision at
+          // all --
+          // so the whole Route B retention path would be silently unexercised
+          // for exactly the configuration G4.2 exists to get right.
           when(
             () => routeBReleaseKernelBuilder.buildPrepass(
               compiler: any(named: 'compiler'),
@@ -797,6 +803,7 @@ $body
               entrypoint: any(named: 'entrypoint'),
               buildArgs: any(named: 'buildArgs'),
               outputFile: any(named: 'outputFile'),
+              flavor: any(named: 'flavor'),
             ),
           ).thenAnswer((invocation) {
             final out = invocation.namedArguments[#outputFile] as File
@@ -1238,6 +1245,61 @@ $body
               });
             },
           );
+
+          test('compiles EVERY import kernel with the flavor', () async {
+            // THE DEFECT THIS PINS. 25f8a3b8 threaded the resolved flavor into
+            // "all three places that decide what a patch is checked and bound
+            // against" -- but cd453304 had already added a fourth, the EARLY
+            // import kernel, and it was missed.
+            //
+            // Why it matters more than an ordinary omission: that kernel is the
+            // private-ENUMERATION source. Without the define a flavored release
+            // would name its private surface from a kernel compiled against a
+            // different Dart program than the one it shipped, and would then
+            // check that kernel against a prepass that does carry the define.
+            //
+            // Asserting over ALL the build calls rather than one is what makes
+            // this discriminate: a single-element `contains` would have passed
+            // against the broken code, because the OTHER call site was already
+            // correct.
+            final flavored = IosReleaser(
+              argResults: argResults,
+              flavor: 'prod',
+              target: null,
+            );
+
+            await runWithOverrides(flavored.buildReleaseArtifacts);
+
+            final flavors = verify(
+              () => routeBReleaseKernelBuilder.build(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: any(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+                flavor: captureAny(named: 'flavor'),
+              ),
+            ).captured;
+            // Two: the early one before the interface, and the supplement copy
+            // after the real build. Pinned as a count so a future call site
+            // cannot be added without either carrying the flavor or failing
+            // here.
+            expect(flavors, hasLength(2));
+            expect(flavors, everyElement('prod'));
+
+            // And the prepass, which decides retention, agrees with them.
+            final prepassFlavors = verify(
+              () => routeBReleaseKernelBuilder.buildPrepass(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: any(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+                flavor: captureAny(named: 'flavor'),
+              ),
+            ).captured;
+            expect(prepassFlavors, everyElement('prod'));
+          });
 
           test(
             'falls back to the prepass, and still releases, on disagreement',

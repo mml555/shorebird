@@ -528,6 +528,23 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
       projectRoot: projectRoot,
       entrypoint: target ?? p.join('lib', 'main.dart'),
       buildArgs: buildArgs,
+      // G4.2, and this call site was MISSED by the commit that made the rule.
+      // 25f8a3b8 says it threaded the flavor into "all three places that decide
+      // what a patch is checked and bound against" — but cd453304 had already
+      // created a FOURTH, and this is it. The consequence is specific to what
+      // this kernel is for: it is the private-ENUMERATION source, so
+      // without the define a flavored release would name its private
+      // surface from a kernel
+      // compiled against a different Dart program than the one it shipped, and
+      // would then compare that kernel against a prepass that does carry the
+      // define. Both halves of the guard read the wrong program.
+      //
+      // It cannot fail a release — every branch below falls back — which is
+      // exactly what makes it worth pinning: the failure mode is a SILENT
+      // narrowing back to prepass-only enumeration, and prepass-only
+      // enumeration is the thing that does not build on a real app
+      // (PARITY.md section 4).
+      flavor: _resolvedFlavor,
       outputFile: File(p.join(work.path, 'early_import.dill')),
     );
 
