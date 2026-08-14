@@ -82,10 +82,41 @@ was right about the risk and the risk is now MITIGATED by the counter this same
 session added. A design decision made before a mitigation existed should be re-opened
 once it does.
 
-CONTROL NOT RUN
----------------
-That the PATCH causes the crash is inferred, not directly controlled: the same
-fixture on the previous release rendered normally with a patch applied (arm 2, taps 2
-and 4 showed NEW-kill), the only change here is this patch, and the patch is Installed
-and selected. A direct control would roll the patch back and confirm the app renders
-again. Worth doing before anyone treats the causation as measured.
+THE CONSEQUENCE, AND IT IS WORSE THAN THE ARM IT CAME FROM
+----------------------------------------------------------
+A BAD PATCH IS UNRECOVERABLE ON DEVICE. Measured, not predicted:
+
+1. The client never backs it out — that is this verdict. Three successes banked while
+   Dart crashed, count 0, no PatchInstallFailure.
+2. THE SERVER CANNOT RESCUE IT EITHER. The patch was withdrawn with rollback=true
+   (`POST /admin/apps/<app>/patches/60/withdraw?channel=stable&rollback=true` ->
+   `{"withdrawn":true,"rolled_back":true}`), and the app STILL crashed on every
+   launch afterwards. Withdrawal only helps a device that lives long enough to poll,
+   and this one dies inside `main()`.
+
+So the install sits in a PERMANENT CRASH LOOP. It was cleared only by wiping the
+updater state over USB:
+
+  ios-deploy --bundle_id dev.selfhost.killswitchProbe \
+    --rmtree "/Library/Application Support/shorebird"
+
+A REAL USER HAS NO SUCH RECOURSE. For them the app is dead until they delete and
+reinstall it, losing local data.
+
+That reframes the gap. Crash-backout is not a safety net that merely does not fire
+yet — it is the ONLY thing between a bad patch and a bricked install, because the
+server-side path structurally cannot reach a client that crashes before it polls.
+Any decision to ship Route B patches to real users should treat this as the blocking
+item, not as an outstanding nice-to-have.
+
+CONTROL NOT COMPLETED
+---------------------
+That the PATCH causes the crash remains INFERRED, not measured. The inference is
+strong — the same fixture on the previous release rendered normally with a patch
+applied (arm 2's taps 2 and 4 showed NEW-kill), the only change is this patch, and
+the patch was Installed and selected — but it is still an inference.
+
+The control was set up and NOT read: after `--rmtree` cleared the updater state the
+app should boot the release cleanly, and a render of `boot: boot-ok` / `OLD-kill`
+would settle it. That launch was not observed, so nothing here upgrades the
+attribution. Whoever picks this up: one tap closes it.
