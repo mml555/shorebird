@@ -214,13 +214,30 @@ Wrapping this call site answers all four:
 | 3 coverage | the `catch` sits INSIDE the closure, so it observes the throw **before** `_onError`/`PlatformDispatcher.onError` can consume it. Not app-controllable |
 | 4 `async main` | capture the discarded return value; if it is a `Future`, bank on its **completion** and report failure on its **error**. That is completion of startup work, not its scheduling |
 
-Feasibility, stated honestly: `hooks.dart` ships in `sky_engine`, and this fork
-already builds and serves its own `sky_engine.zip` from the overlay (`R11`, cell
-`40eaa0ef`), with the CONSUMED copy verified to carry our modifications. So the
-delivery channel exists and is audited. **But no existing patch touches
-`hooks.dart`** — this would be the first, and `R3` must confirm the patched
-`hooks.dart` actually reaches the AOT kernel the release compiles against. Until
-that is confirmed the candidate is *located*, not *built*.
+#### Delivery is a GATE, and it comes BEFORE the design — not a caveat inside it
+
+`hooks.dart` ships in `sky_engine`, and this fork already builds and serves its
+own `sky_engine.zip` from the overlay (`R11`, cell `40eaa0ef`), with the CONSUMED
+copy verified to carry our modifications. So a channel exists and is audited.
+**But no existing patch touches `hooks.dart`**, and "the channel exists" is not
+"this file reaches the release".
+
+**Prove consumption before designing around it.** Designing a seam on an
+unproven delivery path is how a session spends a mint discovering its premise was
+wrong — and `sky_engine` has already produced exactly that failure once, when
+stock Dart-SDK patch sources were being served AND consumed under our own hashes
+while the overlay looked clean.
+
+The proof is cheap, host-only, and needs no device and no mint: put a **uniquely
+greppable marker** in `hooks.dart` (a string constant or a distinctly named
+private symbol), build a release through the normal path, and show the marker in
+the **release's own kernel/AOT output** — not merely in
+`bin/cache/pkg/sky_engine/...`, which is the cache the earlier hole hid in.
+Presence in the cache proves publication; presence in the built release proves
+consumption, and only the second one licenses the design.
+
+Until that passes, the `_runMain` candidate is *located*, not *built*, and the
+seam design stays on paper.
 
 #### The one open question on this candidate, recorded rather than assumed
 

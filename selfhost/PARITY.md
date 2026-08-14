@@ -3144,8 +3144,9 @@ the evidence points elsewhere, and every rung is a mint plus a scarce device gat
 > |---|---|---|
 > | **1** | **`G15` fixture repair** — `killswitch_probe`'s alternating marker must move on an UNPATCHED release | **BLOCKING. Until it passes, no crash-backout device result is admissible** |
 > | **2** | **`G15` clean-release control** — unpatched release → marker moves → expected UI (`boot-ok` / `OLD-kill`) | restores attribution capability; the run on 2026-08-14 could not |
-> | **3** | **`G15` seam** — build and prove the `_runMain` wrapper candidate, answering the same four questions of whatever fallback it needs | the C++ `OnHandleMessage` seam FAILED three of the four; see the plan |
-> | **4** | **`G15` three-arm hardware gate** — good→success, throw→positive failure + backout, kill-before-signal→retry (re-earning `0010` at the later seam) | same repaired fixture and instrument; **every arm asserts marker movement before UI is read** |
+> | **3** | **`G15` delivery proof** — show a uniquely greppable marker placed in `hooks.dart` reaches the **built release's** kernel/AOT, not merely `bin/cache/pkg/sky_engine/` | host-only, no device, no mint. **Gates the design, not just the build** — the cache is where the earlier stock-sources hole hid |
+> | **4** | **`G15` seam** — build and prove the `_runMain` wrapper candidate, answering the same four questions of whatever fallback the non-returning-`main` case needs | the C++ `OnHandleMessage` seam FAILED three of the four; see the plan |
+> | **5** | **`G15` three-arm hardware gate** — good→success, throw→positive failure + backout, kill-before-signal→retry (re-earning `0010` at the later seam) | same repaired fixture and instrument; **every arm asserts marker movement before UI is read** |
 > | 5+ | `G3.6e`, `G3.7`, static-vs-instance widening | **HELD.** They increase what can be patched; `G15` determines whether a failed patch can be told from a good one |
 >
 > **Rationale, restated because the old one no longer holds:** the current
