@@ -2278,14 +2278,14 @@ The Route B worry is resolved in our favour, and that part survived re-checking.
 | | item |
 |---|---|
 | ☐ | **INHERITED** Upstream Dart package / API |
-| ☐ | **NOT VALIDATED** Check for update manually |
-| ☐ | **NOT VALIDATED** Download update manually |
-| ☐ | **NOT VALIDATED** Disable the automatic update flow |
-| ☐ | **NOT VALIDATED** Android manual update path |
+| ✅ | **PROVEN 2026-08-14 on `R2`** Check for update manually — `checkForUpdate()` returned **`UpdateStatus.outdated`** on CPH2551 against a real published patch, before `update()` was pressed. Fixture `manual_api_app` (release 3.0.0+1, patch 1). `evidence/android/g8-manual-api/` |
+| ✅ | **PROVEN 2026-08-14 on `R2`** Download update manually — `update()` staged the patch: `next patch: 1` while `current patch: none`, then `current patch: 1` after restart. **The number alone is not the evidence** (outcome 9: `readCurrentPatch` is already exercised by every airgap release) — the fixture records the value BEFORE the call (`before update(): none`) and the CODE marker moved `MANUALAPI-V1` → `V2`, so patched code demonstrably ran. `evidence/android/g8-manual-api/` |
+| ✅ | **PROVEN 2026-08-14 on `R2`** Disable the automatic update flow — with `auto_update: false` the app was installed and launched **twice** while patch 1 was already published, and applied nothing (`current: none`, `next: none`). Only the explicit `update()` staged it. One launch would not have shown this. `evidence/android/g8-manual-api/` |
+| ✅ | **PROVEN 2026-08-14 on `R2`** Android manual update path — the whole sequence above ran end to end on CPH2551 against `cps-android`, with the APK taken from the **registered** release artifact rather than the local build tree (`shorebird patch android` rewrites it — see G10.2's finding). `evidence/android/g8-manual-api/` |
 | ☐ | **NOT VALIDATED** iOS Route B manual update path |
 | 🐞 | **KNOWN GAP** Restart-required / update-state behavior — `G15`'s, and out of scope for §8. **CAUSE CORRECTED 2026-08-13:** this row said "decided by the same **once-per-process activation guard**" as §5 and §9, and that phrase is one this file already retracted — nothing is armed once per process; arming is attempted on every `ConfigureShorebird`, and it was the *early return* above it, gated on an updater init that fails on its second call, that skipped it (fixed by patch `0007`, its three arming tests executing per patch `0008`). The row's conclusion is unchanged and still right; only the mechanism it names was stale. Repeating a retracted cause is how a reader re-derives a bug that was already found |
 
-**Manual API parity: UNVALIDATED.**
+**Manual API parity: the four DRIVABLE rows are PROVEN on Android (2026-08-14); the iOS row and the restart-required KNOWN GAP are untouched.** The run used `UpdateTrack.stable`; driving a NAMED track is what `G6`'s device row additionally needs and was NOT exercised here.
 
 > **`G8 · manual-api` — goal:** an app that drives updates itself, rather than
 > letting the updater do it, behaves the same on our stack as on upstream's.
