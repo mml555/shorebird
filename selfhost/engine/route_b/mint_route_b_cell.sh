@@ -168,8 +168,20 @@ else
     {
       echo
       echo "# Route B compiler cell, minted $(date -u +%Y-%m-%d) from the cell"
-      echo "# manifest (see mint_route_b_cell.sh). Engine binary is $DONOR's,"
-      echo "# cloned byte-for-byte; only the CELL differs."
+      echo "# manifest (see mint_route_b_cell.sh)."
+      # The donor's engine binary is cloned ONLY when no new iOS artifact set was
+      # supplied. With --ios-artifacts the binary genuinely CHANGED and its digest
+      # participates in the cell address, so claiming "cloned byte-for-byte" here
+      # would put a false provenance statement into the map — the one file whose
+      # entire job is to say what a hash contains. Caught 2026-08-14 minting
+      # 80e493e4, whose Flutter differs from its donor's by 1,216 bytes.
+      if [[ -n "$IOS_ARTIFACTS" ]]; then
+        echo "# Engine binary CHANGED: iOS artifacts supplied via --ios-artifacts,"
+        echo "# sha256 $IOS_DIGEST, which participates in this cell's address."
+        echo "# Donor $DONOR supplied every OTHER engine artifact."
+      else
+        echo "# Engine binary is $DONOR's, cloned byte-for-byte; only the CELL differs."
+      fi
       [[ -n "$NOTE" ]] && echo "#"
       [[ -n "$NOTE" ]] && printf '# %s\n' "$NOTE"
       echo "$REV $FALLBACK"

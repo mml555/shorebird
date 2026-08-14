@@ -215,8 +215,27 @@ d6aad559e9da328edb729d5ed7c69c21bc0380ee 69f9831c360d9152862ec3897c67fb09ae843f3
 4df8f9b6139b67d2cfe9f6aa8212372cade36278 69f9831c360d9152862ec3897c67fb09ae843f3b
 
 # Route B compiler cell, minted 2026-08-14 from the cell
-# manifest (see mint_route_b_cell.sh). Engine binary is 4df8f9b6139b67d2cfe9f6aa8212372cade36278's,
-# cloned byte-for-byte; only the CELL differs.
+# manifest (see mint_route_b_cell.sh).
+# CORRECTED 2026-08-14, retroactively and by the same defect found one cell later:
+# the script emitted "Engine binary is 4df8f9b6...'s, cloned byte-for-byte; only
+# the CELL differs", and this entry CONTRADICTS ITSELF two lines down by saying
+# "only the iOS zip moves". The iOS zip is where gen_snapshot lives, so it did
+# NOT clone byte-for-byte — that is the whole reason this cell exists. Left
+# annotated rather than rewritten: this cell is PROVEN lineage (release 39,
+# obfuscated patch on device) and a reader who trusted the old sentence needs to
+# see that it changed.
 #
 # gen_snapshot learns --load-obfuscation-map (patch 0008). Host files identical to 4df8f9b6; only the iOS zip moves.
 40eaa0ef6cb6485833bf2e10ac97224ca82cbf25 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-14 from the cell
+# manifest (see mint_route_b_cell.sh).
+# CORRECTED BY HAND 2026-08-14: the script emitted "Engine binary is
+# 40eaa0ef...'s, cloned byte-for-byte; only the CELL differs", which is FALSE for
+# this mint. The engine binary CHANGED — Flutter is 19072784 bytes here against
+# the donor's 19071568 — and was supplied via --ios-artifacts, so its digest
+# participates in this cell's address. Donor 40eaa0ef supplied every OTHER
+# engine artifact. The script now emits this distinction itself.
+#
+# G15: launch success banked when Engine::Run returns (0009) + boot-attempt threshold (0010)
+80e493e4c5c9e4c418c433bf660392067a131dd5 69f9831c360d9152862ec3897c67fb09ae843f3b
