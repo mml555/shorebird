@@ -93,10 +93,16 @@ words:
   - Dedup
   - dedupe
   - deflavored
+  - DPROBE
   - fingerprintable
+  - GENKERNEL
+  - Pdart
+  - PKGCFG
   - prepass # Route B: the retention-deciding kernel compiled before the build
+  - probeapp
   - rstrip # Python, in probe helpers
   - startswith # Python, in probe helpers
+  - synthesised
   - unfingerprintable
   - unforwardable
   - xcconfig # Xcode build-setting file

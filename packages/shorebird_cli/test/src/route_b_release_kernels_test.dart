@@ -81,6 +81,74 @@ void main() {
         );
       });
 
+      test('carries the defines FLUTTER injects, which no user typed', () {
+        // G4.1c. Flutter appends these after parsing the command line
+        // (`flutter_command.dart` _addFlutterVersionToDartDefines), so the
+        // shipped kernel has them and, until this landed, no Route B kernel did.
+        // Measured on a CLEAN `flutter create` app -- no flavor, no
+        // --dart-define -- where the release still receives six.
+        expect(
+          RouteBReleaseKernelBuilder.forwardedArgs(
+            const [],
+            injectedDefines: const {
+              'FLUTTER_VERSION': '3.44.8',
+              'FLUTTER_ENGINE_REVISION': '11e5695710',
+            },
+          ),
+          const [
+            '-DFLUTTER_VERSION=3.44.8',
+            '-DFLUTTER_ENGINE_REVISION=11e5695710',
+          ],
+        );
+      });
+
+      test('emits nothing extra when no injected map is supplied', () {
+        // THE NEGATIVE CONTROL for the test above, and the state this fixed.
+        // Without it, the assertion there would pass just as well against an
+        // implementation that emitted FLUTTER_* defines unconditionally from a
+        // hard-coded list -- which is precisely the hand-reconstruction this
+        // seam exists to avoid.
+        expect(RouteBReleaseKernelBuilder.forwardedArgs(const []), isEmpty);
+        expect(
+          RouteBReleaseKernelBuilder.forwardedArgs(
+            const [],
+            injectedDefines: const {},
+          ),
+          isEmpty,
+        );
+      });
+
+      test('leaves an ordinary user define untouched by the injected set', () {
+        // THE CONTROL the brief requires: threading Flutter's defines must not
+        // change how a user's own define is carried. Same input, same output,
+        // with and without the injected map.
+        const userOnly = ['--dart-define=API=https://x'];
+        expect(
+          RouteBReleaseKernelBuilder.forwardedArgs(userOnly),
+          const ['-DAPI=https://x'],
+        );
+        expect(
+          RouteBReleaseKernelBuilder.forwardedArgs(
+            userOnly,
+            injectedDefines: const {'FLUTTER_VERSION': '3.44.8'},
+          ),
+          const ['-DFLUTTER_VERSION=3.44.8', '-DAPI=https://x'],
+        );
+      });
+
+      test('still appends the resolved flavor LAST', () {
+        // The injected map must not displace the flavor from the end of the
+        // list, where gen_kernel's last-wins handling is what makes it decisive.
+        expect(
+          RouteBReleaseKernelBuilder.forwardedArgs(
+            const ['--dart-define=API=https://x'],
+            flavor: 'prod',
+            injectedDefines: const {'FLUTTER_VERSION': '3.44.8'},
+          )!.last,
+          '-DFLUTTER_APP_FLAVOR=prod',
+        );
+      });
+
       test('declines entirely on an option it cannot carry', () {
         // Flutter parses --dart-define-from-file's .json/.env shapes with its
         // own rules. Reimplementing that to expand it into -D flags is exactly
@@ -193,6 +261,58 @@ void main() {
           capturedArgs(buildArgs: ['--dart-define=FLAVOR=prod']),
           contains('-DFLAVOR=prod'),
         );
+      });
+
+      test('carries the injected defines into the IMPORT kernel', () {
+        // G4.1c. A patch is COMPILED AND BOUND against this kernel, so a define
+        // the release had and this lacks makes the patch a different program
+        // from the one it is replacing bodies in.
+        late List<String> args;
+        runWithOverrides(
+          () => const RouteBReleaseKernelBuilder().build(
+            compiler: compiler(),
+            projectRoot: projectRoot,
+            entrypoint: 'lib/main.dart',
+            buildArgs: const [],
+            outputFile: output,
+            injectedDefines: const {'FLUTTER_VERSION': '3.44.8'},
+            run: (executable, arguments) {
+              args = arguments;
+              output.writeAsStringSync('KERNEL');
+              return ProcessResult(0, 0, '', '');
+            },
+          ),
+        );
+
+        expect(args, contains('-DFLUTTER_VERSION=3.44.8'));
+        // The negative half: the SAME call without the map must not carry it,
+        // or the assertion above cannot fail and certifies nothing.
+        expect(capturedArgs(), isNot(contains('-DFLUTTER_VERSION=3.44.8')));
+      });
+
+      test('carries the injected defines into the PREPASS', () {
+        // The prepass decides RETENTION -- what a future patch is allowed to
+        // name. Route B's own coverage analyzer reports `main` as CHANGED
+        // between a prepass compiled with these and one compiled without, on an
+        // app with no flavor and no user defines at all.
+        late List<String> args;
+        runWithOverrides(
+          () => const RouteBReleaseKernelBuilder().buildPrepass(
+            compiler: compiler(),
+            projectRoot: projectRoot,
+            entrypoint: 'lib/main.dart',
+            buildArgs: const [],
+            outputFile: output,
+            injectedDefines: const {'FLUTTER_VERSION': '3.44.8'},
+            run: (executable, arguments) {
+              args = arguments;
+              output.writeAsStringSync('KERNEL');
+              return ProcessResult(0, 0, '', '');
+            },
+          ),
+        );
+
+        expect(args, containsAll(['--aot', '-DFLUTTER_VERSION=3.44.8']));
       });
 
       test('returns null and warns when the frontend fails', () {

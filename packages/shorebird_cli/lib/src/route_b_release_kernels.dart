@@ -132,6 +132,7 @@ class RouteBReleaseKernelBuilder {
     List<String> buildArgs, {
     String? flavor,
     String? workingDirectory,
+    Map<String, String>? injectedDefines,
   }) {
     // FILE DEFINES FIRST, mirroring `extractDartDefines`, which emits every
     // file entry ahead of every `--dart-define`. gen_kernel is last-wins
@@ -143,7 +144,17 @@ class RouteBReleaseKernelBuilder {
       workingDirectory: workingDirectory,
     );
     if (!expansion.ok) return null;
+    // G4.1c: the defines FLUTTER injects, which the user never typed and which
+    // this list carried none of until now. Emitted first because their position
+    // is unobservable -- Flutter refuses a build whose user defines collide with
+    // any of these keys, so no later `-D` can ever overwrite one.
+    //
+    // A null map is NOT "no injected defines": it means the caller could not
+    // read Flutter's answer, and callers that cannot read it decline to produce
+    // a kernel at all rather than compile the wrong program quietly.
     final forwarded = [
+      for (final entry in (injectedDefines ?? const <String, String>{}).entries)
+        '-D${entry.key}=${entry.value}',
       for (final entry in expansion.defines.entries)
         '-D${entry.key}=${entry.value}',
     ];
@@ -177,6 +188,7 @@ class RouteBReleaseKernelBuilder {
     required List<String> buildArgs,
     required File outputFile,
     String? flavor,
+    Map<String, String>? injectedDefines,
     RouteBKernelRunner run = Process.runSync,
   }) => _compile(
     compiler: compiler,
@@ -185,6 +197,7 @@ class RouteBReleaseKernelBuilder {
     buildArgs: buildArgs,
     outputFile: outputFile,
     flavor: flavor,
+    injectedDefines: injectedDefines,
     // The only intentional difference from the release's own compilation.
     modeArgs: const ['--no-aot', '--no-link-platform'],
     run: run,
@@ -199,8 +212,13 @@ class RouteBReleaseKernelBuilder {
     required List<String> modeArgs,
     required RouteBKernelRunner run,
     String? flavor,
+    Map<String, String>? injectedDefines,
   }) {
-    final extraArgs = forwardedArgs(buildArgs, flavor: flavor);
+    final extraArgs = forwardedArgs(
+      buildArgs,
+      flavor: flavor,
+      injectedDefines: injectedDefines,
+    );
     if (extraArgs == null) {
       logger.warn(
         '''This release uses ${routeBUnforwardableOptions.join(', ')}, whose values cannot be carried into the kernel a patch would be compiled against. Patches for it will be refused.''',
@@ -293,6 +311,7 @@ ${result.stderr}''',
     required List<String> buildArgs,
     required File outputFile,
     String? flavor,
+    Map<String, String>? injectedDefines,
     RouteBKernelRunner run = Process.runSync,
   }) => _compile(
     compiler: compiler,
@@ -300,6 +319,7 @@ ${result.stderr}''',
     entrypoint: entrypoint,
     buildArgs: buildArgs,
     flavor: flavor,
+    injectedDefines: injectedDefines,
     outputFile: outputFile,
     // --aot, because the interface should describe what a RELEASE contains.
     // A non-AOT kernel lists members AOT would tree-shake, and retaining those

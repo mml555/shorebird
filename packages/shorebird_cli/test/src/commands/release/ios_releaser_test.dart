@@ -711,6 +711,23 @@ $body
         );
 
         /// Write an App binary containing [sites] patchable call sequences.
+        /// Writes the `DART_DEFINES` line the way Flutter writes it — base64
+        /// `K=V`, comma separated (`build_info.dart:396`) — into the file
+        /// Flutter writes it to.
+        ///
+        /// This is the release's own answer about which defines it compiled
+        /// with, and G4.1c reads it rather than reconstructing the values.
+        void writeGeneratedXcconfig(Map<String, String> defines) {
+          final encoded = defines.entries
+              .map((e) => base64.encode(utf8.encode('${e.key}=${e.value}')))
+              .join(',');
+          File(
+              p.join(projectRoot.path, 'ios', 'Flutter', 'Generated.xcconfig'),
+            )
+            ..createSync(recursive: true)
+            ..writeAsStringSync('DART_DEFINES=$encoded\n');
+        }
+
         void writeAppBinary({required int sites}) {
           final words = Uint32List(1024 * 32)
             ..fillRange(0, 1024 * 32, 0xD503201F);
@@ -754,6 +771,50 @@ $body
           when(
             () => shorebirdEnv.buildDirectory,
           ).thenReturn(Directory(p.join(projectRoot.path, 'build')));
+          // G4.1c. Every Route B release now asks Flutter for the defines it
+          // injects BEFORE the prepass, because the prepass decides retention
+          // and must describe the program that ships. The answer comes from the
+          // `DART_DEFINES` line Flutter itself writes, so the group stubs the
+          // `--config-only` pass that writes it and the file it lands in.
+          //
+          // Stubbed for the WHOLE group for the same reason `flavor` above is:
+          // `_declareRetention` returns early when the answer cannot be read, so
+          // without this every retention assertion below would pass vacuously by
+          // never reaching the code it names.
+          when(
+            () => shorebirdEnv.getFlutterProjectRoot(),
+          ).thenReturn(projectRoot);
+          // Naming the project root above makes `_resolveAppleFlavor` reach
+          // `xcodebuild -list` where it previously short-circuited, so the
+          // group needs a default: the scheme is spelled like the token, which
+          // is the ordinary Xcode case. The one test that exists BECAUSE the
+          // two can diverge overrides this with 'Foo'.
+          when(
+            () => xcodeBuild.flavorScheme(
+              projectPath: any(named: 'projectPath'),
+              flavor: any(named: 'flavor'),
+            ),
+          ).thenAnswer(
+            (invocation) async =>
+                invocation.namedArguments[#flavor] as String? ?? '',
+          );
+          writeGeneratedXcconfig(const {
+            'FLUTTER_VERSION': '3.44.8',
+            'FLUTTER_ENGINE_REVISION': '11e5695710',
+          });
+          when(
+            () => shorebirdProcess.run(
+              any(),
+              any(),
+              workingDirectory: any(named: 'workingDirectory'),
+            ),
+          ).thenAnswer(
+            (_) async => ShorebirdProcessResult(
+              exitCode: 0,
+              stdout: '',
+              stderr: '',
+            ),
+          );
           when(
             () => routeBCompilerResolver.resolve(
               engineRevision: any(named: 'engineRevision'),
@@ -779,6 +840,7 @@ $body
               buildArgs: any(named: 'buildArgs'),
               outputFile: any(named: 'outputFile'),
               flavor: any(named: 'flavor'),
+              injectedDefines: any(named: 'injectedDefines'),
             ),
           ).thenAnswer((invocation) {
             final out = invocation.namedArguments[#outputFile] as File
@@ -810,6 +872,7 @@ $body
               buildArgs: any(named: 'buildArgs'),
               outputFile: any(named: 'outputFile'),
               flavor: any(named: 'flavor'),
+              injectedDefines: any(named: 'injectedDefines'),
             ),
           ).thenAnswer((invocation) {
             final out = invocation.namedArguments[#outputFile] as File
@@ -931,6 +994,7 @@ $body
                 buildArgs: any(named: 'buildArgs'),
                 outputFile: any(named: 'outputFile'),
                 flavor: captureAny(named: 'flavor'),
+                injectedDefines: any(named: 'injectedDefines'),
               ),
             ).captured;
             expect(captured.first, equals('Foo'));
@@ -950,6 +1014,7 @@ $body
                 entrypoint: any(named: 'entrypoint'),
                 buildArgs: any(named: 'buildArgs'),
                 outputFile: any(named: 'outputFile'),
+                injectedDefines: any(named: 'injectedDefines'),
               ),
             ).called(1);
             // ONE build. `capturedBuildArgs` verifies it exactly once, so a
@@ -1022,6 +1087,7 @@ $body
                 entrypoint: any(named: 'entrypoint'),
                 buildArgs: any(named: 'buildArgs'),
                 outputFile: any(named: 'outputFile'),
+                injectedDefines: any(named: 'injectedDefines'),
               ),
             ).thenReturn(null);
 
@@ -1068,6 +1134,7 @@ $body
                 entrypoint: any(named: 'entrypoint'),
                 buildArgs: any(named: 'buildArgs'),
                 outputFile: any(named: 'outputFile'),
+                injectedDefines: any(named: 'injectedDefines'),
               ),
             ).thenAnswer((invocation) {
               final out = invocation.namedArguments[#outputFile] as File;
@@ -1179,6 +1246,7 @@ $body
                 entrypoint: captureAny(named: 'entrypoint'),
                 buildArgs: any(named: 'buildArgs'),
                 outputFile: any(named: 'outputFile'),
+                injectedDefines: any(named: 'injectedDefines'),
               ),
             ).captured.cast<String>();
             expect(entrypoints, isNotEmpty);
@@ -1196,6 +1264,7 @@ $body
                 entrypoint: any(named: 'entrypoint'),
                 buildArgs: any(named: 'buildArgs'),
                 outputFile: any(named: 'outputFile'),
+                injectedDefines: any(named: 'injectedDefines'),
               ),
             ).thenReturn(null);
 
@@ -1252,6 +1321,92 @@ $body
             },
           );
 
+          test('threads the defines FLUTTER injected into EVERY kernel', () async {
+            // G4.1c, and the defect it pins is not a flavored edge case.
+            // Measured on a clean `flutter create` app with no flavor and no
+            // `--dart-define` at all, the shipped release still receives six
+            // defines (FLUTTER_VERSION and siblings) that no Route B kernel had
+            // — and Route B's OWN coverage analyzer reports `main` as CHANGED
+            // between a prepass compiled with them and one compiled without.
+            //
+            // Asserting over ALL THREE call sites rather than one is what makes
+            // this discriminate: the prepass decides retention, the early import
+            // kernel is the private-enumeration source, and the supplement copy
+            // is what a patch binds against. A kernel missing from this list is
+            // a kernel describing a different program.
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            const expected = {
+              'FLUTTER_VERSION': '3.44.8',
+              'FLUTTER_ENGINE_REVISION': '11e5695710',
+            };
+
+            final prepassDefines = verify(
+              () => routeBReleaseKernelBuilder.buildPrepass(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: any(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+                flavor: any(named: 'flavor'),
+                injectedDefines: captureAny(named: 'injectedDefines'),
+              ),
+            ).captured;
+            expect(prepassDefines, [expected]);
+
+            final importDefines = verify(
+              () => routeBReleaseKernelBuilder.build(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: any(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+                flavor: any(named: 'flavor'),
+                injectedDefines: captureAny(named: 'injectedDefines'),
+              ),
+            ).captured;
+            // Two: the early enumeration source and the supplement copy. Pinned
+            // as a count so a fourth call site cannot appear without either
+            // carrying the map or failing here.
+            expect(importDefines, hasLength(2));
+            expect(importDefines, everyElement(expected));
+          });
+
+          test("declines retention when Flutter's answer cannot be read", () async {
+            // THE CONTROL that makes the test above mean something, and the
+            // safety property of the whole seam: an unreadable answer must NOT
+            // collapse into "no injected defines". Compiling the prepass with an
+            // empty set is exactly the bug being closed, done silently — so the
+            // release proceeds (it is a good, installable release) and simply
+            // declares no retention.
+            File(
+              p.join(projectRoot.path, 'ios', 'Flutter', 'Generated.xcconfig'),
+            ).deleteSync();
+
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            verifyNever(
+              () => routeBReleaseKernelBuilder.buildPrepass(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: any(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+                flavor: any(named: 'flavor'),
+                injectedDefines: any(named: 'injectedDefines'),
+              ),
+            );
+            verify(
+              () => logger.warn(
+                any(
+                  that: contains(
+                    'Could not read the defines Flutter injects into this build',
+                  ),
+                ),
+              ),
+            ).called(1);
+          });
+
           test('compiles EVERY import kernel with the flavor', () async {
             // THE DEFECT THIS PINS. 25f8a3b8 threaded the resolved flavor into
             // "all three places that decide what a patch is checked and bound
@@ -1284,6 +1439,7 @@ $body
                 buildArgs: any(named: 'buildArgs'),
                 outputFile: any(named: 'outputFile'),
                 flavor: captureAny(named: 'flavor'),
+                injectedDefines: any(named: 'injectedDefines'),
               ),
             ).captured;
             // Two: the early one before the interface, and the supplement copy
@@ -1302,6 +1458,7 @@ $body
                 buildArgs: any(named: 'buildArgs'),
                 outputFile: any(named: 'outputFile'),
                 flavor: captureAny(named: 'flavor'),
+                injectedDefines: any(named: 'injectedDefines'),
               ),
             ).captured;
             expect(prepassFlavors, everyElement('prod'));

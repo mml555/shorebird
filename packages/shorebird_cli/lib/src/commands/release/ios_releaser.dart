@@ -12,6 +12,7 @@ import 'package:shorebird_cli/src/commands/release/releaser.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/doctor.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
+import 'package:shorebird_cli/src/flutter_injected_defines.dart';
 import 'package:shorebird_cli/src/flutter_version_constraints.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform/apple/apple.dart';
@@ -24,6 +25,7 @@ import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/executables/executables.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
+import 'package:shorebird_cli/src/shorebird_process.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
 import 'package:shorebird_cli/src/validators/validators.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
@@ -317,6 +319,82 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
   /// already was: no Route B artifacts and `buildConfig: null`, which the patch
   /// side already handles as "permanently not comparable". So a wrong expansion
   /// costs patchability, never a wrong patch.
+  /// The defines Flutter injects into this build, read from Flutter's own
+  /// answer and shared by all three Route B kernels.
+  ///
+  /// Resolved ONCE, for the same reason the compiler cell is: the prepass, the
+  /// early import kernel and the supplement's import kernel must describe one
+  /// program, and three independent reads are three chances to describe three.
+  Map<String, String>? _injectedDefines;
+
+  /// Asks Flutter to resolve this build's defines without building anything.
+  ///
+  /// WHY FLUTTER IS ASKED RATHER THAN IMITATED. The six values are not derivable
+  /// from anything this CLI already knows, and each has a failure mode that
+  /// produces a plausible wrong answer — `FLUTTER_ENGINE_REVISION` in particular
+  /// comes from the engine's own `engine_stamp.json` and is NOT
+  /// `shorebirdEnv.shorebirdEngineRevision`. `flutter_injected_defines.dart`
+  /// records each trap with its source line.
+  ///
+  /// `--config-only` is what makes asking cheap: the `configOnly` early return
+  /// (`ios/mac.dart:375`) sits AFTER `updateGeneratedXcodeProperties` (`:347`),
+  /// so Flutter writes its resolved `DART_DEFINES` and stops before compiling.
+  ///
+  /// No user define arguments are passed, deliberately: `_addFlutterVersionToDartDefines`
+  /// and `_addFeatureFlagsToDartDefines` read only `globals.flutterVersion` and
+  /// `flutter config`, never a build argument, so the injected set is invariant
+  /// across them — and forwarding a `--dart-define-from-file` here would make a
+  /// bad file fail this step instead of the check that exists to report it.
+  Future<Map<String, String>?> _resolveInjectedDefines() async {
+    final root = shorebirdEnv.getFlutterProjectRoot();
+    if (root == null) return null;
+
+    final ShorebirdProcessResult result;
+    try {
+      result = await process.run('flutter', [
+        'build',
+        'ios',
+        '--config-only',
+        '--no-codesign',
+      ], workingDirectory: root.path);
+    } on Exception {
+      return null;
+    }
+    if (result.exitCode != 0) return null;
+
+    return FlutterInjectedDefines.fromGeneratedXcconfig(
+      File(p.join(root.path, 'ios', 'Flutter', 'Generated.xcconfig')),
+    );
+  }
+
+  /// Whether the injected defines the kernels were compiled with are still the
+  /// ones Flutter used for the REAL build, which rewrote the same file.
+  ///
+  /// This is what keeps the pre-build read from being a guess. It is the same
+  /// shape as [_defineExpansionDisagreement] and lands in the same place: a
+  /// disagreement costs patchability, never correctness.
+  String? _injectedDefineDisagreement() {
+    final used = _injectedDefines;
+    if (used == null) return null;
+
+    final root = shorebirdEnv.getFlutterProjectRoot();
+    if (root == null) return null;
+    final shipped = FlutterInjectedDefines.fromGeneratedXcconfig(
+      File(p.join(root.path, 'ios', 'Flutter', 'Generated.xcconfig')),
+    );
+    if (shipped == null) {
+      return "Flutter's injected defines could not be re-read after the build";
+    }
+
+    final disagreeing = <String>[
+      for (final key in {...used.keys, ...shipped.keys})
+        if (used[key] != shipped[key]) key,
+    ]..sort();
+    if (disagreeing.isEmpty) return null;
+    return 'the defines Flutter injected changed between this release\'s '
+        'kernels and its build, on: ${disagreeing.join(', ')}';
+  }
+
   String? _defineExpansionDisagreement(List<String> buildArgs) {
     if (DartDefineFromFileExpansion.pathsIn(buildArgs).isEmpty) return null;
 
@@ -383,7 +461,12 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
     // what shipped". Captured here, while it is unambiguously the release's.
     // Measured before anything is recorded, because its answer decides whether
     // this release is patchable at all.
-    final defineDisagreement = _defineExpansionDisagreement(buildArgs);
+    final defineDisagreement =
+        _defineExpansionDisagreement(buildArgs) ??
+        // G4.1c: the injected map was read from a `--config-only` pass BEFORE
+        // this build. The real build rewrote the same file, so this is the read
+        // that turns the earlier one from a guess into a measurement.
+        _injectedDefineDisagreement();
 
     final artifacts = <String, String>{};
     if (defineDisagreement != null) {
@@ -498,6 +581,10 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
       // was handed exactly this.
       entrypoint: target ?? p.join('lib', 'main.dart'),
       buildArgs: buildArgs,
+      // G4.1c: a patch BINDS against this kernel, so it carries the same
+      // injected defines the release compiled with -- the map read before the
+      // prepass, so all three kernels describe one program.
+      injectedDefines: _injectedDefines,
       // G4.2: a patch BINDS against this kernel, so it must carry the release's
       // flavor too.
       flavor: await _appleFlavor,
@@ -560,11 +647,30 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
     );
     final builder = routeBReleaseKernelBuilder;
 
+    // G4.1c: read BEFORE the prepass, because the prepass decides retention and
+    // must describe the program the release ships. Flutter injects six defines
+    // into every build -- measured on an app with no flavor and no
+    // `--dart-define` at all -- and until this landed no Route B kernel had any
+    // of them.
+    _injectedDefines = await _resolveInjectedDefines();
+    if (_injectedDefines == null) {
+      // Degrade the way every other Route B failure degrades: a NARROWER
+      // release, never a failed one. Returning here means no prepass, no
+      // interface and no import kernel, which the patch side already reports as
+      // "not patchable". The alternative -- compiling with an empty injected set
+      // -- is exactly the bug this closes, done silently.
+      logger.warn(
+        '''Could not read the defines Flutter injects into this build, so this release's retention was not declared; patches for it will be refused.''',
+      );
+      return;
+    }
+
     final prepass = builder.buildPrepass(
       compiler: compiler,
       projectRoot: projectRoot,
       entrypoint: target ?? p.join('lib', 'main.dart'),
       buildArgs: buildArgs,
+      injectedDefines: _injectedDefines,
       // G4.2: the prepass decides RETENTION, so it must describe the same program
       // the release ships. Without this it was compiled with no
       // FLUTTER_APP_FLAVOR while the release had one.
@@ -597,6 +703,11 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
       projectRoot: projectRoot,
       entrypoint: target ?? p.join('lib', 'main.dart'),
       buildArgs: buildArgs,
+      // G4.1c: the same map the prepass used, not a second read. `agreesWith`
+      // compares these two kernels, so a divergence here would fall back to
+      // prepass-only private enumeration SILENTLY -- the narrowing f06fa056
+      // already had to close once for the flavor.
+      injectedDefines: _injectedDefines,
       // G4.2, and this call site was MISSED by the commit that made the rule.
       // 25f8a3b8 says it threaded the flavor into "all three places that decide
       // what a patch is checked and bound against" — but cd453304 had already
