@@ -52,12 +52,41 @@ resolves a different app and fails *"release not found"* before any flavor
 fingerprint is compared — a refusal for the wrong reason, which would bank a green
 arm for a mechanism that never ran. See the comment in `shorebird.yaml.template`.
 
-## STATE: INCOMPLETE
+## STATE: BUILT on the host. No device arm, and one measurement owed.
 
-Present: fixture sources, the live observable, the flavor xcconfigs, and the `Foo`
-/ `Bar` schemes. **Missing: the overlay's `project.pbxproj`** — so the committed
-schemes reference configurations (`Release-Foo` …) that do not exist yet, and
-`selfhost/scripts/prepare_flavored_fixture.sh` is not written. Nothing here has
-built a flavored release, and no arm may be described as green. The remaining work
-and the structural facts it needs are in
-`selfhost/plans/H2-flavored-ios-fixture.md`.
+**Corrected 2026-08-14.** This section read *"INCOMPLETE — missing: the overlay's
+`project.pbxproj`, and `selfhost/scripts/prepare_flavored_fixture.sh` is not
+written"*. Both halves are now false: the pbxproj is committed under
+`ios_overlay/` (it landed inside `41758dd3`, whose message says it did not), and
+the script exists as of `f7a9ef9f`. Acting on the old text would mean re-deriving
+an overlay that is already here.
+
+Reproduced from committed sources by `selfhost/scripts/prepare_flavored_fixture.sh`:
+the sha-gated `ios/` tree, with `xcodebuild -list` resolving schemes
+`Bar`/`Foo`/`Runner` and all six flavored configurations.
+
+**H2 step 7 passes on the host, all three arms** — `--flavor foo` → `V1/Foo`,
+`--flavor bar` → `V1/Bar`, and the no-token `default-flavor` build → `V1/Foo`,
+each with its own bundle id. The record is
+`../../evidence/g42_flavored_fixture/h2_step7_host_arms.txt`; read it before
+interpreting any flavored release, because **the define arrives spelled as the
+SCHEME name (`Foo`), not as the CLI token (`foo`)**, and Route B threads the
+token.
+
+**Three handling rules, from
+`../../evidence/g42_flavored_fixture/h2_step7_supplement.txt`:**
+
+1. **Count with `grep -c`, never `grep -xc`.** `flavorState()` has two branches,
+   so the binary carries `V1/Foo` *and* `V1/Foo!`; `-x` matches whole lines and
+   silently reports half the count.
+2. **Every flavor builds to `Runner.app`** — there is no `flavored_probe_foo.app`,
+   in any directory. The xcconfigs' `PRODUCT_NAME` is inert (the pbxproj sets it
+   18 times and wins), so all arms overwrite one path. Run each arm cold, and
+   never read sha equality between arms as a result: it is a build-cache hit.
+3. **`assert_result_consumed.sh` has not passed here** — exit 2, NOT LOCATED,
+   under every locator tried, because `flavorState()` is reached by a direct `bl`
+   and the gate inventories only indirect pool-load dispatch. That is MEASUREMENT
+   INCOMPLETE and is owed *before* any device arm is read, not after.
+
+No release has been cut from this fixture and no device has run it. The host arms
+earn **BUILT**; `PROVEN` needs `R1`, and belongs to the `G4.2` device order.
