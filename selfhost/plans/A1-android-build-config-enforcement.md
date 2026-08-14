@@ -12,9 +12,16 @@
 | device needed | no |
 | mint needed | no |
 
-**Provenance.** Written 2026-08-14 directly after the gap was measured on hardware. Every
-anchor below was read in this tree at `efa31f3b`; re-verify before acting, and fix in place
-when wrong.
+**Provenance.** Written 2026-08-14 directly after the gap was measured on hardware.
+
+**Read the anchors before trusting them, and this time there is a specific reason.** They were
+taken from the WORKING TREE at `efa31f3b` while a concurrent lane held **uncommitted** edits to
+`patch_command.dart`, `release_command.dart` and four other files. So the `patch_command.dart`
+line numbers in Q2 describe a state that was not committed and will move when that lane lands.
+The *order* of the steps is the durable claim; the numbers are a convenience. Re-locate by
+grepping the quoted code (`maybeGetReleaseArtifact`, `Download and extract the supplement
+archive`, `patcher.buildPatchArtifact(releaseVersion`, `patcher.createPatchArtifacts(`) rather
+than by line.
 
 ## The gap this closes, stated once
 
