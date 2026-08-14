@@ -1,0 +1,111 @@
+G10.2 — detector self-test, MEASURED on this host
+=================================================
+Host: Darwin arm64. CLI: shorebird 1.6.115+selfhost.1 (from the --json envelope
+below). Control plane: cps-android on http://localhost:18081 (GET / -> 200).
+Date: 2026-08-13.
+
+SHOREBIRD_TOKEN was the literal placeholder `sb_api_placeholder_for_self_test`.
+That is deliberate and it is NOT a server-valid key: this stage reaches its
+prompt before any network call, and auth.dart:357-360 accepts an `sb_api_`
+value by shape alone, so a real credential would add nothing and would risk
+leaking one into a transcript. Nothing here talks to the control plane except
+the preflight's `GET /` reachability probe.
+
+Invocation (stdout redirected to a file, stdin </dev/null, CI vars unset):
+
+  env -u CI -u GITHUB_ACTIONS \
+    SHOREBIRD_HOSTED_URL=http://localhost:18081 \
+    SHOREBIRD_TOKEN=sb_api_placeholder_for_self_test \
+    bash selfhost/scripts/ci_noninteractive.sh --self-test-only --out <dir> \
+    < /dev/null > run.log 2>&1
+  ; echo exit=$?
+
+---------------------------------------------------------------- run.log ----
+
+== preflight ==
+   mode                     : --self-test-only (no app, no build, no arms)
+   stdout is a TTY          : no
+   stdin  is a TTY          : no
+   CI detection vars        : none set
+   SHOREBIRD_TOKEN          : set (32 chars, not echoed)
+   control plane            : http://localhost:18081 -> 200
+   shorebird                : /Users/mendell/.shorebird/bin/shorebird
+
+== self-test A — preview, NO --json (TTY predicate only) ==
+   cmd: (cd <out>/detector_selftest_app && shorebird preview)
+   exit: 64  log: <out>/detector_selftest.log
+   exit: 64 (expected 64)   'non-interactive context' lines: 1 (expected >=1)
+
+== self-test B — preview, WITH --json (arm 2's exact grep) ==
+   cmd: (cd <out>/detector_selftest_app && shorebird --json preview)
+   exit: 64  log: <out>/detector_selftest_json.log
+   exit: 64 (expected 64)   interactive_prompt_required: 1 (expected >=1)
+
+== verdict ==
+   SELF-TEST ONLY — the detector fires: a reached prompt exits 64 and is
+   named, in both output modes. The ARMS DID NOT RUN, so this says nothing
+   about the release/patch workflow. PARITY :2375/:2376 are untouched.
+
+exit=0
+
+------------------------------------------- detector_selftest.log (arm A) ----
+
+Input was required for the following prompt but the CLI is running in a non-interactive context:
+  Which app flavor?
+
+Hint: Re-run with a TTY-attached stdout, or provide the required input via a command-line flag.
+
+-------------------------------------- detector_selftest_json.log (arm B) ----
+
+{"status":"error","error":{"code":"interactive_prompt_required","message":"Which app flavor?","hint":"Re-run with a TTY-attached stdout, or provide the required input via a command-line flag."},"meta":{"version":"1.6.115+selfhost.1","command":"preview"}}
+
+
+WHY THIS REFUSAL IS ATTRIBUTABLE TO THE STREAMS
+-----------------------------------------------
+In arm A no `--json` was passed and every CI-detection variable was unset (the
+preflight asserts this and was observed refusing when they are set — see the
+guard sweep). So of the four ways a run can be non-interactive, exactly two
+were true, and both are stream tests:
+
+  isInteractive       false because stdout is not a terminal
+                      (interactive_mode.dart:18-22)
+  canAcceptUserInput  false because stdin.hasTerminal is false
+                      (shorebird_env.dart:292-293)
+
+`_failIfNonInteractive` (shorebird_logger.dart:135-141) therefore threw, and
+shorebird_cli_command_runner.dart:297-315 converted it — the human-readable
+branch at :305-313 in arm A, the JsonErrorCode branch at :298-304 in arm B —
+returning ExitCode.usage (64) at :315.
+
+Arm B is the one that validates arm 2's literal grep token: the string
+`interactive_prompt_required` comes from json_output.dart:54.
+
+
+GUARD SWEEP (all against the COMMITTED script unless noted)
+-----------------------------------------------------------
+Because the Linux host gate now sits AFTER the self-test, every preflight guard
+could be exercised without neutering anything. Only the self-test-failure
+branch needed a mutated scratch copy (house rule: never mutate in place).
+
+  guard                     stimulus                              observed
+  ------------------------- ------------------------------------- --------
+  stdout not a TTY          run under `script -q /dev/null`        refuses
+  stdin not a TTY           `script` + stdout redirected to file   refuses
+  CI vars unset             CI=false GITHUB_ACTIONS=true           refuses, names both
+  token present             TOKEN_FILE=/nonexistent, var unset     refuses, echoes nothing
+  token non-empty           SHOREBIRD_TOKEN=                       refuses, cites PARITY:2364
+  ours, not upstream        SHOREBIRD_HOSTED_URL=api.shorebird.dev refuses BEFORE any request
+  control plane reachable   SHOREBIRD_HOSTED_URL=localhost:1       refuses (curl 7, code 000)
+  --app-dir required        omitted, no --self-test-only           refuses
+  not airgap_app (R6)       --app-dir .../fixtures/airgap_app      refuses
+  pubspec.yaml present      --app-dir <empty dir>                  refuses
+  android/ present          --app-dir .../fixtures/twoengine_app   refuses
+  host is Linux (arms only) --app-dir <synthetic>, Darwin          self-test runs, THEN refuses
+  self-test must fire       mutated COPY: grep token broken        FAIL, arms not run
+
+`git status --porcelain` in the worktree after the sweep showed only the
+intended modification to `selfhost/scripts/ci_noninteractive.sh`.
+
+  shellcheck -x --source-path=SCRIPTDIR --severity=warning  -> clean
+  shellcheck -x --source-path=SCRIPTDIR --severity=style    -> clean
+  bash -n                                                   -> clean
