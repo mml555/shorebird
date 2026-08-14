@@ -88,6 +88,23 @@ This is the point that is *semantically* narrowest while being only slightly lat
 wall-clock than today's. It excludes swipe-away, watchdog and jetsam almost entirely,
 because each needs the app alive long enough for a human or the OS to act.
 
+> **REFUTED ON DEVICE 2026-08-14. The row above is wrong about what `Engine::Run`
+> proves.** Implemented as `0009`, the seam was placed at `Engine::Run` returning —
+> and `Run` reports that the entrypoint was **invoked**, not that it succeeded. A
+> patch throwing inside `main()` therefore banked **three consecutive successes**
+> while crashing every launch (`last_booted_patch: 1`, `boot_attempt_count: 0`,
+> patch still `Installed`, no `PatchInstallFailure`).
+>
+> So "root isolate past `main()`'s prologue" is not reachable by watching `Run`'s
+> return value: `Run` returns *before* the prologue's outcome is known. The table's
+> middle row describes the right PROPERTY and the wrong OBSERVATION POINT, and the
+> distinction is the lesson — the design reasoned about when patched Dart has run,
+> then picked a signal that fires whether or not it did.
+>
+> Part 2 (the counter) is unaffected and PROVEN. Candidate replacements are in
+> `evidence/g15/crashbackout_verdict.txt` under *Where the seam actually belongs*,
+> including first-frame, whose original objection is now mitigated by part 2.
+
 ### 2. Count consecutive failures; never conclude from one
 
 Even a millisecond window has residual benign deaths. The discriminating signal is not
