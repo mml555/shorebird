@@ -1,0 +1,91 @@
+G15 CRASH-BACKOUT — VERDICT, 2026-08-14
+========================================
+
+CRASH-BACKOUT DOES NOT WORK. A PATCH THAT BREAKS DART DURING main() IS NEVER BACKED
+OUT, AND SUCCESS IS BANKED ANYWAY.
+
+This is precommitted outcome 3 (crashbackout_precommit.md, 6d00e95c), written before
+the run as "the most valuable failure available here". It is a failure of MY DESIGN,
+not of the rig.
+
+IDENTITY
+--------
+cell     80e493e4c5c9e4c418c433bf660392067a131dd5 (patches 0009 + 0010)
+release  killswitch_probe 1.0.3+1
+patch    Patch 1 — bootProbe() replaced with `<String>[].first`, which throws
+         StateError("No element") at runtime. 768 B container. Called from main()
+         BEFORE runApp, so it executes while Engine::Run is still on the stack.
+device   R1 iPhone 7 / iOS 15.8.8, wired
+
+OBSERVED
+--------
+Three consecutive launches, by hand: **blank white screen every time**, no render.
+That is the patched bootProbe() throwing inside main() — it runs before the kill
+check, so the marker never toggles and every launch dies the same way.
+
+THE STATE, PULLED MID-ARM (the thing arm 2 could not show)
+-----------------------------------------------------------
+  release_version          1.0.3+1
+  patches/1/state.json     {"kind": "Installed", "size": 768}   <-- NOT Bad
+  pointers.json
+      next_boot_patch          1
+      last_booted_patch        1        <-- SUCCESS WAS BANKED
+      currently_booting_patch  null
+      boot_started_at          null
+      boot_attempt_count       0        <-- never even incremented past a success
+      last_boot_attempt_patch  null
+  state.json queued_events   []          <-- no PatchInstallFailure
+
+WHAT IT MEANS
+-------------
+`last_booted_patch: 1` with `boot_attempt_count: 0` is unambiguous: the boot was
+recorded as a SUCCESS, three times over, while Dart was in fact failing every time.
+
+So `Engine::Run` returns `RunStatus::Success` even when `main()` throws. Run reports
+that the entrypoint was successfully INVOKED; what the isolate does afterwards does
+not change its return value. Patch `0009` therefore banks success at a point that is
+still too early to see a Dart-phase failure — a narrower version of the very defect
+it was written to fix.
+
+`0009` moved the seam from "the VM object exists" (the Shell constructor) to "the
+entrypoint was invoked" (Engine::Run returning). That is strictly better, and it is
+NOT far enough: both are before the patched Dart has demonstrated it can run.
+
+WHAT THIS DOES AND DOES NOT OVERTURN
+------------------------------------
+* ARM 2 STILL STANDS. It tested the ambiguous path — no outcome reported, counter
+  decides — and that path works: a good patch killed mid-boot was retried rather than
+  tombstoned, twice, corroborated by the device's own state. Nothing here touches it.
+* §15's gate "a Dart-phase crash backs the patch out" is **NOT closed** and must not
+  be marked so.
+* The three-outcome table's middle case (backout via the COUNTER after two crashes)
+  did NOT occur either — the counter never ticked, because each boot was recorded as
+  a success. So it is not that the mechanism is slower than intended; it is that the
+  failure is invisible to it.
+
+WHERE THE SEAM ACTUALLY BELONGS
+-------------------------------
+The property that must be proven before banking success is "patched Dart RAN and did
+not fail", and no point inside `Engine::Run` can prove it, because `Run` returns as
+soon as the entrypoint is invoked. Candidates for the next design pass, none verified:
+
+  * after the root isolate's first message-loop turn completes without an unhandled
+    error — i.e. hook the isolate's unhandled-error port rather than Run's status;
+  * `Dart_SetUnhandledExceptionCallback`-style reporting, so a Dart-phase failure
+    reports FAILURE positively rather than being inferred from silence;
+  * first frame — REFUTED earlier for widening the false-backout window, but that
+    objection was answered by `0010`'s counter, so it deserves re-examination rather
+    than being treated as closed.
+
+The last one is worth stating plainly: the adversarial review that killed first-frame
+was right about the risk and the risk is now MITIGATED by the counter this same
+session added. A design decision made before a mitigation existed should be re-opened
+once it does.
+
+CONTROL NOT RUN
+---------------
+That the PATCH causes the crash is inferred, not directly controlled: the same
+fixture on the previous release rendered normally with a patch applied (arm 2, taps 2
+and 4 showed NEW-kill), the only change here is this patch, and the patch is Installed
+and selected. A direct control would roll the patch back and confirm the app renders
+again. Worth doing before anyone treats the causation as measured.
