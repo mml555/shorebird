@@ -1,0 +1,55 @@
+G4.3 — release --obfuscate, patch --obfuscate -> patched value on device
+========================================================================
+VERDICT: PROVEN, 2026-08-14, on R1 (iPhone 7, iOS 15.8.8, WIRED).
+
+This retires the arm PARITY's table listed as "release --obfuscate, patch
+--obfuscate | patched value on device", and it is the arm H4 existed to unblock.
+
+WHAT WAS OBSERVED, in order:
+  launch 1   code_patch=none   route_b=OLD-rel
+  launch 2   code_patch=1      route_b=NEW-OBF     <- the patch applied
+  launch 3   code_patch=1      route_b=NEW-OBF     <- stable, not a one-shot
+  screen     "route B value: NEW-OBF" / "code patch: 1"  (r39_NEW-OBF.png)
+
+The screenshot is not decoration. A harness can write every beacon marker and
+display nothing (2026-08-13, a scene manifest owning the window), so the SCREEN
+is the claim and the beacon is corroboration.
+
+IDENTITY OF WHAT RAN. launch_release_bytes.sh refused the working archive and
+launched the preserved bundle:
+  preserved release App LC_UUID : 1160d1055f1839ae9f0eb1eb66739b48
+  working archive LC_UUID       : 62f0127f4e6a354dbcba656831d1aed9  <- PATCH BUILD
+The archive differs because `shorebird patch ios` re-archives over it. Launching
+that archive is the rig's strongest false positive; the probe caught it here,
+which is the case it was built for.
+
+THE RESULT IS REACHABLE, not folded. assert_result_consumed.sh on the RELEASE
+binary: 1 site located, VERDICT CONSUMED, "a patch's return value can reach the
+app". Run before interpreting the device result, per the fixture's own invariant
+(releases 25-30 cost six device runs to that trap).
+
+IDENTITY FACTS
+  cell / engine hash    : 40eaa0ef6cb6485833bf2e10ac97224ca82cbf25
+  donor                 : 4df8f9b6139b67d2cfe9f6aa8212372cade36278 (byte-unchanged)
+  ios artifacts sha256  : d3311d15d43ca7a9578ab50a4c38bd454c3b4ef9aa2b5578b6ced4aba4ee76ff
+  dart2bytecode.aot     : unchanged from 4df8f9b6
+  route_b_analyze.aot   : unchanged from 4df8f9b6
+  Flutter revision      : c15ef6379403a0a55531a058bdb2c8e55bc05c98
+  consumed Flutter bin  : e828f8efeb623d1d, 19,071,568 bytes, InterpretCall present
+  consumed gen_snapshot : universal x86_64+arm64, --load-obfuscation-map on BOTH
+                          slices (5 hits each); this is the binary the release
+                          execs, not artifacts_arm64/
+  Dart base             : d684a576 + 6b58bb3a, patch series 0008 applied
+  release               : 39.0.0+1  (patchable 7,151 / 2,095 per MB)
+  patch                 : 1
+  obfuscation map       : 19,842 pairs, sha256 e682e6f7648fbfca — PRESERVED before
+                          the patch build, and the patch build was shown to have
+                          consumed that exact file
+  platform / device     : iOS / R1 iPhone 7, wired
+  probes                : g43_obfuscation_map_load.sh 8/8;
+                          launch_release_bytes.sh IDENTITY OK;
+                          assert_result_consumed.sh CONSUMED
+
+WHAT THIS DOES NOT CLAIM. Nothing about the flavored arms (P3), nothing about
+Android obfuscation (already PROVEN separately), and nothing about a second
+patch on top of this one.
