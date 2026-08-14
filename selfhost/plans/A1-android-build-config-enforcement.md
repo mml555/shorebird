@@ -61,10 +61,18 @@ Directory? assembleSupplementDirectory() {
   if (supplementDir == null) return null;
 ```
 
-— so an **unobfuscated** Android release ships no supplement, and therefore has nowhere to
-put a build config. The gate must widen from "create when there is an obfuscation map" to
-"create when there is anything to record", with the build config always being something to
-record.
+~~— so an **unobfuscated** Android release ships no supplement … the gate must widen~~
+**CORRECTED 2026-08-14 BY MEASUREMENT: the gate does NOT need widening.**
+`artifact_manager.dart:545-567` returns the **existing** directory whenever it exists and only
+returns null when it is absent *and* `create` is false. So a releaser that WRITES a record
+(with `create: true`, exactly as `ios_releaser._recordRouteBProvenance` already does) leaves a
+non-empty directory that `assembleSupplementDirectory()` then finds and uploads — which is
+precisely why an unobfuscated **iOS** release ships a supplement today. The change is therefore
+"Android must write something", not "the emission condition must broaden". That is a smaller
+and more honest step 1 than this design first assumed, and the base's own comment already
+anticipated it: *"currently the obfuscation map is the only supplement artifact. If other
+supplement files are added in the future, this check … should be updated to handle them
+explicitly."*
 
 > **Why not a new artifact arch.** A second arch means a second upload, a second download, a
 > second failure mode, and a protocol change. The supplement is already fetched on the patch

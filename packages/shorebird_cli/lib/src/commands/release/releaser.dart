@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
@@ -12,6 +13,7 @@ import 'package:shorebird_cli/src/flutter_version_constraints.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
@@ -220,6 +222,58 @@ abstract class Releaser {
   /// Arch string for the supplement artifact on the server (e.g.
   /// 'android_supplement').
   String get supplementArtifactArch;
+
+  /// The filename a release's effective build configuration is recorded under
+  /// inside the supplement.
+  static const buildConfigFileName = 'build_config.json';
+
+  /// Records this release's EFFECTIVE build configuration into the supplement,
+  /// so a later patch can be compared against it.
+  ///
+  /// THE CONTRACT, stated explicitly because the alternative is an accident:
+  /// **every modern release records a build config**, and the three states are
+  /// kept distinguishable on purpose —
+  ///
+  ///   file absent          the release predates this contract. A patch cannot
+  ///                        compare, and must say so rather than assume it
+  ///                        matches.
+  ///   `buildConfig` object the effective configuration. Comparable.
+  ///   `buildConfig: null`  the configuration is UNFINGERPRINTABLE — e.g.
+  ///                        `--dart-define-from-file`, whose effective define
+  ///                        set cannot be determined). Comparable to nothing,
+  ///                        and that is itself information.
+  ///
+  /// Recording the third state explicitly is the point: "absent" and "unknown"
+  /// have different remediations, and collapsing them is how a patch silently
+  /// skips the check it was supposed to run.
+  ///
+  /// The shape mirrors `route_b_provenance.json`'s `buildConfig` key so that
+  /// promoting this into a platform-neutral contract later is a MOVE rather
+  /// than a translation.
+  void recordEffectiveBuildConfig(List<String> buildArgs) {
+    final supplementDir = artifactManager.getReleaseSupplementDirectory(
+      platformSubdir: supplementPlatformSubdir,
+      create: true,
+    );
+    // No project root: nothing downstream could upload a supplement anyway.
+    if (supplementDir == null) return;
+
+    final config = RouteBBuildConfig.fromBuildArgs(buildArgs, flavor: flavor);
+    File(p.join(supplementDir.path, buildConfigFileName)).writeAsStringSync(
+      const JsonEncoder.withIndent('  ').convert({
+        'buildConfig': config?.toJson(),
+        if (config == null)
+          'unfingerprintableReason':
+              'the effective define set could not be determined '
+              '(see routeBUnfingerprintableOptions)',
+      }),
+    );
+    logger.detail(
+      config == null
+          ? '[build-config] recorded UNFINGERPRINTABLE configuration'
+          : '[build-config] recorded fingerprint ${config.fingerprint}',
+    );
+  }
 
   /// Assembles the supplement directory: copies the obfuscation map (if
   /// present) into the platform supplement dir. Returns the directory, or null
