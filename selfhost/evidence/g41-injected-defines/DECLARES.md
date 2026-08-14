@@ -175,8 +175,58 @@ assertions from being vacuous:
   currently wrong on Android — but a future Android Route B would need its own
   source for this.
 * **No release was cut.** This earns **BUILT**, not PROVEN. What is owed is a
-  Route B iOS release built with this CLI and a matching patch against it,
-  confirming `route_b.json` records the same injected set the build used.
+  Route B iOS release built with this CLI and a matching patch against it.
+
+### What the owed release arm can and cannot prove — decided before it runs
+
+**A green release of `airgap_app` would be VACUOUS for this finding, and must
+never be recorded as a second proof of it.** That fixture reads none of the six
+injected defines, so its prepass and import kernels are byte-identical with and
+without them — which is precisely why this gap survived so long. The release
+would traverse the corrected path without ever observing it.
+
+So the arm is split, and the labels are fixed here rather than chosen afterwards
+by whoever reads the result:
+
+| arm | what it is | what it may claim |
+|---|---|---|
+| release 40 from **unmodified** `airgap_app` | an **INTEGRATION REGRESSION** arm | that the corrected CLI still traverses the real iOS release → patch path. **Nothing about injected defines.** |
+| a **discriminating** iOS fixture whose *reachable* program depends on one of the six | the arm that could support an upgrade from BUILT | that the injected defines reached Route B analysis end to end |
+
+**Any upgrade from BUILT on release or device evidence requires the second arm.**
+The reachable-program condition is load-bearing: a fixture that merely *contains*
+a `String.fromEnvironment('FLUTTER_VERSION')` read in dead code proves nothing,
+because retention is not reachability — the same distinction PARITY.md draws
+under *"Consumption is not reachability"*. The value has to be consumed by
+something observable (displayed or beaconed), the way `_rbParam` and `_rbTwo`
+are in `airgap_app`.
+
+The discriminating before/after evidence for the defect and the fix is **already
+banked host-side** by `g41c_injected_defines.sh` arm 1. A physical release should
+therefore ADD integration evidence, not be allowed to stand in for a proof it
+structurally cannot observe.
+
+### The rig precondition, and why this lane did not force it
+
+Cutting that release requires `~/.shorebird` re-synced to a CLI containing
+`72620b12`. At the time of writing the `~/.shorebird` rig-state row is **HELD by
+the G15 lane** (`923d1910`), which is deliberately holding **two** experimental
+variables constant: the engine lineage (`engine.version` was restamped to
+`80e493e4`, not the PROVEN `40eaa0ef`) **and** the CLI revision (`ba4e1c02`),
+because its gate 2 is a control against releases `1.0.2+1`/`1.0.3+1`.
+
+A stamp guard is **not** sufficient against that, and this is worth stating
+because a stamp guard is the obvious remedy and it is the wrong one: guarding the
+stamp protects the engine lineage and does nothing for the CLI-constant control,
+which a re-sync would void. Cutting a release under the current stamp would also
+silently consume G15's cell rather than the PROVEN one — the failure that lane's
+own row warns about, with no git conflict and no error to catch it.
+
+So this lane **coordinated a hand-back rather than waiting blindly or restamping
+independently**, and mutated nothing. The hand-back is atomic: G15 finishes gate 2,
+releases the row, restores `engine.version` to `40eaa0ef`, and explicitly hands
+back responsibility for the re-sync. Until all four happen, G4.1c touches neither
+`~/.shorebird` nor the CLI.
 * **The `--config-only` pass writes `Generated.xcconfig` before the real build.**
   The real build rewrites it. If a release aborts between the two, the file is
   left without the user's own defines until the next `flutter build` — a
