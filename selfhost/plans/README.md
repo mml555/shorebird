@@ -44,6 +44,20 @@ gaps needing no device and no mint:
 | **H3** | no host creates two `FlutterEngine`s in one process | [`H3-two-engine-harness.md`](H3-two-engine-harness.md) | `G15` | `R3`, host only |
 | **H4** | our `gen_snapshot` has no `--load-obfuscation-map`, and the patcher mirrors the release's obfuscation itself — so an obfuscated release cannot be patched on this engine at all | [`H4-gen-snapshot-obfuscation-map.md`](H4-gen-snapshot-obfuscation-map.md) | `G4.3` arm 4 | Dart-VM work + a mint |
 
+> **THREE OF THESE FOUR ARE NOW CLOSED — corrected 2026-08-14, and the table above is
+> kept as written rather than rewritten, because it is the premise the orders below were
+> authored against.** `H1` is discharged (`G3.7`, the only thing it existed to unblock, is
+> COMPLETE on device), `H3` is DONE (`G15`'s device gate PASSED at `e994a512`), and `H4`
+> is DONE (`0008` landed, cell `40eaa0ef6cb6485833bf2e10ac97224ca82cbf25` minted and
+> published, `G4.3` PROVEN on device at `550f0805`). **`H2` is the only one still open**,
+> and its remaining half is `prepare_flavored_fixture.sh` plus step 7's host arms — no
+> device, no mint, no contended resource.
+>
+> So the sentence above it — *"the next actionable pieces are four prerequisites"* — is
+> true of `c0619d13` and false of today. The reshaping claim it introduces held up: every
+> one of the four was a harness gap, and none of them turned out to be a defect in the
+> thing under test.
+
 > **`H` for harness, deliberately not `P`.** In this project `P1`/`P2`/`P3` already mean the
 > **retention policies** — `P2` is the one that was chosen, `P3` is the one that collapsed. When
 > `G3.6b` says "P2 is decided" it is talking about a policy, not about a flavored fixture.
@@ -59,25 +73,34 @@ property, and no byte-level gate can see it.**
 ## Pick a piece
 
 Ordered so the things that *unblock other things* come first. "device" means a gate is
-owed real hardware; three of the top four need none.
+owed real hardware.
+
+**Status column re-derived from the tree 2026-08-14**, twelve commits after this file was
+last touched (`2e736555`), which is how far it had drifted. Four rows moved; all four are
+marked in place. **The only rows still open to take are `H2`, `G3.6b`, the `G6`/`G7`/`G8`/`G10.2`
+remainder, `L1` and `M0`'s audit repair** — every `H`-block prerequisite except `H2` is now
+discharged, and both device gates in the middle of this table are closed.
 
 | order | what taking it gets you | status | owns | device | mint |
 |---|---|---|---|---|---|
-| [`H1`](H1-live-parameterised-target.md) | a parameterised target the app actually calls, observable in the beacon — unblocks `G3.7`'s device arm | **PARTIAL** — the target went live at `08a2f3cc`; the READOUT is the gap (`_rbParam` is beaconed, never displayed, and the beacon carries no query string on this rig) | `R6` `R8` `R1` | R1, one launch | no |
+| [`H1`](H1-live-parameterised-target.md) | a parameterised target the app actually calls, observable in the beacon — unblocks `G3.7`'s device arm | **DISCHARGED 2026-08-14 — do not take it.** ~~**PARTIAL** — the target went live at `08a2f3cc`; the READOUT is the gap (`_rbParam` is beaconed, never displayed, and the beacon carries no query string on this rig)~~ The readout gap is closed: release 38 displays a parameterised result (`two('a', 7)` → `OLD-a-7`/`PARAM-a-7`), and `G3.7` — the only thing this order existed to unblock — is COMPLETE on device. Note the closure came through `G3.7`'s own releases rather than through this order being executed as written | `R6` `R8` `R1` | R1, one launch | no |
 | [`H2`](H2-flavored-ios-fixture.md) | a flavored iOS fixture — unblocks three of `G4.2`'s five arms | **PARTIAL** — sources + iOS overlay landed at `41758dd3`, `xcodebuild -list` resolves all six flavored configurations; `prepare_flavored_fixture.sh` and step 7's host arms remain | new fixture | no | no |
 | [`H3`](H3-two-engine-harness.md) | two engines in one process + patch `0007`'s tests actually running — makes `G15`'s device row runnable instead of NOT RUNNABLE | **DONE 2026-08-13 — do not take it.** Host at `fixtures/twoengine_app` (`2d906552`), `0007`'s 3 arming tests execute via `0008` (`13092e26`), and `G15` itself **PASSED ON DEVICE** (`e994a512`) | `R3` `R5` | no | no |
-| [`H4`](H4-gen-snapshot-obfuscation-map.md) | decides whether obfuscated iOS patching is reachable at all, or a documented gap | NOT RUNNABLE | `R3` `R4` | later | yes |
-| [`G3.7`](G3.7-param-abi-device-gate.md) | the parameter-ABI device verdict — the last clause of the architectural question, 33.2 % of structural reach | BUILT, device owed | `R1` `R6` `R8` | **R1** | no |
-| [`G4.2`/`G4.3`](G4.2-G4.3-config-device-gate.md) | the configuration arms, each annotated for constructibility, plus the independent Android lane | BUILT, device owed | `R2` `R9` `R12` | **R2** | no |
+| [`H4`](H4-gen-snapshot-obfuscation-map.md) | decides whether obfuscated iOS patching is reachable at all, or a documented gap | **DONE 2026-08-14 — do not take it.** ~~NOT RUNNABLE~~ **The answer is REACHABLE, not a gap.** `selfhost/engine/0008-dart-load-obfuscation-map.patch` (`4bcdcb9b`), cell `40eaa0ef6cb6485833bf2e10ac97224ca82cbf25` minted and published (`cdd32c8b`), and `G4.3`'s device arm PROVEN on `R1` (`550f0805`) | `R3` `R4` | later | yes |
+| [`G3.7`](G3.7-param-abi-device-gate.md) | the parameter-ABI device verdict — the last clause of the architectural question, 33.2 % of structural reach | **COMPLETE 2026-08-13 — do not take it.** ~~BUILT, device owed~~ All four arms settled on device: `one` (release 37), `two` (release 38 — order AND type, `PARAM-a-7`), and `named`/`opt` REFUSED at patch time, each citing its own parameter shape rather than "not in the interface" | `R1` `R6` `R8` | **R1** | no |
+| [`G4.2`/`G4.3`](G4.2-G4.3-config-device-gate.md) | the configuration arms, each annotated for constructibility, plus the independent Android lane | **SPLIT 2026-08-14 — `G4.3` closed, `G4.2` still open.** ~~BUILT, device owed~~ **`G4.3` arm 4 is PROVEN** on `R1` against cell `40eaa0ef` (release 39 `--obfuscate`, `OLD-rel` → `NEW-OBF`, release binary unchanged). **`G4.2` is untouched**: arms 1/3/5 remain blocked on `H2`, and the Android lane still needs `R2`/`R9`/`R12`. Note the device that closed `G4.3` was `R1`, not the `R2` this row names | `R2` `R9` `R12` | **R2** | no |
 | [`G3.6b`](G3.6b-app-private-holes.md) | the two accepted-then-failed private holes turned into refusals with named evidence | PARTIAL | `R7` `R3` | no | yes |
 | [`G6`/`G7`/`G8`/`G10.2`](G6-G7-G8-G10.2-no-hardware-lanes.md) | four small orders under one roof — the whole set an agent can take with **zero** contended hardware | PARTIAL — **lanes A (`G7`) and B (`G6` server half) done**: the signing decision is made and `SIGNING.md` written, 291 server tests green with a negative control. Lane D (`G10.2`) **partial** — guard measured, two script comments settled, token arms green; its two harness arms are owed. Lane C (`G8`) **host arm NOT RUNNABLE** — `checkForUpdate`/`update` return `unavailable`/no-op without the native library, and `auto_update` is invisible to Dart; the fixture's value is on `R2`, not host | `R10` | no | no |
 | [`L1`](L1-leverage-lane.md) | fixture clones (raises the §16 parallelism ceiling), then Android add-to-app, the `G5` remainder, and the sealed `G13` run **last and alone** | NOT BUILT | many | both | no |
 | [`M0`](M0-cell-mint-and-identity.md) | how to mint a cell and close its identity — plus cell `4df8f9b6`'s worked example and the repair its audit still owes | BUILT | `R11` `R3` | no | — |
 
-**Zero-hardware lanes, if you want to start right now and take nothing scarce:**
-[`G6`/`G7`/`G8`/`G10.2`](G6-G7-G8-G10.2-no-hardware-lanes.md) (`R10` only),
-[`H2`](H2-flavored-ios-fixture.md) (a new fixture contends on nothing), and
-[`H3`](H3-two-engine-harness.md) (host work in `R3`).
+**Zero-hardware lanes, if you want to start right now and take nothing scarce**
+(corrected 2026-08-14 — `H3` was on this list and is DONE):
+[`H2`](H2-flavored-ios-fixture.md) (a new fixture contends on nothing — write
+`prepare_flavored_fixture.sh`, then step 7's host arms), and
+[`G6`/`G7`/`G8`/`G10.2`](G6-G7-G8-G10.2-no-hardware-lanes.md) (`R10` only — lane D's two
+harness arms are the live remainder, and `cps-android` was deliberately **left running**
+on `:18081` for exactly them).
 
 ---
 
