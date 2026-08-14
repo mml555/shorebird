@@ -68,3 +68,28 @@ it, confirm:
 Nothing about runtime. The release was built `--no-codesign` and cannot be installed,
 so **no device arm is constructible from it** and no statement about the patched code
 executing is available here.
+
+---
+
+# ADDENDUM — the discriminating arm, precommitted 2026-08-14 after arm 1's refusal
+
+Arm 1 hit **outcome 2**: `StringUtils.getYrSuffix` refused, *"the bytecode compiler
+refused its replacement body (exit 254)"*, whole patch refused, nothing uploaded.
+
+`getYrSuffix` is **static**. §3's proven surface is **instance** methods. That is a
+hypothesis, not a conclusion, and one run separates it.
+
+**Arm 2 target:** `SearchData.write()`
+(`lib/logic/data/wonders_data/search/search_data.dart:16`) — an *instance* method
+returning `String`, patched to a pure literal so the body shape matches arm 1's as
+closely as possible. The only deliberate variable is static vs instance.
+
+| observation | meaning |
+|---|---|
+| arm 2 PUBLISHES | **the boundary is static-vs-instance.** Static methods are refused by the bytecode compiler while instance methods are accepted — so the 17,736 call-site count materially overstates the patchable surface |
+| arm 2 refused with the SAME "bytecode compiler refused" message | static-ness is **NOT** the discriminator. Something broader about this app or this body shape is being refused, and the next question is what |
+| arm 2 refused citing "not in the interface" / not found | **a DIFFERENT failure** — the target was tree-shaken out of the release (`write()` is called only from `lib/_tools/`). Says nothing about static vs instance; the arm is void and needs a live target |
+
+Known weakness, recorded before the run: `write()`'s only call site is in
+`lib/_tools/artifact_search_helper.dart`, so it may not survive into the release.
+That outcome is listed above precisely so it cannot be read as either of the others.
