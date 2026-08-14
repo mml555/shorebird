@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:args/args.dart';
 import 'package:collection/collection.dart';
@@ -13,6 +14,8 @@ import 'package:shorebird_cli/src/artifact_builder/build_trace_session.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
+import 'package:shorebird_cli/src/route_b_build_config.dart';
+import 'package:shorebird_cli/src/commands/release/releaser.dart';
 import 'package:shorebird_cli/src/commands/patch/patch.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/config/config.dart';
@@ -210,6 +213,14 @@ void main() {
         () => argResults['track'],
       ).thenReturn(DeploymentTrack.stable.channel);
       when(() => argResults.wasParsed(any())).thenReturn(true);
+      // wasParsed(any()) is stubbed true above, so ForwardedArgs._flagNamed
+      // goes on to cast `this['obfuscate'] as bool`. patch_command now reads
+      // forwardedArgs to compute the patch's effective configuration, so this
+      // flag has to have a value or every test that reaches that point throws
+      // "Null is not a subtype of bool".
+      when(() => argResults[CommonArguments.obfuscateArg.name]).thenReturn(
+        false,
+      );
       when(() => argResults.wasParsed('staging')).thenReturn(false);
       when(
         () => argResults.wasParsed(CommonArguments.privateKeyArg.name),
@@ -710,6 +721,119 @@ void main() {
             });
           },
         );
+
+        // ------------------------------------------------------------------
+        // A2 — effective build-configuration compatibility.
+        //
+        // ONE app_id THROUGHOUT. This whole file drives a single `appId`, so a
+        // refusal here can never come from app routing. That matters: on real
+        // hardware a two-app_id shorebird.yaml produced a REFUSAL FOR THE WRONG
+        // REASON ("Release not found", from getAppId(flavor:) resolving `bar`
+        // to a different app), which reads exactly like the right one. The
+        // wrong-flavor arm is only meaningful when routing cannot satisfy it.
+        // ------------------------------------------------------------------
+        group('effective build-configuration compatibility', () {
+          /// Makes the RELEASE's supplement record the effective config of a
+          /// build made with [releaseFlavor]. Written through extractZip,
+          /// which is where the real supplement lands.
+          setUp(() {
+            // The outer harness stubs wasParsed(any()) -> true, so
+            // ForwardedArgs._argsNamed emits `--dart-define-from-file=null`
+            // for every unstubbed option. That makes the PATCH's own config
+            // unfingerprintable, and enforcement then (correctly) declines to
+            // compare -- which would mask the mismatch this group exists to
+            // catch. Give these options an honest "not parsed".
+            for (final name in [
+              CommonArguments.dartDefineArg.name,
+              CommonArguments.dartDefineFromFileArg.name,
+              CommonArguments.buildNameArg.name,
+              CommonArguments.buildNumberArg.name,
+              CommonArguments.splitDebugInfoArg.name,
+              CommonArguments.exportMethodArg.name,
+              CommonArguments.exportOptionsPlistArg.name,
+            ]) {
+              when(() => argResults.wasParsed(name)).thenReturn(false);
+            }
+          });
+
+          void releaseRecordsFlavor(String releaseFlavor) {
+            when(
+              () => patcher.supplementaryReleaseArtifactArch,
+            ).thenReturn('supplement');
+            when(
+              () => artifactManager.extractZip(
+                zipFile: any(named: 'zipFile'),
+                outputDirectory: any(named: 'outputDirectory'),
+              ),
+            ).thenAnswer((invocation) async {
+              final out =
+                  invocation.namedArguments[const Symbol('outputDirectory')]
+                      as Directory;
+              out.createSync(recursive: true);
+              final config = RouteBBuildConfig.fromBuildArgs(
+                const [],
+                flavor: releaseFlavor,
+              );
+              File(
+                p.join(out.path, Releaser.buildConfigFileName),
+              ).writeAsStringSync(
+                jsonEncode({'buildConfig': config!.toJson()}),
+              );
+            });
+          }
+
+          // RED UNTIL ENFORCEMENT LANDS. Today the patch proceeds and
+          // buildPatchArtifact IS called, so this fails — which is the point of
+          // writing it before the fix.
+          //
+          // The assertion is deliberately NOT "the command exited non-zero".
+          // The contract is that the refusal happens BEFORE any patch artifact
+          // is produced, so the observable is that the build was never
+          // attempted. A refusal after the build would satisfy an exit-code
+          // assertion while violating the invariant.
+          test(
+            'refuses a patch whose effective config differs from the release, '
+            'before buildPatchArtifact is called',
+            () async {
+              releaseRecordsFlavor('foo');
+              when(() => argResults['flavor']).thenReturn('bar');
+
+              await expectLater(
+                runWithOverrides(() => command.createPatch([patcher])),
+                throwsA(isA<ProcessExit>()),
+              );
+
+              // The refusal is necessary but NOT sufficient: the contract is
+              // that it happens before anything is produced.
+              verifyNever(
+                () => patcher.buildPatchArtifact(
+                  releaseVersion: any(named: 'releaseVersion'),
+                ),
+              );
+            },
+          );
+
+          // THE CONTROL, at the same level. It must pass BOTH before and after
+          // enforcement: the fix must refuse a mismatch without becoming
+          // "refuse everything". If this ever goes red, the canonical form is
+          // reading something it should not — most likely raw --flavor instead
+          // of the synthesized FLUTTER_APP_FLAVOR define.
+          test(
+            'a matching effective config crosses the compatibility boundary',
+            () async {
+              releaseRecordsFlavor('foo');
+              when(() => argResults['flavor']).thenReturn('foo');
+
+              await runWithOverrides(() => command.createPatch([patcher]));
+
+              verify(
+                () => patcher.buildPatchArtifact(
+                  releaseVersion: any(named: 'releaseVersion'),
+                ),
+              ).called(1);
+            },
+          );
+        });
 
         group('when a supplemental release artifact exists', () {
           setUp(() {

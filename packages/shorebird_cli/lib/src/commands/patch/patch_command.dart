@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:mason_logger/mason_logger.dart';
 import 'package:meta/meta.dart';
@@ -10,6 +11,8 @@ import 'package:shorebird_cli/src/artifact_builder/build_trace_session.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
+import 'package:shorebird_cli/src/route_b_build_config.dart';
+import 'package:shorebird_cli/src/commands/release/releaser.dart';
 import 'package:shorebird_cli/src/commands/patch/patch.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/config/config.dart';
@@ -789,6 +792,18 @@ Could not verify that gen_snapshot supports --load-obfuscation-map for Flutter r
       );
     }
 
+    // THE EFFECTIVE-CONFIGURATION INVARIANT, in the same place and for the
+    // same reason as the engine-identity check above: refuse BEFORE the build,
+    // so a mismatch costs nothing — no kernel, no artifact, no upload.
+    //
+    // Placed after `extraBuildArgs` is complete because the patch's effective
+    // configuration includes what this command injects (e.g. `--obfuscate`
+    // mirrored from the release), not merely what the user typed.
+    _assertBuildConfigAgrees(
+      supplementDirectory,
+      [...results.forwardedArgs, ...extraBuildArgs],
+    );
+
     patcher.extraBuildArgs = extraBuildArgs;
 
     // Set up build tracing before any flutter build / aot_tools /
@@ -875,6 +890,87 @@ Building ${releasePlatform.displayName} patch with Flutter $flutterVersionString
   /// Neither is fatal. A patch whose assets or symbols could not be packaged is
   /// still a valid patch, so a failure here degrades to "not retained" and says
   /// so, rather than throwing away a build that otherwise succeeded.
+
+  /// Refuses a patch whose EFFECTIVE build configuration differs from the
+  /// release's, before any patch artifact is produced.
+  ///
+  /// THE THREE STATES ARE NOT INTERCHANGEABLE, and each gets its own
+  /// diagnostic, because their remediations differ:
+  ///
+  ///   supplement/record absent  the release predates this contract. Nothing
+  ///                             to compare. Cut a new release to get the
+  ///                             check. NOT an error.
+  ///   `buildConfig: null`       the release's own configuration was
+  ///                             UNFINGERPRINTABLE (e.g.
+  ///                             `--dart-define-from-file`). Comparable to
+  ///                             nothing, permanently, and re-releasing will
+  ///                             not help. NOT an error.
+  ///   `buildConfig` object      comparable. A difference is refused here.
+  ///
+  /// Collapsing the first two into one message is how a reader concludes "cut
+  /// a new release" for a case where that cannot possibly help.
+  void _assertBuildConfigAgrees(
+    Directory? supplementDirectory,
+    List<String> patchArgs,
+  ) {
+    if (supplementDirectory == null) return;
+    final file = File(
+      p.join(supplementDirectory.path, Releaser.buildConfigFileName),
+    );
+    if (!file.existsSync()) {
+      logger.detail(
+        '''[build-config] the release records no build configuration; it predates this check. Cut a new release to enable it.''',
+      );
+      return;
+    }
+
+    final Map<String, dynamic> decoded;
+    try {
+      decoded = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
+    } on Object catch (error) {
+      logger.detail('[build-config] unreadable record, skipping: $error');
+      return;
+    }
+
+    if (decoded['buildConfig'] == null) {
+      logger.warn(
+        '''This release's build configuration cannot be fingerprinted, so this patch's cannot be compared against it. That is permanent for this release: ${decoded['unfingerprintableReason'] ?? 'reason not recorded'}.''',
+      );
+      return;
+    }
+
+    final releaseConfig = RouteBBuildConfig.fromJson(
+      decoded['buildConfig'] as Map<String, dynamic>,
+    );
+    final patchConfig = RouteBBuildConfig.fromBuildArgs(
+      patchArgs,
+      flavor: RouteBBuildConfig.resolveFlavor(
+        cliFlavor: results['flavor'] as String?,
+        pubspecFlutterSection: shorebirdEnv.getPubspecYaml()?.flutter,
+      ),
+    );
+
+    if (patchConfig == null) {
+      logger.warn(
+        '''This patch was invoked with an option whose effective configuration cannot be determined, so it cannot be shown to match the release's.''',
+      );
+      return;
+    }
+
+    if (releaseConfig.agreesWith(patchConfig)) return;
+
+    logger
+      ..err(
+        '''The patch's effective build configuration does not match the release's.''',
+      )
+      ..info(releaseConfig.describeDifference(patchConfig))
+      ..info(
+        '''
+Refusing before building: a patch built with a different configuration compiles a different program than the release it would replace.''',
+      );
+    throw ProcessExit(ExitCode.software.code);
+  }
+
   Future<PatchSidecars> _packageSidecars(Patcher patcher) async {
     final platformName = patcher.releaseType.releasePlatform.displayName;
 

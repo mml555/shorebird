@@ -72,8 +72,37 @@ else
 fi
 
 if [ -n "$framework" ] && [ "$framework" != "<none>" ] && [ -f "$framework" ]; then
+  live_bytes=$(wc -c < "$framework" | tr -d ' ')
   say "artifact: $framework"
-  say "          $(wc -c < "$framework" | tr -d ' ') bytes, interpretcall symbols ${symbols:-?}"
+  say "          ${live_bytes} bytes, interpretcall symbols ${symbols:-?}"
+
+  # STALENESS GUARD. Everything above this line except "the file exists" comes
+  # from the STATUS FILE, so without this check the answer is about whatever
+  # build wrote that file -- not about the artifact on disk now.
+  #
+  # The failure it prevents is not hypothetical and is the expensive kind: run
+  # build_ios_release.sh directly (the documented detached invocation does
+  # exactly that) and the status file is NOT rewritten. If that build fails, the
+  # previous run's `state=finished, ninja_rc=0` is still sitting there, the
+  # framework from the PREVIOUS build is still on disk, and this script would
+  # say "the cell may be minted from this out/ios_release" -- minting the old
+  # engine while believing it is the new one. A stale green is worse than a red,
+  # because a mint is what the whole cell address rests on.
+  #
+  # Caught 2026-08-14 in exactly that configuration: status recorded
+  # framework_bytes=19071568 from the prior day while the live artifact was
+  # 19072784. The build had genuinely succeeded, so the verdict was right by
+  # luck; the reasoning that produced it was not.
+  recorded_bytes=$(sed -n 's/^framework_bytes=//p' "$STATUS" | tail -1)
+  if [ -n "$recorded_bytes" ] && [ "$recorded_bytes" != "$live_bytes" ]; then
+    say "          <- STALE STATUS: recorded ${recorded_bytes} bytes, on disk ${live_bytes}"
+    say
+    say "The status file describes a DIFFERENT build than the artifact on disk."
+    say "Every check above except file existence is read from that status, so"
+    say "this verdict would be about the wrong build. Re-run through"
+    say "run_mint_build.sh so the status matches, then ask again."
+    ok=0
+  fi
 else
   say "artifact: MISSING (${framework:-<none>})   <- NOT SUCCESS"
   ok=0
