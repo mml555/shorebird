@@ -36,7 +36,9 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:shorebird_cli/src/dart_define_from_file.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
+import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
@@ -77,12 +79,31 @@ const routeBRetainedSdkMembers = <String>[
 /// Build options that change kernel semantics and cannot be forwarded to
 /// `gen_kernel` faithfully.
 ///
-/// `--dart-define-from-file` is the one that matters: Flutter parses `.json`
-/// and `.env` shapes with its own rules, and reimplementing that parsing to
-/// expand it into `-D` flags would be exactly the hand-reconstruction this
-/// avoids. A release using it stays a perfectly good release — it simply
-/// cannot be patched, and the patch side says so by name.
-const routeBUnforwardableOptions = ['--dart-define-from-file'];
+/// **EMPTY, and it emptied for a measured reason.** It held
+/// `--dart-define-from-file`, whose presence here did more than skip a define:
+/// [RouteBReleaseKernelBuilder.forwardedArgs] returning null means no prepass
+/// and no import kernel, so such a release was **not patchable at all**.
+///
+/// The expansion now comes from `dart_define_from_file.dart` — a port of
+/// Flutter's own parser that the release path CHECKS against the `DART_DEFINES`
+/// Flutter wrote for that same build, declining exactly as before when the two
+/// disagree. What was rejected was hand-reconstruction *trusted on sight*, and
+/// that objection is answered by the check rather than by the port.
+///
+/// Kept in sync with `routeBUnfingerprintableOptions` in
+/// `route_b_build_config.dart` by `route_b_build_config_test.dart`.
+const routeBUnforwardableOptions = <String>[];
+
+/// Whether [arg] is one of [options], in either `--opt=value` or `--opt` form.
+///
+/// Takes the list as a parameter for the same reason
+/// [isUnfingerprintable] does: with [routeBUnforwardableOptions] empty, a test
+/// that could not inject a synthetic option would be testing an unreachable
+/// branch.
+bool isUnforwardable(
+  String arg, {
+  List<String> options = routeBUnforwardableOptions,
+}) => options.any((option) => arg == option || arg.startsWith('$option='));
 
 /// {@template route_b_release_kernel_builder}
 /// Produces the release's `--no-aot --no-link-platform` kernel.
@@ -110,13 +131,24 @@ class RouteBReleaseKernelBuilder {
   static List<String>? forwardedArgs(
     List<String> buildArgs, {
     String? flavor,
+    String? workingDirectory,
   }) {
-    final forwarded = <String>[];
+    // FILE DEFINES FIRST, mirroring `extractDartDefines`, which emits every
+    // file entry ahead of every `--dart-define`. gen_kernel is last-wins
+    // (probe rule 1) and order-insensitive otherwise (rule 2), so emitting them
+    // in Flutter's order is what makes a key present in both resolve the way
+    // the shipped kernel resolved it.
+    final expansion = DartDefineFromFileExpansion.expand(
+      buildArgs,
+      workingDirectory: workingDirectory,
+    );
+    if (!expansion.ok) return null;
+    final forwarded = [
+      for (final entry in expansion.defines.entries)
+        '-D${entry.key}=${entry.value}',
+    ];
     for (final arg in buildArgs) {
-      final unforwardable = routeBUnforwardableOptions.any(
-        (option) => arg == option || arg.startsWith('$option='),
-      );
-      if (unforwardable) return null;
+      if (isUnforwardable(arg)) return null;
 
       // Flutter spells these --dart-define=K=V; gen_kernel spells them -DK=V.
       // Same values, same order, one translation in one place.

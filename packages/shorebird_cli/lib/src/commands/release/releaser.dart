@@ -238,10 +238,25 @@ abstract class Releaser {
   ///                        compare, and must say so rather than assume it
   ///                        matches.
   ///   `buildConfig` object the effective configuration. Comparable.
-  ///   `buildConfig: null`  the configuration is UNFINGERPRINTABLE — e.g.
-  ///                        `--dart-define-from-file`, whose effective define
-  ///                        set cannot be determined). Comparable to nothing,
-  ///                        and that is itself information.
+  ///   `buildConfig: null`  the configuration is UNFINGERPRINTABLE — a file
+  ///                        passed to `--dart-define-from-file` could not be
+  ///                        read or parsed, so the effective define set is
+  ///                        unknown. Comparable to nothing, and that is itself
+  ///                        information.
+  ///
+  /// **The third state used to mean "`--dart-define-from-file` was used at
+  /// all"**, and now means only that its files could not be resolved: the
+  /// option is expanded by `dart_define_from_file.dart`.
+  ///
+  /// ONE LIMIT, NAMED RATHER THAN IMPLIED. On iOS the expansion is checked
+  /// against Flutter's own resolved `DART_DEFINES` for the same build
+  /// (`ios_releaser._defineExpansionDisagreement`). **On Android there is no
+  /// equivalent artifact to check against** — Flutter hands the resolved set to
+  /// Gradle as a `-Pdart-defines` argument and writes it nowhere — so the
+  /// Android fingerprint uses the expansion unverified. Release and patch run
+  /// the same expansion, so a mismatch between them is still detected; what is
+  /// not detected is a port error that maps two genuinely different files to the
+  /// same defines on both sides.
   ///
   /// Recording the third state explicitly is the point: "absent" and "unknown"
   /// have different remediations, and collapsing them is how a patch silently
@@ -264,8 +279,9 @@ abstract class Releaser {
         'buildConfig': config?.toJson(),
         if (config == null)
           'unfingerprintableReason':
-              'the effective define set could not be determined '
-              '(see routeBUnfingerprintableOptions)',
+              'the effective define set could not be determined — a file '
+              'passed to --dart-define-from-file could not be read or parsed '
+              '(see dart_define_from_file.dart)',
       }),
     );
     logger.detail(

@@ -69,30 +69,37 @@ words:
   - byteranges
   - caddyserver
   - callsite
-  - cdylib
-  - charp
-  - columnized
-  - comde
-  - creds
-  - CURLF
-  - cutover
-  - Dalvik # Android Dalvik VM / DEX file format
   - canvaskit
   - carryforward
   - ccache
+  - cdylib
+  - charp
   - cipd
   - codegen
   - codemagic
   - codesign
   - codesigned
   - codesigning
+  - columnized
+  - comde
   - createbuckets # MinIO bucket-init service in docker-compose.prod.yaml
+  - creds
+  - CURLF
+  - cutover
+  - Dalvik # Android Dalvik VM / DEX file format
   - darkweak
   - dartaotruntime
   - DBPW
   - Dedup
   - dedupe
   - deflavored
+  - fingerprintable
+  - prepass # Route B: the retention-deciding kernel compiled before the build
+  - rstrip # Python, in probe helpers
+  - startswith # Python, in probe helpers
+  - unfingerprintable
+  - unforwardable
+  - xcconfig # Xcode build-setting file
   # Dart VM vocabulary, from the Route B compiler patches under selfhost/engine.
   # Global rather than inline: a .patch file cannot carry a cspell comment
   # without corrupting its own context lines, and these recur in every VM diff.

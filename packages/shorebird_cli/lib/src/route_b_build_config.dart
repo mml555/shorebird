@@ -39,6 +39,7 @@
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
+import 'package:shorebird_cli/src/dart_define_from_file.dart';
 
 /// The prefix Flutter uses to supply a define on a build invocation.
 const _dartDefineFlag = '--dart-define=';
@@ -82,16 +83,32 @@ const _splitDebugInfoFlag = '--split-debug-info';
 
 /// Options whose meaning cannot be reduced to an effective define set here.
 ///
-/// `--dart-define-from-file` is parsed by Flutter with its own `.json`/`.env`
-/// rules, and reimplementing that parsing to expand it into defines would be the
-/// hand-reconstruction this design avoids. A release using it is a perfectly good
-/// release; it simply cannot have its configuration fingerprinted, and the patch
-/// side declines by name rather than comparing an incomplete set.
+/// **EMPTY as of the `--dart-define-from-file` support, and the reason it
+/// emptied is worth more than the list.** It held exactly that one option, on
+/// the grounds that "reimplementing Flutter's `.json`/`.env` parsing would be
+/// the hand-reconstruction this design avoids". That objection was right about
+/// hand-reconstruction and wrong about the alternatives: Flutter writes its own
+/// resolved define set to `ios/Flutter/Generated.xcconfig`, so the expansion can
+/// be CHECKED against the toolchain rather than trusted. `dart_define_from_file.dart`
+/// ports the parsing and `ios_releaser` compares the result with Flutter's own
+/// answer for that same build, declining exactly as before when they disagree.
+///
+/// The mechanism stays because the next unfingerprintable option needs it, and
+/// because emptying a list is not the same as deleting the branch that reads it.
+/// [isUnfingerprintable] takes the list as a parameter so a test can exercise
+/// that branch with a synthetic option — an empty `const` list would otherwise
+/// make it unreachable, which is a check that cannot fail.
 ///
 /// Kept in sync with `routeBUnforwardableOptions` in `route_b_release_kernels.dart`
 /// by `route_b_build_config_test.dart`, so the two cannot drift into disagreeing
 /// about what is carryable.
-const routeBUnfingerprintableOptions = ['--dart-define-from-file'];
+const routeBUnfingerprintableOptions = <String>[];
+
+/// Whether [arg] is one of [options], in either `--opt=value` or `--opt` form.
+bool isUnfingerprintable(
+  String arg, {
+  List<String> options = routeBUnfingerprintableOptions,
+}) => options.any((option) => arg == option || arg.startsWith('$option='));
 
 /// {@template route_b_build_config}
 /// A release's build configuration, in the two forms that matter.
@@ -133,8 +150,23 @@ class RouteBBuildConfig {
   static RouteBBuildConfig? fromBuildArgs(
     List<String> buildArgs, {
     String? flavor,
+    String? workingDirectory,
   }) {
-    final defines = <String, String>{};
+    // FILE DEFINES FIRST, then the command line, because that is Flutter's own
+    // precedence: `extractDartDefines` emits every file entry before every
+    // `--dart-define`, and the last write wins (probe rule 1). So a key in both
+    // takes the command line's value — which is what
+    // `--dart-define-from-file`'s own help text promises.
+    final expansion = DartDefineFromFileExpansion.expand(
+      buildArgs,
+      workingDirectory: workingDirectory,
+    );
+    // "Could not determine" is still not "no defines". A named file that cannot
+    // be read leaves the configuration unknown, which is the one state that must
+    // never be confused with an empty-but-known one.
+    if (!expansion.ok) return null;
+
+    final defines = <String, String>{...expansion.defines};
     var obfuscate = false;
     String? splitDebugInfoPath;
     for (var i = 0; i < buildArgs.length; i++) {
@@ -154,10 +186,7 @@ class RouteBBuildConfig {
         i++;
         continue;
       }
-      final unfingerprintable = routeBUnfingerprintableOptions.any(
-        (option) => arg == option || arg.startsWith('$option='),
-      );
-      if (unfingerprintable) return null;
+      if (isUnfingerprintable(arg)) return null;
       if (!arg.startsWith(_dartDefineFlag)) continue;
       final body = arg.substring(_dartDefineFlag.length);
       final eq = body.indexOf('=');

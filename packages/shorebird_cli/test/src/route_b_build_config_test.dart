@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:path/path.dart' as p;
 import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:test/test.dart';
@@ -380,25 +383,124 @@ void main() {
       });
     });
 
-    group('unfingerprintable options', () {
-      test('--dart-define-from-file yields null, not an empty config', () {
-        // "Cannot be determined" must not collapse into "no defines": an empty
-        // configuration is a real one that a patch can legitimately match.
-        expect(
-          RouteBBuildConfig.fromBuildArgs(['--dart-define-from-file=x.env']),
-          isNull,
+    group('--dart-define-from-file', () {
+      late Directory tempDir;
+
+      setUp(
+        () => tempDir = Directory.systemTemp.createTempSync('define_from_file'),
+      );
+      tearDown(() => tempDir.deleteSync(recursive: true));
+
+      void write(String name, String contents) =>
+          File(p.join(tempDir.path, name)).writeAsStringSync(contents);
+
+      test('a file that EXISTS is now fingerprinted, not declined', () {
+        // THE ROW THIS CLOSES. Until the expansion landed this returned null and
+        // the release was permanently not comparable. The whole value of the
+        // assertion is that the file exists — see the next test for why that is
+        // not a detail.
+        write('defines.json', '{"API":"https://x","N":7}');
+        final c = RouteBBuildConfig.fromBuildArgs(
+          ['--dart-define-from-file=defines.json'],
+          workingDirectory: tempDir.path,
         );
+        expect(c, isNotNull);
+        expect(c!.effectiveDefines, {'API': 'https://x', 'N': '7'});
+      });
+
+      test('a MISSING file still yields null — a different claim now', () {
+        // Before the expansion, `--dart-define-from-file=x.env` returned null
+        // because the OPTION was declined. It still returns null here, and a
+        // test that never puts a real file on disk cannot tell those two reasons
+        // apart — it would keep passing against an implementation that had
+        // reverted. That is precisely what the previous version of this group
+        // did, and why the test above writes the file.
         expect(
-          RouteBBuildConfig.fromBuildArgs(['--dart-define-from-file', 'x.env']),
+          RouteBBuildConfig.fromBuildArgs(
+            ['--dart-define-from-file=absent.env'],
+            workingDirectory: tempDir.path,
+          ),
           isNull,
         );
         expect(RouteBBuildConfig.fromBuildArgs([]), isNotNull);
       });
 
+      test('both spellings of the option are expanded', () {
+        write('d.env', 'K=v');
+        for (final args in [
+          ['--dart-define-from-file=d.env'],
+          ['--dart-define-from-file', 'd.env'],
+        ]) {
+          final c = RouteBBuildConfig.fromBuildArgs(
+            args,
+            workingDirectory: tempDir.path,
+          );
+          expect(c?.effectiveDefines, {'K': 'v'}, reason: '$args');
+        }
+      });
+
+      test('--dart-define wins over a file entry with the same key', () {
+        // Flutter's own precedence: `extractDartDefines` emits every file entry
+        // before every `--dart-define`, and the last write wins (probe rule 1).
+        // Measured against Flutter itself in g41b_define_from_file.sh arm 3.
+        write('d.json', '{"K":"from-file","ONLY_FILE":"f"}');
+        final c = RouteBBuildConfig.fromBuildArgs(
+          ['--dart-define-from-file=d.json', '--dart-define=K=from-cli'],
+          workingDirectory: tempDir.path,
+        );
+        expect(c!.effectiveDefines, {'K': 'from-cli', 'ONLY_FILE': 'f'});
+      });
+
+      test('two configurations differing only inside the file disagree', () {
+        // The discriminating case for the whole feature. If the expansion were
+        // dropped, both sides would fingerprint as "no defines" and a patch
+        // compiled with a different constant would be accepted as matching.
+        write('a.json', '{"K":"a"}');
+        write('b.json', '{"K":"b"}');
+        final a = RouteBBuildConfig.fromBuildArgs(
+          ['--dart-define-from-file=a.json'],
+          workingDirectory: tempDir.path,
+        )!;
+        final b = RouteBBuildConfig.fromBuildArgs(
+          ['--dart-define-from-file=b.json'],
+          workingDirectory: tempDir.path,
+        )!;
+        expect(a.agreesWith(b), isFalse);
+        expect(a.fingerprint, isNot(b.fingerprint));
+      });
+    });
+
+    group('unfingerprintable options', () {
       test('agrees with the kernel builder about what cannot be carried', () {
         // Two lists, one meaning. If they drift, a release could be
-        // fingerprintable but unpatchable, or worse the reverse.
+        // fingerprintable but unpatchable, or worse the reverse. Both are empty
+        // today, so this alone would also pass on two unrelated empty lists —
+        // the test below is what keeps the mechanism itself honest.
         expect(routeBUnfingerprintableOptions, routeBUnforwardableOptions);
+      });
+
+      test('the decline mechanism still works, on an injected option', () {
+        // THE LIST IS EMPTY, WHICH WOULD MAKE ITS READER UNREACHABLE. A branch
+        // no test can enter is a check that cannot fail, so the predicate takes
+        // its list as a parameter and this exercises it directly. Whatever
+        // option next proves unfingerprintable inherits working code.
+        const injected = ['--some-future-option'];
+        expect(
+          isUnfingerprintable('--some-future-option', options: injected),
+          isTrue,
+        );
+        expect(
+          isUnfingerprintable('--some-future-option=x', options: injected),
+          isTrue,
+        );
+        expect(
+          isUnfingerprintable('--dart-define=A=1', options: injected),
+          isFalse,
+        );
+        expect(
+          isUnforwardable('--some-future-option', options: injected),
+          isTrue,
+        );
       });
     });
 

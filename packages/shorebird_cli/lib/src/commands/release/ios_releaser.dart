@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
+import 'package:shorebird_cli/src/dart_define_from_file.dart';
 import 'package:shorebird_cli/src/commands/release/apple_releaser_mixin.dart';
 import 'package:shorebird_cli/src/commands/release/releaser.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
@@ -298,6 +299,58 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
     );
   }
 
+  /// Checks this build's `--dart-define-from-file` expansion against the define
+  /// set FLUTTER ITSELF resolved for this same build, and returns the reason to
+  /// decline, or null when there is nothing to decline about.
+  ///
+  /// WHY A RELEASE-TIME CHECK AND NOT A UNIT TEST. Expanding the option means
+  /// porting Flutter's `.json`/`.env` parser, and a port that is merely tested
+  /// against its author's idea of the rules is exactly the hand-reconstruction
+  /// this design refused for two releases. What makes the option supportable is
+  /// that Flutter writes its own answer to `ios/Flutter/Generated.xcconfig`
+  /// (`DART_DEFINES`, base64 `K=V` — `build_info.dart:396`), so every release
+  /// that uses the option is measured rather than trusted. `probes/g41b_define_from_file.sh`
+  /// is the same comparison run against a fixture; this is it run against the
+  /// user's real build.
+  ///
+  /// DECLINING IS THE SAFE DIRECTION, and it lands exactly where this option
+  /// already was: no Route B artifacts and `buildConfig: null`, which the patch
+  /// side already handles as "permanently not comparable". So a wrong expansion
+  /// costs patchability, never a wrong patch.
+  String? _defineExpansionDisagreement(List<String> buildArgs) {
+    if (DartDefineFromFileExpansion.pathsIn(buildArgs).isEmpty) return null;
+
+    final expansion = DartDefineFromFileExpansion.expand(buildArgs);
+    if (!expansion.ok) return expansion.failureReason;
+
+    final root = shorebirdEnv.getFlutterProjectRoot();
+    if (root == null) {
+      return 'the project root could not be found, so the expansion could not '
+          'be checked against Flutter';
+    }
+    final resolved = DartDefineFromFileExpansion.decodeGeneratedXcconfig(
+      File(p.join(root.path, 'ios', 'Flutter', 'Generated.xcconfig')),
+    );
+    if (resolved == null) {
+      return "Flutter's own resolved define set could not be read from "
+          'ios/Flutter/Generated.xcconfig';
+    }
+
+    // FLUTTER_APP_FLAVOR is exempt on evidence, not by convenience: Flutter
+    // rewrites it at the xcodebuild stage from the Xcode CONFIGURATION, which
+    // returns the SCHEME's casing, AFTER this file was written from the CLI
+    // token. Measured on `selfhost/fixtures/flavored_app` — the xcconfig says
+    // `foo` for the build whose shipped kernel contains `Foo`. The flavor has
+    // its own threading and its own probe; it is not this check's subject.
+    final disagreeing = expansion.disagreementWith(
+      resolved,
+      exempt: const {'FLUTTER_APP_FLAVOR'},
+    );
+    if (disagreeing.isEmpty) return null;
+    return 'this build expanded --dart-define-from-file differently than '
+        'Flutter did, on: ${disagreeing.join(', ')}';
+  }
+
   Future<void> _recordRouteBProvenance(
     RouteBCompiler compiler,
     Directory appDirectory,
@@ -328,8 +381,20 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
     // from the same source at patch time would answer the wrong question --
     // "what differs from a kernel I just built" rather than "what differs from
     // what shipped". Captured here, while it is unambiguously the release's.
+    // Measured before anything is recorded, because its answer decides whether
+    // this release is patchable at all.
+    final defineDisagreement = _defineExpansionDisagreement(buildArgs);
+
     final artifacts = <String, String>{};
-    if (releaseKernel.existsSync()) {
+    if (defineDisagreement != null) {
+      // Not fatal, and deliberately identical to how this option behaved before
+      // it was supported: the app is fine and installable, it simply cannot be
+      // patched. What is new is that the reason is MEASURED and named, rather
+      // than being a standing refusal for the whole option.
+      logger.warn(
+        '''Patches for this release will be refused: $defineDisagreement.''',
+      );
+    } else if (releaseKernel.existsSync()) {
       artifacts[routeBReleaseKernelFileName] = captureRouteBReleaseKernel(
         supplement,
         releaseKernel,
@@ -392,13 +457,17 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
         artifacts: artifacts,
         // G4.1. Captured from the SAME buildArgs the release compiled with,
         // at the one moment they are unambiguously this release's. Null when the
-        // release used an option whose effective define set cannot be determined
-        // (--dart-define-from-file); the patch side distinguishes that from an
-        // empty-but-known configuration, which is comparable.
-        buildConfig: RouteBBuildConfig.fromBuildArgs(
-          buildArgs,
-          flavor: await _appleFlavor,
-        ),
+        // release's effective define set could not be established — which since
+        // `--dart-define-from-file` became supported means the expansion
+        // DISAGREED with Flutter's own, not that the option was used. The patch
+        // side distinguishes null from an empty-but-known configuration, which
+        // is comparable.
+        buildConfig: defineDisagreement != null
+            ? null
+            : RouteBBuildConfig.fromBuildArgs(
+                buildArgs,
+                flavor: await _appleFlavor,
+              ),
       ),
     );
     logger.detail(
