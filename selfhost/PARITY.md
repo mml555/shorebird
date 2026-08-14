@@ -2880,6 +2880,41 @@ a clean answer to both workers simultaneously.
 `selfhost/fixtures/flavored_app` with no `R-id` at all would have been enough. A
 claim is a statement of intent, not a property of an existing artifact.
 
+### 2026-08-14: the fifth swallow, and the first where the ABSORBED work was the reporter's
+
+`6378ae2f`'s message is *"assert_mint_ready would greenlight a build that never
+ran"*. Its diffstat is four files: that probe, **plus** `patch_command.dart`,
+`patch_command_test.dart` and `evidence/android/g42-flavor/a2_regression_red.txt`
+— A2's build-config enforcement, its regression, and its red-state evidence.
+Nothing was lost and the tests are green in `HEAD`, but the message and the
+diffstat describe different work, and a reader trusting either one alone is
+misled.
+
+**What makes this instance different.** Every earlier instance was a broad stage
+(`git add -A`) capturing a neighbour's unstaged edits. This one was not: the
+absorbed files had been staged *deliberately, by explicit path*. The gap was
+TIME. The lane staged, then ran a ~4-minute full test suite, then committed —
+and the other worker committed inside that window, carrying the already-staged
+index entries with it.
+
+**So the existing rule is necessary but not sufficient.** §17 rule 10 and the
+2026-08-14 addition both say to re-read `git status` immediately *before
+staging*. That does not help here: the status was clean of foreign files at
+staging time. **The exposure is the whole interval between `git add` and `git
+commit`, and it is proportional to whatever you do in between.** Two practical
+consequences, neither of which needs new tooling:
+
+1. **Stage last.** Run the suite, the analyzer and the probes *first*; stage only
+   once the commit is the very next command.
+2. **Verify after committing, not only before.** `git show --stat HEAD` is the
+   only thing that proves what your commit contains — and if your files are
+   missing from it, look for them in someone else's commit rather than assuming
+   the commit failed.
+
+The recovery is bookkeeping, not surgery: the content is correct in `HEAD`, so
+the fix is to say so here rather than to rewrite history that another lane is
+already building on.
+
 **What it cost, and what it nearly cost.** `41758dd3` staged broadly and captured
 the other session's unstaged `derive_overlay.py` and overlay `project.pbxproj`,
 then **described them as not done** — so its message contradicts its own diffstat,
