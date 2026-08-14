@@ -621,6 +621,27 @@ Building with Flutter $flutterVersionString to determine the release version...
       }
     }
 
+    // Replaying the release's obfuscation map into the patch build requires a
+    // gen_snapshot that understands --load-obfuscation-map. Engines older than
+    // loadObfuscationMapSupportConstraint only have --save-obfuscation-map and
+    // abort with "Unrecognized flags: load_obfuscation_map" (exit code 255) for
+    // every arch, deep inside the Flutter build. Refuse here instead: a
+    // rejected patch beats a confusing build failure, and dropping the map to
+    // build anyway would produce a patch obfuscated differently than the
+    // release, which is silently broken at runtime.
+    if (obfuscationMapFile != null &&
+        !await shorebirdFlutter.supportsLoadObfuscationMap(
+          flutterRevision: release.flutterRevision,
+        )) {
+      logger.err(
+        '''
+This release was built with obfuscation, but the Flutter version it was built with (revision ${release.flutterRevision}) predates support for the gen_snapshot --load-obfuscation-map flag, which is required to build a patch that matches the release's obfuscation.
+
+Patching an obfuscated release requires the release to have been built with Flutter ${loadObfuscationMapSupportConstraint.minVersion} or later. Create a new release with a newer Flutter version and patch that release instead.''',
+      );
+      throw ProcessExit(ExitCode.software.code);
+    }
+
     // If the user explicitly passed --obfuscate but the release has no
     // obfuscation map, the patch would be obfuscated against a non-obfuscated
     // release, producing a broken patch.

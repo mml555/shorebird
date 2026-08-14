@@ -946,6 +946,11 @@ void main() {
                   p.join(outputDirectory.path, 'obfuscation_map.json'),
                 ).writeAsStringSync('{}');
               });
+              when(
+                () => shorebirdFlutter.supportsLoadObfuscationMap(
+                  flutterRevision: any(named: 'flutterRevision'),
+                ),
+              ).thenAnswer((_) async => true);
             });
 
             test(
@@ -992,6 +997,83 @@ void main() {
                 expect(
                   captured,
                   isNot(contains('--extra-gen-snapshot-options=--strip')),
+                );
+              },
+            );
+
+            group(
+              '''when the release's engine does not support --load-obfuscation-map''',
+              () {
+                setUp(() {
+                  when(
+                    () => shorebirdFlutter.supportsLoadObfuscationMap(
+                      flutterRevision: any(named: 'flutterRevision'),
+                    ),
+                  ).thenAnswer((_) async => false);
+                  // Stubbed so that, absent the capability check, the patch
+                  // would build and upload normally: these tests must fail
+                  // because the CLI failed to refuse, not because a
+                  // downstream mock was missing.
+                  when(
+                    () => shorebirdFlutter.shouldPreStripLibappInGenSnapshot(
+                      platform: any(named: 'platform'),
+                      flutterRevision: any(named: 'flutterRevision'),
+                    ),
+                  ).thenAnswer((_) async => true);
+                });
+
+                test('logs the real cause and exits before building', () async {
+                  await expectLater(
+                    () => runWithOverrides(() => command.createPatch(patcher)),
+                    exitsWithCode(ExitCode.software),
+                  );
+
+                  final message =
+                      verify(() => logger.err(captureAny())).captured.last
+                          as String;
+                  expect(
+                    message,
+                    contains(
+                      '''predates support for the gen_snapshot --load-obfuscation-map flag''',
+                    ),
+                  );
+                  expect(message, contains(release.flutterRevision));
+                  expect(
+                    message,
+                    contains(
+                      '''Flutter ${loadObfuscationMapSupportConstraint.minVersion} or later''',
+                    ),
+                  );
+
+                  // The whole point of the check is to fail before the build:
+                  // gen_snapshot would otherwise exit 255 for every arch.
+                  verifyNever(() => patcher.extraBuildArgs = any());
+                  verifyNever(
+                    () => patcher.createPatchArtifacts(
+                      appId: any(named: 'appId'),
+                      releaseId: any(named: 'releaseId'),
+                      releaseArtifact: any(named: 'releaseArtifact'),
+                      supplementDirectory: any(named: 'supplementDirectory'),
+                    ),
+                  );
+                });
+
+                test(
+                  '''is checked against the release's Flutter revision, not the local pin''',
+                  () async {
+                    await expectLater(
+                      () => runWithOverrides(
+                        () => command.createPatch(patcher),
+                      ),
+                      exitsWithCode(ExitCode.software),
+                    );
+
+                    verify(
+                      () => shorebirdFlutter.supportsLoadObfuscationMap(
+                        flutterRevision: release.flutterRevision,
+                      ),
+                    ).called(1);
+                  },
                 );
               },
             );

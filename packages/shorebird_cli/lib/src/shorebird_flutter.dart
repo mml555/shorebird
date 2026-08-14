@@ -316,6 +316,31 @@ class ShorebirdFlutter {
     );
   }
 
+  /// Whether the `gen_snapshot` shipped with the Flutter pin identified by
+  /// [flutterRevision] understands `--load-obfuscation-map`.
+  ///
+  /// Callers use this to refuse a patch up front instead of letting
+  /// gen_snapshot die with `Unrecognized flags: load_obfuscation_map` (exit
+  /// code 255) part-way through a Flutter build. See
+  /// [loadObfuscationMapSupportConstraint] and
+  /// shorebirdtech/shorebird#3864.
+  ///
+  /// An unresolvable [flutterRevision] (e.g. a development branch that has no
+  /// release branch containing it) is treated as supporting the flag. Assuming
+  /// support degrades to today's behavior — a loud gen_snapshot failure — for
+  /// the rare user who is genuinely on an old unresolvable pin, whereas
+  /// assuming the opposite would refuse patches outright for everyone on a
+  /// bleeding-edge pin that does support it.
+  Future<bool> supportsLoadObfuscationMap({
+    required String flutterRevision,
+  }) async {
+    final version = await resolveFlutterVersion(flutterRevision);
+    return loadObfuscationMapSupportConstraint.isSatisfiedBy(
+      version: version ?? loadObfuscationMapSupportConstraint.minVersion,
+      revision: flutterRevision,
+    );
+  }
+
   /// Fetches the latest remote refs for the Flutter clone so that
   /// release branch pointers (e.g. `flutter_release/3.38.5`) are up to date.
   Future<void> fetchRemoteRefs() async {

@@ -544,6 +544,77 @@ Tools • Dart 3.0.6 • DevTools 2.23.1''');
       );
     });
 
+    group('supportsLoadObfuscationMap', () {
+      void mockResolvedVersion(String? releaseBranch) {
+        when(
+          () => git.forEachRef(
+            directory: any(named: 'directory'),
+            contains: any(named: 'contains'),
+            format: any(named: 'format'),
+            pattern: any(named: 'pattern'),
+          ),
+        ).thenAnswer(
+          (_) async => releaseBranch == null
+              ? ''
+              : 'origin/flutter_release/$releaseBranch',
+        );
+      }
+
+      test('returns false when the release Flutter predates 3.44', () async {
+        mockResolvedVersion('3.41.2');
+
+        final result = await runWithOverrides(
+          () => shorebirdFlutter.supportsLoadObfuscationMap(
+            flutterRevision: 'deadbeef',
+          ),
+        );
+
+        expect(result, isFalse);
+      });
+
+      test('returns true when the release Flutter is 3.44', () async {
+        mockResolvedVersion('3.44.0');
+
+        final result = await runWithOverrides(
+          () => shorebirdFlutter.supportsLoadObfuscationMap(
+            flutterRevision: 'deadbeef',
+          ),
+        );
+
+        expect(result, isTrue);
+      });
+
+      test('returns true when the release Flutter is newer', () async {
+        mockResolvedVersion('3.45.1');
+
+        final result = await runWithOverrides(
+          () => shorebirdFlutter.supportsLoadObfuscationMap(
+            flutterRevision: 'deadbeef',
+          ),
+        );
+
+        expect(result, isTrue);
+      });
+
+      test(
+        '''returns true when the version cannot be resolved (development pin)''',
+        () async {
+          // An unresolvable pin falls back to the constraint's min version, so
+          // we assume support rather than refusing every patch built from a
+          // development branch.
+          mockResolvedVersion(null);
+
+          final result = await runWithOverrides(
+            () => shorebirdFlutter.supportsLoadObfuscationMap(
+              flutterRevision: 'deadbeef',
+            ),
+          );
+
+          expect(result, isTrue);
+        },
+      );
+    });
+
     group('fetchRemoteRefs', () {
       test('fetches from remote', () async {
         when(
