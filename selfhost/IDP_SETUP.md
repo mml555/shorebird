@@ -82,6 +82,38 @@ SHOREBIRD_TOKEN=sb_api_… SHOREBIRD_HOSTED_URL=http://localhost:18080 \
 (`user.create`) then says who did what, and revoking one lane's key does not sign out
 the rig.
 
+### `shorebird login` works here — and the one variable you may still need
+
+**Verified end to end on this rig 2026-08-14** against `cps-ios`: `shorebird login`
+prints `http://localhost:18080/login?continue=…`, the self-consent form accepts the
+API key, the loopback callback receives a `sb_code_…`, the CLI exchanges it at
+`/token`, and `account whoami` then reports a real user. No browser vendor, no
+upstream, no `console.shorebird.dev`.
+
+Setting `SHOREBIRD_HOSTED_URL` is normally all you need — the CLI derives the auth
+service and the expected JWT issuer from it.
+
+**The exception, and this rig is an instance of it.** The issuer is a property of the
+SERVER's advertised identity — its `PUBLIC_BASE_URL` — and NOT of the address you
+reach it on. Those legitimately differ: this control plane advertises
+`http://169.254.189.3:18080` so a tethered device can reach it, while the Mac talks to
+it over `localhost:18080`. Login then fails with
+
+```
+Token issuer mismatch: expected http://localhost:18080, got http://169.254.189.3:18080
+```
+
+which is a correct diagnosis. Name the issuer explicitly and it succeeds:
+
+```sh
+SHOREBIRD_HOSTED_URL=http://localhost:18080 \
+SHOREBIRD_JWT_ISSUER=http://169.254.189.3:18080 \
+  shorebird login
+```
+
+The CLI now suggests exactly that line, with the observed issuer filled in, whenever
+a self-hosted control plane is configured.
+
 ### If you are an agent and the command is refused
 
 Reading `~/shorebird-rig/secrets/*.env`, and `docker exec` against a container to use

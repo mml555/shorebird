@@ -230,9 +230,20 @@ oauth2.AccessCredentials _parseTokenResponse(String responseBody) {
   // Validate the issuer matches the expected auth service.
   final expectedIssuer = shorebirdEnv.jwtIssuer;
   if (jwt.payload.iss != expectedIssuer) {
+    // The issuer is a property of the SERVER's advertised identity — its
+    // PUBLIC_BASE_URL — and not of the address a client happens to reach it on.
+    // Those legitimately differ: a control plane may advertise a LAN address so
+    // devices can reach it while operators talk to it over localhost. The
+    // expected value is derived from the hosted URL, so that case lands here
+    // with a correct diagnosis and no way out unless we name the escape hatch.
+    final hint = shorebirdEnv.hostedUri != null
+        ? ' If this control plane advertises a different address than the one '
+              'you connect to (PUBLIC_BASE_URL vs the URL you used), set '
+              'SHOREBIRD_JWT_ISSUER=${jwt.payload.iss} to accept it.'
+        : '';
     throw ShorebirdAuthException(
       'Token issuer mismatch: expected $expectedIssuer, '
-      'got ${jwt.payload.iss}',
+      'got ${jwt.payload.iss}.$hint',
     );
   }
 
