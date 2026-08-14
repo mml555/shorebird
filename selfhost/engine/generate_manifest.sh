@@ -44,6 +44,11 @@
 #   provenance.yaml          our audit record of where each byte came from
 set -euo pipefail
 
+# Needed by the "base revision is one of ours" guard below. Overridable so the
+# guard can be exercised against a scratch overlay.
+HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+OVERLAY="${OVERLAY:-$HERE/../cdn/overlay}"
+
 HASH=""; BASE=""; FLUTTER_REV=""; DART_REV=""; HOST=""; TARGET=""; OUT=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -90,6 +95,28 @@ if [[ "$BASE_REV" == "$HASH" ]]; then
   echo "       the very hash you are generating for. That field must name the" >&2
   echo "       UPSTREAM FLUTTER engine this build is based on. Pass a base" >&2
   echo "       manifest from the pinned Shorebird revision instead." >&2
+  exit 2
+fi
+
+# The check above was too narrow, and that is not hypothetical: on 2026-08-14 a
+# manifest was generated for 40eaa0ef from 881e4129's manifest. 881e4129 is one
+# of OUR hashes carrying the self-naming drift this script exists to fix, but it
+# is not the hash being generated, so the equality test passed and the bug was
+# laundered into two new files. The audit went GREEN on it, because the audit
+# checks that the file exists, not what it claims.
+#
+# So refuse ANY base whose revision is one of our own published engine hashes,
+# not merely this one. An upstream Flutter revision is never a directory here.
+if [[ -d "$OVERLAY/flutter_infra_release/flutter/$BASE_REV" ]]; then
+  echo "ERROR: the base manifest's flutter_engine_revision is $BASE_REV, which is" >&2
+  echo "       one of OUR published engine hashes — it is a directory under" >&2
+  echo "       $OVERLAY/flutter_infra_release/flutter/." >&2
+  echo "       That field must name the UPSTREAM FLUTTER engine, which the proxy" >&2
+  echo "       resolves every NON-overridden artifact from on Flutter's CDN;" >&2
+  echo "       naming one of ours points those lookups at a revision Flutter has" >&2
+  echo "       never published." >&2
+  echo "       Pass a base manifest that carries an upstream revision — e.g." >&2
+  echo "       70974f81…'s, which names 83675ed2…, as does the pinned 69f9831c…." >&2
   exit 2
 fi
 
