@@ -2,6 +2,15 @@ G4.3 — release --obfuscate, patch --obfuscate -> patched value on device
 ========================================================================
 VERDICT: PROVEN, 2026-08-14, on R1 (iPhone 7, iOS 15.8.8, WIRED).
 
+  On byte-identical preserved release-39 bytes, applying Patch 1 at runtime
+  changed the app's displayed value from OLD-rel to NEW-OBF with
+  code_patch=1. The release binary itself remained unchanged.
+
+That last sentence is load-bearing, not a hedge. The preserved App's LC_UUID
+is 1160d1055f1839ae9f0eb1eb66739b48 before and after; a release binary that
+had CHANGED would be the failure, not the result, because the claim under
+test is that a patch executes against unmodified release bytes.
+
 This retires the arm PARITY's table listed as "release --obfuscate, patch
 --obfuscate | patched value on device", and it is the arm H4 existed to unblock.
 
