@@ -65,3 +65,23 @@ on exactly that ground.
 | after a killed launch, the next launch renders and shows the PATCHED value | **arm 2 passes** — a good patch survived a death inside the success window |
 | the next launch renders the RELEASE value | the patch was tombstoned: `Bad{BootCrash}` on a patch that never failed. **A failure of the design** |
 | the app does not render at all | not an arm-2 result — investigate the install before interpreting anything |
+
+## Cutting the release — pass `--export-method development`
+
+```sh
+shorebird release ios --export-method development
+```
+
+Without it the export fails with **`No Accounts`** and **`No profiles for
+'dev.selfhost.killswitchProbe' were found`** — *after a successful archive*, which
+is what makes it read as a broken developer account rather than a wrong flag.
+
+The cause is that `flutter build ipa` defaults to the **app-store** export method,
+and the profile that covers this bundle id is the **wildcard development** profile
+`SK85S6YZP9.*`. There is no distribution profile on this rig, so app-store export
+can never resolve one.
+
+`prepare_killswitch_fixture.sh` injects `DEVELOPMENT_TEAM`, which is necessary and
+**not sufficient** — the team fixes *signing*, the export method fixes *which profile
+is looked for*. Measured here 2026-08-14: with the team correctly set to
+`SK85S6YZP9`, the export still failed until the method was changed.
