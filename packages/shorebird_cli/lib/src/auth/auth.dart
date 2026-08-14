@@ -505,6 +505,22 @@ extension OauthAuthProvider on Jwt {
       return AuthProvider.microsoft;
     }
 
+    // A credential issued by a DIFFERENT deployment is the common case here,
+    // not a corrupt token — and it is easy to hit: log in against Shorebird's
+    // hosted service, then point the CLI at a self-hosted control plane, and
+    // the stored credential's `iss` no longer matches the configured one. The
+    // bare "Unknown jwt issuer" gives no hint that the fix is credentials
+    // rather than configuration, so name both sides and say what to do.
+    if (_isSelfHosted) {
+      throw Exception(
+        'These credentials were issued by ${payload.iss}, but this deployment '
+        'expects ${shorebirdEnv.jwtIssuer}. They are for a different '
+        'Shorebird deployment and cannot be used here — log in again, or set '
+        '$shorebirdTokenEnvVar to an API key (sb_api_...) issued by this '
+        'control plane via POST /admin/users.',
+      );
+    }
+
     throw Exception('Unknown jwt issuer: ${payload.iss}');
   }
 }

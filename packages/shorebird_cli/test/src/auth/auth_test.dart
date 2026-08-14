@@ -150,6 +150,40 @@ void main() {
             );
           });
         });
+
+        test('names both deployments when self-hosted', () {
+          // Reached by logging in against Shorebird's hosted service and then
+          // pointing the CLI at a self-hosted control plane: the stored
+          // credential's `iss` no longer matches the configured issuer. The
+          // bare "Unknown jwt issuer" gives no hint that the fix is
+          // CREDENTIALS rather than configuration. Found by running the real
+          // binary against a live control plane, not by a unit test.
+          when(
+            () => shorebirdEnv.hostedUri,
+          ).thenReturn(Uri.parse('http://localhost:18080'));
+          when(
+            () => shorebirdEnv.jwtIssuer,
+          ).thenReturn('http://localhost:18080');
+          when(() => payload.iss).thenReturn('https://auth.shorebird.dev');
+
+          runWithOverrides(() {
+            expect(
+              () => jwt.authProvider,
+              throwsA(
+                isA<Exception>().having(
+                  (e) => e.toString(),
+                  'message',
+                  allOf(
+                    contains('issued by https://auth.shorebird.dev'),
+                    contains('expects http://localhost:18080'),
+                    contains(shorebirdTokenEnvVar),
+                    contains('POST /admin/users'),
+                  ),
+                ),
+              ),
+            );
+          });
+        });
       });
     });
   });
