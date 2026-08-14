@@ -213,3 +213,10 @@ d6aad559e9da328edb729d5ed7c69c21bc0380ee 69f9831c360d9152862ec3897c67fb09ae843f3
 #
 # G15 arming fix (patch 0007) + G3.7 entry-point contract (patch 0006) + analysisVersion 8
 4df8f9b6139b67d2cfe9f6aa8212372cade36278 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-14 from the cell
+# manifest (see mint_route_b_cell.sh). Engine binary is 4df8f9b6139b67d2cfe9f6aa8212372cade36278's,
+# cloned byte-for-byte; only the CELL differs.
+#
+# gen_snapshot learns --load-obfuscation-map (patch 0008). Host files identical to 4df8f9b6; only the iOS zip moves.
+40eaa0ef6cb6485833bf2e10ac97224ca82cbf25 69f9831c360d9152862ec3897c67fb09ae843f3b
