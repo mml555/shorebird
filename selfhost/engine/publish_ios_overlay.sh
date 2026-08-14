@@ -54,9 +54,20 @@ for f in "$GEN" "$ANA"; do
     || die "$(basename "$f") is '$archs', expected universal x86_64+arm64"
 done
 
-# Derive the engine hash from the engine binary itself, so the published hash is a
-# function of what is actually in it. Any rebuild that changes the engine gets a
-# new hash, and re-running this script for an unchanged engine is idempotent.
+# Derive the engine hash from the engine binary itself.
+#
+# NOTE WHAT THIS HASH IS AND IS NOT. It is sha1 of the DEVICE-SLICE FLUTTER
+# BINARY, so it is a function of the ENGINE — not of the artifact set. The zip
+# also ships gen_snapshot_arm64 and analyze_snapshot_arm64, and a change to
+# either leaves this hash unchanged. The collision guard further down is what
+# stops that from silently overwriting a live hash; do not remove it on the
+# strength of the sentence above.
+#
+# Re-running for an unchanged artifact set IS idempotent, but only because that
+# guard compares CONTENTS and leaves the published zip in place. `zip` embeds
+# mtimes, so a re-zip is never byte-identical — before the guard existed, every
+# re-run silently replaced the published bytes, which would break the
+# ios_artifacts_sha256 equality audit_route_b_compiler.sh enforces.
 BIN="$FW/ios-arm64/Flutter.framework/Flutter"
 [[ -f "$BIN" ]] || die "no device-slice binary at $BIN"
 HASH=${HASH:-$(shasum -a 1 "$BIN" | cut -c1-40)}
@@ -67,7 +78,9 @@ DEST="$OVERLAY/flutter_infra_release/flutter/$HASH/ios-release"
 mkdir -p "$DEST"
 
 STAGE=$(mktemp -d)
-trap 'rm -rf "$STAGE"' EXIT
+# "$STAGE.zip" too: the collision guard below can exit non-zero with the staged
+# zip still on disk, and a refusal must not leave litter behind.
+trap 'rm -rf "$STAGE" "$STAGE.zip"' EXIT
 
 note "staging artifact set"
 cp "$ANA" "$STAGE/analyze_snapshot_arm64"
@@ -87,8 +100,84 @@ fi
 note "zipping"
 # Store entries relative to the set root, the way the stock zip does: flutter_tools
 # unpacks it straight into bin/cache/artifacts/engine/ios-release/.
-( cd "$STAGE" && zip -q -r -y "$DEST/artifacts.zip" . )
-ls -lh "$DEST/artifacts.zip" | awk '{print "    artifacts.zip: " $5}'
+#
+# Zipped to a TEMP path, never straight to $DEST — see the collision guard below.
+( cd "$STAGE" && zip -q -r -y "$STAGE.zip" . )
+
+# ---------------------------------------------------------------------------
+# FAIL-CLOSED COLLISION GUARD.
+#
+# HASH above is sha1 of the DEVICE-SLICE FLUTTER BINARY ALONE. It is therefore
+# NOT a function of the whole artifact set: a change that moves gen_snapshot but
+# leaves Flutter.framework untouched derives the hash that is ALREADY PUBLISHED.
+# Writing straight to $DEST then overwrites a live hash with different contents,
+# and that is worse than a clobber:
+#   * the hash stops being a function of what is in it;
+#   * any checkout that already cached it keeps the OLD tools forever, because
+#     the cache keys on the hash and nothing refetches;
+#   * a cell minted from that hash records an ios_artifacts_sha256 that no longer
+#     matches what is served, which audit_route_b_compiler.sh checks.
+# Measured 2026-08-13: patch 0008 (--load-obfuscation-map) changed gen_snapshot
+# only, derived 11e5695710275f829ef1e4a45636d39454ca1769 — already serving a zip
+# whose gen_snapshot lacked the flag.
+#
+# CONTENTS, NOT CONTAINER BYTES. `zip` embeds mtimes, so a re-zip of an identical
+# tree is never byte-identical (mint_route_b_cell.sh relies on this being true).
+# Comparing zip digests would therefore fire on every legitimate idempotent
+# re-run. The comparison is over per-member digests, with symlinks compared by
+# target because an .xcframework is a symlink web.
+content_manifest() { # <dir> -> "<path> <sha256|symlink target>" lines, sorted
+  ( cd "$1" && find . \( -type f -o -type l \) | LC_ALL=C sort |
+    while IFS= read -r f; do
+      if [[ -L "$f" ]]; then printf '%s symlink:%s\n' "$f" "$(readlink "$f")"
+      else printf '%s %s\n' "$f" "$(shasum -a 256 "$f" | cut -d' ' -f1)"; fi
+    done )
+}
+
+if [[ -f "$DEST/artifacts.zip" ]]; then
+  note "a zip already exists for $HASH — comparing CONTENTS before touching it"
+  PRIOR=$(mktemp -d)
+  unzip -q -o "$DEST/artifacts.zip" -d "$PRIOR"
+  if diff -q <(content_manifest "$PRIOR") <(content_manifest "$STAGE") >/dev/null; then
+    rm -rf "$PRIOR"
+    note "identical contents — leaving the published zip untouched"
+    echo "    (its digest may already participate in a minted cell address;"
+    echo "     re-zipping would change those bytes for no reason)"
+    ls -lh "$DEST/artifacts.zip" | awk '{print "    artifacts.zip: " $5 " (unchanged)"}'
+  else
+    echo >&2
+    echo "REFUSING TO OVERWRITE A PUBLISHED ENGINE HASH." >&2
+    echo "  hash : $HASH" >&2
+    echo "  dest : $DEST/artifacts.zip" >&2
+    echo >&2
+    echo "The derived hash is already published with DIFFERENT contents. The hash" >&2
+    echo "comes from Flutter.framework alone, so a gen_snapshot-only change lands" >&2
+    echo "here. Differing members:" >&2
+    # `|| true` is load-bearing: diff exits 1 when there ARE differences, and
+    # under `set -e -o pipefail` that would abort the script here — truncating
+    # this very message and making the FORCE check below unreachable.
+    { diff <(content_manifest "$PRIOR") <(content_manifest "$STAGE") || true; } |
+      grep -E '^[<>]' | head -12 | sed 's/^/    /' >&2 || true
+    echo >&2
+    echo "WHAT TO DO INSTEAD — this is the path cell 40eaa0ef used:" >&2
+    echo "  1. re-run with OVERLAY=<scratch dir> to build the zip without" >&2
+    echo "     touching the real overlay;" >&2
+    echo "  2. pass that zip to mint_route_b_cell.sh --ios-artifacts, which" >&2
+    echo "     clones the donor to a NEW address and overwrites only that copy." >&2
+    echo "     The donor is never modified." >&2
+    echo >&2
+    echo "Set FORCE=1 only if you can show no consumer ever fetched this hash." >&2
+    rm -rf "$PRIOR"
+    [[ "${FORCE:-0}" == "1" ]] || exit 1
+    echo "FORCE=1 set — overwriting anyway." >&2
+    mv "$STAGE.zip" "$DEST/artifacts.zip"
+    ls -lh "$DEST/artifacts.zip" | awk '{print "    artifacts.zip: " $5 " (FORCED)"}'
+  fi
+else
+  mv "$STAGE.zip" "$DEST/artifacts.zip"
+  ls -lh "$DEST/artifacts.zip" | awk '{print "    artifacts.zip: " $5}'
+fi
+rm -f "$STAGE.zip"
 
 # The macOS HOST toolchain. Not optional for a release built through the vended
 # Shorebird flutter, and the reason is a chain of version locks:
