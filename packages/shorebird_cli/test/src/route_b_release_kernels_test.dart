@@ -44,6 +44,43 @@ void main() {
         );
       });
 
+      test('synthesises the resolved flavor as a define', () {
+        // G4.2. It must be SYNTHESISED and cannot be forwarded: Flutter exits
+        // if a user supplies FLUTTER_APP_FLAVOR via --dart-define, so a legal
+        // invocation can never carry it among buildArgs.
+        expect(
+          RouteBReleaseKernelBuilder.forwardedArgs(
+            ['--dart-define=API=https://x'],
+            flavor: 'prod',
+          ),
+          ['-DAPI=https://x', '-DFLUTTER_APP_FLAVOR=prod'],
+        );
+      });
+
+      test('appends the flavor LAST so it wins', () {
+        // Mirrors Flutter's own xcodebuild-stage removeWhere-then-add
+        // (flutter/issues/169598) and gen_kernel's measured last-wins duplicate
+        // handling, so the define that reaches the compiler is the resolved
+        // flavor and not a stale same-named one.
+        expect(
+          RouteBReleaseKernelBuilder.forwardedArgs(
+            ['--dart-define=FLUTTER_APP_FLAVOR=stale'],
+            flavor: 'fresh',
+          )!.last,
+          '-DFLUTTER_APP_FLAVOR=fresh',
+        );
+      });
+
+      test('synthesises nothing for an absent or empty flavor', () {
+        // The negative half of the pair. Without it the two tests above would
+        // pass just as well against a version that always emitted the define.
+        expect(RouteBReleaseKernelBuilder.forwardedArgs([]), isEmpty);
+        expect(
+          RouteBReleaseKernelBuilder.forwardedArgs([], flavor: ''),
+          isEmpty,
+        );
+      });
+
       test('declines entirely on an option it cannot carry', () {
         // Flutter parses --dart-define-from-file's .json/.env shapes with its
         // own rules. Reimplementing that to expand it into -D flags is exactly
@@ -298,6 +335,114 @@ void main() {
 
         expect(result, isNotNull);
         expect(args, containsAllInOrder(['--include', 'package:my_app/']));
+      });
+
+      // THE RETENTION-POLICY ARGV, and the same argument that created the group
+      // above applies one level deeper.
+      //
+      // `--include` was pinned after it shipped a regression. The three flags
+      // below decide as much and were pinned by nothing: `--private-dill` is
+      // the difference between an interface that builds on a real app and one
+      // that does not (PARITY.md section 4 -- `get:_file` for
+      // ThrottledSaveLoadMixin),
+      // `--policy` is the whole permission decision, and `--manifest` is the
+      // only thing the patch side accepts a private reference against.
+      //
+      // The releaser's own tests assert the PARAMETER --
+      // privateEnumerationKernel
+      // isNotNull under agreement, isNull under fallback. Nothing asserted the
+      // TRANSLATION from that parameter to argv, which is where a retention
+      // policy actually stops being applied.
+      List<String> interfaceArgs({
+        File? privateEnumerationKernel,
+        File? manifestFile,
+        List<String> sdkMembers = routeBRetainedSdkMembers,
+      }) {
+        late List<String> args;
+        final result = runWithOverrides(
+          () => const RouteBReleaseKernelBuilder().generateDynamicInterface(
+            compiler: compiler(),
+            prepassKernel: prepass,
+            outputFile: output,
+            appPackageName: 'my_app',
+            privateEnumerationKernel: privateEnumerationKernel,
+            manifestFile: manifestFile,
+            sdkMembers: sdkMembers,
+            run: (executable, arguments) {
+              args = arguments;
+              output.writeAsStringSync('callable:');
+              return ProcessResult(0, 0, '', '');
+            },
+          ),
+        );
+        expect(result, isNotNull);
+        return args;
+      }
+
+      test('enumerates privates from the kernel it is handed', () {
+        // The positive half. Without it the prepass supplies the private list,
+        // and the prepass has had fields lowered into accessors -- so it yields
+        // `get:_file` where the annotator's pre-transform component has `_file`
+        // bare, and a single unresolvable entry fails the WHOLE interface.
+        final privates = File(p.join(prepass.parent.path, 'early_import.dill'))
+          ..writeAsStringSync('IMPORT-KERNEL');
+
+        expect(
+          interfaceArgs(privateEnumerationKernel: privates),
+          containsAllInOrder(['--private-dill', privates.path]),
+        );
+      });
+
+      test('passes no --private-dill when the caller withheld one', () {
+        // The matched negative, and it is the half that stops the pair passing
+        // vacuously. The caller withholds the kernel exactly when it disagreed
+        // with the prepass, and the release must then fall back to prepass-only
+        // enumeration -- a NARROWER release rather than one built from private
+        // names describing a program it does not contain.
+        expect(interfaceArgs(), isNot(contains('--private-dill')));
+      });
+
+      test('names the chosen policy rather than taking the default', () {
+        // P2 is a decision with a recorded cost (+7.83% on Wonderous) and a
+        // recorded alternative (P3, NON-VIABLE). Relying on the generator's
+        // default would let that decision move in the generator.
+        expect(interfaceArgs(), containsAllInOrder(['--policy', 'p2']));
+      });
+
+      test('asks for the manifest when given somewhere to put it', () {
+        final manifest = File(p.join(prepass.parent.path, 'capabilities.json'));
+
+        expect(
+          interfaceArgs(manifestFile: manifest),
+          containsAllInOrder(['--manifest', manifest.path]),
+        );
+        // And omits the flag entirely otherwise, so an absent manifest reads as
+        // "granted nothing provable" rather than as an empty grant.
+        expect(interfaceArgs(), isNot(contains('--manifest')));
+      });
+
+      test('retains SDK symbols BY NAME, never by library', () {
+        // A whole `dart:core` item was measured at +310% -- a four-fold
+        // snapshot. `--sdk-libraries` stays reachable for debugging and must
+        // never be what a release asks for.
+        final args = interfaceArgs();
+
+        expect(
+          args,
+          containsAllInOrder([
+            '--sdk-members',
+            routeBRetainedSdkMembers.join(','),
+          ]),
+        );
+        expect(args, isNot(contains('--sdk-libraries')));
+        // The budget is small on purpose; every release pays for every name in
+        // it, forever. This pins the list so a widening cannot be silent.
+        expect(routeBRetainedSdkMembers, [
+          'dart:core#print',
+          'dart:core#DateTime.now',
+          'dart:core#DateTime.get:millisecondsSinceEpoch',
+          'dart:core#identical',
+        ]);
       });
 
       test('does not generate an interface without a package name', () {
