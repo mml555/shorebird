@@ -1,5 +1,5 @@
 diff --git a/runtime/lib/object.cc b/runtime/lib/object.cc
-index 39d530be..1e0a6b60 100644
+index 39d530be..e81762ca 100644
 --- a/runtime/lib/object.cc
 +++ b/runtime/lib/object.cc
 @@ -4,10 +4,14 @@
@@ -28,7 +28,7 @@ index 39d530be..1e0a6b60 100644
  #include "vm/symbols.h"
  
  namespace dart {
-@@ -627,6 +635,707 @@ DEFINE_NATIVE_ENTRY(Internal_loadDynamicModule, 0, 1) {
+@@ -627,6 +635,716 @@ DEFINE_NATIVE_ENTRY(Internal_loadDynamicModule, 0, 1) {
  #endif  // defined(DART_DYNAMIC_MODULES)
  }
  
@@ -363,10 +363,19 @@ index 39d530be..1e0a6b60 100644
 +// Read a uword field out of a Function at the VM's OWN offset, i.e. the exact
 +// bytes the generated call loads. Not an accessor on Function because adding one
 +// would mean editing vm/object.h, which is a VM_SNAPSHOT_FILES member.
++//
++// GUARDED, because its only callers are inside the DART_DYNAMIC_MODULES block
++// below. Unguarded, a dart_dynamic_modules=false build fails with
++// "error: unused function 'RouteBFunctionField' [-Werror,-Wunused-function]" --
++// measured 2026-08-14 on the first attempt to build R3's host toolchain without
++// dynamic modules, which is what G15 gate 3a needs in order to publish a
++// platform dill from the tree that owns the engine.
++#if defined(DART_DYNAMIC_MODULES)
 +static uword RouteBFunctionField(const Function& fn, intptr_t offset) {
 +  return *reinterpret_cast<uword*>(static_cast<uword>(fn.ptr()) -
 +                                   kHeapObjectTag + offset);
 +}
++#endif  // defined(DART_DYNAMIC_MODULES)
 +
 +// The original four-argument entry point, unchanged in signature and behaviour.
 +//
