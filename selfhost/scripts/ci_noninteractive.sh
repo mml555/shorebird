@@ -313,9 +313,15 @@ note "release version          : $BASE_VERSION"
 # reached whatever the predicate says. A pass here is equally consistent with
 # the predicate doing nothing. The detector self-test above is what exercises
 # the predicate.
+# NOTE: `--release-version` is a PATCH flag. `release android` rejects it with
+# "The \"--release-version\" flag is only supported for aar and ios-framework
+# releases." and exits 64 — which this harness previously reported as an arm
+# failure, indistinguishable at a glance from the guard firing. Measured on
+# hermes-vps 2026-08-14. A release takes its version from pubspec.yaml, which is
+# where $BASE_VERSION was read from in the first place.
 rc1=0
 run_in "$APP_DIR" "arm 1 — release, NO --json" "$NOTTY_LOG" \
-  release android --no-confirm --release-version "$BASE_VERSION" || rc1=$?
+  release android --no-confirm || rc1=$?
 if [[ "$rc1" -ne 0 ]]; then
   note "arm 1 release FAILED (exit $rc1)"; fail_count=$((fail_count + 1))
 else
