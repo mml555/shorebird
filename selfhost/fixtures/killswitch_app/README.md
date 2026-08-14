@@ -19,14 +19,24 @@ a change that would tombstone good patches.
 
 ## How the kill lands in the right window
 
-After patch `0009`, launch success is banked when **`Engine::Run` returns**, and
-`Engine::Run` is what invokes `main()`. So a process that dies *inside* `main()`
-dies before `Run` returns: the boot records neither success nor failure — exactly
-the state a swipe-away leaves behind.
+> **CORRECTED 2026-08-14.** This section used to say that `Engine::Run` *invokes*
+> `main()`, so a death inside `main()` necessarily precedes `Run` returning. That
+> is **wrong, and it is the mechanism whose correction moved the whole seam
+> search**: `_delayEntrypointInvocation` (`isolate_patch.dart:298`) POSTS `main`
+> to a `RawReceivePort` and returns, so `InvokeMainEntrypoint` →
+> `LaunchRootIsolate` → `Engine::Run` all return **before one line of user Dart
+> runs**. Do not restate the old reading; see
+> `evidence/g15/crashbackout_control_verdict.txt`.
+
+What survives the correction is what the arm actually needs: the process dies
+**inside `main()`**, which is before any seam that observes user Dart can report
+success, and after the boot breadcrumb is set. The boot therefore records neither
+success nor failure — exactly the state a swipe-away leaves behind.
 
 That makes the arm **deterministic**. There is no timing window to hit and no
 external tooling: the app kills itself at a point that is, by construction, inside
-the window under test.
+the window under test. Which *seam* that window belongs to is the open question;
+the arm does not depend on the answer.
 
 ## The alternation, and why it is not a convenience
 
@@ -58,13 +68,59 @@ Its `_boot()` ends in `runApp()` and **both** entrypoints call it, so it is not
 headless. The earlier G15 design's arm 4 assumed otherwise and was a false green
 on exactly that ground.
 
+## The receipt — read this BEFORE the screen, on every arm
+
+`/Documents/g15_receipt` is an **append-only phase log**, written by both the
+native and the Dart half of the app, and it is the fixture's primary instrument.
+The screen is secondary.
+
+| line | proves |
+|---|---|
+| `native launch` | the process reached `didFinishLaunchingWithOptions` |
+| `native engine` | the implicit `FlutterEngine` was created |
+| `dart <id> dart-main-entered` | `main()` ran its **first statement** |
+| `dart <id> boot-probe-returned:X` | `bootProbe()` — **the patch target** — returned `X` |
+| `dart <id> arm:kill` / `arm:render` | the alternation decided |
+| `dart <id> first-frame` | Flutter actually drew |
+
+**The last line present names the exact point the launch reached**, so a gap
+between two consecutive phases localises the failure to one step. `<id>` ties
+lines to one launch, and the same id is printed on screen, so a screenshot and a
+set of receipt lines can be matched rather than assumed to correspond.
+
+### Why it was rebuilt
+
+Two results have now been lost to a signal whose failure mode mimicked the state
+it was meant to discriminate:
+
+1. The `HOME`-derived marker path threw, `main` died before rendering, and a
+   blank screen was indistinguishable from the kill arm working.
+2. `6d00e95c` put `bootMark = bootProbe();` **ahead of** the marker write. That
+   put the receipt behind the very function arm B exists to make throw, so on the
+   arm where it matters most the marker can never move. The verdict written from
+   it — *"`main()` DID NOT RUN… not at all"* — was **not supported**: an unmoved
+   marker is equally consistent with `main()` being entered and dying on its
+   first statement.
+
+Hence the invariants in `lib/main.dart`: the receipt is written **first**,
+`bootProbe()` is **not** wrapped in `try/catch` (the seam under test must see the
+unhandled throw), an instrument fault renders red rather than killing, and the
+native half exists because no Dart-side instrument can separate *"Dart never
+started"* from *"the app never really launched"*.
+
 ## Reading the result
+
+**Every row below is conditional on the receipt first.** If `dart-main-entered`
+is absent for the launch under test, nothing on the screen is an arm result.
 
 | observation | verdict |
 |---|---|
-| after a killed launch, the next launch renders and shows the PATCHED value | **arm 2 passes** — a good patch survived a death inside the success window |
-| the next launch renders the RELEASE value | the patch was tombstoned: `Bad{BootCrash}` on a patch that never failed. **A failure of the design** |
-| the app does not render at all | not an arm-2 result — investigate the install before interpreting anything |
+| receipt shows a killed launch, then the next launch reaches `first-frame` and shows the PATCHED value | **arm 2 passes** — a good patch survived a death inside the success window |
+| same, but the value is the RELEASE value | the patch was tombstoned: `Bad{BootCrash}` on a patch that never failed. **A failure of the design** |
+| `dart-main-entered` present, `boot-probe-returned` absent | `bootProbe()` threw or never returned. On the **unpatched** release that is a fixture/pipeline defect; on the **patched** one it is the Dart-phase boot failure arm B is trying to cause |
+| `native engine` present, `dart-main-entered` absent | the engine started and user Dart did not. **Not a patch result** — this is the state the 2026-08-14 control could not name |
+| `native launch` present, `native engine` absent | the process launched and the engine never came up — investigate the install, not the patch |
+| no receipt lines at all for this launch | the app did not run. Check the container path and the install before interpreting anything |
 
 ## Cutting the release — pass `--export-method development`
 

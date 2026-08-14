@@ -13,6 +13,7 @@
 #   1. `flutter create` the ios/ tree if absent (generated and gitignored).
 #   2. Inject DEVELOPMENT_TEAM, WITHOUT WHICH THE ARCHIVE SUCCEEDS AND THE EXPORT
 #      FAILS -- see the block at step 2. This has cost a release attempt before.
+#   2b. Inject the NATIVE half of the execution receipt into AppDelegate.swift.
 #   3. Write shorebird.yaml from the template with a real app_id.
 #
 # It deliberately does NOT delete UIApplicationSceneManifest the way the
@@ -89,6 +90,81 @@ if [ -n "$TEAM" ]; then
 else
   echo "==> WARNING: no wildcard provisioning profile found and no --team given." >&2
   echo "    The archive will succeed and the IPA EXPORT will fail. Pass --team." >&2
+fi
+
+# 2b. THE NATIVE HALF OF THE EXECUTION RECEIPT.
+#
+# WHY IT IS NEEDED AT ALL. On 2026-08-14 the fixture produced a blank screen with
+# its Dart-side marker unmoved, and the verdict written from it -- "main() DID NOT
+# RUN, not at all" -- could not actually be supported: an unmoved Dart marker is
+# equally consistent with the app never having launched, with the engine never
+# starting, and with main() being entered and dying on its first statement. No
+# Dart-side instrument can tell those apart, because all three leave Dart silent.
+#
+# These two lines can. `native launch` proves the process reached
+# didFinishLaunchingWithOptions; `native engine` proves the implicit FlutterEngine
+# was created. A receipt holding `native engine` with no `dart-main-entered` after
+# it is a POSITIVE observation that the engine started and Dart did not.
+#
+# NSHomeDirectory() is the sandbox root here. That is NOT the same trap as the
+# Dart side's: `Platform.environment['HOME']` is unset on iOS, which is why the
+# Dart half derives the sandbox from Directory.systemTemp.parent instead. The two
+# must resolve to the same directory, and the first device run confirms it by
+# showing native and dart lines in ONE file.
+#
+# Written wholesale rather than patched in: the file is generated, this fixture
+# has no plugins by design, and a regex against a template that upstream rewrites
+# is how a silent no-op gets shipped.
+APPD=ios/Runner/AppDelegate.swift
+if grep -q "g15Receipt" "$APPD" 2>/dev/null; then
+  echo "==> AppDelegate.swift already carries the native receipt"
+else
+  cat > "$APPD" <<'SWIFT'
+import Flutter
+import UIKit
+
+// G15 NATIVE EXECUTION RECEIPT -- injected by prepare_killswitch_fixture.sh.
+// ios/ is generated and gitignored, so this file is not the place to edit it.
+// See lib/main.dart for what the phases mean and why the receipt exists.
+//
+// NSHomeDirectory() IS the sandbox root for native code. The Dart half cannot
+// use the equivalent -- HOME is unset on iOS -- so it derives the sandbox from
+// Directory.systemTemp.parent. Both must land in the same Documents directory.
+func g15Receipt(_ phase: String) {
+  let dir = NSHomeDirectory() + "/Documents"
+  let path = dir + "/g15_receipt"
+  try? FileManager.default.createDirectory(
+    atPath: dir, withIntermediateDirectories: true)
+  guard let data = "native \(phase)\n".data(using: .utf8) else { return }
+  if let fh = FileHandle(forWritingAtPath: path) {
+    fh.seekToEndOfFile()
+    fh.write(data)
+    fh.closeFile()
+  } else {
+    FileManager.default.createFile(atPath: path, contents: data)
+  }
+}
+
+@main
+@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
+  override func application(
+    _ application: UIApplication,
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+  ) -> Bool {
+    // BEFORE super: super is what creates the implicit engine and runs Dart, so
+    // a receipt written after it would not distinguish "the process started"
+    // from "the engine started".
+    g15Receipt("launch")
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
+    g15Receipt("engine")
+    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+  }
+}
+SWIFT
+  echo "==> AppDelegate.swift rewritten with the native receipt"
 fi
 
 # 3. shorebird.yaml. Unlike twoengine_app's, these values ARE contacted: this arm

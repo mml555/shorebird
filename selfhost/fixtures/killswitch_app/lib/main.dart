@@ -8,16 +8,53 @@
 // (0x8badf00d), or jetsam. No arm that only exercises good launches and broken
 // patches can see that failure, which is why the prior design's table missed it.
 //
-// HOW THE KILL LANDS IN THE RIGHT WINDOW, and why it is deterministic rather
-// than a race. After patch `0009`, launch success is banked when `Engine::Run`
-// RETURNS. `Engine::Run` is what invokes this entrypoint. So a process that dies
-// inside `main()` dies *before* `Run` returns: the boot records neither success
-// nor failure, which is exactly the state a swipe-away leaves behind. No timing
-// window to hit and no external tooling required.
-//
 // NOT `twoengine_app`. That fixture ends `_boot()` in `runApp()` and both
 // entrypoints call it, so it is not headless — the earlier design's arm 4
 // assumed otherwise and was a false green on precisely that ground.
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// THE RECEIPT, and why it was rebuilt on 2026-08-14.
+//
+// This fixture has now produced TWO unreadable results, both by the same
+// mechanism: a signal whose failure mode mimics the state it exists to
+// discriminate.
+//
+//   1. The `HOME`-derived marker path threw, `main` died before rendering, and
+//      the blank screen was indistinguishable from the kill arm working.
+//   2. `6d00e95c` put `bootMark = bootProbe();` AHEAD of the marker write. That
+//      put the receipt BEHIND the very function arm B exists to make throw — so
+//      on the arm where the receipt matters most it can never move. An unmoved
+//      marker then reads as "user Dart never ran" when it is equally consistent
+//      with "`main` was entered and died on its first statement".
+//
+// So the receipt is no longer one toggling bit. It is an APPEND-ONLY PHASE LOG,
+// and the phases are chosen so that the LAST LINE PRESENT names the exact point
+// the launch reached:
+//
+//   native launch          the process reached `didFinishLaunchingWithOptions`
+//   native engine          the implicit FlutterEngine was created
+//   dart-main-entered      `main()` ran its first statement
+//   boot-probe-returned:X  `bootProbe()` — THE PATCH TARGET — returned X
+//   arm:kill / arm:render  the alternation decided
+//   first-frame            Flutter actually drew
+//
+// A gap between any two consecutive phases localises the failure to one step,
+// which no screenshot and no single marker file can do. The native half matters
+// specifically because it is the only thing that separates "Dart never started"
+// from "the app never really launched" — the two states the 2026-08-14 control
+// could not tell apart. It is injected by `prepare_killswitch_fixture.sh`,
+// because `ios/` is generated and gitignored.
+//
+// INVARIANTS. Breaking any of these makes every later G15 arm less trustworthy
+// than the arms that were already voided:
+//
+//   * `_receipt('dart-main-entered')` IS THE FIRST STATEMENT OF `main()`. Nothing
+//     patchable may precede it, ever.
+//   * `bootProbe()` IS NOT WRAPPED IN try/catch. The seam under test must see the
+//     unhandled throw; catching it here would make the whole gate vacuous.
+//   * an instrument fault NEVER kills the process. It renders red instead.
+//   * the receipt is written with `flush`, appended, and never truncated, so it
+//     survives `SIGKILL` — which a screen does not.
 
 import 'dart:io';
 
@@ -30,43 +67,72 @@ String routeBValue() => 'OLD-kill';
 /// Called from `main()` BEFORE `runApp`, which is the whole point of it.
 ///
 /// `routeBValue()` cannot serve the crash-backout arm: it is called from
-/// `build()`, which runs AFTER `Engine::Run` has returned and success has
-/// already been banked. A patch that throws there is a RUNTIME failure, not a
-/// BOOT failure, and G15 deliberately does not back those out.
+/// `build()`, which runs AFTER launch success has been banked. A patch that
+/// throws there is a RUNTIME failure, not a BOOT failure, and G15 deliberately
+/// does not back those out.
 ///
-/// This one is invoked while `Engine::Run` is still on the stack, so a patch
-/// that makes it throw is a Dart-phase failure of the boot itself — the exact
-/// thing crash-backout is supposed to catch.
+/// This one is invoked from `main()` itself, so a patch that makes it throw is a
+/// Dart-phase failure of the boot. NOTE, corrected 2026-08-14: it does NOT run
+/// "while `Engine::Run` is still on the stack". `_delayEntrypointInvocation`
+/// POSTS `main` to the message queue, so `Engine::Run` has already returned by
+/// the time this executes. That correction is the whole reason the seam moved.
 String bootProbe() => 'boot-ok';
 
 /// Set from [bootProbe] so the value cannot be tree-shaken away.
 String bootMark = '';
 
-/// Arming marker, in the app sandbox so it survives a SIGKILL and the next
-/// launch can read it.
+/// The app sandbox root.
 ///
-/// The sandbox root is derived from `Directory.systemTemp`, which Dart resolves
-/// to `<sandbox>/tmp` on iOS, so its parent is the sandbox. NOT `HOME`:
-/// **measured on device 2026-08-14, `Platform.environment['HOME']` is not set
-/// there.** The path became `null/Documents/g15_armed`, which is relative, and
-/// `createSync` threw against a read-only working directory.
-///
-/// Still no plugin, deliberately — a plugin would add native code to a fixture
-/// whose whole subject is a specific native launch sequence.
-File get _armedMarker =>
-    File('${Directory.systemTemp.parent.path}/Documents/g15_armed');
+/// `Directory.systemTemp` resolves to `<sandbox>/tmp` on iOS, so its parent is
+/// the sandbox. NOT `HOME`: **measured on device 2026-08-14,
+/// `Platform.environment['HOME']` is not set there.** The path became
+/// `null/Documents/g15_armed`, which is relative, and `createSync` threw against
+/// a read-only working directory. The native half uses `NSHomeDirectory()`,
+/// which — unlike the Dart environment variable — IS the sandbox root; the two
+/// must resolve to the same place and the first device run should confirm it by
+/// showing native and Dart lines in one file.
+Directory get _sandbox => Directory.systemTemp.parent;
+
+/// The append-only phase log. Shared with the native half.
+File get _receiptFile => File('${_sandbox.path}/Documents/g15_receipt');
+
+/// Arming marker. Its PRESENCE drives the alternation; the receipt records what
+/// was decided. Kept as a separate file, and under its original name, because
+/// existing device tooling pulls it by path.
+File get _armedMarker => File('${_sandbox.path}/Documents/g15_armed');
+
+/// Ties every line of one launch together, and is shown on screen so a
+/// screenshot can be matched to its receipt lines rather than assumed to
+/// correspond.
+final String _launchId =
+    DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+
+/// Non-null when the receipt mechanism itself failed.
+String? _receiptFault;
 
 /// Non-null when the marker mechanism itself failed. THE ARM MUST NOT KILL IN
 /// THAT CASE.
 ///
-/// This is not defensive padding — it is the false green this fixture already
-/// produced once. With the broken `HOME` path above, `createSync` threw, `main`
-/// died before rendering, and the app therefore terminated immediately on EVERY
-/// launch. That is indistinguishable, from the outside, from the kill arm
-/// working perfectly: no UI, process gone, breadcrumb left set. A fixture whose
-/// BREAKAGE mimics its SUCCESS can only produce false confidence, so a failure
-/// here now renders a red screen instead of killing.
+/// This is not defensive padding — it is a false green this fixture has already
+/// produced. With the broken `HOME` path, `createSync` threw, `main` died before
+/// rendering, and the app terminated on EVERY launch: indistinguishable, from
+/// the outside, from the kill arm working perfectly.
 String? _markerFault;
+
+/// Appends one phase line. Never throws, and never kills.
+void _receipt(String phase) {
+  try {
+    final File f = _receiptFile;
+    f.parent.createSync(recursive: true);
+    f.writeAsStringSync(
+      'dart $_launchId $phase\n',
+      mode: FileMode.append,
+      flush: true,
+    );
+  } on Object catch (e) {
+    _receiptFault ??= '$e';
+  }
+}
 
 /// Alternates: absent → kill this launch; present → consume it and run
 /// normally.
@@ -79,7 +145,7 @@ String? _markerFault;
 /// consent and block the app on a modal before any code runs.
 bool _shouldKillThisLaunch() {
   try {
-    final marker = _armedMarker;
+    final File marker = _armedMarker;
     if (marker.existsSync()) {
       marker.deleteSync();
       return false;
@@ -93,11 +159,30 @@ bool _shouldKillThisLaunch() {
 }
 
 void main() {
-  // BEFORE the kill check and before runApp: this must execute inside
-  // Engine::Run for a throwing patch to register as a boot failure.
-  bootMark = bootProbe();
+  // PHASE 1, AND IT MUST STAY FIRST. Nothing patchable precedes it, so a launch
+  // that reaches Dart at all leaves this line behind even if the next statement
+  // throws. This is exactly what `1.0.3+1` could not do.
+  _receipt('dart-main-entered');
 
-  if (_shouldKillThisLaunch()) {
+  // PHASE 2. `bootProbe()` is the patch target, and it is DELIBERATELY NOT
+  // GUARDED: arm B makes it throw, and the seam under test is what must observe
+  // that. If this throws, phase 2 is simply absent from the receipt — which is
+  // the positive reading of a Dart-phase boot failure, not an ambiguity.
+  bootMark = bootProbe();
+  _receipt('boot-probe-returned:$bootMark');
+
+  final bool kill = _shouldKillThisLaunch();
+  _receipt(kill ? 'arm:kill' : 'arm:render');
+
+  if (_markerFault != null || _receiptFault != null) {
+    // An instrument fault is NOT an arm result, so do not kill on it. Render the
+    // red banner instead and let the operator see it.
+    _receipt('instrument-fault');
+    runApp(const _KillSwitchApp());
+    return;
+  }
+
+  if (kill) {
     // SIGKILL, not `exit()`. Jetsam and the launch watchdog do not let the
     // process wind down, and a clean exit could run teardown that the cases
     // being simulated never run — which might report an outcome and defeat the
@@ -110,6 +195,10 @@ void main() {
   }
 
   runApp(const _KillSwitchApp());
+
+  // PHASE 6. `runApp` returns as soon as the first frame is SCHEDULED, so the
+  // callback — not the `runApp` call — is what proves Flutter drew.
+  WidgetsBinding.instance.addPostFrameCallback((_) => _receipt('first-frame'));
 }
 
 class _KillSwitchApp extends StatelessWidget {
@@ -147,16 +236,26 @@ class _KillSwitchApp extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              // Loud, and deliberately unmissable: if this is showing, the
-              // marker mechanism failed and NOTHING on this screen is an arm-2
+              const SizedBox(height: 16),
+              // Ties this screenshot to its receipt lines. Without it, "the
+              // screen rendered" and "these receipt lines were written" are two
+              // observations an operator has to ASSUME belong to one launch.
+              Text(
+                'launch $_launchId',
+                style: const TextStyle(color: Colors.white38, fontSize: 14),
+              ),
+              // Loud, and deliberately unmissable: if this is showing, an
+              // instrument failed and NOTHING on this screen is an arm-2
               // result. Silence here would let a broken fixture read as a pass.
-              if (_markerFault != null) ...[
+              if (_markerFault != null || _receiptFault != null) ...[
                 const SizedBox(height: 24),
                 Container(
                   color: const Color(0xFFB00020),
                   padding: const EdgeInsets.all(12),
                   child: Text(
-                    'MARKER FAULT — NOT AN ARM RESULT\n$_markerFault',
+                    'INSTRUMENT FAULT — NOT AN ARM RESULT\n'
+                    'marker: ${_markerFault ?? "ok"}\n'
+                    'receipt: ${_receiptFault ?? "ok"}',
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.white, fontSize: 16),
                   ),
