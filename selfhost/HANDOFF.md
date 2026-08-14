@@ -44,14 +44,28 @@ fix is a claims row for the path, written before the first file, even with no `R
   and schemes `Bar`/`Foo`/`Runner`, run against a scratch copy so the shared fixture
   was untouched. **BUILT for structural validity only** — it is a project-file
   query, not a build, and says nothing about the flavor reaching the compiler.
-* **Step 7's paths are wrong as written.** The committed xcconfigs set
+* ~~**Step 7's paths are wrong as written.** The committed xcconfigs set
   `PRODUCT_NAME = flavored_probe_foo`/`_bar`, and `application_package.dart:188-190`
   derives the artifact path from it, so the arms are at `flavored_probe_foo.app`,
-  not `Runner.app`. The no-token `default-flavor` arm resolves to the SAME path as
+  not `Runner.app`.~~ — **REFUTED BY MEASUREMENT 2026-08-14, and it is the inverse
+  of what this said.** Three cold `flutter build ios --release --flavor <arm>` runs
+  put the bundle at `build/ios/iphoneos/Runner.app` every time;
+  `flavored_probe_foo.app` never exists. The `PRODUCT_NAME = "$(TARGET_NAME)"` form
+  in `ios_overlay/Runner.xcodeproj/project.pbxproj` — **18 occurrences**, 9
+  configurations × 2 targets — wins over the xcconfig, so `PRODUCT_NAME` is inert
+  here and the path is a constant. The reasoning above was sound about
+  `application_package.dart` and wrong about which value reaches it. **Anything
+  telling an operator to look for a per-arm bundle path is a false-RED generator**,
+  which is how this was caught. Provenance in
+  `fixtures/flavored_app/ios_overlay/BASELINE.txt`. The no-token `default-flavor` arm resolves to the SAME path as
   `--flavor foo` (`flutter_command.dart:1503-1505`, `flavor = cliFlavor ??
   defaultFlavor`), so those two arms differ in what they prove, not in what they
   produce.
-* Still absent: `prepare_flavored_fixture.sh`, and every one of step 7's builds.
+* ~~Still absent: `prepare_flavored_fixture.sh`, and every one of step 7's builds.~~
+  — **BOTH LANDED 2026-08-14.** The script is at `selfhost/scripts/` (`f7a9ef9f`) and
+  step 7's host arms ran. Note two sessions wrote that script independently within the
+  hour; `f7a9ef9f` is canonical and the duplicate's non-overlapping coverage was
+  salvaged separately. See §17's fix-round claims row for why.
 
 **Resources:** none claimed, none held, none released — this session took no device,
 no mint, no container, no release and no fixture version bump. `flavored_app/` is

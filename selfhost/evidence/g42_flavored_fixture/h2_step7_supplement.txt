@@ -208,10 +208,29 @@ all re-run 2026-08-14 against a scratch copy of the foo arm's bundle:
      The locator resolves. The result is still NOT LOCATED, for a better reason.
 
   c) the two call sites, named directly
-     `--symbol` selects patchable sites INSIDE the named function. `flavorState`
-     is a leaf: it folds a constant and returns, and contains no call. Its
-     CALLERS are what a consumption question is about, and they are two direct
-     branches found by disassembly:
+     `--symbol` selects patchable sites INSIDE the named function.
+
+     CORRECTED 2026-08-14, by disassembling the byte range the gate itself
+     reports (0xc4b98-0xc4c10). This read "`flavorState` is a leaf: it folds a
+     constant and returns, and contains no call", and that is FALSE. The body
+     holds FOUR direct branches — c4bb0 `bl 0xb6998`, c4bc8 `bl 0xe7a88`, c4be8
+     `bl 0xe7a54`, c4c08 `bl 0x1c3824` — so it calls out (DateTime.now via
+     c4bc8/c4be8) and selects between two pool constants at c4bf0/c4bf8. It is
+     neither a leaf nor a pure constant fold.
+
+     THE CONCLUSION SURVIVES AND IS BETTER SUPPORTED, which is why the sentence
+     is corrected rather than the section withdrawn: those internal calls are
+     all DIRECT `bl`, so they too fall outside the `ldur`+`blr` inventory at
+     assert_result_consumed.sh:450-457. The reason `--symbol` located 0 sites is
+     the instruction FORM, not an absence of calls.
+
+     Recorded because of where the error sat: under a heading promising
+     measurement, in a file whose own lesson is that a stated instrument must
+     reproduce its stated numbers. The claim was reasoned rather than
+     disassembled, and it read as measured.
+
+     Its CALLERS are what a consumption question is about, and they are two
+     direct branches found by disassembly:
 
        c4b20: bl 0xc4b98
        c4c28: bl 0xc4b98

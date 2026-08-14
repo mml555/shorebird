@@ -93,7 +93,7 @@ branch needed a mutated scratch copy (house rule: never mutate in place).
   stdin not a TTY           `script` + stdout redirected to file   refuses
   CI vars unset             CI=false GITHUB_ACTIONS=true           refuses, names both
   token present             TOKEN_FILE=/nonexistent, var unset     refuses, echoes nothing
-  token non-empty           SHOREBIRD_TOKEN=                       refuses, cites PARITY:2364
+  token non-empty           SHOREBIRD_TOKEN=                       refuses, cites PARITY.md:2377
   ours, not upstream        SHOREBIRD_HOSTED_URL=api.shorebird.dev refuses BEFORE any request
   control plane reachable   SHOREBIRD_HOSTED_URL=localhost:1       refuses (curl 7, code 000)
   --app-dir required        omitted, no --self-test-only           refuses
