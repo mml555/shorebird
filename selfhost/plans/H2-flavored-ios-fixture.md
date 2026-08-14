@@ -229,10 +229,22 @@ do not exist, so **the overlay is incomplete and must not be described as green.
 
    ```bash
    flutter build ios --release --flavor foo --no-codesign
-   strings build/ios/iphoneos/Runner.app/Frameworks/App.framework/App | grep -c 'V1/foo'
-   flutter build ios --release --flavor bar --no-codesign     # then grep V1/bar
-   flutter build ios --release --no-codesign                  # default-flavor: foo
+   strings build/ios/iphoneos/Runner.app/Frameworks/App.framework/App | grep -c 'V1/Foo'
+   flutter build ios --release --flavor bar --no-codesign     # then grep V1/Bar
+   flutter build ios --release --no-codesign                  # default-flavor -> V1/Foo
    ```
+
+   **CASE CORRECTED 2026-08-14 — this step originally said `grep -c 'V1/foo'`,
+   which returns 0 on a WORKING fixture and reads exactly like the failure it is
+   meant to detect.** The marker is `V1/Foo`. iOS takes `FLUTTER_APP_FLAVOR` from
+   the Xcode CONFIGURATION, not from the token you typed, and returns the
+   SCHEME's own casing (`common.dart`'s `_addFlavorToDartDefines`;
+   `xcode_project.dart:385-388` returns `schemeName`). Measured:
+   `ios/Flutter/Generated.xcconfig` carries `FLAVOR=foo` for the same build whose
+   shipped `App` contains `V1/Foo`. That divergence was not only a grep bug — the
+   CLI was passing the token to Route B's own kernels, and it is fixed at
+   `6ae04dc7` (`XcodeBuild.flavorScheme`). Results in
+   `evidence/g42_flavored_fixture/h2_step7_host_arms.txt`.
 
    Then `selfhost/engine/route_b/probes/assert_result_consumed.sh build/ios/iphoneos/Runner.app` to confirm the call's result is consumed, and `/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' build/ios/iphoneos/Runner.app/Info.plist` to confirm the flavor selected its own configuration. **How you know:** the precommitted table below.
 
