@@ -782,6 +782,35 @@ void main() {
             });
           }
 
+          /// Makes the RELEASE's record say "unfingerprintable" -- the shape
+          /// `Releaser.recordEffectiveBuildConfig` writes when the release
+          /// itself used `--dart-define-from-file`.
+          void releaseRecordsUnfingerprintable() {
+            when(
+              () => patcher.supplementaryReleaseArtifactArch,
+            ).thenReturn('supplement');
+            when(
+              () => artifactManager.extractZip(
+                zipFile: any(named: 'zipFile'),
+                outputDirectory: any(named: 'outputDirectory'),
+              ),
+            ).thenAnswer((invocation) async {
+              final out =
+                  invocation.namedArguments[const Symbol('outputDirectory')]
+                      as Directory;
+              out.createSync(recursive: true);
+              File(
+                p.join(out.path, Releaser.buildConfigFileName),
+              ).writeAsStringSync(
+                jsonEncode({
+                  'buildConfig': null,
+                  'unfingerprintableReason':
+                      'built with --dart-define-from-file',
+                }),
+              );
+            });
+          }
+
           // RED UNTIL ENFORCEMENT LANDS. Today the patch proceeds and
           // buildPatchArtifact IS called, so this fails — which is the point of
           // writing it before the fix.
@@ -822,6 +851,77 @@ void main() {
             'a matching effective config crosses the compatibility boundary',
             () async {
               releaseRecordsFlavor('foo');
+              when(() => argResults['flavor']).thenReturn('foo');
+
+              await runWithOverrides(() => command.createPatch([patcher]));
+
+              verify(
+                () => patcher.buildPatchArtifact(
+                  releaseVersion: any(named: 'releaseVersion'),
+                ),
+              ).called(1);
+            },
+          );
+
+          // ------------------------------------------------------------------
+          // THE ASYMMETRIC CASE. Two things can make a comparison impossible,
+          // and they are not the same thing:
+          //
+          //   the RELEASE was built with --dart-define-from-file
+          //       -> nothing to compare, permanently, and re-releasing does not
+          //          help. Warn and proceed. Covered by the control below.
+          //
+          //   the PATCH is invoked with --dart-define-from-file, against a
+          //   release whose configuration IS known
+          //       -> the release's config is in hand; the patch simply declines
+          //          to state its own. That is a user-controllable opt-out of
+          //          the whole check, and it opts out in precisely the case
+          //          where a mismatch is most likely -- a patch pulling defines
+          //          from a file the release never had.
+          //
+          // RED UNTIL THE FIX: today the second case warns and proceeds, so
+          // buildPatchArtifact IS called and this fails.
+          // ------------------------------------------------------------------
+          test(
+            'refuses when the release IS fingerprintable but the patch is not, '
+            'before buildPatchArtifact is called',
+            () async {
+              releaseRecordsFlavor('foo');
+              when(() => argResults['flavor']).thenReturn('foo');
+              // the patch, and only the patch, becomes unfingerprintable
+              when(
+                () => argResults.wasParsed(
+                  CommonArguments.dartDefineFromFileArg.name,
+                ),
+              ).thenReturn(true);
+              when(
+                () => argResults[CommonArguments.dartDefineFromFileArg.name],
+              ).thenReturn(['defines.json']);
+
+              await expectLater(
+                runWithOverrides(() => command.createPatch([patcher])),
+                throwsA(isA<ProcessExit>()),
+              );
+
+              // Same contract as the mismatch arm: the refusal is necessary
+              // but not sufficient -- it must precede any artifact.
+              verifyNever(
+                () => patcher.buildPatchArtifact(
+                  releaseVersion: any(named: 'releaseVersion'),
+                ),
+              );
+            },
+          );
+
+          // THE CONTROL FOR THE OTHER NULL. A release that itself cannot be
+          // fingerprinted must STILL be patchable -- there is nothing to
+          // compare and re-releasing cannot help, so refusing would strand it
+          // forever. This must stay green across the fix; if it goes red, the
+          // fix collapsed the two null states back into one.
+          test(
+            'still patches when the RELEASE is the unfingerprintable one',
+            () async {
+              releaseRecordsUnfingerprintable();
               when(() => argResults['flavor']).thenReturn('foo');
 
               await runWithOverrides(() => command.createPatch([patcher]));

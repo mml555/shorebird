@@ -950,11 +950,37 @@ Building ${releasePlatform.displayName} patch with Flutter $flutterVersionString
       ),
     );
 
+    // THE ASYMMETRY THAT MATTERS. Reaching here means the RELEASE's
+    // configuration is known -- it is `releaseConfig`, sitting right there --
+    // and only the PATCH declines to state its own. That is not the same
+    // predicament as the release-side null above, and it must not share its
+    // behaviour:
+    //
+    //   * the release-side null is nobody's choice and has no remedy. Refusing
+    //     it would strand that release forever, so it warns and proceeds.
+    //   * this one is a per-invocation choice, and it is reversible by the
+    //     person making it -- pass the defines the way the release did.
+    //
+    // Treating them alike made the whole check opt-out by one flag, and it
+    // opted out in precisely the case where a mismatch is MOST likely: a patch
+    // pulling defines from a file the release never had is a patch with
+    // different defines. "Cannot be determined" is not evidence of agreement.
     if (patchConfig == null) {
-      logger.warn(
-        '''This patch was invoked with an option whose effective configuration cannot be determined, so it cannot be shown to match the release's.''',
-      );
-      return;
+      logger
+        ..err(
+          '''This patch cannot be shown to match the release's build configuration.''',
+        )
+        ..info(
+          '''
+The release's configuration IS known (fingerprint ${releaseConfig.fingerprint}), but this patch was invoked with ${routeBUnfingerprintableOptions.join(', ')}, whose effective configuration cannot be determined from the command line.
+
+This is not the same as a release that cannot be fingerprinted -- that case is permanent and is allowed through. This one is yours to resolve: pass the same defines the release used, in a form that can be compared.''',
+        )
+        ..info(
+          '''
+Refusing before building: a patch built with a different configuration compiles a different program than the release it would replace.''',
+        );
+      throw ProcessExit(ExitCode.software.code);
     }
 
     if (releaseConfig.agreesWith(patchConfig)) return;
