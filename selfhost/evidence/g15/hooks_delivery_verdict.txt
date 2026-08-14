@@ -1,6 +1,15 @@
 G15 GATE 3 — hooks.dart DELIVERY: VERDICT, 2026-08-14 (later sitting)
 =====================================================================
 
+>>> THIS IS HALF THE ANSWER. Read `gate3_positive_verdict.txt` with it.
+>>> Later the same day the POSITIVE half was measured: feed R3's dill into the
+>>> cache directly and a `hooks.dart` edit DOES land in a built release's AOT
+>>> (marker present with R3's dill, ABSENT with the published one, same app and
+>>> same toolchain — a negative control, so the check is not vacuous). The
+>>> mechanism works; only the PUBLICATION path is broken. Nothing below is
+>>> retracted and the failure it records is still what blocks gate 4 — but do
+>>> NOT read "GATE 3 FAILS" as "the `_runMain` candidate is dead". It is not.
+
 GATE 3 FAILS, AND IT FAILS WITHOUT AN ENGINE BUILD, A MINT, OR A DEVICE.
 
 An edit to `lib/ui/hooks.dart` in `R3` CANNOT reach the kernel/AOT of a release
