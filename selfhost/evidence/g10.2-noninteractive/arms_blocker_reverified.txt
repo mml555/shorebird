@@ -1,0 +1,51 @@
+G10.2 lane D — why the decisive arms did NOT run, re-verified 2026-08-14
+=======================================================================
+VERDICT: NOT RUNNABLE on this host. A PREREQUISITE (R12, the Linux builder),
+not a failed gate. PARITY :2375 and :2376 stay NOT VALIDATED, correctly.
+
+WHAT WAS ALREADY DONE BEFORE THIS SITTING (measured, not assumed):
+  * scripts/ci_noninteractive.sh EXISTS (355 lines) — the plan's step 22 says it
+    does not. The plan is behind the tree.
+  * accept_android_default.sh:125-126's --no-confirm comment was already
+    CORRECTED 2026-08-13, with `yes |` and its PIPESTATUS/SIGPIPE handling left
+    in place as step 22 requires.
+  * airgap_acceptance.sh:241-243 verified still true and left in place: it
+    explains why `patch` needs --release-version, because --no-confirm does not
+    answer the release-selection prompt.
+  * The token arms (step 23) are done and recorded — PARITY :2377, three arms in
+    token_arms.txt.
+
+THE BLOCKER, RE-VERIFIED RATHER THAN INHERITED. ci_noninteractive.sh refuses on
+a non-Linux host because our gen_snapshot is linux-x64 only and the mirror 404s
+android-arm64-release/darwin-x64.zip. The script itself flags that as a
+PREDICTED blocker — "No run on this Mac has ever reached the artifact fetch" —
+and it was probed on 2026-08-13, BEFORE the 40eaa0ef mint. Re-probed today:
+
+  engine rev   android-arm64-release/linux-x64.zip   .../darwin-x64.zip
+  fc184af6                 200                              404      <- holds
+  dabf1837                 200                              302
+  69f9831c (stock)         302                              302
+
+  host: Darwin
+
+fc184af6 is the Route B ANDROID cell, and it reproduces the documented
+asymmetry exactly. The blocker stands.
+
+A FALSE START WORTH RECORDING: the first re-probe used 40eaa0ef and 4df8f9b6 and
+got 404 for BOTH host slices, which looks like the blocker having changed. It is
+not — those are iOS cells and never carry android-arm64-release artifacts at
+all, so both 404 is the expected null result. Probing the wrong revision
+produces a symmetric answer that resembles a finding.
+
+WHAT DID RUN, AND WHAT IT LICENSES. The detector self-test, which is host-
+independent by design:
+  A  shorebird preview,        no --json  -> exit 64, 'non-interactive context' x1
+  B  shorebird --json preview             -> exit 64, interactive_prompt_required x1
+So the detector fires in both output modes, and arm 2's grep target is proven to
+be producible. That is worth exactly what the script says it is worth: it says
+NOTHING about the release/patch workflow. Precommitted outcome 10 is not earned;
+outcomes 11 and 12 were never reachable here.
+
+WHAT IS OWED, on R12: both arms, and per :2376 the harness must publish TWO
+releases — release_chooser.dart:80-82 skips the selection prompt entirely when
+exactly one release exists, so a one-release harness proves less than it appears.
