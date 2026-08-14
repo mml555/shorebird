@@ -267,19 +267,45 @@ So the self-hosted control plane is not at risk. What is affected is the
 accordingly: `vendor/flutter` is real insurance for **the framework and the engine
 C++**, and a starting point for a port, but it is not a rebuildable engine.
 
-## The build host we actually use (Hermes VPS, shared)
+## The build host we actually use (Azure VPS)
 
-Azure `20.120.104.70`. **Co-tenant with a live Hermes deployment** — treat that
-as a hard constraint, not a preference.
+Azure `20.120.104.70`, port `13549`. ~~**Co-tenant with a live Hermes
+deployment**~~ — **Hermes was moved off this box; re-audited 2026-08-14.**
 
-| Resource | Finding (audited 2026-07-29) | Implication |
-|---|---|---|
-| `/` | 29 GB total, ~17 GB free | Do **not** put the engine tree on root or `$HOME` |
-| `/data` (`nvme0n2`) | 503 GB, ~410 GB free | All Shorebird work under `/data/shorebird-engine/` |
-| Spare `nvme1n1` | 220 GB ext4, **unmounted** | Leave alone unless explicitly approved |
-| RAM | 82 GiB, ~71 GiB available | Comfortable |
-| CPU | **4 vCPU** | Cap ninja at `-j2`/`-j3`; prefer off-peak |
-| Hermes | `hermes-gateway` active, `/data/hermes`, ~21 GiB RSS | Never touch |
+> **THE CO-TENANT LEFT AND THE HOST GOT TIGHTER, NOT ROOMIER.** The natural
+> reading of "Hermes is gone" is that the constraints below relax. They
+> **invert**. `/data` had ~410 GB free when the rules were written; it now has
+> **31 GB** free (94% used), because 346 GB of the account's SSD backup landed
+> where the engine tree lives. The discipline in this section survives intact —
+> only its *object* changed, from a live service you must not disturb to an
+> offline data set that is not yours to delete.
+
+| Resource | 2026-07-29 | **Re-audited 2026-08-14** | Implication |
+|---|---|---|---|
+| `/` | 29 GB, ~17 GB free | 29 GB, **12 GB free** (59%) | unchanged: engine tree goes on neither `/` nor `$HOME` |
+| `/data` (`nvme0n2`) | 503 GB, ~410 GB free | 503 GB, **31 GB free (94% used)** | **the binding constraint now.** See the blocker below |
+| Spare `nvme1n1` | 220 GB ext4, **unmounted** | **mounted at `/mnt/spare`**, 27 GB avail of 215 GB | no longer spare and no longer empty — it holds another 168 GB of the same backup |
+| RAM | 82 GiB, ~71 GiB avail | 82 GiB, **73 GiB avail** | comfortable; Hermes' ~21 GiB RSS is gone |
+| CPU | **4 vCPU** | **4 vCPU** | unchanged. Cap ninja at `-j2`/`-j3` |
+| ~~Hermes~~ | `hermes-gateway` active, `/data/hermes`, ~21 GiB RSS | **`inactive`; 0 units, 0 unit files; `/data/hermes` and `/data/ter` both ABSENT** | the "never touch" rule has no object left |
+| **SSD backup** | — | `/data/ssd-backup` **346 GB** + `/mnt/spare/ssd-backup` **168 GB**, manifests in `ssd-backup-meta/` | **the new "never touch".** Personal media, 1146 files in the placement plan. Not this project's, and not this project's to delete |
+
+> ### ⛔ THE LONG STEP IS NOW BLOCKED BY DISK, NOT BY TIME
+>
+> `gclient sync` needs **~40–60 GB** and `src/third_party` is still absent, so it
+> has never completed. `/data` has **31 GB** free. An agent who reads the
+> not-started note below and launches the sync will saturate a 4-vCPU box for
+> hours and then die on `ENOSPC` — the failure arrives *after* the cost, which is
+> the worst shape for it to take.
+>
+> **Check `df -h /data` before starting it. Do not start it under ~80 GB free.**
+>
+> The unblock is entirely about the 514 GB of SSD backup and is **the account
+> owner's call, not a build lane's**: move it to the external SSD it is named
+> for, or delete it deliberately. Both manifests
+> (`/data/ssd-backup-meta/placement_plan.json`, `sfv_result.json`) survive
+> independently of the payload, so what was there is recoverable as a *list*
+> either way. This lane measured and refused to act on it.
 | Present | Flutter 3.44.4, NDK 28.2, Java 17, Android SDK under `/data/android`, Docker, git 2.43, python3, unzip, curl | The engine build brings its *own* NDK/SDK via gclient; do **not** overwrite `/data/android/flutter` |
 | Present | **Rust 1.96 at `~/.cargo`**, with `aarch64-linux-android`, `armv7-linux-androideabi`, `x86_64-linux-android` already added | Only visible in a **login** shell: the `. "$HOME/.cargo/env"` line lives in `~/.profile`/`~/.bashrc`, so `ssh host 'cargo --version'` reports it missing while `ssh host 'bash -lc ...'` finds it. Don't conclude a tool is absent from a non-interactive probe. |
 | Was missing | `pkg-config`, `zip`, `libfreetype6-dev` | Installed 2026-07-29 with consent (`pkg-config --modversion freetype2` → 26.1.20) |
@@ -323,7 +349,9 @@ itself). All three are installed on this host now.
 **Rust: use ours, not the account's.** The account already has 1.96 with the
 Android targets, but the build shell puts `$CARGO_HOME/bin` first so the
 work-tree toolchain (1.97.1, installed with `--no-modify-path`) wins. That keeps
-our builds independent of a toolchain Hermes may change underneath us. If a
+our builds independent of a toolchain the account may change underneath us
+(originally: a toolchain *Hermes* may change — the isolation is worth keeping
+now that the account is the only other writer). If a
 newer rustc ever breaks the updater build, dropping `$CARGO_HOME/bin` from `PATH`
 falls back to the account's 1.96 — one line in `env.sh`.
 
@@ -341,7 +369,7 @@ Done on the host, all under `/data/shorebird-engine/`, all `rm -rf` reversible:
 | `.gclient` | at the checkout root, solution `"."`, url → the Shorebird fork |
 | apt | `pkg-config`, `zip`, `libfreetype6-dev` installed |
 | Insurance test | run — found and fixed 20 files missing from `vendor/flutter` (see its `VENDOR.md`) |
-| `hermes-gateway` | `active` after every step |
+| ~~`hermes-gateway`~~ | ~~`active` after every step~~ — held true for every step of that bootstrap; the service has since left the host (2026-08-14) |
 
 **Not started — the long step.** `gclient sync` (~40–60 GB, hours):
 
@@ -351,16 +379,32 @@ cd /data/shorebird-engine/src/flutter
 nice -n 10 gclient sync --no-history 2>&1 | tee /data/shorebird-engine/logs/sync.log
 ```
 
-**Parallelism, measured.** At the time of the audit the host was already running
-`dosbox-x` at ~96% of one core plus a `qemu-system-x86` (load ~1.15 of 4). `-j3`
-would saturate the box; check `uptime` and pick `-j2` when Hermes is busy.
+**Parallelism, measured.** At the 2026-07-29 audit the host was running
+`dosbox-x` at ~96% of one core plus a `qemu-system-x86` (load ~1.15 of 4).
+**Re-measured 2026-08-14: `qemu` is gone, `dosbox-x` is still running, load 0.92
+of 4.** So the advice survives its original reason — the box is still one busy
+core short of idle, and it was never Hermes that made it so. `-j3` would saturate
+it; check `uptime` and pick `-j2` when the load is already near 1.
 
 Linux host → Android (and Linux) engines only. iOS/macOS still need a Mac.
 
-**Co-tenancy rules.** No edits to `/data/hermes`, `/data/ter`, Hermes systemd
-units, or Docker/noVNC state. `depot_tools` goes on `PATH` via a *sourced* env
-file, not `~/.profile` — the account is shared. After every invasive step,
-`systemctl --user is-active hermes-gateway` must still print `active`.
+**Co-tenancy rules — the object changed, the rules did not.** ~~No edits to
+`/data/hermes`, `/data/ter`, Hermes systemd units … `systemctl --user is-active
+hermes-gateway` must still print `active`.~~ **Superseded 2026-08-14: Hermes is
+off the box, so that liveness check has nothing to assert and must not be treated
+as a passing gate — a check whose subject is absent reports success for the wrong
+reason.** What replaces it:
+
+* **No edits to `/data/ssd-backup`, `/mnt/spare/ssd-backup`, or either
+  `ssd-backup-meta/`.** 514 GB of personal media; the manifests are the only
+  cheap record of what is in it.
+* **`/mnt/spare` is no longer a free 220 GB device** — it is mounted, 88% full,
+  and holds part of that backup. Do not adopt it as build space.
+* `depot_tools` still goes on `PATH` via a *sourced* env file, not `~/.profile`.
+  The account is still shared with the owner's own tooling (`~/.cargo`,
+  `/data/cursor`, `/data/projects`) even though no service co-tenants with us.
+* **New invasive-step check, since the old one is vacuous:** `df -h /data` before
+  and after. Reclaiming space is not a side effect a build lane gets to have.
 
 ## Experimental engines vs the supported pin
 
