@@ -202,6 +202,9 @@ void main() {
         () => shorebirdEnv.getShorebirdProjectRoot(),
       ).thenReturn(projectRoot);
       when(() => shorebirdEnv.flutterRevision).thenReturn(flutterRevision);
+      when(
+        () => shorebirdEnv.shorebirdEngineRevision,
+      ).thenReturn('test-engine-revision');
       when(() => shorebirdEnv.usesShorebirdCodePushPackage).thenReturn(true);
 
       when(

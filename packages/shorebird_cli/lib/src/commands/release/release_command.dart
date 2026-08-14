@@ -635,6 +635,10 @@ ${summary.join('\n')}
         shorebirdVersion: packageVersion,
         shorebirdYaml: shorebirdEnv.getShorebirdYaml()!,
         usesShorebirdCodePushPackage: shorebirdEnv.usesShorebirdCodePushPackage,
+        // The ENGINE that produced this, so the control plane can say WHICH
+        // engine did — flutterRevision cannot, since two cells can share one
+        // Flutter revision and differ in capability.
+        engineRevision: shorebirdEnv.shorebirdEngineRevision,
       ),
       // Attach the build-trace summary if the build produced one.
       // Null for older Flutter pins without the --shorebird-trace flag

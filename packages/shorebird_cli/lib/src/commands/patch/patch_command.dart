@@ -492,6 +492,22 @@ Building with Flutter $flutterVersionString to determine the release version...
           environment = await patcher.updatedEnvironmentMetadata(environment);
         }
 
+        // Recorded AFTER the build, deliberately. The server otherwise cannot
+        // say which engine produced a patch — flutterRevision cannot, since two
+        // Route B cells can share one Flutter revision and differ in
+        // capability.
+        //
+        // It must not be read BEFORE the build: the engine-identity gate counts
+        // reads of `shorebirdEngineRevision` — the first is its pre-build check
+        // and later ones detect a stamp the Flutter build rewrote underneath it.
+        // An extra early read consumed that first check, so the gate compared
+        // the wrong pair and the drift test caught it. Reading here also records
+        // the engine that ACTUALLY produced these artifacts rather than the one
+        // present before the build.
+        environment = environment.copyWith(
+          engineRevision: shorebirdEnv.shorebirdEngineRevision,
+        );
+
         final dryRun = results['dry-run'] == true;
         if (dryRun) {
           logger

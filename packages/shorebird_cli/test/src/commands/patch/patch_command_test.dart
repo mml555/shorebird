@@ -350,6 +350,9 @@ void main() {
       when(() => shorebirdEnv.getShorebirdYaml()).thenReturn(shorebirdYaml);
       when(() => shorebirdEnv.flutterRevision).thenReturn(flutterRevision);
       when(
+        () => shorebirdEnv.shorebirdEngineRevision,
+      ).thenReturn('test-engine-revision');
+      when(
         () => shorebirdEnv.copyWith(
           flutterRevisionOverride: any(named: 'flutterRevisionOverride'),
         ),
