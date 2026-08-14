@@ -272,40 +272,69 @@ C++**, and a starting point for a port, but it is not a rebuildable engine.
 Azure `20.120.104.70`, port `13549`. ~~**Co-tenant with a live Hermes
 deployment**~~ — **Hermes was moved off this box; re-audited 2026-08-14.**
 
-> **THE CO-TENANT LEFT AND THE HOST GOT TIGHTER, NOT ROOMIER.** The natural
-> reading of "Hermes is gone" is that the constraints below relax. They
-> **invert**. `/data` had ~410 GB free when the rules were written; it now has
-> **31 GB** free (94% used), because 346 GB of the account's SSD backup landed
-> where the engine tree lives. The discipline in this section survives intact —
-> only its *object* changed, from a live service you must not disturb to an
-> offline data set that is not yours to delete.
+> **THE CO-TENANT LEFT, THE HOST BRIEFLY GOT TIGHTER, AND IS NOW THE ROOMIEST
+> IT HAS EVER BEEN.** Two changes on 2026-08-14, in order. First: Hermes left,
+> and `/data` was found at **31 GB** free (94% used) — *tighter* than the ~410 GB
+> the original rules assumed, because 514 GB of the account's SSD backup had
+> landed where the engine tree lives. Second: that backup was verified redundant
+> against its source and reclaimed, taking `/data` to **376 GB free (22%)**.
+>
+> **Both facts are kept because the middle state is the lesson**: "the co-tenant
+> left" did not imply "there is room", and for several months it implied the
+> opposite. Check the number, never the narrative.
 
 | Resource | 2026-07-29 | **Re-audited 2026-08-14** | Implication |
 |---|---|---|---|
 | `/` | 29 GB, ~17 GB free | 29 GB, **12 GB free** (59%) | unchanged: engine tree goes on neither `/` nor `$HOME` |
-| `/data` (`nvme0n2`) | 503 GB, ~410 GB free | 503 GB, **31 GB free (94% used)** | **the binding constraint now.** See the blocker below |
-| Spare `nvme1n1` | 220 GB ext4, **unmounted** | **mounted at `/mnt/spare`**, 27 GB avail of 215 GB | no longer spare and no longer empty — it holds another 168 GB of the same backup |
+| `/data` (`nvme0n2`) | 503 GB, ~410 GB free | 503 GB, ~~31 GB free (94%)~~ → **376 GB free (22%)** after the reclaim | **no longer the binding constraint.** CPU and the 4-vCPU `-j` cap are |
+| Spare `nvme1n1` | 220 GB ext4, **unmounted** | **mounted at `/mnt/spare`**, ~~27 GB~~ → **195 GB avail** of 215 GB | mounted, but empty of backup again. Still not adopted as build space without a decision |
 | RAM | 82 GiB, ~71 GiB avail | 82 GiB, **73 GiB avail** | comfortable; Hermes' ~21 GiB RSS is gone |
 | CPU | **4 vCPU** | **4 vCPU** | unchanged. Cap ninja at `-j2`/`-j3` |
 | ~~Hermes~~ | `hermes-gateway` active, `/data/hermes`, ~21 GiB RSS | **`inactive`; 0 units, 0 unit files; `/data/hermes` and `/data/ter` both ABSENT** | the "never touch" rule has no object left |
-| **SSD backup** | — | `/data/ssd-backup` **346 GB** + `/mnt/spare/ssd-backup` **168 GB**, manifests in `ssd-backup-meta/` | **the new "never touch".** Personal media, 1146 files in the placement plan. Not this project's, and not this project's to delete |
+| ~~**SSD backup**~~ | — | ~~`/data/ssd-backup` 346 GB + `/mnt/spare/ssd-backup` 168 GB~~ **RECLAIMED 2026-08-14 on the owner's instruction, after verification.** The `ssd-backup-meta/` manifests are **kept** on both devices (1.2 MB each) | gone, and the reasoning is worth keeping — see *The reclaim* below |
 
-> ### ⛔ THE LONG STEP IS NOW BLOCKED BY DISK, NOT BY TIME
+> ### ✅ THE LONG STEP IS NO LONGER BLOCKED BY DISK (it was, for one afternoon)
 >
 > `gclient sync` needs **~40–60 GB** and `src/third_party` is still absent, so it
-> has never completed. `/data` has **31 GB** free. An agent who reads the
-> not-started note below and launches the sync will saturate a 4-vCPU box for
-> hours and then die on `ENOSPC` — the failure arrives *after* the cost, which is
-> the worst shape for it to take.
+> has never completed. When Hermes left, `/data` had **31 GB** free — less than
+> the sync needs. An agent following the not-started note would have saturated a
+> 4-vCPU box for hours and then died on `ENOSPC`, *the failure arriving after the
+> cost*, which is the worst shape a failure can take.
 >
-> **Check `df -h /data` before starting it. Do not start it under ~80 GB free.**
+> **That is fixed: `/data` now has 376 GB free.** The precondition stands anyway,
+> because it costs one command and the failure mode it prevents is expensive:
 >
-> The unblock is entirely about the 514 GB of SSD backup and is **the account
-> owner's call, not a build lane's**: move it to the external SSD it is named
-> for, or delete it deliberately. Both manifests
-> (`/data/ssd-backup-meta/placement_plan.json`, `sfv_result.json`) survive
-> independently of the payload, so what was there is recoverable as a *list*
-> either way. This lane measured and refused to act on it.
+> ```bash
+> df -h /data      # do not start gclient sync under ~80 GB free
+> ```
+>
+> ### The reclaim, and why it was safe
+>
+> The 514 GB was **not** an independent data set to be preserved at all costs —
+> it was a *derived copy*. `media_manifest.json` declares
+> `"root": "/Volumes/build/media"`, so the external SSD is the **source** and the
+> VPS held the backup made from it. "Move it back onto the SSD" was therefore
+> already true; the only available action was to delete the redundant copy.
+>
+> Three things were verified before anything was removed, and all three matter:
+>
+> | check | result |
+> |---|---|
+> | the SSD still holds the manifest | **2055/2055** files, exact sizes, 0 missing, **0 extra** (551.0 GB) |
+> | the SSD's bits are still good | **61 files / 19.4 GB** md5-verified against the manifest, **0 mismatches** |
+> | the box held nothing unique | **0** files present on the box but absent from the SSD (strict subset: 2051/2055, 0 size mismatches) |
+>
+> The third check is the one that licensed the delete. Free space was never the
+> question — *"is any byte here the only copy of itself"* was, and the answer was
+> no. The SSD was re-verified **after** the deletion (2055/2055) rather than only
+> before, because a check that runs solely beforehand cannot detect a mistake
+> made by the operation it authorised.
+>
+> Two things were deliberately kept: the `ssd-backup-meta/` manifests on both
+> devices (1.2 MB — the only cheap record of what was there), and a copy of all
+> four manifests written to `/Volumes/build/media/.manifest/` so the **surviving
+> copy now carries its own per-file md5s**. It is the sole copy; it should be
+> verifiable without the VPS.
 | Present | Flutter 3.44.4, NDK 28.2, Java 17, Android SDK under `/data/android`, Docker, git 2.43, python3, unzip, curl | The engine build brings its *own* NDK/SDK via gclient; do **not** overwrite `/data/android/flutter` |
 | Present | **Rust 1.96 at `~/.cargo`**, with `aarch64-linux-android`, `armv7-linux-androideabi`, `x86_64-linux-android` already added | Only visible in a **login** shell: the `. "$HOME/.cargo/env"` line lives in `~/.profile`/`~/.bashrc`, so `ssh host 'cargo --version'` reports it missing while `ssh host 'bash -lc ...'` finds it. Don't conclude a tool is absent from a non-interactive probe. |
 | Was missing | `pkg-config`, `zip`, `libfreetype6-dev` | Installed 2026-07-29 with consent (`pkg-config --modversion freetype2` → 26.1.20) |
