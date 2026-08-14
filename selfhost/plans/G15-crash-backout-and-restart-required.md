@@ -63,7 +63,104 @@ false `Bad` is permanent. And it is **silent** — the device reports a
 (`updater.rs:246-252`), so a false backout arrives labelled as a real one, and nobody
 learns it was wrong.
 
+## The seam, RE-CHOSEN 2026-08-14 from source — supersedes §1 of the design below
+
+`0009` shipped the design below and **FAILED on device**, then the control run
+showed the device arm could not have measured what it claimed. The seam question
+was therefore re-answered by reading the R3 tree instead of the rig, and the
+answer is exact.
+
+### Why no point inside `Engine::Run` can ever work
+
+`InvokeMainEntrypoint` (`runtime/dart_isolate.cc:882`) does not call `main`. It
+calls `dart:ui::_runMain` (`lib/ui/hooks.dart:406`), which calls
+`_startMainIsolate` → `_delayEntrypointInvocation`
+(`third_party/dart/sdk/lib/_internal/vm/lib/isolate_patch.dart:298`):
+
+```dart
+final port = RawReceivePort();
+port.handler = (_) { port.close(); ...; entryPoint(); };
+port.sendPort.send(null);
+```
+
+`main` is **posted to the message queue**. `InvokeMainEntrypoint` returns true
+once the message is sent, `LaunchRootIsolate` returns, and `Engine::Run` returns
+`RunStatus::Success` (`shell/common/engine.cc:293`) — **all before one line of
+user Dart has run.** So `0009` is not "too early by a margin"; it is structurally
+incapable of observing a Dart-phase outcome, and so is every other point inside
+`Run`. The crash-backout verdict's stated mechanism ("executes while `Engine::Run`
+is still on the stack") is wrong; the observation it drew from was real.
+
+### The seam, located
+
+`third_party/tonic/dart_message_handler.cc`, `OnHandleMessage` — one
+message-loop turn:
+
+```cpp
+result = Dart_HandleMessage();        // :115  <-- the first normal turn IS main()
+error  = CheckAndHandleError(result);
+...
+if (error) { UnhandledError(result); } // :133  <-- POSITIVE failure signal
+```
+
+Both signals the gate needs exist at one place, **one turn after `Run`**.
+
+### The three requirements, and why this seam is the only candidate that meets all three
+
+| | requirement | `Engine::Run` (`0009`) | first frame | **first turn + `UnhandledError`** |
+|---|---|---|---|---|
+| 1 | a good boot eventually banks success | yes | **not always** — a headless or background-prewarm launch may never render, and two of those tombstone a GOOD patch via the counter | yes — every live isolate pumps a first turn |
+| 2 | a `main()` throw positively reports failure before success is banked | **no, in principle** | only by ABSENCE, costing 2 crashes | **yes, positively**, same turn |
+| 3 | a kill before the success point stays retryable | proven (arm 2) | window widens to all of startup | window widens by ~one turn — the smallest increment that satisfies 1 and 2 |
+
+Requirement 3 is the one that punishes the obvious fix, and the counter's exact
+semantics are what make it sharp: `0010` counts **consecutive un-succeeded boots
+of the same patch** against `BOOT_FAILURE_THRESHOLD = 2`. So a later success point
+does not merely widen a window — it widens the window in which **two** benign
+deaths tombstone a good patch. Arm 2 proved n = 1 survives *at `0009`'s seam*;
+that result does not transfer to a later seam and must be re-run wherever the seam
+lands.
+
+**First-frame's rehabilitation is partial, not complete.** `0010`'s counter does
+answer the original objection (a single benign death no longer tombstones). But
+the control run surfaced a second objection the counter does not answer: a launch
+that legitimately never renders never banks success at all, so the patch stays
+un-succeeded forever and the counter eventually works against a **good** patch.
+Positive failure reporting removes the need to infer a crash from silence, which
+is what makes the earlier seam viable — so first-frame is no longer needed.
+
+**The two mechanisms compose, and that is the point `0009` missed.** `0009` tried
+to make one signal do both jobs. Split them: `UnhandledError` reports a crash
+POSITIVELY, and `0010`'s counter handles ABSENCE — which, once crashes report
+themselves, can only mean a benign death. Each covers exactly what the other
+cannot.
+
+### The A/B experiment, and the liveness receipt it must carry
+
+Same release, same patch machinery, same device, three arms:
+
+| arm | patch | required observation |
+|---|---|---|
+| A | good patch | reaches the candidate signal, banks success, renders |
+| B | `main()` throws | does NOT bank success, `PatchInstallFailure` queued, patch `Bad{BootCrash}`, backed out |
+| C | good patch, killed before the signal | retried, NOT tombstoned — arm 2's result, re-earned at the new seam |
+
+**Every arm must assert the fixture's marker moved before the screen is read.**
+The control run found `main()` was not executing at all while the screen showed
+the same blank white as a crash. A seam experiment on that fixture would measure
+nothing and look like a caught-or-missed crash either way. The marker file is a
+per-launch receipt that `main()` ran, it survives `SIGKILL`, and it is now a
+REQUIRED precondition of every G15 arm rather than an arm-2 implementation
+detail.
+
+---
+
 ## The design
+
+> **§1 below is SUPERSEDED by the seam section above** (2026-08-14). It is kept
+> because its reasoning is why `0009` was built, and the correction is only
+> legible beside it. §2 (the counter) and §3 (no deadline) stand — §2 shipped as
+> `0010` and is PROVEN on device.
 
 Three parts. The first two are independent; either alone is an improvement, and the
 argument for doing both is that they fail differently.

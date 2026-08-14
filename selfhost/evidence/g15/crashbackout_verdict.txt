@@ -1,6 +1,26 @@
 G15 CRASH-BACKOUT — VERDICT, 2026-08-14
 ========================================
 
+!! CORRECTED 2026-08-14, LATER THE SAME DAY, BY THE CONTROL THIS FILE LEFT OPEN.
+!! Read crashbackout_control_verdict.txt beside this file BEFORE acting on
+!! anything below. In summary:
+!!
+!!   * The HEADLINE FINDING STANDS, and is now proven from source without a
+!!     device: success is banked before any user Dart has run.
+!!   * The stated MECHANISM below is WRONG. main() does not "execute while
+!!     Engine::Run is still on the stack" — it is scheduled onto the message
+!!     queue and runs one message-loop turn AFTER Run returns.
+!!   * The ATTRIBUTION below ("that is the patched bootProbe() throwing") is
+!!     NOT SUPPORTED. The same blank screen occurs on this release with NO
+!!     PATCH INSTALLED, and the fixture's own marker shows main() is not
+!!     running in either configuration.
+!!   * The CONSEQUENCE below ("a bad patch bricks the install", "cleared only
+!!     by --rmtree") DOES NOT SURVIVE: the --rmtree ran and the app is still
+!!     blank, so the rescue it claims never happened.
+!!
+!! Nothing below is deleted, because a reader who acted on it needs to see
+!! exactly what changed.
+
 CRASH-BACKOUT DOES NOT WORK. A PATCH THAT BREAKS DART DURING main() IS NEVER BACKED
 OUT, AND SUCCESS IS BANKED ANYWAY.
 
