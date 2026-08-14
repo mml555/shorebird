@@ -75,6 +75,7 @@ export SHOREBIRD_HOSTED_URL
 OUT_DIR="${OUT_DIR:-${PWD}/ci-noninteractive-out}"
 mkdir -p "$OUT_DIR"
 
+CHOOSER_LOG="$OUT_DIR/ci_run_chooser.log"
 NOTTY_LOG="$OUT_DIR/ci_run_notty.log"
 JSON_LOG="$OUT_DIR/ci_run_json.log"
 SELFTEST_LOG="$OUT_DIR/detector_selftest.log"
@@ -185,11 +186,29 @@ fail_count=0
 # reached the CLI at all. This stage reaches a REAL prompt site and requires it
 # to be refused for the right reason.
 #
-# WHY IT IS *NOT* THE RELEASE CHOOSER. The obvious control — `patch android`
-# with --release-version omitted, so the release chooser must prompt — CANNOT
-# FIRE ON ANY HOST. patch_command.dart:396-404 reaches promptForRelease (:403)
-# only from the `else if (shorebirdEnv.canAcceptUserInput)` arm at :402, and
-# canAcceptUserInput is `stdin.hasTerminal && !isRunningOnCI && !isJsonMode`
+# CORRECTED 2026-08-14 — THIS COMMENT WAS WRONG, AND MEASUREMENT SETTLED IT.
+# It used to say the release chooser "CANNOT FIRE ON ANY HOST" because
+# patch_command.dart reaches promptForRelease only from the
+# `else if (shorebirdEnv.canAcceptUserInput)` arm, and canAcceptUserInput is
+# `stdin.hasTerminal && !isRunningOnCI && !isJsonMode`. Read that way it is a
+# clean impossibility argument. RUN ON hermes-vps WITH STDIN AND STDOUT
+# REDIRECTED AND >=2 RELEASES PRESENT, the chooser DID fire:
+#
+#   Input was required for the following prompt but the CLI is running in a
+#   non-interactive context:
+#     Which release would you like to patch?
+#   Hint: Pass --release-version=<version> to ...
+#   exit 64
+#
+# i.e. InteractivePromptRequiredException, surfaced by
+# shorebird_cli_command_runner.dart:298-314, which returns ExitCode.usage.code.
+# So arm 3 below is constructible and is the ONLY arm that exercises
+# release_chooser.dart. WHY canAcceptUserInput evaluated true under those
+# redirects is NOT explained by this file's reading of the source and is left
+# as an open question rather than guessed at — the arm's verdict does not
+# depend on the answer.
+# (Retained for context: canAcceptUserInput is
+# `stdin.hasTerminal && !isRunningOnCI && !isJsonMode`)
 # (shorebird_env.dart:292-293). Every way of making a run non-interactive —
 # redirected stdin, a CI variable, or --json — also makes :402 false, so control
 # falls through to the plain `else` at :404, warns, and does a SPECULATIVE BUILD
@@ -344,6 +363,35 @@ note "interactive_prompt_required in arm 2: $hits (expected 0)"
 [[ "$hits" == "0" ]] || { note "arm 2 REACHED A PROMPT"; fail_count=$((fail_count + 1)); }
 
 # ----------------------------------------------------------------- verdict ----
+# ------------------------------------------------------------------ arm 3 ----
+# THE CHOOSER ARM. PARITY :2376 requires this specifically: with TWO OR MORE
+# releases, `release_chooser.dart`'s `if (sorted.length == 1)` shortcut cannot
+# fire, so omitting --release-version must reach the real selection prompt. A
+# `timeout` wraps it because a HANG and a REFUSAL are different findings
+# (precommitted outcomes 12 and 11) and an unbounded wait cannot tell them apart.
+rc3=0
+say "arm 3 — patch, NO --release-version (the release chooser)"
+note "cmd: (cd $APP_DIR && timeout 600 shorebird patch android --no-confirm)"
+( cd "$APP_DIR" && timeout 600 shorebird patch android --no-confirm ) \
+  < /dev/null > "$CHOOSER_LOG" 2>&1 || rc3=$?
+note "exit: $rc3  log: $CHOOSER_LOG"
+if [[ "$rc3" -eq 124 ]]; then
+  note "arm 3 HUNG — the guard has a hole; find the raw stdin read"
+  fail_count=$((fail_count + 1))
+elif [[ "$rc3" -ne 64 ]]; then
+  note "arm 3 exited $rc3, expected 64 (refused prompt). If 0, the chooser was"
+  note "  never reached and this arm proved nothing — check the release count."
+  fail_count=$((fail_count + 1))
+else
+  if grep -q "Which release would you like to" "$CHOOSER_LOG"; then
+    note "arm 3 refused the CHOOSER by name (exit 64) — outcome 11, the good failure"
+  else
+    note "arm 3 exited 64 but did NOT name the chooser prompt — 64 is also the"
+    note "  usage code, so this is not evidence the guard fired. Read the log."
+    fail_count=$((fail_count + 1))
+  fi
+fi
+
 say "verdict"
 if [[ "$fail_count" -eq 0 ]]; then
   note "PASS — the detector self-test fired (so a prompt WOULD have been seen),"

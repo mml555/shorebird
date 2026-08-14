@@ -59,3 +59,43 @@ releases, expecting exit 64 naming the prompt (outcome 11) rather than a hang
 HOST NOTES. Hermes has been moved off this box, so ENGINE_BUILD.md's co-tenancy
 rules are stale. /data is 93% full (35 GB free); /data/ssd-backup is 346 GB and
 was deliberately NOT touched — the arms needed a few GB.
+
+-------------------------------------------------------------------------------
+ARM 3 — THE CHOOSER ARM, RUN 2026-08-14. This is what :2376 actually asked for.
+-------------------------------------------------------------------------------
+  cd rbtest && timeout 600 shorebird patch android --no-confirm   (NO --release-version)
+  stdin < /dev/null, stdout redirected, 2 releases present (1.6.0+1, 1.7.0+1)
+
+  exit 64  (not 124, so not a hang; not 0, so not a silent skip)
+  log says:
+    Input was required for the following prompt but the CLI is running in a
+    non-interactive context:
+      Which release would you like to patch?
+    Hint: Pass --release-version=<version> to ...
+
+That is precommitted outcome 11 — THE GOOD FAILURE. The guard fired, on the
+release-selection prompt, by name. Mechanically it is
+InteractivePromptRequiredException surfaced by
+shorebird_cli_command_runner.dart:298-314, which returns ExitCode.usage.code.
+
+WHY 64 ALONE WOULD NOT HAVE BEEN EVIDENCE: 64 is also the usage code, and this
+same harness previously exited 64 because it passed --release-version to
+`release android`, which rejects that flag. So the arm asserts the log NAMES the
+chooser prompt, not merely that the code is 64.
+
+THIS REFUTES A COMMENT IN THE HARNESS AND A READING OF THE SOURCE — mine
+included. ci_noninteractive.sh argued the chooser "CANNOT FIRE ON ANY HOST",
+because patch_command.dart reaches promptForRelease only from the
+`else if (shorebirdEnv.canAcceptUserInput)` arm and canAcceptUserInput is
+`stdin.hasTerminal && ...`. I read the same lines and predicted the same thing —
+that the run would take the `else` branch and speculatively build. It did not.
+The comment is corrected in place and arm 3 is now part of the harness.
+
+OPEN, AND DELIBERATELY NOT GUESSED AT: why canAcceptUserInput evaluated true
+with stdin redirected from /dev/null. The arm's verdict does not depend on the
+answer — the prompt was reached and refused, which is the measurement :2376
+wants — but the source-level story is not yet consistent with the observation,
+and writing a plausible mechanism here would be inventing one.
+
+:2376's stated mechanism is now EXERCISED. It stays BUILT, not PROVEN: PROVEN
+still needs the patch running on a device from a CI-shaped invocation.
