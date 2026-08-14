@@ -759,12 +759,18 @@ $body
               engineRevision: any(named: 'engineRevision'),
             ),
           ).thenAnswer((_) async => _cell(cellDirectory));
-          // `flavor` is named in these stubs on purpose. Without it a FLAVORED
-          // release matches neither, both return null, and `_declareRetention`
-          // returns before it reaches the private-enumeration decision at
-          // all --
-          // so the whole Route B retention path would be silently unexercised
-          // for exactly the configuration G4.2 exists to get right.
+          // `flavor` is named in these stubs as a PREREQUISITE for the
+          // flavored test below, and that is the whole of the claim. Every
+          // OTHER test in this group builds an unflavored releaser by
+          // construction (`flavor: null`, the `iosReleaser` at the top of the
+          // file), so it matched these stubs perfectly well before `flavor`
+          // was named here and matches them still: no pre-existing assertion
+          // was silently skipping, and removing this line leaves them green.
+          // What it unblocks is the new case: a releaser built with a flavor
+          // matches neither stub unless they name it, both return null, and
+          // `_declareRetention` returns before it reaches the
+          // private-enumeration decision at all -- so the flavored path could
+          // not be asserted on at all until these stubs admitted it.
           when(
             () => routeBReleaseKernelBuilder.buildPrepass(
               compiler: any(named: 'compiler'),
