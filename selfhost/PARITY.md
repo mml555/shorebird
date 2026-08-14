@@ -2954,6 +2954,37 @@ you are about to build on — the 2026-08-11 entry says a broad stage swallows
 files, and this one says the swallowing worker will not know it happened and will
 tell you so in good faith.
 
+#### 2026-08-14: an EARLIER tell, and the tool that makes a shared file safe
+
+The sixth instance was caught **before** staging, by a tell this section did not
+name: the editor refused an edit to `PARITY.md` with *"the file had been modified
+on disk since you last read it"*. That warning fires the moment another lane
+writes the file, which is **strictly earlier** than the existing status-based
+rule — that one waits for a file to *leave* your modified set, i.e. until after
+the other worker has already committed. Both belong on the page; this one gives
+you the window before anything is lost.
+
+**The addition to rule 10: treat "modified on disk since you last read it" as a
+collision alarm, not as a stale-cache annoyance.** The correct response is to
+read the diff and find out whose work is in there — not to re-read and retry the
+edit, which is what the message superficially invites.
+
+**And the tool that makes it recoverable: stage the HUNK, not the file.** When one
+tracked file holds two lanes' unstaged work, `git add <path>` is not available
+without swallowing — but the commit is still possible:
+
+```sh
+git diff <path> > /tmp/full.patch      # extract only YOUR hunk from it
+git apply --cached /tmp/mine.patch     # stage that hunk alone
+git diff --cached --stat               # verify: your lines only
+```
+
+Used on this occasion to land a `G15` queue edit while a concurrent `G4.1
+--dart-define-from-file` lane's §4 rows, claims row, and untracked
+`evidence/g41-define-from-file/` sat un-staged in the same tree — all of which
+survived intact. **`git add -p` is NOT available in this environment** (no
+interactive flags), so the patch-file route above is the one that works.
+
 ### Claims
 
 Update this table in the same commit as the work. Stale rows are worse than no
