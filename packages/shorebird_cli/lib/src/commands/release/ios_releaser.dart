@@ -21,6 +21,7 @@ import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
+import 'package:shorebird_cli/src/executables/executables.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
 import 'package:shorebird_cli/src/validators/validators.dart';
@@ -121,7 +122,7 @@ If left checked, Xcode will rewrite the build number in the uploaded IPA, so the
         ? await _resolveReleaseTooling()
         : null;
     if (routeBCompiler != null) {
-      _declareRetention(routeBCompiler, buildArgs);
+      await _declareRetention(routeBCompiler, buildArgs);
     }
 
     final buildResult = await artifactBuilder.buildIpa(
@@ -158,7 +159,7 @@ If left checked, Xcode will rewrite the build number in the uploaded IPA, so the
     // engine records which engine that was, whether the flag came from us or
     // from the caller's own --extra-gen-snapshot-options.
     if (routeBCompiler != null) {
-      _recordRouteBProvenance(
+      await _recordRouteBProvenance(
         routeBCompiler,
         appDirectory,
         buildResult.kernelFile,
@@ -271,12 +272,38 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
     pubspecFlutterSection: shorebirdEnv.getPubspecYaml()?.flutter,
   );
 
-  void _recordRouteBProvenance(
+  /// [_resolvedFlavor], spelled the way the SHIPPED kernel will spell it.
+  ///
+  /// On iOS, Flutter does not put the token you typed into
+  /// `FLUTTER_APP_FLAVOR`. It parses the flavor from the Xcode CONFIGURATION and
+  /// returns the SCHEME's own casing (`common.dart`'s
+  /// `_addFlavorToDartDefines`, `xcode_project.dart`'s
+  /// `parseFlavorFromConfiguration`). So `--flavor foo` against a scheme named
+  /// `Foo` ships a kernel compiled with `FLUTTER_APP_FLAVOR=Foo`.
+  ///
+  /// Route B compiles its own kernels, so using the token here would describe a
+  /// DIFFERENT Dart program than the one that ships — the same defect G4.2
+  /// closed for the define's KEY, still open in its VALUE. Resolved once and
+  /// cached: the lookup shells out to `xcodebuild -list`.
+  late final Future<String?> _appleFlavor = _resolveAppleFlavor();
+
+  Future<String?> _resolveAppleFlavor() async {
+    final resolved = _resolvedFlavor;
+    if (resolved == null || resolved.isEmpty) return resolved;
+    final root = shorebirdEnv.getFlutterProjectRoot();
+    if (root == null) return resolved;
+    return xcodeBuild.flavorScheme(
+      projectPath: p.join(root.path, 'ios', 'Runner.xcodeproj'),
+      flavor: resolved,
+    );
+  }
+
+  Future<void> _recordRouteBProvenance(
     RouteBCompiler compiler,
     Directory appDirectory,
     File releaseKernel,
     List<String> buildArgs,
-  ) {
+  ) async {
     final supplement = artifactManager.getReleaseSupplementDirectory(
       platformSubdir: supplementPlatformSubdir,
       create: true,
@@ -339,7 +366,7 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
               as: routeBCapabilityManifestFileName,
             );
       }
-      _captureImportKernel(
+      await _captureImportKernel(
         compiler: compiler,
         supplement: supplement,
         releaseKernel: releaseKernel,
@@ -370,7 +397,7 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
         // empty-but-known configuration, which is comparable.
         buildConfig: RouteBBuildConfig.fromBuildArgs(
           buildArgs,
-          flavor: _resolvedFlavor,
+          flavor: await _appleFlavor,
         ),
       ),
     );
@@ -387,13 +414,13 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
   /// fine and installable, and refusing to ship it because a patch-time input
   /// could not be prepared would be the wrong trade. The patch side reports the
   /// absence precisely.
-  void _captureImportKernel({
+  Future<void> _captureImportKernel({
     required RouteBCompiler compiler,
     required Directory supplement,
     required File releaseKernel,
     required List<String> buildArgs,
     required Map<String, String> artifacts,
-  }) {
+  }) async {
     final builder = routeBReleaseKernelBuilder;
     final importKernel = builder.build(
       compiler: compiler,
@@ -404,7 +431,7 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
       buildArgs: buildArgs,
       // G4.2: a patch BINDS against this kernel, so it must carry the release's
       // flavor too.
-      flavor: _resolvedFlavor,
+      flavor: await _appleFlavor,
       outputFile: File(
         p.join(supplement.path, routeBReleaseImportKernelFileName),
       ),
@@ -455,7 +482,10 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
   /// Every failure degrades to "this release retains nothing extra" with a
   /// named reason. The app is fine and installable either way; what is lost is
   /// the ability to patch it with a body that names a symbol.
-  void _declareRetention(RouteBCompiler compiler, List<String> buildArgs) {
+  Future<void> _declareRetention(
+    RouteBCompiler compiler,
+    List<String> buildArgs,
+  ) async {
     final work = Directory(
       p.join(shorebirdEnv.buildDirectory.path, 'route_b'),
     );
@@ -469,7 +499,7 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
       // G4.2: the prepass decides RETENTION, so it must describe the same program
       // the release ships. Without this it was compiled with no
       // FLUTTER_APP_FLAVOR while the release had one.
-      flavor: _resolvedFlavor,
+      flavor: await _appleFlavor,
       outputFile: File(p.join(work.path, 'prepass.dill')),
     );
     if (prepass == null) return;

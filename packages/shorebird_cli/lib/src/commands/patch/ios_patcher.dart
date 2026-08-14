@@ -244,7 +244,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
       // until after that. Refusing ahead of that build means fetching the
       // supplement earlier in the patcher lifecycle, which is its own change;
       // that build alone produces nothing shippable.
-      _verifyBuildConfigAgrees(provenance);
+      await _verifyBuildConfigAgrees(provenance);
 
       final compiler = await _resolveRouteBCompiler(provenance);
       _verifyReleaseKernelsAgree(compiler, releaseArtifacts);
@@ -768,12 +768,40 @@ uploaded.''',
     pubspecFlutterSection: shorebirdEnv.getPubspecYaml()?.flutter,
   );
 
-  void _verifyBuildConfigAgrees(RouteBReleaseProvenance provenance) {
+  /// [_resolvedFlavor], spelled the way the SHIPPED kernel will spell it.
+  ///
+  /// On iOS, Flutter does not put the token you typed into
+  /// `FLUTTER_APP_FLAVOR`. It parses the flavor from the Xcode CONFIGURATION and
+  /// returns the SCHEME's own casing (`common.dart`'s
+  /// `_addFlavorToDartDefines`, `xcode_project.dart`'s
+  /// `parseFlavorFromConfiguration`). So `--flavor foo` against a scheme named
+  /// `Foo` ships a kernel compiled with `FLUTTER_APP_FLAVOR=Foo`.
+  ///
+  /// Route B compiles its own kernels, so using the token here would describe a
+  /// DIFFERENT Dart program than the one that ships — the same defect G4.2
+  /// closed for the define's KEY, still open in its VALUE. Resolved once and
+  /// cached: the lookup shells out to `xcodebuild -list`.
+  late final Future<String?> _appleFlavor = _resolveAppleFlavor();
+
+  Future<String?> _resolveAppleFlavor() async {
+    final resolved = _resolvedFlavor;
+    if (resolved == null || resolved.isEmpty) return resolved;
+    final root = shorebirdEnv.getFlutterProjectRoot();
+    if (root == null) return resolved;
+    return xcodeBuild.flavorScheme(
+      projectPath: p.join(root.path, 'ios', 'Runner.xcodeproj'),
+      flavor: resolved,
+    );
+  }
+
+  Future<void> _verifyBuildConfigAgrees(
+    RouteBReleaseProvenance provenance,
+  ) async {
     final releaseConfig = provenance.buildConfig;
     final patchArgs = [...argResults.forwardedArgs, ...extraBuildArgs];
     final patchConfig = RouteBBuildConfig.fromBuildArgs(
       patchArgs,
-      flavor: _resolvedFlavor,
+      flavor: await _appleFlavor,
     );
 
     if (releaseConfig == null) {

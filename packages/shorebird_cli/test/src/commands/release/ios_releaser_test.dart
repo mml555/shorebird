@@ -766,6 +766,7 @@ $body
               entrypoint: any(named: 'entrypoint'),
               buildArgs: any(named: 'buildArgs'),
               outputFile: any(named: 'outputFile'),
+              flavor: any(named: 'flavor'),
             ),
           ).thenAnswer((invocation) {
             final out = invocation.namedArguments[#outputFile] as File
@@ -880,6 +881,47 @@ $body
                     ),
                   ).captured.single
                   as List<String>;
+
+          // THE VALUE, not just the key. On iOS Flutter spells
+          // FLUTTER_APP_FLAVOR as the SCHEME, not as the token the user typed:
+          // xcode_project.dart's parseFlavorFromConfiguration returns
+          // schemeName. Route B compiles its own kernels, so passing the token
+          // would describe a DIFFERENT Dart program than the one that ships —
+          // G4.2 fixed the define's key and left its value divergent.
+          //
+          // This pins the WIRING. Reverting _appleFlavor to _resolvedFlavor
+          // makes the prepass receive 'foo' and this test fails.
+          test('compiles the prepass with the SCHEME spelling, not the '
+              'typed flavor token', () async {
+            when(
+              () => shorebirdEnv.getFlutterProjectRoot(),
+            ).thenReturn(projectRoot);
+            when(
+              () => xcodeBuild.flavorScheme(
+                projectPath: any(named: 'projectPath'),
+                flavor: any(named: 'flavor'),
+              ),
+            ).thenAnswer((_) async => 'Foo');
+
+            final flavored = IosReleaser(
+              argResults: argResults,
+              flavor: 'foo',
+              target: null,
+            );
+            await runWithOverrides(flavored.buildReleaseArtifacts);
+
+            final captured = verify(
+              () => routeBReleaseKernelBuilder.buildPrepass(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: any(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+                flavor: captureAny(named: 'flavor'),
+              ),
+            ).captured;
+            expect(captured.first, equals('Foo'));
+          });
 
           test('points the ONE real build at the generated interface', () async {
             // A kernel PREPASS, not a second IPA build. The interface has to be
