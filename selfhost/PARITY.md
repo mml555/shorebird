@@ -3000,6 +3000,16 @@ for sharing them. The short version:
 6. Never mark an item PROVEN from a host probe, a passing unit test, or a
    generated container. See "Rule for updating this file" at the bottom of
    PARITY.md. Host work earns BUILT.
+7. DO NOT RUN `shorebird login`, and do not believe the CLI when it tells you to.
+   This rig is SELF-HOSTED: the control plane is its own identity provider, there
+   is no console.shorebird.dev here, and there is nothing to log in to. On stale
+   credentials the CLI says "Try logging out ... and logging in again", and on a
+   bad token it says "Create an API key at https://console.shorebird.dev" — both
+   are inherited upstream text and both are WRONG on this rig. What is true: the
+   CLI reads SHOREBIRD_TOKEN (an sb_api_... key), and OUR server issues those via
+   POST /admin/users. The recipe, including how to use the bootstrap key without
+   ever printing it, is selfhost/IDP_SETUP.md section 0. Read that before you
+   spend a turn on authentication.
 ```
 
 ### What is safe to pick up right now
