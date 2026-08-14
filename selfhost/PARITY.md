@@ -3493,10 +3493,10 @@ would get credited to a patch that merely ran.
 
 | arm | expected | what it proves | where it is decided |
 |---|---|---|---|
-| release `--flavor foo`, patch `--flavor bar` | **REFUSED** | the fingerprint compares effective configuration | CLI, **before any patch artifact exists** |
+| release `--flavor foo`, patch `--flavor bar` | **REFUSED** — *but on Android this expectation is MEASURED FALSE, 2026-08-14* | ~~the fingerprint compares effective configuration~~ **Not on Android.** Two arms isolate the cause: with **two `app_id`s** it exits 70 `Release not found` — refused by **`app_id` routing** (`shorebird_yaml.dart:69-72`), which says nothing about configuration; with **one `app_id`** (control, so routing cannot be the cause) it **exits 0 and publishes**, and the mismatched patch then **applied on `R2`**, leaving the `foo` app displaying `flavor: bar`. Consistent with source: `RouteBBuildConfig` hits in `android_patcher.dart` = **0**; configuration comparison is an iOS/Route B mechanism only. The two-`app_id` refusal must not be banked as this arm passing — it is the wrong-reason refusal the plan warned reads exactly like the right one. Evidence `evidence/android/g42-flavor/` | CLI, **before any patch artifact exists** — **on iOS only** |
 | ~~release `--obfuscate`, patch plain~~ | **UNCONSTRUCTIBLE — KNOWN GAP, removed from the device queue 2026-08-13** | — | decided by READING, not by running |
 | **NEW: release plain, patch `--obfuscate`** | **REFUSED** | obfuscation is semantic — the honest substitute for the arm above | CLI, before any patch artifact exists |
-| release `--flavor foo`, patch `--flavor foo` | patched value on device | the matching path still produces a patch that EXECUTES | device |
+| ~~release `--flavor foo`, patch `--flavor foo`~~ | **PROVEN 2026-08-14 on `R2` (Android)** — `FLAVORPROBE-V1`/`flavor: foo` → `V2`/`flavor: foo` on CPH2551, new `flavorprobe` fixture, release 2.0.0+1 + patch 1. Two readings on purpose: the MARKER proves patched code ran, the FLAVOR proves configuration survived. iOS still owed | the matching path still produces a patch that EXECUTES | device — **Android done** |
 | ~~release `--obfuscate`, patch `--obfuscate`~~ | **RETIRED 2026-08-14 — PROVEN** (release 39 / patch 1 / `R1`; `NEW-OBF` on screen) | obfuscation does not break target resolution *through the real pipeline* | device — **done** |
 | release flavored by `default-flavor` ONLY, patch same | patched value on device | the path with no command-line token to notice | device |
 
