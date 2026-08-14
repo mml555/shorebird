@@ -1081,7 +1081,7 @@ void main() {
 
                 test('logs the real cause and exits before building', () async {
                   await expectLater(
-                    () => runWithOverrides(() => command.createPatch(patcher)),
+                    () => runWithOverrides(() => command.createPatch([patcher])),
                     exitsWithCode(ExitCode.software),
                   );
 
@@ -1125,7 +1125,7 @@ void main() {
                   () async {
                     await expectLater(
                       () => runWithOverrides(
-                        () => command.createPatch(patcher),
+                        () => command.createPatch([patcher]),
                       ),
                       exitsWithCode(ExitCode.software),
                     );
@@ -1170,7 +1170,7 @@ void main() {
                 });
 
                 test('warns and proceeds with the patch', () async {
-                  await runWithOverrides(() => command.createPatch(patcher));
+                  await runWithOverrides(() => command.createPatch([patcher]));
 
                   final message =
                       verify(() => logger.warn(captureAny())).captured.last

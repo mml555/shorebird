@@ -544,7 +544,18 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
       // narrowing back to prepass-only enumeration, and prepass-only
       // enumeration is the thing that does not build on a real app
       // (PARITY.md section 4).
-      flavor: _resolvedFlavor,
+      //
+      // It must be `_appleFlavor`, NOT `_resolvedFlavor`, and the difference is
+      // not cosmetic. The prepass above spells the flavor the way the SHIPPED
+      // kernel spells it — Flutter parses it from the Xcode CONFIGURATION and
+      // returns the SCHEME's casing, so `--flavor foo` against scheme `Foo`
+      // ships `FLUTTER_APP_FLAVOR=Foo`. `agreesWith` below compares THIS kernel
+      // against THAT prepass, so spelling them differently makes the two
+      // disagree on a flavored release whose scheme casing differs from the
+      // typed token — and a disagreement falls back to prepass-only
+      // enumeration, silently, which is the exact defect this call site was
+      // added to close.
+      flavor: await _appleFlavor,
       outputFile: File(p.join(work.path, 'early_import.dill')),
     );
 
