@@ -9,3 +9,14 @@ native engine
 dart hlclqjttgm dart-main-entered
 dart hlclqjttgm boot-probe-returned:boot-ok
 dart hlclqjttgm arm:kill
+native launch
+native engine
+dart hlclx0gj7e dart-main-entered
+dart hlclx0gj7e boot-probe-returned:boot-ok
+dart hlclx0gj7e arm:kill
+native launch
+native engine
+dart hlclxeca3w dart-main-entered
+dart hlclxeca3w boot-probe-returned:boot-ok
+dart hlclxeca3w arm:render
+dart hlclxeca3w first-frame

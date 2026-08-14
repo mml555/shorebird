@@ -1,5 +1,9 @@
-G15 GATE 2 — VERDICT (ARM 2A), 2026-08-14
-==========================================
+G15 GATE 2 — VERDICT, 2026-08-14
+=================================
+
+BOTH ARMS PASS, AND THEY AGREE. Arm 2A is written up first and in full; arm 2B
+follows at the end. Precommit row 8 — "2A and 2B disagree, and the difference is
+the ENGINE" — DOES NOT FIRE.
 
 ARM 2A PASSES, ON PRECOMMIT ROW 1 EXACTLY. And a second measurement, taken on the
 same device minutes later, RETIRES the blocking claim that sent this gate here.
@@ -144,10 +148,71 @@ credential without two env vars — is real and is fixed at HEAD (`b7779960`,
 `86d4390d`, `53b332f8`). It is not a G15 finding and is recorded here only
 because it will stop the next person too.
 
-DEVICE STATE ON LEAVING THIS ARM
----------------------------------
-`killswitch_probe` currently has **`1.0.3+1` installed** (from the reproduction
-test), `/Documents/g15_armed` ABSENT, `/Documents/g15_receipt` present with the
-eleven lines above. Nothing uninstalled — uninstalling resets iOS Local Network
-consent and blocks the app on a modal before any code runs. Arm 2B replaces the
-install with `1.0.5+1`.
+ARM 2B — THE PROVEN LINEAGE, AND IT AGREES
+===========================================
+
+release   killswitch_probe 1.0.5+1 (control-plane release id 94)
+cell      40eaa0ef — again verified in the shipped binary: `__TEXT,__text` is
+          `bc0afffe…`, which is **not** arm 2A's `136e3d64…`. The two arms
+          demonstrably ran different engines, which is the whole reason 2B exists
+rig       `~/.shorebird` restamped to `40eaa0ef` and re-warmed; the cached
+          `ios-release` engine was confirmed to swap to `bc0afffe…` BEFORE the
+          cut, so the release consumed what it was supposed to
+
+Receipt, the four lines of launch 1 (`hlclx0gj7e`) and six of launch 2
+(`hlclxeca3w`), continuing the same file:
+
+    native launch
+    native engine
+    dart hlclx0gj7e dart-main-entered
+    dart hlclx0gj7e boot-probe-returned:boot-ok
+    dart hlclx0gj7e arm:kill
+    native launch
+    native engine
+    dart hlclxeca3w dart-main-entered
+    dart hlclxeca3w boot-probe-returned:boot-ok
+    dart hlclxeca3w arm:render
+    dart hlclxeca3w first-frame
+
+Note the alternation ran in the OPPOSITE ORDER from arm 2A — kill first, then
+render — because the 1.0.3+1 reproduction test consumed the marker in between.
+The fixture's branch is chosen by sandbox state, not by launch ordinal, and this
+is that behaving correctly rather than a discrepancy.
+
+Launch 2's screen showed `boot: boot-ok` / `route B value: OLD-kill` /
+`launch hlclxeca3w`, matching the receipt id, no INSTRUMENT FAULT banner.
+`g2b_launch1.png`, `g2b_launch2.png`.
+
+WHAT THE AGREEMENT BUYS
+------------------------
+Unpatched `main()` executes, and the receipt reports every phase, on BOTH the
+PROVEN lineage `40eaa0ef` and the G15 engine `80e493e4` carrying patches 0009 and
+0010. So:
+
+  * the instrument is not engine-specific, and a later G15 arm that fails cannot
+    be waved off as "the fixture only ever worked on one engine";
+  * `0009`+`0010` do not disturb root-isolate startup — which was the live
+    suspicion after `killswitch_engine_identity.txt` showed the 2026-08-14
+    positive control had run a DIFFERENT engine from the failing app. That
+    suspicion is now closed by direct measurement on both engines, not by the
+    earlier indirect argument from `arm2_verdict.txt`.
+
+GATE 2 IS CLOSED. Gates 1 and 2 are both green on hardware.
+
+DEVICE AND RIG STATE ON RELEASE
+--------------------------------
+device    `killswitch_probe` **`1.0.5+1`** installed (cell `40eaa0ef`),
+          `/Documents/g15_armed` ABSENT, `/Documents/g15_receipt` present with
+          all 22 lines (11 from arm 2A, 11 from arm 2B; the 1.0.3+1 reproduction
+          test added none, which is itself the control on that reading).
+          Nothing uninstalled — uninstalling resets iOS
+          Local Network consent and blocks the app on a modal before any code
+          runs. `airgap_probe` untouched throughout
+rig       `~/.shorebird` `engine.version` == `engine.stamp` ==
+          `40eaa0ef6cb6485833bf2e10ac97224ca82cbf25`, cache warm and VERIFIED
+          (`bc0afffe…`). This is the promised restore state
+CLI       unchanged at `ba4e1c02`. The re-sync to `72620b12` is still owed by
+          whoever cuts the next non-gate-2 release
+fixture   `pubspec.yaml` left at `1.0.5+1`; releases 1.0.0+1 … 1.0.5+1 exist on
+          `cps-ios`, so bump before cutting another. `lib/main.dart` is in its
+          RELEASE form (`bootProbe() => 'boot-ok'`, `routeBValue() => 'OLD-kill'`)
