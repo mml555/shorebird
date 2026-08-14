@@ -1,0 +1,135 @@
+G15 GATE 3 — hooks.dart DELIVERY: VERDICT, 2026-08-14 (later sitting)
+=====================================================================
+
+GATE 3 FAILS, AND IT FAILS WITHOUT AN ENGINE BUILD, A MINT, OR A DEVICE.
+
+An edit to `lib/ui/hooks.dart` in `R3` CANNOT reach the kernel/AOT of a release
+built through the normal path. The vehicle that carries `dart:ui` into an app
+snapshot is published from a DIFFERENT TREE than the one the G15 seam work lives
+in, and every minted cell inherits the same copy of it.
+
+This is the cheapest-refutation-first result the chain asked for. It did not
+require building the seam to learn it.
+
+WHAT CARRIES dart:ui INTO A RELEASE APP
+----------------------------------------
+`flutter_tools` selects the platform dill by build mode, in two places:
+
+  packages/flutter_tools/lib/src/artifacts.dart:757
+  packages/flutter_tools/lib/src/artifacts.dart:1323
+      mode == BuildMode.release ? 'flutter_patched_sdk_product'
+                                : 'flutter_patched_sdk'
+
+So every RELEASE iOS build compiles its app kernel against
+
+  <flutter>/bin/cache/artifacts/engine/common/flutter_patched_sdk_product/
+      platform_strong.dill
+
+and `_runMain` is confirmed present in the resulting AOT — `_runMain@34065589`
+appears in `killswitch_probe` release `1.0.3+1`'s `App.framework/App`. The
+candidate's Dart half really does travel this road. The question is whose
+`hooks.dart` gets on it.
+
+THE MEASUREMENT
+---------------
+sha256 / occurrences of `attachBytecodeToFunction`, a Route B Dart-SDK patch
+symbol that stock Dart does not declare:
+
+  55e02ed8… 9,951,616 B  Aug  5 13:04  x0   CONSUMED by ~/.shorebird
+  55e02ed8… (same file)               x0   published in cell 40eaa0ef's
+                                            flutter_patched_sdk_product.zip
+  55e02ed8… (same file)               x0   published in cell 80e493e4's
+  55e02ed8… (same file)               x0   published in cell 4df8f9b6's
+  55e02ed8… 9,951,616 B               x0   R4 out/host_release_arm64_nodm
+  55e02ed8… 9,951,616 B               x0   R4 out/ios_release
+  8c88b9d4…                           x7   R4 out/host_release_arm64
+  9f5a5f75… 9,955,200 B  Aug 12 19:41 x8   R3 out/ios_release          <-- OURS
+  9f5a5f75… 9,955,200 B  Aug  9 14:31 x8   R3 published_sdk/           <-- OURS
+
+ALL THREE PUBLISHED CELLS CARRY THE BYTE-IDENTICAL DILL, and it is not R3's.
+Switching `~/.shorebird`'s stamp between cells therefore cannot change one byte
+of `dart:ui` in a built app.
+
+WHY, IN THE SCRIPTS
+-------------------
+  publish_ios_overlay.sh:193
+      HOST_REL=${HOST_REL:-/Volumes/build/ios-engine/flutter/engine/src/out/
+                            host_release_arm64_nodm}
+  publish_ios_overlay.sh:212
+      publish_host "$HOST_REL/zip_archives/flutter_patched_sdk_product.zip" …
+
+`HOST_REL` defaults to **R4**, and DELIBERATELY so: the comment above it records
+that R3's `out/host_release_arm64` carries `dart_dynamic_modules=true`, whose
+platform dill fails the iOS AOT step with "Unexpected tag 4 (Field)". The default
+was chosen to make the build work. Nobody asked afterwards whether it also made
+R3's `dart:ui` unreachable. It does.
+
+  mint_route_b_cell.sh:127
+      cp -Rc "$ENGINE_SRC" "$ENGINE_DST"      # APFS clone of the DONOR cell dir
+
+so a new cell inherits its donor's `flutter_patched_sdk_product.zip` unchanged.
+The chain of donors terminates at R4's copy. Minting from R3 does not break it.
+
+THE PART THAT MAKES THIS THE sky_engine HOLE AGAIN, ONE LEVEL DOWN
+-------------------------------------------------------------------
+  mint_route_b_cell.sh:31,68
+      FLUTTER_PLATFORM=${FLUTTER_PLATFORM:-/Volumes/build/route-b/published_sdk/
+                          flutter_patched_sdk_product/platform_strong.dill}
+      "flutter_platform_strong.dill:$FLUTTER_PLATFORM"
+
+**R3's dill (`9f5a5f75…`, x8) is one of the seven files that COMPUTE THE CELL
+HASH.** The cell's address certifies R3's platform dill. The artifact served to
+app builds under that same address is R4's (`55e02ed8…`, x0).
+
+So the system runs on TWO different platform dills at once:
+
+  patch-compile path (dart2bytecode / gen_dynamic_interface)  -> R3's,  x8
+  release app-compile path (flutter_tools kernel snapshot)    -> R4's,  x0
+
+and `audit_route_b_compiler.sh:76,86` checks `flutter_platform_strong.dill` only
+INSIDE the compiler bundle, against `PROVENANCE.txt`. It never compares it to the
+`flutter_patched_sdk_product.zip` published beside it under the same hash. That is
+why every cell audits CLEAN with the two halves disagreeing — the same shape as
+`sky_engine` serving stock Dart-SDK patch sources under self-hosted hashes while
+the overlay audited clean, and the reason Gate 3's standard was written to reject
+cache-state evidence.
+
+WHAT THIS DOES TO THE `_runMain` CANDIDATE
+-------------------------------------------
+It does NOT refute it structurally. `_runMain` is in the release AOT, and it is
+still the located invocation of `userMainFunction()`. What is refuted is its
+DELIVERABILITY AS THE PIPELINE STANDS:
+
+  * editing R3's lib/ui/hooks.dart and minting a cell changes nothing an app
+    consumes;
+  * the seam's Dart half and its native half would have to ship from two
+    different trees (dart:ui from R4-nodm, the C++ reporter from R3), and those
+    two trees are not held in agreement by anything today.
+
+GATE 3 IS THEREFORE NOT "PASSED WITH A CAVEAT". IT IS FAILED, and the repair is a
+PUBLICATION repair, not a seam redesign. Until a `hooks.dart` edit in the tree
+that owns the seam demonstrably lands in a built release's AOT, no `_runMain`
+seam may be built — that is exactly the spend Gate 3 exists to prevent.
+
+WHAT WOULD CLOSE IT
+-------------------
+1. Make `publish_ios_overlay.sh` publish the platform dill from the SAME tree as
+   the iOS engine it publishes, or fail loudly when they disagree. The existing
+   `OUT`-vs-`HOST_REL` split already produced the trap recorded in the handoff;
+   this is the same trap with a quieter symptom.
+2. Add the missing audit check: the published `flutter_patched_sdk_product.zip`
+   must contain the same `platform_strong.dill` the cell hash was computed over.
+   One byte comparison closes a hole two sessions have now walked into.
+3. Only then: unique marker in `hooks.dart` -> rebuild -> publish -> stamp ->
+   release -> grep the built `App.framework/App`. The marker must be retained by
+   construction (a throw on a branch the compiler cannot fold), or its absence
+   cannot be told from tree-shaking — a vacuous check in the exact shape this
+   process rule forbids.
+
+METHOD NOTE, so this is reproducible
+-------------------------------------
+Do not hash an embedded `Flutter` binary directly: the copy inside a built .app is
+re-signed and thinned, so its file hash never matches the published xcframework's.
+Compare the `__TEXT,__text` SECTION BYTES instead (offset+size from `otool -l`).
+That is what makes the engine-identity table in `killswitch_engine_identity.txt`
+possible at all.
