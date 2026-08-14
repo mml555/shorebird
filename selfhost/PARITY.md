@@ -3173,6 +3173,19 @@ the evidence points elsewhere, and every rung is a mint plus a scarce device gat
 > HELD behind it.** The numbering below is left as it was so earlier references
 > still resolve; read this block as the live order.
 >
+> **THE NUMBERING ORDERS WHAT GATES THE DESIGN, NOT WHAT MUST RUN SERIALLY.**
+> Read it as a dependency order, not a schedule — §16's distinction, applied to a
+> chain that reads deceptively like a queue. **Gate 3 does not wait for gates 1–2:**
+> it is host-only, needs no device and no mint, and contends only on `R3`, while
+> gates 1–2 need the fixture and `R1`. Running it in parallel is strictly better
+> than leaving the delivery premise unmeasured while the fixture is repaired —
+> and if it FAILS, it invalidates the `_runMain` candidate outright, which is
+> worth learning before a device cycle is spent on gates 1–2's behalf.
+>
+> **The one hard boundary is before gate 4.** Seam design may not begin until 1,
+> 2 and 3 are all established: 1–2 give an instrument that can produce an
+> admissible result, 3 gives a delivery path the design is allowed to assume.
+>
 > | # | item | state |
 > |---|---|---|
 > | **1** | **`G15` fixture repair** — `killswitch_probe`'s alternating marker must move on an UNPATCHED release | **BLOCKING. Until it passes, no crash-backout device result is admissible** |
