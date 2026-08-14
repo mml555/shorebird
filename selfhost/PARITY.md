@@ -2078,6 +2078,12 @@ boundary is not the rung ladder but library-scoped privacy.
 > prepass, the import kernel and dart2bytecode. That is mechanism; flavors is a
 > validation errand that happens to need it.
 
+### Android build-configuration enforcement — a PRODUCT GAP
+
+| | item |
+|---|---|
+| 🐞 | **PRODUCT GAP, measured on device 2026-08-14 — not a test debt.** *Android patching does not currently enforce Route B effective build-configuration compatibility. A patch built for flavor `bar` can be published against a `foo` release and execute on device, changing the runtime flavor identity.* Measured in two arms so the cause is isolated: with **two `app_id`s** a wrong-flavor patch exits 70 `Release not found` — refused by **`app_id` routing** (`shorebird_yaml.dart:69-72`), which says nothing about configuration; with **one `app_id`** it **exits 0, publishes, and the device applies it**, leaving `dev.selfhost.flavorprobe.foo` displaying `flavor: bar`. Source agrees: `RouteBBuildConfig` hits in `android_patcher.dart` = **0**; configuration comparison is an iOS/Route B mechanism only. **This is materially different from \"B5 failed\"** — the arm's stated meaning (*the fingerprint compares effective configuration*) is simply not implemented on Android. **PRESERVED NEGATIVE SPECIMEN — do not clean up:** patch **2** on app `cd447816-bccb-19e4-d653-38ba8fe2fc79` IS the demonstration, promoted to stable, with the device running it. Evidence `evidence/android/g42-flavor/`. **Follow-up is its own lane** and should start from the architecture question rather than copying iOS code: which Android release artifact/provenance carries the effective config; where in `android_patcher.dart` a patch-vs-release check can run *before* a patch is produced or uploaded; whether `RouteBBuildConfig`'s canonicalization is reusable or should be promoted into a platform-neutral build-config contract; covering `effectiveDefines`, flavor-derived `FLUTTER_APP_FLAVOR` and the other already-measured semantic fields consistently; and a precommitted wrong-flavor regression using **one `app_id`** so routing can never satisfy the refusal arm again |
+
 ### Obfuscation / symbols
 
 | | item |
