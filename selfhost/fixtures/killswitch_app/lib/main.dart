@@ -28,29 +28,53 @@ import 'package:flutter/material.dart';
 String routeBValue() => 'OLD-kill';
 
 /// Arming marker, in the app sandbox so it survives a SIGKILL and the next
-/// launch can read it. `HOME` is the sandbox root on iOS, so this needs no
-/// plugin — deliberately, since a plugin would add native code to a fixture
-/// whose whole point is a specific native launch sequence.
+/// launch can read it.
+///
+/// The sandbox root is derived from `Directory.systemTemp`, which Dart resolves
+/// to `<sandbox>/tmp` on iOS, so its parent is the sandbox. NOT `HOME`:
+/// **measured on device 2026-08-14, `Platform.environment['HOME']` is not set
+/// there.** The path became `null/Documents/g15_armed`, which is relative, and
+/// `createSync` threw against a read-only working directory.
+///
+/// Still no plugin, deliberately — a plugin would add native code to a fixture
+/// whose whole subject is a specific native launch sequence.
 File get _armedMarker =>
-    File('${Platform.environment['HOME']}/Documents/g15_armed');
+    File('${Directory.systemTemp.parent.path}/Documents/g15_armed');
 
-/// Alternates: absent → kill this launch and arm nothing further; present →
-/// consume it and run normally.
+/// Non-null when the marker mechanism itself failed. THE ARM MUST NOT KILL IN
+/// THAT CASE.
+///
+/// This is not defensive padding — it is the false green this fixture already
+/// produced once. With the broken `HOME` path above, `createSync` threw, `main`
+/// died before rendering, and the app therefore terminated immediately on EVERY
+/// launch. That is indistinguishable, from the outside, from the kill arm
+/// working perfectly: no UI, process gone, breadcrumb left set. A fixture whose
+/// BREAKAGE mimics its SUCCESS can only produce false confidence, so a failure
+/// here now renders a red screen instead of killing.
+String? _markerFault;
+
+/// Alternates: absent → kill this launch; present → consume it and run
+/// normally.
 ///
 /// The alternation is the point. G15's design requires arm 2 to be run MORE
 /// THAN ONCE — a single survival is consistent with the kill having landed
 /// outside the window by luck — and self-alternating gives that without anyone
 /// reaching into the sandbox between launches. Deleting the marker to re-arm is
-/// also why this does not need an uninstall, which would reset iOS Local
-/// Network consent and block the app on a modal before any code runs.
+/// also why this needs no uninstall, which would reset iOS Local Network
+/// consent and block the app on a modal before any code runs.
 bool _shouldKillThisLaunch() {
-  final marker = _armedMarker;
-  if (marker.existsSync()) {
-    marker.deleteSync();
+  try {
+    final marker = _armedMarker;
+    if (marker.existsSync()) {
+      marker.deleteSync();
+      return false;
+    }
+    marker.createSync(recursive: true);
+    return true;
+  } on Object catch (e) {
+    _markerFault = '$e';
     return false;
   }
-  marker.createSync(recursive: true);
-  return true;
 }
 
 void main() {
@@ -99,6 +123,21 @@ class _KillSwitchApp extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              // Loud, and deliberately unmissable: if this is showing, the
+              // marker mechanism failed and NOTHING on this screen is an arm-2
+              // result. Silence here would let a broken fixture read as a pass.
+              if (_markerFault != null) ...[
+                const SizedBox(height: 24),
+                Container(
+                  color: const Color(0xFFB00020),
+                  padding: const EdgeInsets.all(12),
+                  child: Text(
+                    'MARKER FAULT — NOT AN ARM RESULT\n$_markerFault',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
