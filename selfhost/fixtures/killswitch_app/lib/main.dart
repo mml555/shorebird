@@ -27,6 +27,21 @@ import 'package:flutter/material.dart';
 /// body and the screen is the claim.
 String routeBValue() => 'OLD-kill';
 
+/// Called from `main()` BEFORE `runApp`, which is the whole point of it.
+///
+/// `routeBValue()` cannot serve the crash-backout arm: it is called from
+/// `build()`, which runs AFTER `Engine::Run` has returned and success has
+/// already been banked. A patch that throws there is a RUNTIME failure, not a
+/// BOOT failure, and G15 deliberately does not back those out.
+///
+/// This one is invoked while `Engine::Run` is still on the stack, so a patch
+/// that makes it throw is a Dart-phase failure of the boot itself — the exact
+/// thing crash-backout is supposed to catch.
+String bootProbe() => 'boot-ok';
+
+/// Set from [bootProbe] so the value cannot be tree-shaken away.
+String bootMark = '';
+
 /// Arming marker, in the app sandbox so it survives a SIGKILL and the next
 /// launch can read it.
 ///
@@ -78,6 +93,10 @@ bool _shouldKillThisLaunch() {
 }
 
 void main() {
+  // BEFORE the kill check and before runApp: this must execute inside
+  // Engine::Run for a throwing patch to register as a boot failure.
+  bootMark = bootProbe();
+
   if (_shouldKillThisLaunch()) {
     // SIGKILL, not `exit()`. Jetsam and the launch watchdog do not let the
     // process wind down, and a clean exit could run teardown that the cases
@@ -115,6 +134,11 @@ class _KillSwitchApp extends StatelessWidget {
               // launch was killed before recording success and the patch was
               // NOT tombstoned. The value shows whether the patch is still the
               // one running.
+              Text(
+                'boot: $bootMark',
+                style: const TextStyle(color: Colors.white70, fontSize: 18),
+              ),
+              const SizedBox(height: 8),
               Text(
                 'route B value: ${routeBValue()}',
                 style: const TextStyle(
