@@ -15,7 +15,7 @@ state.
 |---|---|
 | Supported pin in [`compatibility.yaml`](compatibility.yaml) | **byte-identical to `main`** — CLI, flutter, engine, updater revisions all unchanged |
 | `independence.engine_from_source` | still `false` — releases and patches use **Shorebird's prebuilt engine** |
-| The CDN mirror | ~~checked in as a **pure passthrough** cache; `experimental_hashes.map` has no active entries~~ — **stale, corrected 2026-08-13.** The map carries **26 active entries** (`grep -vcE '^\s*(#\|$)' selfhost/cdn/experimental_hashes.map`), and the mirror is no longer a passthrough: it serves per-cell overlays and 404s rather than substituting stock bytes for an artifact the build was supposed to provide (`cdn/Caddyfile` `@must_be_local`) |
+| The CDN mirror | ~~checked in as a **pure passthrough** cache; `experimental_hashes.map` has no active entries~~ — **stale, corrected 2026-08-13.** The map carries **27 active entries** as of 2026-08-14 (`grep -vcE '^\s*(#\|$)' selfhost/cdn/experimental_hashes.map`; it was 26 when this correction was first written, and the count moves with every mint — re-run the command rather than trusting the number), and the mirror is no longer a passthrough: it serves per-cell overlays and 404s rather than substituting stock bytes for an artifact the build was supposed to provide (`cdn/Caddyfile` `@must_be_local`) |
 | Our engine | reachable only if you publish it locally *and* point a build at its hash — two deliberate acts |
 
 The only behavioral change to the default path is a **bug fix**: the CDN mirror

@@ -1002,8 +1002,15 @@ and writes nothing. A vanilla-Dart `gen_snapshot` exits non-zero, and
 ##### Recreating the Dart checkout is now reproducible
 
 [`engine/dart_patches.sh`](engine/dart_patches.sh) pins the base commit and owns
-the series (`0001`, `0004`, `0005`, `0006` — `0002` is the flutter tree, `0003`
-is diagnostic-only):
+the series (`0001`, `0004`, `0005`, `0006`, `0008` — `0002` is the flutter tree,
+`0003` is diagnostic-only). **Since `0008` (2026-08-14) the ORDER is load-bearing
+rather than conventional:** it is the first Dart patch to touch a file another
+patch already touches (`0005` also edits `runtime/vm/compiler/aot/precompiler.cc`),
+so `0008` must be applied after `0005`, and an edit landing adjacent to `0005`'s
+hunk context makes `0005` report `[CONFLICT]` even though nothing is wrong with
+`0005`. Note the "four patches" wording elsewhere in this file refers to the TFA
+**correctness** set (`0001`/`0004`/`0005`/`0006`) and is still accurate — `0008`
+is a capability, not a TFA compensation:
 
 ```bash
 selfhost/engine/dart_patches.sh --dest <dart-checkout> --verify   # default
