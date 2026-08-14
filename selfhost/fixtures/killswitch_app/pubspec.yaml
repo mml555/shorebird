@@ -1,0 +1,30 @@
+# The G15 arm-2 fixture. See README.md in this directory.
+#
+# A FOURTH fixture, and a clone rather than an edit, for the reason PARITY §16
+# gives: `R6` (airgap_app) is "the sharpest serializer" and its shorebird.yaml,
+# version and main.dart are per-run mutable state. A goal needing its own
+# fixture contends on R6 not at all — and this one additionally must never share
+# an install with another fixture, because its whole mechanism is a marker file
+# in the app sandbox.
+name: killswitch_probe
+description: G15 arm 2 — a good patch killed before launch success is banked.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+# NO plugins, deliberately. Zero plugins means no Podfile and no CocoaPods step,
+# so the launch sequence under test is the engine's own rather than one shaped by
+# plugin registration. It also keeps the sandbox marker on `dart:io` + `HOME`
+# instead of path_provider, which would add native code to a fixture whose
+# entire subject is native launch ordering.
+
+flutter:
+  uses-material-design: true
+  assets:
+    - shorebird.yaml

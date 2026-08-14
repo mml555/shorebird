@@ -1,0 +1,8 @@
+# Template. The real shorebird.yaml is written from this shape with a
+# server-generated app_id, which is why it is not committed.
+#
+# Unlike twoengine_app's, these values ARE contacted: arm 2 needs a real release
+# and a real patch on a control plane, because the question is whether the
+# updater tombstones a patch it should not.
+app_id: REPLACE-ME
+base_url: http://localhost:18080
