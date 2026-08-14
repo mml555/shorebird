@@ -24,7 +24,12 @@ HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 FIXTURE="$(cd "$HERE/../fixtures/killswitch_app" >/dev/null 2>&1 && pwd)"
 FLUTTER="${FLUTTER:-$HOME/.shorebird/bin/cache/flutter/c15ef6379403a0a55531a058bdb2c8e55bc05c98/bin/flutter}"
 APP_ID="${APP_ID:-}"
-BASE_URL="${BASE_URL:-http://localhost:18080}"
+# NOT localhost. On the DEVICE, localhost is the phone — the app would never
+# reach the control plane, would never see a patch, and the arm would read as
+# "the patch did not apply" rather than as a misconfigured fixture. Measured
+# 2026-08-14: with localhost, state.json on device carried no patch state at all.
+# The sibling airgap_app uses this same LAN address for the same reason.
+BASE_URL="${BASE_URL:-http://10.0.0.7:18080}"
 TEAM="${TEAM:-}"
 
 while [ $# -gt 0 ]; do

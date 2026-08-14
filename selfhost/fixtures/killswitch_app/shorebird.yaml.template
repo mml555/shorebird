@@ -5,4 +5,4 @@
 # and a real patch on a control plane, because the question is whether the
 # updater tombstones a patch it should not.
 app_id: REPLACE-ME
-base_url: http://localhost:18080
+base_url: http://10.0.0.7:18080
