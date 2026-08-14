@@ -135,6 +135,105 @@ POSITIVELY, and `0010`'s counter handles ABSENCE — which, once crashes report
 themselves, can only mean a benign death. Each covers exactly what the other
 cannot.
 
+### The four questions asked of `OnHandleMessage` — ANSWERED FROM SOURCE, and it FAILS three
+
+Asked before instrumenting anything, precisely because "inside `Dart_HandleMessage`"
+is the kind of nearby property `0009` died on. The seam does not survive them.
+
+**1. Is this specifically the message that invokes `main()`? NO — it is an ordinal,
+not an identity.** `OnHandleMessage` handles whatever is at the head of the queue.
+tonic tracks `handled_first_message()` but only to decide pause-on-start. Nothing
+pins `main`'s port message to the first turn; any other message delivered first
+(timer, platform message, plugin-registrant callback) banks success before `main`
+runs. That is `0009` again, displaced by one turn.
+
+**2. What exact return means success?** `Dart_HandleMessage()` returning a
+non-error handle with `error == false` after `CheckAndHandleError`. Its meaning is
+narrow and exact: *that message's handler ran to completion without an unhandled
+error.* For a synchronous `main`, that is `main` returning. See question 4 for
+what it means otherwise.
+
+**3. Does a startup unhandled error actually arrive at `UnhandledError(result)`?
+ONLY IF THE APP LETS IT — and that is disqualifying.** There is a Dart-side hook
+above the C++ one: `lib/ui/hooks.dart:399`
+
+```dart
+@pragma('vm:entry-point')
+bool _onError(Object error, StackTrace? stackTrace) =>
+    PlatformDispatcher.instance._dispatchError(error, stackTrace ?? StackTrace.empty);
+```
+
+and `_dispatchError` (`platform_dispatcher.dart:1456`) returns `_onError!(error,
+stackTrace)` when the app installed one. Returning **true means handled**, the VM
+does not propagate, `Dart_HandleMessage` returns no error, and tonic's
+`UnhandledError` **never fires**. Installing `PlatformDispatcher.instance.onError`
+returning true is the documented, mainstream Crashlytics/Sentry pattern. So the
+C++ seam's coverage is **application-controllable**: an ordinary error-reporting
+app would make a broken patch report success. A safety contract whose correctness
+depends on application code is not a safety contract.
+
+**4. `async main`? THE SEAM MEASURES SCHEDULING, NOT COMPLETION.** `_runMain`
+discards the entrypoint's return value in both branches, and
+`_delayEntrypointInvocation`'s handler discards it too — so an `async main`'s
+Future is unawaited. `Dart_HandleMessage` therefore returns success as soon as the
+**synchronous prefix up to the first `await`** completes. The common startup shape
+
+```dart
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();   // <-- success already banked before this
+  runApp(const App());
+}
+```
+
+banks success before any of the awaited startup work has run, and a patch that
+breaks it fails in a later turn. **This is exactly `0009`'s failure mode at one
+turn's remove**, and it is the reason this seam cannot be adopted as-is.
+
+### The candidate that survives all four: wrap the entrypoint in `_runMain`
+
+The invocation of `main` has a name in source, so the seam should bind to that
+name rather than to a turn ordinal. `lib/ui/hooks.dart:406` is that name:
+
+```dart
+@pragma('vm:entry-point')
+void _runMain(Function startMainIsolateFunction, Function userMainFunction, List<String> args) {
+  startMainIsolateFunction(() {
+    ...
+    userMainFunction();   // <-- the exact invocation; return value currently DISCARDED
+  }, null);
+}
+```
+
+Wrapping this call site answers all four:
+
+| question | why the wrapper answers it |
+|---|---|
+| 1 identity | it **is** `main`'s invocation. No ordinal reasoning, no assumption about queue order |
+| 2 exact signal | sync return vs thrown object are distinguishable at the call site |
+| 3 coverage | the `catch` sits INSIDE the closure, so it observes the throw **before** `_onError`/`PlatformDispatcher.onError` can consume it. Not app-controllable |
+| 4 `async main` | capture the discarded return value; if it is a `Future`, bank on its **completion** and report failure on its **error**. That is completion of startup work, not its scheduling |
+
+Feasibility, stated honestly: `hooks.dart` ships in `sky_engine`, and this fork
+already builds and serves its own `sky_engine.zip` from the overlay (`R11`, cell
+`40eaa0ef`), with the CONSUMED copy verified to carry our modifications. So the
+delivery channel exists and is audited. **But no existing patch touches
+`hooks.dart`** — this would be the first, and `R3` must confirm the patched
+`hooks.dart` actually reaches the AOT kernel the release compiles against. Until
+that is confirmed the candidate is *located*, not *built*.
+
+#### The one open question on this candidate, recorded rather than assumed
+
+**A `main` that never returns and never completes never banks success** — and
+with `0010`'s counter, two such boots tombstone a GOOD patch. This is the same
+generic-success-contract failure that disqualifies first-frame, so it must not be
+waved through here. Shapes to check before building: an `async main` awaiting
+something long-lived after `runApp`, and an app whose `main` intentionally does
+not return. If they are real, the wrapper needs a second banking condition
+(whichever of *main returned* / *its Future completed* / a bounded fallback comes
+first) — and that fallback must be chosen with the same four questions, not
+assumed.
+
 ### The A/B experiment, and the liveness receipt it must carry
 
 Same release, same patch machinery, same device, three arms:

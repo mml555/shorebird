@@ -2660,11 +2660,33 @@ The other two symptoms (crash-backout, restart-required) are a *different*
 mechanism — `ReportLaunchSuccess` firing in the `Shell` constructor — and are
 untouched by `0007`.
 
-**Why it ranks 4th and not 1st.** It constrains reliability, not reach: fixing it
-makes the ~7 % surface *trustworthy* without making it larger. Language reach
-(`G3.6e`, `G3.7`) changes what the product can do; this changes whether what it does
-can be depended on. Both are needed; reach was ranked first because a fundamental
-limitation there would reshape everything below it.
+**~~Why it ranks 4th and not 1st.~~ SUPERSEDED 2026-08-14 — `G15` IS NOW FIRST.**
+The original argument is kept below because it was right about the shape of the
+trade and wrong about one fact.
+
+> ~~It constrains reliability, not reach: fixing it makes the ~7 % surface
+> *trustworthy* without making it larger. Language reach (`G3.6e`, `G3.7`) changes
+> what the product can do; this changes whether what it does can be depended on.
+> Both are needed; reach was ranked first because a fundamental limitation there
+> would reshape everything below it.~~
+
+**What changed is not the severity of the consequence — it is the validity of the
+mechanism.** The crash-backout seam is now **source-proven incapable of observing
+user Dart execution at all**: `main` is posted to the message queue, so
+`Engine::Run` returns before one line of it runs. Route B therefore has **no
+validated mechanism for distinguishing a successfully booted patch from a
+Dart-phase failure.** That is a shipping blocker on its own, independently of how
+bad the worst case turns out to be: shipping with an invalid success signal means
+the safety contract is not weak, it is *unknown*.
+
+**The brick/reinstall severity claim is SUSPENDED, not withdrawn** — pending
+fixture repair and remeasurement. It may well be re-established; it is simply not
+evidence today, because the fixture it rested on never reached `main()` even with
+no patch installed.
+
+Reach work (`G3.6e`, `G3.7`, static-vs-instance) is held behind this deliberately:
+those increase what can be patched, and this determines whether the system can
+tell a good patch from one that broke the app.
 
 Three sections keep their rows and now point here, rather than each carrying a third
 of the diagnosis.
@@ -3113,6 +3135,25 @@ real compatibility data identifies a lexical blocker at meaningful frequency. To
 the evidence points elsewhere, and every rung is a mint plus a scarce device gate.
 
 ### Priority order
+
+> **REORDERED 2026-08-14. `G15` crash-backout is now FIRST, and reach work is
+> HELD behind it.** The numbering below is left as it was so earlier references
+> still resolve; read this block as the live order.
+>
+> | # | item | state |
+> |---|---|---|
+> | **1** | **`G15` fixture repair** — `killswitch_probe`'s alternating marker must move on an UNPATCHED release | **BLOCKING. Until it passes, no crash-backout device result is admissible** |
+> | **2** | **`G15` clean-release control** — unpatched release → marker moves → expected UI (`boot-ok` / `OLD-kill`) | restores attribution capability; the run on 2026-08-14 could not |
+> | **3** | **`G15` seam** — build and prove the `_runMain` wrapper candidate, answering the same four questions of whatever fallback it needs | the C++ `OnHandleMessage` seam FAILED three of the four; see the plan |
+> | **4** | **`G15` three-arm hardware gate** — good→success, throw→positive failure + backout, kill-before-signal→retry (re-earning `0010` at the later seam) | same repaired fixture and instrument; **every arm asserts marker movement before UI is read** |
+> | 5+ | `G3.6e`, `G3.7`, static-vs-instance widening | **HELD.** They increase what can be patched; `G15` determines whether a failed patch can be told from a good one |
+>
+> **Rationale, restated because the old one no longer holds:** the current
+> success-accounting seam is source-proven incapable of observing user Dart
+> execution, so there is no validated way to distinguish a booted patch from a
+> Dart-phase failure. The previously claimed brick/reinstall severity is
+> **suspended pending fixture repair and remeasurement** and is no longer part of
+> the argument.
 
 1. ~~**`G3.6c` + `G3.6d` device gate**~~ — **DONE 2026-08-13.** Release `32.0.0+1`
    patch 1: a method on the private class `_ProbeBodyState` patched on device,
