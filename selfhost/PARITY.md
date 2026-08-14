@@ -3365,6 +3365,19 @@ untouched by `0007` or by this gate.
 > seam because it widens the false-backout window — correct at the time, and that
 > risk is now MITIGATED by `0010`'s counter, which did not exist when the objection
 > was made. Re-examine it rather than treating it as settled.
+>
+> **THE CONSEQUENCE IS BLOCKING, AND IT IS MEASURED: A BAD PATCH BRICKS THE INSTALL.**
+> With crash-backout not firing, the client never removes a patch that breaks Dart —
+> and **the server cannot rescue it either.** The crashing patch was withdrawn with
+> `rollback=true` and acknowledged (`{"withdrawn":true,"rolled_back":true}`), and the
+> app still crashed on every launch afterwards, because withdrawal only reaches a
+> device that lives long enough to POLL and this one dies inside `main()`. The install
+> stayed in a permanent crash loop until its updater state was wiped over USB
+> (`ios-deploy --rmtree "/Library/Application Support/shorebird"`). **A real user has
+> no equivalent: the app is dead until they delete and reinstall it, losing local
+> data.** So this is not an outstanding nice-to-have — it is the only thing standing
+> between a bad patch and a bricked install, and §7/§13's shipping questions should
+> treat it as the blocking item.
 
 **THE SHARED BOOKING CARRIES TWO INDEPENDENT PAYLOADS** — `G3.7`'s remaining
 parameter-shape arms and this gate — with **separate releases, specimens and

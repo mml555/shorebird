@@ -6,7 +6,7 @@
 
 | field | value |
 |---|---|
-| status | **DESIGN, REWORKED 2026-08-14. Earns nothing.** The prior design was refuted before it was built — see *The refuted composite* — and no code exists for this one. Host reading only; no probe, no release, no device |
+| status | **BUILT AND TAKEN TO THE DEVICE 2026-08-14 — one half PROVEN, the other MEASURED FAILING.** Cell `80e493e4` carries `0009` + `0010`. **The false-backout half PASSES on hardware, twice** (`evidence/g15/arm2_verdict.txt`). **Crash-backout FAILS** — `Engine::Run` returns `Success` when the entrypoint is merely INVOKED, so a patch throwing inside `main()` banked three successes while crashing every launch (`evidence/g15/crashbackout_verdict.txt`). **The seam in part 1 of this design is still too early and must be re-chosen** — see *Where the seam actually belongs* in that verdict. Part 2 (the counter) is correct as designed and proven. Prior status: **DESIGN, REWORKED 2026-08-14. Earns nothing.** The prior design was refuted before it was built — see *The refuted composite* — and no code exists for this one. Host reading only; no probe, no release, no device |
 | owns | nothing yet. Implementation will own `R3` + a mint + `R1` |
 | excludes | when implemented: every other `R3` build and every other `R1` goal. Nothing today |
 | blocked by | nothing for the design. Implementation is blocked on `R3` being free and on a mint it should ride rather than pay for alone |
