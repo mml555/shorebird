@@ -1,0 +1,17 @@
+# Template. The real shorebird.yaml is generated per control-plane instance,
+# because app_id is server-generated (POST /api/v1/apps ignores a requested id).
+#
+# auto_update: false for the same reason manual_api_app needs it, plus one that
+# is specific to G6: if the runtime may apply a patch on its own, the device
+# could acquire BETA's patch without any Dart call having asked for beta, and
+# the whole track-selection reading collapses. Every patch that lands here must
+# be one this app explicitly requested, by name.
+#
+# NOTE the thing that is NOT here: `channel`. compileShorebirdYaml never copies
+# it (shorebird_yaml.dart:68-70), so the updater falls back to
+# DEFAULT_CHANNEL = "stable" (config.rs:24, :148). That is the product gap this
+# fixture works around rather than hides -- the track is chosen per CALL from
+# Dart, never by configuration.
+app_id: REPLACE-ME
+auto_update: false
+base_url: http://localhost:18081
