@@ -1168,7 +1168,10 @@ this is refused rather than attempted. Nothing was uploaded.''');
     required Patcher patcher,
   }) async {
     try {
-      return patcher.assertUnpatchableDiffs(
+      // `await` is load-bearing, not stylistic: without it the Future is
+      // returned before it completes, so an async rejection reaches the caller
+      // instead of these clauses and neither ProcessExit translation happens.
+      return await patcher.assertUnpatchableDiffs(
         releaseArtifact: releaseArtifact,
         releaseArchive: releaseArchive,
         patchArchive: patchArchive,

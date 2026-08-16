@@ -2566,6 +2566,58 @@ Please re-run the release command for this version or create a new release.'''),
           verify(() => logger.info('Exiting.')).called(1);
         });
       });
+
+      // The two groups above use thenThrow, which raises SYNCHRONOUSLY at call
+      // time -- inside the try, where the catch clauses see it. The real
+      // Patcher.assertUnpatchableDiffs is async and signals failure by
+      // completing its Future with an error, which a `return` without `await`
+      // hands to the caller before the try can observe it.
+      //
+      // So these two groups reproduce the async path the production code
+      // actually takes. They FAIL against a bare `return patcher.assert...`
+      // and pass against `return await`, which is what makes them a test of the
+      // await rather than of the catch clause.
+      group('when the failure is an async rejection', () {
+        group('and the user cancels', () {
+          setUp(() {
+            when(
+              () => patcher.assertUnpatchableDiffs(
+                releaseArtifact: any(named: 'releaseArtifact'),
+                releaseArchive: any(named: 'releaseArchive'),
+                patchArchive: any(named: 'patchArchive'),
+              ),
+            ).thenAnswer((_) async => throw UserCancelledException());
+          });
+
+          test('exits with code 0', () async {
+            await expectLater(
+              () => runWithOverrides(command.run),
+              exitsWithCode(ExitCode.success),
+            );
+          });
+        });
+
+        group('and the diff is unpatchable', () {
+          setUp(() {
+            when(
+              () => patcher.assertUnpatchableDiffs(
+                releaseArtifact: any(named: 'releaseArtifact'),
+                releaseArchive: any(named: 'releaseArchive'),
+                patchArchive: any(named: 'patchArchive'),
+              ),
+            ).thenAnswer((_) async => throw UnpatchableChangeException());
+          });
+
+          test('logs and exits with code 70', () async {
+            await expectLater(
+              () => runWithOverrides(command.run),
+              exitsWithCode(ExitCode.software),
+            );
+
+            verify(() => logger.info('Exiting.')).called(1);
+          });
+        });
+      });
     });
 
     group('when patching to the staging track', () {
