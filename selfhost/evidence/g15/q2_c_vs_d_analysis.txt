@@ -1,0 +1,148 @@
+G15 Q2 — C VERSUS D AT SOURCE LEVEL: CAN FIRST-FRAME BE REACHED WITHOUT
+BREAKING 0010's GUARANTEE?
+========================================================================
+
+Source-level only, 2026-08-15. Nothing built, no device, no cell consumed.
+Answers the question gate 4 is now down to. Three findings, and two of them
+invert assumptions the precommit was written under.
+
+FINDING 1 — "EARLIEST-OF" IS ALREADY IMPLEMENTED, ATOMICALLY, AND IT IS SHARED
+                WITH FAILURE
+-------------------------------------------------------------------------------
+`shell/common/shorebird/updater.cc:59-76`:
+
+    void Updater::ReportLaunchSuccess() {
+      bool expected = false;
+      if (!launch_completed_.compare_exchange_strong(expected, true)) return;
+      DoReportLaunchSuccess();
+    }
+
+    void Updater::ReportLaunchFailure() {
+      bool expected = false;
+      if (!launch_completed_.compare_exchange_strong(expected, true)) return;
+      DoReportLaunchFailure();
+    }
+
+**ONE latch, `launch_completed_`, guards BOTH.** It is a `compare_exchange_strong`
+on an atomic, so:
+
+  * two independent success reporters compose correctly and thread-safely —
+    whichever arrives first wins, the second is a silent no-op. Policy C's
+    "earliest-of" needs no new mechanism at all; the mechanism exists;
+  * **but a success and a failure race the SAME latch.** Once success is banked,
+    `ReportLaunchFailure` can never fire again for that process.
+
+That second half is C's real cost, and it is not the cost the precommit
+anticipated.
+
+FINDING 2 — C DOES NOT WIDEN THE WINDOW WHERE A ALREADY WORKS
+---------------------------------------------------------------
+The precommit's stated worry was that first-frame "reopens the false-backout class
+`0010` was designed to close" by widening the window between `record_boot_start`
+and the banking point. Under EARLIEST-OF that worry does not hold:
+
+  | shape | A banks at | C banks at | window widened? |
+  |-------|-----------|-----------|-----------------|
+  | S1    | `main` returns (immediately) | `main` returns — A fires first | NO |
+  | S2    | Future completes | Future completes — A fires first | NO |
+  | S5,S6 | `main` returns | `main` returns | NO |
+  | S7    | **never** | first frame | window goes from INFINITE to finite |
+
+C widens nothing that A already covers, because for every shape A handles, the
+`main` signal arrives before any frame. It adds a later path ONLY where A's window
+is unbounded. **On the false-backout axis C is strictly better than A, not worse.**
+
+The false-backout arithmetic is worth stating since `0010` is what makes it
+survivable: `0010` requires TWO consecutive un-succeeded boots, so the false
+backout probability is p² in the per-boot probability of a benign death inside the
+window. Widening the window raises p, and p² penalises that — but only for shapes
+whose window actually widened, which under earliest-of is S7 alone, where A's p is
+1.0 by construction.
+
+FINDING 3 — FIRST-FRAME IS REACHABLE AT THE dart:ui LAYER, NOT ONLY IN C++
+----------------------------------------------------------------------------
+The obvious first-frame signals are all C++ and all on the wrong thread:
+
+  * `Shell::OnAnimatorDraw` (shell.cc:1437) posts to `GetRasterTaskRunner()` —
+    RASTER thread;
+  * `waiting_for_first_frame_` is only meaningful when someone called
+    `Shell::WaitForFirstFrame` (shell.cc:2392);
+  * `first_frame_rasterized_` (shell.cc:1813) lives in the frame-TIMINGS path.
+
+Taking any of those would put the second reporter in another language on another
+thread, destroying the single-boundary property that made `_runMain`'s identity
+answer PASS.
+
+**But there is a Dart-side hook one file from the seam:**
+
+    lib/ui/hooks.dart:393  @pragma('vm:entry-point')
+                           void _drawFrame() {
+                             PlatformDispatcher.instance._drawFrame();
+                           }
+
+invoked from `lib/ui/window/platform_configuration.cc:86` on the UI thread, in the
+root isolate — the SAME isolate and thread as `_runMain`'s message-handler
+invocation of `main`. A first-invocation latch there is reachable from exactly the
+layer the seam already occupies.
+
+**What it means and does not mean.** `_drawFrame` is the framework PRODUCING a
+frame, not pixels reaching the screen; rasterization happens later, on the raster
+thread. So a `_drawFrame`-based condition proves the framework ran, widgets built
+and Dart is healthy well past `main` — it does not prove the user saw anything.
+That is weaker than "first frame rasterized" and it must be named that way, under
+the same rule Q2 already precommitted for "returned ≠ booted".
+
+WHAT THIS DOES TO C AND D
+--------------------------
+**D collapses into C** unless someone can name a liveness signal that is neither a
+frame nor a timer. A timer is already precommitted inadmissible (it converts a
+slow-but-good boot into a tombstoned patch). No third candidate is visible in the
+source; "the app processed a frame" is the earliest non-timer evidence that Dart
+survived past `main`.
+
+**C is implementable without leaving dart:ui**, which was the open structural
+question. It costs one latch in `_drawFrame` beside the wrapper in `_runMain`, and
+the existing atomic in `Updater` makes the earliest-of composition free and
+thread-safe.
+
+THE DECIDING TRADE-OFF, STATED PLAINLY AND NOT DECIDED HERE
+-------------------------------------------------------------
+It is NOT window-widening — Finding 2 removes that. It is FAILURE SUPPRESSION,
+from Finding 1's shared latch:
+
+    Under C, an app that draws a frame and THEN fails in `main`
+    (`runApp(); await somethingThatThrows;`) banks success at the frame, and the
+    subsequent `Future` error can never be reported, because
+    `ReportLaunchFailure` finds the latch already taken.
+
+Under A that same shape reports a positive failure. So:
+
+    A  : never banks S7 → good patches tombstoned in a legitimate shape
+    C  : banks S7 → but post-frame `main` failures become unreportable
+
+Both are real. A's cost falls on working patches; C's falls on broken ones. The
+project's own stated asymmetry — *"the cheap error is to retry; the expensive one
+is to tombstone"* (`0010`, `BOOT_FAILURE_THRESHOLD`) — argues for C, because C's
+failure mode leaves a broken patch installed for one more boot cycle while A's
+permanently removes a working one.
+
+A THIRD OPTION THE LATCH SUGGESTS, recorded but NOT recommended without evidence:
+split `launch_completed_` into separate success and failure latches, so a
+post-frame failure can still be reported after a frame-banked success. That
+changes `0010`'s contract — the Rust side would receive a failure for a boot it
+already recorded as successful — and `record_boot_success` clears the tally, so a
+later failure would have to re-derive state that was deliberately reset. **Do not
+take this without reading `record_boot_success` and `mark_bad` together and
+deciding what a success-then-failure sequence should mean.** It is a change to the
+safety model, not to the seam.
+
+WHAT IS STILL NOT KNOWN
+------------------------
+* Whether `_drawFrame` fires for a headless engine or an add-to-app engine that
+  never attaches a view. If it does not, C degrades to A for exactly those
+  configurations — which is acceptable (it is no worse than A) but must be
+  measured, not assumed, and G15's two-engine gate is where.
+* `onError` ordering remains source-proven only, unchanged by this analysis.
+* Nothing here has been executed. Findings 1 and 3 are readings of
+  `updater.cc:59-76`, `shell.cc:1437/2392/1813`, `hooks.dart:393` and
+  `platform_configuration.cc:86`; Finding 2 is arithmetic over them.
