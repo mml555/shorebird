@@ -119,6 +119,39 @@ a worse defect than one that loses writes, because every client of it is entitle
 to believe the write happened. Not this gate's question, and not to be quietly
 dropped either.
 
+## THIRD AMENDMENT, 2026-08-16, still before the cut — rule 1 changes, and the
+## experiment gets STRONGER rather than weaker
+
+The user-OAuth refresh is dead on this plane (`POST /token` → `400 invalid_grant`;
+see `gate5_baseline_blocked.txt`). Rule 1 said "use the SAME ordinary user-OAuth
+CLI path releases 93/94 used", so it must change explicitly rather than be quietly
+substituted.
+
+**New rule 1: use the DOCUMENTED self-hosted path — `SHOREBIRD_TOKEN` set to the
+bootstrap API key.** `INTEGRATION.md:160` specifies exactly this for a self-hosted
+server ("with `SHOREBIRD_HOSTED_URL` + `SHOREBIRD_TOKEN` set to your server and API
+key"), and `API_REFERENCE.md:18` lists an `sb_api_…` key as a first-class bearer
+credential beside a session JWT. This is the supported workflow, not a workaround,
+and the key is ours — `shorebird-rig/secrets/cps-ios.env`.
+
+**Why this does not weaken the CLI isolation, and in fact tightens it.** The
+concern would be that changing the auth path adds a second variable. It does not,
+because the audit trail already shows the actor and path do not track durability:
+
+    releases 89-92, patches 57-60   actor 1   CLI ba4e1c02   PERSISTED
+    releases 93-94                  actor 2   CLI ba4e1c02   PERSISTED
+    durability-probe-g41            actor 1   (API key)      PERSISTED
+    the vanished publishes                    CLI 50e/98f    VANISHED
+
+Both actors and both paths appear on the persisted side. **The only thing that
+tracks is the CLI revision.** And cutting as actor 1 gives a *same-actor* A/B
+against releases 89-92, which is cleaner than the cross-actor comparison the
+original rule 1 would have produced.
+
+**Rules 2, 3 and 4 are unchanged and still bind**: publish success is provisional,
+verify by content read, and a vanish is preserved rather than answered by touching
+auth state. The outcome table is unchanged.
+
 ## What this does not test
 
 Nothing about the engine, the seam, or crash-backout. This is a publish-path
