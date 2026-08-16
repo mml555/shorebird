@@ -1040,6 +1040,12 @@ DART_ROUTE_B_EXPORT int32_t Dart_RouteBActivatePatchTraced(
         /*caller_pool_functions=*/DART_ROUTE_B_TRACE_UNSET,
         /*caller_pool_matches_target=*/DART_ROUTE_B_TRACE_UNSET,
         /*caller_pool_other_fn=*/0,
+        /*target_pool_status=*/DART_ROUTE_B_TPOOL_NOT_REQUESTED,
+        /*target_pool_matches=*/DART_ROUTE_B_TRACE_UNSET,
+        /*target_pool_index=*/DART_ROUTE_B_TRACE_UNSET,
+        /*target_pool_offset=*/DART_ROUTE_B_TRACE_UNSET,
+        /*target_pool_index_second=*/DART_ROUTE_B_TRACE_UNSET,
+        /*target_pool_scanned=*/DART_ROUTE_B_TRACE_UNSET,
         /*interpret_call_entry_point=*/0,
         /*entry_point_post_is_interpret_call=*/DART_ROUTE_B_TRACE_UNSET,
         /*bytecode_size=*/DART_ROUTE_B_TRACE_UNSET,
@@ -1186,7 +1192,71 @@ static int32_t RouteBActivatePatchImpl(const uint8_t* payload,
               ? 1
               : 0;
 
-      // EXACT-ENTRY IDENTITY. One entry, named by the call site's own offset.
+      // TARGET->POOL IDENTITY, DERIVED. Where does the patched Function itself
+      // appear in the global pool?
+      //
+      // This is the PRODUCER `pool_offset` never had. The block below reads one
+      // entry named by an offset the caller supplies; this one derives the
+      // location from the target's own identity, so it needs no caller name, no
+      // fixture-specific constant, and works for every specimen.
+      //
+      // MULTIPLICITY IS NOT COLLAPSED. The scan does not stop at the first hit:
+      // it counts every match, so one-of-three can never be reported as the
+      // answer. Only UNIQUE licenses reading the index as an identity, and
+      // ABSENT is a result -- it is what a caller that inlined the target looks
+      // like, which is the state a diagnosis most needs.
+      {
+        const auto& gpool = ObjectPool::Handle(
+            zone, thread->isolate_group()->object_store()->global_object_pool());
+        if (gpool.IsNull()) {
+          trace->target_pool_status = DART_ROUTE_B_TPOOL_NULL_POOL;
+        } else if (gpool.Length() == 0) {
+          trace->target_pool_status = DART_ROUTE_B_TPOOL_EMPTY_POOL;
+          trace->target_pool_scanned = 0;
+        } else {
+          const intptr_t len = gpool.Length();
+          intptr_t matches = 0;
+          intptr_t first = -1, second = -1;
+          auto& gentry = Object::Handle(zone);
+          for (intptr_t i = 0; i < len; i++) {
+            if (gpool.TypeAt(i) != ObjectPool::EntryType::kTaggedObject) {
+              continue;
+            }
+            gentry = gpool.ObjectAt(i);
+            if (gentry.ptr() != target.ptr()) {
+              continue;
+            }
+            matches++;
+            if (first < 0) {
+              first = i;
+            } else if (second < 0) {
+              second = i;
+            }
+          }
+          trace->target_pool_scanned = len;
+          trace->target_pool_matches = static_cast<int32_t>(matches);
+          if (matches == 0) {
+            trace->target_pool_status = DART_ROUTE_B_TPOOL_ABSENT;
+          } else {
+            trace->target_pool_index = first;
+            trace->target_pool_offset = ObjectPool::OffsetFromIndex(first);
+            trace->target_pool_status = (matches == 1)
+                                            ? DART_ROUTE_B_TPOOL_UNIQUE
+                                            : DART_ROUTE_B_TPOOL_AMBIGUOUS;
+            if (matches > 1) {
+              trace->target_pool_index_second = second;
+            }
+          }
+        }
+      }
+
+      // EXACT-ENTRY IDENTITY, AN ASSERTION AND NO LONGER A SOURCE.
+      //
+      // Demoted deliberately. When an offset is supplied this answers exactly
+      // one question -- DOES THIS SLOT HOLD THE TARGET -- and nothing else. It is
+      // no longer where `pool_offset` comes from; the derived scan above is.
+      // Feeding it a stale constant now produces a visible mismatch rather than
+      // a confident identity, which is the whole point of separating them.
       if (pool_offset != 0) {
         trace->pool_offset = pool_offset;
         const auto& pool = ObjectPool::Handle(

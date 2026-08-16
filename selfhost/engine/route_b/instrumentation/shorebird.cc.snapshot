@@ -248,7 +248,10 @@ std::string FormatRouteBTrace(const Dart_RouteBTrace& t,
                               const std::string& selector,
                               size_t payload_length) {
   std::ostringstream o;
-  o << "rbtrace v=4"
+  // v=5 adds the derived target->pool fields. The version is bumped rather than
+  // the fields quietly appended, because a reader that assumes v4's field set
+  // would take `tpool_*`'s absence for a measurement.
+  o << "rbtrace v=5"
     << " lib=" << library
     << " sel=" << selector
     << " paylen=" << payload_length
@@ -270,7 +273,16 @@ std::string FormatRouteBTrace(const Dart_RouteBTrace& t,
     << " pool_entry_equals_target=" << t.pool_entry_equals_target
     << " caller_resolved=" << t.caller_resolved
     << " caller_pool_fns=" << t.caller_pool_functions
-    << " caller_pool_matches=" << t.caller_pool_matches_target;
+    << " caller_pool_matches=" << t.caller_pool_matches_target
+    // DERIVED target->pool identity. `tpool_matches` is authoritative: index and
+    // offset mean an identity ONLY at tpool_status=4 (UNIQUE). At 5 (AMBIGUOUS)
+    // they are the FIRST of several and `tpool_index2` is the next, so the
+    // ambiguity is in the record instead of being resolved by whoever reads it.
+    << " tpool_status=" << t.target_pool_status
+    << " tpool_matches=" << t.target_pool_matches
+    << " tpool_index=" << t.target_pool_index
+    << " tpool_index2=" << t.target_pool_index_second
+    << " tpool_scanned=" << t.target_pool_scanned;
   // TWO LAYERS, LABELLED AS SUCH. v1 printed Code values under `uep_*` and the
   // resulting mismatch read as a genuine VM anomaly for an entire investigation.
   o << std::hex << std::showbase
@@ -288,6 +300,7 @@ std::string FormatRouteBTrace(const Dart_RouteBTrace& t,
     << " interpret_call_ep=" << t.interpret_call_entry_point
     << " caller_pool_other_fn=" << t.caller_pool_other_fn
     << " pool_offset=" << t.pool_offset
+    << " tpool_offset=" << t.target_pool_offset
     << " pool_entry_ptr=" << t.pool_entry_ptr;
   return o.str();
 }
@@ -357,22 +370,32 @@ void InstallRouteBActivationHook(Settings& settings, const std::string& path) {
         int applied = 0;
         for (const auto& target : container.targets) {
           Dart_RouteBTrace trace;
-          // DIAGNOSTIC-ONLY: the call-site pool offset for one known site.
+          // ~~DIAGNOSTIC-ONLY: the call-site pool offset for one known site.~~
+          // DELETED 2026-08-16, and the deletion IS this change.
           //
-          // From release 26's disassembly of routeBValue's kUnchecked call:
-          //   add x0, x27, #0xd, lsl #12 ; ldr x0, [x0, #0x4a8]  -> 0xd4a8
-          // A preserved, measured offset -- a stronger identifier than a caller
-          // NAME, which is why the caller name is gone from this experiment.
+          // What stood here: `pool_offset = 0xd4a8` when the selector was the
+          // literal string "RouteBThing.value" -- an offset read off RELEASE
+          // 26's disassembly, for ONE fixture's target, compiled in
+          // permanently. Its own comment said "Remove with the investigation";
+          // the investigation moved on and the constant did not.
           //
-          // Remove with the investigation.
-          int64_t pool_offset = 0;
-          if (target.selector == "RouteBThing.value") {
-            pool_offset = 0xd4a8;
-          }
+          // It was worse than dead code, in two ways. `pool_offset` had a
+          // CONSUMER (assert_result_consumed.sh --pool-offset) and no producer,
+          // so the field echoed this constant for one selector and reported
+          // NOT_REQUESTED for every other specimen -- including every G15 arm,
+          // which is why arm A could not identify its own call site. And had any
+          // later specimen carried that selector, the runtime would have read
+          // IndexFromOffset(0xd4a8) of WHATEVER release was running and reported
+          // a confident wrong identity.
+          //
+          // The location is now DERIVED from the target's own identity inside
+          // Dart_RouteBActivatePatchTraced, so it needs nothing supplied and
+          // works for every target. Passing 0 means "assert nothing"; the
+          // derived scan still runs and still reports.
           const int32_t result = Dart_RouteBActivatePatchTraced(
               target.bytecode, static_cast<intptr_t>(target.length),
               target.library.c_str(), target.selector.c_str(), &trace,
-              nullptr, pool_offset);
+              /*caller_name=*/nullptr, /*pool_offset=*/0);
           // FOR EVERY TARGET, SUCCESS INCLUDED. The success path below `continue`s,
           // so until now a target that "worked" contributed nothing but the
           // applied N/N tally — which is exactly how `applied 1/1` came to be the
@@ -627,6 +650,44 @@ void ConfigureShorebird(std::string code_cache_path,
   // actually loaded. This fixes issues with FlutterEngineGroup and other cases
   // where ConfigureShorebird() is called but no Shell is created.
 
+  // SEAM 6: the lifecycle above has decided WHICH patch is active, and the
+  // content sniff decided whether it is a Route B container. Arming the hook
+  // here keeps that ownership intact -- activation happens later, once the root
+  // isolate exists, because Route B needs live Function objects and this runs
+  // before the engine has started.
+  //
+  // G15: THIS MUST STAY ABOVE THE `!init_result` RETURN, and the reason is the
+  // second engine in one process.
+  //
+  // `Updater::Init` is `shorebird_init`, and a SECOND call in the same process
+  // deliberately fails: `config.rs` bails with "Updater already initialized,
+  // ignoring second shorebird_init call", a case its own comment says "happens
+  // regularly with apps that use Firebase Messaging". So for engine two,
+  // init_result is false by design.
+  //
+  // While this call sat BELOW the early return, that meant engine two never had
+  // the activation callback installed at all -- its root isolate ran the
+  // ORIGINAL AOT code while engine one ran the patch. Two Flutter engines in one
+  // process executing different program versions, with no error, no log and no
+  // user-visible failure. Add-to-app hosts create engines lazily and sometimes
+  // more than once, so that is a mainstream configuration.
+  //
+  // Arming here is safe in BOTH directions, which is what makes this a move and
+  // not a redesign:
+  //   * second call  -- the updater is already initialized from the first, so
+  //                     the patch resolution above ran normally and
+  //                     `route_b_path` is correct.
+  //   * genuine init failure -- `NextBootPatchPath` yields nothing, so
+  //                     `route_b_path` is empty and
+  //                     `InstallRouteBActivationHook` returns inert.
+  //
+  // Note the precedent directly above: `shorebird_report_launch_start` was moved
+  // out of here for the same class of reason ("FlutterEngineGroup and other cases
+  // where ConfigureShorebird() is called but no Shell is created"). The launch
+  // reporting was fixed for multi-engine; the Route B arming was left behind the
+  // guard.
+  InstallRouteBActivationHook(settings, route_b_path);
+
   if (!init_result) {
     return;
   }
@@ -638,13 +699,6 @@ void ConfigureShorebird(std::string code_cache_path,
     FML_LOG(INFO)
         << "Shorebird auto_update disabled, not checking for updates.";
   }
-
-  // SEAM 6: the lifecycle above has decided WHICH patch is active, and the
-  // content sniff decided whether it is a Route B container. Arming the hook
-  // here keeps that ownership intact -- activation happens later, once the root
-  // isolate exists, because Route B needs live Function objects and this runs
-  // before the engine has started.
-  InstallRouteBActivationHook(settings, route_b_path);
 }
 
 void* FileCallbacksImpl::Open() {

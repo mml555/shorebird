@@ -158,6 +158,36 @@ typedef struct {
 #define DART_ROUTE_B_SCAN_EMPTY_POOL 4
 #define DART_ROUTE_B_SCAN_SCANNED 5
 
+// THE TARGET->POOL SCAN. A SEPARATE INSTRUMENT, DELIBERATELY.
+//
+// The caller scan above answers a question about a NAMED caller, and only when a
+// name is supplied. This answers a different question that needs no name: WHERE
+// DOES THE PATCHED FUNCTION ITSELF APPEAR IN THE POOL.
+//
+// It exists because `pool_offset` had a CONSUMER and no PRODUCER. The offset was
+// a fixture-specific constant handed in by the embedder -- release 26's 0xd4a8,
+// hard-coded against one selector -- so the field echoed its own argument and
+// every other specimen reported NOT_REQUESTED. Deriving the location from the
+// target's identity makes it a measurement.
+//
+// MULTIPLICITY IS PRESERVED ON PURPOSE. "Scan until entry == target and report
+// the offset" would silently pick the first of several, and a Function object can
+// legitimately occupy more than one pool entry. One reported offset that was
+// really one of three is a confident wrong answer -- the failure mode this
+// investigation has spent its whole length retracting. So zero, one and many are
+// three DIFFERENT states, and only UNIQUE licenses reading the index as identity.
+//
+// ABSENT is a RESULT, not an error. It says the patched Function is not in the
+// scanned pool at all, which is precisely what a caller that inlined it would
+// look like -- so the state a diagnosis most needs must not be collapsed into a
+// failure code.
+#define DART_ROUTE_B_TPOOL_NOT_REQUESTED 0
+#define DART_ROUTE_B_TPOOL_NULL_POOL 1
+#define DART_ROUTE_B_TPOOL_EMPTY_POOL 2
+#define DART_ROUTE_B_TPOOL_ABSENT 3
+#define DART_ROUTE_B_TPOOL_UNIQUE 4
+#define DART_ROUTE_B_TPOOL_AMBIGUOUS 5
+
   // THE CALLER-SIDE IDENTITY, so the comparison needs no external pool reader.
   // When a caller name is supplied, its Code's object pool is scanned for
   // Function entries: how many were seen, how many are THIS target, and the
@@ -180,6 +210,20 @@ typedef struct {
   int32_t caller_pool_functions;
   int32_t caller_pool_matches_target;
   uint64_t caller_pool_other_fn;
+
+  // TARGET->POOL IDENTITY. Derived, never supplied.
+  //
+  // `target_pool_matches` is the multiplicity and is authoritative for reading
+  // the rest: index and offset are meaningful ONLY when the status is UNIQUE.
+  // At AMBIGUOUS they carry the FIRST match and `target_pool_index_second` the
+  // next, so the ambiguity is visible in the record rather than resolved by the
+  // reader's optimism.
+  int32_t target_pool_status;
+  int32_t target_pool_matches;
+  int64_t target_pool_index;
+  int64_t target_pool_offset;
+  int64_t target_pool_index_second;
+  int64_t target_pool_scanned;
 
   // The value `entry_point_post` is SUPPOSED to equal, captured in the same run
   // rather than compared against a constant recorded elsewhere — stub addresses
