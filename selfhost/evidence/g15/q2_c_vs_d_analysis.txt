@@ -136,12 +136,49 @@ take this without reading `record_boot_success` and `mark_bad` together and
 deciding what a success-then-failure sequence should mean.** It is a change to the
 safety model, not to the seam.
 
+THE TOPOLOGY CELL, NARROWED — HALF OF IT IS ANSWERED FROM SOURCE
+------------------------------------------------------------------
+The carried-forward question was whether the `_drawFrame` arm exists for every
+engine topology `G15` cares about. The source splits it cleanly.
+
+`_drawFrame` is invoked UNCONDITIONALLY at the end of
+`PlatformConfiguration::BeginFrame` (`platform_configuration.cc:464`) —
+
+    tonic::CheckAndHandleError(tonic::DartInvokeVoid(draw_frame_.Get()));
+
+with no view check, no surface check and no viewport-metrics precondition at that
+layer. So the arm does not depend on a view EXISTING. It depends on `BeginFrame`
+being reached at all, and `BeginFrame` runs only for a frame that was REQUESTED:
+
+    RuntimeController::ScheduleFrame (runtime_controller.cc:404)
+      -> Engine::ScheduleFrame       (engine.cc:502)
+      -> animator_->RequestFrame
+
+**ANSWERED FROM SOURCE — the true-headless case.** An entrypoint that never calls
+`runApp` never schedules a frame, so `BeginFrame` is never reached and
+`_drawFrame` never fires. For that topology C degrades to A **deterministically,
+by construction, not by luck.** That is acceptable — it is no worse than A — and
+it needs no device to establish.
+
+**STILL A DEVICE QUESTION — the has-`runApp`-but-no-view case.** Whether the
+vsync/`Animator` chain delivers frames to an engine whose view was never attached
+is platform-driven (on iOS, whether the display link runs for an engine with no
+presented `FlutterViewController`) and is not decidable at this layer.
+
+Note which of the two `twoengine_app` exercises: its own design record states both
+entrypoints end in `runApp()`, so **it is not headless** — it would exercise the
+second case, not the first. The already-passed two-engine gate therefore does not
+answer the source-answered half either, because that half needs an entrypoint that
+never calls `runApp` and the fixture has none.
+
 WHAT IS STILL NOT KNOWN
 ------------------------
-* Whether `_drawFrame` fires for a headless engine or an add-to-app engine that
-  never attaches a view. If it does not, C degrades to A for exactly those
-  configurations — which is acceptable (it is no worse than A) but must be
-  measured, not assumed, and G15's two-engine gate is where.
+* Whether an engine that calls `runApp` but never attaches a view receives frames
+  at all — the device half of the topology cell above. If it does not, C degrades
+  to A there too, which is acceptable but must be CLASSIFIED, not assumed.
+  **`G15`'s two-engine gate PASSED on 2026-08-13, before this question existed,
+  so it does not answer it** — this is a new observation, not a re-reading of an
+  old one.
 * `onError` ordering remains source-proven only, unchanged by this analysis.
 * Nothing here has been executed. Findings 1 and 3 are readings of
   `updater.cc:59-76`, `shell.cc:1437/2392/1813`, `hooks.dart:393` and
