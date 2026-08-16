@@ -58,6 +58,22 @@ Claim 1 first, on its own trace. If the instrument is not established, claim 2's
 input is not evidence — and reading them in the other order is how an instrument
 gets validated by the result it produced.
 
+## STEP ZERO, before any mechanism is proposed
+
+**Ask the retrieval question first: what is already on disk that constrains this
+claim?** Not after a hypothesis forms — before. Five of the six corrections in the
+session that produced this document were retrieval failures, not coverage
+failures: the contradicting measurement already existed and was not brought to
+bear. Coverage failures cost new instrumentation; these cost only the discipline
+of reconciling evidence already paid for.
+
+For this cycle specifically, the corpus that constrains it is already preserved:
+`arm2_verdict.txt` (the same target rendering `NEW-kill` on 2026-08-14),
+`gate5_armA_fold_refuted.txt` (91 and 95 share the consumed/discarded shape),
+`routeb_caller_scan_gap.txt` (why the trace was silent), and releases 91/95 with
+their dSYMs and supplements on the control plane. **Read those before proposing
+what a new trace means.**
+
 ## Prerequisites carried forward
 
 * every publish content-read (`releases`/`patches` + `audit_log`), success
