@@ -1,0 +1,53 @@
+==> engine.version at start: 40eaa0ef6cb6485833bf2e10ac97224ca82cbf25
+==> copying fixture to /private/tmp/claude-501/-Users-mendell-shorebird/a35288bf-7ac0-4049-bcf2-31829b2ac4ba/scratchpad/g41d/app
+==> generating the ios/ tree and resolving packages
+==> asking Flutter for its own DART_DEFINES (--config-only)
+--- Flutter injected:
+      FLUTTER_CHANNEL=[user-branch]
+      FLUTTER_DART_VERSION=3.12.2
+      FLUTTER_ENGINE_REVISION=11e5695710
+      FLUTTER_FRAMEWORK_REVISION=c15ef63794
+      FLUTTER_GIT_URL=unknown source
+      FLUTTER_VERSION=3.44.8
+==> compiling the arms
+
+arm 0  INSTRUMENT CONTROL -- identical kernels must report no change
+  PASS  shipped vs shipped -> NONE
+
+arm 1  LINK 1, THE FIX -- Route B WITH threading produces the shipped program
+  PASS  routeb_on is byte-identical to shipped -> a6b4630341541c18ee4a0ef43c2da5d2dd82970633570f9a69630c76db861d0c
+
+arm 2  LINK 1, NEGATIVE CONTROL -- threading removed, the kernels must diverge
+  PASS  routeb_off differs from shipped -> yes
+  PASS  the injected value is IN shipped -> yes
+  PASS  the injected value is ABSENT from routeb_off -> no
+
+arm 2b RECORDED INSTRUMENT LIMIT -- route_b_analyze does NOT see this difference.
+       Measured, and it is why arms 1-2 compare BYTES rather than the analyzer:
+       a kernel built -DFLUTTER_VERSION=zzz and one built with the real value
+       differ only in a constant inside injectedDefineProbe's body, and
+       `changed` reports NONE for that pair. g41c's link-1 arms remain the
+       analyzer-level proof; they put the branch in main, where it IS seen.
+  PASS  analyzer reports NONE for a real constant difference (a LIMIT, not a pass) -> NONE
+==> building the import kernel a patch binds against (--no-aot, with threading)
+
+arm 3  LINK 2, THE PATCH-REPLACEMENT ARM -- and it is where the defect still lives.
+       route_b_producer.dart:169 feeds the replacement compiler
+       buildConfig.compilerArgs, and route_b_build_config.dart:345 builds those
+       from effectiveDefines ALONE -- which the injected six are deliberately
+       NOT in. So this arm passes ONLY the fingerprint's defines: none.
+  PASS  DEFECT: a replacement reading FLUTTER_VERSION does NOT get the real value -> no
+
+arm 4  MECHANISM CONTROL -- a USER define must reach the same replacement path.
+       If this were also 'no', arm 3 would be a misattribution: the propagation
+       mechanism would be broken generally rather than missing the injected family.
+  PASS  a replacement reading a USER define DOES get its value -> yes
+
+arm 5  LINK 2, THE REMEDY IS REACHABLE -- same replacement, injected -D flags passed
+  PASS  the same replacement DOES get it when the injected defines are passed -> yes
+
+arm 6  STAMP GUARD -- engine.version must not have moved under this probe
+  PASS  engine.version unmoved -> 40eaa0ef6cb6485833bf2e10ac97224ca82cbf25
+
+PASS=10 FAIL=0
+WORK=/private/tmp/claude-501/-Users-mendell-shorebird/a35288bf-7ac0-4049-bcf2-31829b2ac4ba/scratchpad/g41d

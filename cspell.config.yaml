@@ -36,6 +36,7 @@ words:
   - allowfilter
   - allprojects # From gradle files
   - altool
+  - analysed
   - ANDROIDD
   - androidx
   - apigee
@@ -54,6 +55,7 @@ words:
   - backboardd
   - BADUP
   - bdero
+  - behaviour
   - bidiff
   - bintools
   - bipatch
@@ -93,6 +95,7 @@ words:
   - Dedup
   - dedupe
   - deflavored
+  - DFLUTTER
   - DPROBE
   - fingerprintable
   - GENKERNEL
