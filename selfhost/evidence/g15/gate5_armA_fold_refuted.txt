@@ -1,0 +1,96 @@
+G15 ARM A — THE FOLD EXPLANATION IS REFUTED, 2026-08-16
+========================================================
+
+The leading explanation for arm A (a dead result at the call site — `PARITY.md`'s
+FIFTH CORRECTION) **does not survive measurement**. Recorded before any new device
+run, because it would otherwise have justified replacing arm A's target.
+
+STEP 1 NEEDED NO PROBE EXTENSION — THE CAPABILITY WAS ALREADY THERE
+--------------------------------------------------------------------
+`assert_result_consumed.sh` already documents `--symbol NAME --symbols PATH` for
+exactly this case: *"Required for a shipped App: its dSYM has the Dart symbols but
+NO code."* The earlier `NOT LOCATED` was the wrong LOCATOR (`--fixture-signature`,
+written for `airgap_probe`'s shape), not a missing capability.
+
+The release's dSYM was preserved by the control plane in its `xcarchive`
+artifact. **Provenance matched three ways, not assumed:**
+
+    dSYM (release 95 xcarchive)   UUID 3A9A05AB-864F-37EA-8615-D5B4773A33F7
+    App  (release 95 runner)      UUID 3A9A05AB-864F-37EA-8615-D5B4773A33F7
+    device .routeb                built-for=3a9a05ab864f37ea8615d5b4773a33f7
+
+So the bytes measured are the bytes shipped and the bytes the device attached to.
+
+STEPS 2-3 — MEASURED, AND "AMBIGUOUS" TREATED AS NO EVIDENCE
+--------------------------------------------------------------
+    release 95  (patch attached, screen showed OLD-kill)
+      _KillSwitchApp.build       1 site   pool 0x8440  entry 0x7   CONSUMED
+      _KillSwitchApp.build (#2)  4 sites  3x pool 0x7d0 entry 0x7  CONSUMED
+                                          1x pool 0x50f0 entry 0xf DISCARDED
+      -> AMBIGUOUS (probe's own verdict: measurement incomplete, not a pass)
+
+    release 91  (1.0.2+1 — the run where NEW-kill DID appear, arm2_verdict.txt)
+      _KillSwitchApp.build       1 site   pool 0x81b0  entry 0x7   CONSUMED
+      _KillSwitchApp.build (#2)  2 sites  1x pool 0x740  entry 0x7 CONSUMED
+                                          1x pool 0x5098 entry 0xf DISCARDED
+
+**THE TWO RELEASES HAVE THE SAME SHAPE.** Both carry exactly one DISCARDED site,
+at the unchecked entry `0xf`, at a high pool offset; both carry consumed sites at
+`0x7`. The release where the patch demonstrably WORKED has a discarded site too.
+
+**So result-consumption does not distinguish the working case from the failing
+one, and the fold cannot be the cause of arm A's `OLD-kill`.**
+
+AND THE DISCARDED SITE IS NOT THE TARGET ANYWAY
+------------------------------------------------
+Disassembly around release 95's discarded site:
+
+    c0a14: ldur x1, [x29, #-0x10]      ; arg
+    c0a18: ldr  x4, [x27, #0x160]      ; arg
+    c0a1c: ldr  x0, [x27, #0x50f0]     ; callee Function
+    c0a20: ldur x30, [x0, #0xf]
+    c0a24: blr  x30
+    c0a28: ldur x0, [x29, #-0x10]      ; result overwritten
+
+It passes **multiple arguments**. `routeBValue()` takes **none**. This is the
+legitimate void call the probe's own message anticipates — *"a caller with several
+calls will always contain one"* — not the fold.
+
+THE PATCH ITSELF WAS CORRECT
+-----------------------------
+Verified in the compiled replacement rather than assumed from the CLI's output:
+
+    build/route_b/replacement_0.dart   String routeBValue() => 'NEW-kill';
+    replacement_0.bytecode (431 B)     strings: …optionsNEW-killrouteBValue…
+
+So the container that shipped carried `NEW-kill`.
+
+WHERE THIS LEAVES ARM A
+------------------------
+Four links are now individually established and the chain still fails:
+
+    patch content carries NEW-kill            VERIFIED (bytecode strings)
+    patch attaches on device                  VERIFIED (rc=0, bc_post=1,
+                                              uep_post_is_interpret_call=1)
+    call-site result consumption              NOT the differentiator (91 == 95)
+    screen shows the patched value            FAILS
+
+**The cause is genuinely unknown.** Per the user's step 4, the fold was the
+condition that would have justified replacing arm A's target — it is refuted, so
+the target is NOT replaced on this evidence.
+
+WHAT IS STILL UNMEASURED, AND MUST NOT BE GUESSED
+---------------------------------------------------
+* **Which site is `routeBValue`'s.** The probe returned AMBIGUOUS for both
+  releases, so no site has been tied to the target. `--pool-offset` can name it,
+  but the target's slot has not been derived — and the device trace cannot
+  supply it (`caller_scan_status=0`, `pool_index=-1`, `pool_offset=0x0`).
+* **Whether a call site for `routeBValue` exists at all.** A trivially inlinable
+  body could be inlined into `build`, leaving the out-of-line `Function` present
+  for Route B to attach to and nobody calling it. That would fit every
+  observation here — but it would ALSO have to explain why release 91 worked, and
+  it does not on its own. Recorded as a hypothesis with that objection attached.
+* **The 91-vs-95 delta itself.** Untested candidates remain cell `cd137db6`
+  (patch `0011`), the CLI at `98f84c17`, and the rebuilt platform dill.
+
+Nothing was run on the device for this. No arm was re-scored.
