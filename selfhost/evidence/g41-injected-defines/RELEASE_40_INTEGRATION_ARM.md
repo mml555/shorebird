@@ -1,4 +1,4 @@
-<!-- cspell:words rmtree -->
+<!-- cspell:words rmtree killswitch -->
 # Release 40 — the G4.1c INTEGRATION REGRESSION arm
 
 **This arm proves that the G4.1c CLI still traverses the real iOS release → patch
@@ -54,6 +54,25 @@ artifacts                 release_app.dill, dynamic_interface.yaml,
                           release_import.dill
 buildConfig.effectiveDefines  {}
 ```
+
+### THE CANONICAL STATEMENT OF WHAT THIS ARM ESTABLISHES
+
+Quote this rather than paraphrasing it:
+
+> **The release-time agreement check passed with the injected Flutter defines
+> threaded into the prepass/import-kernel path, `release_import.dill` was
+> retained, and the patch subsequently bound against that import kernel without
+> refusal.**
+
+**The build-config fingerprint is a separate and WEAKER fact, and must not be
+folded into the sentence above.** It compared an empty user-define set against an
+empty user-define set. It therefore did **not** validate the injected defines —
+it could not, because they are deliberately outside the fingerprint (§4 of
+`DECLARES.md`). An earlier draft of this file said the "release/patch
+compatibility check accepted the threaded configuration", which reads as though
+that check examined the threading. It cannot, and that phrasing is retracted
+here rather than edited away, because a reader who acted on it would look for a
+guarantee in the wrong mechanism.
 
 ### Three signals that ARE real, stated narrowly
 
@@ -135,6 +154,28 @@ byte-unchanged and the finding is expected to persist until that lands.
   candidate was `ios-deploy --rmtree` followed by relaunching the same install
   without reinstalling.
 * **No device was involved.** Nothing here says the patch applies or executes.
+
+## Two living debts this arm created or exposed — both SHARED, not this lane's
+
+**1. Cross-release semantic drift.** Releases **≤ 95** and every release cut after
+them differ in whether Flutter's injected defines participate in Route B
+analysis. That difference is invisible in the fingerprint, produces no warning,
+and no artifact records which side of the line a release falls on — the CLI
+revision that built it is not in `route_b.json`. Any arm that compares a new
+release against an older one therefore has **two variables, and the CLI is the
+silent one.** G15 has already recorded that it will re-cut gate 4's baseline
+rather than reuse `killswitch_probe 1.0.5+1` for exactly this reason. Anyone
+comparing across that boundary owes the same.
+
+**2. Rig CLI provenance and ownership.** The exact `~/.shorebird` snapshot has now
+been load-bearing in two different lanes within one session — G4.1c needed it
+re-synced to exercise its own change, and G15's gate 2 was blocked by an auth
+defect that only the re-sync (or `AUTH_SERVICE_URL`) clears. **"What CLI is
+installed, who owns it, and when it may be re-synced" is shared experimental
+state, not incidental tooling**, and should be claimed and released like the
+engine stamp already is. The `~/.shorebird` row covers the stamp well; it now
+also has to carry the CLI revision, which is why this lane recorded
+`ba4e1c02 → 50ed19a7` in it rather than treating the re-sync as housekeeping.
 
 ## What is still owed for an upgrade from BUILT
 
