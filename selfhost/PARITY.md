@@ -2994,7 +2994,24 @@ interactive flags), so the patch-file route above is the one that works.
 ### Claims
 
 Update this table in the same commit as the work. Stale rows are worse than no
-rows, so **clear your row when you stop**, even mid-goal.
+rows, so **clear your row when you stop**, even mid-goal. A stale `HELD` is
+itself an unverifiable state claim — nothing contradicts it, so it survives.
+
+**RELEASE THE CLAIM, PRESERVE THE RESIDUAL STATE. The two are different things,
+and "free" alone loses the second.** A resource can be available while still
+carrying experiment-specific state that changes what the next operator may safely
+infer from it. Two from 2026-08-16, both of which would have misled:
+
+* `R1` was released carrying release 95 with **patch 1 attached and ACTIVE, whose
+  value does not render**. A bare "free" invites the next lane to read that device
+  as a clean baseline — which is exactly the state arm A is inconclusive about.
+* `~/.shorebird` was released **deliberately NOT restored**: still stamped
+  `cd137db6…` and warm on the seam engine, because the next cycle needs it. That
+  is a decision; leaving it stamped SILENTLY would have been the trap, and any
+  lane wanting the `40eaa0ef` lineage has to restamp and re-warm.
+
+So a release note answers three questions, not one: is it free, what state does it
+carry, and what must the next holder do before assuming otherwise.
 
 | resource | held by | goal | since | notes |
 |---|---|---|---|---|
