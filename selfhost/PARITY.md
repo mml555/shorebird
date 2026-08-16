@@ -4015,6 +4015,32 @@ Five instances, all found in this project, all of which looked like evidence:
   import kernel and never enters the missing-provenance path. The trigger must be a
   `fromEnvironment` constructor written literally in the replacement source.
 
+### The limit of precommitment
+
+> **Precommitment stops the CONCLUSION from moving. It does not stop a wrong
+> PREMISE from getting in.**
+
+Found 2026-08-15, and it is a real limit on a technique this file leans on hard.
+Gate 5's baseline experiment was precommitted properly — outcomes written, dated,
+committed before the cut, with the flattering result trapped in advance. It was
+still built on an unexamined mechanism ("the plane rolls back wholesale"), which
+had been inherited from a cross-lane message and never tested. Every outcome in
+the table would have been read through it, and a vanish would have been attributed
+to the CLI when the evidence equally allowed *the write went somewhere else*.
+
+The precommitment did its job: no conclusion moved. The premise walked in
+underneath it.
+
+**What caught it was another lane reading the PREMISE rather than the METHOD.**
+That is not a thing a lane can reliably do for itself, because the premise is the
+part you are not examining — that is what makes it a premise. So:
+
+* when precommitting, write down **what the outcomes assume**, not only what they
+  mean — the assumption is the part that will not be re-examined later;
+* a review that only checks the method will pass a well-formed experiment built on
+  a false premise;
+* if a second reader is available, hand them the premise, not the procedure.
+
 **Where the missing control lives, stated as sharply as this project can currently
 put it: controls tend to cover SUSPECTED failure modes, and unsupported certainty
 is where the missing control lives.** Both of this lane's failures were of exactly

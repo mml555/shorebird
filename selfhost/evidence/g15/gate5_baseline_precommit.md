@@ -93,6 +93,32 @@ connection that has not been reopened*. So after the cut:
 A row present at step 1 and absent at step 3 is a distinct and more interesting
 result than either outcome in the table, and it costs seconds.
 
+## SECOND AMENDMENT, 2026-08-15, still before the cut — (b) is now nearly closed
+
+Verified here independently: `Pid=7650`, `StartedAt=2026-08-13T18:38:51Z`,
+`RestartCount=0`, still running. **The same un-restarted process** wrote
+`durability-probe-g41` into `/data/code_push.db` at `03:24:21Z`, and that is the
+only database file in the container.
+
+So for **(b)** to survive, one process — never restarted, one DB configured, one DB
+on disk — would have to write somewhere else for four operations and to its
+configured file for the fifth. Neither lane can construct that. **(b) is not
+formally excluded, but it is no longer a live alternative**, and the "WHERE not
+WHY" caveat in the first amendment should be weighted down accordingly rather than
+carried forward as a fork.
+
+**(a) leads**, and it fits the sequence evidence: SQLite's `AUTOINCREMENT` counter
+is transactional, so a rollback reverts it — which is exactly the dense,
+no-high-water picture both lanes measured.
+
+**So the outcome table reads as originally written**: a vanish points at the CLI.
+
+**ONE OPEN ODDITY, carried rather than explained: why did a rollback return
+`200`/`204` instead of an error?** A server that rolls back and reports success is
+a worse defect than one that loses writes, because every client of it is entitled
+to believe the write happened. Not this gate's question, and not to be quietly
+dropped either.
+
 ## What this does not test
 
 Nothing about the engine, the seam, or crash-backout. This is a publish-path
