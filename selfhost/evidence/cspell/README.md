@@ -70,8 +70,19 @@ Four categories, and they want different treatment:
    config already carries `analysed`, so the convention is to accept them; they
    are simply unlisted.
 
-Categories 1 and 2 are ~60 % of the count and cost no judgement. Category 4 is
-mechanical. Category 3 is the only one needing a reviewer.
+> **SUPERSEDED 2026-08-16 — the four categories above are kept as the original
+> reading, and two of their claims were measured false.** This block used to end
+> *"categories 1 and 2 are ~60 % of the count and cost no judgement."* Exclusion
+> actually absorbs **29 %**; the other **71 %** is authored material. And category
+> 2 cannot be handled by path exclusion at all: `.patch` files carry prose this
+> repo wrote, including 1,775 authored comment lines inside diff bodies. Category
+> 4's framing was wrong in a third way — it is not "the fork uses British
+> spellings" but "both standard variants are accepted".
+>
+> The governing document is
+> [`classification_precommit.md`](classification_precommit.md), written before any
+> finding was reclassified precisely so these boundaries were not invented while
+> watching the count fall.
 
 ## The three obligations, kept separate
 
@@ -97,6 +108,41 @@ prints `Files checked: 0, Issues found: 0` for a path it cannot resolve, so ever
 requested path is accounted for by name as CHECKED or IGNORED-BY-CONFIG.
 
 **2. Tree-wide debt — KNOWN RED, recorded here, NOT a gate.**
+
+### Step 1 applied 2026-08-16 — attribution, including where a prediction was wrong
+
+Each reduction was applied independently, with its paired control run through the
+promoted command before and after. Counts are chained, not summed, because the
+reductions **overlap** — a finding inside an excluded file is also removed by a
+dictionary entry, and adding the two figures double-counts it.
+
+| step | mechanism | from → to | removed | predicted |
+|---|---|---|---|---|
+| `tpool` | dictionary (§2) | 1,770 → 1,735 | 35 | — |
+| three path exclusions | `ignorePaths` (§1) | 1,735 → 1,275 | **460** | 470 |
+| patch code lines | comment-aware override (§4) | 1,275 → 1,150 | **125** | 124 |
+| spelling variants | `language: "en,en-GB"` (§3) | 1,150 → 979 | **171** | 237 |
+| `fulldiff` | dictionary (§2) | 979 → **972** | **7** | — |
+
+**The two gaps, reconciled rather than rounded:**
+
+* **Exclusions removed exactly 470 findings across 13 files**, as predicted. The
+  chained figure reads 460 because **10 of the 35 `tpool` findings lived inside
+  files the exclusions then removed**. Overlap, not error.
+* **§3 was over-predicted by ~66, and the error was mine.** The estimate came from
+  a regex matching British *morphology* (`-ise`, `-isation`, `-our`), which swept
+  in project coinages that are not standard variants at all: `precommitted` (111),
+  `precommitment` (9), `disqualifier(s)` (3), `precommitting`, `precommits`. Those
+  survive §3 correctly — they fail its admission test — and belong to §2 as
+  project vocabulary. **A morphology match is not a dictionary-variant test**, and
+  categorizing by the shape of a word rather than by the rule's actual criterion
+  is the same species of error the contract exists to prevent.
+
+**What the narrowing bought, concretely.** Withdrawing `*.fulldiff.patch` from
+`ignorePaths` in favour of §4 leaves **6 findings still visible** in those files —
+and all six are on authored comment lines this repo wrote (`-Werror,-Wunused-function`
+notes, `idevicesyslog` capture notes, a `SnapshotsDataHandle` explanation). A path
+exclusion would have hidden every one.
 The number above is the baseline. It is not permission to add to it: the
 per-change gate already prevents that, since any file you touch must come out
 clean whatever it inherited.
