@@ -2960,6 +2960,32 @@ you are about to build on — the 2026-08-11 entry says a broad stage swallows
 files, and this one says the swallowing worker will not know it happened and will
 tell you so in good faith.
 
+#### The same time window, applied to GATES rather than to staging
+
+> **A gate governs a commit only if it ran after the final staged content
+> existed. An earlier green result is not evidence about a later commit.**
+
+The staging rule above is about *which files* the window swallows. This is the
+same window costing something else: the *validity of a check*. A verification
+result is a statement about the tree at the instant it ran, and every edit after
+it silently widens the gap between what was measured and what is being committed.
+
+Paid for on 2026-08-16, by the lane that had just written the gate. `746e57d0`
+introduced `cspell_touched.sh` and shipped RED through it — the banner was in the
+terminal. The sequence was: run the gate (green), edit the claim row, stage,
+write the message, commit. The green was true when it ran and false by the time
+it was used, and two new findings landed in the row *announcing the gate*.
+
+**Why this is worse than an ordinary miss.** A gate its own author overrides on
+the commit that introduces it is advisory from birth, and every later reader
+learns that from the history. The tree-wide `cspell` command this replaced died of
+exactly that — permanently red, so everyone skipped it, so it gated nothing.
+
+The mechanical form, and it is the staging rule's twin: **run the check as the
+last command before `git commit`, not as the last command before you start
+writing the message.** If you edit anything after the check — including the status
+row, including the commit message's own claims — the check has expired.
+
 #### 2026-08-14: an EARLIER tell, and the tool that makes a shared file safe
 
 The sixth instance was caught **before** staging, by a tell this section did not
