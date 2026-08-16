@@ -3889,6 +3889,33 @@ reference is either verified or it is a guess wearing a hash's authority, and
 unverified one is worth it. The status file gets the `PENDING` convention because
 it is the authority; **everywhere else gets the verification**.
 
+**SHARPENED AGAIN THE SAME DAY, after a fourth instance — and the diagnosis moves
+from WHERE to WHERE FROM:**
+
+> **Do not cite a commit hash from memory, or from another summary. Resolve it by
+> lookup at the moment it is used.**
+
+The three earlier framings all located the problem in the document — first this
+file, then any document. That was wrong, and the fourth instance proved it:
+`4e4ac3f6` was invented in a summary *announcing the widened rule*, and a reader
+then carried it forward twice on that authority. Nothing about the document type
+was the cause. The cause is that a remembered hash and a resolved hash are
+indistinguishable once written, so the only difference that survives is whether
+`git cat-file -t` ran — and "I just saw it" is the specific feeling that stops it
+running.
+
+**Two properties make this failure class persistent, and both argue for a
+mechanical lookup rather than more care.** It is silent: a wrong hash renders as
+confidently as a right one and nothing objects until someone tries to resolve it.
+And it is contagious: a hash quoted from a summary inherits that summary's
+confidence, so one unverified citation becomes several people's shared record.
+
+The same reflex covers any fact you could resolve in one command but described
+from memory instead. The fourth instance came with a sibling: the same summary
+said "nine commits, `064115f9` → …", an inclusive range for what is
+`064115f9` plus ten successors. `git rev-list --count` was as available as
+`git cat-file`, and neither was run.
+
 ### `G3.7`'s release-37 claim, precommitted and deliberately narrow
 
 Body: `String paramValue(String who) => 'PARAM-$who';` — the live caller passes
