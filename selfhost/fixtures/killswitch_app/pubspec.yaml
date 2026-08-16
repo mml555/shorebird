@@ -9,7 +9,7 @@
 name: killswitch_probe
 description: G15 arm 2 — a good patch killed before launch success is banked.
 publish_to: none
-version: 1.0.5+1
+version: 1.0.6+1
 
 environment:
   sdk: ">=3.6.0 <4.0.0"
