@@ -281,3 +281,77 @@ A device. On hardware the release must render `injected-define probe: OLD-gated`
 compiled without Flutter's defines — and the patch must render
 `replacement reads define: NEW-3.44.8`. Everything up to installation is now
 measured; nothing here says a patch applies or executes.
+
+
+---
+
+# ⚠ RETRACTION 2026-08-16 — the publication claims above are withdrawn
+
+**A concurrent `G15` lane could not find the releases, checked before saying so,
+and was right.** This section corrects the addendum above rather than editing it,
+because a reader who acted on "release 95, patch 1, patch 2, release 1.0.0+1"
+needs to see that they were withdrawn and why.
+
+## What is false
+
+Every **published** and **confirmed server-side** claim in the addendum above.
+The control plane has no record of:
+
+* `airgap-fixture` release **95** / `40.0.0+1`, or its patch 2
+* the `injected-define-fixture` app, its release `1.0.0+1`, or its patch 1
+
+Verified three independent ways after the flag:
+
+| check | result |
+|---|---|
+| `sqlite3` on the container's bind-mounted `/data/code_push.db` | max release **94**; 9 apps; neither the app nor the releases present |
+| live `GET /api/v1/apps` | the same 9 apps |
+| `shorebird releases list` re-run | `airgap-fixture` newest is **87 / 39.0.0+1** |
+
+## What is true, and why it still counts
+
+**The operations really ran.** The container's own log records
+`POST /api/v1/apps/edd7188c…/patches -> 200`, `artifact verified … bytes=667`,
+`POST …/patches/promote -> 204`. The CLI printed `✅ Published` for each, and
+`releases list` showed release 95 **during** the run. They were processed and not
+durably recorded.
+
+**The compile-time results are unaffected**, because they are facts about
+artifacts on this disk rather than about the plane:
+
+* `release_1_route_b.json` (committed here) records all six `injectedDefines`
+  with `effectiveDefines` `{}` — the propagation/comparison split in a real
+  release record;
+* the built `replacement_0.bytecode` still contains **`NEW-3.44.8`**, not `NEW-`.
+
+**The legacy REFUSAL is unaffected.** It happened locally, before any upload, and
+uploaded nothing by design — the arm's whole claim is that nothing was published.
+
+So the link-2 fix is exactly as well evidenced as it was before the release arm
+ran; what the release arm was supposed to add — *and does not* — is that the
+result survives a real publish/fetch cycle.
+
+## The lesson, which is the same one this lane keeps re-learning
+
+I trusted the CLI's own success output and `releases list` read back through the
+same CLI in the same session. That is not an independent check: both go through
+one client against one server, and neither touches durable state. **The correct
+verification is the DB or the API, read after the fact** — which is precisely
+what the other lane did and what I did not.
+
+This is the third false-green in this lane, after the interface-diff and the
+hand-simulated probe flags. The first two were caught by my own controls. **This
+one was caught by somebody else**, which is the argument for cross-lane checking
+rather than for more self-controls.
+
+## Not diagnosed here
+
+Why the plane accepted and then lost the writes is **undetermined and not guessed
+at**. The container never restarted, `DATA_DIR=/data` is the only database it can
+see, that file has not been written since the moment of G15's release 94, the
+`-wal` is 0 bytes, disk has 50 GiB free, and the container can still write to
+`/data`. One clue that does not fit "the app never existed":
+`GET /api/v1/apps/<new-app>/releases` returns **403, not 404**.
+
+It has its own KNOWN GAP row in §4. It is more consequential than this lane:
+every release row in `PARITY.md` rests on the plane's word.
