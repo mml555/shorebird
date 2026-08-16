@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words dartaotruntime
+# cspell:words dartaotruntime psdk apfs
 #
 # mint_route_b_cell.sh -- give a changed compiler cell its own engine hash.
 #
@@ -56,6 +56,105 @@ NOTE=${NOTE:-}
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 note() { echo "==> $*"; }
+
+# provenance_comment <donorHash> <donorDir> <cellDir> [iosDigest] [note]
+#
+# Emits the map's comment block for a cell. Two claims live in it and they have
+# DIFFERENT sources, which is the whole point of this function existing:
+#
+#   ADDRESS   -- which digests participate in the cell's identity. Genuinely a
+#                property of the INPUTS, so it is driven by --ios-artifacts.
+#   ANCESTRY  -- which artifacts this cell actually inherited from its donor.
+#                A property of the RESULT, so it is MEASURED, by digesting the
+#                installed cell against the donor file by file.
+#
+# WHY MEASURED, AND WHY THIS IS NOT A STYLE CHOICE. The old sentence inferred
+# ancestry from the address inputs: it branched on --ios-artifacts alone and, on
+# that basis, asserted "Donor X supplied every OTHER engine artifact". That
+# sentence is FALSE whenever anything else was substituted -- and something else
+# routinely is, because PSDK_ZIP installs a platform dill over the clone a few
+# lines below. It was false for cd137db6 (dill 757d09d7… against the donor's
+# 9f5a5f75…, corrected by hand in 064115f9) and it is understated on 87130ae8
+# for the same reason. An inference from one flag can only ever describe that
+# one flag; the map's entire job is to say what a hash CONTAINS, so the sentence
+# has to come from the bytes. Measuring also makes the claim true for
+# substitution paths nobody has written yet.
+#
+# The comparison runs after every install below and before the map append, so
+# what it describes is the cell a consumer will actually download.
+provenance_comment() {
+  local donor=$1 donor_dir=$2 cell_dir=$3 ios_digest=${4:-} note_text=${5:-}
+  local rel ch dh entry
+  local -a changed=() added=() removed=()
+  local same=0 total=0
+
+  while IFS= read -r rel; do
+    total=$((total + 1))
+    if [[ ! -f "$donor_dir/$rel" ]]; then
+      added+=("$rel"); continue
+    fi
+    ch=$(shasum -a 256 "$cell_dir/$rel" | cut -d' ' -f1)
+    dh=$(shasum -a 256 "$donor_dir/$rel" | cut -d' ' -f1)
+    if [[ "$ch" == "$dh" ]]; then
+      same=$((same + 1))
+    else
+      changed+=("$rel|$ch|$dh")
+    fi
+  done < <(cd "$cell_dir" && find . -type f | sed 's|^\./||' | sort)
+
+  while IFS= read -r rel; do
+    [[ -f "$cell_dir/$rel" ]] || removed+=("$rel")
+  done < <(cd "$donor_dir" && find . -type f | sed 's|^\./||' | sort)
+
+  local n_diff=$(( ${#changed[@]} + ${#added[@]} + ${#removed[@]} ))
+
+  echo "# Route B compiler cell, minted $(date -u +%Y-%m-%d) from the cell"
+  echo "# manifest (see mint_route_b_cell.sh)."
+  if (( n_diff == 0 )); then
+    echo "# ANCESTRY, MEASURED against donor $donor at mint time:"
+    echo "# all $total artifacts identical, cloned byte-for-byte; only the CELL differs."
+  else
+    echo "# ANCESTRY, MEASURED against donor $donor at mint time —"
+    echo "# $n_diff of $total artifacts differ:"
+    if (( ${#changed[@]} )); then
+      for entry in "${changed[@]}"; do
+        IFS='|' read -r rel ch dh <<<"$entry"
+        printf '#   CHANGED %s — sha256 %s (donor %s)\n' "$rel" "$ch" "$dh"
+      done
+    fi
+    if (( ${#added[@]} )); then
+      for rel in "${added[@]}"; do
+        printf '#   ADDED   %s — the donor has no such artifact\n' "$rel"
+      done
+    fi
+    if (( ${#removed[@]} )); then
+      for rel in "${removed[@]}"; do
+        printf '#   ABSENT  %s — present in the donor, NOT here\n' "$rel"
+      done
+    fi
+    if (( same > 0 )); then
+      echo "# Donor $donor supplied the other $same, byte-for-byte."
+    else
+      echo "# Donor $donor supplied NO artifact unchanged."
+    fi
+  fi
+  if [[ -n "$ios_digest" ]]; then
+    echo "# ADDRESS: iOS artifacts sha256 $ios_digest"
+    echo "# participates in this cell's address (--ios-artifacts)."
+  fi
+  if [[ -n "$note_text" ]]; then
+    echo "#"
+    printf '# %s\n' "$note_text"
+  fi
+}
+
+# Sourcing for test: define the functions above and stop, so the regression probe
+# exercises THE PRODUCT'S OWN generator rather than a copy of it. A copy would go
+# on passing after this script changed, which is the false-green shape this repo
+# has now named five times.
+if [[ -n "${MINT_CELL_LIB_ONLY:-}" ]]; then
+  return 0 2>/dev/null || exit 0
+fi
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -202,26 +301,16 @@ else
   FALLBACK=$(sed -nE "s/^$DONOR ([0-9a-f]{40}).*/\1/p" "$MAP" | head -1)
   [[ -n "$FALLBACK" ]] || die "donor $DONOR has no map entry to copy a fallback from"
   note "mapping $REV -> $FALLBACK"
-  if [[ "$DRY" != 1 ]]; then
+  # The ancestry sentence is MEASURED from the installed cell (see
+  # provenance_comment). A dry run never creates that cell, so there is nothing
+  # truthful to preview and the block is deliberately not guessed at.
+  if [[ "$DRY" == 1 ]]; then
+    note "map entry not previewed: ancestry is measured from the installed cell,"
+    note "which --dry-run does not create"
+  else
     {
       echo
-      echo "# Route B compiler cell, minted $(date -u +%Y-%m-%d) from the cell"
-      echo "# manifest (see mint_route_b_cell.sh)."
-      # The donor's engine binary is cloned ONLY when no new iOS artifact set was
-      # supplied. With --ios-artifacts the binary genuinely CHANGED and its digest
-      # participates in the cell address, so claiming "cloned byte-for-byte" here
-      # would put a false provenance statement into the map — the one file whose
-      # entire job is to say what a hash contains. Caught 2026-08-14 minting
-      # 80e493e4, whose Flutter differs from its donor's by 1,216 bytes.
-      if [[ -n "$IOS_ARTIFACTS" ]]; then
-        echo "# Engine binary CHANGED: iOS artifacts supplied via --ios-artifacts,"
-        echo "# sha256 $IOS_DIGEST, which participates in this cell's address."
-        echo "# Donor $DONOR supplied every OTHER engine artifact."
-      else
-        echo "# Engine binary is $DONOR's, cloned byte-for-byte; only the CELL differs."
-      fi
-      [[ -n "$NOTE" ]] && echo "#"
-      [[ -n "$NOTE" ]] && printf '# %s\n' "$NOTE"
+      provenance_comment "$DONOR" "$ENGINE_SRC" "$ENGINE_DST" "$IOS_DIGEST" "$NOTE"
       echo "$REV $FALLBACK"
     } >> "$MAP"
   fi
