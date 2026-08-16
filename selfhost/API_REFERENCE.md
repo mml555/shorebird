@@ -161,6 +161,26 @@ release was built from (#3443) and the `--dart-define` values set at release
 time so a patch can warn when they changed (#3700). This is the storage and
 display half.
 
+**Partly overtaken on the fork side, and worth knowing before anyone implements
+#3700 here.** A Route B release already records its effective define set — but in
+the SHIPPED SUPPLEMENT (`route_b.json`'s `buildConfig`), not in this blob, so the
+server still cannot answer "what defines built this release" and the statement
+above remains true of the API. What exists CLI-side:
+
+* `effectiveDefines` — the user's `--dart-define` and `--dart-define-from-file`
+  values, canonicalized. **This is what compatibility is decided on**, and a patch
+  is refused before compiling when it disagrees.
+* `injectedDefines` — the six Flutter injects into every build
+  (`FLUTTER_VERSION` and siblings). **Deliberately outside the fingerprint** and
+  used only to compile a patch's replacement in the same `-D` environment. See
+  `PARITY.md` §4 `G4.1c`.
+
+So #3700's "warn when they changed" is already a *refusal* on this fork, and
+anyone adding the server-side field should mirror that split rather than
+flattening both maps into one — they answer different questions. The same gap
+`R8` recorded for the engine/cell field applies: the authoritative record lives
+in the on-device artifact rather than on the server.
+
 A patch's `hash` is the **inflated-output** hash (the reconstructed `libapp.so`),
 while the uploaded bytes are a binary diff — so the server verifies only the
 patch's `size`; the device verifies the hash after inflating.
