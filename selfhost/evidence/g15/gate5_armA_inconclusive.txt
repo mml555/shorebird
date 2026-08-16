@@ -1,0 +1,117 @@
+G15 GATE 5 — ARM A: INCONCLUSIVE, AND THE GATE IS STOPPED, 2026-08-16
+======================================================================
+
+ARM A DOES NOT MATCH ANY PRECOMMITTED OUTCOME. Per the stop rule it is reported
+as it stands rather than reinterpreted, and arms B and C were NOT run.
+
+Precommitted in `gate5_arms_precommit.md` (52e73037). That file is not edited.
+
+WHAT WAS OBSERVED
+-----------------
+Baseline release 95 (`1.0.6+1`, cell `cd137db6`), patch 1 published and
+content-verified (`patches` id 61, `audit_log` id 180) before any launch.
+
+  UNPATCHED CONTROL, two launches on the seam engine — CLEAN
+      launch A  … dart-main-entered → boot-probe-returned:boot-ok → arm:kill
+      launch B  … → arm:render → first-frame
+      updater: `state.json` only, no patch in play
+
+  ARM A, two launches with the patch installed
+      launch 3  … → arm:kill      pointers: next_boot_patch 1, last_booted null
+      launch 4  … → arm:render → first-frame
+                   pointers: next_boot_patch 1, **last_booted_patch 1**,
+                             boot_attempt_count 0, currently_booting null
+      patch state: `{"kind": "Installed"}` — never `Bad`
+      SCREEN: **`route B value: OLD-kill`**, launch id `hldxg0wfyg` matching the
+              receipt
+
+So: the receipt is complete, the seam banked success, the patch was NOT
+tombstoned — and the patched value is not on the screen.
+
+THE PATCH DID ATTACH. THIS IS NOT A DELIVERY FAILURE
+------------------------------------------------------
+Pulled from the device, `patches/1/dlc.vmcode.routeb`:
+
+    hook entered
+    parsed, targets=1, built-for=3a9a05ab864f37ea8615d5b4773a33f7
+    running=3a9a05ab864f37ea8615d5b4773a33f7
+    applied 1/1 targets, entering main
+
+and `dlc.vmcode.routeb.trace`:
+
+    rbtrace v=4 lib=package:killswitch_probe/main.dart sel=routeBValue
+    rc=0 attach_entered=1 attach_returned=1 bc_pre=0 bc_post=1
+    interp_pre=0 interp_post=1 uep_post_is_interpret_call=1 …
+
+Bytecode attached, both entry points moved to the same-run `InterpretCall` stub,
+build id matched. **The patch is applied and the app displays the release value
+anyway.**
+
+WHAT THIS LOOKS LIKE, AND WHY IT IS NOT ASSERTED
+--------------------------------------------------
+This is the signature of the defect `probes/assert_result_consumed.sh` was
+written for and which `PARITY.md` records as the FIFTH CORRECTION: the call is
+emitted and runs, but its RESULT is dead, because a body returning a
+compile-time constant lets type-flow substitute the constant at the call site.
+`caller_scan_status=0` and every `pool_*` field at `-1` in the trace above are
+consistent with that.
+
+**It is NOT asserted, because the probe could not measure it here:**
+
+    assert_result_consumed.sh <release App> --fixture-signature
+    -> patchable sites : 12,559
+       located         : 0
+       RESULT: NOT LOCATED
+
+The probe says in its own words that this is not a pass — *"a target whose call
+site cannot be found is a target whose result-consumption is UNKNOWN"*. Its
+`--fixture-signature` locator was written for a different fixture's shape and
+does not match `killswitch_app`'s. So the leading explanation is unconfirmed and
+is recorded as a lead.
+
+**And there is a counter-observation that must not be dropped:** the SAME target,
+`routeBValue`, DID show `NEW-kill` on this fixture on 2026-08-14
+(`arm2_verdict.txt`, release `1.0.2+1`, cell `80e493e4`). If the call site were
+unconditionally constant-folded, that could not have happened. So something
+changed between then and now — candidates, all untested: the new cell
+`cd137db6` (patch `0011`), the CLI at `98f84c17` (which changed what defines the
+prepass and import kernels are compiled with), or the rebuilt platform dill.
+
+WHY THE GATE STOPPED HERE
+--------------------------
+1. **Arm A cannot be scored.** Its PASS row requires `NEW-kill` on screen. Its
+   FAIL row requires `Bad{BootCrash}`. Neither holds.
+2. **Reporting it as a pass on the updater state alone would be exactly the error
+   this project keeps paying for** — `last_booted_patch: 1` with no tombstone is
+   the flattering half, and the specimen's own claim is absent.
+3. Arms B and C were not run. **Arm B does not obviously share the defect** — it
+   tests a THROW, and exception propagation does not depend on whether a return
+   value is consumed — but running it before arm A is understood would spend a
+   device cycle on a gate whose first arm is unexplained.
+
+WHAT THE ARM DID ESTABLISH, NARROWLY
+--------------------------------------
+* The seam banks success on a good patch and does not tombstone it:
+  `last_booted_patch: 1`, `boot_attempt_count: 0`, `kind: Installed`, no
+  `PatchInstallFailure`. That is the seam behaving as designed.
+* The repaired receipt works on the seam engine, patched and unpatched.
+* Route B still attaches on cell `cd137db6` — patch `0011` did not break it.
+
+None of that is arm A's claim, and none of it is reported as such.
+
+STATE
+-----
+* device `R1`: `1.0.6+1` installed, patch 1 `Installed` and active, receipt
+  intact, `g15_armed` absent. **Nothing uninstalled.**
+* control plane: release 95, patch 61, audit 180. Verified by content.
+* fixture: `lib/main.dart` restored to RELEASE form (`routeBValue() =>
+  'OLD-kill'`). `pubspec.yaml` at `1.0.6+1`.
+* `~/.shorebird`: stamped `cd137db6`, warm.
+
+WHAT WOULD RESOLVE IT
+----------------------
+A locator for `assert_result_consumed.sh` that matches this fixture, run against
+release 95's `App` — that turns the leading explanation into a measurement. If it
+confirms a dead result, arm A needs a patch target whose value is provably
+consumed, and the 2026-08-14 counter-observation needs explaining before any arm
+A result is trusted.
