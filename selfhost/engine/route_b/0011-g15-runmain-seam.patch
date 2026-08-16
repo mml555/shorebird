@@ -15,6 +15,16 @@ WHAT IT DOES. Implements the decided policy
   * `shell/common/shell.cc` — REMOVES the success report. See below.
   * `shell/common/shell_unittests.cc` — corrects two tests that asserted a call
     patch 0009 had already moved.
+  * `lib/ui/BUILD.gn` — adds the `:updater` dep the new include requires.
+
+THE BUILD.gn EDIT WAS NOT OPTIONAL AND WAS NOT CAUGHT BY COMPILING. The host
+build compiled `platform_configuration.cc` happily; the iOS build then failed at
+`gn --check` with "Include not allowed ... not in any dependency of
+//flutter/lib/ui:ui". Adding an #include does not trigger a gn regen, so the
+dependency check simply never re-ran on the host out dir. "It compiled" was true
+and was never the same claim as "the dependency graph permits it". `:updater` is
+a leaf (deps: `//flutter/fml` + the Rust lib) so the edge adds no cycle, and
+`lib/ui` already public_deps on three `//flutter/shell/common:*` targets.
 
 **THIS PATCH SUBSUMES 0009's `shell.cc` HUNK. DO NOT APPLY BOTH.**
 It was captured as a diff against the pinned base while 0009 was live in the
@@ -34,6 +44,28 @@ BUILD STATUS AT CAPTURE: `dart:ui` compiles (`flutter_patched_sdk_product`,
 `ui.platform_configuration.o`, 598/598, zero errors). The shell unittest binary
 was NOT built, and no iOS engine, cell or device run exists yet.
 
+diff --git a/engine/src/flutter/lib/ui/BUILD.gn b/engine/src/flutter/lib/ui/BUILD.gn
+index 3bad6b4e94..c9cdeace55 100644
+--- a/engine/src/flutter/lib/ui/BUILD.gn
++++ b/engine/src/flutter/lib/ui/BUILD.gn
+@@ -184,6 +184,17 @@ source_set("ui") {
+     "//flutter/impeller/runtime_stage",
+     "//flutter/runtime:dart_plugin_registrant",
+     "//flutter/runtime:test_font",
++    # G15: platform_configuration.cc reports the launch outcome from the Dart
++    # startup boundary. `:updater` is a LEAF — its own deps are `//flutter/fml`
++    # plus the Rust static lib — so this edge adds no cycle, and `lib/ui` already
++    # public_deps on three other `//flutter/shell/common:*` targets, so it is not
++    # a novel inversion either.
++    #
++    # Caught by `gn --check` on the iOS build AFTER the host build had compiled
++    # the same file happily: adding an #include does not trigger a gn regen, so
++    # the dependency check simply never re-ran there. "It compiled" was true, and
++    # was never the same claim as "the dependency graph permits it".
++    "//flutter/shell/common/shorebird:updater",
+     "//flutter/skia",
+     "//flutter/third_party/rapidjson",
+     "//flutter/third_party/tonic",
 diff --git a/engine/src/flutter/lib/ui/dart_ui.cc b/engine/src/flutter/lib/ui/dart_ui.cc
 index 04385fcf76..f990585e38 100644
 --- a/engine/src/flutter/lib/ui/dart_ui.cc
