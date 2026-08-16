@@ -4015,6 +4015,44 @@ Five instances, all found in this project, all of which looked like evidence:
   import kernel and never enters the missing-provenance path. The trigger must be a
   `fromEnvironment` constructor written literally in the replacement source.
 
+### The unaimed-evidence rule
+
+> **Before asserting a mechanism, ask what you have ALREADY MEASURED that
+> constrains it.**
+
+The other rules here catch missing checks. This one catches a check that was
+RUN, whose result was in hand, and that was never pointed at the claim it
+refutes. It is a RETRIEVAL failure, not a coverage failure, and the two need
+different questions — *"what did I not check?"* answers itself with "nothing, I
+checked", which is why it cannot find this.
+
+Three instances, all 2026-08-15/16, all from a single day's work:
+
+* the `G4.1c` lane ran `find / -name '*.db'` inside the container HOURS before
+  proposing that the server wrote to a different database. The result — one file
+  — refuted the hypothesis before it was made, and was not aimed at it;
+* this lane had used CONTENT reads that same hour to establish `max release 94`,
+  then "independently confirmed" a durability mechanism from FILE METADATA. The
+  better instrument was already in hand and the worse one was reached for,
+  because it agreed;
+* arm A's fold hypothesis was constrained the whole time by `arm2_verdict.txt`,
+  which records the same target rendering `NEW-kill` on 2026-08-14. A preserved
+  verdict in the same directory, and it nearly went unconsulted.
+
+The practical form: **when a mechanism is about to be asserted, list what is
+already on disk that would have to be true, or false, for it to hold — and
+check those first.** They cost nothing; they are already measured.
+
+Together with the rules above this is a four-question review stack, and the
+order matters:
+
+1. **Can the check fail?** (reachable-failure)
+2. **What existing measurements constrain this claim?** (this rule)
+3. **Did the precommit freeze a valid premise, or merely freeze it?** (the limit
+   of precommitment)
+4. **What assumption feels certain enough that nobody built a control for it?**
+   (where the missing control lives)
+
 ### The capture invariant
 
 > **A patch that spans nested git checkouts must be captured against a COUNTED
