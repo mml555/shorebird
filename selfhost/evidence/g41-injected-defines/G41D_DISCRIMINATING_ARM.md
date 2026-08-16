@@ -361,6 +361,23 @@ every release row in `PARITY.md` rests on the plane's word.
 
 # The tally, and a fourth entry that is its own class
 
+## Two classes, and they need different review questions
+
+| class | what went wrong | the question that catches it |
+|---|---|---|
+| **Missing falsifiability** | the check could not fail | *what failure state can this check actually observe?* |
+| **Unreconciled evidence** | the contradicting measurement already existed, and the new claim was never tested against it | *what have we already measured that constrains this claim?* |
+
+They are not variants. The first is a property of the instrument and is caught by
+inspecting the instrument. The second is a property of the *reasoning* and is
+invisible to instrument review, because every instrument involved was sound and
+had already produced the right answer.
+
+**And precommitment addresses neither.** It protects against moving the goalposts
+after seeing the result. It does not stop a bad premise from being written into
+the goalposts in the first place — which is what happened in the other lane the
+same afternoon (`e7000ba0`).
+
 Four false-greens in this lane in one sitting. The first three are one shape in
 three disguises — **a check that could not fail**:
 
