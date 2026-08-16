@@ -154,10 +154,50 @@ signal-preservation claim, and it is stronger than the count.
 
 | class | count | disposition |
 |---|---|---|
-| obfuscated Dart symbols (`hlclxeca`, `hlclpqwxzq`, …) | ~46 | **permanent residue, unsolved.** Random per release, so a dictionary is meaningless. They sit in captured receipts *and* in `gate2_verdict.txt`, which is authored prose quoting them — so no path exclusion reaches them either. This class blocks tree-wide green and needs a decision at promotion time, not a word |
+| obfuscated Dart symbols | ~46 → **6** | **boundary decided; 6 kept as explicit debt** — see below |
 | further project/tool vocabulary (`PSDK`, `idevicedebug`, `CODEPATCH`, `runmain`, `symsrc`) | ~60 | §2, same semantic test, next pass |
 | `PARITY.md` | 44 | **human review, deliberately not batch-processed.** It is a mixture of legitimate vocabulary and possible real errors, and it is the file a reader trusts most |
 | probes and plans (`.sh`, `.py`, `.md`) | ~260 | mixed; needs reading, not rules |
+
+### The obfuscated-symbol boundary — positional, and it stops short on purpose
+
+Release-specific opaque Dart symbols (`hlclpqwxzq`, `hlclxeca3w`, …) appear in two
+structurally different positions, and only one of them admits a rule:
+
+| position | example | authorship |
+|---|---|---|
+| captured receipt field | `    dart hlclpqwxzq dart-main-entered` | mechanically sourced — a pasted device capture |
+| authored prose quote | ``Launch 1 (`hlclpqwxzq`) — full chain through `first-frame`.`` | **argument**, not capture |
+
+**Both shortcuts were rejected.** A dictionary entry would be permanent noise
+wearing the costume of vocabulary, because the symbols are *random per release*.
+Excluding the containing files would blind authored reasoning, because
+`gate2_verdict.txt` quotes the symbols inside its own argument about which launch
+was which.
+
+**The instrument is positional**, aiming at the `^@@` standard: it suppresses the
+token occupying the symbol field of a receipt line — `dart <token> ` — and nothing
+else. It is deliberately **not** a lexical match on the `hlcl` prefix, which would
+be a rule about today's symbols rather than about where machine values live.
+
+**Negative control, in the strongest available form:**
+
+```
+    dart hlclpqwxzq dart-main-entered              <- symbol suppressed
+    dart hlclqjttgm boot-probe-returnd:boot-ok     <- "returnd" CAUGHT, on the
+                                                      SAME LINE, beside it
+Launch 1 (`hlclpqwxzq`) had a delibrate typo …     <- both still visible
+```
+
+A typo immediately beside the suppressed token, on the same line, stays reported.
+
+**Six findings remain and are kept as explicit debt.** They are the prose quotes —
+sentences reasoning about which launch produced which chain. Suppressing them would
+need a rule over inline code spans in evidence, which is broader than the value it
+buys and would hide authored identifiers generally. Per the contract's §5 default,
+they stay visible. **Tree-wide green is therefore not reachable without a further
+decision on these six**, and that is the honest state rather than a reason to widen
+the rule.
 
 **The two gaps, reconciled rather than rounded:**
 

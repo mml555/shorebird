@@ -4,7 +4,7 @@ version: "0.2"
 # Shoul in particular must NEVER become a dictionary word -- it is a genuine
 # misspelling in upstream's test name, and the point of quoting it is that it
 # stays wrong. File-scoped so it is invisible here and nowhere else.
-# cspell:ignore Shoul shutil stdlib gskinner
+# cspell:ignore Shoul shutil stdlib gskinner hlcl hlclpqwxzq hlclxeca
 # Step 1 §3, per evidence/cspell/classification_precommit.md.
 #
 # STANDARD BRITISH AND AMERICAN VARIANTS ARE BOTH ACCEPTED. This is NOT a house
@@ -95,6 +95,28 @@ overrides:
       # fix without breaking the patch and which recurs in every patch touching
       # that file.
       - "/^@@ .*$/gm"
+
+  # Step 1, the obfuscated-symbol class. Release-specific opaque Dart symbols
+  # (hlclpqwxzq, hlclxeca3w, …) appear in device receipts pasted into evidence.
+  # NEITHER shortcut is acceptable: a dictionary entry would be permanent noise
+  # wearing the costume of vocabulary, since the symbols are RANDOM PER RELEASE;
+  # and excluding the containing files would blind authored reasoning, because
+  # gate2_verdict.txt quotes them inside its own argument.
+  #
+  # So the instrument is POSITIONAL, matching the ^@@ standard as closely as this
+  # content allows: it suppresses the token occupying the SYMBOL FIELD of a
+  # captured receipt line -- "dart <token> " -- and nothing else. Not a lexical
+  # match on the hlcl prefix, which would be a rule about today's symbols rather
+  # than about where machine values live.
+  #
+  # WHAT IT DELIBERATELY DOES NOT COVER: the same symbols quoted inside authored
+  # prose, e.g. "Launch 1 (`hlclpqwxzq`) — full chain through `first-frame`".
+  # Those lines are argument, not capture, and they stay visible as residual debt.
+  # Suppressing them would need a rule over inline code spans, which is broader
+  # than the value it buys.
+  - filename: "selfhost/evidence/**"
+    ignoreRegExpList:
+      - "/^\\s*dart [A-Za-z0-9]+(?= )/gm"
 
 words:
   # --- Step 1 §2, admitted by the SEMANTIC test in
