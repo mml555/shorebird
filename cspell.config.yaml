@@ -368,6 +368,7 @@ words:
   - timebase # Mach timebase (mach_timebase_info)
   - TIMESTAMPTZ
   - tlslocal
+  - tpool # Route B target->pool identity scan (patch 0012)
   - transactionally
   - triggerable
   - trunc
