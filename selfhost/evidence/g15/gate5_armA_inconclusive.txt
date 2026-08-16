@@ -91,9 +91,13 @@ WHY THE GATE STOPPED HERE
 
 WHAT THE ARM DID ESTABLISH, NARROWLY
 --------------------------------------
-* The seam banks success on a good patch and does not tombstone it:
-  `last_booted_patch: 1`, `boot_attempt_count: 0`, `kind: Installed`, no
-  `PatchInstallFailure`. That is the seam behaving as designed.
+* The seam banks success with an ATTACHED, LIVE Route B patch, and does not
+  tombstone it: `last_booted_patch: 1`, `boot_attempt_count: 0`,
+  `kind: Installed`, no `PatchInstallFailure`.
+  **Deliberately NOT phrased as "a good patch".** What is proven is the
+  ATTACHMENT MACHINERY plus the seam's response to it. The specimen's intended
+  patched VALUE is not proven — that is precisely what is missing — so calling
+  the patch "good" would smuggle back the claim this arm failed to make.
 * The repaired receipt works on the seam engine, patched and unpatched.
 * Route B still attaches on cell `cd137db6` — patch `0011` did not break it.
 
