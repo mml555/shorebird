@@ -3000,6 +3000,42 @@ last command before `git commit`, not as the last command before you start
 writing the message.** If you edit anything after the check — including the status
 row, including the commit message's own claims — the check has expired.
 
+#### And the remedy above is not enough, because a guard has a SHAPE
+
+> **A guard is not established until its failure has been deliberately propagated
+> through the exact command shape operators will use.**
+
+Testing the checker is not testing the guard. `cspell_touched.sh` is correct and
+self-tests 6/6, and `cspell_touched.sh | tail -1 && git commit` destroys its
+authority one shell operator later: a pipeline's exit status is the LAST
+command's, `tail` always succeeds, so the `&&` can never fail. That form shipped a
+red tree on 2026-08-16 — in the commit that was recording the fix for having
+shipped a red tree.
+
+**This repo already knew the class and had already paid for it once.** The mint
+gate above re-derives its verdict from *"the ninja exit the build recorded with
+`$?` and nothing piped"*, precisely because `build_ios_release.sh` exits 0 whether
+or not ninja succeeded. Same defect, one layer up: there the wrapper swallowed the
+exit code, here the invocation did.
+
+So the object under test is **the command line, not the tool**. Two consequences:
+
+* **Make the whole shape fail once, on purpose**, against a deliberately broken
+  tree — then keep the shape. Verified for the corrected form: on a tree with an
+  injected misspelling, `cspell_touched.sh | tail -1 && …` reports *would commit*
+  while the form below exits 1.
+* **Keep the status out of pipelines.** Redirect, capture `$?`, then branch:
+
+  ```sh
+  bash selfhost/scripts/cspell_touched.sh > /tmp/gate.txt 2>&1; GATE=$?
+  tail -3 /tmp/gate.txt
+  [ "$GATE" -eq 0 ] || { echo "GATE RED — not committing"; exit 1; }
+  ```
+
+The general rule is the four-question stack's first question, aimed at tooling
+rather than evidence: **after building a guard, ask what makes it fail — and then
+make it fail.** An untested guard is a claim about a guard.
+
 #### 2026-08-14: an EARLIER tell, and the tool that makes a shared file safe
 
 The sixth instance was caught **before** staging, by a tell this section did not
@@ -3862,6 +3898,33 @@ Do **not** upgrade an item to **PROVEN** because:
 
 For runtime features, **PROVEN** means the relevant real product workflow
 completed and the observable result was verified. A host probe earns **BUILT**.
+
+### A rehearsal proves the MECHANISM; only the transition proves the STATUS
+
+> **Name the irreversible event the status claims, and ask whether it happened.
+> If it did not, the evidence is a rehearsal however faithful it was.**
+
+Added 2026-08-16 from two results on the same day that looked different and were
+the same shape:
+
+* the mint generator ran on the **real** script with the **real** cell inputs, and
+  its emitted ancestry matched an independent recomputation of the installed
+  bytes. Faithful in every respect but one: the destination was scratch, so **no
+  new addressed cell was published**. That publication is the event a PROVEN row
+  would be asserting, so the row stayed **BUILT**;
+* the spelling gate's checker was correct and self-tested, and the guard was still
+  inert, because **the exact command shape had never been made to fail**. Making
+  it fail is that claim's transition.
+
+The trap is that a good rehearsal *raises* confidence while leaving the claim
+exactly where it was — and the better the rehearsal, the stronger the pull to
+bank it. The discipline is to write down the transition first, in the row, so the
+gap is visible before the evidence arrives rather than argued about afterwards.
+
+This does not devalue rehearsals. Both above were worth doing: they moved real
+risk, and each one turned out to be the cheapest way to learn something the
+transition would have cost far more to discover. It only says which line they
+earn.
 
 Two spellings that produce the same Kernel node are still two items: they differ
 in the lexical edit, so one passing says nothing about the other. That rule is

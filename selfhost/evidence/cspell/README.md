@@ -101,7 +101,27 @@ The number above is the baseline. It is not permission to add to it: the
 per-change gate already prevents that, since any file you touch must come out
 clean whatever it inherited.
 
-**3. Restored tree-wide gate — NOT YET, and here is what it takes.**
+**3. Restored tree-wide gate — NOT YET.**
+
+The four conditions below are unchanged. What was missing was their ORDER, and
+the fact that two of them are one proof rather than two steps:
+
+| # | step | done when |
+|---|---|---|
+| 1 | **Reduce by CATEGORY, not by dictionary.** The four categories above are already measured; work them in that order. Categories 1–2 (~60 %) are generated artifacts and vendored C++ identifiers inside `.patch` files — `ignorePaths`, not words. **Dictionarying everything would reach zero while destroying the signal**, since the point of the gate is to notice a real misspelling in prose | each category is either excluded with a stated reason or genuinely cleaned |
+| 2 | **Reach actual tree-wide green** | the command exits 0 |
+| 3 | **Negative control against the EXACT promoted command**, wrappers and pipes included | an injected misspelling makes *that command line* exit nonzero |
+| 4 | **Delete this baseline record in the same commit that promotes the gate** | a debt that outlives its debt is the stale-status failure this repo keeps paying for |
+
+**3 and 4 are ONE proof, and must land together:** a green tree plus a
+deliberately red mutation showing the final command itself exits nonzero. Green
+alone proves the count reached zero, not that anything is watching it — and
+§17's guard rule is the reason the control must run through the promoted
+*shape* rather than through `cspell` directly. A gate promoted on a green count
+and wired up behind a pipe is exactly the inert guard that shipped three red
+commits on 2026-08-16.
+
+**The conditions in their original form:**
 When categories 1–4 are cleared, promote the same command back to a required
 green gate. Promotion is not complete until all four hold:
 
