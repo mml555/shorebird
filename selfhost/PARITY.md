@@ -4015,6 +4015,40 @@ Five instances, all found in this project, all of which looked like evidence:
   import kernel and never enters the missing-provenance path. The trigger must be a
   `fromEnvironment` constructor written literally in the replacement source.
 
+### The capture invariant
+
+> **A patch that spans nested git checkouts must be captured against a COUNTED
+> EXPECTATION: say how many diffs it should contain, then verify the count.**
+
+`R3` is not one repository. `flutter/engine/src/flutter` is a checkout,
+`third_party/dart` is ANOTHER, and `third_party/updater` is a THIRD. The outer
+repo's `git diff` silently omits the inner ones — it does not warn, it does not
+list them, it simply produces a smaller patch that looks complete.
+
+This has now cost work twice:
+
+* `0010`'s Rust change in `third_party/updater` needed a second `git diff` inside
+  that directory, and PARITY's `R3` row records that missing it "would lose half
+  the work silently";
+* `0012` was captured on 2026-08-16 and came back with **1** diff header where it
+  should have had **2** — the `dart:_internal` half of the change was absent while
+  the file list read as finished. Caught only because the capture ended in
+  `grep -c '^diff --git'` against an expectation.
+
+**The invariant is the count, not the care.** "Remember the second repo" is advice
+and fails the way advice fails; `grep -c '^diff --git' <patch>` compared against a
+number written down BEFORE capturing is a check with a reachable failure state.
+
+Two riders, both learned the same day:
+
+* an **untracked** file in an inner checkout appears in NEITHER diff.
+  `dart_route_b_trace.h` is untracked in `third_party/dart`, so its only record is
+  the durable copy under `engine/route_b/instrumentation/`. A count of tracked
+  diffs will not catch it — enumerate new files separately.
+* the durable copies in `instrumentation/` are part of the capture, not a
+  convenience. `object.cc` is NOT in `dart_patches.sh`'s `PATCHES`, so nothing
+  verifies it on apply; the snapshot is the verification.
+
 ### The limit of precommitment
 
 > **Precommitment stops the CONCLUSION from moving. It does not stop a wrong
