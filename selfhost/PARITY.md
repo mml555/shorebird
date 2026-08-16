@@ -3001,6 +3001,16 @@ collision alarm, not as a stale-cache annoyance.** The correct response is to
 read the diff and find out whose work is in there — not to re-read and retry the
 edit, which is what the message superficially invites.
 
+**It is a TELL, not a DIAGNOSIS — and it has a self-inflicted false positive.**
+On 2026-08-16 the warning fired on `PARITY.md` with no other lane present: the
+same session had edited the file with `sed -i`, which writes outside the editor's
+read tracking and so looks identical to a foreign write. That does **not** weaken
+the alarm, and it must not become a reason to wave one through — *"probably my own
+`sed`"* is exactly the assumption that would let a real collision past. The
+response is unchanged in both worlds: **read `git status` and `git diff --stat`
+and find out.** One command separates the two, and the alarm has done its job
+either way.
+
 **And the tool that makes it recoverable: stage the HUNK, not the file.** When one
 tracked file holds two lanes' unstaged work, `git add <path>` is not available
 without swallowing — but the commit is still possible:
@@ -3868,6 +3878,16 @@ The mechanical form: write the row with `PENDING`, commit the work, then replace
 `PENDING` with the real short hash — either in the same commit that does the work
 (stage the row last) or in an immediate follow-up. And when you cite a hash you did
 not just create, `git cat-file -t <hash>` costs nothing.
+
+**Widened 2026-08-16, after the same mistake recurred OUTSIDE this file.** The rule
+above was written for status rows, and hours later the same lane cited `8f3b5b06`
+in a prose summary for a commit that is actually `00f97fe7`. So the scope is not
+this file — **it is any commit identifier you write down, anywhere**: rows,
+handoffs, commit messages, evidence verdicts, a sentence to a colleague. A
+reference is either verified or it is a guess wearing a hash's authority, and
+`git cat-file -t` is cheap enough that there is no reading under which citing an
+unverified one is worth it. The status file gets the `PENDING` convention because
+it is the authority; **everywhere else gets the verification**.
 
 ### `G3.7`'s release-37 claim, precommitted and deliberately narrow
 
