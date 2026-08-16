@@ -536,5 +536,88 @@ void main() {
         ['-Da=1', '-Db=2'],
       );
     });
+
+    group('injected defines: propagation is separate from comparison', () {
+      // G4.1c link 2. `compilerArgs` is not merely a debug rendering of the
+      // fingerprint -- it is the -D environment handed to the REPLACEMENT
+      // compiler (`route_b_producer.dart:169`). Building it from
+      // `effectiveDefines` alone meant a patch body reading
+      // `const String.fromEnvironment('FLUTTER_VERSION')` baked the empty string
+      // while the release around it held the real value. Measured by
+      // `probes/g41d_injected_define_patch.sh` arms 3-5.
+      const injected = {
+        'FLUTTER_VERSION': '3.44.8',
+        'FLUTTER_ENGINE_REVISION': '11e5695710',
+      };
+
+      RouteBBuildConfig withInjected(List<String> args) =>
+          RouteBBuildConfig.fromBuildArgs(args, injectedDefines: injected)!;
+
+      test('reach the replacement compiler', () {
+        expect(
+          withInjected(['--dart-define=a=1']).compilerArgs,
+          containsAll([
+            '-DFLUTTER_VERSION=3.44.8',
+            '-DFLUTTER_ENGINE_REVISION=11e5695710',
+            '-Da=1',
+          ]),
+        );
+      });
+
+      test('do NOT enter the fingerprint', () {
+        // The whole point of a separate field. A release recorded before this
+        // change carries no injected defines, and must stay comparable to a
+        // patch cut today -- release 95 is a live instance.
+        final without = config(['--dart-define=a=1']);
+        final with_ = withInjected(['--dart-define=a=1']);
+
+        expect(with_.fingerprint, without.fingerprint);
+        expect(with_.agreesWith(without), isTrue);
+        expect(with_.effectiveDefines, without.effectiveDefines);
+      });
+
+      test('are absent from compilerArgs when the release recorded none', () {
+        // THE NEGATIVE CONTROL, and the pre-record state this fixes. Without
+        // it, the first test would pass equally against an implementation that
+        // synthesised the six from a hard-coded list -- the reconstruction this
+        // seam refuses.
+        expect(
+          config(['--dart-define=a=1']).compilerArgs,
+          ['-Da=1'],
+        );
+      });
+
+      test('survive json, still outside the fingerprint', () {
+        final c = withInjected(['--dart-define=a=1']);
+        final back = RouteBBuildConfig.fromJson(c.toJson());
+
+        expect(back.injectedDefines, injected);
+        expect(back.compilerArgs, c.compilerArgs);
+        // And a config read back from a PRE-RECORD release has none, which is
+        // the state the patch side has to detect rather than guess at.
+        final legacy = RouteBBuildConfig.fromJson({
+          'rawArgs': <String>['--dart-define=a=1'],
+          'effectiveDefines': {'a': '1'},
+        });
+        expect(legacy.injectedDefines, isEmpty);
+        expect(legacy.recordsInjectedDefines, isFalse);
+        expect(back.recordsInjectedDefines, isTrue);
+      });
+
+      test('an EMPTY recorded map is not the same as no record', () {
+        // Flutter omits FLUTTER_ENABLED_FEATURE_FLAGS entirely when empty, so a
+        // release can legitimately record an empty injected map. That is a
+        // RECORD of "none", and must not be read as "this release predates the
+        // field" -- the two have different remediations, which is the same
+        // distinction `fromJson` already draws for the config as a whole.
+        final recorded = RouteBBuildConfig.fromJson({
+          'rawArgs': <String>[],
+          'effectiveDefines': <String, String>{},
+          'injectedDefines': <String, String>{},
+        });
+        expect(recorded.recordsInjectedDefines, isTrue);
+        expect(recorded.injectedDefines, isEmpty);
+      });
+    });
   });
 }

@@ -121,6 +121,8 @@ class RouteBBuildConfig {
     this.obfuscate = false,
     this.splitDebugInfoPath,
     this.flavor,
+    this.injectedDefines = const {},
+    this.recordsInjectedDefines = false,
   });
 
   /// The flavor that actually reaches the compiler, by Flutter's own precedence.
@@ -151,6 +153,7 @@ class RouteBBuildConfig {
     List<String> buildArgs, {
     String? flavor,
     String? workingDirectory,
+    Map<String, String>? injectedDefines,
   }) {
     // FILE DEFINES FIRST, then the command line, because that is Flutter's own
     // precedence: `extractDartDefines` emits every file entry before every
@@ -212,6 +215,11 @@ class RouteBBuildConfig {
       obfuscate: obfuscate,
       splitDebugInfoPath: splitDebugInfoPath,
       flavor: flavor,
+      injectedDefines: Map.unmodifiable(injectedDefines ?? const {}),
+      // A caller that passed a map RECORDED one, even an empty one. Null means
+      // the caller had nothing to record, which is what a pre-record release
+      // looks like when this is re-read later.
+      recordsInjectedDefines: injectedDefines != null,
     );
   }
 
@@ -226,6 +234,10 @@ class RouteBBuildConfig {
         'route B build config must carry rawArgs and effectiveDefines',
       );
     }
+    // OPTIONAL, and its absence is meaningful rather than a default. Releases
+    // cut before this field existed carry no key at all, and the patch side has
+    // to be able to tell that from a release that recorded an empty map.
+    final injected = json['injectedDefines'];
     return RouteBBuildConfig(
       rawArgs: List.unmodifiable(raw.map((e) => '$e')),
       effectiveDefines: Map.unmodifiable(<String, String>{
@@ -234,6 +246,12 @@ class RouteBBuildConfig {
       obfuscate: json['obfuscate'] == true,
       splitDebugInfoPath: json['splitDebugInfoPath'] as String?,
       flavor: json['flavor'] as String?,
+      injectedDefines: Map.unmodifiable(<String, String>{
+        if (injected is Map)
+          for (final entry in injected.entries)
+            '${entry.key}': '${entry.value}',
+      }),
+      recordsInjectedDefines: injected is Map,
     );
   }
 
@@ -242,6 +260,48 @@ class RouteBBuildConfig {
 
   /// What the compiler effectively received. Compatibility is decided on this.
   final Map<String, String> effectiveDefines;
+
+  /// The defines FLUTTER injected, recorded so a future patch's replacement can
+  /// be compiled as the same Dart program — and deliberately OUTSIDE the
+  /// fingerprint.
+  ///
+  /// THE DISTINCTION THIS FIELD EXISTS TO DRAW. `effectiveDefines` was serving
+  /// two jobs at once:
+  ///
+  ///   COMPARISON  — what must agree between a release and its patch
+  ///   PROPAGATION — the complete `-D` environment a replacement is compiled in
+  ///
+  /// G4.1c kept the injected six out of the fingerprint, correctly: a release
+  /// and a patch on one pinned cell resolve them identically, so an entry could
+  /// only ever compare a constant with itself, and adding one would make every
+  /// previously recorded release incomparable. But [compilerArgs] was built from
+  /// the same field, so excluding them from comparison also excluded them from
+  /// the patch compiler — and a replacement reading
+  /// `const String.fromEnvironment('FLUTTER_VERSION')` baked the empty string
+  /// while the release around it held the real value. Measured by
+  /// `probes/g41d_injected_define_patch.sh`, arms 3-5, with a user-define
+  /// control proving the mechanism itself was never broken.
+  ///
+  /// So the two jobs are now two fields. This one feeds [compilerArgs] and
+  /// nothing else: it is absent from [canonicalText], [fingerprint] and
+  /// [agreesWith] by construction, not by a filter someone must remember.
+  final Map<String, String> injectedDefines;
+
+  /// Whether the release RECORDED its injected defines, as distinct from
+  /// recording that there were none.
+  ///
+  /// The two are not the same and have different remediations, which is the same
+  /// distinction [RouteBBuildConfig.fromJson] already draws between "no
+  /// configuration" and "unreadable configuration". A release cut before this
+  /// field existed — release 95 and every one before it — carries no record and
+  /// cannot be given one retroactively, because the values come from the build
+  /// that is already over. A release that records an EMPTY map is stating a
+  /// fact: Flutter injected nothing extra, which happens whenever no feature
+  /// flag has a runtime id.
+  ///
+  /// The patch side uses this to decide whether a replacement that reads the
+  /// environment can be compiled safely. See `route_b_producer.dart`.
+  final bool recordsInjectedDefines;
 
   /// Whether the program was obfuscated. Part of the EFFECTIVE configuration:
   /// the stripped program bytes differ with and without it.
@@ -327,6 +387,14 @@ class RouteBBuildConfig {
         key: effectiveDefines[key],
     },
     'obfuscate': obfuscate,
+    // Written only when this build actually recorded them, so a reader can tell
+    // "Flutter injected nothing extra" from "this release predates the field".
+    // Sorted for the same byte-stability reason as effectiveDefines.
+    if (recordsInjectedDefines)
+      'injectedDefines': {
+        for (final key in injectedDefines.keys.toList()..sort())
+          key: injectedDefines[key],
+      },
     if (flavor != null) 'flavor': flavor,
     // Recorded so a reader can see WHERE the symbols went, and deliberately not
     // part of the fingerprint below.
@@ -342,7 +410,21 @@ class RouteBBuildConfig {
   ///
   /// Emitted in sorted key order: order is not semantic (probe rule 2), and a
   /// deterministic order makes a compile command reproducible from the record.
+  /// The COMPLETE `-D` environment a replacement must be compiled in.
+  ///
+  /// Both maps, because a replacement is compiled as the same Dart program the
+  /// release was — which includes the defines Flutter injected and the user
+  /// never typed. See [injectedDefines] for why they are a separate field.
+  ///
+  /// A collision between the two is unreachable rather than merely unlikely:
+  /// Flutter EXITS if a user supplies any injected key via `--dart-define`,
+  /// `--dart-define-from-file` or the environment
+  /// (`flutter_command.dart:1563-1571`, `:1584-1591`), so their relative order
+  /// here cannot be observed. Sorted within each group so the recorded compile
+  /// command is reproducible.
   List<String> get compilerArgs => [
+    for (final key in injectedDefines.keys.toList()..sort())
+      '-D$key=${injectedDefines[key]}',
     for (final key in effectiveDefines.keys.toList()..sort())
       '-D$key=${effectiveDefines[key]}',
   ];

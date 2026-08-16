@@ -1,4 +1,4 @@
-<!-- cspell:words injdef -->
+<!-- cspell:words injdef killswitch -->
 # G4.1c's discriminating arm — and the second link it found broken
 
 **Host result. Earns BUILT for what it fixes and opens a KNOWN GAP for what it
@@ -16,7 +16,7 @@ under a stamp guard.
 | link | mechanism | answer |
 |---|---|---|
 | **1 — analysis** | do Route B's prepass/import kernels describe the program Flutter compiles? | **YES.** Byte-identical, arm 1 |
-| **2 — replacement** | is a PATCH BODY compiled with the defines the release around it holds? | **NO.** Arm 3 |
+| **2 — replacement** | is a PATCH BODY compiled with the defines the release around it holds? | **~~NO~~ → YES**, fixed 2026-08-15. See the addendum |
 
 That the answer splits is the result. G4.1c threaded the injected defines into
 the kernels and stopped there, and "the kernels are right" is not the same claim
@@ -141,3 +141,62 @@ with the reason each exists.
    `replacementReadsDefine` — never `OLD-unversioned`, and never `NEW-`.
 
 Until both, **G4.1c stays BUILT** and link 2 is a **KNOWN GAP**.
+
+
+---
+
+# ADDENDUM 2026-08-15 — link 2 closed
+
+**Propagation and comparison are now two fields.** `RouteBBuildConfig` gains
+`injectedDefines`, feeding `compilerArgs` and nothing else — absent from
+`canonicalText`, `fingerprint` and `agreesWith` **by construction**, so release 95
+and everything before it stays comparable to a patch cut today.
+
+**The legacy rule is narrow, and the narrowness is a mechanism argument.** A
+replacement referencing the app's own `const` resolves it through the import
+kernel, which carries the real values since link 1. The only expression compiled
+against these `-D` flags is a `fromEnvironment` in the replacement source itself.
+So a pre-record release refuses **only** an environment-reading replacement, by
+name, and stays patchable otherwise. Refusing all of them would have stranded
+releases 89–95 and every `killswitch_probe` permanently, to guard against a
+construct almost none contain.
+
+`recordsInjectedDefines` keeps *recorded none* distinct from *predates the
+field*: Flutter omits `FLUTTER_ENABLED_FEATURE_FLAGS` when empty, so an empty
+recorded map is a fact rather than an absence.
+
+## A vacuity fix, named rather than quietly corrected
+
+**This probe's first draft would have kept passing after the defect was fixed.**
+Its patch-replacement arm hand-simulated the product's flags — passing none,
+because that is what `compilerArgs` was known to produce — and asserted the value
+came out wrong. Nothing connected it to the code under test, so the fix could not
+have turned it red.
+
+`probes/compiler_args.dart` now prints `RouteBBuildConfig.compilerArgs` itself,
+the same getter `route_b_producer.dart` splices into the `dart2bytecode`
+invocation. Arm 3 goes red if the product stops threading.
+
+## Result: `g41d` 14/14
+
+| arm | claim |
+|---|---|
+| 3 | a replacement reading `FLUTTER_VERSION` **gets** the real value, via the product's flags |
+| 3b | a **pre-record** release cannot give it one, and is marked `RECORDS false` |
+| 4 | user-define control still passes |
+| 5 | both families survive together |
+| 6 | stamp guard held at `40eaa0ef` |
+
+**Two negative controls, each confirmed RED in its final form:** reverting
+`compilerArgs` to `effectiveDefines` alone fails 2 tests; disabling the legacy
+guard fails 1. **The two in-group controls stayed GREEN in both states** — an
+ordinary replacement against a pre-record release still compiles, and the same
+environment-reading replacement is *accepted* when the release did record. Without
+those, the refusal test would mean only "refuses everything".
+
+2513 passed / 1 skipped / 0 failed; analyze `--fatal-warnings` exit 0; format
+clean.
+
+**Still BUILT.** The device arm on `injected_define_app` is what an upgrade needs,
+and it is now unblocked: `NEW-3.44.8` is the correct expected value rather than
+`NEW-`.

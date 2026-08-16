@@ -17,13 +17,13 @@
 #   link 2  REPLACEMENT-- is a PATCH BODY compiled with the same defines the
 #                         release around it holds? (arms 3-4)
 #
-# Link 2 is a different mechanism from link 1 and is NOT fixed by threading the
+# Link 2 is a different mechanism from link 1 and was NOT fixed by threading the
 # release kernels. `route_b_producer.dart:169` feeds the replacement compiler
 # `buildConfig.compilerArgs`, and `route_b_build_config.dart:345` builds those
 # from `effectiveDefines` ALONE -- which G4.1c deliberately leaves the injected
-# six out of, on the argument that a release and a patch on one pinned cell
-# always agree on them. That argument is sound for COMPARISON and wrong for
-# PROPAGATION, and arm 3 is what makes the difference observable.
+# six out of. That argument is sound for COMPARISON and wrong for PROPAGATION,
+# and this probe found it: `injectedDefines` is now a separate field feeding
+# `compilerArgs` only. Arms 3/3b run through the product's own getter.
 #
 # ARMS THAT DECIDE WHETHER THE REST MEAN ANYTHING:
 #   arm 0  INSTRUMENT CONTROL   -- identical kernels must report no change.
@@ -37,6 +37,7 @@
 #                                  restamping mid-probe would silently change
 #                                  which cell every arm consumed.
 set -uo pipefail
+shopt -s lastpipe 2>/dev/null || true
 
 REPO=${REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)}
 FLUTTER_REV=${FLUTTER_REV:-c15ef6379403a0a55531a058bdb2c8e55bc05c98}
@@ -230,15 +231,52 @@ baked_has() { # <replacement.dart> <expected-literal> <extra -D...>
   if LC_ALL=C strings -a "$out" | grep -qF "$expect"; then echo yes; else echo no; fi
 }
 
+# THE PRODUCT'S OWN FLAGS, not a hand-simulation of them. An earlier draft of
+# this probe passed "no defines" here because that is what compilerArgs was known
+# to produce -- an arm that would have kept passing after the defect was fixed,
+# because nothing connected it to the code under test.
+PKG_CONFIG=${PKG_CONFIG:-$REPO/.dart_tool/package_config.json}
+[ -f "$PKG_CONFIG" ] || PKG_CONFIG=$REPO/packages/shorebird_cli/.dart_tool/package_config.json
+[ -f "$PKG_CONFIG" ] || die "run 'dart pub get' first; missing $PKG_CONFIG"
+COMPILER_ARGS=$REPO/selfhost/engine/route_b/probes/compiler_args.dart
+
+INJECTED_CSV=$(paste -sd, - < "$WORK/injected.txt")
+# Portable array fill: macOS ships bash 3.2, which has no `mapfile`.
+# read_flags <array-name> <args...>
+read_flags() {
+  local __name=$1; shift
+  local __line
+  eval "$__name=()"
+  while IFS= read -r __line; do
+    [ -n "$__line" ] && eval "$__name+=(\"\$__line\")"
+  done < <("$FLUTTER_DIR/bin/dart" --packages="$PKG_CONFIG" "$COMPILER_ARGS" "$@" | grep '^-D')
+}
+
 echo
-echo "arm 3  LINK 2, THE PATCH-REPLACEMENT ARM -- and it is where the defect still lives."
-echo "       route_b_producer.dart:169 feeds the replacement compiler"
-echo "       buildConfig.compilerArgs, and route_b_build_config.dart:345 builds those"
-echo "       from effectiveDefines ALONE -- which the injected six are deliberately"
-echo "       NOT in. So this arm passes ONLY the fingerprint's defines: none."
-GOT_TODAY=$(baked_has "$REPL" "NEW-$FLUTTER_VERSION_VALUE")
-check "DEFECT: a replacement reading FLUTTER_VERSION does NOT get the real value" \
-  "$GOT_TODAY" "no"
+echo "arm 3  LINK 2, THE PATCH-REPLACEMENT ARM -- through the PRODUCT's own getter."
+echo "       route_b_producer.dart splices RouteBBuildConfig.compilerArgs into the"
+echo "       dart2bytecode invocation, so compiler_args.dart prints exactly what a"
+echo "       real patch would be compiled with. A release that RECORDED its"
+echo "       injected defines must hand them to the replacement."
+read_flags PRODUCT_ON --injected "$INJECTED_CSV" --
+GOT_TODAY=$(baked_has "$REPL" "NEW-$FLUTTER_VERSION_VALUE" ${PRODUCT_ON[@]+"${PRODUCT_ON[@]}"})
+check "a replacement reading FLUTTER_VERSION GETS the real value" \
+  "$GOT_TODAY" "yes"
+
+echo
+echo "arm 3b LINK 2, THE BEFORE-STATE -- a release that recorded NOTHING."
+echo "       Releases cut before the field existed, release 95 among them. The"
+echo "       product hands the replacement no injected defines, which is why the"
+echo "       patch side refuses an environment-reading replacement against one."
+read_flags PRODUCT_OFF --
+GOT_LEGACY=$(baked_has "$REPL" "NEW-$FLUTTER_VERSION_VALUE" ${PRODUCT_OFF[@]+"${PRODUCT_OFF[@]}"})
+check "a pre-record release CANNOT give it the real value" "$GOT_LEGACY" "no"
+check "and the product marks it as unrecorded" \
+  "$("$FLUTTER_DIR/bin/dart" --packages="$PKG_CONFIG" "$COMPILER_ARGS" -- | grep '^RECORDS')" \
+  "RECORDS false"
+check "while a recorded release marks it as recorded" \
+  "$("$FLUTTER_DIR/bin/dart" --packages="$PKG_CONFIG" "$COMPILER_ARGS" --injected "$INJECTED_CSV" -- | grep '^RECORDS')" \
+  "RECORDS true"
 
 echo
 echo "arm 4  MECHANISM CONTROL -- a USER define must reach the same replacement path."
@@ -248,10 +286,12 @@ GOT_USER=$(baked_has "$REPL_USER" "NEW-probe-user-value" -DPROBE_USER_KEY=probe-
 check "a replacement reading a USER define DOES get its value" "$GOT_USER" "yes"
 
 echo
-echo "arm 5  LINK 2, THE REMEDY IS REACHABLE -- same replacement, injected -D flags passed"
-GOT_FIXED=$(baked_has "$REPL" "NEW-$FLUTTER_VERSION_VALUE" "${INJ[@]}")
-check "the same replacement DOES get it when the injected defines are passed" \
-  "$GOT_FIXED" "yes"
+echo "arm 5  LINK 2, BOTH FAMILIES AT ONCE -- the product must carry user AND injected"
+read_flags PRODUCT_BOTH --injected "$INJECTED_CSV" -- --dart-define=PROBE_USER_KEY=probe-user-value
+GOT_BOTH_INJ=$(baked_has "$REPL" "NEW-$FLUTTER_VERSION_VALUE" ${PRODUCT_BOTH[@]+"${PRODUCT_BOTH[@]}"})
+GOT_BOTH_USER=$(baked_has "$REPL_USER" "NEW-probe-user-value" ${PRODUCT_BOTH[@]+"${PRODUCT_BOTH[@]}"})
+check "injected define survives alongside a user one" "$GOT_BOTH_INJ" "yes"
+check "user define survives alongside an injected one" "$GOT_BOTH_USER" "yes"
 
 # STAMP GUARD, closing half.
 STAMP_AFTER=$(cat "$STAMP_FILE")

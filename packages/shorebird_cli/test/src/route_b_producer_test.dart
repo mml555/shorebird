@@ -197,6 +197,131 @@ void main() {
       ]);
     });
 
+    test('G4.1c: threads the INJECTED defines too, ahead of the user ones', () {
+      // Link 2. The release's `-D` environment is both maps: the user's defines
+      // and the ones Flutter injected. Before this, `compilerArgs` came from
+      // `effectiveDefines` alone and a replacement reading FLUTTER_VERSION baked
+      // the empty string while the release held 3.44.8.
+      late List<String> args;
+      runWithOverrides(
+        () => const RouteBProducer().produce(
+          compiler: compiler(),
+          coverage: coverage(),
+          importKernel: File(p.join(cell.path, 'release_import.dill')),
+          releaseBuildId: 'deadbeef',
+          workingDirectory: work,
+          projectRoot: project,
+          buildConfig: RouteBBuildConfig.fromBuildArgs(
+            ['--dart-define=a=1'],
+            injectedDefines: const {'FLUTTER_VERSION': '3.44.8'},
+          ),
+          run: (executable, arguments) {
+            args = arguments;
+            return compileOk(executable, arguments);
+          },
+        ),
+      );
+
+      expect(args.where((a) => a.startsWith('-D')).toList(), [
+        '-DFLUTTER_VERSION=3.44.8',
+        '-Da=1',
+      ]);
+    });
+
+    group('G4.1c: a release that predates the injected-define record', () {
+      RouteBBuildConfig legacyConfig() =>
+          RouteBBuildConfig.fromJson(<String, dynamic>{
+            'rawArgs': <String>[],
+            'effectiveDefines': <String, String>{},
+          });
+
+      /// A replacement whose body reads the compile-time environment — the one
+      /// construct that resolves against the `-D` flags rather than through the
+      /// import kernel.
+      RouteBCoverage coverageReadingEnvironment() {
+        const envDeclaration =
+            "String routeBValue() => "
+            "const String.fromEnvironment('FLUTTER_VERSION');";
+        source.writeAsStringSync(envDeclaration);
+        return coverage(
+          sources: {
+            'package:app/main.dart#routeBValue': {
+              'fileUri': source.uri.toString(),
+              'start': 0,
+              'end': envDeclaration.length,
+            },
+          },
+        );
+      }
+
+      List<String> produceWith({
+        required RouteBBuildConfig? buildConfig,
+        required RouteBCoverage cov,
+      }) {
+        late List<String> args;
+        runWithOverrides(
+          () => const RouteBProducer().produce(
+            compiler: compiler(),
+            coverage: cov,
+            importKernel: File(p.join(cell.path, 'release_import.dill')),
+            releaseBuildId: 'deadbeef',
+            workingDirectory: work,
+            projectRoot: project,
+            buildConfig: buildConfig,
+            run: (executable, arguments) {
+              args = arguments;
+              return compileOk(executable, arguments);
+            },
+          ),
+        );
+        return args;
+      }
+
+      test('is still patchable by an ordinary replacement', () {
+        // THE CONTROL, and it is the reason the refusal is narrow rather than
+        // blanket. Releases 89-95 and every one before them carry no record and
+        // can never be given one — refusing all of their patches would strand
+        // them permanently to guard against a construct almost none contain.
+        expect(
+          produceWith(buildConfig: legacyConfig(), cov: coverage()),
+          isNotEmpty,
+        );
+      });
+
+      test('refuses a replacement that reads the compile-time environment', () {
+        // The one case that would actually be wrong: this expression compiles
+        // against the `-D` flags, and a pre-record release has none to give it.
+        expect(
+          () => produceWith(
+            buildConfig: legacyConfig(),
+            cov: coverageReadingEnvironment(),
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              contains('predates the record'),
+            ),
+          ),
+        );
+      });
+
+      test('accepts the same replacement when the release DID record', () {
+        // The discriminator. Without this the refusal above would pass equally
+        // against an implementation that refused every environment read.
+        expect(
+          produceWith(
+            buildConfig: RouteBBuildConfig.fromBuildArgs(
+              const [],
+              injectedDefines: const {'FLUTTER_VERSION': '3.44.8'},
+            ),
+            cov: coverageReadingEnvironment(),
+          ),
+          isNotEmpty,
+        );
+      });
+    });
+
     test('packs a container the reader accepts', () {
       final bytes = runWithOverrides(
         () => const RouteBProducer().produce(

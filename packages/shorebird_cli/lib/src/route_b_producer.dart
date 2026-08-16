@@ -76,6 +76,23 @@ class RouteBUnsupportedTarget implements Exception {
   String toString() => '$target: $reason';
 }
 
+/// Whether [declaration] reads the compile-time environment directly.
+///
+/// The three `fromEnvironment` constructors are the ONLY expressions whose value
+/// comes from the `-D` flags handed to the replacement compiler. Anything else a
+/// replacement references — including the app's own `const` declarations —
+/// resolves through the import kernel, which carries the release's real values.
+///
+/// Deliberately a TEXTUAL check and deliberately conservative: it fires on the
+/// constructor name wherever it appears, so a replacement that merely mentions
+/// it in a comment is refused too. That is the safe direction for a check whose
+/// false negative is a silently wrong constant and whose false positive is a
+/// named refusal the user can act on.
+bool _readsCompileTimeEnvironment(String declaration) =>
+    declaration.contains('String.fromEnvironment') ||
+    declaration.contains('int.fromEnvironment') ||
+    declaration.contains('bool.fromEnvironment');
+
 /// {@template route_b_producer}
 /// Compiles replacement bodies and packs them into an SBRBPTCH container.
 /// {@endtemplate}
@@ -134,6 +151,34 @@ class RouteBProducer {
       final declaration = lowering != null
           ? _lower(key, source, lowering, capabilities)
           : _slice(key, source);
+      // G4.1c link 2, the LEGACY case. A release cut before injected defines
+      // were recorded cannot be given them retroactively — the values came from
+      // a build that is over — so a replacement compiled against it would bake
+      // Dart's DEFAULT for any injected define it reads, while the release around
+      // it holds Flutter's real value. Both are literals by then, so nothing
+      // downstream can notice.
+      //
+      // REFUSED NARROWLY, and the narrowness is a mechanism argument rather than
+      // a kindness: a replacement that reads the app's own const resolves it
+      // through the IMPORT KERNEL, which does carry the injected defines since
+      // G4.1c. The only expression that compiles against these `-D` flags is a
+      // `String.fromEnvironment` (or its int/bool siblings) written in the
+      // replacement source ITSELF. So refusing every patch to a pre-record
+      // release would strand releases that have a perfectly correct answer —
+      // release 95 and every one before it — to protect against a construct
+      // almost none of them contain.
+      if (_readsCompileTimeEnvironment(declaration) &&
+          buildConfig != null &&
+          !buildConfig.recordsInjectedDefines) {
+        throw RouteBUnsupportedTarget(
+          key,
+          'its replacement reads the compile-time environment, and this release '
+          'predates the record of the defines Flutter injected into it. The '
+          'replacement would compile against a default value while the release '
+          'holds a different one, and nothing downstream could detect it. Cut a '
+          'new release with a current CLI and patch that instead',
+        );
+      }
       // ONLY WHERE A GRANTED PRIVATE REFERENCE IS ACTUALLY CARRIED. The flag
       // changes how the whole compile resolves private names, so it is not free
       // to pass everywhere: a target that needs nothing private compiles under

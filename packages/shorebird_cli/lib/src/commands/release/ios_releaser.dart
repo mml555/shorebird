@@ -550,6 +550,13 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
             : RouteBBuildConfig.fromBuildArgs(
                 buildArgs,
                 flavor: await _appleFlavor,
+                // G4.1c link 2. Recorded so a FUTURE patch's replacement can be
+                // compiled in the same `-D` environment this release was, which
+                // the fingerprint alone could never carry: these are excluded
+                // from it on purpose and a patch compiler needs them anyway.
+                // Passing the map — even an empty one — is what marks this
+                // release as having recorded them at all.
+                injectedDefines: _injectedDefines ?? const {},
               ),
       ),
     );
