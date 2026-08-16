@@ -36,6 +36,16 @@ nothing about any particular change.
 
 Raw output: [`baseline-2026-08-16.txt`](baseline-2026-08-16.txt).
 
+> **Drift since the measurement, recorded so the 1,770 stays interpretable.**
+> `tpool` was added to the global dictionary on 2026-08-16 — a real identifier
+> from patch `0012`'s target→pool scan, present in four tracked files, added under
+> CLAUDE.md's two-file rule when the per-change gate caught it on a new line. That
+> removes **35** findings, so a re-run now measures **1,735**. The raw file above
+> is left as measured rather than regenerated: it is the record of a specific
+> commit, and silently refreshing it would destroy the ability to tell cleanup
+> from drift. **Any further dictionary additions should be appended here the same
+> way.**
+
 Where it concentrates:
 
 | count | file |
