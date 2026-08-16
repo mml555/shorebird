@@ -3816,6 +3816,33 @@ in the lexical edit, so one passing says nothing about the other. That rule is
 what demoted `this.label` in §3, and it is the rule most likely to be broken
 again by someone in a hurry.
 
+### Never write an ANTICIPATED commit hash into this file
+
+> **A hash goes in only after the commit exists. Until then write `PENDING`, or
+> describe the state as working-tree.**
+
+On 2026-08-16 a claim row was written before its commit and cited `bfd8f7ba` for
+the mint-provenance fix. No such object exists; the real commit is `1916a316`. It
+shipped in `05c33dfa` and was corrected in the next commit.
+
+**Why this file specifically.** A dangling reference anywhere is a nuisance. Here
+it is worse, because this file is the authority a reader consults when the code
+and their memory disagree — so an unresolvable hash sends them looking for work
+they cannot find, in the one document that is supposed to end that search. It also
+fails in the quiet direction: nothing errors, nothing turns red, and the row keeps
+asserting a provenance it cannot support until someone happens to run
+`git cat-file`.
+
+**An intentionally unresolved reference is strictly better than a wrong one.**
+`PENDING` tells the reader the work is uncommitted and the row is ahead of
+history, which is true and useful. A fabricated hash tells them something false
+with the full confidence of a hash.
+
+The mechanical form: write the row with `PENDING`, commit the work, then replace
+`PENDING` with the real short hash — either in the same commit that does the work
+(stage the row last) or in an immediate follow-up. And when you cite a hash you did
+not just create, `git cat-file -t <hash>` costs nothing.
+
 ### `G3.7`'s release-37 claim, precommitted and deliberately narrow
 
 Body: `String paramValue(String who) => 'PARAM-$who';` — the live caller passes

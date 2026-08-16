@@ -2292,8 +2292,30 @@ cd packages/shorebird_cli && dart format --output=none --set-exit-if-changed . \
   && dart analyze --fatal-warnings lib test \
   && dart test -r failures-only                  # expect exit 0; 2413 pass, 1 skipped
 
-npx cspell --no-progress --no-summary selfhost packages/code_push_server/lib
+# spelling — CI: .github/workflows/main.yaml:30 -> VGV spell_check.yml@v1, whose
+#   modified_files_only defaults to TRUE and is not overridden. CI's gate is
+#   INCREMENTAL, so this is the local equivalent, not an approximation of it.
+selfhost/scripts/cspell_touched.sh              # exit 0; no NEW findings on added lines
+selfhost/scripts/cspell_touched.sh --self-test  # the gate's negative control, 6/6
 ```
+
+> **The spelling line above was WRONG until 2026-08-16, and the way it was wrong
+> is the same way this block was wrong in 2026-08-13.** It read
+> `npx cspell --no-progress --no-summary selfhost packages/code_push_server/lib`,
+> presented as CI's command. **CI has never run it.** The live job is incremental —
+> changed files only — and it is **green**. Run tree-wide, that command reports
+> **1,770 findings across 153 files**, so it cannot separate a regression from the
+> inherited floor; a gate that is red before your change is not a gate. The
+> baseline is recorded in [`evidence/cspell/`](evidence/cspell/README.md), along
+> with what promoting it back to a real tree-wide gate would require — including a
+> negative control, because reaching zero proves the count moved, not that
+> anything is watching it.
+>
+> **The general lesson, since this is the second time in this block:** an
+> approximation of CI's command fails in whichever direction nobody checked. In
+> 2026-08-13 it hid two RED gates by counting infos instead of exit codes. Here it
+> invented a gate CI never had, and its permanent redness trained readers to skip
+> it. Cite the workflow file and line, or do not present it as CI's.
 
 `shorebird_cli` still carries **237 analyzer infos inherited from `main`** — that
 is the baseline, so compare against it rather than trying to reach zero. But

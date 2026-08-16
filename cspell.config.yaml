@@ -21,6 +21,11 @@ ignorePaths:
     # Gitignored, and the records embed mktemp paths whose random names are
     # not words. Nothing here is authored prose or source.
     "selfhost/cdn/overlay/**",
+    # The recorded tree-wide cspell BASELINE. It is a list of unknown words by
+    # construction, so checking it is circular -- and it would add ~1,770
+    # findings to the very number it exists to measure. See
+    # selfhost/evidence/cspell/README.md.
+    "selfhost/evidence/cspell/**",
   ]
 words:
   - aabs
