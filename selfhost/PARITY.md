@@ -3204,7 +3204,7 @@ the evidence points elsewhere, and every rung is a mint plus a scarce device gat
 > | **4b** | **`G15` policy decided: `success = earliest(main completion, first framework frame)`** — policy **C**, using the latch that already arbitrates both success and failure (`updater.cc:59-76`). Behaviourally IDENTICAL to A on S1/S2/S5/S6 because `main` wins first; it adds a finite success path only on S7, where A has none. **It therefore does NOT reopen `0010`'s false-backout window — it removes A's unbounded case.** The accepted cost is the shared-latch race: a first frame can permanently win over a later `main` `Future` failure. That is a SAFETY-POLICY choice, not an instrumentation defect, and it is consistent with `0010`'s established asymmetry — prefer an extra retry over wrongly tombstoning a viable patch. **The claim stays narrowly named: FIRST FRAMEWORK FRAME — not visible pixels and not usable UI** (`hooks.dart:393 _drawFrame` is the framework producing a frame; rasterization is downstream on the raster thread). Locating it in `dart:ui` rather than `Shell` is deliberate: it keeps both signals observable around the Dart/root-isolate startup boundary instead of turning this into a `Shell`/raster-thread lifecycle mechanism | evidence: `evidence/g15/q2_c_vs_d_analysis.txt` |
 > | **4c** | **ONE CELL CARRIED FORWARD — classify the `_drawFrame` arm per engine topology.** **Half is already answered from source and needs no device:** `_drawFrame` is invoked unconditionally at `platform_configuration.cc:464` with no view or surface guard, but only for a frame that was REQUESTED (`runtime_controller.cc:404` → `engine.cc:502` → `animator_->RequestFrame`), so an entrypoint that never calls `runApp` never schedules, never reaches `BeginFrame`, and never fires the arm — **true-headless degrades to A deterministically, by construction.** **The device half remains:** does an engine that DOES call `runApp` but never attaches a view receive frames at all? If not, C degrades to A there too — acceptable, but it must be CLASSIFIED rather than assumed. **`G15`'s two-engine gate PASSED 2026-08-13, before this question existed, so it does not answer it**, and `twoengine_app` cannot answer the source-answered half either because both its entrypoints end in `runApp()` | a NEW observation, not a re-reading of an old one |
 > | **4d** | **`G15` seam BUILT 2026-08-15 — `engine/route_b/0011-g15-runmain-seam.patch`.** Implements `success = earliest(main completion, first framework frame)`. **The load-bearing part is a DELETION:** `0009`'s `ReportLaunchSuccess` in `shell.cc` had to go, because success and failure share one `compare_exchange_strong` latch in `Updater` — a success banked when `Engine::Run` returns takes the latch and makes the Dart seam **permanently unreachable while compiling and shipping cleanly**. Code present, path dead, nothing complains. `0009`'s FAILURE call stays and cannot race it (a `Run` returning `Failure` means Dart never ran). `0011` SUBSUMES `0009`'s `shell.cc` hunk — do not apply both. Compiles: `dart:ui`, both FFI objects, `shell.o`. **NOT PROVEN** — unittest binary unbuilt, no iOS engine, no cell, no device | next: build `out/ios_release`, mint from `87130ae8`'s corrected publication path, then gate 5 |
-> | **5** | **`G15` three-arm hardware gate** — **AND VERIFY EVERY PUBLISH AGAINST THE DB OR API, NOT THE CLI'S EXIT TEXT.** `cps-ios` was found on 2026-08-15 accepting, verifying and promoting releases/patches — HTTP 200/204, `Published` printed, `releases list` showing them in-session — and **not durably recording them**. Independently confirmed here: `code_push.db` mtime is `2026-08-14 19:37`, the minute of release 94, with a 0-byte `-wal` whose mtime is current. So the last durable write to the plane is this lane's `1.0.5+1`, and everything reported after it exists only in that session's view. Releases 89-94 and their artifacts ARE present, so gate 2 stands — **and the reason it survives is worth stating: this lane measured the ARTIFACT (stored runner zips pulled off the plane and unpacked), not the announcement.** A baseline re-cut for this gate must likewise be read back from the DB before anything is built on it. See the plane's own KNOWN GAP row. **PLUS ONE DELIBERATE ARM, added so it is hit on purpose rather than mid-gate:** patch a PRE-`injectedDefines` release with a replacement body that reads the environment, and confirm the refusal fires BY NAME with nothing uploaded. **The triggering shape is exact** (per the `G4.1c` lane, which measured both directions): a `String.fromEnvironment` / `int.` / `bool.fromEnvironment` constructor written LITERALLY IN THE REPLACEMENT SOURCE. A reference to one of the app's own consts does NOT trip it — that resolves through the import kernel — so an arm built from a const reference would pass and prove nothing. `G15`'s ordinary arms are unaffected: `bootProbe()`'s replacement is a throw or a literal flip, with no `fromEnvironment` anywhere | — good→success, throw→positive failure + backout, kill-before-signal→retry (re-earning `0010` at the later seam) | same repaired fixture and instrument; **every arm asserts marker movement before UI is read** |
+> | **5** | **`G15` three-arm hardware gate — HELD 2026-08-15, and the boundary is deliberate.** The next iOS engine build and mint are technically available, but there is **no reason to spend the device cycle until `cps-ios` can produce a baseline whose persistence is independently observable** — a release that does not durably record makes every arm built on it unverifiable, which is the reachable-failure rule applied before the spend rather than after. Gate 4 stays **BUILT** at `0011`; it is not blocked, it is simply not worth proving against a baseline that may not exist. **AND VERIFY EVERY PUBLISH AGAINST THE DB OR API, NOT THE CLI'S EXIT TEXT.** `cps-ios` was found on 2026-08-15 accepting, verifying and promoting releases/patches — HTTP 200/204, `Published` printed, `releases list` showing them in-session — and **the rows are absent from the database.** Verified on CONTENT reads, twice and across both organisations: max release **94**, max patch **60**, the app absent. **~~MECHANISM RETRACTED 2026-08-15:~~** this row previously said the plane was "opened, written through, and truncated with nothing committed", citing `code_push.db`'s frozen mtime and 0-byte `-wal`. **That is withdrawn.** A controlled `POST` against the live plane PERSISTED while mtime and size stayed byte-identical — so this bind mount does not propagate file metadata, and the metadata was never a witness to writes. Writes are not being discarded. **The disappearance is real and the cause is UNDETERMINED.** Untested lead, recorded as a lead: the writes that vanished used a USER OAuth token, the one that persisted used the `API_KEY`. Releases 89-94 and their artifacts ARE present, so gate 2 stands — **and the reason it survives is worth stating: this lane measured the ARTIFACT (stored runner zips pulled off the plane and unpacked), not the announcement.** A baseline re-cut for this gate must likewise be read back from the DB before anything is built on it. See the plane's own KNOWN GAP row. **PLUS ONE DELIBERATE ARM, added so it is hit on purpose rather than mid-gate:** patch a PRE-`injectedDefines` release with a replacement body that reads the environment, and confirm the refusal fires BY NAME with nothing uploaded. **The triggering shape is exact** (per the `G4.1c` lane, which measured both directions): a `String.fromEnvironment` / `int.` / `bool.fromEnvironment` constructor written LITERALLY IN THE REPLACEMENT SOURCE. A reference to one of the app's own consts does NOT trip it — that resolves through the import kernel — so an arm built from a const reference would pass and prove nothing. `G15`'s ordinary arms are unaffected: `bootProbe()`'s replacement is a throw or a literal flip, with no `fromEnvironment` anywhere | — good→success, throw→positive failure + backout, kill-before-signal→retry (re-earning `0010` at the later seam) | same repaired fixture and instrument; **every arm asserts marker movement before UI is read** |
 > | 5+ | `G3.6e`, `G3.7`, static-vs-instance widening | **HELD.** They increase what can be patched; `G15` determines whether a failed patch can be told from a good one |
 >
 > **Rationale, restated because the old one no longer holds:** the current
@@ -3975,6 +3975,70 @@ a green one gets banked. So:
   `dead_body.sh`'s failing dead-arm assertion is preserved for exactly this reason;
 * a cost arm must prove its treatment **changed the thing being priced** before it
   reports a delta.
+
+### The reachable-failure rule
+
+> **Evidence is only meaningful if the observed mechanism had a reachable failure
+> state for the property being claimed.**
+
+This generalises the precommitment rule and subsumes "a vacuous check is worse than
+a missing check". The precommitment rule asks *what would each outcome mean*; this
+one asks the prior question — **could this observation have come out any other way?**
+If not, the green is a property of the instrument, not of the system.
+
+Five instances, all found in this project, all of which looked like evidence:
+
+* **the unbuilt test binary.** Two `shell_unittests` asserted `ReportLaunchSuccess`
+  after a `CreateShell` that never triggers it. They had stopped describing the tree
+  when patch `0009` moved the call — and could not go red, because nobody built the
+  binary.
+* **the DB-file metadata channel — and this one is THIS LANE'S OWN, caught by
+  another lane within the hour.** `cps-ios` reported `Published` for releases that
+  are absent from the database. From `code_push.db`'s mtime (`2026-08-14 19:37`)
+  and a 0-byte `-wal`, this lane concluded the plane was "opened, written through,
+  and truncated with nothing committed" — and called it *independently confirmed*.
+  **It was not independent: it used the SAME channel the other lane had used.**
+  ~~The mechanism claim is RETRACTED~~ — a controlled `POST` persisted a row while
+  mtime and size stayed byte-identical, so the metadata does not propagate through
+  this bind mount and was never a witness to writes at all. The FINDING survives
+  on content reads (max release 94, max patch 60, the vanished app absent under
+  both organisations); only the mechanism was invented. **A silent channel was
+  read as a result.**
+* **the local post-patch artifact.** Reading the tree's own `build/` output after a
+  patch installs successfully while proving the wrong bytes — the shipped artifact is
+  the only one whose contents are the claim.
+* **the wrong-reason refusal.** `G4.2`'s two `app_id`s produced a right-looking
+  refusal by a path that had nothing to do with the guard under test: expected exit
+  code, unexercised mechanism.
+* **the const-reference legacy arm.** An `injectedDefines` refusal arm built from a
+  reference to the app's own const stays green forever — that resolves through the
+  import kernel and never enters the missing-provenance path. The trigger must be a
+  `fromEnvironment` constructor written literally in the replacement source.
+
+The practical test, applied before the run rather than after: **name the specific way
+this observation could fail, and confirm that way is reachable.** If the answer is
+"it would fail if the system were broken", that is not an answer — say which line,
+which byte, which absent file. `gate3_positive_verdict.txt`'s negative control is the
+shape to copy: the same app built against the other dill, with the marker absent.
+
+Its two commonest disguises, both of which have cost this project a result:
+
+* **measuring the announcement instead of the artifact.** A CLI's exit text, a
+  server's `200`, a `releases list` in the same session — one client asking one
+  server, which is not an independent check. Gate 2 survived the durability defect
+  only because it measured stored runner zips.
+* **a control that shares the failure with its subject.** The 2026-08-14 positive
+  control launched a different app on a different ENGINE, so it could prove the
+  device, the transport and the screenshot path while saying nothing about the thing
+  actually suspected. **The durability mechanism above is the same error committed
+  by the lane that had just written this sentence:** "independently confirmed" meant
+  re-reading the other lane's channel, not a second channel. Independence is a
+  property of the CHANNEL, not of the observer.
+* **and the inverse, which nearly cost the same result twice:** a channel that can
+  only ever say one thing will say it, and silence is not a negative. The 0-byte
+  `-wal` and the frozen mtime were not evidence of no writes; they were evidence of
+  nothing. Ask what a change WOULD look like on this channel before reading its
+  steadiness as a finding.
 
 When an item becomes PROVEN, record beside it whichever of these apply:
 
