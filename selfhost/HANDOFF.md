@@ -2290,7 +2290,11 @@ cd packages/code_push_server && dart format --output=none --set-exit-if-changed 
 #   .github/workflows/main.yaml:159-164
 cd packages/shorebird_cli && dart format --output=none --set-exit-if-changed . \
   && dart analyze --fatal-warnings lib test \
-  && dart test -r failures-only                  # expect exit 0; 2413 pass, 1 skipped
+  && dart test -r failures-only                  # expect exit 0; 2514 pass, 2 skipped
+#   ^ LOCAL ANALYZE IS A PRE-FLIGHT, NOT THE GATE — it runs a DIFFERENT ruleset
+#     than CI. Local Dart is 3.12.2; setup-dart@v1 gives CI latest stable (3.13.0
+#     on 2026-08-14), and rules the older SDK does not have cannot fire locally.
+#     Measured, not assumed: evidence/analyzer-sdk-gap/
 
 # spelling — CI: .github/workflows/main.yaml:30 -> VGV spell_check.yml@v1, whose
 #   modified_files_only defaults to TRUE and is not overridden. CI's gate is
