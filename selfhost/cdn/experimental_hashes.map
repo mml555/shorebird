@@ -246,3 +246,21 @@ d6aad559e9da328edb729d5ed7c69c21bc0380ee 69f9831c360d9152862ec3897c67fb09ae843f3
 # sha256 4302bf4dcd39d4488a55381b14bb7306743531c214de9c4e5c8f2f8977591919, which participates in this cell's address.
 # Donor 80e493e4c5c9e4c418c433bf660392067a131dd5 supplied every OTHER engine artifact.
 87130ae841e92d3e8bd4ea1759fb3cb474a6b3e4 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-16 from the cell
+# manifest (see mint_route_b_cell.sh).
+# Engine binary CHANGED: iOS artifacts supplied via --ios-artifacts,
+# sha256 443faeb2ea1632a6a243ef7f7847a1381e66ae41c885be94a3bf581a87f86bbd, which participates in this cell's address.
+# Donor 87130ae841e92d3e8bd4ea1759fb3cb474a6b3e4 supplied every OTHER engine artifact.
+# CORRECTED BY HAND 2026-08-16: the line above is FALSE for one artifact. The
+# PLATFORM DILL was also replaced at mint time — this cell's
+# flutter_patched_sdk_product.zip carries platform_strong.dill 757d09d7… with
+# _g15ReportLaunchSuccess ×5, against the donor's 9f5a5f75… with ×0 — installed
+# via PSDK_ZIP because FLUTTER_PLATFORM had to be passed explicitly. The script
+# branches its provenance sentence on --ios-artifacts alone, so it cannot see a
+# PSDK_ZIP substitution; the same understatement stands on 87130ae8 above, whose
+# dill likewise differs from ITS donor's. Every other artifact IS the donor's,
+# verified by digest: 9 of 11 files identical.
+#
+# G15: the _runMain success seam (patch 0011).
+cd137db6aea4c76f41903a872b91afb8ac799626 69f9831c360d9152862ec3897c67fb09ae843f3b
