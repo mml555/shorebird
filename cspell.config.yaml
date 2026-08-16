@@ -157,6 +157,181 @@ words:
   # a count-driven cleanup would have renamed a real third-party application
   # across the evidence that cites it.
   - Wonderous
+  # --- Step 2 of the residue sequence: stable project and tool vocabulary,
+  # same semantic test. Lowercase entries, which match every casing, so the
+  # SYMSRC/symsrc and CODEPATCH/codepatch pairs need one line each.
+  #
+  # Route B / this fork's own identifiers:
+  - sbrbptch # the Route B container extension, .sbrbptch
+  - codepatch # fixture marker string
+  - runmain # the _runMain seam
+  - handpack # probes/device_handpack.sh, a hand-written replacement body
+  - psdk # the platform SDK zip, PSDK_ZIP in the mint
+  - appbin # probe variable, the app binary under test
+  - evid # probe variable, the evidence directory for a release
+  # Apple / Unix / toolchain vocabulary:
+  - apfs
+  - ioreg
+  - idevicedebug # libimobiledevice, beside idevicesyslog above
+  - tcgetattr
+  - chardev
+  - dsym
+  - duuid # the dSYM's UUID
+  - iuuid # the image UUID it must match
+  - stur # Arm64 Store Register unscaled, beside ldur/orri
+  - werror # -Werror
+  - wunused # -Wunused-function
+  - pathspec # git
+  - diffstat
+  - regen
+  - rapidjson
+  - seekable
+  - endswith # Python
+  # Symbol-table vocabulary from the signing and dSYM probes:
+  - syms
+  - symsrc
+  - symrange
+  # This project's coinages, formed the same way as `unrun` above. They are
+  # deliberate and they recur; none is a misspelling of anything:
+  - unrunnable
+  - unstarted
+  - unconstructible
+  - unprot
+  - publishability
+  - refetches
+  # Script-local abbreviations in committed probes. Not prose, and stable
+  # because the scripts are committed -- listed rather than renamed, since
+  # renaming a CI probe's variables to satisfy a spell checker is the tail
+  # wagging the dog:
+  - tmpd
+  - rcsj
+  - selj
+  - pstatus
+  - paylen
+  # --- Step 3: PARITY.md's remaining 19, READ IN CONTEXT rather than batched,
+  # because it is the file readers trust most. Result: no spelling defects. All
+  # are project coinages, tool names or session identifiers.
+  #
+  # `uncomparable` is the one worth recording. It means "cannot be compared",
+  # which is what the sentence needs; "incomparable" means BEYOND COMPARE and
+  # would have inverted it. A count-driven fix would have corrupted the claim.
+  - uncomparable
+  - unconflated
+  - unconfounded
+  - unfoldable
+  - unpromoted
+  - reconstructibility
+  - reindent
+  - greenlight # used as a verb, as in "greenlight a build"
+  - routebios # the `screen -dmS routebios` session name
+  - libdart
+  - aotruntime
+  - swiftc
+  - fopen
+  - caffeinate # macOS
+  - sshkey
+  - azureuser
+  - reaudit
+  - manualapi
+  # --- Step 4: the probes/plans residue, READ rather than bulk-normalized.
+  # No spelling defects were found. Every token below is a coinage, a tool name,
+  # a code identifier, or a deliberate grep prefix. Two are worth naming because
+  # a naive fix would have broken them:
+  #   `refus`   -- the pattern in `grep -qi 'refus\|unsupported'`, deliberately
+  #                truncated so it matches refuse/refused/refusal;
+  #   `obfuscat` -- the same trick for obfuscate/obfuscation.
+  # Completing either word would silently narrow a probe's matcher.
+  - refus
+  - obfuscat
+  - assertable
+  - assetsonly
+  - baselining
+  - capturable
+  - inlinable
+  - landable
+  - lowerable
+  - overwritable
+  - pinnable
+  - seekable
+  - undriven
+  - unexpressible
+  - ungated
+  - ungranted
+  - unheld
+  - unlinted
+  - unlistened
+  - unlowerable
+  - unminted
+  - unreconstructible
+  - unrecreated
+  - unreportable
+  - unstubbed
+  - unvendored
+  - overpromises
+  - greenlit
+  - headlessly
+  - rethrowing
+  - reclassifier
+  - disqualifier
+  - disqualifiers
+  - killroute
+  - safequit
+  - premain
+  - interpretcall
+  - dartverify
+  - addtoapp
+  - testonly
+  - simrun
+  - hoster
+  - locarg
+  - thisarg
+  - fieldless
+  - dartscope
+  - hostdart
+  - celld
+  - appd
+  # Toolchain, platform and libraries:
+  - boringssl
+  - cocoapods
+  - dwarfdump
+  - objdump
+  - otool
+  - objc
+  - simctl
+  - vpython
+  - vsync
+  - flatbuffers
+  - mbstate
+  - insn
+  - iousb
+  - sigpipe
+  - pipestatus
+  - pipefail
+  - enospc
+  - fips
+  - notty
+  - nohw
+  - noinstall
+  - negctl
+  - getenv
+  - tolower
+  - returncode
+  - setdefault
+  - splitlines
+  - isinstance
+  - findall
+  - gsub
+  - pyedit
+  - dosbox
+  - idevicecrashreport
+  - tearoff
+  - tearoffs
+  - sels
+  - pname
+  - cres
+  - upserts
+  - deadbeefcafe # a placeholder address in probe fixtures
+  - gskinner # gskinnerTeam, the Wonderous app's authors
 
   - aabs
   - aapt
