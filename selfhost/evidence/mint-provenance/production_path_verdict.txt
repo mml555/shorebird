@@ -1,5 +1,6 @@
 mint provenance generator — production-path exercise
 ====================================================
+cspell:words psdk
 2026-08-16. Script under test: selfhost/engine/route_b/mint_route_b_cell.sh
 Companion: generator_verdict.txt (the host/probe evidence this extends)
 
