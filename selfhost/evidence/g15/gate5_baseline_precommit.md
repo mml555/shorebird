@@ -47,6 +47,52 @@ The content read **gates all further spend**. A vanish costs one release build
    not an HTTP `200`, not a same-session `releases list`.
 4. **A vanish is preserved as evidence. Auth state is not touched first.**
 
+## AMENDMENT, 2026-08-15, before the cut — the table above is unchanged
+
+The `G4.1c` lane raised an over-read in the "wholesale rollback" description that
+this precommit's outcomes leaned on, and it is right. The on-disk absence is
+consistent with **two** readings that it cannot separate:
+
+* **(a)** the transactions reached this database and rolled back wholesale;
+* **(b)** they never reached this database at all — a server writing elsewhere
+  leaves exactly the same trace: dense ids, `sqlite_sequence` never advanced, no
+  audit row, and a truthful `200`/`204` from a process that really did the work.
+
+Verified here independently: `sqlite_sequence` is `audit_log 178`, `releases 94`,
+`patches 60` — **equal to `max(id)` on all three**, so no id was ever allocated
+beyond what survives. That is consistent with BOTH readings and discriminates
+neither, exactly as the other lane said.
+
+**One thing DOES discriminate, and it narrows (b):** the container has exactly
+**one** database file —
+
+    docker exec cps-ios find / -name '*.db' -o -name '*.sqlite*'
+    -> /data/code_push.db
+
+So *"the server wrote to a different database file"* is **refuted**. Readings that
+require no file at all — an in-memory database, or a file since deleted — are not
+refuted, and the container has not restarted (`RestartCount 0`), which makes a
+since-deleted file less likely without excluding it.
+
+**What this does to the outcomes above:** a vanish implicates the CLI only under
+(a). Under a surviving (b) the interesting question becomes WHERE the write went,
+not why it rolled back. So the "absent" row is amended to read: *the CLI
+hypothesis is strengthened **if (a) holds**; if the write is later found to have
+landed elsewhere, the CLI is not implicated by this experiment at all.* The third
+population (release present, no audit row) is likewise ambiguous — precommitted
+against (a), but also what a partial (b) would look like.
+
+**ADDED STEP, adopted from the other lane's user: verify, then REOPEN, then verify
+again.** A single content read cannot distinguish *committed* from *visible to a
+connection that has not been reopened*. So after the cut:
+
+1. content-read `releases` + `audit_log`;
+2. `docker restart cps-ios`;
+3. content-read both again.
+
+A row present at step 1 and absent at step 3 is a distinct and more interesting
+result than either outcome in the table, and it costs seconds.
+
 ## What this does not test
 
 Nothing about the engine, the seam, or crash-backout. This is a publish-path
