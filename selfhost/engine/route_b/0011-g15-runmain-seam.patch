@@ -1,0 +1,397 @@
+G15 patch 0011 — the `_runMain` seam.
+=====================================
+
+WHAT IT DOES. Implements the decided policy
+`success = earliest(main completion, first framework frame)`:
+
+  * `lib/ui/hooks.dart` — wraps the exact `userMainFunction(args)` invocation,
+    captures the `Object?` the tree already discarded, catches a synchronous
+    throw and RETHROWS after reporting, observes the returned `Future`'s
+    completion or error, and latches the first `_drawFrame`.
+  * `lib/ui/window/platform_configuration.{h,cc}` + `lib/ui/dart_ui.cc` — two
+    FFI statics that forward to `shorebird::Updater`. Deliberately the thinnest
+    possible shim: all arbitration already lives in the Updater's atomic latch,
+    and a second opinion about launch state could disagree with the first.
+  * `shell/common/shell.cc` — REMOVES the success report. See below.
+  * `shell/common/shell_unittests.cc` — corrects two tests that asserted a call
+    patch 0009 had already moved.
+
+**THIS PATCH SUBSUMES 0009's `shell.cc` HUNK. DO NOT APPLY BOTH.**
+It was captured as a diff against the pinned base while 0009 was live in the
+tree, so its `shell.cc` portion contains 0009's edit plus this one. 0009 remains
+the record of an intermediate step; 0011 is the state to reconstruct.
+
+**THE DELETION IS LOAD-BEARING, NOT TIDYING.** `Updater`'s success and failure
+share ONE `compare_exchange_strong` latch (`updater.cc:59-76`). A success banked
+when `Engine::Run` returns would take that latch, and the Dart seam would then
+compile, ship, and never fire — a dead path with nothing to complain about.
+0009's FAILURE call stays: a `Run` returning `Failure` means the root isolate
+never started, which the Dart seam cannot observe, and the two are mutually
+exclusive so they cannot race.
+
+BUILD STATUS AT CAPTURE: `dart:ui` compiles (`flutter_patched_sdk_product`,
+2/2), and both native objects compile clean (`ui.dart_ui.o`,
+`ui.platform_configuration.o`, 598/598, zero errors). The shell unittest binary
+was NOT built, and no iOS engine, cell or device run exists yet.
+
+diff --git a/engine/src/flutter/lib/ui/dart_ui.cc b/engine/src/flutter/lib/ui/dart_ui.cc
+index 04385fcf76..f990585e38 100644
+--- a/engine/src/flutter/lib/ui/dart_ui.cc
++++ b/engine/src/flutter/lib/ui/dart_ui.cc
+@@ -104,6 +104,8 @@ typedef CanvasPath Path;
+   V(PlatformConfigurationNativeApi::UpdateSemantics)               \
+   V(PlatformConfigurationNativeApi::SetApplicationLocale)          \
+   V(PlatformConfigurationNativeApi::SetNeedsReportTimings)         \
++  V(PlatformConfigurationNativeApi::ReportLaunchSuccess)           \
++  V(PlatformConfigurationNativeApi::ReportLaunchFailure)           \
+   V(PlatformConfigurationNativeApi::SetIsolateDebugName)           \
+   V(PlatformConfigurationNativeApi::SetSemanticsTreeEnabled)       \
+   V(PlatformConfigurationNativeApi::RequestDartPerformanceMode)    \
+diff --git a/engine/src/flutter/lib/ui/hooks.dart b/engine/src/flutter/lib/ui/hooks.dart
+index a167a6dd68..1cf8b119bf 100644
+--- a/engine/src/flutter/lib/ui/hooks.dart
++++ b/engine/src/flutter/lib/ui/hooks.dart
+@@ -392,9 +392,48 @@ void _reportTimings(List<int> timings) {
+ 
+ @pragma('vm:entry-point')
+ void _drawFrame() {
++  // G15, second banking condition: the FIRST FRAMEWORK FRAME.
++  //
++  // NAMED NARROWLY ON PURPOSE. This is the framework PRODUCING a frame. It is
++  // not presentation, not pixels, and not a usable UI — rasterization happens
++  // afterwards, on the raster thread. Do not restate it as "the app booted";
++  // describing a seam as proving more than it proves is exactly how the
++  // `Engine::Run` seam came to be believed.
++  //
++  // WHY HERE AND NOT IN `Shell`. `Shell::OnAnimatorDraw` posts to the raster
++  // task runner, so a reporter there would sit in another language on another
++  // thread, and this file's other reporter — the one around `main` — would not.
++  // Keeping both at the Dart/root-isolate startup boundary is what stops this
++  // from becoming a `Shell`/raster lifecycle mechanism.
++  //
++  // The `Updater` latch makes this idempotent, so no local guard is needed for
++  // correctness; `_g15FrameReported` exists only to avoid an FFI call on every
++  // single frame for the life of the process.
++  if (!_g15FrameReported) {
++    _g15FrameReported = true;
++    _g15ReportLaunchSuccess();
++  }
+   PlatformDispatcher.instance._drawFrame();
+ }
+ 
++bool _g15FrameReported = false;
++
++/// G15: report the launch outcome to the Shorebird updater.
++///
++/// Both sides feed ONE atomic latch in `shorebird::Updater`, which already
++/// arbitrates success against failure — the first caller of either wins. That
++/// is what implements `success = earliest(main completion, first framework
++/// frame)` without any new state, and it is also why a success banked at the
++/// first frame permanently suppresses a later `main` failure. **That is the
++/// accepted safety-policy trade-off, not an oversight:** it matches the
++/// updater's own asymmetry, where the cheap error is to retry and the expensive
++/// one is to tombstone a working patch.
++@Native<Void Function()>(symbol: 'PlatformConfigurationNativeApi::ReportLaunchSuccess')
++external void _g15ReportLaunchSuccess();
++
++@Native<Void Function()>(symbol: 'PlatformConfigurationNativeApi::ReportLaunchFailure')
++external void _g15ReportLaunchFailure();
++
+ @pragma('vm:entry-point')
+ bool _onError(Object error, StackTrace? stackTrace) {
+   return PlatformDispatcher.instance._dispatchError(error, stackTrace ?? StackTrace.empty);
+@@ -406,10 +445,60 @@ typedef _ListStringArgFunction = Object? Function(List<String> args);
+ void _runMain(Function startMainIsolateFunction, Function userMainFunction, List<String> args) {
+   // ignore: avoid_dynamic_calls
+   startMainIsolateFunction(() {
+-    if (userMainFunction is _ListStringArgFunction) {
+-      userMainFunction(args);
++    // G15, first banking condition: the completion of `main` ITSELF.
++    //
++    // WHY THIS EXACT SPOT, and why it cannot move. `userMainFunction` is the
++    // handle `Dart_GetField(library, "main")` resolved, threaded down from
++    // `InvokeMainEntrypoint`, so a wrapper here is bound to the app's `main` BY
++    // CONSTRUCTION rather than by ordinal or arrival order — which is what
++    // `tonic::DartMessageHandler::OnHandleMessage` could not offer. And the
++    // return value is discarded TWICE above this point (here as a statement,
++    // and again by `_delayEntrypointInvocation`'s port handler), so moving the
++    // seam one level up loses the async signal entirely.
++    //
++    // WHAT IS DELIBERATELY NOT DONE: nothing is caught that the application
++    // already handles. An app whose `main` wraps its own work in
++    // `runZonedGuarded` returns normally here, and that is CORRECT — reaching
++    // below this boundary to inspect errors the app dealt with would be
++    // reporting on application business, not on whether the patch booted.
++    final Object? result;
++    try {
++      if (userMainFunction is _ListStringArgFunction) {
++        result = userMainFunction(args);
++      } else {
++        result = userMainFunction(); // ignore: avoid_dynamic_calls
++      }
++    } catch (_) {
++      // A synchronous throw from `main` is a Dart-phase BOOT failure. Report it
++      // and then RETHROW, unchanged: `PlatformDispatcher.onError` fires only
++      // for UNHANDLED errors, so swallowing this would fix crash-backout by
++      // silently deleting the application's own error reporting.
++      _g15ReportLaunchFailure();
++      rethrow;
++    }
++
++    if (result is Future) {
++      // `main` is async. The Future is the ONLY completion signal — a
++      // synchronous return from an `async` function means the body was merely
++      // STARTED, which is the same "scheduling is not completion" mistake that
++      // made `Engine::Run` incapable in principle.
++      //
++      // `onError` forwards rather than consumes, for the same reason the
++      // synchronous path rethrows: attaching a handler marks the error handled
++      // and would suppress the app's own reporting.
++      result.then<void>(
++        (_) => _g15ReportLaunchSuccess(),
++        onError: (Object error, StackTrace stackTrace) {
++          _g15ReportLaunchFailure();
++          Zone.current.handleUncaughtError(error, stackTrace);
++        },
++      );
++      // NOT reported here. A `main` that returns a Future which never completes
++      // is neither a success nor a failure — it is still running, and treating
++      // "not yet completed" as either would tombstone every slow boot. That
++      // shape banks via the first framework frame instead; see `_drawFrame`.
+     } else {
+-      userMainFunction(); // ignore: avoid_dynamic_calls
++      _g15ReportLaunchSuccess();
+     }
+   }, null);
+ }
+diff --git a/engine/src/flutter/lib/ui/window/platform_configuration.cc b/engine/src/flutter/lib/ui/window/platform_configuration.cc
+index a10be6137d..f228d7b927 100644
+--- a/engine/src/flutter/lib/ui/window/platform_configuration.cc
++++ b/engine/src/flutter/lib/ui/window/platform_configuration.cc
+@@ -13,6 +13,7 @@
+ #include "flutter/lib/ui/window/platform_message_response_dart.h"
+ #include "flutter/lib/ui/window/platform_message_response_dart_port.h"
+ #include "flutter/lib/ui/window/viewport_metrics.h"
++#include "flutter/shell/common/shorebird/updater.h"
+ #include "third_party/tonic/converter/dart_converter.h"
+ #include "third_party/tonic/dart_args.h"
+ #include "third_party/tonic/dart_library_natives.h"
+@@ -546,6 +547,23 @@ void PlatformConfigurationNativeApi::SetNeedsReportTimings(bool value) {
+       ->SetNeedsReportTimings(value);
+ }
+ 
++// G15: the launch outcome, reported from the DART startup boundary.
++//
++// DELIBERATELY THE THINNEST POSSIBLE SHIM. Everything that decides anything —
++// once-per-process arbitration, success-versus-failure precedence — already
++// lives in `shorebird::Updater`'s atomic latch, and duplicating any of it here
++// would create a second opinion about launch state that could disagree with the
++// first. No `UIDartState::ThrowIfUIOperationsProhibited()`: these are called
++// from the root isolate's startup path, and a launch report must not be able to
++// throw INTO the code whose success it is reporting on.
++void PlatformConfigurationNativeApi::ReportLaunchSuccess() {
++  shorebird::Updater::Instance().ReportLaunchSuccess();
++}
++
++void PlatformConfigurationNativeApi::ReportLaunchFailure() {
++  shorebird::Updater::Instance().ReportLaunchFailure();
++}
++
+ namespace {
+ Dart_Handle HandlePlatformMessage(
+     UIDartState* dart_state,
+diff --git a/engine/src/flutter/lib/ui/window/platform_configuration.h b/engine/src/flutter/lib/ui/window/platform_configuration.h
+index 0db9e144d1..04c94e56b9 100644
+--- a/engine/src/flutter/lib/ui/window/platform_configuration.h
++++ b/engine/src/flutter/lib/ui/window/platform_configuration.h
+@@ -649,6 +649,18 @@ class PlatformConfigurationNativeApi {
+ 
+   static void SetNeedsReportTimings(bool value);
+ 
++  /// G15: report the launch outcome from the DART startup boundary.
++  ///
++  /// Both feed `shorebird::Updater`'s EXISTING atomic latch, which already
++  /// arbitrates success against failure with one `compare_exchange_strong` —
++  /// the first caller of either wins and every later call is a no-op. That is
++  /// what makes `success = earliest(main completion, first framework frame)`
++  /// work with no new mechanism, and it is why these introduce NO lifecycle
++  /// state of their own at the `Shell` or raster level.
++  static void ReportLaunchSuccess();
++
++  static void ReportLaunchFailure();
++
+   static Dart_Handle GetPersistentIsolateData();
+ 
+   static Dart_Handle ComputePlatformResolvedLocale(
+diff --git a/engine/src/flutter/shell/common/shell.cc b/engine/src/flutter/shell/common/shell.cc
+index 25b0b2c8a3..dc3490006d 100644
+--- a/engine/src/flutter/shell/common/shell.cc
++++ b/engine/src/flutter/shell/common/shell.cc
+@@ -524,17 +524,23 @@ Shell::Shell(DartVMRef vm,
+       is_gpu_disabled_sync_switch_(new fml::SyncSwitch(is_gpu_disabled)),
+       weak_factory_gpu_(nullptr),
+       weak_factory_(this) {
+-  // Report launch outcome to the Shorebird updater for crash recovery.
+-  // If the VM failed to start, we report failure so the updater can roll
+-  // back the patch. These calls are guarded inside Updater to execute at
+-  // most once per process — only the first Shell's outcome is reported.
+-  // In add-to-app, subsequent engines are silently ignored since they
+-  // boot from the same snapshot that was already reported on.
+-  // On unsupported platforms, NoOpUpdater handles these calls gracefully.
++  // Report launch FAILURE only. A null VM means Dart can never run, so the
++  // patch must be backed out and there is nothing later to wait for.
++  //
++  // SUCCESS IS NOT REPORTED HERE, and that is the point of G15. This is the
++  // Shell CONSTRUCTOR: the root isolate does not exist yet, so "the VM object
++  // was created" says nothing about whether the patch works. Banking success
++  // here means a Dart-phase failure caused by a patch can never back it out —
++  // success was already recorded before the patch had any opportunity to fail.
++  //
++  // ~~"Success now fires in Shell::RunEngine"~~ — SUPERSEDED. It fires from
++  // DART, whichever comes first: `main` completing or the first framework
++  // frame (`lib/ui/hooks.dart`). `Engine::Run` returns before any user Dart
++  // executes, so no point in this file can observe a Dart-phase outcome.
++  // These calls remain guarded inside Updater to execute at most once per
++  // process, and NoOpUpdater handles them gracefully on unsupported platforms.
+   if (!vm_) {
+     shorebird::Updater::Instance().ReportLaunchFailure();
+-  } else {
+-    shorebird::Updater::Instance().ReportLaunchSuccess();
+   }
+   FML_CHECK(!settings.enable_software_rendering || !settings.enable_impeller)
+       << "Software rendering is incompatible with Impeller.";
+@@ -813,6 +819,36 @@ void Shell::RunEngine(
+               FML_LOG(ERROR) << "Could not launch engine with configuration.";
+             }
+ 
++            // G15: FAILURE ONLY. Success moved to the Dart startup boundary.
++            //
++            // ~~"This is the EARLIEST SUFFICIENT point"~~ — RETRACTED. Patch
++            // 0009 reported SUCCESS here on the belief that Engine::Run having
++            // returned meant the entrypoint had run. It does not:
++            // `_delayEntrypointInvocation` (isolate_patch.dart:288) POSTS main
++            // to a RawReceivePort and returns, so InvokeMainEntrypoint ->
++            // LaunchRootIsolate -> Engine::Run all return BEFORE one line of
++            // user Dart executes. The seam was not late by a margin, it was
++            // incapable in principle.
++            //
++            // REMOVING THE SUCCESS CALL IS LOAD-BEARING, not tidying.
++            // Updater's success and failure share ONE compare_exchange_strong
++            // latch, so a success banked here would take it and make the Dart
++            // seam permanently unreachable — it would compile, ship, and never
++            // fire.
++            //
++            // THE FAILURE CALL STAYS, and there is no race. A Run that returns
++            // Failure means the root isolate never started, so user Dart never
++            // runs and the Dart seam cannot report anything; the two paths are
++            // mutually exclusive. This is the only reporter that can see a
++            // failure BEFORE Dart exists.
++            //
++            // Success now fires from dart:ui, whichever comes first: `main`
++            // completing (hooks.dart `_runMain`) or the first framework frame
++            // (hooks.dart `_drawFrame`).
++            if (run_result == flutter::Engine::RunStatus::Failure) {
++              shorebird::Updater::Instance().ReportLaunchFailure();
++            }
++
+             result(run_result);
+           }));
+ }
+diff --git a/engine/src/flutter/shell/common/shell_unittests.cc b/engine/src/flutter/shell/common/shell_unittests.cc
+index d44a27c8bb..06e787a2cd 100644
+--- a/engine/src/flutter/shell/common/shell_unittests.cc
++++ b/engine/src/flutter/shell/common/shell_unittests.cc
+@@ -5113,10 +5113,21 @@ TEST_F(ShellTest, ShoulDiscardLayerTreeIfFrameIsSizedIncorrectly) {
+   DestroyShell(std::move(shell), task_runners);
+ }
+ 
+-// Test the full boot flow: ReportLaunchStart is called from
+-// ResolveIsolateData, then ReportLaunchSuccess from the Shell constructor.
+-// Both are guarded to run at most once per process.
+-TEST_F(ShellTest, ShorebirdBootFlowCallsLaunchStartThenSuccess) {
++// G15: creating a Shell reports launch START and nothing else.
++//
++// ~~"then ReportLaunchSuccess from the Shell constructor"~~ — that assertion is
++// gone, and it had ALREADY stopped describing this tree. Patch 0009 moved
++// success out of the constructor into `Shell::RunEngine`, which
++// `ShellTest::CreateShell` never calls, so this test was asserting a call that
++// could no longer happen here. Corrected rather than deleted, because the thing
++// it was pinning — that the boot flow reports exactly once — still matters.
++//
++// Success is now reported from DART, whichever comes first: `main` completing
++// or the first framework frame (`lib/ui/hooks.dart`). It is therefore not
++// observable from a C++ shell test that never runs a Dart entrypoint, and the
++// absence asserted below is the correct expectation rather than missing
++// coverage. The device gate is where success gets proven.
++TEST_F(ShellTest, ShorebirdBootFlowCallsLaunchStartOnly) {
+   auto mock = std::make_unique<shorebird::MockUpdater>();
+   auto* mock_ptr = mock.get();
+   shorebird::Updater::SetInstanceForTesting(std::move(mock));
+@@ -5128,9 +5139,12 @@ TEST_F(ShellTest, ShorebirdBootFlowCallsLaunchStartThenSuccess) {
+   ASSERT_TRUE(shell);
+ 
+   const auto& log = mock_ptr->call_log();
+-  ASSERT_EQ(log.size(), 2u);
++  ASSERT_EQ(log.size(), 1u);
+   EXPECT_EQ(log[0], "ReportLaunchStart");
+-  EXPECT_EQ(log[1], "ReportLaunchSuccess");
++  // Neither outcome may be banked before user Dart has had its chance: success
++  // and failure share ONE latch, so a success recorded here would make the Dart
++  // seam permanently unreachable.
++  EXPECT_EQ(mock_ptr->launch_success_count(), 0);
+ 
+   DestroyShell(std::move(shell), task_runners);
+   shorebird::Updater::ResetLaunchStateForTesting();
+@@ -5138,10 +5152,16 @@ TEST_F(ShellTest, ShorebirdBootFlowCallsLaunchStartThenSuccess) {
+ }
+ 
+ // In add-to-app, multiple engines may be created within a single process.
+-// Only the first engine should report launch start/success to the Rust
+-// updater. This prevents the updater from promoting a newly-downloaded patch
+-// to "current_boot" when subsequent engines are still running the original
++// Only the first engine should report launch start to the Rust updater. This
++// prevents the updater from promoting a newly-downloaded patch to
++// "current_boot" when subsequent engines are still running the original
+ // snapshot that was selected at process init time.
++//
++// G15: the success half of this expectation moved to Dart, so what is pinned
++// here is the START guard. Note that the once-per-PROCESS guard means a second
++// engine's `main` completing does not re-report either — correct, since both
++// engines boot from the same snapshot, but it is why the two-engine gate reads
++// per-engine `rbtrace` records rather than launch reports.
+ TEST_F(ShellTest, ShorebirdUpdaterReportsOnlyOnceForMultipleShells) {
+   auto mock = std::make_unique<shorebird::MockUpdater>();
+   auto* mock_ptr = mock.get();
+@@ -5150,25 +5170,25 @@ TEST_F(ShellTest, ShorebirdUpdaterReportsOnlyOnceForMultipleShells) {
+ 
+   auto settings = CreateSettingsForFixture();
+ 
+-  // Create first shell — gets Start + Success
++  // Create first shell — gets Start. Success comes from Dart, which no shell
++  // test runs, so it must stay at zero throughout.
+   auto task_runners1 = GetTaskRunnersForFixture();
+   auto shell1 = CreateShell(settings, task_runners1);
+   ASSERT_TRUE(shell1);
+   EXPECT_EQ(mock_ptr->launch_start_count(), 1);
+-  EXPECT_EQ(mock_ptr->launch_success_count(), 1);
++  EXPECT_EQ(mock_ptr->launch_success_count(), 0);
+ 
+-  // Create second shell — guarded, no additional Start or Success calls.
++  // Create second shell — guarded, no additional Start.
+   auto task_runners2 = GetTaskRunnersForFixture();
+   auto shell2 = CreateShell(settings, task_runners2);
+   ASSERT_TRUE(shell2);
+   EXPECT_EQ(mock_ptr->launch_start_count(), 1);
+-  EXPECT_EQ(mock_ptr->launch_success_count(), 1);
++  EXPECT_EQ(mock_ptr->launch_success_count(), 0);
+ 
+-  // Only one Start+Success pair in the call log.
++  // Exactly one Start in the call log, and nothing else.
+   const auto& log = mock_ptr->call_log();
+-  ASSERT_EQ(log.size(), 2u);
++  ASSERT_EQ(log.size(), 1u);
+   EXPECT_EQ(log[0], "ReportLaunchStart");
+-  EXPECT_EQ(log[1], "ReportLaunchSuccess");
+ 
+   DestroyShell(std::move(shell1), task_runners1);
+   DestroyShell(std::move(shell2), task_runners2);
