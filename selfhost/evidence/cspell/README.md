@@ -122,7 +122,42 @@ dictionary entry, and adding the two figures double-counts it.
 | three path exclusions | `ignorePaths` (§1) | 1,735 → 1,275 | **460** | 470 |
 | patch code lines | comment-aware override (§4) | 1,275 → 1,150 | **125** | 124 |
 | spelling variants | `language: "en,en-GB"` (§3) | 1,150 → 979 | **171** | 237 |
-| `fulldiff` | dictionary (§2) | 979 → **972** | **7** | — |
+| `fulldiff` | dictionary (§2) | 979 → 972 | **7** | — |
+| 19 vocabulary groups + git hunk headers | dictionary (§2) + override (§4) | 972 → **414** | **558** | — |
+
+### The residue pass was led by frequency and decided by meaning
+
+Frequency chose the reading order; **the admission test was always semantic** — *is
+this stable project or domain vocabulary that should stay checked in context?* Two
+findings decided by that question rather than by their count:
+
+* **`Wonderous` — 17 findings, and cspell suggests "Wondrous".** The suggestion is
+  wrong. The app is `gskinnerTeam/flutter-wonderous-app`; the spelling is that
+  project's own pun. A count-driven pass would have "fixed" 17 references and
+  renamed a real third-party application across the evidence citing it. It is in
+  the dictionary with that warning attached.
+* **`Shoul` — 1 finding, and it is a real misspelling that must stay.** It comes
+  from upstream Flutter's own test name
+  `ShoulDiscardLayerTreeIfFrameIsSizedIncorrectly`, quoted in a git hunk header.
+  This fork cannot fix it without breaking the patch, and it recurs in every patch
+  touching that file. Reading it is what produced the `^@@` rule — hunk headers
+  need no heuristic, since git writes the entire line including the function
+  context it extracts, so no part is authored here and no finding on one is ever
+  actionable.
+
+**Zero near-miss findings remain.** Every finding cspell offered a `fix:` for — its
+own signal that a word is one edit from a real one, and therefore the population
+most likely to contain genuine defects — has been dispositioned. That is the
+signal-preservation claim, and it is stronger than the count.
+
+### What the remaining 414 are, and why they are not all dictionary work
+
+| class | count | disposition |
+|---|---|---|
+| obfuscated Dart symbols (`hlclxeca`, `hlclpqwxzq`, …) | ~46 | **permanent residue, unsolved.** Random per release, so a dictionary is meaningless. They sit in captured receipts *and* in `gate2_verdict.txt`, which is authored prose quoting them — so no path exclusion reaches them either. This class blocks tree-wide green and needs a decision at promotion time, not a word |
+| further project/tool vocabulary (`PSDK`, `idevicedebug`, `CODEPATCH`, `runmain`, `symsrc`) | ~60 | §2, same semantic test, next pass |
+| `PARITY.md` | 44 | **human review, deliberately not batch-processed.** It is a mixture of legitimate vocabulary and possible real errors, and it is the file a reader trusts most |
+| probes and plans (`.sh`, `.py`, `.md`) | ~260 | mixed; needs reading, not rules |
 
 **The two gaps, reconciled rather than rounded:**
 

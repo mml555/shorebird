@@ -1,5 +1,10 @@
 $schema: https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json
 version: "0.2"
+# Tokens quoted in THIS FILE's comments as examples, not project vocabulary.
+# Shoul in particular must NEVER become a dictionary word -- it is a genuine
+# misspelling in upstream's test name, and the point of quoting it is that it
+# stays wrong. File-scoped so it is invisible here and nowhere else.
+# cspell:ignore Shoul shutil stdlib gskinner
 # Step 1 §3, per evidence/cspell/classification_precommit.md.
 #
 # STANDARD BRITISH AND AMERICAN VARIANTS ARE BOTH ACCEPTED. This is NOT a house
@@ -81,8 +86,56 @@ overrides:
   - filename: "**/*.patch"
     ignoreRegExpList:
       - "/^[-+ ](?![^\\n]*(?:\\/\\/|\\/\\*|^\\s*\\*\\s|#\\s))[^\\n]*$/gm"
+      # Hunk headers. Unlike the line above this needs no heuristic: git writes
+      # the whole line, offsets AND the trailing function context it extracts
+      # from the file, so no part of it is authored here and no finding on it is
+      # ever actionable. Found by READING the residue rather than counting it --
+      # `Shoul`, from upstream's own misspelled test name
+      # ShoulDiscardLayerTreeIfFrameIsSizedIncorrectly, which this fork cannot
+      # fix without breaking the patch and which recurs in every patch touching
+      # that file.
+      - "/^@@ .*$/gm"
 
 words:
+  # --- Step 1 §2, admitted by the SEMANTIC test in
+  # evidence/cspell/classification_precommit.md: "is this stable project or
+  # domain vocabulary that should stay spell-checked in context?" -- never
+  # "does adding it lower the count?". Each survived §3 because none is a
+  # standard spelling variant. Frequency is why they were reviewed first, not
+  # why they were admitted.
+  #
+  # This project's own methodology and mechanism vocabulary:
+  - precommit
+  - precommits
+  - precommitted
+  - precommitting
+  - precommitment
+  - backout # G15: backing a bad patch out
+  - crashbackout # the G15 arm that backs out on a Dart-phase crash
+  - unrun # a probe/arm that exists but has not been executed
+  - selftest # the negative-control mode a probe runs against itself
+  # Fixture and artifact names, which are identifiers rather than words:
+  - killswitch
+  - twoengine
+  - trackprobe
+  - flavorprobe
+  - rbtrace # the .routeb.trace device capture
+  # Tooling and platform vocabulary:
+  - worktree # git
+  - oneline # git log --oneline
+  - rmtree # ios-deploy --rmtree, shutil.rmtree
+  - noninteractive # the CI/CLI mode
+  - pathlib # Python stdlib
+  - xcconfigs # plural of xcconfig, already present singular
+  - interp # Route B's interpreter, as abbreviated throughout
+  - ldur # Arm64 instruction, Load Register unscaled (cf. orri below)
+  # PROPER NOUN -- DO NOT "CORRECT" THIS. cspell suggests "Wondrous" and that
+  # suggestion is wrong: the app is gskinnerTeam/flutter-wonderous-app, and the
+  # spelling is the project's own pun. 17 findings sat behind this one word, so
+  # a count-driven cleanup would have renamed a real third-party application
+  # across the evidence that cites it.
+  - Wonderous
+
   - aabs
   - aapt
   - aarch
