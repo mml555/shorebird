@@ -200,3 +200,84 @@ clean.
 **Still BUILT.** The device arm on `injected_define_app` is what an upgrade needs,
 and it is now unblocked: `NEW-3.44.8` is the correct expected value rather than
 `NEW-`.
+
+
+---
+
+# ADDENDUM 2026-08-15 (2) — TASK 14, both specimens run on `cps-ios`
+
+**Still BUILT, not PROVEN: no device was involved.** What is new is that both
+halves of the link-2 contract were exercised through the real CLI against the
+real control plane, on published artifacts rather than a host simulation.
+
+## Specimen 1 — POSITIVE: provenance exists, propagation works
+
+| fact | value |
+|---|---|
+| app | `injected-define-fixture` `edd7188c-ea3c-d585-8c87-02cb7b563e2a` |
+| release | `1.0.0+1`, cell `40eaa0ef`, all five Route B artifacts |
+| patch | **Patch 1 published**, stable |
+
+The release records the field, and records it **separately from the fingerprint**
+— this is the structural split visible in a real artifact:
+
+```
+effectiveDefines  {}
+injectedDefines   {"FLUTTER_CHANNEL":"[user-branch]","FLUTTER_DART_VERSION":"3.12.2",
+                   "FLUTTER_ENGINE_REVISION":"11e5695710","FLUTTER_FRAMEWORK_REVISION":"c15ef63794",
+                   "FLUTTER_GIT_URL":"unknown source","FLUTTER_VERSION":"3.44.8"}
+```
+
+`effectiveDefines` is empty because the fixture supplies no `--dart-define`, so
+the fingerprint is unchanged from what a pre-field release would produce — which
+is the backward-compatibility property, observed rather than argued.
+
+**THE DECISIVE OBSERVATION.** The replacement compiled for the published patch
+baked the real value:
+
+```
+build/route_b/replacement_0.bytecode  contains  NEW-3.44.8
+```
+
+Not `NEW-`. This is the exact defect `g41d` arm 3 found, now measured on a
+container that was actually uploaded. Full record: `release_1_route_b.json`.
+
+## Specimen 2 — LEGACY: provenance absent, refusal is narrow
+
+**Release 95 is a genuine pre-field specimen and needed no CLI downgrade** —
+`route_b_build_config.dart` changed only in `f2982364`, and 95 was cut with
+`50ed19a7`. So the legacy half was run against a release that really does lack
+the record, not a synthesized one.
+
+| arm | replacement | result |
+|---|---|---|
+| refusal | reads `String.fromEnvironment('FLUTTER_VERSION')` | **REFUSED**, by name, **nothing uploaded** |
+| control | ordinary body (`'NEW-G41D-CONTROL'`) | **Patch 2 published** |
+
+The refusal message, verbatim:
+
+> `package:airgap_probe/main.dart#RouteBThing.value` — its replacement reads the
+> compile-time environment, and this release predates the record of the defines
+> Flutter injected into it. The replacement would compile against a default value
+> while the release holds a different one, and nothing downstream could detect
+> it. Cut a new release with a current CLI and patch that instead
+
+**The control is what makes the refusal a finding rather than a policy.** The
+same pre-field release accepted an ordinary replacement minutes later, so old
+releases are not globally unpatchable — only the construct that cannot be
+compiled correctly is refused.
+
+## Guards
+
+`engine.version` `40eaa0ef` and the cached `ios-release` `__TEXT,__text` digest
+`bc0afffe` — both checked before and after the whole run. `airgap_app` and
+`injected_define_app` are restored to their RELEASE forms, verified by `git
+status`.
+
+## What remains for PROVEN
+
+A device. On hardware the release must render `injected-define probe: OLD-gated`
+— never `OLD-unversioned`, which would mean the shipped program itself was
+compiled without Flutter's defines — and the patch must render
+`replacement reads define: NEW-3.44.8`. Everything up to installation is now
+measured; nothing here says a patch applies or executes.
