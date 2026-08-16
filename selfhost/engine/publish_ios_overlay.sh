@@ -192,6 +192,43 @@ rm -f "$STAGE.zip"
 # "Unexpected tag 4 (Field)". Use a host_release configured like out/ios_release.
 HOST_REL=${HOST_REL:-/Volumes/build/ios-engine/flutter/engine/src/out/host_release_arm64_nodm}
 HOST_DBG=${HOST_DBG:-/Volumes/build/ios-engine/flutter/engine/src/out/host_debug_arm64}
+
+# THE PLATFORM DILL FOLLOWS THE ENGINE'S TREE, and it is its own variable because
+# it was silently following HOST_REL's instead.
+#
+# WHAT WENT WRONG. flutter_patched_sdk_product.zip carries the platform dill every
+# RELEASE app compiles its dart:ui against (artifacts.dart:757/:1323 select the
+# _product variant for BuildMode.release). It was published from HOST_REL, which
+# defaults to R4 — a tree carrying NONE of the Route B Dart patches
+# (`attachBytecodeToFunction` x0, against x8 in R3's dill). Meanwhile
+# mint_route_b_cell.sh:31 computes the CELL ADDRESS over R3's dill. So the address
+# certified 9f5a5f75 while every build downloaded 55e02ed8, mint_route_b_cell.sh's
+# APFS clone carried that forward to every cell, and audit_route_b_compiler.sh
+# reported CLEAN because it only compared the bundle against its own
+# PROVENANCE.txt. Measured 2026-08-14; see evidence/g15/hooks_delivery_verdict.txt.
+#
+# THE CONSEQUENCE was that a dart:ui or dart:_internal change made in the tree
+# that owns the ENGINE reached no app built on the cell. Proven both ways: with
+# R3's dill fed into the cache a marker placed in _runMain lands in the release
+# AOT, and with the published dill the same app does not carry it
+# (evidence/g15/gate3_positive_verdict.txt).
+#
+# THE FIX is that this now derives from OUT, so publishing an engine from a tree
+# publishes THAT TREE's dill. Pass OUT explicitly — which the R4-default trap
+# already required — and the dill comes along automatically.
+#
+# `_nodm` and not `host_release_arm64`: the "Unexpected tag 4 (Field)" coupling is
+# between the dill and the FRONTEND_SERVER, and the published frontend_server
+# (HOST_DBG, below) is dart_dynamic_modules=false. In R3 the dill is in fact
+# dm-INVARIANT — dm, nodm and ios_release all yield 9f5a5f75 — so this choice
+# costs nothing and keeps the stated pairing honest.
+#
+# DELIBERATELY NOT MOVED: dart-sdk-darwin-arm64.zip and the rest of the host
+# toolchain still come from HOST_REL/HOST_DBG. A trivial-app AOT confirmed this
+# specific R3-dill/40eaa0ef-toolchain pairing builds clean, which is one measured
+# pairing — NOT a relaxation of the "all three come from our tree" rule above.
+# Widening the change is a separate decision with its own evidence.
+PSDK_REL=${PSDK_REL:-${OUT%/out/*}/out/host_release_arm64_nodm}
 HASH_DIR="$OVERLAY/flutter_infra_release/flutter/$HASH"
 
 publish_host() {
@@ -209,7 +246,7 @@ publish_host() {
 note "publishing macOS host toolchain"
 MISSING_HOST=0
 publish_host "$HOST_REL/zip_archives/dart-sdk-darwin-arm64.zip"      "dart-sdk-darwin-arm64.zip"
-publish_host "$HOST_REL/zip_archives/flutter_patched_sdk_product.zip" "flutter_patched_sdk_product.zip"
+publish_host "$PSDK_REL/zip_archives/flutter_patched_sdk_product.zip" "flutter_patched_sdk_product.zip"
 publish_host "$HOST_DBG/zip_archives/darwin-arm64/artifacts.zip"      "darwin-arm64/artifacts.zip"
 # The non-product platform dill as well. Upstream's copy is byte-DIFFERENT from
 # ours at the same size, and mixing it with our compiler yields the opaque
@@ -283,6 +320,8 @@ ios_engine_hash:  $HASH
 falls_back_to:    $STOCK
 built_from:       $OUT
 engine_binary:    $BIN
+platform_dill:    $PSDK_REL/zip_archives/flutter_patched_sdk_product.zip
+host_toolchain:   $HOST_REL (dart-sdk) + $HOST_DBG (frontend_server, const_finder)
 slices:           ios-arm64 only (no simulator — see script header)
 interpreter:      shorebird_use_interpreter=false (vanilla Dart; no iOS code patches)
 published_at:     $(date -u +%Y-%m-%dT%H:%M:%SZ)

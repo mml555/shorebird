@@ -29,6 +29,22 @@ set -euo pipefail
 SRC=${SRC:-/Volumes/build/route-b/flutter/engine/src}
 OUT=${OUT:-$SRC/out/host_release_arm64}
 FLUTTER_PLATFORM=${FLUTTER_PLATFORM:-/Volumes/build/route-b/published_sdk/flutter_patched_sdk_product/platform_strong.dill}
+# The ZIP that must DELIVER the dill above, so the address and the download agree.
+#
+# WHY THIS EXISTS. FLUTTER_PLATFORM participates in the cell ADDRESS. What a
+# release app actually compiles dart:ui against is flutter_patched_sdk_product.zip,
+# published beside the engine under that same address — and this script's engine
+# clone (`cp -Rc`) carried the DONOR's copy forward, forever, without ever
+# re-deriving it. The two therefore drifted apart and stayed apart: the address
+# certified 9f5a5f75 while every build downloaded R4's 55e02ed8, and every audit
+# said CLEAN because nothing compared them. See
+# evidence/g15/hooks_delivery_verdict.txt.
+#
+# So the zip is now INSTALLED into the new cell, and only after its contained dill
+# is checked byte-for-byte against FLUTTER_PLATFORM. Same discipline as
+# ios_artifacts_sha256 below: install the exact artifact that was hashed, then
+# verify it in place, rather than trusting that a clone still means what it meant.
+PSDK_ZIP=${PSDK_ZIP:-${OUT%/out/*}/out/host_release_arm64_nodm/zip_archives/flutter_patched_sdk_product.zip}
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 SELFHOST="$(cd "$HERE/../.." >/dev/null 2>&1 && pwd)"
 OVERLAY=${OVERLAY:-$SELFHOST/cdn/overlay}
@@ -139,6 +155,28 @@ if [[ -n "$IOS_ARTIFACTS" ]]; then
     [[ "$got" == "$IOS_DIGEST" ]] || die \
       "installed iOS artifacts digest $got != hashed $IOS_DIGEST"
     echo "    ios-release/artifacts.zip: ${IOS_DIGEST:0:16} (verified in place)"
+  fi
+fi
+
+# THE PLATFORM DILL THE ADDRESS WAS COMPUTED OVER, installed so a build downloads
+# the same bytes. Verified before AND after, because a clone that silently means
+# something else is exactly the defect this closes.
+if [[ -n "$PSDK_ZIP" ]]; then
+  [[ -f "$PSDK_ZIP" ]] || die "no platform-sdk zip at $PSDK_ZIP"
+  PW=$(mktemp -d)
+  unzip -q -o "$PSDK_ZIP" 'flutter_patched_sdk_product/platform_strong.dill' -d "$PW" \
+    || die "$PSDK_ZIP carries no flutter_patched_sdk_product/platform_strong.dill"
+  zip_dill=$(shasum -a 256 "$PW/flutter_patched_sdk_product/platform_strong.dill" | cut -d' ' -f1)
+  want_dill=$(shasum -a 256 "$FLUTTER_PLATFORM" | cut -d' ' -f1)
+  rm -rf "$PW"
+  [[ "$zip_dill" == "$want_dill" ]] || die \
+    "platform dill MISMATCH — the address would certify a dill the build never gets.
+    address computed over : ${want_dill:0:16}…  ($FLUTTER_PLATFORM)
+    zip would deliver     : ${zip_dill:0:16}…  ($PSDK_ZIP)"
+  note "installing the addressed platform dill under $REV"
+  if [[ "$DRY" != 1 ]]; then
+    cp "$PSDK_ZIP" "$ENGINE_DST/flutter_patched_sdk_product.zip"
+    echo "    flutter_patched_sdk_product.zip: dill ${want_dill:0:16} (verified in place)"
   fi
 fi
 
