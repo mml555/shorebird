@@ -1,4 +1,4 @@
-<!-- cspell:words injdef killswitch -->
+<!-- cspell:words injdef killswitch precommitment -->
 # G4.1c's discriminating arm — and the second link it found broken
 
 **Host result. Earns BUILT for what it fixes and opens a KNOWN GAP for what it
@@ -355,3 +355,48 @@ see, that file has not been written since the moment of G15's release 94, the
 
 It has its own KNOWN GAP row in §4. It is more consequential than this lane:
 every release row in `PARITY.md` rests on the plane's word.
+
+
+---
+
+# The tally, and a fourth entry that is its own class
+
+Four false-greens in this lane in one sitting. The first three are one shape in
+three disguises — **a check that could not fail**:
+
+1. an interface diff that could not see the app's own functions, so it reported
+   agreement between two genuinely different kernels;
+2. probe flags hand-simulated rather than read from the product, so the arm would
+   have kept passing after the defect it tested was fixed;
+3. a publish verified by reading it back through the same client in the same
+   session — one client, one server, no durable state touched.
+
+**The fourth is not that shape, and the `G15` lane was right that it belongs
+apart.** While hunting for the server's data path I ran
+
+```
+docker exec cps-ios find / -name '*.db' …   ->   /data/code_push.db
+```
+
+and *hours later* proposed that the vanished writes might have gone to a
+different database — a hypothesis that single line already refuted. The other
+lane pointed my own evidence at my own claim.
+
+So it is not a missing control. **It is a control that was already run, whose
+result was already in hand, and that was never aimed at the thing it disproved.**
+Missing controls are caught by asking "what did I not check?". This one is not:
+the answer to that question was "nothing, I checked". It is caught only by asking
+**"what have I already measured that bears on what I am now asserting?"** — which
+is a different question, and one nobody in this exchange asked of themselves.
+
+Its companion in the other lane, from the same sitting: a precommitment that was
+written, dated and committed, and still encoded an unexamined premise.
+Precommitment stopped the conclusion from moving; it did not stop a wrong premise
+from getting in. Recorded there as `e7000ba0`.
+
+**The common lesson, and it is the reason both lanes' gates are still standing:**
+of the false-greens that fell today, the ones caught by self-controls were the
+ones the author had already thought to doubt. The rest fell because a different
+lane read the *premise* rather than the *method*. Certainty is what stops you
+building the control, so the controls you own are always aimed away from your
+worst error.
