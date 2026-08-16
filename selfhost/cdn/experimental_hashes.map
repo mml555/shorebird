@@ -239,3 +239,10 @@ d6aad559e9da328edb729d5ed7c69c21bc0380ee 69f9831c360d9152862ec3897c67fb09ae843f3
 #
 # G15: launch success banked when Engine::Run returns (0009) + boot-attempt threshold (0010)
 80e493e4c5c9e4c418c433bf660392067a131dd5 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-16 from the cell
+# manifest (see mint_route_b_cell.sh).
+# Engine binary CHANGED: iOS artifacts supplied via --ios-artifacts,
+# sha256 4302bf4dcd39d4488a55381b14bb7306743531c214de9c4e5c8f2f8977591919, which participates in this cell's address.
+# Donor 80e493e4c5c9e4c418c433bf660392067a131dd5 supplied every OTHER engine artifact.
+87130ae841e92d3e8bd4ea1759fb3cb474a6b3e4 69f9831c360d9152862ec3897c67fb09ae843f3b
