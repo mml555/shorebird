@@ -379,6 +379,10 @@ words:
   - safesync # gclient's safesync_url config key
   - emsdk # the Emscripten SDK, named in the gclient template
   - Emscripten
+  # git's sendemail.* config section and its sendemail-validate hook. Needed to
+  # WRITE ABOUT the CI finding that named it; it incidentally resolves the one
+  # cspell.config.yaml entry among CI's 35, leaving the other 34 untouched.
+  - sendemail
 
   - aabs
   - aapt

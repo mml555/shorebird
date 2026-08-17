@@ -2301,6 +2301,16 @@ cd packages/shorebird_cli && dart format --output=none --set-exit-if-changed . \
 #   INCREMENTAL, so this is the local equivalent, not an approximation of it.
 selfhost/scripts/cspell_touched.sh              # exit 0; no NEW findings on added lines
 selfhost/scripts/cspell_touched.sh --self-test  # the gate's negative control, 6/6
+#   ^ A LOCAL PRE-FLIGHT, WEAKER THAN CI, and measured rather than assumed:
+#     cspell_touched.sh checks the lines you ADDED. CI's incremental cspell job
+#     checks ENTIRE CHANGED FILES. So local green does NOT imply incremental-CI
+#     green — a file you edit drags its inherited findings into CI's check.
+#     Established by fork run 31986647895, which reported cspell.config.yaml's
+#     pre-existing `sendemail` on a line this lane never touched.
+npx cspell --dot --no-progress --no-summary selfhost packages/code_push_server/lib
+#   ^ the DECLARED full-tree scope. --dot is load-bearing: without it cspell does
+#     not traverse dot-named files and engine/.gclient.template goes unchecked.
+#     Proven both halves by scripts/cspell_scope_control.sh.
 ```
 
 > **The spelling line above was WRONG until 2026-08-16, and the way it was wrong

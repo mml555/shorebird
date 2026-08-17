@@ -17,17 +17,26 @@
 # strong guarantee holds where it is achievable, and `--whole-file` asks for it
 # anywhere.
 #
-# WHAT CI RUNS, AND WHAT I COULD NOT CONFIRM. .github/workflows/main.yaml:30 calls
+# HOW THIS RELATES TO CI, NOW MEASURED. .github/workflows/main.yaml:30 calls
 # VeryGoodOpenSource's spell_check.yml@v1, which forwards to
 # streetsidesoftware/cspell-action@v8 with
 # `incremental_files_only: ${{ inputs.modified_files_only }}` -- and that input
-# DEFAULTS TO TRUE, unoverridden. So CI's gate is incremental and its last run was
-# green (run 31824444226). What I could NOT verify is whether the action's
-# incremental mode reports per changed FILE or per changed LINE: the head commit
-# of that green run is not present in this clone, so the decisive comparison was
-# not available. This script therefore documents its OWN rule rather than
-# claiming byte-equivalence with CI's. If CI is per-file, CI is stricter than this
-# and will say so; that is the safe direction for a local pre-flight.
+# DEFAULTS TO TRUE, unoverridden. So CI's job is incremental.
+#
+# THE OPEN QUESTION IS CLOSED, AND NOT IN THIS SCRIPT'S FAVOUR. This header used
+# to say the per-file/per-line semantics could not be verified. The fork PR run
+# (mml555/shorebird run 31986647895) settled it: the job reported
+# `cspell.config.yaml:36 sendemail`, a PRE-EXISTING line this lane never touched,
+# in a file it did touch. So:
+#
+#   CI's incremental job checks ENTIRE CHANGED FILES.
+#   This script checks ADDED LINES.
+#   Therefore a green here does NOT imply a green there -- this is the WEAKER
+#   check, and it is a local regression pre-flight, not a CI predictor.
+#
+# That is still the right scope for a pre-flight, for the reason below: whole-file
+# on PARITY.md would be red on arrival. But nobody should read a green from this
+# script as CI clearance.
 #
 # (The other cspell job, shorebird_ci.yaml:235, does pass
 # `incremental_files_only: false` -- but that workflow is DISABLED in this fork,

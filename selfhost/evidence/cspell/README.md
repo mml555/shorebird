@@ -230,9 +230,32 @@ becomes "tree-wide green" only once the scope is explicit *and* CI has run it.
 | # | condition | state |
 |---|---|---|
 | 1 | the command exits 0 over a declared scope | ✅ `--dot`, scope proven both halves |
-| 2 | **CI actually runs it** | ⏳ **job added, not yet executed** — configuring is not running |
+| 2 | **CI actually runs it** | ✅ **fork run [31986647895](https://github.com/mml555/shorebird/actions/runs/31986647895): `🔤 Check Spelling (full tree)` → success** |
 | 3 | negative control proves the command can fail | ✅ **two** controls: ordinary file *and* dotfile |
 | 4 | this baseline record deleted in the promoting commit | ⏳ lands with promotion, not before |
+
+**The same run failed the INCREMENTAL job, and that is a separate claim.** 35
+findings across 16 of 522 files, every path **outside** the declared scope —
+`packages/shorebird_cli/**`, `packages/code_push_server/test/**` (only `lib` is in
+scope), and `cspell.config.yaml`. The two jobs have deliberately different shapes:
+the full-tree job checks two declared paths exhaustively, the incremental one
+checks every changed file anywhere, and this PR carries 631 commits of changes. It
+is pre-existing branch debt in paths the tree-wide gate has never covered, and it
+is **left untouched** — folding it in would give one job two claims, which is the
+thing the second job exists to avoid.
+
+**That failure settled a question this record had left open.** It reported
+`cspell.config.yaml:36 sendemail` — a pre-existing line this lane never touched, in
+a file it did touch. So **CI's incremental job checks entire changed files**, not
+changed lines:
+
+> `cspell_touched.sh` checks added lines and is a local regression **pre-flight**.
+> CI's incremental job checks entire changed files, so **local green does not imply
+> incremental-CI green.**
+
+The earlier note guessed "if CI is per-file, CI is stricter than this, which is the
+safe direction" — correct, and now measured rather than hoped. The script header
+and `HANDOFF.md` both say so; the previous "could not verify" wording is gone.
 
 **Promotion is two commits, not one.** (a) enable CI with the exact proven command
 and keep this record; (b) once a real CI run exists and is green, delete this
