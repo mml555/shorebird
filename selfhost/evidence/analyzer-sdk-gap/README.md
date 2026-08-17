@@ -116,7 +116,30 @@ targets one job, so the answer costs one job rather than a full matrix.
 The middle row is the one worth naming: a green here is the expected result, and an
 arm whose only outcome is the expected one proves nothing. This arm can refute.
 
-### Re-run RESULT — row 3: the fix remains UNMEASURED
+### VERDICT — row 1: CI CONFIRMATION of the await fix
+
+Fork run **31989293325**, after the two Windows fixes unblocked the matrix:
+`🎯 Build shorebird_cli (ubuntu-latest)` → **success**.
+
+**Checked before scoring it, because a green proves the fix only if the analyzer
+that ran actually has the rule:**
+
+```
+Installing the linux-x64 Dart SDK version 3.13.0 from the stable channel.
+Dart SDK version: 3.13.0 (stable) on "linux_x64"
+Run dart analyze --fatal-warnings lib test
+298 issues found.        <- all infos, zero warnings -> exit 0
+```
+
+3.13.0 is the SDK that introduced `unawaited_return_in_try_block` — the same
+version, the same command, and the warning that failed upstream is gone. So this is
+row 1 of the precommitted table: **`58d8cdd2` closes the failure under CI, on the
+environment that produced it.** Not a vacuous green.
+
+**Status of `58d8cdd2`: PROVEN.** Locally by a discriminating red/green regression,
+and now under CI on Dart 3.13.
+
+### Earlier re-run attempt — row 3: unmeasured (superseded above)
 
 Attempt 2 ran the ubuntu job alone (started 02:25:03) and it came back
 **cancelled**, not green and not red. Scoring it against the precommitted table
