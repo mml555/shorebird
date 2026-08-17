@@ -264,3 +264,15 @@ d6aad559e9da328edb729d5ed7c69c21bc0380ee 69f9831c360d9152862ec3897c67fb09ae843f3
 #
 # G15: the _runMain success seam (patch 0011).
 cd137db6aea4c76f41903a872b91afb8ac799626 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-17 from the cell
+# manifest (see mint_route_b_cell.sh).
+# ANCESTRY, MEASURED against donor cd137db6aea4c76f41903a872b91afb8ac799626 at mint time —
+# 1 of 11 artifacts differ:
+#   CHANGED ios-release/artifacts.zip — sha256 4711841f08e212c78adf6b2c93434c349dbc6dc4882f46484769bce625deba06 (donor 443faeb2ea1632a6a243ef7f7847a1381e66ae41c885be94a3bf581a87f86bbd)
+# Donor cd137db6aea4c76f41903a872b91afb8ac799626 supplied the other 10, byte-for-byte.
+# ADDRESS: iOS artifacts sha256 4711841f08e212c78adf6b2c93434c349dbc6dc4882f46484769bce625deba06
+# participates in this cell's address (--ios-artifacts).
+#
+# G15: the 0012 derived target->pool scan plus 0013's assert-offset supply side.
+50bdae36f6dafbe1da17852a42e119518e8e5cf4 69f9831c360d9152862ec3897c67fb09ae843f3b

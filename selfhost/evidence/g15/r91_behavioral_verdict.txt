@@ -1,0 +1,127 @@
+HYBRID RELEASE 91 — BEHAVIORAL LINEAGE DISCRIMINATOR: VERDICT, 2026-08-17
+===========================================================================
+
+Precommitted in r91_behavioral_precommit.md, INCLUDING its amendment, before the
+run. Neither table is edited here.
+
+THE RESULT
+----------
+
+**RELEASE 91'S OWN SNAPSHOT, WITH ITS OWN HISTORICAL PATCH 59, RENDERS `OLD-kill`
+ON THE CURRENT ENGINE LINEAGE — WITH THE PATCH INSTALLED AND DEMONSTRABLY
+ATTACHED.**
+
+    screen        "G15 arm 2" / "route B value: OLD-kill"
+    patch state   Installed  (bracketed BEFORE and AFTER)
+    trace         0 -> 1 lines across this launch; rc=0 attach_entered=1
+                  attach_returned=1 bc_post=1 interp_post=1
+                  uep_post_is_interpret_call=1
+    engine        cell 50bdae36… (0011 + 0012 + 0013)
+
+The same snapshot and the same patch bytes rendered **`NEW-kill`, twice**, on cell
+`80e493e4` (arm2_verdict.txt, 2026-08-14).
+
+Per the precommitted table, second row: *"the current engine/cell lineage is a
+real discriminator, despite 91 and 96 sharing the ABSENT structural result. A
+behavioral delta with no structural delta is itself the finding."*
+
+**THIS IS THE FIRST CONTROLLED REPRODUCTION OF ARM A'S PHENOMENON ON A
+KNOWN-WORKING SPECIMEN.**
+
+COLLECTION — ALL FOUR REQUIREMENTS MET, and this is the row that repairs arm A
+------------------------------------------------------------------------------
+Arm A's launch 4 was never screenshotted and launch 6's screen was worthless
+because the patch was tombstoned. This run was collected against a precommitted
+requirement instead:
+
+| # | required | observed |
+|---|---|---|
+| 1 | screenshot of a RENDERED UI, and NO `launch <id>` line | `screen_r91_OLD-kill.png` — `G15 arm 2` + `route B value: OLD-kill`, no launch line, so it is release 91's UI and cannot be a stale release-96 frame |
+| 2 | trace line-count DELTA across the launch | **0 → 1** — the patch activated on THIS boot, not an earlier one |
+| 3 | `Installed` BEFORE and AFTER, bracketing | `Installed` / `Installed` |
+| 4 | patch active on that boot | `currently_booting_patch: 1`, trace `rc=0` |
+
+The rendered UI is self-evidencing for the render arm: the kill arm SIGKILLs
+before `runApp` and never draws. Release 91 predates the receipt instrumentation
+(`arm:render`/`first-frame`/launch-id are absent from its binary), which is why
+requirements 1-2 were substituted in the amendment BEFORE the run rather than
+after seeing the result.
+
+WHAT WAS AND WAS NOT HELD CONSTANT
+------------------------------------
+    HELD CONSTANT   release 91's shipped App.framework snapshot
+                    (LC_UUID e8665b59…, pool_length 12403)
+                    patch 59 — arm 2's exact 531 B artifact, bytes unmodified
+                    the target: routeBValue, untouched
+
+    CHANGED         the engine only: cell 80e493e4 -> cell 50bdae36
+
+One variable, and the outcome flips from `NEW-kill` to `OLD-kill`.
+
+**THE STRUCTURAL STATE DID NOT MOVE WITH THE BEHAVIOR.** This same trace reports
+`tpool_status=3` (ABSENT), `tpool_scanned=12403` — identical to the structural
+run. So release 91 is ABSENT whether it renders `NEW-kill` (old engine) or
+`OLD-kill` (new engine). **Behavior changed while the measured structure did
+not**, which is precisely why the structural probes could not find this and the
+behavioral one could.
+
+WHERE THIS PUTS THE SEARCH
+----------------------------
+**Toward engine/cell lineage, and away from release-production lineage.** The
+release artifacts and the patch artifact are byte-identical to the run that
+worked, so CLI `98f84c17`, the compiler inputs and the platform dill cannot be
+the cause of THIS flip — they did not participate in it.
+
+The lineage between the working and failing engines:
+
+    80e493e4   0009 + 0010            arm 2 PASSED, NEW-kill x2
+    87130ae8   (intermediate)
+    cd137db6   0011  _runMain seam    <- PUBLISHED, and directly testable
+    50bdae36   0012 + 0013            this run, OLD-kill
+
+**The bisect is available and cheap**: cell `cd137db6` is already published, so
+running this identical hybrid with `cd137db6`'s engine splits `0011` from
+`0012`/`0013` in one device cycle. `gate5_armA_fold_refuted.txt` listed
+`cd137db6` as an untested candidate; it is now the prime suspect with a direct
+test.
+
+A prior expectation worth stating so the bisect is not read to confirm it:
+`0012`/`0013` are diagnostic — a pool scan and an assertion read, both
+pure-read — while `0011` changes where main is invoked. That makes `0011` the
+more plausible cause, **which is exactly why it must be measured rather than
+assumed.** Two of this investigation's leading explanations have already died on
+measurement.
+
+WHAT THIS DOES NOT CLAIM
+------------------------
+* **NOT that arm A is explained.** This localises the regression to a lineage; it
+  names no mechanism. `gate5_arms_precommit.md` is about release 96's specimen and
+  still requires `NEW-kill` on screen for a PASS. **Arm A remains INCONCLUSIVE.**
+* **NOT which engine change is responsible.** `0011`, `0012`, `0013`, or another
+  difference between the cells — unbisected, and the bisect is the next step.
+* **NOT a re-score of arm 2.** Arm 2 asked whether a good patch is tombstoned. This
+  run says nothing about that, and the boot-counter state it happened to produce
+  is NOT read here.
+* **NOT that the hybrid equals release 91 in every respect.** It is release 91's
+  snapshot under a different engine, admissible on the four conditions argued in
+  r91_vs_r96_tpool_verdict.txt — chiefly the identical `SNAPSHOT_HASH` and the
+  `rc=0` attach that proves the running build id is release 91's.
+* **Claim 1's wording is untouched**: instrument established; **positive locator
+  not yet proven.** `tpool_status` was ABSENT here too, so nothing in this run
+  exercises the positive-location branch.
+
+DELIBERATE DEVIATIONS, all precommitted in the amendment
+----------------------------------------------------------
+1. Updater state was DELETED (`ios-deploy --rmtree`) because the counter stood at
+   1 against `BOOT_FAILURE_THRESHOLD = 2` with an unfinished breadcrumb, so the
+   next boot would have tombstoned at init and produced exactly the worthless
+   screen this precommit forbids. **Nothing was asserted** — no `pointers.json` or
+   `state.json` was written; Installed and counter-0 were REACHED by a real
+   re-download, the same rule the mint applies to cache stamps. The app was not
+   uninstalled, so Local Network consent survived.
+2. The render arm was FORCED by uploading `Documents/g15_armed`, the marker the
+   fixture itself creates on every kill launch. It selects which arm a launch
+   takes and touches neither the target, the patch, the engine, nor the value
+   displayed.
+3. Patch 59 was promoted `[no track]` -> `stable` so the updater would fetch it.
+   Bytes unmodified; reversible via `patches set-track`.

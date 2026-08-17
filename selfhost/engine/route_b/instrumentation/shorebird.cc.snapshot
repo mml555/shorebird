@@ -2,9 +2,11 @@
 #include "flutter/shell/common/shorebird/shorebird.h"
 
 #include <cstddef>
+#include <cstdlib>
 #include <memory>
 #include <optional>
 #include <sstream>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -367,6 +369,61 @@ void InstallRouteBActivationHook(Settings& settings, const std::string& path) {
           return;
         }
 
+        // THE NEGATIVE CONTROL'S SUPPLY SIDE, and it is the only reason a
+        // non-zero offset reaches the runtime any more.
+        //
+        // `0012` deleted the `0xd4a8` / "RouteBThing.value" special case (see the
+        // tombstone at the call site below) and in doing so removed the ONLY
+        // path that ever supplied an offset -- leaving the demoted assertion
+        // path unreachable, because the runtime gates it on `pool_offset != 0`.
+        // So the control that `0012` owes itself -- feed a stale offset, require
+        // a REFUSAL while the derived scan independently reports the truth in
+        // the same trace -- could not be run at all. A green `tpool_status`
+        // without it is compile evidence wearing a measurement's clothes.
+        //
+        // NOT a new constant in the old costume. The default below is the
+        // historical `0xd4a8` because that is the value the control is specified
+        // against, but it is a DEFAULT and not a special case: it applies to
+        // every target rather than one hard-coded selector, and an operator
+        // overrides it per-run by dropping a value beside the active patch --
+        // no rebuild, which matters because whether `0xd4a8` lands in range in a
+        // release that does not exist yet is not knowable in advance.
+        //
+        // DIAGNOSTIC. Remove with the investigation -- and unlike its
+        // predecessor, removing it costs nothing but this block, because
+        // nothing downstream derives an identity from it.
+        int64_t assert_pool_offset = 0xd4a8;
+        {
+          const std::string sidecar = path + ".assert_pool_offset";
+          auto sc = fml::FileMapping::CreateReadOnly(sidecar);
+          if (sc && sc->GetSize() > 0) {
+            const std::string raw(
+                reinterpret_cast<const char*>(sc->GetMapping()),
+                sc->GetSize());
+            char* end = nullptr;
+            // Base 0: `0x...` is hex, bare digits decimal. The operator writes
+            // whatever the disassembly gave them.
+            const long long v = ::strtoll(raw.c_str(), &end, 0);
+            // A PARSE FAILURE IS REPORTED, NEVER ABSORBED. The default stands so
+            // the control still runs, and `pool_offset=` in the trace records
+            // what was ACTUALLY supplied -- so a misread sidecar cannot be
+            // mistaken for an honoured one.
+            if (end == raw.c_str()) {
+              RouteBReport(path,
+                           "assert-pool-offset sidecar UNPARSEABLE, keeping "
+                           "default 0xd4a8");
+            } else {
+              assert_pool_offset = static_cast<int64_t>(v);
+            }
+          }
+        }
+        {
+          std::ostringstream ao;
+          ao << "assert-pool-offset supplied=" << std::hex << std::showbase
+             << assert_pool_offset;
+          RouteBReport(path, ao.str());
+        }
+
         int applied = 0;
         for (const auto& target : container.targets) {
           Dart_RouteBTrace trace;
@@ -390,12 +447,17 @@ void InstallRouteBActivationHook(Settings& settings, const std::string& path) {
           //
           // The location is now DERIVED from the target's own identity inside
           // Dart_RouteBActivatePatchTraced, so it needs nothing supplied and
-          // works for every target. Passing 0 means "assert nothing"; the
-          // derived scan still runs and still reports.
+          // works for every target.
+          //
+          // What is passed here is therefore NOT a source of `pool_offset` any
+          // more -- it is the ASSERTION's subject: "does this slot hold the
+          // target?", answered independently of the derived scan and reported
+          // beside it in the same trace. The two instruments are wired to
+          // disagree, which is what makes the disagreement evidence.
           const int32_t result = Dart_RouteBActivatePatchTraced(
               target.bytecode, static_cast<intptr_t>(target.length),
               target.library.c_str(), target.selector.c_str(), &trace,
-              /*caller_name=*/nullptr, /*pool_offset=*/0);
+              /*caller_name=*/nullptr, assert_pool_offset);
           // FOR EVERY TARGET, SUCCESS INCLUDED. The success path below `continue`s,
           // so until now a target that "worked" contributed nothing but the
           // applied N/N tally — which is exactly how `applied 1/1` came to be the
