@@ -230,6 +230,7 @@ words:
   - rapidjson
   - seekable
   - endswith # Python
+  - errno # POSIX error number, as reported by dart:io on Windows
   # Symbol-table vocabulary from the signing and dSYM probes:
   - syms
   - symsrc
