@@ -33,6 +33,30 @@ jobs:
     with:
       config: cspell.config.yaml
 
+  # A SECOND, DEDICATED job rather than flipping the one above to
+  # modified_files_only: false. Three reasons, and the third is the one that
+  # matters most:
+  #   * the incremental job stays a known-green, fast regression signal;
+  #   * this job carries ONE unambiguous claim -- the declared full-tree scope is
+  #     clean -- instead of two claims sharing a name;
+  #   * failures stay attributable. Changing the semantics of a job whose history
+  #     people already read would make every past green mean something different.
+  #
+  # SCOPE IS DECLARED, NOT INHERITED. `--dot` is load-bearing: without it cspell
+  # does not traverse into dot-named files, and selfhost/engine/.gclient.template
+  # went unchecked for the life of the repo. Proven locally in both directions by
+  # selfhost/scripts/cspell_scope_control.sh -- an ordinary-file typo and a
+  # DOTFILE typo must each fail this exact command.
+  cspell_full_tree:
+    name: 🔤 Check Spelling (full tree)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@v7
+
+      - name: 🪄 Spell Check (declared full-tree scope)
+        run: npx cspell --dot --no-progress --no-summary selfhost packages/code_push_server/lib
+
   changes:
     runs-on: ubuntu-latest
 

@@ -374,6 +374,11 @@ words:
   - upserts
   - deadbeefcafe # a placeholder address in probe fixtures
   - gskinner # gskinnerTeam, the Wonderous app's authors
+  # Reached only once the promoted scope gained --dot: selfhost/engine/.gclient.template
+  # was invisible to directory traversal and had never been checked.
+  - safesync # gclient's safesync_url config key
+  - emsdk # the Emscripten SDK, named in the gclient template
+  - Emscripten
 
   - aabs
   - aapt
