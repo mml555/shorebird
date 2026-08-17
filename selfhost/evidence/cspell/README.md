@@ -222,16 +222,25 @@ The number above is the baseline. It is not permission to add to it: the
 per-change gate already prevents that, since any file you touch must come out
 clean whatever it inherited.
 
-### Promotion conditions — evaluated 2026-08-16 against a green tree
+### Promotion conditions — evaluated 2026-08-16
 
-**1,770 → 0. The tree-wide command exits 0.** Status of the four conditions:
+**1,770 → 0 findings across the DECLARED scope.** Stated that way on purpose: it
+becomes "tree-wide green" only once the scope is explicit *and* CI has run it.
 
 | # | condition | state |
 |---|---|---|
-| 1 | tree-wide command exits 0 | ✅ |
-| 2 | **CI actually runs it** | ❌ **the remaining blocker** — a workflow change |
-| 3 | negative control proves the promoted command can fail | ✅ typo planted in an untouched file → exit 1, both findings reported |
-| 4 | this baseline record deleted in the promoting commit | ⏳ must land *with* promotion, not before |
+| 1 | the command exits 0 over a declared scope | ✅ `--dot`, scope proven both halves |
+| 2 | **CI actually runs it** | ⏳ **job added, not yet executed** — configuring is not running |
+| 3 | negative control proves the command can fail | ✅ **two** controls: ordinary file *and* dotfile |
+| 4 | this baseline record deleted in the promoting commit | ⏳ lands with promotion, not before |
+
+**Promotion is two commits, not one.** (a) enable CI with the exact proven command
+and keep this record; (b) once a real CI run exists and is green, delete this
+record and call the gate live in the same commit. Configuring CI to run something
+is not evidence that CI ran it — the same rehearsal/transition distinction recorded
+in `PARITY.md`, applied here.
+
+**The scope had to be fixed before the job could be added.**
 
 **Condition 3's first attempt failed, and the failure was the instrument.** The
 specimen was named `.negcontrol.md`; the command returned exit 0. Re-run with a
