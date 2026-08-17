@@ -116,6 +116,35 @@ targets one job, so the answer costs one job rather than a full matrix.
 The middle row is the one worth naming: a green here is the expected result, and an
 arm whose only outcome is the expected one proves nothing. This arm can refute.
 
+### Re-run RESULT — row 3: the fix remains UNMEASURED
+
+Attempt 2 ran the ubuntu job alone (started 02:25:03) and it came back
+**cancelled**, not green and not red. Scoring it against the precommitted table
+rather than around it: that is the third row. No observation about
+`unawaited_return_in_try_block` was produced, so `58d8cdd2` is exactly as unproven
+as before the re-run.
+
+**The blocker is now identified, which is what the attempt bought.**
+`build_cross_platform_dart_packages` declares
+`matrix: {os: [macos-latest, windows-latest, ubuntu-latest]}` with **no
+`fail-fast: false`**, so the default `true` applies: Windows failing cancels its
+siblings — and it cancels a *single-job re-run* too, because the failed sibling
+persists in the matrix. A targeted re-run cannot escape a matrix-level cancel.
+
+**So settling `58d8cdd2` under CI needs one of two things first**, and both are
+decisions rather than reruns:
+
+1. **triage the three Windows test failures** (their own lane), after which the
+   matrix completes normally; or
+2. **`fail-fast: false` on that matrix**, so all three platforms report
+   independently. A real improvement — one run would then tell you about every
+   platform instead of the first to fail — but it changes CI behaviour for every
+   package in that matrix and costs more minutes, so it is not a side effect to
+   introduce while chasing one lint.
+
+Until then the honest status of `58d8cdd2` is: **fixed and locally proven by a test
+that fails without it; unverified under CI.**
+
 ## What would close it
 
 Pin or match the analyzer version so the local command and CI's are the same
