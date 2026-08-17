@@ -105,6 +105,17 @@ investigation.
 **What would settle the fix:** re-run the ubuntu job alone. `gh run rerun --job`
 targets one job, so the answer costs one job rather than a full matrix.
 
+### Precommitted outcomes for the ubuntu re-run — written BEFORE it was triggered
+
+| observation | verdict |
+|---|---|
+| ubuntu **green** | **CI confirmation of the await fix.** `58d8cdd2` closes the `unawaited_return_in_try_block` failure under Dart 3.13, on the environment that produced it |
+| the **same** `unawaited_return_in_try_block` warning | **fix REFUTED or incomplete.** The construct at `patch_command.dart:1171` was not the only instance, or `return await` did not satisfy the rule |
+| a **different** failure | **the fix remains UNMEASURED.** Report the new blocker as its own item; do not read it as evidence either way about the await |
+
+The middle row is the one worth naming: a green here is the expected result, and an
+arm whose only outcome is the expected one proves nothing. This arm can refute.
+
 ## What would close it
 
 Pin or match the analyzer version so the local command and CI's are the same
