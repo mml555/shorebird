@@ -1,6 +1,7 @@
-# The tree-wide cspell debt — baseline, and what would make it a gate
+# The full-tree cspell gate — how it was established
 
-Recorded 2026-08-16 at commit `db08b48d`.
+Baseline recorded 2026-08-16 at `db08b48d`; gate **promoted the same day**.
+This is the method record. The debt it describes is cleared.
 
 ## The correction this record exists to make
 
@@ -26,25 +27,29 @@ rewritten on 2026-08-13 specifically to stop carrying approximations. It is not 
 gate that went red. It is a gate that never existed, whose red state signals
 nothing about any particular change.
 
-## The measured baseline
+## The measured baseline — RETIRED 2026-08-16, debt cleared
 
 | | |
 |---|---|
-| findings | **1,770** |
+| findings at measurement | **1,770** |
 | files | **153** |
 | distinct unknown words | **440** |
+| **findings now** | **0** across the declared scope |
 
-Raw output: [`baseline-2026-08-16.txt`](baseline-2026-08-16.txt).
+**`baseline-2026-08-16.txt` was deleted in the promotion commit**, per the fourth
+condition. The raw list existed to make progress diffable against a fixed point;
+with the debt at zero it would only be a record of a debt that no longer exists,
+and a recorded debt outliving its debt is the stale-status failure this project
+keeps paying for. The counts above are kept because the *method* is what has
+lasting value — the numbers below show how the total moved and why.
 
 > **Drift since the measurement, recorded so the 1,770 stays interpretable.**
 > `tpool` was added to the global dictionary on 2026-08-16 — a real identifier
 > from patch `0012`'s target→pool scan, present in four tracked files, added under
 > CLAUDE.md's two-file rule when the per-change gate caught it on a new line. That
 > removes **35** findings, so a re-run now measures **1,735**. The raw file above
-> is left as measured rather than regenerated: it is the record of a specific
-> commit, and silently refreshing it would destroy the ability to tell cleanup
-> from drift. **Any further dictionary additions should be appended here the same
-> way.**
+> was left as measured rather than regenerated while the debt existed, so cleanup
+> stayed distinguishable from drift. It is now deleted, the debt being zero.
 
 Where it concentrates:
 
@@ -107,7 +112,8 @@ One thing it deliberately does not do is trust an issue count alone. cspell 10.0
 prints `Files checked: 0, Issues found: 0` for a path it cannot resolve, so every
 requested path is accounted for by name as CHECKED or IGNORED-BY-CONFIG.
 
-**2. Tree-wide debt — KNOWN RED, recorded here, NOT a gate.**
+**2. Tree-wide debt — CLEARED. 1,770 → 0.** How it moved, and where a
+prediction was wrong:
 
 ### Step 1 applied 2026-08-16 — attribution, including where a prediction was wrong
 
@@ -285,7 +291,24 @@ anyone treats tree-wide green as the superset.
 This is exactly the shape of the earlier lesson: the guard had been tested, but not
 in the shape that would reveal what it does not reach.
 
-**3. Restored tree-wide gate — NOT YET.**
+**3. Restored tree-wide gate — PROMOTED 2026-08-16.**
+
+`🔤 Check Spelling (full tree)` is live in `.github/workflows/main.yaml`, running
+the declared command on every pull request, alongside — not replacing — the
+incremental job. All four conditions are met: the command exits 0 over a scope that
+is declared rather than inherited, CI has actually executed it green on the fork,
+two negative controls prove it can fail (ordinary file and dotfile), and the
+baseline record was deleted in the promoting commit.
+
+**What the gate does NOT cover, stated so nobody over-reads a green:**
+
+* paths outside `selfhost` and `packages/code_push_server/lib` — notably
+  `packages/shorebird_cli/**`, which carries pre-existing findings;
+* diff-body **code** lines inside `.patch` files (comments and headers are checked);
+* the six-file, exact-token suppressions listed in `cspell.config.yaml`;
+* it is a spelling gate. It has never had an opinion about prose quality.
+
+**The conditions as originally written:**
 
 The four conditions below are unchanged. What was missing was their ORDER, and
 the fact that two of them are one proof rather than two steps:

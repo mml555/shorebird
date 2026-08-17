@@ -4,7 +4,7 @@ version: "0.2"
 # Shoul in particular must NEVER become a dictionary word -- it is a genuine
 # misspelling in upstream's test name, and the point of quoting it is that it
 # stays wrong. File-scoped so it is invisible here and nowhere else.
-# cspell:ignore Shoul shutil stdlib gskinner hlcl hlclpqwxzq hlclxeca hlclqjttgm hlclx hldxg wfyg VVFRF WRVJTSU UNRE Volemes Ünïcödé
+# cspell:ignore delibrate mispelt Shoul shutil stdlib gskinner hlcl hlclpqwxzq hlclxeca hlclqjttgm hlclx hldxg wfyg VVFRF WRVJTSU UNRE Volemes Ünïcödé
 # Step 1 §3, per evidence/cspell/classification_precommit.md.
 #
 # STANDARD BRITISH AND AMERICAN VARIANTS ARE BOTH ACCEPTED. This is NOT a house
@@ -41,10 +41,11 @@ ignorePaths:
     # Gitignored, and the records embed mktemp paths whose random names are
     # not words. Nothing here is authored prose or source.
     "selfhost/cdn/overlay/**",
-    # The recorded tree-wide cspell BASELINE. It is a list of unknown words by
-    # construction, so checking it is circular -- and it would add ~1,770
-    # findings to the very number it exists to measure. See
-    # selfhost/evidence/cspell/README.md.
+    # The cspell method record. The 1,770-line BASELINE that first justified this
+    # exclusion is deleted (debt cleared, gate promoted), but the exclusion stays
+    # for a second reason it always also had: these documents QUOTE misspellings
+    # as specimens -- Shoul, Volemes, delibrate, mispelt -- and checking them
+    # would be circular.
     "selfhost/evidence/cspell/**",
     # --- Step 1 exclusions, admitted under evidence/cspell/classification_precommit.md
     # §1. Each is generated/captured, is not edited here, and carries no authored

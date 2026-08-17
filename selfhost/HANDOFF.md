@@ -2308,9 +2308,14 @@ selfhost/scripts/cspell_touched.sh --self-test  # the gate's negative control, 6
 #     Established by fork run 31986647895, which reported cspell.config.yaml's
 #     pre-existing `sendemail` on a line this lane never touched.
 npx cspell --dot --no-progress --no-summary selfhost packages/code_push_server/lib
-#   ^ the DECLARED full-tree scope. --dot is load-bearing: without it cspell does
-#     not traverse dot-named files and engine/.gclient.template goes unchecked.
-#     Proven both halves by scripts/cspell_scope_control.sh.
+#   ^ A LIVE GATE as of 2026-08-16 — CI job "🔤 Check Spelling (full tree)" in
+#     main.yaml runs exactly this on every PR, alongside the incremental job
+#     rather than replacing it. Expect exit 0; 1,770 findings were cleared to
+#     reach it. --dot is load-bearing: without it cspell does not traverse
+#     dot-named files and engine/.gclient.template goes unchecked. Both halves
+#     of the scope proven by scripts/cspell_scope_control.sh.
+#     What it does NOT cover: paths outside those two, .patch diff-body CODE
+#     lines, and six exact-token suppressions. See evidence/cspell/README.md.
 ```
 
 > **The spelling line above was WRONG until 2026-08-16, and the way it was wrong
