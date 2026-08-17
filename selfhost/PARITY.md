@@ -3036,6 +3036,38 @@ The general rule is the four-question stack's first question, aimed at tooling
 rather than evidence: **after building a guard, ask what makes it fail — and then
 make it fail.** An untested guard is a claim about a guard.
 
+#### The same question asked of ENVIRONMENTS: a matrix is evidence, not redundancy
+
+> **A platform that fails differently is an instrument, not a nuisance. Ask which
+> environment is capable of observing the defect before reading a green as
+> coverage.**
+
+2026-08-16. Three Windows CI failures looked like the usual tax — path separators,
+flakes, someone else's platform. They were **two real production defects that POSIX
+semantics had been masking**:
+
+* an archive stream opened and never closed. POSIX permits unlinking an open file,
+  so macOS and Linux delete the temp directory happily and the leak is invisible.
+  Windows returns `errno 32`. The bug was cross-platform on every run; **only one
+  platform could report it**;
+* a path built by joining a POSIX-style entrypoint onto a host root. On POSIX
+  `join` and `normalize` agree, so the missing normalisation cannot show. On
+  Windows it yields `…\lib/main.dart`.
+
+Neither was a Windows problem. Windows was the **discriminating environment** —
+exactly what a negative control is, arrived at by platform rather than by design.
+
+**The consequence for how greens are read.** Both regressions written for these
+fixes are *vacuously green on POSIX*, and both say so in their own comments rather
+than pretending otherwise. Manufacturing a filesystem fake so macOS could imitate
+Windows would have tested the fake. **CI is allowed to be the environment in which
+a bug becomes observable** — and when it is, the honest record names it instead of
+claiming a proof the developer machine cannot give.
+
+This is the reachable-failure question one level up: not *can this check fail*, but
+*can this check fail HERE*. A suite green on the only platform incapable of
+detecting the defect is the platform-level version of a guard behind a pipe.
+
 #### 2026-08-14: an EARLIER tell, and the tool that makes a shared file safe
 
 The sixth instance was caught **before** staging, by a tell this section did not
