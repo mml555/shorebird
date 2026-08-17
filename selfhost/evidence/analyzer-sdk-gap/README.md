@@ -67,6 +67,44 @@ investigation.
   both **synchronous**, so neither can exhibit it. That is a targeted check, not
   a substitute for running 3.13.
 
+## First CI observation of `58d8cdd2` — INCONCLUSIVE
+
+Fork run [31986647895](https://github.com/mml555/shorebird/actions/runs/31986647895),
+2026-08-16, the first time this branch has been through the `ci` workflow at all
+(it needs a `pull_request`, and none existed until draft PR #3).
+
+| job | result |
+|---|---|
+| `🎯 Build shorebird_cli (windows-latest)` | **failure** — 2201 passed, **3 failed**, 12 skipped |
+| `🎯 Build shorebird_cli (ubuntu-latest)` | **cancelled** (matrix fail-fast) |
+| `🎯 Build shorebird_cli (macos-latest)` | **cancelled** (matrix fail-fast) |
+
+**The fix is still unverified under CI, and the reason is the matrix, not the fix.**
+Ubuntu is where the `unawaited_return_in_try_block` warning failed upstream and
+where Dart 3.13 would exercise `58d8cdd2` — and fail-fast cancelled it when Windows
+failed first. Nothing here confirms or refutes the repair.
+
+**The Windows failures are a separate, previously unobserved problem.** They are
+test failures, not analyzer failures:
+
+```
+❌ test\src\archive_analysis\archive_differ_test.dart:
+     assetKeysReferencedByDart finds keys embedded in the compiled Dart
+❌ test\src\archive_analysis\archive_differ_test.dart:
+     assetKeysReferencedByDart ignores keys that appear only outside the Dart snapshot
+❌ test\src\route_b_release_kernels_test.dart:
+     RouteBReleaseKernelBuilder build differs from the release only in the mode
+```
+
+None is in the async-rejection group `58d8cdd2` added; all three pass locally on
+macOS. They are **newly observed rather than newly introduced** — this branch had
+never run through `ci`, so its Windows behaviour had never been looked at. Whether
+they are path-separator assumptions or something real is unknown and is its own
+investigation.
+
+**What would settle the fix:** re-run the ubuntu job alone. `gh run rerun --job`
+targets one job, so the answer costs one job rather than a full matrix.
+
 ## What would close it
 
 Pin or match the analyzer version so the local command and CI's are the same
