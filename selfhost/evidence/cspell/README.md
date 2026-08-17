@@ -222,6 +222,37 @@ The number above is the baseline. It is not permission to add to it: the
 per-change gate already prevents that, since any file you touch must come out
 clean whatever it inherited.
 
+### Promotion conditions — evaluated 2026-08-16 against a green tree
+
+**1,770 → 0. The tree-wide command exits 0.** Status of the four conditions:
+
+| # | condition | state |
+|---|---|---|
+| 1 | tree-wide command exits 0 | ✅ |
+| 2 | **CI actually runs it** | ❌ **the remaining blocker** — a workflow change |
+| 3 | negative control proves the promoted command can fail | ✅ typo planted in an untouched file → exit 1, both findings reported |
+| 4 | this baseline record deleted in the promoting commit | ⏳ must land *with* promotion, not before |
+
+**Condition 3's first attempt failed, and the failure was the instrument.** The
+specimen was named `.negcontrol.md`; the command returned exit 0. Re-run with a
+normal filename it returns exit 1 and reports both planted words. So the control
+passes — but the reason the first one didn't is a **previously unknown coverage
+boundary of the promoted command**:
+
+> **cspell does not traverse into dotfiles when given a directory.** Passed
+> explicitly by path it checks them fine — `selfhost/plans/.dotcheck.md` reports
+> its typos — but `npx cspell … selfhost` never reaches them.
+
+Two consequences worth carrying. Any dot-named file under the checked trees is
+invisible to the tree-wide gate, so a green tree does not mean *every file* is
+clean. And the **per-change gate is stronger here than the tree-wide one**, because
+`cspell_touched.sh` passes explicit paths — it would catch a dotfile the tree-wide
+command skips. That inverts the usual assumption and is worth stating before
+anyone treats tree-wide green as the superset.
+
+This is exactly the shape of the earlier lesson: the guard had been tested, but not
+in the shape that would reveal what it does not reach.
+
 **3. Restored tree-wide gate — NOT YET.**
 
 The four conditions below are unchanged. What was missing was their ORDER, and
