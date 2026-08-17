@@ -256,6 +256,27 @@ void main() {
         expect(args.last, p.join(projectRoot.path, 'lib', 'main.dart'));
       });
 
+      // The input shape here is the real one and is deliberately NOT changed:
+      // Flutter supplies POSIX-style targets, so `lib/main.dart` is what this
+      // code is handed on every host, Windows included.
+      //
+      // WINDOWS IS THE DISCRIMINATING ENVIRONMENT. A bare join there produced
+      // `C:\…\project\lib/main.dart` — separators mixed inside one path — while
+      // on POSIX join and normalize already agree, so this can only fail on
+      // Windows. Asserted against the invariant rather than the symptom: a path
+      // built for a downstream compiler is canonical for its host.
+      test('canonicalises a POSIX-style entrypoint for the host', () {
+        final target = capturedArgs().last;
+
+        expect(target, p.normalize(target), reason: 'already canonical');
+        expect(p.isAbsolute(target), isTrue);
+        expect(
+          target.contains(p.style == p.Style.windows ? '/' : r'\'),
+          isFalse,
+          reason: 'no foreign separator survives inside the path',
+        );
+      });
+
       test('carries the release\'s defines through', () {
         expect(
           capturedArgs(buildArgs: ['--dart-define=FLAVOR=prod']),

@@ -277,13 +277,22 @@ class RouteBReleaseKernelBuilder {
       ...extraArgs,
       '-o',
       outputFile.path,
-      // Absolute. Flutter's --target is relative to the project root, but
-      // gen_kernel resolves a relative path against the CWD, which is wherever
-      // `shorebird release` was invoked from. Left relative it reports
+      // Absolute AND canonical. Flutter's --target is relative to the project
+      // root, but gen_kernel resolves a relative path against the CWD, which is
+      // wherever `shorebird release` was invoked from. Left relative it reports
       // "No 'main' method found", which reads like a broken app.
-      p.isAbsolute(entrypoint)
-          ? entrypoint
-          : p.join(projectRoot.path, entrypoint),
+      //
+      // `p.normalize` is the Windows half and it is not cosmetic. Flutter
+      // supplies POSIX-style targets — `lib/main.dart` — so on Windows a bare
+      // join yields `C:\…\project\lib/main.dart`, mixing separators inside one
+      // path. The invariant this restores: a path this code builds for a
+      // downstream compiler is canonical for the host platform, so callers and
+      // tests never have to normalize what we hand them.
+      p.normalize(
+        p.isAbsolute(entrypoint)
+            ? entrypoint
+            : p.join(projectRoot.path, entrypoint),
+      ),
     ]);
 
     if (result.exitCode != 0 || !outputFile.existsSync()) {
