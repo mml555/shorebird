@@ -1,6 +1,33 @@
 HYBRID RELEASE 91 — BEHAVIORAL LINEAGE DISCRIMINATOR: VERDICT, 2026-08-17
 ===========================================================================
 
+*** WITHDRAWN, SAME DAY, BY hybrid_method_control_verdict.txt ***
+==================================================================
+**THE ATTRIBUTION BELOW IS FALSE. Read that file first.**
+
+Cells `80e493e4` and `87130ae8` were measured to ship the **byte-identical**
+`Flutter` binary (`f38b3059…`). A later run on that same engine binary — via the
+same hybrid method and the same `idevicedebug` launch used here — ALSO rendered
+`OLD-kill`, where the 2026-08-14 by-hand run of the shipped app rendered
+`NEW-kill`. So the engine cell was NOT the operative variable.
+
+**"One variable, and the outcome flips" (below) is WRONG.** The comparison
+carried at least two differences: the engine cell AND the assembly/launch method.
+The leading candidate is the launch method — every run here used
+`idevicedebug`, which attaches a debugserver, while `arm2_verdict.txt`'s
+`NEW-kill` observations were by-hand taps and its WHY BY HAND section warns
+explicitly about debugger-attached launches.
+
+**What survives:** the OBSERVATION that this configuration rendered `OLD-kill`
+with the patch Installed and attached, collected against its precommitted
+requirements. **What does not:** every inference from it about engine lineage,
+including the claim that release-production lineage was removed from the leading
+set, and the phrase "engine-lineage-localized" as applied to arm A.
+
+The original text is left UNEDITED below, so the error is legible rather than
+tidied away.
+==================================================================
+
 Precommitted in r91_behavioral_precommit.md, INCLUDING its amendment, before the
 run. Neither table is edited here.
 
