@@ -145,18 +145,28 @@ abstract class ArchiveDiffer {
     if (assetKeys.isEmpty) return {};
     return Isolate.run(() {
       final referenced = <String>{};
-      final archive = ZipDecoder().decodeStream(InputFileStream(archivePath));
-      for (final file in archive.files) {
-        if (!file.isFile || !isDartFilePath(file.name)) continue;
-        final content = file.readBytes();
-        if (content == null) continue;
-        // latin1 maps each byte to one code unit, so indexOf over the decoded
-        // string is an exact byte search. Asset keys are ASCII, so no key can
-        // be mangled by the decode.
-        final haystack = latin1.decode(content, allowInvalid: true);
-        for (final key in assetKeys) {
-          if (haystack.contains(key)) referenced.add(key);
+      // The stream is closed in `finally`, not after the loop: an archive that
+      // throws mid-parse must still release the handle. On POSIX a leaked
+      // handle is invisible — the file can be unlinked while open — so this
+      // only ever fails on Windows, where the OS refuses to delete it
+      // (`errno 32`). The bug is cross-platform; the observation is not.
+      final stream = InputFileStream(archivePath);
+      try {
+        final archive = ZipDecoder().decodeStream(stream);
+        for (final file in archive.files) {
+          if (!file.isFile || !isDartFilePath(file.name)) continue;
+          final content = file.readBytes();
+          if (content == null) continue;
+          // latin1 maps each byte to one code unit, so indexOf over the decoded
+          // string is an exact byte search. Asset keys are ASCII, so no key can
+          // be mangled by the decode.
+          final haystack = latin1.decode(content, allowInvalid: true);
+          for (final key in assetKeys) {
+            if (haystack.contains(key)) referenced.add(key);
+          }
         }
+      } finally {
+        stream.closeSync();
       }
       return referenced;
     });
@@ -177,15 +187,23 @@ abstract class ArchiveDiffer {
   /// Returns a map of file paths to their respective checksums.
   Future<PathHashes> fileHashes(File archive) async {
     return Isolate.run(() {
-      final zipDirectory = ZipDirectory()..read(InputFileStream(archive.path));
+      // Same handle contract as assetKeysReferencedByDart above: closed in
+      // `finally` so a malformed archive cannot leak it.
+      final stream = InputFileStream(archive.path);
+      try {
+        final zipDirectory = ZipDirectory()..read(stream);
 
-      return {
-        for (final file in zipDirectory.fileHeaders)
-          // Zip files contain an (optional) crc32 checksum for a file. IPAs and
-          // AARs seem to always include this for files, so a quick way for us
-          // to tell if file contents differ is if their checksums differ.
-          file.filename: file.crc32.toString(),
-      };
+        return {
+          for (final file in zipDirectory.fileHeaders)
+            // Zip files contain an (optional) crc32 checksum for a file. IPAs
+            // and AARs seem to always include this for files, so a quick way
+            // for us to tell if file contents differ is if their checksums
+            // differ.
+            file.filename: file.crc32.toString(),
+        };
+      } finally {
+        stream.closeSync();
+      }
     });
   }
 
