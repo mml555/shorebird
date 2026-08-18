@@ -1,0 +1,14 @@
+{
+  "note": "KNOWN HOLE, pinned deliberately. This is a genuinely polymorphic call specialized into a dispatch-table call that no patch can reach -- and it is INDISTINGUISHABLE here from instance_method: same verdict, same bucket, patch accepted. Separating them needs per-call-site data from the release snapshot, which no kernel carries. Pinned so the gap is a recorded fact rather than a silence; the day it is closed, this pin fails and must be updated on purpose.",
+  "verdict": "accept",
+  "changed": [
+    "package:corpus/main.dart#Circle.describe"
+  ],
+  "patchable": [],
+  "conditional": [
+    "package:corpus/main.dart#Circle.describe"
+  ],
+  "unreachable": [],
+  "added": [],
+  "rejectionReasons": []
+}

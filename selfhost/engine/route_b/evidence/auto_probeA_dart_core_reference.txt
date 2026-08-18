@@ -1,0 +1,6 @@
+2026-08-11 00:36:22.937874-0400 Runner[20681:459163] [ERROR:flutter/shell/common/shorebird/shorebird.cc(204)] ROUTEB: hook entered
+2026-08-11 00:36:22.938846-0400 Runner[20681:459163] [ERROR:flutter/shell/common/shorebird/shorebird.cc(204)] ROUTEB: parsed, targets=1, built-for=f1e3a7ba7ed93b24857e24911c130d85
+2026-08-11 00:36:22.939830-0400 Runner[20681:459163] [ERROR:flutter/shell/common/shorebird/shorebird.cc(204)] ROUTEB: running=f1e3a7ba7ed93b24857e24911c130d85
+../../flutter/third_party/dart/runtime/vm/bytecode_reader.cc: 1172: error: Unable to find function DateTime.now in Library:'dart:core' Class: DateTime
+--- the replacement body that failed ---
+String routeBValue() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'NEW' : 'X';
