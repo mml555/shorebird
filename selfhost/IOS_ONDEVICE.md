@@ -1,3 +1,5 @@
+<!-- cspell:words xctrace devicectl mobileprovision -->
+
 # iOS code signing with the self-hosted control plane
 
 The server handles iOS **identically to Android** — `shorebird release ios`
@@ -92,6 +94,17 @@ tool/ios_ci_keychain.sh teardown                    # always, even on failure
 
 ## Notes
 
+- **`devicectl` is iOS 17+ only, and older devices are invisible to it.** Not
+  merely unsupported — `xcrun devicectl device install` fails as though the
+  device were absent, which reads like a pairing or signing fault. An iPhone 7
+  tops out at iOS 15.8, and old hardware is exactly what ends up on a test
+  bench. `lib/ios_device.sh` therefore picks the transport by the device's OS
+  version (read via `xctrace`, which *can* see pre-17 devices): `devicectl` at
+  17 and above, `ios-deploy` below it, preferring the copy Flutter bundles.
+  `ios_ship.sh` and `e2e_device.sh` both go through it. Two details it handles:
+  `ios-deploy` needs the `.app`, not the `.ipa`, so an archive is unpacked
+  first; and `--no-wifi` is always passed, because this project tests over cable
+  only and a wireless peer would silently take the install.
 - **Reaching the server from the device.** iOS has no `adb reverse`, so the
   iPhone reaches the host over the LAN (or your TLS domain in production). Set
   `PUBLIC_BASE_URL` and the app's `shorebird.yaml` `base_url` to a host the

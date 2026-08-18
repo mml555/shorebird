@@ -1,0 +1,278 @@
+# Experimental engine hashes served from selfhost/cdn/overlay, and the pinned
+# revision each one falls back to for artifacts it did not rebuild.
+#
+# Format (Caddy `map` entries, one per line — imported into the CDN Caddyfile):
+#   <experimentalEngineHash> <pinnedEngineHash>
+#
+# Written by selfhost/engine/overlay_publish.sh — you normally do not edit this
+# by hand. An empty file (just these comments) means no experimental engine is
+# published and the mirror behaves exactly as a passthrough cache.
+# Checked in EMPTY on purpose. With no entries the mirror is a pure passthrough
+# cache of Shorebird's pinned engine — which is what this repo ships. Publishing
+# an experimental engine (selfhost/engine/overlay_publish.sh) writes its entry
+# here; that is a local, deliberate act, not the default state.
+#
+# The engine device-verified on 2026-07-29 was:
+#   dabf1837976819e5da33f3e143c4f628749702da 69f9831c360d9152862ec3897c67fb09ae843f3b
+5b1a89658709b9a0d2e76c6f3d47ad1a26eecdee 69f9831c360d9152862ec3897c67fb09ae843f3b
+760e3fabffbf31b4e86919a0ef47d6ce5f182991 69f9831c360d9152862ec3897c67fb09ae843f3b
+# The Route B engine (device-verified 2026-07-30). Without an entry here a build
+# against it dies on the FIRST artifact the overlay does not own — sky_engine.zip
+# — because the passthrough asks upstream for OUR revision, which upstream has
+# never heard of. Mapping it also switches on `must_be_local`, so a miss on an
+# artifact we DO own is now a loud 404 instead of a silent fall back to stock
+# bytes. sky_engine.zip is safe to take from stock: it is the Dart source of
+# dart:ui, and this engine differs from the pinned one only in C++.
+fc184af6509a93eaf6fc068c6820639b324175a8 69f9831c360d9152862ec3897c67fb09ae843f3b
+# Our own iOS engine (selfhost/engine/publish_ios_overlay.sh). Built against
+# VANILLA Dart with shorebird_use_interpreter=false, so it carries the updater and
+# supports assets-only patches but not iOS code patches — those need the AOT
+# linker we do not have. The hash is sha1 of the device-slice Flutter binary, so
+# it changes whenever the engine does.
+#
+# 5a6b0b09… was the first attempt and is superseded: its host toolchain came from
+# a tree still carrying Track E's killgate SDK edits, which leaked into
+# platform_strong.dill and failed the iOS AOT step with "Unexpected tag 4
+# (Field)". Reverting those edits changed runtime/lib/object.cc and therefore the
+# VM inside Flutter.framework, hence a new hash.
+#
+# …and 70974f81 turned out to be fine all along. It was never the ENGINE that
+# could not build an app, it was gen_snapshot: a tear-off selector applied to a
+# field's implicit accessor overwrites the accessor's Field pointer. Fixed in
+# engine/0004-dart-tearoff-selector-guard.patch; see HANDOFF.md for the evidence.
+# Note the hash is sha1 of the Flutter binary ONLY, so a gen_snapshot-only change
+# republishes under the SAME hash — clear the Flutter artifact cache
+# (bin/cache/artifacts/engine/ios-release*) or a build will silently reuse the
+# old compiler.
+#
+# 2026-08-05: republished again with patches 2 and 3a RETIRED from the compiler
+# (the IsUsed(), torn_off and has_tearoff_uses gates restored to upstream), and
+# with the host toolchain that makes that sound — our own dart-sdk-darwin-arm64
+# plus const_finder inside darwin-arm64/artifacts.zip. Release 29.0.0+1 built,
+# first frame, assets patch applied and rolled back on an iPhone 7. Engine
+# binary unchanged, so the hash is the same as before. See
+# selfhost/TFA_ROOT_CAUSE.md; do NOT build against this hash with a
+# bin/cache/dart-sdk that is not revision 6b58bb3a.
+70974f811d448da19a927c581678ef1dbd33605c 69f9831c360d9152862ec3897c67fb09ae843f3b
+# 9f4d3942… is the same engine built with dart_dynamic_modules=true, which is
+# Track E's configuration, not the shipping one: it leaves the whole host
+# toolchain (frontend_server, platform dill) at dart_dynamic_modules=false while
+# the runtime VM has it on. Its gen_snapshot compiles an app fine, so the flag is
+# NOT the "Unexpected tag 4 (Field)" hazard the invariant in HANDOFF.md claimed —
+# but the shipping engine stays consistent with its toolchain.
+9f4d3942c65831668235703091092d0d985e87e4 69f9831c360d9152862ec3897c67fb09ae843f3b
+# 70b2e762… is a DIAGNOSTIC engine: same as 70974f81 plus a temporary FML_CHECK
+# that makes any unhandled Dart exception fatal, because app stderr is not
+# readable on this rig. Do not ship it.
+70b2e762e0c10306c3b0412ef46266886db1dd8a 69f9831c360d9152862ec3897c67fb09ae843f3b
+# bbddaa6e… diagnostic engine (unhandled-exception FATAL + settings-json log). Do not ship.
+bbddaa6e2da41fef8e950ed63e14b6d4400b69d7 69f9831c360d9152862ec3897c67fb09ae843f3b
+# b4817db8… Route B iOS engine (2026-08-10). dart_dynamic_modules=true,
+# shorebird_use_interpreter=false, carries the patchable static-call form and
+# AttachBytecode/restore. sky_engine.zip content DIFFERS from stock here — the
+# killgate SDK edits reach dart:_internal — so this hash must never fall through
+# to the pinned revision for that artifact.
+b4817db848cb7d79bde7b959df4164be85d3a6f6 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B iOS engine + SEAM 6 pre-main activation hook (2026-08-10). Same tree
+# as b4817db8 plus Dart_RouteBActivatePatch and the chained
+# root_isolate_create_callback.
+#
+# INERT unless a Route B payload is actually present: the hook returns before
+# touching anything when neither the SHOREBIRD_ROUTEB_* env triple nor
+# assets/routeb_patch.bytecode is there, which is every ordinary app. Two
+# entries because the hook was iterated on; d393ed01 is the one the seam-6
+# gate passed against.
+3712040944c7ef4eb837263184a394afffa4c724 69f9831c360d9152862ec3897c67fb09ae843f3b
+d393ed0138d99601de407111df1feae74b0437eb 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B 4b milestone 1 (2026-08-10): lifecycle-selected SBRBPTCH delivery.
+# Adds, on top of d393ed01: base snapshots available on iOS independently of
+# SHOREBIRD_USE_INTERPRETER (without which every iOS patch install fails inside
+# inflate), content sniffing so a Route B container never reaches the VM
+# snapshot loader, and the pre-main hook consuming the lifecycle-selected path
+# with magic/version/build-ID validation.
+ba3522169dfff83140d6b3732acaf9e6a51e10ad 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# 4b milestone 1, plus the .routeb report file the first device run proved
+# necessary: the taxonomy is worthless on this rig without a channel, since no
+# engine log line reaches idevicesyslog.
+591a9f8d8e21f8c08cd379ac4c63a0300ac98959 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B rung C (2026-08-11). Same ENGINE BINARY as 591a9f8d -- byte-identical
+# ios-release artifacts, cloned -- and a different COMPILER CELL: dart2bytecode
+# now accepts one positional parameter on a dynamic-module entry point, so a
+# replacement can name the receiver.
+#
+# A new hash even though the engine did not change, because the hash identifies
+# the whole toolchain cell and consumers cache it by that hash. See
+# "The cell is IMMUTABLE per engine hash" in engine/route_b/README.md.
+54fb8772a037aaec97f3f472d33c96a8529b2dec 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-11 from the cell
+# manifest (see mint_route_b_cell.sh). Engine binary is 54fb8772a037aaec97f3f472d33c96a8529b2dec's,
+# cloned byte-for-byte; only the CELL differs.
+#
+# Coverage analyzer v3: it now reports, per instance target, the receiver
+# type and every receiver access with its resolved member and identifier
+# offset -- the facts the producer's implicit-this lowering runs on. Engine
+# binary and dart2bytecode unchanged from 54fb8772.
+3568f73c4f51f6055584fc14edd3be039358bada 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-11 from the cell
+# manifest (see mint_route_b_cell.sh). Engine binary is 3568f73c4f51f6055584fc14edd3be039358bada's,
+# cloned byte-for-byte; only the CELL differs.
+#
+# Coverage analyzer v4: a public zero-argument receiver INVOCATION is now
+# a lowerable access (kind 'invoke'), alongside the getter. Engine binary and
+# dart2bytecode unchanged from 54fb8772.
+ebcf143f28fb283c4e03a30cf769b87eccf0abe1 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-11 from the cell
+# manifest (see mint_route_b_cell.sh). Engine binary is ebcf143f28fb283c4e03a30cf769b87eccf0abe1's,
+# cloned byte-for-byte; only the CELL differs.
+#
+# Coverage analyzer v5: a receiver invocation may carry arguments. The
+# producer copies the argument list verbatim, so nothing about its shape is part
+# of the lowering. Engine binary and dart2bytecode unchanged from 54fb8772.
+8ebaad053e6f4a6caeb8a11720aaa47fa655747b 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-11 from the cell
+# manifest (see mint_route_b_cell.sh). Engine binary is 8ebaad053e6f4a6caeb8a11720aaa47fa655747b's,
+# cloned byte-for-byte; only the CELL differs.
+#
+# Coverage analyzer v6: receiver WRITES are lowerable, and a read+write
+# reported at one source offset (compound assignment, ++, ??=) is refused by the
+# collision rather than by an operator list. Engine binary and dart2bytecode
+# unchanged from 54fb8772.
+aa9155840d6c1e71b015bbcff1e06eaea7e73e17 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-12 from the cell
+# manifest (see mint_route_b_cell.sh). Engine binary is aa9155840d6c1e71b015bbcff1e06eaea7e73e17's,
+# cloned byte-for-byte; only the CELL differs.
+#
+# Baseline A for the real-patch compatibility study. Analyzer unchanged at
+# v6; gen_dynamic_interface rebuilt for G3.6d (retain private classes, class
+# members and top-level fields). Producer pinned at a28ba1d9 (G3.6c). Engine
+# binary and dart2bytecode unchanged from 54fb8772.
+50d58cc313fdb9850452a28948cd56f4e2632827 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-12 from the cell
+# manifest (see mint_route_b_cell.sh). Engine binary is 50d58cc313fdb9850452a28948cd56f4e2632827's,
+# cloned byte-for-byte; only the CELL differs.
+#
+# G3.6b: analyzer v6->v7 (a private receiver access is reported with its manifest key, not refused), gen_dynamic_interface gains --policy/--manifest, dart2bytecode gains --resolve-private-names-in-library. Host path cli_private_member.sh 10/10 against these exact bytes staged as an unpublished cell.
+ee001fd78fcd5e78e976d35284bd13e1caffff63 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-12 from the cell
+# manifest (see mint_route_b_cell.sh). Engine binary is ee001fd78fcd5e78e976d35284bd13e1caffff63's,
+# cloned byte-for-byte; only the CELL differs.
+#
+# Diagnostic build: post-attach Function trace. dartaotruntime carries the instrumented libdart (lib/object.cc: Dart_RouteBActivatePatchTraced + pre/post sampling around AttachBytecode). SNAPSHOT_HASH verified UNCHANGED (old cell's dart2bytecode.aot runs under the new dartaotruntime). iOS engine artifacts must be REPUBLISHED under this hash, not donor-cloned.
+442860e6337a75a78df381d2bf60ed91e49e3d83 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-13 from the cell
+# manifest (see mint_route_b_cell.sh). Engine binary is 442860e6337a75a78df381d2bf60ed91e49e3d83's,
+# cloned byte-for-byte; only the CELL differs.
+#
+# Trace v2: Function fields and Code accessors recorded separately (v1 conflated them). Adds function_ptr, fn_ep/fn_uep pre+post read at the VM's own offsets, code_ep/code_uep kept separate; deciding comparison is fn_uep_post vs same-run InterpretCall. Caller-pool identity supported but NOT wired (no caller name passed) — those fields read UNSET.
+4288817249400e62ab2f136a913251f35ee86f0f 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-13 from the cell
+# manifest (see mint_route_b_cell.sh). Engine binary is 4288817249400e62ab2f136a913251f35ee86f0f's,
+# cloned byte-for-byte; only the CELL differs.
+#
+# Trace v2 + deliberate caller identity (RouteBThing.value -> routeBValue, diagnostic-only). FIRST address whose manifest includes ios_artifacts_sha256, so it identifies the host cell AND the iOS engine: an embedder-only change previously reproduced 4288817249400e62 for different runtime bytes.
+ffdec413f2d12a253a03753a428b8465cc8cacc3 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-13 from the cell
+# manifest (see mint_route_b_cell.sh). Engine binary is ffdec413f2d12a253a03753a428b8465cc8cacc3's,
+# cloned byte-for-byte; only the CELL differs.
+#
+# Trace v3: caller_scan_status first-class (NOT_REQUESTED..SCANNED), HasCode() gate removed, identity refused unless SCANNED. Address includes ios_artifacts_sha256.
+d6aad559e9da328edb729d5ed7c69c21bc0380ee 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-13 from the cell
+# manifest (see mint_route_b_cell.sh). Engine binary is d6aad559e9da328edb729d5ed7c69c21bc0380ee's,
+# cloned byte-for-byte; only the CELL differs.
+#
+# Trace v4: exact-entry pool identity. Reads ONE global-pool entry at the measured call-site offset 0xd4a8, index via ObjectPool::IndexFromOffset. Mismatch requires two positively identified Functions; caller name removed.
+881e4129ce06e8d61019e0ed892f3be7c039763e 69f9831c360d9152862ec3897c67fb09ae843f3b
+#
+# 11e56957: the G15 iOS engine. Route B tree, incremental rebuild of
+# shell/common/shorebird/shorebird.cc carrying patch 0007 — InstallRouteBActivationHook
+# moved ABOVE the `!init_result` early return, so a SECOND FlutterEngine in one
+# process is armed too. Same byte SIZE as 881e4129's Flutter (19,071,568) and
+# DIFFERENT bytes (e828f8ef vs 396a0b0c), which is what a statement reorder looks
+# like; verified rather than assumed, because equal size invited the wrong conclusion.
+11e5695710275f829ef1e4a45636d39454ca1769 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-13 from the cell
+# manifest (see mint_route_b_cell.sh). Engine binary is 11e5695710275f829ef1e4a45636d39454ca1769's,
+# cloned byte-for-byte; only the CELL differs.
+#
+# G15 arming fix (patch 0007) + G3.7 entry-point contract (patch 0006) + analysisVersion 8
+4df8f9b6139b67d2cfe9f6aa8212372cade36278 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-14 from the cell
+# manifest (see mint_route_b_cell.sh).
+# CORRECTED 2026-08-14, retroactively and by the same defect found one cell later:
+# the script emitted "Engine binary is 4df8f9b6...'s, cloned byte-for-byte; only
+# the CELL differs", and this entry CONTRADICTS ITSELF two lines down by saying
+# "only the iOS zip moves". The iOS zip is where gen_snapshot lives, so it did
+# NOT clone byte-for-byte — that is the whole reason this cell exists. Left
+# annotated rather than rewritten: this cell is PROVEN lineage (release 39,
+# obfuscated patch on device) and a reader who trusted the old sentence needs to
+# see that it changed.
+#
+# gen_snapshot learns --load-obfuscation-map (patch 0008). Host files identical to 4df8f9b6; only the iOS zip moves.
+40eaa0ef6cb6485833bf2e10ac97224ca82cbf25 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-14 from the cell
+# manifest (see mint_route_b_cell.sh).
+# CORRECTED BY HAND 2026-08-14: the script emitted "Engine binary is
+# 40eaa0ef...'s, cloned byte-for-byte; only the CELL differs", which is FALSE for
+# this mint. The engine binary CHANGED — Flutter is 19072784 bytes here against
+# the donor's 19071568 — and was supplied via --ios-artifacts, so its digest
+# participates in this cell's address. Donor 40eaa0ef supplied every OTHER
+# engine artifact. The script now emits this distinction itself.
+#
+# G15: launch success banked when Engine::Run returns (0009) + boot-attempt threshold (0010)
+80e493e4c5c9e4c418c433bf660392067a131dd5 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-16 from the cell
+# manifest (see mint_route_b_cell.sh).
+# Engine binary CHANGED: iOS artifacts supplied via --ios-artifacts,
+# sha256 4302bf4dcd39d4488a55381b14bb7306743531c214de9c4e5c8f2f8977591919, which participates in this cell's address.
+# Donor 80e493e4c5c9e4c418c433bf660392067a131dd5 supplied every OTHER engine artifact.
+87130ae841e92d3e8bd4ea1759fb3cb474a6b3e4 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-16 from the cell
+# manifest (see mint_route_b_cell.sh).
+# Engine binary CHANGED: iOS artifacts supplied via --ios-artifacts,
+# sha256 443faeb2ea1632a6a243ef7f7847a1381e66ae41c885be94a3bf581a87f86bbd, which participates in this cell's address.
+# Donor 87130ae841e92d3e8bd4ea1759fb3cb474a6b3e4 supplied every OTHER engine artifact.
+# CORRECTED BY HAND 2026-08-16: the line above is FALSE for one artifact. The
+# PLATFORM DILL was also replaced at mint time — this cell's
+# flutter_patched_sdk_product.zip carries platform_strong.dill 757d09d7… with
+# _g15ReportLaunchSuccess ×5, against the donor's 9f5a5f75… with ×0 — installed
+# via PSDK_ZIP because FLUTTER_PLATFORM had to be passed explicitly. The script
+# branches its provenance sentence on --ios-artifacts alone, so it cannot see a
+# PSDK_ZIP substitution; the same understatement stands on 87130ae8 above, whose
+# dill likewise differs from ITS donor's. Every other artifact IS the donor's,
+# verified by digest: 9 of 11 files identical.
+#
+# G15: the _runMain success seam (patch 0011).
+cd137db6aea4c76f41903a872b91afb8ac799626 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-17 from the cell
+# manifest (see mint_route_b_cell.sh).
+# ANCESTRY, MEASURED against donor cd137db6aea4c76f41903a872b91afb8ac799626 at mint time —
+# 1 of 11 artifacts differ:
+#   CHANGED ios-release/artifacts.zip — sha256 4711841f08e212c78adf6b2c93434c349dbc6dc4882f46484769bce625deba06 (donor 443faeb2ea1632a6a243ef7f7847a1381e66ae41c885be94a3bf581a87f86bbd)
+# Donor cd137db6aea4c76f41903a872b91afb8ac799626 supplied the other 10, byte-for-byte.
+# ADDRESS: iOS artifacts sha256 4711841f08e212c78adf6b2c93434c349dbc6dc4882f46484769bce625deba06
+# participates in this cell's address (--ios-artifacts).
+#
+# G15: the 0012 derived target->pool scan plus 0013's assert-offset supply side.
+50bdae36f6dafbe1da17852a42e119518e8e5cf4 69f9831c360d9152862ec3897c67fb09ae843f3b

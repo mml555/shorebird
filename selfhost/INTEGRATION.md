@@ -42,7 +42,7 @@ docker run -d --name code-push \
   -e TRUSTED_PROXIES=172.17.0.1 \
   -p 127.0.0.1:8080:8080 \
   -v code_push_data:/data \
-  ghcr.io/mml555/code-push-server:1.2.0
+  ghcr.io/mml555/code-push-server:1.3.0
 ```
 
 `TRUSTED_PROXIES` must be **your proxy's address as the container sees it**, not
@@ -77,7 +77,7 @@ volume (set `DATABASE_URL`, leave `S3_ENDPOINT` unset).
   `.github/workflows/release_code_push_server.yaml` from the release tag and
   what the compose files reference.
   ```
-  docker pull ghcr.io/mml555/code-push-server:1.2.0
+  docker pull ghcr.io/mml555/code-push-server:1.3.0
   ```
   Pin the version tag rather than `:latest` — the server's compatibility with
   the Shorebird CLI/updater is tracked in `selfhost/compatibility.yaml`, which
@@ -87,9 +87,9 @@ volume (set `DATABASE_URL`, leave `S3_ENDPOINT` unset).
   uncomment the `build:` block above it).
 - **Mirror into your own registry** (air-gapped, or policy requires it):
   ```
-  docker pull ghcr.io/mml555/code-push-server:1.2.0
-  docker tag  ghcr.io/mml555/code-push-server:1.2.0 registry.yourco.com/code-push-server:1.2.0
-  docker push registry.yourco.com/code-push-server:1.2.0
+  docker pull ghcr.io/mml555/code-push-server:1.3.0
+  docker tag  ghcr.io/mml555/code-push-server:1.3.0 registry.yourco.com/code-push-server:1.3.0
+  docker push registry.yourco.com/code-push-server:1.3.0
   ```
 
 ## Full environment variable contract
@@ -121,7 +121,7 @@ Read by `lib/src/config.dart`. Everything has a default; set only what you need.
 | Var | Default | Purpose |
 |---|---|---|
 | `SHOREBIRD_JWT_ISSUER` | `PUBLIC_BASE_URL` | JWT `iss`; must match the CLI |
-| `LOGIN_EMAIL` | `you@example.com` | identity for self-consent `shorebird login` (no IdP) |
+| `LOGIN_EMAIL` | `owner@self-host.local` | identity for self-consent `shorebird login` (no IdP) |
 | `IDP_CLIENT_ID` / `IDP_CLIENT_SECRET` / `IDP_AUTHORIZE_URL` / `IDP_TOKEN_URL` / `IDP_SCOPES` | — | broker `shorebird login` to Google/Microsoft/Okta (see `IDP_SETUP.md`) |
 
 **Tuning**
@@ -133,6 +133,8 @@ Read by `lib/src/config.dart`. Everything has a default; set only what you need.
 | `TRUSTED_PROXIES` | `127.0.0.1,::1` | proxies whose `X-Forwarded-For` is believed (IPs, IPv4 CIDR, or `*`). Wrong value = no effective IP limit, or the whole fleet in one bucket |
 | `RATE_LIMIT_BACKEND` | `memory` | `postgres` for a shared window across replicas |
 | `UPLOAD_METHOD` | `multipart` | `resumable` for GCS-style chunked uploads |
+| `MAX_UPLOAD_BYTES` | `536870912` (512 MiB) | the `413` ceiling on artifact uploads. Added 2026-08-13 — it was missing from a table titled "full", and an operator whose release artifact exceeds it sees a 413 with nothing in this document to explain it |
+| `DB_SSL_MODE` | `disable` | Postgres TLS mode. **Validated at boot against an exact list — an unrecognised spelling refuses to start**, so this is not a free-text field. Added 2026-08-13 for that reason: a boot-fail an operator cannot predict from the docs is the worst kind of missing row |
 
 ## Backups
 
