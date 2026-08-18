@@ -193,6 +193,44 @@ void main() {
       });
     });
 
+    group('aot_tools registration', () {
+      /// Every URL `updateAll` actually requested.
+      List<String> requestedUrls() => verify(
+        () => httpClient.send(captureAny()),
+      ).captured.cast<http.BaseRequest>().map((r) => r.url.toString()).toList();
+
+      test('is not fetched on a non-macOS host', () async {
+        setMockPlatform(Platform.linux);
+        final linuxCache = runWithOverrides(Cache.new);
+
+        await runWithOverrides(() => linuxCache.updateAll(Duration.zero));
+
+        // aot_tools is only invoked by the Apple patchers, which need Xcode.
+        // Fetching it on Linux is a dependency on Shorebird's bucket that
+        // nothing can ever use — and it happened on every Android release.
+        expect(
+          requestedUrls().where((u) => u.contains('aot-tools')),
+          isEmpty,
+          reason: 'Android work on Linux must not depend on aot-tools.dill',
+        );
+      });
+
+      test(
+        'is fetched on macOS, where the Apple patchers can use it',
+        () async {
+          setMockPlatform(Platform.macOS);
+          final macCache = runWithOverrides(Cache.new);
+
+          await runWithOverrides(() => macCache.updateAll(Duration.zero));
+
+          expect(
+            requestedUrls().where((u) => u.contains('aot-tools')),
+            isNotEmpty,
+          );
+        },
+      );
+    });
+
     group('updateAll', () {
       group('patch', () {
         group('fileName', () {
@@ -385,6 +423,54 @@ void main() {
           ).called(1);
         });
 
+        test(
+          'warns and continues without a stamp when an optional artifact '
+          'cannot be reached',
+          () async {
+            const exception = SocketException('connection refused');
+            when(() => httpClient.send(any())).thenAnswer((invocation) async {
+              final request =
+                  invocation.positionalArguments.first as http.BaseRequest;
+              final fileName = p.basename(request.url.path);
+              if (fileName.startsWith('aot-tools')) throw exception;
+              return http.StreamedResponse(
+                Stream.value(ZipEncoder().encode(Archive())),
+                HttpStatus.ok,
+              );
+            });
+
+            await expectLater(
+              runWithOverrides(() => cache.updateAll(Duration.zero)),
+              completes,
+            );
+
+            verify(
+              () => logger.warn(
+                any(
+                  that: allOf(
+                    contains(
+                      'Failed to download optional artifact aot-tools.dill',
+                    ),
+                    contains('$exception'),
+                  ),
+                ),
+              ),
+            ).called(1);
+            // No stamp file: a later online run must retry the download.
+            final artifactDirectory = runWithOverrides(
+              () => cache.getArtifactDirectory('aot-tools.dill'),
+            );
+            final stampFile = File(
+              p.join(
+                artifactDirectory.path,
+                shorebirdEngineRevision,
+                'aot-tools.dill.stamp',
+              ),
+            );
+            expect(stampFile.existsSync(), isFalse);
+          },
+        );
+
         test('downloads correct artifacts', () async {
           final patchArtifactDirectory = runWithOverrides(
             () => cache.getArtifactDirectory('patch'),
@@ -464,6 +550,31 @@ void main() {
 
           expect(requests, equals(expected));
         });
+
+        test(
+          'fetches bundletool from SHOREBIRD_BUNDLETOOL_URL when set',
+          () async {
+            const mirrorUrl = 'https://mirror.example.com/bundletool.jar';
+            when(
+              () => platform.environment,
+            ).thenReturn({'SHOREBIRD_BUNDLETOOL_URL': mirrorUrl});
+
+            await expectLater(
+              runWithOverrides(() => cache.updateAll(Duration.zero)),
+              completes,
+            );
+
+            final requests = verify(
+              () => httpClient.send(captureAny()),
+            ).captured.cast<http.BaseRequest>().map((r) => r.url).toList();
+
+            expect(requests, contains(Uri.parse(mirrorUrl)));
+            expect(
+              requests.map((u) => u.host),
+              isNot(contains('github.com')),
+            );
+          },
+        );
 
         test('pulls correct artifact for Windows', () async {
           setMockPlatform(Platform.windows);

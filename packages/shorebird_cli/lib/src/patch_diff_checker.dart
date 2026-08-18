@@ -1,10 +1,12 @@
-// cspell:words dexdump
+// cspell:words dexdump arsc
 import 'dart:io';
 
+import 'package:collection/collection.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/archive_analysis/android_archive_differ.dart';
 import 'package:shorebird_cli/src/archive_analysis/archive_differ.dart';
+import 'package:shorebird_cli/src/archive_analysis/file_set_diff.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/shorebird_documentation.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
@@ -156,6 +158,12 @@ If you don't know why you're seeing this error, visit our troubleshooting page a
         logger.info(diffs);
       }
 
+      await _warnAboutDroppedAssetsStillReferenced(
+        localArchive: localArchive,
+        archiveDiffer: archiveDiffer,
+        contentDiffs: contentDiffs,
+      );
+
       logger.info(
         yellow.wrap(
           '''
@@ -178,6 +186,90 @@ If you don't know why you're seeing this error, visit our troubleshooting page a
       }
     }
 
+    _warnAboutUnclassifiedChanges(
+      archiveDiffer: archiveDiffer,
+      contentDiffs: contentDiffs,
+    );
+
     return status;
+  }
+
+  /// Warns when the patched Dart still references assets the patch drops.
+  ///
+  /// `--allow-asset-diffs` reads as "cosmetic assets won't update", but when
+  /// the same patch ships code that loads those assets it means "this patch
+  /// will fail to find files at runtime". Those are very different risks, and
+  /// the second one is quiet: a failed `Image.asset` renders an empty box
+  /// rather than crashing, so it reaches users looking like a design bug.
+  ///
+  /// Only *added* assets are considered. A changed asset still resolves — to
+  /// the release's older bytes — while an added one has nothing to resolve to.
+  Future<void> _warnAboutDroppedAssetsStillReferenced({
+    required File localArchive,
+    required ArchiveDiffer archiveDiffer,
+    required FileSetDiff contentDiffs,
+  }) async {
+    final addedKeys = archiveDiffer
+        .assetsFileSetDiff(contentDiffs)
+        .addedPaths
+        .map(ArchiveDiffer.assetKeyForArchivePath)
+        .nonNulls
+        .toSet();
+    if (addedKeys.isEmpty) return;
+
+    final Set<String> referenced;
+    try {
+      referenced = await archiveDiffer.assetKeysReferencedByDart(
+        archivePath: localArchive.path,
+        assetKeys: addedKeys,
+      );
+    } on Object catch (error) {
+      // Advisory only. A patch must never fail to build because this extra
+      // check could not read an archive.
+      logger.detail('Unable to scan for dropped asset references: $error');
+      return;
+    }
+    if (referenced.isEmpty) return;
+
+    logger
+      ..warn(
+        '''${referenced.length} asset(s) dropped from this patch are still referenced by the patched Dart code.''',
+      )
+      ..info(
+        yellow.wrap('''
+    These will fail to load at runtime:
+${referenced.sorted().map((String k) => '        $k').join('\n')}
+
+    Ship them with --assets, or guard the load sites, or cut a new release.'''),
+      );
+  }
+
+  /// Warns about changed files that no other warning covers.
+  ///
+  /// Every path is classified as asset, Dart, or native, and anything matching
+  /// none of the three was silently dropped. `Info.plist` is the case that
+  /// motivated this: it is in the built app and therefore in the diff, but it
+  /// matches no classifier, so an iOS native change could pass review unseen
+  /// while the equivalent Android change (which lands in `.dex`) was reported
+  /// in detail. Android has the same hole for `AndroidManifest.xml`.
+  ///
+  /// Informational, not a gate: these files are frequently benign, and the
+  /// point is to stop them being invisible.
+  void _warnAboutUnclassifiedChanges({
+    required ArchiveDiffer archiveDiffer,
+    required FileSetDiff contentDiffs,
+  }) {
+    final unclassified = archiveDiffer.unclassifiedFileSetDiff(contentDiffs);
+    if (unclassified.isEmpty) return;
+
+    final count =
+        unclassified.addedPaths.length +
+        unclassified.changedPaths.length +
+        unclassified.removedPaths.length;
+    logger
+      ..info(
+        '''\n$count file(s) changed that are neither assets, Dart, nor recognized native code.''',
+      )
+      ..detail(unclassified.prettyString);
   }
 }

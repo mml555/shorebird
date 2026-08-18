@@ -42,6 +42,40 @@ const microsoftJwtIssuerPrefix = 'https://login.microsoftonline.com/';
 /// The environment variable that holds the Shorebird CI token.
 const shorebirdTokenEnvVar = 'SHOREBIRD_TOKEN';
 
+/// Whether this invocation talks to a SELF-HOSTED control plane rather than
+/// Shorebird's.
+///
+/// `hostedUri` is non-null exactly when `SHOREBIRD_HOSTED_URL` is set or
+/// `shorebird.yaml` carries a `base_url`, which is the definition of pointing
+/// the CLI somewhere other than upstream.
+bool get _isSelfHosted => shorebirdEnv.hostedUri != null;
+
+/// Where to get an API key, worded for the deployment actually in use.
+///
+/// A self-hosted control plane is its OWN identity provider: it issues
+/// `sb_api_...` keys from `POST /admin/users`, and there is no
+/// `console.shorebird.dev` in that deployment. Sending an operator there is not
+/// merely unhelpful, it points at infrastructure that does not exist for them —
+/// and following it has cost this fork real time more than once, because the
+/// advice reads as authoritative.
+String get _apiKeySourceAdvice => _isSelfHosted
+    ? 'This deployment is self-hosted (${shorebirdEnv.hostedUri}), so it issues '
+          'its own API keys — create one with POST /admin/users against your '
+          'control plane. There is no console.shorebird.dev here.'
+    : 'Create an API key at https://console.shorebird.dev instead.';
+
+/// What to do when stored credentials cannot be refreshed.
+///
+/// `shorebird logout` + `shorebird login` is the right answer only when there is
+/// something to log in TO. Against a self-hosted control plane the browser flow
+/// may not be configured at all (self-consent mode), so the recoverable path is
+/// an API key in [shorebirdTokenEnvVar].
+String get _credentialRecoveryAdvice => _isSelfHosted
+    ? 'This deployment is self-hosted (${shorebirdEnv.hostedUri}). Rather than '
+          'logging in, set $shorebirdTokenEnvVar to an API key (sb_api_...) '
+          'issued by your own control plane via POST /admin/users.'
+    : '''Try logging out with ${lightBlue.wrap('shorebird logout')} and logging in again.''';
+
 /// Callback for refreshing access credentials.
 typedef RefreshCredentials =
     Future<oauth2.AccessCredentials> Function(
@@ -175,9 +209,7 @@ class AuthenticatedClient extends http.BaseClient {
     } on Exception catch (e, s) {
       logger
         ..err('Failed to refresh credentials.')
-        ..info(
-          '''Try logging out with ${lightBlue.wrap('shorebird logout')} and logging in again.''',
-        )
+        ..info(_credentialRecoveryAdvice)
         ..detail(e.toString())
         ..detail(s.toString());
 
@@ -368,7 +400,7 @@ class Auth {
           '`shorebird login:ci`. '
           'This format is deprecated and will stop working in a future '
           'release. '
-          'Create an API key at https://console.shorebird.dev instead.',
+          '$_apiKeySourceAdvice',
         );
       } on FormatException catch (e) {
         logger
@@ -471,6 +503,22 @@ extension OauthAuthProvider on Jwt {
       return AuthProvider.google;
     } else if (payload.iss.startsWith(microsoftJwtIssuerPrefix)) {
       return AuthProvider.microsoft;
+    }
+
+    // A credential issued by a DIFFERENT deployment is the common case here,
+    // not a corrupt token — and it is easy to hit: log in against Shorebird's
+    // hosted service, then point the CLI at a self-hosted control plane, and
+    // the stored credential's `iss` no longer matches the configured one. The
+    // bare "Unknown jwt issuer" gives no hint that the fix is credentials
+    // rather than configuration, so name both sides and say what to do.
+    if (_isSelfHosted) {
+      throw Exception(
+        'These credentials were issued by ${payload.iss}, but this deployment '
+        'expects ${shorebirdEnv.jwtIssuer}. They are for a different '
+        'Shorebird deployment and cannot be used here — log in again, or set '
+        '$shorebirdTokenEnvVar to an API key (sb_api_...) issued by this '
+        'control plane via POST /admin/users.',
+      );
     }
 
     throw Exception('Unknown jwt issuer: ${payload.iss}');

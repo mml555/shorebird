@@ -20,6 +20,54 @@ void main() {
       );
     });
 
+    test('round-trips engineRevision, and omits it when absent', () {
+      // The control plane could not previously say WHICH engine produced a
+      // release: flutterRevision does not answer it, because two Route B cells
+      // can share one Flutter revision and differ in capability. Verified on a
+      // real release — 88, Wonderous — whose server record carried
+      // flutter_revision and no engine field, while the shipped route_b.json
+      // recorded engineRevision 40eaa0ef.
+      const withEngine = BuildEnvironmentMetadata(
+        flutterRevision: '853d13d954df3b6e9c2f07b72062f33c52a9a64b',
+        operatingSystem: 'macos',
+        operatingSystemVersion: '1.2.3',
+        shorebirdVersion: '4.5.6',
+        shorebirdYaml: ShorebirdYaml(appId: 'app-id'),
+        usesShorebirdCodePushPackage: false,
+        engineRevision: '40eaa0ef6cb6485833bf2e10ac97224ca82cbf25',
+      );
+      expect(
+        withEngine.toJson()['engine_revision'],
+        equals('40eaa0ef6cb6485833bf2e10ac97224ca82cbf25'),
+      );
+      expect(
+        BuildEnvironmentMetadata.fromJson(withEngine.toJson()).engineRevision,
+        equals('40eaa0ef6cb6485833bf2e10ac97224ca82cbf25'),
+      );
+
+      // Nullable on purpose: records written before this field existed must
+      // still deserialize.
+      const withoutEngine = BuildEnvironmentMetadata(
+        flutterRevision: '853d13d954df3b6e9c2f07b72062f33c52a9a64b',
+        operatingSystem: 'macos',
+        operatingSystemVersion: '1.2.3',
+        shorebirdVersion: '4.5.6',
+        shorebirdYaml: ShorebirdYaml(appId: 'app-id'),
+        usesShorebirdCodePushPackage: false,
+      );
+      expect(withoutEngine.engineRevision, isNull);
+      expect(
+        BuildEnvironmentMetadata.fromJson(
+          withoutEngine.toJson(),
+        ).engineRevision,
+        isNull,
+      );
+
+      // And it must participate in equality, or two records naming different
+      // engines would compare equal.
+      expect(withEngine, isNot(equals(withoutEngine)));
+    });
+
     group('copyWith', () {
       test('creates a copy with the same fields', () {
         const metadata = BuildEnvironmentMetadata(

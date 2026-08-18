@@ -450,6 +450,66 @@ void main() {
       );
     });
 
+    test(
+      'names SHOREBIRD_JWT_ISSUER when the control plane is self-hosted',
+      () async {
+        // The issuer is the SERVER's advertised identity (PUBLIC_BASE_URL), not
+        // the address a client reaches it on, and those legitimately differ: a
+        // control plane may advertise a LAN address so devices can reach it while
+        // operators use localhost. Hit for real on this rig — the server issues
+        // http://169.254.189.3:18080 while the Mac connects over localhost — and
+        // the diagnosis was correct but gave no way out.
+        when(
+          () => shorebirdEnv.hostedUri,
+        ).thenReturn(Uri.parse('http://localhost:18080'));
+        final wrongIssuerJwt = _buildTestJwt(
+          issuer: 'http://169.254.189.3:18080',
+        );
+        when(
+          () => httpClient.post(
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer(
+          (_) async => http.Response(
+            jsonEncode({
+              'access_token': wrongIssuerJwt,
+              'refresh_token': 'sb_rt_test',
+              'token_type': 'Bearer',
+              'expires_in': 900,
+            }),
+            HttpStatus.ok,
+          ),
+        );
+
+        await expectLater(
+          runWithOverrides(
+            () => obtainCredentialsViaLoopbackLogin(
+              httpClient: httpClient,
+              authBaseUrl: authBaseUrl,
+              userPrompt: (url) {
+                final loginUri = Uri.parse(url);
+                final continueUrl = loginUri.queryParameters['continue']!;
+                http.get(Uri.parse('$continueUrl?code=test_code')).ignore();
+              },
+            ),
+          ),
+          throwsA(
+            isA<ShorebirdAuthException>().having(
+              (e) => e.message,
+              'message',
+              allOf(
+                contains('Token issuer mismatch'),
+                contains('SHOREBIRD_JWT_ISSUER=http://169.254.189.3:18080'),
+                contains('PUBLIC_BASE_URL'),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
     test('throws on network error during token exchange', () async {
       when(
         () => httpClient.post(
