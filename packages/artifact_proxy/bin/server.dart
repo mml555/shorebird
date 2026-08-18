@@ -7,8 +7,15 @@ import 'package:shelf_hotreload/shelf_hotreload.dart';
 
 Future<void> main() async {
   final isDev = Platform.environment['DEV'] == 'true';
-  final client = ArtifactManifestClient();
-  final handler = artifactProxyHandler(client: client);
+  final client = ArtifactManifestClient(
+    manifestBaseUrl: Platform.environment['MANIFEST_BASE_URL'],
+  );
+  final handler = Platform.environment['STORAGE_BASE_URL'] != null
+      ? artifactProxyHandler(
+          client: client,
+          storageBaseUrl: Platform.environment['STORAGE_BASE_URL']!,
+        )
+      : artifactProxyHandler(client: client);
   final ip = InternetAddress.anyIPv6;
   final port = int.parse(Platform.environment['PORT'] ?? '8080');
 
