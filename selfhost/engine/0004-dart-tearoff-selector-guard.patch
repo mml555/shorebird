@@ -1,0 +1,113 @@
+# cspell:words precompiler closurizing closurized tearoff selfhost
+#
+# Dispatch-table fixes that let a Flutter app COMPILE AND RUN on our
+# vanilla-Dart engine. Apply to engine/src/flutter/third_party/dart.
+#
+# Two rules, both from language semantics rather than from metadata:
+#
+#   1. Only a REGULAR method can be torn off, so only a regular method may get
+#      a method extractor here. Dart has no tear-off of a getter or a setter,
+#      and a setter's ProcedureAttributes.getter_selector_id names its FIELD'S
+#      getter — `_selectorIdForMember` keys `_getterMemberIds` by a Kernel
+#      `Name`, which does not distinguish setters. Letting one through wrote
+#      the extractor for `set:_data` into `get:_data`'s row.
+#   2. A tear-off row belongs only to a genuinely distinct getter selector.
+#      `getter_selector_id` can be the method's own id (Object.get:hashCode is
+#      one), and writing there displaces the method itself.
+#
+# Everything metadata-shaped that used to live here — the IsUsed() removals and
+# the torn_off bypass — is GONE as of 2026-08-05. Those were compensating for a
+# forked frontend_server's dill being read by this vanilla backend; the fix was
+# to ship a matching frontend. See selfhost/TFA_ROOT_CAUSE.md.
+diff --git a/runtime/vm/compiler/aot/dispatch_table_generator.cc b/runtime/vm/compiler/aot/dispatch_table_generator.cc
+index 1863badc..489cbbfa 100644
+--- a/runtime/vm/compiler/aot/dispatch_table_generator.cc
++++ b/runtime/vm/compiler/aot/dispatch_table_generator.cc
+@@ -381,6 +381,12 @@ const TableSelector* SelectorMap::GetSelector(
+ const TableSelector* SelectorMap::GetSelector(int32_t sid) const {
+   if (sid == kInvalidSelectorId) return nullptr;
+   const TableSelector* selector = &selectors_[sid];
++  // SELFHOST: upstream. The IsUsed() test was removed here for a while, to
++  // survive a table-selector metadata table full of zeroed call counts. That
++  // was a symptom of feeding Shorebird's forked frontend_server's dill to this
++  // vanilla backend; with a frontend from this same tree the counts are real
++  // and the test is correct. Never remove it again without also checking
++  // `bin/cache/dart-sdk/revision` — see selfhost/TFA_ROOT_CAUSE.md.
+   if (!selector->IsUsed()) return nullptr;
+   if (selector->offset == kInvalidSelectorOffset) return nullptr;
+   return selector;
+@@ -587,7 +593,42 @@ void DispatchTableGenerator::SetupSelectorRows() {
+               };
+               MakeIntervals(function, sid);
+ 
+-              if (selector_map_.selectors_[sid].torn_off) {
++              // SELFHOST: an implicit accessor must never be closurized. A
++              // selector is shared by every member with the same name, so a
++              // getter selector is marked torn_off as soon as ANY method of
++              // that name is torn off somewhere in the program — including
++              // when the member here is a field's implicit getter. Creating a
++              // method extractor for that forces
++              // Function::ImplicitClosureFunction() onto the accessor, whose
++              // data slot holds its Field; set_implicit_closure_function()
++              // then overwrites the Field with the closure. The ASSERT at
++              // object.cc:8762 says exactly that this is illegal, but it is
++              // compiled out in a release VM, so the corruption is silent and
++              // only shows up later as a crash in the compiler.
++              //
++              // Keep the guard this narrow. Skipping ALL non-regular functions
++              // here also drops legitimate tear-off entries and leaves the
++              // dispatch table incomplete — the app then dies at startup with
++              // a NoSuchMethodError from a map literal in
++              // PlatformDispatcher._.
++              //
++              // Only a REGULAR method can be torn off. Dart has no tear-off of
++              // a getter or a setter, and letting one through here corrupts the
++              // table: a setter's ProcedureAttributes.getter_selector_id names
++              // its FIELD'S getter, so the extractor for `set:_data` was
++              // written into `get:_data`'s row. `_table._data` then returned a
++              // fresh `(List<dynamic>) => void` closure on every read instead
++              // of the field, which is what produced the bogus
++              // "Concurrent modification during iteration". The
++              // `tearoff_sid != sid` check below does NOT catch this, because
++              // the two selectors really are different.
++              //
++              // `torn_off` is upstream's gate and is kept. Only the added
++              // IsRegularFunction() is ours, and it is about language
++              // semantics rather than metadata quality: it is what keeps a
++              // setter out of this branch.
++              if (selector_map_.selectors_[sid].torn_off &&
++                  function.IsRegularFunction()) {
+                 const String& method_name = String::Handle(Z, function.name());
+                 const String& getter_name =
+                     String::Handle(Z, Field::GetterName(method_name));
+@@ -595,7 +636,17 @@ void DispatchTableGenerator::SetupSelectorRows() {
+                     Z, function.GetMethodExtractor(getter_name));
+                 const int32_t tearoff_sid = selector_map_.SelectorId(tearoff);
+ 
+-                if (tearoff_sid != SelectorMap::kInvalidSelectorId) {
++                // SELFHOST: `tearoff_sid != sid` is load-bearing.
++                // ProcedureAttributes.getter_selector_id can come back as the
++                // method's OWN selector (Object.get:hashCode does), and writing
++                // the extractor into that row displaces the method itself — the
++                // symptom was `elements[i]` in Map._fromLiteral landing inside
++                // _Array.[], and parsing the two-byte JSON document `{}` ending
++                // in "Out of Memory" inside _LinkedHashMapMixin._populateUnsafe.
++                // Creating the extractor above is what we actually need; the row
++                // only belongs to a genuinely distinct getter selector.
++                if (tearoff_sid != SelectorMap::kInvalidSelectorId &&
++                    tearoff_sid != sid) {
+                   MakeIntervals(tearoff, tearoff_sid);
+                 }
+               }
+@@ -607,6 +658,11 @@ void DispatchTableGenerator::SetupSelectorRows() {
+   }
+ 
+   // Retain all selectors that contain implementation intervals.
++  //
++  // SELFHOST: upstream, IsUsed() included. Dropping it here was how we survived
++  // a dill whose call counts were all zero — see the note in GetSelector and
++  // selfhost/TFA_ROOT_CAUSE.md. Correct again once the frontend comes from this
++  // same tree.
+   for (intptr_t i = 0; i < num_selectors_; i++) {
+     const TableSelector& selector = selector_map_.selectors_[i];
+     if (selector.IsUsed() && selector_rows[i].Finalize()) {

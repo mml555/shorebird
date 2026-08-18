@@ -1,0 +1,173 @@
+diff --git a/pkg/dart2bytecode/lib/dart2bytecode.dart b/pkg/dart2bytecode/lib/dart2bytecode.dart
+index 3cc4d6d3..72c6b5a4 100644
+--- a/pkg/dart2bytecode/lib/dart2bytecode.dart
++++ b/pkg/dart2bytecode/lib/dart2bytecode.dart
+@@ -86,6 +86,16 @@ final ArgParser _argParser = ArgParser(allowTrailingOptions: true)
+     help: 'Import libraries from existing dill file',
+     defaultsTo: null,
+   )
++  ..addOption(
++    'resolve-private-names-in-library',
++    help:
++        'Import URI of a library from --import-dill whose PRIVATE namespace the '
++        'input may resolve names in, as well as its own. Dart privacy is '
++        'library-scoped, so generated code compiled as its own library cannot '
++        'otherwise name an application private member. Off by default; the '
++        'library must be present in --import-dill.',
++    defaultsTo: null,
++  )
+   ..addFlag(
+     'enable-asserts',
+     help: 'Whether asserts will be enabled.',
+@@ -183,6 +193,8 @@ Future<int> runCompilerWithCommandLineArguments(List<String> arguments) async {
+   }
+ 
+   final String? importDill = options['import-dill'];
++  final String? resolvePrivateNamesInLibrary =
++      options['resolve-private-names-in-library'];
+   final String? validateDynamicInterface = options['validate'];
+   final String messageVerbosity = options['verbosity'];
+   final String cfeInvocationModes = options['invocation-modes'];
+@@ -197,6 +209,7 @@ Future<int> runCompilerWithCommandLineArguments(List<String> arguments) async {
+     targetName: targetName,
+     packages: packages,
+     importDill: importDill,
++    resolvePrivateNamesInLibrary: resolvePrivateNamesInLibrary,
+     validateDynamicInterface: validateDynamicInterface,
+     enableAsserts: enableAsserts,
+     experimentalFlags: experimentalFlags,
+@@ -222,6 +235,7 @@ Future<int> runCompilerWithOptions({
+   required String targetName,
+   String? packages,
+   String? importDill,
++  String? resolvePrivateNamesInLibrary,
+   String? validateDynamicInterface,
+   bool enableAsserts = false,
+   List<String>? experimentalFlags,
+@@ -275,6 +289,12 @@ Future<int> runCompilerWithOptions({
+     ..additionalDills = additionalDills
+     ..packagesFileUri = packagesUri
+     ..dynamicInterfaceSpecificationUri = dynamicInterfaceSpecificationUri
++    // Parsed with Uri.parse, not resolveInputUri: this is a library IMPORT URI
++    // (package:app/main.dart), not a filesystem path, and resolving it against
++    // the CWD would produce a file: URI that matches no dill library.
++    ..resolvePrivateNamesInLibrary = resolvePrivateNamesInLibrary == null
++        ? null
++        : Uri.parse(resolvePrivateNamesInLibrary)
+     ..explicitExperimentalFlags = parseExperimentalFlags(
+       parseExperimentalArguments(experimentalFlags),
+       onError: printMessage,
+diff --git a/pkg/front_end/lib/src/api_prototype/compiler_options.dart b/pkg/front_end/lib/src/api_prototype/compiler_options.dart
+index f39e5016..95b05d1c 100644
+--- a/pkg/front_end/lib/src/api_prototype/compiler_options.dart
++++ b/pkg/front_end/lib/src/api_prototype/compiler_options.dart
+@@ -96,6 +96,28 @@ class CompilerOptions {
+   /// restrictions.
+   Uri? dynamicInterfaceSpecificationUri;
+ 
++  /// Import URI of a library whose private namespace the compiled sources may
++  /// resolve names in.
++  ///
++  /// Dart privacy is library-scoped, so code compiled as its own library cannot
++  /// name another library's private members however it is spelled. The front end
++  /// already has the mechanism to lift that -- `resolveInLibrary`, used for
++  /// debugger expression evaluation, where an expression typed at a breakpoint
++  /// must see the private namespace of the library it is evaluated in. Normal
++  /// compilation hard-codes it off.
++  ///
++  /// Setting this makes that mechanism available outside the debugger: every
++  /// source compilation unit also resolves names in the named library's own
++  /// namespace. The named library must be available to the compile, which in
++  /// practice means it arrives via [additionalDills].
++  ///
++  /// This exists for generated code that must behave as if it belonged to a
++  /// library it is not textually in -- a hot-patch replacement body compiled
++  /// against an already-shipped application. It is deliberately opt-in and off
++  /// by default, because it widens name resolution and should never be enabled
++  /// for an ordinary compile.
++  Uri? resolvePrivateNamesInLibrary;
++
+   /// The declared variables for use by configurable imports and constant
+   /// evaluation.
+   Map<String, String>? declaredVariables;
+@@ -320,6 +342,12 @@ class CompilerOptions {
+         other.dynamicInterfaceSpecificationUri) {
+       return false;
+     }
++    // Two option sets differing only here are NOT equivalent: this one changes
++    // which names resolve, so reusing a component compiled without it would
++    // silently produce different code.
++    if (resolvePrivateNamesInLibrary != other.resolvePrivateNamesInLibrary) {
++      return false;
++    }
+     if (!equalMaps(declaredVariables, other.declaredVariables)) return false;
+     if (fileSystem != other.fileSystem) return false;
+     if (compileSdk != other.compileSdk) return false;
+diff --git a/pkg/front_end/lib/src/base/processed_options.dart b/pkg/front_end/lib/src/base/processed_options.dart
+index ba54d1c4..00621dc8 100644
+--- a/pkg/front_end/lib/src/base/processed_options.dart
++++ b/pkg/front_end/lib/src/base/processed_options.dart
+@@ -134,6 +134,10 @@ class ProcessedOptions {
+   Uri? get dynamicInterfaceSpecificationUri =>
+       _raw.dynamicInterfaceSpecificationUri;
+ 
++  /// Import URI of a library whose private namespace the compiled sources may
++  /// also resolve names in. See [CompilerOptions.resolvePrivateNamesInLibrary].
++  Uri? get resolvePrivateNamesInLibrary => _raw.resolvePrivateNamesInLibrary;
++
+   String? _dynamicInterfaceSpecificationContents;
+   bool _triedLoadingDynamicInterfaceSpecification = false;
+ 
+diff --git a/pkg/front_end/lib/src/source/source_loader.dart b/pkg/front_end/lib/src/source/source_loader.dart
+index 73a7e24e..665bf988 100644
+--- a/pkg/front_end/lib/src/source/source_loader.dart
++++ b/pkg/front_end/lib/src/source/source_loader.dart
+@@ -414,6 +414,39 @@ class SourceLoader extends Loader implements ProblemReportingHelper {
+     required bool mayImplementRestrictedTypes,
+   }) {
+     final bool isDartLib = importUri.isScheme('dart');
++    // Normally null: a source library resolves names in its own namespace only,
++    // which is what Dart's library-scoped privacy means.
++    //
++    // `CompilerOptions.resolvePrivateNamesInLibrary` opts a compile into the same
++    // mechanism the debugger uses for expression evaluation, where an expression
++    // typed at a breakpoint must see the private namespace of the library it is
++    // evaluated in (see `IncrementalCompiler`, which passes a `LibraryBuilder`
++    // here directly). The target arrives as a dill, so this is a dill library
++    // builder -- and a dill library's OWN namespace does contain its privates;
++    // it is the EXPORT namespace that filters them.
++    //
++    // Never applied to `dart:` libraries: the option exists to let generated code
++    // act as part of an application library, and nothing should be able to widen
++    // resolution into the platform this way.
++    LibraryBuilder? resolveInLibrary;
++    final Uri? resolvePrivateNamesIn =
++        target.context.options.resolvePrivateNamesInLibrary;
++    if (resolvePrivateNamesIn != null && !isDartLib) {
++      resolveInLibrary = target.dillTarget.loader.lookupLibraryBuilder(
++        resolvePrivateNamesIn,
++      );
++      if (resolveInLibrary == null) {
++        // Fail loudly rather than compiling with narrower resolution than asked
++        // for: silently ignoring this yields "private member not found" errors
++        // pointing at the replacement source, which sends the reader to debug
++        // the wrong half.
++        throw new StateError(
++          "resolvePrivateNamesInLibrary was set to '$resolvePrivateNamesIn' "
++          "but no such library is available to this compile. It must be "
++          "supplied via additionalDills (--import-dill).",
++        );
++      }
++    }
+     return new SourceCompilationUnitImpl(
+       importUri: importUri,
+       fileUri: fileUri,
+@@ -422,7 +455,7 @@ class SourceLoader extends Loader implements ProblemReportingHelper {
+       packageLanguageVersion: packageLanguageVersion,
+       loader: this,
+       augmentationRoot: origin,
+-      resolveInLibrary: null,
++      resolveInLibrary: resolveInLibrary,
+       indexedLibrary: referencesFromIndex,
+       referenceIsPartOwner: referenceIsPartOwner,
+       conditionalImportSupported:

@@ -1,0 +1,243 @@
+diff --git a/library/src/cache/lifecycle.rs b/library/src/cache/lifecycle.rs
+index 6268e23..d281e05 100644
+--- a/library/src/cache/lifecycle.rs
++++ b/library/src/cache/lifecycle.rs
+@@ -142,8 +142,50 @@ pub struct ReleasePointers {
+ 
+     /// Unix timestamp (seconds) when `currently_booting_patch` was set.
+     pub boot_started_at: Option<u64>,
++
++    /// Consecutive boots of `next_boot_patch` that did NOT record success.
++    /// Incremented by `record_boot_start`, reset by `record_boot_success`.
++    ///
++    /// G15: a still-set breadcrumb is an inference from ABSENCE OF EVIDENCE —
++    /// equally consistent with "the patch crashed Dart" and with "the process
++    /// died for reasons that have nothing to do with the patch" (the user
++    /// swiping the app away during launch, the iOS launch watchdog, jetsam
++    /// under memory pressure). No signal available WITHIN one boot separates
++    /// them, but one across boots does: a patch that genuinely breaks Dart
++    /// fails EVERY time, while a benign death does not repeat.
++    ///
++    /// So a single un-succeeded boot no longer tombstones a patch. See
++    /// [`BOOT_FAILURE_THRESHOLD`].
++    ///
++    /// `#[serde(default)]` so `pointers.json` files written before this field
++    /// existed still deserialize — they read as 0, which is the correct
++    /// starting count.
++    #[serde(default)]
++    pub boot_attempt_count: u32,
++
++    /// The patch `boot_attempt_count` is counting. Without this the tally is
++    /// ambiguous: a newly installed patch would inherit its predecessor's
++    /// count and could be tombstoned on its FIRST un-succeeded boot — turning
++    /// the threshold into a trap rather than a safeguard.
++    #[serde(default)]
++    pub last_boot_attempt_patch: Option<usize>,
+ }
+ 
++/// Consecutive un-succeeded boots required before a patch is marked
++/// `Bad{BootCrash}`.
++///
++/// **Why not 1.** The two errors are not symmetric. Marking Bad too LATE costs
++/// one additional crashed launch on a device that is already crashing, and it
++/// self-corrects on the next boot. Marking Bad too EARLY permanently removes a
++/// working patch from a device — `mark_bad` writes a tombstone that survives
++/// cleanup — it is invisible to the user, and it is reported as the safety
++/// mechanism working correctly. The cheap error is to retry; the expensive one
++/// is to tombstone.
++///
++/// 2 is the smallest value that discriminates at all, and costs exactly one
++/// extra crash in the genuine-failure case.
++pub const BOOT_FAILURE_THRESHOLD: u32 = 2;
++
+ /// Per-release patch lifecycle and storage. Owns
+ /// `{state_root}/patches/`, `{state_root}/pointers.json`, and
+ /// `{download_root}/{N}` files for in-flight compressed downloads.
+@@ -537,6 +579,13 @@ impl PatchLifecycle {
+         }
+         self.pointers.currently_booting_patch = Some(n);
+         self.pointers.boot_started_at = Some(crate::time::unix_timestamp());
++        // Counts attempts at THIS patch. Reset whenever the boot target
++        // changes, so a fresh patch never inherits a predecessor's tally.
++        if self.pointers.last_boot_attempt_patch != Some(n) {
++            self.pointers.last_boot_attempt_patch = Some(n);
++            self.pointers.boot_attempt_count = 0;
++        }
++        self.pointers.boot_attempt_count = self.pointers.boot_attempt_count.saturating_add(1);
+         self.save_pointers()
+     }
+ 
+@@ -551,6 +600,10 @@ impl PatchLifecycle {
+         self.pointers.last_booted_patch = Some(n);
+         self.pointers.currently_booting_patch = None;
+         self.pointers.boot_started_at = None;
++        // A success clears the tally: the failures it counted were not caused
++        // by this patch, or it would not have booted.
++        self.pointers.boot_attempt_count = 0;
++        self.pointers.last_boot_attempt_patch = None;
+         self.save_pointers()?;
+         self.cleanup_older_than(n);
+         Ok(())
+@@ -576,6 +629,11 @@ impl PatchLifecycle {
+         self.mark_bad(n, BadReason::BootCrash)?;
+         self.pointers.currently_booting_patch = None;
+         self.pointers.boot_started_at = None;
++        // The tally has done its job for this patch; clear it so whatever
++        // `recompute_next_boot` selects starts from zero rather than inheriting
++        // a count that was never about it.
++        self.pointers.boot_attempt_count = 0;
++        self.pointers.last_boot_attempt_patch = None;
+         self.save_pointers()?;
+         self.recompute_next_boot()
+     }
+@@ -589,6 +647,33 @@ impl PatchLifecycle {
+         let Some(n) = self.pointers.currently_booting_patch else {
+             return Ok(None);
+         };
++
++        // G15: DO NOT conclude from a single un-succeeded boot. The breadcrumb
++        // tells us this boot did not record success; it does not tell us why,
++        // and an ordinary process death (swipe-away, launch watchdog, jetsam)
++        // looks exactly like a patch that broke Dart. Below the threshold,
++        // clear the breadcrumb and let the patch try again — a patch that
++        // genuinely breaks Dart will fail the next boot too, and the one after
++        // that, so the tally reaches the threshold and it is backed out with
++        // only one extra crash spent.
++        if self.pointers.boot_attempt_count < BOOT_FAILURE_THRESHOLD {
++            shorebird_info!(
++                "boot {} of patch {} did not record success; retrying (threshold {})",
++                self.pointers.boot_attempt_count,
++                n,
++                BOOT_FAILURE_THRESHOLD
++            );
++            // Clear ONLY the in-flight breadcrumb. `boot_attempt_count` and
++            // `last_boot_attempt_patch` survive deliberately — they are the
++            // memory that makes the next boot's decision possible, and zeroing
++            // them here would make the threshold unreachable and restore the
++            // old single-strike behaviour by accident.
++            self.pointers.currently_booting_patch = None;
++            self.pointers.boot_started_at = None;
++            self.save_pointers()?;
++            return Ok(None);
++        }
++
+         self.record_boot_failure(n)?;
+         Ok(Some(n))
+     }
+@@ -1124,6 +1209,8 @@ mod tests {
+                 last_booted_patch: Some(2),
+                 currently_booting_patch: None,
+                 boot_started_at: None,
++                boot_attempt_count: 0,
++                last_boot_attempt_patch: None,
+             };
+             lifecycle.save_pointers().unwrap();
+         }
+@@ -1767,15 +1854,104 @@ mod tests {
+             lifecycle.record_boot_start(1).unwrap();
+             // Drop without record_boot_success/failure.
+         }
+-        // Second "process": init detects the breadcrumb and marks Bad.
++        // Second "process": init sees the breadcrumb — and DOES NOT mark Bad.
++        //
++        // CHANGED BY G15, deliberately. This test previously asserted
++        // `Some(1)` and `Bad` here, encoding single-strike backout. That is
++        // exactly the behaviour that makes a false backout possible: one
++        // un-succeeded boot is equally consistent with a patch that broke Dart
++        // and with the user swiping the app away during launch. The patch is
++        // now retried, and the tally is what survives to decide next time.
+         let mut lifecycle = reload_at(tmp.path());
+         let recovered = lifecycle.detect_boot_crash_on_init().unwrap();
+-        assert_eq!(recovered, Some(1));
++        assert_eq!(recovered, None, "one un-succeeded boot must not tombstone");
+         assert!(matches!(
+             lifecycle.read_state(1),
+-            Some(PatchState::Bad { .. })
++            Some(PatchState::Installed { .. })
+         ));
++        // Breadcrumb cleared, but the MEMORY that makes the next decision
++        // possible is kept.
+         assert!(lifecycle.pointers().currently_booting_patch.is_none());
++        assert_eq!(lifecycle.pointers().boot_attempt_count, 1);
++        assert_eq!(lifecycle.pointers().last_boot_attempt_patch, Some(1));
++    }
++
++    #[test]
++    fn detect_boot_crash_on_init_marks_bad_at_the_threshold() {
++        let tmp = TempDir::new().unwrap();
++        {
++            let mut lifecycle = reload_at(tmp.path());
++            install_state(&lifecycle, 1, 100);
++            lifecycle.pointers.next_boot_patch = Some(1);
++            lifecycle.save_pointers().unwrap();
++        }
++        // Boot it BOOT_FAILURE_THRESHOLD times, never recording success.
++        for _ in 0..BOOT_FAILURE_THRESHOLD {
++            let mut lifecycle = reload_at(tmp.path());
++            lifecycle.detect_boot_crash_on_init().unwrap();
++            lifecycle.record_boot_start(1).unwrap();
++        }
++        let mut lifecycle = reload_at(tmp.path());
++        let recovered = lifecycle.detect_boot_crash_on_init().unwrap();
++        assert_eq!(recovered, Some(1), "a patch that fails every boot is bad");
++        assert!(matches!(
++            lifecycle.read_state(1),
++            Some(PatchState::Bad { .. })
++        ));
++    }
++
++    #[test]
++    fn a_success_clears_the_tally() {
++        let tmp = TempDir::new().unwrap();
++        {
++            let mut lifecycle = reload_at(tmp.path());
++            install_state(&lifecycle, 1, 100);
++            lifecycle.pointers.next_boot_patch = Some(1);
++            lifecycle.save_pointers().unwrap();
++            lifecycle.record_boot_start(1).unwrap();
++        }
++        // One benign death, then a good boot.
++        {
++            let mut lifecycle = reload_at(tmp.path());
++            lifecycle.detect_boot_crash_on_init().unwrap();
++            assert_eq!(lifecycle.pointers().boot_attempt_count, 1);
++            lifecycle.record_boot_start(1).unwrap();
++            lifecycle.record_boot_success().unwrap();
++            assert_eq!(lifecycle.pointers().boot_attempt_count, 0);
++        }
++        // A later benign death must start counting from scratch, NOT tombstone
++        // on its first strike because of the earlier one.
++        {
++            let mut lifecycle = reload_at(tmp.path());
++            lifecycle.record_boot_start(1).unwrap();
++            let mut next = reload_at(tmp.path());
++            assert_eq!(next.detect_boot_crash_on_init().unwrap(), None);
++            assert!(matches!(
++                next.read_state(1),
++                Some(PatchState::Installed { .. })
++            ));
++        }
++    }
++
++    #[test]
++    fn a_new_patch_does_not_inherit_the_previous_tally() {
++        let tmp = TempDir::new().unwrap();
++        let mut lifecycle = reload_at(tmp.path());
++        install_state(&lifecycle, 1, 100);
++        install_state(&lifecycle, 2, 100);
++        lifecycle.pointers.next_boot_patch = Some(1);
++        lifecycle.save_pointers().unwrap();
++
++        // Patch 1 accrues a strike.
++        lifecycle.record_boot_start(1).unwrap();
++        assert_eq!(lifecycle.pointers().boot_attempt_count, 1);
++
++        // Switching target resets the count — otherwise patch 2 would be one
++        // strike from a tombstone it never earned.
++        lifecycle.pointers.next_boot_patch = Some(2);
++        lifecycle.record_boot_start(2).unwrap();
++        assert_eq!(lifecycle.pointers().boot_attempt_count, 1);
++        assert_eq!(lifecycle.pointers().last_boot_attempt_patch, Some(2));
+     }
+ 
+     #[test]

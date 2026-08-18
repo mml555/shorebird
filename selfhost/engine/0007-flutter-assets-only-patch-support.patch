@@ -1,0 +1,245 @@
+diff --git a/engine/src/flutter/common/settings.h b/engine/src/flutter/common/settings.h
+index 7484ff1..1c93367 100644
+--- a/engine/src/flutter/common/settings.h
++++ b/engine/src/flutter/common/settings.h
+@@ -133,6 +133,18 @@ struct Settings {
+   // case the primary path to the library can not be loaded.
+   std::vector<std::string> application_library_paths;
+ 
++  // Shorebird: directory holding the `flutter_assets` overlay shipped with the
++  // active patch, or empty when there is no patch or it carries no assets.
++  // Set by ConfigureShorebird(); consumed by RunConfiguration, which pushes it
++  // to the FRONT of the AssetManager so a patched asset wins over the one
++  // compiled into the app.
++  //
++  // This exists because assets resolved by the engine rather than through
++  // Dart's AssetBundle — declared fonts, shaders, ImmutableBuffer.fromAsset —
++  // never consult an app-side bundle, so they cannot be patched from Dart at
++  // all. Empty on a stock build, which leaves asset resolution untouched.
++  std::string shorebird_patch_assets_path;
++
+   // Path to a library containing compiled Dart code usable for launching
+   // the VM service isolate.
+   std::vector<std::string> vmservice_snapshot_library_path;
+diff --git a/engine/src/flutter/shell/common/run_configuration.cc b/engine/src/flutter/shell/common/run_configuration.cc
+index 1998272..735d86d 100644
+--- a/engine/src/flutter/shell/common/run_configuration.cc
++++ b/engine/src/flutter/shell/common/run_configuration.cc
+@@ -10,6 +10,7 @@
+ #include "flutter/assets/directory_asset_bundle.h"
+ #include "flutter/common/graphics/persistent_cache.h"
+ #include "flutter/fml/file.h"
++#include "flutter/fml/logging.h"
+ #include "flutter/fml/unique_fd.h"
+ #include "flutter/runtime/dart_vm.h"
+ #include "flutter/runtime/isolate_configuration.h"
+@@ -22,6 +23,26 @@ RunConfiguration RunConfiguration::InferFromSettings(
+     IsolateLaunchType launch_type) {
+   auto asset_manager = std::make_shared<AssetManager>();
+ 
++  // Shorebird: assets shipped with the active patch resolve first, so a patched
++  // asset wins over the one compiled into the app. PushFront, before the
++  // bundled resolvers below, is what makes it an override; resolution still
++  // falls through to those for any key the patch does not carry, so a patch
++  // that changes one asset cannot hide the rest.
++  //
++  // Pushed unconditionally: AssetManager::PushFront rejects a resolver over a
++  // missing directory, so a patch with no assets is a no-op here. Empty on a
++  // stock build, which leaves the resolver chain exactly as upstream builds it.
++  if (!settings.shorebird_patch_assets_path.empty()) {
++    const bool pushed =
++        asset_manager->PushFront(std::make_unique<DirectoryAssetBundle>(
++            fml::OpenDirectory(settings.shorebird_patch_assets_path.c_str(),
++                               false, fml::FilePermission::kRead),
++            true));
++    FML_LOG(INFO) << "Shorebird: patch assets "
++                  << (pushed ? "active: " : "absent at: ")
++                  << settings.shorebird_patch_assets_path;
++  }
++
+   if (fml::UniqueFD::traits_type::IsValid(settings.assets_dir)) {
+     asset_manager->PushBack(std::make_unique<DirectoryAssetBundle>(
+         fml::Duplicate(settings.assets_dir), true));
+diff --git a/engine/src/flutter/shell/common/shorebird/shorebird.cc b/engine/src/flutter/shell/common/shorebird/shorebird.cc
+index a539528..51e1257 100644
+--- a/engine/src/flutter/shell/common/shorebird/shorebird.cc
++++ b/engine/src/flutter/shell/common/shorebird/shorebird.cc
+@@ -138,6 +138,34 @@ std::string GetValueFromYaml(const std::string& yaml, const std::string& key) {
+   return "";
+ }
+ 
++/// Whether an active patch path points at a payload containing Dart code.
++///
++/// Keyed on `.vmcode` because that is exactly how
++/// `runtime/shorebird/patch_cache.cc`'s `TryLoadFromPatch` decides whether to
++/// read a snapshot out of the patch. The two must agree: if this said "code"
++/// where `TryLoadFromPatch` said "not code", the loader would be left pointing
++/// at a file the VM declines to read and the app would fail to boot with no
++/// snapshot at all.
++///
++/// Duplicated rather than shared because the two live in different GN targets,
++/// the same reason `patch_cache.cc` duplicates the snapshot symbol names.
++bool PatchCarriesCode(const std::string& active_patch_path) {
++  return active_patch_path.find(".vmcode") != std::string::npos;
++}
++
++std::string PatchAssetsPathForPatch(const std::string& active_patch_path) {
++  if (active_patch_path.empty()) {
++    return "";
++  }
++  auto patch_dir = fml::paths::GetDirectoryName(active_patch_path);
++  if (patch_dir.empty()) {
++    return "";
++  }
++  // Named for what it is: the same tree shape the CLI zips out of a build, so
++  // an overlay can be unpacked here verbatim.
++  return fml::paths::JoinPaths({patch_dir, "flutter_assets"});
++}
++
+ /// Newer api, used by Desktop implementations.
+ /// Does not directly manipulate Settings.
+ // TODO(eseidel): Consolidate this with the other ConfigureShorebird() API.
+@@ -266,6 +294,11 @@ void ConfigureShorebird(std::string code_cache_path,
+   if (!active_path.empty()) {
+     FML_LOG(INFO) << "Shorebird updater: active path: " << active_path;
+ 
++    // Assets shipped with this patch, if any. Recorded unconditionally; whether
++    // the directory exists is decided in RunConfiguration, where an absent one
++    // is simply not pushed.
++    settings.shorebird_patch_assets_path = PatchAssetsPathForPatch(active_path);
++
+ #if SHOREBIRD_USE_INTERPRETER
+     // On iOS we add the patch to the front of the list instead of clearing
+     // the list, to allow dart_snapshot.cc to still find the base snapshot
+@@ -273,8 +306,18 @@ void ConfigureShorebird(std::string code_cache_path,
+     settings.application_library_paths.insert(
+         settings.application_library_paths.begin(), active_path);
+ #else
+-    settings.application_library_paths.clear();
+-    settings.application_library_paths.emplace_back(active_path);
++    // Only a patch that actually carries code may displace the app's own
++    // library. An assets-only patch has no snapshot in it, so clearing the list
++    // would leave the loader with a single path holding nothing loadable and
++    // the app would fail to boot — while the asset overlay above, which is the
++    // whole point of such a patch, needs no library path at all.
++    //
++    // Note the asymmetry with the iOS branch above: iOS *inserts* and so keeps
++    // the base reachable for free, which is why this guard is only needed here.
++    if (PatchCarriesCode(active_path)) {
++      settings.application_library_paths.clear();
++      settings.application_library_paths.emplace_back(active_path);
++    }
+ #endif
+   } else {
+     FML_LOG(INFO) << "Shorebird updater: no active patch.";
+@@ -296,6 +339,7 @@ void ConfigureShorebird(std::string code_cache_path,
+     FML_LOG(INFO)
+         << "Shorebird auto_update disabled, not checking for updates.";
+   }
++
+ }
+ 
+ void* FileCallbacksImpl::Open() {
+diff --git a/engine/src/flutter/shell/common/shorebird/shorebird.h b/engine/src/flutter/shell/common/shorebird/shorebird.h
+index ab5c916..a1e3e28 100644
+--- a/engine/src/flutter/shell/common/shorebird/shorebird.h
++++ b/engine/src/flutter/shell/common/shorebird/shorebird.h
+@@ -54,6 +54,24 @@ void ConfigureShorebird(std::string code_cache_path,
+ /// Exposed for testing.
+ std::string GetValueFromYaml(const std::string& yaml, const std::string& key);
+ 
++/// The directory holding the `flutter_assets` overlay shipped alongside an
++/// active patch, given that patch's own file path, or "" when
++/// `active_patch_path` is empty.
++///
++/// Derived from the patch file's directory rather than recomputed from
++/// app_storage_path: the two ConfigureShorebird() APIs assemble that path
++/// differently (one appends the app id, one does not), and the updater is the
++/// only authority on where the patch actually landed.
++///
++/// Returns a path whether or not it exists. Callers hand it to
++/// DirectoryAssetBundle, and AssetManager::PushFront already rejects a resolver
++/// over a missing directory, so a patch without assets needs no separate check.
++///
++/// Exposed so desktop embedders, which use the ConfigureShorebird() overload
++/// that does not touch Settings, can populate
++/// Settings::shorebird_patch_assets_path themselves.
++std::string PatchAssetsPathForPatch(const std::string& active_patch_path);
++
+ }  // namespace flutter
+ 
+ #endif  // FLUTTER_SHELL_COMMON_SHOREBIRD_SHOREBIRD_H_
+diff --git a/engine/src/flutter/shell/common/shorebird/shorebird_unittests.cc b/engine/src/flutter/shell/common/shorebird/shorebird_unittests.cc
+index 7c108ac..620146e 100644
+--- a/engine/src/flutter/shell/common/shorebird/shorebird_unittests.cc
++++ b/engine/src/flutter/shell/common/shorebird/shorebird_unittests.cc
+@@ -17,5 +17,21 @@ TEST(Shorebird, GetValueFromYamlValueDoesNotExist) {
+   std::string value = GetValueFromYaml(yaml, key);
+   EXPECT_EQ(value, "");
+ }
++
++TEST(Shorebird, PatchAssetsPathSitsBesideThePatch) {
++  // Derived from the patch file's own directory, because the two
++  // ConfigureShorebird() APIs assemble the patch root differently.
++  EXPECT_EQ(PatchAssetsPathForPatch(
++                "/data/user/0/com.example/files/shorebird_updater/"
++                "app-id/patches/3/dlc.vmcode"),
++            "/data/user/0/com.example/files/shorebird_updater/"
++            "app-id/patches/3/flutter_assets");
++}
++
++TEST(Shorebird, PatchAssetsPathIsEmptyWithoutAPatch) {
++  // No active patch means no overlay, and RunConfiguration must leave asset
++  // resolution exactly as a stock build has it.
++  EXPECT_EQ(PatchAssetsPathForPatch(""), "");
++}
+ }  // namespace testing
+ }  // namespace flutter
+\ No newline at end of file
+diff --git a/engine/src/flutter/shell/platform/android/android_shell_holder.cc b/engine/src/flutter/shell/platform/android/android_shell_holder.cc
+index ac9563f..a62224d 100644
+--- a/engine/src/flutter/shell/platform/android/android_shell_holder.cc
++++ b/engine/src/flutter/shell/platform/android/android_shell_holder.cc
+@@ -14,7 +14,9 @@
+ #include <utility>
+ 
+ #include "common/settings.h"
++#include "flutter/assets/directory_asset_bundle.h"
+ #include "flutter/fml/cpu_affinity.h"
++#include "flutter/fml/file.h"
+ #include "flutter/fml/logging.h"
+ #include "flutter/fml/message_loop.h"
+ #include "flutter/lib/ui/painting/image_generator_registry.h"
+@@ -343,6 +345,32 @@ std::optional<RunConfiguration> AndroidShellHolder::BuildRunConfiguration(
+   }
+ 
+   RunConfiguration config(std::move(isolate_configuration));
++
++  // Shorebird: assets shipped with the active patch are registered BEFORE the
++  // APK's own provider. AddAssetResolver appends, and AssetManager resolves in
++  // order, so registering first is what makes a patched asset win over the one
++  // packaged in the APK. Resolution still falls through to the APK for any key
++  // the patch does not carry, so a patch changing one asset cannot hide the rest.
++  //
++  // This is deliberately here rather than only in
++  // RunConfiguration::InferFromSettings: Android never calls that function. It
++  // builds its RunConfiguration directly, which is why a resolver added there
++  // has no effect on Android at all.
++  //
++  // Registered unconditionally when the path is set; AssetManager rejects a
++  // resolver over a missing directory, so a patch without assets is a no-op.
++  const std::string& patch_assets = GetSettings().shorebird_patch_assets_path;
++  if (!patch_assets.empty()) {
++    const bool added =
++        config.AddAssetResolver(std::make_unique<DirectoryAssetBundle>(
++            fml::OpenDirectory(patch_assets.c_str(), false,
++                               fml::FilePermission::kRead),
++            true));
++    FML_LOG(INFO) << "Shorebird patch assets "
++                  << (added ? "registered from " : "not found at ")
++                  << patch_assets;
++  }
++
+   config.AddAssetResolver(apk_asset_provider_->Clone());
+ 
+   {
