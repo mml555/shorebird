@@ -1,4 +1,5 @@
 // cspell:words endtemplate pubspec sideloadable bryanoltman archs sideload
+// cspell:words bidiff
 // cspell:words xcarchive codesigned xcframework
 
 import 'dart:io';
@@ -67,6 +68,32 @@ class PatchArtifactBundle extends Equatable {
     podfileLockHash,
   ];
 }
+
+/// The `arch` value marking a patch artifact as an **asset bundle** rather than
+/// code.
+///
+/// Must match `assetsArch` in the control plane (code_push_server's
+/// `domain.dart`). That server is a standalone package with its own lockfile,
+/// not a workspace member, so this string is deliberately duplicated rather
+/// than shared. Chosen so it can never collide with a real architecture the
+/// CLI uploads (`aarch64`, `arm`, `x86_64`, ...).
+const assetsArch = 'assets';
+
+/// The `arch` value marking a patch artifact as **debug symbols**.
+///
+/// Same contract as [assetsArch]: free-form on the wire, must match the control
+/// plane's constant, and deliberately not a real architecture name.
+const symbolsArch = 'symbols';
+
+/// The non-code files that can accompany one platform's patch artifacts.
+///
+/// Both are optional and independent: a patch may ship assets without symbols
+/// (no `--split-debug-info`), symbols without assets (no `--assets`), or
+/// neither, which is the default and matches stock behavior exactly.
+typedef PatchSidecars = ({File? assets, File? symbols});
+
+/// A [PatchSidecars] carrying nothing, for platforms that contributed neither.
+const noPatchSidecars = (assets: null, symbols: null);
 
 /// A reference to a [CodePushClientWrapper] instance.
 ScopedRef<CodePushClientWrapper> codePushClientWrapperRef = create(() {
@@ -980,6 +1007,83 @@ aar artifact already exists, continuing...''');
     createArtifactProgress.complete();
   }
 
+  /// Uploads an asset bundle for [patch].
+  ///
+  /// This is asset support in patches. The bundle is registered as an ordinary
+  /// patch artifact tagged [assetsArch], which needs no protocol or client
+  /// change — `arch` is free-form all the way to the server's artifacts table.
+  ///
+  /// It is deliberately NOT part of the native updater's payload. The updater
+  /// applies exactly one artifact as a bidiff, so carrying assets there would
+  /// mean changing Rust that is linked into libflutter.so — putting the feature
+  /// behind an engine build, and therefore out of reach on iOS. App-side Dart
+  /// fetches this bundle instead, so the stock updater stays untouched.
+  Future<void> createPatchAssetArtifact({
+    required String appId,
+    required Patch patch,
+    required ReleasePlatform platform,
+    required File bundle,
+  }) => _createPatchSidecarArtifact(
+    appId: appId,
+    patch: patch,
+    platform: platform,
+    file: bundle,
+    arch: assetsArch,
+    label: 'assets',
+  );
+
+  /// Retains debug symbols for [patch] so crashes reported against it can be
+  /// symbolicated later.
+  ///
+  /// The source is the `--split-debug-info` output the CLI already produces
+  /// (`Patcher.debugInfoFile`); until now it was written for third-party crash
+  /// tools and never kept anywhere this control plane could reach. Stored
+  /// keyed by patch and [symbolsArch]; together with a crash report's
+  /// (app, release_version, patch_number, arch) that is the join
+  /// symbolication needs.
+  Future<void> createPatchSymbolArtifact({
+    required String appId,
+    required Patch patch,
+    required ReleasePlatform platform,
+    required File symbols,
+  }) => _createPatchSidecarArtifact(
+    appId: appId,
+    patch: patch,
+    platform: platform,
+    file: symbols,
+    arch: symbolsArch,
+    label: 'debug symbols',
+  );
+
+  /// Uploads a non-code artifact belonging to [patch], distinguished only by
+  /// its [arch] tag. Shared by the asset-bundle and debug-symbol paths, which
+  /// differ in nothing but that tag and the progress text.
+  Future<void> _createPatchSidecarArtifact({
+    required String appId,
+    required Patch patch,
+    required ReleasePlatform platform,
+    required File file,
+    required String arch,
+    required String label,
+  }) async {
+    final progress = logger.progress(
+      'Uploading ${platform.displayName} $label',
+    );
+    try {
+      await codePushClient.createPatchArtifact(
+        appId: appId,
+        patchId: patch.id,
+        artifactPath: file.path,
+        arch: arch,
+        platform: platform,
+        hash: sha256.convert(await file.readAsBytes()).toString(),
+      );
+      progress.complete();
+    } catch (error) {
+      _handleErrorAndExit(error, progress: progress);
+    }
+  }
+
   /// Promotes a patch to a specific [channel].
   Future<void> promotePatch({
     required String appId,
@@ -1016,6 +1120,11 @@ aar artifact already exists, continuing...''');
   /// makes a multi-platform patch atomic from a device's perspective: an
   /// unpromoted patch is served to nobody, so a failure partway through leaves
   /// an inert patch instead of a live one covering only some platforms.
+  ///
+  /// [sidecars] carries each platform's non-code payloads — an asset bundle and
+  /// a debug-symbol set — which upload alongside that platform's code artifacts
+  /// and before promotion, so they are in place by the time any device can see
+  /// the patch. A platform absent from the map contributes neither.
   Future<void> publishPatch({
     required String appId,
     required int releaseId,
@@ -1023,6 +1132,7 @@ aar artifact already exists, continuing...''');
     required DeploymentTrack track,
     required Map<ReleasePlatform, Map<Arch, PatchArtifactBundle>>
     patchArtifactBundles,
+    Map<ReleasePlatform, PatchSidecars> sidecars = const {},
   }) async {
     final patch = await createPatch(
       appId: appId,
@@ -1038,6 +1148,24 @@ aar artifact already exists, continuing...''');
         platform: platform,
         patchArtifactBundles: bundles,
       );
+
+      final sidecar = sidecars[platform] ?? noPatchSidecars;
+      if (sidecar.assets case final assets?) {
+        await createPatchAssetArtifact(
+          appId: appId,
+          patch: patch,
+          platform: platform,
+          bundle: assets,
+        );
+      }
+      if (sidecar.symbols case final symbols?) {
+        await createPatchSymbolArtifact(
+          appId: appId,
+          patch: patch,
+          platform: platform,
+          symbols: symbols,
+        );
+      }
     }
 
     final channel =

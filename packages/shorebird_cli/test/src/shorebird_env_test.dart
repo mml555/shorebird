@@ -895,6 +895,34 @@ base_url: https://example.com''');
           equals(Uri.parse('https://custom-auth.example.com')),
         );
       });
+
+      test(
+        'defaults to the SELF-HOSTED control plane when one is configured',
+        () {
+          // A self-hosted deployment brokers its own login: it serves /login and
+          // /token at its base URL, which is the pair the loopback flow uses.
+          // Pointing at auth.shorebird.dev there cannot work, because upstream
+          // will never issue a token our own server accepts.
+          when(() => platform.environment).thenReturn({
+            'SHOREBIRD_HOSTED_URL': 'http://localhost:18080',
+          });
+          expect(
+            runWithOverrides(() => shorebirdEnv.authServiceUri),
+            equals(Uri.parse('http://localhost:18080')),
+          );
+        },
+      );
+
+      test('prefers AUTH_SERVICE_URL over the self-hosted control plane', () {
+        when(() => platform.environment).thenReturn({
+          'SHOREBIRD_HOSTED_URL': 'http://localhost:18080',
+          'AUTH_SERVICE_URL': 'https://broker.example.com',
+        });
+        expect(
+          runWithOverrides(() => shorebirdEnv.authServiceUri),
+          equals(Uri.parse('https://broker.example.com')),
+        );
+      });
     });
 
     group('jwtIssuer', () {
@@ -915,6 +943,49 @@ base_url: https://example.com''');
           equals('https://custom-issuer.example.com'),
         );
       });
+
+      test(
+        'defaults to the SELF-HOSTED control plane when one is configured',
+        () {
+          // Matches code_push_server's OWN default, which issues tokens whose
+          // `iss` is SHOREBIRD_JWT_ISSUER ?? JWT_ISSUER ?? PUBLIC_BASE_URL.
+          when(() => platform.environment).thenReturn({
+            'SHOREBIRD_HOSTED_URL': 'http://localhost:18080',
+          });
+          expect(
+            runWithOverrides(() => shorebirdEnv.jwtIssuer),
+            equals('http://localhost:18080'),
+          );
+        },
+      );
+
+      test('strips a trailing slash from the self-hosted base URL', () {
+        // Not cosmetic: jwtIssuer is compared for EXACT equality against the
+        // `iss` claim, so a base_url written with a trailing slash would fail
+        // to match a server issuing one without — surfacing as an unexplained
+        // auth failure rather than a configuration error.
+        when(() => platform.environment).thenReturn({
+          'SHOREBIRD_HOSTED_URL': 'http://localhost:18080/',
+        });
+        expect(
+          runWithOverrides(() => shorebirdEnv.jwtIssuer),
+          equals('http://localhost:18080'),
+        );
+      });
+
+      test(
+        'prefers SHOREBIRD_JWT_ISSUER over the self-hosted control plane',
+        () {
+          when(() => platform.environment).thenReturn({
+            'SHOREBIRD_HOSTED_URL': 'http://localhost:18080',
+            'SHOREBIRD_JWT_ISSUER': 'https://issuer.example.com',
+          });
+          expect(
+            runWithOverrides(() => shorebirdEnv.jwtIssuer),
+            equals('https://issuer.example.com'),
+          );
+        },
+      );
     });
 
     group('isRunningOnCI', () {
