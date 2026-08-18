@@ -1,0 +1,36 @@
+name: code_push_runtime
+description: >-
+  App-side runtime for a self-hosted Shorebird control plane: serves the assets
+  attached to the running patch, and reports Dart crashes for server-side
+  symbolication.
+version: 0.1.0
+publish_to: none
+
+# Deliberately NOT a workspace member, for the same reason as code_push_server:
+# this monorepo's workspace root resolves with the Dart SDK, and adding a Flutter
+# package to it would force every package to resolve through Flutter. Own
+# pubspec.lock, and run its tests from this directory with `flutter test`.
+
+environment:
+  sdk: ^3.9.0
+  flutter: ">=3.24.0"
+
+dependencies:
+  archive: ^4.0.8
+  crypto: ^3.0.6
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+  path: ^1.9.0
+  path_provider: ^2.1.4
+  # The only supported way to read the running patch number. Published on
+  # pub.dev even though its source lives in a separate upstream repo, so
+  # depending on it is preferable to reimplementing its platform channel.
+  shorebird_code_push: ^2.0.0
+  yaml: ^3.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  mocktail: ^1.0.4
+  very_good_analysis: ^10.3.0
