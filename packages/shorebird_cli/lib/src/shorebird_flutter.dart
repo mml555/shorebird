@@ -30,8 +30,11 @@ class ShorebirdFlutter {
   /// The executable name.
   static const executable = 'flutter';
 
-  /// The Shorebird Flutter fork git URL.
-  static const String flutterGitUrl =
+  /// The Shorebird Flutter fork git URL. Overridable via
+  /// `SHOREBIRD_FLUTTER_GIT_URL` so a self-hosted deployment can clone from
+  /// its own mirror instead of GitHub.
+  static String get flutterGitUrl =>
+      platform.environment['SHOREBIRD_FLUTTER_GIT_URL'] ??
       'https://github.com/shorebirdtech/flutter.git';
 
   /// Arguments to pass to `flutter precache`.
