@@ -1,0 +1,106 @@
+Route B (selfhost) G3.7 -- allow ANY NUMBER of REQUIRED POSITIONAL parameters on
+a dynamic-module entry point.
+
+Patch 0004 relaxed the upstream "static no-argument" contract to zero-or-one, so
+that a replacement for an INSTANCE method could name its receiver as an ordinary
+first parameter -- and it capped there deliberately, so "relax the restriction"
+could not quietly become a general arity change before anyone had measured one.
+
+This is that general change, measured on its own. A target method with its own
+parameters lowers to `f(Receiver self, T1 a, ...)`, so the cap at one is exactly
+what made the largest measured slice of real methods unpatchable: 33.2 % of
+structural reach, and parameters appear in 6 of 10 real patches -- more than
+privacy, which is why the two were measured separately.
+
+STILL REFUSED, each for its own reason, and each pinned by a probe arm:
+  non-static            an entry point is resolved without a receiver
+  type parameters       generic instantiation is not carried by the payload
+  named parameters      the ArgumentsDescriptor's names must match; unexercised
+  optional positionals  their defaults live in the AOT function the replacement
+                        stands in for, and nothing carries them across -- which
+                        is why the test is requiredParameterCount ==
+                        positionalParameters.length and not a bare length check
+
+No receiver intrinsic and no VM change: the AOT call site already pushes
+(receiver, a, b, ...) per its own ArgumentsDescriptor. What needed measuring was
+whether the interpreted entry point binds them positionally as they arrive, and
+it does.
+
+Contract pinned by probes/c_entrypoint_arity.sh (8/8, including the two new arms
+three_positional=allow and optional_positional=refuse). Behaviour proven end to
+end on host by probes/g37_param_abi.sh (4/4): a one-parameter and a
+two-parameter target patched and executed through the real producer path, with
+the named and optional arms refused at patch time against IDENTICAL release
+bytes. The analyzer refuses exactly what this contract refuses (analysisVersion
+8), so a rejection never migrates from patch time to compile time.
+
+Applies on top of 0004.
+---
+--- a/pkg/dart2bytecode/lib/bytecode_generator.dart
++++ b/pkg/dart2bytecode/lib/bytecode_generator.dart
+@@ -729,27 +729,51 @@
+           if (dynModuleEntryPoint != null) {
+             throw 'Duplicate Dynamic Module Entry Points: $dynModuleEntryPoint and $member';
+           }
+-          // Route B (selfhost): zero OR ONE positional parameter.
++          // Route B (selfhost), G3.7: ANY number of REQUIRED POSITIONAL
++          // parameters.
+           //
+-          // The single relaxation being tested, and deliberately nothing more.
+-          // A Route B replacement for an INSTANCE method is compiled as a
+-          // synthetic top-level function, so the only way it can ever name the
+-          // receiver is as an ordinary first parameter. Everything else about
+-          // the contract is unchanged: still static, still no type parameters,
+-          // still no named parameters, and two positional parameters are still
+-          // refused so "relax the restriction" cannot quietly become a general
+-          // arity change.
++          // The narrowing this removes was deliberate, so removing it has to be
++          // too. Upstream allowed zero. Patch 0004 relaxed it to "zero or one",
++          // because a replacement for an INSTANCE method is compiled as a
++          // synthetic top-level function and the only way it can name the
++          // receiver is as an ordinary first parameter -- and it capped there on
++          // purpose, so that "relax the restriction" could not quietly become a
++          // general arity change before anyone had measured one.
+           //
+-          // No receiver intrinsic and no VM change accompanies this: the point
+-          // is to find out whether the existing calling convention already
+-          // delivers the receiver in argument 0.
++          // This IS that general arity change, measured on its own. A target with
++          // its own parameters lowers to `f(Receiver self, T1 a, ...)`, so the cap
++          // at one is precisely what made the largest measured slice of real
++          // methods unpatchable: 33.2 % structural reach, and parameters appear in
++          // 6 of 10 real patches.
++          //
++          // WHAT STAYS REFUSED, each for its own reason:
++          //   * non-static           a dynamic module entry point is resolved
++          //                          without a receiver; instance-ness needs a
++          //                          different resolution path.
++          //   * type parameters      generic instantiation is not carried by the
++          //                          payload.
++          //   * named parameters     the call site passes them through an
++          //                          ArgumentsDescriptor whose names must match;
++          //                          not exercised, so not allowed.
++          //   * optional positionals their default values live in the AOT
++          //                          function the replacement stands in for, and
++          //                          nothing carries them across yet. This is why
++          //                          the test is requiredParameterCount ==
++          //                          positionalParameters.length rather than a
++          //                          bare length check.
++          //
++          // Still no receiver intrinsic and no VM change: the AOT call site
++          // already pushes (receiver, a, b, ...) per its own ArgumentsDescriptor,
++          // and what this answers is whether the interpreted entry point binds
++          // them positionally as they arrive.
+           if (!(member is Procedure &&
+               member.isStatic &&
+               function.typeParameters.isEmpty &&
+-              function.positionalParameters.length <= 1 &&
++              function.requiredParameterCount ==
++                  function.positionalParameters.length &&
+               function.namedParameters.isEmpty)) {
+             throw 'Dynamic Module Entry Point should be a static method with '
+-                'at most one positional parameter: $member';
++                'only required positional parameters: $member';
+           }
+           dynModuleEntryPoint = member;
+           bytecodeComponent.dynModuleEntryPoint = objectTable.getHandle(member);
