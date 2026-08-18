@@ -1,0 +1,185 @@
+CLAIM 1 — 0012/0013 INSTRUMENTATION VERDICT, 2026-08-17
+========================================================
+
+Precommitted in next_cycle_precommit.md before this cycle existed. That table is
+not edited here.
+
+**THIS FILE SCORES CLAIM 1 ONLY.** It does not mention arm A's outcome, and
+claim 2's verdict does not cite this file. They shared a cycle, a trace and an
+operator. They do not share evidence.
+
+IDENTITY
+--------
+cell      50bdae36f6dafbe1da17852a42e119518e8e5cf4 (0011 + 0012 + 0013), AUDIT CLEAN
+release   killswitch_probe 1.0.7+1, control-plane release 96
+patch     Patch 1 (id 62), routeBValue() => 'NEW-kill', 431 B bytecode / 709 B container
+device    R1 iPhone 7 / iOS 15.8.8, WIRED (8cb4bc98…), confirmed "connected through USB"
+trace     evidence/g15/cycle96_device/rbtrace_v5.txt — ONE line, one activation
+state     patch was `Installed` when the trace was pulled (state_at_trace/)
+
+THE TRACE, IN FULL
+------------------
+    rbtrace v=5 ... rc=0 attach_entered=1 attach_returned=1 bc_pre=0 bc_post=1
+    interp_pre=0 interp_post=1 bc_size=7 code_pre_size=12
+    uep_post_is_interpret_call=1 caller_scan_status=0
+    pool_status=4 pool_index=6803 pool_length=12478
+    pool_entry_is_function=0 pool_entry_equals_target=-1
+    tpool_status=3 tpool_matches=0 tpool_index=-1 tpool_index2=-1
+    tpool_scanned=12478
+    pool_offset=0xd4a8 tpool_offset=0xffffffffffffffff
+    pool_entry_ptr=0x109fb9b11
+
+ROW-BY-ROW
+----------
+
+ROW 1 — a v=5 trace is produced at all.                              **PASS**
+    The line opens `rbtrace v=5`. The device is running the built engine, so
+    everything below is measuring the new instrument and not the old one.
+
+ROW 2 — tpool_* POPULATED, tpool_scanned > 0.                        **PASS**
+    `tpool_status=3` (ABSENT) is one of the three admissible values, and
+    `tpool_scanned=12478` — the scan visited every entry of a 12,478-slot pool.
+    NOT_REQUESTED (0), the defect 0012 exists to remove, did not reappear.
+
+ROW 3 — the stale-offset negative control.               **MET, WITH ITS SECOND
+                                                         CONJUNCT VACUOUS**
+
+    Required: supply the historical `0xd4a8` where it points at a valid but
+    different object; the assertion path must report POOL_ENTRY_NOT_FUNCTION or
+    pool_entry_equals_target=0 — never a confident identity — WHILE the derived
+    scan independently reports the true location in the same trace.
+
+    First conjunct — SATISFIED, and precisely in the specified shape:
+      * `pool_offset=0xd4a8` was supplied (0013's supply side worked; without it
+        this row was unrunnable, see below).
+      * `IndexFromOffset(0xd4a8)` = **6803**, which is IN RANGE
+        (`pool_length=12478`) — so this is genuinely the "valid but different
+        object" case the control asks for, not an out-of-range escape.
+      * `pool_status=4` = **POOL_ENTRY_NOT_FUNCTION**, one of the two named
+        outcomes, on a real object (`pool_entry_ptr=0x109fb9b11`).
+      * `pool_entry_equals_target=-1` — deliberately UNSET, because the runtime
+        refuses to compare a non-Function. It reported a REFUSAL, not a verdict.
+
+    Second conjunct — **NOT SATISFIABLE ON THIS TRACE, and not by failure.** The
+    derived scan returned ABSENT, so there was no "true location" for it to
+    report. The precommit's wording presumed a UNIQUE outcome; it did not
+    anticipate that the first field measurement would be ABSENT.
+
+    SO WHAT IS ACTUALLY ESTABLISHED, stated narrowly:
+
+      The two instruments are DEMONSTRABLY SEPARATE. The trace carries
+      `pool_offset=0xd4a8` — the supplied argument, echoed — beside
+      `tpool_offset=-1` (unset) from the derived scan. Under v4 there was ONE
+      number and it echoed its own argument; here the supplied value and the
+      derived value are different fields with different provenance, and the
+      supplied one produced a refusal while the derived one produced an
+      independent result. **The demotion is real and is no longer compile
+      evidence only.**
+
+    AND WHAT IS NOT, which matters as much:
+
+      **The derived scan has never been observed producing a positive identity in
+      the field.** It ran, scanned 12,478 entries, and returned a definite
+      ABSENT. That is a result, not a failure — but UNIQUE and AMBIGUOUS remain
+      unexercised on a real target, so the producer's ability to name a correct
+      slot is still unproven. A future specimen whose target IS in the pool is
+      what would close that, and this cycle cannot claim it.
+
+VERDICT
+-------
+**Rows 1 and 2 PASS outright. Row 3's operative requirement — the assertion path
+refuses instead of asserting a confident identity — is MET, on an in-range slot
+holding a different object, which is exactly the hazard it was written to catch.
+Its companion clause is vacuous because the derived scan found nothing to
+locate.**
+
+The instrumentation is therefore ESTABLISHED for the purpose the precommit
+names: a supplied offset can no longer masquerade as a measurement, and the
+derived scan is a real, independent producer. It is NOT established that the
+derived scan reports the right slot when there is one.
+
+This is not "instrumentation works" without qualification, and it is not the
+PARTIAL the precommit warned of either — row 3 ran, on the value specified, and
+returned a named refusal.
+
+WHAT 0013 CONTRIBUTED, AND WHY THE ROW WOULD OTHERWISE HAVE BEEN UNRUNNABLE
+----------------------------------------------------------------------------
+0012 deleted the `0xd4a8` / "RouteBThing.value" landmine correctly, but that
+special case was the only path that ever passed a non-zero `pool_offset`, and
+`runtime/lib/object.cc:1257` gates the assertion on `pool_offset != 0`. On the
+tree as captured there was one call site, its argument a literal `0`, no env var
+and no second caller — verified, not assumed. Row 3 could not have fired at all,
+and this cycle would have returned rows 1 and 2 and been reported as PARTIAL.
+
+`0013-routeb-assert-offset-supply.patch` restored the supply side as a default
+(`0xd4a8`, the value the control is specified against) plus a per-run sidecar
+override, applied to every target rather than one hard-coded selector. The
+override was NOT needed: `0xd4a8` landed in range on release 96. It remains the
+recovery path if a future release puts it out of range.
+
+ADDENDUM, 2026-08-17 — THE SECOND NAMED ROW-3 OUTCOME, ON A SECOND SPECIMEN
+----------------------------------------------------------------------------
+Added after the release 91 hybrid run (r91_vs_r96_tpool_verdict.txt). It
+strengthens row 3 and changes NOTHING about the limitation below.
+
+Row 3 named two acceptable failure shapes: `POOL_ENTRY_NOT_FUNCTION` **or**
+`pool_entry_equals_target=0`. Release 96 produced the first. Release 91 produced
+**the second**, from the same stale `0xd4a8`:
+
+    release 96   pool_status=4  pool_entry_is_function=0  pool_entry_equals_target=-1
+    release 91   pool_status=5  pool_entry_is_function=1  pool_entry_equals_target=0
+
+On release 91 the stale offset landed on index 6803 holding a **real Function**
+— and the assertion path reported `POOL_READ` with
+`pool_entry_equals_target=0`: *this slot holds a Function, and it is NOT your
+target.* That is the confident-wrong-answer hazard in its most dangerous form —
+a plausible, correctly-typed object — identified as not-the-target rather than
+reported as an identity.
+
+**Both named outcomes of the negative control are now demonstrated, on two
+different snapshots, from the same supplied constant.** The demotion is exercised
+across its full specified range.
+
+WHAT THIS ADDENDUM DOES NOT CHANGE
+-----------------------------------
+**The derived scan returned ABSENT on BOTH specimens. A correct positive
+`TPOOL_UNIQUE` location has still never been emitted in the field.** "Instrument
+established" is justified; **"positive locator proven" is not yet.** That
+sentence stands exactly as written above, unweakened by the second specimen.
+
+ADDENDUM 2, 2026-08-17 — THE POSITIVE LOCATOR IS NOW PROVEN
+-------------------------------------------------------------
+**The limitation immediately above is DISCHARGED.** Evidence produced by the
+target-kind paired control (`target_kind_verdict.txt`), which was run for an
+unrelated question; recorded here because this is where the claim lives.
+
+Release 40 (`40.0.0+1`), patch 1, one container, two targets, one trace:
+
+    sel=RouteBThing.kindMember   tpool_status=4 (UNIQUE) matches=1 index=6810 offset=0xd4df
+    sel=kindTopLevel             tpool_status=4 (UNIQUE) matches=1 index=6799 offset=0xd487
+                                 tpool_scanned=15467 (both)
+
+**The first `TPOOL_UNIQUE` readings the derived scan has ever produced in the
+field**, and they arrive corroborated: BOTH targets' patched values were on
+screen in the same launch (`NEW-MEMBER`, `NEW-TOP`), so the locations were derived
+for functions whose replacements demonstrably executed. Two distinct targets in
+one scan of the same 15,467-entry pool returned two DIFFERENT indices, each with
+`matches=1` — so the scan discriminates between targets rather than reporting a
+constant.
+
+The offsets come from `ObjectPool::OffsetFromIndex`, the VM's own rule, and the
+supplied-offset assertion path remained separate throughout.
+
+**Claim 1 now reads: instrument established AND positive locator proven.** The
+scan produces ABSENT, UNIQUE, and — still unobserved in the field — AMBIGUOUS.
+Only AMBIGUOUS remains unexercised.
+
+WHAT THIS DOES NOT CLAIM
+------------------------
+* NOTHING about arm A, `OLD-kill`, or where routeBValue lives. `tpool_status=3`
+  is claim 2's input and is scored in claim 2's own file, which does not cite
+  this one.
+* NOT that the caller scan works. `caller_scan_status=0` — `caller_name` is still
+  `nullptr` for every target; 0013 did not touch it. Its six states remain
+  unexercised in the field, exactly as routeb_caller_scan_gap.txt described.
+* NOT that the derived scan can identify a slot correctly (see above).

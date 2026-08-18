@@ -1,0 +1,110 @@
+G15 — WHICH ENGINE EACH FIXTURE RELEASE ACTUALLY CARRIES, 2026-08-14
+=====================================================================
+
+WHY THIS EXISTS. `crashbackout_control_verdict.txt` concluded "this is the
+fixture, not the rig, and not the instrument" from a positive control that
+launched `airgap_probe` on the same device with the same tooling. That control
+covered three candidates and left a fourth unexamined: THE ENGINE. The two apps
+were never shown to be running the same one.
+
+They were not. And measuring it also EXONERATES the engine, by a better control
+that already existed — so the conclusion survives while its support changes.
+
+METHOD
+------
+An embedded `Flutter` binary inside a built .app is re-signed and thinned, so its
+file hash never equals the published xcframework's. Compare the `__TEXT,__text`
+section bytes (offset+size from `otool -l`).
+
+  40eaa0ef  cell overlay ios-release/artifacts.zip   bc0afffe14d9e3d46117
+  4df8f9b6  cell overlay ios-release/artifacts.zip   bc0afffe…  (identical file
+                                                      hash e828f8ef to 40eaa0ef)
+  80e493e4  cell overlay ios-release/artifacts.zip   136e3d64441c31c6c031
+  R3        /Volumes/build/route-b .../out/ios_release
+                                                     136e3d64441c31c6c031
+  R4        /Volumes/build/ios-engine .../out/ios_release
+                                                     3c8aded7c529eb1a3550
+
+So cell `80e493e4` IS R3's build (patches 0009 + 0010), and R4 has been rebuilt
+since `40eaa0ef` was minted.
+
+WHAT EACH RELEASE ON THE CONTROL PLANE CARRIES
+-----------------------------------------------
+  rel 87  airgap_probe      39.0.0+1   bc0afffe…  = 40eaa0ef
+  rel 89  killswitch_probe   1.0.0+1   136e3d64…  = 80e493e4
+  rel 90  killswitch_probe   1.0.1+1   136e3d64…  = 80e493e4
+  rel 91  killswitch_probe   1.0.2+1   136e3d64…  = 80e493e4
+  rel 92  killswitch_probe   1.0.3+1   136e3d64…  = 80e493e4
+
+FIRST CONSEQUENCE — THE POSITIVE CONTROL DID NOT COVER THE ENGINE
+------------------------------------------------------------------
+`airgap_probe` ran `40eaa0ef`; `killswitch_probe` ran `80e493e4`. The control
+proved the device, the transport and the screenshot path. It could not have
+detected an engine that fails to start Dart, because it was not running that
+engine. "Not the fixture, not the rig, not the instrument" was three-quarters of
+a disjunction.
+
+SECOND CONSEQUENCE — AND IT IS THE STRONGER ONE — THE ENGINE IS EXONERATED
+---------------------------------------------------------------------------
+`arm2_verdict.txt` records ARM 2 PASSING TWICE on release `1.0.2+1`, which this
+table shows is THE SAME ENGINE `80e493e4`. On that engine, this fixture's `main()`
+demonstrably ran: the marker alternated across four taps (kill / render / kill /
+render) and the UI drew `NEW-kill` twice.
+
+So `0009`+`0010` do not prevent the root isolate from running. The right control
+for the engine was in the evidence directory the whole time; it was simply never
+lined up against the failure.
+
+WHAT IS LEFT, AND IT IS NARROW
+-------------------------------
+Same device, same engine, same fixture directory:
+
+  1.0.2+1   main() runs, marker alternates, UI renders        (arm 2, PASSED)
+  1.0.3+1   marker never moves, blank screen, no patch in play (control, FAILED)
+
+The ONLY delta is commit `6d00e95c`, and it is small:
+
+  + String bootProbe() => 'boot-ok';
+  + String bootMark = '';
+    void main() {
+  +   bootMark = bootProbe();          <-- new FIRST statement of main()
+      if (_shouldKillThisLaunch()) { …
+
+Confirmed in the artifacts rather than assumed: `boot-ok` occurs 0 times in the
+AOT of rel 89/90/91 and 1 time in rel 92. The releases differ exactly where the
+commit says they do, and nowhere else that matters.
+
+THE FIXTURE DEFECT THIS EXPOSES, INDEPENDENT OF THE CAUSE
+----------------------------------------------------------
+`bootMark = bootProbe();` was placed AHEAD of the marker write. `bootProbe()` is
+the function arm B exists to make throw.
+
+  * the receipt now sits BEHIND the patch target, so on the arm where the receipt
+    matters most it can never move;
+  * "main() DID NOT RUN. Not the kill branch, not the render branch, not at all"
+    (crashbackout_control_verdict.txt) is therefore OVERSTATED. An unmoved marker
+    on this build is equally consistent with `main()` entering and dying on its
+    first statement. The receipt cannot distinguish "never entered" from "entered
+    and threw before line 2", which are different findings.
+
+That is the same class of error the fixture was repaired for once already: a
+signal whose failure mode mimics the state it is meant to discriminate. Gate 1's
+repair must put the receipt on the FIRST line of `main()`, ahead of every
+patchable call, and must record the phases separately rather than toggling one
+bit.
+
+WHAT THIS DOES NOT ESTABLISH
+-----------------------------
+It does not say WHY `1.0.3+1` fails. Three candidates remain open and the
+repaired receipt is what separates them:
+
+  a) `main()` is never entered — a launch-path failure the app cannot see;
+  b) `main()` is entered and `bootProbe()` fails on the unpatched release —
+     which would make a function reachable-from-`main()` and retained in the
+     Route B dynamic interface (`dynamic_interface.yaml` retains the whole of
+     `package:killswitch_probe/main.dart`) unsafe to CALL during boot, a real
+     Route B finding rather than a fixture bug;
+  c) something in the `--rmtree` / reinstall left the install in a state neither
+     the screen nor the marker could report.
+
+Do not pick one before the receipt can tell them apart.

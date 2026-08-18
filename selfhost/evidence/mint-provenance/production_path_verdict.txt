@@ -1,0 +1,108 @@
+mint provenance generator — production-path exercise
+====================================================
+cspell:words psdk
+2026-08-16. Script under test: selfhost/engine/route_b/mint_route_b_cell.sh
+Companion: generator_verdict.txt (the host/probe evidence this extends)
+
+WHY THIS IS A SCRATCH DESTINATION AND NOT A PUBLISHED CELL
+----------------------------------------------------------
+There was no new production cell to mint. Established before running anything:
+
+  * the route-b engine checkout is unchanged since cd137db6 -- its dirty set is
+    the 0011 seam work that produced that cell;
+  * patch 0012 is NOT applied. No tpool_status marker exists anywhere in the
+    checkout, though 0012 is committed as a patch file in this repo;
+  * all seven cell inputs predate the cd137db6 mint (2026-08-11 .. 08-13).
+
+So a CORRECT mint from this state recomputes cd137db6 and short-circuits on
+"map entry already present", never reaching the generator. The two ways to force
+a new address were both rejected: feeding a different iOS zip would put a cell
+nobody wants into the live map, and applying 0012 + rebuilding is the next
+cycle's work, whose precommit deliberately keeps its two claims apart.
+
+The real script therefore ran with OVERLAY and MAP redirected to a temp
+directory. publish_route_b_compiler.sh honours OVERLAY and performs only file
+operations into it -- no docker, no curl, no Caddy -- so the blast radius is that
+directory. Everything else is production: the real script, the real
+provenance_comment, the real seven cell inputs off /Volumes/build/route-b, the
+real donor artifacts, the real 443faeb2 iOS zip, the real 757d09d7 platform dill
+extracted from the zip that must deliver it.
+
+INVOCATION
+----------
+  OVERLAY=<scratch>/overlay MAP=<scratch>/experimental_hashes.map \
+  FLUTTER_PLATFORM=<scratch>/flutter_patched_sdk_product/platform_strong.dill \
+  PSDK_ZIP=<...>/out/host_release_arm64_nodm/zip_archives/flutter_patched_sdk_product.zip \
+  mint_route_b_cell.sh --donor 87130ae8… --ios-artifacts <443faeb2… zip> \
+    --note "G15: the _runMain success seam (patch 0011)."
+
+RESULTS
+-------
+1. ADDRESS REPRODUCED. The mint computed
+   cd137db6aea4c76f41903a872b91afb8ac799626 -- the live cell's address, re-derived
+   from its own inputs by an independent run. Not the object of the exercise, but
+   it is a free determinism result and it is the reason the rest is comparable.
+
+2. THE GENERATOR EMITTED, on the real mint path:
+
+     # ANCESTRY, MEASURED against donor 87130ae8… at mint time —
+     # 2 of 11 artifacts differ:
+     #   CHANGED flutter_patched_sdk_product.zip — sha256 774bb4b6… (donor 0e4bd8b3…)
+     #   CHANGED ios-release/artifacts.zip — sha256 443faeb2… (donor 4302bf4d…)
+     # Donor 87130ae8… supplied the other 9, byte-for-byte.
+     # ADDRESS: iOS artifacts sha256 443faeb2…
+     # participates in this cell's address (--ios-artifacts).
+
+3. INDEPENDENTLY RECOMPUTED, by digesting the INSTALLED cell against its donor
+   file by file rather than trusting the generator's own count:
+
+     same     dart-sdk-darwin-arm64.zip        same     flutter_patched_sdk.zip
+     same     darwin-arm64/artifacts.zip       DIFFERS  flutter_patched_sdk_product.zip
+     same     darwin-arm64/font-subset.zip              774bb4b6… (donor 0e4bd8b3…)
+     same     engine_stamp.json                DIFFERS  ios-release/artifacts.zip
+     same     flutter_gpu.zip                           443faeb2… (donor 4302bf4d…)
+     same     sky_engine.content-diff.txt
+     same     sky_engine.zip
+     same     sky_packages_provenance.txt
+
+   11 files, 2 differ, 9 identical. THE EMITTED ANCESTRY MATCHES THE BYTES, both
+   in which artifacts it names and in the digests it reports for them.
+
+4. THE SCRATCH CELL EQUALS THE LIVE CELL. All 11 engine artifacts are
+   byte-for-byte identical to the published cd137db6. The route-b compiler zip
+   differs only in its PROVENANCE.txt `built` timestamp
+   (2026-08-16T20:01:05Z vs 03:51:55Z); all seven content digests are identical.
+   That is the zip-timestamp caveat publish_route_b_compiler.sh:166 documents.
+
+STATUS: STILL BUILT. NOT PROVEN.
+--------------------------------
+Deliberate, and it is the point of writing this down. Nothing was published, the
+destination was not the real target, and this repo reserves PROVEN for the real
+product path. What this adds to generator_verdict.txt is that the generator now
+has production-path evidence -- real script, real artifacts, real installs -- as
+distinct from design and probe evidence.
+
+WHAT THIS DID NOT EXERCISE
+--------------------------
+* ONE ANCESTRY SHAPE ONLY. The real run hit the "2 of 11 differ" branch. The
+  all-identical branch and the ADDED / ABSENT branches were exercised only by
+  probes/mint_provenance.sh against synthetic fixtures. A real mint that clones a
+  donor with no substitutions has still never been observed.
+* THE LIVE MAP. No line was appended to selfhost/cdn/experimental_hashes.map, and
+  cd137db6's committed entry there remains the HAND-WRITTEN one from 064115f9 --
+  which this run independently confirms is accurate, but did not replace.
+* 87130ae8's understated entry is untouched, still awaiting regeneration.
+
+WHAT WOULD FINISH IT
+--------------------
+0012's cycle needs a mint regardless. When it runs: read the emitted ancestry
+block before advancing anything, recompute the installed cell against its donor
+exactly as in (3), require them to match, and only then move the generator to
+PROVEN. That mint will also exercise a genuinely new address rather than
+re-deriving an existing one.
+
+NOT TOUCHED
+-----------
+No cell published, no map line written, no CDN state, no engine output, no
+release. R3 and R11 were read-only. The scratch directory is disposable and was
+removed after the digests above were taken.

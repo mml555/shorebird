@@ -1,0 +1,1 @@
+rbtrace v=1 lib=package:airgap_probe/main.dart sel=RouteBThing.value paylen=530 rc=0 attach_entered=1 attach_returned=1 bc_pre=0 bc_post=1 interp_pre=0 interp_post=1 bc_size=7 code_pre_size=20 ep_post_is_interpret_call=1 code_pre=0x1088bcd81 code_post=0x103f95cb1 ep_pre=0x1079e5ca8 ep_post=0x107914044 uep_pre=0x1079e5ca8 uep_post=0x107914044 interpret_call_ep=0x107914044

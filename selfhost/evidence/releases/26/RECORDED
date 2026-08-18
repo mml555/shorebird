@@ -1,0 +1,276 @@
+release        : 26
+preserved from : build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework/App
+preserved at   : 2026-08-13T00:04:46Z
+LC_UUID        : 0d0bd99aaa143b5a8bdf8cb9382a3e52
+patchable      : 7,141  (1,775 per MB)
+size           : 4219056 bytes
+
+These are the RELEASE's own bytes. Compare later patches against them:
+
+  assert_installed_release.sh <app-or-archive> --expect 0d0bd99aaa143b5a8bdf8cb9382a3e52
+
+The working archive is NOT a substitute: Try logging out with shorebird logout and logging in again.
+
+If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
+
+You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
+/Users/mendell/Library/Application Support/shorebird/logs/1786579486656_shorebird.log re-archives over
+build/ios/archive, so after the first patch it holds the patch build instead.
+DEVICE RESULT — public control patch, 2026-08-12
+  patch body : String value(RouteBThing self) => 'NEW-CTL';
+  app shows  : NEW-SET  (the release body), code patch: 1
+  trace      : patch1.routeb.trace
+
+CLASSIFIED: bucket 4. Buckets 1-3 are eliminated by measurement, not argument:
+
+  bc_pre=0  -> bc_post=1                    bytecode DID remain attached  (not 1)
+  ep_pre=0x1079e5ca8 -> ep_post=0x107914044 the entry point DID move      (not 2)
+  interpret_call_ep=0x107914044             and it moved to EXACTLY the
+  ep_post_is_interpret_call=1               InterpretCall stub            (not 3)
+  interp_pre=0 -> interp_post=1             Function::IsInterpreted() true
+  code_pre=0x1088bcd81 -> code_post=0x103f95cb1   a different Code is installed
+  rc=0, attach_entered=1, attach_returned=1
+
+So the attach is REAL and CORRECT. Bytecode is attached, the Function reports
+itself interpreted, and both entry_point_ and unchecked_entry_point_ equal the
+InterpretCall stub captured in the same run. The engine did everything it claimed.
+
+The app still executes the AOT body. Therefore the CALL SITE does not consult
+this Function's entry_point_ — bucket 4 — despite the release measuring 7,141
+patchable sites at 1,775 per MB.
+
+NOT YET ESTABLISHED, and not to be assumed: WHY that call site bypasses it.
+`routeBValue()` calls `RouteBThing().value()`, an INSTANCE call, while
+--patchable_static_calls is by its name about static calls. That is a hypothesis
+with an obvious shape, and this project has retired four such. The next step is
+to look at the actual call-site instructions for routeBValue, not to reason from
+the flag's name.
+
+CALL-FORM CENSUS of this release's __text (2,331,456 bytes, 582,864 instructions)
+
+  patchable pairs   7,102   ldur lr,[x0,#7] ; blr lr   -- consults entry_point_
+  direct bl        25,494   fixed AOT target           -- NOT patchable
+  blr <reg>        22,878   register-indirect, incl. dispatch-table
+
+Patchable calls are 21.8% of direct-call sites. So --patchable_static_calls
+converts a MINORITY of calls, and "7,141 patchable sites" is a global property
+that says nothing about any particular site. The instrumentation's own threshold
+(100/MB) was only ever a yes/no on whether the flag reached gen_snapshot.
+
+STILL OPEN, and deliberately not guessed: which of these three forms the site
+`routeBValue -> RouteBThing.value` actually uses. Establishing it needs
+symbolization, and three routes were tried and failed on the preserved bytes:
+
+  nm                      4 symbols only; AOT code is one blob
+                          (_kDartIsolateSnapshotInstructions)
+  analyze_snapshot_arm64  refuses the file: it dlopen()s the dylib, and this is
+                          an iOS Mach-O ("incompatible platform ... have 'iOS',
+                          need 'macOS'")
+  split debug info        none emitted by this release
+
+Dart function NAMES are retained in the snapshot (routeBValue, routeBProbe,
+RouteBThing, value, _ProbeBodyState all present as strings), so the name table
+exists and symbolization is possible in principle.
+
+A NOTE THAT CUTS AGAINST THE OBVIOUS ANSWER. The obvious reading is "instance
+calls are not patchable". But the host probes patch an INSTANCE method --
+`_Hidden.value()` in cli_private_member.sh -- and it applies (APPLY ok, NEW-PRIV)
+under the same flag. So the call FORM is patchable in principle on host, and the
+iOS failure is not explained by "it is an instance call" alone. Worth holding
+before anyone spends a build on that hypothesis.
+
+CALL SITE CLASSIFIED — from release 26's own bytes, 2026-08-12
+
+Symbolized with release 26's OWN dSYM, recovered from the uploaded xcarchive on
+the control plane (release id 72) because the local archive had been overwritten
+by a later patch build. dSYM UUID 0d0bd99aaa143b5a8bdf8cb9382a3e52 == this
+specimen's LC_UUID, verified before use. Sanity controls: _routeBRead 0xdd8f8 <
+routeBProbe 0xdd9f0 < routeBValue 0xdda34 < new RouteBThing 0xddaac, i.e. source
+order, so no plausible-looking offset was accepted silently.
+
+  B (control) routeBProbe -> routeBValue        top-level static call
+      ldr  x0, [x0, #0x480]
+      ldur x30, [x0, #0x7]      <-- offset 0x7
+      blr  x30
+
+  A (failing) routeBValue -> RouteBThing.value  instance call
+      bl   0xddaac              <-- direct, the allocation of RouteBThing
+      str  x1, [x15]            <-- receiver pushed
+      ldr  x4, [x27, #0xf8]     <-- arguments descriptor
+      ldr  x0, [x0, #0x4a8]
+      ldur x30, [x0, #0xf]      <-- offset 0xf, NOT 0x7
+      blr  x30
+
+BOTH are indirect calls through a loaded object. They differ in the FIELD they
+load: 0x7 for the static call, 0xf for this instance call.
+verify_patchable_release.sh counts exactly `ldur lr,[x0,#7] ; blr lr`, so site A
+was never among the 7,102 pairs. The release WAS patchable — that verdict is
+true — and it never covered this site. Nothing about the flag was broken.
+
+AGAINST THE PRECOMMITTED TREE, this is not cleanly branch 1: it is not a direct
+`bl`. It is closest to branch 3 — the caller consults an object's entry-point
+field — but a DIFFERENT field from the one the patchable form uses, so "compare
+which Function object was patched" is now the precise next question.
+
+NOT ESTABLISHED, and not to be inferred from these bytes alone: what object sits
+at object-pool offset 0x4a8, and what field 0xf is on it. Both `Function`
+(entry_point_ vs unchecked_entry_point_) and `Code` are candidates. The trace
+recorded uep_post == ep_post == interpret_call_ep, so IF 0xf were this same
+Function's unchecked entry point the call should have reached the interpreter —
+it did not, which points at a different object rather than a different field.
+That is a hypothesis; the way to settle it is to identify the pool entry, not to
+reason from offsets.
+
+WHAT 0x7 AND 0xf ARE — from raw_object.h, not from the numbers
+
+  UntaggedFunction          entry_point_ is the FIRST field after the header
+                            -> untagged 8  -> tagged 0x7
+                            unchecked_entry_point_ next
+                            -> untagged 16 -> tagged 0xf
+  UntaggedSingleTargetCache POINTER_FIELD(CodePtr, target) then uword entry_point_
+                            -> target untagged 8, entry_point_ untagged 16
+                            -> tagged 0xf
+
+So 0x7 is unambiguous: Function::entry_point_. That is the field
+--patchable_static_calls emits loads from, and the field AttachBytecode moves.
+
+0xf is AMBIGUOUS on offset alone: Function::unchecked_entry_point_ and
+SingleTargetCache::entry_point_ both land there. The offset cannot decide it.
+
+THE TRACE DECIDES IT. patch1.routeb.trace recorded:
+
+  ep_pre  = 0x1079e5ca8 -> ep_post  = 0x107914044
+  uep_pre = 0x1079e5ca8 -> uep_post = 0x107914044   <-- BOTH moved
+  interpret_call_ep = 0x107914044
+
+If site A read the PATCHED Function's unchecked_entry_point_, it would have
+reached the interpreter, because that field was updated. It did not. Therefore the
+base register at site A does NOT hold the Function that was patched.
+
+CLASSIFIED AS BRANCH 3 of the precommitted tree: 0xf is an entry-point field on
+some OTHER object -- a switchable-call cache or equivalent -- whose cached entry
+point was resolved when the snapshot was built and is not updated by
+AttachBytecode. Corroborating detail, not proof: site A loads an arguments
+descriptor (`ldr x4,[x27,#0xf8]`) immediately before the call, which is the
+switchable-call shape; control B's static call loads none.
+
+The deferred dispatch-table limitation is therefore no longer deferred or
+theoretical. It is the measured mechanism by which a correctly patched Function
+is bypassed on device.
+
+STILL NOT ESTABLISHED: the concrete class of the object at object-pool offset
+0xd4a8 (`add x0,x27,#0xd,lsl#12 ; ldr x0,[x0,#0x4a8]`). Identifying it names the
+mechanism exactly instead of by elimination, and needs a pool reader -- not
+another release and not another device run.
+
+TERMINOLOGY, because the loose phrasing cost a debugging cycle:
+verify_patchable_release.sh establishes "Route B call forms are PRESENT in this
+release", NOT "this release's calls are patchable". The census makes the gap
+concrete: 7,102 patchable pairs against 25,494 direct bl and 22,878 register-
+indirect calls.
+
+CORRECTION — BRANCH 3 IS WRONG. The base object IS the target Function.
+
+Read from flow_graph_compiler_arm64.cc (the fork's own emission, guarded by
+`#if defined(DART_DYNAMIC_MODULES)`), not inferred from the offset:
+
+    __ LoadObject(FUNCTION_REG, target);
+    __ Call(FieldAddress(FUNCTION_REG,
+                         Function::entry_point_offset(entry_kind)));
+
+BOTH sites come from this one path. The only difference is entry_kind:
+
+    B  routeBProbe -> routeBValue        kNormal    -> 0x7
+    A  routeBValue -> RouteBThing.value  kUnchecked -> 0xf
+
+Site A's `ldr x4,[x27,#0xf8]` matches that code's own comment -- "EmitOptimizedStaticCall
+loads it above (its arguments_descriptor is never null)" -- so A is the optimized
+static-call caller of the same emission, not a switchable call.
+EmitInstanceCallAOT is positively excluded: it clears R4 to zero
+(`LoadImmediate(R4, 0)`) and uses LoadDoubleWordFromPoolIndex, neither of which
+appears at A.
+
+So `0xf` here is Function::unchecked_entry_point_ on the TARGET Function, and the
+earlier SingleTargetCache reading is withdrawn. The offset was genuinely
+ambiguous; the emission source is not.
+
+WHICH MAKES THE CONTRADICTION SHARPER, NOT RESOLVED. The trace recorded
+uep_post == ep_post == interpret_call_ep, so the patched Function's unchecked
+entry point WAS moved to the interpreter stub. A call through offset 0xf on that
+same Function should therefore have reached the interpreter. It did not.
+
+The live question is now exactly Function-object IDENTITY, the user's branch 2:
+is the Function in the caller's object pool the same object ResolvePatchTarget
+found and AttachBytecode mutated? Two concrete leads, neither yet checked:
+
+  * the dSYM lists BOTH `RouteBThing.value` (0xddca8) and `RouteBThing.value (#2)`
+    (0xddcb4) -- the normal and unchecked entries into one Code -- so the two
+    entry points are 12 bytes apart in the ORIGINAL code, and the pre-attach
+    trace recorded ep_pre == uep_pre == 0x1079e5ca8, i.e. EQUAL. For a function
+    with a distinct unchecked entry those should differ. That mismatch is worth
+    understanding before anything else.
+  * ResolvePatchTarget resolves by name through LibraryIndex; a tear-off,
+    forwarder or a second Function sharing the name would resolve to a different
+    object than the pool holds.
+
+That is the next thing to look at, and it needs neither a release nor a device --
+the trace already carries ep_pre/uep_pre, and the dSYM carries both entry symbols.
+
+STEP 1 ANSWERED — ResolvePatchTarget resolved the RIGHT Function
+
+The image slide falls out of the trace itself: ep_pre 0x1079e5ca8 minus the dSYM's
+`RouteBThing.value` 0xddca8 gives base 0x107908000. Every other address then
+checks out against the preserved binary:
+
+  RouteBThing.value        file 0xddca8 -> 0x1079e5ca8  == trace ep_pre  EXACT
+  RouteBThing.value (#2)   file 0xddcb4 -> 0x1079e5cb4  (the unchecked entry, +12)
+  routeBValue              file 0xdda34 -> 0x1079e5a34
+  interpret_call_ep 0x107914044 -> file 0xc044, inside the VM snapshot
+                           instructions (0x4000..0xea40) where stubs live
+
+So the Function the patcher found has entry_point_ equal to this binary's
+RouteBThing.value normal entry. Identity at the entry-point level is CONFIRMED;
+the name-based resolution did not pick a foreign function.
+
+AND THE ATTACH DOES UPDATE THE FIELD THE CALLER READS. From object.cc:
+
+  void Function::SetInstructionsSafe(const Code& value) const {
+    untag()->set_code<release>(value.ptr());
+    StoreNonPointer(&untag()->entry_point_,           value.EntryPoint());
+    StoreNonPointer(&untag()->unchecked_entry_point_, value.UncheckedEntryPoint());
+  }
+
+AttachBytecode ends in SetInstructions(StubCode::InterpretCall()), so BOTH
+Function fields are written -- including unchecked_entry_point_ at 0xf, which is
+exactly the field site A loads. That is now established from source, not inferred
+from the trace.
+
+A DEFECT IN MY OWN INSTRUMENTATION, which the mapping exposed
+
+  trace->unchecked_entry_point_pre  = original.UncheckedEntryPoint();   // Code
+  trace->unchecked_entry_point_post = after.UncheckedEntryPoint();      // Code
+
+Those are CODE accessors. The trace never recorded Function::unchecked_entry_point_
+-- the field under suspicion. It coincidentally agrees post-attach (for a stub the
+two entries are equal), but pre-attach it reported the NORMAL entry 0x1079e5ca8
+where the binary carries a distinct unchecked entry at 0x1079e5cb4, +12.
+
+So the "pre-value mismatch" is a defect in what I measured, not established VM
+behaviour. It must not be read as evidence about the VM.
+
+WHAT THE NEXT TRACE MUST RECORD, and it needs no pool reader:
+
+  * the Function OBJECT address (target.ptr()), so identity is directly comparable
+  * Function::unchecked_entry_point_ itself, pre and post -- read through
+    Function, not Code
+  * Code::EntryPoint() and Code::UncheckedEntryPoint() kept separately, so the
+    two levels can never be conflated again
+
+With the Function object address in the trace, the caller/patcher identity test
+becomes a comparison against the pool entry rather than a classification exercise.
+
+CORRECTED ARCHITECTURAL STATEMENT, narrow:
+The failing call site is a Route-B-emitted kUnchecked Function-entry-point call.
+AttachBytecode provably updates the resolved Function's unchecked entry point.
+Whether the caller and the patcher reference the same Function object is still
+open, and the trace as built cannot answer it.

@@ -1,0 +1,98 @@
+G15 ARM 2 — VERDICT, 2026-08-14
+================================
+
+ARM 2 PASSES, TWICE. A GOOD PATCH KILLED BEFORE LAUNCH SUCCESS IS BANKED IS NOT
+TOMBSTONED.
+
+Precommitted in arm2_precommit.md (145c12f4) before any launch. That table is not
+edited here.
+
+IDENTITY
+--------
+cell        80e493e4c5c9e4c418c433bf660392067a131dd5 (patches 0009 + 0010), AUDIT CLEAN
+release     killswitch_probe 1.0.2+1, app 014c8ed9-2dea-ec30-fe74-3a7f5e7a77e3
+patch       Patch 1, routeBValue() => 'NEW-kill', 431 B bytecode / 709 B container
+device      R1 iPhone 7 / iOS 15.8.8, WIRED (8cb4bc98…)
+engine      confirmed on device by the pointers.json fields below
+
+OBSERVED (four launches, by hand — see WHY BY HAND)
+---------------------------------------------------
+  tap 1   blank white screen, then gone      kill, with patch 1 ACTIVE
+  tap 2   blue screen, "route B value: NEW-kill"   <-- SURVIVED
+  tap 3   blank white screen, then gone      kill, with patch 1 ACTIVE
+  tap 4   blue screen, "route B value: NEW-kill"   <-- SURVIVED AGAIN
+
+The white screen is the launch screen: the process is alive long enough to show it,
+main() runs, the process dies before Flutter draws.
+
+CORROBORATION FROM THE DEVICE'S OWN STATE, not from the screen alone
+---------------------------------------------------------------------
+`/Library/Application Support/shorebird/shorebird_updater/` pulled off the device:
+
+  patches/1/state.json   {"kind": "Installed", "signature": null, "size": 709}
+  pointers.json          next_boot_patch          1
+                         last_booted_patch        1
+                         currently_booting_patch  null
+                         boot_started_at          null
+                         boot_attempt_count       0
+                         last_boot_attempt_patch  null
+  state.json             queued_events            []
+
+Four things follow, and the last is the one that matters:
+
+1. Patch 1 is **Installed**, NOT Bad{BootCrash}. It was never tombstoned.
+2. `last_booted_patch: 1` — it booted successfully afterwards.
+3. `queued_events: []` — no PatchInstallFailure was queued. A backout would have
+   queued one carrying "crash_recovery: patch 1 failed to boot".
+4. **`boot_attempt_count` and `last_boot_attempt_patch` EXIST in pointers.json.**
+   Those two fields do not exist in any shipped updater before patch 0010. Their
+   presence on this device is independent proof that the engine running here carries
+   0010 — the schema itself is the receipt.
+
+WHY THIS IS DISCRIMINATING
+--------------------------
+Without 0010, `detect_boot_crash_on_init` marks Bad{BootCrash} on the FIRST
+un-succeeded boot. Tap 1 was exactly that: the patch was active and the process died
+before Engine::Run returned, so no success was recorded. Tap 2 would then have shown
+OLD-kill against a tombstoned patch.
+
+Tap 2 showed NEW-kill. So the breadcrumb was cleared and the patch RETRIED, which is
+the behaviour 0010 adds and nothing else in the system provides.
+
+Taps 3 and 4 repeat it independently, satisfying the design's requirement that arm 2
+run more than once — one survival is consistent with the kill having landed outside
+the window by luck; two is not.
+
+WHAT WAS NOT DIRECTLY OBSERVED, and it matters
+-----------------------------------------------
+`boot_attempt_count` was read as **0**, not 1. By the time the state was pulled, a
+successful boot (tap 4) had already reset it — which is `record_boot_success` doing
+its job. So the counter was never caught mid-arm at 1.
+
+The pass therefore rests on the OUTCOME (patch Installed, booted, no failure event,
+NEW-kill on screen twice after kills) rather than on catching the counter in flight.
+That is sufficient for the claim being made — the patch was not tombstoned — but it
+is not a direct observation of the threshold arithmetic, and a future run wanting
+that should pull pointers.json BETWEEN a kill and the next launch.
+
+The screenshot at /tmp/ks_arm2_F.png is white and does NOT show tap 4: pulling the
+state files relaunched the app after the taps. The screen observation is the
+operator's report; the state files are the corroboration.
+
+WHY BY HAND
+-----------
+There is no automated launch path here. `ios-deploy --justlaunch` quits the app when
+lldb detaches, and an attached `--debug` launch holds it at the launch screen with the
+debugger intercepting signals — unusable for an arm whose mechanism IS a signal. A
+positive control established this rather than assumption: airgap_probe, PROVEN on
+device with release 39, showed the same "no UI" under the same automation, which is
+what stopped a false report that patch 0009 had broken app startup.
+
+WHAT THIS DOES NOT CLAIM
+------------------------
+* NOT crash-backout. A patch that genuinely breaks Dart reaching the threshold and
+  being marked Bad is the COMPLEMENTARY arm and was not run. G15's §15 gate "a
+  Dart-phase crash backs the patch out" is NOT closed by this.
+* NOT restart-required (§8).
+* NOT that 0009 alone is safe. 0009 and 0010 shipped in one cell and were tested
+  together; this says the PAIR does not tombstone a good patch.

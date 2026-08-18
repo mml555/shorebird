@@ -1,0 +1,211 @@
+release        : 30
+preserved from : build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework/App
+preserved at   : 2026-08-13T03:16:59Z
+LC_UUID        : a57cb6bad4b139878b356bc3b289850a
+patchable      : 7,141  (1,775 per MB)
+size           : 4219056 bytes
+
+These are the RELEASE's own bytes. Compare later patches against them:
+
+  assert_installed_release.sh <app-or-archive> --expect a57cb6bad4b139878b356bc3b289850a
+
+The working archive is NOT a substitute: `shorebird patch ios` re-archives over
+build/ios/archive, so after the first patch it holds the patch build instead.
+
+[REPAIRED 2026-08-13. The two lines above arrived with a CLI error message spliced
+into the middle of the sentence. Not a measurement and not a device observation:
+`preserve_release_evidence.sh` wrote this record through an UNQUOTED heredoc, so
+the backticks around `shorebird patch ios` were command substitution and the
+script RAN that command, pasting its output into the file. Here it failed on an
+expired refresh token, which is the text that landed. Fixed at the source by
+escaping the backticks; nothing else in this record was touched.]
+
+DEVICE RESULT — release 30, engine 881e4129, trace schema v4
+  gates    : audit ok (published zip == ios_artifacts_sha256), 5/5 diagnostic gate
+             (donor 09e1c3a7), consumed cache carries v=4 SPECIFICALLY,
+             shipped engine v=4, patchable 7,141 / 1,775 per MB,
+             LC_UUID a57cb6ba asserted both ways
+  patch    : String value(RouteBThing self) => 'NEW-CTL';
+  app      : NEW-SET, code patch 1 (still unchanged)
+
+CLASSIFIER: exit 0 — IDENTITY MATCHES. Captured directly, not via a pipeline.
+  verdict + classifier revision in verdict.txt beside this file.
+
+  pool_offset   0xd4a8  -> pool_index 6803 of pool_length 15432
+                (index from ObjectPool::IndexFromOffset, the VM's own rule)
+  pool_entry    0x10783dfc1   is_function = 1
+  patched fn    0x10783dfc1
+  equal         YES
+
+So the exact entry the kUnchecked call site loads IS the Function that was patched.
+Object identity is ELIMINATED as the cause.
+
+THE STATE IS NOW FULLY CORNERED. Every static fact says this patch should take
+effect:
+
+  * the container parses, build IDs match, attach returns Ok (release 26 -> 30)
+  * Function::entry_point_ AND unchecked_entry_point_ both move to the same-run
+    InterpretCall stub (release 27, v2, measured at the Function layer)
+  * the call site is a Route-B-emitted kUnchecked Function-entry-point load at
+    offset 0xf (release 26, disassembled from preserved bytes)
+  * the pool entry that call site loads is the patched Function itself (release 30)
+  * the release is patchable, the engine is the diagnostic one, and the installed
+    binary is the release the patch targets -- all gated before reading
+
+And the app still executes the original AOT body.
+
+WHAT IS LEFT is no longer about identity or state. It is about WHEN and WHETHER
+that load happens: whether the call site executes before the pre-main attach,
+whether its entry point was already materialised into the caller's instruction
+stream, or whether the observed value was produced by a path other than this call.
+Those are execution-order and observation questions, and NONE of them has been
+measured. No further attribution until one is.
+
+TWO HYPOTHESES DEMOTED WITHOUT A NEW BUILD
+
+(a) "the entry point was already materialised into the caller's instruction
+    stream, and went stale". The preserved call-site bytes argue against it: the
+    site loads the Function FROM THE POOL and then loads unchecked_entry_point_
+    from that object, on every execution --
+
+        ldr  x0, [x0, #0x4a8]     ; the Function, from the global pool
+        ldur x30, [x0, #0xf]      ; its unchecked entry, read fresh
+        blr  x30
+
+    There is no embedded target address at that site to have gone stale. Only some
+    additional runtime rewriting could reinstate this, and none has been measured.
+
+(b) "NEW-SET was produced before activation, or retained from elsewhere". Excluded
+    by ordering already in evidence, not by argument: the hook is
+    root_isolate_create_callback, which fires after Phase::Ready but BEFORE
+    RunFromLibrary invokes main (lib/object.cc:940-944), and the .routeb record's
+    last line -- "applied 1/1 targets, entering main" -- is written before it
+    returns. The fixture reads the value in initState, which cannot run until main
+    has started. So the call that produced the displayed value ran AFTER activation
+    completed.
+
+WHAT THAT LEAVES, and the next question is now one line:
+
+    After activation, does this exact call site execute, and does execution reach
+    InterpretCall?
+
+    2  executes, never reaches InterpretCall -> runtime contradicts the static
+       load/field/object evidence; instrument immediately around the load and call
+    3  reaches InterpretCall for this Function but the UI stays NEW-SET -> dispatch
+       is solved and the problem moves to bytecode selection/execution or the
+       displayed-value path
+
+The instrument should be ONE targeted runtime event at the interpreter boundary,
+attributable to this target -- not another census. This investigation has produced
+two censuses already and neither decided anything; the deciding evidence has every
+time been a single value measured at the exact point in question.
+
+THE EXECUTION INSTRUMENT'S REQUIRED STATE SET
+
+The tree is:
+
+    post-attach call observed?
+      no  -> measurement incomplete
+      yes -> InterpretCall entered?
+               no  -> runtime call-path contradiction
+               yes -> interpreted execution / displayed-value path
+
+"Not observed" must never collapse into "did not enter". That collapse is the same
+defect three times over in this investigation -- pool counters defaulting to 0
+instead of UNSET, the HasCode() gate skipping a scan silently, and NULL_POOL being
+reportable as an empty result -- and each time it would have produced a confident
+wrong verdict. So the marker records a STATE, not a boolean:
+
+    NOT_INSTRUMENTED   the build carries no marker (a v-bump must make this
+                       impossible to confuse with a real observation)
+    NOT_OBSERVED       instrumented, activation completed, no call recorded for
+                       this target -> measurement incomplete, NOT a bypass
+    CALL_OBSERVED      the site executed post-attach
+    INTERPRET_ENTERED  execution reached InterpretCall for THIS Function
+
+and the verdict "runtime call-path contradiction" requires CALL_OBSERVED without
+INTERPRET_ENTERED -- two positive observations, exactly as the identity mismatch
+verdict required two positively identified Functions.
+
+Attribution matters as much as presence: the marker must be attributable to this
+target's Function, not to "some interpreted call happened". A global interpreter
+counter would be another census, and the two censuses in this investigation decided
+nothing.
+
+HAZARD: THE HARDCODED POOL OFFSET CAN GO STALE INTO A FALSE MISMATCH
+
+0xd4a8 was measured from release 26's disassembly and is hardcoded in the
+diagnostic embedder. It happened to remain correct through release 30 -- index 6803
+resolved to the patched Function -- but nothing enforces that. Any change to the
+fixture, the release, or codegen can move the call site's pool offset.
+
+A stale offset does not fail loudly. It reads SOME other pool entry, and if that
+entry is a Function the classifier returns exit 1: IDENTITY MISMATCH. That is a
+false attribution of exactly the kind five measurements were built to prevent,
+produced by the instrument rather than the system.
+
+BEFORE ANY FUTURE RUN THAT USES THIS OFFSET: re-derive it from that release's own
+dSYM and disassembly, the way release 26's was. The check is cheap -- symbolize
+routeBValue, disassemble its range, read the `ldr x0, [x0, #...]` immediate that
+precedes `ldur x30, [x0, #0xf]`. Better still, have the trace record the offset it
+was given AND assert the entry's owner class/name matches the target, so a stale
+offset lands in ENTRY_NOT_FUNCTION or a name mismatch rather than in a verdict.
+
+RESOLVED 2026-08-13 — FROM THESE PRESERVED BYTES, WITH NO DEVICE AND NO BUILD
+
+The question above ("does this exact call site execute, and does execution reach
+InterpretCall?") was the wrong next measurement. It presumes the app could report
+the answer. It cannot: the call site does not read what the call returns.
+
+  dda80: add  x0, x27, #0xd, lsl #12   ; PP + 0xd000
+  dda84: ldr  x0, [x0, #0x4a8]         ; pool[0xd4a8] = the patched Function
+  dda88: ldur x30, [x0, #0xf]          ; unchecked_entry_point_, read fresh
+  dda8c: blr  x30                      ; the call RUNS — dispatch is real
+  dda90: add  x0, x27, #0xd, lsl #12
+  dda94: ldr  x0, [x0, #0x488]         ; x0 OVERWRITTEN with a pool constant
+  dda98: ret                           ; and THAT is what the app displays
+
+pool[0xd488] is the constant the release's own value() body stores into `slot`
+— at 0xddca8: load pool[0xd488], stur x0,[x1,#0xf], return, where +0xf is `slot`
+per the field cluster at 0xdda54-74. So the NEW-SET on screen is the RELEASE's
+constant, materialised in the caller. NEW-CTL appears nowhere in this binary.
+
+The release body was `String value() => slot = 'NEW-SET';`. A single
+compile-time constant result, so the type-flow analysis substituted it at the
+call site. vm:never-inline does not prevent this — it stops the body being
+spliced into the caller, not the RESULT being replaced. Same finding as
+selfhost/engine/killgate/target.dart, 2026-08-09: "a `blr` whose r0 nobody
+reads".
+
+Present in all six preserved releases (25-30), one located site each, same
+address, pool offset re-derived from each release's own bytes:
+
+  probes/assert_result_consumed.sh <App> --fixture-signature   -> exit 1, 0xd4a8
+
+THE HAZARD ABOVE IS CLOSED BY THAT SAME COMMAND. It derives the offset instead
+of being handed one — reassembled from the `add xR, x27, #hi, lsl #12` /
+`ldr xR, [xR, #lo]` pair rather than assumed — so a stale 0xd4a8 now surfaces as
+a different derived value, not as a verdict.
+
+AND IT IS BOUNDED, NOT MERELY DETECTED. Derivation says whether the offset moved;
+it does not by itself stop a moved offset from being read as evidence. The
+release-31 admissibility rule does that, precommitted in PARITY.md beside the
+release-31 outcome table: pool-identity evidence is admissible only if the offset
+derived from preserved release-31 App bytes equals the engine instrument's
+hardcoded 0xd4a8, and otherwise every pool identity field and classifier identity
+verdict from that run is NOT MEASURED. The decision stays offset-independent —
+NEW-CTL proves dispatch, OLD-rel with uep_post_is_interpret_call=1 authorizes v5.
+
+preserve_release_evidence.sh MUST RUN AT INSTALL TIME, BEFORE THE FIRST PATCH
+BUILD. Otherwise the derivation has no authoritative bytes to work from: the patch
+build re-archives over build/ios/archive, exactly as the note at the top of this
+file records, and a labelled proxy cannot establish the release's own offset.
+Skipping it does not produce a weaker result; it produces no admissible pool
+evidence at all.
+
+WHAT REMAINS UNMEASURED, stated exactly: whether the post-attach call reaches
+InterpretCall. The fold made the UI blind, so "never entered the interpreter" and
+"entered it and its answer was discarded" produced identical screens for six
+runs. The rerun on a fixed release answers it through the UI; only if that rerun
+still shows the release value does the v5 execution marker become the next step.
+Precommitted outcomes: PARITY.md, "The next session's task", superseded banner.

@@ -1,0 +1,4 @@
+implicit_engine=0
+projects_distinct=1 p1=5315429852304974124 p2=10599890689182771454
+engines_constructed=2 engine_one_run=1 engine_two_run=1 engines_distinct=1 e1=3285310990032043657 e2=13324195025627936499
+arming_observed=0 reason=stock_engine_simulator_structural_only

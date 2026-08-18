@@ -1,0 +1,31 @@
+==> copying fixture to /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.bRYkZ8xnRW/app
+==> work dir /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.bRYkZ8xnRW
+==> engine.stamp before: 40eaa0ef6cb6485833bf2e10ac97224ca82cbf25
+==> arm 0 -- instrument control: is the xcconfig this invocation's?
+  PASS  arm0 flutter ran -> 0
+  PASS  arm0 control define present -> 1
+==> arm 1 -- .json, with non-string values
+  PASS  arm1 file expansion agrees -> agree
+  PASS  arm1 effective agrees -> agree
+  PASS  arm1 number stringified -> 1
+  PASS  arm1 nested object stringified -> 1
+==> arm 2 -- .env quoting and comments
+  PASS  arm2 file expansion agrees -> agree
+  PASS  arm2 comment stripped from unquoted -> 1
+  PASS  arm2 hash kept inside quotes -> 1
+==> arm 3 -- --dart-define wins over the file
+  PASS  arm3 effective agrees -> agree
+  PASS  arm3 cli wins -> 1
+  PASS  arm3 file-only key survives -> 1
+==> arm 4 -- two files, later wins
+  PASS  arm4 effective agrees -> agree
+  PASS  arm4 later file wins -> 1
+==> arm 5 -- sabotage: the comparator must be able to FAIL
+  PASS  arm5 disagreement detected -> API_URL
+==> arm 6 -- a missing file still declines
+  PASS  arm6 exit code -> 3
+  PASS  arm6 names the reason -> 1
+==> arm 7 -- the shared Flutter cache still points where it did
+  PASS  arm7 engine.stamp unchanged -> 40eaa0ef6cb6485833bf2e10ac97224ca82cbf25
+
+RESULT 18/18
