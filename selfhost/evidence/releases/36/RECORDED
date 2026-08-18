@@ -1,0 +1,13 @@
+release        : 36
+preserved from : selfhost/fixtures/airgap_app/build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework/App
+preserved at   : 2026-08-13T17:24:21Z
+LC_UUID        : 45dbbce41ae331d2819d9f97ffebfeed
+patchable      : 7,144  (1,775 per MB)
+size           : 4219232 bytes
+
+These are the RELEASE's own bytes. Compare later patches against them:
+
+  assert_installed_release.sh <app-or-archive> --expect 45dbbce41ae331d2819d9f97ffebfeed
+
+The working archive is NOT a substitute: `shorebird patch ios` re-archives over
+build/ios/archive, so after the first patch it holds the patch build instead.

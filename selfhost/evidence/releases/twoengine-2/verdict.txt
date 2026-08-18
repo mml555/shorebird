@@ -1,0 +1,152 @@
+G15 — THE FINAL DEVICE GATE: PASS
+=================================
+
+Both engines in one process arm Route B on the shipping engine.
+
+specimen        LC_UUID 60b9ba1662c039e0b62548e3c9c5e50f
+                5,810 patchable static call sites (1,812 per MB)
+                preserved App + App.dSYM.DWARF + App.ipa BEFORE any patch build
+cell            4df8f9b6139b67d2cfe9f6aa8212372cade36278 (untouched, as frozen)
+engine consumed Flutter e828f8efeb623d1d…, `InterpretCall` present ⇒
+                isRouteBEngine == true, asserted before the release was cut
+app / release   twoengine-harness 82bb8808-a18c-dd20-43d8-692ccb599ee7, 2.0.0+1
+patch           1, target `engineMark`, published to stable
+device          iPhone@00140000, wired
+
+THE PRECOMMITTED VERDICT, ROW BY ROW — every condition met
+
+  1. TWO INDEPENDENTLY ATTRIBUTABLE ENGINE LAUNCHES
+
+     engine=one  isolate=main            entrypoint=main            mark=MARK-PATCHED
+     engine=two  isolate=engineTwoMain   entrypoint=engineTwoMain   mark=MARK-PATCHED
+
+     Separate marker FILES, so attribution is a file-system fact rather than a
+     reading of interleaved log lines. Distinct isolates and distinct entrypoints
+     rule out one engine reporting twice.
+
+  2. TWO `rbtrace` RECORDS PER LAUNCH — and the INCREMENT is the evidence, not the
+     absolute count. `RouteBReport` APPENDS, so a file holding two records is
+     equally consistent with one attach per launch across two launches. Measured
+     both ways:
+
+     after the gate launch        2 records, 2 distinct fn=
+     after one further launch     4 records, 4 distinct fn=
+
+     +2 per launch is two attaches in ONE process. The absolute count alone did
+     not exclude the one-per-launch reading, and this was caught by a challenge
+     rather than by the plan: the file's append semantics were known and were not
+     applied to the count.
+
+     rbtrace v=4 lib=package:twoengine_probe/main.dart sel=engineMark …
+     rbtrace v=4 lib=package:twoengine_probe/main.dart sel=engineMark …
+
+  3. EACH RECORD SHOWS THE ATTACH/ARMING TRANSITION
+
+     rc=0  attach_entered=1  attach_returned=1
+     bc_pre=0 -> bc_post=1        bytecode attached      bc_size=7  paylen=496
+     interp_pre=0 -> interp_post=1
+     uep_post_is_interpret_call=1
+     fn_uep_post = 0x102f20044 == interpret_call_ep = 0x102f20044   (both records)
+
+  4. THE `fn=` PREDICTION HELD, so the "investigate" branch is not entered
+
+     record 1  fn=0x1038cbdf1
+     record 2  fn=0x10794bdf1
+
+     Distinct, as predicted: each engine has its own isolate and its own
+     heap-allocated `Function`. Identical values would have meant "investigate,
+     not automatic failure" — that was written down before the run and is not
+     needed.
+
+  5. BEHAVIOURAL CORROBORATION, independent of the trace: BOTH markers read
+     `MARK-PATCHED` while the release body returns `MARK-REL`. Engine two did not
+     merely attach; it EXECUTED the interpreted replacement.
+
+WHAT THIS SETTLES
+
+Patch `0007`'s fix works on hardware. The pre-`0007` symptom was engine two
+silently running unpatched AOT: arming sat below an early return gated on an
+updater init that deliberately fails on its second call, so `ConfigureShorebird`'s
+second invocation never reached `InstallRouteBActivationHook`. Two records with two
+distinct `Function`s is that path executing twice.
+
+And the mechanism claim is now proven at all three layers, each independently:
+  * host unit tests   — patch `0008`, 3 arming tests EXECUTING (not merely compiled)
+  * structural host   — two engines really are two engines (`evidence/g15/`, stock
+                        Flutter, `arming_observed=0` by construction)
+  * this gate         — both engines arm on the shipping engine
+
+THE SHARED REPORT, CONFIRMED AS UNUSABLE FOR THIS QUESTION
+
+`patch1.routeb` is 8 lines with no engine discriminator, because `RouteBReport`
+appends to `artifact_path + ".routeb"` and both engines resolve the same
+lifecycle-selected path. Predicted before the run, and the reason the specimen was
+redefined as the sibling trace. Reading "one report" as "one engine armed" would
+have been wrong twice over.
+
+GATES RUN BEFORE INTERPRETATION
+
+  1. isRouteBEngine == true, by the CLI's own condition (binary exists AND its
+     bytes contain `InterpretCall`) — not a cache stamp
+  2. release patchability 5,810 sites / 1,812 per MB on the preserved bytes
+  3. launch identity — `launch_release_bytes.sh` refused everything but
+     60b9ba16…, and named the archive (e7d63e06…) as a PATCH BUILD in the same
+     breath
+  4. the release body restored byte-exactly before the launch, verified by grep
+
+A REAL HARNESS DEFECT: THE SCREEN WAS BLACK — ROOT-CAUSED AND FIXED SAME DAY
+
+Engine one's UI does not render — the screen is black while the app runs, not the
+indigo `_HarnessApp`. Confirmed by screenshot DURING a live launch, not merely
+after. The window and root `FlutterViewController` are constructed from engine one,
+which was already `run()` headlessly, and no frame appears.
+
+It does not touch this verdict, and the reason is structural rather than a judgement
+call:
+
+  * the per-engine markers are written by Dart inside `_boot` BEFORE `runApp`, so
+    they attest that each root isolate ran and executed `engineMark()`;
+  * the `rbtrace` records are written by the ENGINE during `AttachBytecode`;
+  * `mark=MARK-PATCHED` in both markers is the patched body's RETURN VALUE, which
+    requires execution, not display.
+
+Nothing in the chain passes through rendering.
+
+**ROOT CAUSE: the app was SCENE-based.** `flutter create` emits
+`UIApplicationSceneManifest` naming a `SceneDelegate` *and a second storyboard
+reference* (`UISceneStoryboardFile = Main`). When a scene manifest is present the
+SCENE owns the window, so the `window` this host assigns in
+`didFinishLaunchingWithOptions` is ignored. Deleting `UIMainStoryboardFile` had
+removed only ONE of the two storyboard routes.
+
+**FIXED** — `prepare_twoengine_fixture.sh` now deletes the scene manifest too,
+returning UIKit to the legacy delegate window lifecycle that this host implements.
+Verified on the simulator: the indigo `ENGINE one` screen renders with its identity
+line, both engines still boot, and `implicit_engine=0` still holds — in fact more
+strongly, since the scene config was the last route to an implicit engine.
+Evidence: `evidence/g15/render-after-scene-fix.png`,
+`evidence/g15/host-after-scene-fix.marker`.
+
+Also fixed while here: the host's `reason=` string, which said
+`stock_engine_simulator_structural_only` even on a device run against our engine. It
+is now `host_does_not_observe_arming`, which is true in every context — the host
+cannot know which engine or platform it is on.
+
+ONE WORDING DEFECT IN THE HOST MARKER, recorded rather than hidden
+
+`device-host.marker` reads `arming_observed=0
+reason=stock_engine_simulator_structural_only`. The first half is TRUE and
+important — the host does not observe arming, so its four findings are about
+construction and boot only. The reason text is stale in this context: this run is
+our engine on a device, not stock Flutter on a simulator. The host cannot know
+which it is, so the reason should be context-free
+(`reason=host_does_not_observe_arming`). It changes no verdict here, because the
+arming evidence comes from the trace and the markers' `mark=` field, neither of
+which the host writes.
+
+NOT CLAIMED
+
+Three engines, `FlutterEngineGroup`, or spawned engines — all deliberately outside
+the harness, and the shared-project shape is refused with no fallback. Crash-backout
+and restart-required (§14b's other two symptoms) share `ReportLaunchSuccess` in the
+`Shell` constructor and are untouched by `0007` or by this gate.

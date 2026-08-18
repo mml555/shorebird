@@ -1,0 +1,24 @@
+release        : 39
+preserved from : selfhost/fixtures/airgap_app/build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework/App
+preserved at   : 2026-08-14T01:00:12Z
+LC_UUID        : 1160d1055f1839ae9f0eb1eb66739b48
+patchable      : 7,151  (2,095 per MB)
+size           : 3579024 bytes
+
+These are the RELEASE's own bytes. Compare later patches against them:
+
+  assert_installed_release.sh <app-or-archive> --expect 1160d1055f1839ae9f0eb1eb66739b48
+
+The working archive is NOT a substitute: `shorebird patch ios` re-archives over
+build/ios/archive, so after the first patch it holds the patch build instead.
+
+obfuscation map (preserved 2026-08-14, BEFORE any patch build)
+  path      : selfhost/evidence/releases/39/obfuscation_map.json
+  sha256    : e682e6f7648fbfcaf5387b5fca9f33ebf2ce5ab7f293ed76b3348ff616c5ff24
+  pairs     : 19,842  (39,684 entries)
+  why       : `shorebird patch ios` re-runs `flutter build ipa` into the same
+              tree, so build/shorebird/obfuscation_map.json is NOT a stable
+              reference after a patch build starts. The patch must be shown to
+              have consumed THIS file.
+  engine    : cell 40eaa0ef6cb6485833bf2e10ac97224ca82cbf25 (gen_snapshot
+              carries --load-obfuscation-map; both slices, 5 hits each)

@@ -1,0 +1,145 @@
+RELEASE 37 — G3.7, the one-parameter arm
+========================================
+
+specimen        LC_UUID 31869a1e971e37e085c8646ab2627e61
+                7,147 patchable static call sites (1,776 per MB)
+cell            4df8f9b6139b67d2cfe9f6aa8212372cade36278
+CLI under test  ba4e1c02 on selfhost-under-test, clean, analysis version 8
+engine consumed Flutter e828f8efeb623d1d… (the cell's own), engine.version 4df8f9b6…
+classifier      f0c19701, trace schema v4
+target          package:airgap_probe/main.dart  RouteBThing.paramValue
+patch           1, 643 B, published to stable
+
+THE CLAIM, precommitted before the arm ran and deliberately narrow
+
+  PARAM-ARG on the preserved release-37 binary proves that the live caller's SOLE
+  POSITIONAL String argument is transferred into the interpreted replacement and is
+  observable by the replacement body. A body that ignores its parameter is
+  insufficient evidence.
+
+WHAT IS NOT CLAIMED
+
+  * ARGUMENT ORDER. There is one argument, so there is no order to get wrong.
+    Multi-argument ordering needs its own two-or-more-parameter specimen and
+    currently rests on the host probe's `two_params` arm (`g37_param_abi.sh`),
+    which is host-only.
+  * TYPE TRANSFER beyond "a usable String arrived". The body interpolates `who`
+    and calls nothing on it, on purpose: calling methods on the parameter would
+    drag binding and dependency reach into a gate meant to isolate the parameter
+    ABI, and a failure would no longer be attributable.
+  * G3.7 AS A WHOLE. Its own plan requires four shapes — `one`, `two`, `named`,
+    `opt`. This fixture has one. `named`/`opt` refusal controls and `two` are NOT
+    RUN, and the gate stays open.
+
+SOURCE, RELEASE FORM (non-foldable, DateTime-routed)
+
+  String paramValue(String who) =>
+      DateTime.now().millisecondsSinceEpoch >= 0 ? 'OLD-$who' : 'X';
+
+  called live in _routeBRead:  final pv = RouteBThing().paramValue('ARG');
+
+PATCH FORM, and the producer's lowering of it
+
+  String paramValue(String who) => 'PARAM-$who';
+  ->  String paramValue(RouteBThing self, String who) => 'PARAM-$who';
+
+  Receiver inserted in front of a VERBATIM parameter list; the type stays concrete
+  because RouteBThing is public. Preserved as patch1_replacement_0.dart.
+
+BEFORE / AFTER, read from the control plane's request log
+
+  18:41:07Z  release=AIRGAP-FIXTURE-V1 route_b=OLD-rel private_class=OLD-pc
+             param=OLD-ARG      code_patch=none      <- baseline, no patch existed
+  19:08:23Z  release=AIRGAP-FIXTURE-V1 route_b=OLD-rel private_class=OLD-pc
+             param=PARAM-ARG    code_patch=1         <- patch 1 active
+  19:09:55Z  identical, on an independent third launch
+
+  The first launch after consent (19:06) read param=OLD-ARG / code_patch=none and
+  logged `__patch_download__` for patch 1: the updater fetches on one launch and
+  applies on the next, so a single launch is not a result either way.
+
+  r37_patch1_PARAM.png is the applied state, and the file name overpromises: the
+  screen shows `code patch: 1` with `route B value: OLD-rel` and `private class:
+  OLD-pc` — the active patch and the unmoved controls — but NOT `param`, which is
+  beacon-only on this fixture. The banked value comes from the beacon line above.
+  The `param` row can ride the next re-cut; the 1334 px screen has room.
+
+  THE CONTROLS HELD. `route_b` and `private_class` did not move: exactly one method
+  was replaced, so this is not a whole-app replacement masquerading as a method
+  patch. And `code_patch=1` is the updater's own active patch number — the row that
+  read `none` in the discarded run below, which is what exposed it.
+
+MECHANISM, from the engine's own diagnostic beside the installed patch
+
+  sel=RouteBThing.paramValue  — target-attributable, not a whole-container claim
+  rc=0  attach_entered=1  attach_returned=1
+  bc_pre=0 -> bc_post=1     bytecode attached      bc_size=28  paylen=617
+  interp_pre=0 -> interp_post=1
+  unchecked_entry_point_  0x104964f20 -> 0x1048b0044
+  same-run InterpretCall              == 0x1048b0044   DECIDED: it moved
+
+  pool_status=0 (NOT_REQUESTED) and every pool/caller field -1. The diagnostic
+  embedder's hardcoded offset is keyed to RouteBThing.value, so for this selector
+  not-requested is the instrument behaving correctly. It is NOT a zero result and
+  nothing may be drawn from those fields.
+
+GATES BEFORE INTERPRETATION
+
+  1. cell identity              audit CLEAN, assert_diagnostic_engine 3/3 (banked)
+  2. CLI is the CLI under test  ba4e1c02, clean, pin 8, no shorebird_cli commits since
+  3. engine actually consumed   Flutter e828f8ef… present, not a cache stamp
+  4. release patchability       7,147 sites / 1,776 per MB on the preserved bytes
+  5. RESULT CONSUMED            assert_result_consumed --at 0xc0968 -> CONSUMED
+                                (pool 0xd4e8, unchecked, `stur x0, [x2, #0x2f]`)
+  6. REACHABILITY               param=OLD-ARG on release 37's own bytes, before any
+                                patch existed — a value DERIVED from the argument,
+                                not the '—' placeholder
+  7. launch identity            launch_release_bytes.sh refused anything but
+                                31869a1e…; the archive was 2da6f295… by then
+
+  Gates 5 and 6 are independent and both required. Consumption is a property of the
+  caller's instructions; reachability is a property of the path the app takes.
+
+ONE RUN DISCARDED — see DISCARDED-2026-08-13.txt
+
+  An earlier launch produced param=PARAM-ARG from LC_UUID 2da6f295…, the archive
+  `shorebird patch ios` had just rebuilt from the edited source, where paramValue
+  returns PARAM-ARG natively. The mechanism played no part. It matched the arm's
+  prediction exactly, which is what made it dangerous. `code_patch=none` on the same
+  line was the tell.
+
+WHAT WAS SWEPT INTO THIS EVIDENCE'S COMMIT AND IS NOT PART OF IT
+
+`de11eecf`, the commit that banked this verdict, also contains a
+`packages/shorebird_cli` change its message never mentions: `_resolvedFlavor` in
+`ios_patcher.dart`, which was sitting uncommitted in the shared worktree and was
+staged by `git add -A`. History is not being rewritten for it; this is the durable
+correction, because an eventual squash makes commit messages non-authoritative
+anyway.
+
+**It did not participate in release 37.** `airgap_app` declares no
+`default-flavor` and the patch invocation carried no `--flavor`, so
+`_resolvedFlavor` resolved to null on the release side and the patch side alike and
+never entered the fingerprint comparison. Independently: the INSTALLED CLI
+(`~/.shorebird` at `ba4e1c02`) does not contain that code at all — `grep -c` is 0 —
+so the binary that produced this evidence could not have used it either way.
+
+THE PROCESS FIX, which is the part that generalises
+
+> **Never `git add -A` (or `commit -a`) in a shared worktree.** Stage explicit
+> paths. The rule already existed at `plans/H2-*.md` precondition 3 and was still
+> broken here, and what it costs is not tidiness: a CLI behaviour change rode into
+> a commit about a device gate, where nobody reviewing either would look for it.
+
+A related inference to distrust, from the same episode: `git log <installed-rev>..HEAD
+-- <path>` coming back EMPTY does not mean the installed checkout matches the working
+tree. It is also empty when the change is uncommitted. Read the installed file.
+
+A GAP IN THIS DIRECTORY, recorded rather than glossed
+
+  Release 37's dSYM was NOT copied aside before the patch build, and the patch build
+  overwrote the archive's dSYMs. The consumption measurement above was taken while
+  the release's dSYM still existed, so it stands — but no LATER question about this
+  release can be answered by symbol, because the preserved App is stripped.
+  `preserve_release_evidence.sh` now copies the dSYM itself and checks its UUID
+  against the App's, so this cannot recur.

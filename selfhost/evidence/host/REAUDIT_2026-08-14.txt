@@ -1,0 +1,37 @@
+host re-audit — 20.120.104.70:13549 — 2026-08-14
+
+--- hermes: gone ---
+systemctl is-active hermes-gateway -> inactive
+units matching hermes  -> 0
+unit files in /etc/systemd/system -> 0
+ABSENT  /data/hermes
+ABSENT  /data/ter
+
+--- but /data is now the binding constraint ---
+  Filesystem      Size  Used Avail Use% Mounted on
+  /dev/root        29G   17G   12G  59% /
+  /dev/nvme0n2    503G  448G   31G  94% /data
+  /dev/nvme1n1    216G  178G   28G  87% /mnt/spare
+
+--- who took it ---
+  346G	/data/ssd-backup
+  40G	/data/shorebird-engine
+  19G	/data/android
+  16G	/data/projects
+  6.4G	/data/gradle-home
+  5.1G	/data/cursor
+  ---- /mnt/spare ----
+  168G	/mnt/spare/ssd-backup
+  9.9G	/mnt/spare/android
+  1.2M	/mnt/spare/ssd-backup-meta
+
+--- the blocked step ---
+  src/third_party ABSENT -> gclient sync never completed
+  gclient sync needs ~40-60 GB; free on /data: 31G
+
+--- load / mem, for the -j cap ---
+   19:52:56 up 49 days, 17:49,  6 users,  load average: 1.00, 1.00, 1.01
+                 total        used        free      shared  buff/cache   available
+  Mem:              82           8           2           0          71          73
+  nproc: 4
+  still running: 3545672 dosbox-x -conf /data/tmp/dosbox-play-session.conf

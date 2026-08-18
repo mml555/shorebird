@@ -1,0 +1,101 @@
+G10.2 lane D — the two arms, RUN. 2026-08-14, on R12 (hermes-vps, Linux).
+=========================================================================
+Earns BUILT for PARITY :2375 and :2376. NOT PROVEN — outcome 10 says PROVEN
+needs the patch running on a DEVICE from a CI-shaped invocation, which this is
+not. A script printing PASS is not that verification.
+
+  arm 1  release android --no-confirm                  exit 0   Published Release 1.7.0+1!
+  arm 1  patch   android --no-confirm --release-version exit 0
+  arm 2  --json patch android --no-confirm --release-version  exit 0
+         interactive_prompt_required in arm 2: 0
+  detector self-test (same run, same host): exit 64 in BOTH output modes
+
+All three invocations had stdout AND stdin redirected to files, no CI vars set,
+against http://localhost:18081 (cps-android on the Mac, reached over an SSH
+reverse tunnel). The self-test in the same run proves a reached prompt WOULD
+have been seen, so "no prompt appeared" is a measurement rather than an absence.
+
+WHY THIS COULD NOT RUN ON THE MAC, re-verified today: ci_noninteractive.sh
+refuses on non-Linux because our gen_snapshot is linux-x64 only. From the box:
+android-arm64-release/linux-x64.zip -> 200. From darwin -> 404. That is the
+whole reason lane D needed R12.
+
+THE CLI UNDER TEST WAS THE CLI WE CHANGED. Fresh checkout at
+/data/shorebird-engine/cli-under-test, detached at 5a95c303 (this tree's HEAD),
+supportedRouteBAnalysisVersion 8, the flavorScheme fix present. Transferred by
+git bundle over SSH — nothing published to GitHub. The box's pre-existing
+checkout has four uncommitted files and was NOT touched.
+
+THREE DEFECTS FOUND BY RUNNING IT, each of which read as something else:
+
+1. HARNESS BUG. It passed --release-version to `release android`, which rejects
+   it ("only supported for aar and ios-framework releases") and exits 64 — the
+   same exit code the non-interactive guard uses, so the failure was
+   indistinguishable at a glance from the thing being measured. Fixed.
+
+2. WRONG TOKEN. /data/shorebird-engine/api_key.txt is sb_api_98a…, a different
+   instance's key; this control plane's is sb_api_fa6…. Symptom was "Invalid
+   credentials" AFTER the workflow had downloaded bundletool and extracted the
+   patch, i.e. late enough to look like a patch-path problem.
+
+3. GRADLE 9 REFUSES THE HTTP MIRROR. :app:mergeReleaseAssets → "Using insecure
+   protocols with repositories, without explicit opt-in, is unsupported."
+   Already documented at cdn/README.md:95-112. Applied the sanctioned app-side
+   opt-in to rbtest's android/build.gradle.kts rather than reconfiguring the
+   Mac's CDN listener, which would have meant re-claiming R11.
+
+Also: the first attempt failed because release 1.6.0+1 already existed
+("Please bump your version number"). Bumped rbtest to 1.7.0+1.
+
+WHAT :2376 STILL DOES NOT HAVE, stated because a green run hides it. That row
+requires TWO releases so that release_chooser.dart:80-82 cannot skip the
+selection prompt. Two releases now exist (1.6.0+1 and 1.7.0+1) — but the harness
+still passes --release-version explicitly on every patch, so the chooser is
+bypassed by the FLAG regardless of how many releases there are. The arm that
+would actually exercise it is: patch with NO --release-version against >=2
+releases, expecting exit 64 naming the prompt (outcome 11) rather than a hang
+(outcome 12). That arm is OWED and is cheap now that the rig is standing.
+
+HOST NOTES. Hermes has been moved off this box, so ENGINE_BUILD.md's co-tenancy
+rules are stale. /data is 93% full (35 GB free); /data/ssd-backup is 346 GB and
+was deliberately NOT touched — the arms needed a few GB.
+
+-------------------------------------------------------------------------------
+ARM 3 — THE CHOOSER ARM, RUN 2026-08-14. This is what :2376 actually asked for.
+-------------------------------------------------------------------------------
+  cd rbtest && timeout 600 shorebird patch android --no-confirm   (NO --release-version)
+  stdin < /dev/null, stdout redirected, 2 releases present (1.6.0+1, 1.7.0+1)
+
+  exit 64  (not 124, so not a hang; not 0, so not a silent skip)
+  log says:
+    Input was required for the following prompt but the CLI is running in a
+    non-interactive context:
+      Which release would you like to patch?
+    Hint: Pass --release-version=<version> to ...
+
+That is precommitted outcome 11 — THE GOOD FAILURE. The guard fired, on the
+release-selection prompt, by name. Mechanically it is
+InteractivePromptRequiredException surfaced by
+shorebird_cli_command_runner.dart:298-314, which returns ExitCode.usage.code.
+
+WHY 64 ALONE WOULD NOT HAVE BEEN EVIDENCE: 64 is also the usage code, and this
+same harness previously exited 64 because it passed --release-version to
+`release android`, which rejects that flag. So the arm asserts the log NAMES the
+chooser prompt, not merely that the code is 64.
+
+THIS REFUTES A COMMENT IN THE HARNESS AND A READING OF THE SOURCE — mine
+included. ci_noninteractive.sh argued the chooser "CANNOT FIRE ON ANY HOST",
+because patch_command.dart reaches promptForRelease only from the
+`else if (shorebirdEnv.canAcceptUserInput)` arm and canAcceptUserInput is
+`stdin.hasTerminal && ...`. I read the same lines and predicted the same thing —
+that the run would take the `else` branch and speculatively build. It did not.
+The comment is corrected in place and arm 3 is now part of the harness.
+
+OPEN, AND DELIBERATELY NOT GUESSED AT: why canAcceptUserInput evaluated true
+with stdin redirected from /dev/null. The arm's verdict does not depend on the
+answer — the prompt was reached and refused, which is the measurement :2376
+wants — but the source-level story is not yet consistent with the observation,
+and writing a plausible mechanism here would be inventing one.
+
+:2376's stated mechanism is now EXERCISED. It stays BUILT, not PROVEN: PROVEN
+still needs the patch running on a device from a CI-shaped invocation.

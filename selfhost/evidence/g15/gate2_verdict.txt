@@ -1,0 +1,218 @@
+G15 GATE 2 — VERDICT, 2026-08-14
+=================================
+
+BOTH ARMS PASS, AND THEY AGREE. Arm 2A is written up first and in full; arm 2B
+follows at the end. Precommit row 8 — "2A and 2B disagree, and the difference is
+the ENGINE" — DOES NOT FIRE.
+
+ARM 2A PASSES, ON PRECOMMIT ROW 1 EXACTLY. And a second measurement, taken on the
+same device minutes later, RETIRES the blocking claim that sent this gate here.
+
+IDENTITY
+--------
+device    R1 iPhone 7 / iOS 15.8.8, WIRED (8cb4bc98…), ioreg-confirmed
+release   killswitch_probe 1.0.4+1 (control-plane release id 93)
+cell      80e493e4 — VERIFIED IN THE SHIPPED BINARY, not assumed: the embedded
+          Flutter's __TEXT,__text is 136e3d64…, which is R3's out/ios_release.
+          (Never hash an embedded Flutter directly; it is re-signed and thinned.)
+patch     NONE. Gate 2 asks only whether unpatched main() executes
+tools     ios-deploy to install and to pull /Documents; idevicedebug run to
+          launch (NOT ios-deploy --justlaunch, which quits the app);
+          idevicescreenshot
+CLI       ba4e1c02, deliberately NOT re-synced — see "the auth blocker" below
+
+THE RECEIPT, WHICH IS THE RESULT
+---------------------------------
+/Documents/g15_receipt after two launches, verbatim:
+
+    native launch
+    native engine
+    dart hlclpqwxzq dart-main-entered
+    dart hlclpqwxzq boot-probe-returned:boot-ok
+    dart hlclpqwxzq arm:render
+    dart hlclpqwxzq first-frame
+    native launch
+    native engine
+    dart hlclqjttgm dart-main-entered
+    dart hlclqjttgm boot-probe-returned:boot-ok
+    dart hlclqjttgm arm:kill
+
+Launch 1 (`hlclpqwxzq`) — full chain through `first-frame`. Screen showed
+`G15 arm 2` / `boot: boot-ok` / `route B value: OLD-kill` / `launch hlclpqwxzq`,
+no INSTRUMENT FAULT banner. `g2a_launch1.png`.
+
+**The launch id on the screen matches the receipt lines.** That is the precommit's
+reading rule satisfied by measurement rather than by assumption — the screenshot
+and the receipt are tied to one launch, not merely adjacent in time.
+
+Launch 2 (`hlclqjttgm`) — chain stops at `arm:kill`. **No `first-frame`.** Screen
+was blank white. `g2a_launch2.png`.
+
+AND THAT BLANK SCREEN IS THE POINT
+-----------------------------------
+It is pixel-for-pixel the symptom that was unreadable on 2026-08-14 — the one that
+was consistent with "the kill arm worked", "the patch crashed Dart", and "user
+Dart never ran" simultaneously, and from which a causal claim was drawn and later
+retracted. It is now fully attributed from the file: the process launched, the
+engine came up, `main()` ran, `bootProbe()` returned `boot-ok`, the alternation
+chose kill, and the process died before Flutter drew.
+
+The receipt survived the `SIGKILL`, which is exactly what a receipt does and a
+rendering does not.
+
+`/Documents/g15_armed` alternated as designed: PRESENT before launch 1, consumed
+by it, recreated by launch 2.
+
+THE SECOND MEASUREMENT — 1.0.3+1 DOES NOT REPRODUCE ITS OWN FAILURE
+--------------------------------------------------------------------
+The precommit's row 5 says that if 1.0.4+1 passes where 1.0.3+1 failed, the
+1.0.3+1 failure must be recorded as UNEXPLAINED rather than assumed fixed,
+because the repair changed the receipt and not anything that plausibly starts
+Dart. So it was tested directly instead of reasoned about.
+
+The EXACT STORED ARTIFACT for release 92 (`1.0.3+1`) was pulled off the control
+plane, repackaged as `Runner.app` with its original signature, installed over
+`1.0.4+1`, and launched. Marker state before: `g15_armed` PRESENT.
+
+    RESULT: g15_armed was DELETED, and the app RENDERED —
+            `boot: boot-ok` / `route B value: OLD-kill`, and no
+            `launch <id>` line, which independently confirms the OLD
+            fixture build was what ran. `g2a_retest103.png`.
+
+Only `_shouldKillThisLaunch()` deletes that marker, and it is called from
+`main()`. So `1.0.3+1`'s `main()` executed, took the render branch, and drew.
+The receipt file was untouched, exactly as a build with no receipt code should
+leave it — which is itself a control on the reading.
+
+**THE 2026-08-14 OBSERVATION DOES NOT REPRODUCE.** Same binary, same device, same
+engine cell, same launch tooling. What is refuted is not the observation — three
+blank launches were seen — but every reading that located the cause in the
+BINARY. The release was never broken.
+
+The remaining candidate is the INSTALL/DEVICE STATE at that moment. The session
+that saw the failure ran `ios-deploy --rmtree` to clear a crash loop and then
+relaunched the SAME install; it never reinstalled. This session's launches
+followed a fresh install. That is the difference that is known to exist; it is
+not proven to be the cause, and no further claim is made here.
+
+WHAT GATE 2 (ARM A) ESTABLISHES
+--------------------------------
+1. Unpatched `main()` executes on cell `80e493e4`, positively, by receipt.
+2. The instrument can now distinguish, from a file that survives `SIGKILL`:
+   app never launched / engine never came up / Dart never entered / entered and
+   died before the patch target returned / killed before first frame / rendered.
+3. Native and Dart halves agree on the sandbox — `NSHomeDirectory()` and
+   `Directory.systemTemp.parent` resolve to the same `/Documents`, proven by both
+   writing to one file. This was precommit row 7's open worry and it is closed.
+4. Gate 1's repair is admissible on hardware, not merely analyzed.
+
+WHAT IT DOES NOT ESTABLISH
+---------------------------
+Nothing about crash-backout, tombstoning, or `0010`'s retry counter — no patch is
+in play. Nothing about the `_runMain` seam, which gate 3 showed is not
+deliverable from `R3` until the platform-dill split is repaired. Arm 2B, on cell
+`40eaa0ef`, has NOT been run.
+
+THE AUTH BLOCKER, WHICH IS A SELF-HOSTING DEFECT IN ITS OWN RIGHT
+-------------------------------------------------------------------
+Cutting `1.0.4+1` failed twice before it succeeded, and neither failure was about
+G15:
+
+1. `Unknown jwt issuer: http://169.254.189.3:18080`. The credential's `iss` is the
+   container's `SHOREBIRD_JWT_ISSUER`; `shorebirdEnv.jwtIssuer` derives from
+   `base_url` (`10.0.0.7`). Cleared by exporting `SHOREBIRD_JWT_ISSUER`.
+2. `Failed to refresh credentials.` — the log shows
+   `POST https://auth.shorebird.dev/token` → 401 `invalid_grant`. **The vendored
+   CLI was refreshing a self-hosted credential against UPSTREAM's auth service.**
+   Releases 89-92 succeeded earlier only because the access token had not yet
+   expired.
+
+Cleared WITHOUT re-syncing the CLI, by `AUTH_SERVICE_URL=http://10.0.0.7:18080`,
+which `ba4e1c02` already honours (`shorebird_env.dart:263`) with the upstream URL
+only as a fallback. Credit to the G4.1c lane, which read the failing call site
+(`auth.dart:155-180`, `authBaseUrl: _authServiceUri`) and proposed it; it was
+verified here before use, and it is what preserved this gate's CLI-constant
+control.
+
+So the full incantation for a self-hosted release on this rig is:
+
+    export FLUTTER_STORAGE_BASE_URL=http://localhost:8085
+    export SHOREBIRD_STORAGE_BASE_URL=http://localhost:8085
+    export SHOREBIRD_STORAGE_BUCKET=download.shorebird.dev
+    export SHOREBIRD_JWT_ISSUER=http://169.254.189.3:18080
+    export AUTH_SERVICE_URL=http://10.0.0.7:18080
+    shorebird release ios --export-method development
+
+The underlying defect — a vendored CLI that cannot refresh a self-hosted
+credential without two env vars — is real and is fixed at HEAD (`b7779960`,
+`86d4390d`, `53b332f8`). It is not a G15 finding and is recorded here only
+because it will stop the next person too.
+
+ARM 2B — THE PROVEN LINEAGE, AND IT AGREES
+===========================================
+
+release   killswitch_probe 1.0.5+1 (control-plane release id 94)
+cell      40eaa0ef — again verified in the shipped binary: `__TEXT,__text` is
+          `bc0afffe…`, which is **not** arm 2A's `136e3d64…`. The two arms
+          demonstrably ran different engines, which is the whole reason 2B exists
+rig       `~/.shorebird` restamped to `40eaa0ef` and re-warmed; the cached
+          `ios-release` engine was confirmed to swap to `bc0afffe…` BEFORE the
+          cut, so the release consumed what it was supposed to
+
+Receipt, the four lines of launch 1 (`hlclx0gj7e`) and six of launch 2
+(`hlclxeca3w`), continuing the same file:
+
+    native launch
+    native engine
+    dart hlclx0gj7e dart-main-entered
+    dart hlclx0gj7e boot-probe-returned:boot-ok
+    dart hlclx0gj7e arm:kill
+    native launch
+    native engine
+    dart hlclxeca3w dart-main-entered
+    dart hlclxeca3w boot-probe-returned:boot-ok
+    dart hlclxeca3w arm:render
+    dart hlclxeca3w first-frame
+
+Note the alternation ran in the OPPOSITE ORDER from arm 2A — kill first, then
+render — because the 1.0.3+1 reproduction test consumed the marker in between.
+The fixture's branch is chosen by sandbox state, not by launch ordinal, and this
+is that behaving correctly rather than a discrepancy.
+
+Launch 2's screen showed `boot: boot-ok` / `route B value: OLD-kill` /
+`launch hlclxeca3w`, matching the receipt id, no INSTRUMENT FAULT banner.
+`g2b_launch1.png`, `g2b_launch2.png`.
+
+WHAT THE AGREEMENT BUYS
+------------------------
+Unpatched `main()` executes, and the receipt reports every phase, on BOTH the
+PROVEN lineage `40eaa0ef` and the G15 engine `80e493e4` carrying patches 0009 and
+0010. So:
+
+  * the instrument is not engine-specific, and a later G15 arm that fails cannot
+    be waved off as "the fixture only ever worked on one engine";
+  * `0009`+`0010` do not disturb root-isolate startup — which was the live
+    suspicion after `killswitch_engine_identity.txt` showed the 2026-08-14
+    positive control had run a DIFFERENT engine from the failing app. That
+    suspicion is now closed by direct measurement on both engines, not by the
+    earlier indirect argument from `arm2_verdict.txt`.
+
+GATE 2 IS CLOSED. Gates 1 and 2 are both green on hardware.
+
+DEVICE AND RIG STATE ON RELEASE
+--------------------------------
+device    `killswitch_probe` **`1.0.5+1`** installed (cell `40eaa0ef`),
+          `/Documents/g15_armed` ABSENT, `/Documents/g15_receipt` present with
+          all 22 lines (11 from arm 2A, 11 from arm 2B; the 1.0.3+1 reproduction
+          test added none, which is itself the control on that reading).
+          Nothing uninstalled — uninstalling resets iOS
+          Local Network consent and blocks the app on a modal before any code
+          runs. `airgap_probe` untouched throughout
+rig       `~/.shorebird` `engine.version` == `engine.stamp` ==
+          `40eaa0ef6cb6485833bf2e10ac97224ca82cbf25`, cache warm and VERIFIED
+          (`bc0afffe…`). This is the promised restore state
+CLI       unchanged at `ba4e1c02`. The re-sync to `72620b12` is still owed by
+          whoever cuts the next non-gate-2 release
+fixture   `pubspec.yaml` left at `1.0.5+1`; releases 1.0.0+1 … 1.0.5+1 exist on
+          `cps-ios`, so bump before cutting another. `lib/main.dart` is in its
+          RELEASE form (`bootProbe() => 'boot-ok'`, `routeBValue() => 'OLD-kill'`)

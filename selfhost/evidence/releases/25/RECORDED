@@ -1,0 +1,18 @@
+release        : 25
+preserved from : build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework/App
+preserved at   : 2026-08-12T23:58:45Z
+LC_UUID        : d4502855287f380cbdda3c418f1377e4
+patchable      : 7,141  (1,775 per MB)
+size           : 4219056 bytes
+
+These are the RELEASE's own bytes. Compare later patches against them:
+
+  assert_installed_release.sh <app-or-archive> --expect d4502855287f380cbdda3c418f1377e4
+
+The working archive is NOT a substitute: Try logging out with shorebird logout and logging in again.
+
+If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
+
+You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
+/Users/mendell/Library/Application Support/shorebird/logs/1786579125767_shorebird.log re-archives over
+build/ios/archive, so after the first patch it holds the patch build instead.

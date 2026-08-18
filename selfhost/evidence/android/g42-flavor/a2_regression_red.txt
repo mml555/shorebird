@@ -1,0 +1,59 @@
+A2 step 2 — the CLI-level regression, RED before enforcement
+===========================================================
+date: 2026-08-14   file: packages/shorebird_cli/test/src/commands/patch/patch_command_test.dart
+
+ONE app_id throughout, so a refusal can never come from app routing —
+the two-app_id shape on hardware produced 'Release not found', a refusal
+for the wrong reason that reads exactly like the right one.
+
+  regression (mismatch foo->bar) : FAILS  <- the shipped gap, at CLI level
+  control    (match     foo->foo) : PASSES
+
+The assertion is NOT 'exited non-zero'. The contract is that refusal
+happens BEFORE any patch artifact is produced, so the observable is that
+buildPatchArtifact was never called. A refusal after the build would
+satisfy an exit-code assertion while violating the invariant.
+
+--- verbatim run output, before enforcement ---
+  +0 -1: PatchCommand createPatch correctly validates key pair effective build-configuration compatibility refuses a patch whose effective config differs from the release, before buildPatchArtifact is called [E]
+    Unexpected calls: MockPatcher.assertPreconditions(), MockPatcher.assertArgsAreValid(), MockPatcher.releaseType, MockPatcher.releaseType, MockPatcher.releaseType, MockPatcher.releaseType, MockPatcher.releaseType, MockPatcher.primaryReleaseArtifactArch, MockPatcher.supplementaryReleaseArtifactArch, MockPatcher.supplementaryReleaseArtifactArch, MockPatcher.obfuscationMapPath==null, MockPatcher.assetsOnly==false, MockPatcher.extraBuildArgs==[], MockPatcher.buildPatchArtifact({releaseVersion: 1.2.3+1}), MockPatcher.assertUnpatchableDiffs({releaseArtifact: Instance of 'ReleaseArtifact', releaseArchive: File: '', patchArchive: File: ''}), MockPatcher.createPatchArtifacts({appId: test-app-id, releaseId: 0, releaseArtifact: File: '', supplementDirectory: Directory: '/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/PXJnVn'}), MockPatcher.releaseType, MockPatcher.debugSymbolsDirectory(), MockPatcher.releaseType, MockPatcher.updatedPlatformMetadata(CreatePatchPlatformMetadata(false, false, null, null, null)), MockPatcher.updatedEnvironmentMetadata(BuildEnvironmentMetadata(83305b5088e6fe327fb3334a73ff190828d85713, 1.6.115+selfhost.1, macos, Version 26.2 (Build 25C56), Instance of 'ShorebirdYaml', false, null, null)), MockPatcher.linkPercentage, MockPatcher.linkPercentage, MockPatcher.releaseType
+    package:matcher                                         fail
+    package:mocktail/src/mocktail.dart 734:7                _VerifyCall._checkWith
+    package:mocktail/src/mocktail.dart 519:18               _makeVerify.<fn>
+    test/src/commands/patch/patch_command_test.dart 775:26  main.<fn>.<fn>.<fn>.<fn>.<fn>
+    
+  +1 -1: Some tests failed.
+  
+  Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+  For example, 'dart test --chain-stack-traces'.
+
+-------------------------------------------------------------------------------
+AFTER ENFORCEMENT (A2 step 4) — the same test, now green
+-------------------------------------------------------------------------------
+  regression (mismatch foo->bar) : PASSES — ProcessExit(70) from
+      _assertBuildConfigAgrees, and buildPatchArtifact was never called
+  control    (match     foo->foo) : PASSES — still crosses the boundary
+
+NEGATIVE CONTROL on the enforcement itself: deleting the
+_assertBuildConfigAgrees call makes the MISMATCH test fail and leaves the
+control passing. So the regression discriminates rather than merely passing.
+
+TWO THINGS THE TEST HARNESS TAUGHT, both recorded because each one silently
+weakened the check:
+
+1. patch_command_test stubs `wasParsed(any()) -> true`, so ForwardedArgs
+   emitted `--dart-define-from-file=null` for every unstubbed option. That made
+   the PATCH's own configuration UNFINGERPRINTABLE, and enforcement then
+   correctly declined to compare -- masking the mismatch entirely. The group now
+   stubs those options as not-parsed. A green run under the old stubs would have
+   proved nothing.
+
+2. Reading forwardedArgs in patch_command is a NEW argument dependency: 42
+   existing tests began throwing "Null is not a subtype of bool" because
+   `_flagNamed('obfuscate')` casts an unstubbed value. Fixed in the shared setUp,
+   which is the honest place -- production now reads that flag.
+
+STILL TRUE, AND WORTH KNOWING: a patch invoked with an option whose effective
+define set cannot be determined (e.g. --dart-define-from-file) is NOT compared
+and proceeds with a warning. That is the same rule iOS follows and is correct --
+nothing can be compared -- but it means the check is skippable by that route.

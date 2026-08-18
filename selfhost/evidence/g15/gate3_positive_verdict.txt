@@ -1,0 +1,91 @@
+G15 GATE 3 — THE POSITIVE HALF: VERDICT, 2026-08-14
+====================================================
+
+A `hooks.dart` EDIT DOES REACH A BUILT RELEASE'S AOT — when the right platform
+dill is actually consumed. Proven with a negative control, and with no mint, no
+cell, no device and no change to the engine stamp.
+
+Read with `hooks_delivery_verdict.txt`, which proved the other half: the
+PUBLISHED pipeline does not consume that dill. Together they say the `_runMain`
+seam is MECHANICALLY DELIVERABLE and only the publication path is broken — which
+is what makes the publication repair worth doing and gate 4 designable.
+
+THE PROBE, AND WHY IT CANNOT BE VACUOUS
+----------------------------------------
+Placed inside `_runMain`'s closure in `R3`'s `lib/ui/hooks.dart`:
+
+    if (args.length == 0x7ffffffe) {
+      throw StateError('G15_HOOKS_DELIVERY_MARKER_7f3a9c21');
+    }
+
+`args` is a runtime `List<String>`, so the comparison cannot be constant-folded
+and the throw cannot be proved dead — which is what KEEPS the string literal in
+the snapshot. Retention by construction is the whole point: with an ordinary
+unreferenced constant, an ABSENT marker could not be told from tree-shaking, and
+a check whose failure looks identical to its success measures nothing. A `List`
+can never have that length, so the throw never executes.
+
+MEASUREMENT
+-----------
+`ninja -C out/host_release_arm64_nodm zip_archives/flutter_patched_sdk_product.zip`
+rebuilt the dill: `9f5a5f75…` → `e9c399dd…`, marker ×2 in the dill.
+
+That dill was copied into
+`~/.shorebird/…/bin/cache/artifacts/engine/common/flutter_patched_sdk_product/`
+(backup taken first), and a THROWAWAY `flutter create` app was built with
+`flutter build ios --release --no-codesign` on the pinned Flutter — no Shorebird,
+no control plane, no signing, no device.
+
+  | dill in the cache            | marker in App.framework | `_runMain` |
+  |------------------------------|-------------------------|------------|
+  | `e9c399dd…`  (R3, marked)    | **1**                   | present    |
+  | `55e02ed8…`  (R4, published) | **0**                   | present    |
+
+Same app, same toolchain, same gen_snapshot, same everything except the dill. The
+control build was run after `rm -rf build .dart_tool/flutter_build` so it was a
+real recompile, not a cached artifact.
+
+**That is the anti-vacuity proof.** The marker's presence is caused by the dill
+swap and by nothing else, and `_runMain` being present in BOTH builds shows the
+control did not simply fail to include `dart:ui`.
+
+A SECOND RESULT, FREE, AND IT NARROWS AN OPEN QUESTION
+-------------------------------------------------------
+`gate3a_platform_dill_repair.txt` left open whether `dart-sdk-darwin-arm64.zip`
+must move to `R3` alongside the dill, because `publish_ios_overlay.sh` asserts a
+version-lock chain (`frontend_server_aot` ← `dartaotruntime` ← platform dill) and
+concludes "all three come from our tree or none of this is ours".
+
+**R3's dill paired with the cached `40eaa0ef` toolchain AOTs cleanly.** Exit 0,
+`Built build/ios/iphoneos/Runner.app (24.2MB)`. No "Unexpected tag 4 (Field)", no
+"Wrong full snapshot version". So the invariant is at least partly defensive: the
+dill can move on its own without the dart-sdk following it.
+
+This is NOT a licence to skip the question in general — it is one pairing
+(`R3` dill + `40eaa0ef` gen_snapshot/frontend), measured, on a trivial app. It
+does say the publication repair can be attempted as a one-variable change and
+observed, rather than requiring the whole host toolchain to move first.
+
+STATE ON LEAVING — EVERYTHING RESTORED, AND CHECKED
+-----------------------------------------------------
+* `R3` `lib/ui/hooks.dart`: probe REVERTED (`git checkout`), 0 markers, file
+  clean against HEAD. **The probe does not outlive the gate.**
+* `R3` `out/host_release_arm64_nodm` dill: rebuilt clean, back to `9f5a5f75…`
+  byte-for-byte with `attachBytecodeToFunction` ×8 and 0 markers — which also
+  incidentally shows the platform-dill build is deterministic.
+* `~/.shorebird` cache dill: restored to the published `55e02ed8…` and verified
+  by hash, not assumed.
+* engine stamp: never touched, `40eaa0ef` throughout.
+* Nothing minted, nothing published, no cell or overlay byte changed.
+
+WHAT GATE 3 NOW SAYS, IN ONE PLACE
+------------------------------------
+  negative half  the published pipeline delivers R4's dill, so an edit to the
+                 tree that owns the seam reaches no app. FAILS
+  positive half  feed R3's dill in directly and the same edit lands in the
+                 release AOT. PASSES
+
+So the candidate is not refuted and the repair is not speculative. What remains
+before gate 4 is exactly one thing: make the published `flutter_patched_sdk_
+product.zip` carry the dill its cell address was already computed over, and mint
+a cell where `audit_route_b_compiler.sh` check `4b` goes green.

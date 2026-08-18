@@ -1,0 +1,97 @@
+§4 WONDEROUS — VERDICT, 2026-08-14
+==================================
+
+PRECOMMITTED OUTCOME 1 MET. See precommit.md; that table was written before the run
+and is not edited here.
+
+  A Route B iOS release of a real third-party app BUILDS AND PUBLISHES.
+
+§4's KNOWN GAP row said: "A Route B iOS release of a real third-party app does not
+build: Wonderous fails its retention-interface annotation even at app-only breadth
+(get:_file for ThrottledSaveLoadMixin, where the annotator's component has _file
+bare). Enumerating privates from the non-AOT kernel avoids it."
+
+The remedy landed at cd453304. This is the run that was owed.
+
+IDENTITY
+--------
+app            wonders 2.2.7+236, /Users/mendell/compat-corpus/wonderous @ 747b945
+app_id         589036b4-39ee-389b-c9fe-94fd42474a03  (cps-ios, R8)
+release        id 88, version 2.2.7+236, platform_statuses.ios = "active"
+               created 2026-08-14T16:21:06Z
+CLI            rig CLI @ ba4e1c02 = shorebird 1.6.115+selfhost.1 (contains cd453304)
+flutter        c15ef6379403a0a55531a058bdb2c8e55bc05c98 (3.44.8)
+engine/cell    40eaa0ef6cb6485833bf2e10ac97224ca82cbf25
+host           macOS 26.2 (25C56)
+
+THE THREE ANTI-FALSE-GREEN CHECKS — all from THIS run's artifacts
+----------------------------------------------------------------
+The fallback ALSO builds, so "it built" was precommitted as worth nothing on its own.
+
+1. build/route_b/retention.json:
+       privateEnumerationSource : "import"
+       importPrepassAgreement   : "passed"
+       interfaceBytes           : 76479
+   No fallbackReason. The import kernel was BUILT, AGREED with the prepass, and was
+   USED — not fallen back from.
+
+2. The interface names real private members: 774 private class/member references.
+   And it names THE EXACT MEMBER §4 CITES:
+
+       class: 'ThrottledSaveLoadMixin'
+       member: '_file'
+
+   in package:wonders/logic/common/json_prefs_file.dart. This is the check that
+   matters most — a non-empty count alone would not have settled it, but the
+   previously-failing member being present and annotated does.
+
+   route_b_capabilities.json: policy p2 ("all app-private members and classes"),
+   privateEnumerationSource "private-dill (non-AOT)" — the mechanism §4 prescribed —
+   130 app libraries, 340 privateInstanceCallable, 119 privateClassesConstructible,
+   27 privateTopLevelCallable, 26 privateStaticsCallable, refused 6.
+
+3. build/ios/shorebird/route_b.json, the SHIPPED provenance:
+       engineRevision  : 40eaa0ef6cb6485833bf2e10ac97224ca82cbf25
+       flutterRevision : c15ef6379403a0a55531a058bdb2c8e55bc05c98
+   The build consumed OUR CELL, not a stock engine. Recorded here because the
+   release record on the control plane does NOT carry an engine/cell field — see
+   OWED below.
+
+   Scale, for comparison with the acceptance fixture: 17,736 patchable call sites,
+   1800.09 per MiB. Release 38 on airgap_app had 7,156 sites / 1,778 per MB, so
+   per-MiB density is comparable and the absolute surface is ~2.5x.
+
+WHAT DID NOT HAPPEN, AND IS NOT CLAIMED
+---------------------------------------
+* NO PATCH was built, published, or applied. Nothing here says a patch to a real
+  third-party app works, links, or runs. The §4 row is about BUILDING, and only the
+  build clause is answered.
+* NO DEVICE. The release was cut --no-codesign; it was never installed or launched.
+* Attempt 2 of this run failed at Xcode archive on Target Integrity (Wonderous ships
+  IPHONEOS_DEPLOYMENT_TARGET 13.0; four SPM plugins now require 15.0). That was
+  precommitted OUTCOME 4 — NOT a §4 result — and was recorded as such before being
+  fixed rather than being quietly retried. Route B had already completed on that
+  attempt with the identical interfaceBytes (76479), so the annotation result
+  reproduces across two independent runs.
+
+CHANGES MADE TO THE CORPUS (app configuration only, nothing Shorebird-specific)
+-------------------------------------------------------------------------------
+  pubspec.yaml                    + shorebird.yaml as a flutter asset
+                                    (`shorebird init` normally does this; it died
+                                    initializing gradlew, which is Android tooling
+                                    this iOS release does not need)
+  shorebird.yaml                  created: app_id + base_url
+  ios/Runner.xcodeproj            IPHONEOS_DEPLOYMENT_TARGET 13.0 -> 15.0
+  ios/Podfile                     platform :ios 14.0 -> 15.0
+
+None of these touch Dart source, so the program whose privates were enumerated is
+Wonderous as shipped at 747b945.
+
+STILL OWED
+----------
+* The control plane's release record carries flutter_revision but NO engine or cell
+  field, so it cannot answer "which Route B cell produced this release". The shipped
+  route_b.json does. That is a real provenance gap: the authoritative server-side
+  record is weaker than the on-device artifact.
+* A PATCH to Wonderous — the natural next question, and the one that would say
+  whether the 17,736 call sites are actually reachable.

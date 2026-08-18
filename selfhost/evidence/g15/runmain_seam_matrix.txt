@@ -1,0 +1,170 @@
+G15 GATE 4 — THE `_runMain` SEAM: FOUR-QUESTION MATRIX, 2026-08-15
+===================================================================
+
+SOURCE-LEVEL ONLY. Nothing built, nothing minted, no device, no cell consumed.
+This answers whether the seam is worth building; it does not build it.
+
+    1  identity            PASS
+    2  success semantics   OPEN — and the source constrains what a definition may say
+    3  failure coverage    PASS for sync, with ordering proven; async needs Q4's handle
+    4  async completion    ACHIEVABLE, and the value it needs is already discarded twice
+
+THE CALL CHAIN, verbatim from the tree
+---------------------------------------
+  runtime/dart_isolate.cc:934  user_entrypoint_function = Dart_GetField(library_handle, "main")
+  runtime/dart_isolate.cc:939  InvokeMainEntrypoint(user_entrypoint_function, entrypoint_args)
+  runtime/dart_isolate.cc:892  -> dart:isolate _getStartMainIsolateFunction()
+  runtime/dart_isolate.cc:900  -> dart:ui _runMain(startMainIsolateFunction, userMainFunction, args)
+  isolate_patch.dart:269       _startMainIsolate(entryPoint, args)
+  isolate_patch.dart:288       _delayEntrypointInvocation(...)
+                                 port.handler = (_) { port.close(); entryPoint(); }
+  hooks.dart:408               the closure `_runMain` passed as entryPoint
+  hooks.dart:410/412           userMainFunction(args)   <-- THE INVOCATION
+
+1. IDENTITY — PASS
+-------------------
+`userMainFunction` is the HANDLE returned by
+`Dart_GetField(library_handle, entrypoint_handle)`, where `entrypoint_handle` is
+`"main"` (or the explicitly named entrypoint). It is passed by handle down to
+`_runMain` and invoked there. A wrapper placed lexically around
+`userMainFunction(args)` is therefore bound to the app's `main` BY CONSTRUCTION —
+not identified by message ordinal, arrival order, or position in a queue, which
+is precisely the property `tonic::DartMessageHandler::OnHandleMessage` lacked and
+was rejected for.
+
+Reached exactly once per root isolate.
+
+**Recorded caveat, because G15 has a two-engine gate:** `_runMain` runs once per
+ROOT ISOLATE, so an add-to-app process with two `FlutterEngine`s reaches it twice.
+That is correct per-engine semantics, but `Updater::ReportLaunchSuccess` is
+guarded to fire at most once per PROCESS, so engine two's `main` would not
+re-report. Not a defect in the seam; a fact the three-arm gate must not trip over.
+
+2. SUCCESS SEMANTICS — OPEN, and two facts narrow it
+-----------------------------------------------------
+The return value of `main` is discarded TWICE today:
+
+  * `hooks.dart:410/412` — `userMainFunction(args);` is a statement;
+  * `isolate_patch.dart:292-299` — the port handler calls `entryPoint()` and
+    drops the result.
+
+So nothing ABOVE the closure can observe completion, and any definition of
+success must be evaluated and enforced INSIDE it. That also means the seam cannot
+be pushed one level up without losing the very signal it needs.
+
+The value costs nothing to obtain: `_ListStringArgFunction` is already declared
+`Object? Function(List<String> args)` (hooks.dart:403). The result is available
+today and simply thrown away — no signature change, no ABI change.
+
+A definition to test, NOT to adopt yet:
+
+    success = userMainFunction returned a non-Future value,
+              OR returned a Future that later completed with a value.
+
+**The trap this definition must be tested against, and the reason it is not
+adopted here: a synchronous return is NOT "the app booted".** `runApp` schedules
+the first frame; it does not draw it. A `void main() { runApp(...); }` returns
+immediately, with nothing rendered and no guarantee anything ever will. So this
+definition banks EARLIER than "usable", by design. That is a choice with
+consequences for what a "good patch" means, and it must be stated out loud rather
+than smuggled in under the word "returned" — which is exactly how `Engine::Run`'s
+seam came to be described as proving something it never proved.
+
+3. FAILURE COVERAGE — PASS for synchronous, and the ordering is PROVEN, not inferred
+-------------------------------------------------------------------------------------
+`PlatformDispatcher.onError`'s own contract (platform_dispatcher.dart:1434-1447):
+*"A callback that is invoked when an **unhandled** error occurs in the root
+isolate."* And `_dispatchError` returns `false` immediately when `_onError` is
+null (platform_dispatcher.dart:1456-1458).
+
+The route an escaping throw takes:
+
+    throw escapes the RawReceivePort handler
+      -> isolate-level uncaught error
+      -> tonic::DartMessageHandler::UnhandledError   (dart_message_handler.cc:49,
+                                                      called from :133)
+      -> embedder unhandled_exception_callback / dart:ui _onError (hooks.dart:399)
+      -> PlatformDispatcher._dispatchError
+
+A `try`/`catch` placed lexically around `userMainFunction(args)` intercepts the
+throw before it can escape the handler, therefore before it can be classified
+unhandled at all. **That is an ordering argument from the DEFINITION of
+"unhandled" plus the call chain — not from "we are inside `_runMain`", which
+would prove nothing.**
+
+Second load-bearing fact: **no zone wraps the entrypoint.** Neither
+`_startMainIsolate` nor `_delayEntrypointInvocation` installs `runZonedGuarded`,
+and `isolate_patch.dart:58` states that `RawReceivePort` "is low level and does
+not work with [Zone]s". `main` therefore runs in the ROOT zone, and there is no
+application-installed zone handler between the throw and our catch. Application
+code can of course install one — but only by calling `runZonedGuarded` INSIDE
+`main`, i.e. below the seam, where an error it handles is one the app genuinely
+handled.
+
+TWO REQUIREMENTS THIS IMPOSES, both about not breaking what already works:
+
+  a. The seam must catch, report, and then **RETHROW**. Catching without
+     rethrowing silently removes the app's own error reporting — the seam would
+     fix crash-backout by breaking `PlatformDispatcher.onError`.
+  b. A synchronous `try`/`catch` **does not cover async `main`**. An `async main`
+     that throws does not propagate synchronously; it completes its Future with
+     an error, which — if unlistened — becomes an unhandled ASYNC error routed to
+     the root zone and thence to the same `_onError`. Attaching to the Future
+     observes it, but ALSO marks it handled, so the same rethrow/forward
+     obligation applies there. This is why Q3 cannot be closed independently of
+     Q4.
+
+4. ASYNC COMPLETION — ACHIEVABLE, and this is the defect that killed the others
+--------------------------------------------------------------------------------
+Capturing the discarded result makes the three cases distinguishable at the only
+place they are all visible:
+
+    non-Future return   -> synchronous completion
+    Future  return      -> bank ONLY when that Future completes with a value
+    Future  error       -> positive failure
+
+This is the direct fix for "scheduling is not completion", which is what made
+`Engine::Run` incapable IN PRINCIPLE (`main` is POSTED to the message queue and
+`Run` returns before one line of user Dart executes) and what made
+`OnHandleMessage` wrong (per-message return semantics are exact, but a message
+turn is not `main`).
+
+THE HARD CASE, NOW SHARPLY ISOLATED — AND DELIBERATELY NOT SOLVED HERE
+------------------------------------------------------------------------
+A VALID app whose `main` intentionally never completes after becoming usable:
+
+    Future<void> main() async {
+      runApp(const MyApp());
+      await someLongLivedFuture;   // a server, a stream drain, a Completer
+    }                              // never completes, and the app is FINE
+
+Under a pure "returned Future completed" rule this never banks, so `0010`'s
+counter tombstones a perfectly good patch after two otherwise-good boots — the
+exact false-backout failure `killswitch_app` exists to catch, reintroduced by the
+success rule rather than by the kill.
+
+Note the seam must also not conflate this with failure: "still running" and
+"failed" are different states, and a Future that has not completed is neither.
+
+**No fallback is chosen here.** If 1, 3 and 4 hold under test, the entire
+unresolved design surface shrinks to non-returning-`main` semantics — a second
+banking condition — instead of the whole seam. That shrinkage is the point of
+answering the matrix before writing anything.
+
+WHAT WOULD SETTLE 2 AND 3 WITHOUT A DEVICE
+--------------------------------------------
+Both remaining questions are behavioural, and both can be answered on the HOST
+against ordinary startup shapes rather than on `R1`:
+
+  * `void main()` returning synchronously after `runApp`;
+  * `Future<void> main() async` awaiting and then returning;
+  * `Future<void> main() async` throwing after an `await`;
+  * `main` that throws synchronously before `runApp`;
+  * `main` that installs its own `runZonedGuarded` and handles its error;
+  * `main` that sets `PlatformDispatcher.onError` and returns true from it;
+  * `main` that never completes after `runApp`.
+
+For each: which of {sync return, Future success, Future error, no completion}
+occurs, and whether `PlatformDispatcher.onError` fires before or after the seam
+would observe. Only then is the definition in Q2 a measured statement rather than
+a plausible one.

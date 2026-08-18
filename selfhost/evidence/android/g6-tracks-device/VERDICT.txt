@@ -1,0 +1,101 @@
+G6 — device receives only the selected track. PROVEN on device.
+================================================================
+2026-08-14. R2 = CPH2551 3f72a543. New fixture `trackprobe_app`
+(app 9fb5eebb-b9a7-b86e-72a8-e12074e34382, release 4.0.0+1),
+`auto_update: false`, `shorebird_code_push` resolved BY PATH from
+vendor/updater. Built on R12; control plane cps-android :18081 via
+`adb reverse`; CLI 1.6.115+selfhost.1.
+
+THE SETUP, and why its ORDER is the whole experiment
+----------------------------------------------------
+  patch 1  ->  track `stable`   marker TRACKPROBE-STABLE
+  patch 2  ->  track `beta`     marker TRACKPROBE-BETA     PUBLISHED SECOND
+
+Beta's patch is the NEWER one. That is deliberate. A device asking for `stable`
+must receive patch 1; if track selection were not real -- if the server or the
+updater simply served the newest patch -- it would receive patch 2. So "asked
+stable, got STABLE" is a DISCRIMINATION and not a tautology.
+
+Publishing beta's patch first would have made the arm unfalsifiable: asking
+stable and getting stable's patch would then be consistent with both "tracks
+work" and "latest wins". This is the same failure the G4.2 lane hit when a
+two-app_id shorebird.yaml produced a right-looking refusal for the wrong reason.
+
+SERVER PRECONDITION (checked before touching the device, so a vacuous arm
+would have been caught early):
+
+  POST /api/v1/patches/check  channel=stable  ->  patch 1
+  POST /api/v1/patches/check  channel=beta    ->  patch 2
+
+THE DEVICE ARM
+--------------
+  1  launch                    TRACKPROBE-V1      current none  next none
+  2  check(stable)             UpdateStatus.outdated
+  3  update(stable)            current none  next 1        (staged, not active)
+  4  restart                   TRACKPROBE-STABLE  current 1  next 1   <== DECISIVE
+  5  check(beta)               UpdateStatus.outdated
+  6  update(beta)              current 1     next 2        (both tracks at once)
+  7  restart                   TRACKPROBE-BETA    current 2  next 2
+  8  check(stable) on beta     UpdateStatus.upToDate       (see the nuance below)
+
+WHAT EACH STEP IS FOR, because several are easy to over-read
+------------------------------------------------------------
+* STEP 1 is not decoration. BOTH patches already existed on the server, and
+  neither applied. That is `auto_update: false` doing its job, and it is a
+  precondition for everything after: if the runtime could apply a patch on its
+  own, the device could acquire BETA's patch without any Dart call having asked
+  for beta, and the entire track reading would collapse.
+
+* STEP 4 IS THE CLAIM. Not "a patch arrived" -- WHICH patch arrived. The marker
+  is compiled Dart, so TRACKPROBE-STABLE can only have come from patch 1's code
+  actually executing. The patch NUMBER alone would not have distinguished the
+  tracks nearly as well, and the marker and the number agree.
+
+* STEP 6 shows current 1 / next 2 SIMULTANEOUSLY -- the stable patch running
+  while the beta patch is staged. One screen, both tracks, same install.
+
+* STEP 8 IS NOT A SUCCESS AND IS NOT A FAILURE. Read it carefully. The device
+  is on patch 2 (beta's) and asks stable, whose patch is 1. It answers
+  upToDate -- it does NOT offer to move the device back to stable's patch.
+  The check compares patch NUMBERS, and patch numbers are global per release
+  rather than per track, so a device that has consumed a higher-numbered patch
+  from another track reads as up-to-date against a lower-numbered track.
+
+  So the row's claim holds for ACQUISITION -- a device gets only the track it
+  asks for -- but "membership" is forward-only by patch number. Asking for
+  stable does not return a beta device to stable's code. Whether that is
+  desirable (no silent downgrades) or a gap (no way back) is a DECISION, not a
+  test result, and it is recorded here rather than resolved.
+
+WHAT THIS DOES NOT SHOW
+-----------------------
+* Nothing about iOS. R1 was not involved.
+* Nothing about `channel` in shorebird.yaml. `compileShorebirdYaml` still never
+  copies it (`shorebird_yaml.dart:68-70`), so the updater still falls back to
+  DEFAULT_CHANNEL = "stable" (`config.rs:24`, `:148`). This arm goes through
+  `checkForUpdate(track:)` / `update(track:)` from Dart -- the route PARITY's
+  G6 row names as open. The CONFIGURATION path remains untested because it
+  remains unimplemented; that gap is unchanged by this run.
+* Nothing about progressive rollout, which is a separate KNOWN GAP row.
+
+IDENTITY AND HYGIENE
+--------------------
+  app 9fb5eebb-b9a7-b86e-72a8-e12074e34382, release 4.0.0+1, patches 1 and 2
+  APK from the REGISTERED release aab (46,700,989 bytes, size-matched against
+  the artifact record before installing) via bundletool -- NOT from the local
+  build tree, which `shorebird patch android` rewrites (G10.2's finding).
+  Package com.example.trackprobe_app is NEW; the four existing specimens
+  (flavorprobe.bar, flavorprobe.foo, rbtest, manual_api_app) were verified
+  present before and after and were not touched.
+
+A separate fixture from manual_api_app on purpose: G8's is a settled claim with
+committed device evidence, and re-releasing it to add track buttons would have
+put that evidence's app into a new state.
+
+INCIDENT worth keeping: the first release attempt failed exit 78 --
+"AndroidManifest.xml is missing the INTERNET permission". `flutter create` only
+writes INTERNET into the debug/profile manifests, not main. The failure was
+clean and named its cause. Note that the run had already advanced the source
+marker past V1 by the time it aborted, so the marker was reset before retrying;
+a rerun without that reset would have released the app already carrying a patch
+marker and quietly destroyed the baseline.

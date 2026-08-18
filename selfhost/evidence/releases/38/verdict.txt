@@ -1,0 +1,94 @@
+RELEASE 38 — G3.7's REMAINING THREE SHAPES: ALL SETTLED
+=======================================================
+
+With release 37's one-parameter arm, G3.7's four shapes are now complete.
+
+specimen        LC_UUID fdc0a84cf16d33f09f9ead2d7bb64b78
+                7,156 patchable static call sites (1,778 per MB)
+                preserved App + App.dSYM.DWARF + App.ipa BEFORE any patch build
+cell            4df8f9b6139b67d2cfe9f6aa8212372cade36278 (untouched)
+CLI under test  ba4e1c02 on selfhost-under-test, clean, analysis version 8
+engine consumed Flutter e828f8efeb623d1d…, InterpretCall present ⇒ isRouteBEngine true
+release         airgap-fixture 38.0.0+1
+device          iPhone@00140000, wired
+
+ARM 1 — `two(String a, int b)`: PASS. ORDER AND TYPE, not merely arity.
+
+  baseline   two=OLD-a-7   on release 38's OWN bytes, before any patch existed
+  patched    two=PARAM-a-7 with code_patch=1
+
+  The baseline is the reachability half: `two('a', 7)` is called live from
+  `_routeBRead` and its result is displayed AND beaconed, so the site executes and
+  its result is observable before the mechanism is involved at all.
+
+  PARAM-a-7 is the claim. `'a'` landed in slot `a` and `int 7` landed in slot `b`,
+  in the DECLARED ORDER — a transposition renders `PARAM-7-a`, which is visibly
+  wrong rather than merely different, and the literals were chosen for exactly that.
+  This is what one argument could not show and why release 37's verdict refused to
+  claim it.
+
+  The producer's lowering, preserved as patch1_replacement_0.dart:
+
+      String two(RouteBThing self, String a, int b) => 'PARAM-$a-$b';
+
+  Receiver inserted in FRONT of a verbatim parameter list, both parameters keeping
+  their declared types and positions.
+
+  CONTROLS HELD, and one of them is the sharpest available: `param=OLD-ARG` did NOT
+  move. `paramValue` is a sibling method on the same class that a whole-app
+  replacement would also have changed; it kept its release value while `two`
+  changed, so this is a per-method replacement. `route_b=OLD-rel` and
+  `private_class=OLD-pc` likewise unchanged. `code_patch=1` is the updater's own
+  active-patch number — the corroborating row whose `none` exposed a false positive
+  on 2026-08-13.
+
+ARM 2 — `named({String x = 'd'})`: REFUSED, for the RIGHT REASON.
+
+  exit 70, and the message is the precommitted one:
+
+      the method takes named parameters
+
+  No patch published. Evidence is the CLI log AND the absence of a container: an arm
+  that reaches the device has already failed.
+
+ARM 3 — `opt(String a, [String b = 'd'])`: REFUSED, for the RIGHT REASON.
+
+  exit 70:
+
+      the method takes optional positional parameters
+
+  No patch published, and no container artifact exists under build/route_b/.
+
+WHY "THE RIGHT REASON" IS A SEPARATE CONDITION, AND WHY IT PASSED
+
+Both controls were precommitted to FAIL if they refused because the target was
+"not in the interface". That refusal would look identical at a glance — non-zero
+exit, no container — while testing nothing about named or optional parameters. It
+is prevented by naming both methods in `value()`'s DEAD BRANCH: without a
+reference, the `--aot` prepass tree-shakes them before the dynamic interface is
+generated, and the analyzer then refuses for absence rather than for shape. Both
+messages name the parameter shape, so the retention did its job.
+
+WHAT G3.7 NOW CLAIMS, IN FULL
+
+  one    (release 37)  a single positional String argument is transferred and is
+                       observable by the replacement body
+  two    (release 38)  arguments arrive IN ORDER and keep their TYPES; an int is
+                       not boxed into the wrong slot
+  named  (release 38)  refused at patch time, naming named parameters
+  opt    (release 38)  refused at patch time, naming optional positionals
+
+The analyzer refuses exactly what the compiler refuses, and the two shapes it
+accepts behave as declared. G3.7's 33.2% language-reach slice is reachable.
+
+A FINDING THAT COST A RELEASE ATTEMPT, RECORDED FOR THE NEXT ONE
+
+`flutter build ipa` defaults to the APP-STORE export method, for which no
+provisioning profile exists on this rig. The ARCHIVE succeeds and only the EXPORT
+fails, so the error reads as a signing-account problem ("No Accounts", "No profiles
+for 'dev.selfhost.airgapProbe' were found") rather than a wrong export method. This
+bit release 38 even though release 37 had exported fine earlier the same day. The
+fix is a development + automatic ExportOptions plist passed as
+`--export-options-plist`. The CLI's own staleness guard behaved correctly
+throughout: it refused to publish a leftover .ipa from an earlier build rather than
+release the wrong bytes.
