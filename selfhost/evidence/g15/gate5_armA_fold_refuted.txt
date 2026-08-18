@@ -1,6 +1,42 @@
 G15 ARM A — THE FOLD EXPLANATION IS REFUTED, 2026-08-16
 ========================================================
 
+*** CONCLUSION SUPERSEDED 2026-08-17 — THE REASONING BELOW IS NOT ***
+======================================================================
+**Only this file's CONCLUSION is withdrawn. Its evidence, its measurements and
+its reasoning were valid given what was known on 2026-08-16, and none of them is
+retracted.**
+
+This file refuted the fold/inlining family on one premise: that release 91
+WORKED while showing the same shape as the failing release, so a shared shape
+could not be the differentiator. **That premise — release 91 as a strongly proven
+rendered-value success — was later withdrawn.** `manual_launch_control_verdict.txt`
+found release 91's own original app, original signature, original engine and
+exact patch 59 rendering `OLD-kill` under by-hand launches, and `arm2_verdict.txt`
+itself records that its `NEW-kill` screens were an operator's real-time report
+whose screenshot "is white and does NOT show tap 4".
+
+So the objection fell, not the hypothesis. The family this file rejected was
+subsequently CONFIRMED by controlled experiment:
+
+  * `foldability_verdict.txt` — a matched top-level pair, one screen:
+    `foldConst` (foldable) renders `OLD-CONST` while `foldOpaque` renders
+    `NEW-OPAQUE`, both attaching identically (`rc=0`, `bc_post=1`).
+  * `routebvalue_repair_verdict.txt` — the same target as this file's, repaired
+    with one line: NOT LOCATED -> CONSUMED, `ABSENT` -> `UNIQUE`, `OLD-kill` ->
+    `NEW-kill`.
+
+WHAT SURVIVES FROM THIS FILE, unchanged and still cited:
+  * result-CONSUMPTION does not distinguish 91 from 95 — the measurements stand;
+  * the discarded site is not the target (it passes multiple arguments;
+    `routeBValue` takes none) — stands;
+  * the patch content carried `NEW-kill` — stands;
+  * "the cause is genuinely unknown" was the honest position on this evidence.
+
+**This is what a sound argument on a later-withdrawn premise looks like, and it
+is kept unedited below for that reason.** See `STATUS.md` for current state.
+======================================================================
+
 The leading explanation for arm A (a dead result at the call site — `PARITY.md`'s
 FIFTH CORRECTION) **does not survive measurement**. Recorded before any new device
 run, because it would otherwise have justified replacing arm A's target.
