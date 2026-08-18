@@ -1,0 +1,129 @@
+TARGET KIND — PAIRED CONTROL: VERDICT, 2026-08-17
+==================================================
+
+Precommitted in target_kind_precommit.md before the fixture was edited. That
+table is not edited here.
+
+THE RESULT
+----------
+
+**BOTH KINDS EXECUTE THEIR REPLACEMENT. `NEW-MEMBER` AND `NEW-TOP`, ONE SCREEN,
+ONE PATCH, ONE LAUNCH.**
+
+    member kind    : NEW-MEMBER      <- RouteBThing.kindMember   (instance member)
+    top-level kind : NEW-TOP         <- kindTopLevel             (top-level function)
+    route B value  : OLD-rel         <- unpatched control, unchanged
+    private class  : OLD-pc          <- unpatched control, unchanged
+    code patch     : 1
+
+`screen_NEW-MEMBER_NEW-TOP.png`, release 40 (`40.0.0+1`), patch 1 (id 63).
+
+Per the precommitted table, first row: *"target kind is REFUTED as the cause.
+Top-level functions execute their replacement on iOS."*
+
+**TARGET KIND IS REFUTED.** A top-level function's replacement body executes on
+iOS and reaches observable app behavior. The audit's correlation — every proven
+success a member, the one failure a top-level function — was real in the corpus
+and is not causal.
+
+ADMISSIBILITY — all five met
+------------------------------
+| # | required | observed |
+|---|---|---|
+| 1 | both rows visible in ONE screenshot with `code patch` | yes, adjacent, with `code patch: 1` |
+| 2 | unpatched controls unchanged on that screen | `route B value: OLD-rel`, `private class: OLD-pc` |
+| 3 | BOTH targets attached, ideally one container | **`targets=2`, `applied 2/2 targets`** — one container, simultaneous, no fallback needed |
+| 4 | `rc=0`, `bc_post=1`, `uep_post_is_interpret_call=1` per target | both targets, all three |
+| 5 | identity bracketed | patch `Installed` before AND after; trace **0 → 2** lines on this launch; `last_booted_patch: 1`; release 40 preserved, LC_UUID `a602fba3e1ac31808154fe50ccc5ffff` |
+
+The bodies were matched to the character apart from their literals, and the
+member deliberately did not touch `this`. The producer still lowered it to
+`kindMember(RouteBThing self)` while the top-level stayed parameterless — a
+signature difference intrinsic to kind that cannot be removed, and the reason the
+body was kept receiver-free so nothing ELSE differed.
+
+`param` and `two params` were presentation-retired, not evidence-retracted; their
+proof remains anchored to `evidence/releases/38/r38_two_PARAM.png`. Row count
+stayed at nine, so nothing was compressed.
+
+=============================================================================
+A SECOND RESULT, NOT SOUGHT: CLAIM 1'S POSITIVE LOCATOR IS NOW PROVEN
+=============================================================================
+
+Both targets reported:
+
+    sel=RouteBThing.kindMember   tpool_status=4 (UNIQUE) matches=1 index=6810 offset=0xd4df
+    sel=kindTopLevel             tpool_status=4 (UNIQUE) matches=1 index=6799 offset=0xd487
+                                 tpool_scanned=15467 (both)
+
+**This is the first `TPOOL_UNIQUE` the derived scan has ever emitted in the
+field**, and it arrives with the strongest possible corroboration: both targets'
+patched values are ON SCREEN, so the locations were derived for functions whose
+replacements demonstrably executed.
+
+`claim1_0012_instrumentation_verdict.txt`'s standing limitation was:
+
+    "instrument established; positive locator NOT YET PROVEN"
+
+**That limitation is now discharged.** The derived scan produced a unique index
+and an `OffsetFromIndex`-derived offset for two distinct targets in one trace,
+while the supplied-offset assertion path remained separate. Claim 1 is amended in
+its own file; it is recorded here because this run produced the evidence.
+
+=============================================================================
+AND A STRUCTURAL CORRELATE THAT SURVIVES THE REFUTATION
+=============================================================================
+
+Target kind is refuted, but the trace surfaced a different split that holds:
+
+    WORKS   RouteBThing.kindMember   TPOOL_UNIQUE   NEW-MEMBER on screen
+    WORKS   kindTopLevel             TPOOL_UNIQUE   NEW-TOP    on screen
+    -----------------------------------------------------------------------
+    FAILS   routeBValue (killswitch) TPOOL_ABSENT   OLD-kill   on screen
+
+**Pool presence tracks the behavior where target kind does not.** Both kinds are
+UNIQUE and both work; the failing target is ABSENT and does not.
+
+The leading candidate for WHY it is absent is the difference this precommit
+already named and controlled for: **body foldability.**
+
+    killswitch   String routeBValue() => 'OLD-kill';                  <- constant
+    airgap       ... DateTime.now().millisecondsSinceEpoch >= 0 ? ...  <- opaque
+
+A constant-returning function can have its result folded into its call sites,
+leaving no pool reference to redirect — which is exactly what ABSENT reports, and
+exactly what an attached-but-ineffective patch looks like.
+
+**AND THE OBJECTION THAT KILLED THIS EXPLANATION HAS ITSELF BEEN RETRACTED.**
+`gate5_armA_fold_refuted.txt` rejected the fold/inlining reading on the grounds
+that release 91 worked while showing the same shape. `manual_launch_control_verdict.txt`
+contradicted release 91's `NEW-kill` under its own original configuration, so that
+objection no longer stands. **The fold/inlining family is revived as the leading
+explanation** — not as a conclusion, and it must be MEASURED rather than argued,
+since it has been wrong before.
+
+THE NEXT EXPERIMENT, and it is the mirror of this one
+-------------------------------------------------------
+Hold target kind FIXED and vary ONLY body foldability, in `airgap_probe`, on one
+screen:
+
+    String foldConst()  => 'OLD-CONST';                                  // foldable
+    String foldOpaque() => DateTime.now()... ? 'OLD-OPAQUE' : '...';     // opaque
+
+Both top-level, both `vm:never-inline`, both consumed and displayed, patched in
+one container. Predicted by the above: `foldOpaque` renders NEW and reports
+UNIQUE; `foldConst` renders OLD and reports ABSENT. **A single screen would then
+carry the whole mechanism**, with `tpool_status` as the structural read-out on the
+same trace.
+
+WHAT THIS DOES NOT CLAIM
+------------------------
+* NOT that foldability is established — it is the next experiment, not this one's
+  finding.
+* NOT that killswitch's failure is explained. `routeBValue`'s ABSENT is measured;
+  its cause is not.
+* NOT a re-score of arm A, which concerns release 96's specimen and remains
+  **INCONCLUSIVE**.
+* NOT that release 91 worked — that remains contradicted.
+* Route B iOS end-to-end execution stays **PROVEN**, now with a fifth and sixth
+  specimen, one of them a top-level function.

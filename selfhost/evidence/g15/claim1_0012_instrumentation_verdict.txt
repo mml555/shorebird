@@ -147,6 +147,33 @@ WHAT THIS ADDENDUM DOES NOT CHANGE
 established" is justified; **"positive locator proven" is not yet.** That
 sentence stands exactly as written above, unweakened by the second specimen.
 
+ADDENDUM 2, 2026-08-17 — THE POSITIVE LOCATOR IS NOW PROVEN
+-------------------------------------------------------------
+**The limitation immediately above is DISCHARGED.** Evidence produced by the
+target-kind paired control (`target_kind_verdict.txt`), which was run for an
+unrelated question; recorded here because this is where the claim lives.
+
+Release 40 (`40.0.0+1`), patch 1, one container, two targets, one trace:
+
+    sel=RouteBThing.kindMember   tpool_status=4 (UNIQUE) matches=1 index=6810 offset=0xd4df
+    sel=kindTopLevel             tpool_status=4 (UNIQUE) matches=1 index=6799 offset=0xd487
+                                 tpool_scanned=15467 (both)
+
+**The first `TPOOL_UNIQUE` readings the derived scan has ever produced in the
+field**, and they arrive corroborated: BOTH targets' patched values were on
+screen in the same launch (`NEW-MEMBER`, `NEW-TOP`), so the locations were derived
+for functions whose replacements demonstrably executed. Two distinct targets in
+one scan of the same 15,467-entry pool returned two DIFFERENT indices, each with
+`matches=1` — so the scan discriminates between targets rather than reporting a
+constant.
+
+The offsets come from `ObjectPool::OffsetFromIndex`, the VM's own rule, and the
+supplied-offset assertion path remained separate throughout.
+
+**Claim 1 now reads: instrument established AND positive locator proven.** The
+scan produces ABSENT, UNIQUE, and — still unobserved in the field — AMBIGUOUS.
+Only AMBIGUOUS remains unexercised.
+
 WHAT THIS DOES NOT CLAIM
 ------------------------
 * NOTHING about arm A, `OLD-kill`, or where routeBValue lives. `tpool_status=3`

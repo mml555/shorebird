@@ -1,0 +1,25 @@
+STATIC PRE-CHECK — repaired routeBValue (release 1.0.8+1), before any device run
+===============================================================================
+Required by routebvalue_repair_precommit.md: the repaired release MUST contain a
+surviving, CONSUMED call to routeBValue, or the run is UNRUN rather than scored.
+
+BEFORE — release 95 (foldable constant body '=> OLD-kill'):
+locator         : symbol routeBValue at 0xe9ff4-0xea000 (resolved in selfhost/evidence/releases/95/App.dSYM.DWARF)
+located         : 0
+RESULT: NOT LOCATED
+No call site matched the locator, so nothing was measured. This is NOT
+result-consumption is UNKNOWN. Check the locator before reading any
+
+AFTER — release 98 (opaque guard, same name/signature/caller):
+locator         : symbol routeBValue at 0xea090-0xea110 (resolved in selfhost/evidence/releases/98/App.dSYM.DWARF)
+located         : 1
+site 0xea0b4  (no symbol)
+  VERDICT       : CONSUMED
+RESULT: RESULT CONSUMED — a patch's return value can reach the app.
+
+COMPILED BODY SIZE
+  before  0xe9ff4-0xea000 =  12 bytes  stub, no surviving call
+  after   0xea090-0xea110 = 128 bytes  real code, 1 CONSUMED call site
+
+VERDICT: THE REPAIR TOOK. The call to routeBValue now survives compilation and
+its result is consumed. Pre-check condition MET; the device run may be scored.
