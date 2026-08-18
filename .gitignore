@@ -57,3 +57,11 @@ __pycache__/
 
 # cspell_touched.sh --self-test scratch (created and removed in one run)
 /.cspell-selftest/
+
+# Vendored Flutter checkout — untracked 2026-08-18.
+# Durability is covered three other ways; see selfhost/BASELINE.md:
+#   selfhost/cdn/mirrors/flutter.git   (bare, bootstrap-from-mirror verified)
+#   mml555/shorebird-flutter-mirror    (offsite, restore-tested)
+#   mml555/shorebird-flutter           (our fork, carries route-b)
+# Build scripts take --root; see selfhost/engine/build.sh.
+vendor/flutter/
