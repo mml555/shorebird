@@ -62,7 +62,33 @@ import 'package:flutter/material.dart';
 
 /// Flipped by the patch. `OLD-kill` is the release value; a patch replaces this
 /// body and the screen is the claim.
-String routeBValue() => 'OLD-kill';
+///
+/// REPAIRED 2026-08-17, and the repair is the experiment. This body was
+/// `=> 'OLD-kill'` — a foldable constant — for the entire investigation, and
+/// `foldability_verdict.txt` measured what that does on a controlled pair:
+///
+///     foldable constant body -> the RESULT is substituted at every call site
+///                            -> no call site survives to reach the Function
+///                            -> nothing in the object pool references it (ABSENT)
+///                            -> Route B attaches successfully (rc=0)
+///                            -> and nobody ever calls it, so OLD renders
+///
+/// Measured on THIS target at release 96: `TPOOL_ABSENT`, `rc=0`,
+/// `uep_post_is_interpret_call=1`, screen `OLD-kill`. Attached perfectly, never
+/// executed.
+///
+/// The guard below is the fixture-standard opaque form `airgap_probe` uses for
+/// exactly this reason (`airgap_app/lib/main.dart:52-56`): `DateTime.now()` is
+/// not resolvable at compile time, so neither arm can be substituted and the
+/// call survives.
+///
+/// NOTHING ELSE CHANGES. Same name, same signature, same caller in `build()`,
+/// same release-visible `OLD-kill`, same patched `NEW-kill`, no pragmas added.
+/// `UNREACHABLE-KILL` is never returned; if it appears, the body executed and
+/// took the wrong branch — which is visibly different from never executing.
+String routeBValue() => DateTime.now().millisecondsSinceEpoch == -1
+    ? 'UNREACHABLE-KILL'
+    : 'OLD-kill';
 
 /// Called from `main()` BEFORE `runApp`, which is the whole point of it.
 ///

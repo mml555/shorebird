@@ -244,11 +244,91 @@ class RouteBThing {
   String value() => DateTime.now().millisecondsSinceEpoch >= 0
       ? 'OLD-rel'
       : '${helper()}${tagged('ARG')}${named()}${opt('a')}$label';
+
+  /// TARGET KIND, member half. Pairs with `kindTopLevel()` at file scope, and the
+  /// two exist only to be compared with each other.
+  ///
+  /// EVERY iOS Route B patched-value success on record is an instance or class
+  /// member; the one target that has never rendered its replacement is a
+  /// TOP-LEVEL function. Those two corpora live in different fixtures, so target
+  /// kind was confounded with everything else about them. This pair puts both
+  /// kinds in the fixture with four proven successes, patched in one cycle and
+  /// rendered on one screen.
+  ///
+  /// THIS BODY IS MATCHED TO `kindTopLevel()` CHARACTER FOR CHARACTER except the
+  /// string literals, and that is the whole design:
+  ///
+  ///   * it does NOT touch `this`. A member that read a field would be lowered by
+  ///     the producer into a `self`-bound form the top-level twin never gets, and
+  ///     a failure could then be blamed on receiver lowering instead of on kind.
+  ///   * the `DateTime.now()` guard is the fixture's existing anti-fold idiom,
+  ///     opaque to the compiler. It matters here because the FAILING historical
+  ///     target (`killswitch_probe`'s `routeBValue() => 'OLD-kill'`) is a foldable
+  ///     constant, so foldability was a SECOND uncontrolled difference between the
+  ///     corpora. Both halves of this pair are opaque, which holds it fixed.
+  ///   * `UNREACHABLE-MEMBER` is never returned. If it ever appears, the body
+  ///     executed and took the wrong branch — visibly different from a body that
+  ///     never executed at all.
+  @pragma('vm:never-inline')
+  String kindMember() => DateTime.now().millisecondsSinceEpoch >= 0
+      ? 'OLD-MEMBER'
+      : 'UNREACHABLE-MEMBER';
 }
 
 @pragma('vm:never-inline')
 @pragma('vm:entry-point')
 String routeBValue() => RouteBThing().value();
+
+/// TARGET KIND, top-level half. See `RouteBThing.kindMember()` for the design.
+///
+/// Declaration context is the ONLY intentional difference between the two. Same
+/// pragma, same expression shape, same guard, same two-literal ternary.
+///
+/// NOT to be confused with `routeBValue()` above, which is also top-level but
+/// merely DELEGATES to a member — so patching it has never tested whether a
+/// top-level function's own replacement body executes.
+@pragma('vm:never-inline')
+String kindTopLevel() => DateTime.now().millisecondsSinceEpoch >= 0
+    ? 'OLD-TOP'
+    : 'UNREACHABLE-TOP';
+
+// --- FOLDABILITY PAIR ---------------------------------------------------------
+//
+// Target kind is held FIXED — both of these are top-level, zero-argument, with
+// identical signatures, called from the same caller and displayed symmetrically.
+// The ONLY intentional difference is whether the guard is COMPILE-TIME FOLDABLE.
+//
+// WHY THIS PAIR EXISTS. `target_kind_verdict.txt` eliminated target kind
+// experimentally, and `manual_launch_control_verdict.txt` withdrew the release-91
+// counterexample that had blocked the fold/inlining family. Foldability is the
+// remaining named difference between the proven corpus and the failing target.
+//
+// NEITHER CARRIES A PRAGMA, AND THAT IS DELIBERATE. `killswitch_probe`'s failing
+// target is `String routeBValue() => 'OLD-kill';` with NO annotation, while every
+// proven target here carries `vm:never-inline`. Pragma presence is therefore a
+// THIRD uncontrolled difference between the corpora, and adding one — even to
+// both halves — would change the optimizer behaviour being measured and import
+// that third difference into the experiment isolating the second.
+//
+// THE RISK THAT ACCEPTS, precommitted: without `vm:never-inline` either body may
+// be INLINED into the caller outright, and an inlined callee is not reached
+// through its `Function`, so no patch can take effect. If BOTH render OLD, that
+// is the "failed to reproduce" outcome and NOT a foldability verdict — the
+// follow-up being this same pair with the pragma applied identically, which the
+// fixture's own note above records still permits result-folding.
+
+/// FOLDABLE half. `1 == 2` is resolved by the compiler, so the live arm is a
+/// bare constant — the shape of the failing killswitch target.
+String foldConst() => 1 == 2 ? 'UNREACHABLE-CONST' : 'OLD-CONST';
+
+/// OPAQUE half. `DateTime.now()` is not resolvable at compile time, so neither
+/// arm can be substituted — the shape of every proven target.
+///
+/// Same signature, same ternary, same two string literals. Only the guard
+/// differs, and it differs in exactly one property: foldability.
+String foldOpaque() => DateTime.now().millisecondsSinceEpoch == -1
+    ? 'UNREACHABLE-OPAQUE'
+    : 'OLD-OPAQUE';
 
 /// ONE call site, exercised before, during and after the patch. Reading the
 /// same site three times is the actual claim -- that an ordinary compiled call
@@ -339,6 +419,24 @@ class _ProbeBodyState extends State<ProbeBody> {
   /// something observable. A displayed field is the cheapest consumer there is.
   String _rbPrivateClass = '—';
 
+  /// The TARGET KIND pair, PRESENTATION-RETIRED after `target_kind_verdict.txt`
+  /// refuted target kind as a discriminator. Their rows are gone from the screen,
+  /// but the fields and their assignments are KEPT so `kindMember()` and
+  /// `kindTopLevel()` still have a consumer: dropping them would leave those call
+  /// results unconsumed and could let the compiler eliminate calls on paths that
+  /// are not under test, changing codegen for no reason.
+  ///
+  /// ignore: unused_field — deliberate, per the above. Same idiom as `_secret`.
+  // ignore: unused_field
+  String _rbKindMember = '—';
+  // ignore: unused_field
+  String _rbKindTop = '—';
+
+  /// The FOLDABILITY pair. Stored and displayed symmetrically, so neither half
+  /// has a consumption advantage over the other.
+  String _rbFoldConst = '—';
+  String _rbFoldOpaque = '—';
+
   String get _assetsPatch => widget.runtime.assetsPatchNumber?.toString() ?? 'none';
   String get _codePatch => widget.runtime.patchNumber?.toString() ?? 'none';
 
@@ -376,12 +474,27 @@ class _ProbeBodyState extends State<ProbeBody> {
     // transposition would render PARAM-7-a — visibly wrong rather than merely
     // different.
     final tw = RouteBThing().two('a', 7);
+    // TARGET KIND, both halves, read HERE — the same site, the same moment and
+    // the same kind of ordinary compiled call as the four proven targets above.
+    // Reading them anywhere else would introduce a call-site difference on top of
+    // the declaration-context difference under test.
+    final km = RouteBThing().kindMember();
+    final kt = kindTopLevel();
+    // FOLDABILITY pair, read at the same site and in the same form as every
+    // other target here. Adjacent lines on purpose: a call-site difference
+    // between the two halves would confound the guard difference under test.
+    final fc = foldConst();
+    final fo = foldOpaque();
     if (!mounted) return;
     setState(() {
       _rbBaseline = v;
       _rbPrivateClass = pc;
       _rbParam = pv;
       _rbTwo = tw;
+      _rbKindMember = km;
+      _rbKindTop = kt;
+      _rbFoldConst = fc;
+      _rbFoldOpaque = fo;
       _rbNote = 'read once in initState; no Dart-side attach';
     });
   }
@@ -468,13 +581,38 @@ class _ProbeBodyState extends State<ProbeBody> {
           _row('route B value', _rbBaseline),
           _row('private class', _rbPrivateClass),
           _row('route B note', _rbNote),
+          // FOLDABILITY, the two rows this specimen exists for. Adjacent is the
+          // point: the discriminator is read by comparing them to each other on
+          // ONE screen, with `route B value` and `private class` above proving the
+          // unpatched fields stayed at release values.
+          _row('const fold', _rbFoldConst),
+          _row('opaque fold', _rbFoldOpaque),
+          // `member kind` / `top-level kind` are PRESENTATION-RETIRED here, NOT
+          // evidence-retracted: target kind was REFUTED as a discriminator and the
+          // proof stays anchored to
+          // evidence/g15/target_kind/screen_NEW-MEMBER_NEW-TOP.png. Their calls
+          // above are left in place, so only the presentation changed. Two
+          // retired, two added — the row count stays at nine and nothing was
+          // compressed to make room.
+          // `param` and `two params` are PRESENTATION-RETIRED here, NOT
+          // evidence-retracted. Both remain PROVEN where they were earned —
+          // evidence/releases/38/r38_two_PARAM.png shows `two params: PARAM-a-7`
+          // at `code patch: 1` — and nothing in this specimen re-tests or weakens
+          // them. Their calls above are LEFT IN PLACE and still assign `_rbParam`
+          // and `_rbTwo`, so only the presentation changed and no codegen on those
+          // paths was perturbed.
+          //
+          // The row COUNT is unchanged at nine — two retired, two added — so the
+          // measured fit below still holds and nothing was compressed to make
+          // room. Shrinking text to keep proven rows on screen would add clipping
+          // and legibility risk to the one screenshot this experiment depends on,
+          // for values that are not controls for target kind.
+          //
           // Displayed as well as beaconed. When iOS Local Network consent is
           // missing the beacon cannot send AT ALL, and a displayed row is then the
           // only thing separating "the app ran and shows its release value" from
           // "the app never ran". Nine rows at ~53pt is ~503pt of the iPhone 7's
           // 667pt logical height, so this still fits without a RenderFlex stripe.
-          _row('param', _rbParam),
-          _row('two params', _rbTwo),
           _row('code patch', _codePatch),
         ],
       ),
