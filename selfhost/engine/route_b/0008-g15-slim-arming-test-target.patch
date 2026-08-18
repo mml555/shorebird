@@ -1,0 +1,133 @@
+G15.1 — a slim arming-test target, so 0007's tests EXECUTE
+
+WHAT THIS FIXES. `0007` added three tests to shorebird_unittests.cc pinning the
+Route B arming contract, and they had never run. shorebird_unittests also compiles
+patch_cache_unittests.cc and deps //flutter/runtime/shorebird:patch_cache, whose
+patch_cache.cc calls Shorebird_ReadLinkHeader — a symbol only Shorebird's private
+Dart fork defines. So on this host build there was an object file
+(shorebird_unittests.shorebird_unittests.o) and NO linked binary at
+out/host_release_arm64/shorebird_unittests. A compile earns nothing under PARITY's
+Status vocabulary, so the contract was pinned on paper.
+
+WHY DROPPING THE DEP IS LEGITIMATE AND NOT A WORKAROUND. source_set("shorebird")
+does not depend on patch_cache, and //flutter/runtime gates that dep on
+shorebird_use_interpreter, declared `is_ios` in flutter/common/config.gni and not
+overridden in this host build's args.gn — so it is false here and the symbol is
+genuinely unnecessary. MEASURED, not argued: the target links (257/257) and the
+three tests pass, which is what rules out the alternative that the symbol arrives
+through //flutter/runtime anyway (in which case the honest move was to build the
+tests in the shipping iOS tree instead).
+
+The target must stay INSIDE the `if (enable_unittests)` block: at top level
+`:shorebird_fixtures` is an undefined label and gn errors.
+
+THE ROOT THIS WAS GENERATED FROM, because the series is inconsistent about it:
+`git diff` run in /Volumes/build/route-b/flutter, the monorepo root, so paths read
+`engine/src/flutter/shell/common/shorebird/BUILD.gn`. That matches 0003's prefix
+style and NOT 0007's, which is relative to engine/src/flutter.
+
+  apply:  git apply -p1        from /Volumes/build/route-b/flutter
+     or:  patch -p3            from /Volumes/build/route-b/flutter/engine/src/flutter
+
+VERIFY BY CONTENT, NEVER BY `git apply` EXIT CODE (create_checkout.sh:58 says why):
+
+  grep -n 'shorebird_arming_unittests' \
+    engine/src/flutter/shell/common/shorebird/BUILD.gn        # the target exists
+  ninja -C out/host_release_arm64 shorebird_arming_unittests  # it links
+  ./out/host_release_arm64/shorebird_arming_unittests \
+    --gtest_filter='Shorebird.RouteBArming*'                  # [ PASSED ] 3 tests
+
+Measured 2026-08-13: linked, and RouteBArmingIsInertWithoutAPatch,
+RouteBArmingInstallsACallbackForAPatch, RouteBArmingChainsAnExistingCallback all
+pass. This says nothing about two engines — that is G15's own gate and needs a host
+that constructs two FlutterEngines in one process.
+
+diff --git a/engine/src/flutter/shell/common/shorebird/BUILD.gn b/engine/src/flutter/shell/common/shorebird/BUILD.gn
+index 8c8034a24c..e9de500f16 100644
+--- a/engine/src/flutter/shell/common/shorebird/BUILD.gn
++++ b/engine/src/flutter/shell/common/shorebird/BUILD.gn
+@@ -117,6 +117,20 @@ source_set("updater") {
+   }
+ }
+ 
++# Route B patch containers. Split out from :shorebird so the container reader
++# can be unit-tested without dragging in the updater and the whole shell.
++source_set("route_b_patch") {
++  sources = [
++    "route_b_patch.cc",
++    "route_b_patch.h",
++  ]
++
++  deps = [
++    "//flutter/fml",
++    "//flutter/third_party/rapidjson",
++  ]
++}
++
+ source_set("shorebird") {
+   sources = [
+     "shorebird.cc",
+@@ -124,6 +138,7 @@ source_set("shorebird") {
+   ]
+ 
+   deps = [
++    ":route_b_patch",
+     ":snapshots_data_handle",
+     ":updater",
+     "//flutter/fml",
+@@ -139,17 +154,55 @@ if (enable_unittests) {
+     fixtures = []
+   }
+ 
++  # A SLIM SIBLING of shorebird_unittests, and the reason it exists is a link
++  # failure, not a preference.
++  #
++  # shorebird_unittests compiles patch_cache_unittests.cc and deps
++  # //flutter/runtime/shorebird:patch_cache, whose patch_cache.cc calls
++  # Shorebird_ReadLinkHeader -- a symbol only Shorebird's private Dart fork
++  # defines. On this host build there is therefore an object file
++  # (shorebird_unittests.shorebird_unittests.o) and NO linked binary, so the
++  # arming tests that 0007 added have never actually EXECUTED. A compile earns
++  # nothing (PARITY's Status vocabulary), so the tests were pinning the contract
++  # on paper only.
++  #
++  # This target carries shorebird_unittests.cc alone and drops the patch_cache
++  # dep. Two facts make that legitimate rather than a workaround: source_set
++  # "shorebird" above does not depend on patch_cache, and //flutter/runtime gates
++  # that dep on shorebird_use_interpreter, which is `is_ios` in
++  # flutter/common/config.gni and is not overridden in this host build's args.gn
++  # -- so it is false here and the symbol is genuinely not needed.
++  #
++  # It must live INSIDE this if-block: at top level `:shorebird_fixtures` is an
++  # undefined label and gn errors out.
++  executable("shorebird_arming_unittests") {
++    testonly = true
++
++    sources = [ "shorebird_unittests.cc" ]
++
++    deps = [
++      ":shorebird",
++      ":shorebird_fixtures",
++      ":updater",
++      "//flutter/runtime",
++      "//flutter/testing",
++      "//flutter/testing:fixture_test",
++    ]
++  }
++
+   executable("shorebird_unittests") {
+     testonly = true
+ 
+     sources = [
+       "patch_cache_unittests.cc",
++      "route_b_patch_unittests.cc",
+       "shorebird_unittests.cc",
+       "snapshots_data_handle_unittests.cc",
+       "updater_unittests.cc",
+     ]
+ 
+     deps = [
++      ":route_b_patch",
+       ":shorebird",
+       ":shorebird_fixtures",
+       ":snapshots_data_handle",

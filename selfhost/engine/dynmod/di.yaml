@@ -1,0 +1,21 @@
+# cspell:words dynmod devirtualizing
+# Dynamic interface for the host app: what a dynamic module is allowed to touch.
+#
+# The library is named by the URI the CFE indexes it under, which is the
+# package: URI from .dart_tool/package_config.json — NOT a file: URI. Getting
+# this wrong fails as "The library ... has not been indexed" deep inside
+# LibraryIndex, which reads like a compiler bug rather than a bad reference.
+callable:
+  - library: 'package:dynmod/host.dart'
+    class: 'Greeter'
+    member: 'greet'
+extendable:
+  - library: 'package:dynmod/host.dart'
+    class: 'Greeter'
+# The category under test. Read alongside the others, this keeps AOT's type-flow
+# analysis from devirtualizing or inlining the member, so a module's subclass
+# can still be dispatched to. It does not let a module redirect the member.
+can-be-overridden:
+  - library: 'package:dynmod/host.dart'
+    class: 'Greeter'
+    member: 'greet'
