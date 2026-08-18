@@ -19,12 +19,29 @@ where `<token>` is either an **API key** (`sb_api_…`, bootstrap or per-user) o
 **session JWT** from `shorebird login`. Public endpoints (no auth): `/healthz`,
 `/readyz`, `/console`, `/admin/ui`, `/download/*` (signed), `/login`, `/token`,
 `/oauth/callback`, `/api/logout`, `/.well-known/jwks.json`, `/patches/check`,
-`/patches/events`.
+`/patches/assets`, `/crashes`, `/patches/events`, `/metrics`, `GET /`, and
+`/diagnostics/speedtest`.
 
-**Errors.** Non-2xx responses are `{"code": "...", "message": "...", "details"?: …}`.
-Common statuses: `400` bad request, `401` missing/invalid auth, `403` cross-tenant
-/ insufficient role, `404` not found, `409` state-machine violation (e.g. finalize
-before verified, promote a non-ready patch).
+> `/diagnostics/speedtest`, `/metrics` and `GET /` added to this list 2026-08-13.
+> The speedtest is unauthenticated on **both** verbs — `GET` streams up to
+> 16,000,000 zero bytes (`?size=` clamped) and any other verb drains and discards
+> an upload, returning `204`. It is separately rate-limited (`speed:<ip>`, 6/min)
+> precisely because it is public and moves 16 MB a call. Omitting a public
+> bandwidth endpoint from the public list is the kind of gap an operator writing
+> firewall or WAF rules from this document would inherit.
+
+**Errors.** Non-2xx JSON responses are `{"code": "...", "message": "..."}` — exactly
+two keys. Common statuses: `400` bad request, `403` **all auth failures**, `404` not
+found, `409` state-machine violation (e.g. finalize before verified, promote a
+non-ready patch).
+
+> Corrected 2026-08-13. This block listed `401` for "missing/invalid auth" and an
+> optional `details` key; the API emits neither. A missing bearer and an invalid
+> credential both return **`403 {"code":"forbidden"}`** — the single
+> `HttpStatus.unauthorized` in the server is the HTML login form re-render, not a
+> JSON API response — and `_err` builds a two-key body with no `details`. A client
+> written from the old text would branch on a 401 that never arrives and treat a
+> genuine auth failure as an authorization bug.
 
 **Auth context.** An API key resolves to a user; the bootstrap key maps to user 1
 (owner of the default org). App-scoped requests require the user to own the app's
@@ -41,8 +58,9 @@ These are exactly what the pinned Shorebird CLI calls for `init` / `release` /
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| GET | `/organizations` | — | `{"organizations":[{"organization":{"id","name","org_type"},"role"}]}` |
+| GET | `/organizations` | — | `{"organizations":[{"organization":{"id","name","organization_type"},"role"}]}` (corrected 2026-08-13 — this row said `org_type`; the server emits `organization_type`, `api.dart:1069`) |
 | GET | `/users/me` | — | `PrivateUser` `{id,email,jwt_issuer,…}` (404 → treated as null by CLI) |
+| POST | `/users` | `{"display_name"?}` | `PrivateUser` — **added 2026-08-13, was undocumented** in a table introduced as "every HTTP endpoint the server exposes". Authenticated; the CLI calls it to create/rename the account behind a session JWT. It upserts on the **authenticated caller's email**, never on anything in the body |
 
 ### Apps
 
@@ -55,7 +73,7 @@ These are exactly what the pinned Shorebird CLI calls for `init` / `release` /
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/apps/{appId}/releases` | `{"version":"1.0.0+1","flutter_revision":"…","flutter_version"?,"display_name"?,"notes"?}` | `{"release":{"id","version","flutter_revision","status","notes",…}}` |
+| POST | `/apps/{appId}/releases` | `{"version":"1.0.0+1","flutter_revision":"…","flutter_version"?,"display_name"?,"notes"?}` | `{"release":{"id","app_id","version","flutter_revision","flutter_version","display_name","platform_statuses","created_at","updated_at","notes","metadata"}}` — corrected 2026-08-13: this row said `"status"`, and `_releaseJson` (`api.dart:2834-2849`) emits **no `status` key at all**. Per-platform state is `platform_statuses`, which the pinned CLI casts **unguarded** (`shorebird_code_push_protocol/.../release.dart`), so omitting it is a client crash, not a missing field. (`status` *is* a valid request field on `PATCH` below — different row) |
 | GET | `/apps/{appId}/releases` | — | `{"releases":[Release]}` |
 | PATCH | `/apps/{appId}/releases/{releaseId}` | `{"status"?:"active","platform"?:"android","metadata"?,"notes"?}` | 204 · **409** if set `active` before all artifacts verified (fail-closed finalize) |
 
@@ -76,7 +94,9 @@ mismatch fails the artifact (`400` on upload) and the release cannot finalize.
 |---|---|---|---|
 | POST | `/apps/{appId}/patches` | `{"release_id":1,"metadata":{},"notes"?}` | `{"id","number","notes"}` |
 | POST | `/apps/{appId}/patches/{patchId}/artifacts` | multipart: `arch,platform,hash,size,hash_signature?,podfile_lock_hash?` | `{…,"url","upload_method"}` |
-| POST | `/apps/{appId}/patches/promote` | `{"patch_id":1,"channel_id":1}` | 204 · **409** if the patch isn't `ready` |
+| POST | `/apps/{appId}/patches/promote` | `{"patch_id":1,"channel_id":1,"rollout"?:0-100}` | 204 · **400** if `rollout` is outside 0-100 · **409** if the patch isn't `ready` |
+
+> `rollout` (optional, default `100`) added to this row 2026-08-13 — it was undocumented, and it is the only non-admin way to promote straight into a partial rollout (`_promotePatch`). PARITY.md §6 already counts it as part of the built rollout surface.
 | PATCH | `/apps/{appId}/patches/{patchId}` | `{"notes"?}` | `{"id","number","notes"}` |
 
 ### Release & patch notes
@@ -141,6 +161,26 @@ release was built from (#3443) and the `--dart-define` values set at release
 time so a patch can warn when they changed (#3700). This is the storage and
 display half.
 
+**Partly overtaken on the fork side, and worth knowing before anyone implements
+#3700 here.** A Route B release already records its effective define set — but in
+the SHIPPED SUPPLEMENT (`route_b.json`'s `buildConfig`), not in this blob, so the
+server still cannot answer "what defines built this release" and the statement
+above remains true of the API. What exists CLI-side:
+
+* `effectiveDefines` — the user's `--dart-define` and `--dart-define-from-file`
+  values, canonicalized. **This is what compatibility is decided on**, and a patch
+  is refused before compiling when it disagrees.
+* `injectedDefines` — the six Flutter injects into every build
+  (`FLUTTER_VERSION` and siblings). **Deliberately outside the fingerprint** and
+  used only to compile a patch's replacement in the same `-D` environment. See
+  `PARITY.md` §4 `G4.1c`.
+
+So #3700's "warn when they changed" is already a *refusal* on this fork, and
+anyone adding the server-side field should mirror that split rather than
+flattening both maps into one — they answer different questions. The same gap
+`R8` recorded for the engine/cell field applies: the authoritative record lives
+in the on-device artifact rather than on the server.
+
 A patch's `hash` is the **inflated-output** hash (the reconstructed `libapp.so`),
 while the uploaded bytes are a binary diff — so the server verifies only the
 patch's `size`; the device verifies the hash after inflating.
@@ -156,7 +196,34 @@ patch's `size`; the device verifies the hash after inflating.
 
 | Method | Path | Response |
 |---|---|---|
-| GET | `/apps/{appId}/metrics` | `{"patches":[{"patch_number","downloads","installs","install_failures","update_failures","unique_clients"}]}` |
+| GET | `/apps/{appId}/metrics` | `{"patches":[{"patch_number","downloads","installs","install_failures","update_failures","unique_clients"}]}` — plus **top-level** `total_events`, `unique_clients` and an `events_by_type` map, which the handler spreads alongside `patches` (`return _json({...app, 'patches': patches})`). Noted 2026-08-13; `unique_clients` appears at both levels with different meanings — per-app at the top, per-patch inside. |
+
+### Crashes (read, with symbolication)
+
+`GET /api/v1/apps/{appId}/crashes`
+Optional: `release_version`, `patch_number`, `limit` (default 100),
+`symbolicate=true`.
+
+Returns `{ "crashes": [ { id, client_id, release_version, patch_number, platform,
+arch, kind, message, stack, ts, received_at } ] }`.
+
+With `symbolicate=true`, each entry gains **`stack_symbolicated`** — the trace
+resolved against the debug symbols retained for that patch (`arch: symbols`,
+uploaded when the patch was built with `--split-debug-info`). `null` is a normal
+outcome: a crash on an unpatched release has no retained symbols, and symbols may
+be uploaded after a crash arrives. The raw `stack` is always present alongside.
+
+Notable choices:
+
+- **Opt-in**, because resolving costs a fetch, unzip and DWARF parse per distinct
+  patch in the page. Off by default the response is unchanged for existing callers.
+- **Read-time, never ingest-time.** Ingest must stay unfailable, and symbols
+  routinely arrive *after* a crash, so resolving at ingest would permanently miss.
+- **Pure Dart** (`package:native_stack_traces`, the same one `flutter symbolize`
+  uses), which reads both the ELF form (Android) and the Mach-O form (Apple). One
+  implementation covers every platform with no native toolchain in the image —
+  `llvm-symbolizer` and `atos` would only matter for native C/Objective-C frames,
+  which a Dart crash handler does not produce.
 
 ### Uploads
 
@@ -185,19 +252,47 @@ The updater reads `base_url` from the bundled `shorebird.yaml` and calls these �
 ```json
 { "app_id":"<uuid>", "release_version":"1.0.0+1", "platform":"android",
   "arch":"aarch64", "channel":"stable", "client_id":"<uuid>",
-  "patch_number": 0 }
+  "current_patch_number": 1,
+  "supported_patch_kinds": ["code","assets"] }
 ```
+
+> `current_patch_number` is what the pinned updater actually sends, and it is
+> **omitted entirely on a fresh install** rather than sent as `0` (corrected
+> 2026-08-13 — this block documented only `patch_number: 0`). `patch_number` is
+> the LEGACY spelling and is still accepted: the server reads
+> `current_patch_number ?? patch_number ?? 0`. Documenting only the legacy name
+> left `API_REFERENCE.md` and `UPDATER_CONTRACT.md` §2 describing two different
+> request shapes for the same endpoint.
+
 Response:
 ```json
 { "patch_available": true,
   "patch": { "number": 1, "download_url": "…/download/<token>?exp=&sig=",
-             "hash": "<sha256>", "hash_signature": "<base64>|null" },
+             "hash": "<sha256>", "hash_signature": "<base64>|null",
+             "kind": "code" },
   "rolled_back_patch_numbers": [] }
 ```
 A patch is offered only if its artifact is verified, the patch is `ready` (not
 invalidated), an **active** channel-patch makes this `client_id` eligible under
 the current rollout, and its number exceeds the client's. A rolled-back patch's
 number appears in `rolled_back_patch_numbers` (installed devices revert).
+
+**`kind`** (always present) is `code` for the usual patch, or `assets` for a
+patch whose payload is assets and nothing else — the shape that lets the
+engine's asset overlay ship where code cannot, because there is nothing to link
+or interpret.
+
+**`supported_patch_kinds`** (optional, defaults to code-only) is a *capability
+gate, not a hint*. An assets-only patch is offered **only** to a client that
+lists `assets`. A stock updater handed one would try to inflate an asset archive
+as a binary diff against the release snapshot, fail, and tombstone the patch as
+permanently bad for that release — so silence must mean "code only". A
+wrong-typed value is read as no support, failing closed like every other field
+on this endpoint.
+
+Where a patch carries both a code artifact and an asset bundle, `kind` is
+`code`: the bundle rides alongside and is fetched separately via
+`/patches/assets`.
 
 ### Events
 
@@ -210,6 +305,54 @@ number appears in `rolled_back_patch_numbers` (installed devices revert).
 Returns `204`. Idempotent (deduped by `client_id|app_id|release_version|
 patch_number|type|timestamp`). Known types: `__patch_download__`,
 `__patch_install__`, plus `__patch_install_failure__` / `__patch_update_failure__`.
+
+### Patch asset bundle
+
+`POST /api/v1/patches/assets`
+```json
+{ "app_id":"<uuid>", "release_version":"1.0.0+1", "platform":"android",
+  "patch_number": 1 }
+```
+Response:
+```json
+{ "assets_available": true,
+  "assets": { "url": "…/download/<token>?exp=&sig=", "hash": "<sha256>",
+              "size": 114524 } }
+```
+Serves the `flutter_assets` overlay attached to a patch, so a patch can change
+assets and not only Dart code. The bundle is an ordinary patch artifact tagged
+`arch: assets` (see [`PLATFORM_MATRIX.md`](PLATFORM_MATRIX.md)); no schema or
+protocol change was needed because `arch` is free-form end to end.
+
+The **native updater never sees this** — it downloads exactly one artifact and
+applies it as a binary diff. App-side Dart fetches the bundle instead
+([`code_push_runtime`](../packages/code_push_runtime)), which is what keeps the
+feature off the engine-build critical path and therefore working on iOS.
+
+Malformed or unknown input answers `{"assets_available": false, "assets": null}`
+rather than erroring: this is polled on launch by app code, and a hard failure
+would be a needless crash path for a purely additive feature. A **rolled-back**
+patch stops serving its assets, or an app that had reverted would keep using the
+newer bundle against older code.
+
+### Crash reports
+
+`POST /api/v1/crashes`
+```json
+{ "app_id":"<uuid>", "client_id":"<uuid>", "release_version":"1.0.0+1",
+  "patch_number": 1, "platform":"android", "arch":"arm64",
+  "kind":"StateError", "message":"Bad state: …",
+  "stack":"*** *** ***\npid: …\n    #00 abs 0000… virt 0000…",
+  "timestamp": 1785000000 }
+```
+Always answers `200 {"stored": <bool>}`. **It never fails**, and swallows
+malformed input on purpose: the client is an app that just died, and making it
+fight 4xx/5xx is a second failure on top of the first. A test named
+`garbage never fails the reporter` guards this.
+
+`arch` matters — it selects which retained symbol file the trace is resolved
+against, and the wrong one resolves every frame to a wrong address. Read back via
+`GET /api/v1/apps/{appId}/crashes` below.
 
 ### Download
 

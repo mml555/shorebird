@@ -196,7 +196,7 @@ flowchart TB
   subgraph ours["OUR infrastructure — ONE container by default"]
     SRV["code_push_server<br/>Dart · shelf<br/>SQLite + local-disk artifacts"]
     SCALE[("scale option:<br/>Postgres + S3/MinIO")]
-    CDN["CDN mirror<br/>artifact_proxy + nginx"]
+    CDN["CDN mirror<br/>artifact_proxy + Caddy"]
     SRV -.->|"only if you scale"| SCALE
   end
   GCS[("Shorebird open-source<br/>engine + tooling")]
@@ -343,7 +343,7 @@ sequenceDiagram
           <tr><td><code>oauth.dart</code></td><td>RS256 JWT mint/verify, IdP token decoding</td></tr>
           <tr><td><code>rollout.dart</code> · <code>signing.dart</code> · <code>content_range.dart</code></td><td>pure, unit-tested logic — bucketing, signed URLs, Content-Range parsing</td></tr>
           <tr><td><code>console/</code></td><td>self-contained web dashboard (apps, rollouts, analytics charts)</td></tr>
-          <tr><td><code>selfhost/cdn/</code></td><td>build-time CDN mirror (artifact_proxy + nginx cache)</td></tr>
+          <tr><td><code>selfhost/cdn/</code></td><td>build-time CDN mirror (artifact_proxy + Caddy cache)</td></tr>
         </tbody>
       </table>
     </div>
