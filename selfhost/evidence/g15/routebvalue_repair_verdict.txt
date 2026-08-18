@@ -10,11 +10,11 @@ THE RESULT — first row of the precommitted table
 **`route B value: NEW-kill`**, launch `hlfr7vj9g1`, on the target that drove this
 entire investigation.
 
-    screen_NEW-kill_hlfr7vj9g1.png   release 1.0.8+1 (preserved as 98), patch 1
+    screen_NEW-kill_hlfr7vj9g1.png   release 1.0.8+1 (control-plane id 99, preserved as 99), patch 1
 
 THE FULL CHAIN, EVERY LINK MEASURED ON ONE TARGET
 ---------------------------------------------------
-| link | BEFORE (rel 95/96, foldable body) | AFTER (rel 98, opaque body) |
+| link | BEFORE (rel 95/96, foldable body) | AFTER (rel 99, opaque body) |
 |---|---|---|
 | release body | `=> 'OLD-kill'` (constant) | `DateTime.now()… == -1 ? 'UNREACHABLE-KILL' : 'OLD-kill'` |
 | compiled size | `0xe9ff4-0xea000` = **12 B** stub | `0xea090-0xea110` = **128 B** real code |

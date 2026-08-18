@@ -10,8 +10,8 @@ RESULT: NOT LOCATED
 No call site matched the locator, so nothing was measured. This is NOT
 result-consumption is UNKNOWN. Check the locator before reading any
 
-AFTER — release 98 (opaque guard, same name/signature/caller):
-locator         : symbol routeBValue at 0xea090-0xea110 (resolved in selfhost/evidence/releases/98/App.dSYM.DWARF)
+AFTER — release 99 / 1.0.8+1 (opaque guard, same name/signature/caller):
+locator         : symbol routeBValue at 0xea090-0xea110 (resolved in selfhost/evidence/releases/99/App.dSYM.DWARF)
 located         : 1
 site 0xea0b4  (no symbol)
   VERDICT       : CONSUMED
