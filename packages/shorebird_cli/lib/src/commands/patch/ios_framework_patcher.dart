@@ -158,7 +158,13 @@ class IosFrameworkPatcher extends Patcher with ApplePatcherMixin {
       p.join(shorebirdEnv.getShorebirdProjectRoot()!.path, 'build', 'out.aot'),
     );
     // TODO(eseidel): Drop support for builds before the linker.
-    final useLinker = AotTools.usesLinker(shorebirdEnv.flutterRevision);
+    // An assets-only patch carries no code and its code bundles are dropped
+    // before upload, so linking would build a `.vmcode` only to discard it.
+    // Skipping it also removes the only use of `aot-tools.dill` — Shorebird's
+    // AOT linker, which we cannot build — so this is the one iOS patch shape
+    // that works without their toolchain.
+    final useLinker =
+        !assetsOnly && AotTools.usesLinker(shorebirdEnv.flutterRevision);
     if (useLinker) {
       apple.copySupplementFilesToSnapshotDirs(
         releaseSupplementDir: releaseSupplementDir,

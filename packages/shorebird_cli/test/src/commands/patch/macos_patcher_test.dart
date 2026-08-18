@@ -1129,6 +1129,57 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
       });
     });
 
+    group('assetsDirectory', () {
+      late Directory app;
+
+      setUp(() {
+        app = Directory.systemTemp.createTempSync();
+        when(
+          () => artifactManager.getMacOSAppDirectory(
+            flavor: any(named: 'flavor'),
+          ),
+        ).thenReturn(app);
+      });
+
+      test('is null when no .app was built', () async {
+        when(
+          () => artifactManager.getMacOSAppDirectory(
+            flavor: any(named: 'flavor'),
+          ),
+        ).thenReturn(null);
+
+        await expectLater(
+          runWithOverrides(patcher.assetsDirectory),
+          completion(isNull),
+        );
+      });
+
+      test('is null when the .app has no flutter_assets', () async {
+        await expectLater(
+          runWithOverrides(patcher.assetsDirectory),
+          completion(isNull),
+        );
+      });
+
+      test('finds flutter_assets in the macOS layout', () async {
+        // macOS nests it deeper than iOS, under Contents/ and Resources/.
+        final assets = Directory(
+          p.join(
+            app.path,
+            'Contents',
+            'Frameworks',
+            'App.framework',
+            'Resources',
+            'flutter_assets',
+          ),
+        )..createSync(recursive: true);
+
+        final result = await runWithOverrides(patcher.assetsDirectory);
+
+        expect(result?.path, equals(assets.path));
+      });
+    });
+
     group('extractReleaseVersionFromArtifact', () {
       group('when app directory does not exist', () {
         setUp(() {

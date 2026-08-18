@@ -53,6 +53,14 @@ See more info about the issue ${link(uri: Uri.parse('https://github.com/shorebir
   /// See https://github.com/shorebirdtech/shorebird/issues/3388.
   Directory? _patchArchsBuildDir;
 
+  /// The AAB built by [buildPatchArtifact], retained so [assetsDirectory] can
+  /// read `flutter_assets` out of the same bundle the patch was built from.
+  File? _patchAab;
+
+  /// Memoized [assetsDirectory] result, so a repeated call does not decode the
+  /// AAB again. Extraction is skipped entirely unless assets are requested.
+  Directory? _assetsDir;
+
   @override
   ReleaseType get releaseType => ReleaseType.android;
 
@@ -103,7 +111,7 @@ See more info about the issue ${link(uri: Uri.parse('https://github.com/shorebir
       ...extraBuildArgs,
       ...buildNameAndNumberArgsFromReleaseVersion(releaseVersion),
     ];
-    final aabFile = await artifactBuilder.buildAppBundle(
+    final aabFile = _patchAab = await artifactBuilder.buildAppBundle(
       flavor: flavor,
       target: target,
       args: buildArgs,
@@ -247,6 +255,29 @@ Please refer to ${link(uri: Uri.parse('https://github.com/shorebirdtech/shorebir
     }
     createDiffProgress.complete();
     return patchArtifactBundles;
+  }
+
+  @override
+  Future<Directory?> assetsDirectory() async {
+    if (_assetsDir != null) return _assetsDir;
+
+    final aab = _patchAab;
+    if (aab == null || !aab.existsSync()) {
+      logger.detail(
+        'Cannot resolve patch assets: no patch AAB was built in this session.',
+      );
+      return null;
+    }
+
+    try {
+      return _assetsDir =
+          await ArtifactManager.extractAndroidFlutterAssetsFromAab(aab);
+    } on Exception catch (error) {
+      logger.detail(
+        'Failed to extract flutter_assets from ${aab.path}: $error',
+      );
+      return null;
+    }
   }
 
   @override
