@@ -112,3 +112,101 @@ Work happens on `experimental`. PRs are carved from it, not the reverse.
   right to. Use `git worktree add`, or build commits with plumbing (`read-tree`
   + `update-index --index-info` + `commit-tree`), which touches no working tree
   at all.
+
+---
+
+# How work becomes a PR
+
+The standard flow, so nobody has to invent one again.
+
+## 1. Work happens on `experimental`
+
+Not on PR branches. `experimental` is the integration branch — it always builds,
+always holds the newest state, and is what device runs are cut from. PRs are
+CARVED FROM it afterwards, never the reverse.
+
+Why: splitting is mechanical and can be done at any time with plumbing. Trying to
+maintain N parallel feature branches while doing exploratory engine work is not.
+
+## 2. Commit as you go, with the WHY in the message
+
+One commit per coherent change. The message states what changed, what it does NOT
+claim, and what was verified rather than assumed. Semantic prefix required:
+
+    feat|fix|chore|docs|test|probe(scope): summary
+
+`probe` is ours: a measurement run whose result is the deliverable.
+
+## 3. When a slice is ready to review, carve it
+
+    # find the seam
+    git diff --numstat main..experimental -- <area>
+
+    # build the PR branch WITHOUT touching your working tree
+    GIT_INDEX_FILE=/tmp/idx git read-tree main
+    git ls-tree experimental -- <files> | GIT_INDEX_FILE=/tmp/idx git update-index --index-info
+    TREE=$(GIT_INDEX_FILE=/tmp/idx git write-tree)
+    git branch <br> $(git commit-tree $TREE -p main -m "feat(x): ...")
+
+    # PROVE nothing was lost
+    git rev-parse <stack-tip>^{tree}  ==  git rev-parse <original>^{tree}
+
+Plumbing, not checkouts: the working tree is never disturbed, so a device run or
+build in progress is unaffected.
+
+## 4. Choose the PR shape by dependency, not by size
+
+| situation | shape |
+|---|---|
+| files with no imports between them | independent PRs, all based on `main` |
+| A imports B | STACK: B based on `main`, A based on B |
+| a whole new package | one PR — do not split below its natural surface |
+| shell scripts | group by function |
+
+## 5. Label the PR with the project's own status vocabulary
+
+Every PR body opens with the status of what it adds. Use `PARITY.md`'s
+vocabulary — it already exists and is the shared language:
+
+| status | means | review implication |
+|---|---|---|
+| **PROVEN** | validated end to end on device / real target | merge on review |
+| **BUILT** | implemented with host tests; product-path validation incomplete | merge, but do not cite as capability |
+| **PARTIAL** | important cases work, feature surface not covered | state which cases |
+| **INHERITED** | upstream code present, never validated on our stack | do not claim it works |
+| **KNOWN GAP** | understood incompatibility | must be documented, not fixed silently |
+| **EXPERIMENTAL** | research; not in the supported contract | never blocks a release |
+| **SUPERSET** | we have it, upstream does not | flag for upstream relevance |
+
+A PR that changes a capability's status must say so explicitly, and update
+`PARITY.md` in the same PR.
+
+## 6. PR body template
+
+    ## Status
+    PROVEN | BUILT | PARTIAL | INHERITED | EXPERIMENTAL
+
+    ## What this adds to the system
+    One paragraph in capability terms, not filenames.
+
+    ## Evidence
+    Device run / test suite / probe output — or "host tests only".
+
+    ## What this does NOT claim
+    The boundary. This is the most valuable section and is not optional.
+
+    ## Stack position
+    "3/10, based on #N" — or "independent".
+
+## 7. Merge order
+
+1. cleanup/chore PRs that shrink the diff (they make everything else readable)
+2. stack bases before stack tips
+3. contracts before implementations
+4. docs and evidence any time — they block nothing
+
+## 8. What NEVER goes in a code PR
+
+Device binaries, preserved releases, screenshots, traces. Those go to
+`selfhost/evidence/` in an evidence PR, which nobody is expected to read line by
+line.
