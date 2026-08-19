@@ -217,6 +217,39 @@ device scheduling. **The effort spent qualifying `afcclient` was itself evidence
 that the harness had begun to dominate the experiment.** `afcclient` remains
 useful — as the non-booting observer, which is what it was qualified for.
 
+**BUILT 2026-08-19** in `selfhost/fixtures/killswitch_app`. Mode is selected
+before startup by writing `Documents/g15_mode` with the already-qualified
+`afcclient` primitive, so no launch depends on operator timing.
+
+**Fixture-local, not an engine change.** `kill` and `getpid` are exported from
+libSystem, so `DynamicLibrary.process()` reaches them over FFI with no engine
+patch, no linked native file and no plugin. Making a pre-success disappearance an
+engine BEHAVIOUR would add a variable to the very test built to remove them.
+
+**Checkpoint-driven, never timer-driven:**
+
+    hard-kill          boot breadcrumb persisted by the engine before any Dart
+                       ran; `main` not complete and `runApp` not called, so
+                       neither success condition can have fired
+                       -> receipt `hard-kill-checkpoint` -> SIGKILL
+
+    success-then-kill  `_g15ReportLaunchSuccess()` is called BEFORE
+                       `_drawFrame()` in `hooks.dart`, so reaching a post-frame
+                       callback proves the success latch is already persisted
+                       -> receipt `success-observed` -> SIGKILL
+
+Both checkpoints are read out of engine source, not inferred from a callback's
+name.
+
+**The primitive is qualified, and cannot fail silently.** `Process.killPid` was
+tried and rejected earlier: it returns a bool the caller dropped, so an
+undelivered signal was indistinguishable from an ignored one. Here the receipt
+line AFTER the call can only ever be written if SIGKILL did NOT land, so a
+vacuous run is detectable rather than scorable. Host-qualified before any device
+cycle: identical lookup code exits 137 (128+9) and never reaches the line after
+the call. Receipts use `writeAsStringSync(flush: true)`, so a checkpoint is on
+disk before the signal.
+
 ### Layer 3 — device conformance, a few specimens only
 
 One question, and only this one:
@@ -226,6 +259,19 @@ One question, and only this one:
 
 Arm B is already one such specimen: `dart-fail` → Dart seam reports failure →
 `Bad` → event reaches the control plane → next launch runs the release.
+
+**Run this control FIRST, before trusting any hard-kill result:**
+
+| step | required observation |
+|---|---|
+| `hard-kill` launch | process disappears; receipt ends at `hard-kill-checkpoint` |
+| | **NO** explicit launch-failure event queued |
+| | breadcrumb still set, so the next start classifies it as AMBIGUITY |
+| next launch | `ambiguous_boot_retry`, `ambiguous_attempt_count: 1`, patch still `Installed` |
+
+**If an explicit failure event appears, the shim is not modelling the condition
+it claims to** — it would mean SIGKILL is somehow running a reporting path, and
+every hard-kill result would be measuring something else.
 
 ## 6. WHAT IS EXPLICITLY NOT WORTH DOING
 

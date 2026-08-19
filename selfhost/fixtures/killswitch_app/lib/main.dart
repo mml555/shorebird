@@ -56,6 +56,7 @@
 //   * the receipt is written with `flush`, appended, and never truncated, so it
 //     survives `SIGKILL` — which a screen does not.
 
+import 'dart:ffi' as ffi;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -175,6 +176,75 @@ void _receipt(String phase) {
 // `_armedMarker` and `_markerFault` went with it; the marker file is no longer
 // read or written, and any stale `Documents/g15_armed` on a device is inert.
 
+// ─────────────────────────────────────────────────────────────────────────────
+// THE FOUR-MODE LIFECYCLE HARNESS
+//
+// The mode is chosen BEFORE startup by writing `Documents/g15_mode` (pushable
+// with the already-qualified afcclient primitive), so no launch depends on
+// operator timing. Absent or unrecognised means `success`.
+//
+//   success            the real success seam produces a success classification
+//   dart-fail          the real Dart seam produces an EXPLICIT failure
+//   hard-kill          disappearance produces AMBIGUITY, not explicit failure
+//   success-then-kill  death after success is not retroactively a failed boot
+//   manual-window      the parked delayed-main lane, kept so its specimen is
+//                      still reproducible; not one of the four modes
+//
+// SCOPE. This fixture validates SEAMS, not policy. Threshold arithmetic, tally
+// resets and retirement ordering are exhaustively covered by the updater's host
+// suite; duplicating them here would put policy back on hardware timing.
+enum _Mode { success, dartFail, hardKill, successThenKill, manualWindow }
+
+_Mode _readMode() {
+  try {
+    final File f = File('${_sandbox.path}/Documents/g15_mode');
+    if (!f.existsSync()) return _Mode.success;
+    switch (f.readAsStringSync().trim()) {
+      case 'dart-fail':
+        return _Mode.dartFail;
+      case 'hard-kill':
+        return _Mode.hardKill;
+      case 'success-then-kill':
+        return _Mode.successThenKill;
+      case 'manual-window':
+        return _Mode.manualWindow;
+      default:
+        return _Mode.success;
+    }
+  } catch (_) {
+    return _Mode.success;
+  }
+}
+
+/// Terminates this process with an UNCATCHABLE SIGKILL, at a checkpoint.
+///
+/// FIXTURE-LOCAL BY DESIGN. `kill` and `getpid` are exported from libSystem, so
+/// this needs no engine change, no linked native file and no plugin. Making a
+/// pre-success disappearance an engine BEHAVIOUR would add a variable to the
+/// very lifecycle test that exists to remove them.
+///
+/// NOT `Process.killPid`, which already failed as a primitive here: it returns a
+/// bool the caller dropped, so an undelivered signal was indistinguishable from
+/// an ignored one. This closes that hole from the other side — the receipt line
+/// AFTER the call can only ever be written if SIGKILL did not land.
+///
+/// SIGKILL is uncatchable, so there is no Dart cleanup, no zone handler and no
+/// updater reporting. From the state machine's side the origin of the signal is
+/// irrelevant: it models watchdog, jetsam and user swipe equally.
+void _hardKill(String checkpoint) {
+  _receipt(checkpoint);
+  final ffi.DynamicLibrary proc = ffi.DynamicLibrary.process();
+  final int Function() getpid =
+      proc.lookupFunction<ffi.Int32 Function(), int Function()>('getpid');
+  final int Function(int, int) kill = proc.lookupFunction<
+      ffi.Int32 Function(ffi.Int32, ffi.Int32), int Function(int, int)>('kill');
+  const int sigkill = 9;
+  final int rc = kill(getpid(), sigkill);
+  // UNREACHABLE unless the signal did not land. Its presence in the receipt is
+  // how a vacuous hard-kill run is detected instead of scored as ambiguity.
+  _receipt('hard-kill-DID-NOT-LAND:rc=$rc');
+}
+
 Future<void> main() async {
   // PHASE 1, AND IT MUST STAY FIRST. Nothing patchable precedes it, so a launch
   // that reaches Dart at all leaves this line behind even if the next statement
@@ -195,6 +265,43 @@ Future<void> main() async {
     _receipt('instrument-fault');
     runApp(const _KillSwitchApp());
     return;
+  }
+
+  final _Mode mode = _readMode();
+  _receipt('mode:${mode.name}');
+
+  switch (mode) {
+    case _Mode.dartFail:
+      // The real Dart seam, exercised directly rather than through a patch, so
+      // the SEAM is under test instead of the patch pipeline.
+      throw StateError('four-mode fixture: deliberate Dart-phase boot failure');
+
+    case _Mode.hardKill:
+      // CHECKPOINT, NOT A TIMER. The engine persisted the boot breadcrumb
+      // before any Dart ran, and neither success condition can have fired:
+      // `main` has not completed and `runApp` has not been called. So this is
+      // provably on the pre-success side of the lifecycle boundary, without
+      // any dependence on elapsed time.
+      _hardKill('hard-kill-checkpoint:$_launchId');
+      return;
+
+    case _Mode.success:
+    case _Mode.successThenKill:
+      runApp(const _KillSwitchApp());
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _receipt('first-frame');
+        if (mode == _Mode.successThenKill) {
+          // `_g15ReportLaunchSuccess()` is called BEFORE `_drawFrame()` in
+          // hooks.dart, so reaching a post-frame callback proves the success
+          // latch is already persisted. Read from the engine source rather
+          // than assumed from the callback's name.
+          _hardKill('success-observed:$_launchId');
+        }
+      });
+      return;
+
+    case _Mode.manualWindow:
+      break; // falls through to the parked delayed-main lane below
   }
 
   // THE PRE-SUCCESS WITNESS. Written IMMEDIATELY BEFORE the await, so its
