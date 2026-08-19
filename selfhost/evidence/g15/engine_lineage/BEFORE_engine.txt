@@ -1,0 +1,32 @@
+BEFORE-ENGINE LINEAGE ANCHOR — recorded 2026-08-19, before any rebuild
+======================================================================
+
+engine cell        : mintstage_0013
+arm64 LC_UUID      : 4C4C44C0-5555-3144-A1DD-7EB2A7564480
+sha256 (unsigned)  : 4e2a46f1a5099c6e5f71afb27b254df4ed9e74bd9e969fa925c02ddfe71ffa71
+built              : 2026-08-17 00:03
+
+PROVEN to be the engine in release 101 by LC_UUID match against the
+shipped Runner.app/Frameworks/Flutter.framework/Flutter. Hashes do NOT
+match across that boundary and cannot: the shipped framework is thinned
+and re-signed during IPA export. LC_UUID is set at link time and survives
+both, which is why it is the anchor here.
+
+CAPABILITY OF THIS BINARY, measured not assumed:
+  '__patch_boot_lifecycle__'            : 0 occurrences
+  'did not record success; retrying'    : 1 occurrences
+
+So 0010's threshold code IS compiled in, and the lifecycle telemetry is
+ABSENT. Combined with the wiring commit (2026-08-19 14:50) postdating this
+artifact (2026-08-17), the recovery half of the sequence is STRUCTURALLY
+INCAPABLE of passing on this specimen.
+
+Also confirmed here: cells c871 and c80e share LC_UUID
+4C4C44DF-5555-3144-A1AB-79F2565E7329 — byte-identical engines from
+different cells, the confound that invalidated the earlier lineage
+attribution. Cell name is NOT an engine identity; LC_UUID is.
+
+release identity   : 101, app 1.1.0+1, App.framework LC_UUID
+                     cfae3af589b934368b04edcf4478abe0
+compatibility pin  : updater_revision 1f85c4ab (= route-b branch base;
+                     must be bumped after the rebuild)
