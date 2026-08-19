@@ -48,10 +48,26 @@ C3 is the row that matters. Everything else is comparatively easy.
 
 **The policy is largely already built.** That was not obvious and was nearly
 missed: `0010-g15-boot-attempt-threshold.patch` implements exactly this split,
-and its own doc comment already contains the asymmetry argument above. It is not
-in `vendor/updater/library/src` — that is the pinned upstream copy, and reading it
-instead of the patched tree produced a wrong "both paths are single-strike"
-claim on 2026-08-19, corrected the same day.
+and its own doc comment already contains the asymmetry argument above.
+
+### WHICH TREE TO READ — this trap has now cost time twice
+
+    AUTHORITATIVE (builds the device engine):
+      /Volumes/build/route-b/flutter/engine/src/flutter/third_party/updater/
+        library/src/cache/lifecycle.rs
+      -> BOOT_FAILURE_THRESHOLD: u32 = 2      line 187
+      -> pub boot_attempt_count: u32          line 164
+      -> the retry branch                     line 659
+
+    PINNED UPSTREAM COPY — has none of the above:
+      vendor/updater/library/src/cache/lifecycle.rs
+
+Reading the pinned copy and concluding from its absence produced a confident,
+wrong "both retirement paths are single-strike" on 2026-08-19, corrected the same
+day. **An absence claim about updater behaviour is only valid against the
+`third_party/updater` tree in the engine checkout.** The device's own
+`pointers.json` is the ground truth about which code ran: it carries
+`boot_attempt_count`, which exists only because `0010` added it.
 
 ### The two paths, stated once
 
