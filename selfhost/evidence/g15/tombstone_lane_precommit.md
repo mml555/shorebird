@@ -179,3 +179,86 @@ statement:
 
 **That deserves a design response, not a harness workaround.** The harness rules
 above exist to measure the property, not to avoid it.
+
+---
+
+# AMENDMENT 2026-08-19 — the stimulus changes; the rows do not
+
+Added after `tombstone_lane_S2_verdict.md` disqualified the self-kill arm as an
+input generator. **The six frozen transitions are unchanged.** Only the mechanism
+that produces a pre-success death is replaced.
+
+## Why the self-kill arm is disqualified
+
+`Process.killPid(pid, SIGKILL)` returned control and the process kept executing
+Dart, so the fixture's guard threw and the arm delivered a **Dart-phase
+exception** instead of a **process death**. Those exercise different retirement
+paths — `report_launch_failure()` (engine states it) versus
+`detect_boot_crash_on_init()` (breadcrumb inference) — and only the second is
+governed by `0010`'s threshold, which is what rows 1-4 are about.
+
+The fixture also discards `killPid`'s `bool`, so it cannot distinguish an
+undelivered signal from an ignored one. **If the self-kill arm is ever reused, it
+must record that return value before the guard.**
+
+## The replacement stimulus: EXTERNAL termination by the operator
+
+Better than the original, because it IS the operational question — swipe-away is
+exactly what row 6 is about, and it needs no fixture change.
+
+### Sequence A — two consecutive external deaths (rows 1-4)
+
+    healthy patch active, Installed, counter 0
+      -> manual launch
+      -> OPERATOR force-quits during the pre-success window
+      -> afcclient capture
+      -> manual launch
+      -> OPERATOR force-quits during the pre-success window
+      -> afcclient capture
+      -> manual launch (observe whether it was retired)
+      -> afcclient capture
+
+Question: do two consecutive external deaths produce retry-then-tombstone?
+
+### Sequence B — external death then genuine success (row 5)
+
+    FRESH healthy specimen
+      -> manual launch
+      -> OPERATOR force-quits before success
+      -> afcclient capture
+      -> manual launch, allowed to render
+      -> afcclient capture
+
+Question: does a real success reset the counter?
+
+`afcclient` remains the ONLY between-launch observer.
+
+## The pre-success window, and its honest difficulty
+
+Success banks early — at `_runMain` completion, which for a `void main()` is
+almost immediately after the first frame path begins. The operator must force-quit
+BEFORE that. A force-quit that lands after success banks is not a row-1 stimulus;
+it is an ordinary clean run, and the capture will show `last_booted=N, count=0`,
+which is how it is detected rather than mistaken.
+
+**Expect misses.** A launch whose capture shows success banked is DISCARDED, not
+scored, and the tap repeated.
+
+## Starting state — do NOT reuse the current one
+
+Patch 1 is `Bad{BootCrash}` from the accidental Dart failure. **That is not a
+valid starting point.** Restore the fresh pre-state the precommit requires —
+updater state cleared with `--rmtree`, patch re-downloaded, attach confirmed by a
+render showing `NEW-kill` and a trace line — and record that restoration
+**outside** the scored transitions.
+
+## Status of the accidental run
+
+`tombstone_lane_S2_verdict.md` stays **explicitly unscored**. It corroborates,
+usefully, that: a healthy replacement attached; Dart startup then failed; the
+updater produced `Bad{BootCrash}` with the expected `engine_report` failure event;
+and the process did not automatically exit or recover. None of that is a scored
+row.
+
+The fixture guard did what a good experimental guard should: it turned a broken
+stimulus into an unmistakably invalid arm rather than a plausible-looking green.

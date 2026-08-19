@@ -35,12 +35,30 @@ Syslog names the cause exactly:
     [shorebird] Reporting failed launch.
     Unhandled Exception: Bad state: G15: SIGKILL did not terminate the process
 
-**`Process.killPid(pid, SIGKILL)` did not terminate the process.** The fixture's
-own failsafe fired — the one whose comment reads *"if SIGKILL were ever not
-delivered, falling through to `runApp` would render a screen that looks like a
-normal launch, so the arm would silently become vacuous. Fail loudly instead."*
+**The process survived `Process.killPid(pid, SIGKILL)` long enough to execute the
+guard on the next line.** The fixture's failsafe fired — the one whose comment
+reads *"if SIGKILL were ever not delivered, falling through to `runApp` would
+render a screen that looks like a normal launch, so the arm would silently become
+vacuous. Fail loudly instead."*
 
-It did exactly that, and it is why this is a finding rather than a false row.
+### DO NOT conclude that a delivered SIGKILL was ignored
+
+`Process.killPid` returns a `bool`: `true` means Dart believes the signal was
+delivered, `false` means it could not be sent. **The fixture discards that return
+value**, so it was not recorded, and two very different explanations remain open:
+
+| possibility | implication |
+|---|---|
+| `killPid` returned **false** — the signal was never delivered | ordinary: a permissions/API limitation on self-signalling in this context |
+| `killPid` returned **true** — a delivered signal 9 did not terminate | a much stranger runtime/platform finding, since SIGKILL is intended as unconditional termination |
+
+**Nothing here distinguishes them.** The evidence supports only "the process was
+still executing Dart after the call returned".
+
+**Fixture change required before this arm is reused:** capture the return value
+and write it to the receipt BEFORE the guard throws, e.g.
+`_receipt('sigkill-returned:$ok')`. Without it the arm cannot tell an undelivered
+signal from an ignored one.
 
 ## VERDICT: row 1 INADMISSIBLE — wrong stimulus, not a failed prediction
 
@@ -60,13 +78,24 @@ produce a clean pre-success process death on this engine.
 
 ## THE PRODUCT-SAFETY FINDING, which outranks the blocked row
 
-**A patch that activates and then hits a Dart-phase failure leaves the app HUNG at
-the launch screen — not crashed — and iOS does not reap it.**
+Stated at the width the evidence supports — note the patch here was **known
+healthy**, and the Dart failure was the fixture deliberately throwing after its
+process-death primitive failed:
 
-Measured: the process was still alive **three minutes** after the exception,
-still servicing UIKit background tasks (`syslog_hung_process_3518.txt`). No
-watchdog (`0x8badf00d`), no jetsam. At the system level the app is responsive; it
-simply never draws, because `runApp` was never reached.
+> **A Dart-phase launch failure can cause the updater to retire the active patch
+> while the native application process remains alive on the launch screen,
+> requiring another user-driven lifecycle transition before the repaired or
+> plain-release state becomes visible.**
+
+Measured: the process was still alive **three minutes** after the exception and
+still doing native/background work (`syslog_hung_process_3518.txt`); no watchdog
+(`0x8badf00d`) and no jetsam appeared in the log. `runApp` was never reached, so
+nothing was drawn.
+
+**Not claimed:** that iOS considered the application healthy or "responsive", or
+that a bad patch hangs the app in general. The first is an inference about system
+policy we did not measure; the second is contradicted by this specimen, whose
+patch was healthy.
 
 Consequences for a real user:
 
