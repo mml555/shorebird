@@ -27,6 +27,12 @@ Now:
 
     Flutter    mml555/shorebird-flutter @ route-b
     Dart SDK   local route-b (base 6b58bb3a, unshallowed to 121,349 commits)
+    updater    <engine>/src/flutter/third_party/updater @ route-b (base 1f85c4a)
+
+The updater half was found on 2026-08-19 still living as uncommitted edits on a
+detached HEAD — the Flutter half had been fixed months earlier and this one was
+missed. If a tree carries our changes, check it has a branch; "we fixed that"
+was true of one repo and not its sibling.
 
 `.patch` files are GENERATED ARTIFACTS for reproducibility. The branch is the
 source of truth. A Flutter bump is then a rebase with per-file conflicts —

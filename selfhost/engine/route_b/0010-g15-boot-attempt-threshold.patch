@@ -1,5 +1,5 @@
 diff --git a/library/src/cache/lifecycle.rs b/library/src/cache/lifecycle.rs
-index 6268e23..d281e05 100644
+index 6268e23..f5c7b4d 100644
 --- a/library/src/cache/lifecycle.rs
 +++ b/library/src/cache/lifecycle.rs
 @@ -142,8 +142,50 @@ pub struct ReleasePointers {
@@ -53,7 +53,44 @@ index 6268e23..d281e05 100644
  /// Per-release patch lifecycle and storage. Owns
  /// `{state_root}/patches/`, `{state_root}/pointers.json`, and
  /// `{download_root}/{N}` files for in-flight compressed downloads.
-@@ -537,6 +579,13 @@ impl PatchLifecycle {
+@@ -158,6 +200,15 @@ pub struct PatchLifecycle {
+     /// back to `Fresh`.
+     download_root: PathBuf,
+     pointers: ReleasePointers,
++    /// Consecutive un-succeeded boots required before a patch is tombstoned.
++    /// Defaults to [`BOOT_FAILURE_THRESHOLD`] and is only ever varied by tests.
++    ///
++    /// It is a FIELD rather than a bare `const` read at the use site so the
++    /// policy suite can prove the RULE ("retire on the Nth consecutive
++    /// un-succeeded boot") across several N, instead of asserting one magic
++    /// number in every case. A suite that only ever exercises 2 cannot tell a
++    /// correct threshold implementation from one that happens to agree with 2.
++    boot_failure_threshold: u32,
+ }
+ 
+ impl PatchLifecycle {
+@@ -187,9 +238,20 @@ impl PatchLifecycle {
+             state_root,
+             download_root,
+             pointers,
++            boot_failure_threshold: BOOT_FAILURE_THRESHOLD,
+         }
+     }
+ 
++    /// Overrides the boot-failure threshold. **Test-only.** Production always
++    /// uses [`BOOT_FAILURE_THRESHOLD`]; there is no config or server control
++    /// over this, deliberately, because a remotely-lowered threshold would be a
++    /// way to mass-tombstone healthy patches.
++    #[cfg(test)]
++    pub fn with_boot_failure_threshold(mut self, threshold: u32) -> Self {
++        self.boot_failure_threshold = threshold;
++        self
++    }
++
+     pub fn pointers(&self) -> &ReleasePointers {
+         &self.pointers
+     }
+@@ -537,6 +599,13 @@ impl PatchLifecycle {
          }
          self.pointers.currently_booting_patch = Some(n);
          self.pointers.boot_started_at = Some(crate::time::unix_timestamp());
@@ -67,7 +104,7 @@ index 6268e23..d281e05 100644
          self.save_pointers()
      }
  
-@@ -551,6 +600,10 @@ impl PatchLifecycle {
+@@ -551,6 +620,10 @@ impl PatchLifecycle {
          self.pointers.last_booted_patch = Some(n);
          self.pointers.currently_booting_patch = None;
          self.pointers.boot_started_at = None;
@@ -78,7 +115,7 @@ index 6268e23..d281e05 100644
          self.save_pointers()?;
          self.cleanup_older_than(n);
          Ok(())
-@@ -576,6 +629,11 @@ impl PatchLifecycle {
+@@ -576,6 +649,11 @@ impl PatchLifecycle {
          self.mark_bad(n, BadReason::BootCrash)?;
          self.pointers.currently_booting_patch = None;
          self.pointers.boot_started_at = None;
@@ -90,7 +127,7 @@ index 6268e23..d281e05 100644
          self.save_pointers()?;
          self.recompute_next_boot()
      }
-@@ -589,6 +647,33 @@ impl PatchLifecycle {
+@@ -589,6 +667,33 @@ impl PatchLifecycle {
          let Some(n) = self.pointers.currently_booting_patch else {
              return Ok(None);
          };
@@ -103,12 +140,12 @@ index 6268e23..d281e05 100644
 +        // genuinely breaks Dart will fail the next boot too, and the one after
 +        // that, so the tally reaches the threshold and it is backed out with
 +        // only one extra crash spent.
-+        if self.pointers.boot_attempt_count < BOOT_FAILURE_THRESHOLD {
++        if self.pointers.boot_attempt_count < self.boot_failure_threshold {
 +            shorebird_info!(
 +                "boot {} of patch {} did not record success; retrying (threshold {})",
 +                self.pointers.boot_attempt_count,
 +                n,
-+                BOOT_FAILURE_THRESHOLD
++                self.boot_failure_threshold
 +            );
 +            // Clear ONLY the in-flight breadcrumb. `boot_attempt_count` and
 +            // `last_boot_attempt_patch` survive deliberately — they are the
@@ -124,7 +161,7 @@ index 6268e23..d281e05 100644
          self.record_boot_failure(n)?;
          Ok(Some(n))
      }
-@@ -1124,6 +1209,8 @@ mod tests {
+@@ -1124,6 +1229,8 @@ mod tests {
                  last_booted_patch: Some(2),
                  currently_booting_patch: None,
                  boot_started_at: None,
@@ -133,7 +170,7 @@ index 6268e23..d281e05 100644
              };
              lifecycle.save_pointers().unwrap();
          }
-@@ -1767,15 +1854,104 @@ mod tests {
+@@ -1767,15 +1874,104 @@ mod tests {
              lifecycle.record_boot_start(1).unwrap();
              // Drop without record_boot_success/failure.
          }
@@ -241,3 +278,448 @@ index 6268e23..d281e05 100644
      }
  
      #[test]
+diff --git a/library/src/cache/lifecycle_policy_tests.rs b/library/src/cache/lifecycle_policy_tests.rs
+new file mode 100644
+index 0000000..4c25956
+--- /dev/null
++++ b/library/src/cache/lifecycle_policy_tests.rs
+@@ -0,0 +1,424 @@
++//! C1-C4 lifecycle policy suite — see `selfhost/LIFECYCLE_POLICY.md`.
++//!
++//! **This suite tests the POLICY, not the implementation.** It drives the real
++//! API across real process boundaries (each "launch" reloads from disk, exactly
++//! as a new process does) and asserts the contract:
++//!
++//! | C1 | success survives later violent exits                        |
++//! | C2 | explicit Dart failure retires immediately, single strike     |
++//! | C3 | a process that merely vanished is AMBIGUOUS — retry          |
++//! | C4 | repeated ambiguity retires at a chosen threshold             |
++//!
++//! **The threshold is injected, never hardcoded**, so these prove the RULE
++//! ("retire on the Nth consecutive un-succeeded boot") rather than agreement
++//! with one magic number. A suite that only ever exercises 2 cannot distinguish
++//! a correct threshold implementation from one that merely happens to match at 2.
++
++use super::lifecycle::*;
++use std::path::Path;
++use tempfile::TempDir;
++
++/// Rebuilds a `PatchLifecycle` against the same on-disk roots — a new process.
++fn reload_at(p: &Path) -> PatchLifecycle {
++    PatchLifecycle::load_or_default(p.to_path_buf(), p.join("downloads"))
++}
++
++/// Writes an artifact and its `Installed` state through the public API.
++fn install_state(lifecycle: &PatchLifecycle, n: usize, size: u64) {
++    let path = lifecycle.installed_artifact_path(n);
++    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
++    std::fs::write(&path, vec![0u8; size as usize]).unwrap();
++    lifecycle
++        .write_state(
++            n,
++            &PatchState::Installed {
++                signature: None,
++                size,
++            },
++        )
++        .unwrap();
++}
++
++/// Rewrites one field of `pointers.json` on disk. Used to inject states the
++/// public API cannot reach — a legacy file, or a stale timestamp.
++fn patch_pointers_json(p: &Path, edit: impl FnOnce(&mut serde_json::Value)) {
++    let path = p.join("pointers.json");
++    let mut v: serde_json::Value =
++        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
++    edit(&mut v);
++    std::fs::write(&path, serde_json::to_vec(&v).unwrap()).unwrap();
++}
++
++/// One device, one release, across many process lifetimes.
++struct Device {
++    tmp: TempDir,
++    threshold: u32,
++}
++
++impl Device {
++    fn new(threshold: u32) -> Self {
++        Device {
++            tmp: TempDir::new().unwrap(),
++            threshold,
++        }
++    }
++
++    /// A fresh process. Reloads from disk and runs init-time crash recovery,
++    /// which is what every real process start does.
++    fn new_process(&self) -> (PatchLifecycle, Option<usize>) {
++        let mut l = reload_at(self.tmp.path()).with_boot_failure_threshold(self.threshold);
++        let recovered = l.detect_boot_crash_on_init().unwrap();
++        (l, recovered)
++    }
++
++    fn install(&self, n: usize) {
++        let mut l = reload_at(self.tmp.path());
++        install_state(&l, n, 100);
++        l.promote_to_next_boot(n).unwrap();
++    }
++
++    /// Boots and reaches the success boundary.
++    fn launch_success(&self, n: usize) {
++        let (mut l, _) = self.new_process();
++        l.record_boot_start(n).unwrap();
++        l.record_boot_success().unwrap();
++    }
++
++    /// Boots, then the process VANISHES — no success, no explicit failure.
++    /// This is C3's input: watchdog, jetsam, swipe-away, reboot. The state
++    /// machine cannot tell which, and that is the entire point.
++    fn launch_vanish(&self, n: usize) {
++        let (mut l, _) = self.new_process();
++        l.record_boot_start(n).unwrap();
++        // process dies here; nothing else is written
++    }
++
++    /// Boots, then Dart explicitly blames the patch.
++    fn launch_explicit_failure(&self, n: usize) {
++        let (mut l, _) = self.new_process();
++        l.record_boot_start(n).unwrap();
++        l.record_boot_failure(n).unwrap();
++    }
++
++    /// Init-only process — how the NEXT launch observes a prior vanish.
++    fn recover(&self) -> Option<usize> {
++        self.new_process().1
++    }
++
++    fn state(&self, n: usize) -> Option<PatchState> {
++        reload_at(self.tmp.path()).read_state(n)
++    }
++
++    fn pointers(&self) -> ReleasePointers {
++        reload_at(self.tmp.path()).pointers().clone()
++    }
++
++    fn is_bad(&self, n: usize) -> bool {
++        matches!(self.state(n), Some(PatchState::Bad { .. }))
++    }
++
++    fn is_installed(&self, n: usize) -> bool {
++        matches!(self.state(n), Some(PatchState::Installed { .. }))
++    }
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// C1 — a patch past the success boundary survives later violent exits
++// ─────────────────────────────────────────────────────────────────────────────
++
++#[test]
++fn c1_violent_exit_after_success_is_not_a_boot_failure() {
++    let d = Device::new(2);
++    d.install(1);
++    d.launch_success(1);
++    // The user force-quits AFTER the success boundary. Success cleared the
++    // breadcrumb, so the next init has nothing to infer from.
++    assert_eq!(d.recover(), None, "a post-success exit must not be recovered");
++    assert!(d.is_installed(1));
++    assert_eq!(d.pointers().last_booted_patch, Some(1));
++}
++
++#[test]
++fn c1_many_successful_launches_never_retire_however_violently_they_end() {
++    // The false-backout guard. If success did not clear the tally, a user who
++    // force-quits habitually would eventually tombstone a perfectly good patch.
++    let d = Device::new(2);
++    d.install(1);
++    for _ in 0..10 {
++        d.launch_success(1);
++        assert_eq!(d.recover(), None);
++    }
++    assert!(d.is_installed(1), "10 violent exits after success must not retire");
++    assert_eq!(d.pointers().boot_attempt_count, 0);
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// C2 — explicit failure retires immediately, at ANY threshold
++// ─────────────────────────────────────────────────────────────────────────────
++
++#[test]
++fn c2_explicit_failure_retires_on_the_first_strike_at_every_threshold() {
++    // The explicit path must be threshold-INDEPENDENT. Raising the ambiguous
++    // threshold must never buy a self-blaming patch extra launches.
++    for threshold in 1..=4 {
++        let d = Device::new(threshold);
++        d.install(1);
++        d.launch_explicit_failure(1);
++        assert!(
++            d.is_bad(1),
++            "explicit failure must retire immediately (threshold {threshold})"
++        );
++    }
++}
++
++#[test]
++fn c2_explicit_failure_is_immediate_even_after_prior_ambiguity() {
++    // Mixed evidence: one ambiguous death, then the patch blames itself.
++    // The explicit report is strong evidence and must not wait for the tally.
++    let d = Device::new(3);
++    d.install(1);
++    d.launch_vanish(1);
++    assert!(d.is_installed(1), "one ambiguous death must not retire");
++    d.launch_explicit_failure(1);
++    assert!(d.is_bad(1), "explicit failure must not wait for the threshold");
++}
++
++#[test]
++fn c2_retirement_clears_the_breadcrumb_and_the_tally() {
++    let d = Device::new(2);
++    d.install(1);
++    d.launch_explicit_failure(1);
++    let p = d.pointers();
++    assert_eq!(p.currently_booting_patch, None);
++    assert_eq!(p.boot_attempt_count, 0, "tally must not leak to the next target");
++    assert_eq!(p.last_boot_attempt_patch, None);
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// C3 — an ambiguous death is retried, never treated as proof
++// ─────────────────────────────────────────────────────────────────────────────
++
++#[test]
++fn c3_single_ambiguous_death_does_not_retire_at_any_threshold_above_one() {
++    for threshold in 2..=4 {
++        let d = Device::new(threshold);
++        d.install(1);
++        d.launch_vanish(1);
++        assert_eq!(d.recover(), None, "threshold {threshold}: must retry, not retire");
++        assert!(d.is_installed(1), "threshold {threshold}");
++        assert_eq!(
++            d.pointers().next_boot_patch,
++            Some(1),
++            "threshold {threshold}: the patch must remain the boot target"
++        );
++    }
++}
++
++#[test]
++fn c3_recovery_clears_the_breadcrumb_but_deliberately_keeps_the_tally() {
++    // If recovery zeroed the tally, the threshold would be unreachable and the
++    // old single-strike behaviour would return by accident. The tally IS the
++    // memory that makes the next decision possible.
++    let d = Device::new(3);
++    d.install(1);
++    d.launch_vanish(1);
++    d.recover();
++    let p = d.pointers();
++    assert_eq!(p.currently_booting_patch, None, "breadcrumb must clear");
++    assert_eq!(p.boot_attempt_count, 1, "tally must survive");
++    assert_eq!(p.last_boot_attempt_patch, Some(1));
++}
++
++#[test]
++fn c3_success_between_ambiguous_deaths_resets_the_tally() {
++    // ambiguous -> success -> ambiguous must NOT retire at threshold 2. The
++    // deaths are not consecutive, and a patch that booted successfully in
++    // between demonstrably did not break Dart.
++    let d = Device::new(2);
++    d.install(1);
++    d.launch_vanish(1);
++    d.recover();
++    d.launch_success(1);
++    assert_eq!(d.pointers().boot_attempt_count, 0, "success must reset the tally");
++    d.launch_vanish(1);
++    assert_eq!(d.recover(), None, "non-consecutive deaths must not retire");
++    assert!(d.is_installed(1));
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// C4 — retirement at the Nth CONSECUTIVE ambiguous death
++// ─────────────────────────────────────────────────────────────────────────────
++
++#[test]
++fn c4_retires_exactly_on_the_nth_consecutive_ambiguous_death() {
++    // THE central test. Proves the RULE across thresholds rather than asserting
++    // the number 2. At each N: N-1 deaths must not retire, the Nth must.
++    for threshold in 1..=4 {
++        let d = Device::new(threshold);
++        d.install(1);
++
++        for i in 1..threshold {
++            d.launch_vanish(1);
++            assert_eq!(d.recover(), None, "threshold {threshold}: death {i} must retry");
++            assert!(d.is_installed(1), "threshold {threshold}: death {i}");
++        }
++
++        d.launch_vanish(1);
++        assert_eq!(
++            d.recover(),
++            Some(1),
++            "threshold {threshold}: death {threshold} must retire"
++        );
++        assert!(d.is_bad(1), "threshold {threshold}: must be Bad at the threshold");
++    }
++}
++
++#[test]
++fn c4_retirement_reason_is_bootcrash() {
++    let d = Device::new(2);
++    d.install(1);
++    d.launch_vanish(1);
++    d.recover();
++    d.launch_vanish(1);
++    d.recover();
++    assert!(matches!(
++        d.state(1),
++        Some(PatchState::Bad {
++            reason: BadReason::BootCrash,
++            ..
++        })
++    ));
++}
++
++#[test]
++fn c4_a_retired_patch_is_no_longer_the_boot_target() {
++    let d = Device::new(2);
++    d.install(1);
++    d.launch_vanish(1);
++    d.recover();
++    d.launch_vanish(1);
++    d.recover();
++    assert_eq!(
++        d.pointers().next_boot_patch,
++        None,
++        "after retirement the device must fall back to the release"
++    );
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// Cross-cutting cases — where thresholds usually go wrong
++// ─────────────────────────────────────────────────────────────────────────────
++
++#[test]
++fn tally_does_not_transfer_from_one_patch_to_another() {
++    // Without `last_boot_attempt_patch` a fresh patch would inherit its
++    // predecessor's count and could be tombstoned on its FIRST un-succeeded
++    // boot — turning the safeguard into a trap.
++    let d = Device::new(2);
++    d.install(1);
++    d.launch_vanish(1);
++    d.recover();
++    assert_eq!(d.pointers().boot_attempt_count, 1);
++
++    d.install(2); // patch 2 becomes the boot target
++    d.launch_vanish(2);
++    assert_eq!(d.recover(), None, "patch 2 must not inherit patch 1's tally");
++    assert!(d.is_installed(2));
++    assert_eq!(d.pointers().last_boot_attempt_patch, Some(2));
++}
++
++#[test]
++fn counter_persists_across_process_restarts() {
++    // The tally lives in pointers.json, so it must survive process death —
++    // otherwise the threshold could never be reached on a device that crashes.
++    let d = Device::new(3);
++    d.install(1);
++    d.launch_vanish(1);
++    d.recover();
++    // Simulate a device reboot: everything is re-read from disk.
++    let reread = reload_at(d.tmp.path());
++    assert_eq!(reread.pointers().boot_attempt_count, 1);
++    assert_eq!(reread.pointers().last_boot_attempt_patch, Some(1));
++}
++
++#[test]
++fn legacy_pointers_without_a_counter_are_treated_as_a_first_attempt() {
++    // A pre-0010 pointers.json has a breadcrumb but no counter. `serde(default)`
++    // reads it as 0, so an upgrading device that was mid-crash-loop gets ONE
++    // extra retry rather than being tombstoned by an inherited count.
++    // Pinned as a deliberate decision, not an accident of defaulting.
++    let d = Device::new(2);
++    d.install(1);
++    let legacy = format!(
++        r#"{{"next_boot_patch":1,"last_booted_patch":null,
++             "currently_booting_patch":1,"boot_started_at":12345}}"#
++    );
++    std::fs::write(d.tmp.path().join("pointers.json"), legacy).unwrap();
++
++    let p = d.pointers();
++    assert_eq!(p.boot_attempt_count, 0, "missing counter must read as 0");
++    assert_eq!(p.currently_booting_patch, Some(1), "breadcrumb must survive");
++
++    assert_eq!(d.recover(), None, "an upgrading device gets one retry");
++    assert!(d.is_installed(1));
++}
++
++#[test]
++fn a_stale_boot_started_at_does_not_change_the_decision() {
++    // PINS CURRENT BEHAVIOUR, and it is a KNOWN GAP rather than an endorsement.
++    // `boot_started_at` is recorded but never consulted, so a death 40 ms in and
++    // a death 40 days in count identically. LIFECYCLE_POLICY.md flags whether it
++    // should age-gate the tally as an open product question; if that is decided
++    // yes, THIS TEST IS EXPECTED TO CHANGE.
++    let d = Device::new(2);
++    d.install(1);
++    d.launch_vanish(1);
++    patch_pointers_json(d.tmp.path(), |v| {
++        v["boot_started_at"] = serde_json::json!(1); // 1970
++    });
++    assert_eq!(d.recover(), None, "stale timestamp is currently ignored");
++    assert_eq!(d.pointers().boot_attempt_count, 1);
++}
++
++#[test]
++fn recovery_is_a_noop_when_no_boot_was_in_flight() {
++    // The breadcrumb is the ONLY trigger. A process that never booted a patch
++    // must not be able to move the tally.
++    let d = Device::new(2);
++    d.install(1);
++    assert_eq!(d.recover(), None);
++    assert_eq!(d.recover(), None);
++    assert_eq!(d.pointers().boot_attempt_count, 0, "idle inits must not accrue");
++    assert!(d.is_installed(1));
++}
++
++#[test]
++fn an_already_retired_patch_cannot_be_booted_again() {
++    // `record_boot_start` refuses a non-Installed target, so a tombstone cannot
++    // be resurrected by a stale next_boot_patch.
++    let d = Device::new(1);
++    d.install(1);
++    d.launch_vanish(1);
++    d.recover();
++    assert!(d.is_bad(1));
++
++    patch_pointers_json(d.tmp.path(), |v| {
++        v["next_boot_patch"] = serde_json::json!(1);
++    });
++    let mut l = reload_at(d.tmp.path()).with_boot_failure_threshold(1);
++    assert!(
++        l.record_boot_start(1).is_err(),
++        "a Bad patch must never become a boot target again"
++    );
++}
++
++#[test]
++fn threshold_one_reproduces_single_strike_behaviour() {
++    // Guards the injection itself: if `with_boot_failure_threshold` were ignored,
++    // this would retry instead of retiring and the whole suite would be vacuous.
++    let d = Device::new(1);
++    d.install(1);
++    d.launch_vanish(1);
++    assert_eq!(d.recover(), Some(1), "threshold 1 must retire on first death");
++    assert!(d.is_bad(1));
++}
+diff --git a/library/src/cache/mod.rs b/library/src/cache/mod.rs
+index 4d8e033..b936168 100644
+--- a/library/src/cache/mod.rs
++++ b/library/src/cache/mod.rs
+@@ -1,5 +1,10 @@
+ pub(crate) mod disk_io;
+ pub mod lifecycle;
++/// C1-C4 lifecycle policy suite. A sibling module rather than a child of
++/// `lifecycle::tests` deliberately: it drives ONLY the public API, so it cannot
++/// quietly depend on internals the product path does not use.
++#[cfg(test)]
++mod lifecycle_policy_tests;
+ mod signing;
+ pub mod updater_state;
+ 
