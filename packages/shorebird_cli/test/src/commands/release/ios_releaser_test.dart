@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:args/args.dart';
 import 'package:crypto/crypto.dart';
@@ -23,6 +24,10 @@ import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/os/operating_system_interface.dart';
 import 'package:shorebird_cli/src/platform/apple/apple.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/route_b_compiler.dart';
+import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
+import 'package:shorebird_cli/src/route_b_provenance.dart';
+import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_process.dart';
@@ -34,6 +39,28 @@ import 'package:test/test.dart';
 
 import '../../matchers.dart';
 import '../../mocks.dart';
+
+/// A stand-in path for fallback values mocktail only needs to type-check.
+const _nowhere = _NowhereFile();
+
+class _NowhereFile implements File {
+  const _NowhereFile();
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+RouteBCompiler _cell(Directory dir) => RouteBCompiler(
+  runtime: File(p.join(dir.path, 'dartaotruntime')),
+  compilerSnapshot: File(p.join(dir.path, 'dart2bytecode.aot')),
+  platformDill: File(p.join(dir.path, 'vm_platform.dill')),
+  analyzer: File(p.join(dir.path, 'route_b_analyze.aot')),
+  frontend: File(p.join(dir.path, 'route_b_gen_kernel.aot')),
+  interfaceGenerator: File(
+    p.join(dir.path, 'route_b_gen_dynamic_interface.aot'),
+  ),
+  flutterPlatformDill: File(p.join(dir.path, 'flutter_platform_strong.dill')),
+  provenance: 'engine revision  : engine-abc',
+);
 
 void main() {
   group(IosReleaser, () {
@@ -49,6 +76,8 @@ void main() {
     late Progress progress;
     late ShorebirdLogger logger;
     late OperatingSystemInterface operatingSystemInterface;
+    late RouteBCompilerResolver routeBCompilerResolver;
+    late RouteBReleaseKernelBuilder routeBReleaseKernelBuilder;
     late ShorebirdProcess shorebirdProcess;
     late ShorebirdEnv shorebirdEnv;
     late ShorebirdFlutter shorebirdFlutter;
@@ -69,6 +98,10 @@ void main() {
           loggerRef.overrideWith(() => logger),
           osInterfaceRef.overrideWith(() => operatingSystemInterface),
           processRef.overrideWith(() => shorebirdProcess),
+          routeBCompilerResolverRef.overrideWith(() => routeBCompilerResolver),
+          routeBReleaseKernelBuilderRef.overrideWith(
+            () => routeBReleaseKernelBuilder,
+          ),
           shorebirdEnvRef.overrideWith(() => shorebirdEnv),
           shorebirdFlutterRef.overrideWith(() => shorebirdFlutter),
           shorebirdValidatorRef.overrideWith(() => shorebirdValidator),
@@ -81,6 +114,18 @@ void main() {
       registerFallbackValue(Directory(''));
       registerFallbackValue(File(''));
       registerFallbackValue(ReleasePlatform.android);
+      registerFallbackValue(
+        const RouteBCompiler(
+          runtime: _nowhere,
+          compilerSnapshot: _nowhere,
+          platformDill: _nowhere,
+          analyzer: _nowhere,
+          frontend: _nowhere,
+          interfaceGenerator: _nowhere,
+          flutterPlatformDill: _nowhere,
+          provenance: '',
+        ),
+      );
     });
 
     setUp(() {
@@ -96,6 +141,8 @@ void main() {
       operatingSystemInterface = MockOperatingSystemInterface();
       progress = MockProgress();
       logger = MockShorebirdLogger();
+      routeBCompilerResolver = MockRouteBCompilerResolver();
+      routeBReleaseKernelBuilder = MockRouteBReleaseKernelBuilder();
       shorebirdProcess = MockShorebirdProcess();
       shorebirdEnv = MockShorebirdEnv();
       shorebirdFlutter = MockShorebirdFlutter();
@@ -105,6 +152,14 @@ void main() {
       when(() => argResults.rest).thenReturn([]);
       when(() => argResults.wasParsed(any())).thenReturn(false);
       when(() => argResults['flutter-version']).thenReturn('latest');
+
+      // Route B: the releaser asks whether the cached iOS engine carries the
+      // interpreter, to decide whether to request patchable call sites. An
+      // empty temp dir has no engine, so the default here is "stock engine,
+      // no patchable calls" — the behaviour every pre-existing test expects.
+      when(
+        () => shorebirdEnv.flutterDirectory,
+      ).thenReturn(Directory.systemTemp.createTempSync('flutter'));
 
       when(() => logger.progress(any())).thenReturn(progress);
 
@@ -399,10 +454,16 @@ $body
 
       late Directory xcarchiveDirectory;
       late Directory iosAppDirectory;
+      // The kernel `flutter build ipa` produced. A real file, because the
+      // release's copy of it has to be byte-comparable against it.
+      late File buildKernel;
 
       setUp(() {
         xcarchiveDirectory = Directory.systemTemp.createTempSync();
         iosAppDirectory = Directory.systemTemp.createTempSync();
+        buildKernel = File(
+          p.join(Directory.systemTemp.createTempSync().path, 'app.dill'),
+        )..writeAsStringSync('APP-DILL-FROM-THIS-BUILD');
         when(() => argResults['codesign']).thenReturn(true);
         when(
           () => artifactBuilder.buildIpa(
@@ -411,9 +472,7 @@ $body
             target: any(named: 'target'),
             args: any(named: 'args'),
           ),
-        ).thenAnswer(
-          (_) async => AppleBuildResult(kernelFile: File('/path/to/app.dill')),
-        );
+        ).thenAnswer((_) async => AppleBuildResult(kernelFile: buildKernel));
 
         when(
           () => artifactManager.getIosAppDirectory(
@@ -627,6 +686,998 @@ $body
         ).called(1);
       });
 
+      // Route B: an engine that can run iOS Dart code push must produce a
+      // release that can actually BE patched. The failure this guards is
+      // silent — a patch installs, validates, resolves its target, attaches,
+      // reports success, and the app behaves identically — so both halves are
+      // tested: request the flag, then verify the shipped bytes.
+      group('when the engine supports iOS Dart code push', () {
+        late Directory flutterDirectory;
+        late Directory cellDirectory;
+
+        File engineBinary() => File(
+          p.join(
+            flutterDirectory.path,
+            'bin',
+            'cache',
+            'artifacts',
+            'engine',
+            'ios-release',
+            'Flutter.xcframework',
+            'ios-arm64',
+            'Flutter.framework',
+            'Flutter',
+          ),
+        );
+
+        /// Write an App binary containing [sites] patchable call sequences.
+        /// Writes the `DART_DEFINES` line the way Flutter writes it — base64
+        /// `K=V`, comma separated (`build_info.dart:396`) — into the file
+        /// Flutter writes it to.
+        ///
+        /// This is the release's own answer about which defines it compiled
+        /// with, and G4.1c reads it rather than reconstructing the values.
+        void writeGeneratedXcconfig(Map<String, String> defines) {
+          final encoded = defines.entries
+              .map((e) => base64.encode(utf8.encode('${e.key}=${e.value}')))
+              .join(',');
+          File(
+              p.join(projectRoot.path, 'ios', 'Flutter', 'Generated.xcconfig'),
+            )
+            ..createSync(recursive: true)
+            ..writeAsStringSync('DART_DEFINES=$encoded\n');
+        }
+
+        void writeAppBinary({required int sites}) {
+          final words = Uint32List(1024 * 32)
+            ..fillRange(0, 1024 * 32, 0xD503201F);
+          for (var i = 0; i < sites; i++) {
+            words[i * 4] = 0xF840701E; // ldur lr, [r0, #7]
+            words[i * 4 + 1] = 0xD63F03C0; // blr lr
+          }
+          File(
+              p.join(
+                iosAppDirectory.path,
+                'Frameworks',
+                'App.framework',
+                'App',
+              ),
+            )
+            ..createSync(recursive: true)
+            ..writeAsBytesSync(words.buffer.asUint8List());
+        }
+
+        setUp(() {
+          flutterDirectory = Directory.systemTemp.createTempSync('flutter');
+          engineBinary()
+            ..createSync(recursive: true)
+            ..writeAsStringSync('...InterpretCall...');
+          when(
+            () => shorebirdEnv.flutterDirectory,
+          ).thenReturn(flutterDirectory);
+          writeAppBinary(sites: 4000);
+
+          // The retention prepass now runs for EVERY Route B release, before
+          // the build it must inform, so its tooling is stubbed for the whole
+          // group rather than only where provenance is asserted.
+          cellDirectory = Directory.systemTemp.createTempSync('cell');
+          when(
+            () => shorebirdEnv.shorebirdEngineRevision,
+          ).thenReturn('engine-abc');
+          when(() => shorebirdEnv.flutterRevision).thenReturn('flutter-def');
+          when(
+            () => shorebirdEnv.getShorebirdProjectRoot(),
+          ).thenReturn(projectRoot);
+          when(
+            () => shorebirdEnv.buildDirectory,
+          ).thenReturn(Directory(p.join(projectRoot.path, 'build')));
+          // G4.1c. Every Route B release now asks Flutter for the defines it
+          // injects BEFORE the prepass, because the prepass decides retention
+          // and must describe the program that ships. The answer comes from the
+          // `DART_DEFINES` line Flutter itself writes, so the group stubs the
+          // `--config-only` pass that writes it and the file it lands in.
+          //
+          // Stubbed for the WHOLE group for the same reason `flavor` above is:
+          // `_declareRetention` returns early when the answer cannot be read, so
+          // without this every retention assertion below would pass vacuously by
+          // never reaching the code it names.
+          when(
+            () => shorebirdEnv.getFlutterProjectRoot(),
+          ).thenReturn(projectRoot);
+          // Naming the project root above makes `_resolveAppleFlavor` reach
+          // `xcodebuild -list` where it previously short-circuited, so the
+          // group needs a default: the scheme is spelled like the token, which
+          // is the ordinary Xcode case. The one test that exists BECAUSE the
+          // two can diverge overrides this with 'Foo'.
+          when(
+            () => xcodeBuild.flavorScheme(
+              projectPath: any(named: 'projectPath'),
+              flavor: any(named: 'flavor'),
+            ),
+          ).thenAnswer(
+            (invocation) async =>
+                invocation.namedArguments[#flavor] as String? ?? '',
+          );
+          writeGeneratedXcconfig(const {
+            'FLUTTER_VERSION': '3.44.8',
+            'FLUTTER_ENGINE_REVISION': '11e5695710',
+          });
+          when(
+            () => shorebirdProcess.run(
+              any(),
+              any(),
+              workingDirectory: any(named: 'workingDirectory'),
+            ),
+          ).thenAnswer(
+            (_) async => ShorebirdProcessResult(
+              exitCode: 0,
+              stdout: '',
+              stderr: '',
+            ),
+          );
+          when(
+            () => routeBCompilerResolver.resolve(
+              engineRevision: any(named: 'engineRevision'),
+            ),
+          ).thenAnswer((_) async => _cell(cellDirectory));
+          // `flavor` is named in these stubs as a PREREQUISITE for the
+          // flavored test below, and that is the whole of the claim. Every
+          // OTHER test in this group builds an unflavored releaser by
+          // construction (`flavor: null`, the `iosReleaser` at the top of the
+          // file), so it matched these stubs perfectly well before `flavor`
+          // was named here and matches them still: no pre-existing assertion
+          // was silently skipping, and removing this line leaves them green.
+          // What it unblocks is the new case: a releaser built with a flavor
+          // matches neither stub unless they name it, both return null, and
+          // `_declareRetention` returns before it reaches the
+          // private-enumeration decision at all -- so the flavored path could
+          // not be asserted on at all until these stubs admitted it.
+          when(
+            () => routeBReleaseKernelBuilder.buildPrepass(
+              compiler: any(named: 'compiler'),
+              projectRoot: any(named: 'projectRoot'),
+              entrypoint: any(named: 'entrypoint'),
+              buildArgs: any(named: 'buildArgs'),
+              outputFile: any(named: 'outputFile'),
+              flavor: any(named: 'flavor'),
+              injectedDefines: any(named: 'injectedDefines'),
+            ),
+          ).thenAnswer((invocation) {
+            final out = invocation.namedArguments[#outputFile] as File
+              ..createSync(recursive: true);
+            return out..writeAsStringSync('PREPASS-KERNEL');
+          });
+          when(
+            () => routeBReleaseKernelBuilder.generateDynamicInterface(
+              compiler: any(named: 'compiler'),
+              prepassKernel: any(named: 'prepassKernel'),
+              outputFile: any(named: 'outputFile'),
+              sdkMembers: any(named: 'sdkMembers'),
+              appPackageName: any(named: 'appPackageName'),
+              privateEnumerationKernel: any(
+                named: 'privateEnumerationKernel',
+              ),
+              manifestFile: any(named: 'manifestFile'),
+            ),
+          ).thenAnswer((invocation) {
+            final out = invocation.namedArguments[#outputFile] as File
+              ..createSync(recursive: true);
+            return out..writeAsStringSync('callable:\n');
+          });
+          when(
+            () => routeBReleaseKernelBuilder.build(
+              compiler: any(named: 'compiler'),
+              projectRoot: any(named: 'projectRoot'),
+              entrypoint: any(named: 'entrypoint'),
+              buildArgs: any(named: 'buildArgs'),
+              outputFile: any(named: 'outputFile'),
+              flavor: any(named: 'flavor'),
+              injectedDefines: any(named: 'injectedDefines'),
+            ),
+          ).thenAnswer((invocation) {
+            final out = invocation.namedArguments[#outputFile] as File
+              ..createSync(recursive: true);
+            return out..writeAsStringSync('IMPORT-DILL-FROM-THIS-BUILD');
+          });
+          when(
+            () => routeBReleaseKernelBuilder.agreesWith(
+              compiler: any(named: 'compiler'),
+              importKernel: any(named: 'importKernel'),
+              aotKernel: any(named: 'aotKernel'),
+              consequence: any(named: 'consequence'),
+            ),
+          ).thenReturn(true);
+        });
+
+        test('requests patchable call sites', () async {
+          await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+          final captured =
+              verify(
+                    () => artifactBuilder.buildIpa(
+                      codesign: any(named: 'codesign'),
+                      flavor: any(named: 'flavor'),
+                      target: any(named: 'target'),
+                      args: captureAny(named: 'args'),
+                      base64PublicKey: any(named: 'base64PublicKey'),
+                      ddMaxBytes: any(named: 'ddMaxBytes'),
+                    ),
+                  ).captured.single
+                  as List<String>;
+
+          expect(
+            captured,
+            contains('--extra-gen-snapshot-options=--patchable_static_calls'),
+          );
+        });
+
+        test('does not override an explicit choice', () async {
+          when(() => argResults.rest).thenReturn([
+            '--extra-gen-snapshot-options=--no-patchable_static_calls',
+          ]);
+
+          await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+          final captured =
+              verify(
+                    () => artifactBuilder.buildIpa(
+                      codesign: any(named: 'codesign'),
+                      flavor: any(named: 'flavor'),
+                      target: any(named: 'target'),
+                      args: captureAny(named: 'args'),
+                      base64PublicKey: any(named: 'base64PublicKey'),
+                      ddMaxBytes: any(named: 'ddMaxBytes'),
+                    ),
+                  ).captured.single
+                  as List<String>;
+
+          expect(
+            captured,
+            isNot(
+              contains('--extra-gen-snapshot-options=--patchable_static_calls'),
+            ),
+          );
+        });
+
+        // Compiler-cell selection at patch time must be release-relative.
+        // Nothing else can carry the engine hash: `Release` records only the
+        // Flutter revision, and fifteen engine hashes share this fork's one
+        // pinned Flutter revision. So the release records it here, at the one
+        // moment it is known to be true.
+        group('retention', () {
+          List<String> capturedBuildArgs() =>
+              verify(
+                    () => artifactBuilder.buildIpa(
+                      codesign: any(named: 'codesign'),
+                      flavor: any(named: 'flavor'),
+                      target: any(named: 'target'),
+                      args: captureAny(named: 'args'),
+                      base64PublicKey: any(named: 'base64PublicKey'),
+                      ddMaxBytes: any(named: 'ddMaxBytes'),
+                    ),
+                  ).captured.single
+                  as List<String>;
+
+          // THE VALUE, not just the key. On iOS Flutter spells
+          // FLUTTER_APP_FLAVOR as the SCHEME, not as the token the user typed:
+          // xcode_project.dart's parseFlavorFromConfiguration returns
+          // schemeName. Route B compiles its own kernels, so passing the token
+          // would describe a DIFFERENT Dart program than the one that ships —
+          // G4.2 fixed the define's key and left its value divergent.
+          //
+          // This pins the WIRING. Reverting _appleFlavor to _resolvedFlavor
+          // makes the prepass receive 'foo' and this test fails.
+          test('compiles the prepass with the SCHEME spelling, not the '
+              'typed flavor token', () async {
+            when(
+              () => shorebirdEnv.getFlutterProjectRoot(),
+            ).thenReturn(projectRoot);
+            when(
+              () => xcodeBuild.flavorScheme(
+                projectPath: any(named: 'projectPath'),
+                flavor: any(named: 'flavor'),
+              ),
+            ).thenAnswer((_) async => 'Foo');
+
+            final flavored = IosReleaser(
+              argResults: argResults,
+              flavor: 'foo',
+              target: null,
+            );
+            await runWithOverrides(flavored.buildReleaseArtifacts);
+
+            final captured = verify(
+              () => routeBReleaseKernelBuilder.buildPrepass(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: any(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+                flavor: captureAny(named: 'flavor'),
+                injectedDefines: any(named: 'injectedDefines'),
+              ),
+            ).captured;
+            expect(captured.first, equals('Foo'));
+          });
+
+          test('points the ONE real build at the generated interface', () async {
+            // A kernel PREPASS, not a second IPA build. The interface has to be
+            // generated from a kernel and the kernel comes from the build, so
+            // the circle is broken with a frontend-only compile — and its
+            // output must actually reach the build that ships.
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            verify(
+              () => routeBReleaseKernelBuilder.buildPrepass(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: any(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+                injectedDefines: any(named: 'injectedDefines'),
+              ),
+            ).called(1);
+            // ONE build. `capturedBuildArgs` verifies it exactly once, so a
+            // second full build would fail here rather than pass silently.
+            expect(
+              capturedBuildArgs(),
+              contains(
+                predicate<String>(
+                  (a) => a.startsWith(
+                    // Hyphenated exactly like this. Flutter rejects
+                    // `--extra-frontend-options` outright.
+                    '--extra-front-end-options=--dynamic-interface=',
+                  ),
+                  'forwards the interface to frontend_server',
+                ),
+              ),
+            );
+          });
+
+          test('retains SDK members BY NAME, never a whole library', () async {
+            // A whole `dart:core` library item was measured at +310%. Named
+            // members cost +0.006-0.009%. The generator can still do the
+            // expensive thing via --sdk-libraries; a release must not.
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            final members =
+                verify(
+                      () => routeBReleaseKernelBuilder.generateDynamicInterface(
+                        compiler: any(named: 'compiler'),
+                        prepassKernel: any(named: 'prepassKernel'),
+                        outputFile: any(named: 'outputFile'),
+                        sdkMembers: captureAny(named: 'sdkMembers'),
+                        appPackageName: any(named: 'appPackageName'),
+                        privateEnumerationKernel: any(
+                          named: 'privateEnumerationKernel',
+                        ),
+                        manifestFile: any(named: 'manifestFile'),
+                      ),
+                    ).captured.single
+                    as List<String>;
+
+            expect(members, routeBRetainedSdkMembers);
+            expect(members, contains('dart:core#DateTime.now'));
+            expect(
+              members,
+              everyElement(predicate<String>((m) => m.contains('#'))),
+            );
+          });
+
+          test('reports the tax on every release', () async {
+            // Retention is release-time and every release pays it, so a
+            // widening cannot go unnoticed.
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            verify(
+              () => logger.info(
+                any(that: contains('named SDK members')),
+              ),
+            ).called(1);
+          });
+
+          test('builds anyway when retention cannot be declared', () async {
+            // The app is fine and installable; what is lost is the ability to
+            // patch it with a body that names a symbol. Refusing to publish
+            // would be the wrong trade.
+            when(
+              () => routeBReleaseKernelBuilder.buildPrepass(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: any(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+                injectedDefines: any(named: 'injectedDefines'),
+              ),
+            ).thenReturn(null);
+
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            expect(
+              capturedBuildArgs(),
+              isNot(
+                contains(
+                  predicate<String>(
+                    (a) => a.contains('--dynamic-interface='),
+                  ),
+                ),
+              ),
+            );
+          });
+        });
+
+        group('route_b.json provenance', () {
+          late Directory supplementDirectory;
+
+          setUp(() {
+            supplementDirectory = Directory.systemTemp.createTempSync(
+              'supplement',
+            );
+            when(
+              () => artifactManager.getReleaseSupplementDirectory(
+                platformSubdir: any(named: 'platformSubdir'),
+                create: any(named: 'create'),
+              ),
+            ).thenReturn(supplementDirectory);
+            when(
+              () => shorebirdEnv.shorebirdEngineRevision,
+            ).thenReturn('engine-abc');
+            when(() => shorebirdEnv.flutterRevision).thenReturn('flutter-def');
+
+            // The frontend writes the import kernel; stubbed to the same
+            // contract, since running a real gen_kernel here would test the
+            // engine rather than the releaser.
+            when(
+              () => routeBReleaseKernelBuilder.build(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: any(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+                injectedDefines: any(named: 'injectedDefines'),
+              ),
+            ).thenAnswer((invocation) {
+              final out = invocation.namedArguments[#outputFile] as File;
+              return out..writeAsStringSync('IMPORT-DILL-FROM-THIS-BUILD');
+            });
+            when(
+              () => routeBReleaseKernelBuilder.agreesWith(
+                compiler: any(named: 'compiler'),
+                importKernel: any(named: 'importKernel'),
+                aotKernel: any(named: 'aotKernel'),
+                consequence: any(named: 'consequence'),
+              ),
+            ).thenReturn(true);
+          });
+
+          test('records the engine that built the release', () async {
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            final provenance = readRouteBReleaseProvenance(
+              supplementDirectory,
+            );
+            expect(provenance, isNotNull);
+            expect(provenance!.engineRevision, 'engine-abc');
+            expect(provenance.flutterRevision, 'flutter-def');
+            // Evidence, not a gate: the patch side re-counts from the shipped
+            // bytes rather than believing this.
+            expect(provenance.patchableCallSites, 4000);
+          });
+
+          test('captures the kernel THIS build compiled', () async {
+            // Not a kernel regenerated from the same source later: coverage
+            // diffs the patch against these exact bytes, so a regenerated base
+            // would answer "what differs from a kernel I just built" instead of
+            // "what differs from what shipped".
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            final provenance = readRouteBReleaseProvenance(
+              supplementDirectory,
+            )!;
+            expect(
+              provenance.artifacts,
+              contains(routeBReleaseKernelFileName),
+            );
+
+            final captured = File(
+              p.join(supplementDirectory.path, routeBReleaseKernelFileName),
+            );
+            expect(captured.readAsStringSync(), buildKernel.readAsStringSync());
+            expect(
+              provenance.artifacts[routeBReleaseKernelFileName],
+              sha256.convert(buildKernel.readAsBytesSync()).toString(),
+            );
+            // And the pair verifies as a unit, which is what the patch side
+            // does before trusting either.
+            expect(
+              () => verifyRouteBReleaseArtifacts(
+                supplementDirectory,
+                provenance,
+              ),
+              returnsNormally,
+            );
+          });
+
+          test('captures the import kernel from the RELEASE engine', () async {
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            // Resolved by engine hash, so both kernels come from one frontend
+            // lineage as a matter of structure rather than of who built.
+            verify(
+              () => routeBCompilerResolver.resolve(
+                engineRevision: 'engine-abc',
+              ),
+            ).called(1);
+
+            final provenance = readRouteBReleaseProvenance(
+              supplementDirectory,
+            )!;
+            expect(
+              provenance.artifacts.keys,
+              containsAll([
+                routeBReleaseKernelFileName,
+                routeBReleaseImportKernelFileName,
+              ]),
+            );
+            expect(
+              () => verifyRouteBReleaseArtifacts(
+                supplementDirectory,
+                provenance,
+              ),
+              returnsNormally,
+            );
+          });
+
+          test('compiles it for the release\'s own entrypoint', () async {
+            when(() => argResults['target']).thenReturn(null);
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            // TWO import kernels are compiled now, not one: an early one before
+            // the interface, whose only job is the private-enumeration agreement
+            // check, and the supplement copy after the real build. Every one of
+            // them must use the release's own entrypoint -- a guess at the
+            // entrypoint in either would describe a different program, which is
+            // the whole failure this test exists to catch. Asserting over all of
+            // them is stronger than the previous `.single`, not weaker.
+            final entrypoints = verify(
+              () => routeBReleaseKernelBuilder.build(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: captureAny(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+                injectedDefines: any(named: 'injectedDefines'),
+              ),
+            ).captured.cast<String>();
+            expect(entrypoints, isNotEmpty);
+            expect(entrypoints, everyElement(p.join('lib', 'main.dart')));
+          });
+
+          test('records no import kernel when it cannot be built', () async {
+            // e.g. --dart-define-from-file, whose values cannot be carried
+            // across faithfully. The release is still fine; it is just not
+            // patchable, and the patch side names which kernel is missing.
+            when(
+              () => routeBReleaseKernelBuilder.build(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: any(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+                injectedDefines: any(named: 'injectedDefines'),
+              ),
+            ).thenReturn(null);
+
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            final provenance = readRouteBReleaseProvenance(
+              supplementDirectory,
+            )!;
+            expect(
+              provenance.artifacts,
+              isNot(contains(routeBReleaseImportKernelFileName)),
+            );
+          });
+
+          // THE FALLBACK PATH, and the invariant it protects: a disagreement may
+          // REDUCE PATCHABILITY and must never turn into a failed release.
+          //
+          // Enumerating private members from the import kernel means building it
+          // before `flutter build ipa`, which is what makes a divergence dangerous
+          // -- without a fallback it would surface as a failed release inside the
+          // CFE rather than as a refused patch.
+          test(
+            'enumerates privates from the import kernel when they agree',
+            () {
+              return runWithOverrides(iosReleaser.buildReleaseArtifacts).then((
+                _,
+              ) {
+                final kernel =
+                    verify(
+                          () => routeBReleaseKernelBuilder
+                              .generateDynamicInterface(
+                                compiler: any(named: 'compiler'),
+                                prepassKernel: any(named: 'prepassKernel'),
+                                outputFile: any(named: 'outputFile'),
+                                sdkMembers: any(named: 'sdkMembers'),
+                                appPackageName: any(named: 'appPackageName'),
+                                privateEnumerationKernel: captureAny(
+                                  named: 'privateEnumerationKernel',
+                                ),
+                                manifestFile: any(named: 'manifestFile'),
+                              ),
+                        ).captured.single
+                        as File?;
+                expect(kernel, isNotNull);
+
+                final evidence = readRouteBReleaseProvenance(
+                  supplementDirectory,
+                )!;
+                expect(
+                  evidence.artifacts,
+                  contains(routeBRetentionEvidenceFileName),
+                );
+              });
+            },
+          );
+
+          test('threads the defines FLUTTER injected into EVERY kernel', () async {
+            // G4.1c, and the defect it pins is not a flavored edge case.
+            // Measured on a clean `flutter create` app with no flavor and no
+            // `--dart-define` at all, the shipped release still receives six
+            // defines (FLUTTER_VERSION and siblings) that no Route B kernel had
+            // — and Route B's OWN coverage analyzer reports `main` as CHANGED
+            // between a prepass compiled with them and one compiled without.
+            //
+            // Asserting over ALL THREE call sites rather than one is what makes
+            // this discriminate: the prepass decides retention, the early import
+            // kernel is the private-enumeration source, and the supplement copy
+            // is what a patch binds against. A kernel missing from this list is
+            // a kernel describing a different program.
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            const expected = {
+              'FLUTTER_VERSION': '3.44.8',
+              'FLUTTER_ENGINE_REVISION': '11e5695710',
+            };
+
+            final prepassDefines = verify(
+              () => routeBReleaseKernelBuilder.buildPrepass(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: any(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+                flavor: any(named: 'flavor'),
+                injectedDefines: captureAny(named: 'injectedDefines'),
+              ),
+            ).captured;
+            expect(prepassDefines, [expected]);
+
+            final importDefines = verify(
+              () => routeBReleaseKernelBuilder.build(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: any(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+                flavor: any(named: 'flavor'),
+                injectedDefines: captureAny(named: 'injectedDefines'),
+              ),
+            ).captured;
+            // Two: the early enumeration source and the supplement copy. Pinned
+            // as a count so a fourth call site cannot appear without either
+            // carrying the map or failing here.
+            expect(importDefines, hasLength(2));
+            expect(importDefines, everyElement(expected));
+          });
+
+          test("declines retention when Flutter's answer cannot be read", () async {
+            // THE CONTROL that makes the test above mean something, and the
+            // safety property of the whole seam: an unreadable answer must NOT
+            // collapse into "no injected defines". Compiling the prepass with an
+            // empty set is exactly the bug being closed, done silently — so the
+            // release proceeds (it is a good, installable release) and simply
+            // declares no retention.
+            File(
+              p.join(projectRoot.path, 'ios', 'Flutter', 'Generated.xcconfig'),
+            ).deleteSync();
+
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            verifyNever(
+              () => routeBReleaseKernelBuilder.buildPrepass(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: any(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+                flavor: any(named: 'flavor'),
+                injectedDefines: any(named: 'injectedDefines'),
+              ),
+            );
+            verify(
+              () => logger.warn(
+                any(
+                  that: contains(
+                    'Could not read the defines Flutter injects into this build',
+                  ),
+                ),
+              ),
+            ).called(1);
+          });
+
+          test('compiles EVERY import kernel with the flavor', () async {
+            // THE DEFECT THIS PINS. 25f8a3b8 threaded the resolved flavor into
+            // "all three places that decide what a patch is checked and bound
+            // against" -- but cd453304 had already added a fourth, the EARLY
+            // import kernel, and it was missed.
+            //
+            // Why it matters more than an ordinary omission: that kernel is the
+            // private-ENUMERATION source. Without the define a flavored release
+            // would name its private surface from a kernel compiled against a
+            // different Dart program than the one it shipped, and would then
+            // check that kernel against a prepass that does carry the define.
+            //
+            // Asserting over ALL the build calls rather than one is what makes
+            // this discriminate: a single-element `contains` would have passed
+            // against the broken code, because the OTHER call site was already
+            // correct.
+            final flavored = IosReleaser(
+              argResults: argResults,
+              flavor: 'prod',
+              target: null,
+            );
+
+            await runWithOverrides(flavored.buildReleaseArtifacts);
+
+            final flavors = verify(
+              () => routeBReleaseKernelBuilder.build(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: any(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+                flavor: captureAny(named: 'flavor'),
+                injectedDefines: any(named: 'injectedDefines'),
+              ),
+            ).captured;
+            // Two: the early one before the interface, and the supplement copy
+            // after the real build. Pinned as a count so a future call site
+            // cannot be added without either carrying the flavor or failing
+            // here.
+            expect(flavors, hasLength(2));
+            expect(flavors, everyElement('prod'));
+
+            // And the prepass, which decides retention, agrees with them.
+            final prepassFlavors = verify(
+              () => routeBReleaseKernelBuilder.buildPrepass(
+                compiler: any(named: 'compiler'),
+                projectRoot: any(named: 'projectRoot'),
+                entrypoint: any(named: 'entrypoint'),
+                buildArgs: any(named: 'buildArgs'),
+                outputFile: any(named: 'outputFile'),
+                flavor: captureAny(named: 'flavor'),
+                injectedDefines: any(named: 'injectedDefines'),
+              ),
+            ).captured;
+            expect(prepassFlavors, everyElement('prod'));
+          });
+
+          test(
+            'falls back to the prepass, and still releases, on disagreement',
+            () async {
+              // The early check and the late one are the same helper, so stubbing
+              // it false exercises both: private enumeration falls back AND the
+              // import kernel is dropped. The release must still succeed.
+              when(
+                () => routeBReleaseKernelBuilder.agreesWith(
+                  compiler: any(named: 'compiler'),
+                  importKernel: any(named: 'importKernel'),
+                  aotKernel: any(named: 'aotKernel'),
+                  consequence: any(named: 'consequence'),
+                ),
+              ).thenReturn(false);
+
+              await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+              // Narrower, not failed: the interface was still generated, and with
+              // NO private-enumeration kernel.
+              final kernel =
+                  verify(
+                        () =>
+                            routeBReleaseKernelBuilder.generateDynamicInterface(
+                              compiler: any(named: 'compiler'),
+                              prepassKernel: any(named: 'prepassKernel'),
+                              outputFile: any(named: 'outputFile'),
+                              sdkMembers: any(named: 'sdkMembers'),
+                              appPackageName: any(named: 'appPackageName'),
+                              privateEnumerationKernel: captureAny(
+                                named: 'privateEnumerationKernel',
+                              ),
+                              manifestFile: any(named: 'manifestFile'),
+                            ),
+                      ).captured.single
+                      as File?;
+              expect(kernel, isNull);
+
+              // And the reason is recorded rather than inferred later.
+              final evidence = File(
+                p.join(
+                  supplementDirectory.path,
+                  routeBRetentionEvidenceFileName,
+                ),
+              );
+              expect(evidence.existsSync(), isTrue);
+              final recorded =
+                  jsonDecode(evidence.readAsStringSync())
+                      as Map<String, dynamic>;
+              expect(recorded['privateEnumerationSource'], 'prepass');
+              expect(recorded['importPrepassAgreement'], 'failed');
+              expect(recorded['fallbackReason'], isNotNull);
+            },
+          );
+
+          test('captures the capability manifest the generator wrote', () async {
+            // WHAT THE PATCH SIDE GATES ON. A private reference is accepted
+            // against this file and nothing else, so a release that generated
+            // one and did not upload it would refuse every private patch while
+            // looking correctly configured.
+            //
+            // In `artifacts` rather than merely on disk: its hash is then
+            // provenance-covered like every other release artifact, and a
+            // manifest editable between release and patch would be a way to
+            // grant capabilities the release never emitted.
+            when(
+              () => routeBReleaseKernelBuilder.generateDynamicInterface(
+                compiler: any(named: 'compiler'),
+                prepassKernel: any(named: 'prepassKernel'),
+                outputFile: any(named: 'outputFile'),
+                sdkMembers: any(named: 'sdkMembers'),
+                appPackageName: any(named: 'appPackageName'),
+                privateEnumerationKernel: any(
+                  named: 'privateEnumerationKernel',
+                ),
+                manifestFile: any(named: 'manifestFile'),
+              ),
+            ).thenAnswer((invocation) {
+              (invocation.namedArguments[#manifestFile] as File?)
+                ?..createSync(recursive: true)
+                ..writeAsStringSync('{"policy":"p2"}');
+              final out = invocation.namedArguments[#outputFile] as File
+                ..createSync(recursive: true);
+              return out..writeAsStringSync('callable:\n');
+            });
+
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            final provenance = readRouteBReleaseProvenance(
+              supplementDirectory,
+            )!;
+            expect(
+              provenance.artifacts,
+              contains(routeBCapabilityManifestFileName),
+            );
+            expect(
+              File(
+                p.join(
+                  supplementDirectory.path,
+                  routeBCapabilityManifestFileName,
+                ),
+              ).existsSync(),
+              isTrue,
+            );
+          });
+
+          test('records no manifest when the generator wrote none', () async {
+            // A generator too old to know `--manifest` succeeds and writes
+            // nothing. Recording the name anyway would advertise a capability
+            // artifact the release does not have, and the patch side would then
+            // fail verification rather than fall back to refusing privates.
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            expect(
+              readRouteBReleaseProvenance(supplementDirectory)!.artifacts,
+              isNot(contains(routeBCapabilityManifestFileName)),
+            );
+          });
+
+          test(
+            'drops an import kernel that disagrees with the AOT one',
+            () async {
+              // Forwarding the release's inputs correctly is a promise until it
+              // is checked. A kernel that describes a different program must not
+              // be advertised as this release's.
+              when(
+                () => routeBReleaseKernelBuilder.agreesWith(
+                  compiler: any(named: 'compiler'),
+                  importKernel: any(named: 'importKernel'),
+                  aotKernel: any(named: 'aotKernel'),
+                  consequence: any(named: 'consequence'),
+                ),
+              ).thenReturn(false);
+
+              await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+              final provenance = readRouteBReleaseProvenance(
+                supplementDirectory,
+              )!;
+              expect(
+                provenance.artifacts,
+                isNot(contains(routeBReleaseImportKernelFileName)),
+              );
+              expect(
+                File(
+                  p.join(
+                    supplementDirectory.path,
+                    routeBReleaseImportKernelFileName,
+                  ),
+                ).existsSync(),
+                isFalse,
+              );
+            },
+          );
+
+          test('records no kernel when the build produced none', () async {
+            // Not fatal at release time: the release is still installable. It
+            // simply cannot be patched, and the patch side says so by name.
+            buildKernel.deleteSync();
+
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            final provenance = readRouteBReleaseProvenance(
+              supplementDirectory,
+            )!;
+            expect(provenance.artifacts, isEmpty);
+            verify(
+              () => logger.warn(
+                any(that: contains("Could not capture this release's kernel")),
+              ),
+            ).called(1);
+          });
+
+          test('records it even when the caller asked for the flag', () async {
+            // The flag's provenance and the engine's provenance are different
+            // facts. Someone passing --patchable_static_calls themselves still
+            // produced a release only one engine can compile patches for.
+            when(() => argResults.rest).thenReturn([
+              '--extra-gen-snapshot-options=--patchable_static_calls',
+            ]);
+
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            expect(
+              readRouteBReleaseProvenance(supplementDirectory)?.engineRevision,
+              'engine-abc',
+            );
+          });
+
+          test('records nothing on a stock engine', () async {
+            engineBinary().writeAsStringSync('...no interpreter here...');
+
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            expect(readRouteBReleaseProvenance(supplementDirectory), isNull);
+          });
+        });
+
+        group('when the built app has no patchable call sites', () {
+          setUp(() => writeAppBinary(sites: 2));
+
+          test('fails rather than publishing an unpatchable release', () async {
+            await expectLater(
+              () => runWithOverrides(iosReleaser.buildReleaseArtifacts),
+              exitsWithCode(ExitCode.software),
+            );
+            verify(
+              () => logger.err(
+                any(that: contains('accepts patches and ignores them')),
+              ),
+            ).called(1);
+          });
+        });
+      });
+
       group('when xcarchive not found after build', () {
         setUp(() {
           when(() => artifactManager.getXcarchiveDirectory()).thenReturn(null);
@@ -680,6 +1731,71 @@ $body
               any(that: contains('Unable to find generated IPA')),
             ),
           ).called(1);
+        });
+      });
+
+      group(
+        'when codesigning and the ipa is left over from an earlier build',
+        () {
+          // The defect this exists for: `flutter build ipa` exits 0 when its
+          // export step fails, build/ios/ipa is not cleared between runs, and a
+          // presence check is then satisfied by the PREVIOUS release's .ipa. One
+          // release published with its predecessor's artifact before this check
+          // existed.
+          late File staleIpa;
+
+          setUp(() {
+            when(() => argResults['codesign']).thenReturn(true);
+            staleIpa =
+                File(p.join(projectRoot.path, 'build', 'ios', 'ipa', 'a.ipa'))
+                  ..createSync(recursive: true)
+                  ..setLastModifiedSync(
+                    xcarchiveDirectory.statSync().modified.subtract(
+                      const Duration(hours: 1),
+                    ),
+                  );
+            when(() => artifactManager.getIpa()).thenReturn(staleIpa);
+          });
+
+          test('refuses to release it', () async {
+            await expectLater(
+              () => runWithOverrides(iosReleaser.buildReleaseArtifacts),
+              exitsWithCode(ExitCode.software),
+            );
+
+            verify(
+              () => logger.err(
+                any(
+                  that: contains(
+                    'Found an .ipa older than the .xcarchive this build just '
+                    'produced',
+                  ),
+                ),
+              ),
+            ).called(1);
+          });
+        },
+      );
+
+      group('when codesigning and the ipa is from this build', () {
+        setUp(() {
+          when(() => argResults['codesign']).thenReturn(true);
+          when(() => artifactManager.getIpa()).thenReturn(
+            File(p.join(projectRoot.path, 'build', 'ios', 'ipa', 'a.ipa'))
+              ..createSync(recursive: true)
+              ..setLastModifiedSync(
+                xcarchiveDirectory.statSync().modified.add(
+                  const Duration(seconds: 5),
+                ),
+              ),
+          );
+        });
+
+        test('releases it', () async {
+          expect(
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts),
+            equals(xcarchiveDirectory),
+          );
         });
       });
 
