@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
@@ -6,11 +7,14 @@ import 'package:path/path.dart' as p;
 import 'package:pub_semver/pub_semver.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
+import 'package:shorebird_cli/src/dd_support.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/flutter_version_constraints.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/route_b_build_config.dart';
+import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
@@ -116,13 +120,35 @@ abstract class Releaser {
   /// silently re-enabled.
   ///
   /// Returns null when DD should be disabled: the option is absent, or the
-  /// value is `0` (the user's "disable DD" knob), or the value is malformed.
+  /// value is `0` (the user's "disable DD" knob), or the value is malformed,
+  /// or the engine in use cannot run the DD pass at all.
   int? get ddMaxBytes {
     final value = argResults['dd-max-bytes'] as String?;
     if (value == null) return null;
     final parsed = int.tryParse(value);
-    return (parsed != null && parsed > 0) ? parsed : null;
+    if (parsed == null || parsed <= 0) return null;
+
+    // An engine built from vanilla Dart has no DD support, and every failure
+    // inside Flutter's DD pass is fatal — the build dies with
+    // "Unrecognized flags: print_dd_function_identity_to", which sends you
+    // looking in the wrong layer. Turn it off ourselves instead of making
+    // every user of such an engine know to pass --dd-max-bytes=0.
+    final genSnapshot = ddGenSnapshotArtifact;
+    if (genSnapshot != null && !ddSupport.isSupportedBy(genSnapshot)) {
+      logger.detail(
+        '''This engine's gen_snapshot does not support the DD pass; building without it (equivalent to --dd-max-bytes=0). Patches against this release compute DD on the fly when applied.''',
+      );
+      return null;
+    }
+    return parsed;
   }
+
+  /// The `gen_snapshot` whose DD support decides whether [ddMaxBytes] applies,
+  /// or null for platforms where Flutter never runs the DD pass.
+  ///
+  /// Flutter gates the pass on `usesLinker`, which is Apple-only, so only the
+  /// Apple releasers override this.
+  ShorebirdArtifact? get ddGenSnapshotArtifact => null;
 
   /// Path where the obfuscation map is saved during obfuscated builds.
   String get obfuscationMapPath => p.join(
@@ -196,6 +222,74 @@ abstract class Releaser {
   /// Arch string for the supplement artifact on the server (e.g.
   /// 'android_supplement').
   String get supplementArtifactArch;
+
+  /// The filename a release's effective build configuration is recorded under
+  /// inside the supplement.
+  static const buildConfigFileName = 'build_config.json';
+
+  /// Records this release's EFFECTIVE build configuration into the supplement,
+  /// so a later patch can be compared against it.
+  ///
+  /// THE CONTRACT, stated explicitly because the alternative is an accident:
+  /// **every modern release records a build config**, and the three states are
+  /// kept distinguishable on purpose —
+  ///
+  ///   file absent          the release predates this contract. A patch cannot
+  ///                        compare, and must say so rather than assume it
+  ///                        matches.
+  ///   `buildConfig` object the effective configuration. Comparable.
+  ///   `buildConfig: null`  the configuration is UNFINGERPRINTABLE — a file
+  ///                        passed to `--dart-define-from-file` could not be
+  ///                        read or parsed, so the effective define set is
+  ///                        unknown. Comparable to nothing, and that is itself
+  ///                        information.
+  ///
+  /// **The third state used to mean "`--dart-define-from-file` was used at
+  /// all"**, and now means only that its files could not be resolved: the
+  /// option is expanded by `dart_define_from_file.dart`.
+  ///
+  /// ONE LIMIT, NAMED RATHER THAN IMPLIED. On iOS the expansion is checked
+  /// against Flutter's own resolved `DART_DEFINES` for the same build
+  /// (`ios_releaser._defineExpansionDisagreement`). **On Android there is no
+  /// equivalent artifact to check against** — Flutter hands the resolved set to
+  /// Gradle as a `-Pdart-defines` argument and writes it nowhere — so the
+  /// Android fingerprint uses the expansion unverified. Release and patch run
+  /// the same expansion, so a mismatch between them is still detected; what is
+  /// not detected is a port error that maps two genuinely different files to the
+  /// same defines on both sides.
+  ///
+  /// Recording the third state explicitly is the point: "absent" and "unknown"
+  /// have different remediations, and collapsing them is how a patch silently
+  /// skips the check it was supposed to run.
+  ///
+  /// The shape mirrors `route_b_provenance.json`'s `buildConfig` key so that
+  /// promoting this into a platform-neutral contract later is a MOVE rather
+  /// than a translation.
+  void recordEffectiveBuildConfig(List<String> buildArgs) {
+    final supplementDir = artifactManager.getReleaseSupplementDirectory(
+      platformSubdir: supplementPlatformSubdir,
+      create: true,
+    );
+    // No project root: nothing downstream could upload a supplement anyway.
+    if (supplementDir == null) return;
+
+    final config = RouteBBuildConfig.fromBuildArgs(buildArgs, flavor: flavor);
+    File(p.join(supplementDir.path, buildConfigFileName)).writeAsStringSync(
+      const JsonEncoder.withIndent('  ').convert({
+        'buildConfig': config?.toJson(),
+        if (config == null)
+          'unfingerprintableReason':
+              'the effective define set could not be determined — a file '
+              'passed to --dart-define-from-file could not be read or parsed '
+              '(see dart_define_from_file.dart)',
+      }),
+    );
+    logger.detail(
+      config == null
+          ? '[build-config] recorded UNFINGERPRINTABLE configuration'
+          : '[build-config] recorded fingerprint ${config.fingerprint}',
+    );
+  }
 
   /// Assembles the supplement directory: copies the obfuscation map (if
   /// present) into the platform supplement dir. Returns the directory, or null
