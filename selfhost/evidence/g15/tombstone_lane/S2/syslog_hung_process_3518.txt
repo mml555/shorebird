@@ -1,0 +1,40 @@
+Aug 19 00:12:06.550890 Runner(UIKitCore)[3518] <Notice>: sceneOfRecord: sceneID: sceneID:dev.selfhost.killswitchProbe-default  persistentID: D9D0A792-D750-4006-8094-9A6C969ADD8B
+Aug 19 00:12:06.550965 Runner(UIKitCore)[3518] <Notice>: Deactivation reason removed: 5; deactivation reasons: 4136 -> 4104; animating application lifecycle event: 0
+Aug 19 00:12:06.791892 Runner(UIKitCore)[3518] <Notice>: sceneOfRecord: sceneID: sceneID:dev.selfhost.killswitchProbe-default  persistentID: D9D0A792-D750-4006-8094-9A6C969ADD8B
+Aug 19 00:12:06.791911 Runner(UIKitCore)[3518] <Notice>: Deactivation reason added: 5; deactivation reasons: 4104 -> 4136; animating application lifecycle event: 1
+Aug 19 00:12:06.799037 Runner(UIKitCore)[3518] <Notice>: [0x280151650] End local event deferring requested for token: 0x280959c20; environments: 1; reason: UIWindowScene: 0x101e08320: end event deferring for scene invalidation
+Aug 19 00:12:06.799079 Runner(UIKitCore)[3518] <Notice>: [0x280151650] Removing all event deferring rules for reason: _UIEventDeferringManager: 0x280151650: removing all deferring rules due to scene invalidation: 0x101e08320
+Aug 19 00:12:06.800696 Runner(UIKitCore)[3518] <Notice>: Scene will invalidate: UIWindowScene: 0x101e08320; scene identity: com.apple.frontboard.systemappservices::sceneID%3Adev.selfhost.killswitchProbe-default
+Aug 19 00:12:06.800908 Runner(UIKitCore)[3518] <Notice>: Key window needs update: 1; currentKeyWindowScene: 0x101e08320; evaluatedKeyWindowScene: 0x0; currentApplicationKeyWindow: 0x101f36980; evaluatedApplicationKeyWindow: 0x0; reason: UIWindowScene: 0x101e08320: Window scene was invalidated
+Aug 19 00:12:06.801074 Runner(UIKitCore)[3518] <Notice>: Window did become application key: (nil): 0x0; contextId: 0x0; scene identity: (nil)
+Aug 19 00:12:06.801177 Runner(UIKitCore)[3518] <Notice>: sceneOfRecord: sceneID: (null)  persistentID: (null)
+Aug 19 00:12:06.803353 Runner(UIKitCore)[3518] <Notice>: Deactivation reason added: 11; deactivation reasons: 4136 -> 6184; animating application lifecycle event: 0
+Aug 19 00:12:06.803405 Runner(UIKitCore)[3518] <Notice>: <private>: Will add backgroundTask with taskName: <private>, expirationHandler: (null)
+Aug 19 00:12:06.803448 Runner(UIKitCore)[3518] <Notice>: <private>: Created background task <private>. Assertion will be assigned soon
+Aug 19 00:12:06.803514 Runner(UIKitCore)[3518] <Notice>: <private>: Creating new assertion since assertion is nil
+Aug 19 00:12:06.803565 Runner(RunningBoardServices)[3518] <Info>: Acquiring assertion: <RBSAssertionDescriptor| "Shared Background Assertion 1 for dev.selfhost.killswitchProbe" ID:(null) target:3518>
+Aug 19 00:12:06.806583 Runner(RunningBoardServices)[3518] <Debug>: Adding assertion 33-3518-3878 to dictionary
+Aug 19 00:12:06.806644 Runner(UIKitCore)[3518] <Notice>: <private>: Created new assertion <BKSProcessAssertion: 0x28095a2b0>
+Aug 19 00:12:06.806693 Runner(CoreFoundation)[3518] <Debug>: Resource lookup at <private>
+Aug 19 00:12:06.806742 Runner(UIKitCore)[3518] <Notice>: <private>: Will add backgroundTask with taskName: <private>, expirationHandler: <__NSMallocBlock__: 0x28244e520>
+Aug 19 00:12:06.806802 Runner(UIKitCore)[3518] <Notice>: <private>: Created background task <private>. Assertion will be assigned soon
+Aug 19 00:12:06.806885 Runner(UIKitCore)[3518] <Notice>: <private>: Reusing assertion <BKSProcessAssertion: 0x28095a2b0>
+Aug 19 00:12:06.806909 Runner(UIKitCore)[3518] <Notice>: <private>: Ending background task with UIBackgroundTaskIdentifier: 3
+Aug 19 00:12:06.814646 Runner(UIKitCore)[3518] <Notice>: <private>: Ending task with identifier 3 and description: <private>, _expireHandler: <__NSMallocBlock__: 0x282448db0>
+Aug 19 00:12:06.814692 Runner(UIKitCore)[3518] <Notice>: <private>: Decrementing reference count for assertion used by background task with identifier 3: <private>
+Aug 19 00:12:06.814779 Runner(CoreFoundation)[3518] <Debug>: Resource lookup at <private>
+Aug 19 00:12:06.814935 Runner(CoreFoundation)[3518] <Debug>: Resource lookup at <private>
+Aug 19 00:12:06.815003 Runner(UIKitCore)[3518] <Notice>: Deactivation reason removed: 3; deactivation reasons: 6184 -> 6176; animating application lifecycle event: 0
+Aug 19 00:12:06.853403 Runner(UIKitCore)[3518] <Notice>: Deactivation reason removed: 5; deactivation reasons: 6176 -> 6144; animating application lifecycle event: 0
+Aug 19 00:12:06.853470 Runner(UIKitCore)[3518] <Notice>: <private>: Will add backgroundTask with taskName: <private>, expirationHandler: <__NSGlobalBlock__: 0x1ec737410>
+Aug 19 00:12:06.853552 Runner(UIKitCore)[3518] <Notice>: <private>: Created background task <private>. Assertion will be assigned soon
+Aug 19 00:12:06.860253 Runner(UIKitCore)[3518] <Notice>: <private>: Reusing assertion <BKSProcessAssertion: 0x28095a2b0>
+Aug 19 00:12:06.860353 Runner(CoreFoundation)[3518] <Debug>: found no value for key LogGestureEnvironment in CFPrefsSearchListSource<0x280454800> (Domain: com.apple.UIKit, Container: (null))
+Aug 19 00:12:06.860422 Runner(CoreFoundation)[3518] <Debug>: CFPrefsManagedSource<0x280442700> (Domain: com.apple.corevideo, User: kCFPreferencesCurrentUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 19 00:12:06.860504 Runner(CoreFoundation)[3518] <Debug>: CFPrefsManagedSource<0x280442980> (Domain: com.apple.corevideo, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 19 00:12:06.860576 Runner(CoreFoundation)[3518] <Debug>: CFPrefsPlistSource<0x280442500> (Domain: com.apple.corevideo, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 19 00:12:06.902129 Runner(CoreFoundation)[3518] <Debug>: CFPrefsPlistSource<0x280440180> (Domain: com.apple.corevideo, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 19 00:12:06.903434 Runner(CoreFoundation)[3518] <Debug>: found no value for key pools_trace in CFPrefsSearchListSource<0x280440d80> (Domain: com.apple.corevideo, Container: (null))
+Aug 19 00:12:06.903586 Runner(UIKitCore)[3518] <Notice>: <private>: Ending background task with UIBackgroundTaskIdentifier: 2
+Aug 19 00:12:06.903620 Runner(UIKitCore)[3518] <Notice>: <private>: Ending task with identifier 2 and description: <private>, _expireHandler: (null)
+Aug 19 00:12:06.903677 Runner(UIKitCore)[3518] <Notice>: <private>: Decrementing reference count for assertion used by background task with identifier 2: <private>
