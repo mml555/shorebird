@@ -81,6 +81,10 @@ displayed; only the lineage inferences are void.
   preserved unread at `r91_hybrid_device/state/`. Needs counters bracketed per
   launch by design. **Arm B is now CLOSED** (`armB_crash_backout_verdict.txt`);
   the pre-success termination rows remain parked as unmeasurable on this rig.
+* **Lifecycle policy** — now written as a contract in `selfhost/LIFECYCLE_POLICY.md`.
+  C1/C2 are device-proven; **C3/C4 (ambiguous death, threshold) are BUILT by
+  `0010` but never deterministically exercised**, and the threshold is not yet
+  ratified as a product decision. No further manual tombstone experiments.
 * **§15's gate wording** — it says a Dart-phase *crash* backs the patch out. What
   is proven is that an unhandled Dart *error* suffices, **with the process still
   alive**. The app hangs on a white screen until the user force-quits it. Correct

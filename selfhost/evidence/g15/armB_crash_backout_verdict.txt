@@ -1,6 +1,45 @@
 G15 ARM B — CRASH-BACKOUT: PASS, BY THE INTENDED MECHANISM, 2026-08-19
 =======================================================================
 
+*** CORRECTION 2026-08-19, SAME DAY — ONE CLAIM BELOW IS WRONG ***
+====================================================================
+**The PASS stands. Every device observation stands. One CORRECTION-section
+claim does not.**
+
+Section "TWO CORRECTIONS TO THINGS CARRIED INTO THIS RUN", item 1, says there is
+no `BOOT_FAILURE_THRESHOLD` and that **both** retirement paths are single-strike.
+**That is wrong, and it is wrong in the direction that matters.**
+
+`BOOT_FAILURE_THRESHOLD: u32 = 2` DOES exist, in
+`selfhost/engine/route_b/0010-g15-boot-attempt-threshold.patch`. I grepped
+`vendor/updater/library/src/` — the PINNED UPSTREAM COPY — and concluded from its
+absence there. The device engine is built from the PATCHED tree. This is the same
+class of error as the withdrawn engine-lineage attribution: measuring an artifact
+that is not the one that ran.
+
+**The device's own `pointers.json` proves `0010` ran**, and I had that evidence in
+hand while writing the wrong claim: `boot_attempt_count` and
+`last_boot_attempt_patch` exist in it AT ALL only because `0010` added them.
+They are absent from the pinned tree's `ReleasePointers`.
+
+WHAT IS ACTUALLY TRUE:
+
+| path | trigger | policy |
+|---|---|---|
+| `report_launch_failure()` | EXPLICIT — engine/Dart seam blames the patch | **single-strike**, immediate `Bad` |
+| `detect_boot_crash_on_init()` | INFERRED — breadcrumb still set at next init | **threshold-governed**, retries below `BOOT_FAILURE_THRESHOLD = 2` |
+
+**These are already two different policies for two different strengths of
+evidence.** Arm B exercised the EXPLICIT path only, so "single-strike" is correct
+for what arm B measured and must not be generalised to the inferred path.
+
+What this correction does NOT change: the PASS, the 37 ms timing, the Dart-seam
+attribution (`hooks.dart:492`), the hang-not-crash finding, the control-plane
+round trip, or the one-hung-launch product gap. Precommit row 2 is still void,
+but for the opposite reason to the one I gave — the threshold exists and simply
+did not apply to the path that fired.
+====================================================================
+
 Scored against `armB_precommit.md`, written and frozen BEFORE the first launch.
 Arm B was precommitted in `gate5_arms_precommit.md` and named in `arm2_verdict.txt`
 as never run: *"NOT crash-backout … G15's §15 gate 'a Dart-phase crash backs the
