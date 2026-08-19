@@ -84,7 +84,28 @@ If a conclusion is later invalidated by a collapsed premise, **supersede the
 conclusion and preserve the evidence** — add a header, do not delete or rewrite.
 See `selfhost/evidence/g15/gate5_armA_fold_refuted.txt`.
 
-### 8. Check committed state before writing a corrective edit
+### 8. Prove the source you inspected produced the artifact under test
+
+**Before making a behavioural claim from source inspection, establish that the
+inspected source is what BUILT the thing you are testing.** This is doubly true
+for ABSENCE claims, because a grep returning nothing feels like proof.
+
+    AUTHORITATIVE for updater behaviour (builds the device engine):
+      <engine>/src/flutter/third_party/updater/library/src/...
+    PINNED UPSTREAM COPY — lacks every route-b change:
+      vendor/updater/library/src/...
+
+Reading the pinned copy produced a confident, wrong "there is no
+BOOT_FAILURE_THRESHOLD, both retirement paths are single-strike" on 2026-08-19.
+It is 2, added by patch `0010`.
+
+**Runtime evidence outranks source inspection for the question "what ran".** The
+device's `pointers.json` already contained `boot_attempt_count` — a field that
+exists only because of the change I was claiming was absent. When device state
+contains a field the source lacks, that is not an anomaly; it means you are
+reading the wrong source.
+
+### 9. Check committed state before writing a corrective edit
 
 This repo runs parallel sessions. Another lane may have already recorded the
 correction. `git show <sha>:<path>` before editing.

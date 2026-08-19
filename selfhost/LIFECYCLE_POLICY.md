@@ -43,8 +43,18 @@ C3 is the row that matters. Everything else is comparatively easy.
 |---|---|---|---|
 | C1 | **yes** | `record_boot_success` clears breadcrumb + tally; a later kill leaves nothing for `detect_boot_crash_on_init` to find | **yes**, twice — `arm2_verdict.txt` |
 | C2 | **yes** | `report_launch_failure()` → `mark_bad` immediately | **yes** — `armB_crash_backout_verdict.txt`, 2026-08-19 |
-| C3 | **yes** | `0010`: below threshold, clear ONLY the breadcrumb and retry | **NO** — never exercised deterministically |
-| C4 | **yes**, threshold = 2 | `BOOT_FAILURE_THRESHOLD` in `0010` | **NO** |
+| C3 | **yes** | `0010`: below threshold, clear ONLY the breadcrumb and retry | **host-proven** 2026-08-19; not device-proven |
+| C4 | **yes**, threshold = 2 | `BOOT_FAILURE_THRESHOLD` in `0010` | **host-proven** 2026-08-19; not device-proven |
+
+**Host suite: `library/src/cache/lifecycle_policy_tests.rs`** (updater repo, branch
+`route-b`). 18 tests across real process boundaries. The threshold is INJECTED,
+so the suite proves the rule "retire on the Nth consecutive un-succeeded boot"
+across N in 1..=4 rather than agreement with the number 2.
+
+**Verified non-vacuous by mutation, not by passing:** making the ambiguous path
+single-strike fails 11 of 18 and leaves exactly the 7 that should survive;
+removing success's tally reset fails 2; making the tally ignore which patch it
+counts fails 1.
 
 **The policy is largely already built.** That was not obvious and was nearly
 missed: `0010-g15-boot-attempt-threshold.patch` implements exactly this split,
@@ -83,15 +93,35 @@ patch-file comment. Its reasoning is sound — *"2 is the smallest value that
 discriminates at all, and costs exactly one extra crash in the genuine-failure
 case"* — but **soundness is not ratification.**
 
-Ratify it, change it, or add conditions deliberately. Specifically decide:
+### What the host suite SETTLED — no longer open
+
+| question | answer | proven by |
+|---|---|---|
+| does success reset the tally? | **yes** | `c3_success_between_ambiguous_deaths_resets_the_tally` |
+| does changing patch identity reset it? | **yes** | `tally_does_not_transfer_from_one_patch_to_another` |
+| does the tally survive process/device restart? | **yes** | `counter_persists_across_process_restarts` |
+| does a device reboot count differently? | **no** — a reboot mid-boot is one ambiguous death like any other | same |
+| can idle launches accrue toward retirement? | **no** — only a set breadcrumb counts | `recovery_is_a_noop_when_no_boot_was_in_flight` |
+| can a tombstoned patch be resurrected? | **no** | `an_already_retired_patch_cannot_be_booted_again` |
+
+### What is STILL open — the actual ratification agenda
 
 * **is 2 right**, given C4's cost is one extra crashed launch?
 * **should the tally decay with time?** Today it is purely consecutive-since-last-
   success. Two ambiguous deaths a month apart count the same as two in a row.
-* **should `boot_started_at` age gate it?** A death 40 ms in and a death 40 s in
-  are not equally suspicious, and the timestamp is already recorded.
+* **should `boot_started_at` age gate it?** A death 40 ms in and one 40 days in
+  count identically today. The timestamp is already recorded and unused.
+  `a_stale_boot_started_at_does_not_change_the_decision` PINS this as current
+  behaviour, not as endorsement — **that test is expected to change if the answer
+  is yes.**
+* **what should an upgrading device do?** A pre-`0010` `pointers.json` has a
+  breadcrumb but no counter, which reads as 0, so a device already mid-crash-loop
+  gets ONE extra retry. Pinned by
+  `legacy_pointers_without_a_counter_are_treated_as_a_first_attempt`. Deliberate,
+  but never explicitly decided.
 * **should repeated ambiguity be reported before it retires?** Today the control
-  plane learns only at retirement.
+  plane learns only at retirement, so the fleet data needed to answer "is 2 right"
+  is exactly the data we do not collect. **This is why §4.1 outranks ratification.**
 
 Until ratified, the threshold is **BUILT, not contracted.**
 
@@ -101,8 +131,14 @@ Until ratified, the threshold is **BUILT, not contracted.**
    `EventType::PatchInstallFailure`, distinguished only by a free-text prefix
    (`engine_report:` vs `crash_recovery:`). The control plane cannot separate
    "the patch blamed itself" from "we inferred it" without string-parsing.
-   **Fix: put the class in the schema.** This directly serves C3 — a fleet-level
-   view of ambiguous-vs-explicit is how the threshold gets ratified with data.
+   **Fix: put the class in the schema** — one event type with a `failure_class`
+   (`explicit_launch_failure` | `inferred_boot_failure`) rather than two types,
+   so analytics keeps them grouped. Both paths already HAVE emission tests
+   (`reports_patch_install_failure_if_patch_was_booting`, `crash_recovery_*`);
+   the gap is that the class is prose, not data. The queries that would make §3
+   ratifiable: how often do patches explicitly blame themselves; how often do we
+   infer; **how many inferred first failures recover on retry** (this is the
+   number that decides 2 vs 3); how many reach the threshold.
 2. **One hung launch per bad patch.** C2 retires the patch, but backout takes
    effect on the NEXT launch, so the user eats one white-screen launch they must
    force-quit by hand. See `armB_crash_backout_verdict.txt`.
@@ -182,9 +218,14 @@ instead.
 
 ## 7. ORDER OF WORK
 
-1. **Ratify §3** — the threshold and its conditions. Product decision, blocks nothing else.
-2. **Layer 1** — host state-machine suite for C1-C4. Cheapest, highest coverage, no device.
-3. **Classification in the event schema** (§4.1) — small, and it is what makes §3 ratifiable with fleet data rather than argument.
+1. ~~**Layer 1** — host state-machine suite for C1-C4.~~ **DONE 2026-08-19**, 18 tests, mutation-verified.
+2. **Ratify §3** — deliberately AFTER the suite. `2` is an implementation
+   default, and ratifying it merely because it exists would convert an accident
+   into a contract. The suite is what makes the consequences concrete enough to
+   decide on.
+3. **Classification in the event schema** (§4.1). Ranked here because the fleet
+   data needed to answer "is 2 right" is precisely what we do not collect today;
+   without it, ratification stays an argument rather than a measurement.
 4. **Layer 2** — the four-mode fixture harness.
 5. **Layer 3** — the handful of conformance specimens.
 6. **Correct §15's gate wording** (§4.3).
