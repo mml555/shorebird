@@ -110,20 +110,21 @@ workflow features we inherited but never validated.**
 
 ## 3. WHAT IS PRODUCT vs WHAT IS EXPERIMENT
 
-| area | status | would a user depend on it? |
+| area | engineering status | product contract |
 |---|---|---|
-| Android code push | **PROVEN** | yes |
-| Self-hosted control plane | **BUILT** | yes |
-| Independence from upstream services | **BUILT/PROVEN** | yes |
-| iOS Route B, accepted language subset | **PROVEN** | yes, within the subset |
-| iOS Route B, general Dart | **EXPERIMENTAL** | no — not in the supported contract |
-| Engine patches `0001`-`0013` | **EXPERIMENTAL** | no |
-| Tombstone/retry lifecycle semantics | **IN TESTING** | one manual tap outstanding |
-| Inherited workflow surface | **INHERITED** | unknown — never validated here |
+| Android code push | **PROVEN** | supported |
+| Self-hosted control plane | **BUILT** | supported |
+| Independence from upstream services | **BUILT/PROVEN** | supported |
+| iOS Route B, accepted language subset | **PROVEN** | **not yet generally advertised or supported** |
+| iOS Route B, general Dart | **EXPERIMENTAL** | not in the contract |
+| Engine patches `0001`-`0013` | **EXPERIMENTAL** | not in the contract |
+| Tombstone/retry lifecycle semantics | **IN TESTING** | not in the contract |
+| Inherited workflow surface | **INHERITED** | present but unvalidated here |
 
-`compatibility.yaml` is the contract, and it deliberately does NOT list Route B.
-That is correct: Route B is a proven mechanism inside a defined subset, not a
-general capability.
+**The two columns are deliberately separate.** "We know this works" and "we
+promise this to users" are different statements, and Route B is the case that
+proves why: the mechanism is PROVEN inside its subset, and
+`compatibility.yaml` still does not advertise it. Both are correct at once.
 
 ---
 
@@ -142,7 +143,7 @@ want their SaaS. That is not a contribution to them.
 
 | what | why they would care | readiness |
 |---|---|---|
-| **The foldability finding** | a patch can attach successfully and silently not execute. This applies to THEIR linker path too wherever a target is optimised away — and today nothing warns | **PROVEN**, needs no code |
+| **The unreachable-target hazard** | exposes a general code-push hazard worth CHECKING in upstream's linker path: a logically patchable source function may no longer have a surviving runtime invocation path after release optimization. **We have not tested their path** — their linker may rewrite optimized call sites, retain different metadata, or reject such targets earlier | **PROVEN for Route B**; unknown for theirs |
 | **A CLI refusal for un-patchable targets** | turn the above into "we refuse this patch" instead of shipping a no-op. Small, self-contained, defensible | **NOT BUILT** — the highest-value upstream contribution available |
 | **`aot_tools` link-failure diagnostics** | we already consume their `119406bb` | theirs, not ours |
 | **Route B itself** | an iOS code-push path that needs no private linker. Strategically significant to them — possibly unwelcome | **EXPERIMENTAL**, large |
@@ -150,23 +151,66 @@ want their SaaS. That is not a contribution to them.
 
 ### The one thing worth finishing for upstream credibility
 
-**Detect and refuse a target whose call sites have been optimised away.** Today
-Route B ships a patch that attaches, reports success, and does nothing. We have
-the instrument that detects it (`TPOOL_ABSENT`, plus static call-site probing
-that already reproduces the condition). Turning it into a pre-publication refusal
-would convert the project's most embarrassing failure mode into its most
-defensible feature — and it is small.
+Framed correctly, the feature is NOT "refuse foldable functions":
 
----
+> **Refuse Route B publication when the exact release artifact has no supported
+> surviving invocation path to the replacement target.**
 
-## 5. NEXT STEPS, ranked by value
+A foldable constant is one CAUSE. The unsafe property is broader — successful
+attachment to a replacement `Function` nothing reaches. Other causes will
+include inlining, dead-code elimination, and any future optimization that removes
+every relevant invocation path. Naming the property rather than the cause is what
+keeps the gate correct as the compiler changes.
 
-1. **CLI refusal for foldable/optimised-away targets** — closes the KNOWN GAP,
-   upstream-relevant, small.
-2. **Finish the tombstone/retry lane** — one manual tap; operational safety.
+**Which signal is authoritative matters:**
+
+| signal | role |
+|---|---|
+| **static call-site probe against the exact release artifact** | **AUTHORITATIVE.** Runs pre-publication, so it can gate. Already reproduces the condition (`NOT LOCATED` on the failing target, `CONSUMED` after repair) |
+| `TPOOL_ABSENT` from the runtime scan | **DIAGNOSTIC ONLY.** Excellent corroboration and evidence, but it is observed on device AFTER a patch ships — it cannot be a pre-publication gate |
+
+**The user-facing message must explain the condition, not the compiler theory:**
+
+    Cannot publish this Route B target: the release artifact contains no
+    surviving supported call site for it. The release compiler may have
+    optimized the function away. Change the release implementation so the call
+    remains observable, then create a new release.
+
+**It must NOT suggest that changing the patch source repairs this.** The defect is
+baked into the release artifact — that is precisely what the repair experiment
+established, since only a NEW release with an opaque body restored execution.
+
+Turning this into a refusal converts the project's most embarrassing failure mode
+— attach, report success, do nothing — into its most defensible feature.
+
+## 5. NEXT STEPS, in execution order
+
+1. **Finish tombstone/retry scoring.** One precommitted manual action outstanding.
+   Ordered first NOT because it outranks the refusal strategically, but because
+   its experimental state is already LIVE and expensive to reconstruct — the
+   specimen is staged, the observer qualified, the state cleared. Do not leave a
+   nearly-complete safety experiment suspended while changing release behaviour.
+2. **Build the unreachable-target refusal** (section 4). Highest-value
+   engineering task; converts a forensic lesson into a gate users cannot
+   accidentally violate.
 3. **Batch-validate the INHERITED workflow surface** — flavors, defines,
    obfuscation, signing, tracks. Cheap per item, many items; converts a large
    INHERITED block into PROVEN or KNOWN GAP.
 4. **Apply the Flutter bump** — cost already measured; do it after any
    hybrid-dependent measurement, since `SNAPSHOT_HASH` will move.
-5. `TPOOL_AMBIGUOUS`, pragma effects — parked until they block something.
+5. **Park** `TPOOL_AMBIGUOUS` and pragma effects until they block something.
+
+---
+
+## 6. THE MATURITY BOUNDARY
+
+Route B is no longer primarily an interpreter experiment. It now has multiple
+independently evidenced iOS executions, measured size and frame-time costs inside
+the previously defined veto bounds, understood failure semantics for a formerly
+mysterious silent-no-op class, and a **measurable pre-publication condition** that
+can turn that silent failure into a refusal.
+
+That makes the next boundary clear: **move known assumptions out of evidence
+documents and into executable product gates.** The unreachable-target refusal is
+the first and best example — a hard-won forensic lesson becoming something a
+future user cannot accidentally violate.
