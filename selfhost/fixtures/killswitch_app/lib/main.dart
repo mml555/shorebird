@@ -122,11 +122,6 @@ Directory get _sandbox => Directory.systemTemp.parent;
 /// The append-only phase log. Shared with the native half.
 File get _receiptFile => File('${_sandbox.path}/Documents/g15_receipt');
 
-/// Arming marker. Its PRESENCE drives the alternation; the receipt records what
-/// was decided. Kept as a separate file, and under its original name, because
-/// existing device tooling pulls it by path.
-File get _armedMarker => File('${_sandbox.path}/Documents/g15_armed');
-
 /// Ties every line of one launch together, and is shown on screen so a
 /// screenshot can be matched to its receipt lines rather than assumed to
 /// correspond.
@@ -135,15 +130,6 @@ final String _launchId =
 
 /// Non-null when the receipt mechanism itself failed.
 String? _receiptFault;
-
-/// Non-null when the marker mechanism itself failed. THE ARM MUST NOT KILL IN
-/// THAT CASE.
-///
-/// This is not defensive padding — it is a false green this fixture has already
-/// produced. With the broken `HOME` path, `createSync` threw, `main` died before
-/// rendering, and the app terminated on EVERY launch: indistinguishable, from
-/// the outside, from the kill arm working perfectly.
-String? _markerFault;
 
 /// Appends one phase line. Never throws, and never kills.
 void _receipt(String phase) {
@@ -160,31 +146,23 @@ void _receipt(String phase) {
   }
 }
 
-/// Alternates: absent → kill this launch; present → consume it and run
-/// normally.
-///
-/// The alternation is the point. G15's design requires arm 2 to be run MORE
-/// THAN ONCE — a single survival is consistent with the kill having landed
-/// outside the window by luck — and self-alternating gives that without anyone
-/// reaching into the sandbox between launches. Deleting the marker to re-arm is
-/// also why this needs no uninstall, which would reset iOS Local Network
-/// consent and block the app on a modal before any code runs.
-bool _shouldKillThisLaunch() {
-  try {
-    final File marker = _armedMarker;
-    if (marker.existsSync()) {
-      marker.deleteSync();
-      return false;
-    }
-    marker.createSync(recursive: true);
-    return true;
-  } on Object catch (e) {
-    _markerFault = '$e';
-    return false;
-  }
-}
+// THE ALTERNATION AND THE SELF-KILL ARM WERE REMOVED 2026-08-19.
+//
+// `_shouldKillThisLaunch` existed to make every other launch SIGKILL itself, so
+// arm 2 could run repeatedly without anyone reaching into the sandbox. That arm
+// is disqualified: `Process.killPid(pid, SIGKILL)` did not terminate this
+// process, so it produced a Dart-phase exception instead of a process death —
+// a different input on a different retirement path
+// (`tombstone_instrument_findings.md`).
+//
+// The stimulus is now the OPERATOR force-quitting inside the widened window, so
+// EVERY launch must reach that window. An alternation that killed half of them
+// would simply remove half the usable launches.
+//
+// `_armedMarker` and `_markerFault` went with it; the marker file is no longer
+// read or written, and any stale `Documents/g15_armed` on a device is inert.
 
-void main() {
+Future<void> main() async {
   // PHASE 1, AND IT MUST STAY FIRST. Nothing patchable precedes it, so a launch
   // that reaches Dart at all leaves this line behind even if the next statement
   // throws. This is exactly what `1.0.3+1` could not do.
@@ -197,28 +175,36 @@ void main() {
   bootMark = bootProbe();
   _receipt('boot-probe-returned:$bootMark');
 
-  final bool kill = _shouldKillThisLaunch();
-  _receipt(kill ? 'arm:kill' : 'arm:render');
-
-  if (_markerFault != null || _receiptFault != null) {
-    // An instrument fault is NOT an arm result, so do not kill on it. Render the
-    // red banner instead and let the operator see it.
+  if (_receiptFault != null) {
+    // An instrument fault is NOT an arm result. Render the red banner instead of
+    // entering the window, so the operator sees it rather than force-quitting a
+    // launch that was never valid.
     _receipt('instrument-fault');
     runApp(const _KillSwitchApp());
     return;
   }
 
-  if (kill) {
-    // SIGKILL, not `exit()`. Jetsam and the launch watchdog do not let the
-    // process wind down, and a clean exit could run teardown that the cases
-    // being simulated never run — which might report an outcome and defeat the
-    // entire arm.
-    Process.killPid(pid, ProcessSignal.sigkill);
-    // Unreachable. If SIGKILL were ever not delivered, falling through to
-    // runApp would render a screen that looks like a normal launch, so the
-    // arm would silently become vacuous. Fail loudly instead.
-    throw StateError('G15: SIGKILL did not terminate the process');
-  }
+  // THE PRE-SUCCESS WITNESS. Written IMMEDIATELY BEFORE the await, so its
+  // presence in the receipt establishes exactly one thing:
+  //
+  //   this launch reached the intended widened pre-success window.
+  //
+  // That is what makes a force-quit attributable. Without it the operator is
+  // force-quitting on elapsed time and hoping, and a miss is indistinguishable
+  // from a launch that never got there.
+  _receipt('delayed-main-entered:$_launchId');
+
+  // THE WINDOW. Five seconds: comfortably human-operable, and short enough to
+  // stay well clear of the iOS launch watchdog, which would otherwise introduce
+  // a second termination cause as a confound.
+  //
+  // Neither success condition can fire in here: `main` has not completed, and
+  // `runApp` has not been called so there is no frame to draw.
+  await Future<void>.delayed(const Duration(seconds: 5));
+
+  // Reached ONLY if the operator did not force-quit. Its presence in the receipt
+  // is how a MISS is detected and discarded rather than scored.
+  _receipt('window-survived:$_launchId');
 
   runApp(const _KillSwitchApp());
 
@@ -273,14 +259,13 @@ class _KillSwitchApp extends StatelessWidget {
               // Loud, and deliberately unmissable: if this is showing, an
               // instrument failed and NOTHING on this screen is an arm-2
               // result. Silence here would let a broken fixture read as a pass.
-              if (_markerFault != null || _receiptFault != null) ...[
+                if (_receiptFault != null) ...[
                 const SizedBox(height: 24),
                 Container(
                   color: const Color(0xFFB00020),
                   padding: const EdgeInsets.all(12),
                   child: Text(
                     'INSTRUMENT FAULT — NOT AN ARM RESULT\n'
-                    'marker: ${_markerFault ?? "ok"}\n'
                     'receipt: ${_receiptFault ?? "ok"}',
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.white, fontSize: 16),

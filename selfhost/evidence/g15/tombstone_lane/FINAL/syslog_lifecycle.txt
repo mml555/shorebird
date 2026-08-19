@@ -1,0 +1,80 @@
+Aug 19 00:30:33.001510 Runner(Flutter)[3685] <Notice>: [shorebird] Reporting launch start.
+Aug 19 00:30:33.164708 Runner(Flutter)[3685] <Notice>: [shorebird] Reporting successful launch.
+Aug 19 00:30:45.903965 Runner(Flutter)[3687] <Notice>: [shorebird] Reporting launch start.
+Aug 19 00:30:45.940654 Runner(Flutter)[3687] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: hook entered
+Aug 19 00:30:45.940671 Runner(Flutter)[3687] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: parsed, targets=1, built-for=d748bb65db6d31329f3bc3295119ca33
+Aug 19 00:30:45.940708 Runner(Flutter)[3687] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: running=d748bb65db6d31329f3bc3295119ca33
+Aug 19 00:30:45.940725 Runner(Flutter)[3687] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Aug 19 00:30:45.944638 Runner(Flutter)[3687] <Notice>: ROUTEB: activated routeBValue in package:killswitch_probe/main.dart before main
+Aug 19 00:30:45.944751 Runner(Flutter)[3687] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: applied 1/1 targets, entering main
+Aug 19 00:30:45.963134 Runner(Flutter)[3687] <Notice>: [shorebird] Reporting successful launch.
+Aug 19 00:31:03.916033 Runner(Flutter)[3690] <Notice>: [shorebird] Reporting launch start.
+Aug 19 00:31:03.920672 Runner(Flutter)[3690] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: hook entered
+Aug 19 00:31:03.920689 Runner(Flutter)[3690] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: parsed, targets=1, built-for=d748bb65db6d31329f3bc3295119ca33
+Aug 19 00:31:03.920706 Runner(Flutter)[3690] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: running=d748bb65db6d31329f3bc3295119ca33
+Aug 19 00:31:03.920723 Runner(Flutter)[3690] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Aug 19 00:31:03.921075 Runner(Flutter)[3690] <Notice>: ROUTEB: activated routeBValue in package:killswitch_probe/main.dart before main
+Aug 19 00:31:03.921093 Runner(Flutter)[3690] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: applied 1/1 targets, entering main
+Aug 19 00:31:03.956962 Runner(Flutter)[3690] <Notice>: [shorebird] Reporting successful launch.
+Aug 19 00:31:32.795340 Runner(Flutter)[3696] <Notice>: [shorebird] Reporting launch start.
+Aug 19 00:31:32.894673 Runner(Flutter)[3696] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: hook entered
+Aug 19 00:31:32.894723 Runner(Flutter)[3696] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: parsed, targets=1, built-for=d748bb65db6d31329f3bc3295119ca33
+Aug 19 00:31:32.894783 Runner(Flutter)[3696] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: running=d748bb65db6d31329f3bc3295119ca33
+Aug 19 00:31:32.894821 Runner(Flutter)[3696] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Aug 19 00:31:32.895396 Runner(Flutter)[3696] <Notice>: ROUTEB: activated routeBValue in package:killswitch_probe/main.dart before main
+Aug 19 00:31:32.895444 Runner(Flutter)[3696] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: applied 1/1 targets, entering main
+Aug 19 00:31:32.924763 Runner(Flutter)[3696] <Notice>: [shorebird] Reporting successful launch.
+Aug 19 00:31:38.823107 Runner(Flutter)[3699] <Notice>: [shorebird] Reporting launch start.
+Aug 19 00:31:38.848823 Runner(Flutter)[3699] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: hook entered
+Aug 19 00:31:38.848877 Runner(Flutter)[3699] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: parsed, targets=1, built-for=d748bb65db6d31329f3bc3295119ca33
+Aug 19 00:31:38.848916 Runner(Flutter)[3699] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: running=d748bb65db6d31329f3bc3295119ca33
+Aug 19 00:31:38.848984 Runner(Flutter)[3699] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Aug 19 00:31:38.849056 Runner(Flutter)[3699] <Notice>: ROUTEB: activated routeBValue in package:killswitch_probe/main.dart before main
+Aug 19 00:31:38.852422 Runner(Flutter)[3699] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: applied 1/1 targets, entering main
+Aug 19 00:31:38.878777 Runner(Flutter)[3699] <Notice>: [shorebird] Reporting successful launch.
+Aug 19 00:31:43.018347 Runner(Flutter)[3701] <Notice>: [shorebird] Reporting launch start.
+Aug 19 00:31:43.032682 Runner(Flutter)[3701] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: hook entered
+Aug 19 00:31:43.032752 Runner(Flutter)[3701] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: parsed, targets=1, built-for=d748bb65db6d31329f3bc3295119ca33
+Aug 19 00:31:43.032772 Runner(Flutter)[3701] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: running=d748bb65db6d31329f3bc3295119ca33
+Aug 19 00:31:43.032789 Runner(Flutter)[3701] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Aug 19 00:31:43.033936 Runner(Flutter)[3701] <Notice>: ROUTEB: activated routeBValue in package:killswitch_probe/main.dart before main
+Aug 19 00:31:43.033953 Runner(Flutter)[3701] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: applied 1/1 targets, entering main
+Aug 19 00:31:43.095982 Runner(Flutter)[3701] <Notice>: [shorebird] Reporting successful launch.
+Aug 19 00:35:30.370083 Runner(Flutter)[3731] <Notice>: [shorebird] Reporting launch start.
+Aug 19 00:35:30.378236 Runner(Flutter)[3731] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: hook entered
+Aug 19 00:35:30.378273 Runner(Flutter)[3731] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: parsed, targets=1, built-for=d748bb65db6d31329f3bc3295119ca33
+Aug 19 00:35:30.378637 Runner(Flutter)[3731] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: running=d748bb65db6d31329f3bc3295119ca33
+Aug 19 00:35:30.378813 Runner(Flutter)[3731] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Aug 19 00:35:30.378842 Runner(Flutter)[3731] <Notice>: ROUTEB: activated routeBValue in package:killswitch_probe/main.dart before main
+Aug 19 00:35:30.378868 Runner(Flutter)[3731] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: applied 1/1 targets, entering main
+Aug 19 00:35:41.895848 Runner(Flutter)[3734] <Notice>: [shorebird] Reporting launch start.
+Aug 19 00:35:41.912926 Runner(Flutter)[3734] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: hook entered
+Aug 19 00:35:41.912954 Runner(Flutter)[3734] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: parsed, targets=1, built-for=d748bb65db6d31329f3bc3295119ca33
+Aug 19 00:35:41.912972 Runner(Flutter)[3734] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: running=d748bb65db6d31329f3bc3295119ca33
+Aug 19 00:35:41.917909 Runner(Flutter)[3734] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Aug 19 00:35:41.917976 Runner(Flutter)[3734] <Notice>: ROUTEB: activated routeBValue in package:killswitch_probe/main.dart before main
+Aug 19 00:35:41.919216 Runner(Flutter)[3734] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: applied 1/1 targets, entering main
+Aug 19 00:35:41.963542 Runner(Flutter)[3734] <Notice>: [shorebird] Reporting successful launch.
+Aug 19 00:35:53.099410 Runner(Flutter)[3736] <Notice>: [shorebird] Reporting launch start.
+Aug 19 00:35:53.123757 Runner(Flutter)[3736] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: hook entered
+Aug 19 00:35:53.132687 Runner(Flutter)[3736] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: parsed, targets=1, built-for=d748bb65db6d31329f3bc3295119ca33
+Aug 19 00:35:53.132732 Runner(Flutter)[3736] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: running=d748bb65db6d31329f3bc3295119ca33
+Aug 19 00:35:53.132784 Runner(Flutter)[3736] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Aug 19 00:35:53.132821 Runner(Flutter)[3736] <Notice>: ROUTEB: activated routeBValue in package:killswitch_probe/main.dart before main
+Aug 19 00:35:53.132858 Runner(Flutter)[3736] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: applied 1/1 targets, entering main
+Aug 19 00:35:53.155354 Runner(Flutter)[3736] <Notice>: [shorebird] Reporting successful launch.
+Aug 19 00:35:58.467162 Runner(Flutter)[3737] <Notice>: [shorebird] Reporting launch start.
+Aug 19 00:35:58.505002 Runner(Flutter)[3737] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: hook entered
+Aug 19 00:35:58.505025 Runner(Flutter)[3737] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: parsed, targets=1, built-for=d748bb65db6d31329f3bc3295119ca33
+Aug 19 00:35:58.505089 Runner(Flutter)[3737] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: running=d748bb65db6d31329f3bc3295119ca33
+Aug 19 00:35:58.505154 Runner(Flutter)[3737] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Aug 19 00:35:58.505193 Runner(Flutter)[3737] <Notice>: ROUTEB: activated routeBValue in package:killswitch_probe/main.dart before main
+Aug 19 00:35:58.505248 Runner(Flutter)[3737] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: applied 1/1 targets, entering main
+Aug 19 00:36:05.026651 Runner(Flutter)[3739] <Notice>: [shorebird] Reporting launch start.
+Aug 19 00:36:05.060668 Runner(Flutter)[3739] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: hook entered
+Aug 19 00:36:05.060714 Runner(Flutter)[3739] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: parsed, targets=1, built-for=d748bb65db6d31329f3bc3295119ca33
+Aug 19 00:36:05.060762 Runner(Flutter)[3739] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: running=d748bb65db6d31329f3bc3295119ca33
+Aug 19 00:36:05.060804 Runner(Flutter)[3739] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Aug 19 00:36:05.061190 Runner(Flutter)[3739] <Notice>: ROUTEB: activated routeBValue in package:killswitch_probe/main.dart before main
+Aug 19 00:36:05.061213 Runner(Flutter)[3739] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: applied 1/1 targets, entering main
+Aug 19 00:36:05.097727 Runner(Flutter)[3739] <Notice>: [shorebird] Reporting successful launch.

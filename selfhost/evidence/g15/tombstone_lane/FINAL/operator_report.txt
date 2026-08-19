@@ -1,0 +1,15 @@
+Operator sequence, 2026-08-19, release 100 (1.0.9+1), patch 1.
+  1. no app open
+  2. open -> wait 5s -> NEW-kill
+  3. force-quit, reopen
+  4. wait 5s -> NEW-kill
+  5. force-quit
+  6. open -> force-quit ~2s in (white screen)
+  7. open -> force-quit ~2s in (white screen)
+  8. open -> let it sit -> NEW-kill
+
+Receipt shows 4 launches with delayed-main-entered and NO window-survived:
+  hlh8sdvr5c  hlh8wrznsu  hlh8wosy4i  hlh8shetor
+-> the operator terminated INSIDE the 5s window, 4 of 4.
+
+Outcome: patch Installed, count=0, 0 queued events, NEW-kill on recovery.
