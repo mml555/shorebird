@@ -81,6 +81,11 @@ displayed; only the lineage inferences are void.
   preserved unread at `r91_hybrid_device/state/`. Needs counters bracketed per
   launch by design. **Arm B is now CLOSED** (`armB_crash_backout_verdict.txt`);
   the pre-success termination rows remain parked as unmeasurable on this rig.
+* **C3/C4 ARE NOT WIRED INTO PRODUCTION** (found 2026-08-19). The boot-attempt
+  threshold's function has no production caller; a single ambiguous process death
+  tombstones a healthy patch today. `arm2_verdict.txt`'s attribution to `0010` is
+  superseded. **Blocks the telemetry work**, whose C3 population is empty by
+  construction until this is wired in.
 * **Lifecycle policy** — now written as a contract in `selfhost/LIFECYCLE_POLICY.md`.
   C1/C2 are device-proven; **C3/C4 (ambiguous death, threshold) are BUILT by
   `0010` but never deterministically exercised**, and the threshold is not yet

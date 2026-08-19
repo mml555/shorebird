@@ -43,8 +43,34 @@ C3 is the row that matters. Everything else is comparatively easy.
 |---|---|---|---|
 | C1 | **yes** | `record_boot_success` clears breadcrumb + tally; a later kill leaves nothing for `detect_boot_crash_on_init` to find | **yes**, twice — `arm2_verdict.txt` |
 | C2 | **yes** | `report_launch_failure()` → `mark_bad` immediately | **yes** — `armB_crash_backout_verdict.txt`, 2026-08-19 |
-| C3 | **yes** | `0010`: below threshold, clear ONLY the breadcrumb and retry | **host-proven** 2026-08-19; not device-proven |
-| C4 | **yes**, threshold = 2 | `BOOT_FAILURE_THRESHOLD` in `0010` | **host-proven** 2026-08-19; not device-proven |
+| C3 | **NO — NOT WIRED IN** | `0010` implements it in `detect_boot_crash_on_init`, which has **no production caller** | n/a — production is single-strike |
+| C4 | **NO — NOT WIRED IN** | same | n/a |
+
+> ### C3 AND C4 ARE NOT IN EFFECT ON ANY DEVICE
+>
+> Found 2026-08-19 while building the telemetry. Production init calls
+> `handle_prior_boot_failure_if_necessary`, which calls
+> `record_boot_failure_for_patch` **directly** and never reads
+> `boot_attempt_count` or `BOOT_FAILURE_THRESHOLD`.
+> `detect_boot_crash_on_init` — the only threshold-governed function — is
+> referenced **only from tests**.
+>
+> **A single process death before the success boundary permanently tombstones a
+> healthy patch today.** Watchdog, jetsam, a swipe during launch. The
+> false-backout protection this project believed it had does not exist on
+> device. Pinned by
+> `production_init_is_single_strike_the_threshold_is_not_wired_in`.
+>
+> **This reorders everything below.** Telemetry to ratify a threshold is
+> premature while the threshold is unreachable: C3's population — "first
+> ambiguous failures that get retried" — is currently EMPTY by construction, so
+> the recovery rate it would measure cannot exist.
+
+**The host suite tests `detect_boot_crash_on_init`, which production does not
+call.** Its 18 tests are correct about the function and prove the policy is
+implementable and coherent; they do **not** describe shipped behaviour. Recorded
+plainly because it is the same error as the wrong-source-tree mistake in a new
+costume: verifying something adjacent to what ships.
 
 **Host suite: `library/src/cache/lifecycle_policy_tests.rs`** (updater repo, branch
 `route-b`). 18 tests across real process boundaries. The threshold is INJECTED,

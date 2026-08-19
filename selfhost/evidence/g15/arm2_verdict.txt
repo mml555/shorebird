@@ -1,3 +1,32 @@
+*** ATTRIBUTION SUPERSEDED 2026-08-19 — THE OBSERVATIONS ARE NOT ***
+======================================================================
+**Every device observation in this file stands. Its ATTRIBUTION to patch `0010`
+does not.**
+
+This file reasons: *"Without 0010, `detect_boot_crash_on_init` marks
+Bad{BootCrash} on the FIRST un-succeeded boot… Tap 2 showed NEW-kill. So the
+breadcrumb was cleared and the patch RETRIED, which is the behaviour 0010 adds."*
+
+**`detect_boot_crash_on_init` has no production caller.** Production init calls
+`handle_prior_boot_failure_if_necessary`, which retires on the first un-succeeded
+boot regardless of `0010`. So if a breadcrumb had been set, the patch would have
+been tombstoned WITH or WITHOUT `0010`, and the retry cannot be evidence for it.
+
+The patch surviving is better explained by `0009` — success banked before the
+kill landed, leaving no breadcrumb to recover from. This file's own honest
+caveat anticipated the weakness: *"the pass rests on the OUTCOME … rather than on
+catching the counter in flight,"* and `boot_attempt_count` was read as 0, never
+caught at 1.
+
+WHAT SURVIVES: the patch was not tombstoned across four taps; `Installed` with
+`last_booted_patch: 1` and empty `queued_events`; the schema-as-receipt argument
+that `0010`'s FIELDS shipped. That last point still proves which engine ran — it
+does not prove the threshold executed.
+
+See `selfhost/LIFECYCLE_POLICY.md` and
+`production_init_is_single_strike_the_threshold_is_not_wired_in`.
+======================================================================
+
 G15 ARM 2 — VERDICT, 2026-08-14
 ================================
 
