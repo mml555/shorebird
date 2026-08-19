@@ -4,34 +4,57 @@
 
 ---
 
-## PROVEN — ordinary termination AFTER success does not retire a healthy patch
+## PROVEN — ordinary termination after success does not retire a healthy patch
 
 Operator sequence, executed by hand on release 100 (`1.0.9+1`, LC_UUID
-`d748bb65…`) with patch 1 active and healthy:
+`d748bb65…`) with patch 1 active and healthy.
 
-    open -> wait -> NEW-kill -> force-quit          x2   (baseline)
-    open -> force-quit ~2 s in (white screen)       x2   (in-window)
-    open -> wait -> NEW-kill                             (recovery check)
+> **Nine consecutive ordinary manual terminations during the fixture's
+> delayed-main window produced ZERO false backouts.** The patch remained
+> `Installed`, `boot_attempt_count=0`, `currently_booting_patch=None`, no failure
+> events accumulated, and the final let-it-run launch completed normally.
 
-Receipt evidence: **four launches recorded `delayed-main-entered` WITHOUT
-`window-survived`** — proof they were terminated inside the 5-second window, not
-merely closed afterwards. The operator hit the window 4 out of 4.
+### TWO WINDOWS, AND THEY ARE NOT THE SAME THING
 
-Outcome after all of it:
+This distinction is the whole reason the finding is stated as it is:
+
+| window | duration | what proves it |
+|---|---|---|
+| **the fixture's delayed-main window** | 5 s, `delayed-main-entered` → `window-survived` | **the RECEIPTS.** Nine launches recorded `delayed-main-entered` with NO `window-survived` — terminated during the delay, not merely closed afterwards |
+| **the pre-success window** | ~60-70 ms | **NOT what was hit.** The updater state proves success had already banked before each termination |
+
+**The operator terminated during the delayed-main window. The operator did NOT
+terminate before success.** Saying "inside the pre-success window" would claim the
+second from evidence for the first.
+
+### The nine
+
+    first four   hlh8sdvr5c  hlh8wrznsu  hlh8wosy4i  hlh8shetor
+    then five    hlh92mujgh  hlh92o7qoj  hlh92plos4  hlh92qmlt7  hlh92rjnfp
+
+The second five were the operator's fastest attempts. **No per-launch syslog
+timing exists for them** — the capture had been stopped — so no millisecond figure
+is assigned to them here.
+
+### Why success had banked anyway, without that timing
+
+`BOOT_FAILURE_THRESHOLD = 2`. Five genuinely pre-success deaths in a row could not
+end with a healthy `Installed` patch and a clean counter — the third would have
+tombstoned it. The final state was:
 
     patch 1     Installed          (never Bad)
     pointers    next=1  last=1  count=0  cur=None
-    queued      0 events           (no PatchInstallFailure)
+    queued      0 events
     final tap   NEW-kill rendered normally
-    syslog      11 launch starts, 9 successful launches, 0 failures
 
-> **A healthy patch survives repeated app termination once launch success has
-> banked. The updater does not false-backout on ordinary user app-killing.**
+The state machine, not the clock, is what rules out pre-success deaths here.
 
-Narrow but real: it answers "does swiping my app away break my patch?" with a
-measured no, across four consecutive terminations.
+For the first four, syslog DID record timing: launch start → successful launch in
+**56-129 ms**, with the operator acting ~2 s in.
 
----
+### What it answers
+
+"Does swiping my app away break my patch?" — **measured no, nine times.**
 
 ## UNMEASURED on this rig — termination BEFORE success
 

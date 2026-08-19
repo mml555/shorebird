@@ -13,3 +13,21 @@ Receipt shows 4 launches with delayed-main-entered and NO window-survived:
 -> the operator terminated INSIDE the 5s window, 4 of 4.
 
 Outcome: patch Installed, count=0, 0 queued events, NEW-kill on recovery.
+
+--- SECOND ROUND, same session: operator's FASTEST attempts ---
+Five further launches, force-quit as fast as physically possible:
+  hlh92mujgh  hlh92o7qoj  hlh92plos4  hlh92qmlt7  hlh92rjnfp
+All five recorded delayed-main-entered with NO window-survived -> terminated
+during the fixture's delayed-main window.
+Then hlh92xrrb6 was allowed to run: window-survived + first-frame.
+
+NOTE: syslog had been stopped before this round, so NO per-launch timing exists
+for these five. No millisecond figure is claimed for them.
+
+Outcome unchanged: patch Installed, count=0, cur=None, 0 queued events.
+BOOT_FAILURE_THRESHOLD=2 means five consecutive PRE-success deaths could not end
+this way -- the third would have tombstoned the patch. Success had therefore
+banked before each termination.
+
+TOTAL: nine consecutive terminations during the delayed-main window, zero false
+backouts.
