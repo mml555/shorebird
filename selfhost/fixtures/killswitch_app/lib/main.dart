@@ -102,7 +102,20 @@ String routeBValue() => DateTime.now().millisecondsSinceEpoch == -1
 /// "while `Engine::Run` is still on the stack". `_delayEntrypointInvocation`
 /// POSTS `main` to the message queue, so `Engine::Run` has already returned by
 /// the time this executes. That correction is the whole reason the seam moved.
-String bootProbe() => 'boot-ok';
+/// REPAIRED 2026-08-19, for the same reason `routeBValue` was.
+///
+/// This body was `=> 'boot-ok'` — a foldable constant — so the release compiler
+/// substituted its result at the call site and left an 8-byte stub with NO
+/// surviving call sites (`assert_result_consumed.sh`: NOT LOCATED on release
+/// 100). A patch to it would have attached, reported success, and never
+/// executed: the arm would have shown `boot-ok` and looked like "the patch did
+/// not take", which is a precommitted NON-result.
+///
+/// The opaque guard keeps the call alive so arm B can actually make it throw.
+/// `UNREACHABLE-BOOT` is never returned in the release.
+String bootProbe() => DateTime.now().millisecondsSinceEpoch == -1
+    ? 'UNREACHABLE-BOOT'
+    : 'boot-ok';
 
 /// Set from [bootProbe] so the value cannot be tree-shaken away.
 String bootMark = '';

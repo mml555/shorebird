@@ -1,0 +1,155 @@
+G15 ARM B — CRASH-BACKOUT: PASS, BY THE INTENDED MECHANISM, 2026-08-19
+=======================================================================
+
+Scored against `armB_precommit.md`, written and frozen BEFORE the first launch.
+Arm B was precommitted in `gate5_arms_precommit.md` and named in `arm2_verdict.txt`
+as never run: *"NOT crash-backout … G15's §15 gate 'a Dart-phase crash backs the
+patch out' is NOT closed by this."* It is now run.
+
+THE RESULT
+-----------
+Release 101 (`1.1.0+1`), LC_UUID `cfae3af589b934368b04edcf4478abe0`, preserved.
+Patch 1 replaces `bootProbe()` — called from `main()` BEFORE `runApp()` — with a
+body that throws `StateError`.
+
+Three launches, one receipt, no external stimulus of any kind:
+
+    hlhb13rpie   dart-main-entered -> boot-probe-returned:boot-ok -> first-frame
+                 (release; patch 1 downloaded and Installed, next_boot_patch=1)
+    hlhb2cfhgt   dart-main-entered                          <- STOPS HERE
+                 (patch 1 booted; the throw landed; screen stayed white)
+    hlhb3echqw   dart-main-entered -> boot-probe-returned:boot-ok -> first-frame
+                 (RELEASE again — the patch was backed out)
+
+`boot-probe-returned` demonstrably MOVES on launches 1 and 3, so its absence on
+launch 2 is evidence rather than a silent instrument. That was the specific
+defect the receipt was rebuilt on 2026-08-14 to eliminate, and it paid off here.
+
+THE 37 ms, FROM THE DEVICE'S OWN LOG
+--------------------------------------
+    01:54:08.691  [4321] Reporting launch start
+    01:54:08.692  [4321] active patch is a Route B container
+    01:54:08.705  [4321] ROUTEB: parsed, targets=1,
+                         built-for=cfae3af5… running=cfae3af5…
+    01:54:08.705  [4321] ROUTEB: applied 1/1 targets, entering main
+    01:54:08.742  [4321] Reporting failed launch.
+    ...
+    01:55:12.368  [4332] no active patch
+    01:55:12.429  [4332] Reporting successful launch.
+    01:55:12.434  [4332] Patch 1 is known bad, skipping.
+                         Update available but previously failed to install.
+
+The final line matters independently: the control plane still OFFERS patch 1, and
+the device REFUSES it. Backout is not just local retirement — it survives a
+re-offer.
+
+STATE, AND THE ROUND TRIP
+--------------------------
+    patch 1   : Bad{BootCrash}          after ONE launch
+    pointers  : next=None last=None cur=None count=0   breadcrumb CLEARED
+    queued    : 1 -> 0                  event flushed, not dropped
+    server    : POST /api/v1/patches/events -> 204, "__patch_install_failure__"
+
+SCORING — AND A DRAFTING FAULT IN MY OWN PRECOMMIT
+---------------------------------------------------
+Row 1 required four things: receipt shows `dart-main-entered` and NO
+`boot-probe-returned`; patch `Bad{BootCrash}` after ONE launch; a
+`PatchInstallFailure` queued; next launch runs the release. **All four hold.**
+
+Row 3 described: app hangs on a white screen without process death, patch still
+retired. **That also holds** — the process did not die.
+
+**The rows were not mutually exclusive, and that is a fault in the precommit, not
+a result.** Row 1 said nothing about process death; row 3 added it. Both are
+simultaneously true, so the arm cannot be scored by picking one. Stated plainly
+because the overlap is exactly the kind of thing that lets a run be written up as
+whichever row reads better afterwards.
+
+**Recorded prediction and how it fared:** row 3 was predicted, and every
+particular of it held — hang rather than death, patch retired anyway, release on
+the next launch. The prediction was right; the row scheme was underspecified.
+
+WHICH PATH FIRED — MEASURED, NOT INFERRED
+-------------------------------------------
+`Reporting failed launch` came from pid 4321 IN-PROCESS, 37 ms after `entering
+main` and ~64 s before the next process existed. So this is
+`report_launch_failure()`, NOT `detect_boot_crash_on_init()`.
+
+The queued event carries its OWN attribution, which does not depend on that
+timestamp reasoning at all:
+
+    "type": "__patch_install_failure__", "patch_number": 1,
+    "message": "engine_report: patch 1 failed to launch"
+
+Two independent signals, one conclusion.
+
+Neither `shell.cc` reporter can be the source — one requires `!vm_`, the other
+`Engine::RunStatus::Failure`, and the receipt proves the root isolate started and
+`main` ran. The source is the DART SEAM. The fixture's `main` is `async`, so the
+throw surfaced as an errored Future and took `hooks.dart:492`:
+
+    onError: (Object error, StackTrace stackTrace) {
+      _g15ReportLaunchFailure();
+      Zone.current.handleUncaughtError(error, stackTrace);   // FORWARDS
+    },
+
+**The white screen is a designed consequence, not a defect.** The handler forwards
+the error rather than consuming it — deliberately, per its own comment, because
+consuming would "suppress the app's own reporting." An uncaught root-zone error on
+iOS logs and continues; `runApp()` was never reached, so no frame is ever drawn.
+
+TWO CORRECTIONS TO THINGS CARRIED INTO THIS RUN
+------------------------------------------------
+1. **There is no `BOOT_FAILURE_THRESHOLD`.** It does not exist anywhere in
+   `vendor/updater/library/src/`. `detect_boot_crash_on_init` calls
+   `record_boot_failure` directly. **BOTH retirement paths are single-strike**, so
+   "retired after one launch" does NOT identify which path fired — the log
+   timestamp does. Row 2 of the precommit was written on a false premise about the
+   code and is void, not failed.
+2. `ReportLaunchFailure` is guarded once-per-process by a CAS on
+   `launch_completed_`, shared with success — so success and failure cannot both
+   report in one process.
+
+WHY THIS ARM WAS MEASURABLE WHERE THE TERMINATION LANE WAS NOT
+----------------------------------------------------------------
+`tombstone_lane_FINAL.md` parked rows 1-4 because the fixture's ~60 ms
+pre-success window is far under the ~250 ms human floor. Arm B needs no timing at
+all: the specimen supplies its own failure. Ordinary launches, no force-quit, no
+signal.
+
+THE FIXTURE HAD TO BE REPAIRED FIRST, AND THAT NEARLY COST A CYCLE
+-------------------------------------------------------------------
+On release 100 `bootProbe` was `=> 'boot-ok'` — foldable, measured **NOT LOCATED**
+(0 surviving call sites, 8-byte stub). Patching it would have attached cleanly and
+silently done nothing, and the arm would have scored a FALSE NEGATIVE that looked
+like "a crashing patch didn't crash". The opaque guard was added first and the
+static pre-check run against release 101 BEFORE the device cycle:
+
+    bootProbe  0xaf3b8-0xaf438 (128 B)  located: 1  site 0xaf3dc  VERDICT: CONSUMED
+
+This is `routebvalue_repair_verdict.txt`'s lesson spent in advance rather than
+learned again. Precommit row 5 (`VOID` on foldability) existed for exactly this
+and did not need to be used.
+
+WHAT IS NOW ESTABLISHED
+------------------------
+**A Dart-phase boot failure is detected, retired, reported and rolled back on the
+FIRST bad launch, without a process crash and without any external stimulus.**
+
+That is STRONGER than §15's gate asked for — the gate said *crash*; what is proven
+is that an unhandled Dart error is sufficient, with the process still alive. The
+gate's wording should be corrected rather than merely marked closed.
+
+WHAT THIS DOES NOT CLAIM
+-------------------------
+* **NOT that a crashing patch crashes.** It hangs. §15's word "crash" is wrong for
+  the observed behaviour and the two must not be merged in the ledger.
+* **NOT that the user experience is acceptable.** A broken patch costs ONE hung
+  white-screen launch that the USER must force-quit; backout only takes effect on
+  the next launch. Nothing here shortens that. This is a real product gap and is
+  recorded as one.
+* NOT anything about a throw AFTER `runApp()` — different machinery, different lane.
+* NOT anything about a SYNCHRONOUS `main`, which takes the `catch`/`rethrow` path
+  at `hooks.dart:476`, not the `onError` path measured here. Untested.
+* NOT anything about `routeBValue`, untouched and still at its release value.
+* NOT the parked pre-success termination rows, still structurally unmeasurable.

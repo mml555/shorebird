@@ -37,6 +37,7 @@ Demonstrated in both directions:
 | Arm A confirming successor | PASS-EQUIVALENT on a **repaired** specimen | `routebvalue_repair_verdict.txt` |
 | release-91 `NEW-kill` | **CONTRADICTED** by stronger current evidence | `manual_launch_control_verdict.txt` |
 | Inlining (as 91-vs-96 differentiator) | REFUTED — both ABSENT | `r91_vs_r96_tpool_verdict.txt` |
+| **Arm B — crash-backout** | **PASS** — first bad launch, no process death | `armB_crash_backout_verdict.txt` |
 
 ### The arm A distinction, stated once so it is not blurred
 
@@ -78,7 +79,17 @@ displayed; only the lineage inferences are void.
   specimen, or an explicit precommit amendment permitting repair.
 * **Tombstone / retry lane** — `boot_attempt_count: 1` caught mid-flight is
   preserved unread at `r91_hybrid_device/state/`. Needs counters bracketed per
-  launch by design.
+  launch by design. **Arm B is now CLOSED** (`armB_crash_backout_verdict.txt`);
+  the pre-success termination rows remain parked as unmeasurable on this rig.
+* **§15's gate wording** — it says a Dart-phase *crash* backs the patch out. What
+  is proven is that an unhandled Dart *error* suffices, **with the process still
+  alive**. The app hangs on a white screen until the user force-quits it. Correct
+  the wording; do not merely mark the gate closed.
+* **One hung launch per bad patch** — backout takes effect on the NEXT launch, so
+  a broken patch costs the user one white-screen launch they must kill by hand.
+  Real product gap, newly identified, nothing built for it.
+* **Synchronous `main`** — takes `hooks.dart:476`'s `catch`/`rethrow`, not the
+  `onError` path arm B measured. Untested.
 * **`TPOOL_AMBIGUOUS`** — never observed in the field.
 * **Pragma presence** — the third corpus difference, uncontrolled and untested.
 * **`audit_log` content-read** — never completed this cycle (needs `docker exec`);
