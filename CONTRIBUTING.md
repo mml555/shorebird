@@ -111,7 +111,23 @@ exists only because of the change I was claiming was absent. When device state
 contains a field the source lacks, that is not an anomaly; it means you are
 reading the wrong source.
 
-### 9. Check committed state before writing a corrective edit
+### 9. Every contract needs a test through the entrypoint that ships
+
+**Helper-level tests prove the mechanism. Entrypoint tests prove the product uses
+it.** A contract with only the former can be fully green while the product does
+the opposite.
+
+This is not hypothetical. C3/C4 (retry an ambiguous boot failure rather than
+tombstoning) had 18 passing tests against `detect_boot_crash_on_init` — a
+function production never called. Production retired healthy patches on the first
+un-succeeded boot for the entire period those tests were green.
+
+When fixing such a gap, **write the entrypoint test red first**, and check that
+the helper tests stay green while it fails. That contrast is the proof you aimed
+at the actual defect rather than something adjacent to it. Then fix, and let both
+layers pass.
+
+### 10. Check committed state before writing a corrective edit
 
 This repo runs parallel sessions. Another lane may have already recorded the
 correction. `git show <sha>:<path>` before editing.

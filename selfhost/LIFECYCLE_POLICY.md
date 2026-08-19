@@ -43,67 +43,60 @@ C3 is the row that matters. Everything else is comparatively easy.
 |---|---|---|---|
 | C1 | **yes** | `record_boot_success` clears breadcrumb + tally; a later kill leaves nothing for `detect_boot_crash_on_init` to find | **yes**, twice — `arm2_verdict.txt` |
 | C2 | **yes** | `report_launch_failure()` → `mark_bad` immediately | **yes** — `armB_crash_backout_verdict.txt`, 2026-08-19 |
-| C3 | **NO — NOT WIRED IN** | `0010` implements it in `detect_boot_crash_on_init`, which has **no production caller** | n/a — production is single-strike |
-| C4 | **NO — NOT WIRED IN** | same | n/a |
+| C3 | **yes**, wired 2026-08-19 | init routes through `detect_boot_crash_on_init` | host + production-entrypoint tests; **not device-proven** |
+| C4 | **yes**, threshold = 2 | `BOOT_FAILURE_THRESHOLD` | same |
 
-> ### C3 AND C4 ARE NOT IN EFFECT ON ANY DEVICE
+> ### THE GAP THAT MADE THIS NECESSARY — keep this, it is the lesson
 >
-> Found 2026-08-19 while building the telemetry. Production init calls
-> `handle_prior_boot_failure_if_necessary`, which calls
-> `record_boot_failure_for_patch` **directly** and never reads
-> `boot_attempt_count` or `BOOT_FAILURE_THRESHOLD`.
-> `detect_boot_crash_on_init` — the only threshold-governed function — is
-> referenced **only from tests**.
+> Until 2026-08-19, C3/C4 were implemented but **not reachable from
+> production**. `handle_prior_boot_failure_if_necessary` called
+> `record_boot_failure_for_patch` directly; `detect_boot_crash_on_init` had no
+> non-test caller. A single process death before the success boundary
+> permanently tombstoned a healthy patch.
 >
-> **A single process death before the success boundary permanently tombstones a
-> healthy patch today.** Watchdog, jetsam, a swipe during launch. The
-> false-backout protection this project believed it had does not exist on
-> device. Pinned by
-> `production_init_is_single_strike_the_threshold_is_not_wired_in`.
+> **The failure was integration coverage, not the state machine.** 18 helper
+> tests proved the policy on a function production never called. They were green
+> throughout.
 >
-> **This reorders everything below.** Telemetry to ratify a threshold is
-> premature while the threshold is unreachable: C3's population — "first
-> ambiguous failures that get retried" — is currently EMPTY by construction, so
-> the recovery rate it would measure cannot exist.
+> The fix was driven by RED TESTS AT THE PRODUCTION ENTRYPOINT: 4 failing, 1
+> passing (the C2 control), **while all 18 helper tests stayed green**. That
+> contrast is the proof the guard was aimed at the real defect rather than
+> adjacent to it.
+>
+> It also silently corrected a known bug: `multi_engine_false_positive_rollback`
+> documented a healthy patch being rolled back because a second engine re-set the
+> breadcrumb. Its own comment called the result "incorrectly marked as known
+> bad". C3 prevents it on the first occurrence.
 
-**The host suite tests `detect_boot_crash_on_init`, which production does not
-call.** Its 18 tests are correct about the function and prove the policy is
-implementable and coherent; they do **not** describe shipped behaviour. Recorded
-plainly because it is the same error as the wrong-source-tree mistake in a new
-costume: verifying something adjacent to what ships.
+## 2b. THE THREE CATEGORIES — do not let these blur
 
-**Host suite: `library/src/cache/lifecycle_policy_tests.rs`** (updater repo, branch
-`route-b`). 18 tests across real process boundaries. The threshold is INJECTED,
-so the suite proves the rule "retire on the Nth consecutive un-succeeded boot"
-across N in 1..=4 rather than agreement with the number 2.
+The C3 incident is exactly why this separation matters: "the tests prove this is
+what the code does" had quietly become "therefore this is what the product
+promises", while the product in fact did something else entirely.
 
-**Verified non-vacuous by mutation, not by passing:** making the ambiguous path
-single-strike fails 11 of 18 and leaves exactly the 7 that should survive;
-removing success's tally reset fails 2; making the tally ignore which patch it
-counts fails 1.
+### Contract candidates — what we intend to promise
 
-**The policy is largely already built.** That was not obvious and was nearly
-missed: `0010-g15-boot-attempt-threshold.patch` implements exactly this split,
-and its own doc comment already contains the asymmetry argument above.
+* explicit failure is stronger evidence than ambiguous disappearance;
+* success resets ambiguity;
+* ambiguity receives another chance;
+* the tally is patch-specific.
 
-### WHICH TREE TO READ — this trap has now cost time twice
+### Provisional policy choices — shipped, NOT ratified
 
-    AUTHORITATIVE (builds the device engine):
-      /Volumes/build/route-b/flutter/engine/src/flutter/third_party/updater/
-        library/src/cache/lifecycle.rs
-      -> BOOT_FAILURE_THRESHOLD: u32 = 2      line 187
-      -> pub boot_attempt_count: u32          line 164
-      -> the retry branch                     line 659
+* **threshold = 2**;
+* no age semantics for `boot_started_at`;
+* pre-`0010` migration effectively grants an extra retry.
 
-    PINNED UPSTREAM COPY — has none of the above:
-      vendor/updater/library/src/cache/lifecycle.rs
+**These ship today and may change without breaking a promise, because no promise
+has been made.** They are what fleet telemetry exists to settle.
 
-Reading the pinned copy and concluding from its absence produced a confident,
-wrong "both retirement paths are single-strike" on 2026-08-19, corrected the same
-day. **An absence claim about updater behaviour is only valid against the
-`third_party/updater` tree in the engine checkout.** The device's own
-`pointers.json` is the ground truth about which code ran: it carries
-`boot_attempt_count`, which exists only because `0010` added it.
+### Implementation invariants — true, but not promises
+
+* state persists across process and device restart;
+* idle launches do not accrue failures;
+* tombstones do not resurrect.
+
+Depend on these in code; do not advertise them as product behaviour.
 
 ### The two paths, stated once
 
@@ -255,3 +248,33 @@ instead.
 4. **Layer 2** — the four-mode fixture harness.
 5. **Layer 3** — the handful of conformance specimens.
 6. **Correct §15's gate wording** (§4.3).
+
+### DEPLOYMENT ORDER IS NOT SOURCE ORDER
+
+In source, `wiring -> telemetry` is fine. **In deployment it is not.** Shipping
+C3 behaviour before the telemetry exists throws away the first and most
+informative cohort — the devices that experience an ambiguous death while nobody
+is counting. So:
+
+1. control plane accepts the new lifecycle telemetry;
+2. client classification implemented alongside the wiring;
+3. deterministic fixture / conformance run;
+4. **ship wiring + telemetry together**;
+5. collect fleet data;
+6. ratify or revise the threshold.
+
+**The non-terminal event must exist before the first production device receives
+C3 behaviour.** The wiring is committed in source; it must not be released ahead
+of the telemetry.
+
+### What the telemetry must correlate
+
+Measuring transitions, not failures. These two sequences must be
+distinguishable, for the same patch on the same device installation:
+
+    ambiguous #1 -> retry -> success
+    ambiguous #1 -> retry -> ambiguous #2 -> retirement
+
+**"No second failure arrived" is not recovery** — the device may simply never
+have launched again. That requires a POSITIVE recovery observation carrying
+`recovered_after_inferred_failures`, not an inference from silence.
