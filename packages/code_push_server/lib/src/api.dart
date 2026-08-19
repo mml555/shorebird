@@ -2412,14 +2412,8 @@ class Api {
       final e = (decoded is Map && decoded['event'] is Map)
           ? decoded['event'] as Map
           : (decoded as Map);
-      final dedupe = [
-        e['client_id'],
-        e['app_id'],
-        e['release_version'],
-        e['patch_number'],
-        e['type'],
-        e['timestamp'],
-      ].join('|');
+      final outcome = e['outcome'] as String?;
+      final dedupe = eventDedupeKey(e);
       final inserted = await repo.insertEvent(
         raw: raw,
         dedupeKey: dedupe,
@@ -2431,6 +2425,10 @@ class Api {
         arch: e['arch'] as String?,
         releaseVersion: e['release_version'] as String?,
         ts: e['timestamp'] as int?,
+        outcome: outcome,
+        ambiguousAttemptCount: e['ambiguous_attempt_count'] as int?,
+        bootFailureThreshold: e['boot_failure_threshold'] as int?,
+        bootStartedAt: e['boot_started_at'] as int?,
       );
       if (!inserted) obs.info('duplicate event ignored');
     } catch (_) {
@@ -3071,4 +3069,32 @@ class _RateLimiter {
     _buckets[key] = (nowMin, entry.$2 + 1);
     return true;
   }
+}
+
+/// Builds the dedupe key for a device event.
+///
+/// Extracted and public so the collision rule below can be tested directly —
+/// asserting it through a repository call would only prove the database keeps
+/// two rows with two different keys, not that this function PRODUCES two
+/// different keys, which is the actual regression.
+String eventDedupeKey(Map<dynamic, dynamic> e) {
+  final outcome = e['outcome'] as String?;
+  return [
+    e['client_id'],
+    e['app_id'],
+    e['release_version'],
+    e['patch_number'],
+    e['type'],
+    e['timestamp'],
+    // Boot-lifecycle events carry SEVERAL distinct outcomes for one patch, and
+    // two can legitimately land in the same second — an `ambiguous_boot_retry`
+    // at init and the `recovered_after_ambiguity` from that same launch's
+    // success. Without `outcome` in the key those collide and the RECOVERY is
+    // dropped as a duplicate, biasing P(recovery | first ambiguity) downward:
+    // the one metric the retry threshold is meant to be judged on.
+    //
+    // Appended only when present, so every pre-existing event type keeps a
+    // byte-identical key and nothing is re-accepted on upgrade.
+    if (outcome != null) outcome,
+  ].join('|');
 }

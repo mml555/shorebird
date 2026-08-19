@@ -315,6 +315,30 @@ class Repository {
             'ON crash_reports(app_id, release_version, patch_number)',
       ],
     ),
+    (
+      9,
+      [
+        // Boot-lifecycle observations. The device already reports TERMINAL
+        // outcomes (`__patch_install_failure__`), which is survivor bias: we
+        // hear about patches that were retired and never about the ones that
+        // hit one ambiguous unfinished boot and then recovered. The retry
+        // threshold cannot be justified from retirements alone, because the
+        // recoveries are exactly what justify HAVING a threshold.
+        //
+        // These columns are extracted from the raw body for queryability. They
+        // are all nullable and unset for every pre-existing event type, so a
+        // deployment that never receives a lifecycle event is unaffected.
+        'ALTER TABLE events ADD COLUMN outcome TEXT',
+        'ALTER TABLE events ADD COLUMN ambiguous_attempt_count INTEGER',
+        'ALTER TABLE events ADD COLUMN boot_failure_threshold INTEGER',
+        // Retained even though policy currently IGNORES boot age, so we can
+        // later determine whether a 40ms unfinished boot and a 40-day stale
+        // breadcrumb are the same population BEFORE changing the age rule.
+        'ALTER TABLE events ADD COLUMN boot_started_at BIGINT',
+        'CREATE INDEX IF NOT EXISTS events_lifecycle_idx '
+            'ON events(app_id, release_version, patch_number, outcome)',
+      ],
+    ),
   ];
 
   /// Indexes for the access paths that would otherwise scan. `events` is the
@@ -1505,10 +1529,16 @@ class Repository {
     String? arch,
     String? releaseVersion,
     int? ts,
+    String? outcome,
+    int? ambiguousAttemptCount,
+    int? bootFailureThreshold,
+    int? bootStartedAt,
   }) async {
     final r = await _q(
       'INSERT INTO events(dedupe_key, raw, app_id, client_id, type, patch_number, '
-      'platform, arch, release_version, ts) VALUES (@dk,@raw,@a,@c,@t,@pn,@pl,@ar,@rv,@ts) '
+      'platform, arch, release_version, ts, outcome, ambiguous_attempt_count, '
+      'boot_failure_threshold, boot_started_at) '
+      'VALUES (@dk,@raw,@a,@c,@t,@pn,@pl,@ar,@rv,@ts,@oc,@aac,@bft,@bsa) '
       'ON CONFLICT(dedupe_key) DO NOTHING RETURNING id',
       {
         'dk': dedupeKey,
@@ -1521,6 +1551,10 @@ class Repository {
         'ar': arch,
         'rv': releaseVersion,
         'ts': ts,
+        'oc': outcome,
+        'aac': ambiguousAttemptCount,
+        'bft': bootFailureThreshold,
+        'bsa': bootStartedAt,
       },
     );
     return r.isNotEmpty;
@@ -1686,6 +1720,38 @@ class Repository {
   }
 
   // ---- Metrics (event-derived) ----
+
+  /// Boot-lifecycle rates for an app, the numbers that decide whether the
+  /// retry threshold is defensible.
+  ///
+  /// Terminal failure events alone cannot answer this: they are survivor-biased,
+  /// showing only patches that were RETIRED and never the ones that hit a single
+  /// ambiguous unfinished boot and then recovered — which are exactly the cases
+  /// that justify having a threshold at all.
+  ///
+  /// Counts DISTINCT clients rather than rows, so a device that re-reports does
+  /// not inflate the denominator.
+  ///
+  ///   P(recovery | first ambiguity) = recovered        / first_ambiguity
+  ///   P(second   | first ambiguity) = second_ambiguity / first_ambiguity
+  Future<List<Map<String, dynamic>>> bootLifecycleMetrics(String appId) async {
+    final r = await _q(
+      "SELECT release_version, patch_number, "
+      "COUNT(DISTINCT CASE WHEN outcome = 'ambiguous_boot_retry' "
+      "  AND ambiguous_attempt_count = 1 THEN client_id END) AS first_ambiguity, "
+      "COUNT(DISTINCT CASE WHEN outcome = 'ambiguous_boot_retry' "
+      "  AND ambiguous_attempt_count >= 2 THEN client_id END) AS second_ambiguity, "
+      "COUNT(DISTINCT CASE WHEN outcome = 'recovered_after_ambiguity' "
+      "  THEN client_id END) AS recovered, "
+      "COUNT(DISTINCT CASE WHEN outcome = 'retired_after_ambiguity' "
+      "  THEN client_id END) AS retired "
+      "FROM events WHERE app_id = @a AND outcome IS NOT NULL "
+      "GROUP BY release_version, patch_number "
+      "ORDER BY release_version, patch_number",
+      {'a': appId},
+    );
+    return r;
+  }
 
   /// Per-patch download/install counts and unique clients for an app, sourced
   /// from the append-only events table. Event types are device-verified
