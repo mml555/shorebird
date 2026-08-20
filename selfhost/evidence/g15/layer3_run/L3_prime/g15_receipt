@@ -1,0 +1,48 @@
+native launch
+native engine
+dart hliuxu58v5 dart-main-entered
+dart hliuxu58v5 boot-probe-returned:boot-ok
+dart hliuxu58v5 mode:success
+dart hliuxu58v5 first-frame
+native launch
+native engine
+dart hliv1q8fg0 dart-main-entered
+dart hliv1q8fg0 boot-probe-returned:boot-ok
+dart hliv1q8fg0 mode:success
+dart hliv1q8fg0 first-frame
+native launch
+native engine
+dart hliv2u3ual dart-main-entered
+dart hliv2u3ual boot-probe-returned:boot-ok
+dart hliv2u3ual mode:successThenKill
+dart hliv2u3ual first-frame
+dart hliv2u3ual success-observed:hliv2u3ual
+native launch
+native engine
+dart hliv4ep6k9 dart-main-entered
+dart hliv4ep6k9 boot-probe-returned:boot-ok
+dart hliv4ep6k9 mode:success
+dart hliv4ep6k9 first-frame
+native launch
+native engine
+dart hliv5pqp02 dart-main-entered
+dart hliv5pqp02 boot-probe-returned:boot-ok
+dart hliv5pqp02 mode:hardKill
+dart hliv5pqp02 hard-kill-checkpoint:hliv5pqp02
+native launch
+native engine
+dart hlivns181r dart-main-entered
+dart hlivns181r boot-probe-returned:boot-ok
+dart hlivns181r mode:success
+dart hlivns181r first-frame
+native launch
+native engine
+dart hlivs4hhx8 dart-main-entered
+dart hlivs4hhx8 boot-probe-returned:boot-ok
+dart hlivs4hhx8 mode:dartFail
+native launch
+native engine
+dart hliw8piic9 dart-main-entered
+dart hliw8piic9 boot-probe-returned:boot-ok
+dart hliw8piic9 mode:success
+dart hliw8piic9 first-frame
