@@ -151,6 +151,13 @@ Work happens on `experimental`. PRs are carved from it, not the reverse.
   of any fetched branch, and unshallowing by SHA returns HTTP 500 from
   googlesource. Bulk-fetch, verify the base's parent object is present locally,
   then drop `.git/shallow` and confirm with `git fsck --connectivity-only`.
+* `afcclient`'s `put` **does not overwrite an existing file** — it fails silently
+  and leaves the previous contents. **A device-side state change is not
+  established by a command's exit status; it is established only by
+  `rm` -> `put` -> read-back of exact contents.** This nearly cost a six-launch
+  device run: five launches would have executed in the wrong mode and been
+  scored as results. Any harness that selects device-side state must verify by
+  read-back, and must fail loudly when the read-back disagrees.
 * This repo's hooks block `git stash`, `git clean` and forced pushes. They are
   right to. Use `git worktree add`, or build commits with plumbing (`read-tree`
   + `update-index --index-info` + `commit-tree`), which touches no working tree

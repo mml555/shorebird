@@ -1,0 +1,39 @@
+BASELINE FREEZE — everything the after-run must hold constant
+==============================================================
+frozen 2026-08-19, after the BEFORE run, before any engine rebuild.
+
+-- SOURCE REVISIONS --------------------------------------------
+  updater   ae1a4849e93eb294961f521c1b83ecdd1d923395  (branch route-b)
+  flutter   afcbada4b04421e09e5f116ab2dc21597734e999  (monorepo; engine tree)
+  selfhost  8a1bdd60a200ab007382d87b49c1a2589a300961
+
+-- FIXTURE SOURCE (must be byte-identical for release 103) ------
+  lib/main.dart   b284143628441e50543317f5f78ca7da12492aeca81987d29c4a4540589c813f
+  pubspec.yaml    82fa330952eecac667696e66edd5b17d8c8eed9870edb71b8fe19b0b8021072a
+  routeBValue is at its RELEASE value ('OLD-kill'); the patch value is
+  applied and reverted around 'shorebird patch' and must not be committed.
+
+-- BASELINE RELEASE 102 ----------------------------------------
+  ipa sha256      e7d8c9a9ee4eace899c9151af8af143e87472306dc8e6529c4dffd18ca920a1d
+  App LC_UUID     D06B410E-9C99-38BD-952E-AD4A345A7908
+  Engine LC_UUID  4C4C44C0-5555-3144-A1DD-7EB2A7564480
+  export method   development   (App Store export fails: no distribution profile)
+
+-- BEFORE ENGINE ------------------------------------------------
+  cell            mintstage_0013
+  arm64 sha256    4e2a46f1a5099c6e5f71afb27b254df4ed9e74bd9e969fa925c02ddfe71ffa71
+  __patch_boot_lifecycle__ occurrences: 0   <- the capability the after-run adds
+
+-- OBSERVATION TOOLING (frozen copies beside this file) ---------
+  set_mode.sh     ea2ca8649831a847609d3e903becf195b60f2daa2f76e55a89386328defe3206
+  capture.sh      c99a30648e083b36d944dfc9735dce59d8ea76c3cf0cc2e48630221e35171d7b
+
+  HARNESS CONTRACT, PERMANENT:
+    A mode change is NOT established by a command's exit status.
+    It is established ONLY by rm -> put -> read-back of exact contents.
+    afcclient's put does not overwrite an existing file; it fails
+    silently and leaves the previous mode in place.
+
+-- BASELINE VERDICT --------------------------------------------
+  sixlaunch_before_verdict.md — 5 VALID rows PASS, row 5 BASELINE as
+  pre-labelled. Row 5 is the only row expected to change.
