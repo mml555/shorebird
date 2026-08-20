@@ -71,9 +71,15 @@ on that basis. It was wrong.** The rows had been written; they were not yet visi
   Docker bind-mount artifact;
 * the four rows appeared only after the container stopped and flushed.
 
-**SQLite writes in this deployment are not observable by reading the DB file while
-the server is running.** Verify ingestion from the server's own log, or from the
-API, or after a controlled flush — never from a live file read. The rollback was
+**Corrected wording — the general form of my first phrasing was too broad.**
+
+> Copying or inspecting ONLY the main SQLite database file is not an authoritative
+> live-state read for this deployment: committed state may still reside in WAL
+> state until checkpoint or close. Query the live database connection, or account
+> for its WAL files.
+
+Verify ingestion from the server's own log, from the API, or against a connection
+that sees the WAL — not from a copy of the main file alone. The rollback was
 harmless and the correct image was redeployed, but the reasoning was faulty and is
 recorded as such.
 
