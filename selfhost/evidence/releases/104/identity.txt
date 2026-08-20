@@ -1,0 +1,10 @@
+release 104 / killswitch_probe 1.4.0+1  — THE WIRED AFTER-RUN SPECIMEN
+App.framework LC_UUID   : EEE8AC0F-1B46-3FD8-BAEA-5F98C45B8979
+Flutter LC_UUID (engine): 4C4C447D-5555-3144-A165-51D432516584  = WIRED
+engine cell             : ac8d843451f0bb8524932db2bc1fe6ee58c03c0f
+patchable sites         : 5,843 (1,813/MB) — verified PATCHABLE
+lifecycle wiring        : __patch_boot_lifecycle__ / ambiguous_boot_retry /
+                          recovered_after_ambiguity / retired_after_ambiguity
+fixture main.dart sha256: b284143628441e50543317f5f78ca7da12492aeca81987d29c4a4540589c813f
+  freeze recorded       : b284143628441e50543317f5f78ca7da12492aeca81987d29c4a4540589c813f
+ipa sha256              : fe7e393a51e7d20eb79e39b9a1f0fb94a68651eeb99d6dfe4ebaedaec367d7d4
