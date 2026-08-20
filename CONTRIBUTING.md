@@ -127,7 +127,33 @@ the helper tests stay green while it fails. That contrast is the proof you aimed
 at the actual defect rather than something adjacent to it. Then fix, and let both
 layers pass.
 
-### 10. Check committed state before writing a corrective edit
+### 10. The unit of correctness is the coherent SET, not any one file
+
+Every individual artifact can be correct while the installation is invalid,
+because what has to agree is the set. A wired engine was swapped into the CLI's
+artifact cache and every file in it was the right file — and iOS could not build
+at all, because `dart-sdk`'s frontend still expected the previous SDK hash. Four
+surfaces must share one lineage: engine, `gen_snapshot`/`analyze_snapshot`,
+`flutter_patched_sdk_product`, `dart-sdk`.
+
+Two rules follow:
+
+* **Use the publish pipeline, not cache surgery.** `build_host_zips.sh` and
+  `publish_ios_overlay.sh` exist to make a set coherent by construction. Hand
+  placing files bypasses the only mechanism that enforces the invariant — and
+  `build_host_zips.sh`'s own header already describes this hazard.
+* **Back up before mutating shared toolchain state, and verify the restore by
+  doing real work with it** — not by comparing hashes alone.
+
+### 11. Provenance describes what SHIPS, never what was merely built
+
+A revision in `compatibility.yaml` is a claim about bytes in service. Do not
+stamp it from a build output. Fetch the published bytes back through the normal
+consumption path, verify them, and only then record the revision. Stamping early
+produced metadata describing an engine that was not in service, which is worse
+than no metadata: it reads as verified provenance.
+
+### 12. Check committed state before writing a corrective edit
 
 This repo runs parallel sessions. Another lane may have already recorded the
 correction. `git show <sha>:<path>` before editing.
