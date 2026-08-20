@@ -1,0 +1,8 @@
+{
+  "next_boot_patch": 1,
+  "last_booted_patch": 1,
+  "currently_booting_patch": 1,
+  "boot_started_at": 1787186841,
+  "boot_attempt_count": 1,
+  "last_boot_attempt_patch": 1
+}
