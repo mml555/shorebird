@@ -145,7 +145,24 @@ Two rules follow:
 * **Back up before mutating shared toolchain state, and verify the restore by
   doing real work with it** — not by comparing hashes alone.
 
-### 11. Provenance describes what SHIPS, never what was merely built
+### 11. Fetch-back is a MANDATORY publish gate
+
+**After any publish, fetch the artifacts back through the path the consumer
+actually uses and verify them there.** A green publish proves nothing: it has
+twice reported success while serving an incoherent set.
+
+* **First catch** — every artifact returned HTTP 200 while two of four surfaces
+  were still at the previous SDK hash, because the publish script's source-tree
+  variables defaulted to a different tree.
+* **Second catch** — all four artifact surfaces agreed, and the build still failed
+  because the Dart VM *executing* the tooling belonged to a different lineage.
+
+So the gate is stricter than "did the publish succeed" and stricter than "do the
+hashes match": **verify the bytes the consumer selects and EXECUTES**, and treat
+a real build as the success test. Coherence includes the tool RUNNER, not only the
+tool inputs.
+
+### 12. Provenance describes what SHIPS, never what was merely built
 
 A revision in `compatibility.yaml` is a claim about bytes in service. Do not
 stamp it from a build output. Fetch the published bytes back through the normal
@@ -153,7 +170,7 @@ consumption path, verify them, and only then record the revision. Stamping early
 produced metadata describing an engine that was not in service, which is worse
 than no metadata: it reads as verified provenance.
 
-### 12. Check committed state before writing a corrective edit
+### 13. Check committed state before writing a corrective edit
 
 This repo runs parallel sessions. Another lane may have already recorded the
 correction. `git show <sha>:<path>` before editing.

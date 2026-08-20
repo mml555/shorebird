@@ -1,168 +1,185 @@
-# TASK: publish one coherent wired iOS engine cell, and prove row-5 recovery on hardware
+# TASK: make cell `ac8d8434…` consumable by the real CLI, then publish Route B producer tooling
 
-**Authoritative assignment.** Bounded on purpose. Everything needed is already
-designed and frozen; nothing below requires rediscovering the project.
+**Authoritative assignment.** The lifecycle lane stays **FROZEN**. This lane is
+**toolchain-consumer coherence** — not engine building, not lifecycle behaviour.
 
 ## OBJECTIVE
 
-Take the already-built lifecycle wiring and telemetry from **BUILT / host-tested**
-to **device-PROVEN**, without reopening lifecycle-policy design or earlier G15
-mechanism work.
+> Make cell `ac8d843451f0bb8524932db2bc1fe6ee58c03c0f` consumable by the real CLI
+> with a Dart runner that understands the tooling snapshots produced by that
+> cell, then publish the missing Route B producer tooling.
 
-The only load-bearing product question:
+**Do not rebuild the engine** unless this task proves the published cell itself is
+unusable. The engine is already built, published, and consumer-verified on four
+surfaces (`evidence/g15/cell_ac8d8434_verdict.md`).
 
-> **After an ambiguous pre-success process disappearance, does the wired
-> production path classify it as `ambiguous_boot_retry`, allow the next healthy
-> launch, and then emit `recovered_after_ambiguity` instead of retiring the
-> patch?**
+## 1. THE COHERENCE SET IS AT LEAST SEVEN MEMBERS
 
-## WORK SEQUENCE
+    Flutter.xcframework
+    gen_snapshot / analyze_snapshot
+    flutter_patched_sdk_product
+    dart-sdk contents
+    the Dart VM used to RUN the CLI / generated tooling
+    the generated flutter_tools.snapshot
+    Route B producer / compiler artifacts
 
-### 1. Build the complete coherent artifact set
-* run the documented `build_host_zips.sh`;
-* apply the known fix for stale generated `version.cc` state (see §APPENDIX A);
-* all four coherence members must come from ONE SDK/tool lineage:
-  `Flutter.xcframework` · `gen_snapshot`/`analyze_snapshot` ·
-  `flutter_patched_sdk_product` · `dart-sdk`.
+**The invariant, stronger than hash equality:**
 
-### 2. Publish through the real pipeline
-* `publish_ios_overlay.sh`, under one explicit engine/cell identity;
-* **no manual edits or file swaps inside `~/.shorebird`.**
+> **Every executable artifact and every serialized artifact it reads must belong
+> to a mutually compatible Dart/Flutter lineage.**
 
-### 3. Prove what the CONSUMER actually receives
-* fetch through the same path the CLI will use;
-* verify fetched bytes against published bytes;
-* verify SDK-hash coherence across all four artifact classes;
-* verify the lifecycle wiring exists in the shipped engine;
-* mechanically prove the updater in that engine corresponds to `ae1a4849`.
+"The hashes match" is not sufficient — the previous attempt had all four artifact
+hashes agreeing and still failed, because the VM executing the tooling belonged to
+a different lineage.
 
-### 4. Only after step 3, update provenance
-* `compatibility.yaml` to the exact updater revision actually shipped;
-* **provenance describes CONSUMED bytes, never merely successful build output.**
+## 2. PROVE THE RUNNER MISMATCH MECHANICALLY — before changing anything
 
-### 5. Cut release 103
-* fixture source unchanged from the frozen after-run fixture except required
-  release/version metadata;
-* preserve release evidence BEFORE patching.
+Convert "most likely move the pinned Dart" into a measured requirement:
 
-### 6. Prepare the device without assuming install state
-* install release 103;
-* explicitly set `Documents/g15_mode` to the launch-1 mode and **read it back**;
-* **do not assume install-over or `--rmtree` reset `Documents`** — it survives
-  both;
-* keep `rm` → `put` → read-back for every mode transition.
+* identify the **exact** Dart binary the CLI invokes;
+* record its SDK / version / snapshot-format lineage;
+* identify the regenerated `flutter_tools.snapshot`;
+* demonstrate BOTH directions:
+  * old runner + new snapshot → **deterministic rejection**
+  * matching new runner + the SAME snapshot → **acceptance**
 
-### 7. Run the frozen six-launch sequence
-Same device, same checkpoints, same FFI SIGKILL primitive, same `afcclient`
-observer, same scoring rules. **No debugger-driven launch inside the scored
-sequence.**
+The observed failure to reproduce deliberately:
 
-### 8. Score row 5 at THREE layers — all must agree
+    Wrong full snapshot version,
+      expected '21139db2770724220da55c72db00acdc'   <- VM running the tool
+      found    '8889ac395b461aefb5344c2195559e94'   <- regenerated snapshot
 
-| layer | required |
-|---|---|
-| **device/updater** | hard-kill leaves an ambiguous unfinished boot; next healthy launch does NOT retire the patch; state clears correctly after recovery |
-| **client telemetry** | `ambiguous_boot_retry`, then `recovered_after_ambiguity`, under the SAME existing correlation identity: `client_id` + `app_id` + `release_version` + `patch_number` |
-| **server** | both outcomes accepted; both persist DISTINCTLY; dedupe does not collapse them; lifecycle metrics count the client correctly |
+Note that clearing `flutter_tools.snapshot` does NOT help: it regenerates in the
+new format, which is exactly what the old VM rejects. They are mutually exclusive.
 
-## EXPECTED BEFORE / AFTER
+## 3. MOVE THE RUNNER THROUGH THE SUPPORTED DISTRIBUTION PATH
 
-Release 102's run is **immutable baseline evidence**. Do not re-score it.
+**No more `~/.shorebird` surgery.** Find where the CLI's pinned Dart is actually
+sourced/published, and extend the existing cell/publish pipeline so the matching
+runner arrives through that path.
 
-| scenario | release 102 baseline | wired release 103 expected |
-|---|---|---|
-| hard-kill before success | breadcrumb remains | same |
-| next process classification | terminal / single-strike retirement | **`ambiguous_boot_retry`** |
-| healthy next launch | release fallback | **patched launch succeeds** |
-| recovery telemetry | none | **`recovered_after_ambiguity`** |
-| explicit Dart failure | explicit terminal failure | **must remain** explicit terminal failure |
+Then apply the gate in its stricter form:
 
-That last row is a **regression control**: the new ambiguity policy must not
-weaken explicit patch-blaming failure.
+> **Verify the bytes the CLI actually SELECTS AND EXECUTES — not merely the
+> archive you published.**
 
-## NON-GOALS — do not spend time on
+**Decisive success test is real work**: the CLI launches, regenerates or loads its
+tooling, and completes an iOS build against the new cell with no kernel-format
+errors.
 
-original Arm A · foldability / G15 execution mechanism · Route B language
-widening · `TPOOL_AMBIGUOUS` · pragma effects · Android work · JWT issuer
-configuration · the double-`main()` observation · redesigning lifecycle
-thresholds *unless the frozen after-run disproves the current implementation* ·
-general Flutter/Dart toolchain modernization.
+## 4. FIX THE PUBLISH DEFAULTS — this is a correctness bug, not a trap to remember
 
-**If the coherent publish pipeline fails, STOP and classify it as an
-artifact-coherence/publishing issue. Do not turn this assignment into another
-lifecycle investigation.**
+`publish_ios_overlay.sh`'s `HOST_REL` / `PSDK_REL` / `HOST_DBG` default to a
+DIFFERENT tree (`/Volumes/build/ios-engine/...`). The first publish therefore
+shipped stale host zips while reporting success and serving HTTP 200.
 
-## DEFINITION OF DONE — exactly two legitimate results
+**"Remember to override them" is not an acceptable permanent solution.** Make the
+script either:
 
-**PROVEN** — a coherent wired engine was published AND consumed, release 103 ran
-the frozen sequence, and row 5 demonstrated
-`hard-kill` → `ambiguous_boot_retry` → healthy patched launch →
-`recovered_after_ambiguity`, with device, wire and server evidence agreeing.
+* derive them from the selected engine / build root, **or**
+* require them explicitly and **fail** when absent;
 
-**BLOCKED** — a coherent wired artifact set could not be produced or consumed
-through the documented pipeline. The exact failed coherence/publish gate is
-preserved, and **no lifecycle verdict is changed.**
+and add a gate that **rejects a publish** when those inputs resolve outside the
+intended lineage. The fetch-back gate remains mandatory even after this is fixed.
+
+## 5. PUBLISH ROUTE B PRODUCER TOOLING — treat the warning as a HARD BLOCKER
+
+`shorebird release` warned:
+
+    Route B producer tooling has not been published for engine ac8d8434…
+
+Before release 103:
+
+* determine exactly which producer artifact(s) the cell expects;
+* publish them under `ac8d8434…`;
+* fetch them through the real consumer path;
+* run a **tiny Route B producer probe** against the published versions.
+
+**Do not let the lifecycle run be the first test that producer tooling was
+packaged correctly.**
+
+## DEFINITION OF DONE
+
+**PROVEN**
+* matching Dart runner consumed through the normal CLI path;
+* new `flutter_tools.snapshot` accepted;
+* coherent iOS build succeeds;
+* Route B producer tooling published and consumed;
+* cell `ac8d8434…` performs a real Route B build **without cache surgery**;
+* **only then** stamp `compatibility.yaml`.
+
+**BLOCKED**
+* exact consumer/serialization boundary identified and preserved;
+* rig restored and verified by real work;
+* no release 103;
+* no lifecycle verdict changed.
+
+When green, **return immediately to the frozen lifecycle after-run.** Do not
+broaden into SDK modernization and do not rebuild the already-qualified engine.
 
 ---
 
-# APPENDIX A — operational specifics (already established; do not re-derive)
+# APPENDIX — established facts, do not re-derive
 
-## The stale-`version.cc` fix
+## The published cell
 
-Generated `version.cc` under `out/<cfg>/*/gen/.../dart/runtime/` hard-coded SDK
-hash `6b58bb3a72` from 2026-08-10, while the Dart SDK git HEAD moved to
-`9e8c898a4d2a3b4d…` on 2026-08-18. Delete those files so they regenerate from
-current HEAD. This was NOT a toolchain defect. Diagnosed by noticing the freshly
-built `gen_snapshot` was byte-identical to the old one, so the tool could not be
-the variable.
+    ac8d843451f0bb8524932db2bc1fe6ee58c03c0f
+      engine arm64 LC_UUID  4C4C447D-5555-3144-A165-51D432516584
+      wiring strings        __patch_boot_lifecycle__, ambiguous_boot_retry,
+                            recovered_after_ambiguity, retired_after_ambiguity
+      SDK hash (surfaces 3+4)  9e8c898a4d
+      registered in          selfhost/cdn/experimental_hashes.map
+    Published, NOT in service. Starting point, not litter.
 
-## Mechanical provenance test for `ae1a4849`
+## Two root causes already fixed
 
-The serde-generated string `recovered_after_ambiguity` appears in the shipped
-binary; its source token `RecoveredAfterAmbiguity` is present at `ae1a4849` and
-**absent at `ae1a4849~1`**. Grep the Rust variant, not the wire string — the wire
-string never appears in source.
+1. **`dart_sdk_verification_hash` is a pinned GN ARG, not derived.** A stale pin
+   makes every regenerated dill carry the old hash however often it is rebuilt.
+   **The SDK hash is configuration, not a build product.** Same root cause as the
+   stale generated `version.cc`.
+2. **GN bug, committed** `flutter@route-b 2c7b8c3ea5`: the `dart_sdk_archive`
+   entitlements entry lacked `rebase_path`, leaving GN source-absolute `//out/...`
+   that `zip.py` resolved against the filesystem. `dart-sdk-darwin-arm64.zip`
+   could not rebuild at all before this.
 
-## Wiring discriminator in shipped bytes
+## A documented warning that INVERTS in this tree
 
-BEFORE engine has **zero** occurrences of each; a wired engine has them:
-`__patch_boot_lifecycle__`, `ambiguous_boot_retry`, `recovered_after_ambiguity`,
-`retired_after_ambiguity`.
+`publish_ios_overlay.sh` says avoid `out/host_release_arm64` for
+`dart_dynamic_modules=true`. Written for the shipping `ios-engine` tree, whose
+`ios_release` lacks dynamic modules. **Route-b's `ios_release` enables them
+deliberately.** Measured: `ios_release` and `host_release_arm64` agree on the flag
+AND the SDK hash; `nodm` disagrees. Here `host_release_arm64` is correct.
 
-## Frozen identities
+## Build-order facts
+
+* build the host `gen_snapshot` BEFORE actions that consume it — ninja will
+  otherwise use a stale one earlier in the same run;
+* stale generated artifacts appear in layers: `version.cc`, then dills under
+  `gen/`, then dills elsewhere in the out dir. Clear by SDK hash, not by path.
+* `const_finder` and `frontend_server_aot.dart.snapshot` ARE buildable from
+  `host_release_arm64`; the release-mode `darwin-arm64-release-ddm/artifacts.zip`
+  does **not** contain them (~1740 targets, ~40 min, and still no const_finder).
+
+## Frozen lifecycle facts — untouched by this lane
 
     fixture lib/main.dart  b284143628441e50543317f5f78ca7da12492aeca81987d29c4a4540589c813f
     release 102 App        D06B410E-9C99-38BD-952E-AD4A345A7908
     BEFORE engine (arm64)  4C4C44C0-5555-3144-A1DD-7EB2A7564480
-    BEFORE engine sha256   4e2a46f1a5099c6e5f71afb27b254df4ed9e74bd9e969fa925c02ddfe71ffa71
-    candidate wired engine 4C4C447D-5555-3144-A165-51D432516584  (built, never consumed)
+    device g15_mode        currently `dart-fail` — Documents survives install-over
+                           and is NOT under --rmtree. Set explicitly, verify by
+                           read-back, before launch 1 of the after-run.
 
-Full freeze: `evidence/g15/sixlaunch_before/FREEZE.txt`.
+Standing verdicts: explicit-vs-inferred failure **device-PROVEN**; hard-kill
+primitive **device-qualified**; release-102 baseline **PROVEN**; wiring +
+telemetry **BUILT / host-tested**; row-5 recovery **pending**.
 
-## Device-state trap — check BEFORE launch 1
-
-`Documents/g15_mode` currently reads **`dart-fail`**. `Documents` survives
-install-over (proven: the receipt carried from release 101 to 102) and is NOT
-under the `--rmtree` path. An unset mode would make launch 1 throw and the whole
-sequence be scored against the wrong mode. **Set explicitly, verify by
-read-back.** `afcclient`'s `put` does not overwrite an existing file and fails
-silently.
-
-## Rig state at handoff
-
-`~/.shorebird` is restored to the coherent BEFORE set and verified by a real
-patch build. Backups, hash-recorded in
-`evidence/g15/build_coherence/ARTEFACTS.txt`:
+## Backups
 
     evidence_preserved/shorebird_ios_release_BEFORE   engine + snapshot tools
     evidence_preserved/shorebird_common_BEFORE        both patched SDKs
-    evidence_preserved/build_coherence/               gen_snapshot pair + dill
-
-## Already device-established — do not redo
-
-* explicit vs inferred failure are observably different events — **device-PROVEN**;
-* FFI SIGKILL hard-kill primitive — **device-qualified**, all four veto conditions;
-* release-102 baseline — **PROVEN**, frozen;
-* wiring + telemetry — BUILT, 287 updater tests, 299 server tests.
+    evidence_preserved/build_coherence/               gen_snapshot pair, dill,
+                                                      args.gn.host.BEFORE,
+                                                      engine.version.BEFORE,
+                                                      experimental_hashes.map.BEFORE
 
 **Do not ship the wiring to devices ahead of the telemetry.**
