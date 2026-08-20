@@ -1,110 +1,168 @@
-# NEXT SESSION — produce ONE coherent, publishable engine cell
+# TASK: publish one coherent wired iOS engine cell, and prove row-5 recovery on hardware
 
-Scope is deliberately narrow. **Do not reopen lifecycle semantics.** The
-lifecycle question is answered as far as it can be without a wired engine; this
-session exists only to produce that engine through the documented pipeline.
+**Authoritative assignment.** Bounded on purpose. Everything needed is already
+designed and frozen; nothing below requires rediscovering the project.
 
-## WHY THIS IS NOT A COMPILER PROBLEM
+## OBJECTIVE
 
-The Mac build failure was a **stale generated file**, not a toolchain defect:
-`version.cc` from 2026-08-10 hard-coded SDK hash `6b58bb3a72` while the Dart SDK
-HEAD had moved to `9e8c898a4d`. Deleting it gave `ninja exit=0`. See
-`evidence/g15/after_run_BLOCKED.md`.
+Take the already-built lifecycle wiring and telemetry from **BUILT / host-tested**
+to **device-PROVEN**, without reopening lifecycle-policy design or earlier G15
+mechanism work.
 
-The remaining problem is **artifact coherence and publishing**.
+The only load-bearing product question:
 
-## THE STEPS
+> **After an ambiguous pre-success process disappearance, does the wired
+> production path classify it as `ambiguous_boot_retry`, allow the next healthy
+> launch, and then emit `recovered_after_ambiguity` instead of retiring the
+> patch?**
 
-1. `build_host_zips.sh` — host toolchain from the SAME tree, producing a
-   `dart-sdk` whose frontend expects `9e8c898a4d`.
-2. `publish_ios_overlay.sh` — publish the full set under ONE engine hash, so the
-   CLI resolves a coherent set by construction rather than by hand.
-3. Verify all FOUR coherence surfaces share one SDK/tool lineage:
-   `Flutter.xcframework` · `gen_snapshot`/`analyze_snapshot` ·
-   `flutter_patched_sdk_product` · `dart-sdk`.
-4. Verify the lifecycle wiring is present in the SHIPPED artifacts —
-   `__patch_boot_lifecycle__`, `ambiguous_boot_retry`,
-   `recovered_after_ambiguity`, `retired_after_ambiguity`. The BEFORE engine has
-   **zero** occurrences, so this discriminates.
-5. Verify published updater provenance really corresponds to `ae1a4849`. The
-   mechanical test: the serde-generated `recovered_after_ambiguity` exists in the
-   binary, and its source token `RecoveredAfterAmbiguity` is present at
-   `ae1a4849` and **absent at `ae1a4849~1`**.
+## WORK SEQUENCE
 
-### >>> GATE — before step 6 <<<
+### 1. Build the complete coherent artifact set
+* run the documented `build_host_zips.sh`;
+* apply the known fix for stale generated `version.cc` state (see §APPENDIX A);
+* all four coherence members must come from ONE SDK/tool lineage:
+  `Flutter.xcframework` · `gen_snapshot`/`analyze_snapshot` ·
+  `flutter_patched_sdk_product` · `dart-sdk`.
 
-> **No provenance stamp may change until the exact published bytes that will
-> service release 103 have been FETCHED BACK THROUGH THE NORMAL CONSUMPTION PATH
-> and verified coherent.**
+### 2. Publish through the real pipeline
+* `publish_ios_overlay.sh`, under one explicit engine/cell identity;
+* **no manual edits or file swaps inside `~/.shorebird`.**
 
-Not the build output. Not a hand-placed file. The bytes the CLI actually
-downloads and installs. This exists because `compatibility.yaml` was briefly
-stamped `updater_revision: ae1a4849` while no engine carrying it was in service —
-metadata describing an engine that did not exist. Reverted; the gate stops a
-repeat.
+### 3. Prove what the CONSUMER actually receives
+* fetch through the same path the CLI will use;
+* verify fetched bytes against published bytes;
+* verify SDK-hash coherence across all four artifact classes;
+* verify the lifecycle wiring exists in the shipped engine;
+* mechanically prove the updater in that engine corresponds to `ae1a4849`.
 
-6. Update `compatibility.yaml` — `updater_revision` **and** `engine_revision`.
-   Provenance, not a version bump.
-7. Cut release 103 from **unchanged** fixture source. `lib/main.dart` must hash
-   `b284143628441e50543317f5f78ca7da12492aeca81987d29c4a4540589c813f`
-   (`sixlaunch_before/FREEZE.txt`); only version metadata may differ.
-8. Re-run the **identical** six-launch sequence.
-   **Row 5 is the load-bearing before/after.** Everything else is a regression
-   control.
+### 4. Only after step 3, update provenance
+* `compatibility.yaml` to the exact updater revision actually shipped;
+* **provenance describes CONSUMED bytes, never merely successful build output.**
 
-## ROW 5 — THE ONLY ROW EXPECTED TO CHANGE
+### 5. Cut release 103
+* fixture source unchanged from the frozen after-run fixture except required
+  release/version metadata;
+* preserve release evidence BEFORE patching.
 
-    BEFORE (device-proven):  hard-kill -> next launch retires the patch
-                             single-strike; release renders; 0 lifecycle events
+### 6. Prepare the device without assuming install state
+* install release 103;
+* explicitly set `Documents/g15_mode` to the launch-1 mode and **read it back**;
+* **do not assume install-over or `--rmtree` reset `Documents`** — it survives
+  both;
+* keep `rm` → `put` → read-back for every mode transition.
 
-    AFTER  (required):       hard-kill -> next launch classifies AMBIGUITY
-                             -> ambiguous_boot_retry
-                             -> the launch itself succeeds on the PATCH
-                             -> recovered_after_ambiguity
+### 7. Run the frozen six-launch sequence
+Same device, same checkpoints, same FFI SIGKILL primitive, same `afcclient`
+observer, same scoring rules. **No debugger-driven launch inside the scored
+sequence.**
 
-Require evidence at all three layers, not just the first:
+### 8. Score row 5 at THREE layers — all must agree
 
-1. **device/updater state** — ambiguity, then successful recovery;
-2. **client wire output** — both outcomes emitted under the same existing
-   correlation identity (`client_id` + `app_id` + `release_version` +
-   `patch_number`);
-3. **server state** — both accepted and represented, **not deduped into one**.
-   The two events can land in the same second; that dedupe fix is already in and
-   this is its real-device test.
+| layer | required |
+|---|---|
+| **device/updater** | hard-kill leaves an ambiguous unfinished boot; next healthy launch does NOT retire the patch; state clears correctly after recovery |
+| **client telemetry** | `ambiguous_boot_retry`, then `recovered_after_ambiguity`, under the SAME existing correlation identity: `client_id` + `app_id` + `release_version` + `patch_number` |
+| **server** | both outcomes accepted; both persist DISTINCTLY; dedupe does not collapse them; lifecycle metrics count the client correctly |
 
-## WHAT IS ALREADY DONE — do not redo
+## EXPECTED BEFORE / AFTER
 
-* baseline frozen: `evidence/g15/sixlaunch_before/FREEZE.txt`
-* BEFORE engine preserved + hashed: `evidence/g15/engine_lineage/`
-* release 102 preserved; App `D06B410E…`, engine `4C4C44C0…`
-* hard-kill primitive **device-qualified** (all four veto conditions)
-* explicit-vs-inferred distinction **device-proven** — needs no new engine
-* mode setter qualified; `rm` -> `put` -> read-back is mandatory
-* wiring + telemetry: BUILT, host-tested, 287 updater tests, 299 server tests
+Release 102's run is **immutable baseline evidence**. Do not re-score it.
 
-## RIG STATE AT HANDOFF
+| scenario | release 102 baseline | wired release 103 expected |
+|---|---|---|
+| hard-kill before success | breadcrumb remains | same |
+| next process classification | terminal / single-strike retirement | **`ambiguous_boot_retry`** |
+| healthy next launch | release fallback | **patched launch succeeds** |
+| recovery telemetry | none | **`recovered_after_ambiguity`** |
+| explicit Dart failure | explicit terminal failure | **must remain** explicit terminal failure |
 
-`~/.shorebird` restored to the coherent BEFORE set and verified by a real patch
-build. Backups, durable and hash-recorded:
+That last row is a **regression control**: the new ambiguity policy must not
+weaken explicit patch-blaming failure.
+
+## NON-GOALS — do not spend time on
+
+original Arm A · foldability / G15 execution mechanism · Route B language
+widening · `TPOOL_AMBIGUOUS` · pragma effects · Android work · JWT issuer
+configuration · the double-`main()` observation · redesigning lifecycle
+thresholds *unless the frozen after-run disproves the current implementation* ·
+general Flutter/Dart toolchain modernization.
+
+**If the coherent publish pipeline fails, STOP and classify it as an
+artifact-coherence/publishing issue. Do not turn this assignment into another
+lifecycle investigation.**
+
+## DEFINITION OF DONE — exactly two legitimate results
+
+**PROVEN** — a coherent wired engine was published AND consumed, release 103 ran
+the frozen sequence, and row 5 demonstrated
+`hard-kill` → `ambiguous_boot_retry` → healthy patched launch →
+`recovered_after_ambiguity`, with device, wire and server evidence agreeing.
+
+**BLOCKED** — a coherent wired artifact set could not be produced or consumed
+through the documented pipeline. The exact failed coherence/publish gate is
+preserved, and **no lifecycle verdict is changed.**
+
+---
+
+# APPENDIX A — operational specifics (already established; do not re-derive)
+
+## The stale-`version.cc` fix
+
+Generated `version.cc` under `out/<cfg>/*/gen/.../dart/runtime/` hard-coded SDK
+hash `6b58bb3a72` from 2026-08-10, while the Dart SDK git HEAD moved to
+`9e8c898a4d2a3b4d…` on 2026-08-18. Delete those files so they regenerate from
+current HEAD. This was NOT a toolchain defect. Diagnosed by noticing the freshly
+built `gen_snapshot` was byte-identical to the old one, so the tool could not be
+the variable.
+
+## Mechanical provenance test for `ae1a4849`
+
+The serde-generated string `recovered_after_ambiguity` appears in the shipped
+binary; its source token `RecoveredAfterAmbiguity` is present at `ae1a4849` and
+**absent at `ae1a4849~1`**. Grep the Rust variant, not the wire string — the wire
+string never appears in source.
+
+## Wiring discriminator in shipped bytes
+
+BEFORE engine has **zero** occurrences of each; a wired engine has them:
+`__patch_boot_lifecycle__`, `ambiguous_boot_retry`, `recovered_after_ambiguity`,
+`retired_after_ambiguity`.
+
+## Frozen identities
+
+    fixture lib/main.dart  b284143628441e50543317f5f78ca7da12492aeca81987d29c4a4540589c813f
+    release 102 App        D06B410E-9C99-38BD-952E-AD4A345A7908
+    BEFORE engine (arm64)  4C4C44C0-5555-3144-A1DD-7EB2A7564480
+    BEFORE engine sha256   4e2a46f1a5099c6e5f71afb27b254df4ed9e74bd9e969fa925c02ddfe71ffa71
+    candidate wired engine 4C4C447D-5555-3144-A165-51D432516584  (built, never consumed)
+
+Full freeze: `evidence/g15/sixlaunch_before/FREEZE.txt`.
+
+## Device-state trap — check BEFORE launch 1
+
+`Documents/g15_mode` currently reads **`dart-fail`**. `Documents` survives
+install-over (proven: the receipt carried from release 101 to 102) and is NOT
+under the `--rmtree` path. An unset mode would make launch 1 throw and the whole
+sequence be scored against the wrong mode. **Set explicitly, verify by
+read-back.** `afcclient`'s `put` does not overwrite an existing file and fails
+silently.
+
+## Rig state at handoff
+
+`~/.shorebird` is restored to the coherent BEFORE set and verified by a real
+patch build. Backups, hash-recorded in
+`evidence/g15/build_coherence/ARTEFACTS.txt`:
 
     evidence_preserved/shorebird_ios_release_BEFORE   engine + snapshot tools
     evidence_preserved/shorebird_common_BEFORE        both patched SDKs
     evidence_preserved/build_coherence/               gen_snapshot pair + dill
 
-### DEVICE STATE TRAP — read before launch 1 of the after-run
+## Already device-established — do not redo
 
-The device's `Documents/g15_mode` currently reads **`dart-fail`**, left from the
-baseline's final launch. **`Documents` survives an install-over** — proven, since
-the receipt carried from release 101 to 102 — so installing release 103 does NOT
-reset it. Launch 1 of the after-run would throw instead of succeeding, and the
-sequence would be scored against the wrong mode.
+* explicit vs inferred failure are observably different events — **device-PROVEN**;
+* FFI SIGKILL hard-kill primitive — **device-qualified**, all four veto conditions;
+* release-102 baseline — **PROVEN**, frozen;
+* wiring + telemetry — BUILT, 287 updater tests, 299 server tests.
 
-`--rmtree` of the shorebird state dir does not help either: the mode file lives
-under `Documents`, not under `Library/Application Support/shorebird`.
-
-**Set the mode explicitly before launch 1, and confirm by read-back.** Never rely
-on the default, and never assume an install cleared it. Same discipline that
-caught `afcclient put`'s silent non-overwrite.
-
-**Do not ship the wiring to devices ahead of the telemetry.** That constraint is
-unchanged.
+**Do not ship the wiring to devices ahead of the telemetry.**
