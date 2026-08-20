@@ -91,5 +91,20 @@ build. Backups, durable and hash-recorded:
     evidence_preserved/shorebird_common_BEFORE        both patched SDKs
     evidence_preserved/build_coherence/               gen_snapshot pair + dill
 
+### DEVICE STATE TRAP — read before launch 1 of the after-run
+
+The device's `Documents/g15_mode` currently reads **`dart-fail`**, left from the
+baseline's final launch. **`Documents` survives an install-over** — proven, since
+the receipt carried from release 101 to 102 — so installing release 103 does NOT
+reset it. Launch 1 of the after-run would throw instead of succeeding, and the
+sequence would be scored against the wrong mode.
+
+`--rmtree` of the shorebird state dir does not help either: the mode file lives
+under `Documents`, not under `Library/Application Support/shorebird`.
+
+**Set the mode explicitly before launch 1, and confirm by read-back.** Never rely
+on the default, and never assume an install cleared it. Same discipline that
+caught `afcclient put`'s silent non-overwrite.
+
 **Do not ship the wiring to devices ahead of the telemetry.** That constraint is
 unchanged.
