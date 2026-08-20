@@ -1,0 +1,15 @@
+BUILD-COHERENCE ARTEFACTS — durable copies, hashes recorded here
+================================================================
+Bytes live at /Volumes/build/route-b/evidence_preserved/build_coherence (durable volume, NOT /tmp).
+Kept for the separate build-coherence lane, not for the lifecycle lane.
+
+  b8be0471bf8f3df439954a12a58e95d5b8ad298213c6af2504ec8f45dbf79c10  gen_snapshot.aug17
+  b8be0471bf8f3df439954a12a58e95d5b8ad298213c6af2504ec8f45dbf79c10  gen_snapshot.aug19_rebuilt
+  099b03133aea39273dcebf85ed8c5762ee22834e63d2ffba786be6ad7428d61c  platform_strong.aug19.dill
+
+platform_strong.aug19.dill SDK-hash field (bytes 8..18): 9e8c898a4d
+
+aug17 gen_snapshot = the tool that BUILT the working BEFORE engine.
+aug19_rebuilt      = freshly built, still rejects the freshly built dill.
+Both retained because the comparison between them is the evidence the
+build-coherence lane will need, and it cannot be reconstructed later.

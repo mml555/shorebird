@@ -1,4 +1,96 @@
-# AFTER-RUN BLOCKED — engine rebuild fails on SDK hash, 2026-08-19
+# AFTER-RUN BLOCKED — engine builds, but the ARTIFACT SET cannot be made coherent
+
+*** SUPERSEDED 2026-08-19, SAME DAY — THE ENGINE BUILD IS FIXED ***
+===================================================================
+**The "Invalid SDK hash" build failure below is SOLVED, and the engine now
+builds. The after-run is still blocked, but for a different and better-understood
+reason. Original text kept below because its elimination steps remain valid.**
+
+## ROOT CAUSE OF THE BUILD FAILURE — found, and cheap
+
+Generated `version.cc` files in `out/ios_release/*/gen/.../dart/runtime/` were
+from **2026-08-10** and hard-coded SDK hash **`6b58bb3a72`**, the old Dart base
+revision. The Dart SDK's git HEAD moved to `9e8c898a4d2a3b4d…` on **2026-08-18
+16:48** — the commit that moved the Dart work off a detached HEAD onto a branch.
+New dills therefore record `9e8c898a4d` while the stale generated file kept the
+tool at `6b58bb3a72`.
+
+That is why the Aug 17 build worked and today's did not: **nothing about the
+toolchain was broken; a generated file was stale.**
+
+The decisive clue was that the freshly-built `gen_snapshot` was **byte-identical**
+to the Aug 17 one (`b8be0471…`) — so the tool was not the variable and the dill
+had to be. That comparison came free from preserving both binaries.
+
+Deleting the three `version.cc` files and rebuilding: **`ninja exit=0`**, new
+engine arm64 `LC_UUID 4C4C447D-5555-3144-A165-51D432516584`, and the wiring is in
+the shipped bytes:
+
+    __patch_boot_lifecycle__      1
+    ambiguous_boot_retry          1
+    recovered_after_ambiguity     1
+    retired_after_ambiguity       1
+
+All five gates passed: coherent build, updater revision `ae1a4849` tied
+mechanically (`RecoveredAfterAmbiguity` present at that commit, absent at its
+parent), wiring in the binary, fixture digest identical to the freeze, baseline
+untouched.
+
+## THE REAL BLOCKER — a coherent set is FOUR artifacts, not one
+
+Swapping the engine alone reproduces the same mismatch one layer up. The SDK hash
+must agree across:
+
+| artifact | supplies | swapped? |
+|---|---|---|
+| `Flutter.xcframework` | the engine + updater | yes |
+| `gen_snapshot` / `analyze_snapshot` | AOT snapshotting | yes |
+| `flutter_patched_sdk_product` | the platform dill the app compiles against | yes |
+| **`dart-sdk`** | the FRONTEND that reads that dill | **no — still `6b58bb3a72`** |
+
+With the first three at `9e8c898a4d`, the app build fails in the frontend:
+
+    Crash when compiling package:killswitch_probe/main.dart:
+    Unexpected Kernel SDK Version 9e8c898a4d (expected 6b58bb3a72)
+      BinaryBuilder._readAndVerifySdkHash
+
+**So only two coherent end-states exist:** everything at `9e8c898a4d`, which needs
+a HOST build to produce a matching `dart-sdk`; or everything back at
+`6b58bb3a72`, which has no wiring.
+
+## WHAT I DID WRONG, AND UNDID
+
+I hand-swapped files inside `~/.shorebird`'s artifact cache. That is off-pipeline:
+this repo already has `build_host_zips.sh` and `publish_ios_overlay.sh` for
+exactly this, and `build_host_zips.sh`'s own header describes this hazard —
+publishing a `flutter_patched_sdk_product` that disagrees with `sky_engine.zip`.
+
+The hand-swap left `~/.shorebird` **mixed and unable to build iOS at all**.
+**Restored** from backups taken before each swap, and verified: engine
+`4C4C44C0…`, product SDK `6b58bb3a72`, zero wiring strings, and a real patch
+build reaching "Verifying patch can be applied to release" with no hash errors.
+
+I also reverted a premature `compatibility.yaml` stamp of
+`updater_revision: ae1a4849`. **Provenance must describe what actually ships**, and
+no engine carrying that revision is in service.
+
+## THE CORRECT NEXT STEP
+
+Use the documented pipeline rather than cache surgery:
+
+1. `build_host_zips.sh` — host toolchain from the SAME tree, giving a `dart-sdk`
+   at `9e8c898a4d`;
+2. `publish_ios_overlay.sh` — publish the full set under one engine hash, so the
+   CLI resolves a coherent set by construction;
+3. only then stamp `compatibility.yaml` and cut release 103.
+
+Backups, durable and hash-recorded in `build_coherence/ARTEFACTS.txt`:
+
+    evidence_preserved/shorebird_ios_release_BEFORE   engine + snapshot tools
+    evidence_preserved/shorebird_common_BEFORE        both patched SDKs
+    evidence_preserved/build_coherence/              gen_snapshot pair + dill
+
+===================================================================
 
 The baseline is frozen and intact. The after-run cannot proceed because the iOS
 engine will not build from this tree.
