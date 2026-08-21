@@ -1721,6 +1721,34 @@ class Repository {
 
   // ---- Metrics (event-derived) ----
 
+  /// Client releases whose lifecycle telemetry is NOT valid for policy analysis.
+  ///
+  /// THE TELEMETRY VALIDITY EPOCH. Recovery metrics are meaningful only for
+  /// clients that shipped BOTH halves of the fix:
+  ///
+  ///   * outcome-aware event dedupe on the server (schema migration 9), without
+  ///     which a recovery arriving in the same second as its retry was discarded
+  ///     as a duplicate;
+  ///   * exact event acknowledgement in the client, without which the event
+  ///     flusher wiped the whole queue after sending a batch captured earlier,
+  ///     destroying anything enqueued during the send.
+  ///
+  /// Both bugs zeroed the RECOVERY NUMERATOR while leaving the ambiguity
+  /// DENOMINATOR intact, so pre-epoch rows do not merely add noise — they bias
+  /// P(recovery | first ambiguity) toward zero. They stay queryable as evidence of
+  /// the instrumentation failures and must never enter an estimator.
+  ///
+  /// LIMITATION, stated rather than hidden: the correct predicate is the CLIENT's
+  /// updater revision, and events do not carry it. Until they do, the epoch can
+  /// only be enforced by naming the affected releases for this deployment. Adding
+  /// an updater-revision field to the event envelope is the durable fix, and is
+  /// what would make this list unnecessary.
+  static const preEpochReleaseVersions = <String>[
+    '1.4.0+1', // recovery arrived; pre-migration-9 server deduped it away
+    '1.5.0+1', // recovery destroyed client-side by the queue wipe
+    '1.6.0+1', // recovery destroyed client-side by the queue wipe
+  ];
+
   /// Boot-lifecycle rates for an app, the numbers that decide whether the
   /// retry threshold is defensible.
   ///
@@ -1746,6 +1774,8 @@ class Repository {
       "COUNT(DISTINCT CASE WHEN outcome = 'retired_after_ambiguity' "
       "  THEN client_id END) AS retired "
       "FROM events WHERE app_id = @a AND outcome IS NOT NULL "
+      // Pre-epoch releases are excluded from the ESTIMATOR, not from the table.
+      "AND release_version NOT IN (${preEpochReleaseVersions.map((v) => "'$v'").join(',')}) "
       "GROUP BY release_version, patch_number "
       "ORDER BY release_version, patch_number",
       {'a': appId},

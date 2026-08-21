@@ -123,6 +123,18 @@ case"* — but **soundness is not ratification.**
 | can idle launches accrue toward retirement? | **no** — only a set breadcrumb counts | `recovery_is_a_noop_when_no_boot_was_in_flight` |
 | can a tombstoned patch be resurrected? | **no** | `an_already_retired_patch_cannot_be_booted_again` |
 
+### TELEMETRY VALIDITY EPOCH — ratification may not use pre-`1.7.0+1` data
+
+Recovery metrics are valid only for clients shipping BOTH outcome-aware server
+dedupe and exact event acknowledgement. Releases before `1.7.0+1` are excluded from
+threshold-policy analysis and kept only as evidence. Encoded in
+`Repository.preEpochReleaseVersions`, applied inside `bootLifecycleMetrics()`, with a
+test both ways. Full criteria, fixed before any data exists:
+`selfhost/THRESHOLD_ANALYSIS_PRECOMMIT.md`.
+
+**The `1/1` from the closure run is an integration proof, not a fleet estimate**, and
+is explicitly excluded from ratification by the 100-distinct-client minimum.
+
 ### What is STILL open — the actual ratification agenda
 
 * **is 2 right**, given C4's cost is one extra crashed launch?

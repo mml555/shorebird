@@ -141,6 +141,47 @@ void main() {
       expect(m['first_ambiguity'], 1, reason: 're-reporting must not inflate it');
     });
 
+    test('pre-epoch releases are excluded from the estimator', () async {
+      // The pre-epoch bugs zeroed the recovery numerator while leaving the
+      // denominator intact, so including these rows biases the estimate toward
+      // zero rather than merely adding noise.
+      await repo.insertEvent(
+        raw: '{}',
+        dedupeKey: 'old|app|1.5.0+1|1|__patch_boot_lifecycle__|1|ambiguous_boot_retry',
+        appId: 'app',
+        clientId: 'old',
+        type: '__patch_boot_lifecycle__',
+        patchNumber: 1,
+        releaseVersion: '1.5.0+1',
+        ts: 1,
+        outcome: 'ambiguous_boot_retry',
+        ambiguousAttemptCount: 1,
+      );
+      expect(
+        await repo.bootLifecycleMetrics('app'),
+        isEmpty,
+        reason: 'a pre-epoch row must not reach the estimator',
+      );
+
+      // A post-epoch row is counted.
+      await repo.insertEvent(
+        raw: '{}',
+        dedupeKey: 'new|app|1.7.0+1|1|__patch_boot_lifecycle__|1|ambiguous_boot_retry',
+        appId: 'app',
+        clientId: 'new',
+        type: '__patch_boot_lifecycle__',
+        patchNumber: 1,
+        releaseVersion: '1.7.0+1',
+        ts: 1,
+        outcome: 'ambiguous_boot_retry',
+        ambiguousAttemptCount: 1,
+      );
+      final m = await repo.bootLifecycleMetrics('app');
+      expect(m, hasLength(1));
+      expect(m.first['release_version'], '1.7.0+1');
+      expect(m.first['first_ambiguity'], 1);
+    });
+
     test('pre-existing event types are unaffected', () async {
       // No outcome -> excluded from lifecycle metrics, dedupe key unchanged.
       expect(
