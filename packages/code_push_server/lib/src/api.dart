@@ -2429,6 +2429,7 @@ class Api {
         ambiguousAttemptCount: e['ambiguous_attempt_count'] as int?,
         bootFailureThreshold: e['boot_failure_threshold'] as int?,
         bootStartedAt: e['boot_started_at'] as int?,
+        updaterRevision: e['updater_revision'] as String?,
       );
       if (!inserted) obs.info('duplicate event ignored');
     } catch (_) {

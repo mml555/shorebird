@@ -339,6 +339,18 @@ class Repository {
             'ON events(app_id, release_version, patch_number, outcome)',
       ],
     ),
+    (
+      10,
+      [
+        // The updater revision that produced the event. Eligibility for
+        // lifecycle-policy analysis is a property of the BEHAVIOUR-BEARING CLIENT
+        // CODE — whether it shipped the event-loss fixes — and inferring that from
+        // an app release version is a proxy that only holds for one app.
+        'ALTER TABLE events ADD COLUMN updater_revision TEXT',
+        'CREATE INDEX IF NOT EXISTS events_updater_rev_idx '
+            'ON events(app_id, updater_revision)',
+      ],
+    ),
   ];
 
   /// Indexes for the access paths that would otherwise scan. `events` is the
@@ -1533,12 +1545,13 @@ class Repository {
     int? ambiguousAttemptCount,
     int? bootFailureThreshold,
     int? bootStartedAt,
+    String? updaterRevision,
   }) async {
     final r = await _q(
       'INSERT INTO events(dedupe_key, raw, app_id, client_id, type, patch_number, '
       'platform, arch, release_version, ts, outcome, ambiguous_attempt_count, '
-      'boot_failure_threshold, boot_started_at) '
-      'VALUES (@dk,@raw,@a,@c,@t,@pn,@pl,@ar,@rv,@ts,@oc,@aac,@bft,@bsa) '
+      'boot_failure_threshold, boot_started_at, updater_revision) '
+      'VALUES (@dk,@raw,@a,@c,@t,@pn,@pl,@ar,@rv,@ts,@oc,@aac,@bft,@bsa,@ur) '
       'ON CONFLICT(dedupe_key) DO NOTHING RETURNING id',
       {
         'dk': dedupeKey,
@@ -1555,6 +1568,7 @@ class Repository {
         'aac': ambiguousAttemptCount,
         'bft': bootFailureThreshold,
         'bsa': bootStartedAt,
+        'ur': updaterRevision,
       },
     );
     return r.isNotEmpty;
@@ -1743,6 +1757,22 @@ class Repository {
   /// only be enforced by naming the affected releases for this deployment. Adding
   /// an updater-revision field to the event envelope is the durable fix, and is
   /// what would make this list unnecessary.
+  /// Updater revisions known to carry ALL the event-loss fixes: outcome-aware
+  /// dedupe on the server side is ours, but the client must also have exact event
+  /// acknowledgement and failure rotation, or recovery events are destroyed or
+  /// censored before they are sent.
+  ///
+  /// This is the AUTHORITATIVE eligibility predicate. `preEpochReleaseVersions`
+  /// below is the legacy proxy, kept only for events recorded before the client
+  /// reported its revision — those carry NULL and are treated as ineligible,
+  /// because an unknown client cannot be assumed to have the fixes.
+  static const eligibleUpdaterRevisions = <String>[
+    'fe51f225c686', // exact acknowledgement
+    // NOTE: append the rotation-fix revision once an engine carrying it ships.
+    // Until then that revision's events are ineligible BY DEFAULT, which is the
+    // safe direction: a missing entry under-counts, it does not fabricate.
+  ];
+
   static const preEpochReleaseVersions = <String>[
     '1.4.0+1', // recovery arrived; pre-migration-9 server deduped it away
     '1.5.0+1', // recovery destroyed client-side by the queue wipe
@@ -1774,7 +1804,15 @@ class Repository {
       "COUNT(DISTINCT CASE WHEN outcome = 'retired_after_ambiguity' "
       "  THEN client_id END) AS retired "
       "FROM events WHERE app_id = @a AND outcome IS NOT NULL "
-      // Pre-epoch releases are excluded from the ESTIMATOR, not from the table.
+      // AUTHORITATIVE PREDICATE: the client must report an updater revision known
+      // to carry the event-loss fixes. NULL is ineligible — an unknown client
+      // cannot be ASSUMED to have them, and assuming would re-import the bias the
+      // epoch exists to exclude. This deliberately excludes the closure run's rows,
+      // which predate the field; they were an integration proof, never a fleet
+      // estimate, and the 100-client minimum already disqualified them.
+      "AND updater_revision IN (${eligibleUpdaterRevisions.map((v) => "'$v'").join(',')}) "
+      // Defence in depth. Now subsumed by the revision predicate, kept because the
+      // cost is zero and it documents which releases were affected.
       "AND release_version NOT IN (${preEpochReleaseVersions.map((v) => "'$v'").join(',')}) "
       "GROUP BY release_version, patch_number "
       "ORDER BY release_version, patch_number",

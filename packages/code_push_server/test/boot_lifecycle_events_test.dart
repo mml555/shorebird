@@ -46,6 +46,7 @@ void main() {
       ambiguousAttemptCount: attempt,
       bootFailureThreshold: 2,
       bootStartedAt: 999,
+      updaterRevision: 'fe51f225c686',
     );
 
     test('a non-terminal lifecycle event is accepted and stored', () async {
@@ -141,6 +142,24 @@ void main() {
       expect(m['first_ambiguity'], 1, reason: 're-reporting must not inflate it');
     });
 
+    test('an event with NO updater revision is ineligible', () async {
+      // Strictness in the safe direction: an unknown client cannot be assumed to
+      // carry the event-loss fixes, so it under-counts rather than fabricating.
+      await repo.insertEvent(
+        raw: '{}',
+        dedupeKey: 'norev|app|1.7.0+1|1|__patch_boot_lifecycle__|5|ambiguous_boot_retry',
+        appId: 'app',
+        clientId: 'norev',
+        type: '__patch_boot_lifecycle__',
+        patchNumber: 1,
+        releaseVersion: '1.7.0+1',
+        ts: 5,
+        outcome: 'ambiguous_boot_retry',
+        ambiguousAttemptCount: 1,
+      );
+      expect(await repo.bootLifecycleMetrics('app'), isEmpty);
+    });
+
     test('pre-epoch releases are excluded from the estimator', () async {
       // The pre-epoch bugs zeroed the recovery numerator while leaving the
       // denominator intact, so including these rows biases the estimate toward
@@ -175,6 +194,7 @@ void main() {
         ts: 1,
         outcome: 'ambiguous_boot_retry',
         ambiguousAttemptCount: 1,
+        updaterRevision: 'fe51f225c686',
       );
       final m = await repo.bootLifecycleMetrics('app');
       expect(m, hasLength(1));
