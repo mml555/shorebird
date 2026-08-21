@@ -1,0 +1,20 @@
+{
+  "client_id": "15abaf39-9167-4ded-b91d-f2319408a298",
+  "release_version": "1.7.0+1",
+  "queued_events": [
+    {
+      "app_id": "014c8ed9-2dea-ec30-fe74-3a7f5e7a77e3",
+      "arch": "aarch64",
+      "client_id": "15abaf39-9167-4ded-b91d-f2319408a298",
+      "type": "__patch_boot_lifecycle__",
+      "patch_number": 1,
+      "platform": "ios",
+      "release_version": "1.7.0+1",
+      "timestamp": 1787275287,
+      "message": null,
+      "outcome": "recovered_after_ambiguity",
+      "ambiguous_attempt_count": 1,
+      "boot_failure_threshold": 2
+    }
+  ]
+}

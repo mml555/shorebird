@@ -10,7 +10,26 @@ shorebird:
   cli_revision: selfhost-v1.0.0                                  # this repo's baseline tag
   flutter_revision: c15ef6379403a0a55531a058bdb2c8e55bc05c98      # bin/internal/flutter.version (3.44.8 / Dart 3.12.2)
   engine_revision: 69f9831c360d9152862ec3897c67fb09ae843f3b       # shorebirdtech/flutter bin/internal/engine.version
-  updater_revision: 1f85c4ab                                      # vendored at vendor/updater — UNCHANGED across this bump
+  updater_revision: fe51f225                                      # PROVENANCE OF CONSUMED BYTES.
+                                                                  # The updater compiled into engine cell
+                                                                  # 986e088019dc7c59a10ab568fd69dccd9b788765
+                                                                  # (arm64 LC_UUID 4C4C4462-5555-3144-A11E-11E07BD5F384),
+                                                                  # fetched back through the CDN path the CLI uses and
+                                                                  # verified coherent on all four surfaces at SDK hash
+                                                                  # 9e8c898a4d, with Route B producer tooling AUDIT CLEAN
+                                                                  # and a real patch build succeeding first.
+                                                                  # Tied mechanically: the ACK_EVENT diagnostic string is
+                                                                  # in the shipped engine and exists at fe51f225 but not
+                                                                  # at its parent.
+                                                                  # Carries the queue-acknowledgement fix: a queued event
+                                                                  # is removed only once THAT EXACT event was sent, so
+                                                                  # events enqueued during a flush are no longer
+                                                                  # destroyed. Pairs with control plane
+                                                                  # cps-assets:local-m9 (schema migration 9 +
+                                                                  # outcome-aware event dedupe); the client and server
+                                                                  # halves are only correct TOGETHER.
+                                                                  # NOTE: vendor/updater/patch (the differ) stays at
+                                                                  # 1f85c4ab — separate crate.
   protocol_version: 0.1.0+1                                       # shorebird_code_push_protocol
 
 # Previous supported set, kept for rollback. Promoted out of here on 2026-07-29
