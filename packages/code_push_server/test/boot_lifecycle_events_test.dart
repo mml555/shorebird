@@ -46,7 +46,7 @@ void main() {
       ambiguousAttemptCount: attempt,
       bootFailureThreshold: 2,
       bootStartedAt: 999,
-      updaterRevision: 'fe51f225c686',
+      updaterRevision: 'f729f958e9be',
     );
 
     test('a non-terminal lifecycle event is accepted and stored', () async {
@@ -194,7 +194,7 @@ void main() {
         ts: 1,
         outcome: 'ambiguous_boot_retry',
         ambiguousAttemptCount: 1,
-        updaterRevision: 'fe51f225c686',
+        updaterRevision: 'f729f958e9be',
       );
       final m = await repo.bootLifecycleMetrics('app');
       expect(m, hasLength(1));

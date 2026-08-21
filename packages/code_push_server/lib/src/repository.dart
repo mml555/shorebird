@@ -1767,10 +1767,13 @@ class Repository {
   /// reported its revision — those carry NULL and are treated as ineligible,
   /// because an unknown client cannot be assumed to have the fixes.
   static const eligibleUpdaterRevisions = <String>[
-    'fe51f225c686', // exact acknowledgement
-    // NOTE: append the rotation-fix revision once an engine carrying it ships.
-    // Until then that revision's events are ineligible BY DEFAULT, which is the
-    // safe direction: a missing entry under-counts, it does not fabricate.
+    // Verified by reading the revision out of the SHIPPED engine bytes, not from
+    // the build log: an engine whose stamp fell back to "unknown" would look like
+    // zero eligible clients forever.
+    'f729f958e9be', // exact acknowledgement + failure rotation + revision stamp
+    // 'fe51f225c686' is NOT listed: it has exact acknowledgement but predates
+    // failure rotation, so a stuck batch head could still censor its lifecycle
+    // events. Eligibility requires ALL the loss modes to be closed.
   ];
 
   static const preEpochReleaseVersions = <String>[
