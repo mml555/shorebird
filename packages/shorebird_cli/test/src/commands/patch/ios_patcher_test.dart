@@ -36,6 +36,7 @@ import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
+import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_documentation.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
@@ -1301,6 +1302,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
               workingDirectory: any(named: 'workingDirectory'),
               projectRoot: any(named: 'projectRoot'),
               capabilities: any(named: 'capabilities'),
+              survival: any(named: 'survival'),
             ),
           ).thenAnswer(
             (invocation) => Uint8List.fromList(
@@ -2018,6 +2020,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                             workingDirectory: any(named: 'workingDirectory'),
                             projectRoot: any(named: 'projectRoot'),
                             capabilities: any(named: 'capabilities'),
+                            survival: any(named: 'survival'),
                           ),
                         ).captured.single
                         as String;
@@ -2058,6 +2061,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                             workingDirectory: any(named: 'workingDirectory'),
                             projectRoot: any(named: 'projectRoot'),
                             capabilities: captureAny(named: 'capabilities'),
+                            survival: any(named: 'survival'),
                           ),
                         ).captured.single
                         as RouteBCapabilities?;
@@ -2073,6 +2077,49 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                 );
               });
             });
+
+            test(
+              'P4.1: refuses when the release uploaded no snapshot profile',
+              () {
+                // An absent gate is indistinguishable from a gate that passed,
+                // so a release with no profile does not get the question
+                // SKIPPED -- it gets UNKNOWN, which refuses. That is the
+                // intended reading of the invariant: if a patch publishes,
+                // every mechanically knowable prerequisite was already proven
+                // against the exact release artifact.
+                return runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ).then((_) {
+                  final oracle =
+                      verify(
+                            () => routeBProducer.produce(
+                              compiler: any(named: 'compiler'),
+                              coverage: any(named: 'coverage'),
+                              importKernel: any(named: 'importKernel'),
+                              releaseBuildId: any(named: 'releaseBuildId'),
+                              workingDirectory: any(named: 'workingDirectory'),
+                              projectRoot: any(named: 'projectRoot'),
+                              capabilities: any(named: 'capabilities'),
+                              survival: captureAny(named: 'survival'),
+                            ),
+                          ).captured.single
+                          as RouteBSurvivalOracle?;
+                  // Never null: omitting the oracle would BE the missing gate.
+                  expect(oracle, isNotNull);
+                  final verdict = oracle!(['package:app/main.dart#v'])[
+                      'package:app/main.dart#v'];
+                  expect(verdict, isNotNull);
+                  expect(verdict!.survival, RouteBSurvival.unknown);
+                  expect(verdict.instrumentResult, 'RELEASE_EVIDENCE_ABSENT');
+                  expect(verdict.permitsPublication, isFalse);
+                });
+              },
+            );
 
             test('passes no capability set when the release recorded none', () {
               // A release cut before manifests existed. Null is not an empty
@@ -2096,6 +2143,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                             workingDirectory: any(named: 'workingDirectory'),
                             projectRoot: any(named: 'projectRoot'),
                             capabilities: captureAny(named: 'capabilities'),
+                            survival: any(named: 'survival'),
                           ),
                         ).captured.single
                         as RouteBCapabilities?;

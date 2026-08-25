@@ -50,6 +50,7 @@ import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
+import 'package:shorebird_cli/src/route_b_survival.dart';
 
 /// A reference to a [RouteBProducer] instance.
 final routeBProducerRef = create(RouteBProducer.new);
@@ -113,6 +114,13 @@ class RouteBProducer {
   /// [capabilities] is the release's own capability manifest. Null means the
   /// release published none, which is not permission: a private reference is
   /// then refused for want of evidence.
+  ///
+  /// [survival] is P4.1's gate: for every target, whether a supported
+  /// invocation site SURVIVED compilation in the exact release artifact. Null
+  /// means no gate was supplied, and the caller is then asserting that this
+  /// prerequisite is checked elsewhere or does not apply -- the patcher passes
+  /// one that answers UNKNOWN rather than omitting it, because an absent gate
+  /// is indistinguishable from a gate that passed.
   Uint8List produce({
     required RouteBCompiler compiler,
     required RouteBCoverage coverage,
@@ -122,12 +130,21 @@ class RouteBProducer {
     required Directory projectRoot,
     RouteBCapabilities? capabilities,
     RouteBBuildConfig? buildConfig,
+    RouteBSurvivalOracle? survival,
     RouteBCompileRunner run = Process.runSync,
   }) {
     // Every changed member that can land, in a stable order so the container is
     // reproducible byte-for-byte from the same inputs.
     final selectors = [...coverage.representable, ...coverage.conditional]
       ..sort();
+
+    // P4.1 -- ASKED ONCE, for every target, before anything is generated.
+    //
+    // Batched deliberately: the probe decodes a multi-megabyte profile, and a
+    // per-target invocation would decode it once per target. Asked BEFORE the
+    // loop so a refusal happens before any source is written, and so the
+    // binding is verified once for the whole patch rather than per target.
+    final survivalVerdicts = survival == null ? null : survival(selectors);
 
     workingDirectory.createSync(recursive: true);
     final targets = <RouteBPatchTarget>[];
@@ -189,6 +206,31 @@ class RouteBProducer {
           throw RouteBUnsupportedTarget(
             key,
             describeRouteBRefusal(refusal, selector),
+          );
+        }
+      }
+
+      // P4.1 -- THE TARGET'S CALL SITE, in the release that will receive this.
+      //
+      // Distinct from every capability check above, which asks what the release
+      // GRANTED. This asks what the release still CONTAINS: a target whose
+      // every invocation was folded away is granted, resolvable, attachable,
+      // and inert. The engine reports `applied 1/1 targets` for it, so the
+      // runtime cannot tell an operator what a static fact can.
+      if (survivalVerdicts != null) {
+        final verdict = survivalVerdicts[key];
+        if (verdict == null) {
+          // The oracle was asked about this key and did not answer. Not a pass.
+          throw RouteBUnsupportedTarget(
+            key,
+            'the release probe returned no verdict for it, and an unanswered '
+            'prerequisite is not a satisfied one',
+          );
+        }
+        if (!verdict.permitsPublication) {
+          throw RouteBUnsupportedTarget(
+            key,
+            describeRouteBSurvivalRefusal(key, verdict),
           );
         }
       }

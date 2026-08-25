@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
@@ -9,6 +10,7 @@ import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
+import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
 import 'package:test/test.dart';
 
@@ -1322,6 +1324,117 @@ void main() {
             ),
           );
         });
+      });
+    });
+
+    group('P4.1 survival gate', () {
+      RouteBSurvivalOracle oracle(
+        RouteBSurvival survival, {
+        String instrument = 'ZERO_QUALIFYING_CALLSITES',
+        String? detail,
+      }) {
+        return (targets) => {
+          for (final t in targets)
+            t: RouteBSurvivalVerdict(
+              survival: survival,
+              instrumentResult: instrument,
+              detail: detail,
+            ),
+        };
+      }
+
+      Uint8List produceWith(RouteBSurvivalOracle? survival) => runWithOverrides(
+        () => const RouteBProducer().produce(
+          compiler: compiler(),
+          coverage: coverage(),
+          importKernel: File(p.join(cell.path, 'release_import.dill')),
+          releaseBuildId: 'deadbeef',
+          workingDirectory: work,
+          projectRoot: project,
+          survival: survival,
+          run: compileOk,
+        ),
+      );
+
+      test('publishes when a call site survived', () {
+        expect(
+          () => produceWith(oracle(
+            RouteBSurvival.survivingCallsite,
+            instrument: 'ONE_OR_MORE_QUALIFYING_CALLSITES',
+          )),
+          returnsNormally,
+        );
+      });
+
+      test('refuses authoritative absence, and says the release is why', () {
+        // The target exists and every call to it was folded away. A patch would
+        // attach, report success, and change nothing -- so this must be caught
+        // here, where the reason can still be explained.
+        expect(
+          () => produceWith(oracle(RouteBSurvival.noSurvivingCallsite)),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.toString(),
+              'message',
+              allOf(
+                contains('no surviving call site'),
+                contains('attach and change nothing'),
+                contains('remediation is a new release'),
+              ),
+            ),
+          ),
+        );
+      });
+
+      test('refuses UNKNOWN, and does NOT call it absence', () {
+        // The distinction is the whole point: "the call site is gone" and "I
+        // could not tell" refuse for different reasons and are fixed by
+        // different actions. Collapsing them would send an operator to cut a
+        // pointless release over a broken instrument.
+        expect(
+          () => produceWith(
+            oracle(
+              RouteBSurvival.unknown,
+              instrument: 'ARTIFACT_BINDING_MISMATCH',
+              detail: 'the profile describes a different artifact',
+            ),
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.toString(),
+              'message',
+              allOf(
+                contains('could not be established'),
+                contains('ARTIFACT_BINDING_MISMATCH'),
+                contains('NOT a finding that the call site is absent'),
+                isNot(contains('attach and change nothing')),
+              ),
+            ),
+          ),
+        );
+      });
+
+      test('an unanswered target is refused, not assumed green', () {
+        // An oracle that returns nothing at all is the shape a silently broken
+        // gate takes. It must refuse.
+        expect(
+          () => produceWith((targets) => const {}),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.toString(),
+              'message',
+              contains('returned no verdict'),
+            ),
+          ),
+        );
+      });
+
+      test('MUTATION: with no oracle at all, a folded target publishes', () {
+        // The mutation the gate exists to fail: remove it, and the very target
+        // the P4.1 specimen set proved inert sails through to publication. If
+        // this ever stops passing, the test above is no longer proving the gate
+        // is load-bearing -- it would be proving something else.
+        expect(() => produceWith(null), returnsNormally);
       });
     });
 

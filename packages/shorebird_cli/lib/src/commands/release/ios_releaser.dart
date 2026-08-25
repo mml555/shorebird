@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:mason_logger/mason_logger.dart';
+import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
@@ -22,6 +23,7 @@ import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
+import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/executables/executables.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
@@ -228,6 +230,13 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
   /// back if it did. It travels with the release so a later patch reasons about
   /// the contract this release really emitted rather than the one policy promises.
   File? _retentionEvidence;
+
+  /// Where this build was told to write its v8 snapshot profile, if it was.
+  ///
+  /// Chosen BEFORE the build, because the flag has to be on the gen_snapshot
+  /// command line; read AFTER it, because only then does the artifact the
+  /// profile describes exist and have a digest.
+  File? _snapshotProfile;
 
   /// The capability set this release granted, per target, if it recorded one.
   ///
@@ -514,6 +523,17 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
               as: routeBCapabilityManifestFileName,
             );
       }
+      // P4.1 -- the profile, and the binding that makes it evidence.
+      //
+      // Written LAST of the sidecars because the binding needs the digest of
+      // the App binary, which does not exist until the build is over. That
+      // ordering is the point: the profile is bound to the artifact that was
+      // actually produced, not to the source it was produced from.
+      _captureSnapshotProfile(
+        supplement: supplement,
+        appBinary: appBinary,
+        artifacts: artifacts,
+      );
       await _captureImportKernel(
         compiler: compiler,
         supplement: supplement,
@@ -573,6 +593,65 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
   /// fine and installable, and refusing to ship it because a patch-time input
   /// could not be prepared would be the wrong trade. The patch side reports the
   /// absence precisely.
+  /// Copies this build's snapshot profile into the supplement and writes the
+  /// binding that says what it is evidence about.
+  ///
+  /// Both are recorded in [artifacts] so their hashes are provenance-covered,
+  /// like the capability manifest: a binding that could be edited between
+  /// release and patch would be a way to point a real profile at a different
+  /// artifact.
+  ///
+  /// A missing profile is NOT fatal at release time. The release is fine and
+  /// installable; it simply cannot be patched, and the patch side refuses by
+  /// name rather than silently skipping the gate.
+  void _captureSnapshotProfile({
+    required Directory supplement,
+    required File appBinary,
+    required Map<String, String> artifacts,
+  }) {
+    final profile = _snapshotProfile;
+    if (profile == null || !profile.existsSync()) {
+      logger.warn(
+        '''Could not capture this release's snapshot profile; patches for it will be refused because whether a target's call site survived cannot be proven.''',
+      );
+      return;
+    }
+    if (!appBinary.existsSync()) {
+      // Without the artifact there is no digest, and an unbound profile is
+      // worse than none: it looks like evidence.
+      logger.warn(
+        '''Could not find ${appBinary.path}, so this release's snapshot profile cannot be bound to it; patches for it will be refused.''',
+      );
+      return;
+    }
+
+    artifacts[routeBSnapshotProfileFileName] = captureRouteBReleaseKernel(
+      supplement,
+      profile,
+      as: routeBSnapshotProfileFileName,
+    );
+
+    final binding = File(
+      p.join(supplement.path, routeBProfileBindingFileName),
+    );
+    binding.writeAsStringSync(
+      const JsonEncoder.withIndent('  ').convert({
+        // Structural, not a number the profile carries: gen_snapshot emits no
+        // version field, so the probe asserts the layout it was written
+        // against and this names which layout that was.
+        'profile_format_revision': 'v8-snapshot-profile/gen_snapshot',
+        'probe_revision': routeBReleaseProbeRevision,
+        'cell_id': shorebirdEnv.shorebirdEngineRevision,
+        'release_artifact_sha256': sha256
+            .convert(appBinary.readAsBytesSync())
+            .toString(),
+      }),
+    );
+    artifacts[routeBProfileBindingFileName] = sha256
+        .convert(binding.readAsBytesSync())
+        .toString();
+  }
+
   Future<void> _captureImportKernel({
     required RouteBCompiler compiler,
     required Directory supplement,
@@ -865,7 +944,41 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
       '''This engine supports iOS Dart code push, so this release is being built with patchable call sites (~+4.5% app size). Without them a patch would install and change nothing.''',
     );
     buildArgs.add('--extra-gen-snapshot-options=--patchable_static_calls');
+    _addSnapshotProfileArgs(buildArgs);
     return true;
+  }
+
+  /// Ask gen_snapshot for this build's snapshot profile: P4.1's evidence.
+  ///
+  /// Patchable call sites make a patch POSSIBLE; this records, per member,
+  /// whether one actually survived. The pair belongs together -- a release with
+  /// the flag and no profile is patchable in principle and unverifiable in
+  /// practice, and the failure it hides is the silent one: attach succeeds,
+  /// `applied 1/1 targets` is reported, and nothing changes.
+  ///
+  /// Measured cost (`selfhost/engine/route_b/evidence/p41_profile_cost.md`):
+  /// +5.6-6.8% gen_snapshot time on a real Flutter app, and a sidecar that is
+  /// never shipped to a device.
+  void _addSnapshotProfileArgs(List<String> buildArgs) {
+    // Respect an explicit choice, exactly as the flag above does.
+    if (buildArgs.any((a) => a.contains('write-v8-snapshot-profile-to'))) {
+      return;
+    }
+    // No project root means nothing downstream can upload a supplement, so
+    // there is nowhere for the profile to travel to. `_recordRouteBProvenance`
+    // handles the same case by warning; asking for a profile we could not carry
+    // would only add a flag and a file nobody reads.
+    final root = shorebirdEnv.getShorebirdProjectRoot();
+    if (root == null) return;
+    final dir = Directory(p.join(root.path, 'build'))
+      ..createSync(recursive: true);
+    final profile = File(p.join(dir.path, 'route_b_snapshot_profile.json'));
+    if (profile.existsSync()) profile.deleteSync();
+    buildArgs.add(
+      '--extra-gen-snapshot-options=--write-v8-snapshot-profile-to='
+      '${profile.path}',
+    );
+    _snapshotProfile = profile;
   }
 
   /// Refuse to publish a release that cannot actually be patched.

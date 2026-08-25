@@ -88,6 +88,31 @@ const routeBRetentionEvidenceFileName = 'route_b_retention.json';
 /// produced, this says WHAT is in it.
 const routeBCapabilityManifestFileName = 'route_b_capabilities.json';
 
+/// The release's own v8 snapshot profile, as gen_snapshot emitted it.
+///
+/// P4.1's evidence. It says, per member, whether a supported invocation site
+/// survived compilation -- the one thing the runtime cannot report, because a
+/// patch whose target was folded away attaches successfully and reports
+/// `applied 1/1 targets` while changing nothing.
+///
+/// Emitted during the build that produced the shipped binary, not regenerated
+/// later: a profile from a second compilation of the same source describes a
+/// different program than the one users are running.
+const routeBSnapshotProfileFileName = 'route_b_snapshot_profile.json';
+
+/// What the snapshot profile beside it is evidence ABOUT.
+///
+/// Separate from the profile because the profile itself carries no identity: it
+/// names no artifact, no cell, and no format version. Without this, a profile
+/// is a plausible-looking document about some compilation, and matching bundle
+/// versions, source revisions, filenames and even target names would not make
+/// it evidence about the artifact being patched.
+///
+/// Records `release_artifact_sha256` -- the digest of the App binary the
+/// profile describes -- and the probe revision the release was written for.
+/// The probe refuses every target when either disagrees.
+const routeBProfileBindingFileName = 'route_b_profile_binding.json';
+
 /// The Route B provenance sidecar's name inside a release's supplement.
 ///
 /// Lives beside `obfuscation_map.json`, which already establishes the pattern:

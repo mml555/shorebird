@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words dartaotruntime prepass callsite CALLSITES targetable defaultdict dstnode noart nobind noedge nolib reachab unmutated
+# cspell:words dartaotruntime prepass callsite CALLSITES targetable defaultdict dstnode noart nobind noedge nolib unmutated
 #
 # p41_release_probe_gate.sh -- the gate for route_b_release_probe, including the
 # mutation table from P41_RELEASE_PROBE_SPEC.md §7.

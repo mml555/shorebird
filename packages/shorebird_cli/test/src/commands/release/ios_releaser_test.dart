@@ -915,6 +915,41 @@ $body
           );
         });
 
+        test('asks for a snapshot profile beside the patchable flag', () async {
+          await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+          // P4.1's evidence. Patchable call sites make a patch possible; the
+          // profile records whether a call site actually survived for each
+          // member. A release with the flag and no profile is patchable in
+          // principle and unverifiable in practice, and the failure that hides
+          // is the silent one: the patch attaches, reports success, and changes
+          // nothing.
+          final captured =
+              verify(
+                    () => artifactBuilder.buildIpa(
+                      codesign: any(named: 'codesign'),
+                      flavor: any(named: 'flavor'),
+                      target: any(named: 'target'),
+                      args: captureAny(named: 'args'),
+                      base64PublicKey: any(named: 'base64PublicKey'),
+                      ddMaxBytes: any(named: 'ddMaxBytes'),
+                    ),
+                  ).captured.single
+                  as List<String>;
+
+          expect(
+            captured,
+            contains(
+              predicate<String>(
+                (a) => a.startsWith(
+                  '--extra-gen-snapshot-options=--write-v8-snapshot-profile-to=',
+                ),
+                'asks gen_snapshot to write a v8 snapshot profile',
+              ),
+            ),
+          );
+        });
+
         test('does not override an explicit choice', () async {
           when(() => argResults.rest).thenReturn([
             '--extra-gen-snapshot-options=--no-patchable_static_calls',

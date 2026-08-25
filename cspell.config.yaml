@@ -813,3 +813,5 @@ words:
   - CALLSITES # the instrument's ZERO_/ONE_OR_MORE_QUALIFYING_CALLSITES results
   - callsite
   - overclaim # naming the recurring semantic failure mode
+  - reachab # the stem the wording controls grep for
+  - remediations

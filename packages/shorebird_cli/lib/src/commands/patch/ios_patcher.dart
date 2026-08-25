@@ -29,6 +29,7 @@ import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
+import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_documentation.dart';
@@ -276,6 +277,15 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
         // this patch's by _verifyBuildConfigAgrees above, so the replacement
         // compiles with the constants the release compiled with.
         buildConfig: provenance.buildConfig,
+        // P4.1. WHAT THIS RELEASE STILL CONTAINS, as opposed to what it
+        // granted. Asked of the cell's own probe against the release's own
+        // profile, bound to the digest of the artifact downloaded just above.
+        survival: _releaseSurvivalOracle(
+          compiler: compiler,
+          releaseArtifacts: releaseArtifacts,
+          releaseArtifact: releaseArtifactFile,
+          provenance: provenance,
+        ),
       );
     }
 
@@ -543,6 +553,55 @@ Nothing was uploaded. Create a new release and patch that instead.''',
     throw ProcessExit(ExitCode.software.code);
   }
 
+  /// P4.1's gate, bound to the artifact this patch will be applied to.
+  ///
+  /// NEVER returns null. A release that uploaded no profile, or no binding, is
+  /// not a release this question can be skipped for -- an absent gate is
+  /// indistinguishable from a gate that passed, and the failure it would hide
+  /// is the silent one. So the oracle answers UNKNOWN, which refuses and names
+  /// the missing sidecar.
+  ///
+  /// That does mean a release cut before this evidence existed cannot be
+  /// patched. It is the intended reading of the invariant: if the system
+  /// publishes a patch, every mechanically knowable prerequisite has already
+  /// been proven against the exact release artifact.
+  RouteBSurvivalOracle _releaseSurvivalOracle({
+    required RouteBCompiler compiler,
+    required Map<String, File> releaseArtifacts,
+    required File releaseArtifact,
+    required RouteBReleaseProvenance provenance,
+  }) {
+    final profile = releaseArtifacts[routeBSnapshotProfileFileName];
+    final binding = releaseArtifacts[routeBProfileBindingFileName];
+    if (profile == null || binding == null) {
+      final missing = profile == null
+          ? routeBSnapshotProfileFileName
+          : routeBProfileBindingFileName;
+      logger.detail(
+        '[route-b] this release uploaded no $missing, so whether a call site '
+        'for a target survived cannot be established',
+      );
+      return (targets) => {
+        for (final t in targets)
+          t: RouteBSurvivalVerdict(
+            survival: RouteBSurvival.unknown,
+            instrumentResult: 'RELEASE_EVIDENCE_ABSENT',
+            detail: 'this release uploaded no $missing',
+          ),
+      };
+    }
+    return cellSurvivalOracle(
+      compiler: compiler,
+      profile: profile,
+      binding: binding,
+      // From the BYTES, not from anything the release asserted about itself.
+      releaseArtifactSha256: sha256
+          .convert(releaseArtifact.readAsBytesSync())
+          .toString(),
+      cellId: provenance.engineRevision,
+    );
+  }
+
   /// The capability set the release recorded, or null if it recorded none.
   ///
   /// A manifest that is present but unreadable is treated as absent rather than
@@ -698,6 +757,7 @@ Nothing was uploaded. Create a new release and patch that instead.''',
     required String releaseBuildId,
     RouteBCapabilities? capabilities,
     RouteBBuildConfig? buildConfig,
+    RouteBSurvivalOracle? survival,
   }) {
     final workingDirectory = Directory(
       p.join(shorebirdEnv.buildDirectory.path, 'route_b'),
@@ -713,6 +773,7 @@ Nothing was uploaded. Create a new release and patch that instead.''',
         projectRoot: projectRoot,
         capabilities: capabilities,
         buildConfig: buildConfig,
+        survival: survival,
       );
     } on RouteBUnsupportedTarget catch (error) {
       logger.err(
