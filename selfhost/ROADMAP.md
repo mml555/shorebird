@@ -32,8 +32,8 @@ touching it.
 | **P0** | **Close the iOS App Store technical-compliance audit** | **MECHANISM/STATIC AUDIT CLOSED 2026-08-23** — [`APPSTORE_COMPLIANCE.md`](APPSTORE_COMPLIANCE.md). **OPEN-1 (distribution signing) and OPEN-2 (address-space observation) remain DEFERRED VERIFICATION ARMS** — deferred because neither currently threatens the architecture, which is **not** the same as closed. Do not report them as closed |
 | **P1** | **Private-library scope** — can replacement code compile with the target library's real privacy identity instead of a synthetic library? | **IN PROGRESS, and it is NOT greenfield — see §P1 below.** The mechanism ships and is wired per-target in the real producer; a private FIELD READ is device-proven. The residual is the Flutter-shaped case, the bind-time arms, and the rescore |
 | **P2** | **Widen the replacement ABI** — receiver **+ positional args** | **DONE 2026-08-25 for REQUIRED POSITIONALS: proven on host and on physical iOS**, including private receiver + multiple typed arguments + private-member access in one body (`args=NEW-A-7-FLD`, then rollback to `args=OLD`). Named, optional-positional and type arguments **remain deliberately unsupported and refused before publication** — that is the boundary, not a gap to close next. **It was PROVISIONALLY SELECTED, never corpus-selected**, so its completion says nothing about what the next dominant blocker is | Not corpus-selected: P1.5 produced no ranking. Selected on Phase 0's measured **6/10** plus an independently established architectural limitation, with P1 having just removed the former 9/10 private-scope blocker. Scored on its own fixtures before any broad compatibility claim |
-| **P3** | **Resume the Phase 1 compatibility study** — the frozen 50 + 50 real-patch corpus | **OPEN — see the P1.5 banner below. Two corpus models tried, neither usable. No blocker ranking is claimed** |
-| **P4** | **Route B publication refusal gates** | OPEN. Turns known constraints into automatic refusals |
+| **P3 / P1.5** | **Determine the next compatibility widening after privacy + required-positionals** | **OPEN, and now a PARALLEL research item — it gates nothing.** Two corpus models tried, neither usable. Its next task is a study DESIGN, not more cases: the era-appropriate-toolchain precommit, and a NEW measurement epoch for analyzer v8 rather than editing `FROZEN_VERSION = 6` in place |
+| **P4** | **Route B publication refusal gates** | **NEXT, and no longer blocked on P1.5.** Justified independently by four measured failures, not by a ranking — see §P4 |
 | **P5** | **Android build/config compatibility enforcement** | OPEN. A wrong-flavor patch can currently be accepted |
 | **P6** | **Certify inherited workflows** as PROVEN / FAILED / UNSUPPORTED | OPEN, broad, cheap per item |
 
@@ -251,6 +251,53 @@ after P1 and P2 land — which is the whole reason further widening is sequenced
 behind it.
 
 ---
+
+## P4 — fail before publication  *(next)*
+
+**The invariant:** *if the system publishes a Route B patch, every mechanically
+knowable prerequisite for executing that patch has already been proven against
+the exact release artifact.*
+
+Justified independently of any corpus ranking, by four things this project has
+already measured:
+
+* an optimized-away target attaches green and executes OLD (`G15`);
+* a missing constructor capability **aborts the process** at run time
+  (`object.cc:5500 unreachable code`) — there is no graceful runtime outcome to
+  fall back on;
+* a missing target/member capability currently surfaces later than it should;
+* unsupported signature shapes are already known deterministically before the
+  device ever runs.
+
+### State of each sub-item, surveyed 2026-08-25 rather than assumed
+
+| | what exists | what P4 must build |
+|---|---|---|
+| **P4.1** target reachability | the RELEASE-level detector is wired (`isPatchableRelease`, ≥100 patchable sites/MiB, and it caught releases 7 and 8). `assert_result_consumed.sh` reports CONSUMED/DISCARDED per site | the PER-TARGET gate. **And it must be stated as a necessary condition, not as reachability** — see the constraint below |
+| **P4.2** capability completeness | the producer refuses an ungranted private identifier in the body, and refuses a member the manifest does not name | **the TARGET member's own grant is not checked** — `privateClassPublicMembers` exists in the manifest and nothing reads it, so a target the release never retained still fails at ATTACH instead of being refused by name |
+| **P4.3** ABI/signature refusal | already product-visible: the CLI refuses named parameters and optional positionals at patch time, naming the reason, against identical release bytes (`g37_param_abi.sh`) | keep it, and pin the *product-layer wording* with a test so the boundary cannot drift silently |
+| **P4.4** release identity coherence | `route_b.json` records engine revision, patchable density, artifact digests, build config and a define fingerprint; the patcher already refuses a define mismatch | bind the remaining inputs explicitly: target library, selector/signature, capability manifest, Route B compatibility revision, cell identity |
+| **P4.5** mutation tests | done per-change by habit | make it the *rule* for every gate, with the table of "disable X → bad patch publishes" |
+
+### THE P4.1 CONSTRAINT, measured before the gate is designed
+
+`PARITY.md` §3 already records the disqualifying case: on the `tagged(String x)`
+target, `assert_result_consumed.sh` reported **CONSUMED — correctly** — because
+its result fed a string interpolation, while the only call site sat in a **dead
+branch** that the app never takes. So:
+
+> **Consumption is necessary but not sufficient. Reachability is a separate
+> property that no byte-level gate on the release artifact can see.**
+
+That does not sink P4.1, it *scopes* it. The buildable gate is:
+
+    no surviving call site for this target in the exact release artifact -> REFUSE
+
+which is sound in the direction that matters — it never refuses a patch that
+would have worked, and it closes the specific `G15` class where folding removed
+every call site. What it must **not** claim is that passing it proves the target
+is reached: a dead-branch call site still passes, and the honest CLI message says
+"no surviving call site" rather than "unreachable".
 
 ## P4 — the refusal rule
 
