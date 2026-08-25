@@ -71,7 +71,20 @@ RELEASE_PROBE="$OUT/zip_archives/route_b_release_probe.aot"
 # --target flutter and binding it against the VM platform fails at load time, on
 # device. Publishing both and naming them for what they are is cheaper than
 # discovering that.
-FLUTTER_PLATFORM=${FLUTTER_PLATFORM:-/Volumes/build/route-b/published_sdk/flutter_patched_sdk_product/platform_strong.dill}
+#
+# DERIVED, not a second path. The mint computes the cell ADDRESS over this dill,
+# and a default pointing somewhere else means the bundle carries a dill the
+# address does not certify. Both defaults were in fact stale on 2026-08-25 --
+# see the long note in mint_route_b_cell.sh -- so this is extracted from the same
+# zip the mint installs under the hash, and the two cannot drift apart.
+PSDK_ZIP=${PSDK_ZIP:-$OUT/zip_archives/flutter_patched_sdk_product.zip}
+if [[ -z "${FLUTTER_PLATFORM:-}" ]]; then
+  [[ -f "$PSDK_ZIP" ]] || die "no platform-sdk zip at $PSDK_ZIP"
+  _fp_dir=$(mktemp -d)
+  unzip -q -o "$PSDK_ZIP" 'flutter_patched_sdk_product/platform_strong.dill' \
+    -d "$_fp_dir" || die "$PSDK_ZIP carries no platform_strong.dill"
+  FLUTTER_PLATFORM="$_fp_dir/flutter_patched_sdk_product/platform_strong.dill"
+fi
 
 [[ -f "$SNAPSHOT" ]] || die "no snapshot at $SNAPSHOT — run build_dart2bytecode.sh first"
 [[ -x "$RUNTIME" ]]  || die "no dartaotruntime at $RUNTIME"

@@ -61,6 +61,28 @@ echo "== smoke =="
   | grep -q 'survival, not reachability\|SURVIVAL, not reachability' \
   || die "the help text no longer states the bound on the claim"
 
+# Every other cell artifact records its own provenance beside itself. Without
+# one, the probe would be the single member of the cell whose lineage could not
+# be attributed after the fact.
+DART_REV=$(git -C "$DART_TREE" rev-parse HEAD 2>/dev/null || echo unknown)
+cat > "$OUTDIR/route_b_release_probe.aot.provenance" <<EOF
+Route B release probe AOT snapshot (P4.1)
+built        : $(date -u +%FT%TZ)
+dart tree    : $DART_TREE
+dart rev     : $DART_REV
+host out     : $OUT
+snapshot     : $(shasum -a 256 "$OUTDIR/route_b_release_probe.aot" | cut -d' ' -f1)
+probe rev    : $(sed -n 's/^const probeRevision = \([0-9]*\);/\1/p' "$HERE/release_probe.dart")
+runs with    : dartaotruntime from the SAME out dir (version-locked pair)
+reads        : the release's v8 snapshot profile, which carries NO version field
+               of its own -- so this probe asserts the schema structurally and
+               fails closed as PROFILE_INVALID rather than misreading a column
+answers      : per target, whether a supported invocation site SURVIVED
+               compilation. NOT whether execution reaches it: a dead branch has
+               a surviving call site and is reported green, deliberately
+EOF
+
 echo
 echo "built $OUTDIR/route_b_release_probe.aot"
 shasum -a 256 "$OUTDIR/route_b_release_probe.aot" | sed 's/^/  /'
+sed 's/^/  /' "$OUTDIR/route_b_release_probe.aot.provenance"

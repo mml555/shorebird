@@ -19,7 +19,45 @@ shorebird:
                                                                   # has exact event acknowledgement but predates
                                                                   # FAILURE ROTATION, so a stuck batch head could still
                                                                   # censor lifecycle events behind it.
-                                                                  # CELL RESTAMPED 2026-08-25 to
+                                                                  # CELL RESTAMPED 2026-08-25 (second time today) to
+                                                                  # ac5d3b63ff0d074a4aa3742acc03c178f4517988.
+                                                                  # P4.1: the cell gains an EIGHTH member,
+                                                                  # route_b_release_probe.aot ee144635d144a080, which
+                                                                  # answers per target whether a supported invocation
+                                                                  # site SURVIVED compilation. It is REQUIRED, so the
+                                                                  # previous cell 93a3756 now resolves as INVALID --
+                                                                  # deliberately: an absent gate is indistinguishable
+                                                                  # from a gate that passed.
+                                                                  # NO RUNTIME DELTA, measured not asserted: six of the
+                                                                  # seven engine artifacts are byte-identical to donor
+                                                                  # 93a3756 (ios-release/artifacts.zip 216a326d81688d1a,
+                                                                  # dart-sdk-darwin-arm64.zip bc5948b7e4598f64,
+                                                                  # flutter_patched_sdk.zip 213948fe75b4c7c4,
+                                                                  # flutter_patched_sdk_product.zip 8c59cf50881ad44f,
+                                                                  # darwin-arm64/artifacts.zip 31f88a5e89a56dd4,
+                                                                  # font-subset.zip fea5a7433596604d) and the seventh,
+                                                                  # engine_stamp.json, records the address itself.
+                                                                  # App Store compliance answered as a DELTA re-audit --
+                                                                  # see selfhost/APPSTORE_COMPLIANCE.md §7c.
+                                                                  # Stamped from the FETCHED-BACK bundle over HTTP from
+                                                                  # the mirror (65a5aba0fbb493de, which differs from the
+                                                                  # donor's 54218084b190f059 -- so the fetch is proven
+                                                                  # not to be fallback bytes), AUDIT CLEAN on all eight
+                                                                  # members, and 13/13 through the REAL producer using
+                                                                  # the fetched probe. Not from a build log.
+                                                                  # A LONG-STANDING DEFECT WAS CLOSED IN PASSING: the
+                                                                  # mint's and publish's FLUTTER_PLATFORM defaults both
+                                                                  # pointed at stale paths (a 2026-08-09 published_sdk
+                                                                  # copy 9f5a5f75, and a DIFFERENT out directory's zip
+                                                                  # 757d09d7), while the live lineage carries 099b0313.
+                                                                  # The mint's own gate refused rather than shipping it.
+                                                                  # Both defaults now DERIVE from the zip the mint
+                                                                  # installs, so the address and the download cannot
+                                                                  # disagree; audit check 4b passes for the first time
+                                                                  # on this lineage. Proof the right dill is 099b0313
+                                                                  # and not a third guess: recomputing the SEVEN-file
+                                                                  # manifest with it reproduces 93a3756 exactly.
+                                                                  # Previous cell, kept for rollback:
                                                                   # 93a375665d637f999bbff028488301a510bb611e.
                                                                   # A TOOLING-ONLY cell: every engine artifact is
                                                                   # byte-identical to donor 2c4443ce

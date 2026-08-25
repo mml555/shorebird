@@ -22,6 +22,8 @@
 #   | foldConst      | OFF  | PUBLISHED  <- the mutation: gate is load-bearing|
 #   | foldOpaque     | on, wrong artifact digest | REFUSED, UNKNOWN, and NOT |
 #   |                |      | worded as absence                               |
+#   | foldOpaque     | on, LEGACY release with no profile | REFUSED as UNKNOWN,|
+#   |                |      | naming RELEASE_EVIDENCE_ABSENT                  |
 #
 #   STOP/INVALID: if the foldConst-with-gate-OFF arm REFUSES, then something
 #   other than the gate is refusing and every row above is uninterpretable.
@@ -68,7 +70,31 @@ check() { if [ "$2" = "$3" ]; then echo "  PASS  $1"; pass=$((pass+1));
   || die "no release probe — run build_route_b_release_probe.sh first"
 echo "work: $WORK"
 
-# ---- a real 8-file cell, staged locally ------------------------------------
+# ---- the cell ---------------------------------------------------------------
+# CELL_ZIP lets this run against a PUBLISHED, fetched-back bundle instead of a
+# locally staged one. That is the difference between "the source I just built
+# behaves" and "the artifact a consumer downloads behaves", and only the second
+# qualifies a mint. ENGINE_HASH must then be the hash the bundle records, since
+# the resolver refuses a bundle filed under another.
+if [ -n "${CELL_ZIP:-}" ]; then
+  [ -f "$CELL_ZIP" ] || die "no cell zip at $CELL_ZIP"
+  [ -n "${ENGINE_HASH:-}" ] || die "CELL_ZIP needs ENGINE_HASH (the published hash)"
+  note "using a PUBLISHED cell: $CELL_ZIP"
+  echo "    sha256: $(shasum -a 256 "$CELL_ZIP" | cut -c1-32)"
+  echo "    engine: $ENGINE_HASH"
+  # The consumer path must exercise the FETCHED probe. Prove it is in there and
+  # say which bytes, so a bundle that silently lacks it cannot read as a pass.
+  # NOT `unzip -l | grep -q`: grep exits at the first match and closes the pipe,
+  # unzip takes SIGPIPE, and `set -o pipefail` turns a SUCCESSFUL match into a
+  # failed pipeline. That reported the probe as ABSENT from a bundle the audit
+  # had just confirmed contains it.
+  [ "$(unzip -l "$CELL_ZIP" | grep -c route_b_release_probe.aot)" -ge 1 ] \
+    || die "the published bundle carries no route_b_release_probe.aot"
+  PW=$(mktemp -d)
+  unzip -q -o "$CELL_ZIP" route_b_release_probe.aot -d "$PW"
+  echo "    probe : $(shasum -a 256 "$PW/route_b_release_probe.aot" | cut -c1-32)"
+  rm -rf "$PW"
+else
 note "staging a local cell (the 8 real artifacts, unpublished)"
 STAGE="$WORK/cell"; mkdir -p "$STAGE"
 cp "$ZIPS/dart2bytecode_aot.snapshot" "$STAGE/dart2bytecode.aot"
@@ -83,7 +109,7 @@ cp "$ZIPS/route_b_release_probe.aot" "$STAGE/route_b_release_probe.aot"
 # but the file must exist for the cell to resolve at all.
 cp "$OUT/vm_platform.dill" "$STAGE/flutter_platform_strong.dill"
 chmod +x "$STAGE/dartaotruntime"
-ENGINE_HASH=localcell$(date -u +%s 2>/dev/null || echo 0)
+ENGINE_HASH=${ENGINE_HASH:-localcell$(date -u +%s 2>/dev/null || echo 0)}
 {
   echo "Route B producer tooling — local cell for $0"
   echo "engine revision  : $ENGINE_HASH"
@@ -98,6 +124,7 @@ ENGINE_HASH=localcell$(date -u +%s 2>/dev/null || echo 0)
 CELL_ZIP="$WORK/cell.zip"
 (cd "$STAGE" && zip -q -r -y "$CELL_ZIP" .)
 echo "    cell: $(unzip -l "$CELL_ZIP" | tail -1)"
+fi
 
 # ---- the release ----------------------------------------------------------
 APP="$WORK/app"; mkdir -p "$APP/lib" "$APP/.dart_tool"
@@ -243,6 +270,15 @@ check "  ...and NOT as absence" \
 check "  ...saying explicitly that it is not a finding of absence" \
   "$([ "$(grep -c 'NOT a finding that the call site is absent' \
       "$WORK/out_mismatch.txt" || true)" -ge 1 ] && echo said || echo silent)" said
+
+note "ARM 6 -- a LEGACY release that uploaded no profile at all"
+run_arm legacy "$WORK/patched_opaque.dill" "$ART" --no-profile >/dev/null
+check "a release with no evidence is REFUSED" "$(verdict legacy)" REFUSED
+check "  ...naming the missing sidecar" \
+  "$([ "$(grep -c 'RELEASE_EVIDENCE_ABSENT' "$WORK/out_legacy.txt" || true)" \
+      -ge 1 ] && echo named || echo absent)" named
+check "  ...and NOT as absence of a call site" \
+  "$(grep -c 'attach and change nothing' "$WORK/out_legacy.txt" || true)" 0
 
 note "PASS=$pass FAIL=$fail"
 echo "work dir kept: $WORK"

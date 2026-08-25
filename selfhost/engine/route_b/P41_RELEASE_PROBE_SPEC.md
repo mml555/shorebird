@@ -182,11 +182,46 @@ Measured, not assumed:
 - Edges are laid out per node in node order; the walk must consume the `edges`
   array exactly, and a leftover or short read is `PROFILE_INVALID`.
 
+## 8b. Decisions taken, 2026-08-25 — not open questions
+
+Both were flagged as product decisions and both were then made deliberately.
+Recorded here so a later reader does not reopen them as oversights.
+
+**The full profile is the reference implementation.** The measured cost is
+accepted: +5.6–6.8% snapshot time, a sidecar 140–154% of the binary (28–34%
+gzipped), and **zero additional device or runtime bytes** — it is
+publication-time evidence that never ships. For a gate that stops known-dead
+patches from reaching devices, that is the right trade. The narrowed sidecar in
+`evidence/p41_profile_cost.md` stays **unbuilt**: it becomes worthwhile only if
+storage or build-transfer cost turns operationally material, and narrowing the
+evidence channel immediately after proving it would risk weakening the thing
+just established. Do not optimise it yet.
+
+**No release profile means no Route B patch publication.** A hard boundary, with
+no legacy exemption and no retroactive synthesis of evidence from old artifacts.
+This defines a clean epoch:
+
+| release era | evidence | eligibility |
+|---|---|---|
+| pre-P4.1 | no bound release profile | **unsupported** for new code patches |
+| P4.1-era | profile emitted and artifact-bound at release time | eligible, subject to the checks |
+
+Those older releases keep running. They simply cannot receive new Route B code
+patches under the hardened publication contract, which is better than carrying
+an indefinite bypass whose only purpose is to make an unproven prerequisite look
+satisfied.
+
 ## 9. Known unmeasured items
 
-- Release-shape equivalence (`--strip` / assembly output) — control in §10.
-- Profile cost on a realistic app — sizing measurement, not mechanism research.
-  The toy's 1.6 MB / 24,833 nodes is not a product-cost figure.
+- ~~Release-shape equivalence (`--strip` / assembly output)~~ — **MEASURED**,
+  12/12, `probes/p41_release_shape_equivalence.sh`. Identical classification
+  under `--elf`, `--elf --strip` and assembly; the elf profiles are even
+  byte-identical in size.
+- ~~Profile cost on a realistic app~~ — **MEASURED**,
+  `evidence/p41_profile_cost.md`, and the cost is accepted (§8b).
+- Still unmeasured: a genuinely large app (`flutter_gallery` needs a `pub get`
+  at the root of the pinned build tree), and the profile's share of a full
+  `flutter build ios`.
 
 ## 10. Regression controls this spec requires
 

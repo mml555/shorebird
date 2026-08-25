@@ -18,11 +18,15 @@
 //   dart --packages=<repo>/.dart_tool/package_config.json cli_survival.dart \
 //     <cell.zip> <base.dill> <patched.dill> <import.dill> <buildId> \
 //     <outDir> <projectRoot> <vm_platform.dill> <engineHash> \
-//     <profile.json> <binding.json> <artifactSha256> [--no-gate]
+//     <profile.json> <binding.json> <artifactSha256> [--no-gate|--no-profile]
 //
 // --no-gate omits the oracle entirely. That is the MUTATION arm: it shows what
 // the product does with the gate removed, which is the only way to know the
 // gate is what refused rather than something else along the way.
+//
+// --no-profile is the LEGACY RELEASE arm: a release cut before the profile
+// sidecar existed. It uploaded no evidence, so the question cannot be answered,
+// and an unanswered prerequisite is not a satisfied one.
 //
 // ignore_for_file: avoid_print, depend_on_referenced_packages
 import 'dart:io';
@@ -50,6 +54,10 @@ Future<void> main(List<String> args) async {
   final binding = File(args[10]);
   final artifactSha = args[11];
   final gated = !args.contains('--no-gate');
+  // The LEGACY RELEASE shape: one cut before the profile sidecar existed. The
+  // patcher builds exactly this oracle rather than omitting the gate, because
+  // an absent gate is indistinguishable from a gate that passed.
+  final legacy = args.contains('--no-profile');
 
   final compiler = await resolveRouteBCompiler(
     engineHash: engineHash,
@@ -75,7 +83,16 @@ Future<void> main(List<String> args) async {
     exit(1);
   }
 
-  final oracle = gated
+  final oracle = legacy
+      ? ((List<String> targets) => <String, RouteBSurvivalVerdict>{
+          for (final t in targets)
+            t: const RouteBSurvivalVerdict(
+              survival: RouteBSurvival.unknown,
+              instrumentResult: 'RELEASE_EVIDENCE_ABSENT',
+              detail: 'this release uploaded no route_b_snapshot_profile.json',
+            ),
+        })
+      : gated
       ? cellSurvivalOracle(
           compiler: compiler,
           profile: profile,

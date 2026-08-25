@@ -28,7 +28,6 @@ set -euo pipefail
 
 SRC=${SRC:-/Volumes/build/route-b/flutter/engine/src}
 OUT=${OUT:-$SRC/out/host_release_arm64}
-FLUTTER_PLATFORM=${FLUTTER_PLATFORM:-/Volumes/build/route-b/published_sdk/flutter_patched_sdk_product/platform_strong.dill}
 # The ZIP that must DELIVER the dill above, so the address and the download agree.
 #
 # WHY THIS EXISTS. FLUTTER_PLATFORM participates in the cell ADDRESS. What a
@@ -44,9 +43,44 @@ FLUTTER_PLATFORM=${FLUTTER_PLATFORM:-/Volumes/build/route-b/published_sdk/flutte
 # is checked byte-for-byte against FLUTTER_PLATFORM. Same discipline as
 # ios_artifacts_sha256 below: install the exact artifact that was hashed, then
 # verify it in place, rather than trusting that a clone still means what it meant.
-PSDK_ZIP=${PSDK_ZIP:-${OUT%/out/*}/out/host_release_arm64_nodm/zip_archives/flutter_patched_sdk_product.zip}
+#
+# AND THE DEFAULTS NOW DERIVE ONE FROM THE OTHER, 2026-08-25. Keeping them as
+# two independent paths meant they could be stale independently, which is what
+# happened: the default FLUTTER_PLATFORM pointed at a published_sdk copy from
+# 2026-08-09 (9f5a5f75) while the default PSDK_ZIP pointed at a DIFFERENT out
+# directory (host_release_arm64_nodm, inner dill 757d09d7) -- and the cell that
+# is actually published, 93a3756, carries neither: it carries 099b0313, the dill
+# inside THIS out directory's zip. Both defaults were wrong for the live
+# lineage, and the only reason nothing shipped incoherent is that the gate below
+# refused the mint.
+#
+# Proof that 099b0313 is the right one, not a third guess: recomputing the
+# 7-file manifest with it reproduces the published address 93a3756 exactly.
+#
+# So PSDK_ZIP defaults to this build's own zip, and FLUTTER_PLATFORM is
+# EXTRACTED from it. The address and the download cannot now disagree by
+# construction rather than by two paths happening to match.
+PSDK_ZIP=${PSDK_ZIP:-$OUT/zip_archives/flutter_patched_sdk_product.zip}
+if [[ -z "${FLUTTER_PLATFORM:-}" ]]; then
+  if [[ -f "$PSDK_ZIP" ]]; then
+    _fp_dir=$(mktemp -d)
+    unzip -q -o "$PSDK_ZIP" 'flutter_patched_sdk_product/platform_strong.dill' \
+      -d "$_fp_dir" \
+      || { echo "ERROR: $PSDK_ZIP carries no platform_strong.dill" >&2; exit 1; }
+    FLUTTER_PLATFORM="$_fp_dir/flutter_patched_sdk_product/platform_strong.dill"
+  else
+    echo "ERROR: no platform-sdk zip at $PSDK_ZIP" >&2; exit 1
+  fi
+fi
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 SELFHOST="$(cd "$HERE/../.." >/dev/null 2>&1 && pwd)"
+# The bundle name bundle_diff_comment reads. It was only ever defined in
+# publish_route_b_compiler.sh, which runs as a CHILD process, so under `set -u`
+# the deferred map append died with "PLAT: unbound variable" -- after publishing,
+# and after writing the ancestry half of the comment. The visible symptom was a
+# map with a truncated comment block and NO mapping line, so Caddy would not
+# serve the freshly published hash at all. Same default as publish's.
+PLAT=${PLAT:-darwin-arm64}
 OVERLAY=${OVERLAY:-$SELFHOST/cdn/overlay}
 MAP=${MAP:-$SELFHOST/cdn/experimental_hashes.map}
 DONOR=""

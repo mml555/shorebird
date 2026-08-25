@@ -322,6 +322,53 @@ seven cell files matches the cell manifest by digest.
 trace. Neither can have moved — no engine bytes changed — but neither was re-run,
 and OPEN-1/OPEN-2 stay exactly as §7 leaves them.
 
+## 7c. DELTA RE-AUDIT — cell `ac5d3b63…`, 2026-08-25 (P4.1)
+
+**Why it fired.** The compiler cell gained an eighth member,
+`route_b_release_probe.aot` — P4.1's release probe. §8 forces a re-audit on any
+cell change, so this is the determination.
+
+**Determination: NO RUNTIME DELTA.** Not a re-derivation, and not an assertion
+either — the runtime artifacts are byte-identical to the donor and that is the
+whole argument:
+
+| artifact in cell `ac5d3b63…` | vs donor `93a3756…` |
+|---|---|
+| `ios-release/artifacts.zip` (Flutter.framework — the iOS runtime, and the bytecode execution mechanism) | **same** `216a326d81688d1a` |
+| `dart-sdk-darwin-arm64.zip` | **same** `bc5948b7e4598f64` |
+| `flutter_patched_sdk.zip` | **same** `213948fe75b4c7c4` |
+| `flutter_patched_sdk_product.zip` | **same** `8c59cf50881ad44f` |
+| `darwin-arm64/artifacts.zip`, `darwin-arm64/font-subset.zip` | **same** `31f88a5e89a56dd4`, `fea5a7433596604d` |
+| `engine_stamp.json` | **changed by design** — it records the hash it is filed under, so it is re-derived by the mint |
+
+Six of seven byte-for-byte; the seventh names the address itself. No engine
+binary was rebuilt — it was cloned.
+
+**What actually changed, and why it cannot touch §1 or §3.** One new HOST
+artifact that runs on the *build machine, before publication*, and reads a JSON
+snapshot profile to answer whether a target still has a surviving call site. It
+emits no bytecode, is never downloaded to a device, and is not linked into the
+app. The release pipeline additionally passes
+`--write-v8-snapshot-profile-to=…` to `gen_snapshot`, which writes a
+side-file — it does not change what `gen_snapshot` emits into the app.
+
+| invariant | status |
+|---|---|
+| I1 loader guard | **unchanged** — no anchor of it is in a changed file |
+| I2 `PROT_READ` mapping | **unchanged** |
+| I3 execution through the pre-existing `InterpretCall` stub | **unchanged** |
+| I4 no runtime code generation | **unchanged** |
+| new executable-memory path | **none** — the delta is a pre-publication refusal gate |
+| new entitlement requirement | **none** |
+
+**Stated positively:** P4.1 makes the system refuse *more* patches than before,
+never execute anything new. A gate that can only turn a publication into a
+refusal cannot widen what runs on a device. The one artifact this cell adds has
+no code path on a device at all.
+
+Verified by `probes/p41_producer_end_to_end.sh` against the **fetched-back**
+published bundle (`65a5aba0fbb493de…`, probe `ee144635d144a080`), 13/13.
+
 ## 8. WHEN THIS MUST BE RE-AUDITED
 
 Not on a schedule — on any of these:

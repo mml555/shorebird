@@ -307,3 +307,21 @@ f8654294c253a132ae5da9e38ddf9aa85d6a257e 69f9831c360d9152862ec3897c67fb09ae843f3
 #
 # P1: private-class member-only dynamic interface + exact constructor grants; CFE refuses a dart: private-scope target
 93a375665d637f999bbff028488301a510bb611e 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-25 from the cell
+# manifest (see mint_route_b_cell.sh).
+# ANCESTRY, MEASURED against donor 93a375665d637f999bbff028488301a510bb611e at mint time —
+# 1 of 7 artifacts differ:
+#   CHANGED engine_stamp.json — sha256 2c009bbeb76988525590eeeef4a6f62cb68a4d89155dfa234955a6268c7a60e3 (donor 21051a41f4b7acc6f91530bfb40b7161bb7e762d6f92d9ee6fc8ca9c9d698c2f)
+# Donor 93a375665d637f999bbff028488301a510bb611e supplied the other 6, byte-for-byte.
+# CELL FILES, measured from the PUBLISHED bundles (what a consumer gets):
+#   CHANGED PROVENANCE.txt  a498bbdd3ef88ea8 -> 7f08236a171be008
+#   same    dart2bytecode.aot  8dfb3b6682d591a3
+#   same    dartaotruntime  075ccbb2858f299d
+#   same    flutter_platform_strong.dill  099b03133aea3927
+#   same    route_b_analyze.aot  422dda43e36171b8
+#   same    route_b_gen_dynamic_interface.aot  c226800242a85028
+#   same    route_b_gen_kernel.aot  81e1d8f4dc72bf2b
+#   CHANGED route_b_release_probe.aot  absent -> ee144635d144a080
+#   same    vm_platform.dill  015ef32c6cb988d8
+ac5d3b63ff0d074a4aa3742acc03c178f4517988 69f9831c360d9152862ec3897c67fb09ae843f3b
