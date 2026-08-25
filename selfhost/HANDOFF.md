@@ -6,6 +6,51 @@
 
 # Handoff — engine improvements (as of 2026-08-07)
 
+## 2026-08-23 — documentation pass after the lifecycle lane. What moved, and what is now FROZEN
+
+**If you are picking work up today, the one thing to know is that patch
+boot-lifecycle behaviour must not be changed.** The mechanism is closed and
+device-proven; the system is deliberately collecting data. See
+[`MEASUREMENT_MODE.md`](MEASUREMENT_MODE.md) — no edits to counters, threshold, guard,
+emission or retry until 100 distinct eligible clients report a first ambiguity.
+
+**Where the lane stands:** [`SESSION_SUMMARY_lifecycle.md`](SESSION_SUMMARY_lifecycle.md)
+is the end-to-end account; [`LIFECYCLE_POLICY.md`](LIFECYCLE_POLICY.md) is the contract
+(rows C1-C4); [`THRESHOLD_ANALYSIS_PRECOMMIT.md`](THRESHOLD_ANALYSIS_PRECOMMIT.md) fixed
+the ratification criteria before any data existed.
+
+**Documents corrected in this pass**, so a reader does not act on the stale half:
+
+| document | what was stale |
+|---|---|
+| `PARITY.md` | §5's *"a patch that crashes in Dart is never backed out"*; §14b's `G15` done-condition and its first symptom row; §15's gate, whose word *crash* was wrong. Two of seventeen → **three** |
+| `STATE_OF_THE_SYSTEM.md` | dated 2026-08-18; its next-step 1 (tombstone/retry scoring) was already done, so **the next actionable item is 2, the unreachable-target refusal** |
+| `LIFECYCLE_POLICY.md` | C3 read *"not device-proven"*; the epoch was still a release-name proxy; gaps 1 and 4 were closed; the whole order-of-work is discharged |
+| `compatibility.yaml` | stamped `fe51f225` / cell `986e0880` / `local-m9`. Restamped to `f729f958e9be` / cell `2c4443ce` / `local-m10`, with the old block **kept verbatim** as `superseded_updater_revision` |
+| `UPDATER_CONTRACT.md` | described the unconditional `clear_events()` and *"at-most-once"* as current; missing the fifth event type and the seventh dedupe field |
+| `API_REFERENCE.md`, `ARCHITECTURE.md` | six-field dedupe key, four known event types, *"8 migrations"* (it is ten) |
+| `BEHAVIORAL_FINDINGS.md` | *"boot success/failure events"* still listed as open; now answered for our Route B cells, still open on the pinned engine |
+| `README.md` | five lifecycle documents existed and were reachable only from `PARITY.md` and each other |
+| `plans/G15-…`, `plans/README.md` | the backout half is closed; only restart-required remains |
+| `repository.dart` | a doc comment still said events *"do not carry"* the updater revision, on the very field that fixed it |
+
+**Two traps this pass ran into, both worth inheriting.**
+
+1. **The updater source with these fixes is NOT in this repo.** `REQUEUE_FAILED` and
+   `ACK_EVENT` live in the engine tree's `third_party/updater`, not in
+   `vendor/updater` — so grepping `vendor/` reports them absent and you will conclude
+   the fix does not exist. Measure the tree that builds the artifact that ran.
+2. **A revision stamp must be verified in the SHIPPED BYTES, never the build log.**
+   Two real stamp defects were found that way (`git` absent from the ninja action's
+   PATH; `.git/HEAD` unchanged when a commit lands on a branch), each producing an
+   engine that can never match an eligible revision — indistinguishable, in the data,
+   from *"no eligible clients exist"*.
+
+**What was NOT done here:** no full re-derivation of `PARITY.md`. Only the lifecycle
+rows were re-checked; its 2026-08-11 pass is still the last complete one, and the file
+says so where it matters. `code_push_server` suite re-run: **301 pass**
+(`dart test -x integration`).
+
 ## 2026-08-13, 15:55 — two sessions took H2 at once. Read this before trusting `41758dd3`'s message
 
 **The headline, because it will mislead somebody otherwise: `41758dd3`'s commit

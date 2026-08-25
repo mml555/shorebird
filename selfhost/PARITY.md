@@ -24,6 +24,14 @@ engine checkout, one canonical fixture) rather than organizational.
 
 **Last reviewed:** 2026-08-11 18:4x, at `fa40f6ca`.
 
+**Partial pass 2026-08-23, at `242a0731` — lifecycle rows only.** §5's boot/failure
+rejection row, §14b's `G15` done-condition and first symptom row, and §15's Dart-phase
+gate were re-derived against the lifecycle lane that closed 2026-08-19/20. **Nothing
+else in this file was re-checked**, and the 2026-08-11 review still stands as the last
+full one. Companion documents: [`LIFECYCLE_POLICY.md`](LIFECYCLE_POLICY.md) (the
+contract), [`MEASUREMENT_MODE.md`](MEASUREMENT_MODE.md) (what is frozen and why),
+[`SESSION_SUMMARY_lifecycle.md`](SESSION_SUMMARY_lifecycle.md) (the lane end to end).
+
 **Verification scope.** §2 (rung ladder), §3 (Dart language surface) and — as of
 2026-08-11 — **§5, §6, §7, §8, §9, §10, §11 and §13** have been re-derived from the
 tree: commits, probes, evidence files and source. Sections still carrying a status
@@ -2126,6 +2134,14 @@ boundary is not the rung ladder but library-scoped privacy.
 carried forward, and six changed. The platform is now named per row, because the
 section previously implied both and several rows only ever held for one.
 
+> **Boot/failure rejection re-derived 2026-08-23** — that one row, not the section.
+> The rest of this section still carries its 2026-08-11 verification, and this pass
+> did not re-check it. What moved: the lifecycle lane closed between 2026-08-19 and
+> 2026-08-20, so the *"a patch that crashes in Dart is never backed out"* row is now
+> PROVEN, and the analysis two paragraphs below it — *"the mechanism exists but its
+> window closes before any Dart runs"* — describes the **pre-`0009` seam** and is kept
+> as the diagnosis that led to the fix, not as current behaviour.
+
 | | item | platform |
 |---|---|---|
 | ✅ | **PROVEN** Patch check | Android + iOS |
@@ -2142,7 +2158,8 @@ section previously implied both and several rows only ever held for one.
 | ✅ | **PROVEN** Invalid compiler-cell artifacts fail closed | iOS only — no Android analogue |
 | ✅ | **PROVEN** Unpatchable release **detected** on real shipped bytes | iOS |
 | ◐ | **BUILT** …and **refused inside the patcher** — host tests only, never run against an unpatchable release through the product path | iOS |
-| 🐞 | **KNOWN GAP** Automatic boot/crash rejection — a patch that crashes in Dart is **never backed out** | iOS/Route B; narrow on Android |
+| ✅ | **PROVEN, 2026-08-19/20 — was KNOWN GAP.** Automatic boot/**failure** rejection. An explicit Dart-phase failure retires the patch on the FIRST bad launch, the event reaches the control plane, and the next launch runs the release; an **ambiguous** pre-success death is RETRIED instead, not treated as proof the patch is bad. Contract, evidence and the standing freeze: [`LIFECYCLE_POLICY.md`](LIFECYCLE_POLICY.md), [`MEASUREMENT_MODE.md`](MEASUREMENT_MODE.md). **Read the row below before treating this as a clean win** | iOS/Route B; narrow on Android |
+| 🐞 | **KNOWN GAP** One hung launch per bad patch — C2 retires the patch, but the backout takes effect on the NEXT launch, so the user eats one launch they must force-quit by hand. And the Dart-phase failure **hangs rather than crashing** (`hooks.dart:492` forwards the error so the app's own reporting survives), which is why §15's gate had the wrong word in it | iOS/Route B |
 | 🐞 | **KNOWN GAP** Interrupted download — cross-cycle resume is structurally unreachable | both |
 | ◐ | **PARTIAL** Corrupt patch **in transit** — refuse-permanently established in source, device demo missing | both |
 | 🐞 | **KNOWN GAP** Corrupt patch **at rest** — refused silently forever: no tombstone, no event, retried every boot | iOS |
@@ -2600,6 +2617,14 @@ arch that differs from their release arch (`win_archive` → `x86_64`, `bundle` 
 > **Done when:** a Dart-phase crash backs the patch out; the manual API reports a
 > restart-required state that is true on iOS; and a second `FlutterEngine` in the
 > same process runs the **same** program version as the first.
+>
+> **Progress, 2026-08-23 — one of the three closed.** A Dart-phase **failure** (the
+> word `crash` is wrong; see §15) backs the patch out, device-proven 2026-08-19, and
+> an ambiguous pre-success death is retried instead of retiring the patch, device-proven
+> 2026-08-20. Still open: the manual API's restart-required truthfulness, and
+> two engines in one process running the same program version. The lifecycle half of
+> this goal is now in MEASUREMENT MODE — its behaviour must not change until the
+> precommitted sample threshold is met ([`MEASUREMENT_MODE.md`](MEASUREMENT_MODE.md)).
 > **Owns:** `R3` + a mint, `R1`. Engine work, not producer work.
 
 **Every other goal in this file is section-scoped. This one is not, and that is the
@@ -2608,7 +2633,7 @@ unvalidated question:
 
 | symptom | filed under | what it actually is |
 |---|---|---|
-| a Dart crash is never backed out | §5 | `ReportLaunchSuccess` fires in the `Shell` **constructor**, before the root isolate exists — so "launch succeeded" is recorded before the patch can fail |
+| ~~a Dart crash is never backed out~~ **CLOSED 2026-08-19/20** | §5 | `ReportLaunchSuccess` fires in the `Shell` **constructor**, before the root isolate exists — so "launch succeeded" is recorded before the patch can fail. **Repaired by `0009`/`0010` plus the C3/C4 wiring, and the diagnosis in this row is exactly what the repair was aimed at.** See [`LIFECYCLE_POLICY.md`](LIFECYCLE_POLICY.md) |
 | restart-required may be misreported | §8 | the same guard decides it, so the API can report something **wrong**, not merely unverified |
 | a second engine silently runs unpatched AOT | §9 | ~~the hook is armed once per process; engine two never arms it~~ — **mechanism corrected 2026-08-13, see below. The effect was real; the cause was not what this row said.** |
 
@@ -2676,6 +2701,14 @@ trade and wrong about one fact.
 > Both are needed; reach was ranked first because a fundamental limitation there
 > would reshape everything below it.~~
 
+> **SUPERSEDED 2026-08-19/20 as a statement of current state, kept as the argument
+> that correctly ranked the work first.** The seam analysis below was right, the
+> ranking it produced was right, and the gap it names is now closed: `0009`/`0010`
+> plus the C3/C4 wiring give Route B a validated way to distinguish a booted patch
+> from an explicit Dart-phase failure, and to distinguish BOTH from an ambiguous
+> disappearance. What remains is not the mechanism but the **threshold value**, which
+> is frozen pending fleet data.
+
 **What changed is not the severity of the consequence — it is the validity of the
 mechanism.** The crash-backout seam is now **source-proven incapable of observing
 user Dart execution at all**: `main` is posted to the message queue, so
@@ -2720,9 +2753,15 @@ checked:
 | ☐ | Add-to-app passes on iOS | §9 |
 | ☐ | CI / noninteractive workflow passes | §10 |
 | ☐ | Rollback / rejection / failure matrix passes | §5 |
-| ☐ | **A Dart-phase crash backs the patch out** — **FAILING, AND NOW PROVEN FROM SOURCE RATHER THAN INFERRED FROM A DEVICE — 2026-08-14.** Patch `0009` moved launch-success out of the `Shell` constructor to `Engine::Run` returning, and that seam **cannot work in principle**: `_delayEntrypointInvocation` (`isolate_patch.dart:298`) posts `main` to a `RawReceivePort` and returns, so `InvokeMainEntrypoint` → `LaunchRootIsolate` → `Engine::Run` **all return before any user Dart has run**. Success is banked one message-loop turn too early, every time, by construction. ~~The device arm's causal reading — a patch throwing in `main()` banked three successes~~ **is RETRACTED as unsupported: the same blank screen occurs on the same release with NO PATCH INSTALLED, and the fixture's alternating marker shows `main()` runs in neither configuration.** The banked-success observation itself stands. Evidence: `evidence/g15/crashbackout_control_verdict.txt` (which supersedes the attribution in `crashbackout_verdict.txt`, corrected in place). **The fixture must be repaired before any seam experiment** — its failure mode is a blank screen, indistinguishable from the crash it is meant to detect | §14b, `G15` |
+| ✅ | **A Dart-phase FAILURE backs the patch out** — **CLOSED 2026-08-19/20.** **The gate's own wording was wrong and is corrected here rather than being quietly satisfied**: the failure mode is a **hang**, not a crash. `hooks.dart:492` forwards the error rather than consuming it — deliberately, so the app's own reporting survives — and an uncaught root-zone error on iOS logs and continues, so nothing crashes and the user sees a hung launch. What the gate was for is met: an explicit Dart-phase failure retires the patch on the FIRST bad launch, the event reaches the control plane, and the next launch runs the release (`evidence/g15/armB_crash_backout_verdict.txt`, 2026-08-19), while an **ambiguous** pre-success death is retried rather than treated as proof (device closure 2026-08-20, `evidence/g15/layer3_closure_verdict.md`). Two costs stay open and are NOT hidden by this tick: the user still eats one hung launch before the backout applies (§5), and the retry **threshold value** is unratified and frozen pending fleet data ([`MEASUREMENT_MODE.md`](MEASUREMENT_MODE.md)). The 2026-08-14 source analysis that follows is kept because it is what made the repair possible — it is the diagnosis, not the current state | §14b, `G15`, [`LIFECYCLE_POLICY.md`](LIFECYCLE_POLICY.md) |
+| | ~~**A Dart-phase crash backs the patch out**~~ — **FAILING, AND NOW PROVEN FROM SOURCE RATHER THAN INFERRED FROM A DEVICE — 2026-08-14.** Patch `0009` moved launch-success out of the `Shell` constructor to `Engine::Run` returning, and that seam **cannot work in principle**: `_delayEntrypointInvocation` (`isolate_patch.dart:298`) posts `main` to a `RawReceivePort` and returns, so `InvokeMainEntrypoint` → `LaunchRootIsolate` → `Engine::Run` **all return before any user Dart has run**. Success is banked one message-loop turn too early, every time, by construction. ~~The device arm's causal reading — a patch throwing in `main()` banked three successes~~ **is RETRACTED as unsupported: the same blank screen occurs on the same release with NO PATCH INSTALLED, and the fixture's alternating marker shows `main()` runs in neither configuration.** The banked-success observation itself stands. Evidence: `evidence/g15/crashbackout_control_verdict.txt` (which supersedes the attribution in `crashbackout_verdict.txt`, corrected in place). **The fixture must be repaired before any seam experiment** — its failure mode is a blank screen, indistinguishable from the crash it is meant to detect | §14b, `G15` |
 | ☐ | **Two engines in one process run the same program version** | §14b, `G15` |
 | ☐ | Every unsupported upstream workflow is explicitly documented rather than silently failing | this file |
+
+**Three of seventeen as of 2026-08-23** (was two): the Dart-phase-failure gate closed
+with its wording corrected. Two of the remaining fourteen are worth naming here because
+they are not breadth — the retry **threshold** is frozen pending fleet data rather than
+unbuilt, and the two-engines-same-version gate still needs a device.
 
 **Two of seventeen** — and the characterisation an earlier draft gave is wrong now.
 It said "the thirteen remaining are mostly breadth." After the 2026-08-11

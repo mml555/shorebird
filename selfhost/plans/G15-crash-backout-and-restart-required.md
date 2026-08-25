@@ -4,6 +4,38 @@
 > is merely interrupted does **not**, and the manual API's restart-required answer is a
 > fact the updater knows rather than one it infers.
 
+> ### STATUS 2026-08-23 — THE CRASH-BACKOUT HALF IS CLOSED. DO NOT RE-TAKE IT.
+>
+> **What this order set out to do is done, and it took a different shape than the
+> design below predicted.** Read this box, then the order — the order is still the
+> best account of *why* the seam question is hard, and its refuted-composite section
+> is what stopped a worse fix from shipping.
+>
+> * **A Dart-phase failure backs the patch out** — device-proven 2026-08-19
+>   (`evidence/g15/armB_crash_backout_verdict.txt`). §15's gate is ticked, **with its
+>   wording corrected**: the failure mode is a **hang**, not a crash.
+> * **An ambiguous pre-success death does NOT back the patch out** — device-proven
+>   2026-08-20 (`evidence/g15/layer3_closure_verdict.md`). This is the half the order
+>   correctly identified as the real problem: *the root cause is not the seam; it is
+>   the inference.*
+> * **The contract now lives in [`../LIFECYCLE_POLICY.md`](../LIFECYCLE_POLICY.md)**
+>   (rows C1-C4), and lifecycle behaviour is **FROZEN** —
+>   [`../MEASUREMENT_MODE.md`](../MEASUREMENT_MODE.md). Do not change counters, the
+>   threshold, the guard, emission or retry while data is being collected.
+> * **Still open from this order:** the manual API's **restart-required**
+>   truthfulness. That half was not built, and it is what remains of `G15` here
+>   alongside two-engines-same-version (§14b).
+> * **The retry threshold value (2) is unratified**, deliberately: criteria were
+>   precommitted before any data existed
+>   ([`../THRESHOLD_ANALYSIS_PRECOMMIT.md`](../THRESHOLD_ANALYSIS_PRECOMMIT.md)).
+>
+> **One thing worth carrying to any future device lane:** the fixture work was the
+> long pole, exactly as the `est. shape` row below predicted — but the answer was not
+> a better-timed manual kill. It was to stop timing by hand at all: a four-mode
+> checkpoint-driven fixture with an uncatchable SIGKILL over FFI, which cannot fail
+> silently because the receipt after the kill can only be written if the signal
+> missed.
+
 | field | value |
 |---|---|
 | status | **BUILT AND TAKEN TO THE DEVICE 2026-08-14 — one half PROVEN, the other MEASURED FAILING.** Cell `80e493e4` carries `0009` + `0010`. **The false-backout half PASSES on hardware, twice** (`evidence/g15/arm2_verdict.txt`). **Crash-backout FAILS** — `Engine::Run` returns `Success` when the entrypoint is merely INVOKED, so a patch throwing inside `main()` banked three successes while crashing every launch (`evidence/g15/crashbackout_verdict.txt`). **The seam in part 1 of this design is still too early and must be re-chosen** — see *Where the seam actually belongs* in that verdict. Part 2 (the counter) is correct as designed and proven. Prior status: **DESIGN, REWORKED 2026-08-14. Earns nothing.** The prior design was refuted before it was built — see *The refuted composite* — and no code exists for this one. Host reading only; no probe, no release, no device |

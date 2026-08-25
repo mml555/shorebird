@@ -61,6 +61,12 @@ whole documented API surface (`POST /api/v1/crashes`, `GET /api/v1/apps/{id}/cra
 with symbolication), so a reader sizing a database or writing a backup script from
 this section came up short:
 
+> **Updated 2026-08-23: 22 tables across TEN migrations.** 9 and 10 add no tables —
+> they add columns and indexes to `events` for boot-lifecycle telemetry, so the table
+> count is unchanged and the migration count is not. A backup or schema-diff script
+> keyed to "8 migrations" will report drift against any current deployment. See the
+> `events` row below, and `selfhost/LIFECYCLE_POLICY.md` for what they are for.
+
 | table | migration | backs |
 |---|---|---|
 | `invitations` | 2 | org collaborator invites (console **Team** tab) |
@@ -77,7 +83,7 @@ this section came up short:
 | `patches` | one logical patch per `(release, number)` |
 | `channels`, `channel_patches` | deployment: which patch is active on a channel, its rollout %, rolled-back flag |
 | `artifacts` | byte metadata for release/patch artifacts (`owner_kind`+`owner_id`), status, `storage_key`, hash/size/signature |
-| `events` | append-only device events (dedupe key); source of all metrics/analytics |
+| `events` | append-only device events (dedupe key); source of all metrics/analytics. **Migrations 9-10 added five nullable boot-lifecycle columns** — `outcome`, `ambiguous_attempt_count`, `boot_failure_threshold`, `boot_started_at`, `updater_revision` — plus `events_lifecycle_idx` and `events_updater_rev_idx`. The dedupe key appends `outcome` when present, so pre-existing rows and types are unaffected |
 | `settings` | server singletons (e.g. the persisted OAuth signing key) |
 | `auth_codes`, `refresh_tokens` | single-use OAuth codes + rotating refresh tokens |
 | `rate_limits` | shared fixed-window counters (scale) |
@@ -187,7 +193,11 @@ entry to evolve the schema; it applies on next boot on both backends.
   `config` (production guard).
 - Backend integration on real SQLite: `db_test` (CRUD + rollback + idempotent
   events + persistence), `analytics_test` (every analytics endpoint + weekly
-  bucketing).
+  bucketing), `boot_lifecycle_events_test` (the dedupe-collision rule as a direct
+  unit on `eventDedupeKey`, plus the eligibility predicate proven **both ways** — an
+  ineligible or `NULL` revision must be excluded, an eligible one counted).
+- **301 tests pass** on `dart test -x integration`, verified 2026-08-23. `-x
+  integration` skips the arms needing live Postgres/MinIO.
 - `tool/smoke_test.sh` drives the full wire contract with curl (works against any
   running server, HTTP or TLS via `CURL_OPTS=-k`).
 

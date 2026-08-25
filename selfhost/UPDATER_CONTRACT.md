@@ -43,6 +43,44 @@ Cross-referenced against on-device observations in
 > line as a hint. **Cite the symbol, not the line** — line anchors into a file
 > this active decay within days, and a wrong anchor reads as authority.
 
+> ### ⚠ SECOND ADDITION — 2026-08-23. A fifth event type, a seventh dedupe field, and the flush contract has changed.
+>
+> Everything below describes the **pinned/vendored** updater (`1f85c4ab`) and is still
+> accurate for it. It is **not** accurate for the updater our own Route B engine cells
+> now ship (`f729f958e9be`, cell `2c4443ce…`), which is what the lifecycle work runs
+> on. **The source for these changes is NOT in this repo** — it lives in the engine
+> tree's `third_party/updater`, not in `vendor/updater`, so grepping `vendor/` will
+> report them absent. Until the body is reworked, treat the following as part of the
+> contract for that client:
+>
+> * **A fifth event `type`: `__patch_boot_lifecycle__`** — NON-TERMINAL, unlike all
+>   four types in §1. It reports transitions rather than failures, and it exists
+>   because terminal events alone are survivor-biased: they show patches that were
+>   RETIRED and never the ones that hit one ambiguous unfinished boot and recovered.
+> * **Five new payload fields**, all optional and absent from every pre-existing
+>   type: `outcome` (`ambiguous_boot_retry` | `recovered_after_ambiguity` |
+>   `retired_after_ambiguity`), `ambiguous_attempt_count`, `boot_failure_threshold`,
+>   `boot_started_at`, `updater_revision`. The server columnises all five
+>   (`repository.dart` migrations 9 and 10) and reads them in `_patchesEvents`.
+> * **The dedupe key is SEVEN fields, not six** — `outcome` is appended **only when
+>   present**, so every pre-existing event type keeps a byte-identical key and nothing
+>   is re-accepted on upgrade (`eventDedupeKey` in `api.dart`, deliberately public so
+>   the collision rule is testable directly). This was not cosmetic: a retry and a
+>   recovery from the same launch can land in the same timestamp-second, and without
+>   `outcome` the RECOVERY was discarded as a duplicate — biasing the one metric the
+>   retry threshold is judged on, in the one direction that makes retrying look
+>   useless.
+> * **Queued events are no longer cleared unconditionally.** Exact acknowledgement:
+>   an event is removed only once THAT event was sent. Plus failure rotation, so a
+>   batch that fails to send rotates instead of pinning the queue head — without it,
+>   n stuck events form a permanent batch and censor everything behind them. §3's
+>   *"the entire queue is cleared regardless of send success"* and §6's *"event
+>   delivery is at-most-once"* are corrected in place below.
+> * **`updater_revision` is the eligibility predicate** for lifecycle-policy
+>   analysis, and `NULL` is ineligible: an unknown client cannot be assumed to carry
+>   the event-loss fixes. See [`MEASUREMENT_MODE.md`](MEASUREMENT_MODE.md) — this
+>   behaviour is **frozen** while fleet data is collected.
+
 Citations use `library/src/<file>.rs:<line>` against the pinned updater commit below.
 
 ## Provenance / version pinning
@@ -92,8 +130,9 @@ separate host/path is fine (our signed `/download/<token>?exp=&sig=` URLs work).
 
 ## 1. Event vocabulary (the FULL set)
 
-There are exactly **four** event `type` strings. The enum and its wire strings
-are in `events.rs:13-32`:
+There are exactly **four** event `type` strings at the pinned revision. **Our own
+Route B cells add a fifth, `__patch_boot_lifecycle__` — see the 2026-08-23 addition at
+the top of this file.** The enum and its wire strings are in `events.rs:13-32`:
 
 | Wire `type` string          | Rust variant           | Meaning              |
 |-----------------------------|------------------------|----------------------|
@@ -105,7 +144,7 @@ are in `events.rs:13-32`:
 Deserialization rejects any unknown string (`events.rs:34-47`) — but that only
 affects the updater reading a response; our server never sends these back.
 
-### Payload shape (identical for all four types)
+### Payload shape (identical for all four types; the lifecycle event adds five optional fields — see the 2026-08-23 addition)
 
 Wrapped in a top-level `event` object (`network.rs:282-285`, `send_patch_event`
 at `network.rs:301-307`). Field names and order are fixed by `PatchEvent`
@@ -322,6 +361,18 @@ This is the subtle part — two different delivery paths:
   `cache/updater_state.rs:425-432`), then the **entire** queue is cleared
   regardless of send success (`updater.rs:409-415`, `clear_events` at
   `cache/updater_state.rs:434-437`).
+
+  > **CORRECTED FOR OUR CELLS — 2026-08-23.** True at the pinned revision; **false**
+  > for updater `f729f958e9be`. The unconditional `clear_events()` was a real
+  > silent-loss defect, not merely a robustness limit: the flusher sent a batch
+  > captured by an EARLIER read and then cleared the whole queue, destroying anything
+  > enqueued in between. The source comment said *"that's OK for now"* — true while
+  > events were coarse counters, false the moment a queued event carried meaning.
+  > Replaced by **exact acknowledgement** (remove only the event that was sent) plus
+  > **failure rotation**. Rotation is not optional once you retain on failure: with a
+  > first-`n` batch, `n` stuck events become a permanent batch head and censor
+  > everything behind them — a defect found by asking what the first fix implied,
+  > not by observing it.
 - **Consequences:**
   - **Cap of 3 per cycle** — if more than 3 are queued, the extras are dropped
     (never sent). Source comment: "We discard any events if we have more than 3
@@ -339,6 +390,10 @@ server's job. Our server derives a dedupe key from six fields
 ```
 client_id | app_id | release_version | patch_number | type | timestamp
 ```
+
+> **SEVEN fields as of 2026-08-20**, with `outcome` appended **only when present** —
+> so this six-field key is still byte-identical for every type documented in §1. See
+> the 2026-08-23 addition at the top for why the sixth field alone was not enough.
 
 `insertEvent` is append-only with this key as the uniqueness guard
 (`repository.dart` `insertEvent` (:1497), called at `api.dart` `_patchesEvents` (:2423)); duplicates are ignored.
@@ -481,6 +536,17 @@ the server offers the same `download_url` string again.
   `init()` detects it and marks the patch `Bad{BootCrash}`, queuing
   `__patch_install_failure__` (`updater.rs:225-267`;
   `docs/boot_state_machine.md:62-73`).
+
+  > **CHANGED IN OUR CELLS — 2026-08-19/20.** That single-strike retirement on an
+  > ambiguous death is exactly the defect the lifecycle work removed. A pre-success
+  > disappearance with **no explicit failure report** is now AMBIGUOUS: it is retried
+  > and reported non-terminally (`ambiguous_boot_retry`), and retires only under an
+  > explicitly chosen threshold. An **explicit** Dart-phase failure still retires on
+  > the first strike. The asymmetry is the point — retiring too late costs one more
+  > bad launch and self-corrects; retiring too early permanently tombstones a WORKING
+  > patch on that device, invisibly, and reports it as the safety mechanism working.
+  > Contract: [`LIFECYCLE_POLICY.md`](LIFECYCLE_POLICY.md). Frozen behaviour:
+  > [`MEASUREMENT_MODE.md`](MEASUREMENT_MODE.md).
 - **Local (client-side) rollback:** a `Bad` patch is never retried within the
   release; `recompute_next_boot` falls back to `last_booted_patch` (if still
   `Installed`) or base. This is independent of server-driven
@@ -501,7 +567,8 @@ the server offers the same `download_url` string again.
 | Serve downloads with `Content-Length`, honor `Range` with `206` + `Content-Range` + `Accept-Ranges` | ✅ `api.dart` `_download` (:1889), `206` at :1925 |
 | Populate `rolled_back_patch_numbers` from patches withdrawn with rollback=true | ✅ `api.dart:2000`, `repository.dart` `rolledBackPatchNumbers` (:1352) |
 | Accept unauthenticated `POST /api/v1/patches/events` with the `{event:{…}}` wrapper, 2xx | ✅ `api.dart` `_patchesEvents` (:2407) (`204`) |
-| Dedup events (no client-side dedup exists) | ✅ 6-field dedupe key, `api.dart` `_patchesEvents` (:2407+), `repository.dart` `insertEvent` (:1497) |
+| Dedup events (no client-side dedup exists) | ✅ **7-field** dedupe key as of 2026-08-20 (`outcome` appended only when present, so pre-existing types are unchanged), `eventDedupeKey` + `api.dart` `_patchesEvents`, `repository.dart` `insertEvent` |
+| Store the boot-lifecycle event's five optional fields in queryable columns | ✅ migrations 9 + 10 (`outcome`, `ambiguous_attempt_count`, `boot_failure_threshold`, `boot_started_at`, `updater_revision`) with two indexes; read by `bootLifecycleMetrics()` |
 | Store all event `type`s, including the two failure types, generically | ✅ generic `insertEvent`, won't crash on any type string |
 
 ### Gaps / recommendations (NOT changing server code — research findings)
@@ -543,10 +610,16 @@ the server offers the same `download_url` string again.
    correctness issue; a bandwidth/robustness one. Optional fix if large patches
    over flaky networks become a concern.
 
-4. **Event delivery is at-most-once.** Immediate events (download / install
+4. **Event delivery is at-most-once.** ~~Immediate events (download / install
    success) are fire-and-forget with no retry (`updater.rs:632`, `1196`); queued
    failure events get exactly one flush attempt then are cleared unconditionally
-   (`updater.rs:409-415`). The server should treat event counts as a **lower
+   (`updater.rs:409-415`).~~ **PARTLY FIXED 2026-08-20 in our own cells** (updater
+   `f729f958e9be`): queued events now survive a failed send — exact acknowledgement
+   plus failure rotation — so the queue is at-least-once-attempted rather than
+   cleared blind. **Immediate events are still fire-and-forget**, and the
+   lower-bound rule below still holds for them. One new cost, parked deliberately
+   because it delays events rather than censoring them: the queue is now unbounded
+   while the server is unreachable. The server should treat event counts as a **lower
    bound**, never assume exactly-once, and never make correctness decisions
    (e.g. billing, rollback gating) that require every event to arrive. Dedup
    protects against doubles; nothing protects against drops.

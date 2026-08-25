@@ -33,7 +33,31 @@ The split, because it matters: [`PARITY.md`](PARITY.md) is *what* parity means a
 *where we stand* — the authority on any status. [`plans/`](plans) is *how to do the next
 specific thing*. Read the plan for your piece; open `PARITY.md` when you need the why.
 
+## ▶ What is frozen right now (2026-08-23)
+
+**Patch boot-lifecycle behaviour is in MEASUREMENT MODE and must not be changed** —
+no counters, threshold, guard, emission or retry edits until 100 distinct eligible
+clients report a first ambiguity. [`MEASUREMENT_MODE.md`](MEASUREMENT_MODE.md) is that
+line; read it before touching lifecycle code, on either side of the wire.
+
 ## Documents by purpose
+
+**Patch lifecycle & safety** *(added to this index 2026-08-23 — these five documents
+existed and were reachable only from `PARITY.md` and each other)*
+- [`LIFECYCLE_POLICY.md`](LIFECYCLE_POLICY.md) — **the product contract.** Four rows
+  (C1-C4) and nothing else. An explicit failure report and a process that merely
+  disappeared are not equally strong evidence and must never produce the same action
+- [`MEASUREMENT_MODE.md`](MEASUREMENT_MODE.md) — the shipped combination (client
+  updater, engine cell, server image, migrations), the five verification steps, and
+  **what is not allowed while collecting**
+- [`THRESHOLD_ANALYSIS_PRECOMMIT.md`](THRESHOLD_ANALYSIS_PRECOMMIT.md) — the
+  ratification criteria, fixed **before** any fleet data exists, so a threshold cannot
+  be chosen to fit the numbers
+- [`SESSION_SUMMARY_lifecycle.md`](SESSION_SUMMARY_lifecycle.md) — the lane end to
+  end: what shipped, the four silent-loss defects and what each biased, the device
+  evidence, the harness that replaced human-timed kills, and the mistakes worth keeping
+- [`STATE_OF_THE_SYSTEM.md`](STATE_OF_THE_SYSTEM.md) — what has actually been
+  achieved, what would mean anything to upstream, and the next steps in execution order
 
 **Understand the system**
 - [`OVERVIEW.html`](OVERVIEW.html) — full system overview (rendered page)
@@ -63,6 +87,7 @@ specific thing*. Read the plan for your piece; open `PARITY.md` when you need th
 - [`ENGINE_BUILD.md`](ENGINE_BUILD.md) + [`engine/`](engine) — build the engine from captured source (their private Dart VM fork is **no longer a blocker**: we build on vanilla Dart + a 57-line shim, see [`engine/dart-fork/`](engine/dart-fork))
 - [`IOS_CODE_PUSH.md`](IOS_CODE_PUSH.md) — iOS code push without their fork: the interpreter and dispatch are already upstream; what we owe is a binder
 - [`HANDOFF.md`](HANDOFF.md) — the dated working log: evidence chains and debugging traps. Long, and **not** required reading before starting Route B
+- [`BASELINE.md`](BASELINE.md) + [`UPSTREAM_INTEGRATION.md`](UPSTREAM_INTEGRATION.md) — what this fork actually is, and the **measured** cost of catching up to upstream Flutter (5 conflicts across 39 files, `updater_rev` unchanged so the wire contract is safe)
 - [`MEDIA_PRESERVATION.md`](MEDIA_PRESERVATION.md) — the build-SSD preservation runbook: what is proven about the media and what is not, the order of operations and why decode does not gate the copy, and the standing rules after two mid-write detaches
 - [`fixtures/airgap_app/README.md`](fixtures/airgap_app/README.md) + [`fixtures/CONTROL_PLANE_DATA.md`](fixtures/CONTROL_PLANE_DATA.md) — the acceptance fixture, and where rig data / config / secrets live
 - [`ENGINE_IMPROVEMENTS.md`](ENGINE_IMPROVEMENTS.md) — **start here for engine work**: what is proven, what stays pinned, and the constraints that cost real debugging

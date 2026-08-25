@@ -2,6 +2,29 @@
 
 2026-08-19. **This file is the contract. Code conforms to it, not the reverse.**
 
+> ### STATUS, 2026-08-23 — the mechanism is CLOSED and the behaviour is FROZEN
+>
+> Everything this contract describes as a mechanism now exists, is device-proven and
+> is measured. **Lifecycle behaviour must not change again** until the precommitted
+> sample threshold is reached: see [`MEASUREMENT_MODE.md`](MEASUREMENT_MODE.md) for
+> what is frozen and what is not allowed while collecting,
+> [`THRESHOLD_ANALYSIS_PRECOMMIT.md`](THRESHOLD_ANALYSIS_PRECOMMIT.md) for the
+> ratification criteria, and [`SESSION_SUMMARY_lifecycle.md`](SESSION_SUMMARY_lifecycle.md)
+> for the whole lane end to end.
+>
+> What changed after this file was written, in the order it landed:
+>
+> | date | change |
+> |---|---|
+> | 2026-08-19 | C3/C4 wired into production; arm B (explicit Dart-phase failure) device-proven |
+> | 2026-08-20 | device closure: both lifecycle outcomes survive client, wire, server and metric (`1092e800`) |
+> | 2026-08-20 | telemetry validity epoch declared, threshold analysis precommitted (`aca0ceeb`) |
+> | 2026-08-20 | eligibility moved from a release-name proxy onto the **updater revision** (`0d48d280`) |
+> | 2026-08-20 | measurement mode entered — eligible revision verified in shipped bytes (`91c9d691`) |
+>
+> The rows below are corrected in place where they were overtaken. Sections that were
+> already right are untouched.
+
 Written because the investigation method that found the mechanisms became the
 wrong method for validating behaviour. The question is no longer *"can we
 reproduce this device state?"* but *"what do we guarantee, and how do we know?"*
@@ -43,8 +66,14 @@ C3 is the row that matters. Everything else is comparatively easy.
 |---|---|---|---|
 | C1 | **yes** | `record_boot_success` clears breadcrumb + tally; a later kill leaves nothing for `detect_boot_crash_on_init` to find | **yes**, twice — `arm2_verdict.txt` |
 | C2 | **yes** | `report_launch_failure()` → `mark_bad` immediately | **yes** — `armB_crash_backout_verdict.txt`, 2026-08-19 |
-| C3 | **yes**, wired 2026-08-19 | init routes through `detect_boot_crash_on_init` | host + production-entrypoint tests; **not device-proven** |
-| C4 | **yes**, threshold = 2 | `BOOT_FAILURE_THRESHOLD` | same |
+| C3 | **yes**, wired 2026-08-19 | init routes through `detect_boot_crash_on_init` | **yes, 2026-08-20** — paired runs, engine the only variable: row 5 flipped from single-strike retirement to survival + `recovered_after_ambiguity` (`evidence/g15/CL_row5/`, `evidence/g15/closure_run/`, `evidence/g15/layer3_closure_verdict.md`) |
+| C4 | **yes**, threshold = 2 | `BOOT_FAILURE_THRESHOLD` | retirement path host-proven; **the threshold VALUE is still unratified** — §3 |
+
+> **Row C3's `not device-proven` was true when written and is now superseded**
+> (2026-08-20). Five controls held across the pair — success, success-then-kill,
+> success, `hard-kill`, `dart-fail` — and only the ambiguous row moved. Closure went
+> further than the client: both outcomes persisted as distinct server rows under one
+> correlation identity, and `bootLifecycleMetrics()` counted the recovery.
 
 > ### THE GAP THAT MADE THIS NECESSARY — keep this, it is the lesson
 >
@@ -132,6 +161,27 @@ threshold-policy analysis and kept only as evidence. Encoded in
 test both ways. Full criteria, fixed before any data exists:
 `selfhost/THRESHOLD_ANALYSIS_PRECOMMIT.md`.
 
+**The release-name list is no longer the predicate — corrected 2026-08-20 (`0d48d280`).**
+Eligibility is a property of the BEHAVIOUR-BEARING CLIENT CODE, so the authoritative
+test is now the client's own **updater revision**, carried on every event
+(schema migration 10) and matched against `Repository.eligibleUpdaterRevisions`.
+`preEpochReleaseVersions` is kept as defence in depth and as documentation of which
+releases were affected; a release name was only ever a proxy that held for one app.
+
+Two properties of the new predicate are deliberate:
+
+* **`NULL` is ineligible.** An event from a client that did not report a revision
+  cannot be ASSUMED to carry the fixes, and assuming would re-import the bias the
+  epoch exists to exclude. This excludes the closure run's own rows.
+* **A missing allow-list entry under-counts; it cannot fabricate a recovery.** Each
+  new eligible revision must be added explicitly. That direction of failure is the
+  safe one and was chosen.
+
+Eligible today: `f729f958e9be` — exact acknowledgement **plus** failure rotation plus
+the revision stamp, verified by reading the revision out of the SHIPPED engine bytes.
+`fe51f225c686` is deliberately NOT eligible: it has acknowledgement but predates
+rotation, so a stuck batch head could still censor its lifecycle events.
+
 **The `1/1` from the closure run is an integration proof, not a fleet estimate**, and
 is explicitly excluded from ratification by the 100-distinct-client minimum.
 
@@ -157,6 +207,30 @@ is explicitly excluded from ratification by the 100-distinct-client minimum.
 Until ratified, the threshold is **BUILT, not contracted.**
 
 ## 4. KNOWN GAPS AGAINST THIS CONTRACT
+
+> **GAP 1 IS CLOSED (2026-08-20) and GAP 4 IS SUPERSEDED. Gaps 2, 3 and 5 stand.**
+> The original text of both is kept below, because the fix each asked for is what
+> shipped and a reader needs to see what the shape of the miss was.
+>
+> * **1 — classification in the schema: DONE.** A non-terminal
+>   `__patch_boot_lifecycle__` event now carries `outcome`
+>   (`ambiguous_boot_retry` | `recovered_after_ambiguity` | `retired_after_ambiguity`),
+>   `ambiguous_attempt_count`, `boot_failure_threshold`, `boot_started_at` and
+>   `updater_revision`, all columnised by migrations 9 and 10 and queried by
+>   `bootLifecycleMetrics()`. Nothing string-parses a `message` prefix any more. The
+>   query it existed to enable — *how many inferred first failures recover on retry* —
+>   is the estimator now in production.
+> * **4 — deterministic tests: SUPERSEDED by §7.1** (18 host tests, mutation-verified,
+>   2026-08-19) plus the production-entrypoint tests that drove the C3 fix red-first,
+>   plus the device closure recorded against row C3 in §2. This bullet was already
+>   contradicted by §7 in the same file.
+> * **3 — the `crash` wording in §15's gate: FIXED 2026-08-23** in `PARITY.md` §15,
+>   which now reads *"a Dart-phase FAILURE backs the patch out"* and is marked closed
+>   for the explicit-failure path. The finding that the failure mode is a **hang**
+>   rather than a crash is recorded there rather than being quietly dropped.
+>
+> **Gap 2 is the live product cost:** the user still eats one hung launch they must
+> force-quit before the backout takes effect on the next launch.
 
 1. **Classification is not in the event schema.** Both paths queue the same
    `EventType::PatchInstallFailure`, distinguished only by a free-text prefix
@@ -295,6 +369,13 @@ instead.
 
 ## 7. ORDER OF WORK
 
+> **ORDER OF WORK — ALL SIX ITEMS ARE NOW DISCHARGED (2026-08-23).** Kept as written
+> because the ORDER is the reusable part: telemetry before behaviour, host before
+> device, and ratification last. Item 2 (ratify §3) is discharged only in the sense
+> that it is now correctly BLOCKED on data rather than on engineering — see
+> [`MEASUREMENT_MODE.md`](MEASUREMENT_MODE.md). Items 3, 4, 5 shipped between
+> 2026-08-19 and 2026-08-20; item 6 landed 2026-08-23.
+
 1. ~~**Layer 1** — host state-machine suite for C1-C4.~~ **DONE 2026-08-19**, 18 tests, mutation-verified.
 2. **Ratify §3** — deliberately AFTER the suite. `2` is an implementation
    default, and ratifying it merely because it exists would convert an accident
@@ -305,7 +386,7 @@ instead.
    without it, ratification stays an argument rather than a measurement.
 4. **Layer 2** — the four-mode fixture harness.
 5. **Layer 3** — the handful of conformance specimens.
-6. **Correct §15's gate wording** (§4.3).
+6. ~~**Correct §15's gate wording** (§4.3).~~ **DONE 2026-08-23** — `PARITY.md` §15.
 
 ### DEPLOYMENT ORDER IS NOT SOURCE ORDER
 

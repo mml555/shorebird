@@ -10,7 +10,59 @@ shorebird:
   cli_revision: selfhost-v1.0.0                                  # this repo's baseline tag
   flutter_revision: c15ef6379403a0a55531a058bdb2c8e55bc05c98      # bin/internal/flutter.version (3.44.8 / Dart 3.12.2)
   engine_revision: 69f9831c360d9152862ec3897c67fb09ae843f3b       # shorebirdtech/flutter bin/internal/engine.version
-  updater_revision: fe51f225                                      # PROVENANCE OF CONSUMED BYTES.
+  updater_revision: f729f958e9be                                  # PROVENANCE OF CONSUMED BYTES.
+                                                                  # RESTAMPED 2026-08-23. The previous value, fe51f225,
+                                                                  # and its whole justification are preserved verbatim
+                                                                  # below under `superseded_updater_revision` — it was
+                                                                  # correct for the 2026-08-20 21:25 run and is NOT
+                                                                  # eligible for lifecycle-policy analysis, because it
+                                                                  # has exact event acknowledgement but predates
+                                                                  # FAILURE ROTATION, so a stuck batch head could still
+                                                                  # censor lifecycle events behind it.
+                                                                  # The updater compiled into engine cell
+                                                                  # 2c4443cedd654fad8eebd877bbc215edbdd11615
+                                                                  # (arm64 LC_UUID 4C4C4496-5555-3144-A132-BC57AC16BED0),
+                                                                  # registered in selfhost/cdn/experimental_hashes.map,
+                                                                  # published through the normal cell pipeline with the
+                                                                  # fetch-back gate passed and Route B producer tooling
+                                                                  # AUDIT CLEAN.
+                                                                  # Tied mechanically, and to the BYTES rather than a
+                                                                  # build log: f729f958e9be is present in the app's own
+                                                                  # shipped engine alongside REQUEUE_FAILED and
+                                                                  # ACK_EVENT. Verifying the log instead would have
+                                                                  # hidden two real stamp defects (git absent from the
+                                                                  # ninja action's PATH; .git/HEAD unchanged when a
+                                                                  # commit lands on a branch), each of which produces an
+                                                                  # engine that can never match an eligible revision —
+                                                                  # indistinguishable, in the data, from "no eligible
+                                                                  # clients exist".
+                                                                  # Carries exact event acknowledgement AND failure
+                                                                  # rotation: an event is removed only once THAT event
+                                                                  # was sent, and a failed batch rotates so n stuck
+                                                                  # events cannot permanently censor what is behind
+                                                                  # them.
+                                                                  # PAIRS WITH control plane cps-assets:local-m10
+                                                                  # (migration 9 outcome-aware event dedupe +
+                                                                  # migration 10 updater_revision column/index).
+                                                                  # THE HALVES ARE ONLY CORRECT TOGETHER — this was
+                                                                  # learned the expensive way: the client half was once
+                                                                  # published against a local-m9 server that had no
+                                                                  # updater_revision column at all.
+                                                                  # This is the ONLY revision in
+                                                                  # Repository.eligibleUpdaterRevisions. Adding a new
+                                                                  # eligible revision is an explicit act; a missing
+                                                                  # entry UNDER-counts and cannot fabricate a recovery,
+                                                                  # and that direction is deliberate.
+                                                                  # Lifecycle behaviour is FROZEN while collecting —
+                                                                  # see selfhost/MEASUREMENT_MODE.md before changing
+                                                                  # anything on either side of the wire.
+                                                                  # NOTE: vendor/updater/patch (the differ) stays at
+                                                                  # 1f85c4ab — separate crate.
+
+  # Kept verbatim, not deleted: this is the provenance of the 2026-08-20 21:25 run
+  # (layer-3 closure, commit 1092e800) and the reason it is now ineligible is a
+  # PROPERTY OF THE CLIENT CODE, not a mistake in the stamping.
+  superseded_updater_revision: fe51f225                           # PROVENANCE OF CONSUMED BYTES.
                                                                   # The updater compiled into engine cell
                                                                   # 986e088019dc7c59a10ab568fd69dccd9b788765
                                                                   # (arm64 LC_UUID 4C4C4462-5555-3144-A11E-11E07BD5F384),
@@ -57,6 +109,9 @@ previous:
 #   - updater_rev identical at both Flutter revisions (see above).
 #   - shorebird_cli suite: 2087 pass on the merged tree.
 #   - code_push_server suite: 193 pass (unchanged; engine-agnostic).
+#     Re-run 2026-08-23: 301 pass on `dart test -x integration` (migrations 1-10
+#     applied). Still engine-agnostic; the growth is the lifecycle telemetry work,
+#     not the pin.
 #
 # NOT re-run for this pin — do before relying on it in anger:
 #   - a `shorebird release`/`patch` through the CDN mirror, which warms lazily

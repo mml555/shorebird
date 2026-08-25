@@ -1,7 +1,49 @@
-# State of the system — practical, 2026-08-18
+# State of the system — practical, 2026-08-18; lifecycle lane folded in 2026-08-23
 
 What we have actually achieved, how it compares to upstream Shorebird, and which
 parts would mean anything to them. Uses `PARITY.md`'s status vocabulary.
+
+> **What changed since the 2026-08-18 body below was written.** The lifecycle lane
+> closed. §5's *"Next steps"* item 1 — *"finish tombstone/retry scoring, one
+> precommitted manual action outstanding"* — is **DONE**, so the next actionable item
+> is item 2, the unreachable-target refusal. Read this addition, then the body; the
+> body is otherwise unchanged and was not re-verified in this pass.
+>
+> ### The lifecycle lane — mechanism CLOSED, behaviour FROZEN (2026-08-19/20)
+>
+> A patch that merely **failed to finish booting** used to be permanently destroyed
+> on that device, and the telemetry that would have revealed it was broken in three
+> independent ways. Both halves are fixed, device-proven and measured:
+>
+> * an explicit Dart-phase failure retires the patch on the first bad launch and the
+>   event reaches the control plane; an **ambiguous** pre-success death is retried;
+> * non-terminal `__patch_boot_lifecycle__` telemetry (`ambiguous_boot_retry`,
+>   `recovered_after_ambiguity`, `retired_after_ambiguity`), outcome-aware dedupe
+>   (migration 9) and `updater_revision` (migration 10);
+> * exact event acknowledgement plus failure rotation in the client, so an event is
+>   dropped only once THAT event was sent and a stuck batch head cannot censor what
+>   is behind it;
+> * eligibility for policy analysis keyed to the client's **updater revision**,
+>   verified in the shipped engine bytes rather than a build log.
+>
+> **Four defects were found that each silently zeroed the recovery numerator while
+> leaving the denominator intact** — so each biased the answer toward *"recovery never
+> happens"* rather than adding noise, and none logged a loss. The details are worth
+> reading before trusting any telemetry-driven policy:
+> [`SESSION_SUMMARY_lifecycle.md`](SESSION_SUMMARY_lifecycle.md).
+>
+> **The system is now deliberately frozen.** No lifecycle-behaviour change until 100
+> distinct eligible clients report a first ambiguity —
+> [`MEASUREMENT_MODE.md`](MEASUREMENT_MODE.md) is that line, and
+> [`THRESHOLD_ANALYSIS_PRECOMMIT.md`](THRESHOLD_ANALYSIS_PRECOMMIT.md) fixes the
+> ratification criteria before any data exists. The remaining question is not
+> technical: *among real clients experiencing a first ambiguous boot, does allowing
+> one retry reduce expected user harm compared with immediate retirement?*
+>
+> **Parked, neither altering the eligible population:** unbounded queue growth while
+> the server is unreachable, and the `isRouteBEngine()` cold-cache false negative (a
+> non-patchable release is refused a patch, so such a client emits no lifecycle
+> events at all and is absent from the population rather than distorted within it).
 
 ---
 
@@ -147,7 +189,7 @@ want their SaaS. That is not a contribution to them.
 | **A CLI refusal for un-patchable targets** | turn the above into "we refuse this patch" instead of shipping a no-op. Small, self-contained, defensible | **NOT BUILT** — the highest-value upstream contribution available |
 | **`aot_tools` link-failure diagnostics** | we already consume their `119406bb` | theirs, not ours |
 | **Route B itself** | an iOS code-push path that needs no private linker. Strategically significant to them — possibly unwelcome | **EXPERIMENTAL**, large |
-| **Boot-lifecycle safety (`0009`/`0010`)** | a patch retired by two ordinary process deaths is a false backout; the threshold work addresses it | **IN TESTING** |
+| **Boot-lifecycle safety (`0009`/`0010`)** | a patch retired by two ordinary process deaths is a false backout; the threshold work addresses it. **Mechanism CLOSED and device-proven 2026-08-19/20; the threshold VALUE is frozen pending fleet data.** The transferable part for upstream is not the threshold — it is the finding that *an explicit failure report and a process that merely disappeared must never produce the same action*, plus the four instrumentation defects that each silently zeroed the recovery numerator | **PROVEN (mechanism) / MEASURING (threshold)** |
 
 ### The one thing worth finishing for upstream credibility
 
@@ -185,11 +227,17 @@ Turning this into a refusal converts the project's most embarrassing failure mod
 
 ## 5. NEXT STEPS, in execution order
 
-1. **Finish tombstone/retry scoring.** One precommitted manual action outstanding.
+1. ~~**Finish tombstone/retry scoring.** One precommitted manual action outstanding.
    Ordered first NOT because it outranks the refusal strategically, but because
    its experimental state is already LIVE and expensive to reconstruct — the
    specimen is staged, the observer qualified, the state cleared. Do not leave a
-   nearly-complete safety experiment suspended while changing release behaviour.
+   nearly-complete safety experiment suspended while changing release behaviour.~~
+   **DONE 2026-08-19/20 — and the reason it was ordered first held up.** The
+   manual method was not finished, it was **replaced**: a four-mode
+   checkpoint-driven fixture with an uncatchable SIGKILL primitive, because a human
+   trying to kill a phone inside a ~60 ms window was unmeasurable on this rig.
+   Lifecycle behaviour is now frozen — [`MEASUREMENT_MODE.md`](MEASUREMENT_MODE.md).
+   **So the next actionable item is 2.**
 2. **Build the unreachable-target refusal** (section 4). Highest-value
    engineering task; converts a forensic lesson into a gate users cannot
    accidentally violate.

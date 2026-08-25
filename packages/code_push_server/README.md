@@ -77,6 +77,7 @@ restores it. Behind your own reverse proxy or using your own Postgres/S3? See
 | **Org domain restriction** | optionally limit an org to your own email domains, so a personal account can't be added |
 | **Login** | `shorebird login` via self-consent or a real IdP (Google/Microsoft) |
 | **Analytics** | adoption / version / install metrics + a web console at `/console` |
+| **Boot-lifecycle telemetry** | non-terminal `__patch_boot_lifecycle__` events with outcome-aware dedupe, so a patch that merely failed to FINISH booting is visible as a retry-and-recovery rather than only as a retirement. Terminal events alone are survivor-biased. See [`../../selfhost/LIFECYCLE_POLICY.md`](../../selfhost/LIFECYCLE_POLICY.md) |
 | **Ops** | signed download URLs, migrations, audit log, rate limiting, health checks, backups |
 
 Everything except billing (intentionally omitted — a self-host doesn't bill itself).

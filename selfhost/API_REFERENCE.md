@@ -306,6 +306,24 @@ Returns `204`. Idempotent (deduped by `client_id|app_id|release_version|
 patch_number|type|timestamp`). Known types: `__patch_download__`,
 `__patch_install__`, plus `__patch_install_failure__` / `__patch_update_failure__`.
 
+**Updated 2026-08-20/23 — a fifth type and a seventh dedupe field.**
+
+* `__patch_boot_lifecycle__` — NON-TERMINAL boot-lifecycle telemetry. Carries five
+  optional fields the server columnises: `outcome` (`ambiguous_boot_retry` |
+  `recovered_after_ambiguity` | `retired_after_ambiguity`),
+  `ambiguous_attempt_count`, `boot_failure_threshold`, `boot_started_at`,
+  `updater_revision`. All are absent from every other type, and a deployment that
+  never receives one is unaffected.
+* **The dedupe key appends `outcome` when it is present**, making it seven fields for
+  lifecycle events and leaving all four older types byte-identical. Required for
+  correctness, not tidiness: a retry and the recovery from that same launch can land
+  in the same timestamp-second, and the six-field key discarded the recovery as a
+  duplicate.
+* These rows feed `Repository.bootLifecycleMetrics()`, which has **no HTTP endpoint
+  today** — it is queried directly. Eligibility is keyed to `updater_revision`
+  (`NULL` is ineligible), and the behaviour is frozen while data is collected:
+  `selfhost/MEASUREMENT_MODE.md`.
+
 ### Patch asset bundle
 
 `POST /api/v1/patches/assets`

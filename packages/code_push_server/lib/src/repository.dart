@@ -1752,11 +1752,16 @@ class Repository {
   /// P(recovery | first ambiguity) toward zero. They stay queryable as evidence of
   /// the instrumentation failures and must never enter an estimator.
   ///
-  /// LIMITATION, stated rather than hidden: the correct predicate is the CLIENT's
+  /// ~~LIMITATION, stated rather than hidden: the correct predicate is the CLIENT's
   /// updater revision, and events do not carry it. Until they do, the epoch can
   /// only be enforced by naming the affected releases for this deployment. Adding
   /// an updater-revision field to the event envelope is the durable fix, and is
-  /// what would make this list unnecessary.
+  /// what would make this list unnecessary.~~
+  ///
+  /// CLOSED: events carry `updater_revision` (migration 10), and the durable fix
+  /// named above is the field immediately below. The release-name list is now
+  /// defence in depth, not the predicate. Kept rather than deleted because it
+  /// records that the proxy was known to be a proxy while it was in use.
   /// Updater revisions known to carry ALL the event-loss fixes: outcome-aware
   /// dedupe on the server side is ours, but the client must also have exact event
   /// acknowledgement and failure rotation, or recovery events are destroyed or
