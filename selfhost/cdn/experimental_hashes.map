@@ -281,3 +281,29 @@ f8654294c253a132ae5da9e38ddf9aa85d6a257e 69f9831c360d9152862ec3897c67fb09ae843f3
 70e12f1af5a1bec63a3621c0032e3c94500057df 69f9831c360d9152862ec3897c67fb09ae843f3b
 986e088019dc7c59a10ab568fd69dccd9b788765 69f9831c360d9152862ec3897c67fb09ae843f3b
 2c4443cedd654fad8eebd877bbc215edbdd11615 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-25 from the cell
+# manifest (see mint_route_b_cell.sh).
+# ANCESTRY, MEASURED against donor 2c4443cedd654fad8eebd877bbc215edbdd11615 at mint time:
+# all 7 artifacts identical, cloned byte-for-byte; only the CELL differs.
+#
+# CORRECTED BY HAND 2026-08-25: the two lines above are MISLEADING, in the way
+# this map has been bitten by before. They measure the ENGINE artifact directory
+# -- which is genuinely unchanged, every file cloned byte-for-byte -- and the
+# engine dir happens to hold about seven files, so "all 7 artifacts identical"
+# reads as if it covered the seven CELL files. It does not, and TWO of those
+# changed: that is the entire reason this cell exists. `mint_route_b_cell.sh`
+# now says which directory it measured and compares the published bundles too.
+#
+# CELL FILES, measured from the PUBLISHED bundles (what a consumer gets):
+#   CHANGED PROVENANCE.txt  d9b950d36d3ced36 -> a498bbdd3ef88ea8
+#   CHANGED dart2bytecode.aot  eb22c50fb238570a -> 8dfb3b6682d591a3
+#   same    dartaotruntime  075ccbb2858f299d
+#   same    flutter_platform_strong.dill  099b03133aea3927
+#   same    route_b_analyze.aot  422dda43e36171b8
+#   CHANGED route_b_gen_dynamic_interface.aot  5ec94055fc0c9aeb -> c226800242a85028
+#   same    route_b_gen_kernel.aot  81e1d8f4dc72bf2b
+#   same    vm_platform.dill  015ef32c6cb988d8
+#
+# P1: private-class member-only dynamic interface + exact constructor grants; CFE refuses a dart: private-scope target
+93a375665d637f999bbff028488301a510bb611e 69f9831c360d9152862ec3897c67fb09ae843f3b

@@ -279,6 +279,49 @@ observation of the address space.
 
 ---
 
+## 7b. DELTA RE-AUDIT — trigger #1 fired 2026-08-25, cell `93a3756…`
+
+**Why it fired.** The Dart SDK lineage moved: the CFE now refuses a `dart:` URI as
+the target of `--resolve-private-names-in-library`, and the interface generator
+stopped emitting bare private `class:` items. §8's first trigger says that forces a
+re-audit.
+
+**Scope of this pass: a DELTA, not a re-derivation.** The question is only whether
+anything in §1's four properties or §3's path changed. Nothing did, and the reason
+is mechanical rather than argued:
+
+| check | result |
+|---|---|
+| files changed in the Dart tree | **exactly one:** `pkg/front_end/lib/src/source/source_loader.dart` |
+| runtime files changed | **none.** `runtime/lib/object.cc`, `runtime/vm/object.cc`, `runtime/vm/interpreter.cc` untouched |
+| engine artifacts in the new cell vs the donor | **byte-identical** — `ios-release/artifacts.zip` `216a326d81688d1a`, `dart-sdk-darwin-arm64.zip` `bc5948b7e4598f64`, `flutter_patched_sdk.zip` `213948fe75b4c7c4`, `flutter_patched_sdk_product.zip` `8c59cf50881ad44f` |
+| what the cell actually rebuilt | two HOST artifacts: `dart2bytecode.aot` (`eb22c50f…` → `8dfb3b66…`) and `route_b_gen_dynamic_interface.aot` |
+| I1 loader guard, I2 `PROT_READ`, I3 `InterpretCall`, I4 no runtime codegen | **unchanged** — none of their anchors is in a changed file |
+| new executable-memory path | **none.** The delta is name RESOLUTION at compile time |
+| new entitlement requirement | **none.** No JIT, no dynamic-codesigning |
+
+**So the substantive change is build-time hardening, and the runtime execution
+mechanism did not change at all.** That is worth stating positively rather than as
+an absence: a compliance claim about how downloaded bytes execute is unaffected by
+a change to which NAMES a compiler will resolve, and this cell demonstrates the
+separation cleanly — the engine binary was not rebuilt, it was cloned.
+
+**Measured consequence of the SDK change, on the consumer path** (the same test,
+the same fixture, only the cell differing):
+
+    old cell 2c4443ce, dart2bytecode eb22c50f
+      --resolve-private-names-in-library dart:core  ->  rc=0, COMPILED
+    new cell 93a3756…, dart2bytecode 8dfb3b66
+      the same invocation                           ->  rc=255, REFUSED
+                                                        "which is a platform library"
+
+Verified on the FETCHED-BACK bundle, not the build directory. Every one of the
+seven cell files matches the cell manifest by digest.
+
+**What this pass did NOT re-check:** §4's signed-bundle audit and §6's device
+trace. Neither can have moved — no engine bytes changed — but neither was re-run,
+and OPEN-1/OPEN-2 stay exactly as §7 leaves them.
+
 ## 8. WHEN THIS MUST BE RE-AUDITED
 
 Not on a schedule — on any of these:

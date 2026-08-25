@@ -19,7 +19,36 @@ shorebird:
                                                                   # has exact event acknowledgement but predates
                                                                   # FAILURE ROTATION, so a stuck batch head could still
                                                                   # censor lifecycle events behind it.
-                                                                  # The updater compiled into engine cell
+                                                                  # CELL RESTAMPED 2026-08-25 to
+                                                                  # 93a375665d637f999bbff028488301a510bb611e.
+                                                                  # A TOOLING-ONLY cell: every engine artifact is
+                                                                  # byte-identical to donor 2c4443ce
+                                                                  # (ios-release/artifacts.zip 216a326d81688d1a,
+                                                                  # dart-sdk-darwin-arm64.zip bc5948b7e4598f64,
+                                                                  # flutter_patched_sdk.zip 213948fe75b4c7c4,
+                                                                  # flutter_patched_sdk_product.zip 8c59cf50881ad44f),
+                                                                  # so the UPDATER and the whole runtime are unchanged
+                                                                  # and this revision still describes what executes.
+                                                                  # Two HOST artifacts moved:
+                                                                  #   dart2bytecode.aot  eb22c50f -> 8dfb3b66
+                                                                  #     the CFE now refuses a `dart:` URI as the target
+                                                                  #     of --resolve-private-names-in-library. Measured
+                                                                  #     consequence on the consumer path: the old cell
+                                                                  #     COMPILES that request, the new one refuses it.
+                                                                  #   route_b_gen_dynamic_interface.aot -> c22680024
+                                                                  #     private classes are represented by exact member
+                                                                  #     grants; construction is opt-in per constructor
+                                                                  #     and granted by default nowhere.
+                                                                  # Stamped from the FETCHED-BACK bundle: all seven
+                                                                  # cell files match the cell manifest by digest, and
+                                                                  # the published generator's output is byte-identical
+                                                                  # to the source generator's. Not from a build log.
+                                                                  # App Store compliance trigger #1 fired and was
+                                                                  # answered as a DELTA re-audit -- see
+                                                                  # selfhost/APPSTORE_COMPLIANCE.md §7b: no runtime
+                                                                  # file changed, so nothing in the execution
+                                                                  # mechanism moved.
+                                                                  # Previous cell, kept for rollback:
                                                                   # 2c4443cedd654fad8eebd877bbc215edbdd11615
                                                                   # (arm64 LC_UUID 4C4C4496-5555-3144-A132-BC57AC16BED0),
                                                                   # registered in selfhost/cdn/experimental_hashes.map,

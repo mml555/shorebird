@@ -82,6 +82,37 @@ note() { echo "==> $*"; }
 #
 # The comparison runs after every install below and before the map append, so
 # what it describes is the cell a consumer will actually download.
+# bundle_diff_comment <donorHash> <cellHash> <overlayRoot>
+#
+# The seven CELL files, this cell against the donor's, measured from the
+# PUBLISHED bundles rather than from the build directory -- so it describes what
+# a consumer downloads. This is the half `provenance_comment` structurally
+# cannot see: it compares engine artifact dirs, and the compiler bundle is a zip
+# somewhere else entirely.
+bundle_diff_comment() {
+  local donor=$1 cell=$2 root=$3
+  local a b dz cz rel ah bh
+  dz="$root/download.shorebird.dev/shorebird/$donor/route-b-compiler-$PLAT.zip"
+  cz="$root/download.shorebird.dev/shorebird/$cell/route-b-compiler-$PLAT.zip"
+  if [[ ! -f "$dz" || ! -f "$cz" ]]; then
+    echo "# CELL FILES: not compared -- one of the two bundles is absent."
+    return 0
+  fi
+  a=$(mktemp -d); b=$(mktemp -d)
+  (cd "$a" && unzip -o -q "$dz") ; (cd "$b" && unzip -o -q "$cz")
+  echo "# CELL FILES, measured from the PUBLISHED bundles (what a consumer gets):"
+  while IFS= read -r rel; do
+    ah=$( [[ -f "$a/$rel" ]] && shasum -a 256 "$a/$rel" | cut -c1-16 || echo "absent" )
+    bh=$(shasum -a 256 "$b/$rel" | cut -c1-16)
+    if [[ "$ah" == "$bh" ]]; then
+      echo "#   same    $rel  $bh"
+    else
+      echo "#   CHANGED $rel  $ah -> $bh"
+    fi
+  done < <(cd "$b" && find . -type f | sed 's|^\./||' | sort)
+  rm -rf "$a" "$b"
+}
+
 provenance_comment() {
   local donor=$1 donor_dir=$2 cell_dir=$3 ios_digest=${4:-} note_text=${5:-}
   local rel ch dh entry
@@ -111,8 +142,18 @@ provenance_comment() {
   echo "# Route B compiler cell, minted $(date -u +%Y-%m-%d) from the cell"
   echo "# manifest (see mint_route_b_cell.sh)."
   if (( n_diff == 0 )); then
+    # SAY WHICH DIRECTORY WAS MEASURED. This compares the ENGINE artifact dir,
+    # and the engine dir happens to hold about seven files -- so "all 7
+    # artifacts identical" read as if it covered the CELL's seven files, which
+    # are the ones the map exists to describe and the ones a tooling-only mint
+    # changes. Corrected 2026-08-25 after this sentence was emitted for a cell
+    # whose whole purpose was two changed host artifacts. Same failure the
+    # header above describes, one level up: a measurement of one directory,
+    # worded as if it covered the whole cell.
     echo "# ANCESTRY, MEASURED against donor $donor at mint time:"
-    echo "# all $total artifacts identical, cloned byte-for-byte; only the CELL differs."
+    echo "# all $total ENGINE artifacts identical, cloned byte-for-byte."
+    echo "# (This says nothing about the seven CELL files -- see the bundle"
+    echo "#  comparison below, which is where a tooling-only change shows up.)"
   else
     echo "# ANCESTRY, MEASURED against donor $donor at mint time —"
     echo "# $n_diff of $total artifacts differ:"
@@ -218,7 +259,15 @@ MANIFEST=$(mktemp)
     [[ -f "$path" ]] || die "missing cell file $name at $path"
     printf '%s %s\n' "$name" "$(shasum -a 256 "$path" | cut -d' ' -f1)"
   done
-  [[ -n "$IOS_DIGEST" ]] && printf 'ios_artifacts_sha256 %s\n' "$IOS_DIGEST"
+  # `if`, not `[[ ... ]] && ...`: as a bare statement the latter returns 1 when
+  # the test is false, and under `set -e` that killed the whole script -- so a
+  # mint WITHOUT --ios-artifacts (the tooling-only case, which is the common one
+  # when only the compiler cell changes) exited 1 with no message at all. Found
+  # 2026-08-25 while minting a cell that changes two host artifacts and no engine
+  # bytes.
+  if [[ -n "$IOS_DIGEST" ]]; then
+    printf 'ios_artifacts_sha256 %s\n' "$IOS_DIGEST"
+  fi
 } | sort > "$MANIFEST"
 
 REV=$(shasum -a 256 "$MANIFEST" | cut -c1-40)
@@ -308,11 +357,11 @@ else
     note "map entry not previewed: ancestry is measured from the installed cell,"
     note "which --dry-run does not create"
   else
-    {
-      echo
-      provenance_comment "$DONOR" "$ENGINE_SRC" "$ENGINE_DST" "$IOS_DIGEST" "$NOTE"
-      echo "$REV $FALLBACK"
-    } >> "$MAP"
+    # DEFERRED UNTIL AFTER PUBLISHING. The comment now includes a comparison of
+    # the PUBLISHED cell bundles, and that bundle does not exist yet at this
+    # point -- appending here could only ever describe the engine half, which is
+    # exactly the half that does not change in a tooling-only mint.
+    MAP_PENDING=1
   fi
 fi
 
@@ -324,6 +373,16 @@ else
   # the published zip against the same number the identity was built from.
   ROUTE_B_IOS_ARTIFACTS_SHA256="$IOS_DIGEST" \
     "$HERE/publish_route_b_compiler.sh" --rev "$REV"
+fi
+
+if [[ "${MAP_PENDING:-0}" == 1 ]]; then
+  note "recording ancestry in $(basename "$MAP")"
+  {
+    echo
+    provenance_comment "$DONOR" "$ENGINE_SRC" "$ENGINE_DST" "$IOS_DIGEST" "$NOTE"
+    bundle_diff_comment "$DONOR" "$REV" "$OVERLAY"
+    echo "$REV $FALLBACK"
+  } >> "$MAP"
 fi
 
 echo
