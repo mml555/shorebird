@@ -62,6 +62,7 @@ class RouteBCompiler {
     required this.analyzer,
     required this.frontend,
     required this.interfaceGenerator,
+    required this.releaseProbe,
     required this.flutterPlatformDill,
     required this.provenance,
   });
@@ -85,6 +86,15 @@ class RouteBCompiler {
   /// The dynamic-interface generator, run by [runtime]. Decides what a release
   /// retains, and therefore what a future patch can name.
   final File interfaceGenerator;
+
+  /// P4.1's release probe, run by [runtime]. Reads the release's snapshot
+  /// profile and reports, per target, whether a supported invocation site
+  /// SURVIVED compilation — never whether execution reaches it.
+  ///
+  /// Cell-owned because it encodes gen_snapshot's snapshot-profile schema,
+  /// which carries no version field of its own. The producer never parses that
+  /// JSON.
+  final File releaseProbe;
 
   /// The Flutter platform dill a real app is compiled against.
   ///
@@ -135,6 +145,11 @@ const _requiredFiles = [
   // Retention is declared at release time, and must come from the same lineage
   // as the compiler that will resolve those names later.
   'route_b_gen_dynamic_interface.aot',
+  // P4.1's release probe. Required for the same reason the analyzer is: a cell
+  // published before it existed must fail HERE, naming the cell, rather than at
+  // the moment a patch needs a refusal gate and silently has none. A gate that
+  // is absent is indistinguishable from a gate that passed.
+  'route_b_release_probe.aot',
 ];
 
 /// Resolve producer tooling for [engineHash], or throw.
@@ -270,6 +285,7 @@ the release or with your Dart changes.''',
     interfaceGenerator: File(
       p.join(cell.path, 'route_b_gen_dynamic_interface.aot'),
     ),
+    releaseProbe: File(p.join(cell.path, 'route_b_release_probe.aot')),
     flutterPlatformDill: File(
       p.join(cell.path, 'flutter_platform_strong.dill'),
     ),

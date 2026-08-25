@@ -154,6 +154,7 @@ void main() {
           analyzer: _nowhere,
           frontend: _nowhere,
           interfaceGenerator: _nowhere,
+          releaseProbe: _nowhere,
           flutterPlatformDill: _nowhere,
           provenance: '',
         ),
@@ -1330,6 +1331,9 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
               ),
               interfaceGenerator: File(
                 p.join(flutterDir.path, 'route_b_gen_dynamic_interface.aot'),
+              ),
+              releaseProbe: File(
+                p.join(flutterDir.path, 'route_b_release_probe.aot'),
               ),
               flutterPlatformDill: File(
                 p.join(flutterDir.path, 'flutter_platform_strong.dill'),

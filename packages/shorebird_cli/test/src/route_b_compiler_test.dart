@@ -30,6 +30,8 @@ class _Bundle {
           contents['route_b_gen_kernel.aot'] ?? 'FRONTEND',
       'route_b_gen_dynamic_interface.aot':
           contents['route_b_gen_dynamic_interface.aot'] ?? 'INTERFACE-GEN',
+      'route_b_release_probe.aot':
+          contents['route_b_release_probe.aot'] ?? 'RELEASE-PROBE',
       'flutter_platform_strong.dill':
           contents['flutter_platform_strong.dill'] ?? 'FLUTTER-PLATFORM',
     };
@@ -240,6 +242,36 @@ void main() {
                 (e) => e.message,
                 'message',
                 contains('missing route_b_analyze.aot'),
+              ),
+        ),
+      );
+    });
+
+    test('reports INVALID when the release probe is missing', () async {
+      // P4.1's gate cannot be optional. A cell without the probe would leave
+      // the producer with no way to ask whether a target's call site survived,
+      // and an absent gate is indistinguishable from a gate that passed -- so
+      // the cell is INVALID here, naming itself, rather than at the moment a
+      // patch needed a refusal it never got.
+      await expectLater(
+        resolve(
+          bundle: _Bundle.build(
+            tmp,
+            engineHash: engineHash,
+            omit: ['route_b_release_probe.aot'],
+          ),
+        ),
+        throwsA(
+          isA<RouteBCompilerException>()
+              .having(
+                (e) => e.problem,
+                'problem',
+                RouteBCompilerProblem.invalid,
+              )
+              .having(
+                (e) => e.message,
+                'message',
+                contains('missing route_b_release_probe.aot'),
               ),
         ),
       );

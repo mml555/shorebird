@@ -221,12 +221,15 @@ files=(
   "route_b_analyze.aot:$OUT/zip_archives/route_b_analyze.aot"
   "route_b_gen_kernel.aot:$OUT/zip_archives/route_b_gen_kernel.aot"
   "route_b_gen_dynamic_interface.aot:$OUT/zip_archives/route_b_gen_dynamic_interface.aot"
+  # P4.1: profile-schema knowledge belongs to the compiler that emitted
+  # the profile, so the probe is addressed with the rest of the cell.
+  "route_b_release_probe.aot:$OUT/zip_archives/route_b_release_probe.aot"
   "flutter_platform_strong.dill:$FLUTTER_PLATFORM"
 )
 
 # THE iOS ENGINE JOINS THE IDENTITY.
 #
-# The seven files above are the HOST compiler cell. They do not cover the iOS
+# The eight files above are the HOST compiler cell. They do not cover the iOS
 # engine, and an embedder-only change (shell/common/shorebird/shorebird.cc) moves
 # the runtime bytes while leaving every one of them byte-identical -- so the mint
 # computed the SAME address for a different engine. Measured, not supposed: a

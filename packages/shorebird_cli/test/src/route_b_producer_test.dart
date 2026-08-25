@@ -33,6 +33,9 @@ void main() {
       interfaceGenerator: File(
         p.join(cell.path, 'route_b_gen_dynamic_interface.aot'),
       ),
+      releaseProbe: File(
+        p.join(cell.path, 'route_b_release_probe.aot'),
+      ),
       flutterPlatformDill: File(
         p.join(cell.path, 'flutter_platform_strong.dill'),
       ),

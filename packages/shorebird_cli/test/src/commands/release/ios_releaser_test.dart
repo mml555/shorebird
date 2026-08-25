@@ -58,6 +58,9 @@ RouteBCompiler _cell(Directory dir) => RouteBCompiler(
   interfaceGenerator: File(
     p.join(dir.path, 'route_b_gen_dynamic_interface.aot'),
   ),
+  releaseProbe: File(
+    p.join(dir.path, 'route_b_release_probe.aot'),
+  ),
   flutterPlatformDill: File(p.join(dir.path, 'flutter_platform_strong.dill')),
   provenance: 'engine revision  : engine-abc',
 );
@@ -122,6 +125,7 @@ void main() {
           analyzer: _nowhere,
           frontend: _nowhere,
           interfaceGenerator: _nowhere,
+          releaseProbe: _nowhere,
           flutterPlatformDill: _nowhere,
           provenance: '',
         ),
