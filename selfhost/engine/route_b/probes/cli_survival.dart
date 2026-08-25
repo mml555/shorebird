@@ -18,7 +18,8 @@
 //   dart --packages=<repo>/.dart_tool/package_config.json cli_survival.dart \
 //     <cell.zip> <base.dill> <patched.dill> <import.dill> <buildId> \
 //     <outDir> <projectRoot> <vm_platform.dill> <engineHash> \
-//     <profile.json> <binding.json> <artifactSha256> [--no-gate|--no-profile]
+//     <profile.json> <binding.json> <artifactSha256>
+//     [--no-gate|--no-profile] [--bound]
 //
 // --no-gate omits the oracle entirely. That is the MUTATION arm: it shows what
 // the product does with the gate removed, which is the only way to know the
@@ -34,6 +35,7 @@ import 'dart:typed_data';
 
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
+import 'package:shorebird_cli/src/route_b_binding.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
@@ -58,6 +60,10 @@ Future<void> main(List<String> args) async {
   // patcher builds exactly this oracle rather than omitting the gate, because
   // an absent gate is indistinguishable from a gate that passed.
   final legacy = args.contains('--no-profile');
+  // P4.4. With evidence the producer records a binding and refuses a target
+  // whose SHAPE changed; without it, it records nothing and asks nothing --
+  // which is the mutation arm.
+  final bound = args.contains('--bound');
 
   final compiler = await resolveRouteBCompiler(
     engineHash: engineHash,
@@ -131,6 +137,14 @@ Future<void> main(List<String> args) async {
         workingDirectory: work,
         projectRoot: projectRoot,
         survival: oracle,
+        releaseEvidence: bound
+            ? RouteBReleaseEvidence(
+                releaseBuildId: buildId,
+                engineRevision: engineHash,
+                compatibilityRevision: routeBCompatibilityRevision,
+                releaseArtifactSha256: artifactSha,
+              )
+            : null,
         run: (executable, arguments) {
           // THE DECLARED DEVIATION, identical to cli_lower.dart's. Swapping the
           // platform path alone is not enough: `--target flutter` makes the CFE

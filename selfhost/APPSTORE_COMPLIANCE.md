@@ -369,6 +369,47 @@ no code path on a device at all.
 Verified by `probes/p41_producer_end_to_end.sh` against the **fetched-back**
 published bundle (`65a5aba0fbb493de…`, probe `ee144635d144a080`), 13/13.
 
+## 7d. DELTA RE-AUDIT — cell `9b5f040c…`, 2026-08-25 (P4.4)
+
+**Why it fired.** The compiler cell's coverage analyzer moved
+(`route_b_analyze.aot` `422dda43…` → `14538a67…`), raising the analysis version
+from 8 to 9 so it emits a signature identity per changed member.
+
+**Determination: NO RUNTIME DELTA.** The same six engine artifacts as donor
+`ac5d3b63…`, byte-for-byte — `ios-release/artifacts.zip` `216a326d81688d1a`,
+`dart-sdk-darwin-arm64.zip` `bc5948b7e4598f64`, both patched-SDK zips, and both
+`darwin-arm64` zips. Only `engine_stamp.json` re-derives, because it records the
+address it is filed under.
+
+**What changed, and why it cannot touch §1 or §3.** One host artifact that runs
+on the build machine before publication. It reads two kernels and reports what
+differs; it emits no bytecode, is never downloaded to a device, and is not
+linked into an app. The new field it emits is consumed by the producer to REFUSE
+a patch whose member changed shape.
+
+| invariant | status |
+|---|---|
+| I1 loader guard | **unchanged** |
+| I2 `PROT_READ` mapping | **unchanged** |
+| I3 execution through the pre-existing `InterpretCall` stub | **unchanged** |
+| I4 no runtime code generation | **unchanged** |
+| new executable-memory path | **none** |
+| new entitlement requirement | **none** |
+
+Same argument as §7c, and it is the argument that makes these cheap: **P4.4 can
+only turn a publication into a refusal.** A gate that adds refusals cannot widen
+what runs on a device.
+
+One thing worth noting positively rather than as an absence: the container now
+carries a binding, which IS shipped to devices. It rides as an **additive header
+field under format version 1**, and the device-side reader was measured against
+it — `probes/p44_container_binding_compat.sh` runs the real
+`packaging/patch_container.dart` over a container with a binding and over one
+without. That reader refuses an unknown *version* on purpose, so had it also
+refused unknown *keys* this would have broken every patch on the shipped engine,
+on device, after the CLI reported success. It does not, and that is measured
+rather than assumed.
+
 ## 8. WHEN THIS MUST BE RE-AUDITED
 
 Not on a schedule — on any of these:

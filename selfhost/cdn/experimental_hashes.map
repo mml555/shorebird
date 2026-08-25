@@ -325,3 +325,21 @@ f8654294c253a132ae5da9e38ddf9aa85d6a257e 69f9831c360d9152862ec3897c67fb09ae843f3
 #   CHANGED route_b_release_probe.aot  absent -> ee144635d144a080
 #   same    vm_platform.dill  015ef32c6cb988d8
 ac5d3b63ff0d074a4aa3742acc03c178f4517988 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-25 from the cell
+# manifest (see mint_route_b_cell.sh).
+# ANCESTRY, MEASURED against donor ac5d3b63ff0d074a4aa3742acc03c178f4517988 at mint time —
+# 1 of 7 artifacts differ:
+#   CHANGED engine_stamp.json — sha256 c376f922e400a1e311d27ba91f9df98d779f7c202de8931807dd19c4829e4691 (donor 2c009bbeb76988525590eeeef4a6f62cb68a4d89155dfa234955a6268c7a60e3)
+# Donor ac5d3b63ff0d074a4aa3742acc03c178f4517988 supplied the other 6, byte-for-byte.
+# CELL FILES, measured from the PUBLISHED bundles (what a consumer gets):
+#   CHANGED PROVENANCE.txt  7f08236a171be008 -> d0b715560c2b1fa4
+#   same    dart2bytecode.aot  8dfb3b6682d591a3
+#   same    dartaotruntime  075ccbb2858f299d
+#   same    flutter_platform_strong.dill  099b03133aea3927
+#   CHANGED route_b_analyze.aot  422dda43e36171b8 -> 14538a6731604442
+#   same    route_b_gen_dynamic_interface.aot  c226800242a85028
+#   same    route_b_gen_kernel.aot  81e1d8f4dc72bf2b
+#   same    route_b_release_probe.aot  ee144635d144a080
+#   same    vm_platform.dill  015ef32c6cb988d8
+9b5f040c18a43f6c1c7fae66b7c60d5936cc8b1f 69f9831c360d9152862ec3897c67fb09ae843f3b

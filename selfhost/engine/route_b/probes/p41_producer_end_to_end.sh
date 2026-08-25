@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words dartaotruntime prepass callsite CALLSITES unmutated localcell nogate
+# cspell:words dartaotruntime prepass callsite CALLSITES unmutated localcell nogate sigdir nobind
 #
 # p41_producer_end_to_end.sh -- P4.1 through the ACTUAL PRODUCER.
 #
@@ -24,6 +24,9 @@
 #   |                |      | worded as absence                               |
 #   | foldOpaque     | on, LEGACY release with no profile | REFUSED as UNKNOWN,|
 #   |                |      | naming RELEASE_EVIDENCE_ABSENT                  |
+#   | foldOpaque, String->Object, --bound | REFUSED, TARGET_SIGNATURE_CHANGED |
+#   | the same, binding removed           | PUBLISHED -- P4.4's mutation arm  |
+#   | foldOpaque body edit, --bound   | PUBLISHED -- binding on is not a veto |
 #
 #   STOP/INVALID: if the foldConst-with-gate-OFF arm REFUSES, then something
 #   other than the gate is refusing and every row above is uninterpretable.
@@ -214,6 +217,29 @@ patched opaque "? 'OPQ' : 'X'" "? 'NEW-OPQ' : 'X'"
 patched const  "? 'CST' : 'X'" "? 'NEW-CST' : 'X'"
 patched dead   "? 'DBR-\$x' : 'X'" "? 'NEW-DBR-\$x' : 'X'"
 
+# P4.4. A SHAPE change on one member and nothing else. The release's compiled
+# call sites expect the release's return type, and they carry the release's own
+# argument descriptor -- so a replacement of a different shape cannot be called
+# correctly by them, and no runtime report would say so.
+sigdir="$WORK/patch_sig"; mkdir -p "$sigdir/lib" "$sigdir/.dart_tool"
+python3 - "$APP/lib/container_target.dart" "$sigdir/lib/container_target.dart" <<'PY'
+import sys, pathlib
+src, dst = sys.argv[1], sys.argv[2]
+s = pathlib.Path(src).read_text()
+# RETURN TYPE, not arity. An arity change also breaks the CALLER's replacement
+# at compile time -- a real consequence, but it refuses on `_specimenLine`
+# first (sorted before `foldOpaque`) and the signature gate never runs. A
+# return-type change leaves the caller's source byte-identical, so `foldOpaque`
+# is the only changed member and the arm tests exactly one thing.
+s = s.replace("String foldOpaque() =>", "Object foldOpaque() =>", 1)
+pathlib.Path(dst).write_text(s)
+PY
+sed "s|file://$APP/|file://$sigdir/|" "$APP/.dart_tool/package_config.json" \
+  > "$sigdir/.dart_tool/package_config.json"
+(cd "$sigdir" && "$DART" "$GEN_KERNEL" --platform "$OUT/vm_platform.dill" --aot \
+  --packages .dart_tool/package_config.json --dynamic-interface "$WORK/di.yaml" \
+  -o "$WORK/patched_sig.dill" "$LIB" >/dev/null)
+
 # ---- drive the real producer ---------------------------------------------
 run_arm() { # <name> <patched.dill> <artifact-sha> [--no-gate]
   local name=$1 dill=$2 art=$3; shift 3
@@ -279,6 +305,25 @@ check "  ...naming the missing sidecar" \
       -ge 1 ] && echo named || echo absent)" named
 check "  ...and NOT as absence of a call site" \
   "$(grep -c 'attach and change nothing' "$WORK/out_legacy.txt" || true)" 0
+
+note "ARM 7 -- P4.4: a SHAPE CHANGE, bound to the release"
+run_arm sig "$WORK/patched_sig.dill" "$ART" --bound >/dev/null
+check "a changed shape is REFUSED" "$(verdict sig)" REFUSED
+check "  ...named as a signature change" \
+  "$([ "$(grep -c 'TARGET_SIGNATURE_CHANGED' "$WORK/out_sig.txt" || true)" \
+      -ge 1 ] && echo named || echo absent)" named
+check "  ...showing both shapes" \
+  "$([ "$(grep -c -- '->dart.core::Object' "$WORK/out_sig.txt" \
+      || true)" -ge 1 ] && echo shown || echo hidden)" shown
+
+note "ARM 8 -- the same shape change with the BINDING REMOVED (the mutation)"
+run_arm sig_nobind "$WORK/patched_sig.dill" "$ART" >/dev/null
+check "it publishes once nothing is bound" "$(verdict sig_nobind)" PUBLISHED
+
+note "ARM 9 -- the ordinary body edit is still bound and still publishes"
+run_arm opaque_bound "$WORK/patched_opaque.dill" "$ART" --bound >/dev/null
+check "an unchanged shape publishes WITH the binding on" \
+  "$(verdict opaque_bound)" PUBLISHED
 
 note "PASS=$pass FAIL=$fail"
 echo "work dir kept: $WORK"

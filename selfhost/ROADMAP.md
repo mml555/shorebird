@@ -33,7 +33,7 @@ touching it.
 | **P1** | **Private-library scope** — can replacement code compile with the target library's real privacy identity instead of a synthetic library? | **IN PROGRESS, and it is NOT greenfield — see §P1 below.** The mechanism ships and is wired per-target in the real producer; a private FIELD READ is device-proven. The residual is the Flutter-shaped case, the bind-time arms, and the rescore |
 | **P2** | **Widen the replacement ABI** — receiver **+ positional args** | **DONE 2026-08-25 for REQUIRED POSITIONALS: proven on host and on physical iOS**, including private receiver + multiple typed arguments + private-member access in one body (`args=NEW-A-7-FLD`, then rollback to `args=OLD`). Named, optional-positional and type arguments **remain deliberately unsupported and refused before publication** — that is the boundary, not a gap to close next. **It was PROVISIONALLY SELECTED, never corpus-selected**, so its completion says nothing about what the next dominant blocker is | Not corpus-selected: P1.5 produced no ranking. Selected on Phase 0's measured **6/10** plus an independently established architectural limitation, with P1 having just removed the former 9/10 private-scope blocker. Scored on its own fixtures before any broad compatibility claim |
 | **P3 / P1.5** | **Determine the next compatibility widening after privacy + required-positionals** | **OPEN, and now a PARALLEL research item — it gates nothing.** Two corpus models tried, neither usable. Its next task is a study DESIGN, not more cases: the era-appropriate-toolchain precommit, and a NEW measurement epoch for analyzer v8 rather than editing `FROZEN_VERSION = 6` in place |
-| **P4** | **Route B publication refusal gates** | **IN PROGRESS. P4.1 and P4.2 CLOSED** (2026-08-25); P4.3–P4.5 remain — see §P4 |
+| **P4** | **Route B publication refusal gates** | **CLOSED 2026-08-25.** All five items, live on the publication path in cell `9b5f040c…` — see §P4 |
 | **P5** | **Android build/config compatibility enforcement** | OPEN. A wrong-flavor patch can currently be accepted |
 | **P6** | **Certify inherited workflows** as PROVEN / FAILED / UNSUPPORTED | OPEN, broad, cheap per item |
 
@@ -252,7 +252,19 @@ behind it.
 
 ---
 
-## P4 — fail before publication  *(P4.1 and P4.2 closed)*
+## P4 — fail before publication  *(CLOSED)*
+
+> **Every mechanically knowable prerequisite currently required by Route B is
+> checked against the exact release and the exact target before publication.
+> Unsupported or unverifiable cases fail closed with a reason that does not
+> claim more than was measured. Every mandatory refusal gate has a mutation
+> proving it affects the publication outcome.**
+
+That is the closure criterion, and it is enforced rather than asserted:
+`test/src/route_b_publication_gates_test.dart` fails if any mandatory gate lacks
+a positive, negative or mutation arm, and
+`probes/p41_producer_end_to_end.sh` runs 18 arms through the real producer
+against a fetched-back published cell.
 
 **The invariant:** *if the system publishes a Route B patch, every mechanically
 knowable prerequisite for executing that patch has already been proven against
@@ -275,9 +287,9 @@ already measured:
 |---|---|---|
 | **P4.1** target reachability | **CLOSED 2026-08-25.** Cell-owned `route_b_release_probe.aot` over the release's own v8 snapshot profile, bound to the App binary's sha256; producer refuses `NO_SURVIVING_CALLSITE` and `UNKNOWN` with distinct messages. `P41_RELEASE_PROBE_SPEC.md` freezes the contract; four probes gate it, including 10/10 end-to-end through the actual producer with a gate-removed mutation arm. Wording bounded: **survival, never reachability** — `deadBranch` is the permanent control that publishes | — |
 | **P4.2** target's own grant | **CLOSED.** `capabilities.refuseTarget` reads `privateClassPublicMembers`, so a target the release never retained is refused by name instead of failing at ATTACH | — |
-| **P4.3** ABI/signature refusal | already product-visible: the CLI refuses named parameters and optional positionals at patch time, naming the reason, against identical release bytes (`g37_param_abi.sh`) | keep it, and pin the *product-layer wording* with a test so the boundary cannot drift silently |
-| **P4.4** release identity coherence | `route_b.json` records engine revision, patchable density, artifact digests, build config and a define fingerprint; the patcher already refuses a define mismatch | bind the remaining inputs explicitly: target library, selector/signature, capability manifest, Route B compatibility revision, cell identity |
-| **P4.5** mutation tests | done per-change by habit | make it the *rule* for every gate, with the table of "disable X → bad patch publishes" |
+| **P4.3** ABI/signature refusal | **CLOSED.** The boundary is pinned to CODES, not prose: `UNSUPPORTED_PARAMETER_SHAPE(named_parameters)`, `(optional_positional_parameters)`, `UNSUPPORTED_TYPE_SHAPE(generic_method)`, prepended to the real refusal. An unrecognised shape reason refuses as `UNSUPPORTED_UNCLASSIFIED` — a visible mapping gap, never a pass | — |
+| **P4.4** release identity coherence | **CLOSED**, in three layers: release-bound evidence, a per-target receipt, and a binding carried in the container. Target identity is structured (library / owning class / member / signature), never a selector string. The analyzer now emits a signature identity, so a member whose SHAPE changed is refused — and so is one whose shape could not be established | — |
+| **P4.5** mutation tests | **CLOSED.** One executable matrix; a mandatory gate without positive + negative + mutation arms fails the suite. Mutation-checked by adding an unwired gate and watching it fail | — |
 
 ### THE P4.1 CONSTRAINT, measured before the gate is designed
 

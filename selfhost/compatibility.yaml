@@ -19,6 +19,29 @@ shorebird:
                                                                   # has exact event acknowledgement but predates
                                                                   # FAILURE ROTATION, so a stuck batch head could still
                                                                   # censor lifecycle events behind it.
+                                                                  # CELL RESTAMPED 2026-08-25 (third time today) to
+                                                                  # 9b5f040c18a43f6c1c7fae66b7c60d5936cc8b1f.
+                                                                  # P4.4: ONE artifact moved, route_b_analyze.aot
+                                                                  # 422dda43 -> 14538a67, raising the analysis version
+                                                                  # 8 -> 9 and adding a SIGNATURE identity per changed
+                                                                  # member. The producer refuses a target whose shape
+                                                                  # changed, and one whose shape could not be
+                                                                  # established -- not established is not unchanged.
+                                                                  # Everything else is byte-identical to donor
+                                                                  # ac5d3b63. NO RUNTIME DELTA: the same six engine
+                                                                  # artifacts, byte-for-byte; only engine_stamp.json
+                                                                  # re-derives. See APPSTORE_COMPLIANCE.md §7d.
+                                                                  # Qualified the same way: fetched back over HTTP
+                                                                  # (9eaa0baacbcef66f, which differs from donor
+                                                                  # 65a5aba0fbb493de, so not fallback bytes), AUDIT
+                                                                  # CLEAN on all eight members, DELIVERY VERIFIED
+                                                                  # through the consumer path, and 18/18 through the
+                                                                  # REAL producer using the fetched cell -- including a
+                                                                  # shape change refused as TARGET_SIGNATURE_CHANGED
+                                                                  # and its mutation arm showing the same patch
+                                                                  # publishes once nothing is bound.
+                                                                  # Previous cell, kept for rollback:
+                                                                  # ac5d3b63ff0d074a4aa3742acc03c178f4517988.
                                                                   # CELL RESTAMPED 2026-08-25 (second time today) to
                                                                   # ac5d3b63ff0d074a4aa3742acc03c178f4517988.
                                                                   # P4.1: the cell gains an EIGHTH member,
