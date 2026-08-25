@@ -92,28 +92,62 @@ producer guard, which ships with the CLI, and
 `probes/p1_private_scope_controls.sh` is **RED against the published cell by
 design**. Evidence: `engine/route_b/evidence/p1_private_scope_controls.txt`.
 
+### Bind-time qualification — DONE 2026-08-25, GREEN 8/8
+
+`probes/p1_bind_private_receiver.sh`. **The idiomatic Flutter shape works:** a
+patch to a method of a conventionally PRIVATE State class binds and executes,
+and its new body reads a private field, reads a private getter and calls a
+private method (`NEW-FLDF` / `NEW-GETG` / `NEW-MTHM`) on the host AOT runtime.
+That is the shape Phase 0 said dominates — 7 of 14 blocked emit-targets were
+methods of one `_FullscreenVideoViewerState` — and the shape the existing device
+specimen does **not** cover, which was a private field on a *public* class.
+
+**And the capability question came back the good way.** Arm B4b withheld a
+private member from the interface while keeping it **dispatchable in the
+release** (called through a dynamic receiver, so nothing can inline it away; the
+baseline prints its value). A patch still could not reach it. So **the interface
+grant is what gates a patch's reach — not retention, and not the private-name
+key.** Members are filtered to the granted set from the patch's point of view,
+even for a member the release is dispatching by name at that moment.
+
+Refusal *stages* are recorded because they are not interchangeable: a second
+library's private is refused at COMPILE and never reaches bind; an ungranted
+member of the target's own class is refused at BIND; and a member that exists
+nowhere is the vacuity control that makes the other two mean anything.
+
+Evidence, including the one harness artifact that cost a detour (the C++ smoke
+invoke passes a NULL receiver, so *passing* arms also print a
+`NoSuchMethodError`): `engine/route_b/evidence/p1_bind_private_receiver.txt`.
+
 ### The work that is actually left in P1
 
-1. **The Flutter-shaped case, end to end.** Phase 0's dominant sub-blocker was
-   methods on a conventionally private `State` class — 7 of 14 blocked emit
-   targets on one `_FullscreenVideoViewerState`. The proven specimen is the
-   *opposite* shape: a private field on a **public** class. The private-receiver
-   path (`dynamic` lowering) is unit-tested and host-proven, not device-proven.
-2. **A bind-time table, because a compile-time one cannot see this.** With a
-   `dynamic` receiver the front end accepts any member name with no privacy test,
-   so `self._x` compiles with or without the flag and fails at **BIND**. Any
-   scoring table for the private-receiver case must run the AOT runtime arm —
-   `probes/p3_usability.sh` is the working example. **This is a correction to
-   P1.1's precommitted table**, which expected a compile-level REFUSE for the
-   no-flag case; that holds only for a typed receiver.
-3. **Private method/getter call on device**, and a decision on private **writes**
-   (Phase 0 saw compound writes **0 times**, so a plain write may not be worth a
-   design project — but say so from data, not from silence).
-4. **The `🐞` capability-grant hole in the same area:** retaining a private class
-   makes it **allocatable from a patch** — the patch constructed `_Dead()` with no
-   constructor named in the interface. That is a privacy-boundary defect inside
-   P1's own objective, not just a P4 refusal.
-5. **Then P1.5**, which is the payoff measurement and the gate on P2.
+1. **`_Dead()` — private-class allocatability. Next, and it is a permission
+   boundary, not cleanup.** Retaining a private class currently grants more
+   authority than the manifest names: the patch constructed `_Dead()` with **no
+   constructor named in the interface**, because a `class:` item covers the
+   implicit public default constructor. B4b just established that MEMBER reach is
+   properly gated, which makes this the remaining hole on the *other* axis.
+   Target invariant: **class retained/resolvable is not constructor callable.**
+   Controls to distinguish: class retained + constructor absent → REFUSE;
+   constructor explicitly granted → PASS; a *different* private constructor not
+   granted → REFUSE; factory and redirecting constructors **explicitly
+   classified** rather than inherited by accident. Fix it at the layer that owns
+   callable capability semantics — the interface/retention layer — not with a
+   producer blacklist; the producer guard stays as defence in depth.
+2. **Then batch the mint.** Do not mint for the `dart:` CFE guard alone. One
+   SDK-lineage transition carrying: the `dart:` refusal, the constructor
+   capability fix, and anything the bind arm proves is genuinely required. Then
+   `dart_patches.sh --verify` → mint a coherent cell → producer audit and
+   fetch-back → **P0 re-audit trigger #1** → `compatibility.yaml` restamp.
+3. **Device-prove the private `_FooState` getter/method path** after the mint:
+   exact target/library receipt, successful bind, interpreted execution, a
+   visible `NEW-*`, and an unrelated same-screen control still at its release
+   value.
+4. **A decision on private writes**, from data: Phase 0 saw compound writes
+   **0 times**, so silence is not the same as evidence either way.
+5. **Then P1.5**, fresh — not a reclassification of the 2026-08-11 numbers. The
+   old 9/10 stays useful as the historical reason P1 was selected; it is not the
+   current engine's acceptance rate.
 
 ## P3 — what has to clear before the compatibility study restarts
 
