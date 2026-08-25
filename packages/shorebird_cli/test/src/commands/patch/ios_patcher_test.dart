@@ -35,6 +35,8 @@ import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
+import 'package:shorebird_cli/src/route_b_binding.dart';
+import 'package:shorebird_cli/src/third_party/flutter_tools/lib/src/base/process.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
@@ -1146,6 +1148,9 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
           bool corruptKernel = false,
           String? capabilityManifest,
           RouteBBuildConfig? buildConfig,
+          // Explicitly nullable, and defaulted to the current revision, so a
+          // test can express "recorded none" as well as "recorded another".
+          int? compatibilityRevision = routeBCompatibilityRevision,
         }) {
           final artifacts = <String, String>{};
           if (capabilityManifest != null) {
@@ -1191,6 +1196,10 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
               patchableCallSitesPerMiB: 1788,
               artifacts: artifacts,
               buildConfig: buildConfig,
+              // P4.4: a release with no contract revision is refused before
+              // anything else, so every fixture that expects to get FURTHER
+              // than that has to record one.
+              compatibilityRevision: compatibilityRevision,
             ),
           );
         }
@@ -1303,6 +1312,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
               projectRoot: any(named: 'projectRoot'),
               capabilities: any(named: 'capabilities'),
               survival: any(named: 'survival'),
+              releaseEvidence: any(named: 'releaseEvidence'),
             ),
           ).thenAnswer(
             (invocation) => Uint8List.fromList(
@@ -2021,6 +2031,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                             projectRoot: any(named: 'projectRoot'),
                             capabilities: any(named: 'capabilities'),
                             survival: any(named: 'survival'),
+                            releaseEvidence: any(named: 'releaseEvidence'),
                           ),
                         ).captured.single
                         as String;
@@ -2062,6 +2073,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                             projectRoot: any(named: 'projectRoot'),
                             capabilities: captureAny(named: 'capabilities'),
                             survival: any(named: 'survival'),
+                            releaseEvidence: any(named: 'releaseEvidence'),
                           ),
                         ).captured.single
                         as RouteBCapabilities?;
@@ -2076,6 +2088,79 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                   isNull,
                 );
               });
+            });
+
+            test('P4.4: refuses a release with no contract revision', () async {
+              // A release cut before the field existed. It cannot be
+              // established retroactively, and this refuses BEFORE resolving a
+              // cell or compiling anything -- if the contract does not match,
+              // everything downstream is uninterpretable.
+              writeReleaseProvenance(
+                engineRevision: releaseEngineRevision,
+                compatibilityRevision: null,
+              );
+              await expectLater(
+                runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                throwsA(isA<ProcessExit>()),
+              );
+              verify(
+                () => logger.err(
+                  any(that: contains('recorded no Route B contract revision')),
+                ),
+              ).called(1);
+              verifyNever(
+                () => routeBProducer.produce(
+                  compiler: any(named: 'compiler'),
+                  coverage: any(named: 'coverage'),
+                  importKernel: any(named: 'importKernel'),
+                  releaseBuildId: any(named: 'releaseBuildId'),
+                  workingDirectory: any(named: 'workingDirectory'),
+                  projectRoot: any(named: 'projectRoot'),
+                  capabilities: any(named: 'capabilities'),
+                  survival: any(named: 'survival'),
+                  releaseEvidence: any(named: 'releaseEvidence'),
+                ),
+              );
+            });
+
+            test('P4.4: refuses a release from a DIFFERENT revision', () async {
+              writeReleaseProvenance(
+                engineRevision: releaseEngineRevision,
+                compatibilityRevision: routeBCompatibilityRevision + 1,
+              );
+              await expectLater(
+                runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                throwsA(isA<ProcessExit>()),
+              );
+              // Both revisions named: "these cannot be mixed" is only actionable
+              // if you can see which two.
+              verify(
+                () => logger.err(
+                  any(
+                    that: allOf(
+                      contains(
+                        'revision ${routeBCompatibilityRevision + 1}',
+                      ),
+                      contains('publishes revision '
+                          '$routeBCompatibilityRevision'),
+                    ),
+                  ),
+                ),
+              ).called(1);
             });
 
             test(
@@ -2106,6 +2191,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                               projectRoot: any(named: 'projectRoot'),
                               capabilities: any(named: 'capabilities'),
                               survival: captureAny(named: 'survival'),
+                              releaseEvidence: any(named: 'releaseEvidence'),
                             ),
                           ).captured.single
                           as RouteBSurvivalOracle?;
@@ -2144,6 +2230,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                             projectRoot: any(named: 'projectRoot'),
                             capabilities: captureAny(named: 'capabilities'),
                             survival: any(named: 'survival'),
+                            releaseEvidence: any(named: 'releaseEvidence'),
                           ),
                         ).captured.single
                         as RouteBCapabilities?;

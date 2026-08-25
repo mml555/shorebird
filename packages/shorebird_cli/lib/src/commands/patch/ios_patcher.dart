@@ -28,6 +28,7 @@ import 'package:shorebird_cli/src/route_b_container.dart';
 import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
+import 'package:shorebird_cli/src/route_b_binding.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
@@ -247,6 +248,15 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
       // that build alone produces nothing shippable.
       await _verifyBuildConfigAgrees(provenance);
 
+      // P4.4. THE CONTRACT REVISION, before anything is compiled.
+      //
+      // A patch is only interpretable against one whole Route B contract --
+      // analysis version, container format, probe revision, capability model.
+      // A release cut under another revision may be perfectly fine and still
+      // disagree with this CLI about what a patch MEANS, and every individual
+      // check would pass while doing so.
+      _verifyCompatibilityRevision(provenance);
+
       final compiler = await _resolveRouteBCompiler(provenance);
       _verifyReleaseKernelsAgree(compiler, releaseArtifacts);
 
@@ -285,6 +295,14 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
           releaseArtifacts: releaseArtifacts,
           releaseArtifact: releaseArtifactFile,
           provenance: provenance,
+        ),
+        // P4.4 layers 1 and 3. What this patch is bound to, recorded IN the
+        // published container so any later reader can check it rather than
+        // having to trust that the names lined up.
+        releaseEvidence: _releaseEvidence(
+          provenance: provenance,
+          releaseArtifacts: releaseArtifacts,
+          buildId: buildId,
         ),
       );
     }
@@ -553,6 +571,48 @@ Nothing was uploaded. Create a new release and patch that instead.''',
     throw ProcessExit(ExitCode.software.code);
   }
 
+  /// Refuse a release cut under a different Route B contract revision.
+  ///
+  /// A missing revision is a release from before the field existed. It cannot be
+  /// established retroactively, and an unproven prerequisite is not a satisfied
+  /// one -- the same rule the snapshot profile follows.
+  void _verifyCompatibilityRevision(RouteBReleaseProvenance provenance) {
+    final recorded = provenance.compatibilityRevision;
+    if (recorded == routeBCompatibilityRevision) return;
+    logger.err(
+      recorded == null
+          ? '''
+This release recorded no Route B contract revision, so it predates the checks this version of Shorebird performs before publishing a patch.
+
+The release itself is fine and keeps running. It cannot receive a new Route B code patch, because the prerequisites cannot be established against it. Create a new release and patch that instead. Nothing was uploaded.'''
+          : '''
+This release was cut under Route B contract revision $recorded and this Shorebird publishes revision $routeBCompatibilityRevision.
+
+A patch is only interpretable against one whole contract, so these cannot be mixed even when every individual check passes. Create a new release with this version and patch that instead. Nothing was uploaded.''',
+    );
+    throw ProcessExit(ExitCode.software.code);
+  }
+
+  /// P4.4 layer 1, assembled from the release's own hash-verified artifacts.
+  RouteBReleaseEvidence _releaseEvidence({
+    required RouteBReleaseProvenance provenance,
+    required Map<String, File> releaseArtifacts,
+    required String buildId,
+  }) {
+    String? digest(String name) => provenance.artifacts[name];
+    return RouteBReleaseEvidence(
+      // From the release's own bytes, not from the sidecar's claim about them.
+      releaseBuildId: buildId,
+      engineRevision: provenance.engineRevision,
+      compatibilityRevision:
+          provenance.compatibilityRevision ?? routeBCompatibilityRevision,
+      releaseArtifactSha256: provenance.releaseArtifactSha256,
+      snapshotProfileSha256: digest(routeBSnapshotProfileFileName),
+      capabilityManifestSha256: digest(routeBCapabilityManifestFileName),
+      defineFingerprint: provenance.buildConfig?.fingerprint,
+    );
+  }
+
   /// P4.1's gate, bound to the artifact this patch will be applied to.
   ///
   /// NEVER returns null. A release that uploaded no profile, or no binding, is
@@ -758,6 +818,7 @@ Nothing was uploaded. Create a new release and patch that instead.''',
     RouteBCapabilities? capabilities,
     RouteBBuildConfig? buildConfig,
     RouteBSurvivalOracle? survival,
+    RouteBReleaseEvidence? releaseEvidence,
   }) {
     final workingDirectory = Directory(
       p.join(shorebirdEnv.buildDirectory.path, 'route_b'),
@@ -774,6 +835,7 @@ Nothing was uploaded. Create a new release and patch that instead.''',
         capabilities: capabilities,
         buildConfig: buildConfig,
         survival: survival,
+        releaseEvidence: releaseEvidence,
       );
     } on RouteBUnsupportedTarget catch (error) {
       logger.err(

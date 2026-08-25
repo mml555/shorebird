@@ -47,6 +47,7 @@ import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/route_b_abi.dart';
+import 'package:shorebird_cli/src/route_b_binding.dart';
 import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
@@ -116,6 +117,12 @@ class RouteBProducer {
   /// release published none, which is not permission: a private reference is
   /// then refused for want of evidence.
   ///
+  /// [releaseEvidence] is P4.4's layer 1, measured from the release the patch
+  /// will be published against. When supplied, the container carries a binding
+  /// naming it and one receipt per replaced member, and a shape change or an
+  /// unestablished shape refuses here. Null means no binding is recorded, which
+  /// only a host harness should ever want.
+  ///
   /// [survival] is P4.1's gate: for every target, whether a supported
   /// invocation site SURVIVED compilation in the exact release artifact. Null
   /// means no gate was supplied, and the caller is then asserting that this
@@ -132,6 +139,7 @@ class RouteBProducer {
     RouteBCapabilities? capabilities,
     RouteBBuildConfig? buildConfig,
     RouteBSurvivalOracle? survival,
+    RouteBReleaseEvidence? releaseEvidence,
     RouteBCompileRunner run = Process.runSync,
   }) {
     // Every changed member that can land, in a stable order so the container is
@@ -149,6 +157,7 @@ class RouteBProducer {
 
     workingDirectory.createSync(recursive: true);
     final targets = <RouteBPatchTarget>[];
+    final receipts = <RouteBTargetReceipt>[];
     for (var i = 0; i < selectors.length; i++) {
       final key = selectors[i];
       final source = coverage.sources[key];
@@ -232,6 +241,37 @@ class RouteBProducer {
           throw RouteBUnsupportedTarget(
             key,
             describeRouteBSurvivalRefusal(key, verdict),
+          );
+        }
+      }
+
+      // P4.4 -- THE SHAPE, not just the identity.
+      //
+      // Every patched member "changed"; that is the point. This asks whether
+      // its SIGNATURE changed, which is a different question with the opposite
+      // answer: the release's compiled call sites carry the release's own
+      // argument descriptor, so attaching a replacement with a different arity
+      // hands them a function they cannot call correctly, and nothing after
+      // publication can notice. A selector string cannot express this, which is
+      // why the receipt carries the two signatures rather than a name.
+      final signature = coverage.signatures[key];
+      if (releaseEvidence != null) {
+        if (signature == null) {
+          throw RouteBUnsupportedTarget(
+            key,
+            '${RouteBBindingProblem.signatureNotEstablished.wire} the '
+            'analysis recorded no signature for it on either side, so whether '
+            'its shape changed could not be established. Not established is '
+            'not unchanged',
+          );
+        }
+        if (signature.changed) {
+          throw RouteBUnsupportedTarget(
+            key,
+            '${RouteBBindingProblem.signatureChanged.wire} the release has '
+            '${signature.release} and this patch declares '
+            '${signature.patch}. A replacement must have the same shape as '
+            'the member it replaces',
           );
         }
       }
@@ -351,12 +391,44 @@ class RouteBProducer {
           bytecode: payload.readAsBytesSync(),
         ),
       );
+      // P4.4 layer 2. Written per target and never rolled up: the survival
+      // verdict is only about the artifact it was measured on, so the digest it
+      // was measured against travels WITH the verdict rather than beside it.
+      if (releaseEvidence != null) {
+        final dotted = selector.indexOf('.');
+        receipts.add(
+          RouteBTargetReceipt(
+            library: targetLibrary,
+            className: dotted > 0 ? selector.substring(0, dotted) : null,
+            member: dotted > 0 ? selector.substring(dotted + 1) : selector,
+            releaseSignature: signature?.release,
+            replacementSignature: signature?.patch,
+            capabilitiesConsumed: [
+              for (final access in lowering?.accesses ?? const [])
+                if (access.privateTarget case final t?)
+                  '${t.library}#${t.className}#${t.name}',
+            ],
+            survivalResult:
+                survivalVerdicts?[key]?.instrumentResult ?? 'NOT_ASKED',
+            measuredAgainstArtifactSha256:
+                releaseEvidence.releaseArtifactSha256,
+          ),
+        );
+      }
       logger.detail('[route-b] compiled ${parts.last} -> ${payload.path}');
     }
 
     return writeRouteBContainer(
       releaseBuildId: releaseBuildId,
       targets: targets,
+      // P4.4 layer 3, as an ADDITIVE header field under format version 1. The
+      // device-side reader indexes the keys it knows and ignores the rest, so
+      // this travels with the patch bytes -- covered by the container's own
+      // hashing -- without needing a format bump the shipped engine would
+      // refuse.
+      binding: releaseEvidence == null
+          ? null
+          : RouteBPatchBinding(evidence: releaseEvidence, receipts: receipts),
     );
   }
 

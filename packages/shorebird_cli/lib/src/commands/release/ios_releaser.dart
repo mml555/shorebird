@@ -19,6 +19,7 @@ import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform/apple/apple.dart';
 import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/route_b.dart';
+import 'package:shorebird_cli/src/route_b_binding.dart';
 import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
@@ -558,6 +559,13 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
         patchableCallSites: counted.sites,
         patchableCallSitesPerMiB: counted.perMiB,
         artifacts: artifacts,
+        // P4.4 layer 1. The digest of the thing every other digest here is
+        // evidence ABOUT, taken from the bytes this build produced -- the one
+        // moment it is unambiguously this release's.
+        releaseArtifactSha256: appBinary.existsSync()
+            ? sha256.convert(appBinary.readAsBytesSync()).toString()
+            : null,
+        compatibilityRevision: routeBCompatibilityRevision,
         // G4.1. Captured from the SAME buildArgs the release compiled with,
         // at the one moment they are unambiguously this release's. Null when the
         // release's effective define set could not be established — which since

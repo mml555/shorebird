@@ -41,7 +41,7 @@ RouteBCoverageAnalyzer get routeBCoverageAnalyzer =>
 /// granted. Reading a 7 document as a 6 would see the access with no
 /// `unsupported` reason and lower it unconditionally, which is the silent
 /// accept this gate exists for.
-const supportedRouteBAnalysisVersion = 8;
+const supportedRouteBAnalysisVersion = 9;
 
 /// What a patch may do with a changed member.
 enum RouteBRepresentability {
@@ -64,6 +64,34 @@ enum RouteBRepresentability {
 
   /// New in the patch. A patch replaces bodies; it cannot introduce members.
   added,
+}
+
+/// A changed member's signature, on both sides.
+///
+/// P4.4. `changed` is the load-bearing bit, and it is NOT the same question as
+/// "did this member change" -- every patched member changed, that is the point.
+/// This asks whether the SHAPE changed, because the release's compiled call
+/// sites carry the release's own ArgumentsDescriptor: attaching a replacement
+/// with a different arity gives those call sites a function they cannot call
+/// correctly, and nothing after publication can notice.
+class RouteBSignatureChange {
+  /// {@macro route_b_signature_change}
+  const RouteBSignatureChange({
+    required this.release,
+    required this.patch,
+    required this.changed,
+  });
+
+  /// The signature identity in the RELEASE.
+  final String release;
+
+  /// The signature identity in the patch.
+  final String patch;
+
+  /// Whether the two differ. Reported by the analyzer rather than re-derived
+  /// here: the strings are the analyzer's own normal form, and comparing them
+  /// in two places would eventually mean comparing them two ways.
+  final bool changed;
 }
 
 /// One member the patch cannot carry, and why.
@@ -225,6 +253,7 @@ class RouteBCoverage {
     required this.conditional,
     required this.rejections,
     required this.refusalSummary,
+    this.signatures = const {},
     this.sources = const {},
     this.lowering = const {},
   });
@@ -272,6 +301,23 @@ class RouteBCoverage {
         'the analysis carries an unknown verdict "$other"',
       ),
     };
+
+    final signatures = <String, RouteBSignatureChange>{};
+    if (map['signatures'] case final Map<String, Object?> raw) {
+      for (final entry in raw.entries) {
+        if (entry.value case final Map<String, Object?> sig) {
+          final release = sig['release'];
+          final patch = sig['patch'];
+          if (release is! String || patch is! String) continue;
+          signatures[entry.key] = RouteBSignatureChange(
+            release: release,
+            patch: patch,
+            // Absent means the analyzer did not say, which is not "unchanged".
+            changed: sig['changed'] as bool? ?? release != patch,
+          );
+        }
+      }
+    }
 
     final rejections = <RouteBRejection>[];
     for (final entry in (map['rejections'] as List<Object?>? ?? const [])) {
@@ -348,6 +394,7 @@ class RouteBCoverage {
       verdict: verdict,
       sources: sources,
       lowering: lowering,
+      signatures: signatures,
       changed: strings('changed'),
       added: strings('added'),
       removed: strings('removed'),
@@ -394,6 +441,12 @@ class RouteBCoverage {
 
   /// Implicit-`this` lowering facts, for changed INSTANCE members only.
   final Map<String, RouteBLowering> lowering;
+
+  /// Signature identities for changed members, keyed by `library#selector`.
+  ///
+  /// Empty for a release analyzed by a cell that predates P4.4, which the
+  /// producer treats as "not established" rather than as "unchanged".
+  final Map<String, RouteBSignatureChange> signatures;
 
   /// The refusal, as the user will read it.
   ///

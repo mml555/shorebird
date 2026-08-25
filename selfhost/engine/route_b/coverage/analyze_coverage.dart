@@ -63,7 +63,7 @@ import 'package:kernel/text/ast_to_text.dart';
 ///    compiler contract exactly -- the analyzer must never report a shape the
 ///    compiler will reject, because the refusal would then arrive at compile time
 ///    with a message about bytecode rather than about the patch.
-const analysisVersion = 8;
+const analysisVersion = 9;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -134,6 +134,17 @@ verdict is data, not an exit code, so a caller cannot act on it by accident.
   // ---- what changed -----------------------------------------------------
   final baseText = _memberText(base, isApp);
   final patchedText = _memberText(patched, isApp);
+  // P4.4. The SIGNATURE, separately from the whole printed procedure.
+  //
+  // `_memberText` already differs when a signature changes, so a signature
+  // change is reported as `changed` -- but that is indistinguishable from a body
+  // edit, and the two have opposite consequences. A body edit is the point of a
+  // patch; a signature change replaces a function the release's call sites
+  // invoke with a DIFFERENT arity or shape, and those call sites carry the
+  // release's own ArgumentsDescriptor. Nothing downstream could tell them apart
+  // from here, so both sides are reported and the product decides.
+  final baseSig = _memberSignature(base, isApp);
+  final patchedSig = _memberSignature(patched, isApp);
 
   final changed = <String>[];
   final added = <String>[];
@@ -298,6 +309,18 @@ verdict is data, not an exit code, so a caller cannot act on it by accident.
     verdict = reasons.isEmpty ? 'accept' : 'reject';
   }
 
+  // Only for members that exist on BOTH sides: an added member has no release
+  // signature to compare against, and a removed one has no replacement.
+  final signatures = <String, Map<String, Object?>>{
+    for (final key in changed)
+      if (baseSig[key] != null && patchedSig[key] != null)
+        key: {
+          'release': baseSig[key],
+          'patch': patchedSig[key],
+          'changed': baseSig[key] != patchedSig[key],
+        },
+  };
+
   final document = {
     'analysisVersion': analysisVersion,
     'baseDill': basePath,
@@ -312,6 +335,7 @@ verdict is data, not an exit code, so a caller cannot act on it by accident.
     'unknown': unknown,
     'sources': sources,
     'lowering': lowering,
+    'signatures': signatures,
     'rejections': rejections,
     'refusalSummary': reasons.isEmpty ? null : reasons.join('; '),
     'verdict': verdict,
@@ -440,6 +464,54 @@ String _selector(String? className, Procedure p) {
     _ => p.name.text,
   };
   return className == null ? name : '$className.$name';
+}
+
+/// `library#selector` -> a stable identity for the member's SIGNATURE only.
+///
+/// Deliberately not the printed procedure: that includes the body, so it changes
+/// on every patch and could never answer "did the shape change?". Built from the
+/// pieces a call site actually depends on -- arity, which positionals are
+/// required, the named parameters BY NAME, type-parameter count, and the return
+/// and parameter types -- so a reordering of named parameters (which callers do
+/// not see) does not read as a change, while adding one does.
+Map<String, String> _memberSignature(Component c, bool Function(Library) isApp) {
+  final out = <String, String>{};
+  for (final lib in c.libraries.where(isApp)) {
+    final uri = lib.importUri.toString();
+    for (final p in lib.procedures) {
+      out['$uri#${_selector(null, p)}'] = _signature(p);
+    }
+    for (final cls in lib.classes) {
+      for (final p in cls.procedures) {
+        out['$uri#${_selector(cls.name, p)}'] = _signature(p);
+      }
+    }
+  }
+  return out;
+}
+
+String _signature(Procedure p) {
+  final f = p.function;
+  String type(DartType t) {
+    final buffer = StringBuffer();
+    Printer(buffer).writeType(t);
+    return buffer.toString();
+  }
+
+  final positional = [
+    for (var i = 0; i < f.positionalParameters.length; i++)
+      '${i < f.requiredParameterCount ? '' : '?'}'
+          '${type(f.positionalParameters[i].type)}',
+  ];
+  // Sorted by name: callers pass named arguments by name, so their ORDER in the
+  // declaration is not part of the contract and must not read as a change.
+  final named = [
+    for (final n in [...f.namedParameters]..sort((a, b) => a.name!.compareTo(b.name!)))
+      '${n.isRequired ? 'required ' : ''}${n.name}:${type(n.type)}',
+  ];
+  return '<${f.typeParameters.length}>(${positional.join(',')}'
+      '${named.isEmpty ? '' : '{${named.join(',')}}'})'
+      '->${type(f.returnType)}';
 }
 
 String _text(Procedure p) {

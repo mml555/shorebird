@@ -26,6 +26,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:shorebird_cli/src/route_b_binding.dart';
 
 /// The container's magic bytes.
 const routeBContainerMagic = 'SBRBPTCH';
@@ -71,6 +72,7 @@ class RouteBPatchTarget {
 Uint8List writeRouteBContainer({
   required String releaseBuildId,
   required List<RouteBPatchTarget> targets,
+  RouteBPatchBinding? binding,
 }) {
   if (targets.isEmpty) {
     // A container with no targets installs, validates, attaches nothing and
@@ -96,6 +98,13 @@ Uint8List writeRouteBContainer({
       'formatVersion': routeBContainerFormatVersion,
       'release': {'buildId': releaseBuildId},
       'targets': entries,
+      // P4.4. ADDITIVE under format version 1, on purpose: the device-side
+      // reader indexes `targets` and the keys it knows and ignores the rest,
+      // so the binding travels with the patch bytes without a format bump the
+      // shipped engine would refuse. The device does not consult it; the
+      // publication path does, by re-reading it from these bytes rather than
+      // from the objects that produced them.
+      if (binding != null) 'binding': binding.toJson(),
     }),
   );
 

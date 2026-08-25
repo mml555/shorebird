@@ -130,6 +130,8 @@ class RouteBReleaseProvenance {
     required this.patchableCallSitesPerMiB,
     this.artifacts = const {},
     this.buildConfig,
+    this.releaseArtifactSha256,
+    this.compatibilityRevision,
   });
 
   /// Parses a sidecar's contents.
@@ -200,6 +202,10 @@ class RouteBReleaseProvenance {
       patchableCallSites: (decoded['patchableCallSites'] as num?)?.toInt() ?? 0,
       patchableCallSitesPerMiB:
           (decoded['patchableCallSitesPerMiB'] as num?)?.toDouble() ?? 0,
+      // P4.4 layer 1. Null for a release cut before these existed, which the
+      // patch side reads as "cannot be established" rather than as agreement.
+      releaseArtifactSha256: decoded['releaseArtifactSha256'] as String?,
+      compatibilityRevision: (decoded['compatibilityRevision'] as num?)?.toInt(),
     );
   }
 
@@ -238,6 +244,22 @@ class RouteBReleaseProvenance {
   /// is unavailable, and the patch side says which of the two it is.
   final RouteBBuildConfig? buildConfig;
 
+  /// sha256 of the App binary this release shipped.
+  ///
+  /// P4.4 layer 1. The digests in [artifacts] cover the SIDECARS; this covers
+  /// the thing they are evidence about. Null for a release cut before it was
+  /// recorded, which cannot be established later -- the bytes are whatever the
+  /// release uploaded, and hashing them at patch time would prove only that
+  /// they hash to themselves.
+  final String? releaseArtifactSha256;
+
+  /// The Route B contract revision this release was cut under.
+  ///
+  /// Not a file format version: it moves when any part of the publication
+  /// contract moves, because a patch is only interpretable against one whole
+  /// contract. Null for a release that predates the field.
+  final int? compatibilityRevision;
+
   /// Renders the sidecar. Pretty-printed: it is small, it is read by people
   /// debugging a release, and it ships inside a zip either way.
   String toJson() => const JsonEncoder.withIndent('  ').convert({
@@ -246,6 +268,10 @@ class RouteBReleaseProvenance {
     'patchableCallSites': patchableCallSites,
     'patchableCallSitesPerMiB': patchableCallSitesPerMiB,
     'artifacts': artifacts,
+    if (releaseArtifactSha256 != null)
+      'releaseArtifactSha256': releaseArtifactSha256,
+    if (compatibilityRevision != null)
+      'compatibilityRevision': compatibilityRevision,
     if (buildConfig != null) 'buildConfig': buildConfig!.toJson(),
   });
 }
