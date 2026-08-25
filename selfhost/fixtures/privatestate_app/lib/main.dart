@@ -73,7 +73,7 @@ class _FooState extends State<ProbeHome> {
   // THE PATCH TARGET. A public method of a private class, which is what a real
   // Flutter patch almost always is.
   @pragma('vm:never-inline')
-  String target() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'OLD' : 'X';
+  String target() => 'NEW-$_field-$_getter-${_method()}';
 
   // The unrelated same-screen control. Must read `CTL` before and after.
   @pragma('vm:never-inline')

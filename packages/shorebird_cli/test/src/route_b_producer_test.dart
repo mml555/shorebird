@@ -1079,6 +1079,41 @@ void main() {
           );
         });
 
+        test('braces a receiver access inside a simple interpolation', () {
+          // FOUND ON DEVICE, 2026-08-25, and it is the silent-wrong class.
+          //
+          // The lowering inserts the receiver prefix immediately before the
+          // identifier. In ordinary expression position that is right; inside a
+          // simple `$identifier` interpolation it is not, because `'$self._x'`
+          // means "interpolate self, then the literal text ._x". The patch
+          // compiled, attached, executed and rendered
+          //
+          //   NEW-Instance of '_FooState'._field-...
+          //
+          // to a real screen. Nothing failed anywhere. See
+          // selfhost/fixtures/privatestate_app/evidence/VERDICT.md.
+          //
+          // The braced form `${_x}` was always fine, which is why exactly one of
+          // three accesses worked in that specimen.
+          expect(
+            lowered(
+              instanceCoverage(
+                preamble: 'class _RouteBState {\n  ',
+                decl: "String value() => 'v=\$_controller';",
+                access: '_controller',
+                member: '_controller',
+                receiverType: '_RouteBState',
+                private: 'package:app/main.dart#_RouteBState#_controller',
+              ),
+              granting: grants(
+                instance: ['package:app/main.dart#_RouteBState#_controller'],
+                classes: ['package:app/main.dart#_RouteBState'],
+              ),
+            ),
+            contains(r"'v=${self._controller}'"),
+          );
+        });
+
         test('refuses a body that CONSTRUCTS a private class', () {
           // THE PRODUCER HALF OF THE CONSTRUCTION BOUNDARY, kept as defence in
           // depth even though the generator is now the actual boundary.

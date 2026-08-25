@@ -474,6 +474,45 @@ class RouteBProducer {
           'rewrite safely',
         );
       }
+      // A SIMPLE `$identifier` INTERPOLATION NEEDS BRACES, and getting this
+      // wrong is invisible until a user reads the screen.
+      //
+      // Inserting a bare prefix here yields `'$self._field'`, which Dart parses
+      // as "interpolate `self`, then the literal text `._field`" -- so the
+      // receiver's toString() is rendered followed by the member name. It
+      // compiles, attaches, executes, and renders
+      //
+      //   NEW-Instance of '_FooState'._field-...
+      //
+      // which is exactly what shipped to a device on 2026-08-25. Nothing failed
+      // anywhere; only reading the screen caught it. See
+      // selfhost/fixtures/privatestate_app/evidence/VERDICT.md.
+      //
+      // `${...}` was always safe, which is why one of three accesses in that
+      // specimen worked. So the fix is to rewrite `$NAME` as `${self.NAME}`
+      // rather than to refuse: `'$_count'` is an everyday Flutter spelling and
+      // refusing it would cost more reach than the bug costs.
+      final dollar = access.offset - 1;
+      if (dollar >= span.start && source[dollar] == r'$') {
+        // A `$$` escape is not an interpolation. Refuse rather than reason about
+        // it -- it cannot appear in a receiver access this analyzer reported, so
+        // reaching here means the two disagree.
+        if (dollar - 1 >= span.start && source[dollar - 1] == r'$') {
+          throw RouteBUnsupportedTarget(
+            key,
+            'reads `${access.member}` inside an escaped `\$\$` sequence, which '
+            'this lowering will not rewrite',
+          );
+        }
+        // Replace `$NAME` with `${self.NAME}`: one edit, spanning the `$` and the
+        // identifier, so nothing after the identifier is touched.
+        edits.add((
+          dollar,
+          1 + access.member.length,
+          '\${self.${access.member}}',
+        ));
+        continue;
+      }
       edits.add((access.offset, 0, 'self.'));
     }
 
