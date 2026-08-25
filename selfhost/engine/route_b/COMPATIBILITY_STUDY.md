@@ -504,6 +504,36 @@ historical-trees, it is empty too, and the corpus question is open again rather
 than decided. That is a result worth having either way, and it is cheap to get:
 the funnel prints the rate before any case is analysed.
 
+### MEASURED 2026-08-25 — 72% exclusion, and the survivors are the trivial diffs
+
+Wonderous HEAD `747b945a`, window 40, every commit attempted:
+
+    eligible commits examined   40
+    revert applies cleanly      11
+    revert-does-not-apply       29
+    exclusion                   72%
+
+`pub get` resolves at HEAD on the pinned toolchain with nothing modified, so the
+historical-tree failure really was about history rather than about this app.
+
+**Per the precommitted gate this is HIGH and the study stops here** -- the window
+is NOT widened, because widening it until enough rows apply would convert
+applicability into hidden selection.
+
+**The content finding is the stronger one.** Survivor churn median 5 lines against
+18 for the excluded, and 7 of 11 survivors are <=10 lines: *"Removed unused
+hoverColor"*, *"Set flex to 50 for better readability"*, *"Removed incorrect
+spacing"*. Applicability correlates with triviality, so this corpus would answer
+"can Route B patch cosmetics" rather than "what prevents realistic patches from
+publishing" -- and would flatter Route B while doing it, since a 5-line cosmetic
+diff contains none of the structural blockers the phase exists to rank.
+
+So `revert-onto-HEAD` computes *something* where historical-trees computed
+nothing, and what it computes is the wrong population. The corpus question is
+reopened rather than answered. Full reading, and the three directions that remain
+open without one being chosen:
+`coverage/p15_pilot/APPLICABILITY_RESULT.md`.
+
 **Direction of the remaining bias, named in advance.** Diffs that still apply are
 more likely to be small and local, which flatters Route B on the structural
 blockers (added/removed members, large refactors) and is roughly neutral on the

@@ -234,7 +234,7 @@ def digest(path):
 
 def run_case(case, worktree, entry, target, workdir, source, pub_get=None,
              pub_get_dir='.', producer_commit='', model='revert-onto-head',
-             head=''):
+             head='', applicability_only=False):
     d = pathlib.Path(workdir) / f"{source}-{case['commit'][:10]}"
     d.mkdir(parents=True, exist_ok=True)
     row = {'source': source, 'cell': CELL_HASH, 'producer_commit': producer_commit,
@@ -301,6 +301,14 @@ def run_case(case, worktree, entry, target, workdir, source, pub_get=None,
         if r.returncode != 0:
             return {**row, 'outcome': 'dependency-resolution-failed',
                     'error': (r.stderr or r.stdout)[-500:]}
+    # APPLICABILITY GATE. Stop here when that is all that was asked for: the
+    # revert applied, which is the only thing this mode measures.
+    if applicability_only:
+        subprocess.run(['git', '-C', worktree, 'checkout', '-f', '-q', head],
+                       capture_output=True)
+        return {**row, 'outcome': 'revert-applies',
+                'elapsed_s': round(time.time() - t0, 1)}
+
     ok, err = compile_kernel(worktree, entry, d / 'prepass.dill', target)
     if not ok:
         return {**row, 'outcome': 'toolchain-incompatible', 'stage': 'prepass',
@@ -408,6 +416,12 @@ def main():
     ap.add_argument('--producer-commit', required=True,
                     help='the pinned producer commit; recorded on every row so a '
                          'later baseline can be compared rather than confused')
+    ap.add_argument('--applicability-only', action='store_true',
+                    help='attempt ONLY the revert step and report the funnel. No '
+                         'kernel, no interface, no analyzer -- so no run with '
+                         'this flag can say anything about Route B blockers. '
+                         'Exists because the exclusion rate is the cheap gate on '
+                         'whether the corpus model is usable at all.')
     ap.add_argument('--model', default='revert-onto-head',
                     choices=['revert-onto-head', 'historical-trees'],
                     help='corpus model. revert-onto-head (decided 2026-08-25): '
@@ -457,7 +471,7 @@ def main():
         try:
             return run_case(case, wt, a.entry, a.target, a.workdir, a.source,
                             a.pub_get, a.pub_get_dir, a.producer_commit,
-                            a.model, head)
+                            a.model, head, a.applicability_only)
         except Exception as e:                       # noqa: BLE001
             return {'source': a.source, 'commit': case['commit'],
                     'subject': case['subject'], 'outcome': 'harness-error',
