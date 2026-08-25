@@ -1,0 +1,58 @@
+P2 -- private receiver AND the target's own arguments, composed
+==============================================================
+probes/p2_private_receiver_with_args.sh, host only. Run 2026-08-25 against cell
+93a375665d637f999bbff028488301a510bb611e (dart2bytecode 8dfb3b66, analyzer v8),
+out/host_release_arm64.
+
+VERDICT: GREEN, 4 pass / 0 fail / 0 invalid.
+
+WHY THIS ARM EXISTS. Both halves were proven and neither implies the other:
+
+  P1   p1_bind_private_receiver.sh 8/8   a PRIVATE receiver class lowered to
+       `dynamic self`, reading private members -- with NO arguments.
+  G3.7 g37_param_abi.sh 4/4              required positional ARGUMENTS arriving
+       in order and by type -- on a PUBLIC receiver (`Params`).
+
+The combination is what a real Flutter patch looks like (`_FooState.build` takes a
+BuildContext) and it is precisely where the two lowerings meet: the producer
+prepends `dynamic self` to a verbatim-copied parameter list, so the receiver
+becomes argument 0 and the source's own parameters all shift by one. An off-by-one
+there, or a `dynamic` receiver weakening argument binding, would show here and
+nowhere else.
+
+| arm | replacement for a method of a PRIVATE class            | rendered  |
+|-----|-------------------------------------------------------|-----------|
+| D0  | `(dynamic self, String label, int count)`, uses both  | `A-L-7`   |
+| D1  | the same, and also reads a granted private field      | `B-L-7-H` |
+| D2  | the same, arguments rendered in the OPPOSITE order    | `A-7-L`   |
+| D3  | a NAMED parameter                                     | refused   |
+
+D2 IS THE ONE THAT MATTERS. `A-L-7` against `A-7-L` from the same signature means
+the arguments are bound by POSITION and carry their types -- `int count` = 7
+landed in slot `count` and `String label` = 'L' in slot `label`. A lowering that
+merely got the arity right cannot produce both strings, and the probe scores
+itself INVALID if the two arms ever render the same text.
+
+D3 is refused by the SHIPPED contract, not by the producer's opinion:
+
+    Dynamic Module Entry Point should be a static method with only required
+    positional parameters: named
+
+D1 is the composition proof: arguments and privacy in one body, `B-L-7-H`, where
+`H` is a private field of the private receiver class.
+
+WHAT THIS CLOSES, AND WHAT REMAINS
+----------------------------------
+Of P2's scope, items 1-5 now hold ON THE SHIPPED CELL rather than on the tree:
+required positionals; receiver + N arguments preserving order and type; exact
+release signature binding; wrong-shape refusal (named, and optional positionals
+via g37_param_abi); and the private receiver still working. **Only the DEVICE
+specimen remains.**
+
+WHAT THIS IS NOT
+----------------
+* Not a compatibility percentage. P1.5 produced no blocker ranking, and nothing
+  here changes that -- see ROADMAP.md's P1.5 banner.
+* Not named or optional-positional support. Both stay refused, deliberately, and
+  D3 pins one of them. The ABI is not to become "support every Dart signature".
+* Not type arguments. Generic instantiation is not carried by the payload.
