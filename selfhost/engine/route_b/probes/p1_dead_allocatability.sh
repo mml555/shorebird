@@ -57,6 +57,8 @@
 #   | Cfix3| `_Kept` + `member: 'show'` + private | patch `_Kept.show` | PASS    |
 #   |      | member grants, NO bare class item    |                    |         |
 #   | Cfix4| the SAME grant set as Cfix3          | `_Kept()`          | REFUSE  |
+#   | C6   | `class: '_Dead'` + `member: ''`, NO   | `_Dead()` and      | PASS    |
+#   |      | bare class item                      | nothing else       |         |
 #
 #   CFIX WAS PRECOMMITTED `PASS` AND CAME BACK `ATTACH`. That is a REFUTED
 #   HYPOTHESIS, not a bad arm, and it is the most useful single result here:
@@ -266,6 +268,25 @@ elif mode == 'type_only':
     out.append("can-be-used-as-type:")
     out.append("  - library: 'package:dynamic_modules/container_target.dart'")
     out.append("    class: '_Dead'")
+elif mode == 'unnamed_ctor':
+    # THE EXACT UNNAMED-CONSTRUCTOR GRANT. `member: ''` is how kernel's
+    # LibraryIndex names an unnamed constructor, and the spec parser accepts it --
+    # so construction can be granted precisely, with no invented
+    # "constructible: true" capability. The bare class item is dropped first, so
+    # a PASS here can only come from this entry.
+    filtered, k = [], 0
+    while k < len(out):
+        if re.match(r"\s*class: '_Dead'\s*$", out[k]):
+            nxt = out[k + 1] if k + 1 < len(out) else ''
+            if not re.match(r'\s*member:', nxt):
+                filtered.pop()
+                k += 1
+                continue
+        filtered.append(out[k]); k += 1
+    out = filtered
+    out.append("  - library: 'package:dynamic_modules/container_target.dart'")
+    out.append("    class: '_Dead'")
+    out.append("    member: ''")
 elif mode == 'named_ctor':
     out.append("  - library: 'package:dynamic_modules/container_target.dart'")
     out.append("    class: '_Dead'")
@@ -399,6 +420,10 @@ arm Cfix3 PASS   kept_member_only \
   "String show(dynamic self) => 'NEW-KEPT3\${self._hidden}';" "_Kept.show" "kept"
 arm Cfix4 REFUSE kept_member_only \
   "String alpha() => 'NEW-KCTOR3\${_Kept().show()}';"
+
+# THE CONSTRUCTOR OPT-IN REPRESENTATION: an exact grant, no bare class item.
+arm C6 PASS   unnamed_ctor \
+  "String alpha() { _Dead(); return 'NEW-C6ok'; }"
 
 arm C4 CLASSIFY base    "String alpha() => 'NEW-C4\${_Dead.made().tag}';"
 arm C5 CLASSIFY base    "String alpha() => 'NEW-C5\${_Dead.redirect().tag}';"

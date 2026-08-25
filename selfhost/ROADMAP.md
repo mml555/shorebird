@@ -137,9 +137,22 @@ invoke passes a NULL receiver, so *passing* arms also print a
    private classes to `can-be-used-as-type:` grants type identity but a patch
    cannot ATTACH to a method of the class (Cfix). So the change lives in
    `gen_dynamic_interface.dart` — our own cell tooling, no upstream divergence and
-   no producer blacklist as the boundary. Still to do: implement it, price the
-   interface-size cost with `measure_retention.sh`, and decide how a constructor
-   is opted INTO when a patch legitimately needs one.
+   no producer blacklist as the boundary.
+   **PRICED 2026-08-25, and it is free** (`probes/p1_retention_price.sh`,
+   `evidence/p1_retention_price.txt`). Member-only retention vs the current
+   policy: **−0.01% (toy), +0.00% (real Flutter app), +0.00% at 200 private
+   classes**. The generated YAML roughly doubles — a build-time artifact, not
+   release bytes — and that is the whole cost. The expectation that it would be
+   cheap *because* a bare class item already retains the class's public members is
+   confirmed. Two numbers not to misread: `member + all ctors` costs **+8.35%** at
+   200 classes, but that arm names every constructor **including private ones**,
+   which is strictly broader than today — it is the ceiling that argues for opting
+   constructors in one at a time; and the real fixture prices realism, not breadth
+   (1 constructor, 19 members in app code), which is the synth arm's job.
+   **Constructor opt-in is expressible exactly**, so no invented
+   `constructible: true` is needed: `member: ''` grants the unnamed constructor
+   and nothing else (C6, measured), `member: '_mk'` a private named one (C3).
+   Still to do: implement it, and pair it with the producer-side refusal.
    **Two things this arm also established.** A private *named* constructor already
    needs its own grant (C3), so the hole is specific to PUBLIC constructors. And
    an ungranted construction **aborts the process** — `object.cc:5500 unreachable

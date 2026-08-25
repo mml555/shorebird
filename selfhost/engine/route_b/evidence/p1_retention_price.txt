@@ -1,0 +1,118 @@
+cspell:words memberctor dartaotruntime prepass nonaot ljust
+
+P1 -- pricing the separation of class identity from construction authority
+=========================================================================
+probes/p1_retention_price.sh, host only. Run 2026-08-25 against
+/Volumes/build/route-b/flutter/engine/src, out/host_release_arm64,
+dart-sdk fork 9e8c898a4d2. Sizes are host-arm64: the DELTAS transfer to iOS,
+the absolute bytes do not.
+
+THE QUESTION. `p1_dead_allocatability.sh` showed that a bare `class:` item under
+`callable:` grants a private class's PUBLIC constructors, and that naming the
+class's MEMBERS individually keeps member reach while withholding construction
+(Cfix3/Cfix4). That is the fix. This prices it, because naming members
+individually is many more interface entries than one class item -- and the
+question is whether it is also more RETENTION.
+
+THREE POLICIES, everything else identical:
+  current      bare private `class:` items                    (today)
+  member       no bare private class item; every non-constructor member of
+               those classes named explicitly
+  memberctor   member, plus EVERY constructor named -- INCLUDING PRIVATE ones.
+               An upper bound, not a proposal: it is deliberately BROADER than
+               `current`, which grants only PUBLIC constructors.
+
+THE ANSWER: EXPLICIT MEMBER ENUMERATION IS FREE IN RETENTION.
+-------------------------------------------------------------
+TOY -- container_target.dart (2 private classes)
+  policy                yaml B          AOT   vs stock  vs current   +call form
+  stock (no retention)       -      929,032     +0.00%     -4.38%      945,624
+  current policy         1,182      971,624     +4.58%     +0.00%      988,152
+  member-only            1,543      971,544     +4.58%     -0.01%      988,072
+  member + all ctors     1,740      971,624     +4.58%     +0.00%      988,152
+
+REAL -- airgap_app (Flutter, TFA, 469-library kernel)
+  stock (no retention)       -    5,756,536     +0.00%     -0.71%    5,953,312
+  current policy         2,658    5,797,976     +0.72%     +0.00%    6,011,512
+  member-only            4,482    5,797,976     +0.72%     +0.00%    6,011,512
+  member + all ctors     4,572    5,797,976     +0.72%     +0.00%    6,011,512
+
+SYNTH -- 200 generated private classes x (2 ctors + 4 members)
+  stock (no retention)       -      917,488     +0.00%    -21.24%      934,072
+  current policy        60,255    1,164,936    +26.97%     +0.00%    1,181,520
+  member-only          126,775    1,164,936    +26.97%     +0.00%    1,181,520
+  member + all ctors   156,755    1,262,216    +37.57%     +8.35%    1,295,184
+
+  member-only vs current:  -0.01%  (toy)   +0.00%  (real)   +0.00%  (synth)
+
+WHAT THE NUMBERS MEAN, and what they do not
+-------------------------------------------
+* **Member-only costs nothing.** Zero on both realistic fixtures and zero at 200
+  classes. The expectation that it would be cheap because a bare class item
+  already retains the class's public members is CONFIRMED, and the toy's -80
+  bytes is the shape of it: dropping the class items dropped two public
+  constructors nothing else kept.
+* **The YAML roughly doubles** (60 KB -> 127 KB at 200 classes). That is a
+  build-time artifact, not release bytes, and it is the only cost measured.
+* **`memberctor`'s +8.35% is NOT the price of the fix.** That arm names every
+  constructor including PRIVATE ones, which `current` never granted -- so it
+  prices a strictly BROADER capability. It belongs here as the ceiling: a
+  blanket "grant all constructors" policy would cost real bytes, which is the
+  argument for opting constructors in ONE AT A TIME rather than by class.
+* The real fixture's private-class surface is small -- 1 constructor, 19
+  members in app code -- so it prices REALISM, not breadth. Breadth is the
+  synth arm's job. Stated rather than blurred: neither fixture alone answers
+  the question.
+* The framework-wide variant (every library's privates) is not a fourth scale
+  point: `measure_real_app.sh` already recorded that arm as *does not build*
+  under the current policy, so there is nothing to compare against.
+
+THE VACUITY GATE FIRED AS DESIGNED. Inherited from `measure_real_app.sh`: a cost
+arm must prove its treatment changed the thing being priced before it reports a
+delta. Every arm above reports its enumeration counts beside its sizes, and the
+transform is refused if the current and member-only interfaces come out
+byte-identical. Without it, "+0.00%" and "the treatment did nothing" are the
+same output.
+
+AN INTERNAL CONSISTENCY CHECK WORTH KEEPING. On the toy, `member + all ctors`
+reproduces `current` byte-for-byte. Naming every member and every constructor
+individually IS the bare class item, which is what the mechanism says it should
+be -- so the transform is faithful rather than accidentally lossy.
+
+THREE FAULTS FOUND, ALL MINE, ALL RECORDED
+------------------------------------------
+* **The real fixture cannot be copied.** Its `package_config.json` resolves a
+  sibling package by RELATIVE path, so a copy fails to compile
+  (`code_push_runtime` not found). The probe now reads the fixture IN PLACE and
+  writes only absolute paths into its own work dir -- which is also the correct
+  discipline for a shared fixture.
+* **Fields are named bare, accessors are `get:`/`set:`.** The first real-app run
+  died with *"A member with disambiguated name '_assetsPatch' was not found in
+  class '_ProbeBodyState' ... Did you mean 'get:_assetsPatch'?"*. That is the
+  same lesson `gen_dynamic_interface.dart` already carries in a comment, with
+  the same wording, for the same reason: **the toy fixture has no private
+  accessors**, so only a real app exposes it. `dump_private_members.dart` now
+  applies the VM naming.
+* **A script must not be edited while it is running.** Bash re-reads a running
+  script from a byte offset, so an edit mid-run makes the shell resume at the
+  wrong place: two real-arm runs ended in spurious garbage (one a syntax error,
+  one invoking `flutter --aot`). **Both had already printed the table, and both
+  tables are byte-identical to each other**, so the numbers above are reproduced
+  twice independently -- but the tails were nonsense. The probe now re-executes
+  itself from a snapshot in its own work dir, so a long run is immune to editing
+  the source. Done twice by me in one sitting, which is why it is a guard rather
+  than a note.
+
+WHAT THIS LICENSES
+------------------
+The policy is affordable, so the decision rests on capability rather than cost:
+
+    retain class identity  !=  grant constructor invocation
+                           !=  grant member invocation
+
+with constructors opted in EXACTLY -- `member: ''` for the unnamed one (measured:
+`p1_dead_allocatability.sh` C6), `member: '_mk'` for a private named one (C3) --
+and never by class.
+
+NOT DONE HERE: the generator change itself, and the producer-side refusal that
+has to accompany it.
