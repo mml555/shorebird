@@ -446,6 +446,71 @@ pressure of results, and changing what the corpus *is* — from historical trees
 to rebased diffs — is a bigger change than either. It is the study's meaning,
 not its plumbing.
 
+### DECIDED 2026-08-25 — revert-onto-HEAD, and here is the reason
+
+**Adopted: `base = HEAD with commit C reverted`, `patched = HEAD`.** The
+alternative was measured impossible rather than merely awkward: 286 of the app's
+400 most recent Dart-touching commits declare a Dart 2 constraint, and the
+survivors still fail version solving because a compatible SDK constraint is not a
+resolvable dependency set. No filter fixes that without becoming "commits recent
+enough to build today", which is the recency bias seeded sampling existed to
+remove. So one option computes nothing and the other computes a narrower thing.
+
+**What the corpus now IS, stated so no number derived from it can be read
+wider:** *real diffs that still apply to today's code.* The change content is
+unmodified — it is C's own before/after — but it is evaluated against a tree that
+resolves and compiles. That correlates with recency and with churn locality, and
+it excludes any commit whose revert does not apply cleanly, which is itself
+reported in the funnel rather than silently dropped.
+
+**What it still answers, which is the question P1.5 was posed:** given a release
+built from a tree that compiles, and a patch that is a real historical change to
+it, what does the current analyzer and the current producer refuse? That is the
+product's own situation. It is not "what fraction of all history is patchable",
+and the write-up must not drift into saying so.
+
+### PILOT, 2026-08-25 — the plumbing works and the CONTROL SOURCE cannot serve it
+
+Ran on cell `93a3756…` (the member-only capability model), analyzer v6 unchanged,
+against the fork as the control source. Two runs, 4 and 6 cases:
+
+| | |
+|---|---|
+| eligible after filtering | 222 of 1316 |
+| dropped: sdk constraint excludes Dart 3.12.2 | 973 |
+| dropped: over 200 changed Dart lines | 117 |
+| selected (seed 20260825) | 4, then 6 within a declared 40-commit window |
+| **outcome** | **`revert-does-not-apply` on every case, both runs** |
+
+Not a harness fault -- the recorded errors are real merge conflicts. The cause is
+the one the decision above named in advance and this measures: **the exclusion
+rate is a function of CHURN LOCALITY**, and on this fork the recent churn is
+concentrated in exactly the files the recent eligible commits touch. Route B work
+has rewritten those paths repeatedly since, so reverting any of them onto today's
+tree conflicts.
+
+**What that licenses and what it does not.** The harness now implements the
+decided model, reports the new exclusion as its own outcome rather than as a
+compile failure, and records the model and the HEAD tree in the manifest -- so a
+run states what it was evaluated against. It does **not** license any statement
+about blockers: zero cases were analysed, and the control source was never the
+headline anyway (`shorebird_cli` is a CLI, no widgets, no `setState`).
+
+**Next step is the app source, and the exclusion rate is the thing to watch.** A
+stable product codebase should exclude far less, because its recent commits touch
+files later commits did not. If it does not -- if a real app also excludes most of
+its recent history -- then revert-onto-HEAD is not merely narrower than
+historical-trees, it is empty too, and the corpus question is open again rather
+than decided. That is a result worth having either way, and it is cheap to get:
+the funnel prints the rate before any case is analysed.
+
+**Direction of the remaining bias, named in advance.** Diffs that still apply are
+more likely to be small and local, which flatters Route B on the structural
+blockers (added/removed members, large refactors) and is roughly neutral on the
+model and ABI blockers this phase exists to rank. If the ranking comes back with
+structural causes dominating anyway, that is a strong result; if ABI dominates,
+the bias was not what produced it.
+
 ## Freeze: two leaks found, one still open
 
 `analyze_coverage.dart` is untouched since `cb50590d` and the cell's

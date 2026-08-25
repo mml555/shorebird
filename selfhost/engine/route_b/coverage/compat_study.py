@@ -39,7 +39,13 @@ GEN_KERNEL = f'{DART_TREE}/pkg/vm/bin/gen_kernel.dart'
 KERNEL_PKGS = f'--packages={DART_TREE}/.dart_tool/package_config.json'
 RB = pathlib.Path(__file__).resolve().parent.parent
 # BASELINE A. Frozen for the whole study; see COMPATIBILITY_STUDY.md.
-CELL_HASH = '50d58cc313fdb9850452a28948cd56f4e2632827'
+# P1.5 runs against the cell that carries the member-only private capability
+# model and the `dart:` CFE refusal. The ANALYZER did not move in that mint --
+# `route_b_analyze.aot` is byte-identical (422dda43…) between 2c4443ce and this
+# cell -- so analyzer verdicts stay comparable across the two, and FROZEN_VERSION
+# below still holds. What moved is the interface generator and dart2bytecode,
+# which is exactly what this phase is measuring the effect of.
+CELL_HASH = '93a375665d637f999bbff028488301a510bb611e'
 CELL = pathlib.Path.home() / '.shorebird/bin/cache/artifacts/route-b-compiler' / CELL_HASH
 FROZEN_VERSION = 6
 
@@ -227,7 +233,8 @@ def digest(path):
 
 
 def run_case(case, worktree, entry, target, workdir, source, pub_get=None,
-             pub_get_dir='.', producer_commit=''):
+             pub_get_dir='.', producer_commit='', model='revert-onto-head',
+             head=''):
     d = pathlib.Path(workdir) / f"{source}-{case['commit'][:10]}"
     d.mkdir(parents=True, exist_ok=True)
     row = {'source': source, 'cell': CELL_HASH, 'producer_commit': producer_commit,
@@ -249,10 +256,35 @@ def run_case(case, worktree, entry, target, workdir, source, pub_get=None,
         if at != rev:
             raise RuntimeError(f'checkout of {rev[:10]} left the worktree at {at[:10]}')
 
-    try:
-        checkout(case['parent'])
-    except RuntimeError as e:
-        return {**row, 'outcome': 'checkout-failed', 'error': str(e)}
+    # THE CORPUS MODEL. `historical-trees` is kept runnable and named rather than
+    # deleted, because it is the model this study started with and its failure is
+    # a measured result: 286 of the app's 400 most recent Dart-touching commits
+    # declare a Dart 2 constraint, and the survivors fail version solving anyway.
+    # `revert-onto-head` is the decided model -- see COMPATIBILITY_STUDY.md,
+    # "DECIDED 2026-08-25". base = HEAD with C reverted, patched = HEAD.
+    row['model'] = model
+    if model == 'revert-onto-head':
+        try:
+            checkout(head)
+        except RuntimeError as e:
+            return {**row, 'outcome': 'checkout-failed', 'error': str(e)}
+        # Mechanical exclusion, reported rather than silently dropped: a commit
+        # whose revert does not apply to today's tree is not in this corpus.
+        rv = subprocess.run(
+            ['git', '-C', worktree, 'revert', '--no-commit', case['commit']],
+            capture_output=True, text=True)
+        if rv.returncode != 0:
+            subprocess.run(['git', '-C', worktree, 'revert', '--abort'],
+                           capture_output=True)
+            subprocess.run(['git', '-C', worktree, 'checkout', '-f', '-q', head],
+                           capture_output=True)
+            return {**row, 'outcome': 'revert-does-not-apply',
+                    'error': (rv.stderr or rv.stdout)[-400:]}
+    else:
+        try:
+            checkout(case['parent'])
+        except RuntimeError as e:
+            return {**row, 'outcome': 'checkout-failed', 'error': str(e)}
     if pub_get:
         # Period-appropriate dependencies. HEAD's lockfile against year-old
         # source produces API errors that look like compile failures and are
@@ -290,8 +322,11 @@ def run_case(case, worktree, entry, target, workdir, source, pub_get=None,
         return {**row, 'outcome': 'toolchain-incompatible', 'stage': 'base',
                 'error': err}
 
+    # PATCHED. Under revert-onto-head that is plain HEAD, reached by discarding
+    # the revert -- `checkout -f` restores the tree and clears the staged revert
+    # in one step.
     try:
-        checkout(case['commit'])
+        checkout(head if model == 'revert-onto-head' else case['commit'])
     except RuntimeError as e:
         return {**row, 'outcome': 'checkout-failed', 'error': str(e)}
     ok, err = compile_kernel(worktree, entry, d / 'patched.dill', target, d / 'di.yaml')
@@ -373,12 +408,32 @@ def main():
     ap.add_argument('--producer-commit', required=True,
                     help='the pinned producer commit; recorded on every row so a '
                          'later baseline can be compared rather than confused')
+    ap.add_argument('--model', default='revert-onto-head',
+                    choices=['revert-onto-head', 'historical-trees'],
+                    help='corpus model. revert-onto-head (decided 2026-08-25): '
+                         'base = HEAD with C reverted, patched = HEAD. '
+                         'historical-trees is the refuted original, kept '
+                         'runnable because its failure is a measured result.')
+    ap.add_argument('--head', default='',
+                    help='the HEAD commit revert-onto-head rebases onto. '
+                         'Recorded in the manifest so a run names the tree it '
+                         'was evaluated against.')
     ap.add_argument('--pub-get-dir', default='.',
                     help='directory, relative to the worktree, to resolve in')
     a = ap.parse_args()
 
+    # THE TREE EVERY CASE IS EVALUATED AGAINST, resolved once and recorded. Under
+    # revert-onto-head the corpus is "diffs that still apply to THIS tree", so a
+    # run that does not name the tree cannot be compared with another run.
+    head = a.head or git(a.repo, 'rev-parse', 'HEAD').strip()
+
     cases, funnel, manifest = select(a.repo, a.glob, a.count, a.seed,
                                      a.exclude_path, a.pubspec, a.window)
+    # Recorded beside the seed and the eligible-set digest, for the same reason
+    # those are: a run that cannot say which model and which tree it used is not
+    # comparable with any other run.
+    manifest['corpus_model'] = a.model
+    manifest['head'] = head
     print(f'--- {a.source}: selection funnel (seed {a.seed})')
     for k, v in funnel.items():
         print(f'    {v:>6}  {k}')
@@ -401,7 +456,8 @@ def main():
         wt = pool_wt.get()
         try:
             return run_case(case, wt, a.entry, a.target, a.workdir, a.source,
-                            a.pub_get, a.pub_get_dir, a.producer_commit)
+                            a.pub_get, a.pub_get_dir, a.producer_commit,
+                            a.model, head)
         except Exception as e:                       # noqa: BLE001
             return {'source': a.source, 'commit': case['commit'],
                     'subject': case['subject'], 'outcome': 'harness-error',
