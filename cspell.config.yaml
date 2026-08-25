@@ -808,3 +808,8 @@ words:
   - yourcompany
   - zipdir
   - zstd
+  # P4.1 release-probe vocabulary (spec, cell probe, producer gate, tests):
+  - targetable # a member Route B is permitted to patch
+  - CALLSITES # the instrument's ZERO_/ONE_OR_MORE_QUALIFYING_CALLSITES results
+  - callsite
+  - overclaim # naming the recurring semantic failure mode
