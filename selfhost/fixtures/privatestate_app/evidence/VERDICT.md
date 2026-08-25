@@ -1,4 +1,41 @@
-# P1 device specimen — FAILED AS PRECOMMITTED, and it found a real producer bug
+# P1 device specimen — PASSED on the second attempt, after the first found a real producer bug
+
+> **UPDATE 2026-08-25, patch 2.** With the interpolation lowering fixed
+> (`9125eb13`), the device renders **`target=NEW-FLD-GET-MTH`** with
+> `control=CTL` unmoved — the precommitted string, exactly. Seven of the eight
+> conditions are now met with device evidence; the eighth (a device screenshot of
+> the release baseline rendering `OLD`) was never captured and is called out
+> honestly at the end. **The original failure below is kept in full**, because the
+> bug it found is the most useful thing this specimen produced.
+>
+> | condition | evidence |
+> |---|---|
+> | exact target/library in the receipt | `lib=package:privatestate_probe/main.dart` `sel=_FooState.target` |
+> | attach succeeds | `rc=0 attach_entered=1 attach_returned=1`, receipt `applied 1/1 targets, entering main` |
+> | post-attach entry point IS `InterpretCall` | `uep_post_is_interpret_call=1`, and `fn_uep_post=0x107440044` == `interpret_call_ep=0x107440044`, sampled in the same run |
+> | interpreted after attach | `bc_post=1 interp_post=1` |
+> | release identity matched | receipt `built-for=32c5766f…` == `running=32c5766f…` |
+> | UI renders the combined private field/getter/method | **`target=NEW-FLD-GET-MTH`** (`03_patch2_applied.png`) |
+> | unrelated same-screen control unmoved | `control=CTL` |
+> | withheld member still live in the release | `kept=WTH` |
+>
+> **What this closes.** A Route B patch replaced a method on an idiomatic private
+> Flutter `State` class on physical iOS hardware, and the replacement consumed an
+> explicitly granted private **field**, private **getter** and private **method**
+> through the shipped member-only capability model, with construction withheld.
+> That is exactly the gap release `31.0.0+1` left open — it proved a private field
+> on a *public* class.
+>
+> **The one condition not observed on device: the `OLD` baseline.** To save a
+> round trip I published patch 1 before the first tap, so launch 1 downloaded it
+> and launch 2 applied it; no launch ever rendered the release body. The release
+> source returns `'OLD'` and the patch is what changes it, but that is an argument
+> rather than an observation. Closing it costs one rollback and two taps, and
+> would demonstrate rollback-to-pristine on this specimen at the same time.
+
+---
+
+## The original run, kept because its failure is the finding
 
 Run 2026-08-25. Release `1.0.1+1`, patch 1, cell
 `93a375665d637f999bbff028488301a510bb611e`, iPhone 7 / iOS 15.8.8, wired.

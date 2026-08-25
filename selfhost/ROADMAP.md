@@ -164,10 +164,18 @@ invoke passes a NULL receiver, so *passing* arms also print a
    capability fix, and anything the bind arm proves is genuinely required. Then
    `dart_patches.sh --verify` → mint a coherent cell → producer audit and
    fetch-back → **P0 re-audit trigger #1** → `compatibility.yaml` restamp.
-3. **Device-prove the private `_FooState` getter/method path** after the mint:
+3. ~~**Device-prove the private `_FooState` getter/method path** after the mint:
    exact target/library receipt, successful bind, interpreted execution, a
    visible `NEW-*`, and an unrelated same-screen control still at its release
-   value.
+   value.~~ **DONE 2026-08-25** — `fixtures/privatestate_app`, release `1.0.1+1`
+   patch 2 on cell `93a3756…`: `target=NEW-FLD-GET-MTH` on an iPhone 7, receipt
+   naming `_FooState.target`, `uep_post_is_interpret_call=1`, `control=CTL`
+   unmoved. Two attempts: the first found a producer bug that rendered
+   `Instance of '_FooState'._field` to a real screen with nothing failing
+   anywhere (`9125eb13`). **One condition is unobserved** — no launch rendered the
+   `OLD` baseline, because the patch was published before the first tap. One
+   rollback and two taps would close it and demonstrate rollback at the same
+   time.
 4. **A decision on private writes**, from data: Phase 0 saw compound writes
    **0 times**, so silence is not the same as evidence either way.
 5. **Then P1.5**, fresh — not a reclassification of the 2026-08-11 numbers. The
