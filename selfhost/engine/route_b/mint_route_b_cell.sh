@@ -291,6 +291,35 @@ else
   [[ "$DRY" == 1 ]] || cp -Rc "$ENGINE_SRC" "$ENGINE_DST"
 fi
 
+# RE-DERIVE THE ENGINE STAMP. The clone above copies the donor's
+# `engine_stamp.json` verbatim, and nothing ever rewrote it -- so a cell minted
+# this way SHIPPED A STAMP CLAIMING TO BE ITS DONOR. Found 2026-08-25 on cell
+# 93a3756, whose stamp said 2c4443ce; `flutter.version.json` derives from it, and
+# the release then baked FLUTTER_ENGINE_REVISION=2c4443cedd into its injected
+# defines while `route_b.json` correctly recorded the new hash. Same drift class
+# as the platform dill a few lines below, one directory over -- and it went
+# unnoticed because engine_stamp.json is NOT part of the cell address, so no
+# digest gate could see it.
+#
+# Note what this does NOT do: it does not retro-fix an already-published cell.
+# A cell is immutable per engine hash (publish_route_b_compiler.sh says why), so
+# a published stamp stays as it is and the next mint is correct.
+if [[ "$DRY" != 1 && -f "$ENGINE_DST/engine_stamp.json" ]]; then
+  note "re-deriving engine_stamp.json for $REV"
+  python3 - "$ENGINE_DST/engine_stamp.json" "$REV" <<'STAMP'
+import json, sys
+path, rev = sys.argv[1], sys.argv[2]
+d = json.load(open(path))
+was = d.get('git_revision', '')
+if was != rev:
+    d['git_revision'] = rev
+    json.dump(d, open(path, 'w'))
+    print(f"    git_revision {was[:10]} -> {rev[:10]}")
+else:
+    print("    git_revision already correct")
+STAMP
+fi
+
 # THE EXACT ZIP THAT WAS HASHED, installed rather than regenerated. If these ever
 # diverge the address is a lie, so audit_route_b_compiler.sh recomputes this digest
 # and requires equality.
