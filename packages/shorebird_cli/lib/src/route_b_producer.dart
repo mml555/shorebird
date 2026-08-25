@@ -46,6 +46,7 @@ import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/route_b_build_config.dart';
+import 'package:shorebird_cli/src/route_b_abi.dart';
 import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
@@ -381,7 +382,23 @@ class RouteBProducer {
     RouteBCapabilities? capabilities,
   ) {
     if (lowering.unsupported.isNotEmpty) {
-      throw RouteBUnsupportedTarget(key, lowering.unsupported.join('; '));
+      // P4.3. The analyzer's wording is kept verbatim -- it is the part that
+      // says which shape -- with a STABLE code in front of it. The prose may be
+      // copy-edited; the code is the contract, so a caller or a test can pin the
+      // boundary without pinning the sentence.
+      final reason = lowering.unsupported.join('; ');
+      final label = routeBAbiLabel(reason);
+      throw RouteBUnsupportedTarget(
+        key,
+        label != null
+            ? '$label $reason'
+            // A shape-shaped reason this build has no name for is a MAPPING GAP,
+            // not permission. It still refuses, and it says which it is, so the
+            // gap cannot be mistaken for a new supported shape.
+            : isRouteBAbiReason(reason)
+            ? '${RouteBAbiCode.unclassified.wire}(unrecognised) $reason'
+            : reason,
+      );
     }
 
     // WHAT THE RELEASE ACTUALLY GRANTED, asked per access. The analyzer reports
