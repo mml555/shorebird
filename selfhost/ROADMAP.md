@@ -172,10 +172,12 @@ invoke passes a NULL receiver, so *passing* arms also print a
    naming `_FooState.target`, `uep_post_is_interpret_call=1`, `control=CTL`
    unmoved. Two attempts: the first found a producer bug that rendered
    `Instance of '_FooState'._field` to a real screen with nothing failing
-   anywhere (`9125eb13`). **One condition is unobserved** — no launch rendered the
-   `OLD` baseline, because the patch was published before the first tap. One
-   rollback and two taps would close it and demonstrate rollback at the same
-   time.
+   anywhere (`9125eb13`). **All eight conditions observed** — the `OLD`
+   baseline was closed by rollback the same day: patch 2 withdrawn with
+   `rollback=true`, two tap-launches, `target=OLD` with `next_boot_patch: null`
+   and an empty `patches/` directory. The specimen reads
+   `release -> OLD`, `patched -> NEW-FLD-GET-MTH`, `rollback -> OLD`, with the
+   control at `CTL` throughout.
 4. **A decision on private writes**, from data: Phase 0 saw compound writes
    **0 times**, so silence is not the same as evidence either way.
 5. **Then P1.5**, fresh — not a reclassification of the 2026-08-11 numbers. The

@@ -26,12 +26,32 @@
 > That is exactly the gap release `31.0.0+1` left open — it proved a private field
 > on a *public* class.
 >
-> **The one condition not observed on device: the `OLD` baseline.** To save a
-> round trip I published patch 1 before the first tap, so launch 1 downloaded it
-> and launch 2 applied it; no launch ever rendered the release body. The release
-> source returns `'OLD'` and the patch is what changes it, but that is an argument
-> rather than an observation. Closing it costs one rollback and two taps, and
-> would demonstrate rollback-to-pristine on this specimen at the same time.
+> **THE LAST CONDITION IS NOW OBSERVED TOO — closed 2026-08-25 by rollback.**
+> It had been open because I published the patch before the first tap, so launch 1
+> downloaded it and launch 2 applied it; no launch ever rendered the release body,
+> and "the source returns `'OLD'`" is an argument rather than an observation.
+>
+> Patch 2 was withdrawn with `rollback=true`
+> (`{"withdrawn":true,"patch_id":76,"rolled_back":true}`) and the app tap-launched
+> twice. The second launch — the one that proves pristine state rather than a
+> transitional revert — renders:
+>
+>     target=OLD   control=CTL   kept=WTH        (`04_rollback_pristine.png`)
+>
+> and the updater's own state agrees that nothing is active:
+>
+>     pointers.json  next_boot_patch: null, last_booted_patch: null,
+>                    currently_booting_patch: null, boot_attempt_count: 0
+>     patches/       empty — the installed patch directory is gone
+>
+> So the specimen now reads end to end, with every row observed on hardware:
+>
+>     release   ->  target=OLD              control=CTL
+>     patched   ->  target=NEW-FLD-GET-MTH  control=CTL
+>     rollback  ->  target=OLD              control=CTL
+>
+> The control never moved, and `kept=WTH` held throughout — the withheld member
+> stays live in the release across all three states.
 
 ---
 
