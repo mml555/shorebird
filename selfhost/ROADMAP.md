@@ -121,19 +121,31 @@ invoke passes a NULL receiver, so *passing* arms also print a
 
 ### The work that is actually left in P1
 
-1. **`_Dead()` — private-class allocatability. Next, and it is a permission
-   boundary, not cleanup.** Retaining a private class currently grants more
-   authority than the manifest names: the patch constructed `_Dead()` with **no
-   constructor named in the interface**, because a `class:` item covers the
-   implicit public default constructor. B4b just established that MEMBER reach is
-   properly gated, which makes this the remaining hole on the *other* axis.
-   Target invariant: **class retained/resolvable is not constructor callable.**
-   Controls to distinguish: class retained + constructor absent → REFUSE;
-   constructor explicitly granted → PASS; a *different* private constructor not
-   granted → REFUSE; factory and redirecting constructors **explicitly
-   classified** rather than inherited by accident. Fix it at the layer that owns
-   callable capability semantics — the interface/retention layer — not with a
-   producer blacklist; the producer guard stays as defence in depth.
+1. **`_Dead()` — private-class allocatability. ISOLATED 2026-08-25, fix measured,
+   NOT YET IMPLEMENTED.** `probes/p1_dead_allocatability.sh`, GREEN 8/8 + 3
+   classified. Diagnosis first, per instruction: the cause is **not** a retention
+   side effect, not the binder, and not "classes implicitly retain constructors"
+   — it is the dynamic interface's **definition**. `callable:` is parsed with
+   `allowStaticDeclarations: true`, and upstream's `_Annotator.visitClass` calls
+   `_visitPublicMembers(node.constructors)`; a class's implicit unnamed
+   constructor is public. `dynamic_interface_annotator.dart` is **upstream and
+   unmodified**, so the authority is decided by what our generator emits.
+   **The fix, with both halves measured:** name a private class's MEMBERS
+   individually — including the methods a patch may target — and emit **no bare
+   `class:` item**. A patch then still attaches and reads privates (Cfix3) while
+   construction is refused (Cfix4). **The obvious alternative is refuted:** moving
+   private classes to `can-be-used-as-type:` grants type identity but a patch
+   cannot ATTACH to a method of the class (Cfix). So the change lives in
+   `gen_dynamic_interface.dart` — our own cell tooling, no upstream divergence and
+   no producer blacklist as the boundary. Still to do: implement it, price the
+   interface-size cost with `measure_retention.sh`, and decide how a constructor
+   is opted INTO when a patch legitimately needs one.
+   **Two things this arm also established.** A private *named* constructor already
+   needs its own grant (C3), so the hole is specific to PUBLIC constructors. And
+   an ungranted construction **aborts the process** — `object.cc:5500 unreachable
+   code`, or a named `Unable to find function` — rather than declining, which is
+   sharper than the ungranted-MEMBER case (a catchable `NoSuchMethodError`) and is
+   why this must be refused pre-publication.
 2. **Then batch the mint.** Do not mint for the `dart:` CFE guard alone. One
    SDK-lineage transition carrying: the `dart:` refusal, the constructor
    capability fix, and anything the bind arm proves is genuinely required. Then

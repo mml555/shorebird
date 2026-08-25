@@ -190,6 +190,10 @@ words:
   # inline: these name the two axes the private-scope work is measured on.
   - dispatchable # a member the release can still dispatch by name
   - allocatability # whether a retained private class can be CONSTRUCTED
+  # Probe arm labels, which are identifiers rather than words. Four documents
+  # each once PARITY and ROADMAP cite them:
+  - Cctl # the allocatability probe's retention control
+  - Cfix # its candidate-fix arms
   # Bind-arm markers, which are identifiers rather than words:
   - FLDF # private FieLD read
   - GETG # private GETter
