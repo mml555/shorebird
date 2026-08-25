@@ -49,12 +49,26 @@ void main() {
       );
     });
 
-    test('refuses when the member is present but its class is not', () {
-      // P3's failure, encoded. The member was granted and the replacement
-      // would even COMPILE against it; the patch cannot attach to a method
-      // of a class the release did not retain, so accepting here would
-      // produce a patch that is refused later, on device, with a message
-      // about attachment rather than about privacy.
+    test('accepts a granted member of a private class with no class item', () {
+      // ~~P3's failure, encoded.~~ **REWRITTEN 2026-08-25: the rule this test
+      // pinned was misattributed, and the correction is measured.**
+      //
+      // P3's grants really were inert, but not because a private class needs a
+      // class-level capability. They were inert because P3 never granted the
+      // TARGET member -- in its own fixture a PUBLIC method of a private class.
+      // Attach needs the target member granted; it does not need the class.
+      //
+      // `probes/p1_dead_allocatability.sh` arm Cfix3 attaches to `_Kept.show`
+      // and reads `self._hidden` with NO bare class item anywhere in the
+      // interface. Arm Cfix -- the same grant set without the target member's
+      // grant -- fails at ATTACH, which is P3 reproduced with its real cause
+      // isolated.
+      //
+      // The old expectation is now actively harmful: since the generator stopped
+      // emitting bare private class items, `classesConstructible` means "these
+      // constructors were explicitly granted" and is EMPTY on a release that
+      // grants none -- so requiring it here would refuse every private member
+      // reference on every release.
       final caps = RouteBCapabilities.fromJson(
         manifest(instance: ['$uri#_FooState#_controller']),
       );
@@ -65,7 +79,7 @@ void main() {
           className: '_FooState',
           member: '_controller',
         ),
-        RouteBRefusal.enclosingClassNotRetained,
+        isNull,
       );
     });
 
@@ -146,11 +160,11 @@ void main() {
       );
     });
 
-    test('a static of a private class still needs the class item', () {
-      // A static dispatches without a receiver, but a patch replacing a
-      // member OF that class still attaches through the class. P1 granted
-      // statics while withholding classes entirely, so this pairing is the
-      // one a real P1-era manifest produces -- and it is not usable.
+    test('a static of a private class needs no class item either', () {
+      // Same correction as above, on the static shape. A static dispatches
+      // without a receiver, and what attach needs is the target member's own
+      // grant -- so a P1-era manifest granting statics and no classes is usable
+      // for exactly those statics.
       final caps = RouteBCapabilities.fromJson(
         manifest(statics: ['$uri#_Holder#_count']),
       );
@@ -161,7 +175,7 @@ void main() {
           className: '_Holder',
           member: '_count',
         ),
-        RouteBRefusal.enclosingClassNotRetained,
+        isNull,
       );
     });
 

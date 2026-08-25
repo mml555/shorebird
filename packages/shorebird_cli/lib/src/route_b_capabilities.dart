@@ -57,6 +57,16 @@ enum RouteBRefusal {
   /// The member was emitted, but its enclosing class carries no class
   /// capability, so a patch cannot attach to a method of that class. P3's
   /// failure mode.
+  ///
+  /// **NO LONGER PRODUCED as of 2026-08-25, and kept rather than deleted so a
+  /// reader who saw it in an older log can find out why.** The requirement was
+  /// misattributed: attach needs the TARGET member granted, not the enclosing
+  /// class. Measured in
+  /// `selfhost/engine/route_b/probes/p1_dead_allocatability.sh` (Cfix3 attaches
+  /// with no class item; Cfix, lacking the target member's grant, fails at
+  /// ATTACH -- which is P3's real cause). Since the generator stopped emitting
+  /// bare private `class:` items, requiring a class grant would refuse every
+  /// private reference on every release.
   enclosingClassNotRetained,
 
   /// The release recorded this capability as skipped -- it tried and could not.
@@ -157,18 +167,27 @@ class RouteBCapabilities {
       return RouteBRefusal.memberNotEmitted;
     }
 
-    // THE CONDITION P3'S COLLAPSE PROVED IS LOAD-BEARING. A granted member
-    // whose class carries no capability is inert: the patch cannot attach to
-    // any method of that class, so it never reaches the member at all.
-    // Checked only for a PRIVATE class -- a public class needs no class item,
-    // because a `library:` item already covers it.
+    // ~~THE CONDITION P3'S COLLAPSE PROVED IS LOAD-BEARING.~~ **RE-DIAGNOSED
+    // 2026-08-25, and the requirement was misattributed.** P3's member grants
+    // were inert, but not because a private class needs a class-level
+    // capability: they were inert because P3 never granted the TARGET member,
+    // which in P3's own fixture was a PUBLIC method of a private class. Attach
+    // needs the target member granted; it does not need the class.
+    //
+    // Measured: `probes/p1_dead_allocatability.sh` arm Cfix3 attaches to
+    // `_Kept.show` and reads `self._hidden` with NO bare class item anywhere in
+    // the interface -- only member grants. Cfix (the same grant set minus the
+    // target member's grant) fails at ATTACH, which is P3's failure reproduced
+    // with its real cause isolated.
+    //
+    // This matters beyond bookkeeping: `classesConstructible` no longer means
+    // "the class is retained". It means "these constructors were explicitly
+    // granted", and it is EMPTY on a release that grants none -- so keeping
+    // this check would refuse every private member reference on every release.
     if (className.startsWith('_')) {
       final classKey = '$library#$className';
       if (skipped.any((s) => s.startsWith(classKey))) {
         return RouteBRefusal.inSkippedSet;
-      }
-      if (!classesConstructible.contains(classKey)) {
-        return RouteBRefusal.enclosingClassNotRetained;
       }
     }
     return null;

@@ -112,6 +112,8 @@ void main(List<String> args) {
   var includeSdk = true;
   var retainPrivate = true;
   var retainPrivateClasses = true;
+  // Exact constructor grants, from `--grant-constructor`. Empty by default.
+  final constructorGrants = <String>{};
   var policy = _Policy.p2;
   String? manifestPath;
   final includePrefixes = <String>[];
@@ -184,6 +186,18 @@ void main(List<String> args) {
         // Deliberately not derivable by reading the interface: a `class:` item
         // grants an implicit public constructor that appears in no line of it.
         manifestPath = next();
+      case '--grant-constructor':
+        // CONSTRUCTION IS OPT-IN, ONE CONSTRUCTOR AT A TIME.
+        //
+        // `library#Class.name`, with `new` for the unnamed one:
+        //   --grant-constructor 'package:app/main.dart#_Dead.new'
+        //   --grant-constructor 'package:app/main.dart#_Dead._mk'
+        //
+        // Repeatable. Nothing is granted by default, and discovering that a
+        // class HAS constructors does not grant them -- the +8.35% ceiling
+        // measured at 200 classes is what "retain every constructor just in
+        // case" costs, on top of being broader authority than anyone asked for.
+        constructorGrants.add(next());
       case '--no-private-classes':
         // Isolates the cost of the CLASS-level shapes (private classes and
         // private members of classes) from the top-level shape that was already
@@ -271,8 +285,18 @@ void main(List<String> args) {
   // one; and top-level privates need naming, which is the only shape this
   // generator handled before.
   final privateMembers = <String>[];
-  final privateClasses = <String>[];
   final privateClassMembers = <String>[];
+
+  // PUBLIC members of PRIVATE classes. These used to arrive for free inside a
+  // bare `class:` item, together with construction; now they are named, and
+  // construction is not. A patch's target is usually one of these -- `build`,
+  // `initState` on a `_FooState`.
+  final privateClassPublicMembers = <String>[];
+
+  // Constructors this release deliberately does NOT grant. Not an interface
+  // line: the audit trail for an authority that was removed, so its absence is
+  // checkable and a regression is a non-empty set rather than silence.
+  final constructionWithheld = <String>[];
 
   // THE CAPABILITY MANIFEST'S OWN SETS, kept beside the emission rather than
   // reconstructed from it.
@@ -374,29 +398,64 @@ void main(List<String> args) {
         // (739 vs 320), so retaining them would be pure cost.
         if (cls.name.contains('&')) continue;
 
+        // A PRIVATE CLASS IS REPRESENTED BY ITS MEMBERS, NOT BY A CLASS ITEM.
+        //
+        // A bare `class:` item under `callable:` is defined -- by upstream, in
+        // `_Annotator.visitClass` -- as "this class AND ITS PUBLIC MEMBERS",
+        // and `_visitPublicMembers(node.constructors)` includes the implicit
+        // unnamed constructor, which is public. So a class item silently granted
+        // CONSTRUCTION of every private class it named. That is how a patch
+        // constructed `_Dead()` with no constructor named anywhere in the YAML.
+        //
+        // Measured, not assumed (`probes/p1_dead_allocatability.sh`):
+        //   C1     bare class item        -> `_Dead()` CONSTRUCTS
+        //   Cfix3  member grants, no      -> a patch still ATTACHES to a method
+        //          class item                of the class and reads its privates
+        //   Cfix4  same grant set         -> `_Dead()` is refused
+        //   C6     `member: ''`           -> the unnamed constructor, exactly
+        //   C3     `member: '_mk'`        -> a private named constructor, exactly
+        //
+        // And it is free: member-only retention measures -0.01% / +0.00% /
+        // +0.00% against the current policy on three fixtures
+        // (`probes/p1_retention_price.sh`). Granting every constructor instead
+        // would cost +8.35% at 200 classes, which is the second reason
+        // construction is opt-in one constructor at a time.
+        //
+        // WHY THE PUBLIC MEMBERS MUST BE NAMED. Attach needs the TARGET member
+        // granted, and a patch's target is usually a PUBLIC method of a private
+        // class -- `build`, `initState`. The class item used to cover those for
+        // free; now they are named.
         if (retainPrivateClasses &&
             cls.name.startsWith('_') &&
             resolvableClass(uri, cls.name)) {
-          privateClasses.add('$uri#${cls.name}');
-          // EFFECTIVE CAPABILITY, not an interface line. A `class:` item annotates
-          // the class AND its public members, and a class's implicit default
-          // constructor is public -- which is how a patch constructed `_Dead()`
-          // with no constructor named anywhere in the YAML. Recording it here is
-          // the only way the manifest can describe what was actually granted.
-          for (final c in cls.constructors) {
-            if (c.name.text.startsWith('_')) continue;
-            implicitlyConstructible.add(
-              '$uri#${cls.name}.${c.name.text.isEmpty ? "new" : c.name.text}',
-            );
-          }
-          // A factory is a Procedure, not a Constructor, and is granted by the
-          // same class item.
           for (final p in cls.procedures) {
-            if (!p.isFactory || p.name.text.startsWith('_')) continue;
-            implicitlyConstructible.add(
-              '$uri#${cls.name}.${p.name.text.isEmpty ? "new" : p.name.text} '
-              '(factory)',
-            );
+            // A factory is a Procedure and IS a construction edge, so it is
+            // withheld here with the constructors rather than leaking through
+            // the member list.
+            if (p.isFactory) continue;
+            if (p.name.text.startsWith('_')) continue; // its own loop below
+            if (!resolvableMember(uri, cls.name, _vmName(p))) continue;
+            privateClassPublicMembers.add('$uri#${cls.name}#${_vmName(p)}');
+          }
+          for (final f in cls.fields) {
+            if (f.name.text.startsWith('_')) continue; // its own loop below
+            if (!resolvableMember(uri, cls.name, f.name.text)) continue;
+            privateClassPublicMembers.add('$uri#${cls.name}#${f.name.text}');
+          }
+          // WHAT IS NO LONGER GRANTED, recorded so the absence is auditable and
+          // so a regression shows up as a non-empty set rather than as silence.
+          for (final c in cls.constructors) {
+            final name = c.name.text.isEmpty ? 'new' : c.name.text;
+            if (!constructorGrants.contains('$uri#${cls.name}.$name')) {
+              constructionWithheld.add('$uri#${cls.name}.$name');
+            }
+          }
+          for (final p in cls.procedures) {
+            if (!p.isFactory) continue;
+            final name = p.name.text.isEmpty ? 'new' : p.name.text;
+            if (!constructorGrants.contains('$uri#${cls.name}.$name')) {
+              constructionWithheld.add('$uri#${cls.name}.$name (factory)');
+            }
           }
         }
         for (final p in cls.procedures) {
@@ -518,24 +577,61 @@ void main(List<String> args) {
         ..writeln("    member: '${entry.substring(i + 1)}'");
     }
   }
-  if (privateClasses.isNotEmpty) {
+  if (privateClassPublicMembers.isNotEmpty) {
     buf.writeln(
-      '  # PRIVATE CLASSES. A `library:` item retains public classes only, so '
-      'without',
+      '  # PUBLIC members of PRIVATE classes, named ONE BY ONE and deliberately',
     );
     buf.writeln(
-      '  # these a replacement lowered to `dynamic self` compiles and then '
-      'finds',
+      '  # NOT as a bare `class:` item. A class item is defined as "the class '
+      'AND',
     );
     buf.writeln(
-      '  # nothing at run time. Each item also retains the class\'s PUBLIC '
-      'members.',
+      '  # its public members", and a class\'s implicit unnamed constructor is',
     );
-    for (final entry in privateClasses) {
+    buf.writeln(
+      '  # public -- so a class item granted CONSTRUCTION of every private '
+      'class it',
+    );
+    buf.writeln(
+      '  # named. Naming the members keeps attach and member reach and drops '
+      'that.',
+    );
+    buf.writeln(
+      '  # Measured: probes/p1_dead_allocatability.sh (C1/Cfix3/Cfix4) and',
+    );
+    buf.writeln(
+      '  # probes/p1_retention_price.sh (the split costs -0.01%/+0.00%/+0.00%).',
+    );
+    for (final entry in privateClassPublicMembers) {
+      final parts = entry.split('#');
+      buf
+        ..writeln("  - library: '${parts[0]}'")
+        ..writeln("    class: '${parts[1]}'")
+        ..writeln("    member: '${parts[2]}'");
+    }
+  }
+  if (constructorGrants.isNotEmpty) {
+    buf.writeln(
+      '  # CONSTRUCTORS, granted explicitly and one at a time. `member: \'\'` '
+      'is the',
+    );
+    buf.writeln(
+      '  # unnamed constructor -- the spelling kernel\'s LibraryIndex uses.',
+    );
+    for (final entry in constructorGrants.toList()..sort()) {
       final i = entry.indexOf('#');
+      final dot = entry.lastIndexOf('.');
+      if (i <= 0 || dot <= i) {
+        _die(
+          "--grant-constructor must be 'library#Class.name' (name `new` for "
+          'the unnamed constructor), got: $entry',
+        );
+      }
+      final name = entry.substring(dot + 1);
       buf
         ..writeln("  - library: '${entry.substring(0, i)}'")
-        ..writeln("    class: '${entry.substring(i + 1)}'");
+        ..writeln("    class: '${entry.substring(i + 1, dot)}'")
+        ..writeln("    member: '${name == 'new' ? '' : name}'");
     }
   }
   if (privateClassMembers.isNotEmpty) {
@@ -595,15 +691,28 @@ void main(List<String> args) {
           'privateTopLevelCallable': privateMembers.length,
           'privateStaticsCallable': privateStatics.length,
           'privateInstanceCallable': instanceCallable.length,
-          'privateClassesConstructible': privateClasses.length,
+          'privateClassPublicMembers': privateClassPublicMembers.length,
+          'privateClassesConstructible': constructorGrants.length,
           'implicitlyConstructible': implicitlyConstructible.length,
+          'constructionWithheld': constructionWithheld.length,
           'refused': refused.length,
         },
         'privateTopLevelCallable': privateMembers,
         'privateStaticsCallable': privateStatics,
         'privateInstanceCallable': instanceCallable,
-        'privateClassesConstructible': privateClasses,
+        // PUBLIC members of PRIVATE classes. New category, because these used
+        // to arrive inside a bare `class:` item and the manifest could not tell
+        // them apart from the construction authority that came with them.
+        'privateClassPublicMembers': privateClassPublicMembers,
+        // NOW MEANS WHAT IT SAYS: the constructors this release explicitly
+        // granted, not "every private class, because a class item grants its
+        // public constructors". Empty unless --grant-constructor was passed.
+        'privateClassesConstructible': constructorGrants.toList()..sort(),
+        // EXPECTED EMPTY, and kept precisely so it can be checked. A non-empty
+        // set here means something re-granted construction implicitly.
         'implicitlyConstructible': implicitlyConstructible,
+        // The audit trail for the authority that was removed.
+        'constructionWithheld': constructionWithheld,
         'refused': refused,
       })}\n',
     );
@@ -617,8 +726,15 @@ void main(List<String> args) {
     ..writeln('wrote $outPath')
     ..writeln('  app libraries        : ${appLibraries.length}')
     ..writeln('  private top-level    : ${privateMembers.length}')
-    ..writeln('  private classes      : ${privateClasses.length}')
+    ..writeln(
+      '  private-class members: ${privateClassPublicMembers.length} public'
+      ' (was a bare class item, which also granted construction)',
+    )
     ..writeln('  private class members: ${privateClassMembers.length}')
+    ..writeln(
+      '  constructors granted : ${constructorGrants.length}'
+      '  withheld: ${constructionWithheld.length}',
+    )
     ..writeln(
       '  unresolvable (skipped): $unresolvable'
       '${unresolvable > 0 ? "  <- named in kernel, not indexable; see the "

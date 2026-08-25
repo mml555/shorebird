@@ -1023,24 +1023,27 @@ void main() {
           );
         });
 
-        test('refuses a private member whose class was not retained', () {
-          // P3's failure. The member is granted and the source would compile;
-          // the patch could not attach to a method of a class the release did
-          // not retain, so this has to be refused HERE rather than on device.
+        test('accepts a granted private member with no class grant', () {
+          // ~~P3's failure.~~ **REWRITTEN 2026-08-25.** The member grant is what
+          // attach needs; a class-level grant is not, and requiring one was a
+          // misattribution of why P3's grants were inert (P3 never granted the
+          // TARGET member, a public method of a private class). Measured in
+          // `selfhost/engine/route_b/probes/p1_dead_allocatability.sh`: Cfix3
+          // attaches and reads a private field with no class item anywhere,
+          // Cfix -- the same grants minus the target member -- fails at ATTACH.
+          //
+          // Load-bearing now rather than merely correct: the generator no longer
+          // emits bare private class items at all, so a release that grants no
+          // constructors has an EMPTY constructible set, and the old rule would
+          // refuse every private reference on every release.
           expect(
-            () => lowered(
+            lowered(
               privateRead(),
               granting: grants(
                 instance: ['package:app/main.dart#_RouteBState#_controller'],
               ),
             ),
-            throwsA(
-              isA<RouteBUnsupportedTarget>().having(
-                (e) => e.reason,
-                'reason',
-                contains('private enclosing class this release did not retain'),
-              ),
-            ),
+            contains('String value(dynamic self) => self._controller;'),
           );
         });
 
@@ -1071,6 +1074,49 @@ void main() {
                 (e) => e.reason,
                 'reason',
                 contains('published no capability manifest'),
+              ),
+            ),
+          );
+        });
+
+        test('refuses a body that CONSTRUCTS a private class', () {
+          // THE PRODUCER HALF OF THE CONSTRUCTION BOUNDARY, kept as defence in
+          // depth even though the generator is now the actual boundary.
+          //
+          // The release interface no longer grants construction implicitly --
+          // `gen_dynamic_interface.dart` stopped emitting bare private `class:`
+          // items, which is what used to grant every private class's public
+          // constructors (measured: `p1_dead_allocatability.sh` C1). If a future
+          // interface regression re-granted one, this still refuses: `_Dead()`
+          // puts the private identifier `_Dead` in the body, and the gate
+          // accepts a private identifier only when it is a granted ACCESS.
+          //
+          // Worth being explicit about why this matters more than tidiness: an
+          // ungranted construction does not fail gracefully on device, it
+          // ABORTS the process (`object.cc:5500 unreachable code`). There is no
+          // runtime outcome to fall back on, so it has to be refused here.
+          expect(
+            () => lowered(
+              instanceCoverage(
+                preamble: 'class _RouteBState {\n  ',
+                // The declared access must appear in the declaration, or the
+                // helper computes a bogus offset and the arm measures nothing.
+                decl: 'String value() => _controller + _Dead().toString();',
+                access: '_controller',
+                member: '_controller',
+                receiverType: '_RouteBState',
+                private: 'package:app/main.dart#_RouteBState#_controller',
+              ),
+              granting: grants(
+                instance: ['package:app/main.dart#_RouteBState#_controller'],
+                classes: ['package:app/main.dart#_RouteBState'],
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('_Dead'),
               ),
             ),
           );

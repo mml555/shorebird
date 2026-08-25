@@ -33,6 +33,14 @@
 # THE THING BEING PRICED BEFORE IT REPORTS A DELTA. If the three interfaces come
 # out with the same counts, there is no experiment and +0.00% means nothing.
 #
+# WHICH IS NOW THIS PROBE'S OWN STATE, and that is the correct outcome rather
+# than a defect: `gen_dynamic_interface.dart` stopped emitting bare private
+# `class:` items on 2026-08-25 -- the change this probe was written to price --
+# so "current" and "member-only" are the same interface and the gate refuses to
+# report a delta. It is kept as the record of the measurement that licensed the
+# change, and it still prices the transition against a generator that predates
+# it. `probes/p1_generator_capability_gate.sh` is what gates the emission now.
+#
 # Sizes are host-arm64, not iOS. The DELTAS transfer; the absolute bytes do not.
 #
 # THREE SCALE POINTS, because the first two understate the bookkeeping:

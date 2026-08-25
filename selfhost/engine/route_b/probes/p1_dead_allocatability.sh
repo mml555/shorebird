@@ -45,7 +45,9 @@
 #   |------|-------------------------------------|--------------------|---------|
 #   | Cctl | can-be-used-as-type only            | use as a TYPE only | PASS    |
 #   | C0   | can-be-used-as-type only            | `_Dead()`          | REFUSE  |
-#   | C1   | bare `class:` under callable        | `_Dead()`          | PASS    |
+#   | C1   | bare `class:` under callable, ADDED  | `_Dead()`          | PASS    |
+#   |      | by this probe since 2026-08-25 -- the|                    |         |
+#   |      | generator no longer emits one        |                    |         |
 #   | C2   | bare `class:` under callable        | `_Dead._mk()`      | REFUSE  |
 #   | C3   | class + `member: '_mk'`             | `_Dead._mk()`      | PASS    |
 #   | C4   | bare `class:` under callable        | `_Dead.made()`     | CLASSIFY|
@@ -240,7 +242,16 @@ while i < len(lines):
         continue
     out.append(lines[i]); i += 1
 
-if mode in ('kept_type_only', 'kept_member_only'):
+if mode == 'bare_class':
+    # ADD the bare private class item back. `gen_dynamic_interface.dart` stopped
+    # emitting one on 2026-08-25, which is the fix -- so this arm now constructs
+    # the grant deliberately. What it pins is a fact about UPSTREAM's annotator
+    # ("a class item grants the class and its public members"), not about our
+    # generator's output; the generator's own emission is gated by
+    # `probes/p1_generator_capability_gate.sh`.
+    out.append("  - library: 'package:dynamic_modules/container_target.dart'")
+    out.append("    class: '_Dead'")
+elif mode in ('kept_type_only', 'kept_member_only'):
     # THE PROPOSED FIX, modelled: the class keeps IDENTITY only, its private
     # members keep their explicit grants. Re-filter for _Kept rather than _Dead.
     filtered, k = [], 0
@@ -399,10 +410,10 @@ cctl=$ARM_OUTCOME
 [ "$cctl" != PASS ] && invalidate "Cctl is a STOP row: _Dead's identity is not reachable under C0's grant set"
 
 arm C0 REFUSE type_only "String alpha() => 'NEW-C0\${_Dead().tag}';"
-arm C1 PASS   base      "String alpha() => 'NEW-C1\${_Dead().tag}';"
+arm C1 PASS   bare_class "String alpha() => 'NEW-C1\${_Dead().tag}';"
 c1=$ARM_OUTCOME
 [ "$c1" != PASS ] && invalidate "C1 is a STOP row: the reported hole is not reproduced here"
-arm C2 REFUSE base      "String alpha() => 'NEW-C2\${_Dead._mk().tag}';"
+arm C2 REFUSE bare_class "String alpha() => 'NEW-C2\${_Dead._mk().tag}';"
 arm C3 PASS   named_ctor "String alpha() => 'NEW-C3\${_Dead._mk().tag}';"
 # THE FIX, MODELLED AND MEASURED. Cfix asks whether member reach survives when a
 # private class is granted IDENTITY ONLY; Cfix2 asks whether construction is
@@ -425,8 +436,8 @@ arm Cfix4 REFUSE kept_member_only \
 arm C6 PASS   unnamed_ctor \
   "String alpha() { _Dead(); return 'NEW-C6ok'; }"
 
-arm C4 CLASSIFY base    "String alpha() => 'NEW-C4\${_Dead.made().tag}';"
-arm C5 CLASSIFY base    "String alpha() => 'NEW-C5\${_Dead.redirect().tag}';"
+arm C4 CLASSIFY bare_class "String alpha() => 'NEW-C4\${_Dead.made().tag}';"
+arm C5 CLASSIFY bare_class "String alpha() => 'NEW-C5\${_Dead.redirect().tag}';"
 
 note "RESULT"
 echo "  pass=$pass fail=$fail invalid=$invalid classified=$classified"
