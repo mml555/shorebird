@@ -227,6 +227,18 @@ Turning this into a refusal converts the project's most embarrassing failure mod
 
 ## 5. NEXT STEPS, in execution order
 
+> **SUPERSEDED AS A SEQUENCE 2026-08-25 by [`ROADMAP.md`](ROADMAP.md)**, which is
+> now the authority on order. The list below is kept because its *reasoning* is
+> still what the roadmap rests on, and because item 2's argument — the
+> unreachable-target refusal — is the roadmap's P4 almost verbatim. Two changes
+> worth knowing before reading it: item 1 is done, and a new item ranks ahead of
+> everything here — **closing the App Store technical-compliance audit**
+> ([`APPSTORE_COMPLIANCE.md`](APPSTORE_COMPLIANCE.md), P0), which was mostly closed
+> on 2026-08-23 with two arms open. The roadmap also ranks **private-library scope**
+> (9/10 Phase-0 patches hit private app members) and the **replacement ABI** (6/10
+> needed instance methods with parameters) ahead of item 2, on the evidence that
+> they are what currently prevents Route B from patching real applications.
+
 1. ~~**Finish tombstone/retry scoring.** One precommitted manual action outstanding.
    Ordered first NOT because it outranks the refusal strategically, but because
    its experimental state is already LIVE and expensive to reconstruct — the

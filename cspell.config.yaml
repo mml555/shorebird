@@ -185,6 +185,7 @@ words:
   - trackprobe
   - flavorprobe
   - rbtrace # the .routeb.trace device capture
+  - APPSTORE # selfhost/APPSTORE_COMPLIANCE.md, referenced from four documents
   # Tooling and platform vocabulary:
   - worktree # git
   - oneline # git log --oneline

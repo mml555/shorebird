@@ -33,6 +33,14 @@ The split, because it matters: [`PARITY.md`](PARITY.md) is *what* parity means a
 *where we stand* — the authority on any status. [`plans/`](plans) is *how to do the next
 specific thing*. Read the plan for your piece; open `PARITY.md` when you need the why.
 
+## ▶ What to work on next
+
+[**`ROADMAP.md`**](ROADMAP.md) — **the authority on sequence** (set 2026-08-25):
+P0 App Store compliance closure → P1 private-library scope → P2 replacement ABI →
+P3 the 50+50 corpus → P4 refusal gates → P5 Android config identity → P6 inherited
+workflows, plus what is explicitly parked. `PARITY.md` remains the authority on any
+*status*; `ROADMAP.md` says which open thing comes first.
+
 ## ▶ What is frozen right now (2026-08-23)
 
 **Patch boot-lifecycle behaviour is in MEASUREMENT MODE and must not be changed** —
@@ -41,6 +49,12 @@ clients report a first ambiguity. [`MEASUREMENT_MODE.md`](MEASUREMENT_MODE.md) i
 line; read it before touching lifecycle code, on either side of the wire.
 
 ## Documents by purpose
+
+**Compliance**
+- [`APPSTORE_COMPLIANCE.md`](APPSTORE_COMPLIANCE.md) — **the frozen technical-compliance
+  invariant for Route B**: the audited artifact set bound on shipped bytes, the
+  execution path anchored end to end, the signed-bundle audit, the whole runtime
+  delta this fork adds, the two arms still open, and what forces a re-audit
 
 **Patch lifecycle & safety** *(added to this index 2026-08-23 — these five documents
 existed and were reachable only from `PARITY.md` and each other)*
