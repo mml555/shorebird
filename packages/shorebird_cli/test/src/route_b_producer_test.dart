@@ -487,11 +487,19 @@ void main() {
       RouteBCapabilities grants({
         List<String> instance = const [],
         List<String> classes = const [],
+        // Passing this makes the manifest one the CURRENT generator emits: it
+        // names each public member of a private class. Omitting it models a
+        // release cut before 2026-08-25, which granted them through a bare
+        // `class:` item and recorded no list — and telling those two apart is
+        // exactly what `recordsClassPublicMembers` is for.
+        List<String>? classPublicMembers,
       }) => RouteBCapabilities.fromJson(
         jsonEncode({
           'policy': 'p2',
           'privateInstanceCallable': instance,
           'privateClassesConstructible': classes,
+          if (classPublicMembers != null)
+            'privateClassPublicMembers': classPublicMembers,
         }),
       );
 
@@ -872,6 +880,77 @@ void main() {
               contains('twice at one position'),
             ),
           ),
+        );
+      });
+
+      test('refuses a target the release did not grant', () {
+        // P4.2. The target is the member being REPLACED, and until now nothing
+        // checked its own grant — so an ungranted target published, downloaded,
+        // and failed at ATTACH on the device with a message about attachment.
+        // This moves that failure left, to a named refusal before upload.
+        expect(
+          () => lowered(
+            instanceCoverage(
+              targetKey: 'package:app/main.dart#_RouteBState.value',
+              preamble: 'class _RouteBState {\n  ',
+              decl: 'String value() => label;',
+              access: 'label',
+              receiverType: '_RouteBState',
+            ),
+            granting: grants(
+              // Names OTHER members of the class but not `value` — the shape a
+              // release has when the target was never retained.
+              classPublicMembers: [
+                'package:app/main.dart#_RouteBState#somethingElse',
+              ],
+            ),
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              contains('did not grant'),
+            ),
+          ),
+        );
+      });
+
+      test('accepts a target the release granted by name', () {
+        expect(
+          lowered(
+            instanceCoverage(
+              targetKey: 'package:app/main.dart#_RouteBState.value',
+              preamble: 'class _RouteBState {\n  ',
+              decl: 'String value() => label;',
+              access: 'label',
+              receiverType: '_RouteBState',
+            ),
+            granting: grants(
+              classPublicMembers: ['package:app/main.dart#_RouteBState#value'],
+            ),
+          ),
+          contains('String value(dynamic self) => self.label;'),
+        );
+      });
+
+      test('accepts a private-class target on a pre-2026-08-25 release', () {
+        // A REGRESSION GUARD, and the reason the check is conditional. Such a
+        // release granted the class's public members through a bare `class:`
+        // item and recorded no per-member list, so it genuinely granted this
+        // target and simply cannot be asked member by member. Refusing it would
+        // be a regression dressed as a safety check.
+        expect(
+          lowered(
+            instanceCoverage(
+              targetKey: 'package:app/main.dart#_RouteBState.value',
+              preamble: 'class _RouteBState {\n  ',
+              decl: 'String value() => label;',
+              access: 'label',
+              receiverType: '_RouteBState',
+            ),
+            granting: grants(classes: ['package:app/main.dart#_RouteBState']),
+          ),
+          contains('String value(dynamic self) => self.label;'),
         );
       });
 

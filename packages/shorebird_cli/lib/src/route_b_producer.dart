@@ -166,6 +166,33 @@ class RouteBProducer {
       // parameter, which the entry-point contract allows exactly one of. A
       // static target keeps the fast path — the slice is already valid as a
       // top-level function.
+      // P4.2 — THE TARGET'S OWN GRANT, checked before anything is lowered.
+      //
+      // Every other capability check here is about a member the replacement
+      // BODY references. This one is about the member being REPLACED, and
+      // without it the failure lands as far right as it can: the patch
+      // publishes, the device downloads it, and the engine refuses at ATTACH
+      // with a message about attachment rather than about capability.
+      //
+      // Only a private enclosing class is checked — a `library:` item already
+      // covers a public class's public members. A top-level target has no
+      // enclosing class and takes the private-member path instead.
+      final selector = key.contains('#') ? key.split('#').last : '';
+      final dot = selector.indexOf('.');
+      if (capabilities != null && dot > 0) {
+        final refusal = capabilities.refuseTarget(
+          library: targetLibrary,
+          className: selector.substring(0, dot),
+          member: selector.substring(dot + 1),
+        );
+        if (refusal != null) {
+          throw RouteBUnsupportedTarget(
+            key,
+            describeRouteBRefusal(refusal, selector),
+          );
+        }
+      }
+
       final lowering = coverage.lowering[key];
       final declaration = lowering != null
           ? _lower(key, source, lowering, capabilities)

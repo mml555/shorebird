@@ -54,6 +54,16 @@ enum RouteBRefusal {
   /// The member is not in the release's emitted capability set.
   memberNotEmitted,
 
+  /// The PATCH TARGET itself is a member of a private class that this release
+  /// did not grant.
+  ///
+  /// Distinct from [memberNotEmitted], which is about a member the body
+  /// REFERENCES. This is about the member being replaced, and it fails later
+  /// and worse if it is not caught here: the patch publishes, downloads, and the
+  /// engine refuses at ATTACH on the device with a message about attachment
+  /// rather than about capability. P4.2 exists to move that failure left.
+  targetNotGranted,
+
   /// The member was emitted, but its enclosing class carries no class
   /// capability, so a patch cannot attach to a method of that class. P3's
   /// failure mode.
@@ -89,6 +99,8 @@ class RouteBCapabilities {
     required this.instanceCallable,
     required this.classesConstructible,
     required this.skipped,
+    this.classPublicMembers = const <String>{},
+    this.recordsClassPublicMembers = false,
   });
 
   /// Parse a manifest emitted by `gen_dynamic_interface.dart --manifest`.
@@ -110,6 +122,14 @@ class RouteBCapabilities {
       instanceCallable: list('privateInstanceCallable').toSet(),
       classesConstructible: list('privateClassesConstructible').toSet(),
       skipped: list('refused').toSet(),
+      classPublicMembers: list('privateClassPublicMembers').toSet(),
+      // WHETHER THE KEY EXISTS AT ALL, not whether it is non-empty. A release
+      // cut before 2026-08-25 granted a private class's public members through
+      // a bare `class:` item and recorded no such list, so an absent key means
+      // "this release cannot answer per-member" and an empty one means "it
+      // answered, and granted none". Collapsing them would refuse every target
+      // on a private class for every older release.
+      recordsClassPublicMembers: json.containsKey('privateClassPublicMembers'),
     );
   }
 
@@ -137,6 +157,21 @@ class RouteBCapabilities {
 
   /// `uri#Class` entries whose class capability was granted.
   final Set<String> classesConstructible;
+
+  /// `uri#Class#member` entries for the PUBLIC members of private classes.
+  ///
+  /// These are what a patch TARGETS: a target is almost always a public method
+  /// of a private `State` class. Before 2026-08-25 they arrived implicitly
+  /// inside a bare `class:` item, together with construction; now they are
+  /// named one by one, which is what makes a per-target check possible.
+  final Set<String> classPublicMembers;
+
+  /// Whether the manifest carried a `privateClassPublicMembers` key.
+  ///
+  /// False for a release cut by the older generator, which granted those
+  /// members through a class item and recorded no list. It is not refused —
+  /// it genuinely granted them — it simply cannot be asked per member.
+  final bool recordsClassPublicMembers;
 
   /// The exact capabilities this release could not grant, verbatim from
   /// the manifest.
@@ -193,6 +228,46 @@ class RouteBCapabilities {
     return null;
   }
 
+  /// Whether this release granted the PATCH TARGET itself.
+  ///
+  /// [library], [className] and [member] identify the target being replaced;
+  /// [member] is VM-shaped (bare for a method or field, `get:`/`set:`-prefixed
+  /// for an accessor), matching what the generator emits.
+  ///
+  /// A PUBLIC class needs no grant — a `library:` item already covers its
+  /// public members — so only a private enclosing class is checked. Returns
+  /// null when accepted.
+  RouteBRefusal? refuseTarget({
+    required String library,
+    required String className,
+    required String member,
+  }) {
+    if (!className.startsWith('_')) return null;
+    final key = '$library#$className#$member';
+    if (skipped.any((s) => s.startsWith(key))) {
+      return RouteBRefusal.inSkippedSet;
+    }
+    // The member may be granted as a public member of a private class, or —
+    // when the target is itself private, e.g. patching `_helper` — through the
+    // ordinary private-member sets.
+    if (classPublicMembers.contains(key) ||
+        instanceCallable.contains(key) ||
+        staticsCallable.contains(key)) {
+      return null;
+    }
+    // A RELEASE THAT CANNOT BE ASKED IS NOT A RELEASE THAT REFUSED. Before
+    // 2026-08-25 the generator granted a private class's public members through
+    // a bare `class:` item and recorded no per-member list, so the honest
+    // evidence for such a release is the class item itself. Refusing here would
+    // reject every private-class target on every older release, which is a
+    // regression dressed as a safety check.
+    if (!recordsClassPublicMembers &&
+        classesConstructible.contains('$library#$className')) {
+      return null;
+    }
+    return RouteBRefusal.targetNotGranted;
+  }
+
   /// Whether this release granted a private TOP-LEVEL member.
   ///
   /// No enclosing class, so the class condition does not apply -- which is
@@ -244,4 +319,12 @@ String describeRouteBRefusal(RouteBRefusal refusal, String target) =>
         'references `$target`, which is compiler-generated and cannot be '
             'retained by any release — it is private to `dart:core` rather '
             'than to the library that declares it.',
+      // NAMES THE TARGET, NOT A REFERENCE. Without this the same release fails
+      // on the device at ATTACH, with a message about attachment, after a
+      // successful publish and download.
+      RouteBRefusal.targetNotGranted =>
+        'replaces `$target`, a member of a private class that this release did '
+            'not grant. The release names each member of a private class '
+            'individually, and this one is not among them — so the patch would '
+            'publish, download, and then fail to attach on the device.',
     };
