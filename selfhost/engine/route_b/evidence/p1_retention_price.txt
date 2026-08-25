@@ -97,8 +97,11 @@ THREE FAULTS FOUND, ALL MINE, ALL RECORDED
   script from a byte offset, so an edit mid-run makes the shell resume at the
   wrong place: two real-arm runs ended in spurious garbage (one a syntax error,
   one invoking `flutter --aot`). **Both had already printed the table, and both
-  tables are byte-identical to each other**, so the numbers above are reproduced
-  twice independently -- but the tails were nonsense. The probe now re-executes
+  tables are byte-identical to each other** -- but the tails were nonsense.
+
+  **The real table was then reproduced a THIRD time on an untouched file with the
+  self-snapshot guard in place, byte-identical to both earlier runs.** That is the
+  number this document reports. The probe now re-executes
   itself from a snapshot in its own work dir, so a long run is immune to editing
   the source. Done twice by me in one sitting, which is why it is a guard rather
   than a note.
