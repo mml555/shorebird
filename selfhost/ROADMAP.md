@@ -12,14 +12,27 @@ touching it.
 
 ---
 
+> ## P1.5 CURRENT BLOCKER RANKING: OPEN
+>
+> Historical-tree execution is infeasible under one pinned modern toolchain.
+> Revert-onto-HEAD is mechanically executable but empirically biased toward
+> trivial low-churn diffs (Wonderous: 11/40 applicable; 72% excluded; survivors
+> median 5 changed lines vs 18 for exclusions). **No current compatibility
+> percentage or blocker ranking is claimed.** P2 is proceeding **provisionally**
+> from Phase 0 evidence and the independently established limitation.
+>
+> Written here, at the top, because the failure mode is a reader six weeks from
+> now seeing "P2 follows P1" and assuming P1.5 selected it. It did not.
+> Evidence: `engine/route_b/coverage/p15_pilot/` and `COMPATIBILITY_STUDY.md`.
+
 ## Priority order
 
 | # | item | state |
 |---|---|---|
 | **P0** | **Close the iOS App Store technical-compliance audit** | **MECHANISM/STATIC AUDIT CLOSED 2026-08-23** — [`APPSTORE_COMPLIANCE.md`](APPSTORE_COMPLIANCE.md). **OPEN-1 (distribution signing) and OPEN-2 (address-space observation) remain DEFERRED VERIFICATION ARMS** — deferred because neither currently threatens the architecture, which is **not** the same as closed. Do not report them as closed |
 | **P1** | **Private-library scope** — can replacement code compile with the target library's real privacy identity instead of a synthetic library? | **IN PROGRESS, and it is NOT greenfield — see §P1 below.** The mechanism ships and is wired per-target in the real producer; a private FIELD READ is device-proven. The residual is the Flutter-shaped case, the bind-time arms, and the rescore |
-| **P2** | **Widen the replacement ABI** — receiver **+ positional args**, then named/type args where required | OPEN. **6/10 Phase-0 patches needed instance methods with their own parameters.** The required-positionals work is a starting point; the objective is ordinary method compatibility |
-| **P3** | **Resume the Phase 1 compatibility study** — the frozen 50 + 50 real-patch corpus | BLOCKED, deliberately. Prerequisites below |
+| **P2** | **Widen the replacement ABI** — receiver **+ positional args**, then named/type args where required | **IN PROGRESS, PROVISIONALLY SELECTED.** Not corpus-selected: P1.5 produced no ranking. Selected on Phase 0's measured **6/10** plus an independently established architectural limitation, with P1 having just removed the former 9/10 private-scope blocker. Scored on its own fixtures before any broad compatibility claim |
+| **P3** | **Resume the Phase 1 compatibility study** — the frozen 50 + 50 real-patch corpus | **OPEN — see the P1.5 banner below. Two corpus models tried, neither usable. No blocker ranking is claimed** |
 | **P4** | **Route B publication refusal gates** | OPEN. Turns known constraints into automatic refusals |
 | **P5** | **Android build/config compatibility enforcement** | OPEN. A wrong-flavor patch can currently be accepted |
 | **P6** | **Certify inherited workflows** as PROVEN / FAILED / UNSUPPORTED | OPEN, broad, cheap per item |
@@ -183,6 +196,44 @@ invoke passes a NULL receiver, so *passing* arms also print a
 5. **Then P1.5**, fresh — not a reclassification of the 2026-08-11 numbers. The
    old 9/10 stays useful as the historical reason P1 was selected; it is not the
    current engine's acceptance rate.
+
+## P1.5 — the two lanes, split 2026-08-25
+
+**Measurement lane: OPEN, and only one of the three directions preserves the
+question.** Era-appropriate toolchains. The other two are rejected *for the main
+compatibility claim* and kept for narrower uses:
+
+* **synthetic patch-shaped diffs** — useful for coverage testing later, but they
+  are no longer empirical patch history, so they cannot answer "what blocks real
+  patches";
+* **the 11 Wonderous survivors** — a known-biased population. Usable only if the
+  claim is explicitly narrowed to *"small HEAD-applicable maintenance changes"*,
+  which is not the question.
+
+The eventual architecture, recorded so it is not improvised case by case:
+
+    real historical commit
+        -> read its SDK / Flutter constraints
+        -> select a COMPATIBLE HISTORICAL toolchain
+        -> build parent as the release
+        -> build the commit as the patch
+        -> analyse with the CURRENT Route B analyzer and producer policy
+        -> record
+
+The hard part is the split it implies: the **release compiler must suit the
+historical source** while the **capability model evaluated is today's**. That is
+a design with its own precommit, not a harness tweak — and it is expensive
+measurement infrastructure, so it is deliberately NOT built before P2. We already
+have enough evidence to justify one bounded engineering rung.
+
+**Engineering lane: P2, provisionally.** The justification is stated exactly, and
+it is not the corpus: *P2 is selected on prior empirical evidence plus an
+independently known architectural limitation, while current-corpus ranking remains
+unresolved.* Phase 0 measured signature/arity in **6 of 10** real patches; the
+limitation is mechanical and still present; instance methods taking arguments are
+unremarkable Dart; and P1 just removed the former 9/10 private-scope blocker,
+which makes this the obvious next ceiling. P2 is scored on its own
+positive/negative fixtures before any broad compatibility claim is made.
 
 ## P3 — what has to clear before the compatibility study restarts
 
