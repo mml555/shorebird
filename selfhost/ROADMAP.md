@@ -17,7 +17,7 @@ touching it.
 | # | item | state |
 |---|---|---|
 | **P0** | **Close the iOS App Store technical-compliance audit** | **MECHANISM/STATIC AUDIT CLOSED 2026-08-23** — [`APPSTORE_COMPLIANCE.md`](APPSTORE_COMPLIANCE.md). **OPEN-1 (distribution signing) and OPEN-2 (address-space observation) remain DEFERRED VERIFICATION ARMS** — deferred because neither currently threatens the architecture, which is **not** the same as closed. Do not report them as closed |
-| **P1** | **Private-library scope** — can replacement code compile with the target library's real privacy identity instead of a synthetic library? | OPEN. **The dominant real-world blocker: 9/10 Phase-0 patches hit private app members.** Highest-return capability work available |
+| **P1** | **Private-library scope** — can replacement code compile with the target library's real privacy identity instead of a synthetic library? | **IN PROGRESS, and it is NOT greenfield — see §P1 below.** The mechanism ships and is wired per-target in the real producer; a private FIELD READ is device-proven. The residual is the Flutter-shaped case, the bind-time arms, and the rescore |
 | **P2** | **Widen the replacement ABI** — receiver **+ positional args**, then named/type args where required | OPEN. **6/10 Phase-0 patches needed instance methods with their own parameters.** The required-positionals work is a starting point; the objective is ordinary method compatibility |
 | **P3** | **Resume the Phase 1 compatibility study** — the frozen 50 + 50 real-patch corpus | BLOCKED, deliberately. Prerequisites below |
 | **P4** | **Route B publication refusal gates** | OPEN. Turns known constraints into automatic refusals |
@@ -57,6 +57,63 @@ the Route B app id becomes available opportunistically, in which case OPEN-1 is 
 signing step and an entitlement dump.
 
 ---
+
+## P1 — private-library scope: what is actually built, measured 2026-08-25
+
+**The starting assumption needs correcting before anyone plans against it.** P1 is
+not a design task and it is not even a "prove the design works" task: patch
+`0005`'s `resolveInLibrary` approach is **landed in the shipped Dart SDK fork
+`9e8c898a4d2`** and **wired into the real producer**, and one shape of it is
+device-proven.
+
+| P1 sub-item | actual state |
+|---|---|
+| **P1.1** host proof | **the positive arm was already proven** (`probe D` 4/4; producer unit tests cover the `dynamic` lowering for a private receiver class). The NEGATIVE arms had never been run — now they have: `probes/p1_private_scope_controls.sh`, **6 of 7 passed and one FAILED**, see below |
+| **P1.2** multi-library question | **ANSWERED MECHANICALLY, and the answer is the good one.** The producer emits **one replacement library per target** (`replacement_$i.dart`, in a loop) and passes the flag **per compile**, so each target's compile gets exactly its own library's scope. A multi-library patch is already correct; nothing compiles all bodies into one synthetic module. The architecture you would have had to build is the one that exists |
+| **P1.3** integrate into the real producer | **DONE.** `route_b_producer.dart:145` derives `targetLibrary` from the target's own key and passes exactly that; the flag is passed **only** when a granted private access is actually carried, so targets needing nothing private compile under the rules already proven on device and an older cell keeps working. Mismatch is impossible by construction, not by convention. Gated twice more: the release's capability manifest must grant that exact member **and** its enclosing private class, and **every** private identifier in the emitted body must be one of those grants — because the flag makes every private name resolvable, not only the ones the analyzer classified |
+| **P1.4** device proof | **PARTIAL.** A private FIELD READ is device-proven (release `31.0.0+1` patch 2, `value() => _secret` → `NEW-PRIV`, iPhone 7, 2026-08-13). A private **method/getter call** is **host-proven only**. A private **write** is **not claimed** |
+| **P1.5** rescore Phase 0 | **NOT STARTED, and the reason matters:** Phase 0 was scored with **analyzer v6 on cell `aa915584`, 2026-08-11** — *before* rung D fell (2026-08-12) and before the private path shipped (2026-08-13). **So "9/10 hit private app members" measures a system that no longer exists.** A rescore is a fresh run under v7 and a current cell, and `PARITY.md`'s bookkeeping rule forbids restating figures across the v6→v7 boundary — it must be reported as its own run |
+
+### What the negative controls found — one real hole, now closed twice
+
+`--resolve-private-names-in-library dart:core` **granted the compiled source
+dart:core's private namespace**: `_GrowableList` compiled, and the same body
+refused under an app library. `0005` guarded on `isDartLib`, which describes the
+library being **compiled**, not the library the option **names** — and its own
+comment asserted the invariant it failed to enforce, so a code review would have
+agreed with itself. Closed in `0005` (loud `StateError`) **and** in the producer
+(refuses a `dart:` target library; mutation-checked test). Product exposure was
+nil: the producer only ever passes the target's own library.
+
+**Operational consequence, worth scheduling rather than discovering:** the CFE
+half is host toolchain, so it takes effect only when the cell's compiler tooling
+is rebuilt and republished — a mint. Until then the boundary is held by the
+producer guard, which ships with the CLI, and
+`probes/p1_private_scope_controls.sh` is **RED against the published cell by
+design**. Evidence: `engine/route_b/evidence/p1_private_scope_controls.txt`.
+
+### The work that is actually left in P1
+
+1. **The Flutter-shaped case, end to end.** Phase 0's dominant sub-blocker was
+   methods on a conventionally private `State` class — 7 of 14 blocked emit
+   targets on one `_FullscreenVideoViewerState`. The proven specimen is the
+   *opposite* shape: a private field on a **public** class. The private-receiver
+   path (`dynamic` lowering) is unit-tested and host-proven, not device-proven.
+2. **A bind-time table, because a compile-time one cannot see this.** With a
+   `dynamic` receiver the front end accepts any member name with no privacy test,
+   so `self._x` compiles with or without the flag and fails at **BIND**. Any
+   scoring table for the private-receiver case must run the AOT runtime arm —
+   `probes/p3_usability.sh` is the working example. **This is a correction to
+   P1.1's precommitted table**, which expected a compile-level REFUSE for the
+   no-flag case; that holds only for a typed receiver.
+3. **Private method/getter call on device**, and a decision on private **writes**
+   (Phase 0 saw compound writes **0 times**, so a plain write may not be worth a
+   design project — but say so from data, not from silence).
+4. **The `🐞` capability-grant hole in the same area:** retaining a private class
+   makes it **allocatable from a patch** — the patch constructed `_Dead()` with no
+   constructor named in the interface. That is a privacy-boundary defect inside
+   P1's own objective, not just a P4 refusal.
+5. **Then P1.5**, which is the payoff measurement and the gate on P2.
 
 ## P3 — what has to clear before the compatibility study restarts
 

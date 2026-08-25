@@ -382,6 +382,9 @@ void main() {
         required String preamble,
         required String decl,
         required String access,
+        // The target's own key. Only a test about the target's LIBRARY needs to
+        // change it; everything else wants the one shared key.
+        String targetKey = key,
         String member = 'label',
         String kind = 'get',
         // A second receiver access, for an argument that itself touches the
@@ -401,20 +404,20 @@ void main() {
           jsonEncode({
             'analysisVersion': supportedRouteBAnalysisVersion,
             'verdict': 'accept',
-            'changed': [key],
+            'changed': [targetKey],
             'added': <String>[],
             'removed': <String>[],
             'patchable': <String>[],
-            'conditional': [key],
+            'conditional': [targetKey],
             'sources': {
-              key: {
+              targetKey: {
                 'fileUri': source.uri.toString(),
                 'start': start,
                 'end': start + decl.length,
               },
             },
             'lowering': {
-              key: {
+              targetKey: {
                 'receiverType': receiverType,
                 'nameOffset': start + decl.indexOf('value'),
                 'accesses': [
@@ -867,6 +870,38 @@ void main() {
               (e) => e.reason,
               'reason',
               contains('twice at one position'),
+            ),
+          ),
+        );
+      });
+
+      test('refuses a target in a platform library', () {
+        // The value passed as `--resolve-private-names-in-library` is the
+        // target's own library, so a `dart:` target would ask the front end for
+        // the PLATFORM's private namespace. That is a strictly wider grant than
+        // "compile as part of the library being replaced", and until 2026-08-25
+        // the compiler accepted it -- measured by arm A5 of
+        // `selfhost/engine/route_b/probes/p1_private_scope_controls.sh`, which
+        // compiled `_GrowableList` under `--resolve-private-names-in-library
+        // dart:core` and refused the same body under an app library.
+        //
+        // Refused here as well as in the compiler, deliberately: it holds on
+        // a cell built before that fix, and it names the target instead of
+        // failing somewhere inside a compile.
+        expect(
+          () => lowered(
+            instanceCoverage(
+              targetKey: 'dart:core#RouteBThing.value',
+              preamble: 'class RouteBThing {\n  ',
+              decl: 'String value() => label;',
+              access: 'label',
+            ),
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              contains('platform library'),
             ),
           ),
         );

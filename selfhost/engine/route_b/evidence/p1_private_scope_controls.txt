@@ -1,0 +1,86 @@
+P1.1 -- private-scope negative controls
+=======================================
+probes/p1_private_scope_controls.sh, host only (no device, no mint, no cell).
+Run 2026-08-25 against /Volumes/build/route-b/flutter/engine/src,
+out/host_release_arm64, dart-sdk fork 9e8c898a4d2 (= the SDK in the shipped
+release-108 cell 2c4443ce).
+
+WHY THIS RUN EXISTS. `--resolve-private-names-in-library` (patch 0005) was
+already shipped and already wired into the real producer. What had never been
+measured was what it REFUSES. Six arms, precommitted in the probe header.
+
+RUN 1 -- as found. RED, 6 pass / 1 fail / 0 invalid.
+
+    PASS  A2 target-library scope COMPILES            (STOP row, ran first)
+    PASS  A1 REFUSES without the flag
+            repl_typed.dart:4:50: Error: The getter '_hidden' isn't defined
+            for the type 'PublicHolder'.
+    PASS  A3 REFUSES under the wrong library's scope  (same error)
+    PASS  A4 REFUSES the second library's private
+            repl_second.dart:5:52: Error: The getter '_secondHidden' isn't
+            defined for the type 'SecondHolder'.
+    FAIL  A5 REFUSES platform privacy widening
+            got : compiled          want: refused
+    PASS  A6 REFUSES a library not in the dill
+    PASS  A6 says WHY, rather than compiling with narrower scope
+            Bad state: resolvePrivateNamesInLibrary was set to
+            'package:p1app/not_a_library.dart' but no such library is available
+            to this compile. It must be supplied via additionalDills
+            (--import-dill).
+
+THE FINDING, and it is a real hole
+----------------------------------
+`--resolve-private-names-in-library dart:core` granted the compiled source
+dart:core's PRIVATE namespace:
+
+    a5    (flag = dart:core)              rc=0, a5.bytecode 540 bytes
+    a5ctl (flag = package:p1app/...)      rc=254
+          repl_dart_private.dart:5:9: Error: '_GrowableList' isn't a type.
+
+Same body, two scopes. The only difference is which library the flag named, so
+the grant came from the platform scope and from nothing else. a5ctl is the
+anti-vacuity arm: without it, A5's compile could have meant `_GrowableList`
+was resolvable anyway.
+
+WHY THE CODE ALLOWED IT. `0005` guarded on `isDartLib`, which describes the
+library being COMPILED, not the library the option NAMES. Its own comment
+asserted the invariant -- *"Never applied to `dart:` libraries ... nothing
+should be able to widen resolution into the platform this way"* -- so the
+intent was documented and the enforcement was absent. A code reading agreed
+with the comment; only the negative control disagreed.
+
+WHAT IT DID **NOT** MEAN. The product was never exposed: `route_b_producer.dart`
+passes `targetLibrary`, derived from the target's own identity, and a Route B
+target is in an application library. The missing thing was defence in depth,
+exactly where P1's objective claims a boundary.
+
+RUN 2 -- with the fix applied. GREEN, 7 pass / 0 fail / 0 invalid.
+
+    PASS  A5 REFUSES platform privacy widening
+
+Same probe, same fixture, same toolchain; the ONE change was the `isScheme('dart')`
+refusal. RED -> GREEN on that edit is this probe's own mutation check.
+
+STATE OF THE FIX, stated exactly
+--------------------------------
+* `0005-cfe-resolve-private-names-in-library.patch` now carries the refusal, and
+  applies cleanly to the pre-0005 tree (`git apply --check`, offsets only).
+* The shared engine checkout was edited only to run RUN 2 and was **restored to
+  as-found** (`git checkout --`) immediately afterwards. It is clean.
+* **THIS PROBE IS THEREFORE RED AGAINST THE TREE AND THE PUBLISHED CELL TODAY.**
+  The CFE is host toolchain: making the fix effective in the product means
+  rebuilding and republishing the cell's compiler tooling, which is a mint. Until
+  then the boundary is held by the producer guard below.
+* `route_b_producer.dart` refuses a `dart:` target library outright, with a
+  mutation-checked test (`refuses a target in a platform library`: RED with the
+  guard disabled, GREEN with it). That ships with the CLI and needs no mint.
+
+REPRODUCE
+---------
+    # RED (as published)
+    selfhost/engine/route_b/probes/p1_private_scope_controls.sh
+
+    # GREEN: apply 0005's refusal to the checkout first, then re-run, then
+    # RESTORE the tree -- it is a shared resource.
+    cd /Volumes/build/route-b/flutter/engine/src/flutter/third_party/dart
+    git checkout -- pkg/front_end/lib/src/source/source_loader.dart

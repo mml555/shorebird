@@ -143,6 +143,25 @@ class RouteBProducer {
       }
 
       final targetLibrary = key.split('#').first;
+      // NEVER A PLATFORM LIBRARY. The flag below is passed exactly this
+      // value, and a `dart:` target would ask the front
+      // end for the PLATFORM's private namespace rather than an application
+      // library's — a strictly wider grant than "compile as if part of the
+      // library being replaced".
+      //
+      // The compiler refuses this too, as of 2026-08-25 (`0005`, arm A5 of
+      // `probes/p1_private_scope_controls.sh`, which found that it did NOT).
+      // This guard is here anyway and deliberately: it holds on a cell built
+      // before that fix, it refuses by target name instead of failing inside a
+      // compile, and a patch has no business replacing a member of `dart:`
+      // whatever the compiler allows.
+      if (targetLibrary.startsWith('dart:')) {
+        throw RouteBUnsupportedTarget(
+          key,
+          'targets a platform library; a patch may only replace members of the '
+          'application',
+        );
+      }
       // An INSTANCE target is lowered: its receiver becomes an explicit first
       // parameter, which the entry-point contract allows exactly one of. A
       // static target keeps the fast path — the slice is already valid as a

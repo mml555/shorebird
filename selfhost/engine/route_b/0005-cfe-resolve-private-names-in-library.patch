@@ -61,7 +61,7 @@ diff --git a/pkg/front_end/lib/src/api_prototype/compiler_options.dart b/pkg/fro
 index f39e5016..95b05d1c 100644
 --- a/pkg/front_end/lib/src/api_prototype/compiler_options.dart
 +++ b/pkg/front_end/lib/src/api_prototype/compiler_options.dart
-@@ -96,6 +96,28 @@ class CompilerOptions {
+@@ -96,6 +96,31 @@ class CompilerOptions {
    /// restrictions.
    Uri? dynamicInterfaceSpecificationUri;
  
@@ -85,6 +85,9 @@ index f39e5016..95b05d1c 100644
 +  /// against an already-shipped application. It is deliberately opt-in and off
 +  /// by default, because it widens name resolution and should never be enabled
 +  /// for an ordinary compile.
++  ///
++  /// Must name an APPLICATION library. A `dart:` URI is refused: this restores
++  /// one library's own scope, and the platform's private namespace is not that.
 +  Uri? resolvePrivateNamesInLibrary;
 +
    /// The declared variables for use by configurable imports and constant
@@ -122,7 +125,7 @@ diff --git a/pkg/front_end/lib/src/source/source_loader.dart b/pkg/front_end/lib
 index 73a7e24e..665bf988 100644
 --- a/pkg/front_end/lib/src/source/source_loader.dart
 +++ b/pkg/front_end/lib/src/source/source_loader.dart
-@@ -414,6 +414,39 @@ class SourceLoader extends Loader implements ProblemReportingHelper {
+@@ -414,6 +414,64 @@ class SourceLoader extends Loader implements ProblemReportingHelper {
      required bool mayImplementRestrictedTypes,
    }) {
      final bool isDartLib = importUri.isScheme('dart');
@@ -137,13 +140,38 @@ index 73a7e24e..665bf988 100644
 +    // builder -- and a dill library's OWN namespace does contain its privates;
 +    // it is the EXPORT namespace that filters them.
 +    //
-+    // Never applied to `dart:` libraries: the option exists to let generated code
-+    // act as part of an application library, and nothing should be able to widen
-+    // resolution into the platform this way.
++    // The option exists to let generated code act as part of an APPLICATION
++    // library, and nothing should be able to widen resolution into the platform
++    // this way.
++    //
++    // `isDartLib` alone does not achieve that, and the earlier version of this
++    // comment claimed it did. It is about the library being COMPILED; it says
++    // nothing about what the option NAMES. Enforced below instead -- found by a
++    // negative control, not by review.
 +    LibraryBuilder? resolveInLibrary;
 +    final Uri? resolvePrivateNamesIn =
 +        target.context.options.resolvePrivateNamesInLibrary;
 +    if (resolvePrivateNamesIn != null && !isDartLib) {
++      // A PLATFORM LIBRARY MAY NOT BE THE TARGET -- added 2026-08-25, after the
++      // control that was supposed to prove this failed.
++      // `--resolve-private-names-in-library dart:core` granted a package:
++      // source dart:core's private namespace and `_GrowableList` compiled;
++      // `probes/p1_private_scope_controls.sh` arm A5 measured it, and refused
++      // the same body under the app library, so the grant came from the
++      // platform scope and nothing else.
++      //
++      // Loud, like the missing-library case below: silently narrowing produces
++      // "private member not found" against the replacement source, which sends
++      // the reader to debug the wrong half.
++      if (resolvePrivateNamesIn.isScheme('dart')) {
++        throw new StateError(
++          "resolvePrivateNamesInLibrary was set to '$resolvePrivateNamesIn', "
++          "which is a platform library. This option may only name an "
++          "application library: it exists so generated code can act as part of "
++          "the library it replaces a member in, not to widen resolution into "
++          "the platform.",
++        );
++      }
 +      resolveInLibrary = target.dillTarget.loader.lookupLibraryBuilder(
 +        resolvePrivateNamesIn,
 +      );
