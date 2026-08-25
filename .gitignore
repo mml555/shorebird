@@ -65,3 +65,10 @@ __pycache__/
 #   mml555/shorebird-flutter           (our fork, carries route-b)
 # Build scripts take --root; see selfhost/engine/build.sh.
 vendor/flutter/
+
+# The P1 device specimen's build output and resolved deps, same as every other
+# fixture: generated, large, and never a source of truth.
+selfhost/fixtures/privatestate_app/.dart_tool/
+selfhost/fixtures/privatestate_app/build/
+selfhost/fixtures/privatestate_app/ios/Pods/
+selfhost/fixtures/privatestate_app/ios/Flutter/ephemeral/

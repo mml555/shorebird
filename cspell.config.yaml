@@ -181,6 +181,7 @@ words:
   - selftest # the negative-control mode a probe runs against itself
   # Fixture and artifact names, which are identifiers rather than words:
   - killswitch
+  - privatestate # the P1 device specimen fixture
   - twoengine
   - trackprobe
   - flavorprobe
