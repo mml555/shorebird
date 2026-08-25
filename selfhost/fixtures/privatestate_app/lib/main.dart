@@ -73,7 +73,17 @@ class _FooState extends State<ProbeHome> {
   // THE PATCH TARGET. A public method of a private class, which is what a real
   // Flutter patch almost always is.
   @pragma('vm:never-inline')
-  String target() => 'NEW-$_field-$_getter-${_method()}';
+  String target() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'OLD' : 'X';
+
+  // P2's target: the target's OWN required positional parameters. The release
+  // body ignores them deliberately, so `OLD` cannot depend on argument binding
+  // and only the replacement's value can.
+  //
+  // Called with deliberately ASYMMETRIC values -- 'A' and 7 -- so that an
+  // argument swap cannot masquerade as success: swapped binding would render
+  // `NEW-7-A-...`, which is a different string, not a plausible one.
+  @pragma('vm:never-inline')
+  String targetArgs(String label, int count) => 'NEW-$label-$count-$_field';
 
   // The unrelated same-screen control. Must read `CTL` before and after.
   @pragma('vm:never-inline')
@@ -86,6 +96,9 @@ class _FooState extends State<ProbeHome> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text('target=${target()}', style: const TextStyle(fontSize: 34)),
+          const SizedBox(height: 16),
+          Text("args=${targetArgs('A', 7)}",
+              style: const TextStyle(fontSize: 30)),
           const SizedBox(height: 16),
           Text('control=${control()}', style: const TextStyle(fontSize: 22)),
           const SizedBox(height: 16),
