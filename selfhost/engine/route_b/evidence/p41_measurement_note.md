@@ -76,3 +76,81 @@ toward it — names survive today only because this build is unobfuscated.
    to emit while it still knows target identity, and how it binds by digest.
 4. Only then specify `route_b_release_probe`, with the `deadBranch` specimen kept
    permanently as the control that forbids wording the result as `reachable`.
+
+---
+
+# ARM 2 — the profile channel PASSES, unobfuscated and obfuscated
+
+2026-08-25, same three-specimen release (`app.aot` `b8e72036…`, profile beside
+it). Decoder corrected: node/edge `type` indexes `meta.node_types[0]` and
+`meta.edge_types[0]`; `to_node` is a byte offset into `nodes`; edges are laid out
+per node in node order (asserted — the walk consumes the array exactly).
+
+## The three-way measurement
+
+Each specimen resolves to **exactly one `Function` node** — no ambiguity — and the
+discriminating structure is which `ObjectPool`s reference it, traced to the `Code`
+that owns the pool:
+
+| target | Function nodes | pools referencing it | pool owner (`Code`) | runtime truth |
+|---|---|---|---|---|
+| `foldOpaque` | 1 | **3** | `[Optimized] _specimenLine`, `[tear-off] foldOpaque`, one unowned | surviving, executes |
+| `foldConst` | 1 | **0** | — | folded |
+| `deadBranch` | 1 | **3** | `[Optimized] _specimenLine`, `[tear-off] deadBranch`, one unowned | survives, never taken |
+
+**`foldConst != deadBranch`: 0 pools against a pool owned by the actual caller.**
+That is the comparison the arm existed to make, and it passes.
+
+Why this is invocation evidence rather than a generic reference: a patchable
+static call loads `entry_point_` from the callee's `Function`, held in the
+CALLER's object pool — which is exactly the `ldur lr,[r0,#7]; blr lr` form the
+release-level detector counts. So a pool owned by `_specimenLine` holding the
+target's `Function` IS a surviving call site in `_specimenLine`.
+
+## Obfuscation: the channel survives, and for a reason worth knowing
+
+Rebuilt the same `release.dill` with `--obfuscate --save-obfuscation-map`.
+Obfuscation genuinely ran — **3,371 of 5,095 names renamed** (`exponent -> UL`,
+`implementation -> TH`) — and the three-way partition is unchanged: 3 pools / 0
+pools / 3 pools, with the same caller attribution.
+
+The specimens' names were **not** renamed, and the mechanism is not luck:
+
+| name | named in the dynamic interface? | after obfuscation |
+|---|---|---|
+| `print`, `now`, `millisecondsSinceEpoch` | yes (`--sdk-members`) | preserved |
+| `exponent`, `implementation`, `xIndex` | no | `UL`, `TH`, `mp` |
+
+**A name the dynamic interface retains must stay bindable by name, because that
+is how a dynamic module resolves it at run time — so the obfuscator preserves
+it.** Every Route B target is named in the interface by construction, since that
+is what retention means. So identity-by-name holds for exactly the set of members
+Route B can target, and dies only for members it could never patch anyway.
+
+That is a dependency, not a free lunch, and it belongs in the eventual probe's
+design: **the fundamental identity stays (library, owning class, member/signature)
+and the string is the lookup mechanism, valid because the interface preserves it.**
+If that retention/obfuscation interaction ever changes, the lookup breaks and the
+instrument must fail closed rather than silently miss.
+
+## Stop condition: MET
+
+One static method distinguishes all three states, by exact Function identity, with
+caller attribution, and still does so under obfuscation. The instrument can now be
+specified.
+
+## What the specification will have to settle, from what this arm exposed
+
+1. **Classification rule for "surviving invocation site".** Not every pool
+   reference is one: the target's own `[tear-off]` Code has a pool referencing it,
+   and one pool had **no `Code` owner at all**. The rule needs to name which
+   referrers count and which do not, and the unowned pool needs a category rather
+   than a shrug.
+2. **The profile is not emitted by the release pipeline today.** Turning
+   `--write-v8-snapshot-profile-to` on is a build change, and this toy's profile is
+   1.6 MB for 24,833 nodes — the size and cost on a real app are unmeasured.
+3. **Binding.** The profile is build-produced and must be bound to the exact
+   artifact by digest (P4.4), or it is evidence about some other compilation.
+4. **`UNKNOWN` must stay distinct** from zero-sites: "no Function node found" and
+   "Function found, zero qualifying referrers" are different facts, and only the
+   second is `NO_SURVIVING_CALLSITE`.
