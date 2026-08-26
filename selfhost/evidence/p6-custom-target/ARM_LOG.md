@@ -77,3 +77,23 @@ The two failed builds ran against the stock cache, leaving
 holding objects compiled against it. `build/`, `.dart_tool/flutter_build/`, the
 project's DerivedData and the generated xcconfig were removed — all regenerable,
 all specific to this project — so the retry cannot inherit a stock-engine object.
+
+## Blocker 3 — version collision, and why the bump skips 1.8.0
+
+The build itself **succeeded** on the installed entrypoint, which confirms
+blocker 2's diagnosis: `Route B retention: 4 named SDK members, interface 1973
+bytes`, a 26.9MB xcarchive, and a signed 9.0MB IPA (`Automatically signing iOS
+for device deployment using specified development team … SK85S6YZP9`). Only
+publication was refused:
+
+    It looks like you have an existing ios release for version 1.7.0+1.
+
+`1.7.0+1` is release 119, cut by the obfuscation arm. The fixture's own pattern
+is a minor bump per arm, which would make this `1.8.0+1`.
+
+**Deliberately skipped to `1.9.0+1`.** `MEASUREMENT_MODE.md` identifies the
+frozen telemetry specimen as *"release 108 / 1.8.0+1, patch 1"* on this same
+`cps-ios` deployment, and its estimator line keys on the `1.8.0+1 patch 1`
+shorthand. A second `1.8.0+1` in the same control plane would be a different
+release row but an identical *identifier* in every grep and in that shorthand.
+The specimen must stay unambiguous, and skipping a version number costs nothing.
