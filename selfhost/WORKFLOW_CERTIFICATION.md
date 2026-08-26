@@ -33,6 +33,32 @@ stated rather than blurred into a fresh certification.
 
 ---
 
+## 0 · iOS device prerequisite — Local Network permission
+
+**Promoted out of the flavor arm, because it is not a flavor detail.**
+
+> For a LAN-hosted self-host control plane, **iOS Local Network permission must
+> be granted before any transport-dependent device certification.** Absence
+> presents as a silent baseline-only app with **no request reaching the server**.
+
+Measured 2026-08-26: with a patch `ready`/`stable`/`active` at 100 % rollout, a
+correct device-reachable `base_url`, and two by-hand launches, the app kept
+rendering its baseline and the server log contained only this workstation's own
+requests. The app declares `NSLocalNetworkUsageDescription`, so iOS gates LAN
+access behind a user grant and an ungranted app fails silently. Once granted, the
+very next launch produced `POST /api/v1/patches/check -> 200`.
+
+**Nothing on the host can see this.** Release fine, patch fine, rollout 100 %,
+app shows its baseline for ever. Every device row below inherits this
+prerequisite.
+
+**Scoped separately, deliberately:** the `localhost` base-URL guard is a NARROWER
+claim and is *not* part of this invariant. `localhost` is device-unreachable over
+Wi-Fi and may be perfectly valid with USB forwarding — see
+`evidence/p6-flavor-ios/VERDICT.md`.
+
+---
+
 ## 1 · baseline — `CERTIFIED`
 
 | field | value |

@@ -49,8 +49,41 @@ const String kReleaseState = 'FLAVORED-FIXTURE-V1';
 @pragma('vm:never-inline')
 @pragma('vm:entry-point')
 String flavorState() => DateTime.now().millisecondsSinceEpoch >= 0
-    ? 'V2/${appFlavor ?? "none"}'
-    : 'V2/${appFlavor ?? "none"}!';
+    ? 'V1/${appFlavor ?? "none"}'
+    : 'V1/${appFlavor ?? "none"}!';
+
+/// P6's define target. Reads the define INSIDE this body, so a patch to it
+/// tests whether the REPLACEMENT compiler received the define — which is the
+/// link `g41c`/`g41d` left open. A value imported from release code would prove
+/// only that the RELEASE had it.
+///
+/// `defaultValue: 'MISSING'` on purpose: a dropped define must be visibly
+/// different from a correct one rather than needing interpretation.
+///
+/// Same three anti-folding properties as `flavorState()` above, for the same
+/// measured reasons: `vm:never-inline` stops the body being spliced in, the
+/// `DateTime.now()` guard stops the RESULT being folded into the call site, and
+/// it is called from `initState` on the live path rather than a dead branch.
+@pragma('vm:never-inline')
+@pragma('vm:entry-point')
+String defineState() {
+  const value = String.fromEnvironment('P6_DEFINE', defaultValue: 'MISSING');
+  // THE MARKER IS OUTSIDE THE CONSTANT, and that is not cosmetic.
+  //
+  // Written as `cond ? 'V1/$value' : …` the whole interpolation is a
+  // compile-time constant, because `value` is const. The coverage analyzer
+  // compares PRINTED procedure ASTs, and canonicalised constants print by
+  // reference -- so a V1->V2 edit produced kernels differing at the byte level
+  // (33ad0bd3 vs d7e9ec16) that the analyzer read as `inert, changed: []`, and
+  // the patch was refused as changing nothing. Measured 2026-08-26; it is the
+  // same blindness `g41d` recorded for a define-only difference, reached here by
+  // an ordinary source edit.
+  //
+  // Interpolating a NON-const local keeps the concatenation non-constant, so the
+  // marker survives as a plain StringLiteral the printer shows.
+  final live = DateTime.now().millisecondsSinceEpoch >= 0;
+  return '${live ? 'V2' : 'X'}/$value';
+}
 
 void main() => runApp(const FlavoredProbeApp());
 
@@ -73,6 +106,7 @@ class _Probe extends StatefulWidget {
 
 class _ProbeState extends State<_Probe> {
   String _flavorState = '—';
+  String _defineState = '—';
   String _asset = '—';
 
   @override
@@ -82,6 +116,7 @@ class _ProbeState extends State<_Probe> {
     // records: the beacon is built after an await, and a value that depends on
     // when that await resumes makes a harness flaky rather than wrong.
     _readFlavor();
+    _readDefine();
     _load();
   }
 
@@ -93,6 +128,14 @@ class _ProbeState extends State<_Probe> {
     final v = flavorState();
     if (!mounted) return;
     setState(() => _flavorState = v);
+  }
+
+  /// Same shape as `_readFlavor`: ordinary app code, no attach call, so a V2
+  /// reading can only come from a replacement the engine installed pre-main.
+  void _readDefine() {
+    final v = defineState();
+    if (!mounted) return;
+    setState(() => _defineState = v);
   }
 
   Future<void> _load() async {
@@ -167,6 +210,7 @@ class _ProbeState extends State<_Probe> {
           _row('release', kReleaseState),
           // The row the device arms are read off. See _beacon's warning.
           _row('flavor state', _flavorState),
+          _row('define state', _defineState),
           _row('asset', _asset),
         ],
       ),
