@@ -22,8 +22,24 @@
 #   mint_route_b_cell.sh --donor <engineHash> [--dry-run]
 #
 # donor is the hash whose ENGINE artifacts the new hash reuses: the binary is
-# unchanged, so its ios-release, dart-sdk, sky_engine and the rest are cloned
-# rather than rebuilt.
+# unchanged, so its ios-release, dart-sdk and the rest are cloned rather than
+# rebuilt.
+#
+# THIS SENTENCE USED TO SAY "sky_engine" AND THAT WAS WRONG, corrected 2026-08-25.
+# The clone copies whatever the donor HAS, and no donor in this chain has ever
+# had sky_engine.zip -- 2c4443ce, 93a3756, ac5d3b63 and 9b5f040c all host exactly
+# six entries and that is not among them. Twenty-three other hashes in the
+# overlay do host it and NOT ONE shares this engine (every one has a different
+# ios-release/artifacts.zip digest). So releases on this chain have been
+# compiling with a pkg/sky_engine fetched under a DIFFERENT engine hash and
+# retained across switches, which only stayed invisible because the cache stamp
+# made it look settled. Found by clearing the cache for the P6 device epoch
+# crossing: see selfhost/evidence/p6-flavor-ios/EPOCH_CROSSING_STOP.md.
+#
+# The remedy is to package sky_engine.zip from THIS engine's own build
+# (out/ios_release/gen/dart-pkg/sky_engine) and publish it under the cell hash --
+# never to fetch a foreign one, and never to write a stamp asserting the cache
+# already holds it, which is what precondition 2 below forbids.
 set -euo pipefail
 
 SRC=${SRC:-/Volumes/build/route-b/flutter/engine/src}
