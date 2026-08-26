@@ -17,7 +17,12 @@ set -euo pipefail
 APP=${APP:-1c99c679-8650-ba82-3899-681349a59416}
 BASE=${BASE:-http://10.0.0.7:18080}
 REL=${REL:-1.10.0+1}
-export REL   # read by the python readers below, which run as child processes
+# Which channels `channels` creates and asserts. Overridable because channels are
+# PER-APP: a second fixture with its own app_id starts with none of them, and an
+# unknown channel yields an empty patch-check response (api.dart:2008) -- so a
+# negative taken against a channel that was never created cannot fail.
+CHANNELS=${CHANNELS:-"alpha beta"}
+export REL CHANNELS   # read by the python readers below, which run as child processes
 : "${SHOREBIRD_TOKEN:?set SHOREBIRD_TOKEN to an sb_api_ key}"
 
 api() { # <method> <path> [body]
@@ -37,7 +42,7 @@ channels)
   # created receives nothing REGARDLESS of any deployment -- a negative result
   # that cannot fail and certifies nothing. Creating both up front makes every
   # later withholding a deployment decision.
-  for ch in alpha beta; do
+  for ch in $CHANNELS; do
     api POST "/api/v1/apps/$APP/channels" "{\"channel\":\"$ch\"}" >/dev/null
   done
   echo "channels on $APP:"
@@ -49,12 +54,14 @@ d=json.load(sys.stdin)
 rows=d if isinstance(d,list) else (d.get("channels") or [])
 names=[c["name"] if isinstance(c,dict) else str(c) for c in rows]
 for n in sorted(names): print(f"  {n}")
-missing=[c for c in ("alpha","beta") if c not in names]
+import os
+want=os.environ.get("CHANNELS","alpha beta").split()
+missing=[c for c in want if c not in names]
 print()
 if missing:
     print(f"  ASSERTION FAILED: missing {missing} -- the negative arm would be vacuous")
     sys.exit(1)
-print("  ASSERTION OK: alpha and beta both exist, so withholding can only be a deployment decision")
+print("  ASSERTION OK: " + ", ".join(want) + " all exist, so withholding can only be a deployment decision")
 '
   ;;
 state)
