@@ -80,9 +80,18 @@ for p in ps:
     deps=p.get("deployments") or []
     if not deps:
         print("    deployments: NONE  <-- authoritative: live on no track")
+    # Liveness is `status` compared against ChannelPatchStatus.active.name, with
+    # `rolled_back` as a separate veto (api.dart:_currentTrack). There is no
+    # "active" key -- reading one printed None and looked like "not active".
     for x in deps:
-        print("    deployment: channel={} active={} rollout={}".format(
-            x.get("channel"), x.get("active"), x.get("rollout")))
+        live = x.get("status") == "active" and x.get("rolled_back") is not True
+        print("    deployment: channel={} status={} rolled_back={} rollout={}  -> {}".format(
+            x.get("channel"), x.get("status"), x.get("rolled_back"), x.get("rollout"),
+            "LIVE" if live else "not live"))
+    for want in ("alpha", "beta"):
+        got = [x for x in deps if x.get("channel") == want]
+        if not got:
+            print("    {}: ABSENT (no deployment row at all)".format(want))
 '
   ;;
 *) echo "unknown subcommand: $1"; exit 2;;
