@@ -1,6 +1,7 @@
 import 'dart:io' hide Platform;
 
 import 'package:args/args.dart';
+import 'package:checked_yaml/checked_yaml.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
@@ -119,6 +120,12 @@ environment:
       when(
         () => shorebirdEnv.getShorebirdYamlFile(cwd: any(named: 'cwd')),
       ).thenReturn(shorebirdYamlFile);
+      // Default to "no existing file" so the template path is taken. Tests that
+      // exercise the ADD-FLAVORS-to-an-existing-config path override this and
+      // stub readAsStringSync, because that path must now edit the user's own
+      // text in place rather than regenerate from the template — regenerating
+      // dropped every key the template omits (base_url, auto_update, channel).
+      when(() => shorebirdYamlFile.existsSync()).thenReturn(false);
       when(
         () => shorebirdEnv.getPubspecYamlFile(cwd: any(named: 'cwd')),
       ).thenReturn(pubspecYamlFile);
@@ -1350,6 +1357,77 @@ flavors:
           when(() => shorebirdEnv.getShorebirdYaml()).thenReturn(shorebirdYaml);
           when(() => shorebirdYaml.appId).thenReturn(appId);
           when(() => shorebirdYaml.flavors).thenReturn(existingFlavors);
+        });
+
+        test('PRESERVES channel, base_url and auto_update', () async {
+          // The add-flavors path used to rebuild shorebird.yaml from a
+          // hardcoded template, silently discarding every key the template does
+          // not mention. For a self-hosted app that meant adding a flavor
+          // repointed it at the default control plane, and it is why `channel`
+          // could not have survived even once the model accepted it.
+          const existing = '''
+app_id: $appId
+channel: beta
+base_url: http://10.0.0.7:18080
+auto_update: false
+flavors:
+  a: test-appId-1
+  b: test-appId-2
+''';
+          when(() => shorebirdYamlFile.existsSync()).thenReturn(true);
+          when(() => shorebirdYamlFile.readAsStringSync()).thenReturn(existing);
+          // A FRESH copy: `_addShorebirdYamlToProject` mutates the map it gets
+          // from `shorebirdYaml.flavors`, and `existingFlavors` is shared at
+          // group scope — so without this, this test leaves c and d in it and
+          // the next test sees no new flavors. Pre-existing isolation hazard,
+          // exposed by being the second test to run this path.
+          when(
+            () => shorebirdYaml.flavors,
+          ).thenReturn({...existingFlavors});
+          when(
+            () => codePushClientWrapper.getApp(appId: any(named: 'appId')),
+          ).thenAnswer(
+            (_) async => AppMetadata(
+              appId: appId,
+              displayName: 'my-app',
+              createdAt: DateTime(2023),
+              updatedAt: DateTime(2023),
+            ),
+          );
+          var index = 0;
+          const newAppIds = ['test-appId-3', 'test-appId-4'];
+          when(
+            () => codePushClientWrapper.createApp(
+              appName: any(named: 'appName'),
+              organizationId: any(named: 'organizationId'),
+            ),
+          ).thenAnswer((invocation) async {
+            final name = invocation.namedArguments[#appName] as String?;
+            return App(id: newAppIds[index++], displayName: name ?? '-');
+          });
+
+          await runWithOverrides(command.run);
+
+          final written =
+              verify(
+                    () => shorebirdYamlFile.writeAsStringSync(captureAny()),
+                  ).captured.single
+                  as String;
+          expect(written, contains('channel: beta'));
+          expect(written, contains('base_url: http://10.0.0.7:18080'));
+          expect(written, contains('auto_update: false'));
+          // and the new flavors were still added
+          expect(written, contains('c: test-appId-3'));
+          expect(written, contains('d: test-appId-4'));
+          // and the result still parses, i.e. nothing was written that the
+          // model would reject on the next command.
+          final parsed = checkedYamlDecode(
+            written,
+            (m) => ShorebirdYaml.fromJson(m!),
+          );
+          expect(parsed.channel, 'beta');
+          expect(parsed.baseUrl, 'http://10.0.0.7:18080');
+          expect(parsed.autoUpdate, isFalse);
         });
 
         test(

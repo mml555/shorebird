@@ -18,6 +18,102 @@ base_url: https://example.com
       expect(shorebirdYaml.baseUrl, 'https://example.com');
     });
 
+    group('channel', () {
+      // The native updater has always read `channel:` from the bundled
+      // shorebird.yaml; this model did not declare it and the generated parser
+      // is disallowUnrecognizedKeys, so the documented key was rejected and
+      // there was no supported config path onto a non-stable track.
+      test('is accepted', () {
+        const yaml = '''
+app_id: test_app_id
+channel: beta
+''';
+        final shorebirdYaml = checkedYamlDecode(
+          yaml,
+          (m) => ShorebirdYaml.fromJson(m!),
+        );
+        expect(shorebirdYaml.channel, 'beta');
+      });
+
+      test('accepts a custom track name, not just stable/beta/staging', () {
+        // The server allows arbitrary track names and `shorebird patches
+        // set-track` documents that; a config that only accepted the three
+        // built-ins would be narrower than the control plane.
+        const yaml = '''
+app_id: test_app_id
+channel: my_custom_track
+''';
+        final shorebirdYaml = checkedYamlDecode(
+          yaml,
+          (m) => ShorebirdYaml.fromJson(m!),
+        );
+        expect(shorebirdYaml.channel, 'my_custom_track');
+      });
+
+      test('is null when omitted, leaving the updater default of stable', () {
+        const yaml = '''
+app_id: test_app_id
+''';
+        final shorebirdYaml = checkedYamlDecode(
+          yaml,
+          (m) => ShorebirdYaml.fromJson(m!),
+        );
+        expect(shorebirdYaml.channel, isNull);
+      });
+
+      test('survives a toJson/fromJson round trip', () {
+        const original = ShorebirdYaml(appId: 'test_app_id', channel: 'beta');
+        final restored = ShorebirdYaml.fromJson(original.toJson());
+        expect(restored.channel, 'beta');
+        expect(restored.appId, 'test_app_id');
+      });
+
+      test('round trip preserves a null channel as null', () {
+        const original = ShorebirdYaml(appId: 'test_app_id');
+        final restored = ShorebirdYaml.fromJson(original.toJson());
+        expect(restored.channel, isNull);
+      });
+
+      test('coexists with every other key', () {
+        const yaml = '''
+app_id: test_app_id
+channel: beta
+base_url: https://example.com
+auto_update: false
+patch_verification: install_only
+flavors:
+  development: dev_id
+''';
+        final shorebirdYaml = checkedYamlDecode(
+          yaml,
+          (m) => ShorebirdYaml.fromJson(m!),
+        );
+        expect(shorebirdYaml.channel, 'beta');
+        expect(shorebirdYaml.baseUrl, 'https://example.com');
+        expect(shorebirdYaml.autoUpdate, isFalse);
+        expect(
+          shorebirdYaml.patchVerification,
+          PatchVerification.installOnly,
+        );
+        expect(shorebirdYaml.flavors, {'development': 'dev_id'});
+      });
+
+      test('an unrelated unknown key is STILL rejected', () {
+        // The mutation that proves the previous tests are not passing because
+        // the parser became permissive: adding `channel` must not have turned
+        // disallowUnrecognizedKeys off.
+        const yaml = '''
+app_id: test_app_id
+channel: beta
+not_a_real_key: value
+''';
+        expect(
+          () => checkedYamlDecode(yaml, (m) => ShorebirdYaml.fromJson(m!)),
+          throwsA(isA<ParsedYamlException>()),
+        );
+      });
+    });
+
     test('can be deserialized with flavors', () {
       const yaml = '''
 app_id: test_app_id1

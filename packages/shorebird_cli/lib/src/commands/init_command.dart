@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:checked_yaml/checked_yaml.dart';
 import 'package:collection/collection.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
@@ -387,15 +388,32 @@ app_id:
 # auto_update: false
 ''';
 
-    final editor = YamlEditor(content)..update(['app_id'], appId);
+    final file = shorebirdEnv.getShorebirdYamlFile(cwd: projectRoot);
+
+    // EDIT AN EXISTING FILE IN PLACE; only fall back to the template when there
+    // is nothing to preserve.
+    //
+    // This path is reached when `init` adds newly detected flavors to a project
+    // that ALREADY has a shorebird.yaml. Rebuilding from `content` there
+    // silently discarded every key the template does not mention — `base_url`,
+    // a real `auto_update`, and `channel` — so adding a flavor to a self-hosted
+    // app repointed it at the default control plane. The keys are not
+    // re-serialised from `ShorebirdYaml` either, because that would rewrite the
+    // user's comments and formatting; a YamlEditor on their own text touches
+    // only the nodes being changed.
+    final existing = file.existsSync() ? file.readAsStringSync() : null;
+    final editor = YamlEditor(existing ?? content)..update(['app_id'], appId);
 
     if (flavors != null) editor.update(['flavors'], flavors);
 
-    shorebirdEnv
-        .getShorebirdYamlFile(cwd: projectRoot)
-        .writeAsStringSync(editor.toString());
+    file.writeAsStringSync(editor.toString());
 
-    return ShorebirdYaml(appId: appId);
+    // Parse what was just written rather than constructing from `appId` alone,
+    // so the returned model reflects everything the file actually carries.
+    return checkedYamlDecode(
+      editor.toString(),
+      (m) => ShorebirdYaml.fromJson(m!),
+    );
   }
 
   void _logAvailableOrganizations(
