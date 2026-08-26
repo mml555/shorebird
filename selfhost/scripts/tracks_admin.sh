@@ -43,7 +43,10 @@ channels)
   api GET "/api/v1/apps/$APP/channels" | python3 -c '
 import json,sys
 d=json.load(sys.stdin)
-names=[c["name"] for c in (d.get("channels") or d)]
+# The channels endpoint returns a BARE list of {id,app_id,name} (api.dart:1711),
+# while releases/patches are wrapped. Tolerate both rather than assume.
+rows=d if isinstance(d,list) else (d.get("channels") or [])
+names=[c["name"] if isinstance(c,dict) else str(c) for c in rows]
 for n in sorted(names): print(f"  {n}")
 missing=[c for c in ("alpha","beta") if c not in names]
 print()
@@ -58,7 +61,8 @@ state)
 import json,sys,os
 d=json.load(sys.stdin)
 rel=os.environ["REL"]
-for r in (d.get("releases") or d):
+rows=d if isinstance(d,list) else (d.get("releases") or [])
+for r in rows:
     if r.get("version")==rel: print(r["id"]); break
 ' )
   [ -n "$RID" ] || { echo "no release $REL"; exit 1; }
@@ -66,7 +70,7 @@ for r in (d.get("releases") or d):
   api GET "/api/v1/apps/$APP/releases/$RID/patches" | python3 -c '
 import json,sys
 d=json.load(sys.stdin)
-ps=d.get("patches") or d
+ps=d if isinstance(d,list) else (d.get("patches") or [])
 if not ps: print("  (no patches yet)")
 for p in ps:
     print(f"  patch {p.get(\"number\")}  status={p.get(\"status\")}  convenience channel={p.get(\"channel\")!r}")
