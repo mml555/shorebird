@@ -72,13 +72,17 @@ for r in rows:
 import json,sys
 d=json.load(sys.stdin)
 ps=d if isinstance(d,list) else (d.get("patches") or [])
-if not ps: print("  (no patches yet)")
+if not ps:
+    print("  (no patches yet)")
 for p in ps:
-    print(f"  patch {p.get(\"number\")}  status={p.get(\"status\")}  convenience channel={p.get(\"channel\")!r}")
+    num=p.get("number"); st=p.get("status"); conv=p.get("channel")
+    print("  patch {}  status={}  convenience channel={!r}".format(num,st,conv))
     deps=p.get("deployments") or []
-    if not deps: print("    deployments: NONE")
+    if not deps:
+        print("    deployments: NONE  <-- authoritative: live on no track")
     for x in deps:
-        print(f"    deployment: channel={x.get(\"channel\")} active={x.get(\"active\")} rollout={x.get(\"rollout\")}")
+        print("    deployment: channel={} active={} rollout={}".format(
+            x.get("channel"), x.get("active"), x.get("rollout")))
 '
   ;;
 *) echo "unknown subcommand: $1"; exit 2;;
