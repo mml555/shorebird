@@ -77,6 +77,20 @@ OUT=${OUT:-$SRC/out/host_release_arm64}
 # EXTRACTED from it. The address and the download cannot now disagree by
 # construction rather than by two paths happening to match.
 PSDK_ZIP=${PSDK_ZIP:-$OUT/zip_archives/flutter_patched_sdk_product.zip}
+# THE BUILD-TIME SDK PACKAGES, and why they are part of the ADDRESS.
+#
+# `flutter_cache.dart`'s FlutterSdk.getPackageDirs() requires sky_engine.zip and
+# flutter_gpu.zip at <engineHash>/. No cell in the chain 2c4443ce..9b5f040c ever
+# hosted either, so a build from an EMPTY cache could not complete on any of
+# them -- releases worked only because the cache retained a pkg/sky_engine
+# fetched under a DIFFERENT engine hash. Found 2026-08-25; see
+# evidence/p6-flavor-ios/EPOCH_CROSSING_STOP.md.
+#
+# They are ADDRESSED rather than merely placed beside the manifest, because a
+# cell that serves a different dart:ui source package is a different toolchain,
+# and an address that cannot express that is an address that cannot refuse it.
+SKY_ENGINE_ZIP=${SKY_ENGINE_ZIP:-$OUT/zip_archives/sky_engine.zip}
+FLUTTER_GPU_ZIP=${FLUTTER_GPU_ZIP:-$OUT/zip_archives/flutter_gpu.zip}
 if [[ -z "${FLUTTER_PLATFORM:-}" ]]; then
   if [[ -f "$PSDK_ZIP" ]]; then
     _fp_dir=$(mktemp -d)
@@ -305,6 +319,11 @@ if [[ -n "$IOS_ARTIFACTS" ]]; then
   IOS_DIGEST=$(shasum -a 256 "$IOS_ARTIFACTS" | cut -d' ' -f1)
 fi
 
+[[ -f "$SKY_ENGINE_ZIP" ]] || die "no sky_engine.zip at $SKY_ENGINE_ZIP — run build_route_b_sdk_packages.sh first"
+[[ -f "$FLUTTER_GPU_ZIP" ]] || die "no flutter_gpu.zip at $FLUTTER_GPU_ZIP — run build_route_b_sdk_packages.sh first"
+SKY_DIGEST=$(shasum -a 256 "$SKY_ENGINE_ZIP" | cut -d' ' -f1)
+GPU_DIGEST=$(shasum -a 256 "$FLUTTER_GPU_ZIP" | cut -d' ' -f1)
+
 MANIFEST=$(mktemp)
 {
   for pair in "${files[@]}"; do
@@ -321,6 +340,10 @@ MANIFEST=$(mktemp)
   if [[ -n "$IOS_DIGEST" ]]; then
     printf 'ios_artifacts_sha256 %s\n' "$IOS_DIGEST"
   fi
+  # Required, not optional: a cell that cannot build from an empty cache is not
+  # publishable, so there is no "absent" state to tolerate here.
+  printf 'sky_engine_sha256 %s\n' "$SKY_DIGEST"
+  printf 'flutter_gpu_sha256 %s\n' "$GPU_DIGEST"
 } | sort > "$MANIFEST"
 
 REV=$(shasum -a 256 "$MANIFEST" | cut -c1-40)
@@ -410,6 +433,21 @@ if [[ -n "$PSDK_ZIP" ]]; then
   fi
 fi
 
+# Same discipline as the platform dill: install the exact artifact that was
+# HASHED, then verify it in place, rather than trusting that a clone still means
+# what it meant.
+note "installing the addressed build-time SDK packages under $REV"
+if [[ "$DRY" != 1 ]]; then
+  cp "$SKY_ENGINE_ZIP" "$ENGINE_DST/sky_engine.zip"
+  cp "$FLUTTER_GPU_ZIP" "$ENGINE_DST/flutter_gpu.zip"
+  got_sky=$(shasum -a 256 "$ENGINE_DST/sky_engine.zip" | cut -d' ' -f1)
+  got_gpu=$(shasum -a 256 "$ENGINE_DST/flutter_gpu.zip" | cut -d' ' -f1)
+  [[ "$got_sky" == "$SKY_DIGEST" ]] || die "installed sky_engine.zip $got_sky != hashed $SKY_DIGEST"
+  [[ "$got_gpu" == "$GPU_DIGEST" ]] || die "installed flutter_gpu.zip $got_gpu != hashed $GPU_DIGEST"
+  echo "    sky_engine.zip  ${SKY_DIGEST:0:16} (verified in place)"
+  echo "    flutter_gpu.zip ${GPU_DIGEST:0:16} (verified in place)"
+fi
+
 # The bidiff tool is engine-hash-scoped too, and a patch cannot be built
 # without it. Missing it fails late, at the diff step, long after the release.
 SB_SRC="$OVERLAY/download.shorebird.dev/shorebird/$DONOR"
@@ -444,6 +482,33 @@ else
     # point -- appending here could only ever describe the engine half, which is
     # exactly the half that does not change in a tooling-only mint.
     MAP_PENDING=1
+  fi
+fi
+
+# THE COMPLETENESS INVARIANT, checked before publishing:
+#
+#   A publishable Route B cell contains every engine-hash-addressed artifact
+#   required to perform a release from an EMPTY CACHE.
+#
+# Derived from the CONSUMER's own inventory (flutter_cache.dart), not from a list
+# maintained here -- a list here is how sky_engine.zip went missing from four
+# published cells while this script's header claimed it was cloned.
+#
+# Refuses by default. ALLOW_INCOMPLETE_CELL=1 publishes anyway and is for the
+# case where the missing artifacts genuinely do not exist yet for this engine;
+# it prints what is missing so an incomplete cell can never be published
+# silently.
+if [[ "$DRY" != 1 ]]; then
+  note "completeness: can a release be built from an EMPTY cache on this cell?"
+  if bash "$HERE/verify_cell_completeness.sh" --hash "$REV" --overlay "$OVERLAY" \
+       | sed -n '/^required/,$p' | sed 's/^/    /'; then
+    :
+  elif [[ "${ALLOW_INCOMPLETE_CELL:-0}" == 1 ]]; then
+    echo "    ALLOW_INCOMPLETE_CELL=1 — publishing a cell that CANNOT build from"
+    echo "    an empty cache. It will appear to work on a machine whose cache"
+    echo "    retained those artifacts from another engine hash."
+  else
+    die "cell $REV is incomplete; set ALLOW_INCOMPLETE_CELL=1 to publish anyway"
   fi
 fi
 
