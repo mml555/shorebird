@@ -190,3 +190,54 @@ recording as a property of the updater rather than rig folklore.
 
 `trackState()` changed `TRACK-V1` → `TRACK-V2` in both ternary branches; the
 control `kTracksRelease` is untouched. `git diff` is 2 lines.
+
+## Phase 1 — isolation: PASSED
+
+`shorebird patch --track=alpha` published patch 1 (`⚪️ Track: alpha`, arm64,
+1.04 KB). `Verifying patch can be applied to release` passed — the P4.1 survival
+and coverage gates clearing on this release.
+
+### Server state, read from `deployments`
+
+    patch 1  status=ready
+      deployment: channel=alpha  rollout=100  -> LIVE
+      beta: ABSENT (no deployment row at all)
+
+### Client outcomes
+
+| client | channel sent | `patch_available` | download/install events | screen |
+|---|---|---|---|---|
+| A `42b44b12` | `alpha` | **true**, patch 1 | `__patch_download__` ×1, `__patch_install__` ×1 | **`TRACK-V2`** |
+| B `8ce6ece3` | `beta` | **false** (two separate launches) | **none at all** | `TRACK-V1` |
+
+A's second launch then reported `patch_available: false`, correctly — it already
+had patch 1.
+
+### B's withholding, banked as more than a screen
+
+Every item the precommit demanded, so this is a withholding rather than a silent
+failure:
+
+* B performed a **real** check — its updater logged the request and the server
+  answered 200; this is not an absence of traffic;
+* the request carried **`channel: "beta"`**, from B's own updater log;
+* the response was `PatchCheckResponse { patch_available: false, patch: None }`;
+* the `events` table has **no row of any type** for `8ce6ece3` on
+  `1.10.0+1`, so nothing was downloaded and nothing installed;
+* the screen stayed `TRACK-V1` with `channel: beta` and `release: TRACKS-REL-1`
+  unchanged.
+
+Compare against A on the same release, same artifact, same server, seconds apart
+— A got `patch_available: true` and produced both events. The two differ in
+`client_id` and `channel`, nothing else.
+
+**This still does not close the arm.** Phase 1 alone cannot distinguish "beta was
+withheld" from "B cannot update for some unrelated reason", which is exactly the
+failure mode that consumed most of this arm. Phase 2 is the discriminator.
+
+### A note on evidence hygiene
+
+A screenshot taken here caught the **home screen**, because both apps had been
+force-quit — it is kept as `02_two_installs_home.png`, which is what it actually
+shows (two distinct installs, `Tracks A` and `Tracks B`), rather than filed under
+the name I originally gave it.
