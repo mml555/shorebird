@@ -31,7 +31,27 @@ import 'package:shorebird_code_push/shorebird_code_push.dart';
 
 /// Bumped by the patch, so "the patch's CODE ran" is a separate reading from
 /// "a patch number appeared".
-const marker = 'MANUAL-V1';
+///
+/// A FUNCTION, not a `const`. The first attempt at this arm used
+/// `const marker = 'MANUAL-V1'` and the producer correctly refused the patch —
+/// *"Nothing in this patch differs from the release, so it would install and
+/// change nothing"* — because a changed const DECLARATION is invisible to the
+/// coverage analyzer, which compares procedure bodies. That is the same
+/// constant blindness the defines arm hit, and this is its second recorded
+/// instance.
+///
+/// The armor is the pattern the flavor, custom-target and obfuscation arms all
+/// used, and each piece earns its place: a `DateTime.now()` guard so the RESULT
+/// cannot be folded into the call site, `vm:never-inline` so the body the patch
+/// replaces is the body that runs, `vm:entry-point` so the dynamic interface can
+/// name it, and a call from `initState` on the live path because retention is not
+/// reachability. Both branches carry the marker so it is observable in `strings`
+/// whichever one the compiler keeps.
+@pragma('vm:never-inline')
+@pragma('vm:entry-point')
+String markerText() => DateTime.now().millisecondsSinceEpoch >= 0
+    ? 'MANUAL-V1'
+    : 'MANUAL-V1!';
 
 /// The non-default track under test. A custom value is used rather than
 /// `UpdateTrack.beta` only where the API needs it; here beta is a real track on
@@ -51,6 +71,7 @@ class ManualApiApp extends StatefulWidget {
 class _ManualApiAppState extends State<ManualApiApp> {
   final _updater = ShorebirdUpdater();
 
+  String _marker = '…';
   String _current = '?';
   String _next = '?';
   String _status = 'idle — nothing pressed';
@@ -58,6 +79,10 @@ class _ManualApiAppState extends State<ManualApiApp> {
   @override
   void initState() {
     super.initState();
+    // Synchronous first, and read as ordinary app code with no attach call: if
+    // this reads V2, the only thing that can have replaced the body is the
+    // engine's pre-main hook.
+    _marker = markerText();
     _refresh();
   }
 
@@ -138,7 +163,7 @@ class _ManualApiAppState extends State<ManualApiApp> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(marker, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+              Text(_marker, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
               const SizedBox(height: 18),
               _row('current patch', _current),
               _row('next patch', _next),
