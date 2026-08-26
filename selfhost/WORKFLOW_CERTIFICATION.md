@@ -46,7 +46,7 @@ stated rather than blurred into a fresh certification.
 | cell | `93a3756…` at the time of the run |
 | re-certify when | the updater revision, the engine cell's runtime artifacts, or the container format changes |
 
-## 2 · flavor — `PARTIAL`
+## 2 · flavor — `CERTIFIED`
 
 | field | value |
 |---|---|
@@ -55,7 +55,8 @@ stated rather than blurred into a fresh certification.
 | proven | host: `probes/g42_flavor_flow.sh` **13/13**; Android device: release `--flavor bar` → matching patch → `FLAVORPROBE-V3 → V4`, taken from the REGISTERED artifact (`evidence/android/g42-flavor/POSTFIX_DEVICE_ARM.txt`) |
 | negative control | wrong-flavor patch refused before any build begins, `BUILD_CONFIG_MISMATCH`, asserted on the CODE (P5) |
 | iOS release, clean CLI | **PROVEN 2026-08-26.** Release **113** (`1.1.0+1`, flavor `foo`) on the P6 device epoch cell `8e659812…`, cut through the real CLI on a dedicated app (`flavoredprobe-p6`), with the complete P4/P5 release shape verified from the SERVER-fetched supplement — 14 fields, four against independently computed digests, and the flavor compared against the SHIPPED program (`V1/Foo`). `evidence/p6-flavor-ios/P6_DEVICE_EPOCH.md` |
-| **not proven** | **the iOS device arm.** Blocked on ONE prerequisite that is not about flavors: no provisioning profile exists for `dev.selfhost.flavoredProbe.foo`, so `exportArchive` fails with `No Accounts`. `--no-codesign` satisfies the release-shape gate but cannot satisfy a physical render of `FLAVORPROBE-V4` |
+| iOS device arm | **PROVEN 2026-08-26.** Release 115 (`1.3.0+1`, `foo`, development-signed) on epoch cell `8e659812…`; patch 79 through the real producer; by-hand taps only. Baseline `V1/Foo` → patched **`V2/Foo`**, with `release:` and `asset:` controls unmoved. Corroborated off-screen by `patches/1/dlc.vmcode.routeb` on the device and `POST /api/v1/patches/check -> 200` on the server. `evidence/p6-flavor-ios/VERDICT.md` |
+| what it cost | three defects, none about flavors: replacements did not inherit the target library's imports (Route B, fixed); a device-unreachable `base_url` that failed silently (fixture, guarded); and iOS **Local Network permission** gating the whole transport invisibly — a prerequisite for EVERY device row on this rig |
 | evidence | `evidence/g42_flavored_fixture/`, `evidence/android/g42-flavor/` |
 | re-certify when | CLI argument parsing changes, or the flavor resolution order changes |
 
@@ -157,9 +158,9 @@ Six rows are certification of machinery that already exists and mostly works;
 four are where new findings should be expected. Nothing here is claimed green to
 satisfy a checklist:
 
-- `CERTIFIED`: 1 (baseline)
+- `CERTIFIED`: 2 (baseline, flavor)
 - `P6_DEVICE_EPOCH_READY = true` — cell `8e659812…`, release 113, inherited by every later device row rather than re-established per row
-- `PARTIAL`: 3 (flavor, defines, obfuscation) — each with the missing link named
+- `PARTIAL`: 2 (Dart defines, obfuscation) — each with the missing link named
 - `BLOCKED`: 1 (CI, on a Linux builder)
 - `UNCERTIFIED`: 4 (target, signing, tracks, manual updater API)
 - `NOT ASSESSED`: 1 (Add-to-App)
