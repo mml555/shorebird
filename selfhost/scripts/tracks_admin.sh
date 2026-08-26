@@ -95,7 +95,12 @@ for p in ps:
         print("    deployment: channel={} status={} rolled_back={} rollout={}  -> {}".format(
             x.get("channel"), x.get("status"), x.get("rolled_back"), x.get("rollout"),
             "LIVE" if live else "not live"))
-    for want in ("alpha", "beta"):
+    # Which channels to report as absent comes from CHANNELS, because the
+    # channel that must be EMPTY differs per arm: the tracks arm needed beta
+    # absent, this one needs stable absent. A hardcoded pair silently reported
+    # the wrong channel and would have left "stable: ABSENT" unevidenced.
+    import os
+    for want in os.environ.get("CHANNELS", "alpha beta").split():
         got = [x for x in deps if x.get("channel") == want]
         if not got:
             print("    {}: ABSENT (no deployment row at all)".format(want))
