@@ -131,3 +131,62 @@ blocked-connection notice, then "allowed by preference for Flavored Probe"). It
 did not cause this failure, but it means **per-app local-network state cannot be
 made to differ between A and B** while they share one Mach-O. If a future arm
 needs A and B to hold different permissions, that shared UUID is where it breaks.
+
+## Phase 0 — PASSED, after the UUID fix
+
+### The blocker was my own packaging, and the fix was predicted before testing
+
+All three bundles shared `LC_UUID BB02BCB5-…` because they are copies of one
+build. iOS attributes local-network permission **by executable UUID**: with a
+colliding set installed it logged `Got local network blocked notification: …
+bundle_id: (null)` and refused the connection in ~0.2ms — no round trip. That hit
+**every** app sharing the UUID, including the untouched base app, which had
+downloaded a patch successfully an hour earlier and then began failing purely as
+collateral damage of my copying.
+
+Safari on the phone reaching `http://10.0.0.7:18080/` ("code push Ok") is what
+separated "the phone cannot route to the server" from "these apps cannot", and
+sent the diagnosis to the right place.
+
+Fix: `scripts/set_macho_uuid.py` rewrites the 16-byte `LC_UUID` payload in each
+copy's main executable — deterministically, from a hash of its bundle id — before
+signing, so the signature covers the new bytes. Nothing else in the Mach-O
+changes, and `make_track_clients.sh` still asserts the AOT payload is untouched.
+The prediction was written down before the taps: with distinct UUIDs each app
+gets its own grant and the checks land. Zero checks reached the server before;
+four did after.
+
+### The control, as required
+
+Both clients on the reinstalled bundles performed a **real check** and received a
+**real response**:
+
+| client | pid | channel | `client_id` | server response |
+|---|---|---|---|---|
+| `tka` | 38282 | **`alpha`** | `42b44b12` | `PatchCheckResponse { patch_available: false, patch: None }` |
+| `tkb` | 38270 | **`beta`** | `8ce6ece3` | `PatchCheckResponse { patch_available: false, patch: None }` |
+
+Server side, four `POST /api/v1/patches/check -> 200`. Release state:
+`(no patches yet)`, read from `deployments`.
+
+So "neither client received a patch" is now **falsifiable**: both asked, both
+were answered, and nothing was deployed. Phase 0 is a control rather than an
+absence.
+
+`client_id`s differ from the pre-fix values because the reinstall reset updater
+state (`No existing state file found`) — expected, and it does not weaken the
+arm: independence is a property of the two clients, not of particular UUIDs.
+
+### A second real finding, kept
+
+The updater fires its check **pre-main** while iOS resolves local-network
+permission **asynchronously**, so the first request in a fresh process can lose
+that race and the updater abandons the update for that launch. Every successful
+check here came from a *second* launch. That is the mechanism behind the
+tap → force-quit → tap-again ritual this rig has always needed, and it is worth
+recording as a property of the updater rather than rig folklore.
+
+## Phase 1 — patch staged
+
+`trackState()` changed `TRACK-V1` → `TRACK-V2` in both ternary branches; the
+control `kTracksRelease` is untouched. `git diff` is 2 lines.

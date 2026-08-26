@@ -80,6 +80,17 @@ make_client() { # <suffix> <channel> <display name>
   cp -R "$SRC" "$app"
   rm -rf "$app/_CodeSignature" "$app/Frameworks/App.framework/_CodeSignature"
 
+  # 0. A DISTINCT executable UUID. Copies of one build share LC_UUID, and iOS
+  # attributes local-network permission by executable UUID: with several
+  # installed apps sharing one it logged `bundle_id: (null)` and every app in the
+  # colliding set -- including the untouched base app that had worked minutes
+  # earlier -- had its local-network connection refused instantly (~0.2ms, no
+  # round trip). Deterministic per bundle id so a rebuild is reproducible.
+  local uuid
+  uuid=$(printf '%s' "$id" | shasum -a 256 | cut -c1-32)
+  python3 "$(dirname "${BASH_SOURCE[0]}")/set_macho_uuid.py" "$app/Runner" "$uuid" >/dev/null \
+    || die "$suffix: failed to set LC_UUID"
+
   # 1. the channel, into the file the updater reads
   local yaml="$app/Frameworks/App.framework/flutter_assets/shorebird.yaml"
   [ -f "$yaml" ] || die "$suffix: no bundled shorebird.yaml"
@@ -111,7 +122,8 @@ make_client() { # <suffix> <channel> <display name>
   [ "$aot" = "$REF_AOT" ] \
     || die "$suffix: App.framework/App CHANGED ($aot != $REF_AOT) — one patch cannot bind to both"
 
-  printf '  %-4s id=%-40s channel=%-6s aot=%s\n' "$suffix" "$id" "$channel" "${aot:0:12}"
+  printf '  %-4s id=%-40s channel=%-6s aot=%s uuid=%s\n' "$suffix" "$id" "$channel" \
+    "${aot:0:12}" "$(dwarfdump --uuid "$app/Runner" 2>/dev/null | awk '{print $2}' | head -1)"
 }
 
 echo "clients :"
@@ -132,6 +144,9 @@ printf '  signed files DO differ  : %s (expected -- the signature blob)\n' \
 printf '  bundle ids differ       : %s / %s\n' \
   "$(plutil -extract CFBundleIdentifier raw "$A/Info.plist")" \
   "$(plutil -extract CFBundleIdentifier raw "$B/Info.plist")"
+printf '  exec UUIDs differ       : %s\n' \
+  "$([ "$(dwarfdump --uuid "$A/Runner" | awk '{print $2}' | head -1)" != \
+       "$(dwarfdump --uuid "$B/Runner" | awk '{print $2}' | head -1)" ] && echo YES || echo NO)"
 printf '  channels differ         : %s / %s\n' \
   "$(sed -n 's/^channel: //p' "$A/Frameworks/App.framework/flutter_assets/shorebird.yaml")" \
   "$(sed -n 's/^channel: //p' "$B/Frameworks/App.framework/flutter_assets/shorebird.yaml")"
