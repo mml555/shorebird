@@ -410,6 +410,46 @@ refused unknown *keys* this would have broken every patch on the shipped engine,
 on device, after the CLI reported success. It does not, and that is measured
 rather than assumed.
 
+## 7e. DELTA RE-AUDIT — cell `8e659812…`, 2026-08-26 (P6 device epoch)
+
+**Why it fired.** The cell gained two engine-hash-addressed artifacts:
+`ios/artifacts.zip` and `ios-profile/artifacts.zip`, built from this same pinned
+tree. §8 forces a re-audit on any cell change.
+
+**Determination: NO RELEASE-RUNTIME DELTA.**
+
+`ios-release/artifacts.zip` is **`216a326d81688d1a`** — byte-identical to every
+cell back to `2c4443ce`. The iOS *release* engine was not rebuilt, not
+repackaged, and not touched. Nor were `dart-sdk-darwin-arm64.zip`
+`bc5948b7e4598f64`, either patched SDK, or `darwin-arm64/artifacts.zip`.
+
+**What was added, and why it cannot reach a device.** iOS **debug** and
+**profile** engines. `flutter_cache.dart`'s `_iosBinaryDirs` requires all three
+iOS groups before an iOS build proceeds, including a release build — so without
+them a release could not be built from an empty cache at all. They are
+**build-tool dependencies**: a release-mode app embeds the release engine, and
+nothing from the debug or profile archives is linked into it or shipped.
+
+That was verified rather than argued: a release built from a genuinely empty
+cache on this cell produced `Runner.app` whose embedded engine is the
+`216a326d…` release framework, and `isRouteBEngine` is TRUE on those consumed
+bytes (`InterpretCall` present in `49182b375aeb858b`).
+
+| invariant | status |
+|---|---|
+| I1 loader guard | **unchanged** |
+| I2 `PROT_READ` mapping | **unchanged** |
+| I3 execution through the pre-existing `InterpretCall` stub | **unchanged** |
+| I4 no runtime code generation | **unchanged** |
+| new executable-memory path | **none** |
+| new entitlement requirement | **none** |
+
+Both new archives were built with the same Route B configuration as the release
+(`dart_dynamic_modules=true`, `shorebird_use_interpreter=false`) from identical
+`engine_version` / `dart_version` / `skia_version`, so they are not a foreign
+toolchain admitted through a side door — which is the thing that would have
+mattered here.
+
 ## 8. WHEN THIS MUST BE RE-AUDITED
 
 Not on a schedule — on any of these:

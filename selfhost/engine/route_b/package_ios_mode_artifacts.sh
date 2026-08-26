@@ -36,7 +36,7 @@ SELFHOST="$(cd "$HERE/../.." >/dev/null 2>&1 && pwd)"
 OVERLAY=${OVERLAY:-$SELFHOST/cdn/overlay}
 REFERENCE=${REFERENCE:-$SRC/out/ios_release}
 STAMP=${STAMP:-202001010000}
-MODE=""; HASH=""; OUTDIR=""; DRY=0
+MODE=""; HASH=""; OUTDIR=""; DRY=0; STAGE_TO=""
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 note() { echo; echo "==> $*"; }
@@ -48,11 +48,16 @@ while [[ $# -gt 0 ]]; do
     --hash) HASH="${2:?}"; shift 2 ;;
     --out) OUTDIR="${2:?}"; shift 2 ;;
     --dry-run) DRY=1; shift ;;
+    # Write the qualified archive to a path WITHOUT publishing. The cell address
+    # is a function of these digests, so the mint needs the bytes before the
+    # hash they will be filed under exists.
+    --stage-to) STAGE_TO="${2:?}"; shift 2 ;;
     -h|--help) usage ;;
     *) die "unknown argument: $1" ;;
   esac
 done
-[[ -n "$MODE" && -n "$HASH" ]] || usage
+[[ -n "$MODE" ]] || usage
+[[ -n "$HASH" || -n "$STAGE_TO" ]] || usage
 case "$MODE" in
   debug)   DEST_DIR=ios ;;
   profile) DEST_DIR=ios-profile ;;
@@ -112,12 +117,21 @@ echo "    Flutter.xcframework present, device slice $(shasum -a 256 "$BIN" | cut
   || die "$BIN is not newer than $A — this looks like a stale build"
 echo "    the binary is newer than its own args.gn"
 
-GEN="$OUTDIR/gen_snapshot_arm64"; [[ -f "$GEN" ]] || GEN="$OUTDIR/clang_x64/gen_snapshot_arm64"
-ANA="$OUTDIR/analyze_snapshot_arm64"; [[ -f "$ANA" ]] || ANA="$OUTDIR/clang_x64/analyze_snapshot_arm64"
-if [[ "$MODE" == profile ]]; then
-  # Profile compiles AOT, so its host tools are part of the set.
-  [[ -f "$GEN" ]] || die "profile has no gen_snapshot_arm64 (looked in $OUTDIR and clang_x64)"
-fi
+# universal/ is where these actually land, and it is where
+# publish_ios_overlay.sh reads them from for the release archive. A first version
+# of this script looked in the out root and clang_x64 and found neither -- which
+# the qualification gate then correctly refused for profile rather than shipping
+# an archive missing its AOT tool. The refusal was right; the path was mine.
+GEN="$OUTDIR/universal/gen_snapshot_arm64"
+[[ -f "$GEN" ]] || GEN="$OUTDIR/gen_snapshot_arm64"
+ANA="$OUTDIR/analyze_snapshot_arm64"
+[[ -f "$ANA" ]] || ANA="$OUTDIR/artifacts_x64/analyze_snapshot_arm64"
+# Required for BOTH modes: all three iOS builds produce them, and the release
+# archive carries them, so an archive that silently omits them is not the same
+# artifact set the consumer gets for the other modes.
+[[ -f "$GEN" ]] || die "$MODE has no gen_snapshot_arm64 (looked in $OUTDIR/universal and $OUTDIR)"
+[[ -f "$ANA" ]] || die "$MODE has no analyze_snapshot_arm64"
+echo "    host tools: gen_snapshot $(shasum -a 256 "$GEN" | cut -c1-16), analyze_snapshot $(shasum -a 256 "$ANA" | cut -c1-16)"
 
 # ---- stage and archive ------------------------------------------------------
 stage_and_zip() { # <zip-path>
@@ -147,6 +161,14 @@ if [[ "$D1" != "$D2" ]]; then
 fi
 echo "    REPRODUCIBLE  ${D1:0:32}"
 echo "    $(wc -c < "$T1" | tr -d ' ') bytes"
+
+if [[ -n "$STAGE_TO" ]]; then
+  mkdir -p "$(dirname "$STAGE_TO")"
+  cp "$T1" "$STAGE_TO"
+  note "staged (not published) $STAGE_TO"
+  echo "    $D1"
+  exit 0
+fi
 
 DEST="$OVERLAY/flutter_infra_release/flutter/$HASH/$DEST_DIR"
 if [[ "$DRY" == 1 ]]; then

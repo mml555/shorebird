@@ -89,6 +89,13 @@ PSDK_ZIP=${PSDK_ZIP:-$OUT/zip_archives/flutter_patched_sdk_product.zip}
 # They are ADDRESSED rather than merely placed beside the manifest, because a
 # cell that serves a different dart:ui source package is a different toolchain,
 # and an address that cannot express that is an address that cannot refuse it.
+# The two iOS engine MODES the consumer also requires. `_iosBinaryDirs` asks for
+# ios, ios-profile and ios-release before an iOS build proceeds, INCLUDING a
+# release build -- so a cell with only ios-release cannot build from an empty
+# cache. Addressed for the same reason as the platform dill: a cell serving a
+# different debug engine is a different toolchain state.
+IOS_DEBUG_ZIP=${IOS_DEBUG_ZIP:-}
+IOS_PROFILE_ZIP=${IOS_PROFILE_ZIP:-}
 SKY_ENGINE_ZIP=${SKY_ENGINE_ZIP:-$OUT/zip_archives/sky_engine.zip}
 FLUTTER_GPU_ZIP=${FLUTTER_GPU_ZIP:-$OUT/zip_archives/flutter_gpu.zip}
 if [[ -z "${FLUTTER_PLATFORM:-}" ]]; then
@@ -322,6 +329,15 @@ fi
 [[ -f "$SKY_ENGINE_ZIP" ]] || die "no sky_engine.zip at $SKY_ENGINE_ZIP — run build_route_b_sdk_packages.sh first"
 [[ -f "$FLUTTER_GPU_ZIP" ]] || die "no flutter_gpu.zip at $FLUTTER_GPU_ZIP — run build_route_b_sdk_packages.sh first"
 SKY_DIGEST=$(shasum -a 256 "$SKY_ENGINE_ZIP" | cut -d' ' -f1)
+IOS_DEBUG_DIGEST=""; IOS_PROFILE_DIGEST=""
+if [[ -n "$IOS_DEBUG_ZIP" ]]; then
+  [[ -f "$IOS_DEBUG_ZIP" ]] || die "no ios debug artifacts at $IOS_DEBUG_ZIP"
+  IOS_DEBUG_DIGEST=$(shasum -a 256 "$IOS_DEBUG_ZIP" | cut -d' ' -f1)
+fi
+if [[ -n "$IOS_PROFILE_ZIP" ]]; then
+  [[ -f "$IOS_PROFILE_ZIP" ]] || die "no ios profile artifacts at $IOS_PROFILE_ZIP"
+  IOS_PROFILE_DIGEST=$(shasum -a 256 "$IOS_PROFILE_ZIP" | cut -d' ' -f1)
+fi
 GPU_DIGEST=$(shasum -a 256 "$FLUTTER_GPU_ZIP" | cut -d' ' -f1)
 
 MANIFEST=$(mktemp)
@@ -344,6 +360,12 @@ MANIFEST=$(mktemp)
   # publishable, so there is no "absent" state to tolerate here.
   printf 'sky_engine_sha256 %s\n' "$SKY_DIGEST"
   printf 'flutter_gpu_sha256 %s\n' "$GPU_DIGEST"
+  if [[ -n "$IOS_DEBUG_DIGEST" ]]; then
+    printf 'ios_debug_artifacts_sha256 %s\n' "$IOS_DEBUG_DIGEST"
+  fi
+  if [[ -n "$IOS_PROFILE_DIGEST" ]]; then
+    printf 'ios_profile_artifacts_sha256 %s\n' "$IOS_PROFILE_DIGEST"
+  fi
 } | sort > "$MANIFEST"
 
 REV=$(shasum -a 256 "$MANIFEST" | cut -c1-40)
@@ -446,6 +468,16 @@ if [[ "$DRY" != 1 ]]; then
   [[ "$got_gpu" == "$GPU_DIGEST" ]] || die "installed flutter_gpu.zip $got_gpu != hashed $GPU_DIGEST"
   echo "    sky_engine.zip  ${SKY_DIGEST:0:16} (verified in place)"
   echo "    flutter_gpu.zip ${GPU_DIGEST:0:16} (verified in place)"
+  for pair in "ios:$IOS_DEBUG_ZIP:$IOS_DEBUG_DIGEST" \
+              "ios-profile:$IOS_PROFILE_ZIP:$IOS_PROFILE_DIGEST"; do
+    d=${pair%%:*}; rest=${pair#*:}; z=${rest%%:*}; want=${rest#*:}
+    [[ -n "$z" ]] || continue
+    mkdir -p "$ENGINE_DST/$d"
+    cp "$z" "$ENGINE_DST/$d/artifacts.zip"
+    got=$(shasum -a 256 "$ENGINE_DST/$d/artifacts.zip" | cut -d' ' -f1)
+    [[ "$got" == "$want" ]] || die "installed $d/artifacts.zip $got != hashed $want"
+    echo "    $d/artifacts.zip ${want:0:16} (verified in place)"
+  done
 fi
 
 # The bidiff tool is engine-hash-scoped too, and a patch cannot be built
