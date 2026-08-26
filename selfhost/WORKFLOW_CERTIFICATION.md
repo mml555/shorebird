@@ -161,15 +161,17 @@ Wi-Fi and may be perfectly valid with USB forwarding — see
 | known gap | **progressive rollout has no client surface at all** — deliberately excluded here, so this result stays a clean test of deterministic track routing (`evidence/g6-tracks-server/rollout_surface.md`) |
 | re-certify when | control-plane track logic or eligibility changes |
 
-## 9 · manual updater API — `UNCERTIFIED`
+## 9 · manual updater API — `CERTIFIED`
 
 | field | value |
 |---|---|
 | scope | `checkForUpdate(track:)` / `update(track:)` with `auto_update: false` |
 | unique seam | the app drives the update, so the automatic updater path is bypassed — a device is required by construction |
-| proven | nothing. `evidence/g8-manual-api/host_reachability.md` records that the host arm as specified is **not runnable and the fixture would have proved nothing** |
-| owed | check → download → next-launch/apply semantics → an execution marker → rollback if the API exposes it. Lifecycle itself is already closed, so only the API seam is owed |
-| design note | the fixture records the patch number BEFORE `update()` and shows both, so the assertion is that the number changed across a call the app made — `readCurrentPatch` alone is a named false green |
+| the WORKFLOW | **PROVEN 2026-08-26.** Own fixture `manual_api_app`, own app `393fb814-…`, release `3.1.0+1`, one patch on **beta** with **stable empty**. `check(beta)` → `outdated` with nothing downloaded; `update(beta)` → download, `next patch: 1`, `current` still `none`; force-quit + relaunch → **`MANUAL-V2`**, `current patch: 1`. `evidence/p6-manual-api/VERDICT.md` |
+| the load-bearing negative | `update(stable)` pressed **seconds after** `check(beta)` reported `outdated` downloaded nothing — and the client log shows it issued its request on `channel=stable`, its own argument. Causal pair 90s apart, only the argument differing: `stable` → no download, `beta` → download. So `update(track:)` does not consume a preceding check's cached eligibility |
+| `auto_update: false` proven behaviourally | two by-hand launches with patch 1 live on beta produced **zero** checks and zero events. It is an engine property with no Dart introspection, so absence is the only proof — and it is meaningful because the same client later put a real 200 on the server. Asserted in the **shipped** bundle, not the source |
+| **NOT claimed** | this does **not** fix automatic clients. `shorebird.yaml`'s `channel:` key is still rejected by the CLI parser, so there is still no supported config path onto a non-stable track — see row 8. Closing that is a separate product decision |
+| second constant-blindness instance | the fixture's first shape used a top-level `const` as the target and the patch was **correctly refused** as a no-op. Release 122 is left unpatched as the record; marker moved into a function body and the release re-cut. **The refusal is right; the diagnosis is missing** |
 | re-certify when | the updater API surface or `auto_update` handling changes |
 
 ## 10 · Add-to-App — `NOT ASSESSED`
@@ -190,12 +192,13 @@ Six rows are certification of machinery that already exists and mostly works;
 four are where new findings should be expected. Nothing here is claimed green to
 satisfy a checklist:
 
-- `CERTIFIED`: 6 (baseline, flavor, Dart defines, obfuscation, custom target, tracks — the last scoped to server-side routing)
+- `CERTIFIED`: 7 (baseline, flavor, Dart defines, obfuscation, custom target, tracks — scoped to server-side routing — and manual updater API)
 - `P6_DEVICE_EPOCH_READY = true` — cell `8e659812…`, release 113, inherited by every later device row rather than re-established per row
 - `BLOCKED`: 1 (CI, on a Linux builder)
-- `UNCERTIFIED`: 2 (signing, manual updater API)
+- `UNCERTIFIED`: 1 (signing)
 - `NOT ASSESSED`: 1 (Add-to-App)
 
-**The two remaining rows share one shape: the host half is proven and the
-device half is not.** That is worth stating as one fact rather than two, because
-it means the outstanding work is mostly rig time, not design.
+**Signing is the one remaining uncertified row**, and it has already accumulated
+substantial real-device evidence as a side effect of every P6 release above —
+every one of them was development-signed and installed on hardware. What is
+outstanding there is mostly rig time and an explicit arm, not design.
