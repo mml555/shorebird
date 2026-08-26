@@ -5,7 +5,8 @@
     P6_DEVICE_EPOCH       = cell 8e65981251dc945356d532120e424836da10245c
     P6_DEVICE_EPOCH_READY = true
     fixture_app_id        = 1c99c679-8650-ba82-3899-681349a59416  (flavoredprobe-p6)
-    release_number        = 113  (version 1.1.0+1)
+    release_number        = 113  (1.1.0+1, --no-codesign) — CLI/server shape proof
+    physical_baseline     = 114  (1.2.0+1, development-signed) — the device baseline
     flavor                = foo  (reaches the compiler as Foo — see below)
 
 Every later P6 device row inherits this line rather than clearing and re-warming
@@ -198,3 +199,58 @@ and it is recorded here rather than worked around.
 
 Release **113** is the V3 baseline. It will not be rebuilt for the flavor arm —
 the point of this gate is that this clean CLI release *is* the baseline.
+
+
+---
+
+# The signing blocker was MY misreading, and the correction matters
+
+I reported the device arm blocked on "no provisioning profile". **That was wrong**,
+and the way it was wrong is worth recording.
+
+I looked in `~/Library/MobileDevice/Provisioning Profiles/` and found one profile
+for an unrelated app. Xcode now keeps them in
+`~/Library/Developer/Xcode/UserData/Provisioning Profiles/`, which holds **15**,
+including a **wildcard** `SK85S6YZP9.*` — `iOS Team Provisioning Profile: *`,
+valid to 2027-07-31.
+
+I also read the certificate situation wrongly. `security find-identity | grep
+SK85S6YZP9` appears to show only *Developer ID* and *Apple Distribution* for that
+team, so I concluded no iOS development certificate existed. But the team id lives
+in the **OU**, not the CN: the profile embeds
+
+    CN=Apple Development: Pesach Brody (BRDNYM22XL), OU=SK85S6YZP9, O=Jewgo LLC
+
+and that identity **is** in the keychain. Grepping the CN for the team was the
+error.
+
+So all three assets were already present, and the rig's iPhone 7
+(`8cb4bc98…`) is among the profile's provisioned devices.
+
+**What actually failed** was `exportArchive` for an **App Store** IPA, which needs
+an App Store Connect account and a *distribution* profile. That is a different
+thing from device development signing, and the error text — `No Accounts` — says
+so once read carefully.
+
+**The fix needed no interactive Xcode session:** `--export-method development`,
+which the CLI already supports (`CommonArguments.exportMethodArg`).
+
+## Two releases, two purposes, deliberately not conflated
+
+Release **113** was built `--no-codesign`. Signing that app afterwards would
+change the exact artifact whose digest passed the binding checks — so it was left
+frozen, proving the clean CLI/control-plane release shape and nothing about a
+phone.
+
+Release **114** (`1.2.0+1`) is the physical baseline: same source, same `foo`
+flavor, same epoch cell, genuinely development-signed.
+
+    codesign Authority : Apple Development: Pesach Brody (BRDNYM22XL)
+    Identifier         : dev.selfhost.flavoredProbe.foo
+    embedded profile   : iOS Team Provisioning Profile: *
+    covers rig device  : yes
+
+Its shape gate passes on all thirteen fields, and the artifact identity is
+distinct — binding digest `9b133a7e…` against 113's `084d77b0…`. That difference
+is the point: the device arm tests the artifact whose digest the server actually
+holds for it.
