@@ -75,3 +75,65 @@ server**, which retroactively establishes that this client *could* have asked an
 did not.
 
 Recorded now, before that step runs, so the caveat is not invented afterwards.
+
+## Phase 0 is no longer provisional
+
+`check(stable)` put a real request on the server (200), so this client
+demonstrably **can** reach the control plane. Phase 0's zero requests was
+therefore a genuine abstention, not an unreachable client. The caveat recorded
+above is closed by measurement rather than removed.
+
+## Phase 1 — negative track: PASSED
+
+| press | client sent | screen | events |
+|---|---|---|---|
+| `Check stable` | `channel: "stable"`, `release_version: "3.1.0+1"` | — (status overwritten before capture) | 0 |
+| `Update stable` | — | `update(stable) returned normally`, current `none`, next `none` | **0** |
+
+`update` on a track with no deployment returns normally and installs nothing —
+the documented no-update behaviour rather than an exception. The substantive part
+is that `next patch` stayed `none` and **no event row appeared**.
+
+Render: `phase1_update_stable.png`.
+
+## Phase 2 — check is not update: PASSED
+
+    check(beta) -> UpdateStatus.outdated
+    current patch: none    next patch: none    marker: MANUAL-V1
+    events: 0              /download/ requests: none
+
+The client's own log shows the request carried `channel: "beta"`. So
+`checkForUpdate` reports availability **without** downloading: the status flipped
+to `outdated` while nothing was fetched and nothing staged.
+
+Render: `phase2_check_beta.png`.
+
+## Phase 3 — the load-bearing negative: PASSED
+
+`Update stable`, pressed immediately after `check(beta)` reported `outdated`.
+
+    19:23:53  client sent channel=beta     <- check(beta) -> outdated
+    19:28:29  client sent channel=stable   <- update(stable)
+
+    update(stable) returned normally
+    current patch: none    next patch: none    marker: MANUAL-V1
+    events: 0              /download/ requests: none
+
+**Stronger than the precommit required.** It asked only that `update(stable)` must
+not download beta's patch. The client log shows *why* it did not: the call issued
+its request on **`channel=stable`**, its own argument. It is not that the
+download was declined downstream — the eligibility question was asked about the
+right track in the first place. `update(track:)` does not consume the cached
+eligibility of a preceding `checkForUpdate` on a different track.
+
+Render: `phase3_update_stable_after_check_beta.png`.
+
+### One reading not captured, stated rather than implied
+
+`check(stable)`'s status string was overwritten by the next press before a
+screenshot was taken, so `UpdateStatus.upToDate` is **not** on record from the
+render. What is on record: the client sent `channel=stable`, the server answered
+200, `stable` has no deployment row, and no download followed. Re-pressing
+`Check stable` was deliberately **not** done at that point, because it would have
+made the updater's most recent check `stable` and weakened Phase 3's premise —
+which was worth more than the screenshot.
