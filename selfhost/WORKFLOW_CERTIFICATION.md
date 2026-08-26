@@ -99,16 +99,17 @@ Wi-Fi and may be perfectly valid with USB forwarding — see
 | evidence | `evidence/g41-define-from-file/`, `evidence/g41-injected-defines/` |
 | re-certify when | Flutter's injected-define set changes, or `Generated.xcconfig` stops being the seam |
 
-## 4 · custom target — `UNCERTIFIED`
+## 4 · custom target — `CERTIFIED`
 
 | field | value |
 |---|---|
-| scope | `--target lib/custom.dart` on release and patch |
+| scope | `--target lib/main_b.dart` on release and patch |
 | unique seam | which entry point is compiled, and therefore which program the patch is compiled inside |
-| proven | nothing. No release has been cut with a custom target |
-| open | **P5-TARGET OPEN.** `--target` is not part of the build-semantics authority, and no specimen has produced a patch accepted against a release while differing in executable semantics solely from a different target. Recorded as provenance (`releaseTarget`, and a `P5-TARGET OPEN` line at patch time), not gated |
-| first thing to try | the **package-dependency** case: a target difference that changes what is retained OUTSIDE the app libraries, where whole-app-library retention stops answering the concern. If that produces a real mismatch, reopen P5-TARGET with evidence |
-| re-certify when | the retention policy for non-app libraries changes |
+| the WORKFLOW | **PROVEN 2026-08-26.** Release `1.9.0+1` cut with `--target lib/main_b.dart`, patch 1 built with the same `--target`. Device: `CUSTOM-TARGET-V1` → **`CUSTOM-TARGET-V2`**, controls `TARGET-B` and `CT-RELEASE-1` unmoved. `evidence/p6-custom-target/VERDICT.md` |
+| the control that makes it evidence | the release's shipped AOT contains **none** of `main.dart`'s markers (`FLAVORED-FIXTURE-V1`, `BAKED-INTO-RELEASE`, `obf` all 0) because `main.dart` is unreachable from `main_b`. A default-target build would show the opposite set, so this separates "the custom target took effect" from "a patch landed on the usual program" |
+| open | **P5-TARGET stays OPEN, deliberately.** The host exploit attempt (`engine/route_b/evidence/p5_target_arm_a.md`) found **no** exploit: a body referring to a member outside the retained libraries is refused as an `added` member with the CORRECT target too, and a mechanism control (retain `package:dep_probe/`, target held constant → the same patch **accepts**) shows retention scope is what decides, not the target. So no target-identity gate was earned and none was invented. `--target` remains logged provenance, and this row certifies the WORKFLOW, not the safety of a mismatched target |
+| not claimed | that a *wrong* `--target` is safe. That was never tested on the phone and never will be — it is a host question, answered on the host |
+| re-certify when | the retention policy for non-app libraries changes, or `--target` becomes part of the build-semantics authority |
 
 ## 5 · obfuscation — `CERTIFIED`
 
@@ -186,12 +187,12 @@ Six rows are certification of machinery that already exists and mostly works;
 four are where new findings should be expected. Nothing here is claimed green to
 satisfy a checklist:
 
-- `CERTIFIED`: 4 (baseline, flavor, Dart defines, obfuscation)
+- `CERTIFIED`: 5 (baseline, flavor, Dart defines, obfuscation, custom target)
 - `P6_DEVICE_EPOCH_READY = true` — cell `8e659812…`, release 113, inherited by every later device row rather than re-established per row
 - `BLOCKED`: 1 (CI, on a Linux builder)
-- `UNCERTIFIED`: 4 (target, signing, tracks, manual updater API)
+- `UNCERTIFIED`: 3 (signing, tracks, manual updater API)
 - `NOT ASSESSED`: 1 (Add-to-App)
 
-**The recurring shape of the gap is the same in four rows: the host half is
-proven and the device half is not.** That is worth stating as one fact rather
+**The recurring shape of the gap is the same in the three remaining rows: the
+host half is proven and the device half is not.** That is worth stating as one fact rather
 than four, because it means the outstanding work is mostly rig time, not design.
