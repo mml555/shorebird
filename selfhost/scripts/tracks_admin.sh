@@ -17,6 +17,7 @@ set -euo pipefail
 APP=${APP:-1c99c679-8650-ba82-3899-681349a59416}
 BASE=${BASE:-http://10.0.0.7:18080}
 REL=${REL:-1.10.0+1}
+export REL   # read by the python readers below, which run as child processes
 : "${SHOREBIRD_TOKEN:?set SHOREBIRD_TOKEN to an sb_api_ key}"
 
 api() { # <method> <path> [body]
