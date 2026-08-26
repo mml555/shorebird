@@ -241,3 +241,63 @@ A screenshot taken here caught the **home screen**, because both apps had been
 force-quit — it is kept as `02_two_installs_home.png`, which is what it actually
 shows (two distinct installs, `Tracks A` and `Tracks B`), rather than filed under
 the name I originally gave it.
+
+## Phase 2 — the causal negative control: PASSED
+
+`shorebird patches set-track --release 1.10.0+1 --patch 1 --track beta --flavor
+foo` → *"Patch 1 on release 1.10.0+1 is now in channel beta!"*. **Nothing was
+rebuilt and nothing reinstalled.**
+
+### Server state — one patch, two live tracks
+
+    patch 1  status=ready   convenience channel='beta'
+      deployment: channel=beta   status=active  rolled_back=False  rollout=100  -> LIVE
+      deployment: channel=alpha  status=active  rolled_back=False  rollout=100  -> LIVE
+
+Promotion was **additive**: alpha stayed live, as `set_track_command.dart`'s own
+comment says it must (`repository.dart` supersedes only `WHERE channel_id`).
+
+**The precommit's insistence on `deployments` paid off in this arm's own data.**
+The convenience `channel` field now reads `'beta'` alone, because it returns only
+the newest live deployment. Had the assertion been made on that field, the honest
+reading would have been "the patch moved to beta" — and the multi-track claim
+would have been reported backwards. `deployments` shows both.
+
+### The same client, before and after, with only the deployment changed
+
+| time | client | channel sent | `patch_available` |
+|---|---|---|---|
+| 17:13:08 | `8ce6ece3` | `beta` | false |
+| 17:13:26 | `8ce6ece3` | `beta` | false |
+| **17:18:20** | `8ce6ece3` | `beta` | **true, patch 1** |
+| 17:18:39 | `8ce6ece3` | `beta` | false (it now has it) |
+
+Events for `1.10.0+1` afterwards:
+
+    42b44b12  __patch_download__  1
+    42b44b12  __patch_install__   1
+    8ce6ece3  __patch_download__  1
+    8ce6ece3  __patch_install__   1
+
+Device: `channel: beta` / `release: TRACKS-REL-1` / **`track state: TRACK-V2`**
+— `03_phase2_beta_v2.png`, read from the render.
+
+### Why this makes Phase 1 causal
+
+Identical `client_id`, identical requested channel, identical patch number,
+identical binary, identical server. The response flipped from `patch_available:
+false` to `true` across a change to **one deployment row**. Every alternative
+explanation for Phase 1's withholding is excluded, because each would have kept B
+on V1 here as well:
+
+| alternative | excluded because |
+|---|---|
+| transport | the same client reached the same server and downloaded |
+| signing | the same signed bundle installed and ran the patch |
+| stale release | same `release_version` `1.10.0+1` throughout |
+| bad patch artifact | the same patch 1 artifact applied on B |
+| broken updater | the same updater downloaded and installed |
+| wrong app id | unchanged `app_id`, and it now matches |
+| B incapable of updating | B just updated |
+
+The only changed variable is track eligibility.
