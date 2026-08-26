@@ -83,3 +83,48 @@ rollback happens as part of hand-back and is **not** counted as P6 evidence.
     → terminate the fixture
     → record the final device/app state here
     → relinquish the rig
+
+
+---
+
+# Correction to §3's observables, 2026-08-26 — before any observation
+
+The precommit above said `FLAVORPROBE-V3 → V4`. **Those are the ANDROID arm's
+strings.** I wrote them from that arm's vocabulary without reading this fixture,
+and this fixture is built differently — better, in a way that matters.
+
+`flavored_app/lib/main.dart` carries **two independent** observables, precisely so
+that "the patch ran" and "the flavor arrived" cannot be read as one fact:
+
+    kReleaseState = 'FLAVORED-FIXTURE-V1'   <- a patch flips this to V2
+    flavorState() = 'V1/Foo'                <- the flavor observable
+
+So the arm's rows become:
+
+| # | requirement | observable |
+|---|---|---|
+| 6 | baseline visible | `FLAVORED-FIXTURE-V1` **and** `V1/Foo` |
+| 9 | the patch executed | `FLAVORED-FIXTURE-V2` |
+| 10 | control unchanged | `V1/Foo` still reads `V1/Foo` — the flavor did not move because the patch did |
+
+**The substance of §3 is unchanged**: baseline visible, the patch changes exactly
+one thing, an unrelated value stays put, tap-launch only, and the wrong-flavor
+negative stays at the P5 host layer. Only the string names were wrong, and they
+were wrong because I did not read the fixture before writing them down.
+
+Recording it because a precommit edited quietly after the fact is not a
+precommit. The correction is made **before** any device observation exists.
+
+# One invalidated launch, discarded
+
+`ios-deploy --bundle … --justlaunch` was used to install release 114. That
+installed correctly, but `--justlaunch` goes through lldb, and
+`evidence/g15/manual_launch_control_precommit.md` names it explicitly:
+*"`idevicedebug`, `ios-deploy -d`, `--justlaunch`, or any debugserver-attached
+path invalidates the run."*
+
+So **that launch is discarded as evidence.** Nothing was observed from it and
+nothing from it is banked. The install itself is unaffected — the app on the
+device is the signed release-114 bundle, `9b133a7e…`.
+
+Install-only from here, and every observation from a by-hand tap.
