@@ -143,3 +143,21 @@ diagnostic output is `HARNESS_FAILURE`, never a refusal. It exists because of
 defect 3 above, and it is written broadly on purpose — a narrow pattern would
 misfile a novel real failure as a harness bug, which errs toward discarding
 product evidence.
+
+---
+
+## Addition (P5-TARGET Arm A) — the `--target` row, and one premise corrected
+
+`evidence/p5_target_arm_a.md` closes the exploit attempt this matrix left open.
+Both the control and the suspect case refuse, so **no target-identity gate was
+earned and none was added**; `--target` stays logged provenance. The refusal is
+target-INDEPENDENT: a body referring to a member outside the retained libraries
+reads as an `added` member, and a mechanism control (retain `package:dep_probe/`
+too, target held constant → the same patch **accepts**) shows retention scope is
+what decides.
+
+That control also corrects a belief this matrix's ROW 2b/2c reasoning leaned on:
+`gen_kernel --aot` **does** tree-shake — TFA runs in its pipeline, not only at
+`gen_snapshot`. App libraries survive because the **dynamic interface retains
+them whole**, which looks identical from outside. The measurements in those rows
+stand; the mechanism attributed to them was wrong.
