@@ -323,8 +323,22 @@ class RouteBProducer {
       //
       // The local declaration shadows the imported one of the same name, so
       // importing the library the target lives in is safe as well as necessary.
+      // THE TARGET LIBRARY'S OWN IMPORTS, not just the target library.
+      //
+      // Dart imports are NOT transitive. A body referencing anything the target
+      // library IMPORTS -- `appFlavor` from package:flutter/services.dart, a
+      // widget, a `jsonEncode` -- does not compile in a library that imports
+      // only the target, and the failure arrives as a bare
+      // "the bytecode compiler refused its replacement body (exit 254)".
+      //
+      // Found 2026-08-26 by the P6 flavor arm, on a body whose only unusual
+      // feature was reading Flutter's `appFlavor`. P1/P2 never hit it because
+      // those bodies touched only the target's own members and dart:core, which
+      // is auto-imported. Almost any real patch would.
+      final inherited = _inheritedImports(key, source.fileUri);
       final library = File(p.join(workingDirectory.path, 'replacement_$i.dart'))
         ..writeAsStringSync(
+          '${inherited.map((d) => '$d\n').join()}'
           "import '$targetLibrary';\n\n$entryPointPragma\n$declaration\n",
         );
       final payload = File(
@@ -430,6 +444,44 @@ class RouteBProducer {
           ? null
           : RouteBPatchBinding(evidence: releaseEvidence, receipts: receipts),
     );
+  }
+
+  /// The import directives of the library being patched, for the replacement
+  /// to reuse.
+  ///
+  /// Only `dart:` and `package:` imports are carried. A RELATIVE import is
+  /// REFUSED rather than dropped: copied verbatim it would resolve against the
+  /// replacement's own directory, and rewritten to a file URI it would make the
+  /// CFE see one library twice -- once by package URI and once by file URI --
+  /// whose declarations then collide. Dropping it silently would reproduce the
+  /// original failure with a message about bytecode instead of about imports.
+  List<String> _inheritedImports(String key, String fileUri) {
+    final file = File(Uri.parse(fileUri).toFilePath());
+    if (!file.existsSync()) return const [];
+    final directives = <String>[];
+    // Scanned rather than parsed: the producer has no analyzer, and an import
+    // directive is terminated by `;`. Combinators and prefixes are carried
+    // VERBATIM, because they are part of the resolution the body was written
+    // against.
+    for (final match in RegExp(
+      r'''^\s*import\s+(['"])([^'"]+)\1[^;]*;''',
+      multiLine: true,
+    ).allMatches(file.readAsStringSync())) {
+      final uri = match.group(2)!;
+      if (uri.startsWith('dart:') || uri.startsWith('package:')) {
+        directives.add(match.group(0)!.trim());
+      } else {
+        throw RouteBUnsupportedTarget(
+          key,
+          'the library it lives in has a RELATIVE import '
+          '(`${match.group(0)!.trim()}`), and a replacement cannot reuse one: '
+          'copied as-is it resolves against a different directory, and '
+          'rewritten to a file URI it makes the compiler see that library '
+          'twice. Convert it to a `package:` import and cut a new release',
+        );
+      }
+    }
+    return directives;
   }
 
   /// The declaration, rewritten so the receiver is an explicit parameter.

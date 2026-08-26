@@ -1438,6 +1438,118 @@ void main() {
       });
     });
 
+    group("the target library's own imports", () {
+      // Dart imports are NOT transitive, so a replacement that imports only the
+      // target library cannot compile a body referencing anything the target
+      // IMPORTS. Found on device by the P6 flavor arm, whose body read Flutter's
+      // `appFlavor`; the symptom was a bare "the bytecode compiler refused its
+      // replacement body (exit 254)".
+      test('are carried into the replacement library', () {
+        source.writeAsStringSync(
+          "import 'dart:convert';\n"
+          "import 'package:flutter/services.dart' show appFlavor;\n"
+          'String routeBValue() => jsonEncode([appFlavor]);\n',
+        );
+        final text = source.readAsStringSync();
+        runWithOverrides(
+          () => const RouteBProducer().produce(
+            compiler: compiler(),
+            coverage: RouteBCoverage.fromJson(
+              jsonEncode({
+                'analysisVersion': supportedRouteBAnalysisVersion,
+                'verdict': 'accept',
+                'changed': ['package:app/main.dart#routeBValue'],
+                'added': <String>[],
+                'removed': <String>[],
+                'patchable': ['package:app/main.dart#routeBValue'],
+                'conditional': <String>[],
+                'sources': {
+                  'package:app/main.dart#routeBValue': {
+                    'fileUri': source.uri.toString(),
+                    'start': text.indexOf('String routeBValue'),
+                    'end': text.length,
+                  },
+                },
+                'rejections': <Object>[],
+                'refusalSummary': null,
+              }),
+            ),
+            importKernel: File(p.join(cell.path, 'release_import.dill')),
+            releaseBuildId: 'deadbeef',
+            workingDirectory: work,
+            projectRoot: project,
+            run: compileOk,
+          ),
+        );
+        final generated = File(
+          p.join(work.path, 'replacement_0.dart'),
+        ).readAsStringSync();
+        // Carried VERBATIM, combinators included: `show appFlavor` is part of
+        // the resolution the body was written against.
+        expect(generated, contains("import 'dart:convert';"));
+        expect(
+          generated,
+          contains("import 'package:flutter/services.dart' show appFlavor;"),
+        );
+        // And the target library itself is still imported, for its own members.
+        expect(generated, contains("import 'package:app/main.dart';"));
+      });
+
+      test('a RELATIVE import is refused, not silently dropped', () {
+        // Copied as-is it resolves against the replacement's directory; as a
+        // file URI it makes the CFE see one library twice. Dropping it would
+        // reproduce the original failure with a message about bytecode.
+        source.writeAsStringSync(
+          "import 'helpers.dart';\n"
+          'String routeBValue() => helper();\n',
+        );
+        final text = source.readAsStringSync();
+        expect(
+          () => runWithOverrides(
+            () => const RouteBProducer().produce(
+              compiler: compiler(),
+              coverage: RouteBCoverage.fromJson(
+                jsonEncode({
+                  'analysisVersion': supportedRouteBAnalysisVersion,
+                  'verdict': 'accept',
+                  'changed': ['package:app/main.dart#routeBValue'],
+                  'added': <String>[],
+                  'removed': <String>[],
+                  'patchable': ['package:app/main.dart#routeBValue'],
+                  'conditional': <String>[],
+                  'sources': {
+                    'package:app/main.dart#routeBValue': {
+                      'fileUri': source.uri.toString(),
+                      'start': text.indexOf('String routeBValue'),
+                      'end': text.length,
+                    },
+                  },
+                  'rejections': <Object>[],
+                  'refusalSummary': null,
+                }),
+              ),
+              importKernel: File(p.join(cell.path, 'release_import.dill')),
+              releaseBuildId: 'deadbeef',
+              workingDirectory: work,
+              projectRoot: project,
+              run: compileOk,
+            ),
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              allOf(
+                contains('RELATIVE import'),
+                contains('helpers.dart'),
+                contains('Convert it to a `package:` import'),
+              ),
+            ),
+          ),
+        );
+      });
+    });
+
     test('refuses a target the analysis gave no span for', () {
       expect(
         () => runWithOverrides(

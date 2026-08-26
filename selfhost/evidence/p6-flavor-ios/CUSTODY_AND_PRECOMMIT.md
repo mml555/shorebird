@@ -128,3 +128,37 @@ nothing from it is banked. The install itself is unaffected — the app on the
 device is the signed release-114 bundle, `9b133a7e…`.
 
 Install-only from here, and every observation from a by-hand tap.
+
+
+# Second correction, also before the patch exists: target and control swap
+
+The correction above put the patch on `kReleaseState`. **That is not patchable,
+and the fixture never intended it to be.**
+
+`kReleaseState` is a top-level `const`, consumed inline at `main.dart:167` inside
+a widget `build`. Route B replaces FUNCTION BODIES; a const has no body, and its
+value is inlined at every use site. So "a patch flips this to V2" cannot be done
+by patching that declaration.
+
+The fixture's own header says what the target is: *"This one carries exactly one
+target, because the claim under test is configuration, not mechanism."* — and
+`flavorState()` is the member carrying every anti-folding property the file
+documents at length: `vm:entry-point`, `vm:never-inline`, called from
+`initState` on the live path, and a `DateTime.now()` guard so the RESULT cannot
+be folded into the call site.
+
+So the roles swap, and the arm is stronger for it:
+
+| role | observable | expectation |
+|---|---|---|
+| **target** | `flavorState()` → `V1/Foo` | becomes **`V2/Foo`** |
+| **control** | `release:` → `FLAVORED-FIXTURE-V1` | **unchanged** — proves the device is still on release 114 and did not quietly pick up a new release |
+| **control** | `asset:` → `BAKED-INTO-RELEASE` | **unchanged** |
+
+And the target keeps carrying the flavor: `V2/Foo` shows in one reading that the
+patch executed **and** that the flavor reached the patch's own compile. The
+release marker staying `V1` is what stops that being confused with a new release.
+
+Recorded before the patch is built. The baseline is already banked from a genuine
+tap (`evidence/01_baseline_tap.png`: `FLAVORED-FIXTURE-V1`, `V1/Foo`,
+`BAKED-INTO-RELEASE`).

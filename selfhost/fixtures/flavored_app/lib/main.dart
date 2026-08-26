@@ -49,8 +49,8 @@ const String kReleaseState = 'FLAVORED-FIXTURE-V1';
 @pragma('vm:never-inline')
 @pragma('vm:entry-point')
 String flavorState() => DateTime.now().millisecondsSinceEpoch >= 0
-    ? 'V1/${appFlavor ?? "none"}'
-    : 'V1/${appFlavor ?? "none"}!';
+    ? 'V2/${appFlavor ?? "none"}'
+    : 'V2/${appFlavor ?? "none"}!';
 
 void main() => runApp(const FlavoredProbeApp());
 
