@@ -86,14 +86,15 @@ Wi-Fi and may be perfectly valid with USB forwarding — see
 | evidence | `evidence/g42_flavored_fixture/`, `evidence/android/g42-flavor/` |
 | re-certify when | CLI argument parsing changes, or the flavor resolution order changes |
 
-## 3 · Dart defines — `PARTIAL`
+## 3 · Dart defines — `CERTIFIED`
 
 | field | value |
 |---|---|
 | scope | `--dart-define`, `--dart-define-from-file`, and the six defines Flutter injects |
 | unique seam | `const String.fromEnvironment` resolves at COMPILE time, so a patch with different defines bakes a different constant and ships |
 | proven | `probes/g41b_define_from_file.sh` **18/18** against Flutter's own resolution; `g41c_injected_defines.sh` **5/5**; `g41d_injected_define_patch.sh` **10/10** — link 1 (ANALYSIS) byte-identical to Flutter's kernel |
-| **not proven** | **link 2, REPLACEMENT.** No iOS release has been cut from the discriminating fixture and no device arm has run, so a replacement compiled in the injected-define environment is unproven end to end |
+| link 2, REPLACEMENT | **PROVEN 2026-08-26.** Release 117 (`1.5.0+1`, `P6_DEFINE=ALPHA73`) on epoch cell `8e659812…`, patch 80. The patch body reads the define INSIDE the replacement; the device rendered **`V2/ALPHA73`** with all three controls unmoved. A release-side value would have proven nothing — `V2` proves the replacement ran, `ALPHA73` proves its own compile got the define, and `defaultValue: 'MISSING'` made a dropped define unmistakable. `evidence/p6-defines/VERDICT.md` |
+| what it cost | the precommitted body shape could not publish: a change confined to a canonicalised constant is invisible to coverage and is refused as inert. Fails closed — a capability boundary, not a hole. `evidence/p6-defines/CONSTANT_BLINDNESS.md` |
 | negative control | `BUILD_CONFIG_MISMATCH` on differing effective defines; and a define expansion that disagrees with Flutter's own declines patchability at release time |
 | evidence | `evidence/g41-define-from-file/`, `evidence/g41-injected-defines/` |
 | re-certify when | Flutter's injected-define set changes, or `Generated.xcconfig` stops being the seam |
@@ -184,9 +185,9 @@ Six rows are certification of machinery that already exists and mostly works;
 four are where new findings should be expected. Nothing here is claimed green to
 satisfy a checklist:
 
-- `CERTIFIED`: 2 (baseline, flavor)
+- `CERTIFIED`: 3 (baseline, flavor, Dart defines)
 - `P6_DEVICE_EPOCH_READY = true` — cell `8e659812…`, release 113, inherited by every later device row rather than re-established per row
-- `PARTIAL`: 2 (Dart defines, obfuscation) — each with the missing link named
+- `PARTIAL`: 1 (obfuscation) — with the missing link named
 - `BLOCKED`: 1 (CI, on a Linux builder)
 - `UNCERTIFIED`: 4 (target, signing, tracks, manual updater API)
 - `NOT ASSESSED`: 1 (Add-to-App)
