@@ -291,7 +291,12 @@ Verdict classify(Profile p, TargetId id) {
     if (!_nameMatches(p.nameOf(fn), id.member)) continue;
     final owner = p.property(fn, 'owner_');
     if (owner == null) continue;
-    if (p.nameOf(owner) != id.owningClassName) continue;
+    // THE OWNING CLASS IS MANGLED TOO when it is library-private: the profile
+    // calls it `_FooState@306106223`, exactly as it does a private member. An
+    // exact comparison here reported TARGET_NOT_FOUND for every member of a
+    // private class -- which fails closed, but would refuse the very shape P1
+    // proved on device. Found 2026-08-26 by the P6 obfuscation arm.
+    if (!_nameMatches(p.nameOf(owner), id.owningClassName)) continue;
     final lib = _libraryOf(p, owner);
     if (lib == null || p.nameOf(lib) != id.library) continue;
     matches.add(fn);
@@ -349,9 +354,9 @@ Verdict classify(Profile p, TargetId id) {
   );
 }
 
-/// A library-private member is mangled `_foo@12345` in the profile. Scoping is
-/// already by library, and the mangling id is per-library, so matching the base
-/// name inside one library cannot collide.
+/// A library-private NAME is mangled `_foo@12345` in the profile -- members and
+/// CLASSES alike. Scoping is already by library and the mangling id is
+/// per-library, so matching the base name inside one library cannot collide.
 bool _nameMatches(String profileName, String member) {
   if (profileName == member) return true;
   final at = profileName.indexOf('@');

@@ -85,6 +85,38 @@ String defineState() {
   return '${live ? 'V2' : 'X'}/$value';
 }
 
+/// P6's obfuscation target: a method on a conventionally PRIVATE class.
+///
+/// Chosen to combine the obfuscation workflow with the private-receiver shape P1
+/// already proved, rather than introducing a new language feature at the same
+/// time as a new build mode.
+///
+/// The patch replaces `target()` only, and its body reads `_field` through the
+/// receiver — so the arm also exercises the capability path: the release must
+/// have granted `_FooState#_field` for that reference to be carried.
+///
+/// The app constructs this itself. A PATCH may not construct a private class
+/// unless the release explicitly retained its constructor, and default releases
+/// grant none; nothing here asks it to.
+class _FooState {
+  final String _field = 'FLD';
+
+  /// Same anti-folding properties as the other targets, for the same measured
+  /// reasons. The `live` guard also keeps the returned value out of a
+  /// canonicalised constant, which is what made an earlier arm's patch
+  /// invisible to coverage (evidence/p6-defines/CONSTANT_BLINDNESS.md).
+  @pragma('vm:never-inline')
+  @pragma('vm:entry-point')
+  String target() {
+    final live = DateTime.now().millisecondsSinceEpoch >= 0;
+    // `_field` is referenced from the branch never taken. Only the PATCH reads
+    // it for real, and an unreferenced private field is both an analyzer warning
+    // and a thing the release might not retain — retention is not reachability,
+    // so a dead-branch reference is exactly the right amount of retention here.
+    return live ? 'OBF-V1' : _field;
+  }
+}
+
 void main() => runApp(const FlavoredProbeApp());
 
 class FlavoredProbeApp extends StatelessWidget {
@@ -107,6 +139,7 @@ class _Probe extends StatefulWidget {
 class _ProbeState extends State<_Probe> {
   String _flavorState = '—';
   String _defineState = '—';
+  String _obfState = '—';
   String _asset = '—';
 
   @override
@@ -117,6 +150,7 @@ class _ProbeState extends State<_Probe> {
     // when that await resumes makes a harness flaky rather than wrong.
     _readFlavor();
     _readDefine();
+    _readObf();
     _load();
   }
 
@@ -136,6 +170,14 @@ class _ProbeState extends State<_Probe> {
     final v = defineState();
     if (!mounted) return;
     setState(() => _defineState = v);
+  }
+
+  /// Ordinary app code again: no attach call, so a V2 reading can only come
+  /// from a replacement the engine installed pre-main.
+  void _readObf() {
+    final v = _FooState().target();
+    if (!mounted) return;
+    setState(() => _obfState = v);
   }
 
   Future<void> _load() async {
@@ -211,6 +253,7 @@ class _ProbeState extends State<_Probe> {
           // The row the device arms are read off. See _beacon's warning.
           _row('flavor state', _flavorState),
           _row('define state', _defineState),
+          _row('obf state', _obfState),
           _row('asset', _asset),
         ],
       ),

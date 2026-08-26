@@ -91,8 +91,18 @@ String deadBranch(String x) =>
 String tearOffOnly() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'TOF' : 'X';
 final List<Function> _refs = <Function>[tearOffOnly];
 
+// A member of a library-PRIVATE class. The profile mangles the class name too
+// (`_Priv@12345`), and an exact class-name comparison reported
+// TARGET_NOT_FOUND for every such member -- failing closed, but refusing the
+// shape P1 proved on device. Found 2026-08-26 by the P6 obfuscation arm.
+class _Priv {
+  @pragma('vm:never-inline')
+  String privTarget() =>
+      DateTime.now().millisecondsSinceEpoch >= 0 ? 'PRV' : 'X';
+}
+
 String _specimenLine() {
-  final live = '${foldOpaque()}/${foldConst()}';
+  final live = '${foldOpaque()}/${foldConst()}/${_Priv().privTarget()}';
   if (DateTime.now().millisecondsSinceEpoch < 0) {
     return '$live/${deadBranch('never')}';
   }
@@ -179,6 +189,12 @@ done
 echo "    tearOffOnly (observation, not a precommitted row):"
 echo "      $(evidence "$PROBE" profile.json binding.json "$ART" "$LIB#tearOffOnly")"
 echo "      $(result "$PROBE" profile.json binding.json "$ART" "$LIB#tearOffOnly")"
+
+note "a member of a PRIVATE CLASS resolves -- the class name is mangled too"
+echo "    $(evidence "$PROBE" profile.json binding.json "$ART" "$LIB#_Priv.privTarget")"
+check "_Priv.privTarget resolves despite the mangled class name" \
+  "$(result "$PROBE" profile.json binding.json "$ART" "$LIB#_Priv.privTarget")" \
+  ONE_OR_MORE_QUALIFYING_CALLSITES
 
 note "IDENTITY is not a bare selector"
 check "same member, wrong library -> TARGET_NOT_FOUND" \
@@ -346,6 +362,15 @@ note "MUTATION -- count unowned pools as callers"
 mutate unowned "      ev.unownedPools++;=>>      ev.callerOwnedPools++;"
 check "mutant lets ambiguous evidence through" \
   "$(result "$WORK/m_unowned.dart" p_unowned.json binding.json "$ART" "$LIB#foldConst")" \
+  ONE_OR_MORE_QUALIFYING_CALLSITES
+
+note "MUTATION -- compare the owning class name EXACTLY"
+mutate exactcls "    if (!_nameMatches(p.nameOf(owner), id.owningClassName)) continue;=>>    if (p.nameOf(owner) != id.owningClassName) continue;"
+check "mutant cannot find a member of a private class" \
+  "$(result "$WORK/m_exactcls.dart" profile.json binding.json "$ART" "$LIB#_Priv.privTarget")" \
+  TARGET_NOT_FOUND
+check "  ...and still finds a TOP-LEVEL target, so the mutation is narrow" \
+  "$(result "$WORK/m_exactcls.dart" profile.json binding.json "$ART" "$LIB#foldOpaque")" \
   ONE_OR_MORE_QUALIFYING_CALLSITES
 
 note "MUTATION -- drop library scoping"
