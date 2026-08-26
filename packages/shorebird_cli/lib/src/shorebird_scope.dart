@@ -27,6 +27,7 @@ import 'package:shorebird_cli/src/dd_support.dart';
 import 'package:shorebird_cli/src/doctor.dart';
 import 'package:shorebird_cli/src/engine_config.dart';
 import 'package:shorebird_cli/src/executables/executables.dart';
+import 'package:shorebird_cli/src/gen_snapshot_probe.dart';
 import 'package:shorebird_cli/src/http_client/http_client.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/network_checker.dart';
@@ -76,6 +77,10 @@ Set<ScopedRef<dynamic>> shorebirdScope({
   dittoRef,
   doctorRef,
   engineConfigRef,
+  // Read by the obfuscated-PATCH path (patch_command.dart), which no unit
+  // test can catch: tests inject every ref they use, so an unregistered
+  // ref only throws on a real obfuscated patch. It did, on 2026-08-26.
+  genSnapshotProbeRef,
   gitRef,
   gradlewRef,
   httpClientRef,

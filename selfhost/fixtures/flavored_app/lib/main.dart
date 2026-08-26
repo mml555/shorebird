@@ -113,7 +113,7 @@ class _FooState {
     // it for real, and an unreferenced private field is both an analyzer warning
     // and a thing the release might not retain — retention is not reachability,
     // so a dead-branch reference is exactly the right amount of retention here.
-    return live ? 'OBF-V1' : _field;
+    return live ? 'OBF-V2-$_field' : _field;
   }
 }
 
