@@ -66,3 +66,68 @@ about tracks.
 
 Both are worth naming because they were failures *of the checking code*, and a
 guard that throws before it asserts is indistinguishable from no guard.
+
+## Phase 0 — device half: the two clients are proven independent, but transport is DOWN
+
+### What is established (client-side, from the device's own syslog)
+
+Captured with `idevicesyslog` — a passive read, no debugger attached, and every
+launch by hand. Each client's native updater logs the request it builds:
+
+| | client A (`tka`) | client B (`tkb`) | base app (control) |
+|---|---|---|---|
+| `channel` | **`alpha`** | **`beta`** | `stable` |
+| `client_id` | `06ecaea8-0dd4-…` | `23d73a05-811e-…` | `c5f049c3-f4e8-…` |
+| `release_version` | `1.10.0+1` | `1.10.0+1` | `1.9.0+1` |
+| `platform`/`arch` | `ios`/`aarch64` | `ios`/`aarch64` | `ios`/`aarch64` |
+| `current_patch_number` | `None` | `None` | `Some(1)` |
+| `app_id` | `1c99c679-…` | **same** | same |
+
+**This is the precommit's independence requirement, met and measured:** between
+A and B the only differing fields are `client_id` and `channel`. It also proves
+the packaging works — the post-build edit to the bundled `shorebird.yaml`
+reached the *native updater*, not merely the Dart side that renders the screen.
+
+### What is NOT established: no check ever reached the server
+
+Zero `POST /api/v1/patches/check` from any client. Two distinct failure shapes:
+
+    16:40:52.341  tka  Sending patch check request … channel: "alpha"
+    (no result line at all — the call was still hanging when force-quit)
+
+    16:41:04.980  tkb  Update failed: Patch check request failed due to network
+                       error.                     (~95ms after start)
+
+The **base app fails the same way**, and it has local-network permission and
+successfully downloaded a patch 50 minutes earlier. So this is not about the
+re-signed bundles and not about per-app permission.
+
+One race is real and worth recording regardless:
+
+    16:31:18.306  Sending patch check request … channel: "stable"
+    16:31:18.306  Update failed: … network error            (0.3ms later)
+    16:31:18.440  nehelper: Local network allowed by preference for Flavored Probe
+
+The updater fires its check **pre-main**, while iOS resolves local-network
+permission asynchronously. The first connection in a process can therefore lose
+the race and the updater gives up for that launch. That is the mechanism behind
+the tap → force-quit → tap-again ritual every device arm on this rig has needed.
+But it does not explain a *hang*, and it does not explain the base app failing
+after its grant was already on record.
+
+### Phase 0 is therefore NOT a passed control
+
+Both clients show `TRACK-V1` and neither has a patch — but neither asked
+successfully, so "neither received a patch" is currently **unfalsifiable**.
+Promoting to alpha now would produce an A-gets-it result indistinguishable from
+luck, so **nothing has been promoted.** Phase 0 stands open.
+
+### A packaging consequence found on the way
+
+All three bundles share `LC_UUID BB02BCB5-82C5-3979-8222-9356C9611EF6`, because
+they are copies of one build. iOS's network attribution keys on that UUID and
+resolved `tka`'s identity to the **base** bundle id (`bundle_id: (null)` in the
+blocked-connection notice, then "allowed by preference for Flavored Probe"). It
+did not cause this failure, but it means **per-app local-network state cannot be
+made to differ between A and B** while they share one Mach-O. If a future arm
+needs A and B to hold different permissions, that shared UUID is where it breaks.
