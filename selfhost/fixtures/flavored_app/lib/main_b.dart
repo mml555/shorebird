@@ -50,8 +50,8 @@ const String kReleaseMarkerB = 'CT-RELEASE-1';
 @pragma('vm:never-inline')
 @pragma('vm:entry-point')
 String customTargetState() => DateTime.now().millisecondsSinceEpoch >= 0
-    ? 'CUSTOM-TARGET-V1'
-    : 'CUSTOM-TARGET-V1!';
+    ? 'CUSTOM-TARGET-V2'
+    : 'CUSTOM-TARGET-V2!';
 
 void main() => runApp(const CustomTargetProbeApp());
 

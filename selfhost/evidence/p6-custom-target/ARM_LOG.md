@@ -97,3 +97,48 @@ frozen telemetry specimen as *"release 108 / 1.8.0+1, patch 1"* on this same
 shorthand. A second `1.8.0+1` in the same control plane would be a different
 release row but an identical *identifier* in every grep and in that shorthand.
 The specimen must stay unambiguous, and skipping a version number costs nothing.
+
+## Release 1.9.0+1 published from `lib/main_b.dart`
+
+`shorebird release ios --flavor foo --target lib/main_b.dart
+--export-method development` published cleanly. `Route B retention: 4 named SDK
+members, interface 1973 bytes`; signed with team `SK85S6YZP9`.
+
+### Pre-install evidence that the non-default entry is what shipped
+
+Checked in the shipped AOT (`App.framework/App`, `945f3d36af9b046d`) **before**
+anything touched the phone. The discriminator is not that `main_b`'s markers are
+present — it is that `main.dart`'s are absent, because `main.dart` is unreachable
+from `main_b` and so is not in the program at all:
+
+| marker | origin | count | meaning |
+|---|---|---|---|
+| `TARGET-B` | main_b | 1 | present |
+| `CT-RELEASE-1` | main_b | 1 | present |
+| `CUSTOM-TARGET-V1` | main_b | 2 | both ternary branches kept |
+| `FLAVORED-FIXTURE-V1` | main.dart | **0** | main.dart not compiled in |
+| `BAKED-INTO-RELEASE` | main.dart | **0** | ditto |
+| `obf` | main.dart | **0** | ditto |
+
+A default-target build would have shown the bottom three and not the top three.
+
+### Installed and baselined
+
+`ios-deploy --id 8cb4bc98… --bundle Runner.app --no-wifi` — no `-d`, no `-L`, so
+this installed without starting anything.
+
+**Baseline, from a by-hand icon tap:** `TARGET-B` / `CT-RELEASE-1` /
+`CUSTOM-TARGET-V1`. The screen was `main_b`'s own three-row layout, which exists
+nowhere else in the fixture, so `main_b`'s `main()` is what ran.
+
+## The patch
+
+Only the target's literal changed, in both ternary branches:
+`'CUSTOM-TARGET-V1'` → `'CUSTOM-TARGET-V2'`. Both controls are untouched at
+their declarations (`kEntryMarker`, `kReleaseMarkerB`); `git diff` is 2 lines.
+
+Unlike the defines arm, this change is expected to be **visible** to the coverage
+analyzer: the literals live directly in the procedure body, so the printed AST
+differs. The defines arm's blindness was a change to a const's *evaluated value*
+with an identical source AST — a different situation, and worth distinguishing
+rather than assuming the same trap.
