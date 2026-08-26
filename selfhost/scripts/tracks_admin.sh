@@ -101,5 +101,47 @@ for p in ps:
             print("    {}: ABSENT (no deployment row at all)".format(want))
 '
   ;;
+fetch-release-app)
+  # WHY THIS EXISTS. `shorebird patch` overwrites build/ios/archive with the
+  # PATCH build, so after publishing a patch the local archive is no longer the
+  # release. Installing it would put the patched code on the device directly and
+  # every later reading would be meaningless -- and it would not even be caught
+  # by a bind failure, because the engine compares the container's `built-for`
+  # against the RUNNING release. So the release artifact is fetched from the
+  # server, which is the only copy that is definitionally the release.
+  RID=$(api GET "/api/v1/apps/$APP/releases" | python3 -c '
+import json,sys,os
+d=json.load(sys.stdin)
+rows=d if isinstance(d,list) else (d.get("releases") or [])
+rel=os.environ["REL"]
+for r in rows:
+    if r.get("version")==rel: print(r["id"]); break
+')
+  [ -n "$RID" ] || { echo "no release $REL"; exit 1; }
+  URL=$(api GET "/api/v1/apps/$APP/releases/$RID/artifacts" | python3 -c '
+import json,sys
+d=json.load(sys.stdin)
+rows=d if isinstance(d,list) else (d.get("artifacts") or [])
+for a in rows:
+    if a.get("arch")=="xcarchive":
+        print(a.get("url") or a.get("download_url") or "")
+        break
+')
+  [ -n "$URL" ] || { echo "no xcarchive artifact on release $RID"; exit 1; }
+  OUT=${OUT:-/tmp/release_app}
+  rm -rf "$OUT"; mkdir -p "$OUT"
+  echo "release $REL -> id $RID"
+  echo "fetching xcarchive…"
+  curl -sSL -H "Authorization: Bearer $SHOREBIRD_TOKEN" "$URL" -o "$OUT/xcarchive.zip"
+  ( cd "$OUT" && unzip -q xcarchive.zip )
+  APPDIR=$(find "$OUT" -name 'Runner.app' -maxdepth 5 -type d | head -1)
+  [ -n "$APPDIR" ] || { echo "no Runner.app inside the fetched xcarchive"; exit 1; }
+  echo "app: $APPDIR"
+  echo "this is the RELEASE, fetched from the server rather than rebuilt:"
+  strings -a "$APPDIR/Frameworks/App.framework/App" \
+    | grep -cE '^MANUAL-V1$|MANUAL-V1' | sed 's/^/  MANUAL-V1 occurrences: /'
+  strings -a "$APPDIR/Frameworks/App.framework/App" \
+    | grep -c 'MANUAL-V2' | sed 's/^/  MANUAL-V2 occurrences (must be 0): /'
+  ;;
 *) echo "unknown subcommand: $1"; exit 2;;
 esac

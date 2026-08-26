@@ -50,8 +50,8 @@ import 'package:shorebird_code_push/shorebird_code_push.dart';
 @pragma('vm:never-inline')
 @pragma('vm:entry-point')
 String markerText() => DateTime.now().millisecondsSinceEpoch >= 0
-    ? 'MANUAL-V1'
-    : 'MANUAL-V1!';
+    ? 'MANUAL-V2'
+    : 'MANUAL-V2!';
 
 /// The non-default track under test. A custom value is used rather than
 /// `UpdateTrack.beta` only where the API needs it; here beta is a real track on
