@@ -569,7 +569,20 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
         // Provenance only. See RouteBReleaseProvenance.releaseTarget: not part
         // of the build-semantics comparison, because no measurement has shown a
         // target difference can admit a semantic mismatch.
-        releaseTarget: target,
+        //
+        // THE EFFECTIVE TARGET, not the flag. Recording `target` alone made the
+        // field null for every release that did not pass --target, which is
+        // almost all of them -- provenance that is absent in the common case is
+        // not provenance. Flutter's default is `lib/main.dart`
+        // (`flutter_command.dart`'s targetFile), so an unspecified target is
+        // recorded as that rather than as nothing.
+        //
+        // Deliberately NOT read from Generated.xcconfig, even though it carries
+        // FLUTTER_TARGET: that file was observed on 2026-08-26 holding a STALE
+        // flavor from an earlier plain `flutter build` while the release's own
+        // program had a different one, so it is not a trustworthy record of this
+        // build at an arbitrary moment.
+        releaseTarget: target ?? 'lib/main.dart',
         // G4.1. Captured from the SAME buildArgs the release compiled with,
         // at the one moment they are unambiguously this release's. Null when the
         // release's effective define set could not be established — which since
