@@ -147,15 +147,18 @@ Wi-Fi and may be perfectly valid with USB forwarding — see
 | boundary | technical signing-path certification is **not** App Store policy approval. `APPSTORE_COMPLIANCE.md` OPEN-1 remains the distribution-signing arm |
 | re-certify when | the signing pipeline changes |
 
-## 8 · tracks — `UNCERTIFIED`
+## 8 · tracks — `CERTIFIED` (server-side routing)
 
 | field | value |
 |---|---|
 | scope | patch published to a track reaches exactly the devices that track selects |
 | unique seam | control-plane eligibility, proven on server/wire evidence rather than screenshots |
-| proven | nothing end to end. `fixtures/trackprobe_app` exists and is shaped so the negative is falsifiable |
-| known gap | **progressive rollout has no client surface at all** — a source-determined classification, so booking a run would produce a meaningless green (`evidence/g6-tracks-server/rollout_surface.md`) |
-| owed | patch on track A delivered to an eligible client; a client on track B NOT served it; promotion/move if supported; rollback still track-correct |
+| the WORKFLOW | **PROVEN 2026-08-26.** Release `1.10.0+1`, ONE patch, rollout 100, two independent clients on `alpha`/`beta`. Deployed to alpha only: A got `patch_available: true` → download+install → `TRACK-V2`; B sent `channel: "beta"`, got `false` twice and produced **zero** events, holding `TRACK-V1`. `evidence/p6-tracks/VERDICT.md` |
+| what makes the negative causal | promoting the **unchanged** patch to beta, with no rebuild or reinstall, flipped the **same** `client_id` from `false` to `true` for the **same** patch. Transport, signing, stale release, bad artifact, broken updater, wrong app id and "B cannot update" are each excluded, because every one would have kept B on V1 after the promotion too |
+| asserted on | `deployments`, never the singular `channel` field — which after Phase 2 read `'beta'` alone and would have reported the patch as having MOVED off alpha, inverting the multi-track claim. Both tracks were `status=active, rolled_back=False, rollout=100`, and A stayed on V2 |
+| **NOT certified** | **client-side track selection via supported config.** The updater reads `channel:` from the bundled `shorebird.yaml` (`vendor/updater/.../yaml.rs:60`), but the CLI's parser rejects that key — `allowedKeys` lacks it and `disallowUnrecognizedKeys` is on (`shorebird_yaml.g.dart:16-23`). A user writing `channel: beta` gets an `UnrecognizedKeysException`, so no supported path onto a non-stable track exists. **Open product defect** |
+| deviation recorded | the two clients are NOT byte-identical bundles: cut from one build, differing in bundle id, display name, bundled channel and executable UUID, with the **AOT payload** verified identical (signature stripped) |
+| known gap | **progressive rollout has no client surface at all** — deliberately excluded here, so this result stays a clean test of deterministic track routing (`evidence/g6-tracks-server/rollout_surface.md`) |
 | re-certify when | control-plane track logic or eligibility changes |
 
 ## 9 · manual updater API — `UNCERTIFIED`
@@ -187,12 +190,12 @@ Six rows are certification of machinery that already exists and mostly works;
 four are where new findings should be expected. Nothing here is claimed green to
 satisfy a checklist:
 
-- `CERTIFIED`: 5 (baseline, flavor, Dart defines, obfuscation, custom target)
+- `CERTIFIED`: 6 (baseline, flavor, Dart defines, obfuscation, custom target, tracks — the last scoped to server-side routing)
 - `P6_DEVICE_EPOCH_READY = true` — cell `8e659812…`, release 113, inherited by every later device row rather than re-established per row
 - `BLOCKED`: 1 (CI, on a Linux builder)
-- `UNCERTIFIED`: 3 (signing, tracks, manual updater API)
+- `UNCERTIFIED`: 2 (signing, manual updater API)
 - `NOT ASSESSED`: 1 (Add-to-App)
 
-**The recurring shape of the gap is the same in the three remaining rows: the
-host half is proven and the device half is not.** That is worth stating as one fact rather
-than four, because it means the outstanding work is mostly rig time, not design.
+**The two remaining rows share one shape: the host half is proven and the
+device half is not.** That is worth stating as one fact rather than two, because
+it means the outstanding work is mostly rig time, not design.
