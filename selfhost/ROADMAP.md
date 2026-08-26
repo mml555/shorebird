@@ -35,7 +35,7 @@ touching it.
 | **P3 / P1.5** | **Determine the next compatibility widening after privacy + required-positionals** | **OPEN, and now a PARALLEL research item — it gates nothing.** Two corpus models tried, neither usable. Its next task is a study DESIGN, not more cases: the era-appropriate-toolchain precommit, and a NEW measurement epoch for analyzer v8 rather than editing `FROZEN_VERSION = 6` in place |
 | **P4** | **Route B publication refusal gates** | **CLOSED 2026-08-25.** All five items, live on the publication path in cell `9b5f040c…` — see §P4 |
 | **P5** | **Build/config compatibility enforcement** | **CLOSED 2026-08-25**, and much smaller than this roadmap assumed: the authority already existed. One defect fixed, one question left explicitly open — see §P5 |
-| **P6** | **Certify inherited workflows** as PROVEN / FAILED / UNSUPPORTED | OPEN, broad, cheap per item |
+| **P6** | **Certify inherited workflows** | **IN PROGRESS.** Matrix frozen in [`WORKFLOW_CERTIFICATION.md`](WORKFLOW_CERTIFICATION.md): 1 certified, 3 partial, 1 blocked, 4 uncertified, 1 not assessed — see §P6 |
 
 Further Dart widening waits on **measured** corpus failures from P3 — not on
 guesses about which constructs matter.
@@ -423,6 +423,43 @@ adding target to the canonical form has to be a decision rather than a surprise.
 
 Not investigated: whether a target difference matters for a package dependency
 outside the retained app libraries. That is the shape a real exploit would take.
+
+---
+
+## P6 — certify inherited workflows  *(matrix frozen)*
+
+> **Every inherited workflow claimed as supported has an explicit certification
+> row proving its unique release/patch/publication/runtime seam, with at least
+> one negative control where misconfiguration could otherwise silently succeed.
+> Unsupported or untested workflows are named as such rather than inferred from
+> adjacent coverage.**
+
+**P6 may close with rows unsupported or deferred.** A truthful support boundary
+is the deliverable, not ten green rows.
+
+The matrix lives in [`WORKFLOW_CERTIFICATION.md`](WORKFLOW_CERTIFICATION.md),
+frozen before running: ten rows, each with scope, inputs, the unique seam, cited
+evidence, a negative control, status and **re-certification triggers** — the last
+field being what stops it from rotting into a one-time document.
+
+Standing where the rows were frozen:
+
+| status | rows |
+|---|---|
+| `CERTIFIED` | baseline |
+| `PARTIAL` | flavor, Dart defines, obfuscation — each with the missing link NAMED |
+| `BLOCKED` | CI/noninteractive, on R12 (a Linux builder) |
+| `UNCERTIFIED` | custom target, signing, tracks, manual updater API |
+| `NOT ASSESSED` | Add-to-App |
+
+**The gap has one shape in four rows: the host half is proven and the device half
+is not.** Said once rather than four times, because it means the outstanding work
+is mostly rig time rather than design.
+
+Two rows carry a finding worth reading before booking anything: the CI arms are
+blocked on a missing prerequisite rather than failing, and progressive rollout
+has **no client surface at all** — a source-determined gap where booking a run
+would produce a meaningless green.
 
 ---
 
