@@ -211,6 +211,30 @@ patches under the hardened publication contract, which is better than carrying
 an indefinite bypass whose only purpose is to make an unproven prerequisite look
 satisfied.
 
+## 8c. The probe is cell-owned, so an instrument bug is not retroactive
+
+Recorded 2026-08-26, after a real one.
+
+The probe ships in the cell, and a patch is judged by the probe that shipped with
+its release's toolchain. That is the property §6's ownership split exists to
+create. It has a consequence worth stating rather than rediscovering:
+
+> **A defect in the probe is fixed only for releases cut against a later cell.**
+> A release already cut is permanently judged by the instrument it shipped with,
+> and no fix can reach it.
+
+Demonstrated: the probe compared the owning CLASS name exactly, while the profile
+mangles private class names (`_FooState@306106223`) exactly as it mangles private
+members. Every member of a private class resolved to `TARGET_NOT_FOUND` — failing
+closed, but refusing the shape P1 had already proved on device. Fixing it required
+minting `ca7d2c0d…`; release 118, cut minutes earlier against `8e659812…`, cannot
+be patched on such a target ever.
+
+**This is the right trade** — the alternative is a probe whose behaviour changes
+under a release after the fact, which is exactly what the exact-artifact rule
+forbids. But it means a probe defect is an **epoch-scoped** defect, and the
+remediation for an affected release is to cut a new one.
+
 ## 9. Known unmeasured items
 
 - ~~Release-shape equivalence (`--strip` / assembly output)~~ — **MEASURED**,

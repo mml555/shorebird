@@ -110,14 +110,15 @@ Wi-Fi and may be perfectly valid with USB forwarding — see
 | first thing to try | the **package-dependency** case: a target difference that changes what is retained OUTSIDE the app libraries, where whole-app-library retention stops answering the concern. If that produces a real mismatch, reopen P5-TARGET with evidence |
 | re-certify when | the retention policy for non-app libraries changes |
 
-## 5 · obfuscation — `PARTIAL`
+## 5 · obfuscation — `CERTIFIED`
 
 | field | value |
 |---|---|
 | scope | obfuscated release, patch built with the same configuration |
 | unique seam | Route B binds by NAME at run time, so obfuscation could in principle remove the very identity a patch resolves |
 | proven | `probes/g43_obfuscation_semantics.sh` — obfuscation changes the stripped program, `--split-debug-info` does not; and the P4.1 arm measured that **names the dynamic interface retains SURVIVE obfuscation** (3,371 of 5,095 renamed, interface-named members preserved) with the three-way partition unchanged |
-| **not proven** | the WORKFLOW: no obfuscated release → patch → publish → **physical execution** has been run. One representative private target would settle it |
+| the WORKFLOW | **PROVEN 2026-08-26.** Release 119 (`1.7.0+1`, `--obfuscate`) on cell `ca7d2c0d…`, patch 81, target a method on a PRIVATE class. Device: `OBF-V1` → **`OBF-V2-FLD`**, controls unmoved. 16,255 of 17,988 names renamed while `_FooState`/`target`/`_field` stayed preserved in the same map — the control that separates "workflow works" from "flag ignored". `evidence/p6-obfuscation/VERDICT.md` |
+| what it cost | two defects: P4.1 refused every member of a private class (failed closed, but silently narrowed a capability P1 had certified), and obfuscated patches died on an unregistered scope ref. Both fixed, both mutation-checked |
 | negative control | patch built unobfuscated against an obfuscated release → `BUILD_CONFIG_MISMATCH` (P5) |
 | evidence | `engine/route_b/evidence/p41_measurement_note.md`, `probes/g43_obfuscation_semantics.sh` |
 | re-certify when | `gen_snapshot`'s obfuscation behaviour changes, or the dynamic interface's retention model changes |
@@ -185,9 +186,8 @@ Six rows are certification of machinery that already exists and mostly works;
 four are where new findings should be expected. Nothing here is claimed green to
 satisfy a checklist:
 
-- `CERTIFIED`: 3 (baseline, flavor, Dart defines)
+- `CERTIFIED`: 4 (baseline, flavor, Dart defines, obfuscation)
 - `P6_DEVICE_EPOCH_READY = true` — cell `8e659812…`, release 113, inherited by every later device row rather than re-established per row
-- `PARTIAL`: 1 (obfuscation) — with the missing link named
 - `BLOCKED`: 1 (CI, on a Linux builder)
 - `UNCERTIFIED`: 4 (target, signing, tracks, manual updater API)
 - `NOT ASSESSED`: 1 (Add-to-App)
