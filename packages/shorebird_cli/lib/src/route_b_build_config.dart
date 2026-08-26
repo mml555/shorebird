@@ -41,6 +41,35 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:shorebird_cli/src/dart_define_from_file.dart';
 
+/// P5's vocabulary. Stable tokens, for the same reason P4.3's are: the prose
+/// must stay free to be reworded, and what a caller may rely on must not move.
+///
+/// THIS FILE IS THE P5 AUTHORITY. The differential matrix
+/// (`evidence/p5_build_identity_matrix.md`) measured that the effective build
+/// configuration here already owns every input shown to alter patch-relevant
+/// compiler semantics -- defines, flavor via `FLUTTER_APP_FLAVOR`, obfuscation --
+/// with order independence, last-wins and absent-vs-empty all measured rather
+/// than assumed. So P5 elevates this comparison to the authority instead of
+/// wrapping it in a second identity: two hashes over one compiler fact is the
+/// coherence problem this project keeps removing.
+enum RouteBBuildSemanticsProblem {
+  /// The release and the patch would compile with different semantics.
+  mismatch('BUILD_CONFIG_MISMATCH'),
+
+  /// The release carries no comparable configuration, so the comparison cannot
+  /// be made. Not agreement -- missing required evidence is not compatibility.
+  evidenceAbsent('BUILD_IDENTITY_EVIDENCE_ABSENT'),
+
+  /// The PATCH was invoked with an option whose effective configuration cannot
+  /// be established, so it cannot be shown to match anything.
+  patchUnfingerprintable('BUILD_IDENTITY_PATCH_UNFINGERPRINTABLE');
+
+  const RouteBBuildSemanticsProblem(this.wire);
+
+  /// The stable token. Safe to match on; the prose is not.
+  final String wire;
+}
+
 /// The prefix Flutter uses to supply a define on a build invocation.
 const _dartDefineFlag = '--dart-define=';
 

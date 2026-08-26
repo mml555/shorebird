@@ -63,6 +63,10 @@ AOT_RUNTIME=$OUT/dartaotruntime
 PKGS_DIR=$DART_TREE/third_party/pkg/core/pkgs
 ZIPS=$OUT/zip_archives
 
+# The shared rule: a tool that fails SILENTLY is the harness, not a refusal.
+# shellcheck source=probes/harness_guard.sh
+. "$HERE/harness_guard.sh"
+
 die() { echo "ERROR: $*" >&2; exit 1; }
 note() { echo; echo "==> $*"; }
 [ -x "$DART" ] || die "no host dart at $DART"
@@ -242,9 +246,11 @@ JSON
   local why=""
   if [ "$v" = REFUSED ]; then
     why=$(sed -n 's/^  reason : //p' "$out" | head -1 | cut -c1-70)
-    # A bare "exit N" with no stderr is usually the harness, not the product.
-    if grep -q 'exit 254' "$out" && ! grep -q 'Error:' "$out"; then
-      why="$why  [!! no compiler stderr — suspect the harness, not a gate]"
+    # A tool failure with no diagnostic output is the harness, not a refusal.
+    # See probes/harness_guard.sh for why this is a shared rule.
+    if [ "$(classify_tool_failure 1 "$out")" = HARNESS_FAILURE ]; then
+      v=HARNESS_FAILURE
+      why="the tool failed and said nothing — suspect the probe, not a gate"
     fi
   elif [ "$v" = COVERAGE_REJECTED ]; then
     why="the analyzer rejected the change set"

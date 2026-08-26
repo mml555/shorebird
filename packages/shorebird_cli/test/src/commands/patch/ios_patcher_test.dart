@@ -1148,6 +1148,12 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
           bool corruptKernel = false,
           String? capabilityManifest,
           RouteBBuildConfig? buildConfig,
+          // P5.1: a release with NO comparable configuration is now refused, so
+          // a fixture that expects to get further has to record one. Defaulted
+          // to the empty-but-known configuration, which is what a build with no
+          // defines actually has -- and `omitBuildConfig` expresses the other
+          // case, which is a release whose evidence is missing.
+          bool omitBuildConfig = false,
           // Explicitly nullable, and defaulted to the current revision, so a
           // test can express "recorded none" as well as "recorded another".
           int? compatibilityRevision = routeBCompatibilityRevision,
@@ -1195,7 +1201,9 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
               patchableCallSites: 4000,
               patchableCallSitesPerMiB: 1788,
               artifacts: artifacts,
-              buildConfig: buildConfig,
+              buildConfig: omitBuildConfig
+                  ? null
+                  : buildConfig ?? RouteBBuildConfig.fromBuildArgs(const []),
               // P4.4: a release with no contract revision is refused before
               // anything else, so every fixture that expects to get FURTHER
               // than that has to record one.
@@ -1311,6 +1319,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
               workingDirectory: any(named: 'workingDirectory'),
               projectRoot: any(named: 'projectRoot'),
               capabilities: any(named: 'capabilities'),
+              buildConfig: any(named: 'buildConfig'),
               survival: any(named: 'survival'),
               releaseEvidence: any(named: 'releaseEvidence'),
             ),
@@ -1483,7 +1492,13 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
               await runPatch(patcherWithFlavor('foo'));
 
               verifyNever(
-                () => logger.err(any(that: contains('Dart defines differ'))),
+                () => logger.err(
+                  any(
+                    that: contains(
+                      RouteBBuildSemanticsProblem.mismatch.wire,
+                    ),
+                  ),
+                ),
               );
               verify(
                 () => logger.detail(
@@ -1511,7 +1526,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                 () => logger.err(
                   any(
                     that: allOf(
-                      contains('Dart defines differ'),
+                      contains(RouteBBuildSemanticsProblem.mismatch.wire),
                       contains(
                         'FLUTTER_APP_FLAVOR: "foo" in the release, '
                         '"bar" in this patch',
@@ -1562,7 +1577,13 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                 await runPatch(patcherWithFlavor(null));
 
                 verifyNever(
-                  () => logger.err(any(that: contains('Dart defines differ'))),
+                  () => logger.err(
+                  any(
+                    that: contains(
+                      RouteBBuildSemanticsProblem.mismatch.wire,
+                    ),
+                  ),
+                ),
                 );
                 verify(
                   () => logger.detail(
@@ -2030,6 +2051,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                             workingDirectory: any(named: 'workingDirectory'),
                             projectRoot: any(named: 'projectRoot'),
                             capabilities: any(named: 'capabilities'),
+                            buildConfig: any(named: 'buildConfig'),
                             survival: any(named: 'survival'),
                             releaseEvidence: any(named: 'releaseEvidence'),
                           ),
@@ -2072,6 +2094,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                             workingDirectory: any(named: 'workingDirectory'),
                             projectRoot: any(named: 'projectRoot'),
                             capabilities: captureAny(named: 'capabilities'),
+                            buildConfig: any(named: 'buildConfig'),
                             survival: any(named: 'survival'),
                             releaseEvidence: any(named: 'releaseEvidence'),
                           ),
@@ -2088,6 +2111,97 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                   isNull,
                 );
               });
+            });
+
+            test('P5.1: refuses a release with no build configuration',
+                () async {
+              // This used to WARN AND CONTINUE, which made absent evidence read
+              // as agreement. It is also what the RELEASE side already intends:
+              // ios_releaser records buildConfig: null only when a build's
+              // define expansion disagreed with Flutter's own, and marks that
+              // release unpatchable when it is cut.
+              //
+              // Distinct from the legacy case on purpose: an old release also
+              // predates the contract revision and is refused EARLIER, by P4.4,
+              // with a message about the epoch. Reaching here means a
+              // revision-capable release whose evidence is incomplete.
+              writeReleaseProvenance(
+                engineRevision: releaseEngineRevision,
+                omitBuildConfig: true,
+              );
+              await expectLater(
+                runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                throwsA(isA<ProcessExit>()),
+              );
+              verify(
+                () => logger.err(
+                  any(
+                    that: allOf(
+                      contains(
+                        RouteBBuildSemanticsProblem.evidenceAbsent.wire,
+                      ),
+                      // It must NOT read as an old release: that would send an
+                      // operator to cut a new release when the real cause is a
+                      // define expansion that disagreed with Flutter's.
+                      contains('this is not an old release'),
+                    ),
+                  ),
+                ),
+              ).called(1);
+              // And nothing was produced.
+              verifyNever(
+                () => routeBProducer.produce(
+                  compiler: any(named: 'compiler'),
+                  coverage: any(named: 'coverage'),
+                  importKernel: any(named: 'importKernel'),
+                  releaseBuildId: any(named: 'releaseBuildId'),
+                  workingDirectory: any(named: 'workingDirectory'),
+                  projectRoot: any(named: 'projectRoot'),
+                  capabilities: any(named: 'capabilities'),
+                  buildConfig: any(named: 'buildConfig'),
+                  survival: any(named: 'survival'),
+                  releaseEvidence: any(named: 'releaseEvidence'),
+                ),
+              );
+            });
+
+            test('P5.1 MUTATION: with the check gone, the same patch proceeds',
+                () async {
+              // The mutation is the release recording a COMPARABLE empty
+              // configuration instead of none, with everything else identical.
+              // The same patch then reaches the producer -- which is what makes
+              // the row above a demonstration that this check is what refused,
+              // rather than something else along the way.
+              writeReleaseProvenance(engineRevision: releaseEngineRevision);
+              await runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                  supplementDirectory: supplementDirectory,
+                ),
+              );
+              verify(
+                () => routeBProducer.produce(
+                  compiler: any(named: 'compiler'),
+                  coverage: any(named: 'coverage'),
+                  importKernel: any(named: 'importKernel'),
+                  releaseBuildId: any(named: 'releaseBuildId'),
+                  workingDirectory: any(named: 'workingDirectory'),
+                  projectRoot: any(named: 'projectRoot'),
+                  capabilities: any(named: 'capabilities'),
+                  buildConfig: any(named: 'buildConfig'),
+                  survival: any(named: 'survival'),
+                  releaseEvidence: any(named: 'releaseEvidence'),
+                ),
+              ).called(1);
             });
 
             test('P4.4: refuses a release with no contract revision', () async {
@@ -2124,6 +2238,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                   workingDirectory: any(named: 'workingDirectory'),
                   projectRoot: any(named: 'projectRoot'),
                   capabilities: any(named: 'capabilities'),
+                  buildConfig: any(named: 'buildConfig'),
                   survival: any(named: 'survival'),
                   releaseEvidence: any(named: 'releaseEvidence'),
                 ),
@@ -2190,6 +2305,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                               workingDirectory: any(named: 'workingDirectory'),
                               projectRoot: any(named: 'projectRoot'),
                               capabilities: any(named: 'capabilities'),
+                              buildConfig: any(named: 'buildConfig'),
                               survival: captureAny(named: 'survival'),
                               releaseEvidence: any(named: 'releaseEvidence'),
                             ),
@@ -2229,6 +2345,7 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
                             workingDirectory: any(named: 'workingDirectory'),
                             projectRoot: any(named: 'projectRoot'),
                             capabilities: captureAny(named: 'capabilities'),
+                            buildConfig: any(named: 'buildConfig'),
                             survival: any(named: 'survival'),
                             releaseEvidence: any(named: 'releaseEvidence'),
                           ),

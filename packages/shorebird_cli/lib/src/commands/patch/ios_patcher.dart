@@ -248,6 +248,12 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
       // that build alone produces nothing shippable.
       await _verifyBuildConfigAgrees(provenance);
 
+      // P5-TARGET OPEN, logged and NOT gated. If a target difference is ever
+      // shown to admit a semantic mismatch, this line is the evidence that was
+      // already being recorded; until then, inequality is not unsafe and saying
+      // so would refuse patches with no defect.
+      _noteTargetProvenance(provenance);
+
       // P4.4. THE CONTRACT REVISION, before anything is compiled.
       //
       // A patch is only interpretable against one whole Route B contract --
@@ -569,6 +575,31 @@ The two kernels this release uploaded do not describe the same program, so a pat
 Nothing was uploaded. Create a new release and patch that instead.''',
     );
     throw ProcessExit(ExitCode.software.code);
+  }
+
+  /// Record, without judging, whether the patch's target matches the release's.
+  ///
+  /// P5-TARGET OPEN: `--target` is not represented by the build-semantics
+  /// authority, and the differential matrix produced no case where a target
+  /// difference was accepted while changing executable semantics. So this is
+  /// instrumentation for a future incident, not a gate.
+  void _noteTargetProvenance(RouteBReleaseProvenance provenance) {
+    final releaseTarget = provenance.releaseTarget;
+    final patchTarget = target;
+    if (releaseTarget == null) {
+      logger.detail('[route-b] this release recorded no target');
+      return;
+    }
+    if (releaseTarget == patchTarget) {
+      logger.detail('[route-b] target matches the release ($releaseTarget)');
+      return;
+    }
+    logger.detail(
+      '[route-b] P5-TARGET OPEN: release target $releaseTarget, this patch '
+      "invoked with ${patchTarget ?? '<default>'}. Recorded, not gated: no "
+      'measurement has shown a target difference can admit a semantic '
+      'mismatch that the release bindings accept.',
+    );
   }
 
   /// Refuse a release cut under a different Route B contract revision.
@@ -928,17 +959,32 @@ uploaded.''',
     );
 
     if (releaseConfig == null) {
-      // Two different causes with different remediations, so they are named
-      // rather than collapsed: a release cut before this field existed cannot be
-      // compared, and a release built with an unfingerprintable option never can.
-      logger.warn(
-        '''This release records no comparable build configuration, so its --dart-define values cannot be checked against this patch's. If it was built with ${routeBUnfingerprintableOptions.join(', ')}, that is expected and permanent; if it predates configuration provenance, cut a new release to get the check.''',
+      // P5.1. THIS USED TO WARN AND CONTINUE, which made absent evidence read as
+      // agreement -- the one thing the P4 epoch rule forbids.
+      //
+      // It is also what the RELEASE side already intends. `ios_releaser` records
+      // `buildConfig: null` only when this build's define expansion DISAGREED
+      // with Flutter's own, and its comment says the patch side treats that as
+      // "permanently not comparable". It did not; it warned and proceeded.
+      //
+      // The legacy case is not this case. A release cut before configuration
+      // provenance existed also predates the contract revision, and P4.4's
+      // revision gate refuses it EARLIER with a message about the epoch. So
+      // reaching here means a revision-capable release whose configuration
+      // evidence is INCOMPLETE, which is corruption rather than age.
+      logger.err(
+        '''
+${RouteBBuildSemanticsProblem.evidenceAbsent.wire}: this release carries no comparable build configuration, so this patch cannot be shown to compile with the same semantics.
+
+The release records the Route B contract revision, so this is not an old release — its configuration evidence is missing or was never established. That happens when a release's --dart-define expansion disagreed with Flutter's own, in which case the release was marked unpatchable when it was cut${routeBUnfingerprintableOptions.isEmpty ? '' : ', or when it was built with ${routeBUnfingerprintableOptions.join(', ')}'}.
+
+The release itself is fine and keeps running. Create a new release and patch that instead. Nothing was uploaded.''',
       );
-      return;
+      throw ProcessExit(ExitCode.software.code);
     }
     if (patchConfig == null) {
       logger.err(
-        '''This patch was invoked with ${routeBUnfingerprintableOptions.join(', ')}, whose effective define set cannot be determined, so it cannot be shown to match the release's.''',
+        '''${RouteBBuildSemanticsProblem.patchUnfingerprintable.wire}: this patch was invoked with ${routeBUnfingerprintableOptions.join(', ')}, whose effective define set cannot be determined, so it cannot be shown to match the release's.''',
       );
       throw ProcessExit(ExitCode.usage.code);
     }
@@ -952,7 +998,7 @@ uploaded.''',
 
     logger
       ..err('''
-This patch's Dart defines differ from the release's, so its compiled constants would not match the release it patches:
+${RouteBBuildSemanticsProblem.mismatch.wire}: this patch's build configuration differs from the release's, so its compiled constants would not match the release it patches:
 
 ${releaseConfig.describeDifference(patchConfig)}
 

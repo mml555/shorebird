@@ -566,6 +566,10 @@ If you do not need a signed IPA (for example, you will sign the .xcarchive in Xc
             ? sha256.convert(appBinary.readAsBytesSync()).toString()
             : null,
         compatibilityRevision: routeBCompatibilityRevision,
+        // Provenance only. See RouteBReleaseProvenance.releaseTarget: not part
+        // of the build-semantics comparison, because no measurement has shown a
+        // target difference can admit a semantic mismatch.
+        releaseTarget: target,
         // G4.1. Captured from the SAME buildArgs the release compiled with,
         // at the one moment they are unambiguously this release's. Null when the
         // release's effective define set could not be established — which since

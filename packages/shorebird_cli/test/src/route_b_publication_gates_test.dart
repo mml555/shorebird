@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/route_b_binding.dart';
+import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
@@ -38,10 +39,18 @@ import 'mocks.dart';
 /// Adding a row to [_gates] without wiring its arms fails the completeness test
 /// at the bottom, so the matrix cannot rot into a list of intentions.
 class _Gate {
-  const _Gate(this.id, this.what, {this.mandatory = true});
+  const _Gate(this.id, this.what, {this.mandatory = true, this.ownedBy});
   final String id;
   final String what;
   final bool mandatory;
+
+  /// A gate whose arms cannot run in THIS harness, with the test that owns it.
+  ///
+  /// The matrix drives `RouteBProducer.produce`, and one mandatory gate lives in
+  /// the patcher instead. Declaring that is honest; declaring it without saying
+  /// where would be a silent skip. So the pointer is CHECKED: the completeness
+  /// test reads the named file and fails if the named test is not in it.
+  final ({String file, String test})? ownedBy;
 }
 
 const _gates = <_Gate>[
@@ -49,6 +58,20 @@ const _gates = <_Gate>[
   _Gate('P4.2', "the target member's own capability grant"),
   _Gate('P4.3', 'the replacement ABI shape'),
   _Gate('P4.4', "the member's signature, and the release binding"),
+  // P5. The build-semantics authority is RouteBBuildConfig, measured in
+  // evidence/p5_build_identity_matrix.md to already own every input shown to
+  // alter patch-relevant compiler semantics. Its arms run here because the
+  // comparison is a pure function; the REFUSAL that consumes it is in the
+  // patcher.
+  _Gate('P5.CONFIG', 'the effective build configuration'),
+  _Gate(
+    'P5.EVIDENCE',
+    'a release with no comparable build configuration',
+    ownedBy: (
+      file: 'test/src/commands/patch/ios_patcher_test.dart',
+      test: 'P5.1: refuses a release with no build configuration',
+    ),
+  ),
 ];
 
 void main() {
@@ -399,10 +422,122 @@ void main() {
       });
     });
 
+    // ---- P5.CONFIG : the effective build configuration ---------------------
+    //
+    // One comparison decides all three semantic classes -- `canonicalForm`
+    // equality -- so each class gets a negative arm and a mutation showing that
+    // EQUALISING that one dimension makes the same pair agree. That is what
+    // "load-bearing" means here: the dimension is not decoration inside a
+    // comparison that would have refused anyway.
+    group('P5.CONFIG effective build configuration', () {
+      RouteBBuildConfig config(List<String> args, {String? flavor}) =>
+          RouteBBuildConfig.fromBuildArgs(args, flavor: flavor)!;
+
+      test('positive: the same effective configuration agrees', () {
+        // Spelling is not semantics: different order, a redundant repetition,
+        // and last-wins all compile identically. Measured in
+        // probes/g41_define_semantics.sh.
+        expect(
+          config([
+            '--dart-define=B=2',
+            '--dart-define=A=1',
+          ]).agreesWith(config(['--dart-define=A=0', '--dart-define=A=1', '--dart-define=B=2'])),
+          isTrue,
+        );
+        record('P5.CONFIG', 'positive');
+      });
+
+      test('negative: each semantic class disagrees on its own', () {
+        // defines
+        expect(
+          config(['--dart-define=ENV=a']).agreesWith(
+            config(['--dart-define=ENV=b']),
+          ),
+          isFalse,
+          reason: 'dart defines',
+        );
+        // flavor, which reaches the compiler as an ordinary define
+        expect(
+          config([], flavor: 'foo').agreesWith(config([], flavor: 'bar')),
+          isFalse,
+          reason: 'flavor',
+        );
+        // obfuscation
+        expect(
+          config([]).agreesWith(config(['--obfuscate'])),
+          isFalse,
+          reason: 'obfuscation',
+        );
+        record('P5.CONFIG', 'negative');
+      });
+
+      test('MUTATION: equalising the one dimension makes the pair agree', () {
+        // Same three pairs, with only the differing dimension equalised. If any
+        // of these still disagreed, the row above would not be evidence that
+        // the dimension is what refused.
+        expect(
+          config(['--dart-define=ENV=a']).agreesWith(
+            config(['--dart-define=ENV=a']),
+          ),
+          isTrue,
+        );
+        expect(
+          config([], flavor: 'foo').agreesWith(config([], flavor: 'foo')),
+          isTrue,
+        );
+        expect(
+          config(['--obfuscate']).agreesWith(config(['--obfuscate'])),
+          isTrue,
+        );
+        record('P5.CONFIG', 'mutation');
+      });
+
+      test('a non-semantic option does NOT create a disagreement', () {
+        // The tempting mistake, excluded on measured evidence: the
+        // split-debug-info PATH changes the emitted ELF and not the stripped
+        // program, so hashing it would make two machines that produce identical
+        // programs incompatible over filesystem layout.
+        expect(
+          config(['--split-debug-info=/a']).agreesWith(
+            config(['--split-debug-info=/b']),
+          ),
+          isTrue,
+        );
+      });
+
+      test('--target is NOT represented, and that is recorded not claimed', () {
+        // P5-TARGET OPEN. The differential matrix could not produce a patch
+        // accepted against a release while differing in executable semantics
+        // solely because a different target was used, so no target-identity gate
+        // is claimed here. This test exists to make the absence deliberate: if
+        // someone adds target to the canonical form, they must come here and
+        // decide, rather than discovering it as a surprise.
+        expect(
+          config(['--target=lib/main.dart']).agreesWith(
+            config(['--target=lib/alternate.dart']),
+          ),
+          isTrue,
+          reason: 'no evidence yet that this admits a semantic mismatch',
+        );
+      });
+    });
+
     // ---- the completeness rule --------------------------------------------
     tearDownAll(() {
       final missing = <String>[];
       for (final gate in _gates.where((g) => g.mandatory)) {
+        if (gate.ownedBy case final owner?) {
+          // A pointer is only honest if it is checked. Read the file and require
+          // the named test to be in it, so a rename cannot leave this matrix
+          // pointing at nothing while still reporting complete.
+          final file = File(owner.file);
+          if (!file.existsSync()) {
+            missing.add('${gate.id}: ${owner.file} does not exist');
+          } else if (!file.readAsStringSync().contains(owner.test)) {
+            missing.add('${gate.id}: ${owner.file} has no "${owner.test}"');
+          }
+          continue;
+        }
         final arms = exercised[gate.id] ?? const <String>{};
         for (final arm in const ['positive', 'negative', 'mutation']) {
           if (!arms.contains(arm)) missing.add('${gate.id} ${gate.what}: $arm');

@@ -34,7 +34,7 @@ touching it.
 | **P2** | **Widen the replacement ABI** — receiver **+ positional args** | **DONE 2026-08-25 for REQUIRED POSITIONALS: proven on host and on physical iOS**, including private receiver + multiple typed arguments + private-member access in one body (`args=NEW-A-7-FLD`, then rollback to `args=OLD`). Named, optional-positional and type arguments **remain deliberately unsupported and refused before publication** — that is the boundary, not a gap to close next. **It was PROVISIONALLY SELECTED, never corpus-selected**, so its completion says nothing about what the next dominant blocker is | Not corpus-selected: P1.5 produced no ranking. Selected on Phase 0's measured **6/10** plus an independently established architectural limitation, with P1 having just removed the former 9/10 private-scope blocker. Scored on its own fixtures before any broad compatibility claim |
 | **P3 / P1.5** | **Determine the next compatibility widening after privacy + required-positionals** | **OPEN, and now a PARALLEL research item — it gates nothing.** Two corpus models tried, neither usable. Its next task is a study DESIGN, not more cases: the era-appropriate-toolchain precommit, and a NEW measurement epoch for analyzer v8 rather than editing `FROZEN_VERSION = 6` in place |
 | **P4** | **Route B publication refusal gates** | **CLOSED 2026-08-25.** All five items, live on the publication path in cell `9b5f040c…` — see §P4 |
-| **P5** | **Android build/config compatibility enforcement** | OPEN. A wrong-flavor patch can currently be accepted |
+| **P5** | **Build/config compatibility enforcement** | **CLOSED 2026-08-25**, and much smaller than this roadmap assumed: the authority already existed. One defect fixed, one question left explicitly open — see §P5 |
 | **P6** | **Certify inherited workflows** as PROVEN / FAILED / UNSUPPORTED | OPEN, broad, cheap per item |
 
 Further Dart widening waits on **measured** corpus failures from P3 — not on
@@ -354,13 +354,75 @@ patch source repairs it: the defect is baked into the release artifact.
 
 ---
 
-## P5 — build/config compatibility identity
+## P5 — build/config compatibility identity  *(CLOSED)*
 
-A platform-neutral compatibility identity covering the semantic build inputs —
-flavor, Dart defines, target, obfuscation state where applicable — then refuse
-mismatched patches. The Android *mechanism* needs no further code-push
-investigation; this is about refusing a patch built for a different
-configuration.
+> **Every build input demonstrated to alter patch-relevant compiler semantics is
+> compared by the existing canonical build configuration before publication.
+> Missing required build-configuration evidence fails closed. No additional raw
+> CLI identity is introduced without evidence that the existing gates can admit
+> a semantic mismatch.**
+
+**The roadmap assumed a new identity was needed. Measurement said otherwise.**
+`probes/p5_build_identity_matrix.sh` ran one variable per row through the real
+producer (`evidence/p5_build_identity_matrix.md`):
+
+| dimension | producer | build-config authority |
+|---|---|---|
+| identical control | publishes | agrees |
+| Dart define `A`→`B` | publishes | **disagrees** |
+| flavor `foo`→`bar` | publishes | **disagrees** |
+| obfuscation off→on | publishes | **disagrees** |
+| target | publishes / incidental refusals | agrees — **not represented** |
+
+No P4 binding catches a build-semantics mismatch, and that is correct: a patch
+compiled with different defines targets the *same* release artifact, so every P4
+binding holds. P5 is a different question.
+
+**`RouteBBuildConfig` is now formally the P5 authority.** It already owns the
+effective defines (order-independent, last-wins, absent ≠ empty — each measured,
+not assumed), flavor via `FLUTTER_APP_FLAVOR`, and obfuscation, and it already
+excludes `--split-debug-info` on evidence that it changes the ELF but not the
+stripped program. A `build_identity_v1` over the same inputs was **not** built:
+two hashes over one compiler fact is the coherence problem this project keeps
+removing.
+
+Flavor is semantic here, measured rather than assumed: with an app that never
+reads `FLUTTER_APP_FLAVOR`, the `foo` and `bar` kernels still differ.
+
+### P5.1 — the one demonstrated defect, fixed
+
+A release carrying no comparable build configuration used to be **warned about
+and permitted**, which made absent evidence read as agreement. It is now
+`BUILD_IDENTITY_EVIDENCE_ABSENT` and refuses. This is what the release side
+already intended: `ios_releaser` records `buildConfig: null` only when a build's
+define expansion disagreed with Flutter's own, and marks that release
+unpatchable when it is cut.
+
+The legacy case stays distinct: an old release also predates the contract
+revision and is refused earlier by P4.4 with a message about the epoch, so
+reaching P5.1 means a revision-capable release whose evidence is *incomplete* —
+corruption, not age. Mutation-checked.
+
+### P5-TARGET OPEN
+
+> `--target` is not represented by the build-semantics authority. The
+> differential specimens have not produced a patch that is accepted against a
+> release while differing in executable semantics solely because a different
+> target was used. The existing refusals for alternate-target specimens are
+> partly incidental — a new entry file is rejected as an **added member**, and a
+> body referencing a member the release never calls is accepted *correctly*,
+> because Route B retains app libraries whole (verified with the release probe:
+> `ZERO_QUALIFYING_CALLSITES`, 1 Function node). **No target-identity gate is
+> claimed.**
+
+The target is now recorded as provenance on both sides — `releaseTarget` in the
+sidecar, and a `P5-TARGET OPEN` detail line at patch time naming both — so if
+such a case is ever found the evidence is already there. Instrumentation, not
+policy. A test in the publication matrix asserts the absence deliberately, so
+adding target to the canonical form has to be a decision rather than a surprise.
+
+Not investigated: whether a target difference matters for a package dependency
+outside the retained app libraries. That is the shape a real exploit would take.
 
 ---
 

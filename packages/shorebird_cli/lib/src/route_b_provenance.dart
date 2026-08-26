@@ -132,6 +132,7 @@ class RouteBReleaseProvenance {
     this.buildConfig,
     this.releaseArtifactSha256,
     this.compatibilityRevision,
+    this.releaseTarget,
   });
 
   /// Parses a sidecar's contents.
@@ -206,6 +207,7 @@ class RouteBReleaseProvenance {
       // patch side reads as "cannot be established" rather than as agreement.
       releaseArtifactSha256: decoded['releaseArtifactSha256'] as String?,
       compatibilityRevision: (decoded['compatibilityRevision'] as num?)?.toInt(),
+      releaseTarget: decoded['releaseTarget'] as String?,
     );
   }
 
@@ -260,6 +262,20 @@ class RouteBReleaseProvenance {
   /// contract. Null for a release that predates the field.
   final int? compatibilityRevision;
 
+  /// The entry point this release was built from, if it was recorded.
+  ///
+  /// **INSTRUMENTATION, NOT POLICY.** `--target` is deliberately NOT part of the
+  /// build-semantics comparison: the P5 differential matrix
+  /// (`evidence/p5_build_identity_matrix.md`) could not produce a patch that was
+  /// accepted against a release while differing in executable semantics solely
+  /// because a different target was used, and gating on a string that has not
+  /// been shown to matter would refuse patches nobody can fix.
+  ///
+  /// It is recorded so that IF such a case is ever found, the evidence is
+  /// already in the release rather than needing to be reconstructed from a
+  /// user's shell history. Compared only in the log.
+  final String? releaseTarget;
+
   /// Renders the sidecar. Pretty-printed: it is small, it is read by people
   /// debugging a release, and it ships inside a zip either way.
   String toJson() => const JsonEncoder.withIndent('  ').convert({
@@ -272,6 +288,7 @@ class RouteBReleaseProvenance {
       'releaseArtifactSha256': releaseArtifactSha256,
     if (compatibilityRevision != null)
       'compatibilityRevision': compatibilityRevision,
+    if (releaseTarget != null) 'releaseTarget': releaseTarget,
     if (buildConfig != null) 'buildConfig': buildConfig!.toJson(),
   });
 }

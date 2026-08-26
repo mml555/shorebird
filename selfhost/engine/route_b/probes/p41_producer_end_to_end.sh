@@ -61,6 +61,9 @@ PKGS_DIR=$DART_TREE/third_party/pkg/core/pkgs
 ZIPS=$OUT/zip_archives
 LIB=package:dynamic_modules/container_target.dart
 
+# shellcheck source=probes/harness_guard.sh
+. "$HERE/harness_guard.sh"
+
 die() { echo "ERROR: $*" >&2; exit 1; }
 note() { echo; echo "==> $*"; }
 pass=0; fail=0

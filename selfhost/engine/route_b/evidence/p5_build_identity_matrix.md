@@ -100,3 +100,46 @@ over the same inputs would be two sources of truth for one compiler fact.
 Numbers 3 and 5 are the ones worth remembering: both produced a plausible
 verdict for the wrong reason, which is the failure mode this whole project keeps
 finding.
+
+
+---
+
+# What was done with this measurement, 2026-08-25
+
+**P5.1, the one demonstrated defect: fixed.** A release with no comparable build
+configuration now refuses with `BUILD_IDENTITY_EVIDENCE_ABSENT` instead of
+warning and continuing. Mutation-checked: the same patch proceeds when the
+release records a comparable configuration instead of none.
+
+Updating the fixtures for it exposed that **every existing patcher test had been
+running the null-config path**. The `produce` stubs omitted `buildConfig`, which
+matched only because that argument was always null; once the fixtures recorded a
+configuration, six stubs stopped matching. The hole was load-bearing in the test
+suite as well as in the product.
+
+**No second identity was built.** `RouteBBuildConfig` is now formally the P5
+authority, with `BUILD_CONFIG_MISMATCH`,
+`BUILD_IDENTITY_EVIDENCE_ABSENT` and `BUILD_IDENTITY_PATCH_UNFINGERPRINTABLE` as
+its stable codes, following P4.3's rule that the code is the contract and the
+prose stays free.
+
+**The three semantic classes joined the permanent publication matrix**, sharing
+one load-bearing comparison. Each class has a negative arm and a mutation that
+equalises only that dimension and shows the same pair then agrees — which is
+what makes the negative arm evidence about the dimension rather than about the
+comparison. Two more rows guard the boundary: `--split-debug-info` must NOT
+create a disagreement, and `--target` must not either, asserted deliberately so
+that adding it becomes a decision.
+
+**The gate matrix learned to point at a gate it cannot run.** P5's refusal lives
+in the patcher, which that harness does not drive. Declaring that is honest;
+declaring it without saying where would be a silent skip — so the pointer names
+the file and test, the completeness rule READS the file, and breaking the name
+fails the suite. Verified by breaking it.
+
+**The harness rule is now shared, not local.** `probes/harness_guard.sh` carries
+`classify_tool_failure` and `require_tool_ok`: a tool that fails with no
+diagnostic output is `HARNESS_FAILURE`, never a refusal. It exists because of
+defect 3 above, and it is written broadly on purpose — a narrow pattern would
+misfile a novel real failure as a harness bug, which errs toward discarding
+product evidence.
