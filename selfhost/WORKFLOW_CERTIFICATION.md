@@ -54,7 +54,8 @@ stated rather than blurred into a fresh certification.
 | unique seam | the flavor must reach the COMPILER (`FLUTTER_APP_FLAVOR`), not just Xcode |
 | proven | host: `probes/g42_flavor_flow.sh` **13/13**; Android device: release `--flavor bar` → matching patch → `FLAVORPROBE-V3 → V4`, taken from the REGISTERED artifact (`evidence/android/g42-flavor/POSTFIX_DEVICE_ARM.txt`) |
 | negative control | wrong-flavor patch refused before any build begins, `BUILD_CONFIG_MISMATCH`, asserted on the CODE (P5) |
-| **not proven** | **the iOS device arm.** `fixtures/flavored_app` exists and its Xcode overlay resolves nine configurations and three schemes, but no flavored iOS release has been cut and no iOS device arm has run |
+| iOS release, clean CLI | **PROVEN 2026-08-26.** Release **113** (`1.1.0+1`, flavor `foo`) on the P6 device epoch cell `8e659812…`, cut through the real CLI on a dedicated app (`flavoredprobe-p6`), with the complete P4/P5 release shape verified from the SERVER-fetched supplement — 14 fields, four against independently computed digests, and the flavor compared against the SHIPPED program (`V1/Foo`). `evidence/p6-flavor-ios/P6_DEVICE_EPOCH.md` |
+| **not proven** | **the iOS device arm.** Blocked on ONE prerequisite that is not about flavors: no provisioning profile exists for `dev.selfhost.flavoredProbe.foo`, so `exportArchive` fails with `No Accounts`. `--no-codesign` satisfies the release-shape gate but cannot satisfy a physical render of `FLAVORPROBE-V4` |
 | evidence | `evidence/g42_flavored_fixture/`, `evidence/android/g42-flavor/` |
 | re-certify when | CLI argument parsing changes, or the flavor resolution order changes |
 
@@ -157,6 +158,7 @@ four are where new findings should be expected. Nothing here is claimed green to
 satisfy a checklist:
 
 - `CERTIFIED`: 1 (baseline)
+- `P6_DEVICE_EPOCH_READY = true` — cell `8e659812…`, release 113, inherited by every later device row rather than re-established per row
 - `PARTIAL`: 3 (flavor, defines, obfuscation) — each with the missing link named
 - `BLOCKED`: 1 (CI, on a Linux builder)
 - `UNCERTIFIED`: 4 (target, signing, tracks, manual updater API)

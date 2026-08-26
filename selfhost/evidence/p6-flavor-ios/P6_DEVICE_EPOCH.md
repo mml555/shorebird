@@ -1,8 +1,12 @@
-<!-- cspell:words privatestate airgap xcframework precommitted -->
+<!-- cspell:words privatestate airgap xcframework precommitted flavoredprobe Shidduch -->
 
 # P6_DEVICE_EPOCH
 
-    P6_DEVICE_EPOCH = cell 8e65981251dc945356d532120e424836da10245c
+    P6_DEVICE_EPOCH       = cell 8e65981251dc945356d532120e424836da10245c
+    P6_DEVICE_EPOCH_READY = true
+    fixture_app_id        = 1c99c679-8650-ba82-3899-681349a59416  (flavoredprobe-p6)
+    release_number        = 113  (version 1.1.0+1)
+    flavor                = foo  (reaches the compiler as Foo — see below)
 
 Every later P6 device row inherits this line rather than clearing and re-warming
 independently — five repetitions would quietly become five slightly different
@@ -99,3 +103,98 @@ A **clean release through the CLI** — not `flutter build` — confirming the
 P4/P5-era shape: snapshot profile, profile/artifact binding, contract revision,
 release target, and `RouteBBuildConfig`. Only then the ten precommitted flavor
 requirements.
+
+
+---
+
+# Epoch READY — the clean CLI release passed
+
+`epoch established` was not `epoch release-ready`, and the distinction earned its
+keep: the first release **failed** the gate on two fields.
+
+## The dedicated app
+
+`flavoredprobe-p6` / `1c99c679-8650-ba82-3899-681349a59416`, registered fresh on
+`cps-ios`. Nothing was reused: `airgapProbe`'s release-108 state, its patch
+history and its lifecycle evidence are all untouched, and every server row for
+this work attributes cleanly to P6. The registration is fixture setup, not a
+claim.
+
+## Release 113 (1.1.0+1), verified FROM THE SERVER
+
+The supplement was downloaded back through the control plane — not read from the
+local build tree — so what is checked is what survived the CLI → server
+boundary. All fourteen fields:
+
+| evidence | result |
+|---|---|
+| current cell | `8e65981251dc9453` = the epoch |
+| Route B positively selected | 6,253 patchable sites, 1792/MiB |
+| snapshot profile | present, 7,330,503 bytes |
+| profile/artifact binding | present |
+| contract revision | 1 |
+| release target | `'lib/main.dart'` |
+| `RouteBBuildConfig` | non-null, fingerprint `7f7064b52cbb1a9a` |
+| flavor | recorded `Foo` == **shipped** `Foo` |
+| profile digest | == sha256 of the profile as delivered |
+| binding digest | == sha256 of the binding as delivered |
+| binding artifact digest | == sha256 of the **actual** App binary |
+| `route_b.json` artifact digest | == the same App binary |
+| binding cell | == release cell |
+| binding probe revision | 1 |
+
+**The vacuity protection did its job.** Between release 112 and 113 the App
+binary digest moved `38c00c9e…` → `084d77b0…` and the binding digest moved
+`2563bab2…` → `7db2c221…`. A stale sidecar from the previous release could not
+have satisfied these checks, which is the whole reason they compare independently
+computed digests rather than asserting a field exists.
+
+## The two failures on release 112, and what they were
+
+**1 · `releaseTarget: null` — a real defect, fixed.** P5 recorded the raw
+`--target` flag, so the field was null for every release that did not pass one —
+almost all of them. Provenance that is absent in the common case is not
+provenance. It now records the effective target, `lib/main.dart`. Not read from
+`Generated.xcconfig` despite that file carrying `FLUTTER_TARGET`: see below.
+
+**2 · `FLUTTER_APP_FLAVOR: 'Foo'` — NOT a defect. My check was wrong.** I
+expected the CLI argument's spelling, `foo`. The flavor that reaches the compiler
+is the Xcode **scheme** name, which is why `_resolveAppleFlavor` maps it, and
+`flutter_injected_defines.dart:77` records why reading it from the xcconfig
+instead "would reintroduce the exact casing divergence `f06fa056` closed".
+
+Settled by the shipped program rather than by argument: the built AOT contains
+**`V1/Foo`**. So the release's record matches what shipped, which is the invariant
+that matters. The check now compares the recorded flavor against the **shipped
+program**, which is a stronger assertion than comparing it to a CLI argument.
+
+**A related finding worth keeping.** `ios/Flutter/Generated.xcconfig` was
+observed holding `FLUTTER_APP_FLAVOR=foo` while this release's own program had
+`Foo` — it was left over from an earlier plain `flutter build`. So that file is
+not a trustworthy record of *this* build at an arbitrary moment, which is exactly
+why the new `releaseTarget` does not read from it.
+
+## What blocks the flavor DEVICE arm — and it is not flavors
+
+`shorebird release ios` first failed at IPA export:
+
+    error: exportArchive No Accounts
+    error: exportArchive No profiles for 'dev.selfhost.flavoredProbe.foo' were found
+
+The team `SK85S6YZP9` is configured in the project, and signing identities exist,
+but the only provisioning profile on this machine covers an unrelated app
+(`SK85S6YZP9.com.ShidduchCard`). A non-interactive `xcodebuild` cannot mint one.
+
+`--no-codesign` was used, which is sufficient for the release-shape gate — it
+produces the xcarchive, the App binary and every sidecar, all of which the gate
+verified. **It is not sufficient for the device arm**, whose requirement 9 is a
+physical render of `FLAVORPROBE-V4`.
+
+So the flavor arm now has one open prerequisite: a development-signed install of
+`dev.selfhost.flavoredProbe.foo`. That is a signing question, not a Route B one,
+and it is recorded here rather than worked around.
+
+## Baseline frozen
+
+Release **113** is the V3 baseline. It will not be rebuilt for the flavor arm —
+the point of this gate is that this clean CLI release *is* the baseline.
