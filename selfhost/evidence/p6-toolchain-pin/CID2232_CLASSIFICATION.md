@@ -81,3 +81,82 @@ If yes, the defect is a kernel-shape sensitivity in the profile writer and the
 actionable fix is on the Dart side. If the old kernel also aborts, then something
 outside the kernel changed and the tool-hash table above is the place to look
 next.
+
+
+---
+
+# RESOLVED: it was toolchain incoherence, not the serializer
+
+## The three-way host Dart SDK identity check
+
+| | `dartaotruntime` | Dart | SDK revision | source |
+|---|---|---|---|---|
+| **A** | `4c9adc366dca04ec` | 3.12.2 | `db98bdaa9d8f` | the checkout producing the failing kernel |
+| **B** | `f7b5049ee89d36e4` | 3.12.2 | `6b58bb3a72e2` | the **active cell's published** `dart-sdk-darwin-arm64.zip` |
+| **C** | `f7b5049ee89d36e4` | 3.12.2 | `6b58bb3a72e2` | the checkout that built 1.13.0+1 |
+
+`A != B`, `C == B`. So 1.13.0+1 *was* on the authoritative cell SDK — checked
+rather than assumed, which was the right instinct: promoting a stale SDK to
+"correct" because one release happened to work would have hidden the defect.
+
+## Root cause: two independent stamps
+
+    bin/cache/engine.stamp            -> engine artifacts
+    bin/cache/engine-dart-sdk.stamp   -> host dart-sdk
+
+The failing checkout had `engine.stamp = ca7d2c0d` (cell) and
+`engine-dart-sdk.stamp = 69f9831c` (stock). Writing `engine.version` and
+refreshing the engine left the kernel producer behind, giving a **mixed
+toolchain**: the cell's `gen_snapshot` with a foreign frontend.
+
+Two further derived-artifact consequences, both hit in sequence:
+`flutter_tools.snapshot` is compiled **by** the host SDK and must be rebuilt, and
+so must the CLI's own `shorebird.snapshot`, which otherwise refuses with
+`Wrong full snapshot version`.
+
+## The causal result
+
+Correcting **only** the host SDK identity — `gen_snapshot` untouched and
+byte-identical throughout — made the abort disappear:
+
+| kernel producer | `app.dill` | mandatory profile writer |
+|---|---|---|
+| stock `db98bdaa9d8f` | `99ba465c9585498a` | **aborts** at `app_snapshot.cc:7868` |
+| cell `6b58bb3a72e2` | `f1ae4a0df95bd5a5` | **succeeds** |
+
+The old-vs-cell kernel experiment was therefore not needed: the identity fix was
+the only variable, and it settled the question. The failing kernel is preserved
+outside the repo (22 MB) at `app_dill_FAILING_99ba465c.dill` in the session
+scratchpad; its hash is recorded above.
+
+**`cid 2232` is closed as a non-defect for us.** No serializer patch, no Dart
+bump, and `--write-v8-snapshot-profile-to` remains mandatory — P4.1 was not
+weakened to obtain a green release.
+
+## Machine-checked, not documented
+
+`scripts/verify_toolchain_coherence.sh` asserts stamp agreement, that the
+checkout's `dartaotruntime` is **byte-identical** to the cell's published one,
+that every iOS `gen_snapshot` carries `patchable_static_calls`, and that the CLI
+snapshot runs under the current SDK. Mutation-tested against a reconstruction of
+the exact defective state: **2 failures, exit 1**; coherent checkout: **0
+failures, exit 0**. (The first exit-code test was itself vacuous — `$?` came from
+a `sed` in the pipeline — and was redone directly.)
+
+`scripts/activate_cell.sh` performs the whole sequence as one operation and ends
+by refusing to hand back an incoherent checkout.
+
+## Exit criterion: two consecutive clean releases
+
+**1.16.0+1** and **1.17.0+1**, both from the coherent checkout with **no cache
+surgery between them**, both shipping `channel: beta`, and patch 1 published to
+**beta only** against 1.17.0+1 (`stable: ABSENT`).
+
+## Still open: the device smoke
+
+Neither the operator nor I can launch the app in a way this lane accepts. Every
+`ios-deploy` launch flag (`-d`, `-L`, `-m`, `-I`) goes through lldb/debugserver,
+which `evidence/g15/manual_launch_control_precommit.md` classifies as
+invalidating, and `devicectl` reports this iPhone 7 (`iPhone9,1`) as
+`unavailable` — the known iOS 15 blindness. The release is installed and patch 1
+is live on beta; the arm needs one physical tap sequence and nothing else.
