@@ -18,6 +18,7 @@ import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/shorebird_documentation.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
+import 'package:shorebird_cli/src/toolchain_coherence.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_validator.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/src/base/process.dart';
@@ -67,6 +68,7 @@ void main() {
     late Progress progress;
     late Releaser releaser;
     late ShorebirdEnv shorebirdEnv;
+    late ToolchainCoherence toolchainCoherence;
     late ShorebirdFlutter shorebirdFlutter;
     late ShorebirdValidator shorebirdValidator;
 
@@ -89,6 +91,9 @@ void main() {
           shorebirdEnvRef.overrideWith(() => shorebirdEnv),
           shorebirdFlutterRef.overrideWith(() => shorebirdFlutter),
           shorebirdValidatorRef.overrideWith(() => shorebirdValidator),
+          toolchainCoherenceRef.overrideWith(
+            () => toolchainCoherence,
+          ),
         },
       );
     }
@@ -119,6 +124,17 @@ void main() {
       shorebirdRoot = Directory.systemTemp.createTempSync();
       projectRoot = Directory.systemTemp.createTempSync();
       shorebirdEnv = MockShorebirdEnv();
+      // The producer's coherence gate is exercised by
+      // toolchain_coherence_test.dart, including its refusal path; here it is
+      // stubbed coherent so these tests keep testing the command.
+      toolchainCoherence = MockToolchainCoherence();
+      when(
+        () => toolchainCoherence.check(
+          flutterDirectory: any(named: 'flutterDirectory'),
+          engineRevision: any(named: 'engineRevision'),
+          publishedDartSdkZip: any(named: 'publishedDartSdkZip'),
+        ),
+      ).thenReturn([]);
       shorebirdFlutter = MockShorebirdFlutter();
       shorebirdValidator = MockShorebirdValidator();
 

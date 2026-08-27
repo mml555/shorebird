@@ -47,6 +47,7 @@ import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_process.dart';
 import 'package:shorebird_cli/src/shorebird_validator.dart';
 import 'package:shorebird_cli/src/shorebird_version.dart';
+import 'package:shorebird_cli/src/toolchain_coherence.dart';
 
 /// Every ref `shorebird` registers, with [commandStartedAt] fixing the build
 /// trace's start.
@@ -112,6 +113,7 @@ Set<ScopedRef<dynamic>> shorebirdScope({
   shorebirdTracerRef,
   shorebirdToolsRef,
   shorebirdValidatorRef,
+  toolchainCoherenceRef,
   shorebirdVersionRef,
   windowsRef,
   xcodeBuildRef,

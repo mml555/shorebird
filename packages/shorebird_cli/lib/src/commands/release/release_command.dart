@@ -25,6 +25,7 @@ import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_validator.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
+import 'package:shorebird_cli/src/toolchain_coherence.dart';
 import 'package:shorebird_cli/src/version.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:shorebird_code_push_protocol/shorebird_code_push_protocol.dart';
@@ -280,6 +281,10 @@ of the iOS app that is using this module. (aar and ios-framework only)''',
   @visibleForTesting
   Future<void> createRelease(Releaser releaser) async {
     await releaser.assertPreconditions();
+    // BEFORE any artifact is produced. A mixed toolchain ships releases that
+    // cannot be patched and kernels that abort the mandatory profile step, and
+    // both were previously discovered only after publication.
+    toolchainCoherence.assertCoherent();
     await assertArgsAreValid(releaser);
 
     try {

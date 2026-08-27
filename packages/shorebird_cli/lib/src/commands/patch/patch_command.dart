@@ -35,6 +35,7 @@ import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_validator.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
+import 'package:shorebird_cli/src/toolchain_coherence.dart';
 import 'package:shorebird_cli/src/version.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 
@@ -345,6 +346,9 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
     // runner would ship the Android patch and only then fail.
     for (final patcher in patchers) {
       await patcher.assertPreconditions();
+      // Same gate as the release path: a patch built by an incoherent
+      // toolchain is as unpublishable as a release cut by one.
+      toolchainCoherence.assertCoherent();
       await patcher.assertArgsAreValid();
     }
     results.assertAbsentOrValidKeyPairOrCommands();
