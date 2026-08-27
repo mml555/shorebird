@@ -34,7 +34,15 @@ To apply against a fresh checkout:
 
 ```sh
 git -C "$FLUTTER_ROOT" apply selfhost/flutter/0001-shorebird-yaml-carry-channel.patch
+rm -f "$FLUTTER_ROOT/bin/cache/flutter_tools.snapshot" \
+      "$FLUTTER_ROOT/bin/cache/flutter_tools.stamp"
 ```
+
+**The second command is not optional.** `flutter_tools` runs from a cached
+snapshot keyed on the SDK revision, not on source content, so editing the source
+alone changes nothing: the patch was applied, a release was cut, and the shipped
+bundle still lacked `channel` — a full release burned proving that source edits
+to `flutter_tools` are inert until the snapshot is invalidated.
 
 **Proper home:** upstream into the fork's Flutter mirror so the pinned revision
 carries it, at which point this file becomes a record rather than a step.
