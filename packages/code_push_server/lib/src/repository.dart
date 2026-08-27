@@ -194,17 +194,24 @@ enum PolicyEpoch {
     closed: true,
   ),
 
-  /// CURRENT. Sample starts from ZERO.
+  /// CURRENT — ACTIVATED 2026-08-27. Collecting from ZERO.
   ///
-  /// `updaterRevisions` is deliberately EMPTY until the activation checklist in
-  /// `selfhost/MEASUREMENT_MODE.md` is discharged for `af6e842ccf87`:
-  /// production release cut, published artifact fetched, the revision read out
-  /// of THAT app's shipped engine bytes, a real event observed carrying it,
-  /// accepted by the current dedupe/schema path, and the rig client excluded.
-  /// An empty set yields zero eligible clients, which is the correct and
-  /// fail-closed reading of "this epoch has not started".
+  /// Activated only after the checklist in `selfhost/MEASUREMENT_MODE.md` was
+  /// discharged against a real production specimen, not the Signing fixture:
+  /// `killswitch-g15` release 1.9.0+1 (server id 134) cut on this cell, its
+  /// PUBLISHED artifact fetched back, `af6e842ccf87` read out of THAT app's
+  /// shipped engine bytes, and real `__patch_download__` / `__patch_install__`
+  /// rows persisted from a fresh non-rig client
+  /// (`e0af82b8-0b05-4e22-a1cd-e10f98870584`) and read back out of the database.
+  /// Evidence: `selfhost/evidence/epoch-b-canary/CANARY_EVIDENCE.md`.
+  ///
+  /// EXPECT `bootLifecycleMetrics` TO BE EMPTY FOR A WHILE. The canary produced
+  /// transport events only, and lifecycle rows require a real ambiguous boot.
+  /// Zero rows here means "no client has hit a first ambiguity yet", NOT that
+  /// activation failed — and an ambiguity must never be manufactured to make
+  /// this query non-empty.
   b(
-    updaterRevisions: {},
+    updaterRevisions: {'af6e842ccf87'},
     cell: '4792f0eca461f3761001a1adbe131b4b115e3684',
     closed: false,
   );

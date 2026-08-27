@@ -32,6 +32,7 @@ void main() {
       int patch = 1,
       int? attempt,
       int ts = 1000,
+      String rev = 'f729f958e9be',
     }) => repo.insertEvent(
       raw: '{"outcome":"$outcome"}',
       dedupeKey:
@@ -46,7 +47,7 @@ void main() {
       ambiguousAttemptCount: attempt,
       bootFailureThreshold: 2,
       bootStartedAt: 999,
-      updaterRevision: 'f729f958e9be',
+      updaterRevision: rev,
     );
 
     test('a non-terminal lifecycle event is accepted and stored', () async {
@@ -225,15 +226,45 @@ void main() {
     // revision silently merged its clients with every earlier one. These pin
     // that it cannot happen again.
 
-    test('the ACTIVE epoch is unactivated, so it reports nothing', () async {
-      // Epoch B's revision set is empty until MEASUREMENT_MODE's activation
-      // checklist is discharged. Zero eligible clients is the correct reading of
-      // "this epoch has not started" -- not an error, and not a reason to widen
-      // the predicate.
-      await put('ambiguous_boot_retry', attempt: 1);
+    test('the ACTIVE epoch is B, activated on af6e842ccf87 alone', () async {
       expect(Repository.activePolicyEpoch, PolicyEpoch.b);
-      expect(PolicyEpoch.b.updaterRevisions, isEmpty);
+      expect(PolicyEpoch.b.updaterRevisions, {'af6e842ccf87'});
+      // Activation did NOT widen the predicate: an Epoch A row is still
+      // invisible to the active epoch.
+      await put('ambiguous_boot_retry', attempt: 1);
       expect(await repo.bootLifecycleMetrics('app'), isEmpty);
+    });
+
+    test('an af6e842ccf87 lifecycle row is visible to B, not to A', () async {
+      // The other direction of the separation. Before activation this row
+      // belonged to no epoch; now it belongs to exactly one.
+      await put('ambiguous_boot_retry', attempt: 1, rev: 'af6e842ccf87');
+
+      final b = await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.b);
+      expect(b, hasLength(1));
+      expect(b.first['first_ambiguity'], 1);
+
+      final a = await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a);
+      expect(a, isEmpty, reason: 'a closed epoch must not absorb later clients');
+    });
+
+    test('the epochs PARTITION the rows rather than pooling them', () async {
+      // One client per revision. Each epoch sees exactly its own, and neither
+      // ever reports the sum.
+      await put('ambiguous_boot_retry', attempt: 1, client: 'old-1');
+      await put(
+        'ambiguous_boot_retry',
+        attempt: 1,
+        client: 'new-1',
+        ts: 2000,
+        rev: 'af6e842ccf87',
+      );
+      final a = await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a);
+      final b = await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.b);
+      expect(a, hasLength(1));
+      expect(a.first['first_ambiguity'], 1);
+      expect(b, hasLength(1));
+      expect(b.first['first_ambiguity'], 1);
     });
 
     test("epoch A's clients never count toward epoch B", () async {
@@ -248,18 +279,19 @@ void main() {
       expect(b, isEmpty, reason: 'epoch B must start from zero');
     });
 
-    test('an unactivated epoch returns empty rather than malformed SQL',
-        () async {
-      // `IN ()` is a syntax error, not an empty match. Without the early return
-      // this would fail at the database -- and the tempting "fix" is to drop the
-      // predicate, which pools every revision. Asserted so the shape is
-      // deliberate rather than incidental.
+    test('the empty-set guard is RETAINED and currently dormant', () async {
+      // Every epoch is activated now, so the early return in
+      // bootLifecycleMetrics is unreachable today. It stays because the NEXT
+      // epoch will have a defined-but-unactivated window, and in that window
+      // `IN ()` is a SQL syntax error rather than an empty match -- whose
+      // tempting "fix" is dropping the predicate, which pools every revision.
+      // Asserted so the guard is not deleted as dead code.
       expect(
-        () => repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.b),
-        returnsNormally,
+        PolicyEpoch.values.every((e) => e.updaterRevisions.isNotEmpty),
+        isTrue,
+        reason: 'an unactivated epoch now exists, so the guard is live again -- '
+            'test it directly rather than removing it',
       );
-      expect(await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.b),
-          isEmpty);
     });
 
     test('epoch A is closed and epoch B is not', () async {
