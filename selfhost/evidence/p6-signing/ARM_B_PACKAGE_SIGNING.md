@@ -71,47 +71,72 @@ Fixed to read the certificate out of the signature block, and it now reports
 `92:CE:74:67:…`. Recorded because it is exactly the failure mode the control
 requirement exists to catch.
 
-## B2 · Android — NOT DONE, and why
+## B2 · Android — BLOCKED on engine artifacts, not on signing
 
-The invariant is unproven on Android, and cannot be closed from here without a
-new release cycle.
+Everything B2 needs on the *signing* side is built and working. It is blocked one
+layer down, on a fact about the engine cell model.
 
-**What was measured.** The only Android release surface the fork actually
-publishes for the existing app is an `aab` (there is no APK artifact, so none was
-manufactured). Release 7 / `1.7.0+1` of app `5653c73c-…` on `cps-android`:
+### Done, and reusable
 
-    container/artifact SHA-256 : f87d45e30ef204613b0165f28923dfe6…  (47,400,740 bytes)
-    aab_verify                 : PASS  ("jar verified.")
-    signature_algorithm        : SHA256withRSA, 2048-bit key
-    signer_cert_owner          : C=US, O=Android, CN=Android Debug
-    signer_cert_sha256         : 92:CE:74:67:A0:E4:2F:CA:7B:9C:C5:50:04:EF:92:C5:
-                                 FE:4A:A5:24:5A:64:A7:CF:87:68:36:7F:6A:6D:83:FA
+**A purpose-built fixture** `selfhost/fixtures/android_signing_app` — a minimal
+patchable app, new rather than an edit to a certified fixture, with the marker in
+a function body behind a `DateTime` guard so a patch to it is visible to the
+analyzer.
 
-**Finding worth keeping independently of Arm B:** that published AAB is signed
-with the **Android debug key**, not a release identity. It verifies, but nothing
-in the release path required a release keystore.
+**A disposable release identity, and the control the debug finding earned.** A
+2048-bit RSA keystore was generated for this arm only (never committed;
+`key.properties` and `*.jks` are gitignored, the keystore lives outside the repo):
 
-**Why the before/after could not be taken.** The arm needs a patch published
-*between* two measurements. App `5653c73c-…` belongs to lane D's `rbtest-android`
-project (`evidence/g10.2-noninteractive/`), whose source is **not in this
-repository**, so no patch can be built against release 7. Its existing patches 1–3
-predate any BEFORE measurement, so they cannot substitute.
+    KR (release) : C4:83:77:18:A7:3A:18:BB:60:B5:74:80:24:C4:A6:2E:
+                   0F:FE:AB:1E:2E:E3:A8:55:A8:FF:12:92:28:D3:E5:F1
+    KD (debug)   : AF:BB:93:80:94:49:04:12:BA:C1:B2:FA:F2:5D:27:94:
+                   A5:A5:97:61:CC:A4:E1:E8:BE:5E:D0:F3:9A:90:57:E9
+    KR != KD     : YES
 
-**What B2 needs, scoped.** A dedicated Android cycle: a disposable release
-keystore and `signingConfig` (test material, not production identity), a fresh
-app on `cps-android`, one signed release, then one patch published against it with
-`armb_measure.sh` run either side. The tooling is already in place — the
-comparator handles both `aab` and `apk`, and `jarsigner`/`keytool` are available
-(`apksigner` is not on PATH, which only matters if an APK surface is added).
+**The cause of the earlier debug-signed AAB, confirmed at source.** Flutter's
+generated `android/app/build.gradle.kts` ships:
 
-Not started rather than half-done: a BEFORE/AFTER pair with no patch between them
-would be an empty comparison dressed as a result.
+    buildTypes { release { signingConfig = signingConfigs.getByName("debug") } }
 
-## Tooling
+So the release build type is *explicitly* signed with the debug key unless a
+project overrides it. That is an app/Gradle-layer fact, not something Shorebird
+imposes, and it is why the pre-existing published AAB carried
+`CN=Android Debug`. The fixture now defines a real `signingConfigs.release` and
+points `buildTypes.release` at it.
 
-* `scripts/signing_state.sh` — measures one artifact; iOS via `codesign` /
-  `security cms` / normalized entitlements, Android via `jarsigner` + `keytool`,
-  with `apksigner` for APKs. Never modifies its input.
-* `scripts/armb_measure.sh` — fetches a named artifact for a release from the
-  control plane and runs the above. BEFORE and AFTER call the *same* script, so a
-  difference in method cannot masquerade as a difference in the artifact.
+**App registered** on `cps-android`: `android-signing-b2`,
+`2a476c0c-a4d1-0d8d-c791-74f2a78ad127`.
+
+### Why the release cannot be cut here
+
+`shorebird release android` fails while fetching engine artifacts:
+
+    Failed to download http://localhost:8085/flutter_infra_release/flutter/
+      ca7d2c0d43bf975db2c42cc0aa6351d527443abf/android-arm-profile/darwin-x64.zip
+    Exception: 404
+
+The active engine cell has **no Android artifacts**, and neither does any other
+engine in the local CDN overlay — surveyed all of them, every entry is iOS-only.
+The cell model as built is an iOS Route B vehicle.
+
+The obvious workaround is worse than the blocker: activating a stock engine
+(`69f9831c`) would supply Android artifacts, but the coherence gate landed earlier
+in this lane requires every iOS `gen_snapshot` to advertise
+`patchable_static_calls`, so it would refuse the build — correctly, by its own
+rule. That gate checks the iOS compilers **regardless of the target platform**,
+which is conservative for a Route B fork and is worth a deliberate decision rather
+than a quiet relaxation.
+
+### What B2 needs, and the decision it implies
+
+Either **(a)** publish Android engine artifacts for the active cell, or **(b)**
+scope the coherence gate's `gen_snapshot` check to the platform being built so an
+Android release may run on a stock engine.
+
+(b) is a one-line change but it weakens an invariant approved minutes ago, and the
+weakening is not obviously safe: it would allow an Android release from a checkout
+whose iOS half is incoherent. That is a call to make explicitly, not while
+clearing a blocker.
+
+**Nothing was faked.** No BEFORE/AFTER pair was produced, because with no release
+there is nothing to measure and no patch to publish between measurements.

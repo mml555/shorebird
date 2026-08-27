@@ -26,6 +26,28 @@ ART=${2:?usage: signing_state.sh <ios|android> <artifact>}
 emit() { printf '%s: %s\n' "$1" "$2"; }
 digest() { shasum -a 256 "$1" | cut -d' ' -f1; }
 
+# A REQUIRED signing field that cannot be extracted must fail the measurement,
+# not emit an empty string. An empty value compares "equal" between BEFORE and
+# AFTER and proves nothing -- which is exactly how the Android certificate
+# fingerprint silently reported nothing until the tab-indented keytool output was
+# handled. Missing is not the same as unchanged.
+MISSING=0
+emit_required() {
+  if [ -z "${2:-}" ]; then
+    printf '%s: UNDETERMINED\n' "$1"
+    MISSING=$((MISSING+1))
+  else
+    printf '%s: %s\n' "$1" "$2"
+  fi
+}
+finish() {
+  if [ "$MISSING" -gt 0 ]; then
+    printf 'measurement: UNDETERMINED (%s required field(s) could not be read)\n' "$MISSING"
+    exit 3
+  fi
+  printf 'measurement: COMPLETE\n'
+}
+
 # The whole-artifact digest, computed on exactly the bytes handed to us.
 if [ -f "$ART" ]; then
   emit artifact_sha256 "$(digest "$ART")"
@@ -57,16 +79,16 @@ ios)
   # Verification. Reported as a value rather than an exit code so a BEFORE/AFTER
   # diff shows a change from PASS to FAIL instead of aborting the run.
   if codesign --verify --deep --strict "$APP" >/dev/null 2>&1; then
-    emit codesign_verify PASS
+    emit_required codesign_verify PASS
   else
-    emit codesign_verify FAIL
+    emit_required codesign_verify FAIL
   fi
 
   DV=$(codesign -dv --verbose=4 "$APP" 2>&1 || true)
-  emit identifier      "$(printf '%s' "$DV" | sed -n 's/^Identifier=//p' | head -1)"
-  emit team_identifier "$(printf '%s' "$DV" | sed -n 's/^TeamIdentifier=//p' | head -1)"
+  emit_required identifier      "$(printf '%s' "$DV" | sed -n 's/^Identifier=//p' | head -1)"
+  emit_required team_identifier "$(printf '%s' "$DV" | sed -n 's/^TeamIdentifier=//p' | head -1)"
   emit authority       "$(printf '%s' "$DV" | sed -n 's/^Authority=//p' | head -1)"
-  emit cd_hash         "$(printf '%s' "$DV" | sed -n 's/^CandidateCDHash sha256=//p' | head -1)"
+  emit_required cd_hash         "$(printf '%s' "$DV" | sed -n 's/^CandidateCDHash sha256=//p' | head -1)"
   emit cd_hashes       "$(printf '%s' "$DV" | sed -n 's/^CDHash=//p' | head -1)"
 
   PROF="$APP/embedded.mobileprovision"
@@ -105,8 +127,8 @@ android)
       if command -v apksigner >/dev/null 2>&1; then
         OUT=$(apksigner verify --verbose --print-certs "$ART" 2>&1 || true)
         printf '%s' "$OUT" | grep -q 'Verifies' \
-          && emit apk_verify PASS || emit apk_verify FAIL
-        emit signer_cert_sha256 \
+          && emit_required apk_verify PASS || emit_required apk_verify FAIL
+        emit_required signer_cert_sha256 \
           "$(printf '%s' "$OUT" | sed -n 's/.*SHA-256 digest: *//p' | head -1)"
         emit signer_dn \
           "$(printf '%s' "$OUT" | sed -n 's/.*certificate DN: *//p' | head -1)"
@@ -123,7 +145,7 @@ android)
       if command -v jarsigner >/dev/null 2>&1; then
         OUT=$(jarsigner -verify -verbose:summary -certs "$ART" 2>&1 || true)
         printf '%s' "$OUT" | grep -q 'jar verified' \
-          && emit aab_verify PASS || emit aab_verify FAIL
+          && emit_required aab_verify PASS || emit_required aab_verify FAIL
         emit aab_verify_detail \
           "$(printf '%s' "$OUT" | grep -iE 'jar verified|jar is unsigned|no manifest' | head -1)"
         emit signer_dn \
@@ -136,10 +158,10 @@ android)
         # "equal" before and after while proving nothing about the signer.
         CERT=$(unzip -p "$ART" 'META-INF/*.RSA' 'META-INF/*.DSA' 'META-INF/*.EC' \
           2>/dev/null | keytool -printcert 2>/dev/null || true)
-        emit signer_cert_sha256 \
+        emit_required signer_cert_sha256 \
           "$(printf '%s' "$CERT" | sed -n 's/^[[:space:]]*SHA256:[[:space:]]*//p' \
             | head -1 | tr -d ' ')"
-        emit signer_cert_owner \
+        emit_required signer_cert_owner \
           "$(printf '%s' "$CERT" | sed -n 's/^Owner: *//p' | head -1)"
       else
         emit aab_verify JARSIGNER_UNAVAILABLE
@@ -150,3 +172,5 @@ android)
   ;;
 *) echo "unknown mode: $MODE" >&2; exit 2 ;;
 esac
+
+finish
