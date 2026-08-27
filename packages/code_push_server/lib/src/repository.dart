@@ -175,6 +175,57 @@ class MembershipRow {
 // Repository — backend-agnostic (Postgres or SQLite via [Db])
 // ---------------------------------------------------------------------------
 
+/// A policy epoch: one lifecycle behaviour, one sample.
+///
+/// WHY THIS IS NOT A GROWING ALLOW-LIST. It used to be a single flat set, and
+/// a flat set has one fatal property — adding a revision to it silently POOLS
+/// that revision's clients with every earlier one. That is exactly the mistake
+/// this shape exists to make impossible: six months from now, adding both
+/// revisions to one set would recombine two samples that are not comparable,
+/// and nothing would complain.
+///
+/// Epochs are therefore closed, not extended.
+enum PolicyEpoch {
+  /// CLOSED. Preserved as instrumentation and behavioural evidence; its
+  /// clients must never count toward a later epoch's threshold.
+  a(
+    updaterRevisions: {'f729f958e9be'},
+    cell: '2c4443cedd654fad8eebd877bbc215edbdd11615',
+    closed: true,
+  ),
+
+  /// CURRENT. Sample starts from ZERO.
+  ///
+  /// `updaterRevisions` is deliberately EMPTY until the activation checklist in
+  /// `selfhost/MEASUREMENT_MODE.md` is discharged for `af6e842ccf87`:
+  /// production release cut, published artifact fetched, the revision read out
+  /// of THAT app's shipped engine bytes, a real event observed carrying it,
+  /// accepted by the current dedupe/schema path, and the rig client excluded.
+  /// An empty set yields zero eligible clients, which is the correct and
+  /// fail-closed reading of "this epoch has not started".
+  b(
+    updaterRevisions: {},
+    cell: '4792f0eca461f3761001a1adbe131b4b115e3684',
+    closed: false,
+  );
+
+  const PolicyEpoch({
+    required this.updaterRevisions,
+    required this.cell,
+    required this.closed,
+  });
+
+  /// The revisions whose clients belong to this epoch. Never union these across
+  /// epochs — see the class comment.
+  final Set<String> updaterRevisions;
+
+  /// The engine cell this epoch's lifecycle behaviour shipped in.
+  final String cell;
+
+  /// Whether this epoch is finished collecting.
+  final bool closed;
+}
+
 class Repository {
   Repository(this._db);
 
@@ -1771,15 +1822,29 @@ class Repository {
   /// below is the legacy proxy, kept only for events recorded before the client
   /// reported its revision — those carry NULL and are treated as ineligible,
   /// because an unknown client cannot be assumed to have the fixes.
-  static const eligibleUpdaterRevisions = <String>[
-    // Verified by reading the revision out of the SHIPPED engine bytes, not from
-    // the build log: an engine whose stamp fell back to "unknown" would look like
-    // zero eligible clients forever.
-    'f729f958e9be', // exact acknowledgement + failure rotation + revision stamp
-    // 'fe51f225c686' is NOT listed: it has exact acknowledgement but predates
-    // failure rotation, so a stuck batch head could still censor its lifecycle
-    // events. Eligibility requires ALL the loss modes to be closed.
-  ];
+  /// The epoch a query answers for unless told otherwise.
+  ///
+  /// WHY THE EPOCH MOVED from A to B, and it is NOT merely the rejection fix:
+  /// `af6e842ccf87` made boot attribution atomic with boot selection, which moves
+  /// WHEN A BOOT BECOMES ATTRIBUTABLE. Under `f729f958e9be`,
+  /// `report_launch_start` ran BEFORE validation, so a process that died during
+  /// validation left a breadcrumb and was counted as an ambiguity. Under
+  /// `af6e842ccf87`, validation precedes attribution, so the same death leaves no
+  /// breadcrumb and is not an ambiguity at all.
+  ///
+  /// The counters, the retry threshold and the emission path are untouched. The
+  /// DEFINITION OF THE MEASURED POPULATION is not. Pooling the two would carry a
+  /// small but entirely avoidable semantic discontinuity into the one number the
+  /// threshold decision rests on, and the 100-distinct-client minimum means there
+  /// was never any upside to accepting it.
+  static const activePolicyEpoch = PolicyEpoch.b;
+
+  /// Revisions eligible for [activePolicyEpoch].
+  ///
+  /// Empty while epoch B is unactivated, and callers must handle that rather than
+  /// interpolate an empty SQL `IN ()`.
+  static Set<String> get eligibleUpdaterRevisions =>
+      activePolicyEpoch.updaterRevisions;
 
   static const preEpochReleaseVersions = <String>[
     '1.4.0+1', // recovery arrived; pre-migration-9 server deduped it away
@@ -1800,7 +1865,17 @@ class Repository {
   ///
   ///   P(recovery | first ambiguity) = recovered        / first_ambiguity
   ///   P(second   | first ambiguity) = second_ambiguity / first_ambiguity
-  Future<List<Map<String, dynamic>>> bootLifecycleMetrics(String appId) async {
+  Future<List<Map<String, dynamic>>> bootLifecycleMetrics(
+    String appId, {
+    PolicyEpoch epoch = activePolicyEpoch,
+  }) async {
+    // An unactivated epoch has no eligible clients, and that is an ANSWER, not a
+    // failure: "epoch B has not started" is exactly zero rows. Returning early
+    // also avoids interpolating `IN ()`, which is a SQL syntax error rather than
+    // an empty match — so a naive build would fail loudly at the database instead
+    // of here, and a careless "fix" could easily have dropped the predicate
+    // altogether and pooled every revision.
+    if (epoch.updaterRevisions.isEmpty) return const [];
     final r = await _q(
       "SELECT release_version, patch_number, "
       "COUNT(DISTINCT CASE WHEN outcome = 'ambiguous_boot_retry' "
@@ -1818,7 +1893,7 @@ class Repository {
       // epoch exists to exclude. This deliberately excludes the closure run's rows,
       // which predate the field; they were an integration proof, never a fleet
       // estimate, and the 100-client minimum already disqualified them.
-      "AND updater_revision IN (${eligibleUpdaterRevisions.map((v) => "'$v'").join(',')}) "
+      "AND updater_revision IN (${epoch.updaterRevisions.map((v) => "'$v'").join(',')}) "
       // Defence in depth. Now subsumed by the revision predicate, kept because the
       // cost is zero and it documents which releases were affected.
       "AND release_version NOT IN (${preEpochReleaseVersions.map((v) => "'$v'").join(',')}) "

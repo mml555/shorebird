@@ -177,6 +177,16 @@ Two properties of the new predicate are deliberate:
   new eligible revision must be added explicitly. That direction of failure is the
   safe one and was chosen.
 
+> **SUPERSEDED 2026-08-27 — the eligibility model is now EPOCH-SCOPED.** A flat
+> allow-list pooled samples silently, so `Repository.PolicyEpoch` replaced it.
+> Epoch A (`f729f958e9be`, cell `2c4443ce…`) is CLOSED; Epoch B
+> (`af6e842ccf87`, cell `4792f0ec…`) starts from zero and is **not yet
+> activated**. The reason the epoch had to move is not the rejection fix itself:
+> `af6e842ccf87` made attribution atomic with selection, which moved *when a boot
+> becomes attributable*, and therefore the definition of the measured population.
+> See `MEASUREMENT_MODE.md`. The paragraph below describes the old flat model and
+> is kept verbatim as the record of it.
+
 Eligible today: `f729f958e9be` — exact acknowledgement **plus** failure rotation plus
 the revision stamp, verified by reading the revision out of the SHIPPED engine bytes.
 `fe51f225c686` is deliberately NOT eligible: it has acknowledgement but predates

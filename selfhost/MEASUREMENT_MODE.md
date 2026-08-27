@@ -24,17 +24,22 @@ is reached** (`THRESHOLD_ANALYSIS_PRECOMMIT.md`).
 > `af6e842ccf87` is **not** in `eligibleUpdaterRevisions`, so any client on it is
 > excluded — the under-counting direction this document already calls deliberate.
 >
-> **Two decisions are therefore open, and neither is taken here:**
+> **DECIDED 2026-08-27: the sample RESTARTS. Two epochs, never pooled.**
 >
-> 1. whether the epoch CONTINUES across `f729f958e9be` → `af6e842ccf87` (the
->    argument for: behaviour is identical on the measured path) or whether the
->    sample restarts;
-> 2. whether `af6e842ccf87` is added to `eligibleUpdaterRevisions` — which
->    requires this document's step 2 first: read the revision out of the SHIPPED
->    engine bytes, never the build log.
+> And the reasoning above was **wrong where it mattered**. "Behaviour is identical
+> on the measured path" understated the change: what moved is *when a boot becomes
+> attributable*. Under `f729f958e9be`, `report_launch_start` ran BEFORE validation,
+> so a process that died during validation left a breadcrumb and was counted as an
+> ambiguity. Under `af6e842ccf87`, validation precedes attribution, so the same
+> death leaves no breadcrumb and is not an ambiguity at all.
 >
-> Until (1) is answered, the Signing lane uses the new cell for its own fixture
-> only and the measurement app stays on `2c4443ce…`. Nothing here has shipped.
+> Counters, retry threshold and emission are untouched — but the **definition of
+> the measured population** is not, and that population is the denominator of the
+> only number the threshold decision rests on. With a 100-distinct-client minimum
+> and a documented sample of 1, there was never any upside to accepting even a
+> small comparability ambiguity.
+>
+> See the two-epoch section below.
 
 ## THE SHIPPED COMBINATION
 
@@ -122,3 +127,68 @@ which the server treats as ineligible rather than trusting.
 Not technical any more. The instrumentation whose loss modes are now understood and
 controlled is what makes the answer trustworthy — which is the whole point of the
 1.4-1.6 rows being kept where anyone can see them.
+
+## THE TWO EPOCHS — decided 2026-08-27
+
+    Epoch A — CLOSED / historical
+      updater   f729f958e9be
+      cell      2c4443cedd654fad8eebd877bbc215edbdd11615
+      sample    PRESERVED. Never pooled into a later threshold decision.
+
+    Epoch B — CURRENT
+      updater   af6e842ccf87
+      cell      4792f0eca461f3761001a1adbe131b4b115e3684
+      sample    starts from ZERO
+      threshold unchanged: 100 distinct clients with a first ambiguity
+
+Epoch A is **not deleted**. It remains the instrumentation and behavioural
+evidence that made the loss modes visible in the first place. It simply may not
+contribute clients to Epoch B's 100.
+
+### Enforced in code, not by convention
+
+`Repository.PolicyEpoch` replaces the flat `eligibleUpdaterRevisions` allow-list.
+A flat set had one fatal property: adding a revision **silently pools** its
+clients with every earlier one, and nothing complains. Epochs are closed, not
+extended.
+
+`Repository.activePolicyEpoch` is `PolicyEpoch.b`, and **`b.updaterRevisions` is
+empty** until the checklist below is discharged. An unactivated epoch reports zero
+eligible clients — the correct reading of *this epoch has not started*, not an
+error. `bootLifecycleMetrics` returns early on an empty set rather than
+interpolating `IN ()`, which is a SQL syntax error; the tempting "fix" for that
+error is dropping the predicate, which would pool every revision, so the early
+return is deliberate and pinned by test.
+
+Mutation-checked: setting `b.updaterRevisions` to `{'f729f958e9be'}` — precisely
+the careless extension this shape exists to prevent — fails
+*epoch A's clients never count toward epoch B* and *the ACTIVE epoch is
+unactivated, so it reports nothing*.
+
+### PRECOMMITTED: what activates Epoch B
+
+Recorded **before** any Epoch B outcome rate is looked at, so the activation
+cannot be shaped by what the numbers say.
+
+The Signing fixture proving `af6e842ccf87` exists in fetched engine bytes is
+necessary but **not sufficient** — it is not the production measurement specimen.
+
+1. cut the actual measurement/production release on `af6e842ccf87`;
+2. fetch the **published** release artifact from the control plane;
+3. read `af6e842ccf87` out of **that app's** shipped engine bytes, never the build
+   log — the two stamp defects in this document are why;
+4. verify the server receives a **real client event** carrying
+   `updater_revision=af6e842ccf87`;
+5. verify that event is accepted by the current dedupe/schema path;
+6. exclude the rig/test client;
+7. only then add `af6e842ccf87` to `PolicyEpoch.b.updaterRevisions`.
+
+Until step 7, Epoch B has not started and the estimator says so.
+
+### What is NOT allowed while Epoch B is established
+
+Everything in *WHAT IS NOT ALLOWED WHILE COLLECTING* above, plus: the
+**first-activation launch disappearance** investigation must not change lifecycle
+policy semantics. Its first objective is classification and reproduction, not a
+fix. A fix that moved the attributability boundary again would end Epoch B the way
+`af6e842ccf87` ended Epoch A.

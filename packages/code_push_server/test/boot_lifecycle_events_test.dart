@@ -51,7 +51,7 @@ void main() {
 
     test('a non-terminal lifecycle event is accepted and stored', () async {
       expect(await put('ambiguous_boot_retry', attempt: 1), isTrue);
-      final m = await repo.bootLifecycleMetrics('app');
+      final m = await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a);
       expect(m, hasLength(1));
       expect(m.first['first_ambiguity'], 1);
       expect(m.first['recovered'], 0);
@@ -104,7 +104,7 @@ void main() {
         expect(await put('ambiguous_boot_retry', attempt: 1), isTrue);
         expect(await put('recovered_after_ambiguity'), isTrue);
 
-        final m = await repo.bootLifecycleMetrics('app');
+        final m = await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a);
         expect(m.first['first_ambiguity'], 1);
         expect(m.first['recovered'], 1, reason: 'recovery must not be deduped away');
       },
@@ -127,7 +127,7 @@ void main() {
       await put('ambiguous_boot_retry', client: 'b', attempt: 2, ts: 2000);
       await put('retired_after_ambiguity', client: 'b', ts: 2000);
 
-      final m = (await repo.bootLifecycleMetrics('app')).first;
+      final m = (await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a)).first;
       expect(m['first_ambiguity'], 2, reason: 'two devices hit a first ambiguity');
       expect(m['recovered'], 1);
       expect(m['second_ambiguity'], 1);
@@ -138,7 +138,7 @@ void main() {
     test('clients are counted once each, not per row', () async {
       await put('ambiguous_boot_retry', client: 'a', attempt: 1);
       await put('ambiguous_boot_retry', client: 'a', attempt: 1, ts: 2000);
-      final m = (await repo.bootLifecycleMetrics('app')).first;
+      final m = (await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a)).first;
       expect(m['first_ambiguity'], 1, reason: 're-reporting must not inflate it');
     });
 
@@ -157,7 +157,7 @@ void main() {
         outcome: 'ambiguous_boot_retry',
         ambiguousAttemptCount: 1,
       );
-      expect(await repo.bootLifecycleMetrics('app'), isEmpty);
+      expect(await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a), isEmpty);
     });
 
     test('pre-epoch releases are excluded from the estimator', () async {
@@ -177,7 +177,7 @@ void main() {
         ambiguousAttemptCount: 1,
       );
       expect(
-        await repo.bootLifecycleMetrics('app'),
+        await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a),
         isEmpty,
         reason: 'a pre-epoch row must not reach the estimator',
       );
@@ -196,7 +196,7 @@ void main() {
         ambiguousAttemptCount: 1,
         updaterRevision: 'f729f958e9be',
       );
-      final m = await repo.bootLifecycleMetrics('app');
+      final m = await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a);
       expect(m, hasLength(1));
       expect(m.first['release_version'], '1.7.0+1');
       expect(m.first['first_ambiguity'], 1);
@@ -217,7 +217,58 @@ void main() {
         ),
         isTrue,
       );
+      expect(await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a), isEmpty);
+    });
+
+    // ---- EPOCHS DO NOT POOL ----------------------------------------------
+    // The flat allow-list this replaced had one fatal property: adding a
+    // revision silently merged its clients with every earlier one. These pin
+    // that it cannot happen again.
+
+    test('the ACTIVE epoch is unactivated, so it reports nothing', () async {
+      // Epoch B's revision set is empty until MEASUREMENT_MODE's activation
+      // checklist is discharged. Zero eligible clients is the correct reading of
+      // "this epoch has not started" -- not an error, and not a reason to widen
+      // the predicate.
+      await put('ambiguous_boot_retry', attempt: 1);
+      expect(Repository.activePolicyEpoch, PolicyEpoch.b);
+      expect(PolicyEpoch.b.updaterRevisions, isEmpty);
       expect(await repo.bootLifecycleMetrics('app'), isEmpty);
+    });
+
+    test("epoch A's clients never count toward epoch B", () async {
+      // The load-bearing separation. Same app, same rows, two epochs: A sees
+      // them, B does not. If someone later unions the revision sets, this fails.
+      await put('ambiguous_boot_retry', attempt: 1);
+      final a = await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a);
+      expect(a, hasLength(1));
+      expect(a.first['first_ambiguity'], 1);
+
+      final b = await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.b);
+      expect(b, isEmpty, reason: 'epoch B must start from zero');
+    });
+
+    test('an unactivated epoch returns empty rather than malformed SQL',
+        () async {
+      // `IN ()` is a syntax error, not an empty match. Without the early return
+      // this would fail at the database -- and the tempting "fix" is to drop the
+      // predicate, which pools every revision. Asserted so the shape is
+      // deliberate rather than incidental.
+      expect(
+        () => repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.b),
+        returnsNormally,
+      );
+      expect(await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.b),
+          isEmpty);
+    });
+
+    test('epoch A is closed and epoch B is not', () async {
+      expect(PolicyEpoch.a.closed, isTrue);
+      expect(PolicyEpoch.b.closed, isFalse);
+      // Each epoch records the cell its lifecycle behaviour shipped in, so the
+      // sample can always be tied back to the runtime that produced it.
+      expect(PolicyEpoch.a.cell, startsWith('2c4443ce'));
+      expect(PolicyEpoch.b.cell, startsWith('4792f0ec'));
     });
   });
 }
