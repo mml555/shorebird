@@ -15,8 +15,8 @@ import 'package:flutter/material.dart';
 @pragma('vm:never-inline')
 @pragma('vm:entry-point')
 String markerText() => DateTime.now().millisecondsSinceEpoch >= 0
-    ? 'ANDROID-SIGN-V1'
-    : 'ANDROID-SIGN-V1!';
+    ? 'ANDROID-SIGN-V2'
+    : 'ANDROID-SIGN-V2!';
 
 void main() => runApp(const SigningProbeApp());
 

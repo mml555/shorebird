@@ -30,6 +30,10 @@
 #   4. the CLI snapshot actually runs under the current SDK
 set -uo pipefail
 
+# Which platform's toolchain to verify. Mirrors the product gate: the iOS
+# gen_snapshot capability is an iOS concern, and demanding it before an Android
+# build is a scope error, not a safety property.
+PLATFORM=${PLATFORM:-ios}
 FLUTTER_ROOT=${FLUTTER_ROOT:-}
 OVERLAY=${OVERLAY:-/Users/mendell/shorebird/selfhost/cdn/overlay/flutter_infra_release/flutter}
 SHOREBIRD_HOME=${SHOREBIRD_HOME:-$HOME/.shorebird}
@@ -48,6 +52,7 @@ h()    { [ -f "$1" ] && shasum -a 256 "$1" | cut -d' ' -f1 || echo ABSENT; }
 stamp(){ tr -d '[:space:]' < "$1" 2>/dev/null || echo ABSENT; }
 
 echo "checkout: $FLUTTER_ROOT"
+echo "platform: $PLATFORM"
 EV=$(stamp "$FLUTTER_ROOT/bin/internal/engine.version")
 ES=$(stamp "$FLUTTER_ROOT/bin/cache/engine.stamp")
 EDS=$(stamp "$FLUTTER_ROOT/bin/cache/engine-dart-sdk.stamp")
@@ -83,6 +88,7 @@ else
 fi
 
 # 3 ------------------------------------------------- gen_snapshot is a Route B one
+if [ "$PLATFORM" = ios ]; then
 for mode in ios ios-profile ios-release; do
   GS="$FLUTTER_ROOT/bin/cache/artifacts/engine/$mode/gen_snapshot_arm64"
   if [ -f "$GS" ]; then
@@ -95,6 +101,10 @@ for mode in ios ios-profile ios-release; do
     bad "$mode/gen_snapshot_arm64 missing"
   fi
 done
+
+else
+  ok "iOS Route B capability: NOT EVALUATED (platform=$PLATFORM)"
+fi
 
 # 4 ------------------------------------- the CLI snapshot runs under this SDK
 SNAP="$SHOREBIRD_HOME/bin/cache/shorebird.snapshot"

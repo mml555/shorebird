@@ -71,21 +71,17 @@ Fixed to read the certificate out of the signature block, and it now reports
 `92:CE:74:67:…`. Recorded because it is exactly the failure mode the control
 requirement exists to catch.
 
-## B2 · Android — BLOCKED on engine artifacts, not on signing
+## B2 · Android — CLOSED
 
-Everything B2 needs on the *signing* side is built and working. It is blocked one
-layer down, on a fact about the engine cell model.
+App `android-signing-b2` (`2a476c0c-…`) on `cps-android`, release **1.0.0+1**
+(server id **12**), fixture `selfhost/fixtures/android_signing_app`. AAB only —
+that is the release surface this workflow publishes, and no APK was manufactured
+to create extra certification work. No Android device.
 
-### Done, and reusable
+### Precondition: a real release identity, not the debug key
 
-**A purpose-built fixture** `selfhost/fixtures/android_signing_app` — a minimal
-patchable app, new rather than an edit to a certified fixture, with the marker in
-a function body behind a `DateTime` guard so a patch to it is visible to the
-analyzer.
-
-**A disposable release identity, and the control the debug finding earned.** A
-2048-bit RSA keystore was generated for this arm only (never committed;
-`key.properties` and `*.jks` are gitignored, the keystore lives outside the repo):
+A disposable 2048-bit RSA keystore was generated for this arm (never committed;
+`key.properties` and `*.jks` gitignored, keystore outside the repo):
 
     KR (release) : C4:83:77:18:A7:3A:18:BB:60:B5:74:80:24:C4:A6:2E:
                    0F:FE:AB:1E:2E:E3:A8:55:A8:FF:12:92:28:D3:E5:F1
@@ -93,50 +89,68 @@ analyzer.
                    A5:A5:97:61:CC:A4:E1:E8:BE:5E:D0:F3:9A:90:57:E9
     KR != KD     : YES
 
-**The cause of the earlier debug-signed AAB, confirmed at source.** Flutter's
-generated `android/app/build.gradle.kts` ships:
+The built AAB's signer is **KR**, so the earlier debug-key observation is now a
+working control rather than an anecdote.
 
-    buildTypes { release { signingConfig = signingConfigs.getByName("debug") } }
+**The cause of that observation, confirmed at source.** Flutter's generated
+`android/app/build.gradle.kts` ships
+`buildTypes { release { signingConfig = signingConfigs.getByName("debug") } }`,
+so release builds are *explicitly* debug-signed unless a project overrides it.
+That is an app/Gradle-layer fact, not something Shorebird imposes — which is why
+this row proves **preservation**, not enforcement.
 
-So the release build type is *explicitly* signed with the debug key unless a
-project overrides it. That is an app/Gradle-layer fact, not something Shorebird
-imposes, and it is why the pre-existing published AAB carried
-`CN=Android Debug`. The fixture now defines a real `signingConfigs.release` and
-points `buildTypes.release` at it.
+### Result
 
-**App registered** on `cps-android`: `android-signing-b2`,
-`2a476c0c-a4d1-0d8d-c791-74f2a78ad127`.
+| Property | Before patch | After patch | Result |
+|---|---|---|---|
+| AAB SHA-256 (server-fetched) | `3eedee454b3ed4795554416d320d4211…` | same | **SAME** |
+| `jarsigner -verify` | PASS (`jar verified.`) | PASS | **PASS/PASS** |
+| signer cert SHA-256 | `C4:83:77:18:…` (= **KR**) | same | **SAME** |
+| signer DN / owner | `CN=Shorebird B2 Release Test, OU=Selfhost Certification, O=Disposable, C=US` | same | SAME |
+| signature algorithm | `SHA256withRSA, 2048-bit key` | same | SAME |
 
-### Why the release cannot be cut here
+A full `diff` of the two reports is empty apart from the intended `label:` line.
+The server-fetched AAB is also byte-identical to the locally built one, so the
+control plane stored exactly what Gradle signed.
 
-`shorebird release android` fails while fetching engine artifacts:
+Patch 1 was published against that release between the two measurements
+(`ANDROID-SIGN-V1` → `V2`); its body is irrelevant to this arm.
 
-    Failed to download http://localhost:8085/flutter_infra_release/flutter/
-      ca7d2c0d43bf975db2c42cc0aa6351d527443abf/android-arm-profile/darwin-x64.zip
-    Exception: 404
+### Anti-vacuity
 
-The active engine cell has **no Android artifacts**, and neither does any other
-engine in the local CDN overlay — surveyed all of them, every entry is iOS-only.
-The cell model as built is an iOS Route B vehicle.
+| control | result |
+|---|---|
+| required field unreadable | reports **`UNDETERMINED`** and exits 3 — missing is not unchanged. Mutation-checked by stripping a signature: three iOS fields go UNDETERMINED and the measurement fails |
+| one byte appended to an entry in a **copied** AAB | digest changed **and** `jarsigner` went PASS → **FAIL** |
 
-The obvious workaround is worse than the blocker: activating a stock engine
-(`69f9831c`) would supply Android artifacts, but the coherence gate landed earlier
-in this lane requires every iOS `gen_snapshot` to advertise
-`patchable_static_calls`, so it would refuse the build — correctly, by its own
-rule. That gate checks the iOS compilers **regardless of the target platform**,
-which is conservative for a Route B fork and is worth a deliberate decision rather
-than a quiet relaxation.
+The altered entry was `BUNDLE-METADATA/…/dependencies.pb`; both copies were
+deleted and the published release was never touched.
 
-### What B2 needs, and the decision it implies
+### What unblocked it
 
-Either **(a)** publish Android engine artifacts for the active cell, or **(b)**
-scope the coherence gate's `gen_snapshot` check to the platform being built so an
-Android release may run on a stock engine.
+B2 was blocked because the active engine cell carries no Android artifacts and
+the coherence gate demanded Route B iOS compilers before *any* platform could
+build. That gate is now **platform-scoped**: universal stamp and host-SDK checks
+for every platform, the `gen_snapshot` capability check for iOS only, and Android
+builds state explicitly that *iOS Route B capability: NOT EVALUATED*. The causal
+pair is pinned by test — the same checkout with the same non-Route-B iOS compiler
+passes for `android` and refuses for `ios`.
 
-(b) is a one-line change but it weakens an invariant approved minutes ago, and the
-weakening is not obviously safe: it would allow an Android release from a checkout
-whose iOS half is incoherent. That is a call to make explicitly, not while
-clearing a blocker.
+The Android release was then cut from a **separate** root (the repo-tree
+entrypoint, its own cache, base engine `69f9831c`), leaving the coherent iOS/device
+checkout untouched. Artifacts resolved over the default HTTPS path: the local CDN
+serves them (302 to upstream) but Gradle refuses plain-HTTP Maven repositories
+without an explicit opt-in, and the TLS CDN variant was not running — so rather
+than reconfigure CDN containers for a signing test, the supported default path was
+used.
 
-**Nothing was faked.** No BEFORE/AFTER pair was produced, because with no release
-there is nothing to measure and no patch to publish between measurements.
+### The claim
+
+> A release deliberately configured with a non-debug Android release signing
+> identity was published as a validly signed AAB. Publishing a Shorebird patch
+> did not mutate that server-fetched AAB or change its signing certificate.
+
+Not claimed: that Shorebird prevents debug signing, anything about Play Store
+acceptance or Play App Signing, upload-key rotation, APK signature schemes, or
+Android device patch execution.
+
