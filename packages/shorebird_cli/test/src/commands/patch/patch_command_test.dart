@@ -211,6 +211,7 @@ void main() {
         () => toolchainCoherence.check(
           flutterDirectory: any(named: 'flutterDirectory'),
           engineRevision: any(named: 'engineRevision'),
+          platform: any(named: 'platform'),
           publishedDartSdkZip: any(named: 'publishedDartSdkZip'),
         ),
       ).thenReturn([]);

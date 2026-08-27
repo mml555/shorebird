@@ -284,7 +284,9 @@ of the iOS app that is using this module. (aar and ios-framework only)''',
     // BEFORE any artifact is produced. A mixed toolchain ships releases that
     // cannot be patched and kernels that abort the mandatory profile step, and
     // both were previously discovered only after publication.
-    toolchainCoherence.assertCoherent();
+    toolchainCoherence.assertCoherent(
+      releasePlatform: releaser.releaseType.releasePlatform,
+    );
     await assertArgsAreValid(releaser);
 
     try {

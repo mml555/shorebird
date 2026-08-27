@@ -8,6 +8,7 @@ import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/src/base/process.dart';
+import 'package:shorebird_code_push_protocol/shorebird_code_push_protocol.dart';
 
 /// A reference to a [ToolchainCoherence] instance.
 final toolchainCoherenceRef = create(ToolchainCoherence.new);
@@ -84,7 +85,19 @@ class ToolchainCoherence {
   /// {@macro toolchain_coherence}
   const ToolchainCoherence();
 
-  /// Checks the invariants. Returns an empty list when coherent.
+  /// Checks the invariants for [platform]. Returns an empty list when coherent.
+  ///
+  /// SCOPED BY PLATFORM ON PURPOSE. The invariant is *a producer may only build
+  /// a platform when the toolchain components that platform uses are coherent
+  /// with the engine revision it claims* — not *every platform supported
+  /// anywhere in this checkout must be qualified before any platform may
+  /// build*.
+  ///
+  /// The engine cell is an **iOS Route B specialization**, activated by
+  /// overwriting `engine.version` for the whole checkout. The first version of
+  /// this gate therefore required Route B iOS compilers before an ANDROID
+  /// release could run, which is not a safety property — it is a scope mistake,
+  /// and it blocked Android entirely because no cell carries Android artifacts.
   ///
   /// [publishedDartSdkZip] is optional: when a caller can name the artifact
   /// source for [engineRevision], the host `dartaotruntime` is compared to it
@@ -94,6 +107,7 @@ class ToolchainCoherence {
   List<ToolchainCoherenceProblem> check({
     required Directory flutterDirectory,
     required String engineRevision,
+    required ReleasePlatform platform,
     File? publishedDartSdkZip,
   }) {
     final problems = <ToolchainCoherenceProblem>[];
@@ -137,6 +151,10 @@ class ToolchainCoherence {
       'the host Dart SDK',
     );
 
+    // iOS ONLY. These are the compilers that produce an iOS Route B release; an
+    // Android build never invokes them, so their state says nothing about
+    // whether an Android artifact can be trusted.
+    if (_usesIosCompilers(platform)) {
     // The iOS compilers must be Route B ones. Checked by looking for the flag
     // NAME inside the binary, never by running it with `--version`: that
     // exits 0 whatever flags precede it and once certified a stock binary as
@@ -173,6 +191,8 @@ class ToolchainCoherence {
       }
     }
 
+    }
+
     if (publishedDartSdkZip != null) {
       problems.addAll(
         _compareHostDartSdk(
@@ -183,6 +203,28 @@ class ToolchainCoherence {
     }
 
     return problems;
+  }
+
+  /// Whether [platform] is produced by the iOS compiler set.
+  ///
+  /// Only `ios` today. Written as a predicate rather than an equality so a new
+  /// Apple target that reuses these `gen_snapshot` binaries is added here
+  /// deliberately, instead of silently skipping the capability check.
+  bool _usesIosCompilers(ReleasePlatform platform) =>
+      platform == ReleasePlatform.ios;
+
+  /// A one-line statement of what was checked, for the producer to log.
+  ///
+  /// Says explicitly when the iOS Route B capability was NOT evaluated. Silence
+  /// there would make later evidence ambiguous: a green coherence line on an
+  /// Android build must not read as a claim about the iOS half.
+  String describe({
+    required ReleasePlatform platform,
+    required String engineRevision,
+  }) {
+    final ios = _usesIosCompilers(platform);
+    return 'COHERENT platform=${platform.name} engine=$engineRevision'
+        '${ios ? '' : ' | iOS Route B capability: NOT EVALUATED'}';
   }
 
   /// Whether [binary] contains [flag] as a NUL/newline-delimited token.
@@ -302,19 +344,27 @@ class ToolchainCoherence {
   /// [toolchainCoherenceRef] in a test intercepts the whole gate, including the
   /// environment reads. As a free function it forced every command test to stub
   /// `flutterDirectory` just to get past a check it was not testing.
-  void assertCoherent() {
+  void assertCoherent({required ReleasePlatform releasePlatform}) {
     final zipPath = platform.environment[publishedDartSdkZipEnvVar];
+    final engineRevision = shorebirdEnv.shorebirdEngineRevision;
     final problems = check(
       flutterDirectory: shorebirdEnv.flutterDirectory,
-      engineRevision: shorebirdEnv.shorebirdEngineRevision,
+      engineRevision: engineRevision,
+      platform: releasePlatform,
       publishedDartSdkZip: zipPath == null ? null : File(zipPath),
     );
-    if (problems.isEmpty) return;
+    if (problems.isEmpty) {
+      logger.detail(
+        describe(platform: releasePlatform, engineRevision: engineRevision),
+      );
+      return;
+    }
 
     logger
       ..err('The Flutter toolchain is not coherent with its engine revision.')
       ..err('')
-      ..err('engine.version: ${shorebirdEnv.shorebirdEngineRevision}');
+      ..err('platform: ${releasePlatform.name}')
+      ..err('engine.version: $engineRevision');
     for (final problem in problems) {
       logger.err('  - $problem');
     }

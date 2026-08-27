@@ -348,7 +348,11 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
       await patcher.assertPreconditions();
       // Same gate as the release path: a patch built by an incoherent
       // toolchain is as unpublishable as a release cut by one.
-      toolchainCoherence.assertCoherent();
+      // The PATCH path passes its own platform too. A release-only fix would
+      // recreate the asymmetry the platform scoping just removed.
+      toolchainCoherence.assertCoherent(
+        releasePlatform: patcher.releaseType.releasePlatform,
+      );
       await patcher.assertArgsAreValid();
     }
     results.assertAbsentOrValidKeyPairOrCommands();
