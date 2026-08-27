@@ -425,13 +425,44 @@ of the iOS app that is using this module. (aar and ios-framework only)''',
     final hasPublicKey =
         results.wasParsed(CommonArguments.publicKeyArg.name) ||
         results.wasParsed(CommonArguments.publicKeyCmd.name);
-    if (shorebirdYaml?.patchVerification != null && !hasPublicKey) {
+
+    // REFUSED, not warned, and refused HERE rather than at patch time.
+    //
+    // The self-hosted updater has no production install-time signature
+    // verification: the only code that verifies an InstallOnly patch lives
+    // behind #[cfg(test)]. So a release cut with this mode produces clients
+    // that never verify a patch, whatever a later patch command does — and a
+    // refusal at patch time cannot repair a client already in the field.
+    //
+    // Checked before the unsigned warning so a command that is going to fail
+    // for an unsupported verification mode does not also emit signing noise.
+    if (shorebirdYaml?.patchVerification == PatchVerification.installOnly) {
+      logger.err(
+        '''
+patch_verification: install_only is unsupported by the self-hosted updater
+because production install-time signature verification is not implemented.
+Use patch_verification: strict.''',
+      );
+      throw ProcessExit(ExitCode.config.code);
+    }
+
+    // Unconditional on the ABSENCE OF A KEY, not on the presence of a
+    // patch_verification entry.
+    //
+    // It previously warned only when patch_verification was set, which left the
+    // most common configuration — no entry, no key — silent, even though that
+    // release verifies nothing: Strict without a public key skips verification
+    // outright. The message states the security consequence rather than the
+    // config interaction, because "patch_verification will have no effect" is
+    // not what a reader needs to know when there is no patch_verification entry
+    // to begin with.
+    if (!hasPublicKey) {
       logger.warn(
-        'patch_verification is set in shorebird.yaml but '
-        'no public key was provided '
-        '(--${CommonArguments.publicKeyArg.name} '
-        'or --${CommonArguments.publicKeyCmd.name}).\n'
-        'patch_verification configuration will have no effect.',
+        'No patch public key was provided. Patches for this release will not '
+        'be cryptographically verified on the device.\n'
+        'To enable verification, provide '
+        '--${CommonArguments.publicKeyArg.name} or '
+        '--${CommonArguments.publicKeyCmd.name}.',
       );
     }
 

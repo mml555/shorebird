@@ -820,37 +820,139 @@ $exception'''),
         verify(releaser.assertArgsAreValid).called(1);
       });
 
-      group(
-        'when patch_verification is set but public-key-path is not provided',
-        () {
-          setUp(() {
-            when(() => shorebirdEnv.getShorebirdYaml()).thenReturn(
-              const ShorebirdYaml(
-                appId: appId,
-                patchVerification: PatchVerification.strict,
-              ),
-            );
-            when(
-              () => argResults.wasParsed(CommonArguments.publicKeyArg.name),
-            ).thenReturn(false);
-          });
+      group('patch verification policy', () {
+        const unsignedWarning =
+            'No patch public key was provided. Patches for this release will '
+            'not be cryptographically verified on the device.\n'
+            'To enable verification, provide '
+            '--public-key-path or --public-key-cmd.';
 
-          test('logs a warning', () async {
-            final releaser = MockReleaser();
-            when(releaser.assertArgsAreValid).thenAnswer((_) async => {});
-            await runWithOverrides(() => command.assertArgsAreValid(releaser));
+        void withYaml(PatchVerification? mode) {
+          when(() => shorebirdEnv.getShorebirdYaml()).thenReturn(
+            ShorebirdYaml(appId: appId, patchVerification: mode),
+          );
+        }
+
+        void withKey({required bool path, bool cmd = false}) {
+          when(
+            () => argResults.wasParsed(CommonArguments.publicKeyArg.name),
+          ).thenReturn(path);
+          when(
+            () => argResults.wasParsed(CommonArguments.publicKeyCmd.name),
+          ).thenReturn(cmd);
+        }
+
+        Future<void> run() async {
+          final releaser = MockReleaser();
+          when(releaser.assertArgsAreValid).thenAnswer((_) async => {});
+          await runWithOverrides(() => command.assertArgsAreValid(releaser));
+        }
+
+        Future<void> expectRefusal() async {
+          final releaser = MockReleaser();
+          when(releaser.assertArgsAreValid).thenAnswer((_) async => {});
+          await expectLater(
+            () => runWithOverrides(() => command.assertArgsAreValid(releaser)),
+            exitsWithCode(ExitCode.config),
+          );
+        }
+
+        group('install_only is REFUSED', () {
+          // Not "not yet certified": the self-hosted updater has no production
+          // install-time verification at all, so a release cut this way yields
+          // clients that never verify. Refusing at patch time would be too
+          // late for a client already in the field, which is why the refusal
+          // lives in the RELEASE path.
+          test('with no key', () async {
+            withYaml(PatchVerification.installOnly);
+            withKey(path: false);
+            await expectRefusal();
             verify(
-              () => logger.warn(
-                'patch_verification is set in shorebird.yaml but '
-                'no public key was provided '
-                '(--${CommonArguments.publicKeyArg.name} '
-                'or --${CommonArguments.publicKeyCmd.name}).\n'
-                'patch_verification configuration will have no effect.',
+              () => logger.err(
+                any(that: contains('install_only is unsupported')),
               ),
             ).called(1);
           });
-        },
-      );
+
+          test('with --public-key-path', () async {
+            withYaml(PatchVerification.installOnly);
+            withKey(path: true);
+            await expectRefusal();
+          });
+
+          test('with --public-key-cmd', () async {
+            withYaml(PatchVerification.installOnly);
+            withKey(path: false, cmd: true);
+            await expectRefusal();
+          });
+
+          test('and emits NO unsigned warning first', () async {
+            // Ordering matters: a command that will fail for an unsupported
+            // verification mode must not also emit signing noise.
+            withYaml(PatchVerification.installOnly);
+            withKey(path: false);
+            await expectRefusal();
+            verifyNever(() => logger.warn(unsignedWarning));
+          });
+        });
+
+        test('install_only refuses BEFORE anything is built or created', () async {
+          // The refusal must land in the validation phase. If it only fired
+          // later, a release could already have been created or artifacts
+          // uploaded, and the whole point is that the shipped configuration is
+          // what determines what the device verifies.
+          withYaml(PatchVerification.installOnly);
+          withKey(path: false);
+          await expectLater(
+            () => runWithOverrides(command.run),
+            exitsWithCode(ExitCode.config),
+          );
+          verifyNever(() => releaser.buildReleaseArtifacts());
+          verifyNever(
+            () => codePushClientWrapper.createRelease(
+              appId: any(named: 'appId'),
+              version: any(named: 'version'),
+              flutterRevision: any(named: 'flutterRevision'),
+              platform: any(named: 'platform'),
+            ),
+          );
+        });
+
+        group('unsigned releases warn whenever no key is provided', () {
+          test('when patch_verification is OMITTED', () async {
+            // The case the previous condition left silent, and the most common
+            // one. Strict-without-a-key skips verification outright, so this
+            // release verifies nothing either.
+            withYaml(null);
+            withKey(path: false);
+            await run();
+            verify(() => logger.warn(unsignedWarning)).called(1);
+          });
+
+          test('when patch_verification is strict', () async {
+            withYaml(PatchVerification.strict);
+            withKey(path: false);
+            await run();
+            verify(() => logger.warn(unsignedWarning)).called(1);
+          });
+        });
+
+        group('no warning when a key IS provided', () {
+          test('with patch_verification omitted', () async {
+            withYaml(null);
+            withKey(path: true);
+            await run();
+            verifyNever(() => logger.warn(unsignedWarning));
+          });
+
+          test('with patch_verification strict', () async {
+            withYaml(PatchVerification.strict);
+            withKey(path: true);
+            await run();
+            verifyNever(() => logger.warn(unsignedWarning));
+          });
+        });
+      });
 
       test('exits with code 64 if flutter version is not supported', () async {
         final releaser = MockReleaser();
