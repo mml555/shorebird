@@ -49,11 +49,36 @@ rm -f "$FLUTTER_ROOT/bin/cache/engine-dart-sdk.stamp" \
       "$SHOREBIRD_HOME/bin/cache/shorebird.snapshot" \
       "$SHOREBIRD_HOME/bin/cache/shorebird.stamp"
 
+# 2b · AND the engine artifacts themselves, which this script used to leave alone.
+#
+# MEASURED 2026-08-27 on cell 4792f0ec. Deleting only the stamps above and running
+# `flutter --version` produced a checkout where all three stamps named the new cell
+# and bin/cache/artifacts/engine/ios-release still held the PREVIOUS cell's engine,
+# a week old, carrying the previous updater revision. `flutter --version` precaches
+# HOST artifacts and writes engine.stamp; it never fetches iOS ones. So the stamp
+# came to assert bytes that were never fetched -- and the coherence gate passed,
+# because it compared stamps and a capability flag every Route B cell carries.
+#
+# `engine.stamp` must go WITH the artifacts. A stamp asserts what the cache
+# already holds, so leaving it behind is precisely how a revision gets
+# "established" without the bytes ever arriving.
+rm -rf "$FLUTTER_ROOT/bin/cache/artifacts/engine" \
+       "$FLUTTER_ROOT/bin/cache/downloads"
+rm -f  "$FLUTTER_ROOT/bin/cache/engine.stamp"
+
 # 3 · let Flutter reinstall BOTH the engine artifacts and the host dart-sdk. The
 # inner flutter is what refreshes engine-dart-sdk.stamp; the outer shorebird
 # bootstrap is gated by its own stamp and will skip this.
 echo "  reinstalling artifacts (engine + host dart-sdk)…"
 "$FLUTTER_ROOT/bin/flutter" --version >/dev/null
+
+# 3b · and FORCE the iOS artifacts, which `--version` does not fetch. Without this
+# the cache is merely empty rather than wrong -- better, but a release would then
+# fetch them itself, and precondition 3 of the mint script (isRouteBEngine returns
+# false when the ios-release binary does not EXIST) means that first release
+# silently takes the non-Route-B path.
+echo "  fetching iOS engine artifacts…"
+"$FLUTTER_ROOT/bin/flutter" precache --ios >/dev/null
 
 # 4 · refuse to hand back a checkout that is not coherent
 echo

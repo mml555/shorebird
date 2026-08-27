@@ -102,6 +102,54 @@ for mode in ios ios-profile ios-release; do
   fi
 done
 
+# 3b ------------------- the CACHED engine bytes really are this cell's engine
+#
+# THE STAMPS ARE NOT EVIDENCE OF BYTES. Checks 1 and 2 compare stamp CONTENTS, and
+# a stamp only asserts what the cache is CLAIMED to hold. Check 3 does read bytes,
+# but `patchable_static_calls` is carried by EVERY Route B cell, so it cannot tell
+# this cell's engine from its predecessor's.
+#
+# Measured 2026-08-27, which is why this exists: activating cell 4792f0ec left all
+# three stamps naming 4792f0ec while bin/cache/artifacts/engine/ios-release still
+# held the Aug-20 engine from ca7d2c0d -- previous updater revision and all.
+# `flutter --version` refreshes the HOST artifacts and writes engine.stamp; it does
+# not fetch iOS artifacts, so nothing replaced them and nothing noticed. EVERY
+# OTHER CHECK IN THIS FILE PASSED, and the verdict was "COHERENT: 0 failure(s)".
+# A release cut then would have been built against the previous runtime while
+# every report named the new cell -- the same class of failure release 1.14.0+1
+# already cost us once.
+#
+# So compare the CACHED engine binary against the one inside this cell's own
+# published artifacts.zip, byte for byte.
+if [ "$PLATFORM" = ios ]; then
+for mode in ios ios-profile ios-release; do
+  CACHED="$FLUTTER_ROOT/bin/cache/artifacts/engine/$mode/Flutter.xcframework/ios-arm64/Flutter.framework/Flutter"
+  PUBZIP="$OVERLAY/$EV/$mode/artifacts.zip"
+  if [ ! -f "$CACHED" ]; then
+    ok "$mode engine not cached yet (a build will fetch it)"
+    continue
+  fi
+  if [ ! -f "$PUBZIP" ]; then
+    bad "$mode engine is cached but this cell publishes no artifacts.zip to check it against"
+    continue
+  fi
+  TMPD=$(mktemp -d)
+  if unzip -q -o "$PUBZIP" 'Flutter.xcframework/ios-arm64/Flutter.framework/Flutter' -d "$TMPD" 2>/dev/null; then
+    want=$(shasum -a 256 "$TMPD/Flutter.xcframework/ios-arm64/Flutter.framework/Flutter" | cut -d' ' -f1)
+    got=$(shasum -a 256 "$CACHED" | cut -d' ' -f1)
+    if [ "$want" = "$got" ]; then
+      ok "$mode cached engine IS this cell's ($(echo "$got" | cut -c1-16))"
+    else
+      bad "$mode cached engine is NOT this cell's -- cached $(echo "$got" | cut -c1-16), cell $(echo "$want" | cut -c1-16). The stamp is lying: delete bin/cache/artifacts and refetch"
+    fi
+  else
+    bad "$mode published artifacts.zip carries no ios-arm64 engine slice to compare"
+  fi
+  rm -rf "$TMPD"
+done
+fi
+
+
 else
   ok "iOS Route B capability: NOT EVALUATED (platform=$PLATFORM)"
 fi
