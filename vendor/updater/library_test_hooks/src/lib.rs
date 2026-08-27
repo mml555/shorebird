@@ -44,6 +44,53 @@ pub extern "C" fn shorebird_test_reset() {
     updater::testing_reset_config();
 }
 
+/// Verifies a patch signature with the PRODUCTION verifier.
+///
+/// Returns 0 when the signature is valid and 1 when it is not, so a caller can
+/// distinguish accept from reject without parsing an error string.
+///
+/// Exists to close a specific gap: the Dart CLI emits a base64 signature and a
+/// base64 DER public key, and until now nothing verified that those exact bytes
+/// are accepted by the code that runs on a device. The Dart tests sign and
+/// verify with Dart; the Rust tests verify hand-generated constants. Neither
+/// crosses the boundary.
+///
+/// All three arguments are NUL-terminated UTF-8. A null pointer or invalid UTF-8
+/// returns 1 (reject) rather than panicking across the FFI boundary — for a
+/// verifier, failing closed on malformed input is the only safe direction.
+///
+/// # Safety
+///
+/// The pointers must be valid NUL-terminated C strings for the duration of the
+/// call.
+#[no_mangle]
+pub unsafe extern "C" fn shorebird_test_check_signature(
+    message: *const c_char,
+    signature: *const c_char,
+    public_key: *const c_char,
+) -> libc::c_int {
+    let to_str = |ptr: *const c_char| -> Option<String> {
+        if ptr.is_null() {
+            return None;
+        }
+        std::ffi::CStr::from_ptr(ptr)
+            .to_str()
+            .ok()
+            .map(|s| s.to_owned())
+    };
+
+    let (Some(message), Some(signature), Some(public_key)) =
+        (to_str(message), to_str(signature), to_str(public_key))
+    else {
+        return 1;
+    };
+
+    match updater::testing_check_signature(&message, &signature, &public_key) {
+        Ok(()) => 0,
+        Err(_) => 1,
+    }
+}
+
 // Stub `FileCallbacks` mirroring the `#[cfg(test)]` `FileCallbacks::new`
 // in `library/src/c_api/c_file.rs`. The test patch fixtures are
 // self-contained zstd payloads that bipatch can apply against an empty

@@ -27,6 +27,32 @@ extern "C" {
 SHOREBIRD_EXPORT void shorebird_test_reset(void);
 
 /**
+ * Verifies a patch signature with the PRODUCTION verifier.
+ *
+ * Returns 0 when the signature is valid and 1 when it is not, so a caller can
+ * distinguish accept from reject without parsing an error string.
+ *
+ * Exists to close a specific gap: the Dart CLI emits a base64 signature and a
+ * base64 DER public key, and until now nothing verified that those exact bytes
+ * are accepted by the code that runs on a device. The Dart tests sign and
+ * verify with Dart; the Rust tests verify hand-generated constants. Neither
+ * crosses the boundary.
+ *
+ * All three arguments are NUL-terminated UTF-8. A null pointer or invalid UTF-8
+ * returns 1 (reject) rather than panicking across the FFI boundary — for a
+ * verifier, failing closed on malformed input is the only safe direction.
+ *
+ * # Safety
+ *
+ * The pointers must be valid NUL-terminated C strings for the duration of the
+ * call.
+ */
+SHOREBIRD_EXPORT
+int shorebird_test_check_signature(const char *message,
+                                   const char *signature,
+                                   const char *public_key);
+
+/**
  * Test-only convenience wrapper around `shorebird_init` that builds
  * `AppParameters` and stub `FileCallbacks` internally. Dart tests
  * pass plain C strings instead of needing bindings for those

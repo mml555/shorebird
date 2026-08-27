@@ -1,6 +1,9 @@
 pub(crate) mod disk_io;
 pub mod lifecycle;
-mod signing;
+// pub(crate), NOT pub: `testing_check_signature` in updater.rs needs to reach
+// the production verifier from inside this crate, without widening the module
+// into the library's public API.
+pub(crate) mod signing;
 pub mod updater_state;
 
 pub use signing::hash_file;

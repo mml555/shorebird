@@ -55,6 +55,9 @@ dependencies:
   yaml_edit: ^2.2.4
 
 dev_dependencies:
+  # Used by the Dart->Rust signing seam test to drive the production Rust
+  # verifier over FFI. Test-only.
+  ffi: ^2.1.0
   build_runner: ^2.15.0
   build_verify: ^3.1.1
   build_version: ^2.1.1
