@@ -17,6 +17,23 @@ Until then the estimator reports zero eligible clients, which is the correct
 reading of *not started* — enforced in code and mutation-checked, not left to
 convention.
 
+**Activate as a CANARY, not as fleet collection.** One controlled production
+specimen discharging the checklist, with a real non-rig client. Broad collection
+comes after, not as part of activation.
+
+**The allow-list change is its own commit**, containing nothing else:
+
+    b(
+      updaterRevisions: {'af6e842ccf87'},
+      cell: '4792f0eca461f3761001a1adbe131b4b115e3684',
+      closed: false,
+    )
+
+Combining it with unrelated work would make the moment the sample started
+impossible to identify later from history alone. Before it: Epoch B metrics `[]`.
+After it: only `af6e842ccf87` clients may appear, Epoch A stays separately
+queryable, and the two are never unioned.
+
 ## 2 · First-activation launch disappearance — classification first, NOT a fix
 
 Three occurrences, two cells, every one on the **first launch that activates a
@@ -31,7 +48,20 @@ all completed, and the process banked success crediting patch 1 before vanishing
 **First objective is classification and reproduction, not a fix.** And an explicit
 constraint: this investigation must not change lifecycle policy semantics while
 Epoch B is being established. A fix that moved the attributability boundary again
-would end Epoch B the way `af6e842ccf87` ended Epoch A.
+would end Epoch B the way `af6e842ccf87` ended Epoch A — Epoch C on arrival.
+
+**Do not touch**, while Epoch B is starting: boot-start timing, success timing,
+the ambiguity definition, retry accounting, retirement behaviour.
+
+**Instrument outside that semantic boundary instead:** process lifetime
+timestamps, app lifecycle callbacks, scene and application termination signals,
+SpringBoard/process-exit observations, and any durable trace written *after*
+launch success. If a reliable reproduction eventually points at something
+downstream of launch-success, fix that layer — and prefer a fix that leaves the
+ambiguity contract untouched.
+
+This is the highest-priority reliability investigation, but it does **not** block
+the small canary needed to activate the telemetry epoch.
 
 Starting material: `evidence/p6-signing/crash_reports/setup_crash_2026_08_27/`.
 Newly available and worth using — `idevicescreenshot` works on this wired device,
@@ -64,3 +94,32 @@ audit → coherence → and only then advance the pinned revision.
   thirteen commits, including every lifecycle change the epochs rest on — existed
   on a single disk with no remote at all. Treat both as first-class, and record
   the full commit SHA in provenance rather than a branch name.
+
+## 5 · Frozen operational rule — branches are not provenance
+
+Never identify certified source as `route-b` or `selfhost/3.44.8`. Those are
+transport refs and they move. Provenance is **repository + full immutable SHA**:
+
+    evidence       mml555/shorebird                 3b6a5ab83bd5d36fd022731b67c918be348c57f8
+    control plane  mml555/shorebird                 58b4998007f1736b654e00e9034116f38b459be4
+    engine         mml555/shorebird-flutter         619fdad176ff457331b50230b9511e7230a6ed93
+    updater        mml555/shorebird-updater-mirror  af6e842ccf87a083d1598b1e7c9e0868c5731931
+
+The 12-character `updater_revision` in `compatibility.yaml` is the **wire** form
+the client stamps into events — an eligibility key, not a provenance identity.
+Both are recorded, and the distinction is stated at the field.
+
+## 6 · Standing rule from here
+
+**Stop touching the certified runtime** except for a demonstrated production
+defect. The next meaningful milestone is not a code change: it is *Epoch B
+activated from a real production specimen and collecting from zero.*
+
+    Mechanism engineering       CLOSED
+    P6 workflow certification   CLOSED
+    Signing                     CERTIFIED
+    Lifecycle policy Epoch A    CLOSED
+    Lifecycle policy Epoch B    DEFINED / NOT ACTIVATED
+    CI                          BLOCKED — Linux builder
+    Add-to-App                  DEFERRED, explicitly unassessed
+    formatting-only rebuild     DEFERRED, negative value on its own

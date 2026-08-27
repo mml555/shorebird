@@ -36,10 +36,20 @@ shorebird:
                                                                     # THESE FOUR ARE DISTINCT IDENTITIES. Do not collapse
                                                                     # them: the documentation commit is NOT part of the
                                                                     # built runtime.
-                                                                    #   evidence_revision      3b6a5ab83bd5d36f (docs)
-                                                                    #   control_plane_revision 58b4998007f1736b (patch+CLI)
-                                                                    #   engine_revision        619fdad176ff4573 (C++)
-                                                                    #   updater_revision       af6e842ccf87a083 (runtime)
+                                                                    # BRANCHES ARE NOT PROVENANCE. route-b and
+                                                                    # selfhost/3.44.8 are transport refs and move; the
+                                                                    # certified source is repository + FULL immutable SHA.
+                                                                    #   evidence      mml555/shorebird
+                                                                    #     3b6a5ab83bd5d36fd022731b67c918be348c57f8
+                                                                    #   control plane mml555/shorebird
+                                                                    #     58b4998007f1736b654e00e9034116f38b459be4
+                                                                    #   engine        mml555/shorebird-flutter
+                                                                    #     619fdad176ff457331b50230b9511e7230a6ed93
+                                                                    #   updater       mml555/shorebird-updater-mirror
+                                                                    #     af6e842ccf87a083d1598b1e7c9e0868c5731931
+                                                                    # The 12-char updater_revision VALUE above is the wire
+                                                                    # form the client stamps into events; it is the
+                                                                    # eligibility key, not the provenance identity.
                                                                     # 619fdad176ff4573 is the engine_version the mode
                                                                     # qualification gate read out of all three iOS builds.
                                                                     # THE CERTIFIED ENGINE COMMIT IS PINNED HERE. A later
