@@ -29,8 +29,8 @@ const String kSignRelease = 'SIGN-REL-1';
 @pragma('vm:never-inline')
 @pragma('vm:entry-point')
 String signState() => DateTime.now().millisecondsSinceEpoch >= 0
-    ? 'SIGN-V2'
-    : 'SIGN-V2!';
+    ? 'SIGN-V3'
+    : 'SIGN-V3!';
 
 void main() => runApp(const SignProbeApp());
 

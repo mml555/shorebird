@@ -1,0 +1,20 @@
+hook entered
+parsed, targets=1, built-for=d507b55dd9f73a99b9d5f4a0bdbf5603
+running=d507b55dd9f73a99b9d5f4a0bdbf5603
+assert-pool-offset supplied=0xd4a8
+applied 1/1 targets, entering main
+hook entered
+parsed, targets=1, built-for=d507b55dd9f73a99b9d5f4a0bdbf5603
+running=d507b55dd9f73a99b9d5f4a0bdbf5603
+assert-pool-offset supplied=0xd4a8
+applied 1/1 targets, entering main
+hook entered
+parsed, targets=1, built-for=d507b55dd9f73a99b9d5f4a0bdbf5603
+running=d507b55dd9f73a99b9d5f4a0bdbf5603
+assert-pool-offset supplied=0xd4a8
+applied 1/1 targets, entering main
+hook entered
+parsed, targets=1, built-for=d507b55dd9f73a99b9d5f4a0bdbf5603
+running=d507b55dd9f73a99b9d5f4a0bdbf5603
+assert-pool-offset supplied=0xd4a8
+applied 1/1 targets, entering main

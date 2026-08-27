@@ -1,0 +1,19 @@
+PRE-ACQUISITION ANCHORS (frozen 2026-08-27, before the download tap)
+
+  cell                 4792f0eca461f3761001a1adbe131b4b115e3684
+  consumed engine      62bd2395005cc315…   updater af6e842ccf87
+  release              1.3.0+1  (server id 133)  bundled key == DER(K1), strict
+
+  P1  digest  c97c93f10b3248082fd5f54fe59274f042cd03a6b0189db552c7a2db71ac5a7e  1687 B
+      state   Installed, artifact present, signed K1, verified valid on device
+
+  P2  digest  5631abd031329985243adc44a65dbfc5350f9b109f248b3a124623157d190b50
+      offered by the server with a hash_signature, kind=code
+      declared AND signed by K2; release trust root remains K1
+      asset change (the K2 shorebird.yaml) explicitly NOT included in the patch
+
+  pointers    next_boot_patch=1  last_booted_patch=1  currently_booting_patch=null
+              boot_attempt_count=0  last_boot_attempt_patch=null
+
+  K1 sha256(pub PEM)  3a02cdb39d9b28ccc2e8104b5f27c9510e24a0fd
+  K2 sha256(pub PEM)  000cd533eb922be74c52bd9125f639afa08b91bb   K1 != K2 measured
