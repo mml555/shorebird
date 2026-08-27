@@ -27,6 +27,11 @@ launches, Android. **K2 remains the only intentional defect.**
     app state      uninstalled first, so patch 1 can be the known-good fallback
     keys           K1 trusted (in the release), K2 wrong; K1 != K2 measured
     device         iPhone 7 / iOS 15.8.8, wired, no debugger, every launch a tap
+    env            SHOREBIRD_PUBLISHED_IOS_ENGINE_DIR must point at
+                   overlay/flutter_infra_release/flutter/<cell>, or the producer
+                   gate refuses with COHERENCE_UNDETERMINABLE -- iOS engine
+                   identity is now mandatory, see
+                   PRODUCER_GATE_ENGINE_IDENTITY.md
 
 ## The wire-level proof that the new path ran
 

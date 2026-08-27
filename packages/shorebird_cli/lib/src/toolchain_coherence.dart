@@ -109,6 +109,7 @@ class ToolchainCoherence {
     required String engineRevision,
     required ReleasePlatform platform,
     File? publishedDartSdkZip,
+    Directory? publishedIosEngineDir,
   }) {
     final problems = <ToolchainCoherenceProblem>[];
     final cache = Directory(p.join(flutterDirectory.path, 'bin', 'cache'));
@@ -191,6 +192,34 @@ class ToolchainCoherence {
       }
     }
 
+    // AND THE CACHED ENGINE MUST BE THIS CELL'S ENGINE.
+    //
+    // Everything above this line can pass over the wrong engine, which is not
+    // hypothetical — it happened on 2026-08-27 activating cell 4792f0ec:
+    //
+    //   engine.version, engine.stamp, engine-dart-sdk.stamp
+    //                                        all named 4792f0ec
+    //   cached ios-release engine            ca7d2c0d's, a week old
+    //   gen_snapshot patchable_static_calls  present
+    //   verdict                              COHERENT
+    //
+    // The stamp comparisons read stamp CONTENTS, and a stamp asserts what the
+    // cache is CLAIMED to hold; `flutter --version` writes `engine.stamp` while
+    // fetching only HOST artifacts, so it can assert iOS bytes that never
+    // arrived. And `patchable_static_calls` is carried by EVERY Route B cell,
+    // so it separates Route B from stock and never this cell from its
+    // predecessor — a capability signal being read as an identity one.
+    //
+    // A release cut then would have been built against the previous runtime
+    // while every report named the new cell. So the engine bytes are compared
+    // against the ones this cell actually published.
+    problems.addAll(
+      _compareIosEngines(
+        flutterDirectory: flutterDirectory,
+        engineRevision: engineRevision,
+        publishedIosEngineDir: publishedIosEngineDir,
+      ),
+    );
     }
 
     if (publishedDartSdkZip != null) {
@@ -223,8 +252,11 @@ class ToolchainCoherence {
     required String engineRevision,
   }) {
     final ios = _usesIosCompilers(platform);
-    return 'COHERENT platform=${platform.name} engine=$engineRevision'
-        '${ios ? '' : ' | iOS Route B capability: NOT EVALUATED'}';
+    final suffix = ios
+        ? ' | iOS engine identity: VERIFIED against the published cell'
+        : ' | iOS Route B capability: NOT EVALUATED'
+              ' | iOS engine identity: NOT EVALUATED';
+    return 'COHERENT platform=${platform.name} engine=$engineRevision$suffix';
   }
 
   /// Whether [binary] contains [flag] as a NUL/newline-delimited token.
@@ -317,6 +349,131 @@ class ToolchainCoherence {
     return [];
   }
 
+  /// Byte-compares each cached iOS engine against the one this cell published.
+  ///
+  /// FAIL-CLOSED IN EVERY DIRECTION, which is where this deliberately differs
+  /// from the shell verifier. That script may report "not cached yet" as fine,
+  /// because it is a diagnostic run at any time. This runs immediately before
+  /// artifacts are produced, and at that moment an engine that is absent, or a
+  /// published source that cannot be read, means the identity was NOT
+  /// ESTABLISHED — which is not the same as coherent.
+  List<ToolchainCoherenceProblem> _compareIosEngines({
+    required Directory flutterDirectory,
+    required String engineRevision,
+    required Directory? publishedIosEngineDir,
+  }) {
+    if (publishedIosEngineDir == null) {
+      return [
+        ToolchainCoherenceProblem(
+          code: ToolchainIncoherence.undeterminable,
+          detail:
+              '$publishedIosEngineDirEnvVar is not set, so the cached iOS '
+              'engines could not be compared against the ones published for '
+              '$engineRevision. Stamps alone cannot establish this: they '
+              'record what the cache is claimed to hold',
+        ),
+      ];
+    }
+    if (!publishedIosEngineDir.existsSync()) {
+      return [
+        ToolchainCoherenceProblem(
+          code: ToolchainIncoherence.undeterminable,
+          detail:
+              'the published iOS engine root '
+              '${publishedIosEngineDir.path} does not exist, so the cached '
+              'engines could not be compared against it',
+        ),
+      ];
+    }
+
+    final problems = <ToolchainCoherenceProblem>[];
+    for (final mode in const ['ios', 'ios-profile', 'ios-release']) {
+      final cached = File(
+        p.join(
+          flutterDirectory.path,
+          'bin',
+          'cache',
+          'artifacts',
+          'engine',
+          mode,
+          'Flutter.xcframework',
+          'ios-arm64',
+          'Flutter.framework',
+          'Flutter',
+        ),
+      );
+      if (!cached.existsSync()) {
+        problems.add(
+          ToolchainCoherenceProblem(
+            code: ToolchainIncoherence.undeterminable,
+            detail:
+                '${cached.path} is missing, so the $mode engine identity was '
+                'not established. An absent engine is not a matching one',
+          ),
+        );
+        continue;
+      }
+      final publishedZip = File(
+        p.join(publishedIosEngineDir.path, mode, 'artifacts.zip'),
+      );
+      if (!publishedZip.existsSync()) {
+        problems.add(
+          ToolchainCoherenceProblem(
+            code: ToolchainIncoherence.undeterminable,
+            detail:
+                'the $mode engine is cached but ${publishedZip.path} is '
+                'missing, so there is nothing to compare it against',
+          ),
+        );
+        continue;
+      }
+      final publishedDigest = _iosEngineDigestFromZip(publishedZip);
+      if (publishedDigest == null) {
+        problems.add(
+          ToolchainCoherenceProblem(
+            code: ToolchainIncoherence.undeterminable,
+            detail:
+                'could not read the ios-arm64 engine slice out of '
+                '${publishedZip.path}',
+          ),
+        );
+        continue;
+      }
+      final cachedDigest = sha256.convert(cached.readAsBytesSync()).toString();
+      if (cachedDigest != publishedDigest) {
+        problems.add(
+          ToolchainCoherenceProblem(
+            code: ToolchainIncoherence.engineArtifactsStale,
+            detail:
+                'the cached $mode engine (${cachedDigest.substring(0, 16)}) is '
+                'not the one published for $engineRevision '
+                '(${publishedDigest.substring(0, 16)}). The stamps agree with '
+                'engine.version, so they are asserting bytes that were never '
+                'fetched',
+          ),
+        );
+      }
+    }
+    return problems;
+  }
+
+  /// Digest of the ios-arm64 engine slice inside [zip], or null.
+  String? _iosEngineDigestFromZip(File zip) {
+    final result = Process.runSync(
+      'unzip',
+      [
+        '-p',
+        zip.path,
+        'Flutter.xcframework/ios-arm64/Flutter.framework/Flutter',
+      ],
+      stdoutEncoding: null,
+    );
+    if (result.exitCode != 0) return null;
+    final bytes = result.stdout as List<int>;
+    if (bytes.isEmpty) return null;
+    return sha256.convert(bytes).toString();
+  }
+
   /// Digest of `dart-sdk/bin/dartaotruntime` inside [zip], or null.
   ///
   /// Shells out to `unzip -p` rather than taking an archive dependency: this
@@ -346,12 +503,15 @@ class ToolchainCoherence {
   /// `flutterDirectory` just to get past a check it was not testing.
   void assertCoherent({required ReleasePlatform releasePlatform}) {
     final zipPath = platform.environment[publishedDartSdkZipEnvVar];
+    final iosEngineDir = platform.environment[publishedIosEngineDirEnvVar];
     final engineRevision = shorebirdEnv.shorebirdEngineRevision;
     final problems = check(
       flutterDirectory: shorebirdEnv.flutterDirectory,
       engineRevision: engineRevision,
       platform: releasePlatform,
       publishedDartSdkZip: zipPath == null ? null : File(zipPath),
+      publishedIosEngineDir:
+          iosEngineDir == null ? null : Directory(iosEngineDir),
     );
     if (problems.isEmpty) {
       logger.detail(
@@ -393,3 +553,18 @@ class ToolchainCoherence {
 /// published is a deployment fact, and hard-coding a local CDN overlay would
 /// put a workstation assumption inside the product.
 const publishedDartSdkZipEnvVar = 'SHOREBIRD_PUBLISHED_DART_SDK_ZIP';
+
+/// Env var naming the root under which the active engine's iOS artifacts are
+/// published, holding `<mode>/artifacts.zip` for `ios`, `ios-profile` and
+/// `ios-release`.
+///
+/// REQUIRED for an iOS build, unlike [publishedDartSdkZipEnvVar]. The stamps
+/// cannot substitute for it: on 2026-08-27 all three stamps named the new cell
+/// while the cached iOS engines were the previous cell's, and every other check
+/// passed. Absent identity is not established identity, so an iOS producer
+/// refuses rather than proceeding on stamps alone.
+///
+/// An ENV VAR rather than a baked path because where artifacts are published is
+/// a deployment fact; hard-coding a local CDN overlay would put a workstation
+/// assumption inside the product.
+const publishedIosEngineDirEnvVar = 'SHOREBIRD_PUBLISHED_IOS_ENGINE_DIR';

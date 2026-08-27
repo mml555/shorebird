@@ -16,19 +16,61 @@ import 'mocks.dart';
 
 void main() {
   group(ToolchainCoherence, () {
-    const cell = 'ca7d2c0d43bf975db2c42cc0aa6351d527443abf';
+    const cell = '4792f0eca461f3761001a1adbe131b4b115e3684';
+    const priorCell = 'ca7d2c0d43bf975db2c42cc0aa6351d527443abf';
     const stock = '69f9831c360d9152862ec3897c67fb09ae843f3b';
 
+    const iosModes = ['ios', 'ios-profile', 'ios-release'];
+
     late Directory flutterDir;
+    late Directory publishedIos;
     late ToolchainCoherence coherence;
 
-    /// Builds a checkout whose stamps and gen_snapshots are what the
-    /// arguments say. Defaults are the COHERENT case, so each test states
+    /// Engine bytes belonging to [revision] for [mode].
+    ///
+    /// Per-mode AND per-revision, so a comparator that mixed up modes, or one
+    /// that compared a mode against itself, could not pass.
+    String engineBytes(String revision, String mode) =>
+        'FLUTTER-ENGINE revision=$revision mode=$mode';
+
+    /// Writes a zip at [zipPath] containing [content] at the ios-arm64 engine
+    /// path, which is where the production comparator reads from.
+    void writePublishedEngineZip(String zipPath, String content) {
+      final stage = Directory.systemTemp.createTempSync('stage');
+      File(
+          p.join(
+            stage.path,
+            'Flutter.xcframework',
+            'ios-arm64',
+            'Flutter.framework',
+            'Flutter',
+          ),
+        )
+        ..createSync(recursive: true)
+        ..writeAsStringSync(content);
+      Directory(p.dirname(zipPath)).createSync(recursive: true);
+      final result = Process.runSync('zip', [
+        '-q',
+        '-r',
+        zipPath,
+        '.',
+      ], workingDirectory: stage.path);
+      expect(result.exitCode, 0, reason: 'zip failed: ${result.stderr}');
+      stage.deleteSync(recursive: true);
+    }
+
+    /// Builds a checkout whose stamps, gen_snapshots and engine bytes are what
+    /// the arguments say. Defaults are the COHERENT case, so each test states
     /// only its own defect.
     void makeCheckout({
       String engineStamp = cell,
       String? dartSdkStamp = cell,
       bool patchableGenSnapshot = true,
+      String cachedEngineRevision = cell,
+      String publishedEngineRevision = cell,
+      bool cacheIosEngines = true,
+      bool publishIosEngines = true,
+      Set<String> omitPublishedModes = const {},
     }) {
       final cache = Directory(p.join(flutterDir.path, 'bin', 'cache'))
         ..createSync(recursive: true);
@@ -40,7 +82,7 @@ void main() {
           p.join(cache.path, 'engine-dart-sdk.stamp'),
         ).writeAsStringSync('$dartSdkStamp\n');
       }
-      for (final mode in ['ios', 'ios-profile', 'ios-release']) {
+      for (final mode in iosModes) {
         final dir = Directory(p.join(cache.path, 'artifacts', 'engine', mode))
           ..createSync(recursive: true);
         // A stand-in binary: what the check looks for is the flag NAME as a
@@ -49,28 +91,54 @@ void main() {
             ? 'xx patchable_static_calls yy'
             : 'xx some_other_flag yy';
         File(p.join(dir.path, 'gen_snapshot_arm64')).writeAsStringSync(body);
+
+        if (cacheIosEngines) {
+          File(
+            p.join(
+              dir.path,
+              'Flutter.xcframework',
+              'ios-arm64',
+              'Flutter.framework',
+              'Flutter',
+            ),
+          )
+            ..createSync(recursive: true)
+            ..writeAsStringSync(engineBytes(cachedEngineRevision, mode));
+        }
+
+        if (publishIosEngines && !omitPublishedModes.contains(mode)) {
+          writePublishedEngineZip(
+            p.join(publishedIos.path, mode, 'artifacts.zip'),
+            engineBytes(publishedEngineRevision, mode),
+          );
+        }
       }
     }
 
+    List<ToolchainCoherenceProblem> checkFor(
+      ReleasePlatform platform, {
+      bool withPublishedIos = true,
+    }) => coherence.check(
+      flutterDirectory: flutterDir,
+      engineRevision: cell,
+      platform: platform,
+      publishedIosEngineDir: withPublishedIos ? publishedIos : null,
+    );
+
     setUp(() {
       flutterDir = Directory.systemTemp.createTempSync('coherence');
+      publishedIos = Directory.systemTemp.createTempSync('published');
       coherence = const ToolchainCoherence();
     });
 
     tearDown(() {
       if (flutterDir.existsSync()) flutterDir.deleteSync(recursive: true);
+      if (publishedIos.existsSync()) publishedIos.deleteSync(recursive: true);
     });
 
     test('reports nothing when the toolchain is coherent', () {
       makeCheckout();
-      expect(
-        coherence.check(
-          flutterDirectory: flutterDir,
-          engineRevision: cell,
-          platform: ReleasePlatform.ios,
-        ),
-        isEmpty,
-      );
+      expect(checkFor(ReleasePlatform.ios), isEmpty);
     });
 
     test('catches a stale HOST DART SDK, the defect this exists for', () {
@@ -79,11 +147,7 @@ void main() {
       // aborted the mandatory snapshot-profile writer while gen_snapshot was
       // byte-identical to a known-good one.
       makeCheckout(dartSdkStamp: stock);
-      final problems = coherence.check(
-        flutterDirectory: flutterDir,
-        engineRevision: cell,
-        platform: ReleasePlatform.ios,
-      );
+      final problems = checkFor(ReleasePlatform.ios);
       expect(problems, hasLength(1));
       expect(problems.single.code, ToolchainIncoherence.hostDartSdkStale);
       // The identities must be in the message; 'stale' alone is not actionable.
@@ -93,13 +157,8 @@ void main() {
 
     test('catches stale engine artifacts', () {
       makeCheckout(engineStamp: stock);
-      final problems = coherence.check(
-        flutterDirectory: flutterDir,
-        engineRevision: cell,
-        platform: ReleasePlatform.ios,
-      );
       expect(
-        problems.map((e) => e.code),
+        checkFor(ReleasePlatform.ios).map((e) => e.code),
         contains(ToolchainIncoherence.engineArtifactsStale),
       );
     });
@@ -107,22 +166,14 @@ void main() {
     test('a MISSING stamp is undeterminable, not coherent', () {
       // Not established is not the same as unchanged.
       makeCheckout(dartSdkStamp: null);
-      final problems = coherence.check(
-        flutterDirectory: flutterDir,
-        engineRevision: cell,
-        platform: ReleasePlatform.ios,
-      );
+      final problems = checkFor(ReleasePlatform.ios);
       expect(problems, hasLength(1));
       expect(problems.single.code, ToolchainIncoherence.undeterminable);
     });
 
     test('catches a stock gen_snapshot', () {
       makeCheckout(patchableGenSnapshot: false);
-      final problems = coherence.check(
-        flutterDirectory: flutterDir,
-        engineRevision: cell,
-        platform: ReleasePlatform.ios,
-      );
+      final problems = checkFor(ReleasePlatform.ios);
       expect(problems, hasLength(3)); // one per iOS mode
       expect(problems.map((e) => e.code).toSet(), {
         ToolchainIncoherence.genSnapshotNotPatchable,
@@ -132,24 +183,172 @@ void main() {
     test('does not match the flag name inside a longer identifier', () {
       // Guards the token check itself: a binary mentioning
       // patchable_static_calls_v2 does not advertise this flag.
-      final cache = Directory(p.join(flutterDir.path, 'bin', 'cache'))
-        ..createSync(recursive: true);
-      File(p.join(cache.path, 'engine.stamp')).writeAsStringSync(cell);
-      File(p.join(cache.path, 'engine-dart-sdk.stamp')).writeAsStringSync(cell);
-      for (final mode in ['ios', 'ios-profile', 'ios-release']) {
-        final dir = Directory(p.join(cache.path, 'artifacts', 'engine', mode))
-          ..createSync(recursive: true);
+      makeCheckout();
+      for (final mode in iosModes) {
         File(
-          p.join(dir.path, 'gen_snapshot_arm64'),
+          p.join(
+            flutterDir.path,
+            'bin',
+            'cache',
+            'artifacts',
+            'engine',
+            mode,
+            'gen_snapshot_arm64',
+          ),
         ).writeAsStringSync(' patchable_static_calls_v2 ');
       }
-      final problems = coherence.check(
-        flutterDirectory: flutterDir,
-        engineRevision: cell,
-        platform: ReleasePlatform.ios,
-      );
-      expect(problems.map((e) => e.code).toSet(), {
+      expect(checkFor(ReleasePlatform.ios).map((e) => e.code).toSet(), {
         ToolchainIncoherence.genSnapshotNotPatchable,
+      });
+    });
+
+    // ------------------------------------------------------------------
+    // THE FALSE-GREEN. Measured on 2026-08-27 activating cell 4792f0ec: the
+    // producer gate would have authorized a release built against the PREVIOUS
+    // cell's runtime, because every check it had compared stamps or a
+    // capability flag, and neither can tell one Route B cell from another.
+    // ------------------------------------------------------------------
+    group('cached engine identity', () {
+      test(
+        'REFUSES the exact state that passed: stamps current, engines stale',
+        () {
+          // Reproduces it precisely:
+          //   engine.version / engine.stamp / engine-dart-sdk.stamp  4792f0ec
+          //   cached iOS engines                                     ca7d2c0d's
+          //   gen_snapshot patchable_static_calls                    present
+          makeCheckout(cachedEngineRevision: priorCell);
+
+          final problems = checkFor(ReleasePlatform.ios);
+
+          expect(
+            problems.map((e) => e.code).toSet(),
+            {ToolchainIncoherence.engineArtifactsStale},
+            reason: 'no stamp or capability problem exists in this state — the '
+                'byte comparison is the only thing that can catch it',
+          );
+          // ALL THREE modes named, not just the release one: a partially
+          // refreshed cache is as incoherent as a wholly stale one.
+          expect(problems, hasLength(3));
+          for (final mode in iosModes) {
+            // 'ios' is a prefix of the other two mode names, so match the
+            // exact phrase rather than the bare mode.
+            final forMode = problems.where(
+              (e) => e.detail.contains('cached $mode engine'),
+            );
+            expect(forMode, hasLength(1), reason: 'expected one for $mode');
+            // Both digests present, so the failure is actionable.
+            expect(forMode.single.detail, contains(cell));
+          }
+        },
+      );
+
+      test('PASSES once the real engines are in the cache', () {
+        // The other half of the pair. Same everything, engines substituted.
+        makeCheckout();
+        expect(checkFor(ReleasePlatform.ios), isEmpty);
+      });
+
+      test('a per-mode mismatch is caught, not averaged away', () {
+        // Only ios-profile is stale. A comparator that checked one mode and
+        // generalised, or that stopped at the first match, would miss this.
+        makeCheckout();
+        File(
+          p.join(
+            flutterDir.path,
+            'bin',
+            'cache',
+            'artifacts',
+            'engine',
+            'ios-profile',
+            'Flutter.xcframework',
+            'ios-arm64',
+            'Flutter.framework',
+            'Flutter',
+          ),
+        ).writeAsStringSync(engineBytes(priorCell, 'ios-profile'));
+
+        final problems = checkFor(ReleasePlatform.ios);
+        expect(problems, hasLength(1));
+        expect(
+          problems.single.code,
+          ToolchainIncoherence.engineArtifactsStale,
+        );
+        expect(problems.single.detail, contains('ios-profile'));
+      });
+
+      test('a MISSING cached engine is UNDETERMINABLE, never green', () {
+        // The producer gate deliberately differs from the diagnostic script
+        // here. At producer time an absent engine means the identity was not
+        // established, and absence is not a match.
+        makeCheckout(cacheIosEngines: false);
+        final problems = checkFor(ReleasePlatform.ios);
+        expect(problems, hasLength(3));
+        expect(problems.map((e) => e.code).toSet(), {
+          ToolchainIncoherence.undeterminable,
+        });
+      });
+
+      test('an UNSET published source is UNDETERMINABLE and refuses', () {
+        // Stamps alone must not be allowed to stand in for identity — that is
+        // exactly the substitution that produced the false green.
+        makeCheckout();
+        final problems = checkFor(
+          ReleasePlatform.ios,
+          withPublishedIos: false,
+        );
+        expect(problems, hasLength(1));
+        expect(problems.single.code, ToolchainIncoherence.undeterminable);
+        expect(
+          problems.single.detail,
+          contains(publishedIosEngineDirEnvVar),
+        );
+      });
+
+      test('a published root that does not exist is UNDETERMINABLE', () {
+        makeCheckout();
+        publishedIos.deleteSync(recursive: true);
+        final problems = checkFor(ReleasePlatform.ios);
+        expect(problems, hasLength(1));
+        expect(problems.single.code, ToolchainIncoherence.undeterminable);
+      });
+
+      test('a published zip missing for ONE mode is UNDETERMINABLE', () {
+        makeCheckout(omitPublishedModes: const {'ios-release'});
+        final problems = checkFor(ReleasePlatform.ios);
+        expect(problems, hasLength(1));
+        expect(problems.single.code, ToolchainIncoherence.undeterminable);
+        expect(problems.single.detail, contains('ios-release'));
+      });
+
+      test('an unreadable published zip is UNDETERMINABLE', () {
+        makeCheckout();
+        // A file that is not a zip at all: the comparator must refuse rather
+        // than treat an unreadable source as agreement.
+        File(
+          p.join(publishedIos.path, 'ios-release', 'artifacts.zip'),
+        ).writeAsStringSync('not a zip');
+        final problems = checkFor(ReleasePlatform.ios);
+        expect(problems, hasLength(1));
+        expect(problems.single.code, ToolchainIncoherence.undeterminable);
+      });
+
+      test('android is unaffected by any of it', () {
+        // The causal pair for engine identity, mirroring the gen_snapshot one:
+        // the SAME stale iOS engines, the only difference being the platform.
+        makeCheckout(cachedEngineRevision: priorCell);
+        expect(checkFor(ReleasePlatform.android), isEmpty);
+        expect(
+          checkFor(ReleasePlatform.ios).map((e) => e.code).toSet(),
+          {ToolchainIncoherence.engineArtifactsStale},
+        );
+      });
+
+      test('android does not need a published iOS source at all', () {
+        makeCheckout();
+        expect(
+          checkFor(ReleasePlatform.android, withPublishedIos: false),
+          isEmpty,
+        );
       });
     });
 
@@ -160,12 +359,6 @@ void main() {
       // build. The engine cell is an iOS Route B specialization activated by
       // overwriting engine.version for the whole checkout, so the unscoped
       // version blocked Android entirely -- no cell carries Android artifacts.
-      List<ToolchainCoherenceProblem> checkFor(ReleasePlatform p) =>
-          coherence.check(
-            flutterDirectory: flutterDir,
-            engineRevision: cell,
-            platform: p,
-          );
 
       test('android: matching stamps PASS', () {
         makeCheckout();
@@ -209,10 +402,9 @@ void main() {
 
       test('ios: that SAME non-Route-B gen_snapshot REFUSES', () {
         makeCheckout(patchableGenSnapshot: false);
-        expect(
-          checkFor(ReleasePlatform.ios).map((e) => e.code).toSet(),
-          {ToolchainIncoherence.genSnapshotNotPatchable},
-        );
+        expect(checkFor(ReleasePlatform.ios).map((e) => e.code).toSet(), {
+          ToolchainIncoherence.genSnapshotNotPatchable,
+        });
       });
 
       test('ios: the exact Route B token PASSES', () {
@@ -220,30 +412,10 @@ void main() {
         expect(checkFor(ReleasePlatform.ios), isEmpty);
       });
 
-      test('ios: the token inside a longer identifier REFUSES', () {
-        // patchable_static_calls_v2 does not advertise this flag.
-        final cache = Directory(p.join(flutterDir.path, 'bin', 'cache'))
-          ..createSync(recursive: true);
-        File(p.join(cache.path, 'engine.stamp')).writeAsStringSync(cell);
-        File(
-          p.join(cache.path, 'engine-dart-sdk.stamp'),
-        ).writeAsStringSync(cell);
-        for (final mode in ['ios', 'ios-profile', 'ios-release']) {
-          final dir = Directory(p.join(cache.path, 'artifacts', 'engine', mode))
-            ..createSync(recursive: true);
-          File(
-            p.join(dir.path, 'gen_snapshot_arm64'),
-          ).writeAsStringSync(' patchable_static_calls_v2 ');
-        }
-        expect(
-          checkFor(ReleasePlatform.ios).map((e) => e.code).toSet(),
-          {ToolchainIncoherence.genSnapshotNotPatchable},
-        );
-      });
-
-      test('android says explicitly that iOS capability was NOT evaluated', () {
+      test('android says explicitly what was NOT evaluated', () {
         // Silence would make a green Android line read as a claim about the iOS
-        // half. It must not.
+        // half. It must not — and that now covers engine identity too, which is
+        // the check whose silence would have been most costly.
         expect(
           coherence.describe(
             platform: ReleasePlatform.android,
@@ -252,6 +424,7 @@ void main() {
           allOf(
             contains('platform=android'),
             contains('iOS Route B capability: NOT EVALUATED'),
+            contains('iOS engine identity: NOT EVALUATED'),
           ),
         );
         expect(
@@ -259,7 +432,10 @@ void main() {
             platform: ReleasePlatform.ios,
             engineRevision: cell,
           ),
-          isNot(contains('NOT EVALUATED')),
+          allOf(
+            isNot(contains('NOT EVALUATED')),
+            contains('iOS engine identity: VERIFIED'),
+          ),
         );
       });
     });
@@ -283,7 +459,9 @@ void main() {
         shorebirdEnv = MockShorebirdEnv();
         logger = MockShorebirdLogger();
         platform = MockPlatform();
-        when(() => platform.environment).thenReturn({});
+        when(() => platform.environment).thenReturn({
+          publishedIosEngineDirEnvVar: publishedIos.path,
+        });
         when(() => shorebirdEnv.flutterDirectory).thenReturn(flutterDir);
         when(() => shorebirdEnv.shorebirdEngineRevision).thenReturn(cell);
       });
@@ -292,9 +470,8 @@ void main() {
         makeCheckout();
         expect(
           () => runWithOverrides(
-            () => coherence.assertCoherent(
-              releasePlatform: ReleasePlatform.ios,
-            ),
+            () =>
+                coherence.assertCoherent(releasePlatform: ReleasePlatform.ios),
           ),
           returnsNormally,
         );
@@ -327,11 +504,56 @@ void main() {
         makeCheckout(patchableGenSnapshot: false);
         expect(
           () => runWithOverrides(
-            () => coherence.assertCoherent(
-              releasePlatform: ReleasePlatform.ios,
-            ),
+            () =>
+                coherence.assertCoherent(releasePlatform: ReleasePlatform.ios),
           ),
           throwsA(isA<ProcessExit>()),
+        );
+      });
+
+      // THE PRODUCER-LEVEL REGRESSION. `release ios` and `patch ios` both route
+      // through here, so this is the assertion that a stale-cache release is
+      // refused rather than published.
+      test('REFUSES the stale-engine state at the producer boundary', () {
+        makeCheckout(cachedEngineRevision: priorCell);
+        expect(
+          () => runWithOverrides(
+            () =>
+                coherence.assertCoherent(releasePlatform: ReleasePlatform.ios),
+          ),
+          throwsA(isA<ProcessExit>()),
+        );
+        // One per stale mode: the producer names each, rather than collapsing
+        // three stale engines into a single line.
+        verify(
+          () => logger.err(
+            any(that: contains(ToolchainIncoherence.engineArtifactsStale.wire)),
+          ),
+        ).called(3);
+      });
+
+      test('REFUSES an iOS build when the published source is unset', () {
+        when(() => platform.environment).thenReturn({});
+        makeCheckout();
+        expect(
+          () => runWithOverrides(
+            () =>
+                coherence.assertCoherent(releasePlatform: ReleasePlatform.ios),
+          ),
+          throwsA(isA<ProcessExit>()),
+        );
+      });
+
+      test('an ANDROID build still passes with no published source', () {
+        when(() => platform.environment).thenReturn({});
+        makeCheckout();
+        expect(
+          () => runWithOverrides(
+            () => coherence.assertCoherent(
+              releasePlatform: ReleasePlatform.android,
+            ),
+          ),
+          returnsNormally,
         );
       });
     });
