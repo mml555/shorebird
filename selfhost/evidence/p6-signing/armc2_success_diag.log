@@ -1,0 +1,3 @@
+pid=47881 patch=1 raw_boot_attempt=1 prior_ambiguous_attempts=0 recovery_event_decision=SUPPRESSED
+pid=47920 patch=1 raw_boot_attempt=1 prior_ambiguous_attempts=0 recovery_event_decision=SUPPRESSED
+pid=47935 patch=2 raw_boot_attempt=1 prior_ambiguous_attempts=0 recovery_event_decision=SUPPRESSED
