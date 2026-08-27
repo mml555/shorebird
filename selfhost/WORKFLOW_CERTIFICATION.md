@@ -136,15 +136,16 @@ Wi-Fi and may be perfectly valid with USB forwarding — see
 | evidence | `evidence/g10.2-noninteractive/` |
 | re-certify when | any prompt is added to a release or patch path |
 
-## 7 · signing — `UNCERTIFIED`
+## 7 · signing — `CERTIFIED`
 
-> **Cryptographic verification boundary PROVEN; execution identity RESOLVED
-> (no security defect); launch-attribution defect FIXED AND PINNED IN SOURCE,
-> NOT YET PROVEN ON HARDWARE.**
+> **Cryptographic verification boundary PROVEN. Execution identity RESOLVED — no
+> security defect. Launch-attribution defect FIXED AND PROVEN ON HARDWARE.**
 >
-> Nothing about the fix has run on a device. The bytes on the phone are still the
-> old cell. One rejection launch plus one recovery launch on a rebuilt cell is
-> the whole remaining gap.
+> A patch whose only defect was a signature invalid under the release's baked-in
+> public key was downloaded, installed, refused at boot and tombstoned — and the
+> last-known-good patch continued to run, on that launch AND the next, with its
+> artifact intact. That is the box 12 failure closed on device, same fixture,
+> same phone, same intentional defect; only the runtime changed.
 
 | field | value |
 |---|---|
@@ -156,8 +157,10 @@ Wi-Fi and may be perfectly valid with USB forwarding — see
 | **diagnosed — launch attribution** | **proven, not hypothesised.** `report_launch_start` records `next_boot_patch` before validation; validation then rejects it and nothing corrects `currently_booting_patch`, so `Launch success for patch 2` was logged while patch 1's artifact ran. `last_booted_patch` became **2**, `cleanup_older_than(2)` deleted patch 1, and a later launch dropped to the base release. Root cause found in the engine, not inferred: iOS's `SetBaseSnapshot()` resolves the base isolate snapshot and so reached `ResolveIsolateData()` — which reported launch start — **one line before** `ValidateNextBootPatch()` ran |
 | **FIXED IN SOURCE — launch attribution** | one call, `Updater::PrepareNextBootPatch()` → `shorebird_prepare_next_boot_patch()` → `UpdaterState::prepare_next_boot()`: validate, select, attribute in a single state transition, so `currently_booting_patch` == the patch number of the returned path **by construction**. The two old accessors are REMOVED from the C++ interface so the sequence cannot be reassembled. Retention unchanged and no exception needed. Five prepare rows + the load-bearing regression, mutation-tested (old ordering fails 3 of 5 while both happy-path rows still pass — the defect's survival mechanism). Also fixed a vacuity found on the way: `updater_unittests.cc` had **never executed**, because its only target does not link on this host build. `ATTRIBUTION_FIX.md` |
 | **RESOLVED — execution identity** | the rejected patch **never executed**. On the rejection boot the engine's `active path:` was `patches/1/dlc.vmcode`, digest `296b9880…` = **P1**, not P2. Validation rejects before selection and selection falls back correctly, so a `Bad{ValidationFailed}` artifact is never handed to the VM. **No security defect.** `ARM_C_EXECUTION_IDENTITY.md` |
-| owed to certify | **hardware only.** Rebuild + republish the iOS cell on updater `af6e842ccf87`, activate it through `activate_cell.sh`, then one K2 rejection launch and one recovery launch: patch 1 must continue, not the base release. Arm A, Arm B, the shipped-K1 proof, K1 positive acceptance and host K2 verification are NOT repeated — nothing in this fix touches them |
-| blocked on a decision | the revision bump collides with `MEASUREMENT_MODE.md`. Whether the telemetry epoch continues across `f729f958e9be` → `af6e842ccf87`, and whether the new revision joins `eligibleUpdaterRevisions`, are open. Neither blocks the device tail; both block calling the measurement continuous |
+| **proven — rejection + recovery on device** | cell `4792f0ec`, release 1.3.0+1, updater `af6e842ccf87`. Patch 2 (K2-signed, invalid under the release's K1) refused at boot: `Next boot candidate rejected` → `Prepared boot of patch 1.` → `success_diag: patch=1`, `last_booted_patch=1`, patch 1 `Installed` with `dlc.vmcode` present and digest unchanged, patch 2 `Bad{ValidationFailed}` with **no activation trace**. The next launch selected patch 1 again and rendered `SIGN-V2` (screenshot). `SIGN-V3` never appeared anywhere. `box12/` |
+| **the call path, measured** | `Preparing next boot.` ×7 across 7 processes; `Reporting launch start.` ×0. The old three-call sequence is absent from the running engine — established by its absence in the log, not by symbol absence, since the Rust function is still linked |
+| carried forward, outside this row | a **launch disappearance** on the first activation of a newly installed patch (3 occurrences, 2 cells). Real and unresolved, tracked as a reliability defect: evidence places it downstream of every stage this row certifies — signature verification, selection, attribution and Route B activation all completed in the crashing process, which then banked success crediting patch 1. No crash report on two pulls. `crash_reports/setup_crash_2026_08_27/CLASSIFICATION.md` |
+| blocked on a decision, not on evidence | the revision bump collides with `MEASUREMENT_MODE.md`. Whether the telemetry epoch continues across `f729f958e9be` → `af6e842ccf87`, and whether the new revision joins `eligibleUpdaterRevisions`, are open. Neither affects this row |
 | boundary | technical signing-path certification is **not** App Store policy approval. `APPSTORE_COMPLIANCE.md` OPEN-1 remains the distribution-signing arm |
 | re-certify when | the signing pipeline or the boot-selection/attribution path changes |
 
@@ -206,14 +209,23 @@ Six rows are certification of machinery that already exists and mostly works;
 four are where new findings should be expected. Nothing here is claimed green to
 satisfy a checklist:
 
-- `CERTIFIED`: 7 (baseline, flavor, Dart defines, obfuscation, custom target, tracks — scoped to server-side routing — and manual updater API)
+- `CERTIFIED`: 8 (baseline, flavor, Dart defines, obfuscation, custom target, tracks — scoped to server-side routing — manual updater API, and signing)
 - `P6_DEVICE_EPOCH_READY = true` — cell `8e659812…`, release 113, inherited by every later device row rather than re-established per row
+- **the signing row runs on a later cell**, `4792f0ec…` / updater `af6e842ccf87`, minted for the attribution fix. Runtime-only relative to `ca7d2c0d`: exactly the three iOS engine members moved, all ten host producer members byte-identical (`p6-signing/CELL_4792f0ec_AB_MANIFEST.md`)
 - `BLOCKED`: 1 (CI, on a Linux builder)
-- `UNCERTIFIED`: 1 (signing)
 - `NOT ASSESSED`: 1 (Add-to-App)
 
-**Signing is the one remaining uncertified row.** Its three arms are proven and
-its one real defect — false launch attribution destroying the last-known-good
-patch — is now fixed in source and mutation-tested. What is outstanding is a cell
-rebuild plus two by-hand launches, and one cross-lane decision about the
-telemetry epoch (`MEASUREMENT_MODE.md`). No design work remains.
+**Signing is now certified**, and it was the row that produced the only real
+product defect this programme found: launch attribution was not transactionally
+coupled to validated boot selection, so a signature-rejected patch stayed credited
+and cleanup destroyed the last-known-good patch it should have fallen back to.
+Fixed by making validation, selection and attribution one state transition,
+mutation-tested on the host, and proven on hardware.
+
+Two things remain open and neither is a certification gap. The **launch
+disappearance** is a live reliability defect tracked separately — three
+occurrences, no crash report, downstream of every boundary Signing certifies. And
+the **telemetry epoch decision** in `MEASUREMENT_MODE.md`: `af6e842ccf87` is a
+lifecycle-behaviour change, so whether the sample continues across it, and whether
+it joins `eligibleUpdaterRevisions`, is a judgement to be made rather than a
+measurement to be taken.

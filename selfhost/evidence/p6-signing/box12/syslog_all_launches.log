@@ -10169,3 +10169,735 @@ Aug 27 18:23:27.467704 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUn
 Aug 27 18:23:31.096678 SpringBoard(CoreMotion)[47602] <Debug>: CLMotionNotifier::addDispatcherPrivate Added dispatcher for notification:<private>, Update Interval:<private>(<private>Hz)
 Aug 27 18:23:31.097160 SpringBoard(CoreMotion)[47602] <Debug>: CLMotionNotifier::addDispatcherPrivate Added dispatcher for notification:<private>, Update Interval:<private>(<private>Hz)
 Aug 27 18:23:32.487834 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -37 Snr:35 Cca: 16 TxFrames: 0 TxFail: 0 BcnRx: 0 BcnSch: 0  RxFrames: 9 RxRetries: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 2 TxFwFail:0 TxRetries: 0
+Aug 27 18:23:37.499656 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -36 Snr:35 Cca: 16 TxFrames: 0 TxFail: 0 BcnRx: 97 BcnSch: 98  RxFrames: 3 RxRetries: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail:0 TxRetries: 0
+Aug 27 18:23:41.795546 bluetoothd[86] <Debug>: addFilters fDebugControllerConfigDispatchSequence:NO dispatchConfig:NO
+Aug 27 18:23:42.506455 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -36 Snr:35 Cca: 33 TxFrames: 0 TxFail: 0 BcnRx: 0 BcnSch: 0  RxFrames: 1 RxRetries: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail:0 TxRetries: 0
+Aug 27 18:23:47.526658 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -37 Snr:35 Cca: 14 TxFrames: 0 TxFail: 0 BcnRx: 97 BcnSch: 98  RxFrames: 3 RxRetries: 1 TxRate: 24000 RxRate: 585000 FBRate: 468000 TxFwFrms: 3 TxFwFail:0 TxRetries: 0
+Aug 27 18:23:52.534435 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -37 Snr:35 Cca: 31 TxFrames: 0 TxFail: 0 BcnRx: 0 BcnSch: 0  RxFrames: 2 RxRetries: 0 TxRate: 24000 RxRate: 585000 FBRate: 468000 TxFwFrms: 0 TxFwFail:0 TxRetries: 0
+Aug 27 18:23:57.544875 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -37 Snr:35 Cca: 31 TxFrames: 0 TxFail: 0 BcnRx: 97 BcnSch: 98  RxFrames: 3 RxRetries: 0 TxRate: 24000 RxRate: 585000 FBRate: 468000 TxFwFrms: 0 TxFwFail:0 TxRetries: 0
+Aug 27 18:24:00.538727 SpringBoard(CoreMotion)[47602] <Debug>: CLMotionNotifier::addDispatcherPrivate Added dispatcher for notification:<private>, Update Interval:<private>(<private>Hz)
+Aug 27 18:24:00.539804 SpringBoard(CoreMotion)[47602] <Debug>: CLMotionNotifier::addDispatcherPrivate Added dispatcher for notification:<private>, Update Interval:<private>(<private>Hz)
+Aug 27 18:24:02.546207 bluetoothd[86] <Debug>: addFilters fDebugControllerConfigDispatchSequence:NO dispatchConfig:NO
+Aug 27 18:24:02.570888 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -38 Snr:35 Cca: 31 TxFrames: 0 TxFail: 0 BcnRx: 0 BcnSch: 0  RxFrames: 2 RxRetries: 0 TxRate: 24000 RxRate: 585000 FBRate: 468000 TxFwFrms: 0 TxFwFail:0 TxRetries: 0
+Aug 27 18:24:07.583720 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -37 Snr:35 Cca: 11 TxFrames: 0 TxFail: 0 BcnRx: 97 BcnSch: 98  RxFrames: 2 RxRetries: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 2 TxFwFail:0 TxRetries: 0
+Aug 27 18:24:12.584173 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -37 Snr:35 Cca: 33 TxFrames: 0 TxFail: 0 BcnRx: 0 BcnSch: 0  RxFrames: 1 RxRetries: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail:0 TxRetries: 0
+Aug 27 18:24:17.593904 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -37 Snr:35 Cca: 21 TxFrames: 0 TxFail: 0 BcnRx: 96 BcnSch: 98  RxFrames: 2 RxRetries: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail:0 TxRetries: 0
+Aug 27 18:24:18.048286 configd(IPConfiguration)[40] <Debug>: bootp_client_open_socket (en2): refcount 1
+Aug 27 18:24:18.048735 configd(IPConfiguration)[40] <Debug>: bootp_session_open_socket(): opened bootp socket 19
+Aug 27 18:24:18.567644 SpringBoard(CoreMotion)[47602] <Debug>: CLMotionNotifier::addDispatcherPrivate Added dispatcher for notification:<private>, Update Interval:<private>(<private>Hz)
+Aug 27 18:24:18.568118 SpringBoard(CoreMotion)[47602] <Debug>: CLMotionNotifier::addDispatcherPrivate Added dispatcher for notification:<private>, Update Interval:<private>(<private>Hz)
+Aug 27 18:24:18.627329 backboardd(MultitouchHID)[65] <Notice>: [HID] [MT] dispatchEvent Dispatching event with 1 children, _eventMask=0x863 _childEventMask=0x843 Cancel=0 Touching=1 inRange=1
+Aug 27 18:24:18.628195 backboardd(IOKit)[65] <Info>: 648A9C0B-D7B9-4519-A1DD-69C30B10306B: iohideventsystem_client_dispatch_properties_changed:0x10004003
+Aug 27 18:24:18.636491 SpringBoard(UIKitCore)[47602] <Notice>: Evaluating dispatch of UIEvent: 0x28285f540; type: 0; subtype: 0; backing type: 11; shouldSend: 1; ignoreInteractionEvents: 0, systemGestureStateChange: 0
+Aug 27 18:24:18.642940 SpringBoard(UIKitCore)[47602] <Notice>: Evaluating dispatch of UIEvent: 0x282871a40; type: 0; subtype: 0; backing type: 11; shouldSend: 1; ignoreInteractionEvents: 0, systemGestureStateChange: 0
+Aug 27 18:24:18.644593 backboardd(MultitouchHID)[65] <Notice>: [HID] [MT] dispatchEvent Dispatching event with 1 children, _eventMask=0x23 _childEventMask=0x803 Cancel=0 Touching=0 inRange=0
+Aug 27 18:24:18.782541 SpringBoard(UIKitCore)[47602] <Notice>: Evaluating dispatch of UIEvent: 0x28285f540; type: 0; subtype: 0; backing type: 11; shouldSend: 1; ignoreInteractionEvents: 0, systemGestureStateChange: 0
+Aug 27 18:24:18.785625 SpringBoard(UIKitCore)[47602] <Debug>: Exclusive touch began -- moving to dispatch mode:ignoring
+Aug 27 18:24:18.785873 backboardd[65] <Debug>: System gestures no longer possible (<0x103074200> - (null)) causedByTouchStream: <BKDigitizerTouchStreamClient: 0x107782fd0; pid: 47602(v6B9EC); SpringBoard; system-gestures; creationTime: 1604977.3272; contextID: EC2E19DD; clientPort: 3611F; valid: YES; dispatchMode: ignoring; ambiguityRecommendation: process; pathsTouchingMask: 0x0>
+Aug 27 18:24:18.787007 SpringBoard(UIKitCore)[47602] <Notice>: Evaluating dispatch of UIEvent: 0x282871a40; type: 0; subtype: 0; backing type: 11; shouldSend: 1; ignoreInteractionEvents: 0, systemGestureStateChange: 0
+Aug 27 18:24:18.788713 SpringBoard(SpringBoardHome)[47602] <Info>: Telling current folder controller to prepare to launch: <private>
+Aug 27 18:24:18.793351 SpringBoard(Security)[47602] <Debug>: open(/private/var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Runner,0x0,0x1b6) = 35
+Aug 27 18:24:18.793487 SpringBoard(Security)[47602] <Debug>: open(/private/var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Runner,0x0,0x1b6) = 36
+Aug 27 18:24:18.798859 SpringBoard(Security)[47602] <Debug>: 6087 signing bytes in 5 blob(s) from /private/var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Runner(arm64)
+Aug 27 18:24:18.800962 trustd(Security)[128] <Debug>: SecKeyVerifySignature failed: Error Domain=NSOSStatusErrorDomain Code=-50 "rsa_pub_crypt failed, ccerr=-7" UserInfo={numberOfErrorsDeep=0, NSDescription=rsa_pub_crypt failed, ccerr=-7}
+Aug 27 18:24:18.803512 trustd(Security)[128] <Debug>: SecKeyVerifySignature failed: Error Domain=NSOSStatusErrorDomain Code=-50 "<SecKeyRef algorithm id: 1, key type: RSAPublicKey, version: 4, block size: 2048 bits, exponent: {hex: 10001, decimal: 65537}, modulus: 89764F065B9A41EEA5232B02A35FD7733FC035B08B840A3F06247FA7953FEB4F0E93AFB40ED0C83EE56D18B31FE88947BFD70908E4FF56982915E7949DB935A30ACDB4C0E1E260F4CAEC2978456969606B5F8A92FC9E23E63AC222B3314F1CBAF2B6345942EEB0A90203189104B6B3782E331F80450D456FBB0E5A5B7F3AE7D808D70B0E326DFB8636E46CABC4118A708426AA9F44D1F1B8C67B94179B48F70B5816BA23C59F15397ECA5DC3325F0FE0527F40EABEAC0864955BC91A9CE580CA1F6A441C6C3EC4B0261F1DEC7BAF5EA06A3D47A95812313F2076286D1D1CB0C24E1169268BCBD6D01182C94E0FF15674D0D9084B6678A2ABACA7E2D24C8759C9, addr: 0x100f5b730>: sign - input buffer bad size (264 bytes)" UserInfo={numberOfErrorsDeep=0, NSDescription=<SecKeyRef algorithm id: 1, key type: RSAPublicKey, version: 4, block size: 2048 bits, exponent: {hex: 10001, decimal: 65537}, modulus: 89764F065B9A41EEA5232B02A35FD7733FC035B08B840A3F
+Aug 27 18:24:18.809096 SpringBoard(Security)[47602] <Debug>: open(/private/var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Info.plist,0x0,0x1b6) = 35
+Aug 27 18:24:18.816715 SpringBoard(FrontBoard)[47602] <Notice>: Asked to bootstrap a new process with identity: application<dev.selfhost.signProbeApp>
+Aug 27 18:24:18.817775 SpringBoard(FrontBoard)[47602] <Notice>: Bootstrapping application<dev.selfhost.signProbeApp> with intent foreground-interactive
+	<RBSDomainAttribute| domain:"com.apple.frontboard" name:"Bootstrap-Foreground" sourceEnvironment:"(null)">,
+Aug 27 18:24:18.922434 SpringBoard[47602] <Notice>: [Main] dispatch event:
+Aug 27 18:24:18.924652 SpringBoard(BaseBoard)[47602] <Info>: <SBSceneLayoutWorkspaceTransaction:0x109d89060> Adding child transaction: <BSBlockTransaction: 0x282a78000>: prepareTransition
+Aug 27 18:24:18.935666 runningboardd(CoreServices)[33] <Debug>: Invoking selector codeSignatureVersionWithContext:tableID:unitID:unitBytes: on <LSApplicationRecord 0x1011123d0> to get the value for property codeSignatureVersion
+Aug 27 18:24:18.940475 SpringBoard(BaseBoard)[47602] <Info>: <SBSceneLayoutWorkspaceTransaction:0x109d89060> Child transaction finished work: <BSBlockTransaction: 0x282a78000>: prepareTransition
+Aug 27 18:24:18.942154 runningboardd(RunningBoard)[33] <Info>: _requestedJetsamPriority = 3, _executablePath = /var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Runner
+Aug 27 18:24:18.943338 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) sent a request related to { com.apple.UIKit, user: mobile, kCFPreferencesCurrentHost, /Library/Managed Preferences/mobile/com.apple.UIKit.plist, managed: 1 } (0x1018308d0)
+Aug 27 18:24:18.943573 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) sent a request related to { com.apple.UIKit, user: kCFPreferencesAnyUser, kCFPreferencesCurrentHost, /Library/Managed Preferences/com.apple.UIKit.plist, managed: 1 } (0x1018308d0)
+Aug 27 18:24:18.943880 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) sent a request related to { com.apple.UIKit, user: mobile, kCFPreferencesAnyHost, /var/mobile/Library/Preferences/com.apple.UIKit.plist, managed: 0 } (0x100317d00)
+Aug 27 18:24:18.944004 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) read data for { com.apple.UIKit, mobile, kCFPreferencesAnyHost, /var/mobile/Library/Preferences/com.apple.UIKit.plist, managed: 0 }, backed by /private/var/mobile/Library/Preferences/com.apple.UIKit.plist
+Aug 27 18:24:18.944950 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) sent a request related to { kCFPreferencesAnyApplication, user: mobile, kCFPreferencesCurrentHost, /Library/Managed Preferences/mobile/.GlobalPreferences.plist, managed: 1 } (0x10030c020)
+Aug 27 18:24:18.945192 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) read data for { kCFPreferencesAnyApplication, mobile, kCFPreferencesCurrentHost, /Library/Managed Preferences/mobile/.GlobalPreferences.plist, managed: 1 }, backed by /private/var/Managed Preferences/mobile/.GlobalPreferences.plist
+Aug 27 18:24:18.945415 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) sent a request related to { kCFPreferencesAnyApplication, user: mobile, kCFPreferencesAnyHost, /var/mobile/Library/Preferences/.GlobalPreferences.plist, managed: 0 } (0x10030c3f0)
+Aug 27 18:24:18.946999 SpringBoard[47602] <Notice>: [Main] dispatch event:
+<SBTransitionSwitcherModifierEvent: 0x28216df00; type: MainTransition; transitionID: FFD5FB99-A8DA-4AB3-BC0E-74169440A765; phase: Prepare; animated: YES; fromAppLayout: 0x0; toAppLayout: <SBAppLayout: 0x28082c600; primary: dev.selfhost.signProbeApp:default; environment: main>; fromEnvironmentMode: home-screen; toEnvironmentMode: application; pendingTermination: {(
+Aug 27 18:24:18.947229 Runner(CoreFoundation)[49259] <Debug>: Using ~iphone resources
+Aug 27 18:24:18.947304 Runner(CoreFoundation)[49259] <Debug>: CFPrefsManagedSource<0x281655b00> (Domain: com.apple.UIKit, User: kCFPreferencesCurrentUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 18:24:18.947369 Runner(CoreFoundation)[49259] <Debug>: CFPrefsManagedSource<0x281656180> (Domain: com.apple.UIKit, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 18:24:18.947450 Runner(CoreFoundation)[49259] <Debug>: CFPrefsPlistSource<0x281655380> (Domain: com.apple.UIKit, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) loaded: a new base plist and no additional changes from the base plist
+Aug 27 18:24:18.947526 Runner(CoreFoundation)[49259] <Debug>: CFPrefsManagedSource<0x281656500> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesCurrentUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: a new base plist and no additional changes from the base plist
+Aug 27 18:24:18.947628 Runner(CoreFoundation)[49259] <Debug>: CFPrefsPlistSource<0x281656280> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) loaded: a new base plist and no additional changes from the base plist
+Aug 27 18:24:18.947810 SpringBoard(FrontBoard)[47602] <Notice>: [application<dev.selfhost.signProbeApp>:-1] Bootstrap success!
+Aug 27 18:24:18.948651 SpringBoard(BaseBoard)[47602] <Debug>:  *|machport|* <BSMachPortTaskNameRight: 0x2808dbc80; usable: YES; (47602:1561f:send task_name_for_pid:Runner.49259)> -> (<NSThread: 0x280841bc0>{number = 330, name = (null)}) (
+Aug 27 18:24:18.948903 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) read data for { kCFPreferencesAnyApplication, mobile, kCFPreferencesAnyHost, /var/mobile/Library/Preferences/.GlobalPreferences.plist, managed: 0 }, backed by /private/var/mobile/Library/Preferences/.GlobalPreferences.plist
+Aug 27 18:24:18.948979 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) sent a request related to { com.apple.UIKit, user: kCFPreferencesAnyUser, kCFPreferencesCurrentHost, /var/preferences/com.apple.UIKit.plist, managed: 0 } (0x101822c00)
+Aug 27 18:24:18.949066 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) sent a request related to { kCFPreferencesAnyApplication, user: kCFPreferencesAnyUser, kCFPreferencesCurrentHost, /var/preferences/.GlobalPreferences.plist, managed: 0 } (0x100316b90)
+Aug 27 18:24:18.949159 Runner(CoreFoundation)[49259] <Debug>: CFPrefsPlistSource<0x281656700> (Domain: com.apple.UIKit, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 18:24:18.949199 Runner(CoreFoundation)[49259] <Debug>: CFPrefsPlistSource<0x281656c80> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 18:24:18.949277 Runner(CoreFoundation)[49259] <Debug>: found no value for key LogHIDEventFiltered in CFPrefsSearchListSource<0x281655080> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 18:24:18.949326 Runner(CoreFoundation)[49259] <Debug>: found no value for key LogHIDEventIncoming in CFPrefsSearchListSource<0x281655080> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 18:24:18.949591 Runner(libMobileGestalt.dylib)[49259] <Notice>: Cache loaded with 4896 pre-cached in CacheData and 49 items in CacheExtra.
+Aug 27 18:24:18.949637 Runner(CoreFoundation)[49259] <Debug>: found no value for key LogApplication in CFPrefsSearchListSource<0x281655080> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 18:24:18.949682 Runner(UIKitCore)[49259] <Notice>: Deactivation reason added: 10; deactivation reasons: 0 -> 1024; animating application lifecycle event: 0
+Aug 27 18:24:18.949715 Runner(RunningBoardServices)[49259] <Notice>: Initializing connection
+Aug 27 18:24:18.949748 Runner(RunningBoardServices)[49259] <Notice>: Removing all cached process handles
+Aug 27 18:24:18.949814 Runner(BoardServices)[49259] <Notice>: activating monitor for service com.apple.frontboard.open
+Aug 27 18:24:18.950034 Runner(BoardServices)[49259] <Notice>: activating monitor for service com.apple.frontboard.workspace-service
+	<RBSProcessAssertionInfo| type:2 reason:10000 name:"Domain" domain:"com.apple.frontboard:Bootstrap-Foreground,com.apple.frontboard:Visibility" expl:"FBApplicationProcess">
+	<RBSProcessAssertionInfo| type:2 reason:10000 name:"Domain" domain:"com.apple.frontboard:Bootstrap-Foreground,com.apple.frontboard:Visibility" expl:"FBApplicationProcess">
+Aug 27 18:24:18.950645 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) sent a request related to { dev.selfhost.signProbeApp, user: mobile, kCFPreferencesCurrentHost, /Library/Managed Preferences/mobile/dev.selfhost.signProbeApp.plist, managed: 1 } (0x1003469d0)
+Aug 27 18:24:18.950720 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) sent a request related to { dev.selfhost.signProbeApp, user: kCFPreferencesAnyUser, kCFPreferencesCurrentHost, /Library/Managed Preferences/dev.selfhost.signProbeApp.plist, managed: 1 } (0x1003469d0)
+Aug 27 18:24:18.951215 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) sent a request related to { dev.selfhost.signProbeApp, user: mobile, kCFPreferencesAnyHost, /var/mobile/Containers/Data/Application/11661782-F151-4EE7-9C46-46EAFC27A837/Library/Preferences/dev.selfhost.signProbeApp.plist, managed: 0 } (0x100362850)
+Aug 27 18:24:18.951417 backboardd(IOKit)[65] <Notice>: Connection added: IOHIDEventSystemConnection uuid:31FADACB-0141-41E2-B87D-9F40F1417202 pid:49259 process:Runner type:Passive entitlements:0x0 caller:BackBoardServices: <redacted> + 336 attributes:{
+Aug 27 18:24:18.951498 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: Got a client addition callback: IOHIDEventSystemConnection uuid:31FADACB-0141-41E2-B87D-9F40F1417202 pid:49259 process:Runner type:Passive entitlements:0x0 caller:BackBoardServices: <redacted> + 336 attributes:{
+Aug 27 18:24:18.951556 backboardd(BackBoardHIDEventFoundation)[65] <Info>: HID connection vpid:49259(v6CD3A) bundleID:dev.selfhost.signProbeApp successfully initialized: IOHIDEventSystemConnection uuid:31FADACB-0141-41E2-B87D-9F40F1417202 pid:49259 process:Runner type:Passive entitlements:0x0 caller:BackBoardServices: <redacted> + 336 attributes:{
+Aug 27 18:24:18.951615 backboardd(BackBoardHIDEventFoundation)[65] <Notice>: Adding client connection: <BKHIDClientConnection: 0x1026f3f50; IOHIDEventSystemConnectionRef: 0x10dc148b0; vpid: 49259(v6CD3A); taskPort: 0x33C53; bundleID: dev.selfhost.signProbeApp> for client: IOHIDEventSystemConnection uuid:31FADACB-0141-41E2-B87D-9F40F1417202 pid:49259 process:Runner type:Passive entitlements:0x0 caller:BackBoardServices: <redacted> + 336 attributes:{
+	<RBSProcessAssertionInfo| type:2 reason:10000 name:"Domain" domain:"com.apple.frontboard:Bootstrap-Foreground,com.apple.frontboard:Visibility" expl:"FBApplicationProcess">,
+Aug 27 18:24:18.959333 Runner(FrontBoardServices)[49259] <Notice>: FBSWorkspace connecting to endpoint : <private>
+Aug 27 18:24:18.959376 Runner(FrontBoardServices)[49259] <Notice>: FBSWorkspace registering source: <private>
+Aug 27 18:24:18.959408 Runner(FrontBoardServices)[49259] <Notice>: FBSWorkspace connected to endpoint : <private>
+Aug 27 18:24:18.959452 Runner(RunningBoardServices)[49259] <Notice>: Added observer for process assertions expiration warning: <_RBSExpirationWarningClient: 0x283858c60>
+Aug 27 18:24:18.959507 Runner(CoreFoundation)[49259] <Debug>: CFPrefsManagedSource<0x281651200> (Domain: dev.selfhost.signProbeApp, User: kCFPreferencesCurrentUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 18:24:18.959553 Runner(CoreFoundation)[49259] <Debug>: CFPrefsManagedSource<0x281651300> (Domain: dev.selfhost.signProbeApp, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 18:24:18.959592 SpringBoard(BaseBoard)[47602] <Debug>:  *|machport|* <BSMachPortTaskNameRight: 0x2808fc700; usable: YES; (47602:1561f:send task_name_for_pid:Runner.49259)> -> (<NSThread: 0x2808fc240>{number = 331, name = (null)}) (
+Aug 27 18:24:18.960141 SpringBoard(FrontBoard)[47602] <Notice>: Asked to bootstrap a new process for handle: [application<dev.selfhost.signProbeApp>:49259]
+Aug 27 18:24:18.962771 SpringBoard(FrontBoard)[47602] <Notice>: [application<dev.selfhost.signProbeApp>:49259] Registering event dispatcher at connect
+Aug 27 18:24:18.962950 SpringBoard(FrontBoard)[47602] <Notice>: Registering: <FBWorkspaceEventDispatcherRegistration: 0x281227810> for identity: 49259
+Aug 27 18:24:18.964788 Runner(CoreFoundation)[49259] <Debug>: CFPrefsPlistSource<0x281651280> (Domain: dev.selfhost.signProbeApp, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 18:24:18.964832 Runner(CoreFoundation)[49259] <Debug>: CFPrefsPlistSource<0x281651480> (Domain: dev.selfhost.signProbeApp, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 18:24:18.964938 Runner(CoreFoundation)[49259] <Debug>: looked up value <private> for key AppleLanguages in CFPrefsPlistSource<0x281656280> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) via CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:18.964989 Runner(CoreFoundation)[49259] <Debug>: setting new value <private> for key <private> in CFPrefsSource<0x282d55100> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No)
+Aug 27 18:24:18.965075 Runner(CoreFoundation)[49259] <Debug>: setting new value <private> for key <private> in CFPrefsSource<0x282d55100> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No)
+Aug 27 18:24:18.965143 Runner(CoreFoundation)[49259] <Debug>: setting new value <private> for key <private> in CFPrefsSource<0x282d55100> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No)
+Aug 27 18:24:18.965860 backboardd(IOKit)[65] <Debug>: SetProperty called IOHIDEventSystemClientIsUnresponsive=0 caller=IOHIDEventSystemConnection uuid:31FADACB-0141-41E2-B87D-9F40F1417202 pid:49259 process:Runner type:Passive entitlements:0x0 caller:BackBoardServices: <redacted> + 336 attributes:{
+Aug 27 18:24:18.965957 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: RESO: considering root 2-dispatchDiscrete: SB-VoiceCommand
+Aug 27 18:24:18.966010 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: RESO: considering rule <BKSHIDEventDiscreteDispatchingRule: 0x108eb6200; target: keyboardFocus:47602> senders = {
+Aug 27 18:24:18.967507 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: RESO:   -> resolved 2-dispatchDiscrete: SB-VoiceCommand to <display=builtin environment=keyboardFocus vpid=<invalid> pid=47602 token=b4a8982e>
+Aug 27 18:24:18.967547 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: RESO: considering root 1-dispatchDiscrete: SB-Default
+Aug 27 18:24:18.967584 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: RESO: considering rule <BKSHIDEventDiscreteDispatchingRule: 0x108e652b0; target: system:47602> senders = {
+Aug 27 18:24:18.968309 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: RESO:   -> resolved 1-dispatchDiscrete: SB-Default to <display=null environment=system vpid=<invalid> pid=47602 token=ec2e19dd>
+Aug 27 18:24:18.968383 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: RESO: considering rule <BKSHIDEventDiscreteDispatchingRule: 0x108ec13e0; target: system:47602; senders: (empty)>
+Aug 27 18:24:18.969120 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: RESO:   -> resolved 1-dispatchDiscrete: SB-Default to <display=null environment=system vpid=<invalid> pid=47602 token=ec2e19dd>
+Aug 27 18:24:18.969384 Runner(CoreFoundation)[49259] <Debug>: found no value for key UIScreenIsCapturedValue in CFPrefsSearchListSource<0x281655080> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 18:24:18.969428 Runner(CoreFoundation)[49259] <Debug>: looked up value <private> for key AppleLanguages in CFPrefsPlistSource<0x281656280> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) via CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:18.969499 Runner(CoreFoundation)[49259] <Debug>: Language lookup at <private>
+Aug 27 18:24:18.969551 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:18.969896 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: RESO:   -> resolved 1-dispatchDiscrete: SB-Default to <display=null environment=system vpid=<invalid> pid=47602 token=ec2e19dd>
+Aug 27 18:24:18.969931 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: RESO: considering rule <BKSHIDEventDiscreteDispatchingRule: 0x108e91e30; target: keyboardFocus:47602> senders = {
+Aug 27 18:24:18.970850 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: RESO:   -> resolved 1-dispatchDiscrete: SB-Default to <display=builtin environment=keyboardFocus vpid=<invalid> pid=47602 token=b4a8982e>
+Aug 27 18:24:18.970917 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: RESO: considering rule <BKSHIDEventDiscreteDispatchingRule: 0x108e6ced0; target: system:47602> senders = {
+Aug 27 18:24:18.971589 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: RESO:   -> resolved 1-dispatchDiscrete: SB-Default to <display=null environment=system vpid=<invalid> pid=47602 token=ec2e19dd>
+Aug 27 18:24:18.972322 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: RESO:   -> resolved 1-dispatchDiscrete: SB-Default to <display=null environment=system vpid=<invalid> pid=47602 token=ec2e19dd>
+Aug 27 18:24:18.972383 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: RESO: considering rule <BKSHIDEventDiscreteDispatchingRule: 0x108ef1740; target: keyboardFocus:47602> senders = {
+Aug 27 18:24:18.972456 kernel(Sandbox)[0] <Notice>: /private/var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Runner[49259] ==> container
+Aug 27 18:24:18.972547 kernel(Sandbox)[0] <Error>: Sandbox: Runner(49259) deny(2) file-test-existence /private/etc/.mdns_debug
+Aug 27 18:24:18.972638 Runner(CoreFoundation)[49259] <Debug>: found no value for key _UIEnableLegacyRTL in CFPrefsSearchListSource<0x281655080> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 18:24:18.973392 Runner(CoreFoundation)[49259] <Debug>: found no value for key NSTighteningFactorForTruncation in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:18.974959 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) sent a request related to { dev.selfhost.signProbeApp, user: kCFPreferencesAnyUser, kCFPreferencesCurrentHost, /var/preferences/dev.selfhost.signProbeApp.plist, managed: 0 } (0x1003679d0)
+Aug 27 18:24:18.975134 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) sent a request related to { com.apple.Accessibility, user: mobile, kCFPreferencesCurrentHost, /Library/Managed Preferences/mobile/com.apple.Accessibility.plist, managed: 1 } (0x101814050)
+Aug 27 18:24:18.975876 Runner(CoreFoundation)[49259] <Debug>: found no value for key NSTighteningFactorForTruncation in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:18.976352 Runner(CoreFoundation)[49259] <Debug>: found no value for key NSAllowsDefaultTighteningForTruncation in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:18.976734 Runner(CoreFoundation)[49259] <Debug>: found no value for key NSUsesDefaultHyphenation in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:18.976987 Runner(CoreFoundation)[49259] <Debug>: found no value for key NSDefaultHyphenationFactor in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:18.977069 Runner(CoreFoundation)[49259] <Debug>: found no value for key NSForceRightToLeftWritingDirection in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:18.977148 Runner(RunningBoardServices)[49259] <Notice>: Sending handshake request attempt #1 to server
+Aug 27 18:24:18.977287 Runner(RunningBoardServices)[49259] <Notice>: Creating connection to com.apple.runningboard
+Aug 27 18:24:18.979567 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: RESO:   -> resolved 1-dispatchDiscrete: SB-Default to <display=builtin environment=keyboardFocus vpid=<invalid> pid=47602 token=b4a8982e>
+Aug 27 18:24:18.981284 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: RESO:   -> resolved 1-dispatchDiscrete: SB-Default to <display=builtin environment=keyboardFocus vpid=<invalid> pid=47602 token=b4a8982e>
+Aug 27 18:24:18.981353 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: RESO: considering root 3-dispatchDiscrete: SBCameraHardwareButton
+Aug 27 18:24:18.981417 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: RESO: considering rule <BKSHIDEventDiscreteDispatchingRule: 0x108e1ced0; target: cameraButton:47602> senders = {
+Aug 27 18:24:18.981724 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: RESO:   -> resolved 3-dispatchDiscrete: SBCameraHardwareButton to <display=builtin environment=cameraButton vpid=<invalid> pid=47602>
+Aug 27 18:24:18.983544 Runner(CoreFoundation)[49259] <Debug>: CFPrefsManagedSource<0x281653600> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 18:24:18.983639 Runner(CoreFoundation)[49259] <Debug>: CFPrefsManagedSource<0x281653680> (Domain: com.apple.Accessibility, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 18:24:18.983726 Runner(CoreFoundation)[49259] <Debug>: CFPrefsPlistSource<0x281655a00> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) loaded: a new base plist and no additional changes from the base plist
+Aug 27 18:24:18.983800 Runner(CoreFoundation)[49259] <Debug>: CFPrefsPlistSource<0x281656680> (Domain: com.apple.Accessibility, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 18:24:18.983868 Runner(CoreFoundation)[49259] <Debug>: found no value for key ForceTouchEnabled in CFPrefsSearchListSource<0x281653500> (Domain: com.apple.Accessibility, Container: (null))
+Aug 27 18:24:18.983960 Runner(libAccessibility.dylib)[49259] <Debug>: CF Read: domain = com.apple.Accessibility, preference = ForceTouchEnabled, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 18:24:18.984333 Runner(CoreFoundation)[49259] <Debug>: found no value for key ForceTouchEnabled in CFPrefsPlistSource<0x281655a00> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:18.984382 Runner(CoreFoundation)[49259] <Debug>: found no value for key UIPreferredContentSizeCategoryName in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:18.984427 Runner(libAccessibility.dylib)[49259] <Debug>: CF Read Category Name: domain = dev.selfhost.signProbeApp, appID = dev.selfhost.signProbeApp value = (null)
+Aug 27 18:24:18.984470 Runner(libAccessibility.dylib)[49259] <Notice>: Read CategoryName: per-app = 1, category name = (null)
+Aug 27 18:24:18.984513 Runner(CoreFoundation)[49259] <Debug>: found no value for key UIPreferredContentSizeCategoryName in CFPrefsSearchListSource<0x281655080> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 18:24:18.984562 Runner(libAccessibility.dylib)[49259] <Debug>: CF Read Category Name: domain = /var/mobile/Library/Preferences/com.apple.UIKit, appID = (null) value = (null)
+Aug 27 18:24:18.984623 Runner(libAccessibility.dylib)[49259] <Notice>: Read CategoryName: per-app = 0, category name = (null)
+Aug 27 18:24:18.984667 Runner(CoreFoundation)[49259] <Debug>: found no value for key UICarPlayPreferredContentSizeCategoryName in CFPrefsSearchListSource<0x281655080> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 18:24:18.984723 Runner(CoreFoundation)[49259] <Debug>: found no value for key EnhancedTextLegibilityEnabled in CFPrefsSearchListSource<0x281653500> (Domain: com.apple.Accessibility, Container: (null))
+Aug 27 18:24:18.984780 Runner(libAccessibility.dylib)[49259] <Debug>: CF Read: domain = com.apple.Accessibility, preference = EnhancedTextLegibilityEnabled, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 18:24:18.984899 Runner(CoreFoundation)[49259] <Debug>: found no value for key EnhancedTextLegibilityEnabled in CFPrefsPlistSource<0x281655a00> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:18.984947 Runner(CoreFoundation)[49259] <Debug>: found no value for key DarkenSystemColors in CFPrefsSearchListSource<0x281653500> (Domain: com.apple.Accessibility, Container: (null))
+Aug 27 18:24:18.985312 SpringBoard[47602] <Notice>: [Main] dispatch event:
+Aug 27 18:24:18.986043 Runner(libAccessibility.dylib)[49259] <Debug>: CF Read: domain = com.apple.Accessibility, preference = DarkenSystemColors, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 18:24:18.986175 Runner(CoreFoundation)[49259] <Debug>: found no value for key DarkenSystemColors in CFPrefsPlistSource<0x281655a00> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:18.986259 Runner(CoreFoundation)[49259] <Debug>: found no value for key UITraitCollectionChangeLoggingEnabled in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:18.986395 Runner(CoreFoundation)[49259] <Debug>: found no value for key UIStateRestorationDebugLogging in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:18.986663 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:18.986888 Runner(CoreFoundation)[49259] <Debug>: looked up value <private> for key AccessibilityEnabled in CFPrefsPlistSource<0x281655a00> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) via CFPrefsSearchListSource<0x281653500> (Domain: com.apple.Accessibility, Container: (null))
+Aug 27 18:24:18.987047 Runner(libAccessibility.dylib)[49259] <Debug>: CF Read: domain = com.apple.Accessibility, preference = AccessibilityEnabled, appID = (null) result = 0 (-1 - empty, 0 - false, 1 - true)
+Aug 27 18:24:18.987191 Runner(CoreFoundation)[49259] <Debug>: looked up value <private> for key InvertColorsEnabled in CFPrefsPlistSource<0x281655a00> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) via CFPrefsSearchListSource<0x281653500> (Domain: com.apple.Accessibility, Container: (null))
+Aug 27 18:24:18.987270 Runner(libAccessibility.dylib)[49259] <Debug>: CF Read: domain = com.apple.Accessibility, preference = InvertColorsEnabled, appID = (null) result = 0 (-1 - empty, 0 - false, 1 - true)
+Aug 27 18:24:18.988522 Runner(libAccessibility.dylib)[49259] <Debug>: Read Global: preference = InvertColorsEnabled, result = 0 (-1 - empty, 0 - false, 1 - true)
+Aug 27 18:24:18.988683 Runner(libAccessibility.dylib)[49259] <Debug>: Updated cache: preference = InvertColorsEnabled, result = 0 (-1 - empty, 0 - false, 1 - true)
+Aug 27 18:24:18.988767 Runner(CoreFoundation)[49259] <Debug>: looked up value <private> for key ApplicationAccessibilityEnabled in CFPrefsPlistSource<0x281655a00> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) via CFPrefsSearchListSource<0x281653500> (Domain: com.apple.Accessibility, Container: (null))
+Aug 27 18:24:18.988861 Runner(libAccessibility.dylib)[49259] <Debug>: CF Read: domain = com.apple.Accessibility, preference = ApplicationAccessibilityEnabled, appID = (null) result = 0 (-1 - empty, 0 - false, 1 - true)
+Aug 27 18:24:18.988940 Runner(XCTTargetBootstrap)[49259] <Notice>: Registering for test daemon availability notify post.
+Aug 27 18:24:18.989012 Runner(XCTTargetBootstrap)[49259] <Notice>: notify_get_state check indicated test daemon not ready.
+Aug 27 18:24:18.989573 Runner(XCTTargetBootstrap)[49259] <Notice>: notify_get_state check indicated test daemon not ready.
+Aug 27 18:24:18.989657 Runner(XCTTargetBootstrap)[49259] <Notice>: notify_get_state check indicated test daemon not ready.
+Aug 27 18:24:18.989741 Runner(CoreFoundation)[49259] <Debug>: found no value for key UIRequireCrimsonLifecycle in CFPrefsSearchListSource<0x281655080> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 18:24:18.989828 Runner(UIKitCore)[49259] <Notice>: Deactivation reason added: 11; deactivation reasons: 1024 -> 3072; animating application lifecycle event: 0
+Aug 27 18:24:18.989920 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:18.990025 Runner(RunningBoardServices)[49259] <Notice>: Handshake succeeded
+Aug 27 18:24:19.003168 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c1a2e0; sceneUpdatePrepared-sceneID:dev.selfhost.signProbeApp-default(1)> @ back
+Aug 27 18:24:19.004157 Runner(RunningBoardServices)[49259] <Notice>: Identity resolved as application<dev.selfhost.signProbeApp>
+Aug 27 18:24:19.004192 Runner(RunningBoardServices)[49259] <Debug>: Received message from server: async_didChangeInheritances:completion:
+Aug 27 18:24:19.004219 Runner(RunningBoardServices)[49259] <Info>: didChangeInheritances
+Aug 27 18:24:19.004254 Runner(RunningBoardServices)[49259] <Info>: didChangeInheritances: <RBSInheritanceChangeSet| gained:{(
+Aug 27 18:24:19.004310 Runner(CoreFoundation)[49259] <Debug>: found no value for key UIStateRestorationDeveloperMode in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.004358 Runner(UIKitCore)[49259] <Notice>: Deactivation reason removed: 10; deactivation reasons: 3072 -> 2048; animating application lifecycle event: 0
+Aug 27 18:24:19.005038 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c1a2e0; sceneUpdatePrepared-sceneID:dev.selfhost.signProbeApp-default(1)>
+Aug 27 18:24:19.005082 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c143e0; sceneUpdatePrepared-sceneID:dev.selfhost.signProbeApp-default(1)> @ front
+Aug 27 18:24:19.005116 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c143e0; sceneUpdatePrepared-sceneID:dev.selfhost.signProbeApp-default(1)>
+Aug 27 18:24:19.005532 SpringBoard(FrontBoard)[47602] <Notice>: [sceneID:dev.selfhost.signProbeApp-default] scene content state changed: preparing
+Aug 27 18:24:19.010215 SpringBoard(BaseBoard)[47602] <Info>: <SBSceneLayoutWorkspaceTransaction:0x109d89060> Child transaction completed: <BSBlockTransaction: 0x282a78000>: prepareTransition
+Aug 27 18:24:19.013439 Runner(FrontBoardServices)[49259] <Info>: [FBSScene] [sceneID:dev.selfhost.signProbeApp-default] Created client agent: <UIApplicationSceneClientAgent: 0x283a5c290>
+Aug 27 18:24:19.013662 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Base.lproj/Main.storyboardc/
+Aug 27 18:24:19.013849 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Base.lproj/Main.storyboardc/
+Aug 27 18:24:19.014064 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Base.lproj/Main.storyboardc/
+Aug 27 18:24:19.014198 Runner(CoreFoundation)[49259] <Debug>: found no value for key _UICanvasShouldDeliverCanvasActionsToCanvasDelegateOnlyKey in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.014481 Runner(CoreFoundation)[49259] <Debug>: found no value for key LogBackgroundTask in CFPrefsSearchListSource<0x281655080> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 18:24:19.014551 Runner(UIKitCore)[49259] <Notice>: <private>: Will add backgroundTask with taskName: <private>, expirationHandler: <__NSGlobalBlock__: 0x1ec737410>
+Aug 27 18:24:19.014600 Runner(UIKitCore)[49259] <Notice>: <private>: Created background task <private>. Assertion will be assigned soon
+Aug 27 18:24:19.014695 Runner(UIKitCore)[49259] <Notice>: <private>: Creating new assertion since assertion is nil
+Aug 27 18:24:19.014797 Runner(RunningBoardServices)[49259] <Info>: Acquiring assertion: <RBSAssertionDescriptor| "Shared Background Assertion 0 for dev.selfhost.signProbeApp" ID:(null) target:49259>
+Aug 27 18:24:19.014923 Runner(RunningBoardServices)[49259] <Debug>: Adding assertion 33-49259-7326 to dictionary
+Aug 27 18:24:19.015025 Runner(UIKitCore)[49259] <Notice>: <private>: Created new assertion <BKSProcessAssertion: 0x281b50910>
+Aug 27 18:24:19.015119 Runner(UIKitCore)[49259] <Notice>: Deactivation reason added: 5; deactivation reasons: 2048 -> 2080; animating application lifecycle event: 1
+Aug 27 18:24:19.015204 Runner(CoreFoundation)[49259] <Debug>: found no value for key LogEventDeferring in CFPrefsSearchListSource<0x281655080> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 18:24:19.015281 Runner(UIKitCore)[49259] <Notice>: [0x2813520d0] Initialized with scene: <UIWindowScene: 0x1022078d0>; behavior: <_UIEventDeferringBehavior_Default: 0x28385fb40>
+Aug 27 18:24:19.015357 Runner(CoreFoundation)[49259] <Debug>: found no value for key LogKeyWindow in CFPrefsSearchListSource<0x281655080> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 18:24:19.015447 Runner(CoreFoundation)[49259] <Debug>: found no value for key FullKeyboardAccessEnabled in CFPrefsSearchListSource<0x281653500> (Domain: com.apple.Accessibility, Container: (null))
+Aug 27 18:24:19.016022 Runner(libAccessibility.dylib)[49259] <Debug>: CF Read: domain = com.apple.Accessibility, preference = FullKeyboardAccessEnabled, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 18:24:19.016107 Runner(CoreFoundation)[49259] <Debug>: found no value for key FullKeyboardAccessEnabled in CFPrefsPlistSource<0x281655a00> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.016208 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.016282 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Base.lproj/Main.storyboardc/
+Aug 27 18:24:19.016337 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Base.lproj/Main.storyboardc/UIViewController-BYZ-38-t0r.nib
+Aug 27 18:24:19.016411 Runner(CoreFoundation)[49259] <Debug>: found no value for key UITraitCollectionInvalidationDebuggingModeEnabled in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.016471 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.016557 Runner(CoreFoundation)[49259] <Debug>: Language lookup at <private>
+Aug 27 18:24:19.016850 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+	Result        : file:///var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Frameworks/Flutter.framework/icudtl.dat
+Aug 27 18:24:19.016991 Runner(Flutter)[49259] <Notice>: SANITY CHECK: Running precompiled code.
+Aug 27 18:24:19.017086 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.017153 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Frameworks/App.framework/
+Aug 27 18:24:19.017212 Runner(Flutter)[49259] <Notice>: Using App.framework from /private/var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Frameworks/App.framework
+Aug 27 18:24:19.017274 Runner(CoreFoundation)[49259] <Debug>: Language lookup at <private>
+Aug 27 18:24:19.017375 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.017457 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.017511 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+	Result        : file:///var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Frameworks/App.framework/flutter_assets/
+Aug 27 18:24:19.017572 Runner(Flutter)[49259] <Notice>: ASSET PATH /var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Frameworks/App.framework/flutter_assets
+Aug 27 18:24:19.018191 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.018311 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.018410 Runner(Flutter)[49259] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=545516 vm_insns_size=43584 iso_insns_size=1791280 total=2385558
+Aug 27 18:24:19.018488 Runner(Flutter)[49259] <Notice>: [shorebird] Preparing next boot.
+Aug 27 18:24:19.018584 Runner(Flutter)[49259] <Notice>: [shorebird] Verifying patch signature...
+Aug 27 18:24:19.018671 Runner(Flutter)[49259] <Notice>: [shorebird] Patch signature is valid
+Aug 27 18:24:19.018752 Runner(Flutter)[49259] <Notice>: [shorebird] Prepared boot of patch 1.
+Aug 27 18:24:19.018835 Runner(Flutter)[49259] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(663)] Shorebird updater: active path: /private/var/mobile/Containers/Data/Application/11661782-F151-4EE7-9C46-46EAFC27A837/Library/Application Support/shorebird/shorebird_updater/patches/1/dlc.vmcode
+Aug 27 18:24:19.018892 Runner(Flutter)[49259] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(686)] Shorebird updater: active patch is a Route B container
+Aug 27 18:24:19.018958 Runner(Flutter)[49259] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(762)] Starting Shorebird update
+Aug 27 18:24:19.019053 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.019148 Runner(CoreFoundation)[49259] <Debug>: setting new value <private> for key <private> in CFPrefsSource<0x282d55100> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No)
+Aug 27 18:24:19.019532 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) sent a request related to { com.apple.Accessibility, user: kCFPreferencesAnyUser, kCFPreferencesCurrentHost, /Library/Managed Preferences/com.apple.Accessibility.plist, managed: 1 } (0x101814300)
+Aug 27 18:24:19.019693 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) sent a request related to { com.apple.Accessibility, user: mobile, kCFPreferencesAnyHost, /var/mobile/Library/Preferences/com.apple.Accessibility.plist, managed: 0 } (0x100311170)
+Aug 27 18:24:19.019769 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) read data for { com.apple.Accessibility, mobile, kCFPreferencesAnyHost, /var/mobile/Library/Preferences/com.apple.Accessibility.plist, managed: 0 }, backed by /private/var/mobile/Library/Preferences/com.apple.Accessibility.plist
+Aug 27 18:24:19.019858 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) sent a request related to { com.apple.Accessibility, user: kCFPreferencesAnyUser, kCFPreferencesCurrentHost, /var/preferences/com.apple.Accessibility.plist, managed: 0 } (0x1018145a0)
+Aug 27 18:24:19.020039 SpringBoard(UIKitCore)[47602] <Notice>: Evaluating dispatch of UIEvent: 0x282871a40; type: 0; subtype: 0; backing type: 11; shouldSend: 0; ignoreInteractionEvents: 0, systemGestureStateChange: 1
+Aug 27 18:24:19.020132 SpringBoard(UIKitCore)[47602] <Notice>: Evaluating dispatch of UIEvent: 0x28285f540; type: 0; subtype: 0; backing type: 11; shouldSend: 0; ignoreInteractionEvents: 0, systemGestureStateChange: 0
+Aug 27 18:24:19.021293 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) sent a request related to { com.apple.Metal, user: mobile, kCFPreferencesCurrentHost, /Library/Managed Preferences/mobile/com.apple.Metal.plist, managed: 1 } (0x1018308d0)
+Aug 27 18:24:19.021456 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) sent a request related to { com.apple.Metal, user: kCFPreferencesAnyUser, kCFPreferencesCurrentHost, /Library/Managed Preferences/com.apple.Metal.plist, managed: 1 } (0x1018308d0)
+Aug 27 18:24:19.021606 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) sent a request related to { com.apple.Metal, user: mobile, kCFPreferencesAnyHost, /var/mobile/Library/Preferences/com.apple.Metal.plist, managed: 0 } (0x1003679d0)
+Aug 27 18:24:19.022251 Runner(CoreFoundation)[49259] <Debug>: looked up value <private> for key METAL_DEVICE_WRAPPER_TYPE in CFPrefsSource<0x282d55100> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No) via CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.022323 Runner(CoreFoundation)[49259] <Debug>: CFPrefsManagedSource<0x281657d80> (Domain: com.apple.Metal, User: kCFPreferencesCurrentUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 18:24:19.022399 Runner(CoreFoundation)[49259] <Debug>: CFPrefsManagedSource<0x281657e00> (Domain: com.apple.Metal, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 18:24:19.022461 Runner(CoreFoundation)[49259] <Debug>: CFPrefsPlistSource<0x281655000> (Domain: com.apple.Metal, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 18:24:19.022646 Runner(CoreFoundation)[49259] <Debug>: CFPrefsPlistSource<0x281657f80> (Domain: com.apple.Metal, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 18:24:19.022814 Runner(CoreFoundation)[49259] <Debug>: found no value for key UseMetalTelemetry in CFPrefsSearchListSource<0x281657d00> (Domain: com.apple.Metal, Container: (null))
+Aug 27 18:24:19.025938 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d1b420; sceneUpdatePrepared-sceneID:dev.selfhost.signProbeApp-default(2)> @ back
+Aug 27 18:24:19.026117 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d1b420; sceneUpdatePrepared-sceneID:dev.selfhost.signProbeApp-default(2)>
+Aug 27 18:24:19.026215 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d19580; sceneUpdatePrepared-sceneID:dev.selfhost.signProbeApp-default(2)> @ front
+Aug 27 18:24:19.026310 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d19580; sceneUpdatePrepared-sceneID:dev.selfhost.signProbeApp-default(2)>
+Aug 27 18:24:19.037388 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.037497 Runner(CoreFoundation)[49259] <Debug>: found no value for key MetalForceCaptureEnabled in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.037605 Runner(CoreFoundation)[49259] <Debug>: found no value for key VertexInstanceBoundsCheckMode in CFPrefsSearchListSource<0x281657d00> (Domain: com.apple.Metal, Container: (null))
+Aug 27 18:24:19.037735 Runner(CoreFoundation)[49259] <Debug>: found no value for key DisableDriverSuballocation in CFPrefsSearchListSource<0x281657d00> (Domain: com.apple.Metal, Container: (null))
+Aug 27 18:24:19.037839 Runner(CoreFoundation)[49259] <Debug>: found no value for key CPUMappingForPrivateTexturesMode in CFPrefsSearchListSource<0x281657d00> (Domain: com.apple.Metal, Container: (null))
+Aug 27 18:24:19.037941 Runner(CoreFoundation)[49259] <Debug>: found no value for key IOSurfaceCompressedWriteValidation in CFPrefsSearchListSource<0x281657d00> (Domain: com.apple.Metal, Container: (null))
+Aug 27 18:24:19.041022 Runner(CoreFoundation)[49259] <Debug>: Language lookup at <private>
+Aug 27 18:24:19.041155 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.041330 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.041487 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.041653 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.041803 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.042617 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.042699 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.042795 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.042880 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.042972 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.043050 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.051314 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.051858 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.051944 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.052038 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.052103 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.052170 Runner(CoreFoundation)[49259] <Debug>: found no value for key UIViewLayoutFeedbackLoopDebuggingThreshold in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.054767 kernel(Sandbox)[0] <Error>: Sandbox: Runner(49259) deny(1) sysctl-read kern.iossupportversion
+Aug 27 18:24:19.058320 Runner(CoreFoundation)[49259] <Debug>: found no value for key UIViewUseStaleDelegateContentInsets in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.058395 Runner(CoreFoundation)[49259] <Debug>: found no value for key _UIConstraintBasedLayoutEngageNonLazily in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.058475 kernel(Sandbox)[0] <Error>: Sandbox: Runner(49259) deny(1) sysctl-read machdep.cpu.brand_string
+Aug 27 18:24:19.058568 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.058641 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.058714 Runner(CoreFoundation)[49259] <Debug>: setting new value <private> for key <private> in CFPrefsSource<0x282d55100> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No)
+Aug 27 18:24:19.058769 Runner(CoreFoundation)[49259] <Debug>: looked up value <private> for key METAL_ERROR_MODE in CFPrefsSource<0x282d55100> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No) via CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.062046 Runner(CoreFoundation)[49259] <Debug>: setting new value <private> for key <private> in CFPrefsSource<0x282d55100> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No)
+Aug 27 18:24:19.062181 Runner(CoreFoundation)[49259] <Debug>: looked up value <private> for key METAL_DEBUG_ERROR_MODE in CFPrefsSource<0x282d55100> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No) via CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.062309 Runner(CoreFoundation)[49259] <Debug>: setting new value <private> for key <private> in CFPrefsSource<0x282d55100> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No)
+Aug 27 18:24:19.062435 Runner(CoreFoundation)[49259] <Debug>: looked up value <private> for key METAL_WARNING_MODE in CFPrefsSource<0x282d55100> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No) via CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.062546 Runner(CoreFoundation)[49259] <Debug>: setting new value <private> for key <private> in CFPrefsSource<0x282d55100> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No)
+Aug 27 18:24:19.062743 Runner(CoreFoundation)[49259] <Debug>: looked up value <private> for key METAL_ERROR_CHECK_EXTENDED_MODE in CFPrefsSource<0x282d55100> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No) via CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.062846 Runner(CoreFoundation)[49259] <Debug>: found no value for key dataBufferCachingOverride in CFPrefsSearchListSource<0x281657d00> (Domain: com.apple.Metal, Container: (null))
+Aug 27 18:24:19.062930 Runner(CoreFoundation)[49259] <Debug>: found no value for key disableBlitEncoderCoalescing in CFPrefsPlistSource<0x281655000> (Domain: com.apple.Metal, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.063016 Runner(CoreFoundation)[49259] <Debug>: found no value for key disableEncoderCoalescing in CFPrefsPlistSource<0x281655000> (Domain: com.apple.Metal, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.063082 Runner(Flutter)[49259] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "525b41fe-d97d-1163-4416-8b0345980f49", channel: "stable", release_version: "1.3.0+1", platform: "ios", arch: "aarch64", client_id: "cd760912-e44a-432c-8b0e-2102e089c555", current_patch_number: Some(1) }
+Aug 27 18:24:19.063138 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.063229 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.063294 Runner(CoreFoundation)[49259] <Debug>: looked up value <private> for key AppleLanguages in CFPrefsPlistSource<0x281656280> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) via CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.063590 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.063645 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.063694 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.063811 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.063908 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.063996 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.064092 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Base.lproj/LaunchScreen.storyboardc/
+Aug 27 18:24:19.064209 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Base.lproj/LaunchScreen.storyboardc/
+Aug 27 18:24:19.064298 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Base.lproj/LaunchScreen.storyboardc/UIViewController-01J-lp-oVM.nib
+Aug 27 18:24:19.064369 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Base.lproj/LaunchScreen.storyboardc/01J-lp-oVM-view-Ze5-6b-2t3.nib
+Aug 27 18:24:19.064442 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Base.lproj/LaunchScreen.storyboardc/
+Aug 27 18:24:19.064509 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Base.lproj/LaunchScreen.storyboardc/01J-lp-oVM-view-Ze5-6b-2t3.nib
+Aug 27 18:24:19.065141 Runner(CoreFoundation)[49259] <Debug>: found no value for key _UIConstraintBasedLayout in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.065196 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/EEFF1D44-01AC-43EE-86C2-AF5C088D3CF6/Runner.app/Assets.car
+Aug 27 18:24:19.065277 Runner(CoreFoundation)[49259] <Debug>: found no value for key CUIShowDebugLogs in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.065375 Runner(CoreFoundation)[49259] <Debug>: found no value for key CGAllowDebuggingDefaults in CFPrefsPlistSource<0x281656280> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.065429 Runner(CoreFoundation)[49259] <Debug>: found no value for key NSConstraintBasedLayoutTrackAllocation in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.065492 Runner(CoreFoundation)[49259] <Debug>: found no value for key UIViewShowAlignmentRects in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.065551 Runner(CoreFoundation)[49259] <Debug>: found no value for key NSConstraintBasedLayoutAriadneTracepoints in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.065611 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.065678 Runner(CoreFoundation)[49259] <Debug>: found no value for key ReduceMotionEnabled in CFPrefsSearchListSource<0x281653500> (Domain: com.apple.Accessibility, Container: (null))
+Aug 27 18:24:19.067403 Runner(libAccessibility.dylib)[49259] <Debug>: CF Read: domain = com.apple.Accessibility, preference = ReduceMotionEnabled, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 18:24:19.069553 Runner(CoreFoundation)[49259] <Debug>: found no value for key ReduceMotionEnabled in CFPrefsPlistSource<0x281655a00> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.069638 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.069740 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.069828 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.069922 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.070010 Runner(CoreFoundation)[49259] <Debug>: found no value for key UIScrollViewForceConvertSafeAreaToContentInsetPreference in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.070095 Runner(CoreFoundation)[49259] <Debug>: found no value for key UIBarsApplyChromelessEverywhere in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+	<RBSProcessAssertionInfo| type:2 reason:10000 name:"Domain" domain:"com.apple.frontboard:Bootstrap-Foreground,com.apple.frontboard:Visibility" expl:"FBApplicationProcess">,
+Aug 27 18:24:19.082012 SpringBoard(CoreServices)[47602] <Debug>: Invoking selector codeSignatureVersionWithContext:tableID:unitID:unitBytes: on <LSApplicationRecord 0x2808d2880> to get the value for property codeSignatureVersion
+Aug 27 18:24:19.092717 SpringBoard(CoreServices)[47602] <Debug>: Invoking selector codeSignatureVersionWithContext:tableID:unitID:unitBytes: on <LSApplicationRecord 0x280864f00> to get the value for property codeSignatureVersion
+Aug 27 18:24:19.096160 Runner(Flutter)[49259] <Notice>: [shorebird] Patch 2 is known bad, skipping.
+Aug 27 18:24:19.096236 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) sent a request related to { com.apple.Metal, user: kCFPreferencesAnyUser, kCFPreferencesCurrentHost, /var/preferences/com.apple.Metal.plist, managed: 0 } (0x1003679d0)
+Aug 27 18:24:19.096677 Runner(Flutter)[49259] <Notice>: [shorebird] Update thread finished with status: Update available but previously failed to install. Not installing.
+Aug 27 18:24:19.105321 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.116605 SpringBoard(CoreServices)[47602] <Debug>: Invoking selector codeSignatureVersionWithContext:tableID:unitID:unitBytes: on <LSApplicationRecord 0x28082f300> to get the value for property codeSignatureVersion
+Aug 27 18:24:19.132322 SpringBoard(CoreServices)[47602] <Debug>: Invoking selector codeSignatureVersionWithContext:tableID:unitID:unitBytes: on <LSApplicationRecord 0x2808e24c0> to get the value for property codeSignatureVersion
+Aug 27 18:24:19.141181 SpringBoard[47602] <Notice>: [Main] dispatch event:
+Aug 27 18:24:19.142240 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d33200; sceneUpdatePrepared-sceneID:dev.selfhost.signProbeApp-default(5)> @ back
+Aug 27 18:24:19.142472 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d33200; sceneUpdatePrepared-sceneID:dev.selfhost.signProbeApp-default(5)>
+Aug 27 18:24:19.142564 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d09b80; sceneUpdatePrepared-sceneID:dev.selfhost.signProbeApp-default(5)> @ front
+Aug 27 18:24:19.142659 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d09b80; sceneUpdatePrepared-sceneID:dev.selfhost.signProbeApp-default(5)>
+	3   libdispatch.dylib                   0x0000000180851e8c 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 122508
+	5   libdispatch.dylib                   0x0000000180898148 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 409928
+	6   libdispatch.dylib                   0x0000000180850344 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 115524
+	7   libdispatch.dylib                   0x000000018083e610 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 42512
+	8   libdispatch.dylib                   0x0000000180850f24 9CCDBDE3-15E1-3A45-B330-
+Aug 27 18:24:19.145981 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.146050 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.146141 Runner(UIKitCore)[49259] <Notice>: sceneOfRecord: sceneID: sceneID:dev.selfhost.signProbeApp-default  persistentID: E86D7095-FF25-4C14-B20D-BCC70CB2687C
+Aug 27 18:24:19.146200 Runner(UIKitCore)[49259] <Notice>: Deactivation reason removed: 12; deactivation reasons: 4128 -> 32; animating application lifecycle event: 1
+Aug 27 18:24:19.146273 Runner(UIKitCore)[49259] <Notice>: Deactivation reason removed: 5; deactivation reasons: 32 -> 0; animating application lifecycle event: 0
+Aug 27 18:24:19.146336 Runner(CoreAnalytics)[49259] <Info>: Daemon status changed from 0 to 1
+Aug 27 18:24:19.146403 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.146499 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.146578 Runner(HangTracer)[49259] <Info>: HTPrefs initialization
+Aug 27 18:24:19.146843 Runner(CoreFoundation)[49259] <Info>: Loading Preferences From System CFPrefsD
+Aug 27 18:24:19.146965 Runner(CoreFoundation)[49259] <Debug>: CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) loaded: a new base plist and no additional changes from the base plist
+Aug 27 18:24:19.147052 Runner(CoreFoundation)[49259] <Debug>: found no value for key HTEPL.HangTracerEnableCustomerMode in CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.147163 Runner(CoreFoundation)[49259] <Debug>: found no value for key PLTasking.HangTracerEnableCustomerMode in CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.147320 Runner(CoreFoundation)[49259] <Debug>: found no value for key HangTracerEnableCustomerMode in CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.147504 Runner(CoreFoundation)[49259] <Debug>: found no value for key PDSEHangTracer.HangTracerEnableCustomerMode in CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.147603 Runner(CoreFoundation)[49259] <Debug>: found no value for key PDSEHTThirdParty.HangTracerEnableCustomerMode in CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.147678 Runner(CoreFoundation)[49259] <Debug>: found no value for key PDSEHTRateOnly.HangTracerEnableCustomerMode in CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.147776 Runner(CoreFoundation)[49259] <Debug>: found no value for key PDSESentry.HangTracerEnableCustomerMode in CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.147891 Runner(HangTracer)[49259] <Debug>: HTPrefs: HangTracerEnableCustomerMode was not found in the com.apple.da domain, a profile, by EPL, by PowerLog Tasking domain, by HT Self Enablement or by HT Sentry Enablement
+Aug 27 18:24:19.147990 Runner(HangTracer)[49259] <Info>: HTPrefs: Refreshing preferences
+Aug 27 18:24:19.148100 Runner(CoreFoundation)[49259] <Debug>: found no value for key HTEPL.HangTracerEnableCustomerMode in CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.148193 Runner(CoreFoundation)[49259] <Debug>: found no value for key PLTasking.HangTracerEnableCustomerMode in CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.148252 Runner(CoreFoundation)[49259] <Debug>: found no value for key HangTracerEnableCustomerMode in CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.148317 Runner(CoreFoundation)[49259] <Debug>: found no value for key PDSEHangTracer.HangTracerEnableCustomerMode in CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.148384 Runner(CoreFoundation)[49259] <Debug>: found no value for key PDSEHTThirdParty.HangTracerEnableCustomerMode in CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.148453 Runner(CoreFoundation)[49259] <Debug>: found no value for key PDSEHTRateOnly.HangTracerEnableCustomerMode in CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.148551 Runner(CoreFoundation)[49259] <Debug>: found no value for key PDSESentry.HangTracerEnableCustomerMode in CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.148635 Runner(HangTracer)[49259] <Debug>: HTPrefs: HangTracerEnableCustomerMode was not found in the com.apple.da domain, a profile, by EPL, by PowerLog Tasking domain, by HT Self Enablement or by HT Sentry Enablement
+Aug 27 18:24:19.148697 Runner(HangTracer)[49259] <Debug>: Preparing prefInitList
+Aug 27 18:24:19.148751 Runner(CoreFoundation)[49259] <Debug>: found no value for key HTEPL.HangTracerEnabled in CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.148843 Runner(CoreFoundation)[49259] <Debug>: found no value for key PLTasking.HangTracerEnabled in CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.148926 SpringBoard[47602] <Notice>: [Main] dispatch event:
+Aug 27 18:24:19.149015 Runner(CoreFoundation)[49259] <Debug>: found no value for key HangTracerEnabled in CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.149074 Runner(CoreFoundation)[49259] <Debug>: found no value for key PDSEHangTracer.HangTracerEnabled in CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.149133 Runner(CoreFoundation)[49259] <Debug>: found no value for key PDSEHTThirdParty.HangTracerEnabled in CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.149232 Runner(CoreFoundation)[49259] <Debug>: found no value for key PDSEHTRateOnly.HangTracerEnabled in CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.149311 Runner(CoreFoundation)[49259] <Debug>: found no value for key PDSESentry.HangTracerEnabled in CFPrefsPlistSource<0x281646380> (Domain: com.apple.da, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:19.149401 Runner(HangTracer)[49259] <Debug>: HTPrefs: HangTracerEnabled was not found in the com.apple.da domain, a profile, by EPL, by PowerLog Tasking domain, by HT Self Enablement or by HT Sentry Enablement
+Aug 27 18:24:19.149454 Runner(HangTracer)[49259] <Info>: Posting notification com.apple.hangtracer.htprefs.refreshed
+	8   libdispatch.dylib                   0x0000000180851e8c 9CCDBDE3-15E1-3A45-B330-4A
+Aug 27 18:24:19.152895 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) sent a request related to { com.apple.da, user: mobile, kCFPreferencesAnyHost, /var/mobile/Library/Preferences/com.apple.da.plist, managed: 0 } (0x100307ae0)
+Aug 27 18:24:19.153168 cfprefsd(CoreFoundation)[91] <Debug>: Process 49259 (Runner) read data for { com.apple.da, mobile, kCFPreferencesAnyHost, /var/mobile/Library/Preferences/com.apple.da.plist, managed: 0 }, backed by /private/var/mobile/Library/Preferences/com.apple.da.plist
+Aug 27 18:24:19.174186 SpringBoard(CoreServices)[47602] <Debug>: Invoking selector codeSignatureVersionWithContext:tableID:unitID:unitBytes: on <LSApplicationRecord 0x280832f00> to get the value for property codeSignatureVersion
+Aug 27 18:24:19.221096 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/consolidated.db"}
+Aug 27 18:24:19.221974 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x106636400"}
+Aug 27 18:24:19.222522 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/consolidated.db"}
+Aug 27 18:24:19.222660 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1097b7380"}
+Aug 27 18:24:19.257250 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:24:19.257555 dasd(CoreServices)[94] <Debug>: Invoking selector codeSignatureVersionWithContext:tableID:unitID:unitBytes: on <LSApplicationRecord 0x101148c60> to get the value for property codeSignatureVersion
+Aug 27 18:24:19.264034 Runner(CoreFoundation)[49259] <Debug>: found no value for key EnhancedTextLegibilityEnabled in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.264210 Runner(libAccessibility.dylib)[49259] <Debug>: CF Read: domain = dev.selfhost.signProbeApp, preference = EnhancedTextLegibilityEnabled, appID = dev.selfhost.signProbeApp result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 18:24:19.264333 Runner(CoreFoundation)[49259] <Debug>: found no value for key DarkenSystemColors in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.264453 Runner(libAccessibility.dylib)[49259] <Debug>: CF Read: domain = dev.selfhost.signProbeApp, preference = DarkenSystemColors, appID = dev.selfhost.signProbeApp result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 18:24:19.264752 Runner(CoreFoundation)[49259] <Debug>: found no value for key InvertColorsEnabled in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.264839 Runner(libAccessibility.dylib)[49259] <Debug>: CF Read: domain = dev.selfhost.signProbeApp, preference = InvertColorsEnabled, appID = dev.selfhost.signProbeApp result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 18:24:19.267486 Runner(UIKitCore)[49259] <Notice>: <private>: Ending background task with UIBackgroundTaskIdentifier: 1
+Aug 27 18:24:19.267603 Runner(UIKitCore)[49259] <Notice>: <private>: Ending task with identifier 1 and description: <private>, _expireHandler: <__NSGlobalBlock__: 0x1ec737410>
+Aug 27 18:24:19.268093 Runner(UIKitCore)[49259] <Notice>: <private>: Decrementing reference count for assertion used by background task with identifier 1: <private>
+Aug 27 18:24:19.268206 Runner(UIKitCore)[49259] <Notice>: <private>: Will invalidate assertion: <BKSProcessAssertion: 0x281b50910> for task identifier: 1
+	<RBSProcessAssertionInfo| type:2 reason:10000 name:"Domain" domain:"com.apple.frontboard:Bootstrap-Foreground,com.apple.frontboard:Visibility" expl:"FBApplicationProcess">,
+Aug 27 18:24:19.302354 SpringBoard[47602] <Notice>: [Main] dispatch event:
+Aug 27 18:24:19.342040 SpringBoard(CoreMotion)[47602] <Info>: CLDeviceMotion::removeDeviceMotionDispatcher removing dispatcher with property: CLDeviceMotionProperties<DeviceMotion=3AxisDynamicGyro>
+                TIME: 18:24:18.659; DESCRIPTION: Adding child transaction: <BSBlockTransaction: 0x282a78000>: prepareTransition
+                TIME: 18:24:18.678; DESCRIPTION: Child transaction finished work: <BSBlockTransaction: 0x282a78000>: prepareTransition
+                TIME: 18:24:18.757; DESCRIPTION: Child transaction completed: <BSBlockTransaction: 0x282a78000>: prepareTransition
+                <BSBlockTransaction: 0x282a78000>: prepareTransition
+Aug 27 18:24:19.363771 Runner(CoreFoundation)[49259] <Debug>: found no value for key ReduceMotionEnabled in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.363849 Runner(libAccessibility.dylib)[49259] <Debug>: CF Read: domain = dev.selfhost.signProbeApp, preference = ReduceMotionEnabled, appID = dev.selfhost.signProbeApp result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 18:24:19.385770 symptomsd(SymptomEvaluator)[170] <Debug>: Flow data on entry is Runner TCP4 flow id 1172710 (close) so pkts rx 2 tx 2, bytes 936 424 cell 0 0 wifi 1016 504 wired 0 0 deltas 936 424 0 0 1016 504 0 0
+src 1172710 snapshot: Runner TCP4 flow id 1172710 (close) so pkts rx 2 tx 2, bytes 936 424 cell 0 0 wifi 1016 504 wired 0 0 deltas 936 424 0 0 1016 504 0 0
+Aug 27 18:24:19.461080 Runner(CoreFoundation)[49259] <Debug>: found no value for key IncreaseButtonLegibilityEnabled in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.461204 Runner(libAccessibility.dylib)[49259] <Debug>: CF Read: domain = dev.selfhost.signProbeApp, preference = IncreaseButtonLegibilityEnabled, appID = dev.selfhost.signProbeApp result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 18:24:19.461259 Runner(CoreFoundation)[49259] <Debug>: found no value for key ReduceMotionAutoplayVideoPreviewsEnabled in CFPrefsSearchListSource<0x281656600> (Domain: dev.selfhost.signProbeApp, Container: (null))
+Aug 27 18:24:19.461332 Runner(libAccessibility.dylib)[49259] <Debug>: CF Read: domain = dev.selfhost.signProbeApp, preference = ReduceMotionAutoplayVideoPreviewsEnabled, appID = dev.selfhost.signProbeApp result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 18:24:19.495429 chronod(libxpc.dylib)[102] <Notice>: _xpc_activity_dispatch: beginning dispatch, activity name com.apple.chronod.nextScheduledTimelineRefresh, seqno 1
+Aug 27 18:24:19.496057 chronod(libxpc.dylib)[102] <Notice>: _xpc_activity_dispatch: com.apple.chronod.nextScheduledTimelineRefresh (0x127ee10d0): found an activity with matching seqno 1
+Aug 27 18:24:19.496370 chronod(libxpc.dylib)[102] <Notice>: _xpc_activity_dispatch: lower half, activity name com.apple.chronod.nextScheduledTimelineRefresh (0x127ee10d0), seqno from top half was 1
+Aug 27 18:24:19.496549 chronod(libxpc.dylib)[102] <Notice>: _xpc_activity_dispatch: created connection 0x127da3210 for activity name com.apple.chronod.nextScheduledTimelineRefresh (0x127ee10d0), seqno 1
+Aug 27 18:24:19.496970 dataaccessd(libxpc.dylib)[357] <Notice>: _xpc_activity_dispatch: beginning dispatch, activity name com.apple.dataaccess.dataaccessd.fetch.8608863E-7CEA-46FA-82EA-B67177809A8E, seqno 2
+Aug 27 18:24:19.497654 dataaccessd(libxpc.dylib)[357] <Notice>: _xpc_activity_dispatch: com.apple.dataaccess.dataaccessd.fetch.8608863E-7CEA-46FA-82EA-B67177809A8E (0x100c48050): found an activity with matching seqno 2
+Aug 27 18:24:19.511731 dataaccessd(libxpc.dylib)[357] <Notice>: _xpc_activity_dispatch: lower half, activity name com.apple.dataaccess.dataaccessd.fetch.8608863E-7CEA-46FA-82EA-B67177809A8E (0x100c48050), seqno from top half was 2
+Aug 27 18:24:19.544870 calaccessd(CalendarFoundation)[150] <Debug>: [<private>]'s listener is not listening.  Found initial 'hasBeenUnlockedSinceBoot' value of [YES]
+	<RBSProcessAssertionInfo| type:2 reason:10000 name:"Domain" domain:"com.apple.frontboard:Bootstrap-Foreground,com.apple.frontboard:Visibility" expl:"FBApplicationProcess">,
+	<RBSProcessAssertionInfo| type:2 reason:10000 name:"Domain" domain:"com.apple.frontboard:Bootstrap-Foreground,com.apple.frontboard:Visibility" expl:"FBApplicationProcess">,
+Aug 27 18:24:19.799078 Runner(RunningBoardServices)[49259] <Debug>: Received message from server: async_didChangeInheritances:completion:
+Aug 27 18:24:19.799273 Runner(RunningBoardServices)[49259] <Info>: didChangeInheritances
+Aug 27 18:24:19.799599 Runner(RunningBoardServices)[49259] <Info>: didChangeInheritances: <RBSInheritanceChangeSet| gained:{(
+	<RBSProcessAssertionInfo| type:2 reason:10000 name:"Domain" domain:"com.apple.frontboard:Bootstrap-Foreground,com.apple.frontboard:Visibility" expl:"FBApplicationProcess">,
+Aug 27 18:24:19.921943 Runner(RunningBoardServices)[49259] <Debug>: Received message from server: async_didChangeInheritances:completion:
+Aug 27 18:24:19.922414 Runner(RunningBoardServices)[49259] <Info>: didChangeInheritances
+Aug 27 18:24:19.922906 Runner(RunningBoardServices)[49259] <Info>: didChangeInheritances: <RBSInheritanceChangeSet| gained:(null) lost:{(
+Aug 27 18:24:20.242214 Runner(CoreFoundation)[49259] <Debug>: found no value for key QuickSpeak in CFPrefsSearchListSource<0x281653500> (Domain: com.apple.Accessibility, Container: (null))
+Aug 27 18:24:20.242959 Runner(libAccessibility.dylib)[49259] <Debug>: CF Read: domain = com.apple.Accessibility, preference = QuickSpeak, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 18:24:20.243732 Runner(CoreFoundation)[49259] <Debug>: found no value for key QuickSpeak in CFPrefsPlistSource<0x281655a00> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 18:24:22.607478 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -38 Snr:35 Cca: 21 TxFrames: 8 TxFail: 0 BcnRx: 0 BcnSch: 0  RxFrames: 9 RxRetries: 0 TxRate: 24000 RxRate: 702000 FBRate: 468000 TxFwFrms: 2 TxFwFail:0 TxRetries: 3
+Aug 27 18:24:23.366885 bluetoothd[86] <Debug>: addFilters fDebugControllerConfigDispatchSequence:NO dispatchConfig:NO
+Aug 27 18:24:24.851711 locationd[69] <Notice>: WifiFlow, step, prepare, from, none, donereason, inprogress
+Aug 27 18:24:24.856964 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:24.859420 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x10988f650"}
+Aug 27 18:24:24.861184 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:24.865636 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1097b7380"}
+Aug 27 18:24:24.867760 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:24.867906 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x10988f650"}
+Aug 27 18:24:24.868209 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:24.868503 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1098b6a00"}
+Aug 27 18:24:24.868705 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:24.868881 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1097b7380"}
+Aug 27 18:24:24.871324 locationd[69] <Notice>: WifiFlow, step, initialscan, from, prepare, donereason, inprogress
+Aug 27 18:24:24.878254 wifid(WiFiPolicy)[52] <Notice>: __WiFiDeviceCopyPreparedScanResults: network records count: 0
+Aug 27 18:24:25.034593 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.034785 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1098b6a00"}
+Aug 27 18:24:25.035414 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.036210 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1098b6a00"}
+Aug 27 18:24:25.036393 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.036668 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1097b7380"}
+Aug 27 18:24:25.037041 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.037137 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1097b7380"}
+Aug 27 18:24:25.037593 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.038501 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1097b7380"}
+Aug 27 18:24:25.038587 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.038675 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1098b6a00"}
+Aug 27 18:24:25.039119 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.039778 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1098b6a00"}
+Aug 27 18:24:25.040250 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.040338 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1098b6a00"}
+Aug 27 18:24:25.040716 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.041281 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1098b6a00"}
+Aug 27 18:24:25.041542 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.041805 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1098b6a00"}
+Aug 27 18:24:25.051527 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x109518370> initialized with target <PCSimpleTimer: 0x10976caf0> selector _preventSleepFired timerSource <OS_dispatch_source: 0x10986fd00>
+Aug 27 18:24:25.051863 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x1095364a0> initialized with target <PCSimpleTimer: 0x10976caf0> selector _fireTimerFired timerSource <OS_dispatch_source: 0x10987b0b0>
+Aug 27 18:24:25.052258 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x109792860> is invalidated 
+	5   libdispatch.dylib                   0x0000000180897094 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 405652
+	6   libdispatch.dylib                   0x0000000180898094 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 409748
+	7   libdispatch.dylib                   0x0000000180844d44 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 68932
+	8   libdispatch.dylib                   0x0000000180844994 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 67988
+Aug 27 18:24:25.052336 locationd(PersistentConnection)[69] <Notice>: <PCSimpleTimer: 0x10976caf0> created preventSleepTimer <PCDispatchTimer: 0x109518370> and fireTimer <PCDispatchTimer: 0x1095364a0> on queue <OS_dispatch_queue_serial: PCSimpleTimer-timerQ>
+Aug 27 18:24:25.052590 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x1095364a0> start with target <CUTWeakReference: 0x1095cbde0> selector _fireTimerFired firetime 18446744073709551615 timerSource <OS_dispatch_source: 0x10987b0b0>
+Aug 27 18:24:25.052732 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x109792860> dealloced
+Aug 27 18:24:25.053018 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x109518370> start with target <CUTWeakReference: 0x10953fa70> selector _preventSleepFired firetime 18446744073709551615 timerSource <OS_dispatch_source: 0x10986fd00>
+Aug 27 18:24:25.053304 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x1095f6cf0> is invalidated 
+	5   libdispatch.dylib                   0x0000000180897094 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 405652
+	6   libdispatch.dylib                   0x0000000180898094 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 409748
+	7   libdispatch.dylib                   0x0000000180844d44 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 68932
+	8   libdispatch.dylib                   0x0000000180844994 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 67988
+Aug 27 18:24:25.053466 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x109518370> setFireDate Sun Dec 31 19:00:00 4000 and start with target <PCSimpleTimer: 0x10976caf0> selector _preventSleepFired fireTime 18446744073709551615 deltaNanosec 2318-12-07 17:11:41 -0500 timerSource <OS_dispatch_source: 0x10986fd00>
+Aug 27 18:24:25.053794 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x1095f6cf0> dealloced
+Aug 27 18:24:25.054134 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x1095364a0> setFireDate Thu Aug 27 18:29:24 2026 and start with target <PCSimpleTimer: 0x10976caf0> selector _fireTimerFired fireTime 29745901858184 deltaNanosec 2026-08-27 18:29:24 -0400 timerSource <OS_dispatch_source: 0x10987b0b0>
+Aug 27 18:24:25.087365 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x10979bd10> initialized with target <PCSimpleTimer: 0x10676fae0> selector _preventSleepFired timerSource <OS_dispatch_source: 0x1097ba7d0>
+Aug 27 18:24:25.087437 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x1095aefe0> is invalidated 
+	5   libdispatch.dylib                   0x0000000180897094 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 405652
+	6   libdispatch.dylib                   0x0000000180898094 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 409748
+	7   libdispatch.dylib                   0x0000000180844d44 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 68932
+	8   libdispatch.dylib                   0x0000000180844994 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 67988
+Aug 27 18:24:25.087526 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x1095aefe0> dealloced
+Aug 27 18:24:25.088032 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x109868440> initialized with target <PCSimpleTimer: 0x10676fae0> selector _fireTimerFired timerSource <OS_dispatch_source: 0x109816cb0>
+Aug 27 18:24:25.088178 locationd(PersistentConnection)[69] <Notice>: <PCSimpleTimer: 0x10676fae0> created preventSleepTimer <PCDispatchTimer: 0x10979bd10> and fireTimer <PCDispatchTimer: 0x109868440> on queue <OS_dispatch_queue_serial: PCSimpleTimer-timerQ>
+Aug 27 18:24:25.088663 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x109533f60> is invalidated 
+	5   libdispatch.dylib                   0x0000000180897094 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 405652
+	6   libdispatch.dylib                   0x0000000180898094 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 409748
+	7   libdispatch.dylib                   0x0000000180844d44 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 68932
+	8   libdispatch.dylib                   0x0000000180844994 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 67988
+Aug 27 18:24:25.088882 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x109868440> start with target <CUTWeakReference: 0x109881290> selector _fireTimerFired firetime 18446744073709551615 timerSource <OS_dispatch_source: 0x109816cb0>
+Aug 27 18:24:25.089036 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x10979bd10> start with target <CUTWeakReference: 0x1061b4030> selector _preventSleepFired firetime 18446744073709551615 timerSource <OS_dispatch_source: 0x1097ba7d0>
+Aug 27 18:24:25.089330 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x109533f60> dealloced
+Aug 27 18:24:25.090369 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x10979bd10> setFireDate Thu Aug 27 19:24:09 2026 and start with target <PCSimpleTimer: 0x10676fae0> selector _preventSleepFired fireTime 29824741864704 deltaNanosec 2026-08-27 19:24:09 -0400 timerSource <OS_dispatch_source: 0x1097ba7d0>
+Aug 27 18:24:25.090711 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x109868440> setFireDate Thu Aug 27 19:24:24 2026 and start with target <PCSimpleTimer: 0x10676fae0> selector _fireTimerFired fireTime 29825101864717 deltaNanosec 2026-08-27 19:24:24 -0400 timerSource <OS_dispatch_source: 0x109816cb0>
+Aug 27 18:24:25.093425 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x10979bd10> setFireDate Thu Aug 27 19:18:09 2026 and start with target <PCSimpleTimer: 0x10676fae0> selector _preventSleepFired fireTime 29816101903777 deltaNanosec 2026-08-27 19:18:09 -0400 timerSource <OS_dispatch_source: 0x1097ba7d0>
+Aug 27 18:24:25.093651 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x109868440> setFireDate Thu Aug 27 19:18:24 2026 and start with target <PCSimpleTimer: 0x10676fae0> selector _fireTimerFired fireTime 29816461903766 deltaNanosec 2026-08-27 19:18:24 -0400 timerSource <OS_dispatch_source: 0x109816cb0>
+Aug 27 18:24:25.098525 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x10678d3f0> is invalidated 
+	5   libdispatch.dylib                   0x0000000180897094 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 405652
+	6   libdispatch.dylib                   0x0000000180898094 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 409748
+	7   libdispatch.dylib                   0x0000000180844d44 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 68932
+	8   libdispatch.dylib                   0x0000000180844994 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 67988
+Aug 27 18:24:25.098855 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x10678d3f0> dealloced
+Aug 27 18:24:25.098951 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x106720540> is invalidated 
+	5   libdispatch.dylib                   0x0000000180897094 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 405652
+	6   libdispatch.dylib                   0x0000000180898094 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 409748
+	7   libdispatch.dylib                   0x0000000180844d44 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 68932
+	8   libdispatch.dylib                   0x0000000180844994 9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD + 67988
+Aug 27 18:24:25.099029 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x106720540> dealloced
+Aug 27 18:24:25.100680 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x109535100> initialized with target <PCSimpleTimer: 0x109840640> selector _preventSleepFired timerSource <OS_dispatch_source: 0x1095b5630>
+Aug 27 18:24:25.100755 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x1095c9380> initialized with target <PCSimpleTimer: 0x109840640> selector _fireTimerFired timerSource <OS_dispatch_source: 0x109869070>
+Aug 27 18:24:25.100823 locationd(PersistentConnection)[69] <Notice>: <PCSimpleTimer: 0x109840640> created preventSleepTimer <PCDispatchTimer: 0x109535100> and fireTimer <PCDispatchTimer: 0x1095c9380> on queue <OS_dispatch_queue_serial: PCSimpleTimer-timerQ>
+Aug 27 18:24:25.100984 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x1095c9380> start with target <CUTWeakReference: 0x1095c1130> selector _fireTimerFired firetime 18446744073709551615 timerSource <OS_dispatch_source: 0x109869070>
+Aug 27 18:24:25.101553 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x109535100> start with target <CUTWeakReference: 0x1062d5190> selector _preventSleepFired firetime 18446744073709551615 timerSource <OS_dispatch_source: 0x1095b5630>
+Aug 27 18:24:25.101757 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x109535100> setFireDate Thu Aug 27 19:24:09 2026 and start with target <PCSimpleTimer: 0x109840640> selector _preventSleepFired fireTime 29824742383739 deltaNanosec 2026-08-27 19:24:09 -0400 timerSource <OS_dispatch_source: 0x1095b5630>
+Aug 27 18:24:25.102440 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x1095c9380> setFireDate Thu Aug 27 19:24:24 2026 and start with target <PCSimpleTimer: 0x109840640> selector _fireTimerFired fireTime 29825102383749 deltaNanosec 2026-08-27 19:24:24 -0400 timerSource <OS_dispatch_source: 0x109869070>
+Aug 27 18:24:25.104300 locationd[69] <Debug>: Fence: Dispatch continuous engagement
+Aug 27 18:24:25.105008 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x109535100> setFireDate Thu Aug 27 19:09:09 2026 and start with target <PCSimpleTimer: 0x109840640> selector _preventSleepFired fireTime 29803142384096 deltaNanosec 2026-08-27 19:09:09 -0400 timerSource <OS_dispatch_source: 0x1095b5630>
+Aug 27 18:24:25.105395 locationd(PersistentConnection)[69] <Debug>: <PCDispatchTimer: 0x1095c9380> setFireDate Thu Aug 27 19:09:24 2026 and start with target <PCSimpleTimer: 0x109840640> selector _fireTimerFired fireTime 29803502384103 deltaNanosec 2026-08-27 19:09:24 -0400 timerSource <OS_dispatch_source: 0x109869070>
+Aug 27 18:24:25.379528 wifid[52] <Notice>: _eventRead:16709 Processing _dispatchBeaconCacheUpdate
+Aug 27 18:24:25.434584 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.434708 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x109763810"}
+Aug 27 18:24:25.434819 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/\/System\/Library\/Frameworks\/CoreLocation.framework\/Support\/factory.db"}
+Aug 27 18:24:25.434886 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1063e0e00"}
+Aug 27 18:24:25.437336 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.447502 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1098c7800"}
+Aug 27 18:24:25.447873 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.447969 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x109763810"}
+Aug 27 18:24:25.448159 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.448246 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x109763810"}
+Aug 27 18:24:25.448327 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/\/System\/Library\/Frameworks\/CoreLocation.framework\/Support\/factory.db"}
+Aug 27 18:24:25.448370 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1063e1000"}
+Aug 27 18:24:25.448427 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.448468 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x109763810"}
+Aug 27 18:24:25.448565 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.448607 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x109763810"}
+Aug 27 18:24:25.448662 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/\/System\/Library\/Frameworks\/CoreLocation.framework\/Support\/factory.db"}
+Aug 27 18:24:25.448703 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1063e0a00"}
+Aug 27 18:24:25.448759 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.448800 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1098c78e0"}
+Aug 27 18:24:25.448895 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.448937 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x109763810"}
+Aug 27 18:24:25.448993 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/\/System\/Library\/Frameworks\/CoreLocation.framework\/Support\/factory.db"}
+Aug 27 18:24:25.449033 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1063e0e00"}
+Aug 27 18:24:25.449088 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.449130 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x109763810"}
+Aug 27 18:24:25.449225 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.449265 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x109763810"}
+Aug 27 18:24:25.449321 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/\/System\/Library\/Frameworks\/CoreLocation.framework\/Support\/factory.db"}
+Aug 27 18:24:25.449361 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1063e1000"}
+Aug 27 18:24:25.449494 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.449569 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1098c79c0"}
+Aug 27 18:24:25.449644 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/\/System\/Library\/Frameworks\/CoreLocation.framework\/Support\/factory.db"}
+Aug 27 18:24:25.449687 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1063e0a00"}
+Aug 27 18:24:25.449743 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.449783 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1098c7940"}
+Aug 27 18:24:25.449935 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.450021 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1098c7bb0"}
+Aug 27 18:24:25.450079 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/\/System\/Library\/Frameworks\/CoreLocation.framework\/Support\/factory.db"}
+Aug 27 18:24:25.450120 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1063e0e00"}
+Aug 27 18:24:25.450193 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.450234 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1098c7bb0"}
+Aug 27 18:24:25.450419 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.450485 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x109763810"}
+Aug 27 18:24:25.450594 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/\/System\/Library\/Frameworks\/CoreLocation.framework\/Support\/factory.db"}
+Aug 27 18:24:25.450715 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1063e1000"}
+Aug 27 18:24:25.450853 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.450949 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x109763810"}
+Aug 27 18:24:25.451077 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/\/System\/Library\/Frameworks\/CoreLocation.framework\/Support\/factory.db"}
+Aug 27 18:24:25.451194 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1063e0a00"}
+Aug 27 18:24:25.451317 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.451420 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x109763810"}
+Aug 27 18:24:25.451522 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/\/System\/Library\/Frameworks\/CoreLocation.framework\/Support\/factory.db"}
+Aug 27 18:24:25.451595 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1063e0e00"}
+Aug 27 18:24:25.451707 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.451821 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x109763810"}
+Aug 27 18:24:25.451940 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/\/System\/Library\/Frameworks\/CoreLocation.framework\/Support\/factory.db"}
+Aug 27 18:24:25.452055 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1063e1000"}
+Aug 27 18:24:25.452172 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.452261 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1098c7b50"}
+Aug 27 18:24:25.452668 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.452767 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1098324b0"}
+Aug 27 18:24:25.452876 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.452943 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1097b7380"}
+Aug 27 18:24:25.453074 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.453177 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x1097b7380"}
+Aug 27 18:24:25.453306 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.453393 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x109832510"}
+Aug 27 18:24:25.453595 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.453678 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x109763810"}
+Aug 27 18:24:25.453789 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.453892 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x109741080"}
+Aug 27 18:24:25.454023 locationd[69] <Debug>: {"msg":"Preparing statement for database", "query":<private>, "path":"\/var\/root\/Library\/Caches\/locationd\/cache_encryptedB.db"}
+Aug 27 18:24:25.454136 locationd[69] <Debug>: {"msg":"Prepared statement", "statement":"0x10989ca70"}
+Aug 27 18:24:25.498566 locationd[69] <Debug>: Fence: Dispatch continuous engagement
+Aug 27 18:24:25.802846 calaccessd(CalendarFoundation)[150] <Debug>: [<private>]'s listener is not listening.  Found initial 'hasBeenUnlockedSinceBoot' value of [YES]
+Aug 27 18:24:25.845312 calaccessd(CalendarFoundation)[150] <Debug>: [<private>]'s listener is not listening.  Found initial 'hasBeenUnlockedSinceBoot' value of [YES]
+Aug 27 18:24:25.959921 calaccessd(CalendarFoundation)[150] <Debug>: [<private>]'s listener is not listening.  Found initial 'hasBeenUnlockedSinceBoot' value of [YES]
+Aug 27 18:24:26.599097 backboardd(IOKit)[65] <Info>: 648A9C0B-D7B9-4519-A1DD-69C30B10306B: iohideventsystem_client_dispatch_properties_changed:0x10004003
+Aug 27 18:24:27.625640 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -38 Snr:35 Cca: 14 TxFrames: 0 TxFail: 0 BcnRx: 93 BcnSch: 95  RxFrames: 1 RxRetries: 0 TxRate: 24000 RxRate: 702000 FBRate: 468000 TxFwFrms: 6 TxFwFail:0 TxRetries: 0
+Aug 27 18:24:32.637709 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -38 Snr:35 Cca: 21 TxFrames: 0 TxFail: 0 BcnRx: 0 BcnSch: 0  RxFrames: 12 RxRetries: 0 TxRate: 24000 RxRate: 702000 FBRate: 468000 TxFwFrms: 0 TxFwFail:0 TxRetries: 0
+Aug 27 18:24:35.340209 SpringBoard(FrontBoard)[47602] <Notice>: Asked to bootstrap a new process for handle: [anon<ScreenShotr>:49262]
+Aug 27 18:24:35.341436 SpringBoard(FrontBoard)[47602] <Notice>: [anon<ScreenShotr>:49262] Registering event dispatcher at init
+Aug 27 18:24:35.341693 SpringBoard(FrontBoard)[47602] <Notice>: Registering: <FBWorkspaceEventDispatcherRegistration: 0x2813b7030> for identity: 49262
+Aug 27 18:24:35.342019 SpringBoard(FrontBoard)[47602] <Notice>: Bootstrapping anon<ScreenShotr>
+Aug 27 18:24:35.342138 SpringBoard(FrontBoard)[47602] <Notice>: [anon<ScreenShotr>:49262] Bootstrap success!
+Aug 27 18:24:37.654796 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -38 Snr:35 Cca: 32 TxFrames: 0 TxFail: 0 BcnRx: 97 BcnSch: 98  RxFrames: 1 RxRetries: 0 TxRate: 24000 RxRate: 702000 FBRate: 468000 TxFwFrms: 0 TxFwFail:0 TxRetries: 0
+Aug 27 18:24:42.670467 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -38 Snr:35 Cca: 32 TxFrames: 0 TxFail: 0 BcnRx: 0 BcnSch: 0  RxFrames: 17 RxRetries: 0 TxRate: 24000 RxRate: 702000 FBRate: 468000 TxFwFrms: 0 TxFwFail:0 TxRetries: 0
+Aug 27 18:24:44.321443 bluetoothd[86] <Debug>: addFilters fDebugControllerConfigDispatchSequence:NO dispatchConfig:NO
+Aug 27 18:24:47.675140 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -37 Snr:35 Cca: 43 TxFrames: 0 TxFail: 0 BcnRx: 98 BcnSch: 98  RxFrames: 5 RxRetries: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 2 TxFwFail:0 TxRetries: 0
+Aug 27 18:24:52.684791 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -37 Snr:35 Cca: 22 TxFrames: 0 TxFail: 0 BcnRx: 0 BcnSch: 0  RxFrames: 2 RxRetries: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail:0 TxRetries: 0
+Aug 27 18:24:57.702456 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -37 Snr:35 Cca: 27 TxFrames: 0 TxFail: 0 BcnRx: 97 BcnSch: 98  RxFrames: 1 RxRetries: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail:0 TxRetries: 0
+Aug 27 18:25:02.718597 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -38 Snr:35 Cca: 27 TxFrames: 0 TxFail: 0 BcnRx: 0 BcnSch: 0  RxFrames: 2 RxRetries: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail:0 TxRetries: 0
+Aug 27 18:25:05.254344 bluetoothd[86] <Debug>: addFilters fDebugControllerConfigDispatchSequence:NO dispatchConfig:NO
+Aug 27 18:25:07.732850 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -38 Snr:35 Cca: 8 TxFrames: 0 TxFail: 0 BcnRx: 96 BcnSch: 98  RxFrames: 2 RxRetries: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 2 TxFwFail:0 TxRetries: 0
+Aug 27 18:25:09.384885 symptomsd(SymptomNetworkUsage)[170] <Debug>: _dispatchNextBatch
+Aug 27 18:25:10.474075 trustd(Security)[128] <Debug>: SecKeyVerifySignature failed: Error Domain=NSOSStatusErrorDomain Code=-67808 "RSA signature verification failed, no match" UserInfo={numberOfErrorsDeep=0, NSDescription=RSA signature verification failed, no match}
+Aug 27 18:25:10.475407 trustd(Security)[128] <Debug>: SecKeyVerifySignature failed: Error Domain=NSOSStatusErrorDomain Code=-50 "<SecKeyRef algorithm id: 1, key type: RSAPublicKey, version: 4, block size: 2048 bits, exponent: {hex: 10001, decimal: 65537}, modulus: A7EDC75CA82A30E00DC837FE69207809BA7E164E9020115C72E43CA2A690A18A9B32560A48910FF4A980722C8B04A160BB19224613F33CC71445E91CC7E336480E67188D82D1E4243A056635DD8756AABCFCD7AB7030E9244A8ADA07EA8A5EC4EF20F61C8D74796C2A44D781EFFB043C9A19CC1DD86EF8D66AEDDAF1E7F8004BF549DA3A4613C153E48BEE6058EC671CDCD4BFC2C05EFC721BF3F362D80D87EDA31C08C1D38151C08505763E888F3E24C10441DD3DB33D6B7C713DAF9B3C98745BE022C785E2A30EFC2C624A10073376213478562F4DE299D640F57C9ECEA0C467E7E2014476CFD7C494AACFBF1EAA2AE9E977EAAF71D1937E7F6F3859F1D38B, addr: 0x100e323c0>: sign - input buffer bad size (264 bytes)" UserInfo={numberOfErrorsDeep=0, NSDescription=<SecKeyRef algorithm id: 1, key type: RSAPublicKey, version: 4, block size: 2048 bits, exponent: {hex: 10001, decimal: 65537}, modulus: A7EDC75CA82A30E00DC837FE69207809BA7E164E9020115C
+Aug 27 18:25:10.489004 trustd(Security)[128] <Debug>: SecKeyVerifySignature failed: Error Domain=NSOSStatusErrorDomain Code=-67808 "RSA signature verification failed, no match" UserInfo={numberOfErrorsDeep=0, NSDescription=RSA signature verification failed, no match}
+Aug 27 18:25:10.490193 trustd(Security)[128] <Debug>: SecKeyVerifySignature failed: Error Domain=NSOSStatusErrorDomain Code=-50 "<SecKeyRef algorithm id: 1, key type: RSAPublicKey, version: 4, block size: 2048 bits, exponent: {hex: 10001, decimal: 65537}, modulus: A7EDC75CA82A30E00DC837FE69207809BA7E164E9020115C72E43CA2A690A18A9B32560A48910FF4A980722C8B04A160BB19224613F33CC71445E91CC7E336480E67188D82D1E4243A056635DD8756AABCFCD7AB7030E9244A8ADA07EA8A5EC4EF20F61C8D74796C2A44D781EFFB043C9A19CC1DD86EF8D66AEDDAF1E7F8004BF549DA3A4613C153E48BEE6058EC671CDCD4BFC2C05EFC721BF3F362D80D87EDA31C08C1D38151C08505763E888F3E24C10441DD3DB33D6B7C713DAF9B3C98745BE022C785E2A30EFC2C624A10073376213478562F4DE299D640F57C9ECEA0C467E7E2014476CFD7C494AACFBF1EAA2AE9E977EAAF71D1937E7F6F3859F1D38B, addr: 0x100e46ba0>: sign - input buffer bad size (264 bytes)" UserInfo={numberOfErrorsDeep=0, NSDescription=<SecKeyRef algorithm id: 1, key type: RSAPublicKey, version: 4, block size: 2048 bits, exponent: {hex: 10001, decimal: 65537}, modulus: A7EDC75CA82A30E00DC837FE69207809BA7E164E9020115C
+Aug 27 18:25:10.578252 trustd(Security)[128] <Debug>: SecKeyVerifySignature failed: Error Domain=NSOSStatusErrorDomain Code=-67808 "RSA signature verification failed, no match" UserInfo={numberOfErrorsDeep=0, NSDescription=RSA signature verification failed, no match}
+Aug 27 18:25:10.579132 trustd(Security)[128] <Debug>: SecKeyVerifySignature failed: Error Domain=NSOSStatusErrorDomain Code=-50 "<SecKeyRef algorithm id: 1, key type: RSAPublicKey, version: 4, block size: 2048 bits, exponent: {hex: 10001, decimal: 65537}, modulus: A7EDC75CA82A30E00DC837FE69207809BA7E164E9020115C72E43CA2A690A18A9B32560A48910FF4A980722C8B04A160BB19224613F33CC71445E91CC7E336480E67188D82D1E4243A056635DD8756AABCFCD7AB7030E9244A8ADA07EA8A5EC4EF20F61C8D74796C2A44D781EFFB043C9A19CC1DD86EF8D66AEDDAF1E7F8004BF549DA3A4613C153E48BEE6058EC671CDCD4BFC2C05EFC721BF3F362D80D87EDA31C08C1D38151C08505763E888F3E24C10441DD3DB33D6B7C713DAF9B3C98745BE022C785E2A30EFC2C624A10073376213478562F4DE299D640F57C9ECEA0C467E7E2014476CFD7C494AACFBF1EAA2AE9E977EAAF71D1937E7F6F3859F1D38B, addr: 0x100fb4040>: sign - input buffer bad size (264 bytes)" UserInfo={numberOfErrorsDeep=0, NSDescription=<SecKeyRef algorithm id: 1, key type: RSAPublicKey, version: 4, block size: 2048 bits, exponent: {hex: 10001, decimal: 65537}, modulus: A7EDC75CA82A30E00DC837FE69207809BA7E164E9020115C
+Aug 27 18:25:10.587905 trustd(Security)[128] <Debug>: SecKeyVerifySignature failed: Error Domain=NSOSStatusErrorDomain Code=-67808 "RSA signature verification failed, no match" UserInfo={numberOfErrorsDeep=0, NSDescription=RSA signature verification failed, no match}
+Aug 27 18:25:10.588610 trustd(Security)[128] <Debug>: SecKeyVerifySignature failed: Error Domain=NSOSStatusErrorDomain Code=-50 "<SecKeyRef algorithm id: 1, key type: RSAPublicKey, version: 4, block size: 2048 bits, exponent: {hex: 10001, decimal: 65537}, modulus: A7EDC75CA82A30E00DC837FE69207809BA7E164E9020115C72E43CA2A690A18A9B32560A48910FF4A980722C8B04A160BB19224613F33CC71445E91CC7E336480E67188D82D1E4243A056635DD8756AABCFCD7AB7030E9244A8ADA07EA8A5EC4EF20F61C8D74796C2A44D781EFFB043C9A19CC1DD86EF8D66AEDDAF1E7F8004BF549DA3A4613C153E48BEE6058EC671CDCD4BFC2C05EFC721BF3F362D80D87EDA31C08C1D38151C08505763E888F3E24C10441DD3DB33D6B7C713DAF9B3C98745BE022C785E2A30EFC2C624A10073376213478562F4DE299D640F57C9ECEA0C467E7E2014476CFD7C494AACFBF1EAA2AE9E977EAAF71D1937E7F6F3859F1D38B, addr: 0x100e9bf90>: sign - input buffer bad size (264 bytes)" UserInfo={numberOfErrorsDeep=0, NSDescription=<SecKeyRef algorithm id: 1, key type: RSAPublicKey, version: 4, block size: 2048 bits, exponent: {hex: 10001, decimal: 65537}, modulus: A7EDC75CA82A30E00DC837FE69207809BA7E164E9020115C
+Aug 27 18:25:10.720314 trustd(Security)[128] <Debug>: SecKeyVerifySignature failed: Error Domain=NSOSStatusErrorDomain Code=-67808 "RSA signature verification failed, no match" UserInfo={numberOfErrorsDeep=0, NSDescription=RSA signature verification failed, no match}
+Aug 27 18:25:10.720884 trustd(Security)[128] <Debug>: SecKeyVerifySignature failed: Error Domain=NSOSStatusErrorDomain Code=-50 "<SecKeyRef algorithm id: 1, key type: RSAPublicKey, version: 4, block size: 2048 bits, exponent: {hex: 10001, decimal: 65537}, modulus: A7EDC75CA82A30E00DC837FE69207809BA7E164E9020115C72E43CA2A690A18A9B32560A48910FF4A980722C8B04A160BB19224613F33CC71445E91CC7E336480E67188D82D1E4243A056635DD8756AABCFCD7AB7030E9244A8ADA07EA8A5EC4EF20F61C8D74796C2A44D781EFFB043C9A19CC1DD86EF8D66AEDDAF1E7F8004BF549DA3A4613C153E48BEE6058EC671CDCD4BFC2C05EFC721BF3F362D80D87EDA31C08C1D38151C08505763E888F3E24C10441DD3DB33D6B7C713DAF9B3C98745BE022C785E2A30EFC2C624A10073376213478562F4DE299D640F57C9ECEA0C467E7E2014476CFD7C494AACFBF1EAA2AE9E977EAAF71D1937E7F6F3859F1D38B, addr: 0x100e7a300>: sign - input buffer bad size (264 bytes)" UserInfo={numberOfErrorsDeep=0, NSDescription=<SecKeyRef algorithm id: 1, key type: RSAPublicKey, version: 4, block size: 2048 bits, exponent: {hex: 10001, decimal: 65537}, modulus: A7EDC75CA82A30E00DC837FE69207809BA7E164E9020115C
+Aug 27 18:25:10.726663 trustd(Security)[128] <Debug>: SecKeyVerifySignature failed: Error Domain=NSOSStatusErrorDomain Code=-67808 "RSA signature verification failed, no match" UserInfo={numberOfErrorsDeep=0, NSDescription=RSA signature verification failed, no match}
+Aug 27 18:25:10.727166 trustd(Security)[128] <Debug>: SecKeyVerifySignature failed: Error Domain=NSOSStatusErrorDomain Code=-50 "<SecKeyRef algorithm id: 1, key type: RSAPublicKey, version: 4, block size: 2048 bits, exponent: {hex: 10001, decimal: 65537}, modulus: A7EDC75CA82A30E00DC837FE69207809BA7E164E9020115C72E43CA2A690A18A9B32560A48910FF4A980722C8B04A160BB19224613F33CC71445E91CC7E336480E67188D82D1E4243A056635DD8756AABCFCD7AB7030E9244A8ADA07EA8A5EC4EF20F61C8D74796C2A44D781EFFB043C9A19CC1DD86EF8D66AEDDAF1E7F8004BF549DA3A4613C153E48BEE6058EC671CDCD4BFC2C05EFC721BF3F362D80D87EDA31C08C1D38151C08505763E888F3E24C10441DD3DB33D6B7C713DAF9B3C98745BE022C785E2A30EFC2C624A10073376213478562F4DE299D640F57C9ECEA0C467E7E2014476CFD7C494AACFBF1EAA2AE9E977EAAF71D1937E7F6F3859F1D38B, addr: 0x100fccfc0>: sign - input buffer bad size (264 bytes)" UserInfo={numberOfErrorsDeep=0, NSDescription=<SecKeyRef algorithm id: 1, key type: RSAPublicKey, version: 4, block size: 2048 bits, exponent: {hex: 10001, decimal: 65537}, modulus: A7EDC75CA82A30E00DC837FE69207809BA7E164E9020115C
+Aug 27 18:25:10.764802 trustd(Security)[128] <Debug>: SecKeyVerifySignature failed: Error Domain=NSOSStatusErrorDomain Code=-67808 "RSA signature verification failed, no match" UserInfo={numberOfErrorsDeep=0, NSDescription=RSA signature verification failed, no match}
+Aug 27 18:25:10.765139 trustd(Security)[128] <Debug>: SecKeyVerifySignature failed: Error Domain=NSOSStatusErrorDomain Code=-50 "<SecKeyRef algorithm id: 1, key type: RSAPublicKey, version: 4, block size: 2048 bits, exponent: {hex: 10001, decimal: 65537}, modulus: A7EDC75CA82A30E00DC837FE69207809BA7E164E9020115C72E43CA2A690A18A9B32560A48910FF4A980722C8B04A160BB19224613F33CC71445E91CC7E336480E67188D82D1E4243A056635DD8756AABCFCD7AB7030E9244A8ADA07EA8A5EC4EF20F61C8D74796C2A44D781EFFB043C9A19CC1DD86EF8D66AEDDAF1E7F8004BF549DA3A4613C153E48BEE6058EC671CDCD4BFC2C05EFC721BF3F362D80D87EDA31C08C1D38151C08505763E888F3E24C10441DD3DB33D6B7C713DAF9B3C98745BE022C785E2A30EFC2C624A10073376213478562F4DE299D640F57C9ECEA0C467E7E2014476CFD7C494AACFBF1EAA2AE9E977EAAF71D1937E7F6F3859F1D38B, addr: 0x100fb60f0>: sign - input buffer bad size (264 bytes)" UserInfo={numberOfErrorsDeep=0, NSDescription=<SecKeyRef algorithm id: 1, key type: RSAPublicKey, version: 4, block size: 2048 bits, exponent: {hex: 10001, decimal: 65537}, modulus: A7EDC75CA82A30E00DC837FE69207809BA7E164E9020115C
+Aug 27 18:25:10.769197 trustd(Security)[128] <Debug>: SecKeyVerifySignature failed: Error Domain=NSOSStatusErrorDomain Code=-67808 "RSA signature verification failed, no match" UserInfo={numberOfErrorsDeep=0, NSDescription=RSA signature verification failed, no match}
+Aug 27 18:25:10.769502 trustd(Security)[128] <Debug>: SecKeyVerifySignature failed: Error Domain=NSOSStatusErrorDomain Code=-50 "<SecKeyRef algorithm id: 1, key type: RSAPublicKey, version: 4, block size: 2048 bits, exponent: {hex: 10001, decimal: 65537}, modulus: A7EDC75CA82A30E00DC837FE69207809BA7E164E9020115C72E43CA2A690A18A9B32560A48910FF4A980722C8B04A160BB19224613F33CC71445E91CC7E336480E67188D82D1E4243A056635DD8756AABCFCD7AB7030E9244A8ADA07EA8A5EC4EF20F61C8D74796C2A44D781EFFB043C9A19CC1DD86EF8D66AEDDAF1E7F8004BF549DA3A4613C153E48BEE6058EC671CDCD4BFC2C05EFC721BF3F362D80D87EDA31C08C1D38151C08505763E888F3E24C10441DD3DB33D6B7C713DAF9B3C98745BE022C785E2A30EFC2C624A10073376213478562F4DE299D640F57C9ECEA0C467E7E2014476CFD7C494AACFBF1EAA2AE9E977EAAF71D1937E7F6F3859F1D38B, addr: 0x100e46ba0>: sign - input buffer bad size (264 bytes)" UserInfo={numberOfErrorsDeep=0, NSDescription=<SecKeyRef algorithm id: 1, key type: RSAPublicKey, version: 4, block size: 2048 bits, exponent: {hex: 10001, decimal: 65537}, modulus: A7EDC75CA82A30E00DC837FE69207809BA7E164E9020115C
+Aug 27 18:25:11.224570 lsd(CoreServicesStore)[96] <Debug>: Creating dispatch_data for XPC coder with length 4734976
+Aug 27 18:25:12.344951 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.345445 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.388686 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.388885 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.406777 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.407042 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.498021 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.498229 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.520394 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.520692 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.587369 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.587569 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.629374 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.629608 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.652471 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.652750 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.670671 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.670743 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.692994 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.693089 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.709337 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.709452 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.728235 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -38 Snr:35 Cca: 31 TxFrames: 0 TxFail: 0 BcnRx: 0 BcnSch: 0  RxFrames: 11 RxRetries: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail:0 TxRetries: 0
+Aug 27 18:25:12.730639 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.730739 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.748796 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.748913 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.760158 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.760422 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.777126 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.777223 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.788594 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.788816 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.802102 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.802292 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.814557 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.814608 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.826244 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.826307 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.838036 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.838113 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.850188 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.850234 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.861081 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.861172 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:12.875896 filecoordinationd(Foundation)[257] <Info>: Waking up fileproviderd (501) to prepare providers
+Aug 27 18:25:12.875985 filecoordinationd(Foundation)[257] <Info>: fileproviderd (501) finished preparing providers
+Aug 27 18:25:17.756963 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -37 Snr:35 Cca: 31 TxFrames: 0 TxFail: 0 BcnRx: 98 BcnSch: 98  RxFrames: 2 RxRetries: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail:0 TxRetries: 0
+Aug 27 18:25:18.837307 Runner(CoreFoundation)[49259] <Debug>: Resource lookup at <private>
+Aug 27 18:25:18.838881 Runner(CoreAnalytics)[49259] <Debug>: com.apple.metal.agx <private>
+Aug 27 18:25:18.846439 Runner(CoreAnalytics)[49259] <Info>: Received configuration update from daemon and there was no CoreAnalyticsFramework external config.
+Aug 27 18:25:18.847197 Runner(CoreAnalytics)[49259] <Notice>: Received configuration update from daemon (initial)
+Aug 27 18:25:20.794559 maild(libxpc.dylib)[327] <Notice>: _xpc_activity_dispatch: beginning dispatch, activity name com.apple.message.db.vacuum, seqno 2
+Aug 27 18:25:20.795468 maild(libxpc.dylib)[327] <Notice>: _xpc_activity_dispatch: com.apple.message.db.vacuum (0x1044b3d70): found an activity with matching seqno 2
+Aug 27 18:25:20.797109 maild(libxpc.dylib)[327] <Notice>: _xpc_activity_dispatch: lower half, activity name com.apple.message.db.vacuum (0x1044b3d70), seqno from top half was 2
+Aug 27 18:25:22.770312 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -38 Snr:35 Cca: 22 TxFrames: 0 TxFail: 0 BcnRx: 0 BcnSch: 0  RxFrames: 3 RxRetries: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail:0 TxRetries: 0
+Aug 27 18:25:25.304509 bluetoothd[86] <Debug>: addFilters fDebugControllerConfigDispatchSequence:NO dispatchConfig:NO
+Aug 27 18:25:26.561618 configd(IPConfiguration)[40] <Debug>: bootp_client_close_socket(en2): refcount 0
+Aug 27 18:25:26.562361 configd(IPConfiguration)[40] <Debug>: bootp_client_close_socket(): scheduling delayed close
+Aug 27 18:25:26.563217 configd(IPConfiguration)[40] <Debug>: timer(bootp_session): wakeup time is (1) 809562328
+Aug 27 18:25:27.565788 configd(IPConfiguration)[40] <Debug>: bootp_session_delayed_close(): closing bootp socket 19
+Aug 27 18:25:27.787460 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -37 Snr:35 Cca: 22 TxFrames: 0 TxFail: 0 BcnRx: 95 BcnSch: 98  RxFrames: 2 RxRetries: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 2 TxFwFail:0 TxRetries: 0
+Aug 27 18:25:32.802487 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -38 Snr:35 Cca: 29 TxFrames: 0 TxFail: 0 BcnRx: 0 BcnSch: 0  RxFrames: 21 RxRetries: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail:0 TxRetries: 0
+Aug 27 18:25:37.805224 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -38 Snr:35 Cca: 29 TxFrames: 0 TxFail: 0 BcnRx: 96 BcnSch: 98  RxFrames: 11 RxRetries: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail:0 TxRetries: 0
+Aug 27 18:25:42.812681 wifid(WiFiPolicy)[52] <Notice>: WiFiLQAMgrCopyCoalescedUndispatchedLQMEvent: Rssi: -38 Snr:35 Cca: 46 TxFrames: 0 TxFail: 0 BcnRx: 0 BcnSch: 0  RxFrames: 3 RxRetries: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail:0 TxRetries: 0
