@@ -102,8 +102,17 @@ does not get rationalised later:
 * **still unexplained but recurring** on this rejection run → stop and
   investigate before declaring P6 closed.
 
-Crash reports are preserved BEFORE the run, not after, since the device rotates
-them.
+**The historical three are already lost.** Preservation was attempted on
+2026-08-27 and the device's CrashReporter store held nothing from the Arm C
+window; there is no host-side archive either. See
+`crash_reports/PRESERVATION_ATTEMPT.md`. They are therefore permanently
+UNCLASSIFIED — not benign, not external — and only the third branch above can
+ever apply to them.
+
+So the rule binds on RECURRENCE. On this run, pull reports with
+`idevicecrashreport --keep` immediately after any crash and before the next
+launch, and classify then. `--keep` is not optional: the default moves the
+reports off the device, destroying the only copy if the pull is interrupted.
 
 ## Verdict rule
 
