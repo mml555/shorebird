@@ -79,3 +79,49 @@ from what was actually written. Pinned by a test and mutation-checked.
 This closes the **configuration** seam only. Track routing itself was already
 certified (`evidence/p6-tracks/VERDICT.md`) and was **not** re-run. Progressive
 rollout stays out of scope and untouched.
+
+---
+
+# Re-demonstrated from the owned pin, on a coherent toolchain
+
+The original certification above ran on release 1.13.0+1, built from a checkout
+carrying a **local** `flutter_tools` edit. This section closes the remaining
+arrow: the same behaviour from a Flutter revision we own, bootstrapped from our
+own bytes, with no local patch anywhere.
+
+## The chain, end to end
+
+    owned Flutter commit  a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61
+      on refs/heads/selfhost/3.44.8 in the durable mirror (verified by ls-remote)
+        -> clean bootstrap: SHOREBIRD_FLUTTER_GIT_URL=file://…/mirrors/flutter.git
+           FLUTTER_STORAGE_BASE_URL=http://localhost:8085
+           no git apply, no manual source copy, no stale flutter_tools snapshot
+        -> coherent cell activation (engine + host dart-sdk + both tool snapshots)
+           verify_toolchain_coherence.sh: 0 failures
+        -> two consecutive clean releases 1.16.0+1 and 1.17.0+1
+           no cache surgery between them, both shipping channel: beta
+        -> patch 1 published to BETA ONLY (stable: ABSENT)
+        -> device, no buttons pressed, by-hand taps only:
+
+    00:53:21  automatic check   channel=beta   release_version=1.17.0+1
+              __patch_download__ 1
+              __patch_install__  1
+    00:53:40  Shorebird updater: active patch is a Route B container
+              ROUTEB: applied 1/1 targets, entering main
+
+    rendered:  channel: beta / release: TRACKS-REL-1 / track state: TRACK-V2
+
+Render: `02_coherent_pin_auto_beta.png`. Release artifact fetched from the control
+plane, not the local build. Installed with `ios-deploy --bundle` and no `-d`/`-L`;
+every launch a by-hand tap; observation via passive `idevicescreenshot` and
+`idevicesyslog`.
+
+## What this closes
+
+**Pinned-toolchain reproducibility is no longer a claim about a workstation.** The
+`channel:` support the automatic updater depends on lives in a commit on a ref we
+own and mirror, and a checkout created from those bytes alone produces a release
+that a device patches on the non-stable track it was configured for.
+
+The `selfhost/flutter/0001-…patch` file is provenance only; the supported revision
+contains it.
