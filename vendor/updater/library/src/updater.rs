@@ -1229,6 +1229,54 @@ pub fn report_launch_start() -> anyhow::Result<()> {
     })
 }
 
+/// Prepares the next boot as ONE atomic state transition, and returns the patch
+/// the engine must actually execute.
+///
+/// WHY THIS EXISTS. Boot preparation used to be three independent operations:
+///
+///   report_launch_start()        records next_boot_patch as "currently booting"
+///   validate_next_boot_patch()   may reject that patch and recompute the pointer
+///   next_boot_patch_path()       returns whatever the pointer now names
+///
+/// Because attribution happened FIRST, a rejected candidate stayed credited.
+/// Measured on device (selfhost `ARM_C_EXECUTION_IDENTITY.md`): a patch whose
+/// signature failed verification was correctly NOT executed — the engine ran the
+/// fallback — yet `Launch success for patch 2` was recorded, `last_booted_patch`
+/// became 2, and `cleanup_older_than(2)` then deleted the fallback itself. The
+/// next launch had nothing to fall back to and dropped to the base release.
+///
+/// `record_boot_success` was not at fault: it was told the wrong patch had
+/// succeeded. So the invariant this function exists to make true BY
+/// CONSTRUCTION, not by luck of ordering, is:
+///
+///   currently_booting_patch == the patch number of the returned path
+///
+/// Both come out of the same `with_mut_state` transition, so no state change can
+/// land between validation, selection and attribution. Moving
+/// `report_launch_start` a few lines later would not achieve this: `update()`
+/// and the update thread may change `next_boot_patch` at any time, so anything
+/// that re-reads the pointer after selection can still disagree with the bytes
+/// the VM was handed.
+///
+/// A candidate failing validation is NOT a failure of this call. Rejecting it,
+/// tombstoning it and choosing a safe fallback is success. What must fail closed
+/// is being unable to persist the tombstone, unable to recompute a selection, or
+/// unable to establish the selected artifact — in which case the rejected
+/// candidate is never returned.
+pub fn prepare_next_boot() -> anyhow::Result<Option<PatchInfo>> {
+    shorebird_info!("Preparing next boot.");
+
+    // ONE state transition. Nothing can land between validation, selection and
+    // attribution -- which is the whole point, since `update()` and the update
+    // thread may change `next_boot_patch` at any moment.
+    let selected = with_mut_state(|state| state.prepare_next_boot())?;
+    match &selected {
+        Some(patch) => shorebird_info!("Prepared boot of patch {}.", patch.number),
+        None => shorebird_info!("Prepared boot of the base release."),
+    }
+    Ok(selected)
+}
+
 /// Report that the current active path failed to launch.
 /// This will mark the patch as bad and activate the next best patch.
 pub fn report_launch_failure() -> anyhow::Result<()> {

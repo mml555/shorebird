@@ -332,6 +332,37 @@ impl UpdaterState {
             .validate_next_boot_patch(self.patch_public_key.as_deref(), self.verification_mode)
     }
 
+    /// Validates, selects and ATTRIBUTES the next boot in one transition, and
+    /// returns the patch that must actually be executed.
+    ///
+    /// The invariant, true by construction rather than by ordering luck:
+    ///
+    ///   currently_booting_patch == the patch number of the returned PatchInfo
+    ///
+    /// The old boot surface established attribution BEFORE validation, so a
+    /// candidate rejected for a bad signature stayed credited; a later
+    /// `record_boot_success` then promoted it and `cleanup_older_than` deleted
+    /// the fallback that had actually booted. Measured on device in
+    /// `selfhost/evidence/p6-signing/ARM_C_EXECUTION_IDENTITY.md`.
+    ///
+    /// Rejecting a candidate is a NORMAL outcome, not an error: the patch is
+    /// tombstoned, the pointer recomputed, and the fallback returned. Failure to
+    /// persist that tombstone, or to record the boot start for the selected
+    /// patch, propagates — the rejected candidate is never returned.
+    pub fn prepare_next_boot(&mut self) -> Result<Option<PatchInfo>> {
+        if let Err(e) = self.validate_next_boot_patch() {
+            shorebird_info!("Next boot candidate rejected: {:?}", e);
+        }
+
+        // Read the pointer only AFTER validation has had its say.
+        let selected = self.next_boot_patch();
+        self.set_running_patch(selected.as_ref().map(|p| p.number));
+        if let Some(patch) = &selected {
+            self.record_boot_start_for_patch(patch.number)?;
+        }
+        Ok(selected)
+    }
+
     /// Moves the inflated artifact at `patch.path` into the lifecycle's
     /// installed location, validates the signature in `InstallOnly`
     /// mode, transitions the patch to `Installed`, and promotes it to
@@ -447,6 +478,10 @@ mod tests {
     use crate::cache::lifecycle::BadReason;
     use tempfile::TempDir;
 
+    /// A syntactically valid DER key that nothing here is signed with, so a
+    /// Strict check fails for a SIGNATURE reason rather than a decode error.
+    const TEST_PUBLIC_KEY_FOR_PREPARE: &str = "MIIBCgKCAQEA2wdpEGbuvlPsb9i0qYrfMefJnEw1BHTi8SYZTKrXOvJWmEpPE1hWfbkvYzXu5a96gV1yocF3DMwn04VmRlKhC4AhsD0NL0UNhYhotbKG91Kwi1vAXpHhCdz5gQEBw0K1uB4Jz+zK6WK+31PryYpwLwbyXNqXoY8IAAUQ4STsHYV5w+BMSi8pepWMRd7DR9RHcbNOZlJvdBQ5NxvB4JN4dRMq8cC73ez1P9d7Dfwv3TWY+he9EmuXLT2UivZSlHIrGBa7MFfqyUe2ro0F7Te/B0si12itBbWIqycvqcXjeOPNn6WEpqN7IWjb9LUh162JyYaz5Lb/VeeJX8LKtElccwIDAQAB";
+
     fn fake_artifact(tmp: &TempDir, number: usize) -> PatchInfo {
         let path = tmp.path().join(format!("patch{}.full", number));
         std::fs::write(&path, format!("patch_{}_bytes", number)).unwrap();
@@ -461,6 +496,157 @@ mod tests {
             None,
             PatchVerificationMode::default(),
         )
+    }
+
+    /// A state whose Strict verification uses `key`, so a candidate can be made
+    /// to fail for a SIGNATURE reason rather than a size one.
+    fn load_strict(tmp: &TempDir, key: &str) -> UpdaterState {
+        UpdaterState::load_or_new_on_error(
+            tmp.path(),
+            &tmp.path().join("downloads"),
+            "1.0.0+1",
+            Some(key),
+            PatchVerificationMode::Strict,
+        )
+    }
+
+    /// Installs `number` and asserts it became the next boot candidate.
+    fn install(state: &mut UpdaterState, tmp: &TempDir, number: usize) {
+        let p = fake_artifact(tmp, number);
+        state.install_patch(&p, "hash", None).unwrap();
+        state.save().unwrap();
+    }
+
+    // ---- prepare_next_boot: the invariant is that the patch recorded as
+    // ---- booting is the patch whose artifact is returned. Every row below
+    // ---- asserts BOTH halves, because the defect this replaces had them agree
+    // ---- in the happy path and disagree exactly when it mattered.
+
+    #[test]
+    fn prepare_returns_the_candidate_when_it_validates() {
+        let tmp = TempDir::new().unwrap();
+        let mut state = load(&tmp, "1.0.0+1");
+        install(&mut state, &tmp, 1);
+        install(&mut state, &tmp, 2);
+
+        let selected = state.prepare_next_boot().unwrap();
+        assert_eq!(selected.map(|p| p.number), Some(2));
+        assert_eq!(state.lifecycle.pointers().currently_booting_patch, Some(2));
+    }
+
+    #[test]
+    fn prepare_falls_back_and_attributes_the_fallback_not_the_candidate() {
+        // THE LOAD-BEARING REGRESSION. Patch 1 known-good, patch 2 present but
+        // unverifiable under the configured key. The old surface credited 2 here;
+        // `last_booted_patch` then became 2 and cleanup deleted patch 1.
+        let tmp = TempDir::new().unwrap();
+        let mut state = load(&tmp, "1.0.0+1");
+        install(&mut state, &tmp, 1);
+        state.lifecycle.record_boot_start(1).unwrap();
+        state.lifecycle.record_boot_success().unwrap();
+        install(&mut state, &tmp, 2);
+
+        // Re-open in Strict with a key nothing was signed by, so patch 2 fails
+        // for a SIGNATURE reason.
+        let mut strict = load_strict(&tmp, TEST_PUBLIC_KEY_FOR_PREPARE);
+        let selected = strict.prepare_next_boot().unwrap();
+
+        assert_eq!(
+            selected.map(|p| p.number),
+            Some(1),
+            "must return the fallback, not the rejected candidate"
+        );
+        assert_eq!(
+            strict.lifecycle.pointers().currently_booting_patch,
+            Some(1),
+            "attribution must name the patch actually selected"
+        );
+        assert!(
+            matches!(
+                strict.lifecycle.read_state(2),
+                Some(PatchState::Bad {
+                    reason: BadReason::ValidationFailed,
+                    ..
+                })
+            ),
+            "the rejected candidate must be tombstoned"
+        );
+    }
+
+    #[test]
+    fn prepare_success_after_fallback_keeps_the_fallback_installed() {
+        // The consequence the device run exposed: with correct attribution, a
+        // successful boot promotes patch 1 -- so cleanup_older_than(1) cannot
+        // delete patch 1, and no retention exception is needed.
+        let tmp = TempDir::new().unwrap();
+        let mut state = load(&tmp, "1.0.0+1");
+        install(&mut state, &tmp, 1);
+        state.lifecycle.record_boot_start(1).unwrap();
+        state.lifecycle.record_boot_success().unwrap();
+        install(&mut state, &tmp, 2);
+
+        let mut strict = load_strict(&tmp, TEST_PUBLIC_KEY_FOR_PREPARE);
+        strict.prepare_next_boot().unwrap();
+        strict.lifecycle.record_boot_success().unwrap();
+
+        assert_eq!(strict.lifecycle.pointers().last_booted_patch, Some(1));
+        assert!(
+            matches!(
+                strict.lifecycle.read_state(1),
+                Some(PatchState::Installed { .. })
+            ),
+            "patch 1 must survive: it is what booted"
+        );
+        assert!(
+            strict.lifecycle.installed_artifact_path(1).exists(),
+            "the fallback ARTIFACT must survive, not just its state record"
+        );
+        assert!(matches!(
+            strict.lifecycle.read_state(2),
+            Some(PatchState::Bad { .. })
+        ));
+    }
+
+    #[test]
+    fn prepare_returns_base_when_the_only_candidate_is_rejected() {
+        let tmp = TempDir::new().unwrap();
+        let mut state = load(&tmp, "1.0.0+1");
+        install(&mut state, &tmp, 1);
+
+        let mut strict = load_strict(&tmp, TEST_PUBLIC_KEY_FOR_PREPARE);
+        let selected = strict.prepare_next_boot().unwrap();
+        assert!(selected.is_none(), "no usable patch means the base release");
+        assert_eq!(
+            strict.lifecycle.pointers().currently_booting_patch,
+            None,
+            "the base release must not be attributed to a patch"
+        );
+    }
+
+    #[test]
+    fn prepare_attribution_survives_a_later_pointer_change() {
+        // Why binding attribution to the RETURNED path beats moving
+        // report_launch_start later: next_boot_patch may legitimately change
+        // after preparation (update thread, promotion). The prepared/running
+        // patch must not.
+        let tmp = TempDir::new().unwrap();
+        let mut state = load(&tmp, "1.0.0+1");
+        install(&mut state, &tmp, 1);
+
+        let selected = state.prepare_next_boot().unwrap();
+        assert_eq!(selected.map(|p| p.number), Some(1));
+
+        // A new patch arrives before the launch reports success.
+        install(&mut state, &tmp, 3);
+        assert_eq!(state.next_boot_patch().map(|p| p.number), Some(3));
+
+        assert_eq!(
+            state.lifecycle.pointers().currently_booting_patch,
+            Some(1),
+            "the patch being booted must not follow a later pointer change"
+        );
+        state.lifecycle.record_boot_success().unwrap();
+        assert_eq!(state.lifecycle.pointers().last_booted_patch, Some(1));
     }
 
     #[test]

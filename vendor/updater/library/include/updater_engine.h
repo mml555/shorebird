@@ -116,6 +116,29 @@ SHOREBIRD_EXPORT void shorebird_validate_next_boot_patch(void);
 SHOREBIRD_EXPORT char *shorebird_next_boot_patch_path(void);
 
 /**
+ * Prepares the next boot and returns the path the engine must ACTUALLY execute,
+ * or NULL for the base release. The caller must free the returned string with
+ * `shorebird_free_string`.
+ *
+ * This is the ONLY boot-preparation entry point the production engine should
+ * use. It replaces the three-call sequence
+ * `shorebird_report_launch_start` → `shorebird_validate_next_boot_patch` →
+ * `shorebird_next_boot_patch_path`, which attributed the launch to the
+ * PRE-VALIDATION candidate: a patch rejected for a bad signature was correctly
+ * not executed, yet stayed credited, so a later boot-success promoted it and
+ * cleanup deleted the fallback that had really booted. Measured on device in
+ * `selfhost/evidence/p6-signing/ARM_C_EXECUTION_IDENTITY.md`.
+ *
+ * Here validation, selection and attribution happen in one state transition, so
+ * the patch recorded as booting is by construction the patch whose path is
+ * returned. A rejected candidate is tombstoned and the fallback returned; that
+ * is success, not failure. Returning NULL on an internal error is fail-closed:
+ * the engine boots the base release rather than an artifact the updater could
+ * not vouch for.
+ */
+SHOREBIRD_EXPORT char *shorebird_prepare_next_boot_patch(void);
+
+/**
  * Start a thread to download an update if one is available.
  */
 SHOREBIRD_EXPORT void shorebird_start_update_thread(void);
