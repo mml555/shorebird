@@ -1,5 +1,12 @@
 # Patches to the pinned Flutter SDK
 
+> **Retained as provenance, not as an installation step.** The supported
+> revision — `flutter_revision` in `selfhost/compatibility.yaml`, currently
+> `a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61` on `refs/heads/selfhost/3.44.8` —
+> **already contains** 0001. Do **not** apply it to the supported toolchain: it
+> will fail, or worse, apply twice. The file is kept so the change is reviewable
+> as a diff and so its reason survives independently of the commit message.
+
 Unlike `selfhost/engine/*.patch`, which patch the **engine** tree, these patch
 the **Flutter framework/tools** checkout that `selfhost/compatibility.yaml` pins
 via `flutter_revision`.

@@ -8,7 +8,18 @@
 shorebird:
   cli_version: 1.6.115+selfhost.1                                # fork build of upstream 1.6.115
   cli_revision: selfhost-v1.0.0                                  # this repo's baseline tag
-  flutter_revision: c15ef6379403a0a55531a058bdb2c8e55bc05c98      # bin/internal/flutter.version (3.44.8 / Dart 3.12.2)
+  flutter_revision: a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61      # bin/internal/flutter.version (3.44.8 / Dart 3.12.2)
+                                                                  # SELFHOST FORK COMMIT, on refs/heads/selfhost/3.44.8
+                                                                  # in the durable mirror. It is upstream c15ef637 plus ONE
+                                                                  # change: compileShorebirdYaml copies channel: into the
+                                                                  # bundled shorebird.yaml. Without it the key is accepted by
+                                                                  # the CLI and silently dropped from the shipped bundle, so a
+                                                                  # project configured for a non-stable track still requests
+                                                                  # stable. Pinned here rather than applied as a local patch
+                                                                  # because a fresh bootstrap must reproduce the supported
+                                                                  # toolchain from owned bytes alone.
+                                                                  # engine.version at this commit is UNCHANGED from c15ef637
+                                                                  # (measured: still 69f9831c), so engine_revision below stands.
   engine_revision: 69f9831c360d9152862ec3897c67fb09ae843f3b       # shorebirdtech/flutter bin/internal/engine.version
   updater_revision: f729f958e9be                                  # PROVENANCE OF CONSUMED BYTES.
                                                                   # RESTAMPED 2026-08-23. The previous value, fe51f225,

@@ -206,7 +206,33 @@ Everything a clean machine touches that is NOT Shorebird infrastructure:
   ```bash
   git -C selfhost/cdn/mirrors/flutter.git fetch --prune origin
   git -C selfhost/cdn/mirrors/flutter.git push --mirror durable   # ignore refs/pull/* rejects
+
+  # REQUIRED: the supported toolchain is pinned to a ref we own, so verify the
+  # refresh did not take it with it. Fails loudly rather than silently.
+  git -C selfhost/cdn/mirrors/flutter.git rev-parse --verify \
+    refs/heads/selfhost/3.44.8
   ```
+
+  **This repository is no longer a pure mirror of upstream.** It carries
+  `refs/heads/selfhost/*`, and `selfhost/compatibility.yaml` pins
+  `flutter_revision` to a commit that exists **only** there. Two configuration
+  changes protect it, and both were verified by experiment rather than reasoning:
+
+  ```bash
+  # origin's mapping excludes our namespace, so --prune cannot consider it stale
+  remote.origin.fetch = +refs/*:refs/*
+  remote.origin.fetch = ^refs/heads/selfhost/*
+  # and remote.origin.mirror is UNSET, so `push origin --mirror` can no longer
+  # try to delete upstream refs it does not see. We never push to upstream.
+  ```
+
+  Measured against a stand-in upstream that lacked the ref: with the previous
+  `+refs/*:refs/*` alone, `fetch --prune` **deleted**
+  `refs/heads/selfhost/3.44.8`; with the negative refspec added it **survived**.
+  The hazard was real, not theoretical — which is why the verification line above
+  is part of the procedure and not a suggestion.
+
+  Negative refspecs need git >= 2.29.
 
   **Restore from it** — this exact sequence was run and verified, it is not
   a plausible-looking recipe:
