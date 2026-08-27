@@ -23,8 +23,9 @@ void main() {
     late Directory flutterDir;
     late ToolchainCoherence coherence;
 
-    /// Builds a checkout whose stamps and gen_snapshots are what the arguments
-    /// say. Defaults are the COHERENT case, so each test states only its defect.
+    /// Builds a checkout whose stamps and gen_snapshots are what the
+    /// arguments say. Defaults are the COHERENT case, so each test states
+    /// only its own defect.
     void makeCheckout({
       String engineStamp = cell,
       String? dartSdkStamp = cell,
@@ -199,9 +200,9 @@ void main() {
       });
 
       // ---- the causal pair for the scope change ----
-      // Same checkout, same non-Route-B iOS compiler. The ONLY difference is the
-      // platform being produced. This is what shows the protection was scoped,
-      // not deleted.
+      // Same checkout, same non-Route-B iOS compiler. The ONLY difference
+      // is the platform being produced. This is what shows the protection was
+      // scoped, not deleted.
       test('android: a non-Route-B iOS gen_snapshot is IRRELEVANT', () {
         makeCheckout(patchableGenSnapshot: false);
         expect(checkFor(ReleasePlatform.android), isEmpty);
