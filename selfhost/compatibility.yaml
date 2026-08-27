@@ -21,7 +21,38 @@ shorebird:
                                                                   # engine.version at this commit is UNCHANGED from c15ef637
                                                                   # (measured: still 69f9831c), so engine_revision below stands.
   engine_revision: 69f9831c360d9152862ec3897c67fb09ae843f3b       # shorebirdtech/flutter bin/internal/engine.version
-  updater_revision: f729f958e9be                                  # PROVENANCE OF CONSUMED BYTES.
+  updater_revision: af6e842ccf87                                  # PROVENANCE OF CONSUMED BYTES.
+                                                                    # RESTAMPED 2026-08-27 for cell 4792f0ec. Full SHA
+                                                                    # af6e842ccf87a083d1598b1e7c9e0868c5731931, durable
+                                                                    # at mml555/shorebird-updater-mirror ref route-b. The
+                                                                    # previous value f729f958e9be is preserved below and
+                                                                    # was correct for cells 2c4443ce and ca7d2c0d.
+                                                                    # WHAT CHANGED: prepare_next_boot() makes boot
+                                                                    # attribution atomic with boot selection, so
+                                                                    # currently_booting_patch is the patch whose path is
+                                                                    # returned. NOT YET in eligibleUpdaterRevisions -- see
+                                                                    # MEASUREMENT_MODE.md; that is a decision, and the
+                                                                    # absent direction under-counts rather than fabricates.
+                                                                    # THESE FOUR ARE DISTINCT IDENTITIES. Do not collapse
+                                                                    # them: the documentation commit is NOT part of the
+                                                                    # built runtime.
+                                                                    #   evidence_revision      3b6a5ab83bd5d36f (docs)
+                                                                    #   control_plane_revision 58b4998007f1736b (patch+CLI)
+                                                                    #   engine_revision        619fdad176ff4573 (C++)
+                                                                    #   updater_revision       af6e842ccf87a083 (runtime)
+                                                                    # 619fdad176ff4573 is the engine_version the mode
+                                                                    # qualification gate read out of all three iOS builds.
+                                                                    # THE CERTIFIED ENGINE COMMIT IS PINNED HERE. A later
+                                                                    # formatting-only commit may advance the branch; this
+                                                                    # field must keep naming the commit whose bytes were
+                                                                    # built and certified, until an actual rebuild and
+                                                                    # requalification happens.
+                                                                    # CELL 2026-08-27: ca7d2c0d -> 4792f0ec. Runtime-only:
+                                                                    # exactly three members moved, all iOS engine modes;
+                                                                    # all ten host producer members byte-identical. See
+                                                                    # evidence/p6-signing/CELL_4792f0ec_AB_MANIFEST.md.
+                                                                    # --- superseded, kept verbatim ---
+  superseded_updater_revision_2026_08_27: f729f958e9be                                  # PROVENANCE OF CONSUMED BYTES.
                                                                   # RESTAMPED 2026-08-23. The previous value, fe51f225,
                                                                   # and its whole justification are preserved verbatim
                                                                   # below under `superseded_updater_revision` — it was

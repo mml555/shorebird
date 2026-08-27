@@ -401,3 +401,28 @@ ac5d3b63ff0d074a4aa3742acc03c178f4517988 69f9831c360d9152862ec3897c67fb09ae843f3
 #   CHANGED route_b_release_probe.aot  ee144635d144a080 -> 37dffac8de643591
 #   same    vm_platform.dill  015ef32c6cb988d8
 ca7d2c0d43bf975db2c42cc0aa6351d527443abf 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# Route B compiler cell, minted 2026-08-27 from the cell
+# manifest (see mint_route_b_cell.sh).
+# ANCESTRY, MEASURED against donor ca7d2c0d43bf975db2c42cc0aa6351d527443abf at mint time —
+# 4 of 11 artifacts differ:
+#   CHANGED engine_stamp.json — sha256 66ffdf6d2791e345cc122217f911f935b89aea71ea7277e42d3e38262ba27b63 (donor 37cd5f68147ff57bd6d854a2549d8949b4a633993ef7f3a9466d9576055bbea5)
+#   CHANGED ios-profile/artifacts.zip — sha256 4af310e0a721b3f9cca3c519a680f2bb34f59f1562bbb2219bef6b74e558b172 (donor 4d88c4912ab68ba63e49a4c6828bea9fac31b41029410bfe7988586a0142b723)
+#   CHANGED ios-release/artifacts.zip — sha256 c5e3908cb0f59e679b4aacb02639277e18ebb657ea808d61eb1ce6123d297394 (donor 216a326d81688d1ab32b3b277f2da1115310a0a511e3ae8e5ef3daa759131144)
+#   CHANGED ios/artifacts.zip — sha256 c78ac905d0a2ad0cfa84d9d70cc7534268187e632f4d594ea2b14ff75a8fec3b (donor b5abe13dfab5870979ed8a2578aaac970e7d4d5e81f8ec28b6bc09b6c6d98a28)
+# Donor ca7d2c0d43bf975db2c42cc0aa6351d527443abf supplied the other 7, byte-for-byte.
+# ADDRESS: iOS artifacts sha256 c5e3908cb0f59e679b4aacb02639277e18ebb657ea808d61eb1ce6123d297394
+# participates in this cell's address (--ios-artifacts).
+#
+# atomic prepare_next_boot: updater af6e842ccf87, engine 619fdad176. Runtime-only cell; all host members byte-identical to ca7d2c0d.
+# CELL FILES, measured from the PUBLISHED bundles (what a consumer gets):
+#   CHANGED PROVENANCE.txt  2f731c6d5f81ed54 -> a82c518af18cc945
+#   same    dart2bytecode.aot  8dfb3b6682d591a3
+#   same    dartaotruntime  075ccbb2858f299d
+#   same    flutter_platform_strong.dill  099b03133aea3927
+#   same    route_b_analyze.aot  14538a6731604442
+#   same    route_b_gen_dynamic_interface.aot  c226800242a85028
+#   same    route_b_gen_kernel.aot  81e1d8f4dc72bf2b
+#   same    route_b_release_probe.aot  37dffac8de643591
+#   same    vm_platform.dill  015ef32c6cb988d8
+4792f0eca461f3761001a1adbe131b4b115e3684 69f9831c360d9152862ec3897c67fb09ae843f3b
