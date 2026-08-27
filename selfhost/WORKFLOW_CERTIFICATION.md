@@ -138,14 +138,25 @@ Wi-Fi and may be perfectly valid with USB forwarding — see
 
 ## 7 · signing — `UNCERTIFIED`
 
+> **Cryptographic verification boundary PROVEN; recovery/launch-attribution
+> defect OPEN; rejected-patch execution identity UNRESOLVED.**
+>
+> Deliberately not "supported but uncertified": while it is unresolved whether a
+> signature-rejected patch's code executed, there is an open **security**
+> question, and "supported" would read as stronger than the evidence allows.
+
 | field | value |
 |---|---|
 | scope | the real iOS/Android signing path, and that patching does not alter signing assumptions |
 | unique seam | artifact-and-signature verification, NOT App Store policy |
-| proven | a source-determined classification only: `evidence/g7-signing/verification_path.md` states plainly *"No device, no run, no release"* |
-| owed | release signed as expected; the patch workflow shown not to alter app-signing assumptions; final IPA/APK/AAB verification; no new entitlement or profile behaviour |
+| **proven — Dart→Rust seam** | the CLI's own signature and base64-DER public key, from all four surfaces (`--public-key-path`, `--private-key-path`, `--public-key-cmd`, `--sign-cmd` driving real OpenSSL), accepted by the **unchanged production Rust verifier**; mutated signature and wrong message both rejected. `evidence/p6-signing/ARM_A_DART_RUST_SEAM.md` |
+| **proven — package signing** | publishing a patch left the server-fetched **iOS** release byte-identical with `codesign` PASS, profile and normalized entitlements unchanged; and the server-fetched **Android** AAB byte-identical with `jarsigner` PASS and its non-debug release certificate unchanged. `ARM_B_PACKAGE_SIGNING.md` |
+| **proven — device signature refusal** | the shipped release carries `strict` + DER(K1); a K1-signed patch was verified (*"Patch signature is valid"*) and executed; a patch correctly signed by **K2** was downloaded, installed, and refused at boot as exactly `Bad{ValidationFailed}`, skipped thereafter, and its marker **never rendered**. `ARM_C_DEVICE_SIGNATURE.md` |
+| **OPEN — launch attribution** | after the rejection the app fell back to the **base release**, not the last-known-good patch. `report_launch_start` records `next_boot_patch` *before* validation runs and nothing clears `currently_booting_patch` when validation rejects, so `record_boot_success` credited the rejected patch and `cleanup_older_than` deleted the fallback. Leading hypothesis, not yet proven |
+| **OPEN — execution identity** | whether the rejection process executed the rejected patch's bytes. The render argues against it (the good marker was showing; the bad marker never appeared anywhere), but `ROUTEB: built-for` is the *release* identity and cannot distinguish patches. Settled by comparing the engine's `active path:` digest against `patches/N/dlc.vmcode` |
+| owed to certify | resolve execution identity; then couple validation, selection and launch attribution so the patch recorded as booting is the patch whose artifact is booted; then re-run only the K2 rejection → recovery tail |
 | boundary | technical signing-path certification is **not** App Store policy approval. `APPSTORE_COMPLIANCE.md` OPEN-1 remains the distribution-signing arm |
-| re-certify when | the signing pipeline changes |
+| re-certify when | the signing pipeline or the boot-selection/attribution path changes |
 
 ## 8 · tracks — `CERTIFIED` (server-side routing)
 
