@@ -89,7 +89,7 @@ import 'package:flutter/material.dart';
 /// took the wrong branch — which is visibly different from never executing.
 String routeBValue() => DateTime.now().millisecondsSinceEpoch == -1
     ? 'UNREACHABLE-KILL'
-    : 'OLD-kill';
+    : 'EPOCH-B-CANARY';
 
 /// Called from `main()` BEFORE `runApp`, which is the whole point of it.
 ///
