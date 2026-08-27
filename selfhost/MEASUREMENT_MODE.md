@@ -4,6 +4,38 @@ Lifecycle engineering is finished. The five operational prerequisites are met an
 **lifecycle behaviour must not change again until the precommitted sample threshold
 is reached** (`THRESHOLD_ANALYSIS_PRECOMMIT.md`).
 
+> ### ⚠ ADDITION — 2026-08-27. A lifecycle fix landed for Signing. Read this before it ships.
+>
+> `af6e842ccf87` makes boot attribution atomic with boot selection
+> (`evidence/p6-signing/ATTRIBUTION_FIX.md`). It is a **lifecycle-behaviour
+> change**, so it meets this document's own "not allowed while collecting" line,
+> and it is raised here rather than quietly absorbed.
+>
+> **What it changes.** Only the REJECTION path. When a next-boot candidate fails
+> validation, the launch is now credited to the patch that actually booted instead
+> of to the rejected one. On the path the estimator measures — a candidate that
+> validates — preparation returns the same patch the old three-call sequence
+> returned, records the same `record_boot_start`, and emits the same events. The
+> `boot_attempt_count` / threshold / retry semantics are untouched.
+>
+> **Why the current sample is not disturbed.** The measured population is release
+> 108 / 1.8.0+1 on cell `2c4443cedd654fad8eebd877bbc215edbdd11615` with updater
+> `f729f958e9be`. Those clients are not re-cut; a new cell is additive. And
+> `af6e842ccf87` is **not** in `eligibleUpdaterRevisions`, so any client on it is
+> excluded — the under-counting direction this document already calls deliberate.
+>
+> **Two decisions are therefore open, and neither is taken here:**
+>
+> 1. whether the epoch CONTINUES across `f729f958e9be` → `af6e842ccf87` (the
+>    argument for: behaviour is identical on the measured path) or whether the
+>    sample restarts;
+> 2. whether `af6e842ccf87` is added to `eligibleUpdaterRevisions` — which
+>    requires this document's step 2 first: read the revision out of the SHIPPED
+>    engine bytes, never the build log.
+>
+> Until (1) is answered, the Signing lane uses the new cell for its own fixture
+> only and the measurement app stays on `2c4443ce…`. Nothing here has shipped.
+
 ## THE SHIPPED COMBINATION
 
     client   updater f729f958e9be
