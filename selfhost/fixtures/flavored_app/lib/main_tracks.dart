@@ -40,8 +40,8 @@ const String kTracksRelease = 'TRACKS-REL-1';
 @pragma('vm:never-inline')
 @pragma('vm:entry-point')
 String trackState() => DateTime.now().millisecondsSinceEpoch >= 0
-    ? 'TRACK-V2'
-    : 'TRACK-V2!';
+    ? 'TRACK-V3'
+    : 'TRACK-V3!';
 
 void main() => runApp(const TracksProbeApp());
 

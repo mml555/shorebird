@@ -1,0 +1,11 @@
+label: before
+release_id: 7
+arch: aab
+container_sha256: f87d45e30ef204613b0165f28923dfe6664e793670c02f28cdadf3afc6b43e30
+container_bytes: 47400740
+artifact_sha256: f87d45e30ef204613b0165f28923dfe6664e793670c02f28cdadf3afc6b43e30
+artifact_bytes: 47400740
+aab_verify: PASS
+aab_verify_detail: jar verified.
+signer_dn: C=US, O=Android, CN=Android Debug
+signer_cert_sha256: 
