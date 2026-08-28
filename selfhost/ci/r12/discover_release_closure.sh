@@ -72,8 +72,7 @@ for i in $(seq 1 "$MAXIT"); do
     [[ -n "$line" ]] && missing+=("$line")
   done < <(
     docker logs r12-cdn-sealed 2>&1 | tail -n +"$((before+1))" \
-      | grep '"status": *502' \
-      | grep -oE '"uri": *"[^"]+"' | sed 's/.*"uri": *"//; s/"$//' | sort -u
+      | python3 "$HERE/pair_refusals.py"
   )
 
   if [[ "${#missing[@]}" -eq 0 ]]; then
@@ -88,10 +87,29 @@ for i in $(seq 1 "$MAXIT"); do
   fi
 
   note "${#missing[@]} artifact(s) refused this round"
-  for uri in "${missing[@]}"; do
-    note "importing $uri"
-    "$HERE/mirror_cdn_artifact.sh" "$uri" release_patch | sed 's/^/     /' \
-      || { say "STOP — could not import $uri"; exit 1; }
+
+  # NO-PROGRESS DETECTION. Without it a mis-addressed import loops forever
+  # re-importing a file it already owns while the seal keeps refusing — which is
+  # exactly what happened for 28 iterations before the pairing was fixed. An
+  # unchanged refusal set means the last import did not take effect, and that is
+  # a defect to classify, not a round to repeat.
+  fingerprint="$(printf '%s\n' "${missing[@]}" | sort | shasum -a 256 | awk '{print $1}')"
+  if [[ "$fingerprint" == "${last_fingerprint:-}" ]]; then
+    say "STOP — the SAME artifacts were refused twice in a row"
+    note "The previous import did not change what the mirror serves. Most likely"
+    note "the bytes were written to the upstream address instead of the client"
+    note "path. Verify with: curl -sSI <mirror>/<client_path> | grep X-Overlay"
+    printf '     refused: %s\n' "${missing[@]}"
+    exit 1
+  fi
+  last_fingerprint="$fingerprint"
+
+  for pair in "${missing[@]}"; do
+    client="${pair%%$'\t'*}"; gcs="${pair##*$'\t'}"
+    note "importing $client"
+    note "     from $gcs"
+    "$HERE/mirror_cdn_artifact.sh" "$client" "$gcs" release_patch | sed 's/^/     /' \
+      || { say "STOP — could not import $client"; exit 1; }
   done
 done
 say "STOP — still not closed after $MAXIT iterations"

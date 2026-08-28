@@ -1,27 +1,29 @@
 #!/usr/bin/env bash
-# Import one exact upstream artifact into the owned overlay, from a SEALED
-# REFUSAL URI as it appears in the mirror's access log.
+# Import one exact upstream artifact into the owned overlay.
 #
-#   mirror_cdn_artifact.sh /gcs/flutter_infra_release/flutter/fonts/<h>/fonts.zip
+#   mirror_cdn_artifact.sh <client_path> <gcs_path> [label]
 #
-# THE MAPPING IS NOT THE IDENTITY, and getting it wrong silently produces a file
-# nobody serves. Caddy rewrites the CLIENT path to a /gcs/<bucket>/… path for the
-# upstream fetch, while the overlay is keyed by the CLIENT path:
+# TWO ADDRESSES, AND THEY ARE NOT THE SAME ONE. The overlay is consulted on the
+# path the CLIENT asked for; the bytes live upstream at the path Caddy/the
+# artifact proxy REWRITES that to. They differ in more than a bucket prefix — the
+# proxy also remaps the engine hash for artifacts Shorebird does not rebuild:
 #
-#   client   /flutter_infra_release/flutter/<eng>/dart-sdk-linux-x64.zip
-#   upstream /gcs/download.shorebird.dev/flutter_infra_release/flutter/<eng>/…
-#   overlay  /overlay/flutter_infra_release/flutter/<eng>/dart-sdk-linux-x64.zip
+#   client   /flutter_infra_release/flutter/69f9831c…/sky_engine.zip
+#   upstream /gcs/flutter_infra_release/flutter/83675ed2…/sky_engine.zip
+#                                       ^^^^^^^^ different hash
 #
-# so a leading bucket segment belongs to the upstream address, not to the overlay
-# layout. @overlay_hit is a plain try_files against the overlay root, so any path
-# can be owned this way — not only engine-hash ones.
-#
-# Same discipline as mirror_bootstrap_artifact.sh: verify the body against the
-# declared Content-Length before banking, and never overwrite differing bytes.
+# An earlier version of this script derived the overlay destination from the
+# upstream URI by stripping /gcs/ and a bucket segment. For that pair it wrote
+# 83675ed2…/sky_engine.zip — a real file, correct bytes, at an address nothing
+# ever requests. The mirror reported success, the seal kept refusing, and the
+# discovery loop burned 28 iterations re-importing a file it already had. So BOTH
+# paths are now required arguments: the caller must pair the 502 with the 302
+# that produced it, and this script will not guess.
 set -euo pipefail
 
-URI="${1:?usage: mirror_cdn_artifact.sh /gcs/<bucket-path>}"
-LABEL="${2:-release-patch}"
+CLIENT="${1:?usage: mirror_cdn_artifact.sh <client_path> <gcs_path> [label]}"
+GCS="${2:?usage: mirror_cdn_artifact.sh <client_path> <gcs_path> [label]}"
+LABEL="${3:-release_patch}"
 
 REPO=/Users/mendell/shorebird
 OVERLAY_ROOT="$REPO/selfhost/cdn/overlay"
@@ -29,22 +31,12 @@ LEDGER="$REPO/selfhost/evidence/r12-linux-ci/${LABEL}_closure.tsv"
 
 die() { echo "FAIL: $*" >&2; exit 1; }
 
-case "$URI" in
-  /gcs/*) ;;
-  *) die "expected a /gcs/… refusal URI, got '$URI'" ;;
-esac
-case "$URI" in *..*) die "refusing suspicious path '$URI'" ;; esac
+case "$CLIENT$GCS" in *..*) die "refusing suspicious path" ;; esac
+GCS_PATH="${GCS#/gcs/}"; GCS_PATH="${GCS_PATH#/}"
+CLIENT_PATH="${CLIENT#/}"
+[[ -n "$GCS_PATH" && -n "$CLIENT_PATH" ]] || die "empty path"
 
-GCS_PATH="${URI#/gcs/}"                       # <bucket>/<object…>
 UPSTREAM="https://storage.googleapis.com/$GCS_PATH"
-
-# The overlay is keyed by the client path: drop a leading download.shorebird.dev
-# bucket segment, keep everything else exactly as-is.
-CLIENT_PATH="$GCS_PATH"
-case "$CLIENT_PATH" in
-  download.shorebird.dev/flutter_infra_release/*)
-    CLIENT_PATH="${CLIENT_PATH#download.shorebird.dev/}" ;;
-esac
 DEST="$OVERLAY_ROOT/$CLIENT_PATH"
 
 declared="$(curl -sSI -m 60 "$UPSTREAM" | tr -d '\r' \

@@ -1,0 +1,191 @@
+
+== creating the release/patch discovery container ==
+   container ready at 85687a157a5073f9eb788fe5cb43aaacaee0757a
+
+== iteration 1 — frozen harness against the SEALED COLD mirror (v0.9.1+1) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/gradle-wrapper/fd5c1f2c013565a3bea56ada6df9d2b8e96d56aa/gradle-wrapper.tgz
+     owned: flutter_infra_release/gradle-wrapper/fd5c1f2c013565a3bea56ada6df9d2b8e96d56aa/gradle-wrapper.tgz
+       bytes  55913
+       sha256 31e9428baf1a2b2f485f1110c5899f852649b33d46a2e9b07f9d17752d50190a
+       source https://storage.googleapis.com/flutter_infra_release/gradle-wrapper/fd5c1f2c013565a3bea56ada6df9d2b8e96d56aa/gradle-wrapper.tgz
+
+== iteration 2 — frozen harness against the SEALED COLD mirror (v0.9.2+2) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     owned: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+       bytes  1539323
+       sha256 92434d1ccb235115373276715cfdb9b0e3c7d5b2b231744dd75e0ec93197b335
+       source https://storage.googleapis.com/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 3 — frozen harness against the SEALED COLD mirror (v0.9.3+3) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 4 — frozen harness against the SEALED COLD mirror (v0.9.4+4) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 5 — frozen harness against the SEALED COLD mirror (v0.9.5+5) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 6 — frozen harness against the SEALED COLD mirror (v0.9.6+6) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 7 — frozen harness against the SEALED COLD mirror (v0.9.7+7) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 8 — frozen harness against the SEALED COLD mirror (v0.9.8+8) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 9 — frozen harness against the SEALED COLD mirror (v0.9.9+9) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 10 — frozen harness against the SEALED COLD mirror (v0.9.10+10) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 11 — frozen harness against the SEALED COLD mirror (v0.9.11+11) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 12 — frozen harness against the SEALED COLD mirror (v0.9.12+12) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 13 — frozen harness against the SEALED COLD mirror (v0.9.13+13) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 14 — frozen harness against the SEALED COLD mirror (v0.9.14+14) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 15 — frozen harness against the SEALED COLD mirror (v0.9.15+15) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 16 — frozen harness against the SEALED COLD mirror (v0.9.16+16) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 17 — frozen harness against the SEALED COLD mirror (v0.9.17+17) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 18 — frozen harness against the SEALED COLD mirror (v0.9.18+18) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 19 — frozen harness against the SEALED COLD mirror (v0.9.19+19) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 20 — frozen harness against the SEALED COLD mirror (v0.9.20+20) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 21 — frozen harness against the SEALED COLD mirror (v0.9.21+21) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 22 — frozen harness against the SEALED COLD mirror (v0.9.22+22) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 23 — frozen harness against the SEALED COLD mirror (v0.9.23+23) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 24 — frozen harness against the SEALED COLD mirror (v0.9.24+24) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 25 — frozen harness against the SEALED COLD mirror (v0.9.25+25) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 26 — frozen harness against the SEALED COLD mirror (v0.9.26+26) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 27 — frozen harness against the SEALED COLD mirror (v0.9.27+27) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 28 — frozen harness against the SEALED COLD mirror (v0.9.28+28) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 29 — frozen harness against the SEALED COLD mirror (v0.9.29+29) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== iteration 30 — frozen harness against the SEALED COLD mirror (v0.9.30+30) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+     already owned, bytes identical: flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/sky_engine.zip
+
+== STOP — still not closed after 30 iterations ==
