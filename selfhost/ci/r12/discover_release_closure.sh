@@ -41,6 +41,7 @@ if ! docker ps --format '{{.Names}}' | grep -qx "$C"; then
     -e SHOREBIRD_STORAGE_BUCKET=download.shorebird.dev \
     -e SHOREBIRD_HOSTED_URL="$CP" \
     -e SHOREBIRD_TOKEN="$SHOREBIRD_TOKEN" \
+    -e GRADLE_OPTS="-Xmx3g -Dorg.gradle.daemon=false -Dorg.gradle.vfs.watch=false -Dorg.gradle.workers.max=2" \
     -e R12_CA_PEM="$(cat "$CA_FILE")" \
     r12-builder:substrate sleep infinity >/dev/null
   # Same two trust stores the decisive arm installs into, for the same reason:

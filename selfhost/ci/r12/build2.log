@@ -1,0 +1,30 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 DONE 0.0s
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 2.90kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/debian:trixie-slim
+#2 DONE 0.6s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [1/7] FROM docker.io/library/debian:trixie-slim@sha256:d7e12182ce18b85b93007c1dedf31f2d29e01ccf3182cc4017c709b6259bc132
+#4 resolve docker.io/library/debian:trixie-slim@sha256:d7e12182ce18b85b93007c1dedf31f2d29e01ccf3182cc4017c709b6259bc132 done
+#4 DONE 0.0s
+
+#5 [2/7] RUN apt-get update && apt-get install -y --no-install-recommends       openjdk-21-jdk-headless       git curl unzip zip xz-utils ca-certificates file procps coreutils     && rm -rf /var/lib/apt/lists/*
+#5 CACHED
+
+#6 [3/7] RUN mkdir -p "/opt/android-sdk/cmdline-tools"     && curl -fsSL -o /tmp/cmdline-tools.zip        "https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip"     && unzip -q /tmp/cmdline-tools.zip -d "/opt/android-sdk/cmdline-tools"     && mv "/opt/android-sdk/cmdline-tools/cmdline-tools" "/opt/android-sdk/cmdline-tools/latest"     && rm /tmp/cmdline-tools.zip
+#6 CACHED
+
+#7 [4/7] RUN yes | sdkmanager --licenses >/dev/null 2>&1 || true
+#7 CACHED
+
+#8 [5/7] RUN sdkmanager --install       "platform-tools"       "platforms;android-36"       "build-tools;36.0.0"       "ndk;28.2.13676358"       "cmake;3.22.1" >/dev/null

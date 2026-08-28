@@ -39,11 +39,18 @@ ENV PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$P
 # Levels read out of the PINNED Flutter revision's FlutterExtension.kt
 # (a4a3c0d1…): compileSdk/targetSdk 36, minSdk 24, ndk 28.2.13676358.
 RUN yes | sdkmanager --licenses >/dev/null 2>&1 || true
+# cmake and ninja are here because the first release build auto-installed
+# CMake 3.22.1 from dl.google.com MID-ARM. An arm that reaches out for SDK
+# components while running is fetching part of its own environment from the
+# network at measurement time; the substrate is where that belongs.
 RUN sdkmanager --install \
       "platform-tools" \
       "platforms;android-36" \
       "build-tools;36.0.0" \
-      "ndk;28.2.13676358" >/dev/null
+      "ndk;28.2.13676358" \
+      "cmake;3.22.1" >/dev/null
+RUN apt-get update && apt-get install -y --no-install-recommends ninja-build \
+    && rm -rf /var/lib/apt/lists/*
 
 # Proof the substrate carries none of the toolchain under test. A cached Flutter
 # or Shorebird here would silently turn the decisive arm into a no-op.

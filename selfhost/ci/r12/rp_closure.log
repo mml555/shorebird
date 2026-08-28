@@ -1,118 +1,64 @@
 
 == creating the release/patch discovery container ==
-   container ready at 475a031bb02265032d51afcde9a889817ef59303
+   container ready at 26a5435bf2823802e8bd720f961bafb84d1d92b9
 
 == iteration 1 — frozen harness against the SEALED COLD mirror (v0.9.1+1) ==
    harness exit 1
-   1 artifact(s) refused this round
-   importing /flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/flutter_gpu.zip
-        from /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/flutter_gpu.zip
-     owned: flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/flutter_gpu.zip
-       bytes  49088
-       sha256 6f5d21625d1bcd348cc8c9fe5b0724727224f9fad67cd29f863f2a1372d98a0c
-       source https://storage.googleapis.com/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/flutter_gpu.zip
+   4 artifact(s) refused this round
+   importing /download.flutter.io/io/flutter/arm64_v8a_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/arm64_v8a_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.pom
+        from /gcs/download.shorebird.dev/download.flutter.io/io/flutter/arm64_v8a_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/arm64_v8a_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.pom
+     owned: download.flutter.io/io/flutter/arm64_v8a_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/arm64_v8a_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.pom
+       bytes  510
+       sha256 e81961d56fd9903957b75bb4722f2d64c7d309f936ef75431d460a7acd23cafe
+       source https://storage.googleapis.com/download.shorebird.dev/download.flutter.io/io/flutter/arm64_v8a_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/arm64_v8a_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.pom
+   importing /download.flutter.io/io/flutter/x86_64_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/x86_64_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.pom
+        from /gcs/download.shorebird.dev/download.flutter.io/io/flutter/x86_64_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/x86_64_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.pom
+     owned: download.flutter.io/io/flutter/x86_64_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/x86_64_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.pom
+       bytes  507
+       sha256 df532b70f7faaea07ef80ded1adab5d4a200ac253dc6b2e73bda8ca3dac5124f
+       source https://storage.googleapis.com/download.shorebird.dev/download.flutter.io/io/flutter/x86_64_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/x86_64_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.pom
+   importing /download.flutter.io/io/flutter/flutter_embedding_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/flutter_embedding_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.pom
+        from /gcs/download.shorebird.dev/download.flutter.io/io/flutter/flutter_embedding_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/flutter_embedding_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.pom
+     owned: download.flutter.io/io/flutter/flutter_embedding_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/flutter_embedding_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.pom
+       bytes  2544
+       sha256 8d9cc3c9299f090ef77a56515902d2fed2f3eb5bb1f33a3dd10bb71101bb5eb1
+       source https://storage.googleapis.com/download.shorebird.dev/download.flutter.io/io/flutter/flutter_embedding_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/flutter_embedding_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.pom
+   importing /download.flutter.io/io/flutter/armeabi_v7a_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/armeabi_v7a_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.pom
+        from /gcs/download.shorebird.dev/download.flutter.io/io/flutter/armeabi_v7a_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/armeabi_v7a_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.pom
+     owned: download.flutter.io/io/flutter/armeabi_v7a_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/armeabi_v7a_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.pom
+       bytes  512
+       sha256 6e63916099254ca4639eb81e70c9520b74c383ab4c25d9f4791b136fd4d6fead
+       source https://storage.googleapis.com/download.shorebird.dev/download.flutter.io/io/flutter/armeabi_v7a_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/armeabi_v7a_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.pom
 
 == iteration 2 — frozen harness against the SEALED COLD mirror (v0.9.2+2) ==
    harness exit 1
-   1 artifact(s) refused this round
-   importing /flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/flutter_patched_sdk.zip
-        from /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/flutter_patched_sdk.zip
-     owned: flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/flutter_patched_sdk.zip
-       bytes  3970208
-       sha256 32e2decb572d188d3ed0530c03ddad8329021f6bc1e481de5e046496cdc40309
-       source https://storage.googleapis.com/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/flutter_patched_sdk.zip
+   4 artifact(s) refused this round
+   importing /download.flutter.io/io/flutter/flutter_embedding_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/flutter_embedding_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.jar
+        from /gcs/download.shorebird.dev/download.flutter.io/io/flutter/flutter_embedding_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/flutter_embedding_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.jar
+     owned: download.flutter.io/io/flutter/flutter_embedding_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/flutter_embedding_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.jar
+       bytes  1572878
+       sha256 f7424d5b51e01f7b440bdbdfb9c1445efc234c710a6b827c6cf3ce0196d07da1
+       source https://storage.googleapis.com/download.shorebird.dev/download.flutter.io/io/flutter/flutter_embedding_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/flutter_embedding_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.jar
+   importing /download.flutter.io/io/flutter/armeabi_v7a_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/armeabi_v7a_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.jar
+        from /gcs/download.shorebird.dev/download.flutter.io/io/flutter/armeabi_v7a_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/armeabi_v7a_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.jar
+     owned: download.flutter.io/io/flutter/armeabi_v7a_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/armeabi_v7a_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.jar
+       bytes  43130632
+       sha256 c32434f520042d35a8e97200d78242dfb449ba528f9c8309c3fb8b89329dff1f
+       source https://storage.googleapis.com/download.shorebird.dev/download.flutter.io/io/flutter/armeabi_v7a_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/armeabi_v7a_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.jar
+   importing /download.flutter.io/io/flutter/arm64_v8a_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/arm64_v8a_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.jar
+        from /gcs/download.shorebird.dev/download.flutter.io/io/flutter/arm64_v8a_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/arm64_v8a_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.jar
+     owned: download.flutter.io/io/flutter/arm64_v8a_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/arm64_v8a_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.jar
+       bytes  44469803
+       sha256 8bbed699ead8404e11bae619ab675a12b898aa94d1615ed31724dbd9a62a1f66
+       source https://storage.googleapis.com/download.shorebird.dev/download.flutter.io/io/flutter/arm64_v8a_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/arm64_v8a_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.jar
+   importing /download.flutter.io/io/flutter/x86_64_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/x86_64_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.jar
+        from /gcs/download.shorebird.dev/download.flutter.io/io/flutter/x86_64_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/x86_64_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.jar
+     owned: download.flutter.io/io/flutter/x86_64_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/x86_64_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.jar
+       bytes  44658133
+       sha256 7be35ab6c538c08c68a90bb655c8fd76f00dc20c6053dc95f7b23814bebbbd24
+       source https://storage.googleapis.com/download.shorebird.dev/download.flutter.io/io/flutter/x86_64_release/1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b/x86_64_release-1.0.0-69f9831c360d9152862ec3897c67fb09ae843f3b.jar
 
 == iteration 3 — frozen harness against the SEALED COLD mirror (v0.9.3+3) ==
-   harness exit 1
-   1 artifact(s) refused this round
-   importing /flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/flutter_patched_sdk_product.zip
-        from /gcs/download.shorebird.dev/flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/flutter_patched_sdk_product.zip
-     owned: flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/flutter_patched_sdk_product.zip
-       bytes  3970153
-       sha256 5cef7df02e67763e8f6cd5bfcc429fc1686bcaabcbb507d56ea160432ad567eb
-       source https://storage.googleapis.com/download.shorebird.dev/flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/flutter_patched_sdk_product.zip
-
-== iteration 4 — frozen harness against the SEALED COLD mirror (v0.9.4+4) ==
-   harness exit 1
-   1 artifact(s) refused this round
-   importing /flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/linux-x64/artifacts.zip
-        from /gcs/download.shorebird.dev/flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/linux-x64/artifacts.zip
-     owned: flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/linux-x64/artifacts.zip
-       bytes  33781589
-       sha256 c3325ef777225412970069c490f6e313bc038665b6482567523e53281bd7ad8c
-       source https://storage.googleapis.com/download.shorebird.dev/flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/linux-x64/artifacts.zip
-
-== iteration 5 — frozen harness against the SEALED COLD mirror (v0.9.5+5) ==
-   harness exit 1
-   1 artifact(s) refused this round
-   importing /flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/linux-x64/font-subset.zip
-        from /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/linux-x64/font-subset.zip
-     owned: flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/linux-x64/font-subset.zip
-       bytes  2282893
-       sha256 fb1529e7c74037fe68a92889b66c4b5644f2a4a5575fc5c186c0a8c43afe0645
-       source https://storage.googleapis.com/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/linux-x64/font-subset.zip
-
-== iteration 6 — frozen harness against the SEALED COLD mirror (v0.9.6+6) ==
-   harness exit 1
-   1 artifact(s) refused this round
-   importing /flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/android-arm-profile/linux-x64.zip
-        from /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/android-arm-profile/linux-x64.zip
-     owned: flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/android-arm-profile/linux-x64.zip
-       bytes  2415730
-       sha256 2b9e53c9ec6b2f9a01ac1c672d69aad9ea41960785a7e094dba6f05471d44d41
-       source https://storage.googleapis.com/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/android-arm-profile/linux-x64.zip
-
-== iteration 7 — frozen harness against the SEALED COLD mirror (v0.9.7+7) ==
-   harness exit 1
-   1 artifact(s) refused this round
-   importing /flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/android-arm-release/linux-x64.zip
-        from /gcs/download.shorebird.dev/flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/android-arm-release/linux-x64.zip
-     owned: flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/android-arm-release/linux-x64.zip
-       bytes  2026757
-       sha256 e1e6b36c629ea2a44953abde037709db9d933266a044321d7f9440da2dcf4401
-       source https://storage.googleapis.com/download.shorebird.dev/flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/android-arm-release/linux-x64.zip
-
-== iteration 8 — frozen harness against the SEALED COLD mirror (v0.9.8+8) ==
-   harness exit 1
-   1 artifact(s) refused this round
-   importing /flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/android-arm64-profile/linux-x64.zip
-        from /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/android-arm64-profile/linux-x64.zip
-     owned: flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/android-arm64-profile/linux-x64.zip
-       bytes  2510731
-       sha256 366d680c6e32ae427cce69e932b8f3cd18a5447b6da2a0b400b71014d9c8a5aa
-       source https://storage.googleapis.com/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/android-arm64-profile/linux-x64.zip
-
-== iteration 9 — frozen harness against the SEALED COLD mirror (v0.9.9+9) ==
-   harness exit 1
-   1 artifact(s) refused this round
-   importing /flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/android-arm64-release/linux-x64.zip
-        from /gcs/download.shorebird.dev/flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/android-arm64-release/linux-x64.zip
-     owned: flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/android-arm64-release/linux-x64.zip
-       bytes  2121600
-       sha256 f51b352d52e2808d3f9a2ccb396da53bb8deba77882ccbe30e10fe4e37b1d05b
-       source https://storage.googleapis.com/download.shorebird.dev/flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/android-arm64-release/linux-x64.zip
-
-== iteration 10 — frozen harness against the SEALED COLD mirror (v0.9.10+10) ==
-   harness exit 1
-   1 artifact(s) refused this round
-   importing /flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/android-x64-profile/linux-x64.zip
-        from /gcs/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/android-x64-profile/linux-x64.zip
-     owned: flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/android-x64-profile/linux-x64.zip
-       bytes  2482000
-       sha256 5ae52fdfe37ddb78efd3ed922e325764484bfa0d837484f03b5c3c0481497607
-       source https://storage.googleapis.com/flutter_infra_release/flutter/83675ed27633283e7fc296c8bca22e841224c096/android-x64-profile/linux-x64.zip
-
-== iteration 11 — frozen harness against the SEALED COLD mirror (v0.9.11+11) ==
-   harness exit 1
-   1 artifact(s) refused this round
-   importing /flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/android-x64-release/linux-x64.zip
-        from /gcs/download.shorebird.dev/flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/android-x64-release/linux-x64.zip
-     owned: flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/android-x64-release/linux-x64.zip
-       bytes  2084944
-       sha256 a37cd0e6fab65ee9eca34a07d586a54f24651807d55f49643379eab9fee4eb33
-       source https://storage.googleapis.com/download.shorebird.dev/flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/android-x64-release/linux-x64.zip
-
-== iteration 12 — frozen harness against the SEALED COLD mirror (v0.9.12+12) ==
    harness exit 1
 
 == STOP — harness failed with NOTHING refused by the seal ==
@@ -136,7 +82,7 @@
      |    exit: 64  log: /r12out/disc/detector_selftest_json.log
      |    exit: 64 (expected 64)   interactive_prompt_required: 1 (expected >=1)
      |    host                     : Linux
-     |    release version          : 0.9.12+12
+     |    release version          : 0.9.3+3
      | 
      | == arm 1 — release, NO --json ==
      |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird release android --no-confirm)
@@ -144,7 +90,7 @@
      |    arm 1 release FAILED (exit 70)
      | 
      | == arm 2 — patch, WITH --json ==
-     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird --json patch android --no-confirm --release-version 0.9.12+12)
+     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird --json patch android --no-confirm --release-version 0.9.3+3)
      |    exit: 70  log: /r12out/disc/ci_run_json.log
      |    arm 2 FAILED (exit 70)
      |    interactive_prompt_required in arm 2: 0 (expected 0)
