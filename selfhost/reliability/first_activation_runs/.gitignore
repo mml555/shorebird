@@ -1,0 +1,17 @@
+# Raw crash-report dumps contain unrelated DEVICE telemetry -- SiriSearchFeedback,
+# DifferentialPrivacy, Analytics-*, log-aggregated and friends are the operator's
+# personal device data, not evidence for this investigation, and they do not
+# belong in the repo.
+#
+# What IS evidence: reports attributable to OUR app, plus the NEW-since-arm
+# listings the harness writes (those live outside these directories, so they are
+# not matched here).
+#
+# The `**/` prefix is load-bearing: a pattern containing a slash is anchored to
+# THIS file's directory, so `crashreports_*/*` would only match a run folder
+# literally named crashreports_* beside this file -- and every dump would sail
+# straight into the commit, which is exactly what happened the first time.
+**/crashreports_*/**
+!**/crashreports_*/Runner*
+!**/crashreports_*/Jetsam*
+!**/crashreports_*/*irstActivation*
