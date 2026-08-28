@@ -1,0 +1,10 @@
+run_id           run_007gen_ACQ
+bundle           dev.selfhost.firstActivationProbe
+host_armed_at    2026-08-28T17:32:05Z
+device           8cb4bc982ddf6437b1952520edee80f898196c74
+repo_head        91defcf1c9855392f06b31681cfe8a3f5aa111f5
+
+# --- raw capture pruned 2026-08-28T17:48:40Z ---
+  original_bytes   1475216
+  sha256           be97a46c57e09767d5d03ce567cd2ca8f8160c0fadf6b2478d69b9f811ae4a5d
+  evidence_commit  91defcf1c9855392f06b31681cfe8a3f5aa111f5
