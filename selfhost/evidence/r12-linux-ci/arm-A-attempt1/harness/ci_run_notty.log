@@ -1,0 +1,51 @@
+[WARN] No patch public key was provided. Patches for this release will not be cryptographically verified on the device.
+To enable verification, provide --public-key-path or --public-key-cmd.
+Starting Downloading patch......
+Done Downloading patch...
+Starting Extracting patch......
+Done Extracting patch...
+Starting Downloading bundletool.jar......
+Done Downloading bundletool.jar...
+Starting Extracting bundletool.jar......
+Done Extracting bundletool.jar...
+Starting Fetching apps...
+Done Fetching apps
+Building Android app bundle with Flutter 3.44.8+selfhost.1 (a4a3c0d1b1)
+Flutter assets will be downloaded from http://host.docker.internal:8086. Make sure you trust this source!
+[1/10] Material Fonts                                               94ms
+[1/10] Material Fonts                                               11ms
+Failed to download http://host.docker.internal:8086/flutter_infra_release/flutter/fonts/3012db47f3130e62f7cc0beabff968a33cbec8d8/fonts.zip. Ensure you have network connectivity and then try again.
+Exception: 502
+Failed to build AAB.
+Command: flutter build appbundle --release --target-platform=android-arm,android-arm64,android-x64 --shorebird-trace=/r12src/selfhost/fixtures/android_signing_app/build/shorebird/debug/build-trace-android.json
+Reason: Exited with code 1.
+
+💡 Fix Recommendations
+
+• Check that running `flutter build` with the same command-line arguments
+completes successfully by running the following command:
+
+flutter build appbundle --release --target-platform=android-arm,android-arm64,android-x64 --shorebird-trace=/r12src/selfhost/fixtures/android_signing_app/build/shorebird/debug/build-trace-android.json
+
+If the above command fails, then this is likely not a Shorebird issue and
+the underlying `flutter build` failure must be resolved for Shorebird to
+build a release.
+
+• If `flutter build` completes successfully, please ensure that you are
+providing the desired flutter version to the release command via 
+the `--flutter-version` option. If you do not specify a `--flutter-version`
+Shorebird will default to the latest stable version of Flutter.
+We strongly encourage always specifying an explicit Flutter version:
+
+shorebird release <platform> --flutter-version=3.29.0
+
+• If `flutter build` completes successfully and `shorebird release`
+fails when using the same flutter version, please file an issue:
+https://github.com/shorebirdtech/shorebird/issues/new
+
+
+If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
+
+You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
+/r12home/.config/shorebird/logs/1787951041794_shorebird.log
+

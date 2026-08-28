@@ -1,0 +1,2 @@
+Generating 2,048 bit RSA key pair and self-signed certificate (SHA384withRSA) with a validity of 30 days
+	for: CN=R12 Ephemeral, OU=CI, O=Selfhost, C=US

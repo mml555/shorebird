@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# Discover the release/patch artifact closure, the same way the bootstrap closure
+# was found: run against a SEALED COLD mirror, import whatever it refuses, repeat.
+#
+#   SHOREBIRD_TOKEN=… R12_REPO_SHA=<40hex> ./discover_release_closure.sh
+#
+# THESE RUNS ARE NOT EVIDENCE. The container is reused so iterations are cheap,
+# and each iteration publishes a throwaway 0.9.x release so a successful release
+# in one round does not collide with the next. The decisive Arm A is a separate,
+# single, uninterrupted run from a FRESH container after this reports closed —
+# successful phases from discovery are never stitched into it.
+#
+# It mutates shared control-plane state by creating 0.9.x releases for the
+# fixture app. Deliberate and recorded: 1.0.0+1 and 1.0.1+1 stay reserved for the
+# decisive arms.
+set -uo pipefail
+
+: "${SHOREBIRD_TOKEN:?set SHOREBIRD_TOKEN}"
+: "${R12_REPO_SHA:?set R12_REPO_SHA}"
+MAXIT="${MAXIT:-30}"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SEALED=http://host.docker.internal:8086
+CP="${SHOREBIRD_HOSTED_URL:-http://host.docker.internal:18081}"
+APP=/r12src/selfhost/fixtures/android_signing_app
+C=r12-discovery-rp
+
+note() { printf '   %s\n' "$*"; }
+say()  { printf '\n== %s ==\n' "$*"; }
+
+if ! docker ps --format '{{.Names}}' | grep -qx "$C"; then
+  say "creating the release/patch discovery container"
+  docker rm -f "$C" >/dev/null 2>&1
+  docker run -d --name "$C" --platform linux/amd64 \
+    -e HOME=/r12home \
+    -e SHOREBIRD_FLUTTER_GIT_URL=git://host.docker.internal:9418/flutter.git \
+    -e FLUTTER_STORAGE_BASE_URL="$SEALED" \
+    -e SHOREBIRD_STORAGE_BASE_URL="$SEALED" \
+    -e SHOREBIRD_STORAGE_BUCKET=download.shorebird.dev \
+    -e SHOREBIRD_HOSTED_URL="$CP" \
+    -e SHOREBIRD_TOKEN="$SHOREBIRD_TOKEN" \
+    r12-builder:substrate sleep infinity >/dev/null
+  docker exec "$C" bash -c "
+    mkdir -p /r12home &&
+    git clone --quiet --filter=blob:none https://github.com/mml555/shorebird.git /r12src &&
+    git -C /r12src checkout --quiet --detach $R12_REPO_SHA" || { echo "clone failed"; exit 1; }
+  # Ephemeral release key, exactly as a decisive arm mints one.
+  docker exec "$C" bash -c '
+    PW=$(head -c 24 /dev/urandom | base64 | tr -d "/+=" | head -c 24)
+    "${JAVA_HOME}/bin/keytool" -genkeypair -noprompt -keystore /r12home/disc.jks \
+      -storetype PKCS12 -alias r12 -keyalg RSA -keysize 2048 -validity 30 \
+      -dname "CN=R12 Discovery, OU=CI, O=Selfhost, C=US" \
+      -storepass "$PW" -keypass "$PW" >/dev/null 2>&1
+    printf "storeFile=/r12home/disc.jks\nstorePassword=%s\nkeyAlias=r12\nkeyPassword=%s\n" \
+      "$PW" "$PW" > '"$APP"'/android/key.properties' || { echo "keystore failed"; exit 1; }
+  note "container ready at $R12_REPO_SHA"
+fi
+
+for i in $(seq 1 "$MAXIT"); do
+  ver="0.9.$i+$i"
+  say "iteration $i — frozen harness against the SEALED COLD mirror (v$ver)"
+  before="$(docker logs r12-cdn-sealed 2>&1 | wc -l | tr -d ' ')"
+  docker exec "$C" bash -c "sed -i -E 's/^version:.*/version: $ver/' $APP/pubspec.yaml"
+  rc=0
+  docker exec "$C" bash -c \
+    "export PATH=/r12src/bin:\$PATH; /r12src/selfhost/scripts/ci_noninteractive.sh \
+       --app-dir $APP --out /r12out/disc < /dev/null" \
+    > "$HERE/rp_iter.log" 2>&1 || rc=$?
+  note "harness exit $rc"
+
+  missing=()
+  while IFS= read -r line; do
+    [[ -n "$line" ]] && missing+=("$line")
+  done < <(
+    docker logs r12-cdn-sealed 2>&1 | tail -n +"$((before+1))" \
+      | grep '"status": *502' \
+      | grep -oE '"uri": *"[^"]+"' | sed 's/.*"uri": *"//; s/"$//' | sort -u
+  )
+
+  if [[ "${#missing[@]}" -eq 0 ]]; then
+    if [[ "$rc" -eq 0 ]]; then
+      say "CLOSED — the frozen harness passed under seal with nothing refused"
+      exit 0
+    fi
+    say "STOP — harness failed with NOTHING refused by the seal"
+    note "A different failure. Classify it; do not loop."
+    tail -40 "$HERE/rp_iter.log" | sed 's/^/     | /'
+    exit 1
+  fi
+
+  note "${#missing[@]} artifact(s) refused this round"
+  for uri in "${missing[@]}"; do
+    note "importing $uri"
+    "$HERE/mirror_cdn_artifact.sh" "$uri" release_patch | sed 's/^/     /' \
+      || { say "STOP — could not import $uri"; exit 1; }
+  done
+done
+say "STOP — still not closed after $MAXIT iterations"
+exit 1

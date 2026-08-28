@@ -1,0 +1,17 @@
+Starting Fetching apps...
+Done Fetching apps
+Starting Fetching releases...
+Done Fetching releases
+Using release 1.0.0+1  (Aug 27)
+Starting Fetching aab artifact...
+Done Fetching aab artifact
+Starting Fetching android_supplement artifact...
+Done Fetching android_supplement artifact
+Starting Downloading aab...
+Failed Downloading aab failed: ClientException with SocketException: Connection refused (OS Error: Connection refused, errno = 111), address = localhost, port = 54690, uri=http://localhost:18081/download/a11facf8e2c23b21cef21114c67a8ee6?exp=1787951360&sig=ae8bf99b351ba13ad96ff920f5b8b626ddcd210f1cc71715efb3529c8c98e812
+
+If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
+
+You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
+/r12home/.config/shorebird/logs/1787951057654_shorebird.log
+
