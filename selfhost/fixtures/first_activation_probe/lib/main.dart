@@ -28,8 +28,8 @@ import 'package:first_activation_probe/timeline.dart';
 @pragma('vm:never-inline')
 @pragma('vm:entry-point')
 String activationState() => DateTime.now().millisecondsSinceEpoch >= 0
-    ? 'ACT-V9'
-    : 'ACT-V9!';
+    ? 'ACT-V10'
+    : 'ACT-V10!';
 
 void main() {
   // As early as Dart can observe. Anything before this belongs to the engine
