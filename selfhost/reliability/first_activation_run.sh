@@ -119,8 +119,37 @@ collect)
       }
     done
     echo
-    echo "# --- app durable timeline (the investigation fixture writes this) ---"
+    echo "# --- Dart lifetimes in the timeline ---"
+    #
+    # PID IS NOT A PROCESS BOUNDARY HERE. Measured in run_006: the Dart VM was
+    # torn down and rebuilt INSIDE the same OS process -- `seq` restarted at 0
+    # while the native side's process-start static kept counting (378 s at
+    # FLUTTER_ENGINE_INITIALIZED). So two Dart lifetimes shared one pid.
+    #
+    # That breaks two things if it goes unnoticed: grepping the timeline by pid
+    # merges distinct lifetimes, and correlating to success_diag by pid is
+    # ambiguous -- report_launch_success is guarded once per PROCESS, so a second
+    # in-process Dart lifetime CANNOT re-report success even if it reached the
+    # trigger. Absence of a success row is then not evidence of anything.
+    #
+    # Segment by PROCESS_BEGIN and say so out loud.
     T="$D/post_state/Documents/first_activation_timeline.log"
+    if [[ -f "$T" ]]; then
+      n_begin=$(grep -c 'event=PROCESS_BEGIN' "$T")
+      n_pid=$(grep -oE 'pid=[0-9]+' "$T" | sort -u | wc -l | tr -d ' ')
+      echo "  PROCESS_BEGIN blocks: $n_begin   distinct pids: $n_pid"
+      last_pid=$(grep -oE 'pid=[0-9]+' "$T" | tail -1 | cut -d= -f2)
+      begins_last_pid=$(grep "pid=$last_pid" "$T" | grep -c 'event=PROCESS_BEGIN')
+      if [[ "${begins_last_pid:-0}" -gt 1 ]]; then
+        echo "  WARNING: pid $last_pid carries $begins_last_pid Dart lifetimes."
+        echo "           Segment by PROCESS_BEGIN, not by pid. success_diag"
+        echo "           correlation by pid is AMBIGUOUS for this run: success is"
+        echo "           reported once per PROCESS, so a later in-process Dart"
+        echo "           lifetime cannot re-report it."
+      fi
+    fi
+    echo
+    echo "# --- app durable timeline (the investigation fixture writes this) ---"
     if [[ -f "$T" ]]; then sed 's/^/  /' "$T"; else echo "  (absent)"; fi
     echo
     echo "# --- crash reports ---"

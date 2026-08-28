@@ -66,6 +66,15 @@ Mutation-tested three ways, because a guard that cannot fail is worse than none:
     collect  <run-id>   screenshot while alive, grade syslog, pull everything
     delayed  <run-id>   the second crash-report pull, later
 
+**ARM EVERY TAP, INCLUDING ACQUISITION.** The first version of this procedure armed
+only the A and B runs, on the assumption that acquisition launches were setup
+rather than observation. `run_006` disappeared on exactly such a tap and therefore
+has no syslog — so no SpringBoard or jetsam termination reason, which is the
+evidence that separates F from G positively rather than by callback. The
+assumption was wrong from the start: `../evidence/p6-signing/crash_reports/setup_crash_2026_08_27/CLASSIFICATION.md`
+already recorded one historical occurrence *"on the patch-2-install tap"*. Every
+launch of this fixture gets its own immutable run.
+
 `arm` refuses if anything frozen moved. It kills only **its own** capture, matched
 by output path — a blanket `pkill` is how the previous capture died.
 
@@ -111,8 +120,23 @@ disappearance therefore separates a kill from an orderly stop — bucket F/G ver
 H — from the durable file alone, without depending on syslog.
 
 Success is **observed, not relocated**. The updater already writes
-`success_diag.log` with the pid; the harness correlates by pid rather than this
-fixture duplicating or moving the success boundary.
+`success_diag.log` with the pid, so the harness correlates against that rather
+than this fixture duplicating — or moving — the success boundary.
+
+**But pid is not a process boundary, and the correlation has a known blind spot.**
+Measured in `run_006`: the Dart VM was torn down and rebuilt **inside the same OS
+process** — `seq` restarted at 0 while the native side's process-start static kept
+counting (378 s at `FLUTTER_ENGINE_INITIALIZED`). Two Dart lifetimes, one pid.
+
+Consequences, both of which the harness now states out loud in the manifest:
+
+* grepping the timeline by pid **merges** distinct lifetimes;
+* `report_launch_success` is guarded **once per process**, so a second in-process
+  Dart lifetime cannot re-report success even if it reached the trigger. An absent
+  success row is then **not evidence** that success was not reached.
+
+Segment by `PROCESS_BEGIN`. `collect` reports the block count, the distinct-pid
+count, and warns explicitly when one pid carries more than one lifetime.
 
 ## run_001 — established-patch control, CLEAN
 
