@@ -58,6 +58,33 @@ note "caches                   : none present"
 [[ -z "${CI:-}${GITHUB_ACTIONS:-}${JENKINS_URL:-}" ]] || die "CI vars set; see the harness header"
 note "CI detection vars        : none set"
 
+
+# GRADLE RESOURCE POSTURE — via GRADLE_USER_HOME, which OUTRANKS the project's
+# gradle.properties for org.gradle.jvmargs.
+#
+# The fixture declares -Xmx8G -XX:MaxMetaspaceSize=4G. On a 7.75 GiB Docker VM
+# that is an unsatisfiable request, and the daemon was OOM-killed twice. GRADLE_OPTS
+# does NOT fix it: that sets the LAUNCHER jvm, while the daemon takes its heap from
+# org.gradle.jvmargs -- the first remedy targeted the wrong process and the second
+# OOM looked identical to the first.
+#
+# Overriding here rather than editing android/gradle.properties keeps the FIXTURE
+# unmodified. This constrains the builder, not the product.
+#
+# Also makes the location deterministic: Java derives user.home from the passwd
+# entry, not $HOME, so Gradle had been writing to /root/.gradle even with
+# HOME=/r12home.
+setup_gradle_home() {
+  mkdir -p "$GRADLE_USER_HOME"
+  cat > "$GRADLE_USER_HOME/gradle.properties" <<'GP'
+org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1g -XX:ReservedCodeCacheSize=256m
+org.gradle.daemon=false
+org.gradle.vfs.watch=false
+org.gradle.workers.max=2
+org.gradle.parallel=false
+GP
+}
+
 # ------------------------------------------------- 1b. trust our CA ---------
 # Gradle 9 refuses insecure Maven repositories, and FLUTTER_STORAGE_BASE_URL
 # becomes a Maven repository during an Android release build:
@@ -73,6 +100,12 @@ note "CI detection vars        : none set"
 # mounts" boundary is untouched. It goes into BOTH trust stores: the system
 # bundle for curl/Dart and the JDK's for Gradle, which does not read the system
 # one.
+say "gradle resource posture"
+: "${GRADLE_USER_HOME:=/r12home/.gradle}"; export GRADLE_USER_HOME
+setup_gradle_home
+note "GRADLE_USER_HOME         : $GRADLE_USER_HOME"
+note "org.gradle.jvmargs       : -Xmx3g (fixture asks 8G; VM cannot honour it)"
+
 if [[ -n "${R12_CA_PEM:-}" ]]; then
   say "trusting the mirror CA"
   printf '%s\n' "$R12_CA_PEM" > /usr/local/share/ca-certificates/selfhost-cdn.crt

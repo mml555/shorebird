@@ -28,3 +28,46 @@
 #7 CACHED
 
 #8 [5/7] RUN sdkmanager --install       "platform-tools"       "platforms;android-36"       "build-tools;36.0.0"       "ndk;28.2.13676358"       "cmake;3.22.1" >/dev/null
+#8 DONE 255.5s
+
+#9 [6/7] RUN apt-get update && apt-get install -y --no-install-recommends ninja-build     && rm -rf /var/lib/apt/lists/*
+#9 0.678 Get:1 http://deb.debian.org/debian trixie InRelease [140 kB]
+#9 0.721 Get:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]
+#9 0.731 Get:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]
+#9 0.854 Get:4 http://deb.debian.org/debian trixie/main amd64 Packages [9673 kB]
+#9 2.842 Get:5 http://deb.debian.org/debian trixie-updates/main amd64 Packages [4412 B]
+#9 2.842 Get:6 http://deb.debian.org/debian-security trixie-security/main amd64 Packages [250 kB]
+#9 3.692 Fetched 10.2 MB in 3s (3116 kB/s)
+#9 3.692 Reading package lists...
+#9 4.332 Reading package lists...
+#9 5.166 Building dependency tree...
+#9 5.503 Reading state information...
+#9 5.746 Suggested packages:
+#9 5.746   python3
+#9 5.805 The following NEW packages will be installed:
+#9 5.806   ninja-build
+#9 5.947 0 upgraded, 1 newly installed, 0 to remove and 0 not upgraded.
+#9 5.947 Need to get 142 kB of archives.
+#9 5.947 After this operation, 411 kB of additional disk space will be used.
+#9 5.947 Get:1 http://deb.debian.org/debian trixie/main amd64 ninja-build amd64 1.12.1-1 [142 kB]
+#9 7.020 Fetched 142 kB in 0s (993 kB/s)
+#9 7.106 Selecting previously unselected package ninja-build.
+#9 7.106 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 9985 files and directories currently installed.)
+#9 7.132 Preparing to unpack .../ninja-build_1.12.1-1_amd64.deb ...
+#9 7.136 Unpacking ninja-build (1.12.1-1) ...
+#9 7.224 Setting up ninja-build (1.12.1-1) ...
+#9 DONE 7.3s
+
+#10 [7/7] RUN ! command -v flutter && ! command -v dart && ! command -v shorebird     && [ ! -d /root/.shorebird ] && [ ! -d /root/.pub-cache ]     && echo "substrate clean: no flutter/dart/shorebird, no caches"
+#10 0.165 substrate clean: no flutter/dart/shorebird, no caches
+#10 DONE 0.2s
+
+#11 exporting to image
+#11 exporting layers
+#11 exporting layers 65.6s done
+#11 exporting manifest sha256:55233278ae0439f90e321a69ea3d96a719f47177ba89ee0261b407ab588cd3f8 done
+#11 exporting config sha256:d9995eb1b863c256dbc57e4d785db078697e3f815bef9f18faeb5530b92cd362 done
+#11 exporting attestation manifest sha256:cc3f0fa6f4f70c046376eb5d7afc4c2c421c84c7e8bd7487064bbf46746341c8 done
+#11 exporting manifest list sha256:263b34c1c2225e7f82bf2540d6e6fd24cbe9a8b1defbbac1ae3915f158fceca7 done
+#11 naming to docker.io/library/r12-builder:substrate done
+#11 DONE 65.7s

@@ -38,10 +38,12 @@ say()  { printf '\n== %s ==\n' "$*"; }
 want_opts="-Xmx3g -Dorg.gradle.daemon=false -Dorg.gradle.vfs.watch=false -Dorg.gradle.workers.max=2"
 if docker ps --format '{{.Names}}' | grep -qx "$C"; then
   have_opts="$(docker exec "$C" printenv GRADLE_OPTS 2>/dev/null || true)"
-  if [[ "$have_opts" != "$want_opts" ]]; then
+  have_heap="$(docker exec "$C" sh -c 'grep -o "Xmx[0-9]*[gm]" /r12home/.gradle/gradle.properties 2>/dev/null' || true)"
+  if [[ "$have_opts" != "$want_opts" || "$have_heap" != "Xmx3g" ]]; then
     say "recreating the discovery container — its environment is stale"
     note "GRADLE_OPTS in container: '${have_opts:-<empty>}'"
     note "GRADLE_OPTS wanted      : '$want_opts'"
+    note "gradle heap in container: '${have_heap:-<none>}' (wanted Xmx3g)"
     docker rm -f "$C" >/dev/null 2>&1
   else
     note "reusing the discovery container (environment matches)"
@@ -59,6 +61,7 @@ if ! docker ps --format '{{.Names}}' | grep -qx "$C"; then
     -e SHOREBIRD_STORAGE_BUCKET=download.shorebird.dev \
     -e SHOREBIRD_HOSTED_URL="$CP" \
     -e SHOREBIRD_TOKEN="$SHOREBIRD_TOKEN" \
+    -e GRADLE_USER_HOME=/r12home/.gradle \
     -e GRADLE_OPTS="-Xmx3g -Dorg.gradle.daemon=false -Dorg.gradle.vfs.watch=false -Dorg.gradle.workers.max=2" \
     -e R12_CA_PEM="$(cat "$CA_FILE")" \
     r12-builder:substrate sleep infinity >/dev/null
