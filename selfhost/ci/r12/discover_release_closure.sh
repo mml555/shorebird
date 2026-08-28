@@ -65,6 +65,17 @@ if ! docker ps --format '{{.Names}}' | grep -qx "$C"; then
     -e GRADLE_OPTS="-Xmx3g -Dorg.gradle.daemon=false -Dorg.gradle.vfs.watch=false -Dorg.gradle.workers.max=2" \
     -e R12_CA_PEM="$(cat "$CA_FILE")" \
     r12-builder:substrate sleep infinity >/dev/null
+  # Same override the decisive arm applies. The fixture declares -Xmx8G and the
+  # VM has 7.75GiB in total; GRADLE_USER_HOME/gradle.properties outranks the
+  # project's for org.gradle.jvmargs, so the FIXTURE stays unmodified.
+  docker exec "$C" sh -c 'mkdir -p /r12home/.gradle && cat > /r12home/.gradle/gradle.properties <<GP
+org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1g -XX:ReservedCodeCacheSize=256m
+org.gradle.daemon=false
+org.gradle.vfs.watch=false
+org.gradle.workers.max=2
+org.gradle.parallel=false
+GP
+' || { echo "gradle home setup failed"; exit 1; }
   # Same two trust stores the decisive arm installs into, for the same reason:
   # Gradle does not read the system bundle.
   docker exec "$C" bash -c '
