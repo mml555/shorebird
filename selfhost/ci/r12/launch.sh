@@ -20,6 +20,11 @@ RELVER="${2:?usage: launch.sh <arm-label> <release-version>}"
 REPO_URL="${R12_REPO_URL:-https://github.com/mml555/shorebird.git}"
 REPO_SHA="${R12_REPO_SHA:?set R12_REPO_SHA to the full 40-hex owned CLI commit}"
 PRODUCER="${R12_PRODUCER_REVISION:-fc184af6509a93eaf6fc068c6820639b324175a8}"
+# Default is the historical mirror. Point this at the SEALED COLD instance
+# (:8086) to prove the toolchain came from owned bytes: sealed alone is not
+# enough, because sealed.caddy still serves cache hits and the production mirror
+# is warm.
+CDN="${R12_CDN:-http://host.docker.internal:8085}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EVIDENCE="${R12_EVIDENCE_DIR:-$HERE/../../evidence/r12-linux-ci}"
 
@@ -56,7 +61,7 @@ got="$(docker run --rm --platform linux/amd64 --entrypoint git alpine/git:latest
   || die "owned Flutter mirror serves '$got', expected the pinned $PINNED"
 echo "   owned flutter mirror     : serves $PINNED"
 
-for svc in "CDN http://host.docker.internal:8085/flutter_infra_release/flutter/$PRODUCER/android-arm64-release/linux-x64.zip" \
+for svc in "CDN $CDN/flutter_infra_release/flutter/$PRODUCER/android-arm64-release/linux-x64.zip" \
            "control-plane ${SHOREBIRD_HOSTED_URL:-http://host.docker.internal:18081}/"; do
   name="${svc%% *}"; url="${svc#* }"
   code="$(docker run --rm --platform linux/amd64 curlimages/curl:latest \
@@ -77,7 +82,7 @@ docker run --name "$CNAME" --platform linux/amd64 -i \
   -e R12_REPO_URL="$REPO_URL" \
   -e R12_REPO_SHA="$REPO_SHA" \
   -e SHOREBIRD_FLUTTER_GIT_URL="git://host.docker.internal:9418/flutter.git" \
-  -e FLUTTER_STORAGE_BASE_URL="http://host.docker.internal:8085" \
+  -e FLUTTER_STORAGE_BASE_URL="$CDN" \
   -e SHOREBIRD_HOSTED_URL="${SHOREBIRD_HOSTED_URL:-http://host.docker.internal:18081}" \
   -e SHOREBIRD_TOKEN="${SHOREBIRD_TOKEN:-}" \
   -e R12_BOOTSTRAP_ONLY="${R12_BOOTSTRAP_ONLY:-0}" \

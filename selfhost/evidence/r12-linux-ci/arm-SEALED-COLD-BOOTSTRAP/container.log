@@ -1,0 +1,38 @@
+
+== container cleanliness ==
+   arm label                : SEALED-COLD-BOOTSTRAP
+   uname                    : Linux/x86_64
+   HOME                     : /r12home
+   flutter/dart/shorebird   : absent from PATH (as required)
+   caches                   : none present
+   CI detection vars        : none set
+
+== bootstrap the OWNED toolchain ==
+   repo                     : https://github.com/mml555/shorebird.git
+   sha                      : 36d74a667fd47deed2775b41b9f6fcfa64ad509e
+   checked out              : 36d74a667fd47deed2775b41b9f6fcfa64ad509e
+   flutter.version (pinned) : a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61
+   flutter git url          : git://host.docker.internal:9418/flutter.git
+   artifact CDN             : http://host.docker.internal:8086
+
+== first shorebird invocation (this is what performs the bootstrap) ==
+   bootstrap OK
+     | Tools • Dart 3.12.2 • DevTools 2.57.0
+     | Building Shorebird...
+     | Resolving dependencies in `/r12src`...
+     | Downloading packages...
+     | Got dependencies in `/r12src`.
+     | Shorebird 1.6.115+selfhost.1 • git@github.com:shorebirdtech/shorebird.git
+     | Flutter 3.44.8+selfhost.1 • revision a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61
+     | Engine • revision 69f9831c360d9152862ec3897c67fb09ae843f3b
+   shorebird                : /r12src/bin/shorebird
+     | Shorebird 1.6.115+selfhost.1 • git@github.com:shorebirdtech/shorebird.git
+     | Flutter 3.44.8+selfhost.1 • revision a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61
+     | Engine • revision 69f9831c360d9152862ec3897c67fb09ae843f3b
+   bootstrapped flutter sha : a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61
+
+== BOOTSTRAP-ONLY — THIS IS NOT A DECISIVE ARM ==
+   The owned toolchain bootstrapped on clean Linux/x64. NO release and NO
+   patch ran, no credential was used, and nothing here bears on R12's
+   release/patch rows. It discharges exactly one checkpoint: that the
+   supported environment is CONSTRUCTIBLE from owned bytes.

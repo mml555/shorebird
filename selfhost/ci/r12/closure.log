@@ -1,0 +1,12 @@
+
+== iteration 1 — bootstrap against the SEALED COLD mirror ==
+   bootstrap exit 1 — finding what it could not reach
+   importing engine_stamp.json
+     owned: 69f9831c360d9152862ec3897c67fb09ae843f3b/engine_stamp.json
+       bytes  237
+       sha256 f424c1e7f9c0f4c620c66b4e75050394a85c14ec307591db88c92f8ccfb34b7b
+       source https://storage.googleapis.com/download.shorebird.dev/flutter_infra_release/flutter/69f9831c360d9152862ec3897c67fb09ae843f3b/engine_stamp.json
+
+== iteration 2 — bootstrap against the SEALED COLD mirror ==
+
+== BOOTSTRAP COMPLETED under seal after 1 additions ==
