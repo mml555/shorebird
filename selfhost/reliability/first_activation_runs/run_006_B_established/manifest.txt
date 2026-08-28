@@ -1,0 +1,5 @@
+run_id           run_006_B_established
+bundle           dev.selfhost.firstActivationProbe
+host_armed_at    2026-08-28T01:58:34Z
+device           8cb4bc982ddf6437b1952520edee80f898196c74
+repo_head        8b50f8e31a47769765fc6983d6cb5ca2125b904a

@@ -59,12 +59,53 @@ arm)
   mkdir -p "$D/crashreports_pre"
   idevicecrashreport --keep "$D/crashreports_pre" >/dev/null 2>&1
 
-  # Kill only OUR previous capture, identified by its output path -- never a
-  # blanket pkill, which is how the last capture died.
-  pkill -f "idevicesyslog.*$RUNS" 2>/dev/null
-  nohup bash -c "idevicesyslog 2>&1 | grep --line-buffered -iE 'shorebird|routeb|Runner|$BUNDLE|Bootstrap|jetsam|watchdog|termina' > '$D/syslog.log'" >/dev/null 2>&1 &
+  # KILL EVERY READER, and the narrower version was a bug.
+  #
+  # This used to be `pkill -f "idevicesyslog.*$RUNS"`, matching on the output
+  # path. That only matches the bash WRAPPER: the bare `idevicesyslog` child has
+  # nothing but its own name on the command line, so every arm leaked one.
+  # Measured: eleven orphaned readers accumulated, all competing for the device's
+  # single syslog service, and new captures received ZERO lines -- which is also
+  # what stalled the capture in the Epoch B canary lane, where I wrongly blamed
+  # killing the wrong process.
+  #
+  # The harness owns the device's syslog for the duration of a run. There should
+  # never be a second reader, so kill them all.
+  pkill -f idevicesyslog 2>/dev/null
+  # CAPTURE RAW, FILTER AT COLLECT. Filtering in the stream made liveness
+  # untestable: the first version waited for an APP-related line while the app was
+  # still closed, so it could never pass and refused every arm. A narrow live
+  # filter also risks discarding a line nobody predicted mattering.
+  # Create the file BEFORE the writer starts. `tail -f` on a nonexistent path
+  # fails INSTANTLY rather than waiting, so without this the liveness probe below
+  # returned at once and refused every arm -- a race in the check, not a dead
+  # reader. Two refusals were spent finding that.
+  : > "$D/syslog_raw.log"
+  nohup bash -c "idevicesyslog >> '$D/syslog_raw.log' 2>&1" >/dev/null 2>&1 &
   echo "$!" > "$D/capture.pid"
-  note "capture armed -> $D/syslog.log"
+
+  # ARM MEANS ACTUALLY CAPTURING, and it is proved before returning.
+  #
+  # A reader that starts but receives nothing is indistinguishable from a quiet
+  # device, and a run armed that way produces syslog that proves nothing -- which
+  # already happened once, on top of eleven orphaned readers starving the service.
+  # Block until the first line of ANY kind arrives: `tail -f | head -1` returns as
+  # soon as there is one and `timeout` bounds the wait, with no sleep involved.
+  # Read the first line into a VARIABLE rather than testing the pipeline's exit
+  # status. `set -o pipefail` is on, and `head -1` closing the pipe sends SIGPIPE
+  # to `tail`, which then exits 141 -- so pipefail reported the pipeline as failed
+  # even when a line HAD arrived. That cost a third refusal, and it is the same
+  # trap as reading $? through a pipeline instead of measuring the command.
+  first_line=$(timeout 25 tail -f "$D/syslog_raw.log" 2>/dev/null | head -1 || true)
+  if [[ -n "$first_line" ]]; then
+    note "capture armed and RECEIVING -> $D/syslog_raw.log"
+  else
+    note "REFUSING: capture started but received nothing in 25s."
+    note "  A run armed on a dead reader yields syslog that proves nothing."
+    note "  Check for competing readers (pgrep -fl idevicesyslog) and the cable."
+    pkill -f idevicesyslog 2>/dev/null
+    exit 1
+  fi
   note "NOW: launch the app by hand, leave it on screen, then run:"
   note "  first_activation_run.sh collect $RUN"
   ;;
@@ -75,9 +116,13 @@ collect)
   idevicescreenshot "$D/render.png" >/dev/null 2>&1 && note "render captured" \
     || note "render NOT captured (app likely already gone)"
 
+  # Derive the filtered view the report reads, from the raw capture.
+  grep -iE "shorebird|routeb|Runner|$BUNDLE|Bootstrap|jetsam|watchdog|termina" \
+    "$D/syslog_raw.log" > "$D/syslog.log" 2>/dev/null || true
+
   # SYSLOG HEALTH, measured rather than assumed.
   alive=no; kill -0 "$(cat "$D/capture.pid" 2>/dev/null)" 2>/dev/null && alive=yes
-  lines=$(wc -l < "$D/syslog.log" 2>/dev/null | tr -d ' ')
+  lines=$(wc -l < "$D/syslog_raw.log" 2>/dev/null | tr -d ' ')
   saw_app=$(grep -c "$BUNDLE\|Runner(Flutter)" "$D/syslog.log" 2>/dev/null || echo 0)
   if [[ "$alive" == yes && "${lines:-0}" -gt 0 && "${saw_app:-0}" -gt 0 ]]; then
     health="USABLE (reader alive, $lines lines, $saw_app app lines)"
