@@ -44,11 +44,21 @@ The identity that does hold, and is stronger than a digest of re-signed bytes:
 | `Next boot candidate rejected` | present | present | |
 | `f729f958e9be` | absent | absent | |
 
-`LC_UUID` is emitted by the linker over the linked image, so an identical UUID
-means the **same linked binary** — re-signing and embedding do not change it. This
-project already relies on that property from the other direction: cloned bundles
-sharing an `LC_UUID` broke local-network permission attribution for the whole
-set (`selfhost/scripts/set_macho_uuid.py`).
+`LC_UUID` is a **build identifier** emitted by the linker over the linked image,
+and re-signing or embedding does not change it. Stated no more strongly than that:
+it is strong PROVENANCE evidence, not a cryptographic content digest, and a
+matching UUID does not by itself prove byte identity. This project already relies
+on the property from the other direction — cloned bundles sharing an `LC_UUID`
+broke local-network permission attribution for the whole set
+(`selfhost/scripts/set_macho_uuid.py`).
+
+What carries the weight is the CHAIN, not any single link:
+
+    published cell artifact
+      -> cached engine byte-equal to it        (verified at every arm)
+      -> release built through that cache      (producer gate, mandatory)
+      -> embedded framework matching the expected linked-image UUID,
+         size, arch and revision strings
 
 So the chain is: the producer gate verified the *cached* engine byte-identical to
 the published cell at release time; the guard re-verifies that at every `arm`;
