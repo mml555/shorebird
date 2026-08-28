@@ -92,6 +92,8 @@ docker run --name "$CNAME" --platform linux/amd64 -i \
   -e R12_REPO_SHA="$REPO_SHA" \
   -e SHOREBIRD_FLUTTER_GIT_URL="git://host.docker.internal:9418/flutter.git" \
   -e FLUTTER_STORAGE_BASE_URL="$CDN" \
+  -e SHOREBIRD_STORAGE_BASE_URL="$CDN" \
+  -e SHOREBIRD_STORAGE_BUCKET="download.shorebird.dev" \
   -e SHOREBIRD_HOSTED_URL="${SHOREBIRD_HOSTED_URL:-http://host.docker.internal:18081}" \
   -e SHOREBIRD_TOKEN="${SHOREBIRD_TOKEN:-}" \
   -e R12_BOOTSTRAP_ONLY="${R12_BOOTSTRAP_ONLY:-0}" \

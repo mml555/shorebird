@@ -30,7 +30,15 @@ BOOTSTRAP_ONLY="${R12_BOOTSTRAP_ONLY:-0}"
 if [[ "$BOOTSTRAP_ONLY" != "1" ]]; then : "${SHOREBIRD_TOKEN:?}"; fi
 SHOREBIRD_TOKEN="${SHOREBIRD_TOKEN:-}"
 : "${R12_ARM_LABEL:?}"; : "${R12_RELEASE_VERSION:?}"
+: "${SHOREBIRD_STORAGE_BASE_URL:?}"; : "${SHOREBIRD_STORAGE_BUCKET:?}"
 export SHOREBIRD_FLUTTER_GIT_URL FLUTTER_STORAGE_BASE_URL SHOREBIRD_HOSTED_URL SHOREBIRD_TOKEN
+# WITHOUT THESE THE SEAL IS A LIE. cache.dart defaults storageBaseUrl to
+# https://storage.googleapis.com, so the CLI's own artifacts (patch-*.zip,
+# aot-tools) would go straight to upstream while FLUTTER_STORAGE_BASE_URL made
+# the run look sealed. Both are owned at the pinned engine and served from the
+# overlay -- verified 2026-08-28: patch-linux-x64.zip and artifacts_manifest.yaml
+# both 200 with X-Overlay: hit.
+export SHOREBIRD_STORAGE_BASE_URL SHOREBIRD_STORAGE_BUCKET
 
 OUT=/r12out; mkdir -p "$OUT"
 
@@ -65,7 +73,8 @@ note "checked out              : $got"
 pinned="$(cat /r12src/bin/internal/flutter.version)"
 note "flutter.version (pinned) : $pinned"
 note "flutter git url          : $SHOREBIRD_FLUTTER_GIT_URL"
-note "artifact CDN             : $FLUTTER_STORAGE_BASE_URL"
+note "artifact CDN (flutter)   : $FLUTTER_STORAGE_BASE_URL"
+note "artifact CDN (shorebird) : $SHOREBIRD_STORAGE_BASE_URL / $SHOREBIRD_STORAGE_BUCKET"
 
 export PATH="/r12src/bin:$PATH"
 BOOTSTRAP_LOG="$OUT/bootstrap.log"
