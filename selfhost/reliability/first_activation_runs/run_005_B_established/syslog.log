@@ -1,0 +1,1104 @@
+Aug 27 21:27:26.008448 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:26.488497 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:26.857423 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:29.023427 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:29.053454 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:29.116756 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:31.005131 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:31.448490 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:31.847229 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:32.558748 watchdogd[57] <Debug>: 1250100348437166: <private>
+Aug 27 21:27:32.559428 watchdogd[57] <Info>: 1250100348575125: <private>
+Aug 27 21:27:32.560021 watchdogd[57] <Debug>: 1250100348653833: <private>
+Aug 27 21:27:32.560714 watchdogd[57] <Debug>: 1250100348756458: <private>
+Aug 27 21:27:32.561447 watchdogd[57] <Info>: 1250100348759125: <private>
+Aug 27 21:27:32.562090 watchdogd[57] <Debug>: 1250100348848000: <private>
+Aug 27 21:27:32.562840 watchdogd[57] <Debug>: 1250100348937708: <private>
+Aug 27 21:27:32.563427 watchdogd[57] <Debug>: 1250100349128958: <private>
+Aug 27 21:27:32.564266 watchdogd[57] <Debug>: 1250100349199375: <private>
+Aug 27 21:27:32.565122 watchdogd[57] <Debug>: 1250100349291166: <private>
+Aug 27 21:27:32.565861 watchdogd[57] <Info>: 1250100349305458: <private>
+Aug 27 21:27:32.566539 watchdogd[57] <Info>: 1250100349309708: <private>
+Aug 27 21:27:32.567243 watchdogd[57] <Info>: 1250100349311250: <private>
+Aug 27 21:27:32.568013 watchdogd[57] <Info>: 1250100349312416: <private>
+Aug 27 21:27:32.568671 watchdogd[57] <Info>: 1250100349313375: <private>
+Aug 27 21:27:32.569298 watchdogd[57] <Info>: 1250100349314291: <private>
+Aug 27 21:27:32.570080 watchdogd[57] <Info>: 1250100349315166: <private>
+Aug 27 21:27:32.570775 watchdogd[57] <Info>: 1250100349316000: <private>
+Aug 27 21:27:34.023538 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:34.055869 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:34.139694 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:36.003615 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:36.459285 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:36.846100 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:39.020015 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:39.056666 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:39.117464 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+    <UITouch: 0x10510d860> phase: Began tap count: 1 force: 0.000 window: <SBHomeScreenWindow: 0x1051b4220; HomeScreen-0x1051b4220-4; baseClass = UIWindow; frame = (0 0; 375 667); clipsToBounds = YES; opaque = NO; gestureRecognizers = <NSArray: 0x281278180>; layer = <UIWindowLayer: 0x281273180>> view: <SBIconView: 0x104917000; frame: {{114, 382}, {60, 74}}; icon: <SBApplicationIcon: 0x28337b880; nodeID: dev.selfhost.firstActivationProbe; bundleID: dev.selfhost.firstActivationProbe>; location: SBIconLocationRoot; isTouchDownInIcon: YES> location in window: {161.5, 415.5} previous location in window: {161.5, 415.5} location in view: {47.5, 33.5} previous location in view: {47.5, 33.5}
+Aug 27 21:27:40.677196 SpringBoard(SplashBoard)[47602] <Info>: Loading image for <XBApplicationSnapshot: 0x109d3cb20; …A909693DA7E7> [dev.selfhost.firstActivationProbe]
+Aug 27 21:27:40.677911 SpringBoard(SplashBoard)[47602] <Info>: <XBApplicationSnapshot: 0x109d3cb20; …A909693DA7E7> [dev.selfhost.firstActivationProbe] not purging the cached image; force: 0; _imageAccessCount: 0; _keepImageAccessUntilExpiration: 0; _hasProtectedContent: 0; _keepImageAccessForPreheat: 1
+Aug 27 21:27:40.727055 SpringBoard(Security)[47602] <Debug>: open(/private/var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Runner,0x0,0x1b6) = 35
+Aug 27 21:27:40.727552 SpringBoard(Security)[47602] <Debug>: open(/private/var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Runner,0x0,0x1b6) = 36
+Aug 27 21:27:40.729154 SpringBoard(Security)[47602] <Debug>: 6151 signing bytes in 5 blob(s) from /private/var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Runner(arm64)
+Aug 27 21:27:40.741057 SpringBoard(Security)[47602] <Debug>: open(/private/var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Info.plist,0x0,0x1b6) = 35
+Aug 27 21:27:40.801938 SpringBoard(Security)[47602] <Debug>: 0x109da87c8 done serializing <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>application-identifier</key><string>SK85S6YZP9.dev.selfhost.firstActivationProbe</string><key>com.apple.developer.team-identifier</key><string>SK85S6YZP9</string><key>get-task-allow</key><true/></dict></plist>
+        <SBLayoutElement: 0x280807480; uniqueIdentifier: sceneID:dev.selfhost.firstActivationProbe-default; layoutRole: primary> {
+            SBLayoutRolePrimary = <SBDeviceApplicationSceneEntity: 0x283e930c0; ID: sceneID:dev.selfhost.firstActivationProbe-default; layoutRole: primary> {
+                        fromIconWithLeafIdentifier = dev.selfhost.firstActivationProbe;
+Aug 27 21:27:40.842874 SpringBoard(FrontBoard)[47602] <Notice>: Asked to bootstrap a new process with identity: application<dev.selfhost.firstActivationProbe>
+Aug 27 21:27:40.843239 SpringBoard(FrontBoard)[47602] <Notice>: Creating process (sync=true) with identity: application<dev.selfhost.firstActivationProbe>
+Aug 27 21:27:40.844041 SpringBoard(FrontBoard)[47602] <Notice>: Created <FBWorkspace: 0x282a13230; application<dev.selfhost.firstActivationProbe>>
+Aug 27 21:27:40.844712 SpringBoard(FrontBoard)[47602] <Notice>: Bootstrapping application<dev.selfhost.firstActivationProbe> with intent foreground-interactive
+Aug 27 21:27:40.851173 SpringBoard(RunningBoardServices)[47602] <Info>: Sending launch request: <RBSLaunchRequest| application<dev.selfhost.firstActivationProbe>; "FBApplicationProcess">
+Aug 27 21:27:40.853513 runningboardd(RunningBoard)[33] <Notice>: Acquiring assertion targeting application<dev.selfhost.firstActivationProbe> from originator [daemon<com.apple.SpringBoard>:47602] with description <RBSAssertionDescriptor| "FBApplicationProcess" ID:33-47602-7535 target:application<dev.selfhost.firstActivationProbe> attributes:[
+	<RBSDomainAttribute| domain:"com.apple.frontboard" name:"Bootstrap-Foreground" sourceEnvironment:"(null)">,
+Aug 27 21:27:40.853662 runningboardd(RunningBoard)[33] <Notice>: Assertion 33-47602-7535 (target:application<dev.selfhost.firstActivationProbe>) will be created as active
+Aug 27 21:27:40.853901 runningboardd(RunningBoard)[33] <Notice>: Executing launch request for application<dev.selfhost.firstActivationProbe> (FBApplicationProcess)
+Aug 27 21:27:40.855080 runningboardd(RunningBoard)[33] <Notice>: Creating and launching job for: application<dev.selfhost.firstActivationProbe>
+Aug 27 21:27:40.855227 runningboardd(RunningBoard)[33] <Notice>: _mutateContextIfNeeded called for dev.selfhost.firstActivationProbe
+        <SBLayoutElement: 0x280807480; uniqueIdentifier: sceneID:dev.selfhost.firstActivationProbe-default; layoutRole: primary> {
+Aug 27 21:27:40.904798 SpringBoard(SplashBoard)[47602] <Info>: Loading image for <XBApplicationSnapshot: 0x109ddf7d0; …2F3B89D0D3F1> [dev.selfhost.firstActivationProbe]
+Aug 27 21:27:40.906464 SpringBoard(SplashBoard)[47602] <Info>: <XBApplicationSnapshot: 0x109ddf7d0; …2F3B89D0D3F1> [dev.selfhost.firstActivationProbe] not purging the cached image; force: 0; _imageAccessCount: 2; _keepImageAccessUntilExpiration: 0; _hasProtectedContent: 0; _keepImageAccessForPreheat: 0
+Aug 27 21:27:40.909784 SpringBoard[47602] <Info>: attempted to activate overlay for dev.selfhost.firstActivationProbe, exiting early because app is not blocked
+Aug 27 21:27:40.927920 runningboardd(RunningBoard)[33] <Info>: No personas found for bundle identifier: dev.selfhost.firstActivationProbe
+Aug 27 21:27:40.928423 runningboardd(RunningBoard)[33] <Debug>: BEGIN suppressing state updates for application<dev.selfhost.firstActivationProbe>
+Aug 27 21:27:40.928721 runningboardd(RunningBoard)[33] <Debug>: Incrementing suppression state to 1 for application<dev.selfhost.firstActivationProbe>
+Aug 27 21:27:40.929138 runningboardd(RunningBoard)[33] <Debug>: SUPPRESSING state update for application<dev.selfhost.firstActivationProbe>: <RBSProcessState| task:none debug:none terminationResistance:None endowments:[
+	<RBSProcessAssertionInfo| type:2 reason:10000 name:"Domain" domain:"com.apple.frontboard:Bootstrap-Foreground,com.apple.frontboard:Visibility" expl:"FBApplicationProcess">
+Aug 27 21:27:40.936558 runningboardd(RunningBoard)[33] <Info>: _requestedJetsamPriority = 3, _executablePath = /var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Runner
+Aug 27 21:27:40.937114 runningboardd(RunningBoard)[33] <Info>: _doesOverrideManagement = 1, _overrideManageFlags = 255, _underlyingAssertion = (null), _variableEUID = 0, _specifiedIdenity = application<dev.selfhost.firstActivationProbe> _beforeTranslocationBundlePath = (null), _disableFreezing = 0
+Aug 27 21:27:40.938111 runningboardd(RunningBoard)[33] <Notice>: [application<dev.selfhost.firstActivationProbe>:50643] This process will be managed.
+Aug 27 21:27:40.938366 runningboardd(RunningBoard)[33] <Notice>: Now tracking process: [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:40.938536 runningboardd(RunningBoard)[33] <Debug>: Adding assertion 33-47602-7535 (target:application<dev.selfhost.firstActivationProbe>)
+Aug 27 21:27:40.942080 runningboardd(RunningBoard)[33] <Info>: application<dev.selfhost.firstActivationProbe> is now targeted by 1 assertions
+Aug 27 21:27:40.950479 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) sent a request related to { com.apple.UIKit, user: mobile, kCFPreferencesCurrentHost, /Library/Managed Preferences/mobile/com.apple.UIKit.plist, managed: 1 } (0x100362850)
+Aug 27 21:27:40.951190 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) sent a request related to { com.apple.UIKit, user: kCFPreferencesAnyUser, kCFPreferencesCurrentHost, /Library/Managed Preferences/com.apple.UIKit.plist, managed: 1 } (0x100362850)
+Aug 27 21:27:40.951920 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) sent a request related to { com.apple.UIKit, user: mobile, kCFPreferencesAnyHost, /var/mobile/Library/Preferences/com.apple.UIKit.plist, managed: 0 } (0x100317d00)
+Aug 27 21:27:40.952236 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) read data for { com.apple.UIKit, mobile, kCFPreferencesAnyHost, /var/mobile/Library/Preferences/com.apple.UIKit.plist, managed: 0 }, backed by /private/var/mobile/Library/Preferences/com.apple.UIKit.plist
+Aug 27 21:27:40.953955 runningboardd(RunningBoard)[33] <Notice>: Using default underlying assertion for app: [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:40.954170 runningboardd(RunningBoard)[33] <Notice>: Acquiring assertion targeting [application<dev.selfhost.firstActivationProbe>:50643] from originator [application<dev.selfhost.firstActivationProbe>:50643] with description <RBSAssertionDescriptor| "RB Underlying Assertion" ID:33-33-7536 target:50643 attributes:[
+Aug 27 21:27:40.954362 runningboardd(RunningBoard)[33] <Notice>: Assertion 33-33-7536 (target:[application<dev.selfhost.firstActivationProbe>:50643]) will be created as active
+Aug 27 21:27:40.954961 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) sent a request related to { kCFPreferencesAnyApplication, user: mobile, kCFPreferencesCurrentHost, /Library/Managed Preferences/mobile/.GlobalPreferences.plist, managed: 1 } (0x10030c020)
+Aug 27 21:27:40.955210 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) read data for { kCFPreferencesAnyApplication, mobile, kCFPreferencesCurrentHost, /Library/Managed Preferences/mobile/.GlobalPreferences.plist, managed: 1 }, backed by /private/var/Managed Preferences/mobile/.GlobalPreferences.plist
+Aug 27 21:27:40.956356 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) sent a request related to { kCFPreferencesAnyApplication, user: mobile, kCFPreferencesAnyHost, /var/mobile/Library/Preferences/.GlobalPreferences.plist, managed: 0 } (0x10030c3f0)
+Aug 27 21:27:40.956955 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) read data for { kCFPreferencesAnyApplication, mobile, kCFPreferencesAnyHost, /var/mobile/Library/Preferences/.GlobalPreferences.plist, managed: 0 }, backed by /private/var/mobile/Library/Preferences/.GlobalPreferences.plist
+Aug 27 21:27:40.958650 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) sent a request related to { com.apple.UIKit, user: kCFPreferencesAnyUser, kCFPreferencesCurrentHost, /var/preferences/com.apple.UIKit.plist, managed: 0 } (0x10184eaa0)
+Aug 27 21:27:40.961454 Runner(CoreFoundation)[50643] <Debug>: Using ~iphone resources
+Aug 27 21:27:40.961684 Runner(CoreFoundation)[50643] <Debug>: CFPrefsManagedSource<0x281d74e00> (Domain: com.apple.UIKit, User: kCFPreferencesCurrentUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 21:27:40.961896 Runner(CoreFoundation)[50643] <Debug>: CFPrefsManagedSource<0x281d74e80> (Domain: com.apple.UIKit, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 21:27:40.962149 runningboardd(RunningBoard)[33] <Debug>: Adding assertion 33-33-7536 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+Aug 27 21:27:40.962761 runningboardd(RunningBoard)[33] <Info>: application<dev.selfhost.firstActivationProbe> is now targeted by 2 assertions
+Aug 27 21:27:40.963737 runningboardd(RunningBoard)[33] <Info>: [application<dev.selfhost.firstActivationProbe>:50643] Applying updated state
+Aug 27 21:27:40.964001 runningboardd(RunningBoard)[33] <Notice>: [application<dev.selfhost.firstActivationProbe>:50643] Set jetsam priority to 10 [0] flag[1]
+Aug 27 21:27:40.964773 SpringBoard(FrontBoard)[47602] <Notice>: [application<dev.selfhost.firstActivationProbe>:-1] Bootstrap success!
+<SBTransitionSwitcherModifierEvent: 0x282169300; type: MainTransition; transitionID: 381A04E6-3FC6-4E5A-9599-0089BC4EB776; phase: Prepare; animated: YES; fromAppLayout: 0x0; toAppLayout: <SBAppLayout: 0x28087bb80; primary: dev.selfhost.firstActivationProbe:default; environment: main>; fromEnvironmentMode: home-screen; toEnvironmentMode: application; pendingTermination: {(
+)}; activating: <SBAppLayout: 0x28087bb80; primary: dev.selfhost.firstActivationProbe:default; environment: main>; dosidoTransitionDirection: 0>
+Aug 27 21:27:40.965168 SpringBoard(BaseBoard)[47602] <Debug>:  *|machport|* <BSMachPortTaskNameRight: 0x2808c5c40; usable: YES; (47602:1566b:send task_name_for_pid:Runner.50643)> -> (<NSThread: 0x28086c080>{number = 679, name = (null)}) (
+Aug 27 21:27:40.965577 Runner(CoreFoundation)[50643] <Debug>: CFPrefsPlistSource<0x281d74400> (Domain: com.apple.UIKit, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) loaded: a new base plist and no additional changes from the base plist
+Aug 27 21:27:40.965802 Runner(CoreFoundation)[50643] <Debug>: CFPrefsManagedSource<0x281d75000> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesCurrentUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: a new base plist and no additional changes from the base plist
+Aug 27 21:27:40.965963 Runner(CoreFoundation)[50643] <Debug>: CFPrefsPlistSource<0x281d74f00> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) loaded: a new base plist and no additional changes from the base plist
+Aug 27 21:27:40.966170 Runner(CoreFoundation)[50643] <Debug>: CFPrefsPlistSource<0x281d75080> (Domain: com.apple.UIKit, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 21:27:40.966562 Runner(CoreFoundation)[50643] <Debug>: CFPrefsPlistSource<0x281d75100> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 21:27:40.966820 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) sent a request related to { kCFPreferencesAnyApplication, user: kCFPreferencesAnyUser, kCFPreferencesCurrentHost, /var/preferences/.GlobalPreferences.plist, managed: 0 } (0x100316b90)
+Aug 27 21:27:40.968043 Runner(CoreFoundation)[50643] <Debug>: found no value for key LogHIDEventFiltered in CFPrefsSearchListSource<0x281d74c80> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 21:27:40.968241 runningboardd(RunningBoard)[33] <Debug>: Incrementing suppression state to 2 for application<dev.selfhost.firstActivationProbe>
+	    <SBIconOverlayVisibilitySwitcherEventResponse: 0x2808c64c0; visible: YES; appLayout: <SBAppLayout: 0x28087bb80; primary: dev.selfhost.firstActivationProbe:default; environment: main>>;
+	    <SBIconViewVisibilitySwitcherEventResponse: 0x283e003c0; visible: NO; animationSettings: 0x0; appLayout: <SBAppLayout: 0x28087bb80; primary: dev.selfhost.firstActivationProbe:default; environment: main>>;
+Aug 27 21:27:40.968805 Runner(CoreFoundation)[50643] <Debug>: found no value for key LogHIDEventIncoming in CFPrefsSearchListSource<0x281d74c80> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 21:27:40.969658 Runner(libMobileGestalt.dylib)[50643] <Notice>: Cache loaded with 4896 pre-cached in CacheData and 49 items in CacheExtra.
+Aug 27 21:27:40.970451 Runner(CoreFoundation)[50643] <Debug>: found no value for key LogApplication in CFPrefsSearchListSource<0x281d74c80> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 21:27:40.971147 Runner(UIKitCore)[50643] <Notice>: Deactivation reason added: 10; deactivation reasons: 0 -> 1024; animating application lifecycle event: 0
+Aug 27 21:27:40.972038 Runner(RunningBoardServices)[50643] <Notice>: Initializing connection
+    bundleIdentifier = dev.selfhost.firstActivationProbe;
+    uniqueIdentifier = sceneID:dev.selfhost.firstActivationProbe-default;
+Aug 27 21:27:40.974403 Runner(RunningBoardServices)[50643] <Notice>: Removing all cached process handles
+Aug 27 21:27:40.974788 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) sent a request related to { dev.selfhost.firstActivationProbe, user: mobile, kCFPreferencesCurrentHost, /Library/Managed Preferences/mobile/dev.selfhost.firstActivationProbe.plist, managed: 1 } (0x10182aa60)
+Aug 27 21:27:40.975588 runningboardd(RunningBoard)[33] <Info>: Ignoring insignificant state update for application<dev.selfhost.firstActivationProbe>
+Aug 27 21:27:40.976441 runningboardd(RunningBoard)[33] <Notice>: Calculated state for application<dev.selfhost.firstActivationProbe>: running-active (role: UserInteractiveFocal)
+Aug 27 21:27:40.976733 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) sent a request related to { dev.selfhost.firstActivationProbe, user: kCFPreferencesAnyUser, kCFPreferencesCurrentHost, /Library/Managed Preferences/dev.selfhost.firstActivationProbe.plist, managed: 1 } (0x10182aa60)
+Aug 27 21:27:40.977325 runningboardd(RunningBoard)[33] <Debug>: Sending state update for application<dev.selfhost.firstActivationProbe>: <RBSProcessState| task:running-active debug:none terminationResistance:Interactive endowments:[
+	<RBSProcessAssertionInfo| type:2 reason:10000 name:"Domain" domain:"com.apple.frontboard:Bootstrap-Foreground,com.apple.frontboard:Visibility" expl:"FBApplicationProcess">
+Aug 27 21:27:40.978506 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) sent a request related to { dev.selfhost.firstActivationProbe, user: mobile, kCFPreferencesAnyHost, /var/mobile/Containers/Data/Application/18E6667F-E66B-4E74-92D9-B14869861554/Library/Preferences/dev.selfhost.firstActivationProbe.plist, managed: 0 } (0x10183db90)
+Aug 27 21:27:40.978910 runningboardd(RunningBoard)[33] <Debug>: Incrementing suppression state to 3 for application<dev.selfhost.firstActivationProbe>
+Aug 27 21:27:40.980170 Runner(BoardServices)[50643] <Notice>: activating monitor for service com.apple.frontboard.open
+Aug 27 21:27:40.981204 Runner(BoardServices)[50643] <Notice>: activating monitor for service com.apple.frontboard.workspace-service
+Aug 27 21:27:40.981983 Runner(FrontBoardServices)[50643] <Notice>: FBSWorkspace connecting to endpoint : <private>
+Aug 27 21:27:40.982535 Runner(FrontBoardServices)[50643] <Notice>: FBSWorkspace registering source: <private>
+Aug 27 21:27:40.982866 Runner(FrontBoardServices)[50643] <Notice>: FBSWorkspace connected to endpoint : <private>
+Aug 27 21:27:40.983067 SpringBoard(BaseBoard)[47602] <Debug>:  *|machport|* <BSMachPortTaskNameRight: 0x280894e40; usable: YES; (47602:1566b:send task_name_for_pid:Runner.50643)> -> (<NSThread: 0x2808f1640>{number = 675, name = (null)}) (
+Aug 27 21:27:40.983238 Runner(RunningBoardServices)[50643] <Notice>: Added observer for process assertions expiration warning: <_RBSExpirationWarningClient: 0x283379560>
+Aug 27 21:27:40.983993 backboardd(IOKit)[65] <Notice>: Connection added: IOHIDEventSystemConnection uuid:65A83A27-FCE2-4810-B6A1-413237466032 pid:50643 process:Runner type:Passive entitlements:0x0 caller:BackBoardServices: <redacted> + 336 attributes:{
+    bundleID = "dev.selfhost.firstActivationProbe";
+Aug 27 21:27:40.984218 backboardd(BackBoardHIDEventFoundation)[65] <Debug>: Got a client addition callback: IOHIDEventSystemConnection uuid:65A83A27-FCE2-4810-B6A1-413237466032 pid:50643 process:Runner type:Passive entitlements:0x0 caller:BackBoardServices: <redacted> + 336 attributes:{
+    bundleID = "dev.selfhost.firstActivationProbe";
+Aug 27 21:27:40.984488 backboardd(BackBoardHIDEventFoundation)[65] <Info>: HID connection vpid:50643(v6DD4F) bundleID:dev.selfhost.firstActivationProbe successfully initialized: IOHIDEventSystemConnection uuid:65A83A27-FCE2-4810-B6A1-413237466032 pid:50643 process:Runner type:Passive entitlements:0x0 caller:BackBoardServices: <redacted> + 336 attributes:{
+    bundleID = "dev.selfhost.firstActivationProbe";
+Aug 27 21:27:40.984796 backboardd(BackBoardHIDEventFoundation)[65] <Notice>: Adding client connection: <BKHIDClientConnection: 0x1026dfaa0; IOHIDEventSystemConnectionRef: 0x10dc148b0; vpid: 50643(v6DD4F); taskPort: 0x3777B; bundleID: dev.selfhost.firstActivationProbe> for client: IOHIDEventSystemConnection uuid:65A83A27-FCE2-4810-B6A1-413237466032 pid:50643 process:Runner type:Passive entitlements:0x0 caller:BackBoardServices: <redacted> + 336 attributes:{
+    bundleID = "dev.selfhost.firstActivationProbe";
+Aug 27 21:27:41.026617 runningboardd(RunningBoard)[33] <Debug>: [daemon<com.apple.SpringBoard>:47602] query resolved to [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:41.026842 runningboardd(RunningBoard)[33] <Notice>: Calculated state for application<dev.selfhost.firstActivationProbe>: running-active (role: UserInteractiveFocal)
+Aug 27 21:27:41.027195 runningboardd(RunningBoard)[33] <Debug>: SUPPRESSING state update for application<dev.selfhost.firstActivationProbe>: <RBSProcessState| task:running-active debug:none terminationResistance:Interactive endowments:[
+	<RBSProcessAssertionInfo| type:2 reason:10000 name:"Domain" domain:"com.apple.frontboard:Bootstrap-Foreground,com.apple.frontboard:Visibility" expl:"FBApplicationProcess">,
+Aug 27 21:27:41.027480 runningboardd(RunningBoard)[33] <Debug>: Decrementing suppression state to 2 for application<dev.selfhost.firstActivationProbe>
+Aug 27 21:27:41.027800 Runner(CoreFoundation)[50643] <Debug>: CFPrefsManagedSource<0x281d72480> (Domain: dev.selfhost.firstActivationProbe, User: kCFPreferencesCurrentUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 21:27:41.027965 Runner(CoreFoundation)[50643] <Debug>: CFPrefsManagedSource<0x281d72600> (Domain: dev.selfhost.firstActivationProbe, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 21:27:41.028126 Runner(CoreFoundation)[50643] <Debug>: CFPrefsPlistSource<0x281d72000> (Domain: dev.selfhost.firstActivationProbe, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 21:27:41.028366 Runner(CoreFoundation)[50643] <Debug>: CFPrefsPlistSource<0x281d73400> (Domain: dev.selfhost.firstActivationProbe, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 21:27:41.028581 Runner(CoreFoundation)[50643] <Debug>: looked up value <private> for key AppleLanguages in CFPrefsPlistSource<0x281d74f00> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) via CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.028994 Runner(CoreFoundation)[50643] <Debug>: setting new value <private> for key <private> in CFPrefsSource<0x282674400> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No)
+Aug 27 21:27:41.029784 SpringBoard(FrontBoard)[47602] <Notice>: Asked to bootstrap a new process for handle: [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:41.030121 SpringBoard(FrontBoard)[47602] <Notice>: A pending process already exists for this handle: <FBApplicationProcess: 0x10a1a2e40; application<dev.selfhost.firstActivationProbe>:50643(v6DD4F)>
+Aug 27 21:27:41.033552 SpringBoard(FrontBoard)[47602] <Notice>: [application<dev.selfhost.firstActivationProbe>:50643] Setting process task state to: Running
+Aug 27 21:27:41.034078 SpringBoard(FrontBoard)[47602] <Notice>: [application<dev.selfhost.firstActivationProbe>:50643] Setting process visibility to: Foreground
+Aug 27 21:27:41.037435 SpringBoard(FrontBoard)[47602] <Notice>: [application<dev.selfhost.firstActivationProbe>:50643] Registering event dispatcher at connect
+Aug 27 21:27:41.037626 SpringBoard(FrontBoard)[47602] <Info>: Registering workspace for processHandle: [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:41.038105 SpringBoard(FrontBoard)[47602] <Notice>: [application<dev.selfhost.firstActivationProbe>:50643] Initial launch assertion state: ForegroundFocal.
+Aug 27 21:27:41.038365 SpringBoard(FrontBoardServices)[47602] <Info>: [application<dev.selfhost.firstActivationProbe>:50643] [realTime] Now monitoring resource allowance of 20.00s (at refreshInterval -1.00s)
+Aug 27 21:27:41.040358 SpringBoard(FrontBoard)[47602] <Notice>: Adding: <FBApplicationProcess: 0x10a1a2e40; application<dev.selfhost.firstActivationProbe>:50643(v6DD4F)>
+Aug 27 21:27:41.041008 SpringBoard(FrontBoard)[47602] <Info>: FBWorkspaceDomain: Assigning new workspace connection to workspace (0x282a13230) owned by process: <FBApplicationProcess: 0x10a1a2e40; application<dev.selfhost.firstActivationProbe>:50643(v6DD4F)>
+Aug 27 21:27:41.041413 SpringBoard(FrontBoard)[47602] <Notice>: [application<dev.selfhost.firstActivationProbe>:50643] Connection established.
+Aug 27 21:27:41.041715 SpringBoard(FrontBoard)[47602] <Notice>: change foreground process from list:<FBApplicationProcess: 0x10a1a2e40; application<dev.selfhost.firstActivationProbe>:50643(v6DD4F)>
+Aug 27 21:27:41.042365 SpringBoard(FrontBoard)[47602] <Info>: Setting BKSEventFocusManager's foreground app to: <FBApplicationProcess: 0x10a1a2e40; application<dev.selfhost.firstActivationProbe>:50643(v6DD4F)>
+Aug 27 21:27:41.042729 SpringBoard(FrontBoard)[47602] <Notice>: [application<dev.selfhost.firstActivationProbe>:50643] Connection to remote process established!
+Aug 27 21:27:41.044163 SpringBoard(FrontBoardServices)[47602] <Info>: [application<dev.selfhost.firstActivationProbe>:50643] [realTime] Stopped monitoring.
+Aug 27 21:27:41.045618 SpringBoard(FrontBoardServices)[47602] <Debug>: [application<dev.selfhost.firstActivationProbe>:50643] [realTime] Updated resource consumption: 0.001s (0.01%)
+Aug 27 21:27:41.047300 SpringBoard(FrontBoard)[47602] <Info>: [application<dev.selfhost.firstActivationProbe>:50643] Provision <FBSProcessResourceProvision: 0x282f267f0; allowance: <; FBSProcessResourceAllowance; type: realTime; timeValue: 20.0s>> has remainder <FBSProcessResourceProvision: 0x282f255f0; allowance: <; FBSProcessResourceAllowance; type: realTime; timeValue: 20.00s>>
+Aug 27 21:27:41.047553 SpringBoard(FrontBoard)[47602] <Info>: [application<dev.selfhost.firstActivationProbe>:50643] Made scene-create policy: <FBSProcessWatchdogPolicy: 0x281c39d60; name: "scene create after launch"> {
+Aug 27 21:27:41.049119 SpringBoard(FrontBoardServices)[47602] <Debug>: [application<dev.selfhost.firstActivationProbe>:50643] Invalidating <FBProcessWatchdog: 0x283ec0b90; name: process-launch; time: 20.0s>
+Aug 27 21:27:41.049719 SpringBoard(FrontBoardServices)[47602] <Debug>: [application<dev.selfhost.firstActivationProbe>:50643] [realTime] Invalidated
+Aug 27 21:27:41.052020 backboardd(IOKit)[65] <Debug>: SetProperty called IOHIDEventSystemClientIsUnresponsive=0 caller=IOHIDEventSystemConnection uuid:65A83A27-FCE2-4810-B6A1-413237466032 pid:50643 process:Runner type:Passive entitlements:0x0 caller:BackBoardServices: <redacted> + 336 attributes:{
+    bundleID = "dev.selfhost.firstActivationProbe";
+Aug 27 21:27:41.054624 Runner(CoreFoundation)[50643] <Debug>: setting new value <private> for key <private> in CFPrefsSource<0x282674400> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No)
+Aug 27 21:27:41.055193 Runner(CoreFoundation)[50643] <Debug>: setting new value <private> for key <private> in CFPrefsSource<0x282674400> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No)
+Aug 27 21:27:41.064049 Runner(CoreFoundation)[50643] <Debug>: found no value for key UIScreenIsCapturedValue in CFPrefsSearchListSource<0x281d74c80> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 21:27:41.064414 Runner(CoreFoundation)[50643] <Debug>: looked up value <private> for key AppleLanguages in CFPrefsPlistSource<0x281d74f00> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) via CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.064732 Runner(CoreFoundation)[50643] <Debug>: Language lookup at <private>
+Aug 27 21:27:41.065253 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.066550 Runner(CoreFoundation)[50643] <Debug>: found no value for key _UIEnableLegacyRTL in CFPrefsSearchListSource<0x281d74c80> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 21:27:41.078384 runningboardd(RunningBoard)[33] <Debug>: Sending state 0x1011b9af0 for application<dev.selfhost.firstActivationProbe> to [daemon<com.apple.SpringBoard>:47602]
+Aug 27 21:27:41.078743 runningboardd(RunningBoard)[33] <Info>: Finished acquiring assertion 33-47602-7535 (target:application<dev.selfhost.firstActivationProbe>)
+Aug 27 21:27:41.079213 runningboardd(RunningBoard)[33] <Notice>: [application<dev.selfhost.firstActivationProbe>:50643] Resuming task.
+Aug 27 21:27:41.079505 runningboardd(RunningBoard)[33] <Debug>: Decrementing suppression state to 1 for application<dev.selfhost.firstActivationProbe>
+Aug 27 21:27:41.079671 kernel(Sandbox)[0] <Notice>: /private/var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Runner[50643] ==> container
+Aug 27 21:27:41.079748 kernel(Sandbox)[0] <Error>: Sandbox: Runner(50643) deny(2) file-test-existence /private/etc/.mdns_debug
+Aug 27 21:27:41.081193 runningboardd(RunningBoard)[33] <Info>: Finished acquiring assertion 33-33-7536 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+Aug 27 21:27:41.081433 runningboardd(RunningBoard)[33] <Notice>: Successfully acquired underlying assertion for [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:41.082575 runningboardd(RunningBoard)[33] <Debug>: Updating events for assertion: 33-47602-7535 (target:application<dev.selfhost.firstActivationProbe>)
+Aug 27 21:27:41.082794 runningboardd(RunningBoard)[33] <Debug>: Removing events for context: 33-47602-7535 (target:application<dev.selfhost.firstActivationProbe>)
+Aug 27 21:27:41.083003 runningboardd(RunningBoard)[33] <Debug>: Enqueueing events for assertion: 33-47602-7535 (target:application<dev.selfhost.firstActivationProbe>)
+Aug 27 21:27:41.083282 Runner(CoreFoundation)[50643] <Debug>: found no value for key NSTighteningFactorForTruncation in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.084013 runningboardd(RunningBoard)[33] <Notice>: [application<dev.selfhost.firstActivationProbe>:50643] Set darwin role to: UserInteractiveFocal
+Aug 27 21:27:41.084282 runningboardd(RunningBoard)[33] <Debug>: Updating events for assertion: 33-33-7536 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+Aug 27 21:27:41.085842 runningboardd(RunningBoard)[33] <Debug>: Removing events for context: 33-33-7536 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+Aug 27 21:27:41.085997 runningboardd(RunningBoard)[33] <Debug>: Sending state 0x1011b9af0 for application<dev.selfhost.firstActivationProbe> to [daemon<com.apple.mediaserverd>:36]
+Aug 27 21:27:41.086294 runningboardd(RunningBoard)[33] <Debug>: Enqueueing events for assertion: 33-33-7536 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+Aug 27 21:27:41.086845 runningboardd(RunningBoard)[33] <Info>: [application<dev.selfhost.firstActivationProbe>:50643] Disabled CPU monitoring
+Aug 27 21:27:41.087922 runningboardd(RunningBoard)[33] <Debug>: Sending state 0x1011b9af0 for application<dev.selfhost.firstActivationProbe> to [daemon<com.apple.symptomsd>:170]
+Aug 27 21:27:41.088326 runningboardd(RunningBoard)[33] <Info>: [application<dev.selfhost.firstActivationProbe>:50643] Reset CPU monitoring limits to defaults
+Aug 27 21:27:41.088625 runningboardd(RunningBoard)[33] <Info>: Received message from [application<dev.selfhost.firstActivationProbe>:50643] (euid 501, auid 501): handshakeWithRequest:
+Aug 27 21:27:41.090925 runningboardd(RunningBoard)[33] <Notice>: Setting client for [application<dev.selfhost.firstActivationProbe>:50643] as ready
+Aug 27 21:27:41.100341 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) sent a request related to { dev.selfhost.firstActivationProbe, user: kCFPreferencesAnyUser, kCFPreferencesCurrentHost, /var/preferences/dev.selfhost.firstActivationProbe.plist, managed: 0 } (0x10182aa60)
+Aug 27 21:27:41.101261 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) sent a request related to { com.apple.Accessibility, user: mobile, kCFPreferencesCurrentHost, /Library/Managed Preferences/mobile/com.apple.Accessibility.plist, managed: 1 } (0x101814050)
+Aug 27 21:27:41.102031 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) sent a request related to { com.apple.Accessibility, user: kCFPreferencesAnyUser, kCFPreferencesCurrentHost, /Library/Managed Preferences/com.apple.Accessibility.plist, managed: 1 } (0x101814300)
+Aug 27 21:27:41.103436 Runner(CoreFoundation)[50643] <Debug>: found no value for key NSTighteningFactorForTruncation in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.103759 Runner(CoreFoundation)[50643] <Debug>: found no value for key NSAllowsDefaultTighteningForTruncation in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.104068 Runner(CoreFoundation)[50643] <Debug>: found no value for key NSUsesDefaultHyphenation in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.104325 Runner(CoreFoundation)[50643] <Debug>: found no value for key NSDefaultHyphenationFactor in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.104598 Runner(CoreFoundation)[50643] <Debug>: found no value for key NSForceRightToLeftWritingDirection in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.109299 Runner(RunningBoardServices)[50643] <Notice>: Sending handshake request attempt #1 to server
+Aug 27 21:27:41.109608 Runner(RunningBoardServices)[50643] <Notice>: Creating connection to com.apple.runningboard
+Aug 27 21:27:41.109891 Runner(CoreFoundation)[50643] <Debug>: CFPrefsManagedSource<0x281d72800> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 21:27:41.110178 Runner(CoreFoundation)[50643] <Debug>: CFPrefsManagedSource<0x281d72a00> (Domain: com.apple.Accessibility, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 21:27:41.110461 Runner(CoreFoundation)[50643] <Debug>: CFPrefsPlistSource<0x281d77400> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) loaded: a new base plist and no additional changes from the base plist
+Aug 27 21:27:41.110869 Runner(CoreFoundation)[50643] <Debug>: CFPrefsPlistSource<0x281d77580> (Domain: com.apple.Accessibility, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 21:27:41.111395 SpringBoard(RunningBoardServices)[47602] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.112769 Runner(CoreFoundation)[50643] <Debug>: found no value for key ForceTouchEnabled in CFPrefsSearchListSource<0x281d72580> (Domain: com.apple.Accessibility, Container: (null))
+Aug 27 21:27:41.113244 Runner(libAccessibility.dylib)[50643] <Debug>: CF Read: domain = com.apple.Accessibility, preference = ForceTouchEnabled, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 21:27:41.113576 Runner(CoreFoundation)[50643] <Debug>: found no value for key ForceTouchEnabled in CFPrefsPlistSource<0x281d77400> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 21:27:41.113757 Runner(CoreFoundation)[50643] <Debug>: found no value for key UIPreferredContentSizeCategoryName in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.114073 Runner(libAccessibility.dylib)[50643] <Debug>: CF Read Category Name: domain = dev.selfhost.firstActivationProbe, appID = dev.selfhost.firstActivationProbe value = (null)
+Aug 27 21:27:41.114441 Runner(libAccessibility.dylib)[50643] <Notice>: Read CategoryName: per-app = 1, category name = (null)
+Aug 27 21:27:41.114710 Runner(CoreFoundation)[50643] <Debug>: found no value for key UIPreferredContentSizeCategoryName in CFPrefsSearchListSource<0x281d74c80> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 21:27:41.114999 Runner(libAccessibility.dylib)[50643] <Debug>: CF Read Category Name: domain = /var/mobile/Library/Preferences/com.apple.UIKit, appID = (null) value = (null)
+Aug 27 21:27:41.115239 Runner(libAccessibility.dylib)[50643] <Notice>: Read CategoryName: per-app = 0, category name = (null)
+Aug 27 21:27:41.115532 Runner(CoreFoundation)[50643] <Debug>: found no value for key UICarPlayPreferredContentSizeCategoryName in CFPrefsSearchListSource<0x281d74c80> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 21:27:41.115835 Runner(CoreFoundation)[50643] <Debug>: found no value for key EnhancedTextLegibilityEnabled in CFPrefsSearchListSource<0x281d72580> (Domain: com.apple.Accessibility, Container: (null))
+Aug 27 21:27:41.116033 Runner(libAccessibility.dylib)[50643] <Debug>: CF Read: domain = com.apple.Accessibility, preference = EnhancedTextLegibilityEnabled, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+<SBTransitionSwitcherModifierEvent: 0x282169900; type: MainTransition; transitionID: 381A04E6-3FC6-4E5A-9599-0089BC4EB776; phase: Animate; animated: YES; fromAppLayout: 0x0; toAppLayout: <SBAppLayout: 0x28087bb80; primary: dev.selfhost.firstActivationProbe:default; environment: main>; fromEnvironmentMode: home-screen; toEnvironmentMode: application; pendingTermination: {(
+)}; activating: <SBAppLayout: 0x28087bb80; primary: dev.selfhost.firstActivationProbe:default; environment: main>; dosidoTransitionDirection: 0>
+Aug 27 21:27:41.118702 Runner(CoreFoundation)[50643] <Debug>: found no value for key EnhancedTextLegibilityEnabled in CFPrefsPlistSource<0x281d77400> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 21:27:41.118947 Runner(CoreFoundation)[50643] <Debug>: found no value for key DarkenSystemColors in CFPrefsSearchListSource<0x281d72580> (Domain: com.apple.Accessibility, Container: (null))
+Aug 27 21:27:41.119203 Runner(libAccessibility.dylib)[50643] <Debug>: CF Read: domain = com.apple.Accessibility, preference = DarkenSystemColors, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 21:27:41.120560 Runner(CoreFoundation)[50643] <Debug>: found no value for key DarkenSystemColors in CFPrefsPlistSource<0x281d77400> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 21:27:41.120778 Runner(CoreFoundation)[50643] <Debug>: found no value for key UITraitCollectionChangeLoggingEnabled in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.121052 Runner(CoreFoundation)[50643] <Debug>: found no value for key UIStateRestorationDebugLogging in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.121314 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.121648 Runner(CoreFoundation)[50643] <Debug>: looked up value <private> for key AccessibilityEnabled in CFPrefsPlistSource<0x281d77400> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) via CFPrefsSearchListSource<0x281d72580> (Domain: com.apple.Accessibility, Container: (null))
+Aug 27 21:27:41.121837 Runner(libAccessibility.dylib)[50643] <Debug>: CF Read: domain = com.apple.Accessibility, preference = AccessibilityEnabled, appID = (null) result = 0 (-1 - empty, 0 - false, 1 - true)
+Aug 27 21:27:41.125187 Runner(CoreFoundation)[50643] <Debug>: looked up value <private> for key InvertColorsEnabled in CFPrefsPlistSource<0x281d77400> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) via CFPrefsSearchListSource<0x281d72580> (Domain: com.apple.Accessibility, Container: (null))
+Aug 27 21:27:41.125447 Runner(libAccessibility.dylib)[50643] <Debug>: CF Read: domain = com.apple.Accessibility, preference = InvertColorsEnabled, appID = (null) result = 0 (-1 - empty, 0 - false, 1 - true)
+Aug 27 21:27:41.125817 Runner(libAccessibility.dylib)[50643] <Debug>: Read Global: preference = InvertColorsEnabled, result = 0 (-1 - empty, 0 - false, 1 - true)
+Aug 27 21:27:41.127333 Runner(libAccessibility.dylib)[50643] <Debug>: Updated cache: preference = InvertColorsEnabled, result = 0 (-1 - empty, 0 - false, 1 - true)
+Aug 27 21:27:41.127683 Runner(CoreFoundation)[50643] <Debug>: looked up value <private> for key ApplicationAccessibilityEnabled in CFPrefsPlistSource<0x281d77400> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) via CFPrefsSearchListSource<0x281d72580> (Domain: com.apple.Accessibility, Container: (null))
+Aug 27 21:27:41.127957 Runner(libAccessibility.dylib)[50643] <Debug>: CF Read: domain = com.apple.Accessibility, preference = ApplicationAccessibilityEnabled, appID = (null) result = 0 (-1 - empty, 0 - false, 1 - true)
+Aug 27 21:27:41.128158 Runner(XCTTargetBootstrap)[50643] <Notice>: Registering for test daemon availability notify post.
+Aug 27 21:27:41.128380 Runner(XCTTargetBootstrap)[50643] <Notice>: notify_get_state check indicated test daemon not ready.
+Aug 27 21:27:41.128597 Runner(XCTTargetBootstrap)[50643] <Notice>: notify_get_state check indicated test daemon not ready.
+Aug 27 21:27:41.128796 Runner(XCTTargetBootstrap)[50643] <Notice>: notify_get_state check indicated test daemon not ready.
+Aug 27 21:27:41.131579 powerd[43] <Notice>: Process runningboardd.33 Created SystemIsActive "application<dev.selfhost.firstActivationProbe>;(null):(null);33-47602-7535:FBApplicationProcess" age:00:00:00  id:51539649966 [System: SysAct]
+Aug 27 21:27:41.131872 Runner(CoreFoundation)[50643] <Debug>: found no value for key UIRequireCrimsonLifecycle in CFPrefsSearchListSource<0x281d74c80> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 21:27:41.132050 Runner(UIKitCore)[50643] <Notice>: Deactivation reason added: 11; deactivation reasons: 1024 -> 3072; animating application lifecycle event: 0
+Aug 27 21:27:41.132309 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.133101 mediaserverd(RunningBoardServices)[36] <Notice>: Hit the server for a process handle fdcfbf40000c5d3 that resolved to: [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:41.133474 mediaserverd(RunningBoardServices)[36] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.134067 mediaserverd(MediaExperience)[36] <Notice>: -CMSessionMgr- CMSessionMgrHandleApplicationStateChange: Client dev.selfhost.firstActivationProbe with pid '50643' is now Foreground Running. Background entitlement: NO ActiveLongFormVideoSession: NO WhitelistedLongFormVideoApp NO
+Aug 27 21:27:41.134378 mediaserverd(MediaExperience)[36] <Notice>: -CMSessionMgr- CMSessionMgrHandleApplicationStateChange: Sending EndInterruption to dev.selfhost.firstActivationProbe with pid '50643' because client moved to ForegroundRunning and is not allowed to play in the background
+Aug 27 21:27:41.136710 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) sent a request related to { com.apple.Accessibility, user: mobile, kCFPreferencesAnyHost, /var/mobile/Library/Preferences/com.apple.Accessibility.plist, managed: 0 } (0x100311170)
+Aug 27 21:27:41.137028 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) read data for { com.apple.Accessibility, mobile, kCFPreferencesAnyHost, /var/mobile/Library/Preferences/com.apple.Accessibility.plist, managed: 0 }, backed by /private/var/mobile/Library/Preferences/com.apple.Accessibility.plist
+Aug 27 21:27:41.137297 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) sent a request related to { com.apple.Accessibility, user: kCFPreferencesAnyUser, kCFPreferencesCurrentHost, /var/preferences/com.apple.Accessibility.plist, managed: 0 } (0x1018145a0)
+Aug 27 21:27:41.150105 runningboardd(RunningBoard)[33] <Debug>: Sending state 0x1011b9af0 for application<dev.selfhost.firstActivationProbe> to [daemon<com.apple.UserEventAgent-System>:30]
+Aug 27 21:27:41.150848 SpringBoard(RunningBoardServices)[47602] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.183076 SpringBoard(FrontBoard)[47602] <Notice>: [application<dev.selfhost.firstActivationProbe>:50643] Registered new scene: <FBUIApplicationWorkspaceScene: 0x282600a90; sceneID:dev.selfhost.firstActivationProbe-default> (fromRemnant = 0)
+Aug 27 21:27:41.183333 SpringBoard(FrontBoard)[47602] <Notice>: [sceneID:dev.selfhost.firstActivationProbe-default][1] Scene activated.
+Aug 27 21:27:41.183611 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c39ec0; didAdd-sceneID:dev.selfhost.firstActivationProbe-default(0)> @ back
+Aug 27 21:27:41.183875 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c39ec0; didAdd-sceneID:dev.selfhost.firstActivationProbe-default(0)>
+Aug 27 21:27:41.184175 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c384c0; didAdd-sceneID:dev.selfhost.firstActivationProbe-default(0)> @ front
+Aug 27 21:27:41.184419 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c384c0; didAdd-sceneID:dev.selfhost.firstActivationProbe-default(0)>
+Aug 27 21:27:41.185501 SpringBoard(FrontBoard)[47602] <Notice>: [application<dev.selfhost.firstActivationProbe>:50643] Workspace interruption policy did change: reconnect
+Aug 27 21:27:41.185658 SpringBoard(FrontBoard)[47602] <Info>: Client intercepting scene update for scene: sceneID:dev.selfhost.firstActivationProbe-default
+Aug 27 21:27:41.185929 SpringBoard(UIKitCore)[47602] <Notice>: Now tracking: <FBScene: 0x28286c240; sceneID:dev.selfhost.firstActivationProbe-default>
+Aug 27 21:27:41.186189 SpringBoard(UIKitCore)[47602] <Notice>: [sceneID:dev.selfhost.firstActivationProbe-default] Setting deactivation reasons to: 'systemAnimation' for reason: scene settings update - settings are eligible for deactivation reasons.
+Aug 27 21:27:41.186356 SpringBoard(FrontBoard)[47602] <Debug>: START SCENE MUTATION ------- sceneID:dev.selfhost.firstActivationProbe-default
+Aug 27 21:27:41.186547 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c34f80; sceneDidActivate-sceneID:dev.selfhost.firstActivationProbe-default(1)> @ back
+Aug 27 21:27:41.187037 runningboardd(RunningBoard)[33] <Info>: [application<dev.selfhost.firstActivationProbe>:50643] Resumed CPU monitoring
+Aug 27 21:27:41.187214 runningboardd(RunningBoard)[33] <Info>: [application<dev.selfhost.firstActivationProbe>:50643] Applying updated state
+Aug 27 21:27:41.187754 runningboardd(RunningBoard)[33] <Notice>: [application<dev.selfhost.firstActivationProbe>:50643] reported to RB as running
+Aug 27 21:27:41.188596 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c377a0; sceneUpdatePrepared-sceneID:dev.selfhost.firstActivationProbe-default(1)> @ back
+Aug 27 21:27:41.188768 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c37620; applySettings-sceneID:dev.selfhost.firstActivationProbe-default(1)> @ back
+Aug 27 21:27:41.189886 SpringBoard(FrontBoard)[47602] <Debug>: Flushing all events for sceneID:dev.selfhost.firstActivationProbe-default
+Aug 27 21:27:41.190423 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c34f80; sceneDidActivate-sceneID:dev.selfhost.firstActivationProbe-default(1)>
+Aug 27 21:27:41.190967 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c37080; sceneDidActivate-sceneID:dev.selfhost.firstActivationProbe-default(1)> @ front
+Aug 27 21:27:41.191296 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c37080; sceneDidActivate-sceneID:dev.selfhost.firstActivationProbe-default(1)>
+Aug 27 21:27:41.194241 SpringBoard[47602] <Notice>: didAddExternalForegroundApplicationSceneHandle pid:50643 scene:com.apple.frontboard.systemappservices::sceneID%3Adev.selfhost.firstActivationProbe-default now:<recentPIDs: [50643]; recentSceneIdentityTokensByPID: {50643: [com.apple.frontboard.systemappservices::sceneID%3Adev.selfhost.firstActivationProbe-default]}>
+Aug 27 21:27:41.194437 SpringBoard[47602] <Notice>: policy: MRU target:<pid=50643 token=com.apple.frontboard.systemappservices::sceneID%3Adev.selfhost.firstActivationProbe-default>
+Aug 27 21:27:41.194678 SpringBoard[47602] <Notice>: policy: now generation: 292; keyboardFocusTarget: <token: com.apple.frontboard.systemappservices::sceneID%3Adev.selfhost.firstActivationProbe-default; pid: 50643>; recentlyUsedScenes: <recentPIDs: [50643]; recentSceneIdentityTokensByPID: {50643: [com.apple.frontboard.systemappservices::sceneID%3Adev.selfhost.firstActivationProbe-default]}>; selectionPolicy: KeyboardArbiter; shouldSuppressRemoteDeferring: 0
+Aug 27 21:27:41.200948 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c377a0; sceneUpdatePrepared-sceneID:dev.selfhost.firstActivationProbe-default(1)>
+Aug 27 21:27:41.201624 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c20f40; sceneUpdatePrepared-sceneID:dev.selfhost.firstActivationProbe-default(1)> @ front
+Aug 27 21:27:41.202223 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c20f40; sceneUpdatePrepared-sceneID:dev.selfhost.firstActivationProbe-default(1)>
+Aug 27 21:27:41.203434 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c37620; applySettings-sceneID:dev.selfhost.firstActivationProbe-default(1)>
+Aug 27 21:27:41.203996 SpringBoard(FrontBoard)[47602] <Notice>: [sceneID:dev.selfhost.firstActivationProbe-default] scene content state changed: preparing
+Aug 27 21:27:41.204655 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d0e260; contentStateDidChange-sceneID:dev.selfhost.firstActivationProbe-default(1)> @ back
+Aug 27 21:27:41.205298 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281db6780; sceneUpdateApplied-sceneID:dev.selfhost.firstActivationProbe-default(1)> @ back
+Aug 27 21:27:41.210042 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c11020; sceneMutationCompletion-sceneID:dev.selfhost.firstActivationProbe-default(1)> @ back
+Aug 27 21:27:41.211465 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d0e260; contentStateDidChange-sceneID:dev.selfhost.firstActivationProbe-default(1)>
+Aug 27 21:27:41.212142 SpringBoard(FrontBoard)[47602] <Notice>: [sceneID:dev.selfhost.firstActivationProbe-default] Scene lifecycle state did change: Foreground
+Aug 27 21:27:41.212808 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c23300; contentStateDidChange-sceneID:dev.selfhost.firstActivationProbe-default(1)> @ front
+Aug 27 21:27:41.213478 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c23300; contentStateDidChange-sceneID:dev.selfhost.firstActivationProbe-default(1)>
+Aug 27 21:27:41.216039 SpringBoard(FrontBoard)[47602] <Notice>: [sceneID:dev.selfhost.firstActivationProbe-default] Scene assertion state did change: ForegroundFocal.
+Aug 27 21:27:41.219641 Runner(RunningBoardServices)[50643] <Notice>: Handshake succeeded
+Aug 27 21:27:41.220266 Runner(RunningBoardServices)[50643] <Notice>: Identity resolved as application<dev.selfhost.firstActivationProbe>
+Aug 27 21:27:41.220846 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281db6780; sceneUpdateApplied-sceneID:dev.selfhost.firstActivationProbe-default(1)>
+Aug 27 21:27:41.221386 Runner(RunningBoardServices)[50643] <Debug>: Received message from server: async_didChangeInheritances:completion:
+Aug 27 21:27:41.221816 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c276a0; sceneUpdateApplied-sceneID:dev.selfhost.firstActivationProbe-default(1)> @ front
+Aug 27 21:27:41.221992 Runner(RunningBoardServices)[50643] <Info>: didChangeInheritances
+Aug 27 21:27:41.224280 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c276a0; sceneUpdateApplied-sceneID:dev.selfhost.firstActivationProbe-default(1)>
+Aug 27 21:27:41.224920 Runner(RunningBoardServices)[50643] <Info>: didChangeInheritances: <RBSInheritanceChangeSet| gained:{(
+Aug 27 21:27:41.226429 Runner(CoreFoundation)[50643] <Debug>: found no value for key UIStateRestorationDeveloperMode in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.227625 SpringBoard(FrontBoard)[47602] <Notice>: [application<dev.selfhost.firstActivationProbe>:50643] Launch assertion supersedes update of workspace assertion to ForegroundFocal.
+Aug 27 21:27:41.228110 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c11020; sceneMutationCompletion-sceneID:dev.selfhost.firstActivationProbe-default(1)>
+Aug 27 21:27:41.228752 SpringBoard(FrontBoard)[47602] <Notice>: [application<dev.selfhost.firstActivationProbe>:50643] Workspace assertion state did change: ForegroundFocal (acquireAssertion = NO).
+Aug 27 21:27:41.229317 SpringBoard(FrontBoard)[47602] <Debug>: ---------- END SCENE MUTATION: sceneID:dev.selfhost.firstActivationProbe-default
+Aug 27 21:27:41.230036 SpringBoard(FrontBoard)[47602] <Notice>: [sceneID:dev.selfhost.firstActivationProbe-default] Sending scene action [Logical Activate][0xa953] to process 0x10a1a2e40 (watchdog: 20.00s)
+Aug 27 21:27:41.235583 SpringBoard(FrontBoardServices)[47602] <Info>: [application<dev.selfhost.firstActivationProbe>:50643] [realTime] Now monitoring resource allowance of 20.00s (at refreshInterval -1.00s)
+Aug 27 21:27:41.246559 Runner(UIKitCore)[50643] <Notice>: Deactivation reason removed: 10; deactivation reasons: 3072 -> 2048; animating application lifecycle event: 0
+Aug 27 21:27:41.247931 Runner(FrontBoardServices)[50643] <Info>: [FBSScene] [sceneID:dev.selfhost.firstActivationProbe-default] Created client agent: <UIApplicationSceneClientAgent: 0x2831746d0>
+Aug 27 21:27:41.248123 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Base.lproj/Main.storyboardc/
+Aug 27 21:27:41.248331 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Base.lproj/Main.storyboardc/
+Aug 27 21:27:41.248537 Runner(CoreFoundation)[50643] <Debug>: found no value for key _UICanvasShouldDeliverCanvasActionsToCanvasDelegateOnlyKey in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.248793 Runner(CoreFoundation)[50643] <Debug>: found no value for key LogBackgroundTask in CFPrefsSearchListSource<0x281d74c80> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 21:27:41.248954 Runner(UIKitCore)[50643] <Notice>: <private>: Will add backgroundTask with taskName: <private>, expirationHandler: <__NSGlobalBlock__: 0x1ec737410>
+Aug 27 21:27:41.249097 Runner(UIKitCore)[50643] <Notice>: <private>: Created background task <private>. Assertion will be assigned soon
+Aug 27 21:27:41.251782 runningboardd(RunningBoard)[33] <Notice>: Acquiring assertion targeting [application<dev.selfhost.firstActivationProbe>:50643] from originator [daemon<com.apple.SpringBoard>:47602] with description <RBSAssertionDescriptor| "com.apple.frontboard.after-life.interrupted" ID:33-47602-7537 target:50643 attributes:[
+Aug 27 21:27:41.252345 runningboardd(RunningBoard)[33] <Notice>: Assertion 33-47602-7537 (target:[application<dev.selfhost.firstActivationProbe>:50643]) will be created as inactive as originator process has not exited
+Aug 27 21:27:41.255212 runningboardd(RunningBoard)[33] <Debug>: Adding assertion 33-47602-7537 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+Aug 27 21:27:41.258264 runningboardd(RunningBoard)[33] <Info>: Received message from [application<dev.selfhost.firstActivationProbe>:50643] (euid 501, auid 501): acquireAssertionWithDescriptor:error:
+Aug 27 21:27:41.258989 runningboardd(RunningBoard)[33] <Info>: application<dev.selfhost.firstActivationProbe> is now targeted by 3 assertions
+Aug 27 21:27:41.263744 Runner(UIKitCore)[50643] <Notice>: <private>: Creating new assertion since assertion is nil
+Aug 27 21:27:41.264045 Runner(RunningBoardServices)[50643] <Info>: Acquiring assertion: <RBSAssertionDescriptor| "Shared Background Assertion 0 for dev.selfhost.firstActivationProbe" ID:(null) target:50643>
+Aug 27 21:27:41.264394 Runner(RunningBoardServices)[50643] <Debug>: Adding assertion 33-50643-7538 to dictionary
+Aug 27 21:27:41.264784 Runner(UIKitCore)[50643] <Notice>: <private>: Created new assertion <BKSProcessAssertion: 0x281078280>
+Aug 27 21:27:41.264993 Runner(UIKitCore)[50643] <Notice>: Deactivation reason added: 5; deactivation reasons: 2048 -> 2080; animating application lifecycle event: 1
+Aug 27 21:27:41.265153 Runner(CoreFoundation)[50643] <Debug>: found no value for key LogEventDeferring in CFPrefsSearchListSource<0x281d74c80> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 21:27:41.265386 Runner(UIKitCore)[50643] <Notice>: [0x281871dc0] Initialized with scene: <UIWindowScene: 0x10440cdf0>; behavior: <_UIEventDeferringBehavior_Default: 0x283361da0>
+Aug 27 21:27:41.265550 Runner(CoreFoundation)[50643] <Debug>: found no value for key LogKeyWindow in CFPrefsSearchListSource<0x281d74c80> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 21:27:41.265739 Runner(CoreFoundation)[50643] <Debug>: found no value for key FullKeyboardAccessEnabled in CFPrefsSearchListSource<0x281d72580> (Domain: com.apple.Accessibility, Container: (null))
+Aug 27 21:27:41.265986 Runner(libAccessibility.dylib)[50643] <Debug>: CF Read: domain = com.apple.Accessibility, preference = FullKeyboardAccessEnabled, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 21:27:41.266181 Runner(CoreFoundation)[50643] <Debug>: found no value for key FullKeyboardAccessEnabled in CFPrefsPlistSource<0x281d77400> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 21:27:41.266386 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.266630 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] Client settings updated with diff: <private>
+Aug 27 21:27:41.266877 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] Client settings updated with diff: <private>
+        <SBDeviceApplicationSceneEntity: 0x283e930c0; ID: sceneID:dev.selfhost.firstActivationProbe-default; layoutRole: primary>
+        <SBDeviceApplicationSceneEntity: 0x283e930c0; ID: sceneID:dev.selfhost.firstActivationProbe-default; layoutRole: primary>
+Aug 27 21:27:41.268459 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Base.lproj/Main.storyboardc/
+Aug 27 21:27:41.268747 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Base.lproj/Main.storyboardc/UIViewController-BYZ-38-t0r.nib
+Aug 27 21:27:41.268925 Runner(CoreFoundation)[50643] <Debug>: found no value for key UITraitCollectionInvalidationDebuggingModeEnabled in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.269200 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.269499 Runner(CoreFoundation)[50643] <Debug>: Language lookup at <private>
+Aug 27 21:27:41.269763 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+	Result        : file:///var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Frameworks/Flutter.framework/icudtl.dat
+Aug 27 21:27:41.269911 Runner(Flutter)[50643] <Notice>: SANITY CHECK: Running precompiled code.
+Aug 27 21:27:41.270061 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.270213 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Frameworks/App.framework/
+Aug 27 21:27:41.270358 Runner(Flutter)[50643] <Notice>: Using App.framework from /private/var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Frameworks/App.framework
+Aug 27 21:27:41.270601 Runner(CoreFoundation)[50643] <Debug>: Language lookup at <private>
+Aug 27 21:27:41.270795 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.271079 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.271286 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+	Result        : file:///var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Frameworks/App.framework/flutter_assets/
+Aug 27 21:27:41.271601 Runner(Flutter)[50643] <Notice>: ASSET PATH /var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Frameworks/App.framework/flutter_assets
+Aug 27 21:27:41.271906 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.272593 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.272891 Runner(Flutter)[50643] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=556021 vm_insns_size=43584 iso_insns_size=1818768 total=2423551
+Aug 27 21:27:41.273164 Runner(Flutter)[50643] <Notice>: [shorebird] Preparing next boot.
+Aug 27 21:27:41.273359 Runner(Flutter)[50643] <Notice>: [shorebird] No public key configured; skipping signature verification
+Aug 27 21:27:41.273671 Runner(Flutter)[50643] <Notice>: [shorebird] Prepared boot of patch 4.
+Aug 27 21:27:41.273982 Runner(Flutter)[50643] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(663)] Shorebird updater: active path: /private/var/mobile/Containers/Data/Application/18E6667F-E66B-4E74-92D9-B14869861554/Library/Application Support/shorebird/shorebird_updater/patches/4/dlc.vmcode
+Aug 27 21:27:41.274253 Runner(Flutter)[50643] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(686)] Shorebird updater: active patch is a Route B container
+Aug 27 21:27:41.274660 Runner(Flutter)[50643] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(762)] Starting Shorebird update
+Aug 27 21:27:41.276057 SpringBoard(SplashBoard)[47602] <Info>: <XBApplicationSnapshot: 0x109ddf7d0; …2F3B89D0D3F1> [dev.selfhost.firstActivationProbe] not purging the cached image; force: 0; _imageAccessCount: 1; _keepImageAccessUntilExpiration: 0; _hasProtectedContent: 0; _keepImageAccessForPreheat: 0
+Aug 27 21:27:41.276454 SpringBoard[47602] <Notice>: Application process state changed for dev.selfhost.firstActivationProbe: <SBApplicationProcessState: 0x281c245a0; pid: 50643; taskState: Running; visibility: Foreground>
+Aug 27 21:27:41.276752 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) sent a request related to { com.apple.Metal, user: mobile, kCFPreferencesCurrentHost, /Library/Managed Preferences/mobile/com.apple.Metal.plist, managed: 1 } (0x100362850)
+Aug 27 21:27:41.277142 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) sent a request related to { com.apple.Metal, user: kCFPreferencesAnyUser, kCFPreferencesCurrentHost, /Library/Managed Preferences/com.apple.Metal.plist, managed: 1 } (0x100362850)
+Aug 27 21:27:41.277453 cfprefsd(CoreFoundation)[91] <Debug>: Process 50643 (Runner) sent a request related to { com.apple.Metal, user: mobile, kCFPreferencesAnyHost, /var/mobile/Library/Preferences/com.apple.Metal.plist, managed: 0 } (0x100362850)
+Aug 27 21:27:41.278685 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.278934 Runner(CoreFoundation)[50643] <Debug>: setting new value <private> for key <private> in CFPrefsSource<0x282674400> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No)
+Aug 27 21:27:41.279190 Runner(CoreFoundation)[50643] <Debug>: looked up value <private> for key METAL_DEVICE_WRAPPER_TYPE in CFPrefsSource<0x282674400> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No) via CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.279448 Runner(CoreFoundation)[50643] <Debug>: CFPrefsManagedSource<0x281d7c100> (Domain: com.apple.Metal, User: kCFPreferencesCurrentUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 21:27:41.280568 SpringBoard[47602] <Info>: -[SBApplication _processWillLaunch:] dev.selfhost.firstActivationProbe
+Aug 27 21:27:41.280807 SpringBoard[47602] <Notice>: Application process state changed for dev.selfhost.firstActivationProbe: <SBApplicationProcessState: 0x281db1fc0; pid: 50643; taskState: Running; visibility: Foreground>
+Aug 27 21:27:41.281055 SpringBoard[47602] <Info>: -[SBApplication _processDidLaunch:] dev.selfhost.firstActivationProbe
+Aug 27 21:27:41.281404 SpringBoard[47602] <Notice>: Application process state changed for dev.selfhost.firstActivationProbe: <SBApplicationProcessState: 0x281db1860; pid: 50643; taskState: Running; visibility: Foreground>
+Aug 27 21:27:41.285482 SpringBoard(FrontBoard)[47602] <Info>: Client intercepting scene update for scene: sceneID:dev.selfhost.firstActivationProbe-default
+Aug 27 21:27:41.285630 SpringBoard(FrontBoard)[47602] <Debug>: START SCENE MUTATION ------- sceneID:dev.selfhost.firstActivationProbe-default
+Aug 27 21:27:41.286017 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c24d80; sceneUpdatePrepared-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.286373 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c27760; applySettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.286618 SpringBoard(FrontBoard)[47602] <Debug>: Flushing all events for sceneID:dev.selfhost.firstActivationProbe-default
+Aug 27 21:27:41.286969 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c24d80; sceneUpdatePrepared-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.287283 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d8cf20; sceneUpdatePrepared-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ front
+Aug 27 21:27:41.287668 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d8cf20; sceneUpdatePrepared-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.288726 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c27760; applySettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.289334 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c24d80; sceneUpdateApplied-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.289606 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c274e0; sceneMutationCompletion-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.289929 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c24d80; sceneUpdateApplied-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.290182 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d8f640; sceneUpdateApplied-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ front
+Aug 27 21:27:41.290481 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d8f640; sceneUpdateApplied-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.290741 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] Sending scene action [Forward Event][0x979d] to process 0x10a1a2e40 (watchdog: none)
+Aug 27 21:27:41.291672 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c274e0; sceneMutationCompletion-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.291960 SpringBoard(FrontBoard)[47602] <Debug>: ---------- END SCENE MUTATION: sceneID:dev.selfhost.firstActivationProbe-default
+            SceneID: sceneID:dev.selfhost.firstActivationProbe-default
+Aug 27 21:27:41.301362 Runner(CoreFoundation)[50643] <Debug>: CFPrefsManagedSource<0x281d7c180> (Domain: com.apple.Metal, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 21:27:41.301684 Runner(CoreFoundation)[50643] <Debug>: CFPrefsPlistSource<0x281d7c080> (Domain: com.apple.Metal, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 21:27:41.301977 Runner(CoreFoundation)[50643] <Debug>: CFPrefsPlistSource<0x281d7c300> (Domain: com.apple.Metal, User: kCFPreferencesAnyUser, ByHost: Yes, Container: (null), Contents Need Refresh: No) loaded: an empty base plist and no additional changes from the base plist
+Aug 27 21:27:41.302282 Runner(CoreFoundation)[50643] <Debug>: found no value for key UseMetalTelemetry in CFPrefsSearchListSource<0x281d7c000> (Domain: com.apple.Metal, Container: (null))
+Aug 27 21:27:41.302573 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.302881 Runner(CoreFoundation)[50643] <Debug>: found no value for key MetalForceCaptureEnabled in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.303435 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] didUpdateClientSettingsWithDiff: <private>
+Aug 27 21:27:41.303717 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c255a0; handleDidUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.304061 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c255a0; handleDidUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.304907 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c27920; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.305166 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c24ba0; didUpdateClientSettingsCompletion-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.306568 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c27920; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.306878 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c26680; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ front
+Aug 27 21:27:41.307182 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c26680; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.309343 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c24ba0; didUpdateClientSettingsCompletion-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.310525 Runner(CoreFoundation)[50643] <Debug>: found no value for key VertexInstanceBoundsCheckMode in CFPrefsSearchListSource<0x281d7c000> (Domain: com.apple.Metal, Container: (null))
+Aug 27 21:27:41.311197 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] didUpdateClientSettingsWithDiff: <private>
+Aug 27 21:27:41.311439 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281dcec00; handleDidUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.311772 Runner(CoreFoundation)[50643] <Debug>: found no value for key DisableDriverSuballocation in CFPrefsSearchListSource<0x281d7c000> (Domain: com.apple.Metal, Container: (null))
+Aug 27 21:27:41.312003 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281dcec00; handleDidUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.312296 Runner(CoreFoundation)[50643] <Debug>: found no value for key CPUMappingForPrivateTexturesMode in CFPrefsSearchListSource<0x281d7c000> (Domain: com.apple.Metal, Container: (null))
+Aug 27 21:27:41.312729 Runner(CoreFoundation)[50643] <Debug>: found no value for key IOSurfaceCompressedWriteValidation in CFPrefsSearchListSource<0x281d7c000> (Domain: com.apple.Metal, Container: (null))
+Aug 27 21:27:41.313399 Runner(CoreFoundation)[50643] <Debug>: Language lookup at <private>
+Aug 27 21:27:41.313883 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c24ce0; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.314123 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.314464 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281dcec40; didUpdateClientSettingsCompletion-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.314758 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.315124 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.315337 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.315530 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.315737 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.315979 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.316656 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c24ce0; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.316809 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c255e0; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ front
+Aug 27 21:27:41.316959 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c255e0; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.317396 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.317546 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.317706 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.317894 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281dcec40; didUpdateClientSettingsCompletion-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.318114 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.318553 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.319445 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.319656 runningboardd(RunningBoard)[33] <Notice>: Acquiring assertion targeting [application<dev.selfhost.firstActivationProbe>:50643] from originator [application<dev.selfhost.firstActivationProbe>:50643] with description <RBSAssertionDescriptor| "Shared Background Assertion 0 for dev.selfhost.firstActivationProbe" ID:33-50643-7538 target:50643 attributes:[
+Aug 27 21:27:41.320173 runningboardd(RunningBoard)[33] <Notice>: Assertion 33-50643-7538 (target:[application<dev.selfhost.firstActivationProbe>:50643]) will be created as inactive as start-time-defining assertions exist
+Aug 27 21:27:41.320367 kernel(Sandbox)[0] <Error>: Sandbox: Runner(50643) deny(1) sysctl-read kern.iossupportversion
+Aug 27 21:27:41.320727 runningboardd(RunningBoard)[33] <Debug>: Sending state 0x1011b9af0 for application<dev.selfhost.firstActivationProbe> to [daemon<com.apple.TextInput.kbd>:303]
+Aug 27 21:27:41.321064 runningboardd(RunningBoard)[33] <Info>: Finished acquiring assertion 33-47602-7537 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+Aug 27 21:27:41.321455 runningboardd(RunningBoard)[33] <Debug>: Adding assertion 33-50643-7538 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+Aug 27 21:27:41.322084 runningboardd(RunningBoard)[33] <Debug>: Updating events for assertion: 33-47602-7537 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+Aug 27 21:27:41.322823 runningboardd(RunningBoard)[33] <Info>: application<dev.selfhost.firstActivationProbe> is now targeted by 4 assertions
+Aug 27 21:27:41.322983 runningboardd(RunningBoard)[33] <Debug>: Removing events for context: 33-47602-7537 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+Aug 27 21:27:41.323169 runningboardd(RunningBoard)[33] <Debug>: Incrementing suppression state to 2 for application<dev.selfhost.firstActivationProbe>
+Aug 27 21:27:41.323324 runningboardd(RunningBoard)[33] <Debug>: Sending state 0x1011b9af0 for application<dev.selfhost.firstActivationProbe> to [daemon<com.apple.contextstored>:61]
+Aug 27 21:27:41.323886 runningboardd(RunningBoard)[33] <Info>: Finished acquiring assertion 33-50643-7538 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+Aug 27 21:27:41.324200 runningboardd(RunningBoard)[33] <Debug>: Updating events for assertion: 33-50643-7538 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+Aug 27 21:27:41.324574 runningboardd(RunningBoard)[33] <Debug>: Decrementing suppression state to 1 for application<dev.selfhost.firstActivationProbe>
+Aug 27 21:27:41.324876 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.325067 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.325273 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.325575 Runner(CoreFoundation)[50643] <Debug>: found no value for key UIViewLayoutFeedbackLoopDebuggingThreshold in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.325973 Runner(CoreFoundation)[50643] <Debug>: found no value for key UIViewUseStaleDelegateContentInsets in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.326270 Runner(CoreFoundation)[50643] <Debug>: found no value for key _UIConstraintBasedLayoutEngageNonLazily in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.326547 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.326669 kernel(Sandbox)[0] <Error>: Sandbox: Runner(50643) deny(1) sysctl-read machdep.cpu.brand_string
+Aug 27 21:27:41.326902 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.327140 Runner(CoreFoundation)[50643] <Debug>: setting new value <private> for key <private> in CFPrefsSource<0x282674400> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No)
+Aug 27 21:27:41.327320 Runner(CoreFoundation)[50643] <Debug>: looked up value <private> for key METAL_ERROR_MODE in CFPrefsSource<0x282674400> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No) via CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.327490 Runner(CoreFoundation)[50643] <Debug>: setting new value <private> for key <private> in CFPrefsSource<0x282674400> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No)
+Aug 27 21:27:41.327761 Runner(CoreFoundation)[50643] <Debug>: looked up value <private> for key METAL_DEBUG_ERROR_MODE in CFPrefsSource<0x282674400> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No) via CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.327986 Runner(CoreFoundation)[50643] <Debug>: setting new value <private> for key <private> in CFPrefsSource<0x282674400> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No)
+Aug 27 21:27:41.328181 Runner(CoreFoundation)[50643] <Debug>: looked up value <private> for key METAL_WARNING_MODE in CFPrefsSource<0x282674400> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No) via CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.328411 Runner(CoreFoundation)[50643] <Debug>: setting new value <private> for key <private> in CFPrefsSource<0x282674400> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No)
+Aug 27 21:27:41.328636 Runner(CoreFoundation)[50643] <Debug>: looked up value <private> for key METAL_ERROR_CHECK_EXTENDED_MODE in CFPrefsSource<0x282674400> (Domain: Volatile, User: , ByHost: No, Container: , Contents Need Refresh: No) via CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.328901 Runner(CoreFoundation)[50643] <Debug>: found no value for key dataBufferCachingOverride in CFPrefsSearchListSource<0x281d7c000> (Domain: com.apple.Metal, Container: (null))
+Aug 27 21:27:41.329142 Runner(CoreFoundation)[50643] <Debug>: found no value for key disableBlitEncoderCoalescing in CFPrefsPlistSource<0x281d7c080> (Domain: com.apple.Metal, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 21:27:41.332464 mediaserverd(RunningBoardServices)[36] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.336525 runningboardd(RunningBoard)[33] <Debug>: Removing events for context: 33-50643-7538 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+Aug 27 21:27:41.336833 Runner(CoreFoundation)[50643] <Debug>: found no value for key disableEncoderCoalescing in CFPrefsPlistSource<0x281d7c080> (Domain: com.apple.Metal, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 21:27:41.337131 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.337427 Runner(Flutter)[50643] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "235a9d93-ef97-6372-d78a-ce88f798a726", channel: "stable", release_version: "1.3.0+1", platform: "ios", arch: "aarch64", client_id: "eb65ad4b-0c7a-4c80-8d71-7e98c91af47a", current_patch_number: Some(4) }
+Aug 27 21:27:41.337859 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.338167 Runner(CoreFoundation)[50643] <Debug>: looked up value <private> for key AppleLanguages in CFPrefsPlistSource<0x281d74f00> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) via CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.338434 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.338629 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.338791 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.339111 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.339308 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.339467 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.339623 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Base.lproj/LaunchScreen.storyboardc/
+Aug 27 21:27:41.339769 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Base.lproj/LaunchScreen.storyboardc/
+Aug 27 21:27:41.340021 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Base.lproj/LaunchScreen.storyboardc/UIViewController-01J-lp-oVM.nib
+Aug 27 21:27:41.340330 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Base.lproj/LaunchScreen.storyboardc/01J-lp-oVM-view-Ze5-6b-2t3.nib
+Aug 27 21:27:41.340660 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Base.lproj/LaunchScreen.storyboardc/
+Aug 27 21:27:41.340943 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Base.lproj/LaunchScreen.storyboardc/01J-lp-oVM-view-Ze5-6b-2t3.nib
+Aug 27 21:27:41.341244 Runner(CoreFoundation)[50643] <Debug>: found no value for key _UIConstraintBasedLayout in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.341461 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+	Result        : file:///private/var/containers/Bundle/Application/1EC21BA9-82AA-4B85-B2FC-10B206BC5C35/Runner.app/Assets.car
+Aug 27 21:27:41.341744 Runner(CoreFoundation)[50643] <Debug>: found no value for key CUIShowDebugLogs in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.341988 Runner(CoreFoundation)[50643] <Debug>: found no value for key CGAllowDebuggingDefaults in CFPrefsPlistSource<0x281d74f00> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 21:27:41.342241 Runner(CoreFoundation)[50643] <Debug>: found no value for key NSConstraintBasedLayoutTrackAllocation in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.342499 Runner(CoreFoundation)[50643] <Debug>: found no value for key UIViewShowAlignmentRects in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.342848 SpringBoard(RunningBoardServices)[47602] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.343062 SpringBoard(RunningBoardServices)[47602] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.343330 Runner(CoreFoundation)[50643] <Debug>: found no value for key NSConstraintBasedLayoutAriadneTracepoints in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.343612 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.343785 Runner(CoreFoundation)[50643] <Debug>: found no value for key ReduceMotionEnabled in CFPrefsSearchListSource<0x281d72580> (Domain: com.apple.Accessibility, Container: (null))
+Aug 27 21:27:41.343971 Runner(libAccessibility.dylib)[50643] <Debug>: CF Read: domain = com.apple.Accessibility, preference = ReduceMotionEnabled, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 21:27:41.344683 SpringBoard(RunningBoardServices)[47602] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.345210 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] Client settings updated with diff: <private>
+Aug 27 21:27:41.345504 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] didUpdateClientSettingsWithDiff: <private>
+Aug 27 21:27:41.345761 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d1b560; handleDidUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.345920 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d1b560; handleDidUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.346366 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c27a60; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.346593 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c24240; didUpdateClientSettingsCompletion-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.347610 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c27a60; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.347954 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c278c0; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ front
+Aug 27 21:27:41.348316 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c278c0; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.348888 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c24240; didUpdateClientSettingsCompletion-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.349977 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] Client settings updated with diff: <private>
+Aug 27 21:27:41.350124 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] didUpdateClientSettingsWithDiff: <private>
+Aug 27 21:27:41.350273 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d45a00; handleDidUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.350421 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d45a00; handleDidUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.350864 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d46920; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.351138 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d5bdc0; didUpdateClientSettingsCompletion-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.351333 Runner(CoreFoundation)[50643] <Debug>: found no value for key ReduceMotionEnabled in CFPrefsPlistSource<0x281d77400> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 21:27:41.351731 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.351958 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.353034 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d46920; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.353388 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d482c0; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ front
+Aug 27 21:27:41.353685 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d482c0; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.354638 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d5bdc0; didUpdateClientSettingsCompletion-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.356478 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.356658 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.356987 Runner(CoreFoundation)[50643] <Debug>: found no value for key UIScrollViewForceConvertSafeAreaToContentInsetPreference in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.357233 Runner(CoreFoundation)[50643] <Debug>: found no value for key UIBarsApplyChromelessEverywhere in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.357400 Runner(CoreFoundation)[50643] <Debug>: looked up value <private> for key AppleLanguages in CFPrefsPlistSource<0x281d74f00> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) via CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.357545 Runner(Flutter)[50643] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: hook entered
+Aug 27 21:27:41.357718 Runner(Flutter)[50643] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: parsed, targets=1, built-for=1db897c72e9c358db599a2d62fbb2a68
+Aug 27 21:27:41.357860 Runner(Flutter)[50643] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: running=1db897c72e9c358db599a2d62fbb2a68
+Aug 27 21:27:41.358155 Runner(Flutter)[50643] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Aug 27 21:27:41.358460 SpringBoard(SpringBoardServices)[47602] <Debug>: [SBMig] Runner:50643 calling _SBXXDeactivateReachability (msgID 100052) --> implemented by SpringBoard.
+Aug 27 21:27:41.358789 Runner(Flutter)[50643] <Notice>: ROUTEB: activated activationState in package:first_activation_probe/main.dart before main
+Aug 27 21:27:41.359010 Runner(Flutter)[50643] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: applied 1/1 targets, entering main
+Aug 27 21:27:41.360822 Runner(CoreFoundation)[50643] <Debug>: found no value for key UseSingleSystemColor in CFPrefsSearchListSource<0x281d72580> (Domain: com.apple.Accessibility, Container: (null))
+Aug 27 21:27:41.361137 Runner(libAccessibility.dylib)[50643] <Debug>: CF Read: domain = com.apple.Accessibility, preference = UseSingleSystemColor, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 21:27:41.361472 Runner(CoreFoundation)[50643] <Debug>: found no value for key UseSingleSystemColor in CFPrefsPlistSource<0x281d77400> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 21:27:41.361719 Runner(CoreFoundation)[50643] <Debug>: found no value for key UIViewLocalizeOverrideLayoutEngine in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.361978 Runner(CoreFoundation)[50643] <Debug>: found no value for key NSPreTigerAttributedStringHash in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.362239 Runner(CoreFoundation)[50643] <Debug>: looked up value <private> for key AppleLanguages in CFPrefsPlistSource<0x281d74f00> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) via CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.362468 Runner(CoreFoundation)[50643] <Debug>: looked up value <private> for key AppleLanguages in CFPrefsPlistSource<0x281d74f00> (Domain: kCFPreferencesAnyApplication, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No) via CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.364142 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.364311 Runner(CoreFoundation)[50643] <Debug>: found no value for key NSConstraintBasedLayoutDebug in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.364550 Runner(CoreFoundation)[50643] <Debug>: found no value for key NSConstraintBasedLayoutAllowUnoptimizedReads in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.364784 Runner(CoreFoundation)[50643] <Debug>: found no value for key NSConstraintBasedLayoutDebugEngineConsistency in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.365383 Runner(CoreFoundation)[50643] <Debug>: found no value for key NSConstraintBasedLayoutVariableChangeTransactions in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.365860 Runner(CoreFoundation)[50643] <Debug>: found no value for key NSConstraintBasedLayoutDeferOptimization in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.366382 Runner(CoreFoundation)[50643] <Debug>: found no value for key UIViewControllerDetachedInheritsContentOverlayInsetsFromSuperview in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.366895 Runner(CoreFoundation)[50643] <Debug>: found no value for key ModernContentOverlayInsetsPropagation in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.367259 Runner(CoreFoundation)[50643] <Debug>: found no value for key LogStatusBar in CFPrefsSearchListSource<0x281d74c80> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 21:27:41.367664 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] Client settings updated with diff: <private>
+Aug 27 21:27:41.367903 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] Client settings updated with diff: <private>
+Aug 27 21:27:41.368136 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] Client settings updated with diff: <private>
+Aug 27 21:27:41.368384 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] Client settings updated with diff: <private>
+Aug 27 21:27:41.368679 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] didUpdateClientSettingsWithDiff: <private>
+Aug 27 21:27:41.369009 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c273c0; handleDidUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.369344 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c273c0; handleDidUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.370061 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c27800; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.370298 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c25860; didUpdateClientSettingsCompletion-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.371338 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c27800; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.371652 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c253a0; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ front
+Aug 27 21:27:41.371916 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c253a0; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.372917 backboardd(BackBoardHIDEventFoundation)[65] <Notice>: new deferring rules for pid:50643: [<environment: keyboardFocus; display: builtin; token: com.apple.frontboard.systemappservices::sceneID%3Adev.selfhost.firstActivationProbe-default> -> <pid: 50643; token: 0xAA4BD9C7> reason: "1-deferDiscrete: UIWindowScene: 0x10440cdf0: Begin event deferring in keyboardFocus for window: 0x105924200"]
+Aug 27 21:27:41.376546 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c25860; didUpdateClientSettingsCompletion-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.381562 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] didUpdateClientSettingsWithDiff: (null)
+Aug 27 21:27:41.382258 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d09ae0; handleDidUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.382750 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d09ae0; handleDidUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.384018 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c250a0; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.384189 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c279e0; didUpdateClientSettingsCompletion-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.386894 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c250a0; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.387726 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d0bd00; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ front
+Aug 27 21:27:41.388300 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d0bd00; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.389568 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c279e0; didUpdateClientSettingsCompletion-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.394298 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] didUpdateClientSettingsWithDiff: <private>
+Aug 27 21:27:41.394540 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d0bfc0; handleDidUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.394790 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d0bfc0; handleDidUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.396783 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c27180; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.397075 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c27f40; didUpdateClientSettingsCompletion-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.398670 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c27180; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.399849 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c247c0; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ front
+Aug 27 21:27:41.400521 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c247c0; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.402682 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c27f40; didUpdateClientSettingsCompletion-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.405635 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] didUpdateClientSettingsWithDiff: <private>
+Aug 27 21:27:41.406088 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c250a0; handleDidUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.406239 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c250a0; handleDidUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.407915 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c27380; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.409091 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c27be0; didUpdateClientSettingsCompletion-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.411566 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c27380; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.412031 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d08940; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ front
+Aug 27 21:27:41.412516 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d08940; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.414567 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c27be0; didUpdateClientSettingsCompletion-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.417473 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] didUpdateClientSettingsWithDiff: <private>
+Aug 27 21:27:41.417683 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c24c80; handleDidUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.418087 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c24c80; handleDidUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.419101 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d0b7a0; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.419423 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c27380; didUpdateClientSettingsCompletion-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.420586 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d0b7a0; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.420855 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d0b380; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ front
+Aug 27 21:27:41.420957 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d0b380; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.421286 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281c27380; didUpdateClientSettingsCompletion-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.421751 Runner(UIKitCore)[50643] <Notice>: Key window API is scene-level: YES
+Aug 27 21:27:41.421790 Runner(UIKitCore)[50643] <Notice>: UIWindowScene: 0x10440cdf0: Window became key in scene: UIWindow: 0x105924200; contextId: 0xAA4BD9C7: reason: UIWindowScene: 0x10440cdf0: Window requested to become key in scene: 0x105924200
+Aug 27 21:27:41.421869 Runner(UIKitCore)[50643] <Notice>: Key window needs update: 1; currentKeyWindowScene: 0x0; evaluatedKeyWindowScene: 0x10440cdf0; currentApplicationKeyWindow: 0x0; evaluatedApplicationKeyWindow: 0x105924200; reason: UIWindowScene: 0x10440cdf0: Window requested to become key in scene: 0x105924200
+Aug 27 21:27:41.421915 Runner(UIKitCore)[50643] <Notice>: Window did become application key: UIWindow: 0x105924200; contextId: 0xAA4BD9C7; scene identity: com.apple.frontboard.systemappservices::sceneID%3Adev.selfhost.firstActivationProbe-default
+Aug 27 21:27:41.421966 Runner(UIKitCore)[50643] <Notice>: [0x281871dc0] Begin local event deferring requested for token: 0x281063160; environments: 1; reason: UIWindowScene: 0x10440cdf0: Begin event deferring in keyboardFocus for window: 0x105924200
+Aug 27 21:27:41.422015 Runner(CoreFoundation)[50643] <Debug>: found no value for key LogKeyboardFocus in CFPrefsSearchListSource<0x281d74c80> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 21:27:41.422123 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.422406 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.422593 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.422684 Runner(CoreFoundation)[50643] <Debug>: found no value for key NSConstraintBasedLayoutLogPivotCounts in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.422750 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.422830 Runner(CoreFoundation)[50643] <Debug>: found no value for key NSConstraintBasedLayoutTrackDirtyObservables in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.422889 Runner(CoreFoundation)[50643] <Debug>: found no value for key LogAppLifecycle in CFPrefsSearchListSource<0x281d74c80> (Domain: com.apple.UIKit, Container: (null))
+Aug 27 21:27:41.422942 Runner(UIKitCore)[50643] <Notice>: sceneOfRecord: sceneID: sceneID:dev.selfhost.firstActivationProbe-default  persistentID: 38A6B0E8-D18B-43CA-916F-1BCC03B36967
+Aug 27 21:27:41.422994 Runner(UIKitCore)[50643] <Notice>: Ignoring already applied deactivation reason: 5; deactivation reasons: 2080
+Aug 27 21:27:41.423044 Runner(UIKitCore)[50643] <Debug>: Setting device orientation to 1 and sending notification.
+Aug 27 21:27:41.423097 Runner(UIKitCore)[50643] <Notice>: Deactivation reason added: 12; deactivation reasons: 2080 -> 6176; animating application lifecycle event: 1
+Aug 27 21:27:41.423149 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.423253 Runner(UIKitCore)[50643] <Notice>: Deactivation reason removed: 11; deactivation reasons: 6176 -> 4128; animating application lifecycle event: 1
+Aug 27 21:27:41.423305 Runner(CoreFoundation)[50643] <Debug>: found no value for key CAEnableDeepFramebuffer in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.423526 SpringBoard(FrontBoard)[47602] <Notice>: [sceneID:dev.selfhost.firstActivationProbe-default] Scene action [Logical Activate][0xa953] completed with success: 1
+Aug 27 21:27:41.423649 SpringBoard(FrontBoardServices)[47602] <Info>: [application<dev.selfhost.firstActivationProbe>:50643] [realTime] Stopped monitoring.
+Aug 27 21:27:41.423718 SpringBoard(FrontBoardServices)[47602] <Debug>: [application<dev.selfhost.firstActivationProbe>:50643] [realTime] Updated resource consumption: 0.120s (0.60%)
+Aug 27 21:27:41.423806 SpringBoard(FrontBoardServices)[47602] <Debug>: [application<dev.selfhost.firstActivationProbe>:50643] Invalidating <FBProcessWatchdog: 0x283e95cc0; name: scene-create; time: 20.00s>
+Aug 27 21:27:41.423868 SpringBoard(FrontBoardServices)[47602] <Debug>: [application<dev.selfhost.firstActivationProbe>:50643] [realTime] Invalidated
+Aug 27 21:27:41.423926 SpringBoard(FrontBoard)[47602] <Notice>: [sceneID:dev.selfhost.firstActivationProbe-default] scene content state changed: ready
+Aug 27 21:27:41.424066 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d0bfc0; contentStateDidChange-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ back
+Aug 27 21:27:41.424194 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] Client settings updated with diff: <private>
+Aug 27 21:27:41.424260 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d0bfc0; contentStateDidChange-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.424312 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d0b380; contentStateDidChange-sceneID:dev.selfhost.firstActivationProbe-default(2)> @ front
+Aug 27 21:27:41.424370 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d0b380; contentStateDidChange-sceneID:dev.selfhost.firstActivationProbe-default(2)>
+Aug 27 21:27:41.424855 SpringBoard(FrontBoard)[47602] <Info>: Client intercepting scene update for scene: sceneID:dev.selfhost.firstActivationProbe-default
+Aug 27 21:27:41.425083 SpringBoard(FrontBoard)[47602] <Debug>: START SCENE MUTATION ------- sceneID:dev.selfhost.firstActivationProbe-default
+Aug 27 21:27:41.425256 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d1e5a0; sceneUpdatePrepared-sceneID:dev.selfhost.firstActivationProbe-default(3)> @ back
+Aug 27 21:27:41.425380 SpringBoard(FrontBoard)[47602] <Debug>: Executing pended events before sceneID:dev.selfhost.firstActivationProbe-default: (
+Aug 27 21:27:41.425784 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d1f500; applySettings-sceneID:dev.selfhost.firstActivationProbe-default(3)> @ back
+Aug 27 21:27:41.425883 SpringBoard(FrontBoard)[47602] <Debug>: Flushing all events for sceneID:dev.selfhost.firstActivationProbe-default
+Aug 27 21:27:41.426145 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d1e5a0; sceneUpdatePrepared-sceneID:dev.selfhost.firstActivationProbe-default(3)>
+Aug 27 21:27:41.426277 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d1e660; sceneUpdatePrepared-sceneID:dev.selfhost.firstActivationProbe-default(3)> @ front
+Aug 27 21:27:41.426413 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d1e660; sceneUpdatePrepared-sceneID:dev.selfhost.firstActivationProbe-default(3)>
+Aug 27 21:27:41.426678 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d1f500; applySettings-sceneID:dev.selfhost.firstActivationProbe-default(3)>
+Aug 27 21:27:41.426789 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281c27460; sceneUpdateApplied-sceneID:dev.selfhost.firstActivationProbe-default(3)> @ back
+Aug 27 21:27:41.450596 CommCenter(RunningBoardServices)[90] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.452790 UserEventAgent(RunningBoardServices)[30] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.452970 UserEventAgent(ADEventListenerPlugin)[30] <Debug>: AppStateChange: <private> (50643) terminated => foregroundRunning
+Aug 27 21:27:41.453411 bluetoothd(CoreUtils)[86] <Notice>: SystemUI unknown identifier: 'sceneID:dev.selfhost.firstActivationProbe-default' / 'dev.selfhost.firstActivationProbe'
+Aug 27 21:27:41.453484 sharingd[66] <Debug>: SystemUI unknown identifier: 'sceneID:dev.selfhost.firstActivationProbe-default'/ 'dev.selfhost.firstActivationProbe'
+        <SBSDisplayLayoutElement: 0x28367df80; sceneID:dev.selfhost.firstActivationProbe-default; bundleID: dev.selfhost.firstActivationProbe; frame: {{0, 0}, {375, 667}}; level: 1; role: primary>;
+Aug 27 21:27:41.454982 SpringBoard(UserNotificationsServer)[47602] <Notice>: [dev.selfhost.firstActivationProbe] dev.selfhost.firstActivationProbe application state changed to ForegroundRunning
+Aug 27 21:27:41.455049 SpringBoard(UserNotificationsServer)[47602] <Notice>: [dev.selfhost.firstActivationProbe] Ignore becoming foreground for application without push registration
+Aug 27 21:27:41.471506 chronod(ChronoCore)[102] <Notice>: noting foreground launch for dev.selfhost.firstActivationProbe with widget extension; trigger metadata query
+Aug 27 21:27:41.509466 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] Scene action [Forward Event][0x895d] completed with success: 1
+Aug 27 21:27:41.509485 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d2b800; updateComplete-sceneID:dev.selfhost.firstActivationProbe-default(5)> @ back
+Aug 27 21:27:41.509503 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d2b800; updateComplete-sceneID:dev.selfhost.firstActivationProbe-default(5)>
+Aug 27 21:27:41.509521 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281dd3dc0; sceneUpdateCompleted-sceneID:dev.selfhost.firstActivationProbe-default(5)> @ back
+Aug 27 21:27:41.509575 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281dd3dc0; sceneUpdateCompleted-sceneID:dev.selfhost.firstActivationProbe-default(5)>
+Aug 27 21:27:41.509604 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281dd2ae0; sceneUpdateCompleted-sceneID:dev.selfhost.firstActivationProbe-default(5)> @ front
+Aug 27 21:27:41.509634 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281dd2ae0; sceneUpdateCompleted-sceneID:dev.selfhost.firstActivationProbe-default(5)>
+Aug 27 21:27:41.509671 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] Client settings updated with diff: <private>
+Aug 27 21:27:41.509707 SpringBoard(FrontBoard)[47602] <Info>: [sceneID:dev.selfhost.firstActivationProbe-default] didUpdateClientSettingsWithDiff: <private>
+Aug 27 21:27:41.509745 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d023c0; handleDidUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(5)> @ back
+Aug 27 21:27:41.509772 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d023c0; handleDidUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(5)>
+Aug 27 21:27:41.509833 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281dd1d60; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(5)> @ back
+Aug 27 21:27:41.509883 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281dd3c60; didUpdateClientSettingsCompletion-sceneID:dev.selfhost.firstActivationProbe-default(5)> @ back
+Aug 27 21:27:41.510005 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281dd1d60; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(5)>
+Aug 27 21:27:41.510045 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] PENDING:   <BSEventQueueEvent: 0x281d31500; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(5)> @ front
+Aug 27 21:27:41.510071 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281d31500; didUpdateClientSettings-sceneID:dev.selfhost.firstActivationProbe-default(5)>
+Aug 27 21:27:41.510122 SpringBoard(FrontBoard)[47602] <Debug>: [FBSceneManager] EXECUTING: <BSEventQueueEvent: 0x281dd3c60; didUpdateClientSettingsCompletion-sceneID:dev.selfhost.firstActivationProbe-default(5)>
+Aug 27 21:27:41.513154 runningboardd(RunningBoard)[33] <Debug>: Removing assertion 33-50643-7540 on [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:41.513299 runningboardd(RunningBoard)[33] <Debug>: > application<dev.selfhost.firstActivationProbe> ['RB Underlying Assertion'] [33-33-7536]
+Aug 27 21:27:41.513433 runningboardd(RunningBoard)[33] <Debug>: Updating events for assertion: 33-50643-7540 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+Aug 27 21:27:41.513543 runningboardd(RunningBoard)[33] <Debug>: Removing events for context: 33-50643-7540 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+Aug 27 21:27:41.513634 runningboardd(RunningBoard)[33] <Debug>: > application<dev.selfhost.firstActivationProbe> ['Shared Background Assertion 0 for dev.selfhost.firstActivationProbe'] [33-50643-7538]
+Aug 27 21:27:41.513754 runningboardd(RunningBoard)[33] <Info>: application<dev.selfhost.firstActivationProbe> is now targeted by 5 assertions
+Aug 27 21:27:41.514201 runningboardd(RunningBoard)[33] <Debug>: > 50643 ['Shared Background Assertion 0 for dev.selfhost.firstActivationProbe'] [33-50643-7538]
+Aug 27 21:27:41.514727 runningboardd(RunningBoard)[33] <Debug>: > 50643 ['injecting inherited from "UIScene:com.apple.frontboard.systemappservices::com.apple.springboard" to 50643<UIScene:com.apple.frontboard.systemappservices::sceneID%3Adev.selfhost.firstActivationProbe-default>'] [33-47602-7539]
+Aug 27 21:27:41.522789 watchdogd(RunningBoardServices)[57] <Info>: observedProcessStatesDidChange
+Aug 27 21:27:41.522998 watchdogd(RunningBoardServices)[57] <Debug>: Decoded RBSProcessHandle with IPC ID fdcfbf40000c5d3
+Aug 27 21:27:41.523774 runningboardd(RunningBoard)[33] <Debug>: Sending state 0x1011b9af0 for application<dev.selfhost.firstActivationProbe> to [daemon<com.apple.locationd>:69]
+Aug 27 21:27:41.532032 CommCenter(RunningBoardServices)[90] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.536796 kbd(RunningBoardServices)[303] <Notice>: Hit the server for a process handle fdcfbf40000c5d3 that resolved to: [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:41.537370 kbd(RunningBoardServices)[303] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.538731 kbd(RunningBoardServices)[303] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.539888 backboardd(RunningBoardServices)[65] <Notice>: Hit the server for a process handle fdcfbf40000c5d3 that resolved to: [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:41.540335 backboardd(RunningBoardServices)[65] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.540603 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:41.541694 backboardd(RunningBoardServices)[65] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.544506 callservicesd(RunningBoardServices)[131] <Notice>: Hit the server for a process handle fdcfbf40000c5d3 that resolved to: [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:41.546684 wifid(RunningBoardServices)[52] <Notice>: Hit the server for a process handle fdcfbf40000c5d3 that resolved to: [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:41.548332 runningboardd(RunningBoard)[33] <Info>: Received message from [daemon<com.apple.watchdogd>:57] (euid 0, auid 0): lookupHandleForKey:error:
+Aug 27 21:27:41.548615 useractivityd(RunningBoardServices)[184] <Notice>: Hit the server for a process handle fdcfbf40000c5d3 that resolved to: [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:41.550043 watchdogd(RunningBoardServices)[57] <Notice>: Hit the server for a process handle fdcfbf40000c5d3 that resolved to: [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:41.552311 useractivityd(RunningBoardServices)[184] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.552920 watchdogd(RunningBoardServices)[57] <Notice>: Received state update for 50643
+Aug 27 21:27:41.555795 symptomsd(RunningBoardServices)[170] <Notice>: Hit the server for a process handle fdcfbf40000c5d3 that resolved to: [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:41.557883 symptomsd(SymptomNetworkUsage)[170] <Debug>: 50643 dev.selfhost.firstActivationProbe: ForegroundRunning (most elevated: ForegroundRunning)
+Aug 27 21:27:41.558237 symptomsd(RunningBoardServices)[170] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.558876 callservicesd(RunningBoardServices)[131] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.559298 watchdogd(RunningBoardServices)[57] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.560082 callservicesd(RunningBoardServices)[131] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.560441 locationd(RunningBoardServices)[69] <Notice>: Hit the server for a process handle fdcfbf40000c5d3 that resolved to: [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:41.561086 locationd(RunningBoardServices)[69] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.570291 locationd[69] <Notice>: {"msg":"#CLIUA Marking change", "clientKey":"dev.selfhost.firstActivationProbe", "reason":"Process state from RunningBoard", "assertionLevel":5, "coming":1}
+Aug 27 21:27:41.578471 locationd[69] <Info>: getClientEffectiveRegistrationResult, , dev.selfhost.firstActivationProbe, , CLClientRegistrationResult, kCLClientRegistrationResultFailedUnavailable, CLCommonLocationServicesEnabled, 1
+Aug 27 21:27:41.578619 locationd[69] <Info>: getClientEffectiveRegistrationResult, , dev.selfhost.firstActivationProbe, , CLClientRegistrationResult, kCLClientRegistrationResultFailedUnavailable, CLCommonLocationServicesEnabled, 1
+Aug 27 21:27:41.578855 locationd[69] <Debug>: {"msg":"Skip UpdateClientServiceTypeMasks #pla for zones. No InterestZones", "ClientKey":"dev.selfhost.firstActivationProbe"}
+Aug 27 21:27:41.591906 watchdogd[57] <Info>: 1250108831007250: <private>
+Aug 27 21:27:41.593202 dasd(RunningBoardServices)[94] <Notice>: Hit the server for a process handle fdcfbf40000c5d3 that resolved to: [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:41.594435 aggregated(RunningBoardServices)[50213] <Notice>: Hit the server for a process handle fdcfbf40000c5d3 that resolved to: [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:41.595402 aggregated(RunningBoardServices)[50213] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.597020 runningboardd(RunningBoard)[33] <Debug>: [daemon<com.apple.SpringBoard>:47602] query resolved to [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:41.605104 dasd(RunningBoardServices)[94] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.610916 contextstored(RunningBoardServices)[61] <Notice>: Hit the server for a process handle fdcfbf40000c5d3 that resolved to: [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:41.619283 SpringBoard(SplashBoard)[47602] <Info>: <XBApplicationSnapshot: 0x109ddf7d0; …2F3B89D0D3F1> [dev.selfhost.firstActivationProbe] Purging the cached image; force: 0; _imageAccessCount: 0; _keepImageAccessUntilExpiration: 0; _hasProtectedContent: 0; _keepImageAccessForPreheat: 0
+Aug 27 21:27:41.625776 runningboardd(RunningBoard)[33] <Info>: daemon<com.apple.watchdogd> has 0 targeting assertions. Debug log lines of their details follow.
+Aug 27 21:27:41.639940 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:27:41.642742 Runner(CoreFoundation)[50643] <Debug>: found no value for key EnhancedTextLegibilityEnabled in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.643222 Runner(libAccessibility.dylib)[50643] <Debug>: CF Read: domain = dev.selfhost.firstActivationProbe, preference = EnhancedTextLegibilityEnabled, appID = dev.selfhost.firstActivationProbe result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 21:27:41.643668 Runner(CoreFoundation)[50643] <Debug>: found no value for key DarkenSystemColors in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.643927 Runner(libAccessibility.dylib)[50643] <Debug>: CF Read: domain = dev.selfhost.firstActivationProbe, preference = DarkenSystemColors, appID = dev.selfhost.firstActivationProbe result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 21:27:41.644268 Runner(CoreFoundation)[50643] <Debug>: found no value for key InvertColorsEnabled in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.644579 Runner(libAccessibility.dylib)[50643] <Debug>: CF Read: domain = dev.selfhost.firstActivationProbe, preference = InvertColorsEnabled, appID = dev.selfhost.firstActivationProbe result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 21:27:41.645909 runningboardd(RunningBoard)[33] <Info>: Received message from [application<dev.selfhost.firstActivationProbe>:50643] (euid 501, auid 501): async_invalidateAssertionWithIdentifier:
+Aug 27 21:27:41.667556 runningboardd(RunningBoard)[33] <Info>: application<dev.selfhost.firstActivationProbe> has 5 targeting assertions. Debug log lines of their details follow.
+Aug 27 21:27:41.667728 runningboardd(RunningBoard)[33] <Info>: application<dev.selfhost.firstActivationProbe> assertion details 1/5. ID:33-47602-7535 Explanation:"FBApplicationProcess" Attributes:
+    "<RBSDomainAttribute| domain:\"com.apple.frontboard\" name:\"Bootstrap-Foreground\" sourceEnvironment:\"(null)\">",
+Aug 27 21:27:41.667967 runningboardd(RunningBoard)[33] <Info>: application<dev.selfhost.firstActivationProbe> assertion details 2/5. ID:33-33-7536 Explanation:"RB Underlying Assertion" Attributes:
+Aug 27 21:27:41.668195 runningboardd(RunningBoard)[33] <Info>: application<dev.selfhost.firstActivationProbe> assertion details 3/5. ID:33-47602-7537 Explanation:"com.apple.frontboard.after-life.interrupted" Attributes:
+Aug 27 21:27:41.668460 runningboardd(RunningBoard)[33] <Info>: application<dev.selfhost.firstActivationProbe> assertion details 4/5. ID:33-50643-7538 Explanation:"Shared Background Assertion 0 for dev.selfhost.firstActivationProbe" Attributes:
+Aug 27 21:27:41.668671 runningboardd(RunningBoard)[33] <Info>: application<dev.selfhost.firstActivationProbe> assertion details 5/5. ID:33-47602-7539 Explanation:"injecting inherited from "UIScene:com.apple.frontboard.systemappservices::com.apple.springboard" to 50643<UIScene:com.apple.frontboard.systemappservices::sceneID%3Adev.selfhost.firstActivationProbe-default>" Attributes:
+Aug 27 21:27:41.687575 Runner(UIKitCore)[50643] <Notice>: <private>: Ending background task with UIBackgroundTaskIdentifier: 1
+Aug 27 21:27:41.688986 Runner(UIKitCore)[50643] <Notice>: <private>: Ending task with identifier 1 and description: <private>, _expireHandler: <__NSGlobalBlock__: 0x1ec737410>
+Aug 27 21:27:41.689757 Runner(UIKitCore)[50643] <Notice>: <private>: Decrementing reference count for assertion used by background task with identifier 1: <private>
+Aug 27 21:27:41.690234 Runner(UIKitCore)[50643] <Notice>: <private>: Will invalidate assertion: <BKSProcessAssertion: 0x281078280> for task identifier: 1
+Aug 27 21:27:41.691002 runningboardd(RunningBoard)[33] <Notice>: Invalidating assertion 33-50643-7538 (target:[application<dev.selfhost.firstActivationProbe>:50643]) from originator [application<dev.selfhost.firstActivationProbe>:50643]
+<SBTransitionSwitcherModifierEvent: 0x282167a00; type: MainTransition; transitionID: 381A04E6-3FC6-4E5A-9599-0089BC4EB776; phase: Complete; animated: YES; fromAppLayout: 0x0; toAppLayout: <SBAppLayout: 0x28087bb80; primary: dev.selfhost.firstActivationProbe:default; environment: main>; fromEnvironmentMode: home-screen; toEnvironmentMode: application; pendingTermination: {(
+)}; activating: <SBAppLayout: 0x28087bb80; primary: dev.selfhost.firstActivationProbe:default; environment: main>; dosidoTransitionDirection: 0>
+		    <SBIconOverlayVisibilitySwitcherEventResponse: 0x28082ddc0; visible: NO; appLayout: <SBAppLayout: 0x28087bb80; primary: dev.selfhost.firstActivationProbe:default; environment: main>>;
+		    <SBIconViewVisibilitySwitcherEventResponse: 0x283e34a00; visible: YES; animationSettings: 0x0; appLayout: <SBAppLayout: 0x28087bb80; primary: dev.selfhost.firstActivationProbe:default; environment: main>>;
+		    <SBMatchMoveToIconViewSwitcherEventResponse: 0x28082e840; active: NO; appLayout: <SBAppLayout: 0x28087bb80; primary: dev.selfhost.firstActivationProbe:default; environment: main>>;
+Aug 27 21:27:41.714637 SpringBoard[47602] <Notice>: Front display did change: <SBApplication: 0x28242b100; dev.selfhost.firstActivationProbe>
+Aug 27 21:27:41.736576 runningboardd(RunningBoard)[33] <Debug>: [daemon<com.apple.CommCenter>:90] query resolved to [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:41.738795 Runner(CoreFoundation)[50643] <Debug>: found no value for key ReduceMotionEnabled in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.738880 Runner(libAccessibility.dylib)[50643] <Debug>: CF Read: domain = dev.selfhost.firstActivationProbe, preference = ReduceMotionEnabled, appID = dev.selfhost.firstActivationProbe result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 21:27:41.741862 watchdogd(RunningBoardServices)[57] <Debug>: Received message from server: async_observedProcessStatesDidChange:completion:
+Aug 27 21:27:41.746373 watchdogd(RunningBoardServices)[57] <Info>: observedProcessStatesDidChange
+Aug 27 21:27:41.746605 watchdogd(RunningBoardServices)[57] <Debug>: Decoded RBSProcessHandle with IPC ID fdcfbf40000c5d3
+Aug 27 21:27:41.746806 watchdogd(RunningBoardServices)[57] <Notice>: Received state update for 50643
+Aug 27 21:27:41.747032 watchdogd(RunningBoardServices)[57] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.749173 symptomsd(RunningBoardServices)[170] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.749368 locationd(RunningBoardServices)[69] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.751024 wifid(RunningBoardServices)[52] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.752208 wifid(RunningBoardServices)[52] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.752468 wifid(WiFiPolicy)[52] <Notice>: WifiDeviceManagerCatsWhitelistedApp: CATS en0:  deviceManager:0x10582dc00 FgApp:dev.selfhost.firstActivationProbe stateChange:1 whitelisted=1
+Aug 27 21:27:41.752978 wifid(WiFiPolicy)[52] <Notice>: WiFiDeviceManagerCatsSetLowLatencyApp: CATSUpdate en0: fgApp:dev.selfhost.firstActivationProbe b=0x0 rc=0
+Aug 27 21:27:41.753189 wifid(WiFiPolicy)[52] <Notice>: WiFiDeviceManagerCatsSetForegroundApp: CATSUpdate en0: fgApp:dev.selfhost.firstActivationProbe hs=0 t=1 wl=1 rc=1
+Aug 27 21:27:41.756459 useractivityd(RunningBoardServices)[184] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.757647 aggregated(RunningBoardServices)[50213] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.758032 sharingd[66] <Debug>: SystemUI unknown identifier: 'sceneID:dev.selfhost.firstActivationProbe-default'/ 'dev.selfhost.firstActivationProbe'
+Aug 27 21:27:41.760019 runningboardd(RunningBoard)[33] <Debug>: Updating events for assertion: 33-50643-7538 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+Aug 27 21:27:41.760538 runningboardd(RunningBoard)[33] <Debug>: Removing events for context: 33-50643-7538 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+Aug 27 21:27:41.760773 runningboardd(RunningBoard)[33] <Debug>: Removing assertion 33-50643-7538 on [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:41.760989 runningboardd(RunningBoard)[33] <Debug>: > application<dev.selfhost.firstActivationProbe> ['RB Underlying Assertion'] [33-33-7536]
+Aug 27 21:27:41.761264 runningboardd(RunningBoard)[33] <Info>: application<dev.selfhost.firstActivationProbe> is now targeted by 4 assertions
+Aug 27 21:27:41.762390 runningboardd(RunningBoard)[33] <Debug>: > 50643 ['injecting inherited from "UIScene:com.apple.frontboard.systemappservices::com.apple.springboard" to 50643<UIScene:com.apple.frontboard.systemappservices::sceneID%3Adev.selfhost.firstActivationProbe-default>'] [33-47602-7539]
+Aug 27 21:27:41.769605 contextstored(RunningBoardServices)[61] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.785090 Runner(CoreFoundation)[50643] <Debug>: found no value for key IncreaseButtonLegibilityEnabled in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.785634 Runner(libAccessibility.dylib)[50643] <Debug>: CF Read: domain = dev.selfhost.firstActivationProbe, preference = IncreaseButtonLegibilityEnabled, appID = dev.selfhost.firstActivationProbe result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 21:27:41.786183 Runner(CoreFoundation)[50643] <Debug>: found no value for key ReduceMotionAutoplayVideoPreviewsEnabled in CFPrefsSearchListSource<0x281d71280> (Domain: dev.selfhost.firstActivationProbe, Container: (null))
+Aug 27 21:27:41.786645 Runner(libAccessibility.dylib)[50643] <Debug>: CF Read: domain = dev.selfhost.firstActivationProbe, preference = ReduceMotionAutoplayVideoPreviewsEnabled, appID = dev.selfhost.firstActivationProbe result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 21:27:41.820726 dasd(RunningBoardServices)[94] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.820948 dasd(RunningBoardServices)[94] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.821185 dasd(RunningBoardServices)[94] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.821471 dasd(RunningBoardServices)[94] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.821800 dasd(RunningBoardServices)[94] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.823410 bluetoothd(CoreUtils)[86] <Notice>: SystemUI unknown identifier: 'sceneID:dev.selfhost.firstActivationProbe-default' / 'dev.selfhost.firstActivationProbe'
+Aug 27 21:27:41.825545 contextstored(RunningBoardServices)[61] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.832729 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+        <SBSDisplayLayoutElement: 0x2836db870; sceneID:dev.selfhost.firstActivationProbe-default; bundleID: dev.selfhost.firstActivationProbe; frame: {{0, 0}, {375, 667}}; level: 1; role: primary>;
+Aug 27 21:27:41.840830 runningboardd(RunningBoard)[33] <Debug>: [daemon<com.apple.SpringBoard>:47602] query resolved to [application<dev.selfhost.firstActivationProbe>:50643]
+Aug 27 21:27:41.842244 UserEventAgent(RunningBoardServices)[30] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.842576 UserEventAgent(RunningBoardServices)[30] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+	<RBSProcessAssertionInfo| type:2 reason:10000 name:"Domain" domain:"com.apple.frontboard:Bootstrap-Foreground,com.apple.frontboard:Visibility" expl:"FBApplicationProcess">,
+	<RBSProcessAssertionInfo| type:1 reason:0 name:"Custom" domain:"(null)" expl:"injecting inherited from "UIScene:com.apple.frontboard.systemappservices::com.apple.springboard" to 50643<UIScene:com.apple.frontboard.systemappservices::sceneID%3Adev.selfhost.firstActivationProbe-default>">
+Aug 27 21:27:41.848374 symptomsd(SymptomNetworkUsage)[170] <Debug>: Dynamic lookup for E01B2FEA-36F1-3C21-AADE-93AC8E03F45C found entry dev.selfhost.firstActivationProbe
+Aug 27 21:27:41.857496 symptomsd(SymptomNetworkUsage)[170] <Info>: handleApplicationStateChangeForDisplayName: name dev.selfhost.firstActivationProbe uuid E01B2FEA-36F1-3C21-AADE-93AC8E03F45C pid 50643 state BKSApplicationStateForegroundRunning
+Aug 27 21:27:41.860661 symptomsd(SymptomNetworkUsage)[170] <Debug>: Dynamic lookup for E01B2FEA-36F1-3C21-AADE-93AC8E03F45C found entry dev.selfhost.firstActivationProbe
+Aug 27 21:27:41.862813 symptomsd(SymptomEvaluator)[170] <Info>: COSMCtrl foregroundAppObserver gets E01B2FEA-36F1-3C21-AADE-93AC8E03F45C for dev.selfhost.firstActivationProbe state 1
+Aug 27 21:27:41.862990 symptomsd(SymptomEvaluator)[170] <Debug>: COSMCtrl _foregroundAppActivity entry for E01B2FEA-36F1-3C21-AADE-93AC8E03F45C -> dev.selfhost.firstActivationProbe  fg 1
+Aug 27 21:27:41.863163 symptomsd(SymptomEvaluator)[170] <Debug>: COSMCtrl _foregroundAppActivity exit for E01B2FEA-36F1-3C21-AADE-93AC8E03F45C -> dev.selfhost.firstActivationProbe  policy id 0  fg 1 fg-activity 0
+Aug 27 21:27:41.868954 symptomsd(SymptomEvaluator)[170] <Debug>: Flow data on entry is Runner TCP4 flow id 1186211 (close) so pkts rx 2 tx 2, bytes 311 424 cell 0 0 wifi 391 504 wired 0 0 deltas 311 424 0 0 391 504 0 0
+src 1186211 snapshot: Runner TCP4 flow id 1186211 (close) so pkts rx 2 tx 2, bytes 311 424 cell 0 0 wifi 391 504 wired 0 0 deltas 311 424 0 0 391 504 0 0
+Aug 27 21:27:41.874814 symptomsd(SymptomEvaluator)[170] <Debug>: --> activityBitmaps: adding new bitmaps for app [dev.selfhost.firstActivationProbe] with bitmaps starting at 1250104: [             0x1] [               0]
+Aug 27 21:27:41.875698 symptomsd(SymptomEvaluator)[170] <Debug>: --> activityBitmaps for dev.selfhost.firstActivationProbe: current bitmaps stored before adding new bitmap: [Activity time: 11:12:37.000 -0400 (1247032) ] [wordOffset: 1, numOfWords:8] <               0                0 0x2000000000001000          0x40000  0x8200001000000  0x4080000008000                0                0 >
+Aug 27 21:27:41.876525 symptomsd(SymptomEvaluator)[170] <Debug>: --> activityBitmaps for dev.selfhost.firstActivationProbe: flowId 1186211, startTime 1250104, new bitmap part1:              0x1, part2:                0
+Aug 27 21:27:41.877100 symptomsd(SymptomEvaluator)[170] <Debug>: --> activityBitmaps for dev.selfhost.firstActivationProbe: current bitmaps stored after adding new bitmap: [Activity time: 11:12:37.000 -0400 (1247032) ] [wordOffset: 1, numOfWords:8] <               0                0 0x2000000000001000          0x40000  0x8200001000000  0x4080000008000              0x1                0 >
+Aug 27 21:27:41.881207 SpringBoard(SplashBoard)[47602] <Info>: <XBApplicationSnapshot: 0x109d3cb20; …A909693DA7E7> [dev.selfhost.firstActivationProbe] Purging the cached image; force: 0; _imageAccessCount: 0; _keepImageAccessUntilExpiration: 0; _hasProtectedContent: 0; _keepImageAccessForPreheat: 0
+Aug 27 21:27:41.882466 symptomsd(SymptomEvaluator)[170] <Debug>: found LU hint (mode: 1) for dev.selfhost.firstActivationProbe: 0x102829350, subscriber tag: 0
+Aug 27 21:27:41.883040 symptomsd(SymptomEvaluator)[170] <Notice>: Data Usage for dev.selfhost.firstActivationProbe on flow 1186211 - WiFi in/out: 14605/12595, WiFi delta_in/delta_out: 391/504, Cell in/out: 0/0, Cell delta_in/delta_out: 0/0, RNF: 0, subscriber tag: 0
+Aug 27 21:27:41.883331 symptomsd(SymptomEvaluator)[170] <Debug>: Data Usage for dev.selfhost.firstActivationProbe on flow 1186211 - Wired in/out: 0/0, Wired delta_in/delta_out: 0/0, subscriber tag: 0
+Aug 27 21:27:41.883558 symptomsd(SymptomEvaluator)[170] <Info>: changedForegroundState to 1 for dev.selfhost.firstActivationProbe
+Aug 27 21:27:41.884201 symptomsd(SymptomEvaluator)[170] <Debug>: app name dev.selfhost.firstActivationProbe isForeground 1  hasForegroundApps 1, current idea of foreground 0 disp (null)
+Aug 27 21:27:41.885029 symptomsd(SymptomEvaluator)[170] <Notice>: dev.selfhost.firstActivationProbe: Foreground: true
+Aug 27 21:27:41.885306 symptomsd(SymptomEvaluator)[170] <Debug>: found LU hint (mode: 1) for dev.selfhost.firstActivationProbe: 0x102829350, subscriber tag: 0
+Aug 27 21:27:41.885564 symptomsd(SymptomEvaluator)[170] <Info>: Set appCompactState object 27200 for key dev.selfhost.firstActivationProbe
+Aug 27 21:27:41.916046 runningboardd(RunningBoard)[33] <Info>: _requestedJetsamPriority = 6, _executablePath = /System/Library/PrivateFrameworks/MobileBackup.framework/backupd
+Aug 27 21:27:41.919536 runningboardd(RunningBoard)[33] <Info>: _requestedJetsamPriority = 6, _executablePath = /System/Library/PrivateFrameworks/MobileBackup.framework/backupd
+Aug 27 21:27:41.921297 runningboardd(RunningBoard)[33] <Debug>: Sending state update for daemon<com.apple.backupd>: <RBSProcessState| task:running debug:none terminationResistance:None>
+Aug 27 21:27:41.941672 runningboardd(RunningBoard)[33] <Notice>: Acquiring assertion targeting [application<dev.selfhost.firstActivationProbe>:50643] from originator [daemon<com.apple.SpringBoard>:47602] with description <RBSAssertionDescriptor| "FBWorkspace (ForegroundFocal)" ID:33-47602-7541 target:50643 attributes:[
+Aug 27 21:27:41.941960 runningboardd(RunningBoard)[33] <Notice>: Assertion 33-47602-7541 (target:[application<dev.selfhost.firstActivationProbe>:50643]) will be created as active
+Aug 27 21:27:41.942284 runningboardd(RunningBoard)[33] <Debug>: Adding assertion 33-47602-7541 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+Aug 27 21:27:41.942586 runningboardd(RunningBoard)[33] <Debug>: BEGIN suppressing state updates for application<dev.selfhost.firstActivationProbe>
+Aug 27 21:27:41.943081 runningboardd(RunningBoard)[33] <Debug>: Incrementing suppression state to 1 for application<dev.selfhost.firstActivationProbe>
+Aug 27 21:27:41.943418 runningboardd(RunningBoard)[33] <Info>: application<dev.selfhost.firstActivationProbe> is now targeted by 5 assertions
+Aug 27 21:27:41.943780 runningboardd(RunningBoard)[33] <Info>: [application<dev.selfhost.firstActivationProbe>:50643] Applying updated state
+Aug 27 21:27:41.944137 runningboardd(RunningBoard)[33] <Notice>: Calculated state for application<dev.selfhost.firstActivationProbe>: running-active (role: UserInteractiveFocal)
+Aug 27 21:27:41.944372 runningboardd(RunningBoard)[33] <Debug>: Updating events for assertion: 33-47602-7541 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+Aug 27 21:27:41.944595 runningboardd(RunningBoard)[33] <Debug>: Removing events for context: 33-47602-7541 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+Aug 27 21:27:41.944822 runningboardd(RunningBoard)[33] <Debug>: SUPPRESSING state update for application<dev.selfhost.firstActivationProbe>: <RBSProcessState| task:running-active debug:none terminationResistance:Interactive endowments:[
+	<RBSProcessAssertionInfo| type:2 reason:10000 name:"Domain" domain:"com.apple.frontboard:Bootstrap-Foreground,com.apple.frontboard:Visibility" expl:"FBApplicationProcess">,
+	<RBSProcessAssertionInfo| type:1 reason:0 name:"Custom" domain:"(null)" expl:"injecting inherited from "UIScene:com.apple.frontboard.systemappservices::com.apple.springboard" to 50643<UIScene:com.apple.frontboard.systemappservices::sceneID%3Adev.selfhost.firstActivationProbe-default>">
+Aug 27 21:27:41.945145 runningboardd(RunningBoard)[33] <Debug>: Enqueueing events for assertion: 33-47602-7541 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+    <RBSInheritance| environment:UIScene:com.apple.frontboard.systemappservices::sceneID%3Adev.selfhost.firstActivationProbe-default name:com.apple.frontboard.visibility origID:33-47602-7539 payload>
+Aug 27 21:27:41.945801 runningboardd(RunningBoard)[33] <Info>: Finished acquiring assertion 33-47602-7541 (target:[application<dev.selfhost.firstActivationProbe>:50643])
+Aug 27 21:27:41.945999 runningboardd(RunningBoard)[33] <Debug>: Decrementing suppression state to 0 for application<dev.selfhost.firstActivationProbe>
+Aug 27 21:27:41.946585 runningboardd(RunningBoard)[33] <Debug>: END suppressing state updates for application<dev.selfhost.firstActivationProbe>
+Aug 27 21:27:41.946800 SpringBoard(FrontBoard)[47602] <Notice>: [application<dev.selfhost.firstActivationProbe>:50643] Now acquiring workspace assertion with state: ForegroundFocal.
+Aug 27 21:27:41.947788 SpringBoard(FrontBoard)[47602] <Notice>: [application<dev.selfhost.firstActivationProbe>:50643] Dropping launch assertion.
+Aug 27 21:27:41.948187 Runner(RunningBoardServices)[50643] <Debug>: Received message from server: async_didChangeInheritances:completion:
+Aug 27 21:27:41.948628 Runner(RunningBoardServices)[50643] <Info>: didChangeInheritances
+Aug 27 21:27:41.949183 Runner(RunningBoardServices)[50643] <Info>: didChangeInheritances: <RBSInheritanceChangeSet| gained:{(
+Aug 27 21:27:41.950051 runningboardd(RunningBoard)[33] <Debug>: Sending state update for application<dev.selfhost.firstActivationProbe>: <RBSProcessState| task:running-active debug:none terminationResistance:Interactive endowments:[
+	<RBSProcessAssertionInfo| type:2 reason:10000 name:"Domain" domain:"com.apple.frontboard:Bootstrap-Foreground,com.apple.frontboard:Visibility" expl:"FBApplicationProcess">,
+	<RBSProcessAssertionInfo| type:1 reason:0 name:"Custom" domain:"(null)" expl:"injecting inherited from "UIScene:com.apple.frontboard.systemappservices::com.apple.springboard" to 50643<UIScene:com.apple.frontboard.systemappservices::sceneID%3Adev.selfhost.firstActivationProbe-default>">
+Aug 27 21:27:41.950292 mediaserverd(RunningBoardServices)[36] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.950552 runningboardd(RunningBoard)[33] <Notice>: Invalidating assertion 33-47602-7535 (target:application<dev.selfhost.firstActivationProbe>) from originator [daemon<com.apple.SpringBoard>:47602]
+Aug 27 21:27:41.950789 mediaserverd(RunningBoardServices)[36] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.951371 runningboardd(RunningBoard)[33] <Debug>: Sending state 0x1011bc470 for application<dev.selfhost.firstActivationProbe> to [daemon<com.apple.SpringBoard>:47602]
+Aug 27 21:27:41.952191 SpringBoard(RunningBoardServices)[47602] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.952746 SpringBoard(RunningBoardServices)[47602] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.952962 SpringBoard(RunningBoardServices)[47602] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.953208 runningboardd(RunningBoard)[33] <Debug>: Sending state 0x1011bc470 for application<dev.selfhost.firstActivationProbe> to [daemon<com.apple.UserEventAgent-System>:30]
+Aug 27 21:27:41.953472 SpringBoard(RunningBoardServices)[47602] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.953687 SpringBoard(RunningBoardServices)[47602] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.955152 kbd(RunningBoardServices)[303] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.956717 UserEventAgent(RunningBoardServices)[30] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+	<RBSProcessAssertionInfo| type:2 reason:10000 name:"Domain" domain:"com.apple.frontboard:Bootstrap-Foreground,com.apple.frontboard:Visibility" expl:"FBApplicationProcess">,
+	<RBSProcessAssertionInfo| type:1 reason:0 name:"Custom" domain:"(null)" expl:"injecting inherited from "UIScene:com.apple.frontboard.systemappservices::com.apple.springboard" to 50643<UIScene:com.apple.frontboard.systemappservices::sceneID%3Adev.selfhost.firstActivationProbe-default>">
+Aug 27 21:27:41.958122 backboardd(RunningBoardServices)[65] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.958412 watchdogd(RunningBoardServices)[57] <Debug>: Received message from server: async_observedProcessStatesDidChange:completion:
+Aug 27 21:27:41.959929 CommCenter(RunningBoardServices)[90] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.964012 watchdogd(RunningBoardServices)[57] <Info>: observedProcessStatesDidChange
+Aug 27 21:27:41.964163 watchdogd(RunningBoardServices)[57] <Debug>: Decoded RBSProcessHandle with IPC ID fdcfbf40000c5d3
+Aug 27 21:27:41.964305 watchdogd(RunningBoardServices)[57] <Notice>: Received state update for 50643
+Aug 27 21:27:41.967167 locationd(RunningBoardServices)[69] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.967430 watchdogd(RunningBoardServices)[57] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.967734 callservicesd(RunningBoardServices)[131] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.967925 symptomsd(RunningBoardServices)[170] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.968464 aggregated(RunningBoardServices)[50213] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.968698 useractivityd(RunningBoardServices)[184] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.968954 contextstored(RunningBoardServices)[61] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.970385 wifid(RunningBoardServices)[52] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.970840 dasd(RunningBoardServices)[94] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.972646 UserEventAgent(RunningBoardServices)[30] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:41.973061 dasd(RunningBoardServices)[94] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.973434 dasd(RunningBoardServices)[94] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.975072 runningboardd(RunningBoard)[33] <Debug>: Removing assertion 33-47602-7535 on application<dev.selfhost.firstActivationProbe>
+Aug 27 21:27:41.976700 runningboardd(RunningBoard)[33] <Debug>: Updating events for assertion: 33-47602-7535 (target:application<dev.selfhost.firstActivationProbe>)
+Aug 27 21:27:41.977610 runningboardd(RunningBoard)[33] <Debug>: Removing events for context: 33-47602-7535 (target:application<dev.selfhost.firstActivationProbe>)
+Aug 27 21:27:41.980380 runningboardd(RunningBoard)[33] <Debug>: > application<dev.selfhost.firstActivationProbe> ['injecting inherited from "UIScene:com.apple.frontboard.systemappservices::com.apple.springboard" to 50643<UIScene:com.apple.frontboard.systemappservices::sceneID%3Adev.selfhost.firstActivationProbe-default>'] [33-47602-7539]
+Aug 27 21:27:41.980607 runningboardd(RunningBoard)[33] <Debug>: > application<dev.selfhost.firstActivationProbe> ['FBWorkspace (ForegroundFocal)'] [33-47602-7541]
+Aug 27 21:27:41.981535 runningboardd(RunningBoard)[33] <Debug>: > application<dev.selfhost.firstActivationProbe> ['com.apple.frontboard.after-life.interrupted'] [33-47602-7537]
+Aug 27 21:27:41.983256 runningboardd(RunningBoard)[33] <Info>: application<dev.selfhost.firstActivationProbe> is now targeted by 4 assertions
+Aug 27 21:27:41.984167 runningboardd(RunningBoard)[33] <Debug>: > 47602 ['injecting inherited from "UIScene:com.apple.frontboard.systemappservices::com.apple.springboard" to 50643<UIScene:com.apple.frontboard.systemappservices::sceneID%3Adev.selfhost.firstActivationProbe-default>'] [33-47602-7539]
+    <RBSInheritance| environment:UIScene:com.apple.frontboard.systemappservices::sceneID%3Adev.selfhost.firstActivationProbe-default name:com.apple.frontboard.visibility origID:33-47602-7539 payload>,
+Aug 27 21:27:41.985909 powerd[43] <Notice>: Process runningboardd.33 Released SystemIsActive "application<dev.selfhost.firstActivationProbe>;(null):(null);33-47602-7535:FBApplicationProcess" age:00:00:01  id:51539649966 [System: SysAct]
+Aug 27 21:27:41.986174 Runner(RunningBoardServices)[50643] <Debug>: Received message from server: async_didChangeInheritances:completion:
+Aug 27 21:27:41.986602 runningboardd(RunningBoard)[33] <Info>: [application<dev.selfhost.firstActivationProbe>:50643] Applying updated state
+Aug 27 21:27:41.986722 Runner(RunningBoardServices)[50643] <Info>: didChangeInheritances
+Aug 27 21:27:41.987109 runningboardd(RunningBoard)[33] <Notice>: Calculated state for application<dev.selfhost.firstActivationProbe>: running-active (role: UserInteractiveFocal)
+Aug 27 21:27:41.987273 Runner(RunningBoardServices)[50643] <Info>: didChangeInheritances: <RBSInheritanceChangeSet| gained:(null) lost:{(
+Aug 27 21:27:41.987640 runningboardd(RunningBoard)[33] <Debug>: Sending state update for application<dev.selfhost.firstActivationProbe>: <RBSProcessState| task:running-active debug:none terminationResistance:Interactive endowments:[
+	<RBSProcessAssertionInfo| type:1 reason:0 name:"Custom" domain:"(null)" expl:"injecting inherited from "UIScene:com.apple.frontboard.systemappservices::com.apple.springboard" to 50643<UIScene:com.apple.frontboard.systemappservices::sceneID%3Adev.selfhost.firstActivationProbe-default>">
+Aug 27 21:27:41.988071 runningboardd(RunningBoard)[33] <Debug>: BEGIN suppressing state updates for application<dev.selfhost.firstActivationProbe>
+Aug 27 21:27:41.988363 mediaserverd(RunningBoardServices)[36] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.988654 SpringBoard(RunningBoardServices)[47602] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.988823 mediaserverd(RunningBoardServices)[36] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.989034 runningboardd(RunningBoard)[33] <Debug>: Incrementing suppression state to 1 for application<dev.selfhost.firstActivationProbe>
+Aug 27 21:27:41.989393 SpringBoard(RunningBoardServices)[47602] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.989657 SpringBoard(RunningBoardServices)[47602] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.990840 kbd(RunningBoardServices)[303] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.991075 SpringBoard(RunningBoardServices)[47602] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.991248 SpringBoard(RunningBoardServices)[47602] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.992797 UserEventAgent(RunningBoardServices)[30] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+	<RBSProcessAssertionInfo| type:1 reason:0 name:"Custom" domain:"(null)" expl:"injecting inherited from "UIScene:com.apple.frontboard.systemappservices::com.apple.springboard" to 50643<UIScene:com.apple.frontboard.systemappservices::sceneID%3Adev.selfhost.firstActivationProbe-default>">
+Aug 27 21:27:41.994589 backboardd(RunningBoardServices)[65] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:41.994776 watchdogd(RunningBoardServices)[57] <Debug>: Received message from server: async_observedProcessStatesDidChange:completion:
+Aug 27 21:27:41.996173 CommCenter(RunningBoardServices)[90] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:42.000920 watchdogd(RunningBoardServices)[57] <Info>: observedProcessStatesDidChange
+Aug 27 21:27:42.001081 watchdogd(RunningBoardServices)[57] <Debug>: Decoded RBSProcessHandle with IPC ID fdcfbf40000c5d3
+Aug 27 21:27:42.001307 watchdogd(RunningBoardServices)[57] <Notice>: Received state update for 50643
+Aug 27 21:27:42.004499 aggregated(RunningBoardServices)[50213] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:42.004730 locationd(RunningBoardServices)[69] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:42.005036 contextstored(RunningBoardServices)[61] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:42.005379 symptomsd(RunningBoardServices)[170] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:42.005831 watchdogd(RunningBoardServices)[57] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:42.006096 callservicesd(RunningBoardServices)[131] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:42.007500 dasd(RunningBoardServices)[94] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:42.007790 useractivityd(RunningBoardServices)[184] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:42.008028 wifid(RunningBoardServices)[52] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:42.008805 dasd(RunningBoardServices)[94] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:42.009973 UserEventAgent(RunningBoardServices)[30] <Info>: Update delivered for [application<dev.selfhost.firstActivationProbe>:50643] with taskState 4
+Aug 27 21:27:42.010207 dasd(RunningBoardServices)[94] <Info>: Update skipped for [application<dev.selfhost.firstActivationProbe>:50643] with state: <RBSProcessState| task:running-active debug:none endowments:[
+Aug 27 21:27:42.014966 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:42.015360 runningboardd(RunningBoard)[33] <Debug>: Decrementing suppression state to 0 for application<dev.selfhost.firstActivationProbe>
+Aug 27 21:27:42.015563 runningboardd(RunningBoard)[33] <Debug>: END suppressing state updates for application<dev.selfhost.firstActivationProbe>
+Aug 27 21:27:42.124573 Runner(CoreFoundation)[50643] <Debug>: found no value for key QuickSpeak in CFPrefsSearchListSource<0x281d72580> (Domain: com.apple.Accessibility, Container: (null))
+Aug 27 21:27:42.124989 Runner(libAccessibility.dylib)[50643] <Debug>: CF Read: domain = com.apple.Accessibility, preference = QuickSpeak, appID = (null) result = (null) (-1 - empty, 0 - false, 1 - true)
+Aug 27 21:27:42.125282 Runner(CoreFoundation)[50643] <Debug>: found no value for key QuickSpeak in CFPrefsPlistSource<0x281d77400> (Domain: com.apple.Accessibility, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: No)
+Aug 27 21:27:42.567039 watchdogd[57] <Debug>: 1250110348710250: <private>
+Aug 27 21:27:42.569327 watchdogd[57] <Info>: 1250110349281416: <private>
+Aug 27 21:27:42.571084 watchdogd[57] <Debug>: 1250110349430500: <private>
+Aug 27 21:27:42.572899 watchdogd[57] <Info>: 1250110349442791: <private>
+Aug 27 21:27:42.574629 watchdogd[57] <Debug>: 1250110349566416: <private>
+Aug 27 21:27:42.576202 watchdogd[57] <Debug>: 1250110350069541: <private>
+Aug 27 21:27:42.578269 watchdogd[57] <Debug>: 1250110350561916: <private>
+Aug 27 21:27:42.580272 watchdogd[57] <Debug>: 1250110350775125: <private>
+Aug 27 21:27:42.582059 watchdogd[57] <Debug>: 1250110351112125: <private>
+Aug 27 21:27:42.583992 watchdogd[57] <Debug>: 1250110351262750: <private>
+Aug 27 21:27:42.585938 watchdogd[57] <Info>: 1250110351322083: <private>
+Aug 27 21:27:42.588019 watchdogd[57] <Info>: 1250110351337375: <private>
+Aug 27 21:27:42.589751 watchdogd[57] <Info>: 1250110351343500: <private>
+Aug 27 21:27:42.592076 watchdogd[57] <Info>: 1250110351348416: <private>
+Aug 27 21:27:42.593667 watchdogd[57] <Info>: 1250110351352958: <private>
+Aug 27 21:27:42.595096 watchdogd[57] <Info>: 1250110351357125: <private>
+Aug 27 21:27:42.597248 watchdogd[57] <Info>: 1250110351361250: <private>
+Aug 27 21:27:42.598814 watchdogd[57] <Info>: 1250110351365125: <private>
+Aug 27 21:27:42.600173 watchdogd[57] <Info>: 1250110352019666: <private>
+Aug 27 21:27:44.077607 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:44.078468 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:44.113153 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:44.402706 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -37 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 9 (S:0 O:0 I:0) TxPer: 0.0% (7) BcnPer: 2.1% (97, 50.5%) RxFrms: 9 RxRetryFrames: 2 TxRate: 24000 RxRate: 585000 FBRate: 468000 TxFwFrms: 2 TxFwFail: 0 TxReTrans: 2 time: 170.6secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:27:46.001000 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:46.449084 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:46.845345 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:49.022226 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:49.051532 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:49.129011 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:49.362529 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -37 {-36 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 39 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 2 RxRetryFrames: 0 TxRate: 24000 RxRate: 585000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 175.7secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:27:51.003315 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:51.478929 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:51.861229 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:52.567245 watchdogd[57] <Debug>: 1250120349435875: <private>
+Aug 27 21:27:52.569185 watchdogd[57] <Info>: 1250120350007458: <private>
+Aug 27 21:27:52.571145 watchdogd[57] <Debug>: 1250120350159791: <private>
+Aug 27 21:27:52.573064 watchdogd[57] <Info>: 1250120350171500: <private>
+Aug 27 21:27:52.574967 watchdogd[57] <Debug>: 1250120350294750: <private>
+Aug 27 21:27:52.577089 watchdogd[57] <Debug>: 1250120350804041: <private>
+Aug 27 21:27:52.579031 watchdogd[57] <Debug>: 1250120351208666: <private>
+Aug 27 21:27:52.580777 watchdogd[57] <Debug>: 1250120351795333: <private>
+Aug 27 21:27:52.582734 watchdogd[57] <Debug>: 1250120352220208: <private>
+Aug 27 21:27:52.584720 watchdogd[57] <Debug>: 1250120352657250: <private>
+Aug 27 21:27:52.586575 watchdogd[57] <Info>: 1250120352716625: <private>
+Aug 27 21:27:52.588594 watchdogd[57] <Info>: 1250120352731708: <private>
+Aug 27 21:27:52.590162 watchdogd[57] <Info>: 1250120352737875: <private>
+Aug 27 21:27:52.592084 watchdogd[57] <Info>: 1250120352742875: <private>
+Aug 27 21:27:52.593928 watchdogd[57] <Info>: 1250120352747208: <private>
+Aug 27 21:27:52.595961 watchdogd[57] <Info>: 1250120352751500: <private>
+Aug 27 21:27:52.597949 watchdogd[57] <Info>: 1250120352756083: <private>
+Aug 27 21:27:52.599288 watchdogd[57] <Info>: 1250120352760000: <private>
+Aug 27 21:27:54.021086 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:54.054206 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:54.115202 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:54.372733 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -36 {-35 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 39 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 1.0% (98, 50.5%) RxFrms: 3 RxRetryFrames: 0 TxRate: 24000 RxRate: 585000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 180.7secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:27:55.606823 runningboardd(RunningBoard)[33] <Info>: _requestedJetsamPriority = 4, _executablePath = /Developer/usr/bin/ScreenShotr
+Aug 27 21:27:55.617041 runningboardd(RunningBoard)[33] <Info>: _requestedJetsamPriority = 4, _executablePath = /Developer/usr/bin/ScreenShotr
+Aug 27 21:27:55.619369 SpringBoard(FrontBoard)[47602] <Notice>: Asked to bootstrap a new process for handle: [anon<ScreenShotr>:50647]
+Aug 27 21:27:55.623394 SpringBoard(FrontBoard)[47602] <Notice>: Bootstrapping anon<ScreenShotr>
+Aug 27 21:27:55.631218 runningboardd(RunningBoard)[33] <Debug>: Sending state update for anon<ScreenShotr>: <RBSProcessState| task:running debug:none terminationResistance:None>
+Aug 27 21:27:55.635559 SpringBoard(FrontBoard)[47602] <Notice>: [anon<ScreenShotr>:50647] Bootstrap success!
+Aug 27 21:27:55.812575 runningboardd(RunningBoard)[33] <Notice>: [anon<ScreenShotr>:50647] termination reported by launchd (0, 0, 0)
+Aug 27 21:27:55.813994 runningboardd(RunningBoard)[33] <Notice>: Removing assertions for terminated process: [anon<ScreenShotr>:50647]
+Aug 27 21:27:55.817596 runningboardd(RunningBoard)[33] <Debug>: Sending state update for anon<ScreenShotr>: <RBSProcessState| task:none debug:none terminationResistance:None>
+Aug 27 21:27:55.999568 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:56.448936 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:56.842007 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:59.017197 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:59.061037 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:59.111561 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:27:59.376874 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -36 {-36 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 39 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 1 RxRetryFrames: 0 TxRate: 24000 RxRate: 585000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 185.7secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:28:01.005358 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:01.448521 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:01.868900 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:02.557509 watchdogd[57] <Debug>: 1250130350063708: <private>
+Aug 27 21:28:02.557942 watchdogd[57] <Info>: 1250130350174666: <private>
+Aug 27 21:28:02.558319 watchdogd[57] <Debug>: 1250130350251041: <private>
+Aug 27 21:28:02.558726 watchdogd[57] <Debug>: 1250130350323583: <private>
+Aug 27 21:28:02.558984 watchdogd[57] <Info>: 1250130350325375: <private>
+Aug 27 21:28:02.559231 watchdogd[57] <Debug>: 1250130350391000: <private>
+Aug 27 21:28:02.559500 watchdogd[57] <Debug>: 1250130350461458: <private>
+Aug 27 21:28:02.559734 watchdogd[57] <Debug>: 1250130350594458: <private>
+Aug 27 21:28:02.560021 watchdogd[57] <Debug>: 1250130350664625: <private>
+Aug 27 21:28:02.560294 watchdogd[57] <Debug>: 1250130350697833: <private>
+Aug 27 21:28:02.560532 watchdogd[57] <Info>: 1250130350708125: <private>
+Aug 27 21:28:02.560768 watchdogd[57] <Info>: 1250130350711000: <private>
+Aug 27 21:28:02.561004 watchdogd[57] <Info>: 1250130350712166: <private>
+Aug 27 21:28:02.561239 watchdogd[57] <Info>: 1250130350713041: <private>
+Aug 27 21:28:02.561533 watchdogd[57] <Info>: 1250130350713791: <private>
+Aug 27 21:28:02.561864 watchdogd[57] <Info>: 1250130350714458: <private>
+Aug 27 21:28:02.562100 watchdogd[57] <Info>: 1250130350715166: <private>
+Aug 27 21:28:02.562334 watchdogd[57] <Info>: 1250130350715750: <private>
+Aug 27 21:28:04.020972 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:04.056456 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:04.111412 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:04.392213 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -36 {-36 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 20 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 1.0% (98, 50.5%) RxFrms: 3 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 2 TxFwFail: 0 TxReTrans: 0 time: 190.7secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:28:05.999386 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:06.445804 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:06.840909 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:09.020854 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:09.067775 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:09.114011 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:09.412184 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -37 {-36 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 29 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 4 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 195.7secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:28:10.998666 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:11.447788 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:11.497759 runningboardd(RunningBoard)[33] <Notice>: [daemon<com.apple.backupd>:50644] termination reported by launchd (0, 0, 0)
+Aug 27 21:28:11.502993 runningboardd(RunningBoard)[33] <Notice>: Removing assertions for terminated process: [daemon<com.apple.backupd>:50644]
+Aug 27 21:28:11.507787 runningboardd(RunningBoard)[33] <Debug>: Sending state update for daemon<com.apple.backupd>: <RBSProcessState| task:none debug:none terminationResistance:None>
+Aug 27 21:28:11.862998 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:12.593668 watchdogd[57] <Debug>: 1250140350354208: <private>
+Aug 27 21:28:12.594312 watchdogd[57] <Info>: 1250140350918208: <private>
+Aug 27 21:28:12.594925 watchdogd[57] <Debug>: 1250140351150166: <private>
+Aug 27 21:28:12.595537 watchdogd[57] <Debug>: 1250140351226166: <private>
+Aug 27 21:28:12.596156 watchdogd[57] <Info>: 1250140351231833: <private>
+Aug 27 21:28:12.596842 watchdogd[57] <Debug>: 1250140351536208: <private>
+Aug 27 21:28:12.597493 watchdogd[57] <Debug>: 1250140351881916: <private>
+Aug 27 21:28:12.598117 watchdogd[57] <Debug>: 1250140352043500: <private>
+Aug 27 21:28:12.599018 watchdogd[57] <Debug>: 1250140352252375: <private>
+Aug 27 21:28:12.600478 watchdogd[57] <Debug>: 1250140352275333: <private>
+Aug 27 21:28:12.601224 watchdogd[57] <Info>: 1250140352306958: <private>
+Aug 27 21:28:12.601837 watchdogd[57] <Info>: 1250140352316125: <private>
+Aug 27 21:28:12.602448 watchdogd[57] <Info>: 1250140352319541: <private>
+Aug 27 21:28:12.603056 watchdogd[57] <Info>: 1250140352322208: <private>
+Aug 27 21:28:12.603668 watchdogd[57] <Info>: 1250140352324708: <private>
+Aug 27 21:28:12.604321 watchdogd[57] <Info>: 1250140352326958: <private>
+Aug 27 21:28:12.605454 watchdogd[57] <Info>: 1250140352329333: <private>
+Aug 27 21:28:12.606121 watchdogd[57] <Info>: 1250140352331625: <private>
+Aug 27 21:28:12.606785 watchdogd[57] <Info>: 1250140352710666: <private>
+Aug 27 21:28:14.018829 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:14.054193 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:14.135408 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:14.417628 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 29 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 1.0% (98, 50.5%) RxFrms: 6 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 200.7secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:28:16.031343 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:16.447983 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:16.846730 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:19.024490 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:19.058176 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:19.113741 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:19.429296 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -37 {-36 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 42 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 2 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 205.7secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:28:21.001701 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:21.447335 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:21.843659 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:22.566052 watchdogd[57] <Debug>: 1250150351067916: <private>
+Aug 27 21:28:22.567899 watchdogd[57] <Info>: 1250150351661333: <private>
+Aug 27 21:28:22.569928 watchdogd[57] <Debug>: 1250150351813916: <private>
+Aug 27 21:28:22.571784 watchdogd[57] <Info>: 1250150351825916: <private>
+Aug 27 21:28:22.573690 watchdogd[57] <Debug>: 1250150351952875: <private>
+Aug 27 21:28:22.575615 watchdogd[57] <Debug>: 1250150352476958: <private>
+Aug 27 21:28:22.577139 watchdogd[57] <Debug>: 1250150352900916: <private>
+Aug 27 21:28:22.578424 watchdogd[57] <Debug>: 1250150353677583: <private>
+Aug 27 21:28:22.580140 watchdogd[57] <Debug>: 1250150353717875: <private>
+Aug 27 21:28:22.582170 watchdogd[57] <Debug>: 1250150354378000: <private>
+Aug 27 21:28:22.583894 watchdogd[57] <Info>: 1250150354437166: <private>
+Aug 27 21:28:22.585929 watchdogd[57] <Info>: 1250150354452208: <private>
+Aug 27 21:28:22.587812 watchdogd[57] <Info>: 1250150354458166: <private>
+Aug 27 21:28:22.589668 watchdogd[57] <Info>: 1250150354463000: <private>
+Aug 27 21:28:22.591370 watchdogd[57] <Info>: 1250150354467500: <private>
+Aug 27 21:28:22.593387 watchdogd[57] <Info>: 1250150354471708: <private>
+Aug 27 21:28:22.595352 watchdogd[57] <Info>: 1250150354475958: <private>
+Aug 27 21:28:22.596592 watchdogd[57] <Info>: 1250150354479916: <private>
+Aug 27 21:28:24.017341 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:24.049151 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:24.113350 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:24.444448 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -37 {-36 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 34 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (98, 50.5%) RxFrms: 4 RxRetryFrames: 0 TxRate: 24000 RxRate: 866667 FBRate: 468000 TxFwFrms: 5 TxFwFail: 0 TxReTrans: 0 time: 210.7secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:28:26.001576 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:26.445639 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:26.843106 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
