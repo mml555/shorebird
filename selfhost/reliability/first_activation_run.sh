@@ -37,6 +37,55 @@ note() { printf '  %s\n' "$*"; }
 die()  { printf '  ERROR: %s\n' "$*" >&2; exit 2; }
 
 case "$CMD" in
+armauto)
+  # THE LABEL IS DERIVED FROM STATE, NOT FROM INTENTION.
+  #
+  # Twice an "acquisition" run was armed after the acquisition had already
+  # happened, because the acquiring launch does not wait for the operator to be at
+  # the phone. Both had to be voided. Intention is the wrong input: the device
+  # already knows which kind of tap comes next, so ask it.
+  #
+  #   new patch absent, next_boot still old        -> ACQ
+  #   next_boot = new, last_booted = old           -> A, first activation
+  #   next_boot = last_booted                      -> B, established
+  #
+  # `armauto <generation>` pulls state, derives the suffix, and arms
+  # `<generation>_<ACQ|A_first_activation|B_established>`.
+  GEN="$RUN"
+  PROBE=$(mktemp -d); trap 'rm -rf "$PROBE"' EXIT
+  ios-deploy --download --bundle_id "$BUNDLE" --to "$PROBE" >/dev/null 2>&1
+  PJ="$PROBE/Library/Application Support/shorebird/shorebird_updater/pointers.json"
+  [[ -f "$PJ" ]] || die "cannot read updater state -- is the app installed?"
+  nb=$(python3 -c "import json;print(json.load(open('$PJ')).get('next_boot_patch') or 0)")
+  lb=$(python3 -c "import json;print(json.load(open('$PJ')).get('last_booted_patch') or 0)")
+
+  if [[ "$nb" != "$lb" ]]; then
+    suffix="A_first_activation"
+    why="next_boot=$nb last_booted=$lb -- a new patch is staged and has never booted"
+  else
+    # Same pointer both sides: established, UNLESS the server is offering something
+    # newer that this device has not taken yet.
+    offered=""
+    if [[ -n "${SHOREBIRD_TOKEN:-}" && -n "${FA_APP_ID:-}" && -n "${FA_RELEASE:-}" ]]; then
+      offered=$(curl -sS -X POST -H "Authorization: Bearer $SHOREBIRD_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "{\"app_id\":\"$FA_APP_ID\",\"release_version\":\"$FA_RELEASE\",\"patch_number\":$lb,\"platform\":\"ios\",\"arch\":\"aarch64\",\"channel\":\"stable\",\"supported_patch_kinds\":[\"code\",\"assets\"]}" \
+        "${FA_BASE:-http://10.0.0.7:18080}/api/v1/patches/check" 2>/dev/null \
+        | python3 -c "import json,sys;d=json.load(sys.stdin);p=d.get('patch');print(p.get('number') if p else '')" 2>/dev/null || true)
+    fi
+    if [[ -n "$offered" && "$offered" -gt "$lb" ]]; then
+      suffix="ACQ"
+      why="next_boot=last_booted=$lb, server offers patch $offered -- not yet acquired"
+    else
+      suffix="B_established"
+      why="next_boot=last_booted=$lb, nothing newer offered -- established"
+    fi
+  fi
+  note "state-derived label: $suffix"
+  note "  $why"
+  exec bash "${BASH_SOURCE[0]}" arm "${GEN}_${suffix}"
+  ;;
+
 arm)
   [[ -e "$D" ]] && die "$D already exists -- runs are immutable, pick a new id"
   mkdir -p "$D"
