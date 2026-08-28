@@ -30,6 +30,24 @@ C=r12-discovery-rp
 note() { printf '   %s\n' "$*"; }
 say()  { printf '\n== %s ==\n' "$*"; }
 
+# CONTAINER REUSE IS A HAZARD, NOT A CONVENIENCE. Reusing a running container
+# silently carries its ORIGINAL environment: a run started after GRADLE_OPTS was
+# added reused a container created before it, so the OOM remedy was absent while
+# the log looked correct. Reuse only if the environment still matches, and say so
+# either way.
+want_opts="-Xmx3g -Dorg.gradle.daemon=false -Dorg.gradle.vfs.watch=false -Dorg.gradle.workers.max=2"
+if docker ps --format '{{.Names}}' | grep -qx "$C"; then
+  have_opts="$(docker exec "$C" printenv GRADLE_OPTS 2>/dev/null || true)"
+  if [[ "$have_opts" != "$want_opts" ]]; then
+    say "recreating the discovery container — its environment is stale"
+    note "GRADLE_OPTS in container: '${have_opts:-<empty>}'"
+    note "GRADLE_OPTS wanted      : '$want_opts'"
+    docker rm -f "$C" >/dev/null 2>&1
+  else
+    note "reusing the discovery container (environment matches)"
+  fi
+fi
+
 if ! docker ps --format '{{.Names}}' | grep -qx "$C"; then
   say "creating the release/patch discovery container"
   docker rm -f "$C" >/dev/null 2>&1
