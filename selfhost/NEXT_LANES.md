@@ -1,4 +1,25 @@
-# What is open after P6 closure — 2026-08-27
+# What is open after P6 closure
+
+> ### STATE UPDATE — 2026-08-28
+>
+>     Epoch B                        ACTIVATED at f9d784ad, COLLECTING from zero
+>     First-activation disappearance CLOSED -- NOT REPRODUCED (evidence 78c9324a)
+>                                    historical events remain unexplained
+>     NEXT ACTIVE                    CI / noninteractive -- Linux builder
+>     DEFERRED                       Add-to-App; formatting-only engine rebuild
+>
+> Sections 1 and 2 below were written before either outcome and are kept for the
+> reasoning they record, not as current status.
+>
+> **Frozen operational rule from the reliability lane:**
+>
+>     WILL_TERMINATE = orderly termination
+>     WILL_TERMINATE != identity of initiator
+>
+> And its generalisation, which cost nine defects to learn: **observational
+> tooling must be treated as potentially causal until independently validated.**
+> Every instrumentation defect found in that lane would have biased toward
+> *finding* a problem.
 
 P6 workflow certification is **CLOSED**: 8 CERTIFIED, 0 UNCERTIFIED, 1 BLOCKED
 (CI, on a Linux builder), 1 NOT ASSESSED (Add-to-App). Signing does not reopen.
