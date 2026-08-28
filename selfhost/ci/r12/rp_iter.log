@@ -21,7 +21,7 @@
    exit: 64  log: /r12out/disc/detector_selftest_json.log
    exit: 64 (expected 64)   interactive_prompt_required: 1 (expected >=1)
    host                     : Linux
-   release version          : 0.9.30+30
+   release version          : 0.9.12+12
 
 == arm 1 — release, NO --json ==
    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird release android --no-confirm)
@@ -29,7 +29,7 @@
    arm 1 release FAILED (exit 70)
 
 == arm 2 — patch, WITH --json ==
-   cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird --json patch android --no-confirm --release-version 0.9.30+30)
+   cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird --json patch android --no-confirm --release-version 0.9.12+12)
    exit: 70  log: /r12out/disc/ci_run_json.log
    arm 2 FAILED (exit 70)
    interactive_prompt_required in arm 2: 0 (expected 0)

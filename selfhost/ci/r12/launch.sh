@@ -25,6 +25,8 @@ PRODUCER="${R12_PRODUCER_REVISION:-fc184af6509a93eaf6fc068c6820639b324175a8}"
 # enough, because sealed.caddy still serves cache hits and the production mirror
 # is warm.
 CDN="${R12_CDN:-http://host.docker.internal:8085}"
+# Passed as data, never mounted. Public certificate, not a secret.
+CA_FILE="${R12_CA_FILE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../cdn/tls-r12" 2>/dev/null && pwd)/ca.crt}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EVIDENCE="${R12_EVIDENCE_DIR:-$HERE/../../evidence/r12-linux-ci}"
 
@@ -97,6 +99,7 @@ docker run --name "$CNAME" --platform linux/amd64 -i \
   -e SHOREBIRD_HOSTED_URL="${SHOREBIRD_HOSTED_URL:-http://host.docker.internal:18081}" \
   -e SHOREBIRD_TOKEN="${SHOREBIRD_TOKEN:-}" \
   -e R12_BOOTSTRAP_ONLY="${R12_BOOTSTRAP_ONLY:-0}" \
+  -e R12_CA_PEM="$([[ -r "$CA_FILE" ]] && cat "$CA_FILE")" \
   r12-builder:substrate \
   bash -c 'mkdir -p /r12home && cat > /run_arm.sh && chmod +x /run_arm.sh && exec /run_arm.sh' \
   < "$HERE/run_arm.sh"

@@ -19,7 +19,10 @@ set -uo pipefail
 : "${R12_REPO_SHA:?set R12_REPO_SHA}"
 MAXIT="${MAXIT:-30}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SEALED=http://host.docker.internal:8086
+# HTTPS, because Gradle 9 refuses insecure Maven repositories and
+# FLUTTER_STORAGE_BASE_URL becomes one during an Android release build.
+SEALED="${R12_CDN:-https://host.docker.internal:8087}"
+CA_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../cdn/tls-r12" && pwd)/ca.crt"
 CP="${SHOREBIRD_HOSTED_URL:-http://host.docker.internal:18081}"
 APP=/r12src/selfhost/fixtures/android_signing_app
 C=r12-discovery-rp
@@ -38,7 +41,16 @@ if ! docker ps --format '{{.Names}}' | grep -qx "$C"; then
     -e SHOREBIRD_STORAGE_BUCKET=download.shorebird.dev \
     -e SHOREBIRD_HOSTED_URL="$CP" \
     -e SHOREBIRD_TOKEN="$SHOREBIRD_TOKEN" \
+    -e R12_CA_PEM="$(cat "$CA_FILE")" \
     r12-builder:substrate sleep infinity >/dev/null
+  # Same two trust stores the decisive arm installs into, for the same reason:
+  # Gradle does not read the system bundle.
+  docker exec "$C" bash -c '
+    printf "%s\n" "$R12_CA_PEM" > /usr/local/share/ca-certificates/selfhost-cdn.crt
+    update-ca-certificates >/dev/null 2>&1
+    "${JAVA_HOME}/bin/keytool" -importcert -cacerts -storepass changeit -noprompt \
+      -alias selfhost-cdn-mirror -file /usr/local/share/ca-certificates/selfhost-cdn.crt \
+      >/dev/null 2>&1' || { echo "CA trust failed"; exit 1; }
   docker exec "$C" bash -c "
     mkdir -p /r12home &&
     git clone --quiet --filter=blob:none https://github.com/mml555/shorebird.git /r12src &&

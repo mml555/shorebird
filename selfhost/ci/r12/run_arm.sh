@@ -58,6 +58,35 @@ note "caches                   : none present"
 [[ -z "${CI:-}${GITHUB_ACTIONS:-}${JENKINS_URL:-}" ]] || die "CI vars set; see the harness header"
 note "CI detection vars        : none set"
 
+# ------------------------------------------------- 1b. trust our CA ---------
+# Gradle 9 refuses insecure Maven repositories, and FLUTTER_STORAGE_BASE_URL
+# becomes a Maven repository during an Android release build:
+#
+#   Using insecure protocols with repositories, without explicit opt-in,
+#   is unsupported.
+#
+# So the mirror is reached over HTTPS with validation ENFORCED. The alternative,
+# a Gradle init script allowing insecure protocols, would make this arm prove
+# less than accept_android_default.sh already does.
+#
+# The CA arrives as data in R12_CA_PEM rather than as a mount, so the "no host
+# mounts" boundary is untouched. It goes into BOTH trust stores: the system
+# bundle for curl/Dart and the JDK's for Gradle, which does not read the system
+# one.
+if [[ -n "${R12_CA_PEM:-}" ]]; then
+  say "trusting the mirror CA"
+  printf '%s\n' "$R12_CA_PEM" > /usr/local/share/ca-certificates/selfhost-cdn.crt
+  update-ca-certificates >/dev/null 2>&1 || die "update-ca-certificates failed"
+  "${JAVA_HOME:-/usr/lib/jvm/java-21-openjdk-amd64}/bin/keytool" -importcert \
+    -cacerts -storepass changeit -noprompt -alias selfhost-cdn-mirror \
+    -file /usr/local/share/ca-certificates/selfhost-cdn.crt >/dev/null 2>&1 \
+    || die "could not import the CA into the JDK trust store"
+  note "CA installed             : system bundle + JDK cacerts"
+  # Prove it before anything depends on it: validation ON, no -k.
+  code="$(curl -sS -o /dev/null -m 30 -w '%{http_code}' "$FLUTTER_STORAGE_BASE_URL/" 2>&1 || echo FAIL)"
+  note "mirror over TLS          : $FLUTTER_STORAGE_BASE_URL -> $code (CA validation enforced)"
+fi
+
 # ------------------------------------------------- 2. owned toolchain -------
 say "bootstrap the OWNED toolchain"
 note "repo                     : $R12_REPO_URL"
