@@ -25,6 +25,7 @@
 set -uo pipefail
 
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO=${REPO:-$(cd "$HERE/../.." && pwd)}
 RUNS=${RUNS:-$HERE/first_activation_runs}
 BUNDLE=${BUNDLE:-dev.selfhost.firstActivationProbe}
 CMD=${1:-}
@@ -216,6 +217,51 @@ collect)
       grep -iE "Runner|Jetsam|rstActivation" "$D/crashreports_new.txt" | sed 's/^/    /' || echo "    (none)"
     fi
   } >> "$D/manifest.txt"
+  # ---------------------------------------------------------------------------
+  # SIZE GUARD, fail-closed.
+  #
+  # A run must not be able to smuggle something huge into the repository. It
+  # already happened once: moving the capture to RAW removed the filter that had
+  # been keeping these files at 1-3k lines, and an 80 MB unfiltered device syslog
+  # -- every app and daemon on the phone, not just this fixture -- was committed
+  # and pushed to a PUBLIC fork before anyone looked. A later arm reached 320 MB.
+  #
+  # WHAT IT CHECKS: files this run created that git WOULD actually commit. Using
+  # `git check-ignore` rather than a name list is the point -- syslog_raw.log is
+  # expected to be enormous and is ignored, so it must not trip the guard, while
+  # anything large that is NOT ignored is exactly the case we cannot foresee.
+  #
+  # WHAT IT DOES NOT DO: delete. The oversized file is preserved and the run is
+  # marked HARNESS_ERROR. Deleting would destroy the evidence of the defect that
+  # produced it -- the same reason a stalled capture is graded rather than hidden.
+  MAX_MB=${MAX_MB:-8}
+  oversized=""
+  while IFS= read -r f; do
+    [[ -f "$f" ]] || continue
+    git -C "$REPO" check-ignore -q "$f" 2>/dev/null && continue   # ignored: fine
+    sz=$(stat -f%z "$f")
+    if (( sz > MAX_MB * 1024 * 1024 )); then
+      oversized+="    $(( sz / 1024 / 1024 )) MB  $f"$'\n'
+    fi
+  done < <(find "$D" -type f)
+
+  if [[ -n "$oversized" ]]; then
+    {
+      echo
+      echo "# --- HARNESS_ERROR: oversized committable artifact(s) ---"
+      echo "$oversized"
+      echo "  threshold: ${MAX_MB} MB. These files are NOT gitignored, so they"
+      echo "  would enter the repository. The run is marked HARNESS_ERROR and the"
+      echo "  files are PRESERVED, not deleted -- decide deliberately whether they"
+      echo "  are evidence worth keeping, evidence worth shrinking, or a defect."
+    } >> "$D/manifest.txt"
+    touch "$D/HARNESS_ERROR"
+    note "HARNESS_ERROR: oversized committable artifact(s), run NOT safe to bank:"
+    printf '%s' "$oversized"
+    note "  files preserved; see $D/manifest.txt"
+    exit 1
+  fi
+
   note "collected -> $D/manifest.txt"
   note "run the delayed crash pull later:  first_activation_run.sh delayed $RUN"
   ;;

@@ -93,6 +93,26 @@ happened", so health is measured and graded:
 Demonstrated live: re-running `collect` after the reader was gone reported
 `PARTIAL` rather than passing.
 
+### A size guard, fail-closed and non-deleting
+
+`collect` refuses to finish if this run created a file over `MAX_MB` (default 8)
+that git **would actually commit**. It marks the run `HARNESS_ERROR`, prints the
+path and size, and **preserves the file** rather than deleting it — deleting would
+destroy the evidence of the defect that produced it, the same reason a stalled
+capture is graded rather than hidden.
+
+The test is `git check-ignore`, not a filename list, and that is the point:
+`syslog_raw.log` is *expected* to be enormous and is ignored, so it must not trip
+the guard, while anything large that is **not** ignored is precisely the case
+nobody foresaw.
+
+It exists because of a real incident. Moving the capture to raw removed the filter
+that had been keeping these files at 1–3 k lines, and an **80 MB unfiltered device
+syslog** — every app and daemon on the phone, not just this fixture — was committed
+and pushed to a **public** fork before anyone looked. A later arm reached 320 MB.
+Both mutation directions are pinned: a 12 MB non-ignored file trips it and is
+preserved; the 320 MB ignored raw capture does not.
+
 ### Crash reports are reported as NEW-SINCE-ARM
 
 The device retains old reports. A raw listing showed three unrelated `Runner`
