@@ -160,9 +160,20 @@ runtime look broken.
 
 **Crash reports demonstrably work for this bundle on this device.** Bug 1 produced
 three `Runner-*.ips` files, retrieved immediately and correctly attributed. So the
-disappearance's total absence of reports across four pulls is not a rig
-limitation — reports work, and whatever kills that process does not produce one.
-That is evidence for buckets **F/G over E** before a single reproduction run.
+disappearance's absence of reports across four pulls cannot reasonably be
+dismissed as "crash reporting doesn't work on this rig."
+
+**Stated no more strongly than that.** It shifts evidence AWAY from **E** (an
+ordinary, report-producing native crash). It does **not** yet favour F or G over
+H: there is no positive jetsam, watchdog or system-termination evidence from any
+reproduced disappearance. The historical occurrence remains:
+
+    H -- post-success disappearance, OS reason unclassified
+
+`WILL_TERMINATE` will separate an orderly application termination from a kill, but
+its absence alone does not say whether the kernel, SpringBoard, a watchdog, jetsam
+or something else did the killing. Turning H into F or G needs a captured
+occurrence.
 
 ## Hard stop
 
