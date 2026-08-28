@@ -1,0 +1,10 @@
+Updating Flutter...
+Cloning into '/r12src/bin/cache/flutter/a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61'...
+HEAD is now at a4a3c0d1b shorebird_yaml: carry channel: into the compiled bundle
+Shorebird Engine • revision 69f9831c360d9152862ec3897c67fb09ae843f3b
+Downloading Linux x64 Dart SDK from Flutter engine 69f9831c360d9152862ec3897c67fb09ae843f3b...
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:01 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:02 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:03 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:04 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:05 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:06 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:07 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:08 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:09 --:--:--     0  0  140M    0    21    0     0      2      0 850d 14h  0:00:10 850d 14h     4
+curl: (18) end of response with 146984962 bytes missing

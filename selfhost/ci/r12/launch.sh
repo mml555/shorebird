@@ -38,9 +38,12 @@ say "preflight (host side)"
   || die "R12_REPO_SHA '$REPO_SHA' is not 40 lowercase hex. Branches are not
      provenance and a prefix is not a revision."
 
-[[ -n "${SHOREBIRD_TOKEN:-}" ]] \
-  || die "SHOREBIRD_TOKEN is unset. It is the one credential this arm needs and
-     it is deliberately not read out of any running container by this script."
+if [[ "${R12_BOOTSTRAP_ONLY:-0}" != "1" ]]; then
+  [[ -n "${SHOREBIRD_TOKEN:-}" ]] \
+    || die "SHOREBIRD_TOKEN is unset. It is the one credential a decisive arm
+     needs, and this script deliberately does not read it out of any running
+     container. For the toolchain checkpoint alone, set R12_BOOTSTRAP_ONLY=1."
+fi
 
 # The owned Flutter mirror must be up AND serving the pinned revision.
 docker ps --format '{{.Names}}' | grep -qx r12-flutter-git \
@@ -76,7 +79,8 @@ docker run --name "$CNAME" --platform linux/amd64 -i \
   -e SHOREBIRD_FLUTTER_GIT_URL="git://host.docker.internal:9418/flutter.git" \
   -e FLUTTER_STORAGE_BASE_URL="http://host.docker.internal:8085" \
   -e SHOREBIRD_HOSTED_URL="${SHOREBIRD_HOSTED_URL:-http://host.docker.internal:18081}" \
-  -e SHOREBIRD_TOKEN="$SHOREBIRD_TOKEN" \
+  -e SHOREBIRD_TOKEN="${SHOREBIRD_TOKEN:-}" \
+  -e R12_BOOTSTRAP_ONLY="${R12_BOOTSTRAP_ONLY:-0}" \
   r12-builder:substrate \
   bash -c 'mkdir -p /r12home && cat > /run_arm.sh && chmod +x /run_arm.sh && exec /run_arm.sh' \
   < "$HERE/run_arm.sh"

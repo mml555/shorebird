@@ -21,7 +21,14 @@ die()  { printf '\nSTOP: %s\n' "$*" >&2; exit 1; }
 
 : "${R12_REPO_URL:?}"; : "${R12_REPO_SHA:?}"
 : "${SHOREBIRD_FLUTTER_GIT_URL:?}"; : "${FLUTTER_STORAGE_BASE_URL:?}"
-: "${SHOREBIRD_HOSTED_URL:?}"; : "${SHOREBIRD_TOKEN:?}"
+: "${SHOREBIRD_HOSTED_URL:?}"
+# BOOTSTRAP-ONLY stops after the toolchain checkpoint and runs NO arm. It needs no
+# credential, and it must never be confused for a decisive run: a placeholder token
+# would make the arms measure the auth path instead of the guard, which the frozen
+# harness warns about in as many words.
+BOOTSTRAP_ONLY="${R12_BOOTSTRAP_ONLY:-0}"
+if [[ "$BOOTSTRAP_ONLY" != "1" ]]; then : "${SHOREBIRD_TOKEN:?}"; fi
+SHOREBIRD_TOKEN="${SHOREBIRD_TOKEN:-}"
 : "${R12_ARM_LABEL:?}"; : "${R12_RELEASE_VERSION:?}"
 export SHOREBIRD_FLUTTER_GIT_URL FLUTTER_STORAGE_BASE_URL SHOREBIRD_HOSTED_URL SHOREBIRD_TOKEN
 
@@ -87,6 +94,15 @@ flutter_sha="$(git -C "/r12src/bin/cache/flutter/$pinned" rev-parse HEAD 2>/dev/
 note "bootstrapped flutter sha : $flutter_sha"
 [[ "$flutter_sha" == "$pinned" ]] \
   || die "bootstrapped Flutter is $flutter_sha, not the pinned $pinned"
+
+if [[ "$BOOTSTRAP_ONLY" == "1" ]]; then
+  say "BOOTSTRAP-ONLY — THIS IS NOT A DECISIVE ARM"
+  note "The owned toolchain bootstrapped on clean Linux/x64. NO release and NO"
+  note "patch ran, no credential was used, and nothing here bears on R12's"
+  note "release/patch rows. It discharges exactly one checkpoint: that the"
+  note "supported environment is CONSTRUCTIBLE from owned bytes."
+  exit 0
+fi
 
 # ------------------------------------------------ 3. ephemeral signing ------
 # A prerequisite for producing a release artifact, and NOTHING MORE. R12 asserts
