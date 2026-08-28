@@ -102,5 +102,48 @@ if [[ "$rows" -eq 0 ]]; then
 fi
 ok "closure manifest rows for this engine: $rows"
 
+# ---- the addressing itself, not just the artifacts ------------------------
+# THE CLOSURE IS ONLY MEANINGFUL RELATIVE TO THE MANIFEST THAT ADDRESSES IT.
+# artifacts_manifest.yaml at the supported engine declares
+# flutter_engine_revision, and the artifact proxy uses it to remap requests for
+# everything NOT in artifact_overrides:
+#
+#   client   /flutter_infra_release/flutter/69f9831c…/sky_engine.zip
+#   proxy -> /gcs/flutter_infra_release/flutter/83675ed2…/sky_engine.zip
+#
+# Every owned path was discovered under that mapping. If the manifest changed,
+# the addresses would move and every artifact below could still verify while the
+# mirror served nothing — a closure that passes its own guard and fails in a
+# container. So the manifest is pinned by digest, and the revision it declares is
+# pinned too.
+MAPPING="${MAPPING:-$REPO/selfhost/evidence/r12-linux-ci/proxy_mapping.tsv}"
+MANIFEST="$OVERLAY/../../download.shorebird.dev/shorebird/$eng/artifacts_manifest.yaml"
+if [[ ! -r "$MAPPING" ]]; then
+  bad "proxy mapping record unreadable: $MAPPING"
+elif [[ ! -f "$MANIFEST" ]]; then
+  bad "artifacts_manifest.yaml NOT OWNED for engine $eng — the proxy's remap
+             table would come from upstream, so the closure addresses are unpinned"
+else
+  m_row="$(awk -F'\t' -v e="$eng" '$1==e{print; exit}' "$MAPPING")"
+  if [[ -z "$m_row" ]]; then
+    bad "no proxy mapping recorded for engine $eng"
+  else
+    want_sha="$(printf '%s' "$m_row" | cut -f2)"
+    want_rev="$(printf '%s' "$m_row" | cut -f3)"
+    got_sha="$(shasum -a 256 "$MANIFEST" | awk '{print $1}')"
+    got_rev="$(sed -nE 's/^flutter_engine_revision:[[:space:]]*([0-9a-f]{40}).*/\1/p' "$MANIFEST")"
+    if [[ "$got_sha" != "$want_sha" ]]; then
+      bad "artifacts_manifest.yaml DIGEST MISMATCH
+             on disk  $got_sha
+             recorded $want_sha
+             The closure addresses may have moved. Re-discover before trusting."
+    elif [[ "$got_rev" != "$want_rev" ]]; then
+      bad "flutter_engine_revision MOVED: $got_rev, recorded $want_rev"
+    else
+      ok "proxy mapping pinned: manifest ${got_sha:0:16}… -> flutter_engine_revision ${got_rev:0:16}…"
+    fi
+  fi
+fi
+
 [[ "$fail" -eq 0 ]] || die
 printf '\n  CLOSURE OK  %s -> %s  (%s artifacts, size + sha256 verified)\n' "$rev" "$eng" "$rows"
