@@ -71,13 +71,55 @@ while read -r kind path want; do
   fi
 done < <(grep -E '^(engine_updater|engine_cxx|vendor_updater|policy) ' "$BASELINE")
 
-# The certified identities recorded alongside the hashes must also still hold.
+# ---------------------------------------------------------------------------
+# THE RUNTIME MUST BE VERIFIED BY BYTES, NOT BY ITS STAMP.
+#
+# This block replaced a check that read `bin/internal/engine.version` and
+# declared "active cell is the certified one". That proved only what the stamp
+# SAYS -- and the exact counterexample is already measured in this project:
+#
+#     engine.version         4792f0ec
+#     engine.stamp           4792f0ec
+#     engine-dart-sdk.stamp  4792f0ec
+#     cached ios-release engine   ca7d2c0d's, a week old
+#     verdict                COHERENT
+#
+# An evidence harness whose whole purpose is "prove we reproduced against the
+# frozen certified runtime" cannot finish on the assumption that already failed.
+#
+# REUSES verify_toolchain_coherence.sh rather than inventing a second, weaker
+# comparison: its check 3b extracts each iOS mode's engine from THAT cell's own
+# published artifacts.zip and compares byte for byte. One implementation, one
+# place to fix.
+#
+# WITH ONE DELIBERATE DIFFERENCE. That script is a diagnostic and may report a
+# not-yet-cached engine as fine. An evidence gate must refuse: at capture time an
+# absent engine means identity was NOT ESTABLISHED, and absence is not a match.
+# So existence is asserted here as well.
 cell_want=$(awk '/^certified_cell /{print $2}' "$BASELINE")
-cell_got=$(tr -d '[:space:]' < "$HOME/.shorebird/bin/cache/flutter/$(tr -d '[:space:]' < "$HOME/.shorebird/bin/internal/flutter.version")/bin/internal/engine.version" 2>/dev/null || echo unreadable)
-if [[ "$cell_got" == "$cell_want" ]]; then
-  ok "active cell is the certified one (${cell_want:0:16})"
+FLUTTER_ROOT_GUESS="$HOME/.shorebird/bin/cache/flutter/$(tr -d '[:space:]' < "$HOME/.shorebird/bin/internal/flutter.version" 2>/dev/null)"
+
+for mode in ios ios-profile ios-release; do
+  cached="$FLUTTER_ROOT_GUESS/bin/cache/artifacts/engine/$mode/Flutter.xcframework/ios-arm64/Flutter.framework/Flutter"
+  if [[ ! -f "$cached" ]]; then
+    und "cached $mode engine is MISSING -- identity not established, and absent is not a match"
+  fi
+  pub="$REPO/selfhost/cdn/overlay/flutter_infra_release/flutter/$cell_want/$mode/artifacts.zip"
+  if [[ ! -f "$pub" ]]; then
+    und "published reference for $mode is MISSING at $pub -- nothing to compare against"
+  fi
+done
+
+coh=$(PLATFORM=ios bash "$REPO/selfhost/scripts/verify_toolchain_coherence.sh" 2>&1)
+coh_rc=$?
+if [[ "$coh_rc" -eq 0 ]] && printf '%s' "$coh" | grep -q 'COHERENT: 0 failure'; then
+  # Surface the per-mode byte verdicts, so a run's evidence records the digests
+  # rather than a bare "it passed".
+  printf '%s' "$coh" | grep -E 'cached engine IS this cell' | sed 's/^ *OK */  ok       /'
+  ok "engine byte identity VERIFIED against published cell ${cell_want:0:16}"
 else
-  bad "active cell is $cell_got, certified is $cell_want"
+  printf '%s' "$coh" | grep -E 'FAIL|cached engine is NOT' | sed 's/^ */  /'
+  bad "engine byte identity NOT VERIFIED -- see the coherence output above"
 fi
 
 echo

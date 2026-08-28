@@ -19,8 +19,37 @@ frozen, and `verify_frozen_surfaces.sh` enforces it by **bytes**:
 
 13 files across the shipping updater (the engine tree's `third_party/updater`,
 **not** `vendor/updater` — different trees, see `../UPDATER_CONTRACT.md`), the
-engine C++ boot path, the vendored mirror, and the policy surface. Plus the
-active cell.
+engine C++ boot path, the vendored mirror, and the policy surface.
+
+### The runtime is verified by BYTES, not by its stamp
+
+The first version of this guard ended by reading `bin/internal/engine.version`
+and declaring *"active cell is the certified one"*. That proved only what the
+stamp **says** — reintroducing, inside the evidence harness, the exact failure
+this project had already measured and fixed elsewhere:
+
+    engine.version / engine.stamp / engine-dart-sdk.stamp   4792f0ec
+    cached ios-release engine                               ca7d2c0d's, a week old
+    verdict                                                 COHERENT
+
+It now reuses `../scripts/verify_toolchain_coherence.sh`, whose check 3b extracts
+each iOS mode's engine from that cell's own published `artifacts.zip` and compares
+byte for byte — one implementation rather than a second, weaker one. With one
+deliberate difference: that script is a diagnostic and may report a not-yet-cached
+engine as fine, whereas an evidence gate must **refuse**, because at capture time
+an absent engine means identity was never established.
+
+| mutation | result |
+|---|---|
+| stamps say `4792f0ec`, cached engines are `ca7d2c0d`'s bytes | **REFUSE** — all three modes named with digests |
+| only `ios-profile` stale | **REFUSE** — names that mode alone |
+| published reference absent | **UNKNOWN → REFUSE** |
+| cached engine absent | **UNKNOWN → REFUSE** (not "not cached yet") |
+| `4792f0ec` stamps + `4792f0ec` bytes | **VERIFIED** |
+
+Every run's `frozen_surfaces.txt` records the per-mode digests, so a run's
+evidence carries the identity rather than a bare "it passed". The base release's
+own identity is banked once in `BASE_RELEASE_IDENTITY.md`.
 
 Mutation-tested three ways, because a guard that cannot fail is worse than none:
 
