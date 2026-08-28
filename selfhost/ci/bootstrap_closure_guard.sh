@@ -3,38 +3,39 @@
 #
 # THE STRUCTURAL ERROR THIS CATCHES. compatibility.yaml pins a Flutter revision;
 # that revision's bin/internal/engine.version names an engine; and the owned
-# artifact service must publish that engine's bootstrap artifacts. On
-# 2026-08-28 the third link was missing — no cell existed at 69f9831c… — and it
-# went unnoticed for the life of the project because every developer machine had
-# a warm ~/.shorebird cache and cell activation happens AFTER bootstrap. A cold
-# Linux container was the first thing that ever asked the question.
+# artifact service must publish that engine's bootstrap artifacts, byte for byte.
+# On 2026-08-28 the third link was missing — no cell existed at 69f9831c… — and
+# it went unnoticed for the life of the project because every developer machine
+# had a warm ~/.shorebird cache and cell activation happens AFTER bootstrap. A
+# cold Linux container was the first thing that ever asked the question.
 #
-#     compatibility.yaml -> flutter_revision -> engine.version -> owned cell
-#                                                                 ^^^^^^^^^^
-#                                                                 was empty
+#   compatibility.yaml -> flutter SHA -> owned mirror -> engine.version
+#     -> bootstrap_closure.tsv -> every named artifact -> size + SHA-256
 #
-# r12_revision_guard.sh protects the Route B producer revision. This is the same
-# idea one layer earlier: it refuses to let the supported toolchain be
-# unbuildable from what we actually host.
+# THE MANIFEST IS AUTHORITATIVE, NOT A LIST IN THIS FILE. An earlier version of
+# this guard carried a hardcoded filename and only tested `-s`. It would have
+# passed with engine_stamp.json deleted, and passed on a one-byte Dart SDK — so
+# the "permanent prevention mechanism" was weaker than the evidence it existed to
+# preserve. It now consumes the closure that was empirically discovered under
+# seal, so the guard and the evidence cannot drift apart.
 #
-# Deliberately does NOT fetch anything. It is a structural check over the pin,
-# the mirror and the overlay, so it is cheap enough to run in CI every time.
+# Deliberately fetches nothing: a structural + digest check over the pin, the
+# mirror and the overlay. Cheap enough to run on every self-hosted
+# toolchain/coherence validation — NOT a hosted-CI check, because it reads the
+# gitignored multi-gigabyte overlay and the local bare mirror, where a hosted
+# runner could only be vacuous or permanently red.
 set -uo pipefail
 
 REPO="${REPO:-/Users/mendell/shorebird}"
 OVERLAY="${OVERLAY:-$REPO/selfhost/cdn/overlay/flutter_infra_release/flutter}"
 MIRROR="${MIRROR:-$REPO/selfhost/cdn/mirrors/flutter.git}"
 COMPAT="${COMPAT:-$REPO/selfhost/compatibility.yaml}"
-
-# The artifacts a cold bootstrap needs, per supported host platform. Discovered
-# empirically against a sealed cold mirror (selfhost/ci/r12/discover_closure.sh)
-# rather than guessed — see evidence/r12-linux-ci/bootstrap_closure.tsv.
-: "${REQUIRED_LINUX:=dart-sdk-linux-x64.zip}"
+LEDGER="${LEDGER:-$REPO/selfhost/evidence/r12-linux-ci/bootstrap_closure.tsv}"
 
 fail=0
-ok()   { printf '  ok      %s\n' "$*"; }
-bad()  { printf '  REFUSE  %s\n' "$*"; fail=1; }
-die()  { printf '\n  GUARD FAILED\n'; exit 1; }
+ok()  { printf '  ok      %s\n' "$*"; }
+bad() { printf '  REFUSE  %s\n' "$*"; fail=1; }
+die() { printf '\n  GUARD FAILED\n'; exit 1; }
 
 echo "bootstrap closure guard"
 
@@ -52,7 +53,6 @@ eng="$(git -C "$MIRROR" show "$rev:bin/internal/engine.version" 2>/dev/null | tr
   || { bad "engine.version at $rev is not 40 hex: '${eng:-<empty>}'"; die; }
 ok "engine.version resolves: $eng"
 
-# The check that would have fired on 2026-08-28.
 if [[ ! -d "$OVERLAY/$eng" ]]; then
   bad "NO OWNED CELL at $OVERLAY/$eng"
   echo
@@ -65,13 +65,42 @@ if [[ ! -d "$OVERLAY/$eng" ]]; then
 fi
 ok "owned cell exists for the supported engine"
 
-for a in $REQUIRED_LINUX; do
-  if [[ -s "$OVERLAY/$eng/$a" ]]; then
-    ok "linux-x64 closure: $a ($(wc -c < "$OVERLAY/$eng/$a" | tr -d ' ') bytes)"
-  else
-    bad "linux-x64 closure MISSING: $a"
+[[ -r "$LEDGER" ]] || { bad "closure manifest unreadable: $LEDGER"; die; }
+
+# A manifest with no rows for the resolved engine is the same failure as a
+# missing cell, dressed up as a pass. Refuse it explicitly.
+rows=0
+while IFS=$'\t' read -r m_eng m_art m_bytes m_sha m_src; do
+  [[ "$m_eng" == "$eng" ]] || continue
+  rows=$((rows + 1))
+  f="$OVERLAY/$eng/$m_art"
+  if [[ ! -f "$f" ]]; then
+    bad "$m_art — MISSING from the owned cell"
+    continue
   fi
-done
+  a_bytes="$(wc -c < "$f" | tr -d ' ')"
+  if [[ "$a_bytes" != "$m_bytes" ]]; then
+    bad "$m_art — SIZE MISMATCH: on disk $a_bytes, manifest $m_bytes"
+    continue
+  fi
+  a_sha="$(shasum -a 256 "$f" | awk '{print $1}')"
+  if [[ "$a_sha" != "$m_sha" ]]; then
+    bad "$m_art — DIGEST MISMATCH
+             on disk  $a_sha
+             manifest $m_sha"
+    continue
+  fi
+  ok "$m_art  $a_bytes bytes  sha256 ${a_sha:0:16}…"
+done < <(tail -n +2 "$LEDGER")
+
+if [[ "$rows" -eq 0 ]]; then
+  bad "closure manifest names NO artifacts for engine $eng"
+  echo
+  echo "  An empty closure is not a satisfied closure. Discover it under seal"
+  echo "  (selfhost/ci/r12/discover_closure.sh) before trusting this guard."
+  die
+fi
+ok "closure manifest rows for this engine: $rows"
 
 [[ "$fail" -eq 0 ]] || die
-printf '\n  CLOSURE OK  %s -> %s\n' "$rev" "$eng"
+printf '\n  CLOSURE OK  %s -> %s  (%s artifacts, size + sha256 verified)\n' "$rev" "$eng" "$rows"

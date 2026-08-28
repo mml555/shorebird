@@ -103,3 +103,41 @@ overlay and the local bare mirror, so on a hosted GitHub runner it could only be
 vacuous or permanently red. It belongs on the self-hosted machine beside
 `verify_toolchain_coherence.sh`. Wiring it into `.github/workflows/` would
 reproduce exactly the class of check this project keeps rejecting.
+
+---
+
+## Guard hardening — the manifest is now authoritative
+
+The first version of the guard was weaker than the evidence it existed to
+preserve: it carried a hardcoded filename and tested only `-s`, so it would have
+passed with `engine_stamp.json` deleted and passed on a one-byte Dart SDK. That
+did not affect the sealed bootstrap evidence — the fresh-container run proves the
+bytes present are sufficient — but the *prevention mechanism* did not cover the
+closure it was protecting.
+
+It now consumes `bootstrap_closure.tsv` for the resolved engine and verifies
+**existence, exact byte count and exact SHA-256** for every named row, so the
+guard and the evidence cannot drift apart.
+
+    compatibility.yaml -> pinned Flutter SHA -> owned mirror -> engine.version
+      -> bootstrap_closure.tsv -> every named artifact -> size + SHA-256
+
+| mutation | result |
+|---|---|
+| control, unmodified sandbox | **PASS** — 2 artifacts, size + sha256 verified |
+| `engine_stamp.json` removed | REFUSE — MISSING from the owned cell |
+| Dart SDK truncated to 1 MB | REFUSE — SIZE MISMATCH 1000000 vs 146984983 |
+| Dart SDK corrupted, **same size** | REFUSE — DIGEST MISMATCH |
+| whole engine cell deleted | REFUSE — NO OWNED CELL |
+| owned mirror lacks the pin | REFUSE — the pin is not reproducible |
+| manifest names no rows for the engine | REFUSE — an empty closure is not a satisfied closure |
+| control, sandbox restored | **PASS** |
+
+Run against a cloned sandbox; the real overlay was never mutated, and the
+bracketing controls prove the sandbox itself was valid both before and after.
+
+**Invocation point:** `r12/launch.sh` now runs the guard in its preflight, so the
+closure is re-proved before every arm. It stays out of hosted CI by design — it
+reads the gitignored multi-gigabyte overlay and the local bare mirror, where a
+hosted runner could only be vacuous or permanently red. Move it to a self-hosted
+workflow when one exists.

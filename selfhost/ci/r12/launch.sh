@@ -39,6 +39,15 @@ say "preflight (host side)"
 "$HERE/../r12_revision_guard.sh" "$PRODUCER" \
   || die "producer revision refused by the guard"
 
+# THE INVOCATION POINT. A permanent guard nobody calls is documentation with an
+# exit code, so the closure is re-proved before every arm: pin -> owned mirror ->
+# engine.version -> manifest -> every artifact by size and SHA-256. It cannot
+# live in hosted CI (it reads the gitignored overlay and the local bare mirror),
+# so this is where it runs until a self-hosted workflow exists.
+"$HERE/../bootstrap_closure_guard.sh" \
+  || die "owned bootstrap closure is incomplete — see the guard output above.
+     Repair with r12/mirror_bootstrap_artifact.sh; do NOT move the Flutter pin."
+
 [[ "$REPO_SHA" =~ ^[0-9a-f]{40}$ ]] \
   || die "R12_REPO_SHA '$REPO_SHA' is not 40 lowercase hex. Branches are not
      provenance and a prefix is not a revision."
