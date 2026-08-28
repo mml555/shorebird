@@ -554,3 +554,14 @@ patch 5:
   would enter the repository. The run is marked HARNESS_ERROR and the
   files are PRESERVED, not deleted -- decide deliberately whether they
   are evidence worth keeping, evidence worth shrinking, or a defect.
+
+# --- raw capture pruned 2026-08-28T17:26:10Z ---
+  intentionally pruned after successful derivation of the filtered evidence
+  original_bytes   1451109875
+  sha256           88b9335cdfd19f2c6d63ed2f194d8dd73697426241b3871671ad62067ff4497c
+  evidence_commit  1969004997a195c42a8ed570dd3cbc7554c6e237
+  rationale        the raw device syslog carries unrelated device activity, so it
+                   is not retained once the filtered syslog, manifest, timeline,
+                   crash deltas, render, frozen-surface proof and updater state
+                   are banked. The hash does not make it recoverable; it records
+                   exactly what was discarded.

@@ -1,4 +1,32 @@
-# run_006 — a disappearance was reported. It classifies as **G**, and it is NOT clearly the historical phenomenon.
+# run_006 — RECLASSIFIED. **Not G.** Orderly termination proven; who initiated it is UNKNOWN.
+
+> **PM RULING, superseding the bucket-G assignment below.**
+>
+> `UIAPP_WILL_TERMINATE` establishes that the termination was **orderly**. It does
+> **not** establish *who asked* — the operator via the app switcher, or iOS. run_007
+> settled that decisively: an identical signature (`MEMORY_PRESSURE` →
+> `WILL_TERMINATE`) turned out to be the operator force-quitting, and the switcher
+> evidence was sitting in the capture the whole time.
+>
+> run_006 was an **unarmed** acquisition tap, so there is no syslog to check for
+> `DismissSwitcherNoninteractive`. The initiator cannot be recovered.
+>
+>     orderly termination   PROVEN
+>     operator initiated?   UNKNOWN
+>     system initiated?     UNKNOWN
+>     classification        NOT G · not in the controlled A/B population ·
+>                           retained as an incidental observation only
+>
+> **G requires positive evidence of system/lifecycle termination, not merely
+> `WILL_TERMINATE`.** Positively classified G events to date: **zero**. The "two
+> G terminations in a row" I reported collapses accordingly, and no
+> system-caused disappearance has been reproduced under observation.
+>
+> Its raw capture is retained (there is none — the tap was unarmed) and the run
+> stays open rather than closed against a bucket it does not support.
+
+# (original analysis, retained)
+
 
 Reported by the operator as *"crashed on tap one"* — the **acquisition** tap of
 generation 006, i.e. the launch that runs the already-established patch 4

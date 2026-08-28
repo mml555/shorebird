@@ -597,3 +597,14 @@ patch 5:
 # --- delayed crash pull 2026-08-28T17:20:24Z ---
   files: 23
   NEW since arm: 0
+
+# --- raw capture pruned 2026-08-28T17:26:11Z ---
+  intentionally pruned after successful derivation of the filtered evidence
+  original_bytes   24205206
+  sha256           22180d928797962c7d6103ffe433840365e6e78e2f6a194b24ff529888415f9f
+  evidence_commit  1969004997a195c42a8ed570dd3cbc7554c6e237
+  rationale        the raw device syslog carries unrelated device activity, so it
+                   is not retained once the filtered syslog, manifest, timeline,
+                   crash deltas, render, frozen-surface proof and updater state
+                   are banked. The hash does not make it recoverable; it records
+                   exactly what was discarded.
