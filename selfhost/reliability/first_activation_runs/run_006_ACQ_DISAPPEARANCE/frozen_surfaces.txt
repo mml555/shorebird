@@ -1,0 +1,21 @@
+frozen-surface check
+  baseline : /Users/mendell/shorebird/selfhost/reliability/FROZEN_BASELINE.txt
+  ok       engine_updater library/src/cache/lifecycle.rs (d047dda3467ff6b7)
+  ok       engine_updater library/src/cache/updater_state.rs (422628d66594ce5a)
+  ok       engine_updater library/src/updater.rs (d404cb7a6da99fb0)
+  ok       engine_updater library/src/events.rs (91472bb7c1ddc9cc)
+  ok       engine_updater library/src/c_api/engine.rs (d3fd8085a5dd814e)
+  ok       engine_cxx shell/common/shorebird/updater.cc (c42f04197ab6fd66)
+  ok       engine_cxx shell/common/shorebird/updater.h (0c4d21ec8ffab01c)
+  ok       engine_cxx shell/common/shorebird/shorebird.cc (dd18d4cdc7fa0779)
+  ok       engine_cxx runtime/dart_snapshot.cc (2cce02ddefc2b627)
+  ok       vendor_updater library/src/cache/lifecycle.rs (4ac796eb813332a5)
+  ok       vendor_updater library/src/cache/updater_state.rs (f7b0ce77204f9564)
+  ok       vendor_updater library/src/updater.rs (2591508a81ad3f38)
+  ok       policy packages/code_push_server/lib/src/repository.dart (b63880dbf77871c9)
+  ok       ios cached engine IS this cell's (745e178c447789ce)
+  ok       ios-profile cached engine IS this cell's (de68eefd42df7bbb)
+  ok       ios-release cached engine IS this cell's (62bd2395005cc315)
+  ok       engine byte identity VERIFIED against published cell 4792f0eca461f376
+
+FROZEN SURFACES INTACT — the investigation may proceed

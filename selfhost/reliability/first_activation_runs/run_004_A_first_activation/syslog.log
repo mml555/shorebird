@@ -8362,3 +8362,656 @@ Aug 27 21:28:24.443720 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech
 Aug 27 21:28:26.000385 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
 Aug 27 21:28:26.444323 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
 Aug 27 21:28:26.841950 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:29.016828 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:29.046347 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:29.112052 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:29.443755 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -37 {-36 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 16 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 1 RxRetryFrames: 0 TxRate: 24000 RxRate: 866667 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 215.7secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:28:31.016874 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:31.443731 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:31.845158 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:32.569764 watchdogd[57] <Debug>: 1250160351738625: <private>
+Aug 27 21:28:32.570704 watchdogd[57] <Info>: 1250160351913750: <private>
+Aug 27 21:28:32.571610 watchdogd[57] <Debug>: 1250160352105833: <private>
+Aug 27 21:28:32.572516 watchdogd[57] <Debug>: 1250160352285416: <private>
+Aug 27 21:28:32.573550 watchdogd[57] <Info>: 1250160352289000: <private>
+Aug 27 21:28:32.574501 watchdogd[57] <Debug>: 1250160352447500: <private>
+Aug 27 21:28:32.575261 watchdogd[57] <Debug>: 1250160352654333: <private>
+Aug 27 21:28:32.575961 watchdogd[57] <Debug>: 1250160352739958: <private>
+Aug 27 21:28:32.576680 watchdogd[57] <Debug>: 1250160352870750: <private>
+Aug 27 21:28:32.577447 watchdogd[57] <Debug>: 1250160352952708: <private>
+Aug 27 21:28:32.578138 watchdogd[57] <Info>: 1250160352971375: <private>
+Aug 27 21:28:32.578855 watchdogd[57] <Info>: 1250160352977041: <private>
+Aug 27 21:28:32.579446 watchdogd[57] <Info>: 1250160352979333: <private>
+Aug 27 21:28:32.580106 watchdogd[57] <Info>: 1250160352980833: <private>
+Aug 27 21:28:32.580679 watchdogd[57] <Info>: 1250160352982291: <private>
+Aug 27 21:28:32.581323 watchdogd[57] <Info>: 1250160352983541: <private>
+Aug 27 21:28:32.582286 watchdogd[57] <Info>: 1250160352984750: <private>
+Aug 27 21:28:32.583039 watchdogd[57] <Info>: 1250160352985833: <private>
+Aug 27 21:28:33.303359 useractivityd[184] <Debug>: SCHEDULE:idleDetermination scheduleNext, interval=0
+Aug 27 21:28:33.304023 useractivityd[184] <Debug>: SCHEDULE:idleDetermination, next=NOW ( was forever ) freq=0
+Aug 27 21:28:33.304562 useractivityd[184] <Debug>: SCHEDULE:idleDetermination, run.
+Aug 27 21:28:33.305074 useractivityd[184] <Debug>: Determining idleDetermination, entering.
+Aug 27 21:28:33.309844 useractivityd[184] <Debug>: SCHEDULE:idleDetermination, DONE run, next=forever
+Aug 27 21:28:33.314881 useractivityd[184] <Debug>: SCHEDULE:idleDetermination scheduleNext, interval=0
+Aug 27 21:28:33.315522 useractivityd[184] <Debug>: SCHEDULE:idleDetermination, next=NOW ( was forever ) freq=0
+Aug 27 21:28:33.316019 useractivityd[184] <Debug>: SCHEDULE:idleDetermination, run.
+Aug 27 21:28:33.317146 useractivityd[184] <Debug>: Determining idleDetermination, entering.
+Aug 27 21:28:33.322343 useractivityd[184] <Debug>: SCHEDULE:idleDetermination, DONE run, next=forever
+Aug 27 21:28:34.016049 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:34.051252 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:34.109398 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:34.330591 CommCenter(libSystemDetermination.dylib)[90] <Notice>: #I <private> = 0
+Aug 27 21:28:34.490411 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -37 {-36 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 31 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (98, 50.5%) RxFrms: 8 RxRetryFrames: 0 TxRate: 24000 RxRate: 866667 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 220.8secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:28:35.998211 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:36.464448 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:36.839360 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:39.077415 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:39.115930 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:39.117654 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:39.469988 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -37 {-36 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 31 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 6 RxRetryFrames: 0 TxRate: 24000 RxRate: 866667 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 225.8secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:28:40.705741 Runner(CoreFoundation)[50643] <Debug>: Resource lookup at <private>
+Aug 27 21:28:40.707604 Runner(CoreAnalytics)[50643] <Debug>: com.apple.metal.agx <private>
+Aug 27 21:28:40.749654 Runner(CoreAnalytics)[50643] <Info>: Received configuration update from daemon and there was no CoreAnalyticsFramework external config.
+Aug 27 21:28:40.752373 Runner(CoreAnalytics)[50643] <Notice>: Received configuration update from daemon (initial)
+Aug 27 21:28:40.997179 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:41.444266 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:41.856980 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:42.567209 watchdogd[57] <Debug>: 1250170352069208: <private>
+Aug 27 21:28:42.569096 watchdogd[57] <Info>: 1250170352632500: <private>
+Aug 27 21:28:42.570887 watchdogd[57] <Debug>: 1250170352786083: <private>
+Aug 27 21:28:42.572678 watchdogd[57] <Info>: 1250170352797583: <private>
+Aug 27 21:28:42.575063 watchdogd[57] <Debug>: 1250170352921750: <private>
+Aug 27 21:28:42.577007 watchdogd[57] <Debug>: 1250170354055416: <private>
+Aug 27 21:28:42.578914 watchdogd[57] <Debug>: 1250170354275416: <private>
+Aug 27 21:28:42.580673 watchdogd[57] <Debug>: 1250170354770958: <private>
+Aug 27 21:28:42.582349 watchdogd[57] <Debug>: 1250170354813000: <private>
+Aug 27 21:28:42.584211 watchdogd[57] <Debug>: 1250170355269916: <private>
+Aug 27 21:28:42.586296 watchdogd[57] <Info>: 1250170355329541: <private>
+Aug 27 21:28:42.588097 watchdogd[57] <Info>: 1250170355345125: <private>
+Aug 27 21:28:42.590042 watchdogd[57] <Info>: 1250170355351666: <private>
+Aug 27 21:28:42.592336 watchdogd[57] <Info>: 1250170355356916: <private>
+Aug 27 21:28:42.594225 watchdogd[57] <Info>: 1250170355361250: <private>
+Aug 27 21:28:42.595516 watchdogd[57] <Info>: 1250170355366083: <private>
+Aug 27 21:28:42.596700 watchdogd[57] <Info>: 1250170355370250: <private>
+Aug 27 21:28:42.598024 watchdogd[57] <Info>: 1250170355374250: <private>
+Aug 27 21:28:42.599381 watchdogd[57] <Info>: 1250170356008458: <private>
+Aug 27 21:28:44.017637 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:44.064143 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:44.111661 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:44.532149 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -37 {-36 -46} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 31 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 3.1% (98, 50.5%) RxFrms: 4 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 2 TxFwFail: 0 TxReTrans: 0 time: 230.8secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:28:45.999897 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:46.448374 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:46.838431 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:47.570776 runningboardd(RunningBoard)[33] <Info>: _requestedJetsamPriority = 6, _executablePath = /System/Library/PrivateFrameworks/MobileBackup.framework/backupd
+Aug 27 21:28:47.574133 runningboardd(RunningBoard)[33] <Info>: _requestedJetsamPriority = 6, _executablePath = /System/Library/PrivateFrameworks/MobileBackup.framework/backupd
+Aug 27 21:28:47.575844 runningboardd(RunningBoard)[33] <Debug>: Sending state update for daemon<com.apple.backupd>: <RBSProcessState| task:running debug:none terminationResistance:None>
+Aug 27 21:28:49.015504 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:49.048999 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:49.110823 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:49.489533 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -37 {-36 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 11 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 14 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 235.8secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:28:50.996995 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:51.443757 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:51.901320 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:52.564371 watchdogd[57] <Debug>: 1250180352789291: <private>
+Aug 27 21:28:52.566689 watchdogd[57] <Info>: 1250180353369708: <private>
+Aug 27 21:28:52.568374 watchdogd[57] <Debug>: 1250180353520750: <private>
+Aug 27 21:28:52.569938 watchdogd[57] <Info>: 1250180353532250: <private>
+Aug 27 21:28:52.571889 watchdogd[57] <Debug>: 1250180353656458: <private>
+Aug 27 21:28:52.573546 watchdogd[57] <Debug>: 1250180354163916: <private>
+Aug 27 21:28:52.575578 watchdogd[57] <Debug>: 1250180354832208: <private>
+Aug 27 21:28:52.577190 watchdogd[57] <Debug>: 1250180355098833: <private>
+Aug 27 21:28:52.578914 watchdogd[57] <Debug>: 1250180355551791: <private>
+Aug 27 21:28:52.580332 watchdogd[57] <Debug>: 1250180355785291: <private>
+Aug 27 21:28:52.581368 watchdogd[57] <Info>: 1250180355842625: <private>
+Aug 27 21:28:52.582281 watchdogd[57] <Info>: 1250180355857375: <private>
+Aug 27 21:28:52.583338 watchdogd[57] <Info>: 1250180355863375: <private>
+Aug 27 21:28:52.584610 watchdogd[57] <Info>: 1250180355868416: <private>
+Aug 27 21:28:52.587289 watchdogd[57] <Info>: 1250180355873125: <private>
+Aug 27 21:28:52.588756 watchdogd[57] <Info>: 1250180355877375: <private>
+Aug 27 21:28:52.589941 watchdogd[57] <Info>: 1250180355881625: <private>
+Aug 27 21:28:52.591955 watchdogd[57] <Info>: 1250180355885625: <private>
+Aug 27 21:28:54.026572 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:54.051736 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:54.108346 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:54.500378 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-36 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 39 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (98, 50.5%) RxFrms: 10 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 240.8secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:28:56.001065 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:56.441200 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:56.838622 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:59.016936 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:59.061869 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:59.121134 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:28:59.526826 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-36 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 44 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 3 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 245.8secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:29:00.997959 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:01.468743 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:01.859738 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:02.569694 watchdogd[57] <Debug>: 1250190353535166: <private>
+Aug 27 21:29:02.573069 watchdogd[57] <Info>: 1250190354126708: <private>
+Aug 27 21:29:02.574792 watchdogd[57] <Debug>: 1250190354284250: <private>
+Aug 27 21:29:02.576337 watchdogd[57] <Info>: 1250190354296208: <private>
+Aug 27 21:29:02.578105 watchdogd[57] <Debug>: 1250190354527958: <private>
+Aug 27 21:29:02.580391 watchdogd[57] <Debug>: 1250190354975708: <private>
+Aug 27 21:29:02.582183 watchdogd[57] <Debug>: 1250190355377083: <private>
+Aug 27 21:29:02.584228 watchdogd[57] <Debug>: 1250190356043791: <private>
+Aug 27 21:29:02.586090 watchdogd[57] <Debug>: 1250190356662625: <private>
+Aug 27 21:29:02.587959 watchdogd[57] <Debug>: 1250190356844291: <private>
+Aug 27 21:29:02.589846 watchdogd[57] <Info>: 1250190356902208: <private>
+Aug 27 21:29:02.591977 watchdogd[57] <Info>: 1250190356916750: <private>
+Aug 27 21:29:02.597620 watchdogd[57] <Info>: 1250190356922875: <private>
+Aug 27 21:29:02.599290 watchdogd[57] <Info>: 1250190356927916: <private>
+Aug 27 21:29:02.601223 watchdogd[57] <Info>: 1250190356932541: <private>
+Aug 27 21:29:02.603165 watchdogd[57] <Info>: 1250190356936625: <private>
+Aug 27 21:29:02.604487 watchdogd[57] <Info>: 1250190356940750: <private>
+Aug 27 21:29:02.605722 watchdogd[57] <Info>: 1250190356944750: <private>
+Aug 27 21:29:04.016644 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:04.067145 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:04.109891 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:04.556309 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-37 -46} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 28 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 2.0% (98, 50.5%) RxFrms: 36 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 2 TxFwFail: 0 TxReTrans: 0 time: 250.8secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:29:06.000361 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:06.446864 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:06.840016 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:09.016149 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:09.050220 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:09.109454 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:09.559772 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 28 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 16 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 255.8secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:29:10.994939 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:11.441355 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:11.846980 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:12.561144 watchdogd[57] <Debug>: 1250200354230416: <private>
+Aug 27 21:29:12.562935 watchdogd[57] <Info>: 1250200354571125: <private>
+Aug 27 21:29:12.564202 watchdogd[57] <Debug>: 1250200354656583: <private>
+Aug 27 21:29:12.565117 watchdogd[57] <Info>: 1250200354663666: <private>
+Aug 27 21:29:12.566032 watchdogd[57] <Debug>: 1250200354787083: <private>
+Aug 27 21:29:12.566954 watchdogd[57] <Debug>: 1250200355043458: <private>
+Aug 27 21:29:12.569574 watchdogd[57] <Debug>: 1250200355435833: <private>
+Aug 27 21:29:12.571497 watchdogd[57] <Debug>: 1250200355693416: <private>
+Aug 27 21:29:12.573491 watchdogd[57] <Debug>: 1250200355714708: <private>
+Aug 27 21:29:12.575535 watchdogd[57] <Debug>: 1250200355929500: <private>
+Aug 27 21:29:12.577461 watchdogd[57] <Info>: 1250200355963875: <private>
+Aug 27 21:29:12.579122 watchdogd[57] <Info>: 1250200355972916: <private>
+Aug 27 21:29:12.581043 watchdogd[57] <Info>: 1250200355976416: <private>
+Aug 27 21:29:12.582850 watchdogd[57] <Info>: 1250200355979125: <private>
+Aug 27 21:29:12.584281 watchdogd[57] <Info>: 1250200355981500: <private>
+Aug 27 21:29:12.585819 watchdogd[57] <Info>: 1250200355983833: <private>
+Aug 27 21:29:12.587066 watchdogd[57] <Info>: 1250200355986041: <private>
+Aug 27 21:29:12.588410 watchdogd[57] <Info>: 1250200355988208: <private>
+Aug 27 21:29:14.014600 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:14.064158 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:14.109571 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:14.575131 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 28 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 2.0% (98, 50.5%) RxFrms: 1 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 260.9secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:29:15.995708 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:16.450723 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:16.839228 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:17.578276 runningboardd(RunningBoard)[33] <Notice>: [daemon<com.apple.backupd>:50655] termination reported by launchd (0, 0, 0)
+Aug 27 21:29:17.580360 runningboardd(RunningBoard)[33] <Notice>: Removing assertions for terminated process: [daemon<com.apple.backupd>:50655]
+Aug 27 21:29:17.583075 runningboardd(RunningBoard)[33] <Debug>: Sending state update for daemon<com.apple.backupd>: <RBSProcessState| task:none debug:none terminationResistance:None>
+Aug 27 21:29:19.016252 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:19.046043 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:19.107510 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:19.587048 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 46 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 6 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 265.9secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:29:21.016469 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:21.441654 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:21.838692 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:22.594322 watchdogd[57] <Debug>: 1250210354659958: <private>
+Aug 27 21:29:22.596335 watchdogd[57] <Info>: 1250210354967375: <private>
+Aug 27 21:29:22.597792 watchdogd[57] <Debug>: 1250210356723458: <private>
+Aug 27 21:29:22.598672 watchdogd[57] <Debug>: 1250210357658958: <private>
+Aug 27 21:29:22.599527 watchdogd[57] <Debug>: 1250210358070958: <private>
+Aug 27 21:29:22.601194 watchdogd[57] <Debug>: 1250210358267833: <private>
+Aug 27 21:29:22.603964 watchdogd[57] <Debug>: 1250210358537541: <private>
+Aug 27 21:29:22.605803 watchdogd[57] <Debug>: 1250210358629000: <private>
+Aug 27 21:29:22.607837 watchdogd[57] <Info>: 1250210358634583: <private>
+Aug 27 21:29:22.609781 watchdogd[57] <Debug>: 1250210358782500: <private>
+Aug 27 21:29:22.612397 watchdogd[57] <Info>: 1250210358816625: <private>
+Aug 27 21:29:22.614297 watchdogd[57] <Info>: 1250210358826416: <private>
+Aug 27 21:29:22.616147 watchdogd[57] <Info>: 1250210358829583: <private>
+Aug 27 21:29:22.618173 watchdogd[57] <Info>: 1250210358832208: <private>
+Aug 27 21:29:22.619909 watchdogd[57] <Info>: 1250210358834666: <private>
+Aug 27 21:29:22.621727 watchdogd[57] <Info>: 1250210358837000: <private>
+Aug 27 21:29:22.623002 watchdogd[57] <Info>: 1250210358839416: <private>
+Aug 27 21:29:22.624144 watchdogd[57] <Info>: 1250210358841708: <private>
+Aug 27 21:29:22.625562 watchdogd[57] <Info>: 1250210359198083: <private>
+Aug 27 21:29:24.014961 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:24.044426 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:24.139134 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:24.584277 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-37 -46} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 35 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 1.0% (98, 50.5%) RxFrms: 6 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 2 TxFwFail: 0 TxReTrans: 0 time: 270.9secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:29:25.995551 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:26.441975 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:26.843303 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:29.014505 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:29.047229 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:29.108337 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:29.624381 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -37 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 35 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 1 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 275.9secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:29:30.994767 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:31.441738 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:31.838182 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:32.561777 watchdogd[57] <Debug>: 1250220355120250: <private>
+Aug 27 21:29:32.565032 watchdogd[57] <Info>: 1250220355700208: <private>
+Aug 27 21:29:32.566934 watchdogd[57] <Debug>: 1250220355848541: <private>
+Aug 27 21:29:32.568862 watchdogd[57] <Info>: 1250220355860166: <private>
+Aug 27 21:29:32.570890 watchdogd[57] <Debug>: 1250220355982000: <private>
+Aug 27 21:29:32.572882 watchdogd[57] <Debug>: 1250220356506291: <private>
+Aug 27 21:29:32.574796 watchdogd[57] <Debug>: 1250220357145541: <private>
+Aug 27 21:29:32.576677 watchdogd[57] <Debug>: 1250220357426541: <private>
+Aug 27 21:29:32.578603 watchdogd[57] <Debug>: 1250220357738666: <private>
+Aug 27 21:29:32.580656 watchdogd[57] <Debug>: 1250220358039458: <private>
+Aug 27 21:29:32.582528 watchdogd[57] <Info>: 1250220358100833: <private>
+Aug 27 21:29:32.584472 watchdogd[57] <Info>: 1250220358115541: <private>
+Aug 27 21:29:32.586387 watchdogd[57] <Info>: 1250220358121958: <private>
+Aug 27 21:29:32.588408 watchdogd[57] <Info>: 1250220358127541: <private>
+Aug 27 21:29:32.590231 watchdogd[57] <Info>: 1250220358131875: <private>
+Aug 27 21:29:32.591844 watchdogd[57] <Info>: 1250220358136083: <private>
+Aug 27 21:29:32.593172 watchdogd[57] <Info>: 1250220358140250: <private>
+Aug 27 21:29:32.594501 watchdogd[57] <Info>: 1250220358144166: <private>
+Aug 27 21:29:34.027639 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:34.045556 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:34.108125 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:34.613089 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 35 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (98, 50.5%) RxFrms: 4 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 280.9secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:29:35.995987 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:36.441178 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:36.838667 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:39.028169 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:39.041152 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:39.106069 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:39.626322 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 18 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 2 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 285.9secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:29:41.000557 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:41.439703 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:41.841874 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:42.561027 watchdogd[57] <Debug>: 1250230355802291: <private>
+Aug 27 21:29:42.563072 watchdogd[57] <Info>: 1250230356135291: <private>
+Aug 27 21:29:42.564816 watchdogd[57] <Debug>: 1250230356220333: <private>
+Aug 27 21:29:42.566526 watchdogd[57] <Info>: 1250230356226750: <private>
+Aug 27 21:29:42.568342 watchdogd[57] <Debug>: 1250230356309500: <private>
+Aug 27 21:29:42.570223 watchdogd[57] <Debug>: 1250230356623500: <private>
+Aug 27 21:29:42.572310 watchdogd[57] <Debug>: 1250230356867458: <private>
+Aug 27 21:29:42.574041 watchdogd[57] <Debug>: 1250230357185041: <private>
+Aug 27 21:29:42.575831 watchdogd[57] <Debug>: 1250230357438916: <private>
+Aug 27 21:29:42.577814 watchdogd[57] <Debug>: 1250230357556916: <private>
+Aug 27 21:29:42.579659 watchdogd[57] <Info>: 1250230357588583: <private>
+Aug 27 21:29:42.581761 watchdogd[57] <Info>: 1250230357598083: <private>
+Aug 27 21:29:42.583693 watchdogd[57] <Info>: 1250230357601125: <private>
+Aug 27 21:29:42.585548 watchdogd[57] <Info>: 1250230357603833: <private>
+Aug 27 21:29:42.587374 watchdogd[57] <Info>: 1250230357606208: <private>
+Aug 27 21:29:42.589248 watchdogd[57] <Info>: 1250230357608375: <private>
+Aug 27 21:29:42.591065 watchdogd[57] <Info>: 1250230357610583: <private>
+Aug 27 21:29:42.592325 watchdogd[57] <Info>: 1250230357612666: <private>
+Aug 27 21:29:44.014279 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:44.112309 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:44.113306 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:44.659276 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -37 {-37 -46} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 37 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 3.1% (98, 50.5%) RxFrms: 4 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 2 TxFwFail: 0 TxReTrans: 0 time: 290.9secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:29:46.002455 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:46.441500 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:46.835610 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:49.014009 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:49.045931 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:49.107086 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:49.644424 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 4 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 4 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 295.9secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:29:50.996442 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:51.440430 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:51.836964 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:52.565796 watchdogd[57] <Debug>: 1250240356282000: <private>
+Aug 27 21:29:52.569316 watchdogd[57] <Info>: 1250240356866291: <private>
+Aug 27 21:29:52.572010 watchdogd[57] <Debug>: 1250240357017458: <private>
+Aug 27 21:29:52.573832 watchdogd[57] <Info>: 1250240357028875: <private>
+Aug 27 21:29:52.575621 watchdogd[57] <Debug>: 1250240357151333: <private>
+Aug 27 21:29:52.577687 watchdogd[57] <Debug>: 1250240357759666: <private>
+Aug 27 21:29:52.579594 watchdogd[57] <Debug>: 1250240358215041: <private>
+Aug 27 21:29:52.581623 watchdogd[57] <Debug>: 1250240358682333: <private>
+Aug 27 21:29:52.583425 watchdogd[57] <Debug>: 1250240358901208: <private>
+Aug 27 21:29:52.585124 watchdogd[57] <Debug>: 1250240359289000: <private>
+Aug 27 21:29:52.587252 watchdogd[57] <Info>: 1250240359350208: <private>
+Aug 27 21:29:52.589130 watchdogd[57] <Info>: 1250240359365333: <private>
+Aug 27 21:29:52.591214 watchdogd[57] <Info>: 1250240359372041: <private>
+Aug 27 21:29:52.593107 watchdogd[57] <Info>: 1250240359376916: <private>
+Aug 27 21:29:52.595022 watchdogd[57] <Info>: 1250240359381333: <private>
+Aug 27 21:29:52.597046 watchdogd[57] <Info>: 1250240359385375: <private>
+Aug 27 21:29:52.598913 watchdogd[57] <Info>: 1250240359389458: <private>
+Aug 27 21:29:52.600628 watchdogd[57] <Info>: 1250240359393416: <private>
+Aug 27 21:29:52.602070 watchdogd[57] <Info>: 1250240360061625: <private>
+Aug 27 21:29:53.287480 runningboardd(RunningBoard)[33] <Info>: _requestedJetsamPriority = 6, _executablePath = /System/Library/PrivateFrameworks/MobileBackup.framework/backupd
+Aug 27 21:29:53.295841 runningboardd(RunningBoard)[33] <Info>: _requestedJetsamPriority = 6, _executablePath = /System/Library/PrivateFrameworks/MobileBackup.framework/backupd
+Aug 27 21:29:53.316301 runningboardd(RunningBoard)[33] <Debug>: Sending state update for daemon<com.apple.backupd>: <RBSProcessState| task:running debug:none terminationResistance:None>
+Aug 27 21:29:54.012195 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:54.045841 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:54.106606 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:54.653800 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -37 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 27 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 1.0% (98, 50.5%) RxFrms: 9 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 300.9secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:29:54.704281 symptomsd(SymptomEvaluator)[170] <Debug>: COSMCtrl applyPolicyDelta for E01B2FEA-36F1-3C21-AADE-93AC8E03F45C -> dev.selfhost.firstActivationProbe  policy id 0  fg 1 fg-activity 0
+Aug 27 21:29:55.995694 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:56.440123 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:56.836327 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:59.011204 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:59.045281 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:59.106781 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:29:59.675323 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 27 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 7 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 306.0secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:30:01.054571 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:01.440089 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:01.836422 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:02.565257 watchdogd[57] <Debug>: 1250250357025541: <private>
+Aug 27 21:30:02.569327 watchdogd[57] <Info>: 1250250357600875: <private>
+Aug 27 21:30:02.571425 watchdogd[57] <Debug>: 1250250357751000: <private>
+Aug 27 21:30:02.573390 watchdogd[57] <Info>: 1250250357762625: <private>
+Aug 27 21:30:02.575218 watchdogd[57] <Debug>: 1250250357884583: <private>
+Aug 27 21:30:02.577053 watchdogd[57] <Debug>: 1250250358405000: <private>
+Aug 27 21:30:02.578991 watchdogd[57] <Debug>: 1250250359070500: <private>
+Aug 27 21:30:02.581101 watchdogd[57] <Debug>: 1250250359390500: <private>
+Aug 27 21:30:02.583109 watchdogd[57] <Debug>: 1250250359430000: <private>
+Aug 27 21:30:02.584932 watchdogd[57] <Debug>: 1250250359941625: <private>
+Aug 27 21:30:02.586916 watchdogd[57] <Info>: 1250250360000500: <private>
+Aug 27 21:30:02.588868 watchdogd[57] <Info>: 1250250360015875: <private>
+Aug 27 21:30:02.590673 watchdogd[57] <Info>: 1250250360022250: <private>
+Aug 27 21:30:02.592516 watchdogd[57] <Info>: 1250250360027791: <private>
+Aug 27 21:30:02.594383 watchdogd[57] <Info>: 1250250360032291: <private>
+Aug 27 21:30:02.596293 watchdogd[57] <Info>: 1250250360036500: <private>
+Aug 27 21:30:02.598303 watchdogd[57] <Info>: 1250250360040666: <private>
+Aug 27 21:30:02.599949 watchdogd[57] <Info>: 1250250360044541: <private>
+Aug 27 21:30:04.035729 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:04.039421 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:04.106847 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:04.690807 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -37 {-37 -46} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 42 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 2.0% (98, 50.5%) RxFrms: 5 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 2 TxFwFail: 0 TxReTrans: 0 time: 311.0secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:30:05.992223 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:06.438263 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:06.836225 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:09.018902 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:09.055270 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:09.103993 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:09.699457 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -37 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 20 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 2 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 316.0secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:30:10.991532 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:11.437118 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:11.846624 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:12.562728 watchdogd[57] <Debug>: 1250260357783041: <private>
+Aug 27 21:30:12.565820 watchdogd[57] <Info>: 1250260358365916: <private>
+Aug 27 21:30:12.569373 watchdogd[57] <Debug>: 1250260358521000: <private>
+Aug 27 21:30:12.572404 watchdogd[57] <Info>: 1250260358532708: <private>
+Aug 27 21:30:12.574225 watchdogd[57] <Debug>: 1250260358770958: <private>
+Aug 27 21:30:12.575718 watchdogd[57] <Debug>: 1250260359270791: <private>
+Aug 27 21:30:12.577227 watchdogd[57] <Debug>: 1250260359825291: <private>
+Aug 27 21:30:12.579286 watchdogd[57] <Debug>: 1250260360200666: <private>
+Aug 27 21:30:12.581242 watchdogd[57] <Debug>: 1250260360629208: <private>
+Aug 27 21:30:12.586081 watchdogd[57] <Debug>: 1250260360749833: <private>
+Aug 27 21:30:12.588269 watchdogd[57] <Info>: 1250260360810875: <private>
+Aug 27 21:30:12.590234 watchdogd[57] <Info>: 1250260360826541: <private>
+Aug 27 21:30:12.592086 watchdogd[57] <Info>: 1250260360832375: <private>
+Aug 27 21:30:12.593854 watchdogd[57] <Info>: 1250260360837291: <private>
+Aug 27 21:30:12.596168 watchdogd[57] <Info>: 1250260360841708: <private>
+Aug 27 21:30:12.597930 watchdogd[57] <Info>: 1250260360845958: <private>
+Aug 27 21:30:12.599634 watchdogd[57] <Info>: 1250260360850333: <private>
+Aug 27 21:30:12.600916 watchdogd[57] <Info>: 1250260360854333: <private>
+Aug 27 21:30:14.010980 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:14.048929 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:14.105477 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:14.710879 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -37 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 37 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 2.0% (98, 50.5%) RxFrms: 1 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 321.0secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:30:15.993634 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:16.449510 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:16.835519 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:19.014946 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:19.041933 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:19.103411 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:19.714806 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -37 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 57 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 2 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 326.0secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:30:20.993183 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:21.440377 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:21.834731 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:22.562307 watchdogd[57] <Debug>: 1250270358525541: <private>
+Aug 27 21:30:22.566447 watchdogd[57] <Info>: 1250270359110958: <private>
+Aug 27 21:30:22.570716 watchdogd[57] <Debug>: 1250270359264416: <private>
+Aug 27 21:30:22.572838 watchdogd[57] <Info>: 1250270359276125: <private>
+Aug 27 21:30:22.574703 watchdogd[57] <Debug>: 1250270359506958: <private>
+Aug 27 21:30:22.576560 watchdogd[57] <Debug>: 1250270359920708: <private>
+Aug 27 21:30:22.578616 watchdogd[57] <Debug>: 1250270360587208: <private>
+Aug 27 21:30:22.580574 watchdogd[57] <Debug>: 1250270361036125: <private>
+Aug 27 21:30:22.582342 watchdogd[57] <Debug>: 1250270361209125: <private>
+Aug 27 21:30:22.584218 watchdogd[57] <Debug>: 1250270361682166: <private>
+Aug 27 21:30:22.586282 watchdogd[57] <Info>: 1250270361743458: <private>
+Aug 27 21:30:22.588102 watchdogd[57] <Info>: 1250270361759291: <private>
+Aug 27 21:30:22.589879 watchdogd[57] <Info>: 1250270361765500: <private>
+Aug 27 21:30:22.591926 watchdogd[57] <Info>: 1250270361770541: <private>
+Aug 27 21:30:22.593741 watchdogd[57] <Info>: 1250270361775000: <private>
+Aug 27 21:30:22.595523 watchdogd[57] <Info>: 1250270361779041: <private>
+Aug 27 21:30:22.597446 watchdogd[57] <Info>: 1250270361783083: <private>
+Aug 27 21:30:22.599050 watchdogd[57] <Info>: 1250270361787083: <private>
+Aug 27 21:30:22.600310 watchdogd[57] <Info>: 1250270362460875: <private>
+Aug 27 21:30:23.343869 runningboardd(RunningBoard)[33] <Notice>: [daemon<com.apple.backupd>:50663] termination reported by launchd (0, 0, 0)
+Aug 27 21:30:23.351800 runningboardd(RunningBoard)[33] <Notice>: Removing assertions for terminated process: [daemon<com.apple.backupd>:50663]
+Aug 27 21:30:23.357162 runningboardd(RunningBoard)[33] <Debug>: Sending state update for daemon<com.apple.backupd>: <RBSProcessState| task:none debug:none terminationResistance:None>
+Aug 27 21:30:24.012903 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:24.113389 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:24.113862 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:24.753166 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-37 -46} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 4 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 1.0% (98, 50.5%) RxFrms: 7 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 2 TxFwFail: 0 TxReTrans: 0 time: 331.0secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:30:25.994132 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:26.438056 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:26.832860 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:29.021741 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:29.055283 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:29.103970 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:29.745664 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -37 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 27 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 3 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 336.0secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:30:31.002571 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:31.436717 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:31.835059 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:32.565276 watchdogd[57] <Debug>: 1250280359232333: <private>
+Aug 27 21:30:32.566462 watchdogd[57] <Info>: 1250280359629958: <private>
+Aug 27 21:30:32.567871 watchdogd[57] <Debug>: 1250280359782291: <private>
+Aug 27 21:30:32.569191 watchdogd[57] <Debug>: 1250280359975000: <private>
+Aug 27 21:30:32.570516 watchdogd[57] <Info>: 1250280359980500: <private>
+Aug 27 21:30:32.571815 watchdogd[57] <Debug>: 1250280360220958: <private>
+Aug 27 21:30:32.573191 watchdogd[57] <Debug>: 1250280360569083: <private>
+Aug 27 21:30:32.574350 watchdogd[57] <Debug>: 1250280360711375: <private>
+Aug 27 21:30:32.575604 watchdogd[57] <Debug>: 1250280360979416: <private>
+Aug 27 21:30:32.576957 watchdogd[57] <Debug>: 1250280361062875: <private>
+Aug 27 21:30:32.578189 watchdogd[57] <Info>: 1250280361087750: <private>
+Aug 27 21:30:32.579146 watchdogd[57] <Info>: 1250280361095041: <private>
+Aug 27 21:30:32.580113 watchdogd[57] <Info>: 1250280361097125: <private>
+Aug 27 21:30:32.580927 watchdogd[57] <Info>: 1250280361098875: <private>
+Aug 27 21:30:32.581916 watchdogd[57] <Info>: 1250280361100458: <private>
+Aug 27 21:30:32.582827 watchdogd[57] <Info>: 1250280361102000: <private>
+Aug 27 21:30:32.583658 watchdogd[57] <Info>: 1250280361103541: <private>
+Aug 27 21:30:32.584504 watchdogd[57] <Info>: 1250280361104958: <private>
+Aug 27 21:30:34.017573 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:34.038182 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:34.131120 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:34.764815 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 27 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 2.0% (98, 50.5%) RxFrms: 2 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 341.1secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:30:36.242620 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:36.441772 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:36.877586 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:39.008564 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:39.040754 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:39.102055 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:39.776259 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 27 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 2 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 346.1secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:30:40.989973 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:41.436069 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:41.833807 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:42.558564 watchdogd[57] <Debug>: 1250290359702916: <private>
+Aug 27 21:30:42.559461 watchdogd[57] <Info>: 1250290359894041: <private>
+Aug 27 21:30:42.560053 watchdogd[57] <Debug>: 1250290360082083: <private>
+Aug 27 21:30:42.560477 watchdogd[57] <Debug>: 1250290360119416: <private>
+Aug 27 21:30:42.560895 watchdogd[57] <Info>: 1250290360121875: <private>
+Aug 27 21:30:42.561309 watchdogd[57] <Debug>: 1250290360233125: <private>
+Aug 27 21:30:42.561722 watchdogd[57] <Debug>: 1250290360472541: <private>
+Aug 27 21:30:42.562139 watchdogd[57] <Debug>: 1250290360602541: <private>
+Aug 27 21:30:42.562553 watchdogd[57] <Debug>: 1250290360640375: <private>
+Aug 27 21:30:42.562967 watchdogd[57] <Debug>: 1250290360738958: <private>
+Aug 27 21:30:42.563385 watchdogd[57] <Info>: 1250290360757333: <private>
+Aug 27 21:30:42.563808 watchdogd[57] <Info>: 1250290360762166: <private>
+Aug 27 21:30:42.564223 watchdogd[57] <Info>: 1250290360764208: <private>
+Aug 27 21:30:42.564639 watchdogd[57] <Info>: 1250290360765833: <private>
+Aug 27 21:30:42.565057 watchdogd[57] <Info>: 1250290360767250: <private>
+Aug 27 21:30:42.565472 watchdogd[57] <Info>: 1250290360768458: <private>
+Aug 27 21:30:42.565886 watchdogd[57] <Info>: 1250290360769875: <private>
+Aug 27 21:30:42.566303 watchdogd[57] <Info>: 1250290360771000: <private>
+Aug 27 21:30:44.010697 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:44.046657 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:44.103864 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:44.783550 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-37 -46} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 11 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 1.0% (98, 50.5%) RxFrms: 4 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 468000 TxFwFrms: 2 TxFwFail: 0 TxReTrans: 0 time: 351.1secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:30:45.991682 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:46.435755 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:46.833489 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:49.008934 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:49.149007 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:49.149443 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:49.782015 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 36 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 50 RxRetryFrames: 0 TxRate: 24000 RxRate: 866667 FBRate: 520000 TxFwFrms: 3 TxFwFail: 0 TxReTrans: 0 time: 356.1secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:30:50.990120 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:51.437097 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:51.831307 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:52.565665 watchdogd[57] <Debug>: 1250300360056333: <private>
+Aug 27 21:30:52.568116 watchdogd[57] <Info>: 1250300360637083: <private>
+Aug 27 21:30:52.569899 watchdogd[57] <Debug>: 1250300360790916: <private>
+Aug 27 21:30:52.571943 watchdogd[57] <Info>: 1250300360802750: <private>
+Aug 27 21:30:52.573746 watchdogd[57] <Debug>: 1250300360927208: <private>
+Aug 27 21:30:52.575725 watchdogd[57] <Debug>: 1250300361448291: <private>
+Aug 27 21:30:52.577626 watchdogd[57] <Debug>: 1250300362113000: <private>
+Aug 27 21:30:52.579395 watchdogd[57] <Debug>: 1250300362538250: <private>
+Aug 27 21:30:52.581448 watchdogd[57] <Debug>: 1250300362658750: <private>
+Aug 27 21:30:52.583360 watchdogd[57] <Debug>: 1250300363044708: <private>
+Aug 27 21:30:52.585423 watchdogd[57] <Info>: 1250300363104041: <private>
+Aug 27 21:30:52.587291 watchdogd[57] <Info>: 1250300363119625: <private>
+Aug 27 21:30:52.589245 watchdogd[57] <Info>: 1250300363125791: <private>
+Aug 27 21:30:52.591202 watchdogd[57] <Info>: 1250300363130875: <private>
+Aug 27 21:30:52.592889 watchdogd[57] <Info>: 1250300363135416: <private>
+Aug 27 21:30:52.594895 watchdogd[57] <Info>: 1250300363139708: <private>
+Aug 27 21:30:52.596759 watchdogd[57] <Info>: 1250300363143958: <private>
+Aug 27 21:30:52.597915 watchdogd[57] <Info>: 1250300363147958: <private>
+Aug 27 21:30:52.599126 watchdogd[57] <Info>: 1250300363909791: <private>
+Aug 27 21:30:54.010038 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:54.071960 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:54.101943 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:54.868031 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 36 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (98, 50.5%) RxFrms: 10 RxRetryFrames: 0 TxRate: 24000 RxRate: 866667 FBRate: 520000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 361.1secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:30:56.025195 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:56.434637 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:56.830967 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:59.009104 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:59.041032 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:59.103607 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:30:59.424784 runningboardd(RunningBoard)[33] <Info>: _requestedJetsamPriority = 6, _executablePath = /System/Library/PrivateFrameworks/MobileBackup.framework/backupd
+Aug 27 21:30:59.430920 runningboardd(RunningBoard)[33] <Info>: _requestedJetsamPriority = 6, _executablePath = /System/Library/PrivateFrameworks/MobileBackup.framework/backupd
+Aug 27 21:30:59.432389 runningboardd(RunningBoard)[33] <Debug>: Sending state update for daemon<com.apple.backupd>: <RBSProcessState| task:running debug:none terminationResistance:None>
+Aug 27 21:30:59.824832 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 36 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 3 RxRetryFrames: 0 TxRate: 24000 RxRate: 866667 FBRate: 520000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 366.1secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:31:00.990762 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:01.436301 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:01.832522 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:02.564822 watchdogd[57] <Debug>: 1250310360730791: <private>
+Aug 27 21:31:02.565479 watchdogd[57] <Info>: 1250310360914541: <private>
+Aug 27 21:31:02.566140 watchdogd[57] <Debug>: 1250310361037416: <private>
+Aug 27 21:31:02.566693 watchdogd[57] <Debug>: 1250310361155416: <private>
+Aug 27 21:31:02.567213 watchdogd[57] <Info>: 1250310361157750: <private>
+Aug 27 21:31:02.567741 watchdogd[57] <Debug>: 1250310361268250: <private>
+Aug 27 21:31:02.568190 watchdogd[57] <Debug>: 1250310361443166: <private>
+Aug 27 21:31:02.568621 watchdogd[57] <Debug>: 1250310361506416: <private>
+Aug 27 21:31:02.569077 watchdogd[57] <Debug>: 1250310361591958: <private>
+Aug 27 21:31:02.569852 watchdogd[57] <Debug>: 1250310361650416: <private>
+Aug 27 21:31:02.570347 watchdogd[57] <Info>: 1250310361664333: <private>
+Aug 27 21:31:02.570705 watchdogd[57] <Info>: 1250310361668250: <private>
+Aug 27 21:31:02.570972 watchdogd[57] <Info>: 1250310361669625: <private>
+Aug 27 21:31:02.571305 watchdogd[57] <Info>: 1250310361670833: <private>
+Aug 27 21:31:02.571585 watchdogd[57] <Info>: 1250310361671791: <private>
+Aug 27 21:31:02.571962 watchdogd[57] <Info>: 1250310361672708: <private>
+Aug 27 21:31:02.572300 watchdogd[57] <Info>: 1250310361673625: <private>
+Aug 27 21:31:02.572760 watchdogd[57] <Info>: 1250310361674458: <private>
+Aug 27 21:31:04.013165 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:04.046597 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:04.102705 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:04.850158 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -37 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 36 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 1.0% (98, 50.5%) RxFrms: 5 RxRetryFrames: 0 TxRate: 24000 RxRate: 866667 FBRate: 520000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 371.1secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:31:05.989064 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:06.436093 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:06.832059 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:09.007688 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:09.049694 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:09.102075 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:09.851606 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 2 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 3 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 520000 TxFwFrms: 2 TxFwFail: 0 TxReTrans: 0 time: 376.1secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:31:10.987718 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:11.433599 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:11.832129 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:12.565510 watchdogd[57] <Debug>: 1250320361070625: <private>
+Aug 27 21:31:12.567228 watchdogd[57] <Info>: 1250320361633000: <private>
+Aug 27 21:31:12.569149 watchdogd[57] <Debug>: 1250320361785833: <private>
+Aug 27 21:31:12.571004 watchdogd[57] <Info>: 1250320361797500: <private>
+Aug 27 21:31:12.573000 watchdogd[57] <Debug>: 1250320361922083: <private>
+Aug 27 21:31:12.574816 watchdogd[57] <Debug>: 1250320362557791: <private>
+Aug 27 21:31:12.576727 watchdogd[57] <Debug>: 1250320363215333: <private>
+Aug 27 21:31:12.578796 watchdogd[57] <Debug>: 1250320363498041: <private>
+Aug 27 21:31:12.580657 watchdogd[57] <Debug>: 1250320363770666: <private>
+Aug 27 21:31:12.582718 watchdogd[57] <Debug>: 1250320364100625: <private>
+Aug 27 21:31:12.584688 watchdogd[57] <Info>: 1250320364160750: <private>
+Aug 27 21:31:12.586768 watchdogd[57] <Info>: 1250320364176083: <private>
+Aug 27 21:31:12.588729 watchdogd[57] <Info>: 1250320364182375: <private>
+Aug 27 21:31:12.590611 watchdogd[57] <Info>: 1250320364187458: <private>
+Aug 27 21:31:12.592596 watchdogd[57] <Info>: 1250320364191958: <private>
+Aug 27 21:31:12.594674 watchdogd[57] <Info>: 1250320364196416: <private>
+Aug 27 21:31:12.596085 watchdogd[57] <Info>: 1250320364200666: <private>
+Aug 27 21:31:12.597447 watchdogd[57] <Info>: 1250320364204791: <private>
+Aug 27 21:31:14.007468 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:14.037035 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:14.101268 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:14.863678 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 27 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 1.0% (98, 50.5%) RxFrms: 1 RxRetryFrames: 0 TxRate: 24000 RxRate: 6000 FBRate: 520000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 381.2secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:31:15.988571 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:16.435149 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:16.832108 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+    "foreground-apps" = "{(\n    \"dev.selfhost.firstActivationProbe\"\n)}";
+    "foreground-apps" = "{(\n    \"dev.selfhost.firstActivationProbe\"\n)}";
+Aug 27 21:31:19.006106 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:19.038430 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:19.099997 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:19.912507 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-37 -45} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 8 (S:0 O:0 I:0) TxPer: 0.0% (24) BcnPer: 0.0% (0, 50.5%) RxFrms: 20 RxRetryFrames: 9 TxRate: 24000 RxRate: 585000 FBRate: 520000 TxFwFrms: 6 TxFwFail: 0 TxReTrans: 3 time: 386.2secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:31:20.990554 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:21.447391 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:21.830050 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:22.564186 watchdogd[57] <Debug>: 1250330361784958: <private>
+Aug 27 21:31:22.568069 watchdogd[57] <Info>: 1250330362346875: <private>
+Aug 27 21:31:22.573350 watchdogd[57] <Debug>: 1250330362499833: <private>
+Aug 27 21:31:22.575263 watchdogd[57] <Info>: 1250330362511208: <private>
+Aug 27 21:31:22.577228 watchdogd[57] <Debug>: 1250330362635375: <private>
+Aug 27 21:31:22.579206 watchdogd[57] <Debug>: 1250330363133000: <private>
+Aug 27 21:31:22.581135 watchdogd[57] <Debug>: 1250330363939666: <private>
+Aug 27 21:31:22.582933 watchdogd[57] <Debug>: 1250330364442041: <private>
+Aug 27 21:31:22.584832 watchdogd[57] <Debug>: 1250330364570333: <private>
+Aug 27 21:31:22.586695 watchdogd[57] <Debug>: 1250330364836916: <private>
+Aug 27 21:31:22.588762 watchdogd[57] <Info>: 1250330364897166: <private>
+Aug 27 21:31:22.590581 watchdogd[57] <Info>: 1250330364912416: <private>
+Aug 27 21:31:22.592307 watchdogd[57] <Info>: 1250330364918000: <private>
+Aug 27 21:31:22.594322 watchdogd[57] <Info>: 1250330364922958: <private>
+Aug 27 21:31:22.595924 watchdogd[57] <Info>: 1250330364927375: <private>
+Aug 27 21:31:22.597206 watchdogd[57] <Info>: 1250330364931541: <private>
+Aug 27 21:31:22.598315 watchdogd[57] <Info>: 1250330364935791: <private>
+Aug 27 21:31:22.599424 watchdogd[57] <Info>: 1250330364939958: <private>
+Aug 27 21:31:22.600539 watchdogd[57] <Info>: 1250330365572541: <private>
+Aug 27 21:31:24.009020 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:24.043019 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:24.103540 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:25.992123 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:26.438299 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:26.834395 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:29.011415 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:29.059937 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:29.104443 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:29.461694 runningboardd(RunningBoard)[33] <Notice>: [daemon<com.apple.backupd>:50671] termination reported by launchd (0, 0, 0)
+Aug 27 21:31:29.465509 runningboardd(RunningBoard)[33] <Notice>: Removing assertions for terminated process: [daemon<com.apple.backupd>:50671]
+Aug 27 21:31:29.470773 runningboardd(RunningBoard)[33] <Debug>: Sending state update for daemon<com.apple.backupd>: <RBSProcessState| task:none debug:none terminationResistance:None>
+Aug 27 21:31:29.906201 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -38 {-37 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 28 (S:0 O:0 I:0) TxPer: 0.0% (1) BcnPer: 0.0% (0, 50.5%) RxFrms: 6 RxRetryFrames: 1 TxRate: 24000 RxRate: 585000 FBRate: 520000 TxFwFrms: 2 TxFwFail: 0 TxReTrans: 1 time: 396.2secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:31:30.993025 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:31.439692 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:31.835091 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:32.566976 watchdogd[57] <Debug>: 1250340362514208: <private>
+Aug 27 21:31:32.571320 watchdogd[57] <Info>: 1250340363080208: <private>
+Aug 27 21:31:32.576525 watchdogd[57] <Debug>: 1250340363236708: <private>
+Aug 27 21:31:32.579192 watchdogd[57] <Info>: 1250340363248375: <private>
+Aug 27 21:31:32.581266 watchdogd[57] <Debug>: 1250340363479750: <private>
+Aug 27 21:31:32.583140 watchdogd[57] <Debug>: 1250340363902416: <private>
+Aug 27 21:31:32.585198 watchdogd[57] <Debug>: 1250340364541125: <private>
+Aug 27 21:31:32.587074 watchdogd[57] <Debug>: 1250340364823875: <private>
+Aug 27 21:31:32.589094 watchdogd[57] <Debug>: 1250340365288708: <private>
+Aug 27 21:31:32.591049 watchdogd[57] <Debug>: 1250340365423416: <private>
+Aug 27 21:31:32.592997 watchdogd[57] <Info>: 1250340365482041: <private>
+Aug 27 21:31:32.594840 watchdogd[57] <Info>: 1250340365496875: <private>
+Aug 27 21:31:32.596683 watchdogd[57] <Info>: 1250340365503041: <private>
+Aug 27 21:31:32.598464 watchdogd[57] <Info>: 1250340365508000: <private>
+Aug 27 21:31:32.600396 watchdogd[57] <Info>: 1250340365512250: <private>
+Aug 27 21:31:32.602265 watchdogd[57] <Info>: 1250340365516416: <private>
+Aug 27 21:31:32.604170 watchdogd[57] <Info>: 1250340365520875: <private>
+Aug 27 21:31:32.605835 watchdogd[57] <Info>: 1250340365524833: <private>
+Aug 27 21:31:34.012202 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:34.044308 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:34.104041 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:34.922328 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -39 {-38 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 28 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (98, 50.5%) RxFrms: 3 RxRetryFrames: 0 TxRate: 24000 RxRate: 585000 FBRate: 520000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 401.2secs fgApp: dev.selfhost.firstActivationProbe
+Aug 27 21:31:35.991825 SpringBoard(CoreMotion)[47602] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:36.438930 backboardd(CoreMotion)[65] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:36.835457 biometrickitd(CoreMotion)[109] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:39.031507 mediaserverd(CoreMotion)[36] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:39.047545 nearbyd(CoreMotion)[157] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:39.105639 locationd[69] <Debug>: Ping timer fired, resetting watchdog
+Aug 27 21:31:39.931381 wifid(WiFiPolicy)[52] <Notice>: __WiFiLQAMgrLogStats(tech support:Stationary): Rssi: -39 {-38 0} Channel: 44 Bandwidth: 80Mhz Snr: 35 Cca: 28 (S:0 O:0 I:0) TxPer: 0.0% (0) BcnPer: 0.0% (0, 50.5%) RxFrms: 2 RxRetryFrames: 0 TxRate: 24000 RxRate: 585000 FBRate: 520000 TxFwFrms: 0 TxFwFail: 0 TxReTrans: 0 time: 406.2secs fgApp: dev.selfhost.firstActivationProbe
