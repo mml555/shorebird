@@ -738,6 +738,8 @@ words:
   - sigtrap
   - Skia
   - souin
+  - resends # "server resends the same patch on rollforward"
+  - rollforward # POST /.../patches/<id>/rollforward — un-rolls-back a patch
   - spawnee
   - Retryable
   - RSAPKCS
