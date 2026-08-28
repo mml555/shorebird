@@ -133,6 +133,23 @@ collect)
     health="UNUSABLE (reader_alive=$alive, lines=${lines:-0}, app_lines=${saw_app:-0})"
   fi
   note "syslog health: $health"
+
+  # DID A HUMAN CLOSE IT? Ask before anything is classified as a disappearance.
+  #
+  # run_007 was analysed as a spontaneous termination and very nearly filed as a
+  # bucket-G finding; the operator had simply force-quit it. The evidence was in
+  # the capture the whole time -- an app-switcher force-quit logs
+  # DismissSwitcherNoninteractive alongside SBWorkspaceDestroyApplicationEntity --
+  # and was reasoned around rather than acted on. Detect it here so the label does
+  # not depend on someone remembering to ask.
+  if grep -q "DismissSwitcherNoninteractive" "$D/syslog_raw.log" 2>/dev/null &&
+     grep -q "SBWorkspaceDestroyApplicationEntity.*$BUNDLE" "$D/syslog_raw.log" 2>/dev/null; then
+    note "OPERATOR_TERMINATED: app-switcher force-quit found in syslog."
+    note "  A termination here is NOT a spontaneous disappearance. Check the"
+    note "  timestamps against the timeline before classifying anything."
+    touch "$D/OPERATOR_TERMINATED"
+    echo "operator_terminated  app-switcher force-quit detected in syslog" >> "$D/manifest.txt"
+  fi
   pkill -f "idevicesyslog.*$RUNS" 2>/dev/null
 
   mkdir -p "$D/crashreports_immediate" "$D/post_state"
