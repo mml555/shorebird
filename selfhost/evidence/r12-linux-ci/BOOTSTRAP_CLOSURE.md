@@ -141,3 +141,38 @@ closure is re-proved before every arm. It stays out of hosted CI by design — i
 reads the gitignored multi-gigabyte overlay and the local bare mirror, where a
 hosted runner could only be vacuous or permanently red. Move it to a self-hosted
 workflow when one exists.
+
+---
+
+## Service restart, 2026-08-30 — and a retroactive check on "cold"
+
+Raising the Docker VM (7.75 GiB -> 11.91 GiB / 9 CPUs) restarted Docker and
+stopped both `r12-flutter-git` and `r12-cdn-sealed`. Arm B's preflight **refused
+to start** on it:
+
+    FAIL: r12-flutter-git is not running (the owned Flutter mirror service)
+
+which is the fail-closed behaviour working: an arm that had proceeded would have
+silently used whatever the environment happened to offer.
+
+Both services were recreated, and `r12-cdn-sealed` was given a **brand new** cache
+volume so the cold claim needs no argument. Re-verified after restart:
+
+    owned mirror serves    refs/heads/selfhost/3.44.8 -> a4a3c0d1b1b0f997  (pinned)
+    sealed+cold over TLS   sky_engine.zip -> 200, CA validation enforced
+    unowned artifact       "sealed: refusing upstream fetch for ..."  (seal live)
+    closure guard          CLOSURE OK, 2 artifacts by size + sha256
+
+### The cold cache was genuinely cold, then and now
+
+The new volume reports three files, exactly as the old one did — so that count is
+the empty-store baseline, not cached artifacts:
+
+    0.dat           268435456 bytes   nutsdb PREALLOCATION, no entries
+    bucket.Meta             0 bytes
+    nutsdb-flock            0 bytes
+
+Two 0-byte metadata files and a preallocated data file. This matters backwards as
+well as forwards: the volume Arm A ran against carried the same three files, so
+Arm A's "25× 200, all X-Overlay: hit, 0 non-overlay" was served from the overlay
+and not from a warm cache. The claim holds.
