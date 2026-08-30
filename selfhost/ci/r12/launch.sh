@@ -73,7 +73,7 @@ got="$(docker run --rm --platform linux/amd64 --entrypoint git alpine/git:latest
 echo "   owned flutter mirror     : serves $PINNED"
 
 for svc in "CDN $CDN/flutter_infra_release/flutter/$PRODUCER/android-arm64-release/linux-x64.zip" \
-           "control-plane ${SHOREBIRD_HOSTED_URL:-http://host.docker.internal:18081}/"; do
+           "control-plane http://host.docker.internal:18081/"; do
   name="${svc%% *}"; url="${svc#* }"
   code="$(docker run --rm --platform linux/amd64 curlimages/curl:latest \
             -sS -o /dev/null -m 20 -w '%{http_code}' "$url" 2>/dev/null || echo FAIL)"
@@ -96,7 +96,7 @@ docker run --name "$CNAME" --platform linux/amd64 -i \
   -e FLUTTER_STORAGE_BASE_URL="$CDN" \
   -e SHOREBIRD_STORAGE_BASE_URL="$CDN" \
   -e SHOREBIRD_STORAGE_BUCKET="download.shorebird.dev" \
-  -e SHOREBIRD_HOSTED_URL="${SHOREBIRD_HOSTED_URL:-http://host.docker.internal:18081}" \
+  -e SHOREBIRD_HOSTED_URL="${SHOREBIRD_HOSTED_URL:-http://localhost:18081}" \
   -e SHOREBIRD_TOKEN="${SHOREBIRD_TOKEN:-}" \
   -e R12_BOOTSTRAP_ONLY="${R12_BOOTSTRAP_ONLY:-0}" \
   -e GRADLE_OPTS="-Xmx3g -Dorg.gradle.daemon=false -Dorg.gradle.vfs.watch=false -Dorg.gradle.workers.max=2" \

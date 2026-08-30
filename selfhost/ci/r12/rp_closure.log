@@ -1,49 +1,9 @@
 
 == creating the release/patch discovery container ==
-   container ready at 1683b805c488f8950392b3f0f462d176439af26a
+   localhost:18081 -> 200 (forwarded to the host control plane)
+   container ready at 4cc9e6cf1b49166253e975d0d966389489ca294d
 
 == iteration 1 — frozen harness against the SEALED COLD mirror (v0.9.1+1) ==
-   harness exit 1
+   harness exit 0
 
-== STOP — harness failed with NOTHING refused by the seal ==
-   A different failure. Classify it; do not loop.
-     |    stdout is a TTY          : no
-     |    stdin  is a TTY          : no (bash isatty) / YES to the CLI -- stdin is a
-     |                               CHARACTER DEVICE, which Dart reports as
-     |                               StdioType.terminal. canAcceptUserInput is TRUE.
-     |                               Attribute refusals to stdout, not to stdin.
-     |    CI detection vars        : none set
-     |    SHOREBIRD_TOKEN          : set (71 chars, not echoed)
-     |    control plane            : http://host.docker.internal:18081 -> 200
-     |    shorebird                : /r12src/bin/shorebird
-     | 
-     | == self-test A — preview, NO --json (TTY predicate only) ==
-     |    cmd: (cd /r12out/disc/detector_selftest_app && shorebird preview)
-     |    exit: 64  log: /r12out/disc/detector_selftest.log
-     |    exit: 64 (expected 64)   'non-interactive context' lines: 1 (expected >=1)
-     | 
-     | == self-test B — preview, WITH --json (arm 2's exact grep) ==
-     |    cmd: (cd /r12out/disc/detector_selftest_app && shorebird --json preview)
-     |    exit: 64  log: /r12out/disc/detector_selftest_json.log
-     |    exit: 64 (expected 64)   interactive_prompt_required: 1 (expected >=1)
-     |    host                     : Linux
-     |    release version          : 0.9.1+1
-     | 
-     | == arm 1 — release, NO --json ==
-     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird release android --no-confirm)
-     |    exit: 70  log: /r12out/disc/ci_run_notty.log
-     |    arm 1 release FAILED (exit 70)
-     | 
-     | == arm 2 — patch, WITH --json ==
-     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird --json patch android --no-confirm --release-version 0.9.1+1)
-     |    exit: 70  log: /r12out/disc/ci_run_json.log
-     |    arm 2 FAILED (exit 70)
-     |    interactive_prompt_required in arm 2: 0 (expected 0)
-     | 
-     | == arm 3 — patch, NO --release-version (the release chooser) ==
-     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && timeout 600 shorebird patch android --no-confirm)
-     |    exit: 64  log: /r12out/disc/ci_run_chooser.log
-     |    arm 3 refused the CHOOSER by name (exit 64) — outcome 11, the good failure
-     | 
-     | == verdict ==
-     |    FAIL — 2 check(s) failed. Logs in /r12out/disc
+== CLOSED — the frozen harness passed under seal with nothing refused ==
