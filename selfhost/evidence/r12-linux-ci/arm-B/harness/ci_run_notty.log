@@ -12,22 +12,22 @@ Starting Fetching apps...
 Done Fetching apps
 Building Android app bundle with Flutter 3.44.8+selfhost.1 (a4a3c0d1b1)
 Flutter assets will be downloaded from https://host.docker.internal:8087. Make sure you trust this source!
-[1/10] Material Fonts                                              375ms
-[2/10] Gradle Wrapper                                               18ms
+[1/10] Material Fonts                                              240ms
+[2/10] Gradle Wrapper                                               16ms
 [3/10] Flutter SDK
-  ├─ [1/5] sky_engine                                              116ms
-  ├─ [2/5] flutter_gpu                                              18ms
-  ├─ [3/5] flutter_patched_sdk                                     329ms
-  ├─ [4/5] flutter_patched_sdk_product                             443ms
-  └─ [5/5] linux-x64                                                4.1s
-[10/10] linux-x64/font-subset                                       85ms
+  ├─ [1/5] sky_engine                                              172ms
+  ├─ [2/5] flutter_gpu                                               7ms
+  ├─ [3/5] flutter_patched_sdk                                     192ms
+  ├─ [4/5] flutter_patched_sdk_product                             452ms
+  └─ [5/5] linux-x64                                             1,643ms
+[10/10] linux-x64/font-subset                                       89ms
 [1/1] Android SDK
-  ├─ [1/6] android-arm-profile/linux-x64                           270ms
-  ├─ [2/6] android-arm-release/linux-x64                            65ms
-  ├─ [3/6] android-arm64-profile/linux-x64                         143ms
-  ├─ [4/6] android-arm64-release/linux-x64                          84ms
-  ├─ [5/6] android-x64-profile/linux-x64                            75ms
-  └─ [6/6] android-x64-release/linux-x64                            72ms
+  ├─ [1/6] android-arm-profile/linux-x64                            92ms
+  ├─ [2/6] android-arm-release/linux-x64                           111ms
+  ├─ [3/6] android-arm64-profile/linux-x64                          99ms
+  ├─ [4/6] android-arm64-release/linux-x64                         112ms
+  ├─ [5/6] android-x64-profile/linux-x64                           228ms
+  └─ [6/6] android-x64-release/linux-x64                           111ms
 Resolving dependencies...
 Downloading packages...
   clock 1.1.2 (1.1.3 available)
@@ -41,3 +41,48 @@ Got dependencies!
 7 packages have newer versions incompatible with dependency constraints.
 Try `flutter pub outdated` for more information.
 Running Gradle task 'bundleRelease'...                          
+Caught exception: Couldn't poll for events, error = 4
+Error while receiving file changes
+net.rubygrapefruit.platform.NativeException: Couldn't poll for events, error = 4
+	at org.gradle.fileevents.internal.AbstractNativeFileEventFunctions$NativeFileWatcher.executeRunLoop0(Native Method)
+	at org.gradle.fileevents.internal.AbstractNativeFileEventFunctions$NativeFileWatcher.executeRunLoop(AbstractNativeFileEventFunctions.java:32)
+	at org.gradle.fileevents.internal.AbstractFileEventFunctions$AbstractFileWatcher$1.run(AbstractFileEventFunctions.java:154)
+Flutter assets will be downloaded from https://host.docker.internal:8087. Make sure you trust this source!
+Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 1096 bytes (99.9% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+Running Gradle task 'bundleRelease'...                            547.1s
+Shorebird build trace written to /r12src/selfhost/fixtures/android_signing_app/build/shorebird/debug/build-trace-android.json. View at https://ui.perfetto.dev
+libapp.so.sym or libapp.so.dbg not present when checking final appbundle for debug symbols. Play Console will not receive Dart crash symbols for this build. To enable, remove `packaging.jniLibs.keepDebugSymbols.add("**/libapp.so")` from android/app/build.gradle.kts.
+✓ Built build/app/outputs/bundle/release/app-release.aab (46.4MB)
+Starting Determining release version...
+Done Release version: 1.1.3+1
+Starting Fetching releases...
+Done Fetching releases
+
+🚀 Ready to create a new release!
+
+📱 App: android-signing-b2 (2a476c0c-a4d1-0d8d-c791-74f2a78ad127)
+📦 Release Version: 1.1.3+1
+🕹️  Platform: android
+🐦 Flutter Version: 3.44.8+selfhost.1 (a4a3c0d1b1)
+
+Starting Fetching releases...
+Done Fetching releases
+Starting Creating release...
+Done Creating release
+Starting Updating release status...
+Done Updating release status
+Starting Uploading artifacts...
+Done Uploading artifacts
+Starting Uploading supplement artifacts...
+Done Uploading supplement artifacts
+Starting Updating release status...
+Done Updating release status
+
+✅ Published Release 1.1.3+1!
+Your next step is to upload the app bundle to the Play Store:
+/r12src/selfhost/fixtures/android_signing_app/build/app/outputs/bundle/release/app-release.aab
+
+For information on uploading to the Play Store, see:
+https://support.google.com/googleplay/android-developer/answer/9859152?hl=en
+
+To create a patch for this release, run shorebird patch --platforms=android --release-version=1.1.3+1

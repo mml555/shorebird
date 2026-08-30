@@ -5,7 +5,7 @@ Shorebird Engine • revision 69f9831c360d9152862ec3897c67fb09ae843f3b
 Downloading Linux x64 Dart SDK from Flutter engine 69f9831c360d9152862ec3897c67fb09ae843f3b...
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0 25  140M   25 36.0M    0     0  55.7M      0  0:00:02 --:--:--  0:00:02 56.0M 65  140M   65 92.0M    0     0  55.8M      0  0:00:02  0:00:01  0:00:01 55.9M100  140M  100  140M    0     0  56.7M      0  0:00:02  0:00:02 --:--:-- 56.8M
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0 35  140M   35 49.8M    0     0  46.4M      0  0:00:03  0:00:01  0:00:02 46.6M 77  140M   77  108M    0     0  52.3M      0  0:00:02  0:00:02 --:--:-- 52.3M100  140M  100  140M    0     0  52.9M      0  0:00:02  0:00:02 --:--:-- 53.0M
 Building flutter tool...
 Resolving dependencies...
 Downloading packages...
