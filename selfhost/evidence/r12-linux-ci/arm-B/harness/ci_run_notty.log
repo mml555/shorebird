@@ -1,0 +1,118 @@
+[WARN] No patch public key was provided. Patches for this release will not be cryptographically verified on the device.
+To enable verification, provide --public-key-path or --public-key-cmd.
+Starting Downloading patch......
+Done Downloading patch...
+Starting Extracting patch......
+Done Extracting patch...
+Starting Downloading bundletool.jar......
+Done Downloading bundletool.jar...
+Starting Extracting bundletool.jar......
+Done Extracting bundletool.jar...
+Starting Fetching apps...
+Done Fetching apps
+Building Android app bundle with Flutter 3.44.8+selfhost.1 (a4a3c0d1b1)
+Flutter assets will be downloaded from https://host.docker.internal:8087. Make sure you trust this source!
+[1/10] Material Fonts                                              283ms
+[2/10] Gradle Wrapper                                               31ms
+[3/10] Flutter SDK
+  ├─ [1/5] sky_engine                                              473ms
+  ├─ [2/5] flutter_gpu                                              30ms
+  ├─ [3/5] flutter_patched_sdk                                     217ms
+  ├─ [4/5] flutter_patched_sdk_product                             212ms
+  └─ [5/5] linux-x64                                             1,866ms
+[10/10] linux-x64/font-subset                                       98ms
+[1/1] Android SDK
+  ├─ [1/6] android-arm-profile/linux-x64                           139ms
+  ├─ [2/6] android-arm-release/linux-x64                            76ms
+  ├─ [3/6] android-arm64-profile/linux-x64                         104ms
+  ├─ [4/6] android-arm64-release/linux-x64                          97ms
+  ├─ [5/6] android-x64-profile/linux-x64                           100ms
+  └─ [6/6] android-x64-release/linux-x64                           144ms
+Resolving dependencies...
+Downloading packages...
+  clock 1.1.2 (1.1.3 available)
+  matcher 0.12.19 (0.12.20 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  meta 1.18.0 (1.19.0 available)
+  stack_trace 1.12.1 (1.12.2 available)
+  test_api 0.7.11 (0.7.13 available)
+  vector_math 2.2.0 (2.4.2 available)
+Got dependencies!
+7 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Running Gradle task 'bundleRelease'...                          
+Flutter assets will be downloaded from https://host.docker.internal:8087. Make sure you trust this source!
+Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 1096 bytes (99.9% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+The message received from the daemon indicates that the daemon has disappeared.
+Build request sent: Build{id=3e91b42c-a304-48f2-b792-35e93cab7809, currentDir=/r12src/selfhost/fixtures/android_signing_app/android}
+Attempting to read last messages from the daemon log...
+Daemon pid: 1832
+  log file: /r12home/.gradle/daemon/9.1.0/daemon-1832.out.log
+----- Last 20 lines from daemon log file - daemon-1832.out.log -----
+2026-08-30T18:22:28.127+0000 [INFO] [org.gradle.launcher.daemon.server.DaemonRegistryUpdater] Marking the daemon as busy, address: [d49f3d57-0a19-4886-a3ac-9bfc48e3c5c4 port:43891, addresses:[localhost/127.0.0.1]]
+2026-08-30T18:22:28.127+0000 [DEBUG] [org.gradle.launcher.daemon.registry.PersistentDaemonRegistry] Marking busy by address: [d49f3d57-0a19-4886-a3ac-9bfc48e3c5c4 port:43891, addresses:[localhost/127.0.0.1]]
+2026-08-30T18:22:28.130+0000 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Waiting to acquire exclusive lock on daemon addresses registry.
+2026-08-30T18:22:28.132+0000 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Lock acquired on daemon addresses registry.
+2026-08-30T18:22:28.136+0000 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Releasing lock on daemon addresses registry.
+2026-08-30T18:22:28.137+0000 [DEBUG] [org.gradle.launcher.daemon.server.DaemonStateCoordinator] resetting idle timer
+2026-08-30T18:22:28.137+0000 [DEBUG] [org.gradle.launcher.daemon.server.DaemonStateCoordinator] daemon is running. Sleeping until state changes.
+2026-08-30T18:22:28.140+0000 [INFO] [org.gradle.launcher.daemon.server.exec.StartBuildOrRespondWithBusy] Daemon is about to start building Build{id=3e91b42c-a304-48f2-b792-35e93cab7809, currentDir=/r12src/selfhost/fixtures/android_signing_app/android}. Dispatching build started information...
+2026-08-30T18:22:28.143+0000 [DEBUG] [org.gradle.launcher.daemon.server.SynchronizedDispatchConnection] thread 33: dispatching org.gradle.launcher.daemon.protocol.BuildStarted@56342297
+2026-08-30T18:22:28.146+0000 [DEBUG] [org.gradle.launcher.daemon.server.exec.EstablishBuildEnvironment] Configuring env variables: [PATH, GRADLE_OPTS, SHOREBIRD_HOSTED_URL, JAVA_HOME, R12_ARM_LABEL, FLUTTER_ROOT, ANDROID_HOME, GRADLE_USER_HOME, R12_BOOTSTRAP_ONLY, R12_RELEASE_VERSION, PWD, SHOREBIRD_ROOT, R12_REPO_SHA, SHOREBIRD_FLUTTER_GIT_URL, OLDPWD, R12_REPO_URL, ANDROID_SDK_ROOT, SHOREBIRD_STORAGE_BASE_URL, DEBIAN_FRONTEND, FLUTTER_ALREADY_LOCKED, HOSTNAME, DART_PATH, SHOREBIRD_TOKEN, FLUTTER_STORAGE_BASE_URL, R12_CA_PEM, SHOREBIRD_STORAGE_BUCKET, SHLVL, HOME]
+2026-08-30T18:22:28.159+0000 [DEBUG] [org.gradle.launcher.daemon.server.exec.LogToClient] About to start relaying all logs to the client via the connection.
+2026-08-30T18:22:28.160+0000 [INFO] [org.gradle.launcher.daemon.server.exec.LogToClient] The client will now receive all logging from the daemon (pid: 1832). The daemon log file: /r12home/.gradle/daemon/9.1.0/daemon-1832.out.log
+2026-08-30T18:22:28.169+0000 [DEBUG] [org.gradle.launcher.daemon.server.exec.RequestStopIfSingleUsedDaemon] Requesting daemon stop after processing Build{id=3e91b42c-a304-48f2-b792-35e93cab7809, currentDir=/r12src/selfhost/fixtures/android_signing_app/android}
+2026-08-30T18:22:28.169+0000 [LIFECYCLE] [org.gradle.launcher.daemon.server.DaemonStateCoordinator] Daemon will be stopped at the end of the build 
+2026-08-30T18:22:28.169+0000 [DEBUG] [org.gradle.launcher.daemon.server.DaemonStateCoordinator] Stop as soon as idle requested. The daemon is busy
+2026-08-30T18:22:28.170+0000 [DEBUG] [org.gradle.launcher.daemon.server.DaemonStateCoordinator] daemon stop has been requested. Sleeping until state changes.
+2026-08-30T18:22:28.184+0000 [DEBUG] [org.gradle.launcher.daemon.server.exec.ExecuteBuild] The daemon has started executing the build.
+2026-08-30T18:22:28.185+0000 [DEBUG] [org.gradle.launcher.daemon.server.exec.ExecuteBuild] Executing build with daemon context: DefaultDaemonContext[uid=874d0fa5-c91a-45ad-9842-049a8b164e97,javaHome=/usr/lib/jvm/java-21-openjdk-amd64,javaVersion=21,javaVendor=Debian,daemonRegistryDir=/r12home/.gradle/daemon,pid=1832,idleTimeout=120000,priority=NORMAL,applyInstrumentationAgent=true,nativeServicesMode=ENABLED,daemonOpts=-XX:MaxMetaspaceSize=1g,-XX:ReservedCodeCacheSize=256m,-Xmx3g,-Dfile.encoding=UTF-8,-Duser.country=US,-Duser.language=en,-Duser.variant]
+Flutter assets will be downloaded from https://host.docker.internal:8087. Make sure you trust this source!
+Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 1096 bytes (99.9% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.----- End of the daemon log -----
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Gradle build daemon disappeared unexpectedly (it may have been killed or may have crashed)
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to generate a Build Scan (Powered by Develocity).
+> Get more help at https://help.gradle.org.
+Running Gradle task 'bundleRelease'...                            675.9s
+Gradle task bundleRelease failed with exit code 1
+Failed to build AAB.
+Command: flutter build appbundle --release --target-platform=android-arm,android-arm64,android-x64 --shorebird-trace=/r12src/selfhost/fixtures/android_signing_app/build/shorebird/debug/build-trace-android.json
+Reason: Exited with code 1.
+
+💡 Fix Recommendations
+
+• Check that running `flutter build` with the same command-line arguments
+completes successfully by running the following command:
+
+flutter build appbundle --release --target-platform=android-arm,android-arm64,android-x64 --shorebird-trace=/r12src/selfhost/fixtures/android_signing_app/build/shorebird/debug/build-trace-android.json
+
+If the above command fails, then this is likely not a Shorebird issue and
+the underlying `flutter build` failure must be resolved for Shorebird to
+build a release.
+
+• If `flutter build` completes successfully, please ensure that you are
+providing the desired flutter version to the release command via 
+the `--flutter-version` option. If you do not specify a `--flutter-version`
+Shorebird will default to the latest stable version of Flutter.
+We strongly encourage always specifying an explicit Flutter version:
+
+shorebird release <platform> --flutter-version=3.29.0
+
+• If `flutter build` completes successfully and `shorebird release`
+fails when using the same flutter version, please file an issue:
+https://github.com/shorebirdtech/shorebird/issues/new
+
+
+If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
+
+You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
+/r12home/.config/shorebird/logs/1788114030392_shorebird.log
+

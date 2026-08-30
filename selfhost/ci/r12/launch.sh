@@ -86,6 +86,15 @@ for svc in "CDN $CDN/flutter_infra_release/flutter/$PRODUCER/android-arm64-relea
   [[ "$code" == "200" ]] || die "$name unreachable from a container ($code)"
 done
 
+# THE BUILDER IS NOT ISOLATED. Other containers share this Docker VM, and an
+# emulated release build needs several GiB. Arm A passed and Arm B died with the
+# same settings while an unrelated 1.5GiB workload was resident, so contention is
+# recorded before the arm rather than guessed at afterwards.
+say "builder memory headroom"
+docker info --format '   docker VM MemTotal      : {{.MemTotal}} bytes' 2>&1
+echo "   co-tenant containers    :"
+docker stats --no-stream --format '     {{.Name}} {{.MemUsage}}' 2>&1 | grep -v "r12-arm-" | head -12
+
 CNAME="r12-arm-$ARM"
 docker rm -f "$CNAME" >/dev/null 2>&1 || true
 
@@ -113,6 +122,22 @@ rc=$?
 set -e
 
 say "collecting evidence"
+# CAPTURE THE CONTAINER'S DEATH BEFORE DESTROYING IT. Arm B died with "the daemon
+# has disappeared" and OOMKilled could no longer be read, because this script had
+# already removed the container -- so the single fact that distinguishes "killed
+# by the kernel" from "crashed on its own" was destroyed by the evidence
+# collector.
+DEST_EARLY="$EVIDENCE/arm-$ARM"
+mkdir -p "$DEST_EARLY"
+docker inspect "$CNAME" --format \
+  'exit={{.State.ExitCode}} oomkilled={{.State.OOMKilled}} error={{.State.Error}} started={{.State.StartedAt}} finished={{.State.FinishedAt}}' \
+  > "$DEST_EARLY/container_state.txt" 2>&1 || true
+{ echo "# docker VM and co-tenants at collection time"
+  docker info --format 'MemTotal={{.MemTotal}} NCPU={{.NCPU}}' 2>&1
+  docker stats --no-stream --format '{{.Name}} {{.MemUsage}} {{.MemPerc}}' 2>&1
+} > "$DEST_EARLY/host_memory.txt" 2>&1 || true
+echo "   container state          : $(cat "$DEST_EARLY/container_state.txt" 2>/dev/null)"
+
 DEST="$EVIDENCE/arm-$ARM"
 rm -rf "$DEST"; mkdir -p "$DEST"
 docker cp "$CNAME:/r12out/." "$DEST/" 2>/dev/null || echo "   (no /r12out to collect)"
