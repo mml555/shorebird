@@ -113,7 +113,6 @@ docker run --name "$CNAME" --platform linux/amd64 -i \
   -e SHOREBIRD_HOSTED_URL="${SHOREBIRD_HOSTED_URL:-http://localhost:18081}" \
   -e SHOREBIRD_TOKEN="${SHOREBIRD_TOKEN:-}" \
   -e R12_BOOTSTRAP_ONLY="${R12_BOOTSTRAP_ONLY:-0}" \
-  -e GRADLE_OPTS="-Xmx3g -Dorg.gradle.daemon=false -Dorg.gradle.vfs.watch=false -Dorg.gradle.workers.max=2" \
   -e R12_CA_PEM="$([[ -r "$CA_FILE" ]] && cat "$CA_FILE")" \
   r12-builder:substrate \
   bash -c 'mkdir -p /r12home && cat > /run_arm.sh && chmod +x /run_arm.sh && exec /run_arm.sh' \

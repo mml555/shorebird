@@ -59,32 +59,6 @@ note "caches                   : none present"
 note "CI detection vars        : none set"
 
 
-# GRADLE RESOURCE POSTURE — via GRADLE_USER_HOME, which OUTRANKS the project's
-# gradle.properties for org.gradle.jvmargs.
-#
-# The fixture declares -Xmx8G -XX:MaxMetaspaceSize=4G. On a 7.75 GiB Docker VM
-# that is an unsatisfiable request, and the daemon was OOM-killed twice. GRADLE_OPTS
-# does NOT fix it: that sets the LAUNCHER jvm, while the daemon takes its heap from
-# org.gradle.jvmargs -- the first remedy targeted the wrong process and the second
-# OOM looked identical to the first.
-#
-# Overriding here rather than editing android/gradle.properties keeps the FIXTURE
-# unmodified. This constrains the builder, not the product.
-#
-# Also makes the location deterministic: Java derives user.home from the passwd
-# entry, not $HOME, so Gradle had been writing to /root/.gradle even with
-# HOME=/r12home.
-setup_gradle_home() {
-  mkdir -p "$GRADLE_USER_HOME"
-  cat > "$GRADLE_USER_HOME/gradle.properties" <<'GP'
-org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1g -XX:ReservedCodeCacheSize=256m
-org.gradle.daemon=false
-org.gradle.vfs.watch=false
-org.gradle.workers.max=2
-org.gradle.parallel=false
-GP
-}
-
 # ------------------------------------------------- 1b. trust our CA ---------
 # Gradle 9 refuses insecure Maven repositories, and FLUTTER_STORAGE_BASE_URL
 # becomes a Maven repository during an Android release build:
@@ -113,11 +87,25 @@ fwd="$(curl -sS -o /dev/null -m 15 -w '%{http_code}' http://localhost:18081/ || 
      Every artifact upload would fail with connection refused."
 note "localhost:18081          : $fwd (forwarded to the host control plane)"
 
-say "gradle resource posture"
+say "gradle configuration"
+# LOCATION ONLY -- NO PROPERTIES ARE SET HERE. An earlier revision wrote
+# org.gradle.jvmargs=-Xmx3g into this directory because the VM had 7.75GiB and
+# the fixture asks for 8G. The VM is now larger, so the override is gone and the
+# build runs with the heap the FIXTURE DECLARES. That removes the last place
+# where the arm differed from the project as authored.
+#
+# GRADLE_USER_HOME is still set because Java derives user.home from the passwd
+# entry rather than $HOME, so Gradle would otherwise write its state to
+# /root/.gradle even with HOME=/r12home. This changes where state lives, not how
+# anything builds.
 : "${GRADLE_USER_HOME:=/r12home/.gradle}"; export GRADLE_USER_HOME
-setup_gradle_home
-note "GRADLE_USER_HOME         : $GRADLE_USER_HOME"
-note "org.gradle.jvmargs       : -Xmx3g (fixture asks 8G; VM cannot honour it)"
+mkdir -p "$GRADLE_USER_HOME"
+note "GRADLE_USER_HOME         : $GRADLE_USER_HOME (location only)"
+note "gradle properties        : NONE — the fixture's android/gradle.properties"
+note "                           governs, including its -Xmx8G"
+[[ -f "$GRADLE_USER_HOME/gradle.properties" ]] \
+  && die "a gradle.properties exists in GRADLE_USER_HOME; this arm must not
+     override what the fixture declares"
 
 if [[ -n "${R12_CA_PEM:-}" ]]; then
   say "trusting the mirror CA"
