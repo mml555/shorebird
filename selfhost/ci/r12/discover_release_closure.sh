@@ -23,7 +23,9 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # FLUTTER_STORAGE_BASE_URL becomes one during an Android release build.
 SEALED="${R12_CDN:-https://host.docker.internal:8087}"
 CA_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../cdn/tls-r12" && pwd)/ca.crt"
-CP="${SHOREBIRD_HOSTED_URL:-http://host.docker.internal:18081}"
+# localhost, not host.docker.internal: the control plane emits absolute
+# localhost URLs for uploads, and socat below makes that reachable.
+CP="${SHOREBIRD_HOSTED_URL:-http://localhost:18081}"
 APP=/r12src/selfhost/fixtures/android_signing_app
 C=r12-discovery-rp
 
@@ -68,6 +70,11 @@ if ! docker ps --format '{{.Names}}' | grep -qx "$C"; then
   # Same override the decisive arm applies. The fixture declares -Xmx8G and the
   # VM has 7.75GiB in total; GRADLE_USER_HOME/gradle.properties outranks the
   # project's for org.gradle.jvmargs, so the FIXTURE stays unmodified.
+  docker exec -d "$C" socat TCP-LISTEN:18081,fork,reuseaddr TCP:host.docker.internal:18081
+  sleep 2
+  fwd="$(docker exec "$C" curl -sS -o /dev/null -m 15 -w '%{http_code}' http://localhost:18081/ 2>/dev/null || echo FAIL)"
+  [[ "$fwd" == "200" ]] || { echo "loopback forwarder not working: $fwd"; exit 1; }
+  note "localhost:18081 -> $fwd (forwarded to the host control plane)"
   docker exec "$C" sh -c 'mkdir -p /r12home/.gradle && cat > /r12home/.gradle/gradle.properties <<GP
 org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1g -XX:ReservedCodeCacheSize=256m
 org.gradle.daemon=false

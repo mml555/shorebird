@@ -36,9 +36,8 @@
 
 == arm 3 — patch, NO --release-version (the release chooser) ==
    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && timeout 600 shorebird patch android --no-confirm)
-   exit: 70  log: /r12out/disc/ci_run_chooser.log
-   arm 3 exited 70, expected 64 (refused prompt). If 0, the chooser was
-     never reached and this arm proved nothing — check the release count.
+   exit: 64  log: /r12out/disc/ci_run_chooser.log
+   arm 3 refused the CHOOSER by name (exit 64) — outcome 11, the good failure
 
 == verdict ==
-   FAIL — 3 check(s) failed. Logs in /r12out/disc
+   FAIL — 2 check(s) failed. Logs in /r12out/disc

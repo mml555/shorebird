@@ -100,6 +100,19 @@ GP
 # mounts" boundary is untouched. It goes into BOTH trust stores: the system
 # bundle for curl/Dart and the JDK's for Gradle, which does not read the system
 # one.
+say "control-plane loopback forwarder"
+# The control plane is configured PUBLIC_BASE_URL=http://localhost:18081 and
+# returns that ABSOLUTE url for artifact uploads (api.dart:2829). A container
+# dialling localhost reaches itself, so the upload is refused with errno 111.
+# Forwarding our own loopback to the host means the arm talks to EXACTLY the
+# historical endpoint, and no shared configuration is repointed.
+socat TCP-LISTEN:18081,fork,reuseaddr TCP:host.docker.internal:18081 &
+sleep 2
+fwd="$(curl -sS -o /dev/null -m 15 -w '%{http_code}' http://localhost:18081/ || echo FAIL)"
+[[ "$fwd" == "200" ]] || die "loopback forwarder is not working (localhost:18081 -> $fwd).
+     Every artifact upload would fail with connection refused."
+note "localhost:18081          : $fwd (forwarded to the host control plane)"
+
 say "gradle resource posture"
 : "${GRADLE_USER_HOME:=/r12home/.gradle}"; export GRADLE_USER_HOME
 setup_gradle_home

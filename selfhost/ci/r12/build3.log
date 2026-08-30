@@ -1,0 +1,83 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 3.44kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/debian:trixie-slim
+#2 DONE 0.7s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [1/7] FROM docker.io/library/debian:trixie-slim@sha256:d7e12182ce18b85b93007c1dedf31f2d29e01ccf3182cc4017c709b6259bc132
+#4 resolve docker.io/library/debian:trixie-slim@sha256:d7e12182ce18b85b93007c1dedf31f2d29e01ccf3182cc4017c709b6259bc132 0.0s done
+#4 DONE 0.0s
+
+#5 [2/7] RUN apt-get update && apt-get install -y --no-install-recommends       openjdk-21-jdk-headless       git curl unzip zip xz-utils ca-certificates file procps coreutils     && rm -rf /var/lib/apt/lists/*
+#5 CACHED
+
+#6 [3/7] RUN mkdir -p "/opt/android-sdk/cmdline-tools"     && curl -fsSL -o /tmp/cmdline-tools.zip        "https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip"     && unzip -q /tmp/cmdline-tools.zip -d "/opt/android-sdk/cmdline-tools"     && mv "/opt/android-sdk/cmdline-tools/cmdline-tools" "/opt/android-sdk/cmdline-tools/latest"     && rm /tmp/cmdline-tools.zip
+#6 CACHED
+
+#7 [4/7] RUN yes | sdkmanager --licenses >/dev/null 2>&1 || true
+#7 CACHED
+
+#8 [5/7] RUN sdkmanager --install       "platform-tools"       "platforms;android-36"       "build-tools;36.0.0"       "ndk;28.2.13676358"       "cmake;3.22.1" >/dev/null
+#8 CACHED
+
+#9 [6/7] RUN apt-get update && apt-get install -y --no-install-recommends ninja-build socat     && rm -rf /var/lib/apt/lists/*
+#9 0.531 Get:1 http://deb.debian.org/debian trixie InRelease [140 kB]
+#9 0.579 Get:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]
+#9 0.579 Get:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]
+#9 0.719 Get:4 http://deb.debian.org/debian trixie/main amd64 Packages [9673 kB]
+#9 2.042 Get:5 http://deb.debian.org/debian trixie-updates/main amd64 Packages [4412 B]
+#9 2.062 Get:6 http://deb.debian.org/debian-security trixie-security/main amd64 Packages [251 kB]
+#9 2.889 Fetched 10.2 MB in 3s (4035 kB/s)
+#9 2.889 Reading package lists...
+#9 3.525 Reading package lists...
+#9 4.081 Building dependency tree...
+#9 4.251 Reading state information...
+#9 4.425 The following additional packages will be installed:
+#9 4.426   libwrap0
+#9 4.427 Suggested packages:
+#9 4.427   python3
+#9 4.508 The following NEW packages will be installed:
+#9 4.508   libwrap0 ninja-build socat
+#9 4.636 0 upgraded, 3 newly installed, 0 to remove and 0 not upgraded.
+#9 4.636 Need to get 621 kB of archives.
+#9 4.636 After this operation, 2366 kB of additional disk space will be used.
+#9 4.636 Get:1 http://deb.debian.org/debian trixie/main amd64 libwrap0 amd64 7.6.q-36 [55.3 kB]
+#9 4.671 Get:2 http://deb.debian.org/debian trixie/main amd64 ninja-build amd64 1.12.1-1 [142 kB]
+#9 4.691 Get:3 http://deb.debian.org/debian trixie/main amd64 socat amd64 1.8.0.3-1 [423 kB]
+#9 5.675 Fetched 621 kB in 0s (3059 kB/s)
+#9 5.770 Selecting previously unselected package libwrap0:amd64.
+#9 5.770 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 9985 files and directories currently installed.)
+#9 5.803 Preparing to unpack .../libwrap0_7.6.q-36_amd64.deb ...
+#9 5.808 Unpacking libwrap0:amd64 (7.6.q-36) ...
+#9 5.915 Selecting previously unselected package ninja-build.
+#9 5.917 Preparing to unpack .../ninja-build_1.12.1-1_amd64.deb ...
+#9 5.918 Unpacking ninja-build (1.12.1-1) ...
+#9 6.024 Selecting previously unselected package socat.
+#9 6.025 Preparing to unpack .../socat_1.8.0.3-1_amd64.deb ...
+#9 6.027 Unpacking socat (1.8.0.3-1) ...
+#9 6.118 Setting up ninja-build (1.12.1-1) ...
+#9 6.125 Setting up libwrap0:amd64 (7.6.q-36) ...
+#9 6.172 Setting up socat (1.8.0.3-1) ...
+#9 6.176 Processing triggers for libc-bin (2.41-12+deb13u3) ...
+#9 DONE 6.3s
+
+#10 [7/7] RUN ! command -v flutter && ! command -v dart && ! command -v shorebird     && [ ! -d /root/.shorebird ] && [ ! -d /root/.pub-cache ]     && echo "substrate clean: no flutter/dart/shorebird, no caches"
+#10 0.126 substrate clean: no flutter/dart/shorebird, no caches
+#10 DONE 0.1s
+
+#11 exporting to image
+#11 exporting layers 0.1s done
+#11 exporting manifest sha256:f2a4257b9ec5e86a6e6d12bc53e0d667f5263ee7598e6a037832d8271bbe8060 done
+#11 exporting config sha256:69ac73ad0aa16507d5bc5b9de9560603af182a3b614d2276e59ecb11c7cfc552 done
+#11 exporting attestation manifest sha256:2a2e17cc568c1a34b215670cecb59cebc573aa28a779e468079b7d37f8da3bb4
+#11 exporting attestation manifest sha256:2a2e17cc568c1a34b215670cecb59cebc573aa28a779e468079b7d37f8da3bb4 done
+#11 exporting manifest list sha256:5a7362e9707465e71d2b604181084865798cbd823f0c7074bc6458af411fb7e0 done
+#11 naming to docker.io/library/r12-builder:substrate done
+#11 DONE 0.1s

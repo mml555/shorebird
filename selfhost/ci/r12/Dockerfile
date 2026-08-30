@@ -49,7 +49,14 @@ RUN sdkmanager --install \
       "build-tools;36.0.0" \
       "ndk;28.2.13676358" \
       "cmake;3.22.1" >/dev/null
-RUN apt-get update && apt-get install -y --no-install-recommends ninja-build \
+# socat forwards the container's own localhost:18081 to the host's control
+# plane. The server is configured PUBLIC_BASE_URL=http://localhost:18081 and
+# hands that ABSOLUTE url back for artifact uploads (api.dart:2829), so inside a
+# container the CLI dials its own loopback and is refused. Forwarding is
+# preferable to repointing PUBLIC_BASE_URL, which is shared infrastructure the
+# iOS lane also uses -- and it makes the arm's view of the control plane
+# IDENTICAL to the historical host-local endpoint rather than merely equivalent.
+RUN apt-get update && apt-get install -y --no-install-recommends ninja-build socat \
     && rm -rf /var/lib/apt/lists/*
 
 # Proof the substrate carries none of the toolchain under test. A cached Flutter
