@@ -20,6 +20,22 @@ bootstrap closure guard
    CDN                      : https://host.docker.internal:8087/flutter_infra_release/flutter/ -> 200
    control-plane            : http://host.docker.internal:18081/ -> 200
 
+== builder memory headroom ==
+   docker VM MemTotal      : 8321654784 bytes
+   co-tenant containers    :
+app_redis_test 8.746MiB / 7.75GiB
+app_libpostal_test 1.52GiB / 7.75GiB
+app_db_test 115.2MiB / 7.75GiB
+r12-cdn-sealed 28.28MiB / 7.75GiB
+r12-flutter-git 5.289MiB / 7.75GiB
+coolify-proxy 62.15MiB / 7.75GiB
+coolify-sentinel 30.12MiB / 7.75GiB
+coolify-db 20.55MiB / 7.75GiB
+coolify-realtime 34.73MiB / 7.75GiB
+coolify-redis 8.281MiB / 7.75GiB
+coolify 34.7MiB / 7.75GiB
+coolify-minio-init 29.82MiB / 7.75GiB
+
 == arm B — fresh container, no host mounts ==
 
 == container cleanliness ==
@@ -43,8 +59,8 @@ bootstrap closure guard
 
 == bootstrap the OWNED toolchain ==
    repo                     : https://github.com/mml555/shorebird.git
-   sha                      : 8254706cf093d33d77cb5adbc7738dcc67f3e14f
-   checked out              : 8254706cf093d33d77cb5adbc7738dcc67f3e14f
+   sha                      : ab7819532b418e5dae303ce8841eeba2204227b8
+   checked out              : ab7819532b418e5dae303ce8841eeba2204227b8
    flutter.version (pinned) : a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61
    flutter git url          : git://host.docker.internal:9418/flutter.git
    artifact CDN (flutter)   : https://host.docker.internal:8087
@@ -69,7 +85,7 @@ bootstrap closure guard
 == ephemeral Android release key ==
    keystore                 : /r12home/r12-ephemeral.jks (ephemeral, dies with the container)
    key.properties           : written, not echoed
-   release version          : 1.1.1+1 (recorded adaptation)
+   release version          : 1.1.2+1 (recorded adaptation)
 
 == pre-arm control-plane state ==
    control plane            : http://localhost:18081
@@ -81,54 +97,9 @@ bootstrap closure guard
 
 == frozen ci_noninteractive.sh ==
    cmd: ci_noninteractive.sh --app-dir /r12src/selfhost/fixtures/android_signing_app --out /r12out/harness
-   harness exit             : 1
-     | 
-     | == preflight ==
-     |    app dir                  : /r12src/selfhost/fixtures/android_signing_app
-     |    stdout is a TTY          : no
-     |    stdin  is a TTY          : no (bash isatty) / YES to the CLI -- stdin is a
-     |                               CHARACTER DEVICE, which Dart reports as
-     |                               StdioType.terminal. canAcceptUserInput is TRUE.
-     |                               Attribute refusals to stdout, not to stdin.
-     |    CI detection vars        : none set
-     |    SHOREBIRD_TOKEN          : set (71 chars, not echoed)
-     |    control plane            : http://localhost:18081 -> 200
-     |    shorebird                : /r12src/bin/shorebird
-     | 
-     | == self-test A — preview, NO --json (TTY predicate only) ==
-     |    cmd: (cd /r12out/harness/detector_selftest_app && shorebird preview)
-     |    exit: 64  log: /r12out/harness/detector_selftest.log
-     |    exit: 64 (expected 64)   'non-interactive context' lines: 1 (expected >=1)
-     | 
-     | == self-test B — preview, WITH --json (arm 2's exact grep) ==
-     |    cmd: (cd /r12out/harness/detector_selftest_app && shorebird --json preview)
-     |    exit: 64  log: /r12out/harness/detector_selftest_json.log
-     |    exit: 64 (expected 64)   interactive_prompt_required: 1 (expected >=1)
-     |    host                     : Linux
-     |    release version          : 1.1.1+1
-     | 
-     | == arm 1 — release, NO --json ==
-     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird release android --no-confirm)
-     |    exit: 70  log: /r12out/harness/ci_run_notty.log
-     |    arm 1 release FAILED (exit 70)
-     | 
-     | == arm 2 — patch, WITH --json ==
-     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird --json patch android --no-confirm --release-version 1.1.1+1)
-     |    exit: 70  log: /r12out/harness/ci_run_json.log
-     |    arm 2 FAILED (exit 70)
-     |    interactive_prompt_required in arm 2: 0 (expected 0)
-     | 
-     | == arm 3 — patch, NO --release-version (the release chooser) ==
-     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && timeout 600 shorebird patch android --no-confirm)
-     |    exit: 64  log: /r12out/harness/ci_run_chooser.log
-     |    arm 3 refused the CHOOSER by name (exit 64) — outcome 11, the good failure
-     | 
-     | == verdict ==
-     |    FAIL — 2 check(s) failed. Logs in /r12out/harness
-
-== arm B finished with exit 1 ==
 
 == collecting evidence ==
+   container state          : exit=137 oomkilled=false error= started=2026-08-30T18:41:38.412645709Z finished=2026-08-30T18:48:03.591669763Z
    evidence                 : /Users/mendell/shorebird/selfhost/ci/r12/../../evidence/r12-linux-ci/arm-B
 
-== arm B exit 1 ==
+== arm B exit 137 ==

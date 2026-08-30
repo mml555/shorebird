@@ -127,8 +127,11 @@ say "collecting evidence"
 # already removed the container -- so the single fact that distinguishes "killed
 # by the kernel" from "crashed on its own" was destroyed by the evidence
 # collector.
-DEST_EARLY="$EVIDENCE/arm-$ARM"
-mkdir -p "$DEST_EARLY"
+# Staged OUTSIDE the evidence dir: the collector below does `rm -rf "$DEST"`, so
+# writing here first would have this capture deleted by the very step meant to
+# preserve it. It is moved in after that wipe. (It was, on the first try -- the
+# state survived only because it was also echoed to stdout.)
+DEST_EARLY="$(mktemp -d)"
 docker inspect "$CNAME" --format \
   'exit={{.State.ExitCode}} oomkilled={{.State.OOMKilled}} error={{.State.Error}} started={{.State.StartedAt}} finished={{.State.FinishedAt}}' \
   > "$DEST_EARLY/container_state.txt" 2>&1 || true
@@ -140,6 +143,8 @@ echo "   container state          : $(cat "$DEST_EARLY/container_state.txt" 2>/d
 
 DEST="$EVIDENCE/arm-$ARM"
 rm -rf "$DEST"; mkdir -p "$DEST"
+cp "$DEST_EARLY/container_state.txt" "$DEST_EARLY/host_memory.txt" "$DEST/" 2>/dev/null || true
+rm -rf "$DEST_EARLY"
 docker cp "$CNAME:/r12out/." "$DEST/" 2>/dev/null || echo "   (no /r12out to collect)"
 docker logs "$CNAME" > "$DEST/container.log" 2>&1 || true
 echo "   evidence                 : $DEST"
