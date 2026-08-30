@@ -1,0 +1,21 @@
+
+== preflight (host side) ==
+  ok      shape: 40 lowercase hex
+  ok      resolves to a published cell in the overlay
+  ok      publishes android-arm64-release/linux-x64.zip (2.0M)
+  ok      CDN serves it: HTTP 200
+  REVISION ACCEPTED  fc184af6509a93eaf6fc068c6820639b324175a8
+bootstrap closure guard
+  ok      supported flutter_revision: a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61
+  ok      owned mirror contains the pinned revision
+  ok      engine.version resolves: 69f9831c360d9152862ec3897c67fb09ae843f3b
+  ok      owned cell exists for the supported engine
+  ok      dart-sdk-linux-x64.zip  146984983 bytes  sha256 4f6aac5042ccbb7a…
+  ok      engine_stamp.json  237 bytes  sha256 f424c1e7f9c0f4c6…
+  ok      closure manifest rows for this engine: 2
+  ok      proxy mapping pinned: manifest f1e398c80973e969… -> flutter_engine_revision 83675ed27633283e…
+
+  CLOSURE OK  a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61 -> 69f9831c360d9152862ec3897c67fb09ae843f3b  (2 artifacts, size + sha256 verified)
+   owned flutter mirror     : serves a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61
+   CDN                      : https://host.docker.internal:8087/flutter_infra_release/flutter/ -> 000FAIL
+FAIL: CDN unreachable from a container (000FAIL)

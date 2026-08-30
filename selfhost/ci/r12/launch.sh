@@ -75,8 +75,13 @@ echo "   owned flutter mirror     : serves $PINNED"
 for svc in "CDN $CDN/flutter_infra_release/flutter/$PRODUCER/android-arm64-release/linux-x64.zip" \
            "control-plane http://host.docker.internal:18081/"; do
   name="${svc%% *}"; url="${svc#* }"
-  code="$(docker run --rm --platform linux/amd64 curlimages/curl:latest \
-            -sS -o /dev/null -m 20 -w '%{http_code}' "$url" 2>/dev/null || echo FAIL)"
+  # The probe must trust our CA too. A stock curl image does not, so an https
+  # mirror came back 000 and read as "unreachable" when it was serving fine. The
+  # CA is mounted into the PROBE container only -- this runs on the host side,
+  # not inside the measured arm, where the no-host-mounts rule applies.
+  code="$(docker run --rm --platform linux/amd64 \
+            -v "$CA_FILE:/ca.crt:ro" curlimages/curl:latest \
+            -sS --cacert /ca.crt -o /dev/null -m 20 -w '%{http_code}' "$url" 2>/dev/null || echo FAIL)"
   printf '   %-24s : %s -> %s\n' "$name" "${url:0:64}" "$code"
   [[ "$code" == "200" ]] || die "$name unreachable from a container ($code)"
 done
