@@ -20,8 +20,8 @@
 
 == bootstrap the OWNED toolchain ==
    repo                     : https://github.com/mml555/shorebird.git
-   sha                      : 75eff8e697811c619c4f06e17afbfb6c3fd7d63a
-   checked out              : 75eff8e697811c619c4f06e17afbfb6c3fd7d63a
+   sha                      : 9e8106735c1234167de72f9aa3b281d3ceaedac6
+   checked out              : 9e8106735c1234167de72f9aa3b281d3ceaedac6
    flutter.version (pinned) : a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61
    flutter git url          : git://host.docker.internal:9418/flutter.git
    artifact CDN (flutter)   : https://host.docker.internal:8087
@@ -46,7 +46,7 @@
 == ephemeral Android release key ==
    keystore                 : /r12home/r12-ephemeral.jks (ephemeral, dies with the container)
    key.properties           : written, not echoed
-   release version          : 1.0.0+1 (recorded adaptation)
+   release version          : 1.1.0+1 (recorded adaptation)
 
 == pre-arm control-plane state ==
    control plane            : http://localhost:18081
@@ -57,7 +57,7 @@
 
 == frozen ci_noninteractive.sh ==
    cmd: ci_noninteractive.sh --app-dir /r12src/selfhost/fixtures/android_signing_app --out /r12out/harness
-   harness exit             : 1
+   harness exit             : 0
      | 
      | == preflight ==
      |    app dir                  : /r12src/selfhost/fixtures/android_signing_app
@@ -81,15 +81,18 @@
      |    exit: 64  log: /r12out/harness/detector_selftest_json.log
      |    exit: 64 (expected 64)   interactive_prompt_required: 1 (expected >=1)
      |    host                     : Linux
-     |    release version          : 1.0.0+1
+     |    release version          : 1.1.0+1
      | 
      | == arm 1 — release, NO --json ==
      |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird release android --no-confirm)
-     |    exit: 70  log: /r12out/harness/ci_run_notty.log
-     |    arm 1 release FAILED (exit 70)
+     |    exit: 0  log: /r12out/harness/ci_run_notty.log
+     | 
+     | == arm 1 — patch, NO --json ==
+     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird patch android --no-confirm --release-version 1.1.0+1)
+     |    exit: 0  log: /r12out/harness/ci_run_notty.log.patch
      | 
      | == arm 2 — patch, WITH --json ==
-     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird --json patch android --no-confirm --release-version 1.0.0+1)
+     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird --json patch android --no-confirm --release-version 1.1.0+1)
      |    exit: 0  log: /r12out/harness/ci_run_json.log
      |    interactive_prompt_required in arm 2: 0 (expected 0)
      | 
@@ -99,6 +102,14 @@
      |    arm 3 refused the CHOOSER by name (exit 64) — outcome 11, the good failure
      | 
      | == verdict ==
-     |    FAIL — 1 check(s) failed. Logs in /r12out/harness
+     |    PASS — the detector self-test fired (so a prompt WOULD have been seen),
+     |    and both arms completed with no TTY against http://localhost:18081.
+     |    
+     |    PARITY.md:2375 names exactly this arm as what its row requires; :2376 is
+     |    its patch twin. A green run here is the evidence for them — it is NOT
+     |    self-certifying. PROVEN means the real product workflow completed and the
+     |    observable result was verified (PARITY.md:3582-3583); a script printing
+     |    PASS is not that verification. Record the logs and let the row be moved
+     |    by whoever reads them.
 
-== arm A finished with exit 1 ==
+== arm A finished with exit 0 ==

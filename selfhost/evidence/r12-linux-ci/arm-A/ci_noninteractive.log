@@ -21,15 +21,18 @@
    exit: 64  log: /r12out/harness/detector_selftest_json.log
    exit: 64 (expected 64)   interactive_prompt_required: 1 (expected >=1)
    host                     : Linux
-   release version          : 1.0.0+1
+   release version          : 1.1.0+1
 
 == arm 1 — release, NO --json ==
    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird release android --no-confirm)
-   exit: 70  log: /r12out/harness/ci_run_notty.log
-   arm 1 release FAILED (exit 70)
+   exit: 0  log: /r12out/harness/ci_run_notty.log
+
+== arm 1 — patch, NO --json ==
+   cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird patch android --no-confirm --release-version 1.1.0+1)
+   exit: 0  log: /r12out/harness/ci_run_notty.log.patch
 
 == arm 2 — patch, WITH --json ==
-   cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird --json patch android --no-confirm --release-version 1.0.0+1)
+   cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird --json patch android --no-confirm --release-version 1.1.0+1)
    exit: 0  log: /r12out/harness/ci_run_json.log
    interactive_prompt_required in arm 2: 0 (expected 0)
 
@@ -39,4 +42,12 @@
    arm 3 refused the CHOOSER by name (exit 64) — outcome 11, the good failure
 
 == verdict ==
-   FAIL — 1 check(s) failed. Logs in /r12out/harness
+   PASS — the detector self-test fired (so a prompt WOULD have been seen),
+   and both arms completed with no TTY against http://localhost:18081.
+   
+   PARITY.md:2375 names exactly this arm as what its row requires; :2376 is
+   its patch twin. A green run here is the evidence for them — it is NOT
+   self-certifying. PROVEN means the real product workflow completed and the
+   observable result was verified (PARITY.md:3582-3583); a script printing
+   PASS is not that verification. Record the logs and let the row be moved
+   by whoever reads them.
