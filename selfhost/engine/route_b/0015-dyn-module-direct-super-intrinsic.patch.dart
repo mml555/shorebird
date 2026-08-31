@@ -3,6 +3,11 @@
 //
 // !! STATUS: UNSOUND AS DESIGNED. DO NOT PROMOTE. !!
 //
+// SUPERSEDED BY 0017 (`super0/s2b1/apply_0017.py`), which splits verification
+// from binding: the PATCHED no-AOT kernel verifies the site and its shape, the
+// RELEASE import kernel resolves the target the DirectCall names, and three
+// fingerprints must agree. 0016 was an intermediate step and is also superseded.
+//
 // The site rediscovery below searches the RELEASE import kernel's original body
 // for a SuperMethodInvocation at an offset the analyzer read from the PATCHED
 // kernel. Those are different source versions, so the offset is not an identity

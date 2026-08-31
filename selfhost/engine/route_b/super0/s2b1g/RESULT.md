@@ -170,3 +170,76 @@ require.
 
 Part 2B (TFA-symmetric fixture, positive shipping arm, both mutations) stays
 blocked on the wiring, as before.
+
+
+---
+
+# Part 2A continuation — 0017, the DUAL-KERNEL compiler
+
+The ruling's decision, implemented: `--import-dill` stays the shipped program
+the whole replacement binds against, and the patched kernel enters as an
+**isolated verifier**.
+
+    --import-dill <release-import.dill>          BINDING
+    --patched-verification-dill <patched.dill>   VERIFICATION ONLY
+
+The verification component is loaded separately and is **never merged into
+`allLibraries`**; nothing in it can be named by emitted bytecode.
+
+## Three fingerprints must agree
+
+    analyzer expected   from the PATCHED AOT kernel
+    patched verifier    resolved in the patched no-AOT hierarchy
+    release binder      resolved structurally in the release hierarchy
+
+and the `DirectCall` names the **release** Procedure. Any disagreement refuses;
+there is no fallback anywhere.
+
+**Site identity never crosses into the release lookup.** The offset is used only
+against the patched kernel. The release side is found by origin class + super
+member through the release hierarchy — requiring a release super call at the
+patched offset would reintroduce exactly the cross-version dependency
+2B.1c-SITE exists to kill.
+
+## Controls
+
+    release site 988 / patch site 1005 / identical target
+
+    wrong_verifier_release   REFUSED   "no super invocation at offset 1005 …
+                                        (patched kernel)"
+    dual_kernel              ACCEPTED  patched verifier agrees, release binder
+                                       agrees, binds to the RELEASE procedure
+                                       (owner _Leaf&Base&Ticker)
+                             execution WRAP:TICKER:APP-STATE
+    corrupted expected       REFUSED   caught by the PATCHED verifier
+    release binder isolated  REFUSED   "the RELEASE kernel resolves a different
+                                        super target than the analysis
+                                        authorized"
+
+**On what the disagreement arm isolates.** Both comparisons test the same
+expected tuple and the patched verifier runs first, so corrupting the tuple is
+caught there — that arm proves a disagreement refuses, not that the release-side
+check works. The release-side equality is reached by a second arm that disables
+the patched comparison, because building a specimen where the two hierarchies
+genuinely resolve DIFFERENT targets is prevented by Route B's own
+signature/hierarchy guards. Recorded rather than glossed.
+
+## A harness fault, fixed
+
+The first dual-kernel run left the engine tree dirty: the harness captured its
+restore baseline from an **already-patched** generator, so "restored" restored
+the patch. `run_import_control.sh` now refuses to start against a patched tree,
+and both the generator and the driver are restored and checksummed.
+
+## Status
+
+    dual-kernel 0017 (verification isolated from binding)      DONE
+    three-way fingerprint agreement                            DONE
+    DirectCall binds the RELEASE procedure                      DONE
+    wrong-verifier control                                      DONE
+    release-binder disagreement control                         DONE
+    patched no-AOT generation + producer/caller threading        NOT DONE
+    compiler-cell feature marker (routeBDirectSuperDualKernelV1) NOT DONE
+
+Part 2B stays blocked on the two remaining items: the product does not yet
+BUILD a patched no-AOT kernel at patch time, nor pass one.

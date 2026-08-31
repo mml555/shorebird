@@ -37,14 +37,25 @@ note() { echo; echo "==> $*"; }
 check() { if [ "$2" = "$3" ]; then printf '  PASS  %-38s %s\n' "$1" "$2";
           else printf '  FAIL  %-38s got %s want %s\n' "$1" "$2" "$3"; fail=$((fail+1)); fi; }
 
+DRIVER="$DART_TREE/pkg/dart2bytecode/lib/dart2bytecode.dart"
 BACKUP="$(mktemp)"; cp "$GENERATOR" "$BACKUP"
+DBACKUP="$(mktemp)"; cp "$DRIVER" "$DBACKUP"
 before=$(shasum -a 256 "$GENERATOR" | cut -d' ' -f1)
-restore() { cp "$BACKUP" "$GENERATOR"
-  after=$(shasum -a 256 "$GENERATOR" | cut -d' ' -f1); rm -f "$BACKUP"
-  [ "$after" = "$before" ] || { echo "FATAL: generator not restored" >&2; exit 3; }
-  echo; echo "dart2bytecode source restored, sha256 $after"; }
+dbefore=$(shasum -a 256 "$DRIVER" | cut -d' ' -f1)
+restore() { cp "$BACKUP" "$GENERATOR"; cp "$DBACKUP" "$DRIVER"
+  after=$(shasum -a 256 "$GENERATOR" | cut -d' ' -f1)
+  dafter=$(shasum -a 256 "$DRIVER" | cut -d' ' -f1)
+  rm -f "$BACKUP" "$DBACKUP"
+  { [ "$after" = "$before" ] && [ "$dafter" = "$dbefore" ]; } \
+    || { echo "FATAL: dart2bytecode not restored" >&2; exit 3; }
+  echo; echo "dart2bytecode restored, generator $after"; }
 trap restore EXIT
-python3 "$HERE/../s2b1/apply_0016.py" "$GENERATOR"
+if grep -q '_shorebirdDirectSuper' "$GENERATOR"; then
+  echo "ERROR: dart2bytecode is already patched. This harness would capture the"
+  echo "       PATCHED state as its restore baseline and leave the tree dirty." >&2
+  exit 2
+fi
+python3 "$HERE/../s2b1/apply_0017.py" "$GENERATOR"
 
 cat > "$WORK/.dart_tool/package_config.json" <<JSON
 { "configVersion": 2, "packages": [
@@ -113,11 +124,15 @@ String go(Leaf self) => 'WRAP:\${routeBSuper(
       '$fUri', $fOff, '$fName', '$fKind') as String}';
 DART
 
-arm() { # <label> <importDill> <wantCompile>
+# --import-dill is ALWAYS the release: it is the shipped program the whole
+# replacement binds against. Only the VERIFICATION kernel varies.
+arm() { # <label> <verificationDill> <wantCompile>
   note "$1"
   set +e
   "$DART" "$DART2BC" --platform "$OUT/vm_platform.dill" \
-    --import-dill "$2" -o "$1.bytecode" replacement.dart > "$1.log" 2>&1
+    --import-dill release_import.dill \
+    --patched-verification-dill "$2" \
+    -o "$1.bytecode" replacement.dart > "$1.log" 2>&1
   local rc=$?
   set -e
   if [ "$rc" -ne 0 ]; then
@@ -135,8 +150,55 @@ arm() { # <label> <importDill> <wantCompile>
   fi
 }
 
-arm release_import release_import.dill REFUSED
-arm patched_import patched_import.dill ACCEPTED
+# The wrong VERIFIER: the release body has no site at the patched offset.
+arm wrong_verifier_release release_import.dill REFUSED
+# The right one: patched body verifies, release kernel binds.
+arm dual_kernel           patched_import.dill ACCEPTED
+
+# RELEASE-BINDING DISAGREEMENT. Verification succeeds and the release resolver
+# must still refuse, because a verified patch may not authorize an unrelated
+# release Procedure. Injected by corrupting only the EXPECTED tuple's offset,
+# which the patched verifier and the release binder both compare against.
+note "release-binding disagreement"
+sed "s/, $fOff, '$fName'/, 999999, '$fName'/" replacement.dart > mismatch.dart
+set +e
+"$DART" "$DART2BC" --platform "$OUT/vm_platform.dill" \
+  --import-dill release_import.dill \
+  --patched-verification-dill patched_import.dill \
+  -o mismatch.bytecode mismatch.dart > mismatch.log 2>&1
+mrc=$?
+set -e
+{ grep -oE "Route B direct-super intrinsic refused: .*" mismatch.log \
+    || tail -2 mismatch.log; } | head -1 | sed 's/^/    /'
+check "corrupted expected -> REFUSED" \
+  "$([ $mrc -ne 0 ] && echo REFUSED || echo ACCEPTED)" "REFUSED"
+grep -q 'PATCHED kernel resolves a different' mismatch.log && who=patched || who=other
+check "caught by the patched verifier" "$who" "patched"
+
+# ISOLATE THE RELEASE BINDER. Disable only the patched-side comparison, so the
+# corrupted tuple has to be caught by the release-side one or not at all.
+note "release-binder equality, isolated"
+python3 - "$GENERATOR" <<'PY'
+import io, sys
+p = sys.argv[1]; s = io.open(p, encoding='utf-8').read()
+a = "    if (patchedFingerprint != expected) {"
+assert s.count(a) == 1, 'patched comparison not found'
+io.open(p, 'w', encoding='utf-8').write(s.replace(a, "    if (false) {", 1))
+print('    patched-side comparison disabled')
+PY
+set +e
+"$DART" "$DART2BC" --platform "$OUT/vm_platform.dill" \
+  --import-dill release_import.dill \
+  --patched-verification-dill patched_import.dill \
+  -o isolated.bytecode mismatch.dart > isolated.log 2>&1
+irc=$?
+set -e
+{ grep -oE "Route B direct-super intrinsic refused: .*" isolated.log \
+    || tail -2 isolated.log; } | head -1 | sed 's/^/    /'
+check "release binder refuses on its own" \
+  "$([ $irc -ne 0 ] && echo REFUSED || echo ACCEPTED)" "REFUSED"
+grep -q 'RELEASE kernel resolves a different' isolated.log && who2=release || who2=other
+check "and it is the RELEASE comparison" "$who2" "release"
 
 echo
 [ "$fail" -eq 0 ] || { echo "RESULT: $fail check(s) FAILED"; exit 1; }
