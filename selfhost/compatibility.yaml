@@ -5,6 +5,12 @@
 # passes against it. This is the single source of truth for what we build,
 # vendor, and mirror.
 # SUPPORTED — the revision set the compatibility suite has passed against.
+# PROMOTING A REVISION INTO THIS FILE IS GOVERNED BY selfhost/TOOLCHAIN_PROMOTION.md.
+# A pin does not become SUPPORTED because its source is owned and the compatibility
+# suite passes. The owned artifact service must also carry the bootstrap closure for
+# the engine that pin resolves to, proved on a SEALED COLD builder -- that link was
+# missing for the whole programme and warm caches hid it. Closure BEFORE promotion,
+# never discovered after.
 shorebird:
   cli_version: 1.6.115+selfhost.1                                # fork build of upstream 1.6.115
   cli_revision: selfhost-v1.0.0                                  # this repo's baseline tag
