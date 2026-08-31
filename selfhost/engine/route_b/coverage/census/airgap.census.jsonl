@@ -1,0 +1,20 @@
+{"censusVersion":1,"dill":"/private/tmp/claude-501/-Users-mendell-shorebird/8688bc8f-b3b0-49e5-b8b9-c4f9ab0a7854/scratchpad/d0/census2/airgap.dill","include":["package:airgap_probe/"],"considered":19,"skippedStatic":0,"skippedNoBody":2,"skippedNoSpan":0,"analysisVersion":9}
+{"target":"package:airgap_probe/main.dart#ProbeApp.build","kind":"Method","private":false,"accesses":1,"lowerable":true,"unsupported":[],"needsAlphaRename":false,"unconsumedThisParents":{}}
+{"target":"package:airgap_probe/main.dart#ProbeBody.createState","kind":"Method","private":false,"accesses":0,"lowerable":true,"unsupported":[],"needsAlphaRename":false,"unconsumedThisParents":{}}
+{"target":"package:airgap_probe/main.dart#RouteBThing.helper","kind":"Method","private":false,"accesses":0,"lowerable":true,"unsupported":[],"needsAlphaRename":false,"unconsumedThisParents":{}}
+{"target":"package:airgap_probe/main.dart#RouteBThing.kindMember","kind":"Method","private":false,"accesses":0,"lowerable":true,"unsupported":[],"needsAlphaRename":false,"unconsumedThisParents":{}}
+{"target":"package:airgap_probe/main.dart#RouteBThing.named","kind":"Method","private":false,"accesses":0,"lowerable":true,"unsupported":[],"needsAlphaRename":false,"unconsumedThisParents":{}}
+{"target":"package:airgap_probe/main.dart#RouteBThing.opt","kind":"Method","private":false,"accesses":0,"lowerable":true,"unsupported":[],"needsAlphaRename":false,"unconsumedThisParents":{}}
+{"target":"package:airgap_probe/main.dart#RouteBThing.paramValue","kind":"Method","private":false,"accesses":0,"lowerable":true,"unsupported":[],"needsAlphaRename":false,"unconsumedThisParents":{}}
+{"target":"package:airgap_probe/main.dart#RouteBThing.tagged","kind":"Method","private":false,"accesses":0,"lowerable":true,"unsupported":[],"needsAlphaRename":false,"unconsumedThisParents":{}}
+{"target":"package:airgap_probe/main.dart#RouteBThing.two","kind":"Method","private":false,"accesses":0,"lowerable":true,"unsupported":[],"needsAlphaRename":false,"unconsumedThisParents":{}}
+{"target":"package:airgap_probe/main.dart#RouteBThing.value","kind":"Method","private":false,"accesses":5,"lowerable":true,"unsupported":[],"needsAlphaRename":false,"unconsumedThisParents":{}}
+{"target":"package:airgap_probe/main.dart#_ProbeBodyState._beacon","kind":"Method","private":true,"accesses":6,"lowerable":true,"unsupported":[],"needsAlphaRename":true,"unconsumedThisParents":{}}
+{"target":"package:airgap_probe/main.dart#_ProbeBodyState._load","kind":"Method","private":true,"accesses":5,"lowerable":true,"unsupported":[],"needsAlphaRename":false,"unconsumedThisParents":{}}
+{"target":"package:airgap_probe/main.dart#_ProbeBodyState._routeBRead","kind":"Method","private":true,"accesses":12,"lowerable":true,"unsupported":[],"needsAlphaRename":false,"unconsumedThisParents":{}}
+{"target":"package:airgap_probe/main.dart#_ProbeBodyState._row","kind":"Method","private":true,"accesses":0,"lowerable":true,"unsupported":[],"needsAlphaRename":false,"unconsumedThisParents":{}}
+{"target":"package:airgap_probe/main.dart#_ProbeBodyState.build","kind":"Method","private":false,"accesses":17,"lowerable":true,"unsupported":[],"needsAlphaRename":false,"unconsumedThisParents":{}}
+{"target":"package:airgap_probe/main.dart#_ProbeBodyState.get:_assetsPatch","kind":"Getter","private":true,"accesses":1,"lowerable":true,"unsupported":[],"needsAlphaRename":false,"unconsumedThisParents":{}}
+{"target":"package:airgap_probe/main.dart#_ProbeBodyState.get:_codePatch","kind":"Getter","private":true,"accesses":1,"lowerable":true,"unsupported":[],"needsAlphaRename":false,"unconsumedThisParents":{}}
+{"target":"package:airgap_probe/main.dart#_ProbeBodyState.initState","kind":"Method","private":false,"accesses":2,"lowerable":false,"unsupported":["calls `super.initState()`","uses `this` other than to read a member"],"needsAlphaRename":false,"unconsumedThisParents":{"SuperMethodInvocation":1}}
+{"target":"package:airgap_probe/main.dart#_ProbeBodyState.privateClassValue","kind":"Method","private":false,"accesses":0,"lowerable":true,"unsupported":[],"needsAlphaRename":false,"unconsumedThisParents":{}}

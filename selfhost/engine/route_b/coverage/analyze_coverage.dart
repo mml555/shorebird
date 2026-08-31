@@ -77,6 +77,10 @@ void main(List<String> args) {
   String? basePath;
   String? patchedPath;
   String? outPath;
+  // D0.2. Census mode reads ONE dill and asks the lowering contract about every
+  // instance procedure in it, rather than about the members a patch changed.
+  var census = false;
+  String? censusPath;
   final includePrefixes = <String>[];
 
   for (var i = 0; i < args.length; i++) {
@@ -95,6 +99,10 @@ void main(List<String> args) {
         outPath = next();
       case '--include':
         includePrefixes.add(next());
+      case '--census':
+        census = true;
+      case '--dill':
+        censusPath = next();
       case '-h':
       case '--help':
         print('''
@@ -105,11 +113,25 @@ analyze_coverage --base-dill <release.dill> --patched-dill <patched.dill>
 
 Writes one JSON document (stdout if --out is omitted) and always exits 0: the
 verdict is data, not an exit code, so a caller cannot act on it by accident.
+
+analyze_coverage --census --dill <app.dill>
+                 [--include <library-uri-prefix>]... [--out rows.jsonl]
+
+CENSUS MODE (D0.2). Asks the SAME lowering contract about every instance
+procedure in one kernel, and writes one JSON object per line. It is a
+STRUCTURAL reachability measurement over methods that EXIST -- not an estimate
+of how many real patches would succeed. See the header of the reporter,
+coverage/census_report.py, for what the numbers may and may not be read as.
 ''');
         return;
       default:
         _die('unknown argument: $a');
     }
+  }
+  if (census) {
+    if (censusPath == null) _die('--census needs --dill');
+    _runCensus(censusPath, includePrefixes, outPath);
+    return;
   }
   if (basePath == null) _die('--base-dill is required');
   if (patchedPath == null) _die('--patched-dill is required');
@@ -525,6 +547,170 @@ Never _die(String message) {
   exit(2);
 }
 
+/// D0.2 -- the structural body census.
+///
+/// WHY THIS LIVES HERE AND NOT IN A SECOND TOOL. `_lowering` IS the product's
+/// refusal contract: the ABI clauses, the receiver traversal, the same-offset
+/// read/write collision, the private-capability reporting. A census that
+/// reimplemented any of it would drift from the thing it claims to measure, and
+/// would drift silently. So census mode calls the same function the patch path
+/// calls, over a different set of members.
+///
+/// WHAT THE DENOMINATOR IS, stated so a reader cannot mistake it:
+///
+///   every INSTANCE `Procedure` on a class in an included library, that has a
+///   body to replace
+///
+/// Excluded, with the count reported so the exclusion is visible rather than
+/// silent: static procedures (the lowering does not apply -- there is no
+/// receiver to lower), abstract and external procedures (no body), and
+/// procedures with no usable source span.
+///
+/// WHAT IT DOES NOT RUN. `_lowering` is one stage of several. Reachability and
+/// retention are per-release facts held in a manifest this tool does not have;
+/// the producer's own source-text refusals (`this . label` spacing, an escaped
+/// `\$\$`) need the file and the edit; the bytecode compiler gets the last word.
+/// A row saying `lowerable` means THIS stage raised no objection, and nothing
+/// more.
+void _runCensus(String path, List<String> includePrefixes, String? outPath) {
+  final component = _load(path);
+  bool isApp(Library lib) {
+    final uri = lib.importUri.toString();
+    if (uri.startsWith('dart:')) return false;
+    if (includePrefixes.isEmpty) return true;
+    return includePrefixes.any(uri.startsWith);
+  }
+
+  // Source files are read once and cached: a census over a real app asks about
+  // thousands of procedures spread over hundreds of files.
+  final sourceCache = <String, String?>{};
+  String? sourceOf(Uri uri) => sourceCache.putIfAbsent(uri.toString(), () {
+    try {
+      final file = File.fromUri(uri);
+      if (!file.existsSync()) return null;
+      return utf8.decode(file.readAsBytesSync());
+    } on Object {
+      return null;
+    }
+  });
+
+  final rows = <Map<String, Object?>>[];
+  var skippedStatic = 0;
+  var skippedNoBody = 0;
+  var skippedNoSpan = 0;
+
+  for (final lib in component.libraries.where(isApp)) {
+    final uri = lib.importUri.toString();
+    for (final cls in lib.classes) {
+      for (final p in cls.procedures) {
+        if (p.isStatic) {
+          skippedStatic++;
+          continue;
+        }
+        if (p.isAbstract || p.isExternal || p.function.body == null) {
+          skippedNoBody++;
+          continue;
+        }
+        final start = p.fileStartOffset;
+        final end = p.fileEndOffset;
+        if (start < 0 || end < 0 || end <= start) {
+          skippedNoSpan++;
+          continue;
+        }
+
+        final lowering = _lowering(cls, p);
+        final unsupported =
+            (lowering['unsupported']! as List).cast<String>();
+        final accesses = (lowering['accesses']! as List).length;
+
+        // WHY THE `this` REFUSAL FIRED, which its own reason string cannot say.
+        //
+        // "uses `this` other than to read a member" is ONE reason covering
+        // shapes with nothing in common. In real Flutter code it turns out to be
+        // dominated by implicit METHOD TEAR-OFFS -- `onPressed: _handleTap`,
+        // `bgBuilder: _buildBg` -- where `this` is the receiver of an
+        // InstanceTearOff and the lowered spelling is the same textual edit as a
+        // read. That is a different mechanism, and a different cost, from
+        // `vsync: this`, where the receiver itself escapes into someone else's
+        // hands. Ranking them as one category picks the wrong feature.
+        //
+        // So the census classifies each unconsumed `this` by its PARENT node and
+        // reports the raw Kernel node name -- a shape nobody has looked at yet
+        // appears under its own name instead of hiding in an `other` row.
+        //
+        // MEASUREMENT ONLY. It takes no part in the refusal, which is
+        // `_lowering`'s and is unchanged. The consumption rule is not restated
+        // either: a second `_ReceiverUses` is run and its own `consumed` set is
+        // read, so there is one definition of "consumed".
+        final probe = _ReceiverUses();
+        p.function.accept(probe);
+        final everyThis = _ThisExpressions();
+        p.function.accept(everyThis);
+        final parents = <String, int>{};
+        for (final t in everyThis.found) {
+          if (probe.consumed.contains(t)) continue;
+          final name = t.parent?.runtimeType.toString() ?? 'none';
+          parents[name] = (parents[name] ?? 0) + 1;
+        }
+
+        // D-HYGIENE, reported as METADATA and never as a refusal. Capture-
+        // avoiding receiver naming closed that defect, so a declaration
+        // spelling `self` is lowered correctly -- it just costs an alpha-
+        // rename. Counting it as unsupported would put a solved problem back
+        // into the blocker ranking; not counting it at all would leave no way
+        // to tell how often the mechanism is exercised.
+        //
+        // The test mirrors the producer's allocator exactly: a plain substring
+        // scan of the whole declaration, comments and strings included. It
+        // over-triggers in the same direction, for the same reason.
+        final text = sourceOf(p.fileUri);
+        final span = (text != null && end + 1 <= text.length)
+            ? text.substring(start, end + 1)
+            : null;
+
+        rows.add({
+          'target': '$uri#${_selector(cls.name, p)}',
+          'kind': p.kind.name,
+          'private': p.name.text.startsWith('_'),
+          'accesses': accesses,
+          'lowerable': unsupported.isEmpty,
+          'unsupported': unsupported,
+          // null when the source file could not be read, so "no rename needed"
+          // and "not known" are never conflated.
+          'needsAlphaRename': span == null ? null : span.contains('self'),
+          'unconsumedThisParents': parents,
+        });
+      }
+    }
+  }
+
+  rows.sort(
+    (a, b) => (a['target']! as String).compareTo(b['target']! as String),
+  );
+
+  final buffer = StringBuffer()
+    ..writeln(
+      jsonEncode({
+        'censusVersion': 1,
+        'dill': path,
+        'include': includePrefixes,
+        'considered': rows.length,
+        'skippedStatic': skippedStatic,
+        'skippedNoBody': skippedNoBody,
+        'skippedNoSpan': skippedNoSpan,
+        'analysisVersion': analysisVersion,
+      }),
+    );
+  for (final row in rows) {
+    buffer.writeln(jsonEncode(row));
+  }
+  if (outPath == null) {
+    stdout.write(buffer.toString());
+  } else {
+    File(outPath).writeAsStringSync(buffer.toString());
+  }
+}
+
 /// What a producer needs to turn an instance method into a static replacement
 /// taking its receiver as argument 0.
 ///
@@ -650,6 +836,16 @@ Map<String, Object?>? _privateKey(Member? target) {
   };
 }
 
+/// Every `ThisExpression` in a body, for the census to classify.
+///
+/// Census-only. It makes no decision; `_lowering` has already made it.
+class _ThisExpressions extends RecursiveVisitor {
+  final found = <ThisExpression>[];
+
+  @override
+  void visitThisExpression(ThisExpression node) => found.add(node);
+}
+
 /// Every use of the receiver, and a reason for each one that is not supported.
 class _ReceiverUses extends RecursiveVisitor {
   final accesses = <_Access>[];
@@ -658,7 +854,11 @@ class _ReceiverUses extends RecursiveVisitor {
   /// `ThisExpression` nodes already accounted for as the receiver of a
   /// supported access. Without this every `label` reports twice: once as the
   /// InstanceGet and once as its own synthesized receiver.
-  final _consumed = <ThisExpression>{};
+  ///
+  /// Readable rather than private because the D0.2 census classifies the
+  /// UNCONSUMED remainder, and restating the consumption rule there would be
+  /// two definitions of one thing.
+  final consumed = <ThisExpression>{};
 
   /// Record one receiver access.
   ///
@@ -700,7 +900,7 @@ class _ReceiverUses extends RecursiveVisitor {
   void visitInstanceGet(InstanceGet node) {
     final receiver = node.receiver;
     if (receiver is ThisExpression) {
-      _consumed.add(receiver);
+      consumed.add(receiver);
       _record(node.fileOffset, node.name.text, 'get', node.interfaceTarget);
     }
     node.visitChildren(this);
@@ -710,7 +910,7 @@ class _ReceiverUses extends RecursiveVisitor {
   void visitInstanceSet(InstanceSet node) {
     final receiver = node.receiver;
     if (receiver is ThisExpression) {
-      _consumed.add(receiver);
+      consumed.add(receiver);
       // A write is the same lexical shape as a read: the offset is on the
       // identifier and everything after it -- `= <whatever>` -- is the
       // source's own text. The right-hand side is carried across untouched,
@@ -735,7 +935,7 @@ class _ReceiverUses extends RecursiveVisitor {
   void visitInstanceInvocation(InstanceInvocation node) {
     final receiver = node.receiver;
     if (receiver is ThisExpression) {
-      _consumed.add(receiver);
+      consumed.add(receiver);
       // ARGUMENTS NEED NO PERMISSION. The producer's edit inserts a receiver
       // prefix immediately before this identifier and copies everything after
       // it verbatim, so the argument list -- positional, named, generic,
@@ -759,7 +959,7 @@ class _ReceiverUses extends RecursiveVisitor {
   @override
   void visitInstanceGetterInvocation(InstanceGetterInvocation node) {
     if (node.receiver is ThisExpression) {
-      _consumed.add(node.receiver as ThisExpression);
+      consumed.add(node.receiver as ThisExpression);
       unsupported.add('invokes the getter `${node.name.text}` on the receiver');
     }
     node.visitChildren(this);
@@ -781,7 +981,7 @@ class _ReceiverUses extends RecursiveVisitor {
   void visitThisExpression(ThisExpression node) {
     // A `this` that is not the receiver of a supported access -- passed as an
     // argument, captured by a closure, stored. Each is its own question.
-    if (!_consumed.contains(node)) {
+    if (!consumed.contains(node)) {
       unsupported.add('uses `this` other than to read a member');
     }
   }
