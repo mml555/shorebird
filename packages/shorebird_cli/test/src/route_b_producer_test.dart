@@ -26,7 +26,8 @@ void main() {
 
     const declaration = "String routeBValue() => 'NEW';";
 
-    RouteBCompiler compiler() => RouteBCompiler(
+    RouteBCompiler compiler({bool dualKernel = true}) => RouteBCompiler(
+      supportsDirectSuperDualKernel: dualKernel,
       runtime: File(p.join(cell.path, 'dartaotruntime')),
       compilerSnapshot: File(p.join(cell.path, 'dart2bytecode.aot')),
       platformDill: File(p.join(cell.path, 'vm_platform.dill')),
@@ -1600,11 +1601,15 @@ void main() {
         },
       };
 
-      String produce(String text, Map<String, Object?> lowering) {
+      String produce(
+        String text,
+        Map<String, Object?> lowering, {
+        bool dualKernel = true,
+      }) {
         source.writeAsStringSync(text);
         runWithOverrides(
           () => const RouteBProducer().produce(
-            compiler: compiler(),
+            compiler: compiler(dualKernel: dualKernel),
             coverage: coverage(
               lowering: lowering,
               sources: {
@@ -1792,6 +1797,31 @@ void main() {
         final emitted = produce(moved, loweringFor(moved));
         expect(emitted, contains("@pragma('shorebird:direct-super')"));
         expect(emitted, isNot(contains('super.dispose')));
+      });
+
+      test('refuses when the cell cannot compile a direct super call', () {
+        // FAIL-CLOSED ACROSS THE TRANSITION. Analysis v11 describes super sites
+        // whatever cell the release resolves; a cell whose dart2bytecode
+        // predates 0017 must refuse rather than take an intrinsic it cannot
+        // lower. The capability is asked of the compiler binary, not read from
+        // a metadata line.
+        expect(
+          () => produce(
+            superDeclaration,
+            loweringFor(superDeclaration),
+            dualKernel: false,
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              allOf(
+                contains('routeBDirectSuperDualKernelV1'),
+                contains('cannot be carried'),
+              ),
+            ),
+          ),
+        );
       });
 
       test('refuses a super site with no origin identity', () {

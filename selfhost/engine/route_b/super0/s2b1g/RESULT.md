@@ -243,3 +243,58 @@ and both the generator and the driver are restored and checksummed.
 
 Part 2B stays blocked on the two remaining items: the product does not yet
 BUILD a patched no-AOT kernel at patch time, nor pass one.
+
+
+---
+
+# Part 2A integration, task 1 — routeBDirectSuperDualKernelV1, EARNED
+
+Landed before any patched-verification-kernel generation, so the transitional
+repository state is fail-closed: analysis v11 describes super sites whatever cell
+a release resolves, and a cell that cannot compile them now refuses instead of
+taking an intrinsic it does not implement.
+
+## Two layers, and neither is a hand-written string
+
+**At patch time**, `resolveRouteBCompiler` asks the compiler binary what it
+advertises — exactly as it already asks about `--target flutter`:
+
+    supportsDirectSuperDualKernel = output.contains('patched-verification-dill')
+
+**At cell qualification**, `qualify_dual_kernel_cell.sh` proves the BEHAVIOUR,
+which advertising an option does not:
+
+    stock cell (4792f0ec)   NOT QUALIFIED — does not advertise the option
+    0017 cell               QUALIFIED
+      arm 1  patched verifier   ACCEPTED, executes WRAP:TICKER:APP-STATE
+      arm 2  RELEASE verifier   REFUSED, "no super invocation at offset 1005 …"
+
+The negative arm is what makes it a qualification rather than a smoke test: a
+0015/0016 cell reading the release body would accept arm 1 and could not refuse
+arm 2 for the right reason. Nothing is stamped unless both hold.
+
+**What ties the two layers together is the per-artifact SHA-256 check that
+already exists**: a cell advertising the option contains exactly the
+`dart2bytecode` that passed the probe. The stamp records that the probe ran; it
+is not what a consumer trusts.
+
+## The producer gate
+
+Checked before any super work and fail-closed:
+
+    this release resolves a compiler cell that does not implement
+    routeBDirectSuperDualKernelV1, so a `super.` call cannot be carried
+
+`supportsDirectSuperDualKernel` defaults to **false**, so a cell predating the
+capability — or a hand-constructed one in a test — is treated as not having it.
+That default is why the existing producer tests began failing the moment the gate
+landed, which is the gate working.
+
+    route_b_producer / coverage / compiler suites   108 passed
+      + refuses when the cell cannot compile a direct super call
+
+## Still to do — task 2
+
+The product still neither builds a patched no-AOT kernel at patch time nor passes
+one, so no super patch can actually be produced yet. That is the next task, and
+Part 2B remains blocked behind it.

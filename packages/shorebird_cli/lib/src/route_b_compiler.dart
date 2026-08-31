@@ -65,7 +65,16 @@ class RouteBCompiler {
     required this.releaseProbe,
     required this.flutterPlatformDill,
     required this.provenance,
+    this.supportsDirectSuperDualKernel = false,
   });
+
+  /// Whether this cell's compiler implements `routeBDirectSuperDualKernelV1`.
+  ///
+  /// Established by asking the compiler what it advertises, not by reading a
+  /// metadata line — see the probe in [resolveRouteBCompiler]. Defaults to
+  /// false so a cell that predates the capability, or a hand-constructed one in
+  /// a test, is treated as not having it.
+  final bool supportsDirectSuperDualKernel;
 
   /// `dartaotruntime`, version-locked to [compilerSnapshot].
   final File runtime;
@@ -271,6 +280,24 @@ the release or with your Dart changes.''',
     );
   }
 
+  // routeBDirectSuperDualKernelV1, ASKED OF THE BINARY.
+  //
+  // Not read from a metadata line: a hand-written capability string is true of
+  // whatever somebody typed, and this whole programme has been bitten by stamps
+  // that describe a cache rather than its bytes. The compiler is asked what it
+  // advertises, exactly as `--target flutter` is asked above.
+  //
+  // Advertising the option is necessary and not sufficient — it proves the CLI
+  // surface, not the dual-kernel BEHAVIOUR. Behaviour is established once, at
+  // cell qualification, by `qualify_dual_kernel_cell.sh`, which runs the
+  // moved-site probe and its wrong-verifier negative before a cell may be
+  // published. What ties the two together is the per-artifact SHA-256 check
+  // above: a cell advertising this option contains exactly the dart2bytecode
+  // that passed that probe.
+  final supportsDirectSuperDualKernel = output.contains(
+    'patched-verification-dill',
+  );
+
   // Atomic promotion: rename onto the final path only once everything passed.
   final cell = Directory(p.join(cacheRoot.path, engineHash));
   if (cell.existsSync()) cell.deleteSync(recursive: true);
@@ -290,6 +317,7 @@ the release or with your Dart changes.''',
       p.join(cell.path, 'flutter_platform_strong.dill'),
     ),
     provenance: provenance,
+    supportsDirectSuperDualKernel: supportsDirectSuperDualKernel,
   );
 }
 

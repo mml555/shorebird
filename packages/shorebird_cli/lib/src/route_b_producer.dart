@@ -324,7 +324,7 @@ Object? $_superIntrinsicName(
 
       final lowering = coverage.lowering[key];
       final lowered = lowering != null
-          ? _lower(key, source, lowering, capabilities)
+          ? _lower(key, source, lowering, capabilities, compiler)
           : _Lowered(_slice(key, source));
       final declaration = lowered.declaration;
       // G4.1c link 2, the LEGACY case. A release cut before injected defines
@@ -556,6 +556,7 @@ Object? $_superIntrinsicName(
     RouteBSourceSpan span,
     RouteBLowering lowering,
     RouteBCapabilities? capabilities,
+    RouteBCompiler compiler,
   ) {
     // ANALYSIS VERSION 10: `super.member()`, admitted from the SOURCE.
     if (lowering.unsupported.isNotEmpty) {
@@ -617,6 +618,23 @@ Object? $_superIntrinsicName(
     final source = utf8.decode(
       File.fromUri(Uri.parse(span.fileUri)).readAsBytesSync(),
     );
+
+    // THE CELL MUST BE ABLE TO COMPILE WHAT THIS ADMITS.
+    //
+    // Checked before any super work, and fail-closed: analysis v11 describes
+    // super sites, and a cell whose dart2bytecode predates 0017 would take the
+    // intrinsic and either not recognise it (the throwing body runs) or verify
+    // it against the wrong body. The capability is asked of the compiler
+    // binary, not read from a metadata line.
+    if (lowering.superInvocations.isNotEmpty &&
+        !compiler.supportsDirectSuperDualKernel) {
+      throw RouteBUnsupportedTarget(
+        key,
+        'this release resolves a compiler cell that does not implement '
+        'routeBDirectSuperDualKernelV1, so a `super.` call cannot be carried. '
+        'Cut a new release with a current engine and patch that instead',
+      );
+    }
 
     // SUPER SITES, admitted here and rewritten below.
     //
