@@ -1,5 +1,18 @@
 // Route B (selfhost) 0015 -- the direct-super intrinsic, and its INDEPENDENT
-// backstop. Kept as readable Dart beside the patch series so the reasoning is
+// backstop.
+//
+// !! STATUS: UNSOUND AS DESIGNED. DO NOT PROMOTE. !!
+//
+// The site rediscovery below searches the RELEASE import kernel's original body
+// for a SuperMethodInvocation at an offset the analyzer read from the PATCHED
+// kernel. Those are different source versions, so the offset is not an identity
+// across them -- measured in `super0/s2b1site/`, together with a byte-aligned
+// specimen where the offsets DO coincide and the compiler consequently accepts a
+// patch whose argument list it never saw, producing silent wrong semantics.
+//
+// The correction is to verify against an unspecialised kernel of the PATCHED
+// source rather than the release body. Not implemented. Everything below is
+// correct about the PRIMITIVE and wrong about which body to read. Kept as readable Dart beside the patch series so the reasoning is
 // reviewable without applying anything; `super0/s2b1/apply_0015.sh` injects it.
 //
 // WHY THE INTRINSIC CARRIES SITE IDENTITY AND NOT AN ARGUMENT COUNT.
