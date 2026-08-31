@@ -234,13 +234,52 @@ rather than of use.
 | form | |
 |---|---|
 | compound writes | `+=`, `-=`, `++`, `--`, `??=` |
-| `super` | `super.x`, `super.foo()`, `super.x = …` |
+| `super` GETTERS and SETTERS | `super.x`, `super.x = …`. A zero-argument `super.foo()` is HOST CERTIFIED under narrow-v1 (see below) but reaches no shipped release, because no published cell implements it |
 | private **method** calls taking arguments | `_hidden('x')` — host-proven only. Private reads and private GETTER calls are supported and device-proven; a getter is a `Procedure`, so this is expected to work, which is exactly why it needs measuring rather than assuming |
 | cascades | `this..foo()` |
 | `this` used other than to reach a member | passed, captured, stored |
 | unusual `this` spacing | `this . label` |
 | a replacement whose signature takes NAMED parameters | the `ArgumentsDescriptor`'s names must match and that is unexercised |
 | a replacement whose signature takes OPTIONAL positionals | their defaults live in the AOT function the replacement stands in for, and nothing carries them across |
+
+#### `super.foo()` — HOST CERTIFIED, narrow-v1, and not yet reachable
+
+**No release can use this today.** The producer carries a zero-argument
+`super.foo()` only when the resolved compiler cell implements
+`routeBDirectSuperDualKernelV1`, and no published cell does — so every shipped
+release still refuses, exactly as the row above says. What follows describes
+certified host behaviour, not a user-visible capability.
+
+The rule, and every clause of it is a measured boundary rather than a
+preference:
+
+> A zero-source-argument `super.foo()` is carried only when the RELEASE version
+> of the same method already direct-called a target with the same semantic
+> provenance.
+
+    analyzer (patched AOT)   the site exists, and the target it authorizes
+    patch source             what the developer wrote — argument presence
+    patched no-AOT kernel    the compiler's own verification of both
+    release import kernel    what the emitted bytecode binds against
+
+Three provenance fingerprints — analyzer, patched verifier, release binder —
+must agree, and the emitted `DirectCall` names the RELEASE procedure.
+
+Why each authority is where it is:
+
+* the AOT kernel cannot answer what was written: TFA rewrites
+  `super.tag('a', 7)` to zero arguments there (`super0/s2b0/`);
+* a call SITE offset is not a cross-version identity, and using one as such
+  produced silent wrong semantics on a byte-aligned specimen
+  (`super0/s2b1site/`);
+* a target's canonical owner is renamed by AOT mixin deduplication, so only
+  `fileUri | fileOffset | name | kind` crosses the boundary (`super0/s2a/`);
+* retention is not compilation: a mixin-application clone can be retained by
+  name with no AOT code, and a `DirectCall` to it aborts the app at
+  `compiler.cc:1152` (`super0/s2b1e/`). The same-method evidence rule is what
+  keeps that unreachable.
+
+Still refused, and unexercised: arguments, getters, setters, generics.
 
 #### The boundary, stated once
 
