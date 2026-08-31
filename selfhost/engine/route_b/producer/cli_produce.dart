@@ -37,8 +37,14 @@ Future<void> main(List<String> args) async {
   final importDill = File(args[3]);
   final buildId = args[4];
 
+  // The cell records the engine it was published under and `resolveRouteBCompiler`
+  // refuses a mismatch, so a harness pointing at a different cell must say which.
+  // Default unchanged, so `host_equivalence.sh` is unaffected.
+  final engineHash = Platform.environment['ROUTE_B_ENGINE_HASH'] ??
+      '591a9f8d8e21f8c08cd379ac4c63a0300ac98959';
+
   final compiler = await resolveRouteBCompiler(
-    engineHash: '591a9f8d8e21f8c08cd379ac4c63a0300ac98959',
+    engineHash: engineHash,
     cacheRoot: Directory.systemTemp.createTempSync('cell'),
     fetchBundle: (h) async => cellZip,
     extractTo: (a, d) async {

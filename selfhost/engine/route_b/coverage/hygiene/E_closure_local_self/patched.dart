@@ -2,8 +2,16 @@
 // COMPILES -- a case where the wrong binding failed to resolve would prove
 // nothing about the dangerous direction.
 //
-// Every value is routed through DateTime so nothing constant-folds away before
-// the analyzer sees it.
+// RETENTION IS EXPLICIT AND IDENTICAL ON BOTH SIDES. The first attempt at
+// these controls was refused by the analyzer for "member(s) are new" -- the
+// `--aot` prepass had tree-shaken `Shadow.label` and `Other.label` out of the
+// base, because the base body never called them, so they arrived in the
+// patched kernel looking like ADDED members. That refusal says nothing about
+// `self` and would have passed for a real result. `keepAlive` holds both
+// labels live from a dead branch in BOTH kernels, so the target method is the
+// only member that differs.
+//
+// Every value is routed through DateTime so nothing constant-folds.
 class Other {
   @pragma('vm:never-inline')
   String get label =>
@@ -18,6 +26,11 @@ class Shadow {
       DateTime.now().millisecondsSinceEpoch >= 0 ? 'RIGHT-RECEIVER' : 'X';
 
   @pragma('vm:never-inline')
+  static String keepAlive() => DateTime.now().millisecondsSinceEpoch < 0
+      ? Shadow().label + Shadow.other.label
+      : 'k';
+
+  @pragma('vm:never-inline')
   String value() {
     final f = () {
       final self = Shadow.other;
@@ -27,4 +40,5 @@ class Shadow {
   }
 }
 
-void main() => print(Shadow().value());
+void main() =>
+    print(Shadow.keepAlive().isEmpty ? 'X' : Shadow().value());
