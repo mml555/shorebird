@@ -190,6 +190,16 @@ MEMBERS = r"""  // ---- Route B (selfhost) 0015 --------------------------------
       _superRefusal('no dispatch target for $memberName above $originClassName');
     }
 
+    // HARNESS DIAGNOSTIC. What was rediscovered and what was selected, so a probe
+    // can observe the intermediate steps instead of inferring them from the
+    // final value. Throwaway, like the rest of 0015.
+    print('ROUTE_B_SUPER: rediscovered site=$siteOffset member=$memberName '
+        'in $originClassName.$originMemberName');
+    print('ROUTE_B_SUPER: selected '
+        '${resolved.fileUri}|${resolved.fileOffset}|${resolved.name.text}'
+        '|${resolved.kind.name} owner=${resolved.enclosingClass?.name}');
+    print('ROUTE_B_SUPER: emitting receiver-taking direct call');
+
     final noArgs = Arguments(const <Expression>[])..parent = node;
     _genArguments(receiver, noArgs);
     _genDirectCallWithArgs(resolved, noArgs,

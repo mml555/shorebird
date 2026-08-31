@@ -82,6 +82,14 @@ That also removes a limitation nobody had noticed: a patch may legitimately
 release body has no site to rediscover and the compiler must refuse a perfectly
 valid patch.
 
+> **SUPERSEDED IN PART by 2B.1d.** The paragraph above is right that the
+> release-body lookup is what blocks an introduced site, and wrong that removing
+> it makes such a patch work. Measured in `../s2b1d/`: an introduced site binds
+> for an ordinary superclass (arm D) and does NOT bind for a mixin-application
+> copy the release only shadowed (arm C), because that copy is retained by name
+> with no compiled code and a `DirectCall` cannot JIT it. The reasoning here
+> stands; the conclusion was too broad.
+
 ## What must be probed before implementing it
 
 > Can `dart2bytecode` compile the replacement against a **patched** no-AOT import
