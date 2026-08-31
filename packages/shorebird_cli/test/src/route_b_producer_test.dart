@@ -1559,12 +1559,23 @@ void main() {
       const superDeclaration = 'String routeBValue() => super.dispose();';
       const argDeclaration = "String routeBValue() => super.tag('a', 7);";
 
+      // The default target and the default release evidence MATCH, so the
+      // narrow-v1 gate admits. Tests that want a refusal make them differ.
+      const target = {
+        'fileUri': 'file:///app/main.dart',
+        'fileOffset': 100,
+        'name': 'dispose',
+        'kind': 'Method',
+      };
+
       Map<String, Object?> loweringFor(
         String text, {
         String member = 'dispose',
         String kind = 'method',
         String memberKind = 'Method',
         int? offset,
+        Object? siteTarget = target,
+        List<Object?> releaseSuperTargets = const [target],
       }) => {
         'package:app/main.dart#routeBValue': {
           'receiverType': 'Thing',
@@ -1582,8 +1593,10 @@ void main() {
               'offset': offset ?? text.indexOf(member, text.indexOf('super')),
               'member': member,
               'kind': kind,
+              'target': siteTarget,
             },
           ],
+          'releaseSuperTargets': releaseSuperTargets,
         },
       };
 
@@ -1695,6 +1708,81 @@ void main() {
             reason: kind,
           );
         }
+      });
+
+      test('refuses a target the release never direct-called', () {
+        // The narrow-v1 gate. The release evidence names a DIFFERENT target, so
+        // there is no proof this one has executable code in the release — and a
+        // DirectCall to an uncompiled target aborts the app rather than failing
+        // to bind.
+        expect(
+          () => produce(
+            superDeclaration,
+            loweringFor(
+              superDeclaration,
+              releaseSuperTargets: const [
+                {
+                  'fileUri': 'file:///app/main.dart',
+                  'fileOffset': 999,
+                  'name': 'dispose',
+                  'kind': 'Method',
+                },
+              ],
+            ),
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              allOf(
+                contains('never direct-called'),
+                contains('no evidence it has executable code'),
+              ),
+            ),
+          ),
+        );
+      });
+
+      test('refuses when the release direct-called nothing at all', () {
+        expect(
+          () => produce(
+            superDeclaration,
+            loweringFor(superDeclaration, releaseSuperTargets: const []),
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              contains('never direct-called'),
+            ),
+          ),
+        );
+      });
+
+      test('refuses a site whose target did not resolve', () {
+        expect(
+          () => produce(
+            superDeclaration,
+            loweringFor(superDeclaration, siteTarget: null),
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              contains('no resolved target'),
+            ),
+          ),
+        );
+      });
+
+      test('admits when only the SITE moved and the target did not', () {
+        // The property the whole design turns on: a patch that edits around an
+        // existing super call moves the call site while the target is
+        // unchanged. Measured at 988 -> 1005 in super0/s2b1f control 1.
+        const moved = "String routeBValue() => 'x' + super.dispose();";
+        final emitted = produce(moved, loweringFor(moved));
+        expect(emitted, contains("@pragma('shorebird:direct-super')"));
+        expect(emitted, isNot(contains('super.dispose')));
       });
 
       test('refuses a super site with no origin identity', () {

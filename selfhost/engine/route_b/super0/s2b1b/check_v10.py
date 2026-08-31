@@ -27,7 +27,7 @@ def site(target):
     return None
 
 
-check('analysisVersion', doc['analysisVersion'], 10)
+check('analysisVersion', doc['analysisVersion'], 11)
 
 # ---- 1. zero-argument super method ---------------------------------------
 t1 = site('Child.t1')
@@ -39,9 +39,25 @@ check('t1 no `calls super` reason',
 check('t1 no synthetic unconsumed-this',
       [u for u in t1['unsupported'] if 'other than to read a member' in u], [])
 check('t1 unsupported is empty', t1['unsupported'], [])
-# The site must carry NO arity, and no resolved target of any kind.
+# THE EXACT KEY SET, changed deliberately at version 11.
+#
+# v10 asserted {kind, member, offset} precisely so a resolved target could not
+# be added silently — the target's canonical owner is renamed by AOT mixin
+# deduplication and was unsafe to carry. v11 adds `target` because 2A.2 measured
+# the narrow provenance tuple as portable and 2B.1f showed the product needs it.
+# The assertion is UPDATED, not removed: still no arity, still no owner.
 check('t1 super entry keys',
-      sorted(t1['superInvocations'][0].keys()), ['kind', 'member', 'offset'])
+      sorted(t1['superInvocations'][0].keys()),
+      ['kind', 'member', 'offset', 'target'])
+check('t1 target is provenance only',
+      sorted(t1['superInvocations'][0]['target'].keys()),
+      ['fileOffset', 'fileUri', 'kind', 'name'])
+check('t1 target names the parent member',
+      t1['superInvocations'][0]['target']['name'], 'dispose')
+# RELEASE EVIDENCE. The base body reaches `dispose` only through keepAlive, not
+# through a super call in t1 itself, so the same-method evidence is EMPTY and
+# the producer must refuse — which is the narrow-v1 rule doing its job.
+check('t1 release evidence is empty', t1['releaseSuperTargets'], [])
 check('t1 origin class', t1['origin']['class'], 'Child')
 check('t1 origin member', t1['origin']['member'], 't1')
 check('t1 origin memberKind', t1['origin']['memberKind'], 'Method')
@@ -51,7 +67,8 @@ t2 = site('Child.t2')
 check('t2 superInvocations count', len(t2['superInvocations']), 1)
 check('t2 super member', t2['superInvocations'][0]['member'], 'tag')
 check('t2 claims no arity',
-      sorted(t2['superInvocations'][0].keys()), ['kind', 'member', 'offset'])
+      sorted(t2['superInvocations'][0].keys()),
+      ['kind', 'member', 'offset', 'target'])
 
 # ---- 3. ordinary receiver call: unchanged -------------------------------
 t3 = site('Child.t3')

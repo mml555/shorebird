@@ -18,6 +18,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:meta/meta.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 
 import 'package:shorebird_cli/src/route_b_compiler.dart';
@@ -49,7 +50,14 @@ RouteBCoverageAnalyzer get routeBCoverageAnalyzer =>
 /// body is fully lowerable. So this build refuses a version it does not know,
 /// and — until the producer can emit a direct-super replacement — refuses any
 /// reported super site too. See [RouteBLowering.superInvocations].
-const supportedRouteBAnalysisVersion = 10;
+///
+/// 11 adds the resolved `target` of a super site and the
+/// `releaseSuperTargets` the RELEASE version of the same method already
+/// direct-called, both as SOURCE PROVENANCE tuples. A version-10 consumer
+/// would read a v11 document, see the super sites it already understands,
+/// and admit one with no release evidence behind it — a patch that aborts
+/// inside the app rather than one that refuses.
+const supportedRouteBAnalysisVersion = 11;
 
 /// What a patch may do with a changed member.
 enum RouteBRepresentability {
@@ -221,6 +229,7 @@ class RouteBLowering {
     required this.unsupported,
     this.origin,
     this.superInvocations = const [],
+    this.releaseSuperTargets = const [],
   });
 
   /// The class the receiver belongs to, used as the parameter's type.
@@ -243,6 +252,22 @@ class RouteBLowering {
   /// What a replacement compiler needs to find the method again in its own
   /// kernel. Null for a document that did not carry one.
   final RouteBOrigin? origin;
+
+  /// Every super target the RELEASE version of this same method already
+  /// direct-called (analysis version 11).
+  ///
+  /// The narrow-v1 admission rule: a patched super site is carried only when
+  /// its target's provenance is in this set. The causal argument is that the
+  /// release
+  /// version of THIS compiled method direct-called the target, so AOT had to
+  /// emit code for it — and a `DirectCall` to a target with no code aborts the
+  /// app rather than failing to bind (`super0/s2b1e/`).
+  ///
+  /// SAME METHOD, never program-wide: evidence from an unrelated release method
+  /// would not support that chain.
+  ///
+  /// An empty list is meaningful — the release version direct-called nothing.
+  final List<RouteBProvenance> releaseSuperTargets;
 
   /// Genuine `super.member()` sites in this body (analysis version 10).
   ///
@@ -281,16 +306,18 @@ class RouteBOrigin {
 
 /// One `super.member()` site.
 ///
-/// Carries no resolved target, no declaring class and no argument count. Each
-/// was disqualified as a cross-boundary authority by measurement: AOT mixin
-/// deduplication renames the target's owner, and TFA can rewrite
-/// `super.tag('a', 7)` to zero arguments in the analyzer's own kernel.
+/// Carries no declaring class and no argument count: AOT mixin deduplication
+/// renames the target's owner, and TFA can rewrite `super.tag('a', 7)` to zero
+/// arguments in the analyzer's own kernel. The resolved [target] IS carried, as
+/// provenance only — the narrow tuple 2A.2 measured as portable.
+@immutable
 class RouteBSuperInvocation {
   /// {@macro route_b_super_invocation}
   const RouteBSuperInvocation({
     required this.offset,
     required this.member,
     required this.kind,
+    this.target,
   });
 
   /// Source offset of the member name at the call site.
@@ -301,7 +328,65 @@ class RouteBSuperInvocation {
 
   /// Always `method` at version 10; getters and setters stay `unsupported`.
   final String kind;
+
+  /// The resolved super target, as provenance (analysis version 11).
+  ///
+  /// Null when nothing resolved, which is a refusal rather than an absence.
+  final RouteBProvenance? target;
 }
+
+/// A member's SOURCE PROVENANCE — the only identity that survives both AOT
+/// mixin deduplication and the AOT/no-AOT boundary.
+///
+/// Carries no enclosing class on purpose: that is exactly the part AOT renames.
+@immutable
+class RouteBProvenance {
+  /// {@macro route_b_provenance}
+  const RouteBProvenance({
+    required this.fileUri,
+    required this.fileOffset,
+    required this.name,
+    required this.kind,
+  });
+
+  /// Where the declaration was written.
+  final String fileUri;
+
+  /// Its offset in that file.
+  final int fileOffset;
+
+  /// Its name.
+  final String name;
+
+  /// `Method`, `Getter`, `Setter`, … — Kernel's `ProcedureKind.name`.
+  final String kind;
+
+  /// Value equality: this is compared, not identified.
+  @override
+  bool operator ==(Object other) =>
+      other is RouteBProvenance &&
+      other.fileUri == fileUri &&
+      other.fileOffset == fileOffset &&
+      other.name == name &&
+      other.kind == kind;
+
+  @override
+  int get hashCode => Object.hash(fileUri, fileOffset, name, kind);
+
+  @override
+  String toString() => '$fileUri|$fileOffset|$name|$kind';
+}
+
+/// Reads a provenance tuple, or null.
+RouteBProvenance? _provenance(Object? value) => switch (value) {
+  final Map<String, dynamic> m => RouteBProvenance(
+    fileUri: m['fileUri']! as String,
+    fileOffset: m['fileOffset']! as int,
+    name: m['name']! as String,
+    kind: m['kind']! as String,
+  ),
+  _ => null,
+};
 
 /// The whole-patch outcome.
 enum RouteBVerdict {
@@ -477,7 +562,13 @@ class RouteBCoverage {
                   offset: site['offset']! as int,
                   member: site['member']! as String,
                   kind: site['kind']! as String,
+                  target: _provenance(site['target']),
                 ),
+          ],
+          releaseSuperTargets: [
+            for (final v
+                in (l['releaseSuperTargets'] as List<Object?>? ?? const []))
+              if (_provenance(v) case final RouteBProvenance p) p,
           ],
         );
       }

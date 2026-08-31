@@ -669,6 +669,45 @@ Object? $_superIntrinsicName(
           case RouteBSuperArgs.zeroArguments:
             break;
         }
+        // NARROW-V1 COMPILED-TARGET GATE. Proven in `super0/s2b1f/`.
+        //
+        // A `DirectCall` needs the target to have EXECUTABLE AOT CODE, and
+        // retention does not imply that: a mixin-application member can be
+        // retained by name, resolve fine, and abort the app at
+        // `compiler.cc:1152: Attempt to compile function …` because AOT
+        // emitted no code for it (`super0/s2b1e/`).
+        //
+        // There is no general way to ask whether a function was compiled. What
+        // there is, is one causal chain: the RELEASE version of THIS method
+        // direct-called the target, so AOT had to compile it. So the evidence
+        // is same-method and the comparison is on the target's PROVENANCE,
+        // never on the call site — the site moves when the patch edits it,
+        // which `super0/s2b1f/` control 1 measures (988 -> 1005, same target).
+        //
+        // An ordinary superclass target that the release never super-called
+        // would in fact work (`super0/s2b1d/` arm D). It is refused anyway:
+        // this gate carries evidence, not inferences from class shape. A
+        // needless
+        // refusal is a cost; an abort inside a user's app is not acceptable.
+        final target = site.target;
+        if (target == null) {
+          throw RouteBUnsupportedTarget(
+            key,
+            'the analyzer reported super.${site.member}() with no resolved '
+            'target, so there is no evidence the release compiled one',
+          );
+        }
+        if (!lowering.releaseSuperTargets.contains(target)) {
+          throw RouteBUnsupportedTarget(
+            key,
+            'super.${site.member}() resolves to a target this release never '
+            'direct-called from `${origin.member}`, so there is no evidence it '
+            'has executable code in the release. Route B carries a super call '
+            'only when the released version of the same method already made '
+            'one to the same target',
+          );
+        }
+
         final callSpan = routeBSuperCallSpan(
           source: source,
           offset: site.offset,

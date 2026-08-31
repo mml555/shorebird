@@ -39,6 +39,8 @@ import 'dart:io';
 
 import 'package:kernel/ast.dart';
 import 'package:kernel/binary/ast_from_binary.dart';
+import 'package:kernel/class_hierarchy.dart';
+import 'package:kernel/core_types.dart';
 import 'package:kernel/text/ast_to_text.dart';
 
 /// Bump when a consumer would have to change. The CLI refuses a version it does
@@ -81,7 +83,23 @@ import 'package:kernel/text/ast_to_text.dart';
 ///     arguments in this very kernel (`super0/s2b0/`). The source is the
 ///     authority for shape; the replacement compiler's own kernel is the
 ///     authority for the target.
-const analysisVersion = 10;
+///
+/// 11: a super site now carries its resolved `target` as a SOURCE PROVENANCE
+///     tuple, and each changed instance method carries `releaseSuperTargets` --
+///     the same tuple for every super target the RELEASE version of that method
+///     already direct-called.
+///
+///     Version 10 deliberately reported NO resolved target, because a target's
+///     canonical owner is renamed by AOT mixin deduplication and is not portable
+///     (`super0/s2a/`). What 2A.2 measured as portable is the narrower tuple
+///     `fileUri | fileOffset | name | kind`, and 2B.1f showed the product needs
+///     it: the release-evidence gate compares TARGETS, because a call SITE moves
+///     when the patch edits around it.
+///
+///     So the exact-key assertion changes deliberately rather than the
+///     prohibition being weakened silently. Still never reported: the canonical
+///     owner, the synthetic mixin-application name, and any argument count.
+const analysisVersion = 11;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -156,6 +174,11 @@ coverage/census_report.py, for what the numbers may and may not be read as.
 
   final base = _load(basePath);
   final patched = _load(patchedPath);
+  // One hierarchy per component. The RELEASE's is what makes the release
+  // evidence meaningful: it must be resolved in the kernel that was actually
+  // compiled, not in the patch's.
+  final baseHierarchy = ClassHierarchy(base, CoreTypes(base));
+  final patchedHierarchy = ClassHierarchy(patched, CoreTypes(patched));
 
   bool isApp(Library lib) {
     final uri = lib.importUri.toString();
@@ -260,7 +283,24 @@ coverage/census_report.py, for what the numbers may and may not be read as.
       for (final p in cls.procedures) {
         final key = '$uri#${_selector(cls.name, p)}';
         if (!changed.contains(key) || p.isStatic) continue;
-        lowering[key] = _lowering(cls, p);
+        lowering[key] = _lowering(cls, p, patchedHierarchy);
+        // RELEASE EVIDENCE for the SAME method (analysis version 11).
+        //
+        // Same-method, never program-wide: the causal argument for the target
+        // having AOT code is that the RELEASE version of THIS compiled method
+        // direct-called it. Evidence from an unrelated method would not support
+        // that chain (`super0/s2b1f/`).
+        //
+        // An empty list is meaningful and is emitted: it says the release
+        // version of this method direct-called nothing, so any super site the
+        // patch introduces has no evidence behind it.
+        final releaseClass = _findClass(base, uri, cls.name);
+        final releaseMember = releaseClass == null
+            ? null
+            : _findProcedure(releaseClass, p.name.text, p.kind);
+        lowering[key]!['releaseSuperTargets'] = releaseMember == null
+            ? const <Map<String, Object?>>[]
+            : _superTargets(baseHierarchy, releaseClass!, releaseMember);
       }
     }
   }
@@ -592,6 +632,7 @@ Never _die(String message) {
 /// more.
 void _runCensus(String path, List<String> includePrefixes, String? outPath) {
   final component = _load(path);
+  final censusHierarchy = ClassHierarchy(component, CoreTypes(component));
   bool isApp(Library lib) {
     final uri = lib.importUri.toString();
     if (uri.startsWith('dart:')) return false;
@@ -671,7 +712,7 @@ void _runCensus(String path, List<String> includePrefixes, String? outPath) {
           continue;
         }
 
-        final lowering = _lowering(cls, p);
+        final lowering = _lowering(cls, p, censusHierarchy);
         final unsupported =
             (lowering['unsupported']! as List).cast<String>();
         final accesses = (lowering['accesses']! as List).length;
@@ -779,7 +820,11 @@ void _runCensus(String path, List<String> includePrefixes, String? outPath) {
 /// The supported surface is ONE form: a public instance getter read off `this`,
 /// spelled either `label` or `this.label` -- which are the same Kernel node, so
 /// only the source text distinguishes them and only the producer needs to care.
-Map<String, Object?> _lowering(Class cls, Procedure p) {
+Map<String, Object?> _lowering(
+  Class cls,
+  Procedure p,
+  ClassHierarchy hierarchy,
+) {
   final unsupported = <String>[];
 
   final function = p.function;
@@ -869,10 +914,85 @@ Map<String, Object?> _lowering(Class cls, Procedure p) {
           'offset': site.offset,
           'member': site.member,
           'kind': site.kind,
+          // The RESOLVED target, as provenance only (analysis version 11).
+          // Null when nothing resolves: reported rather than omitted, because a
+          // site with no target is a finding and not an absence.
+          'target': _provenance(
+            cls.superclass == null
+                ? null
+                : hierarchy.getDispatchTarget(
+                    cls.superclass!,
+                    site.member.startsWith('_')
+                        ? Name(site.member, cls.enclosingLibrary)
+                        : Name(site.member),
+                  ),
+          ),
         },
     ],
     'unsupported': unsupported,
   };
+}
+
+/// The class of that name in [component], or null.
+Class? _findClass(Component component, String libraryUri, String name) {
+  for (final lib in component.libraries) {
+    if (lib.importUri.toString() != libraryUri) continue;
+    for (final cls in lib.classes) {
+      if (cls.name == name) return cls;
+    }
+  }
+  return null;
+}
+
+/// The procedure of that name AND KIND, or null.
+///
+/// Kind is required, not incidental: a class may hold a method, a getter and a
+/// setter of one name, so a name alone is not an identity.
+Procedure? _findProcedure(Class cls, String name, ProcedureKind kind) {
+  for (final p in cls.procedures) {
+    if (p.name.text == name && p.kind == kind) return p;
+  }
+  return null;
+}
+
+/// SOURCE PROVENANCE of a member, as the only portable cross-kernel identity.
+///
+/// No enclosing class: including it would reimport the transformed identity that
+/// AOT mixin deduplication renames. Dart has no overloading, so a file offset
+/// plus a name and kind identifies exactly one declaration.
+Map<String, Object?>? _provenance(Member? m) => m == null
+    ? null
+    : {
+        'fileUri': m.fileUri.toString(),
+        'fileOffset': m.fileOffset,
+        'name': m.name.text,
+        'kind': m is Procedure ? m.kind.name : m.runtimeType.toString(),
+      };
+
+/// Every super target [p] direct-calls, resolved with [hierarchy].
+///
+/// Used on the RELEASE side to record what that version of the method already
+/// required AOT to compile — which is the whole basis of the narrow-v1
+/// admission rule (`super0/s2b1f/`).
+List<Map<String, Object?>> _superTargets(
+  ClassHierarchy hierarchy,
+  Class cls,
+  Procedure p,
+) {
+  final visitor = _ReceiverUses();
+  p.function.accept(visitor);
+  final superclass = cls.superclass;
+  if (superclass == null) return const [];
+  final out = <Map<String, Object?>>[];
+  for (final site in visitor.superInvocations) {
+    final name = site.member.startsWith('_')
+        ? Name(site.member, cls.enclosingLibrary)
+        : Name(site.member);
+    final resolved = hierarchy.getDispatchTarget(superclass, name);
+    final provenance = _provenance(resolved);
+    if (provenance != null) out.add(provenance);
+  }
+  return out;
 }
 
 /// A genuine `super.member()` site: where it is, and what it names.
