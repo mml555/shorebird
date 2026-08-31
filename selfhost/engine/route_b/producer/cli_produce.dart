@@ -13,7 +13,7 @@
 //   dart --packages=.dart_tool/package_config.json \
 //     selfhost/engine/route_b/producer/cli_produce.dart \
 //     <cell.zip> <base.dill> <patched.dill> <import.dill> <buildId> <outDir> \
-//     [projectRoot]
+//     [projectRoot] [patchedVerification.dill]
 //
 // projectRoot is where the replacement's `--packages` comes from; it defaults
 // to the directory holding base.dill, which is the corpus root in the harness.
@@ -69,6 +69,10 @@ Future<void> main(List<String> args) async {
       compiler: compiler,
       coverage: coverage,
       releaseImportKernel: importDill,
+      // VERIFICATION ONLY, when the harness supplies one. Absent for every
+      // ordinary case, which is what the producer expects.
+      patchedVerificationKernel:
+          args.length > 7 ? File(args[7]) : null,
       releaseBuildId: buildId,
       workingDirectory: work,
       projectRoot: Directory(
