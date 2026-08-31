@@ -594,6 +594,41 @@ void _runCensus(String path, List<String> includePrefixes, String? outPath) {
     }
   });
 
+  // IS THIS FILE GENERATED. Reported per row so a corpus dominated by codegen
+  // cannot be mistaken for a corpus dominated by hand-written code.
+  //
+  // BY THE MARKER, NOT BY THE FILENAME. A `.g.dart` filter looked sufficient
+  // until localsend: its flutter_rust_bridge bindings are named
+  // `frb_generated.dart` and `rust/api/*.dart`, carry the standard marker, and
+  // are committed to the repository -- and they turned out to hold 101 of the
+  // 108 `this` escapes that the first reading of that corpus ranked first. A
+  // hand-maintained list of filename patterns is a filter that has to be
+  // rediscovered per corpus, which is another way of saying it is tuned.
+  //
+  // THE CONVENTION, NOT A LIST OF TOOLS. There is no single marker: build_runner
+  // writes `GENERATED CODE - DO NOT MODIFY BY HAND`, flutter_rust_bridge writes
+  // `@generated`, slang writes `Generated file. Do not edit.`. Enumerating them
+  // is a list that has to grow every time a new corpus arrives -- which is how
+  // localsend's 18,193 slang getters survived the first filter.
+  //
+  // So the test is the SHAPE of the convention: the file's head says it was
+  // generated AND says not to edit it. That is what every one of those tools
+  // actually agrees on.
+  //
+  // A convention is not a guarantee. A generated file that declares nothing is
+  // counted as hand-written, which is the safe direction: it under-excludes
+  // rather than quietly removing real code. Both views are reported either way.
+  final generatedCache = <String, bool>{};
+  bool isGenerated(Uri uri) => generatedCache.putIfAbsent(uri.toString(), () {
+    final text = sourceOf(uri);
+    if (text == null) return false;
+    final head =
+        (text.length > 2048 ? text.substring(0, 2048) : text).toLowerCase();
+    if (head.contains('@generated')) return true;
+    return head.contains('generated') &&
+        (head.contains('do not edit') || head.contains('do not modify'));
+  });
+
   final rows = <Map<String, Object?>>[];
   var skippedStatic = 0;
   var skippedNoBody = 0;
@@ -678,6 +713,7 @@ void _runCensus(String path, List<String> includePrefixes, String? outPath) {
           // null when the source file could not be read, so "no rename needed"
           // and "not known" are never conflated.
           'needsAlphaRename': span == null ? null : span.contains('self'),
+          'generated': isGenerated(p.fileUri),
           'unconsumedThisParents': parents,
         });
       }

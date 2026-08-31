@@ -87,12 +87,32 @@ def load(path):
     return json.loads(lines[0]), [json.loads(line) for line in lines[1:]]
 
 
+# Applied IDENTICALLY to every corpus, which is the only thing that makes it a
+# filter rather than a thumb on the scale. On a corpus with no generated code it
+# removes nothing, and the report says so.
+#
+# It exists because localsend carries ~55 slang locale files of ~316 generated
+# translation getters each: 18,193 of its 19,164 instance procedures, all
+# mechanically identical. Left in, they dilute every percentage roughly tenfold
+# and make the two corpora non-comparable -- Wonderous has none at all. Removed,
+# 971 hand-written procedures remain, against Wonderous's 1,282.
+#
+# Both views are reported. The exclusion is a reporting slice; the census
+# executable, the taxonomy and the denominator rule are unchanged.
+def excluded_by(row, patterns, drop_generated):
+    if drop_generated and row.get('generated'):
+        return True
+    return any(pat in row['target'] for pat in patterns)
+
+
 def pct(n, d):
     return '   --  ' if not d else '%6.2f%%' % (100.0 * n / d)
 
 
-def report(label, kind, path, out):
+def report(label, kind, path, out, exclude=(), drop_generated=False):
     header, rows = load(path)
+    dropped = [r for r in rows if excluded_by(r, exclude, drop_generated)]
+    rows = [r for r in rows if not excluded_by(r, exclude, drop_generated)]
     considered = len(rows)
     lowerable = sum(1 for r in rows if r['lowerable'])
     blocked = considered - lowerable
@@ -112,6 +132,14 @@ def report(label, kind, path, out):
     w('  dill                        %s\n' % header['dill'])
     w('  include                     %s\n' % ', '.join(header['include']))
     w('\n')
+    if exclude or drop_generated:
+        what = list(exclude) + (['files marked @generated'] if drop_generated else [])
+        w('  excluded                    %s\n' % ', '.join(what))
+        w('    rows removed                   %6d of %d\n'
+          % (len(dropped), len(dropped) + considered))
+        if not dropped:
+            w('    (this corpus has none -- the same filter, no effect)\n')
+        w('\n')
     w('  instance procedures considered   %6d\n' % considered)
     w('    lowerable now                  %6d   %s\n' % (lowerable, pct(lowerable, considered)))
     w('    blocked by >=1 reason          %6d   %s\n' % (blocked, pct(blocked, considered)))
@@ -251,6 +279,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--corpus', action='append', required=True,
                     help='label|kind|path.jsonl')
+    ap.add_argument('--exclude-generated', action='store_true',
+                    help='drop rows whose SOURCE FILE carries a codegen marker; '
+                         'applied identically to every corpus')
+    ap.add_argument('--exclude', action='append', default=[],
+                    help='drop rows whose target contains this substring; '
+                         'applied identically to every corpus')
     ap.add_argument('--out')
     args = ap.parse_args()
 
@@ -259,7 +293,8 @@ def main():
     buf.write(DISCLAIMER)
     for spec in args.corpus:
         label, kind, path = spec.split('|', 2)
-        report(label, kind, path, buf)
+        report(label, kind, path, buf, tuple(args.exclude),
+               args.exclude_generated)
     text = buf.getvalue()
     if args.out:
         with open(args.out, 'w') as handle:

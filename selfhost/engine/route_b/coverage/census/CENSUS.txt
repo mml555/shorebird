@@ -27,6 +27,10 @@ airgap_app   (synthetic regression fixture)
   dill                        /private/tmp/claude-501/-Users-mendell-shorebird/8688bc8f-b3b0-49e5-b8b9-c4f9ab0a7854/scratchpad/d0/census2/airgap.dill
   include                     package:airgap_probe/
 
+  excluded                    files marked @generated
+    rows removed                        0 of 19
+    (this corpus has none -- the same filter, no effect)
+
   instance procedures considered       19
     lowerable now                      18    94.74%
     blocked by >=1 reason               1     5.26%
@@ -78,10 +82,14 @@ airgap_app   (synthetic regression fixture)
     it over-triggers on comments and on names like `selfTest`.
 
 --------------------------------------------------------------------------------
-Wonderous   (real application)
+Wonderous   (real app — animation-led showcase)
 --------------------------------------------------------------------------------
   dill                        /private/tmp/claude-501/-Users-mendell-shorebird/8688bc8f-b3b0-49e5-b8b9-c4f9ab0a7854/scratchpad/d0/census2/wonderous.dill
   include                     package:wonders/
+
+  excluded                    files marked @generated
+    rows removed                        0 of 1282
+    (this corpus has none -- the same filter, no effect)
 
   instance procedures considered     1282
     lowerable now                    1179    91.97%
@@ -144,6 +152,79 @@ Wonderous   (real application)
   D-HYGIENE EXERCISE COUNT (informational -- NOT a blocker)
     declarations spelling `self`        9 of 1282 with readable source
       of those, lowerable now           7
+    These lower CORRECTLY; they cost a capture-avoiding receiver rename.
+    Counting them as unsupported would put a solved problem back into the
+    ranking. The test is the producer's own conservative substring scan, so
+    it over-triggers on comments and on names like `selfTest`.
+
+--------------------------------------------------------------------------------
+localsend   (real app — networking/state utility)
+--------------------------------------------------------------------------------
+  dill                        /private/tmp/claude-501/-Users-mendell-shorebird/8688bc8f-b3b0-49e5-b8b9-c4f9ab0a7854/scratchpad/d0/census3/localsend.dill
+  include                     package:localsend_app/, package:localsend_isolates/, package:typed_isolates/
+
+  excluded                    files marked @generated
+    rows removed                    18580 of 19164
+
+  instance procedures considered      584
+    lowerable now                     539    92.29%
+    blocked by >=1 reason              45     7.71%
+
+  excluded from the denominator, counted so the exclusion is visible:
+    static (no receiver to lower)     335
+    abstract / external (no body)     102
+    no usable source span              25
+
+  REFUSAL CATEGORIES
+  category                          methods % of all     SOLE  % unlock
+  --------------------------------------------------------------------------
+  receiver.unconsumed_this               39    6.68%        9    20.00%
+  abi.optional_positionals                3    0.51%        3     6.67%
+  abi.named_parameters                    2    0.34%        2     4.44%
+  receiver.compound_same_offset           3    0.51%        1     2.22%
+  receiver.super_call                    30    5.14%        0     0.00%
+
+  SOLE = methods for which this is the ONLY refusal. "% unlock" is that
+  count over the BLOCKED population: what closing this one category alone
+  would move. Categories overlap, so the "methods" column does not sum to
+  the blocked total and the "SOLE" column does not sum to it either --
+  the remainder is methods blocked by two or more categories at once.
+
+  INSIDE receiver.unconsumed_this -- by the PARENT of each `this`
+  kernel parent node                 occurrences sole-blocked
+  ------------------------------------------------------------
+  SuperMethodInvocation                      30            0
+  Arguments                                   7            1
+  SwitchStatement                             4            4
+  InstanceTearOff                             4            3
+  VariableSet                                 1            1
+
+  InstanceTearOff is `onPressed: _handleTap` -- `this` is the RECEIVER
+  of a tear-off, and the lowered spelling is the same textual edit as a
+  read. Arguments/VariableDeclaration/ReturnStatement are the receiver
+  genuinely escaping. Raw node names, so an unexamined shape cannot hide.
+
+  CONSTRUCTS, attributed once each  <-- PLAN FROM THIS TABLE
+  construct                         methods % of all     SOLE  % unlock
+  --------------------------------------------------------------------------
+  construct.super                        30    5.14%       22    48.89%
+  construct.this_escape                  12    2.05%        6    13.33%
+  abi.optional_positionals                3    0.51%        3     6.67%
+  construct.method_tearoff                3    0.51%        3     6.67%
+  abi.named_parameters                    2    0.34%        2     4.44%
+  receiver.compound_same_offset           3    0.51%        1     2.22%
+
+  TOP BLOCKER CO-OCCURRENCES
+      30   receiver.super_call + receiver.unconsumed_this
+       2   receiver.compound_same_offset + receiver.super_call
+       2   receiver.compound_same_offset + receiver.unconsumed_this
+
+  These are why raw prevalence misleads: a pair that co-occurs often is a
+  pair where closing either one alone unlocks almost nothing.
+
+  D-HYGIENE EXERCISE COUNT (informational -- NOT a blocker)
+    declarations spelling `self`        4 of 584 with readable source
+      of those, lowerable now           4
     These lower CORRECTLY; they cost a capture-avoiding receiver rename.
     Counting them as unsupported would put a solved problem back into the
     ranking. The test is the producer's own conservative substring scan, so
