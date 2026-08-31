@@ -111,6 +111,9 @@ else: print('MISSING')
 # arm <entry> <originClass> <member> <site>
 arm() {
   local entry=$1 cls=$2 member=$3 site=$4
+  # The entry point must exist in the app; the identity arm reuses lifeGo's.
+  local realEntry=$entry
+  case "$entry" in lifeGoWrongKind) realEntry=lifeGo ;; esac
   local off; off=$(offset_of "$site")
   note "arm $entry  (origin $cls.original, member $member, offset $off)"
   cat > replacement.dart <<DART
@@ -118,15 +121,17 @@ import 'package:dynamic_modules/target_2b1.dart';
 
 @pragma('shorebird:direct-super')
 Object? routeBSuper(Object receiver, String originLibrary, String originClass,
-        String originMethod, int siteOffset, String member) =>
+        String originMember, String originMemberKind, int siteOffset,
+        String member) =>
     throw StateError('Route B super intrinsic was not lowered');
 
 @pragma('dyn-module:entry-point')
-String $entry($cls self) => routeBSuper(
+String $realEntry($cls self) => routeBSuper(
       self,
       '$TARGET_URI',
       '$cls',
       'original',
+      '${KIND:-Method}',
       $off,
       '$member',
     ) as String;
@@ -146,7 +151,7 @@ DART
     return
   fi
   set +e
-  "$AOT_RUNTIME" target.aot "$entry.bytecode" "$entry" "$TARGET_URI" \
+  "$AOT_RUNTIME" target.aot "$entry.bytecode" "$realEntry" "$TARGET_URI" \
     > "$entry.run.log" 2>&1
   set -e
   { grep -E '^(unpatched|virtual|patched)' "$entry.run.log" || true; } \
@@ -155,9 +160,16 @@ DART
     > "$entry.result"
 }
 
+# KIND is the origin member's Kernel ProcedureKind.name. The default is the
+# truth; the mismatch arm below sets it wrong on purpose.
 arm lifeGo LifeState close LifeState.original
 arm deepGo DeepLeaf close DeepLeaf.original
 arm argGo  ArgLeaf  tag   ArgLeaf.original
+
+# IDENTITY ARM. `memberKind` must be load-bearing rather than carried and
+# ignored: with a wrong kind the origin member must not resolve at all.
+note "arm lifeGo with a WRONG originMemberKind"
+KIND=Getter arm lifeGoWrongKind LifeState close LifeState.original || true
 
 note "verdict"
 life=$(cat lifeGo.result 2>/dev/null || echo MISSING)
@@ -188,6 +200,8 @@ else
   check "mixin lifecycle    -> TICKER"        "$life" "TICKER:APP-STATE"
   check "deep hierarchy     -> DEEP-BASE"     "$deep" "DEEP-BASE:APP-STATE"
   check "super WITH ARGS    -> REFUSED"       "$argr" "REFUSED"
+  wrong=$(cat lifeGoWrongKind.result 2>/dev/null || echo MISSING)
+  check "WRONG memberKind    -> REFUSED"       "$wrong" "REFUSED"
 fi
 
 echo

@@ -1552,58 +1552,166 @@ void main() {
       });
     });
 
-    test(
-      'D-SUPER-2B.1b: refuses a reported super site, because the analyzer '
-      'describes super at version 10 and this build cannot lower it',
-      () {
-        // The hazard the version bump creates: at v10 a `super.dispose()` body
-        // carries an EMPTY `unsupported` list, so "nothing unsupported" no
-        // longer means "fully lowerable". Without this gate, adopting v10 would
-        // silently open an acceptance path for a construct the producer has no
-        // way to emit.
-        expect(
-          () => runWithOverrides(
-            () => const RouteBProducer().produce(
-              compiler: compiler(),
-              coverage: coverage(
-                lowering: {
-                  'package:app/main.dart#routeBValue': {
-                    'receiverType': 'Thing',
-                    'nameOffset': 0,
-                    'accesses': <Object>[],
-                    'unsupported': <String>[],
-                    'origin': {
-                      'library': 'package:app/main.dart',
-                      'class': 'Thing',
-                      'member': 'routeBValue',
-                      'memberKind': 'Method',
-                    },
-                    'superInvocations': [
-                      {'offset': 42, 'member': 'dispose', 'kind': 'method'},
-                    ],
-                  },
+    group('D-SUPER-2B.1c: super.member()', () {
+      // The whole declaration is written into the fixture file, so the offsets
+      // below are real positions in real source rather than invented numbers --
+      // which is the same discipline the analyzer's own offsets get.
+      const superDeclaration = 'String routeBValue() => super.dispose();';
+      const argDeclaration = "String routeBValue() => super.tag('a', 7);";
+
+      Map<String, Object?> loweringFor(
+        String text, {
+        String member = 'dispose',
+        String kind = 'method',
+        String memberKind = 'Method',
+        int? offset,
+      }) => {
+        'package:app/main.dart#routeBValue': {
+          'receiverType': 'Thing',
+          'nameOffset': 0,
+          'accesses': <Object>[],
+          'unsupported': <String>[],
+          'origin': {
+            'library': 'package:app/main.dart',
+            'class': 'Thing',
+            'member': 'routeBValue',
+            'memberKind': memberKind,
+          },
+          'superInvocations': [
+            {
+              'offset': offset ?? text.indexOf(member, text.indexOf('super')),
+              'member': member,
+              'kind': kind,
+            },
+          ],
+        },
+      };
+
+      String produce(String text, Map<String, Object?> lowering) {
+        source.writeAsStringSync(text);
+        runWithOverrides(
+          () => const RouteBProducer().produce(
+            compiler: compiler(),
+            coverage: coverage(
+              lowering: lowering,
+              sources: {
+                'package:app/main.dart#routeBValue': {
+                  'fileUri': source.uri.toString(),
+                  'start': 0,
+                  'end': text.length,
                 },
-              ),
-              importKernel: File(p.join(cell.path, 'release_import.dill')),
-              releaseBuildId: 'deadbeef',
-              workingDirectory: work,
-              projectRoot: project,
-              run: compileOk,
+              },
             ),
+            importKernel: File(p.join(cell.path, 'release_import.dill')),
+            releaseBuildId: 'deadbeef',
+            workingDirectory: work,
+            projectRoot: project,
+            run: compileOk,
+          ),
+        );
+        return File(p.join(work.path, 'replacement_0.dart')).readAsStringSync();
+      }
+
+      test('rewrites a zero-argument call into the pragma intrinsic', () {
+        final emitted = produce(
+          superDeclaration,
+          loweringFor(superDeclaration),
+        );
+        // THE OBSERVABLE IS THE EMITTED SOURCE. "the producer reported success"
+        // is not evidence that it lowered anything.
+        expect(emitted, contains("@pragma('shorebird:direct-super')"));
+        expect(emitted, isNot(contains('super.dispose')));
+        // Full site identity, INCLUDING memberKind: a class may hold a method,
+        // a getter and a setter of one name, and the compiler resolves on both.
+        expect(
+          emitted,
+          contains(
+            r"$routeBSuper(self, 'package:app/main.dart', 'Thing', "
+            "'routeBValue', 'Method', ",
+          ),
+        );
+        expect(emitted, contains("'dispose') as dynamic"));
+        // The intrinsic declaration must sit BEFORE the entry-point pragma, and
+        // only the replacement may carry that pragma.
+        expect(
+          emitted.indexOf(r'$routeBSuper('),
+          lessThan(emitted.indexOf("@pragma('dyn-module:entry-point')")),
+        );
+      });
+
+      test('emits no intrinsic declaration when no super site is reported', () {
+        final emitted = produce(declaration, <String, Object?>{});
+        expect(emitted, isNot(contains('shorebird:direct-super')));
+      });
+
+      test('refuses a call written with arguments', () {
+        expect(
+          () => produce(
+            argDeclaration,
+            loweringFor(argDeclaration, member: 'tag'),
           ),
           throwsA(
             isA<RouteBUnsupportedTarget>().having(
               (e) => e.reason,
               'reason',
-              allOf(
-                contains('super.dispose()'),
-                contains('does not yet produce direct-super replacements'),
-              ),
+              contains('written with arguments'),
             ),
           ),
         );
-      },
-    );
+      });
+
+      test('fail-closed when the source shape cannot be verified', () {
+        // An offset that does not name the member: the analyzer and the source
+        // disagree about where the site is, so nothing may be lowered on it.
+        expect(
+          () => produce(
+            superDeclaration,
+            loweringFor(superDeclaration, offset: 3),
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              contains('could not be verified'),
+            ),
+          ),
+        );
+      });
+
+      test('refuses a super getter or setter site', () {
+        for (final kind in const ['getter', 'setter']) {
+          expect(
+            () => produce(
+              superDeclaration,
+              loweringFor(superDeclaration, kind: kind),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('super `$kind`'),
+              ),
+            ),
+            reason: kind,
+          );
+        }
+      });
+
+      test('refuses a super site with no origin identity', () {
+        final lowering = loweringFor(superDeclaration);
+        (lowering.values.first! as Map<String, Object?>).remove('origin');
+        expect(
+          () => produce(superDeclaration, lowering),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              contains('without the origin identity'),
+            ),
+          ),
+        );
+      });
+    });
 
     test('refuses a target the analysis gave no span for', () {
       expect(

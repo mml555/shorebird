@@ -53,6 +53,7 @@ import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
+import 'package:shorebird_cli/src/route_b_super_source.dart';
 import 'package:shorebird_cli/src/route_b_survival.dart';
 
 /// A reference to a [RouteBProducer] instance.
@@ -80,6 +81,22 @@ class RouteBUnsupportedTarget implements Exception {
   String toString() => '$target: $reason';
 }
 
+/// A lowered replacement: the declaration, plus anything the library needs
+/// ABOVE the entry-point pragma.
+///
+/// The preamble exists because the direct-super intrinsic is a second top-level
+/// declaration, and only one declaration in the library may carry
+/// `dyn-module:entry-point`.
+class _Lowered {
+  const _Lowered(this.declaration, {this.preamble = ''});
+
+  /// The replacement declaration itself.
+  final String declaration;
+
+  /// Emitted before the entry-point pragma. Empty for almost every target.
+  final String preamble;
+}
+
 /// Whether [declaration] reads the compile-time environment directly.
 ///
 /// The three `fromEnvironment` constructors are the ONLY expressions whose value
@@ -103,6 +120,30 @@ bool _readsCompileTimeEnvironment(String declaration) =>
 class RouteBProducer {
   /// {@macro route_b_producer}
   const RouteBProducer();
+
+  /// The generated helper a `super.member()` call is rewritten into.
+  ///
+  /// NOT a product surface and not reachable from user code: the producer emits
+  /// both the declaration and the call, and `dart2bytecode` recognises it by
+  /// the PRAGMA rather than by this name, so the spelling carries no authority.
+  /// Its
+  /// body throws, so a compiler that did not lower it fails loudly instead of
+  /// running something plausible.
+  static const _superIntrinsicName = r'$routeBSuper';
+
+  /// The declaration, emitted only for a replacement that needs it.
+  static const _superIntrinsicDeclaration = '''
+@pragma('shorebird:direct-super')
+Object? $_superIntrinsicName(
+  Object receiver,
+  String originLibrary,
+  String originClass,
+  String originMember,
+  String originMemberKind,
+  int siteOffset,
+  String superMember,
+) => throw StateError('Route B direct-super intrinsic was not lowered');
+''';
 
   /// The annotation that makes a declaration loadable as a dynamic module
   /// entry point, which is how an attached function is entered.
@@ -278,9 +319,10 @@ class RouteBProducer {
       }
 
       final lowering = coverage.lowering[key];
-      final declaration = lowering != null
+      final lowered = lowering != null
           ? _lower(key, source, lowering, capabilities)
-          : _slice(key, source);
+          : _Lowered(_slice(key, source));
+      final declaration = lowered.declaration;
       // G4.1c link 2, the LEGACY case. A release cut before injected defines
       // were recorded cannot be given them retroactively — the values came from
       // a build that is over — so a replacement compiled against it would bake
@@ -340,7 +382,12 @@ class RouteBProducer {
       final library = File(p.join(workingDirectory.path, 'replacement_$i.dart'))
         ..writeAsStringSync(
           '${inherited.map((d) => '$d\n').join()}'
-          "import '$targetLibrary';\n\n$entryPointPragma\n$declaration\n",
+          "import '$targetLibrary';\n\n"
+          // The intrinsic declaration goes BEFORE the entry-point pragma: that
+          // pragma must land on the replacement, and exactly one declaration in
+          // the library may carry it.
+          '${lowered.preamble}'
+          '$entryPointPragma\n$declaration\n',
         );
       final payload = File(
         p.join(workingDirectory.path, 'replacement_$i.bytecode'),
@@ -500,35 +547,13 @@ class RouteBProducer {
   /// Which one it is can only be answered from the source text, because the
   /// synthesized `ThisExpression` carries the access's own offset rather than
   /// one of its own.
-  String _lower(
+  _Lowered _lower(
     String key,
     RouteBSourceSpan span,
     RouteBLowering lowering,
     RouteBCapabilities? capabilities,
   ) {
-    // ANALYSIS VERSION 10 SAFETY GATE, and the reason this build can consume a
-    // v10 document at all.
-    //
-    // Version 10 stopped putting `calls `super.x()`` in `unsupported` and began
-    // reporting the site structurally instead. That is strictly more
-    // information, but it means an empty `unsupported` list no longer implies
-    // "fully lowerable" — so without this check, adopting v10 would silently
-    // open an acceptance path for a construct nothing here can lower. The
-    // producer emits no direct-super intrinsic yet; the mechanism is proven in
-    // `selfhost/engine/route_b/super0/s2b1/` and lives only in a harness.
-    //
-    // Refused BEFORE the unsupported list is consulted, so the message names the
-    // real reason rather than whatever else the body may also contain.
-    if (lowering.superInvocations.isNotEmpty) {
-      final site = lowering.superInvocations.first;
-      throw RouteBUnsupportedTarget(
-        key,
-        'the Route B analyzer reported a `super.${site.member}()` invocation, '
-        'and this build does not yet produce direct-super replacements. The '
-        'analyzer describes the site (analysis version 10); the producer '
-        'cannot lower it.',
-      );
-    }
+    // ANALYSIS VERSION 10: `super.member()`, admitted from the SOURCE.
     if (lowering.unsupported.isNotEmpty) {
       // P4.3. The analyzer's wording is kept verbatim -- it is the part that
       // says which shape -- with a STABLE code in front of it. The prose may be
@@ -589,6 +614,92 @@ class RouteBProducer {
       File.fromUri(Uri.parse(span.fileUri)).readAsBytesSync(),
     );
 
+    // SUPER SITES, admitted here and rewritten below.
+    //
+    // Three authorities, and this is the middle one. The analyzer said a
+    // genuine super operation is at this offset; the SOURCE says whether it
+    // was written with arguments (the AOT kernel cannot -- TFA rewrites
+    // `super.tag('a', 7)` to zero arguments there, measured in
+    // `super0/s2b0/`); and `dart2bytecode` re-establishes both the shape and
+    // the target in its own kernel, independently of anything decided here.
+    //
+    // ALL OR NOTHING PER TARGET. A method with two super calls where only
+    // one is supportable refuses entirely: emitting a partly-lowered body
+    // would leave a `super` in a synthetic top-level function, and the
+    // whole-patch rule makes one unrepresentable member reject the patch
+    // anyway.
+    final superEdits = <(int, int, String)>[];
+    if (lowering.superInvocations.isNotEmpty) {
+      final origin = lowering.origin;
+      if (origin == null) {
+        throw RouteBUnsupportedTarget(
+          key,
+          'the analyzer reported a super invocation without the origin '
+          'identity the replacement compiler needs to resolve it',
+        );
+      }
+      for (final site in lowering.superInvocations) {
+        if (site.kind != 'method') {
+          throw RouteBUnsupportedTarget(
+            key,
+            'super `${site.kind}` access to `${site.member}` is not supported',
+          );
+        }
+        final args = routeBSuperCallArgs(
+          source: source,
+          offset: site.offset,
+          member: site.member,
+        );
+        switch (args) {
+          case RouteBSuperArgs.hasArguments:
+            throw RouteBUnsupportedTarget(
+              key,
+              'super.${site.member}(…) is written with arguments, and only a '
+              'zero-argument super call is supported',
+            );
+          case RouteBSuperArgs.unverifiable:
+            // Fail-closed, and its own message: an unreadable site is not the
+            // same finding as a site read and rejected.
+            throw RouteBUnsupportedTarget(
+              key,
+              'the source shape of super.${site.member} could not be verified '
+              'at offset ${site.offset}, so it is refused rather than lowered '
+              'on a guess',
+            );
+          case RouteBSuperArgs.zeroArguments:
+            break;
+        }
+        final callSpan = routeBSuperCallSpan(
+          source: source,
+          offset: site.offset,
+          member: site.member,
+        );
+        if (callSpan == null || callSpan.start < span.start ||
+            callSpan.end > span.end) {
+          throw RouteBUnsupportedTarget(
+            key,
+            'the super.${site.member}() call at offset ${site.offset} is not '
+            'inside the declaration being replaced',
+          );
+        }
+        superEdits.add((
+          callSpan.start,
+          callSpan.end - callSpan.start,
+          // ORIGIN IDENTITY, verbatim from the analyzer. `originMemberKind`
+          // travels because a class may hold a method, a getter and a setter of
+          // one name, and the compiler resolves on name AND kind.
+          '$_superIntrinsicName('
+              '@RECEIVER@, '
+              "'${origin.library}', "
+              "'${origin.className}', "
+              "'${origin.member}', "
+              "'${origin.memberKind}', "
+              '${site.offset}, '
+              "'${site.member}') as dynamic",
+        ));
+      }
+    }
+
     // CAPTURE-AVOIDING RECEIVER NAME (D-HYGIENE). The declaration below is
     // copied verbatim into a new lexical scope that also holds the receiver
     // parameter this producer generates. If the author's own source already
@@ -623,6 +734,12 @@ class RouteBProducer {
     // (offset, replacedLength, text), applied right-to-left so earlier offsets
     // stay valid.
     final edits = <(int, int, String)>[];
+    // The super rewrites were collected before the receiver name existed, since
+    // the name depends on the whole declaration's text -- including the `super`
+    // calls. Substituted now rather than re-scanning.
+    for (final (offset, length, text) in superEdits) {
+      edits.add((offset, length, text.replaceAll('@RECEIVER@', receiverName)));
+    }
 
     // The receiver parameter goes into the method's own parameter list, found
     // by scanning from the NAME — an annotation's parentheses come earlier and
@@ -801,7 +918,10 @@ class RouteBProducer {
         'retained.',
       );
     }
-    return text;
+    return _Lowered(
+      text,
+      preamble: superEdits.isEmpty ? '' : '$_superIntrinsicDeclaration\n',
+    );
   }
 
   /// Every private identifier in [text] that could be a reference.

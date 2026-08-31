@@ -38,6 +38,36 @@ enum RouteBSuperArgs {
   unverifiable,
 }
 
+/// The exact source span of a `super.member()` call, for the producer to
+/// replace with a compiler intrinsic.
+///
+/// [start] is the `super` keyword; [end] is one past the closing paren, so
+/// `source.substring(start, end)` is the whole call and nothing else.
+class RouteBSuperCallSpan {
+  /// {@macro route_b_super_call_span}
+  const RouteBSuperCallSpan({required this.start, required this.end});
+
+  /// Offset of the `super` keyword.
+  final int start;
+
+  /// One past the closing `)`.
+  final int end;
+}
+
+/// The span of the zero-argument `super.[member]()` call at [offset], or null
+/// when [routeBSuperCallArgs] would not admit it.
+///
+/// One reader for both answers, so the producer cannot admit a call on one
+/// scan and then replace a span computed by another.
+RouteBSuperCallSpan? routeBSuperCallSpan({
+  required String source,
+  required int offset,
+  required String member,
+}) {
+  final result = _read(source: source, offset: offset, member: member);
+  return result.args == RouteBSuperArgs.zeroArguments ? result.span : null;
+}
+
 /// Reads the `super.[member](…)` call at [offset] in [source].
 ///
 /// [offset] is the Kernel `SuperMethodInvocation.fileOffset`, which points at
@@ -48,51 +78,69 @@ RouteBSuperArgs routeBSuperCallArgs({
   required String source,
   required int offset,
   required String member,
+}) => _read(source: source, offset: offset, member: member).args;
+
+class _Read {
+  const _Read(this.args, [this.span]);
+  final RouteBSuperArgs args;
+  final RouteBSuperCallSpan? span;
+}
+
+_Read _read({
+  required String source,
+  required int offset,
+  required String member,
 }) {
   if (offset < 0 || offset + member.length > source.length) {
-    return RouteBSuperArgs.unverifiable;
+    return const _Read(RouteBSuperArgs.unverifiable);
   }
   // The offset must actually name the member. If it does not, the analyzer and
   // this scanner disagree about where the site is, and nothing below can be
   // trusted.
-  if (!source.startsWith(member, offset)) return RouteBSuperArgs.unverifiable;
+  if (!source.startsWith(member, offset)) {
+    return const _Read(RouteBSuperArgs.unverifiable);
+  }
   // An identifier character immediately before or after would mean the offset
   // landed inside a longer name (`tagged` when looking for `tag`).
   if (_isIdentifierPart(_charAt(source, offset - 1)) ||
       _isIdentifierPart(_charAt(source, offset + member.length))) {
-    return RouteBSuperArgs.unverifiable;
+    return const _Read(RouteBSuperArgs.unverifiable);
   }
 
   // Confirm the prefix really is `super` `.` — the producer refuses unusual
   // `this` spacing for the same reason, and this is the same class of guess.
   var i = _skipTriviaBackward(source, offset - 1);
-  if (_charAt(source, i) != '.') return RouteBSuperArgs.unverifiable;
+  if (_charAt(source, i) != '.') {
+    return const _Read(RouteBSuperArgs.unverifiable);
+  }
   i = _skipTriviaBackward(source, i - 1);
   const keyword = 'super';
   final start = i - keyword.length + 1;
   if (start < 0 || !source.startsWith(keyword, start)) {
-    return RouteBSuperArgs.unverifiable;
+    return const _Read(RouteBSuperArgs.unverifiable);
   }
   if (_isIdentifierPart(_charAt(source, start - 1))) {
-    return RouteBSuperArgs.unverifiable;
+    return const _Read(RouteBSuperArgs.unverifiable);
   }
 
   // Forward to the argument list.
   var j = _skipTriviaForward(source, offset + member.length);
-  if (j >= source.length) return RouteBSuperArgs.unverifiable;
+  if (j >= source.length) return const _Read(RouteBSuperArgs.unverifiable);
   // `super.foo<T>()` is a generic invocation and stays refused. Reported as
   // hasArguments rather than unverifiable: it IS readable, and it is exactly a
   // shape v1 declines.
-  if (source[j] == '<') return RouteBSuperArgs.hasArguments;
-  if (source[j] != '(') return RouteBSuperArgs.unverifiable;
+  if (source[j] == '<') return const _Read(RouteBSuperArgs.hasArguments);
+  if (source[j] != '(') return const _Read(RouteBSuperArgs.unverifiable);
 
   // Only trivia may sit between the parentheses. No nesting to track: the first
   // thing that is not trivia or `)` means arguments are present.
   j = _skipTriviaForward(source, j + 1);
-  if (j >= source.length) return RouteBSuperArgs.unverifiable;
-  return source[j] == ')'
-      ? RouteBSuperArgs.zeroArguments
-      : RouteBSuperArgs.hasArguments;
+  if (j >= source.length) return const _Read(RouteBSuperArgs.unverifiable);
+  if (source[j] != ')') return const _Read(RouteBSuperArgs.hasArguments);
+  return _Read(
+    RouteBSuperArgs.zeroArguments,
+    RouteBSuperCallSpan(start: start, end: j + 1),
+  );
 }
 
 String? _charAt(String s, int i) =>

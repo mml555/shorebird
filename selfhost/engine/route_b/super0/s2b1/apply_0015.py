@@ -55,7 +55,7 @@ MEMBERS = r"""  // ---- Route B (selfhost) 0015 --------------------------------
   //
   // No virtual fallback on any path.
   void _genShorebirdDirectSuper(StaticInvocation node, Arguments args) {
-    if (args.positional.length != 6 ||
+    if (args.positional.length != 7 ||
         args.named.isNotEmpty ||
         args.types.isNotEmpty) {
       _superRefusal('malformed intrinsic call');
@@ -68,13 +68,23 @@ MEMBERS = r"""  // ---- Route B (selfhost) 0015 --------------------------------
 
     final originLibrary = literal(1);
     final originClassName = literal(2);
-    final originMethodName = literal(3);
-    final offsetExpr = args.positional[4];
+    final originMemberName = literal(3);
+    // ORIGIN MEMBER KIND, and it is load-bearing rather than decorative: a class
+    // may hold a method, a getter and a setter of one name, so class + name is
+    // not an identity. The analyzer carries it (analysis version 10) and this is
+    // the safety-critical consumer, so it resolves on BOTH and has no
+    // first-member-with-that-name fallback.
+    //
+    // The wire value is Kernel's `ProcedureKind.name`, so it is capitalised:
+    // `Method`, `Getter`, `Setter`, `Operator`, `Factory`. Consumed exactly as
+    // spelled rather than normalised.
+    final originMemberKind = literal(4);
+    final offsetExpr = args.positional[5];
     if (offsetExpr is! IntLiteral) {
       _superRefusal('site offset is not a literal');
     }
     final siteOffset = offsetExpr.value;
-    final memberName = literal(5);
+    final memberName = literal(6);
 
     // 1. Only inside a dyn-module replacement entry point: anywhere else there
     //    is no "the receiver", so the arg0 rule would mean nothing.
@@ -133,19 +143,22 @@ MEMBERS = r"""  // ---- Route B (selfhost) 0015 --------------------------------
     if (cls == null) _superRefusal('origin class not in the import kernel');
     Procedure? origin;
     for (final p in cls.procedures) {
-      if (p.name.text == originMethodName) {
+      if (p.name.text == originMemberName && p.kind.name == originMemberKind) {
         origin = p;
         break;
       }
     }
-    if (origin == null) _superRefusal('origin method not in the import kernel');
+    if (origin == null) {
+      _superRefusal('no $originMemberKind named $originMemberName in '
+          '$originClassName in the import kernel');
+    }
 
     final finder = ShorebirdSuperSiteAt(siteOffset);
     origin.function.accept(finder);
     final site = finder.found;
     if (site == null) {
       _superRefusal('no super invocation at offset $siteOffset in '
-          '$originClassName.$originMethodName');
+          '$originClassName.$originMemberName');
     }
     // Two sites sharing an offset would make the offset not an identity.
     if (finder.count != 1) {
