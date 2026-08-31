@@ -207,12 +207,22 @@ support — they were never interpreted.
 | release-private instance **read** | `_secret` | `self._secret`, granted via G3.6b/P2 |
 | release-private **getter** call | `_codePatch` | `self._codePatch`, granted via G3.6b/P2 |
 | a target method **on a private class** | any of the above, inside `_Foo` | receiver lowered as `dynamic self` (G3.6c) + `class: '_Foo'` retention (G3.6d) |
-| a target method with **its own required positional parameters** | `tagged(String x)` | `tagged(Self self, String x)` — G3.7, patch `0006`. **Host-proven, not yet on device** |
+| a target method with **its own required positional parameters** | `tagged(String x)` | `tagged(Self self, String x)` — G3.7, patch `0006`. Device-proven on releases 37 and 38 |
 
 All device-proven; see the rung sections above for engine, release and evidence.
 The private read closed on release `31.0.0+1` patch 2, 2026-08-13: the producer
 emitted exactly `String value(RouteBThing self) => self._secret;` and the phone
 displayed `NEW-PRIV` (`evidence/releases/31/`, commit `c7661317`).
+
+G3.7 closed on device 2026-08-13, all four of its shapes: release 37 proved a sole
+positional `String` transfers and is observable in the replacement body; release 38
+proved two arguments arrive **in declared order keeping their types** (`PARAM-a-7`,
+where a transposition renders the visibly wrong `PARAM-7-a`), with the sibling
+method `paramValue` unmoved as the per-method-replacement control. Its `named` and
+`opt` arms were **refused at patch time on device**, exit 70, no container, each
+citing its own parameter shape rather than "not in the interface"
+(`evidence/releases/37/verdict.txt`, `evidence/releases/38/verdict.txt`;
+gate `plans/G3.7-param-abi-device-gate.md`).
 
 **READ, not access.** A private **write** (`_secret = x`) has NOT been
 device-proven and this row must not be read as implying one. The target's release
