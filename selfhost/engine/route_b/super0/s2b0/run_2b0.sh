@@ -53,7 +53,7 @@ note "kernels"
 note "argument count PER KERNEL, at the same site"
 "$DART" --packages="$DART_TREE/.dart_tool/package_config.json" \
   "$HERE/dump_sites.dart" "$WORK/lib/main.dart" "$OUT/vm_platform.dill" \
-  "$WORK/import.dill" "$WORK/aot.dill" | tee "$WORK/sites.txt" | sed 's/^/    /'
+  package:corpus/ "$WORK/import.dill" "$WORK/aot.dill" | tee "$WORK/sites.txt" | sed 's/^/    /'
 
 read_field() { # <dill-label> <site> <field>
   python3 - "$WORK/sites.txt" "$1" "$2" "$3" <<'PY'

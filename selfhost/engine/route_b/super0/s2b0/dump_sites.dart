@@ -13,13 +13,17 @@ void main(List<String> args) {
   // `dart:core` is absent and any traversal that touches a type dies on an
   // unbound reference. Same requirement dart2bytecode has.
   final platform = args[1];
-  for (final path in args.sublist(2)) {
+  // The library prefix is an argument, not a constant: the first version
+  // hardcoded `package:corpus/` and silently reported ZERO sites for a specimen
+  // in another package, which the caller then read as a missing offset.
+  final prefix = args[2];
+  for (final path in args.sublist(3)) {
     final c = Component();
     BinaryBuilder(File(platform).readAsBytesSync()).readComponent(c);
     BinaryBuilder(File(path).readAsBytesSync()).readComponent(c);
     print('=== ${path.split('/').last} ===');
     for (final lib in c.libraries) {
-      if (!lib.importUri.toString().startsWith('package:corpus/')) continue;
+      if (!lib.importUri.toString().startsWith(prefix)) continue;
       for (final cls in lib.classes) {
         for (final p in cls.procedures) {
           final v = _V();
