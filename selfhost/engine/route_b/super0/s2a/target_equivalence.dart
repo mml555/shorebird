@@ -46,6 +46,54 @@ Component _load(String path, {String? platform}) {
   return c;
 }
 
+/// D-SUPER-2A.2. The SEMANTIC identity of a target, built from SOURCE
+/// PROVENANCE rather than from its transformed owner.
+///
+/// Canonical names are not usable across the boundary: AOT mixin deduplication
+/// renames the owning mixin-application class, so
+/// `dart:mixin_deduplication::_MixinApplication279&State&…::dispose` and
+/// `package:wonders/…::__HomeScreenState&State&…::dispose` are the same
+/// declaration under two identities (D-SUPER-2A). A mixin-application member is
+/// a CLONE of the mixin's member, so the question this fingerprint asks is
+/// whether the clone keeps the provenance of what it was cloned from.
+///
+/// Deliberately excludes the enclosing class. Including it would reintroduce
+/// exactly the transformed identity the design is trying to become independent
+/// of.
+/// PROVENANCE ONLY: where the declaration came from. Dart has no overloading,
+/// so within a library a file offset plus a name and kind identifies exactly one
+/// declaration, and no rename can move any of them.
+String? _fingerprint(Member? m) {
+  if (m == null) return null;
+  return [
+    m.fileUri.toString(),
+    m.fileOffset,
+    m.name.text,
+    m is Procedure ? m.kind.name : m.runtimeType.toString(),
+  ].join('|');
+}
+
+/// The SHAPE, reported SEPARATELY and deliberately not part of the provenance
+/// key, because it is not stable across the AOT boundary.
+///
+/// TFA specialises a callee for its call sites. Measured on `ArgParent.tag`:
+/// the import kernel has `tag(String a, int b)` and the source super call reads
+/// `super.tag('a', 7)`, while the AOT kernel has `tag()` with the two arguments
+/// frozen into the body as constants and the call site rewritten to
+/// `super.tag()`. Folding arity into the provenance key made that site read as a
+/// target mismatch, which it is not — the declaration is the same one, at the
+/// same offset.
+String? _shape(Member? m) {
+  if (m is! Procedure) return null;
+  final f = m.function;
+  return [
+    f.requiredParameterCount,
+    f.positionalParameters.length,
+    (f.namedParameters.map((p) => p.name).toList()..sort()).join(','),
+    f.typeParameters.length,
+  ].join('|');
+}
+
 String? _canonical(Member? m) {
   if (m == null) return null;
   final cls = m.enclosingClass?.name ?? '<top>';
@@ -112,6 +160,23 @@ void main(List<String> args) {
     return null;
   }
 
+  /// A [Name] usable in [component]'s own hierarchy.
+  ///
+  /// A private name carries a library REFERENCE, and the reference from the AOT
+  /// component does not match the import component's library object -- which is
+  /// why the first run of this tool reported `PrivChild.go` as "not comparable"
+  /// rather than as a result. Rebuilding the name against the target component
+  /// makes the private case measurable instead of silently excluded.
+  Name nameIn(Component? component, Name name) {
+    if (component == null || !name.text.startsWith('_')) return name;
+    final uri = name.library?.importUri.toString();
+    if (uri == null) return name;
+    for (final lib in component.libraries) {
+      if (lib.importUri.toString() == uri) return Name(name.text, lib);
+    }
+    return name;
+  }
+
   final rows = <Map<String, Object?>>[];
   for (final lib in aot.libraries.where(isApp)) {
     for (final cls in lib.classes) {
@@ -139,7 +204,7 @@ void main(List<String> args) {
           if (tSup != null && impHierarchy != null) {
             viaImport = impHierarchy.getDispatchTarget(
               tSup,
-              site.name,
+              nameIn(imp, site.name),
               setter: site.isSetter,
             );
           }
@@ -153,6 +218,16 @@ void main(List<String> args) {
             'retainedInterfaceTarget': retained,
             'viaHierarchyAot': _canonical(viaAot),
             'viaHierarchyImport': _canonical(viaImport),
+            // The 2A.2 comparison. A == B is the claim; the canonical names
+            // above are kept only to show WHY the name comparison fails.
+            'fingerprintAot': _fingerprint(site.interfaceTarget),
+            'fingerprintImport': _fingerprint(viaImport),
+            'shapeAot': _shape(site.interfaceTarget),
+            'shapeImport': _shape(viaImport),
+            // The argument count AT THE CALL SITE in the AOT kernel. Recorded
+            // because a v1 gate of "zero arguments" read from this kernel would
+            // be unsound: TFA can rewrite `super.tag('a', 7)` to `super.tag()`.
+            'callSiteArgsAot': site.argCount,
             'twinFound': t != null,
           });
         }
@@ -162,6 +237,8 @@ void main(List<String> args) {
 
   var matchAot = 0, mismatchAot = 0, matchImport = 0, mismatchImport = 0;
   var noTwin = 0;
+  var fpMatch = 0, fpMismatch = 0, fpUnavailable = 0;
+  var shapeSame = 0, shapeDiffers = 0;
   for (final r in rows) {
     final retained = r['retainedInterfaceTarget'];
     if (retained == r['viaHierarchyAot']) {
@@ -176,6 +253,22 @@ void main(List<String> args) {
     } else {
       mismatchImport++;
     }
+    final a = r['fingerprintAot'], b = r['fingerprintImport'];
+    if (a == null || b == null) {
+      fpUnavailable++;
+    } else if (a == b) {
+      fpMatch++;
+    } else {
+      fpMismatch++;
+    }
+    final sa = r['shapeAot'], sb = r['shapeImport'];
+    if (sa != null && sb != null) {
+      if (sa == sb) {
+        shapeSame++;
+      } else {
+        shapeDiffers++;
+      }
+    }
   }
 
   print(jsonEncode({
@@ -187,21 +280,53 @@ void main(List<String> args) {
     'matchInImportDill': matchImport,
     'mismatchInImportDill': mismatchImport,
     'importSideNotComparable': noTwin,
+    'fingerprintMatch': fpMatch,
+    'fingerprintMismatch': fpMismatch,
+    'fingerprintUnavailable': fpUnavailable,
+    'shapeSame': shapeSame,
+    'shapeDiffersAcrossKernels': shapeDiffers,
   }));
   for (final r in rows) {
-    final bad = r['retainedInterfaceTarget'] != r['viaHierarchyAot'] ||
+    final nameBad = r['retainedInterfaceTarget'] != r['viaHierarchyAot'] ||
         (r['twinFound'] == true &&
             r['viaHierarchyImport'] != null &&
             r['retainedInterfaceTarget'] != r['viaHierarchyImport']);
-    print('${bad ? 'MISMATCH ' : 'match    '}${jsonEncode(r)}');
+    final fpA = r['fingerprintAot'], fpB = r['fingerprintImport'];
+    final fpBad = fpA == null || fpB == null || fpA != fpB;
+    // Two labels, because they are two different claims: NAME-ONLY is the
+    // expected 2A finding and is not a failure of the 2A.2 rule.
+    final shapeBad = r['shapeAot'] != null &&
+        r['shapeImport'] != null &&
+        r['shapeAot'] != r['shapeImport'];
+    final label = fpBad
+        ? 'FINGERPRINT-MISMATCH '
+        : shapeBad
+        ? 'SHAPE-DIFFERS        '
+        : (nameBad ? 'name-only-differs    ' : 'match                ');
+    print('$label${jsonEncode(r)}');
   }
-  if (mismatchAot != 0 || mismatchImport != 0) {
-    stderr.writeln('\nSTOP: ${mismatchAot + mismatchImport} mismatch(es). '
-        'The two derivations of "the super target" do not agree, and the '
-        'product rule cannot be chosen until the ORIGINAL UNPATCHED program is '
-        'run to establish which Procedure actually executes.');
+  if (fpMismatch != 0 || fpUnavailable != 0) {
+    stderr.writeln('\nSTOP: $fpMismatch fingerprint mismatch(es), '
+        '$fpUnavailable unavailable. Locally re-derived targets do not '
+        'provably name the same declaration as the retained ones, and there is '
+        'NO fallback to canonical names.');
     exit(1);
   }
+  if (mismatchAot != 0) {
+    stderr.writeln('\nSTOP: $mismatchAot within-AOT mismatch(es) — '
+        'interfaceTarget and the AOT hierarchy disagree, which 2A did not see.');
+    exit(1);
+  }
+  if (shapeDiffers != 0) {
+    stderr.writeln('\nNOTE: $shapeDiffers site(s) whose TARGET SIGNATURE differs '
+        'between the two kernels. The declaration is the same; TFA specialised '
+        'it. A v1 gate that reads an argument count from the AOT kernel would '
+        'be unsound.');
+  }
+  stderr.writeln('\nCross-kernel structural re-derivation: fingerprints agree '
+      'on all ${rows.length} site(s). $mismatchImport of them have '
+      'DIFFERENT canonical names, which is the 2A finding and is exactly what '
+      'the fingerprint is designed not to depend on.');
 }
 
 class _SuperSites extends RecursiveVisitor {

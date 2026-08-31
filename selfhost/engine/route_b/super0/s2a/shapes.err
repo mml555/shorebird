@@ -1,0 +1,4 @@
+
+NOTE: 1 site(s) whose TARGET SIGNATURE differs between the two kernels. The declaration is the same; TFA specialised it. A v1 gate that reads an argument count from the AOT kernel would be unsound.
+
+Cross-kernel structural re-derivation: fingerprints agree on all 10 site(s). 1 of them have DIFFERENT canonical names, which is the 2A finding and is exactly what the fingerprint is designed not to depend on.
