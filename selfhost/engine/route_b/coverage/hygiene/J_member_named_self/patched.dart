@@ -37,10 +37,7 @@ class Shadow {
       : 'k';
 
   @pragma('vm:never-inline')
-  String value() {
-    final self = Shadow.other;
-    return label + '|' + self.label;
-  }
+  String value() => self.label.isEmpty ? 'X' : label;
 }
 
 void main() =>

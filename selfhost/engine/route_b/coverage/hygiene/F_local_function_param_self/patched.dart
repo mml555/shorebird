@@ -38,8 +38,8 @@ class Shadow {
 
   @pragma('vm:never-inline')
   String value() {
-    final self = Shadow.other;
-    return label + '|' + self.label;
+    String inner(Other self) => self.label.isEmpty ? 'X' : label;
+    return inner(Shadow.other);
   }
 }
 

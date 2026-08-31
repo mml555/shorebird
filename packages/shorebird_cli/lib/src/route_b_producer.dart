@@ -42,6 +42,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
@@ -565,6 +566,22 @@ class RouteBProducer {
       File.fromUri(Uri.parse(span.fileUri)).readAsBytesSync(),
     );
 
+    // CAPTURE-AVOIDING RECEIVER NAME (D-HYGIENE). The declaration below is
+    // copied verbatim into a new lexical scope that also holds the receiver
+    // parameter this producer generates. If the author's own source already
+    // binds that name — a local, a closure parameter, the target's own
+    // parameter — every inserted receiver reference resolves to THEIR binding
+    // instead of the receiver, and the result compiles, packs into a container
+    // and executes with different semantics. Measured, not supposed:
+    // `selfhost/engine/route_b/coverage/hygiene/RESULT.md`, four of five
+    // controls accepted and wrong.
+    //
+    // So the name is allocated to be fresh with respect to every byte being
+    // copied, before any edit is computed.
+    final receiverName = _freshReceiverName(
+      source.substring(span.start, span.end),
+    );
+
     // ONE EDIT PER OFFSET. `label += 'X'` reports a read and a write at the same
     // identifier, and two insertions there would produce `self.self.label`. The
     // analyzer refuses that, so reaching here means the two disagree — which is
@@ -637,7 +654,7 @@ class RouteBProducer {
     final receiverType = lowering.receiverType.startsWith('_')
         ? 'dynamic'
         : lowering.receiverType;
-    edits.add((open + 1, 0, '$receiverType self$separator'));
+    edits.add((open + 1, 0, '$receiverType $receiverName$separator'));
 
     for (final access in lowering.accesses) {
       // The edit below inserts or replaces a receiver prefix immediately before
@@ -663,7 +680,7 @@ class RouteBProducer {
       if (start >= span.start &&
           start < source.length &&
           source.substring(start, access.offset) == explicit) {
-        edits.add((start, explicit.length, 'self.'));
+        edits.add((start, explicit.length, '$receiverName.'));
         continue;
       }
       // `this` written with unusual spacing (`this . label`) would otherwise be
@@ -719,11 +736,11 @@ class RouteBProducer {
         edits.add((
           dollar,
           1 + access.member.length,
-          '\${self.${access.member}}',
+          '\${$receiverName.${access.member}}',
         ));
         continue;
       }
-      edits.add((access.offset, 0, 'self.'));
+      edits.add((access.offset, 0, '$receiverName.'));
     }
 
     edits.sort((a, b) => b.$1.compareTo(a.$1));
@@ -774,6 +791,55 @@ class RouteBProducer {
   /// thing this scan exists to catch. A raw string is kept for the same reason
   /// in reverse -- it cannot interpolate, but keeping it only ever refuses,
   /// which is the safe direction.
+  /// A receiver parameter name that does not occur anywhere in [declaration].
+  ///
+  /// D-HYGIENE. The producer copies the author's declaration verbatim into a
+  /// scope that also holds a receiver parameter it invents, then inserts
+  /// references to that parameter at offsets inside the copied text. That is
+  /// only sound if the invented name is FRESH with respect to the text being
+  /// copied. It was not: `self` was hardcoded, and four of five hygiene
+  /// controls produced accepted, compiling, publishable replacements whose
+  /// inserted receiver references bound to the author's own `self`.
+  ///
+  /// The test is deliberately a plain substring scan of the whole declaration,
+  /// comments and string literals included, and it is not a scope model. It
+  /// over-triggers: a method mentioning "self" in a comment, or named
+  /// `selfTest`, gets a generated name it did not need. **That direction is
+  /// free.** The other direction is a patch that runs and means something else,
+  /// so the scan must not be narrowed to "real" bindings — deciding which
+  /// occurrences bind is exactly the scope analysis this repair avoids.
+  ///
+  /// `self` is kept when it is provably absent, so every target that lowers
+  /// correctly today keeps producing byte-identical source and bytecode. Only a
+  /// declaration that could collide pays anything.
+  ///
+  /// NOT private. A `_`-prefixed generated name would be caught by
+  /// [_privateIdentifiers] below — the backstop that refuses any private
+  /// identifier the release did not grant — and closing the hole by carving
+  /// an exemption into a safety check is how safety checks stop working. The
+  /// property that matters is freshness, not the spelling.
+  @visibleForTesting
+  static String freshReceiverNameForTesting(String declaration) =>
+      _freshReceiverName(declaration);
+
+  static String _freshReceiverName(String declaration) {
+    if (!declaration.contains(_defaultReceiverName)) {
+      return _defaultReceiverName;
+    }
+    // Unbounded on purpose. Each iteration rules out one more spelling, and a
+    // declaration can only contain finitely many, so this terminates. A capped
+    // loop would need an answer for "what if the cap is reached", and the only
+    // safe answer is to refuse — which is a failure mode invented by the cap.
+    for (var i = 0; ; i++) {
+      final candidate = 'shorebirdReceiver$i';
+      if (!declaration.contains(candidate)) return candidate;
+    }
+  }
+
+  /// Kept when the declaration provably cannot capture it, so already-proven
+  /// targets lower to byte-identical source.
+  static const _defaultReceiverName = 'self';
+
   static Set<String> _privateIdentifiers(String text) {
     final code = StringBuffer();
     var i = 0;

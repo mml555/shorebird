@@ -1,5 +1,11 @@
 # D0.1 — `self` hygiene: adversarial controls
 
+> **OUTCOME: UNSAFE, and then repaired.** This precommit stands as written; the
+> first run's verdict is in the D0.1 section of the git history (`5d02d468`) and
+> the repair that followed is in `RESULT.md`. Cases F–K were added with the
+> repair and are *not* covered by the precommitted expectations below — that is
+> stated here rather than backfilled into the table.
+
 **Written before any control was compiled or run. No fix is attempted in this
 step; the only deliverable is a verdict.**
 

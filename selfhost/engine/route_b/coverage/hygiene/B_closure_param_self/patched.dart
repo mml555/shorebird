@@ -21,13 +21,19 @@ class Other {
 class Shadow {
   static final Other other = Other();
 
+  /// A legitimate member named `self`. Case J patches a body that reads it, so
+  /// the repair has to keep the AUTHOR's `self` meaning this member while the
+  /// generated receiver takes another name.
+  @pragma('vm:never-inline')
+  Other get self => other;
+
   @pragma('vm:never-inline')
   String get label =>
       DateTime.now().millisecondsSinceEpoch >= 0 ? 'RIGHT-RECEIVER' : 'X';
 
   @pragma('vm:never-inline')
   static String keepAlive() => DateTime.now().millisecondsSinceEpoch < 0
-      ? Shadow().label + Shadow.other.label
+      ? Shadow().label + Shadow.other.label + Shadow().self.label
       : 'k';
 
   @pragma('vm:never-inline')

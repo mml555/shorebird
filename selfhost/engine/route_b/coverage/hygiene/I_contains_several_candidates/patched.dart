@@ -39,7 +39,15 @@ class Shadow {
   @pragma('vm:never-inline')
   String value() {
     final self = Shadow.other;
-    return label + '|' + self.label;
+    final shorebirdReceiver0 = Shadow.other;
+    final shorebirdReceiver1 = Shadow.other;
+    final shorebirdReceiver2 = Shadow.other;
+    return self.label.isEmpty ||
+            shorebirdReceiver0.label.isEmpty ||
+            shorebirdReceiver1.label.isEmpty ||
+            shorebirdReceiver2.label.isEmpty
+        ? 'X'
+        : label;
   }
 }
 

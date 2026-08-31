@@ -1666,5 +1666,68 @@ void main() {
         ),
       );
     });
+
+    group('D-HYGIENE: capture-avoiding receiver name', () {
+      String fresh(String declaration) =>
+          RouteBProducer.freshReceiverNameForTesting(declaration);
+
+      test('keeps `self` when the declaration cannot capture it', () {
+        // The preservation property. Every target that lowers correctly today
+        // must keep lowering to byte-identical source, so only a declaration
+        // that could collide pays anything.
+        expect(fresh('String value() => label;'), 'self');
+        expect(fresh(''), 'self');
+      });
+
+      test('moves off `self` whenever the declaration spells it at all', () {
+        for (final declaration in <String>[
+          'String value() { final self = x; return label; }',
+          'String value() => items.map((self) => label).join();',
+          'String tagged(String self) => label;',
+          '// a comment mentioning self\nString value() => label;',
+          "String value() => 'self';",
+          'String selfTest() => label;',
+        ]) {
+          expect(
+            fresh(declaration),
+            isNot('self'),
+            reason: 'must not reuse a name the declaration already spells',
+          );
+        }
+      });
+
+      test('the generated name is absent from the declaration', () {
+        // The whole property, stated directly: whatever comes back must not
+        // occur in the text being copied into its scope.
+        for (final declaration in <String>[
+          'String value() { final self = x; return label; }',
+          'final self = 1; final shorebirdReceiver0 = 2;',
+          'self shorebirdReceiver0 shorebirdReceiver1 shorebirdReceiver2',
+        ]) {
+          expect(declaration.contains(fresh(declaration)), isFalse);
+        }
+      });
+
+      test('walks past candidates the declaration already uses', () {
+        expect(fresh('self shorebirdReceiver0'), 'shorebirdReceiver1');
+        expect(
+          fresh('self shorebirdReceiver0 shorebirdReceiver1 shorebirdReceiver2'),
+          'shorebirdReceiver3',
+        );
+      });
+
+      test('never generates a PRIVATE name', () {
+        // A `_`-prefixed name would be caught by the producer's own backstop
+        // against private identifiers the release did not grant, and carving an
+        // exemption into a safety check is how safety checks stop working.
+        for (final declaration in <String>[
+          'self',
+          'self shorebirdReceiver0',
+          'self shorebirdReceiver0 shorebirdReceiver1',
+        ]) {
+          expect(fresh(declaration).startsWith('_'), isFalse);
+        }
+      });
+    });
   });
 }
