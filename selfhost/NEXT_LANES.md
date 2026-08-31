@@ -21,8 +21,14 @@
 > Every instrumentation defect found in that lane would have biased toward
 > *finding* a problem.
 
-P6 workflow certification is **CLOSED**: 8 CERTIFIED, 0 UNCERTIFIED, 1 BLOCKED
-(CI, on a Linux builder), 1 NOT ASSESSED (Add-to-App). Signing does not reopen.
+P6 workflow certification is **CLOSED**: 9 CERTIFIED, 0 UNCERTIFIED, 0 BLOCKED,
+1 NOT ASSESSED (Add-to-App). Signing does not reopen, and neither does CI: R12 was
+certified 2026-08-30 on two independent clean Linux/amd64 executions
+(`evidence/r12-linux-ci/`).
+
+R12 proves the noninteractive workflow runs on a clean Linux builder. It does
+**not** mean a maintained GitHub Actions / self-hosted-runner deployment exists —
+that is an operationalization task, not a remaining parity blocker.
 
 ## 1 · Epoch B activation — precommitted, before any rate is read
 
@@ -141,6 +147,6 @@ activated from a real production specimen and collecting from zero.*
     Signing                     CERTIFIED
     Lifecycle policy Epoch A    CLOSED
     Lifecycle policy Epoch B    DEFINED / NOT ACTIVATED
-    CI                          BLOCKED — Linux builder
+    CI / noninteractive Linux   CERTIFIED — two independent clean arms
     Add-to-App                  DEFERRED, explicitly unassessed
     formatting-only rebuild     DEFERRED, negative value on its own

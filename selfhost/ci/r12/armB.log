@@ -21,20 +21,19 @@ bootstrap closure guard
    control-plane            : http://host.docker.internal:18081/ -> 200
 
 == builder memory headroom ==
-   docker VM MemTotal      : 8321654784 bytes
+   docker VM MemTotal      : 12792242176 bytes
    co-tenant containers    :
-app_redis_test 8.746MiB / 7.75GiB
-app_libpostal_test 1.52GiB / 7.75GiB
-app_db_test 115.2MiB / 7.75GiB
-r12-cdn-sealed 28.28MiB / 7.75GiB
-r12-flutter-git 5.289MiB / 7.75GiB
-coolify-proxy 62.15MiB / 7.75GiB
-coolify-sentinel 30.12MiB / 7.75GiB
-coolify-db 20.55MiB / 7.75GiB
-coolify-realtime 34.73MiB / 7.75GiB
-coolify-redis 8.281MiB / 7.75GiB
-coolify 34.7MiB / 7.75GiB
-coolify-minio-init 29.82MiB / 7.75GiB
+r12-cdn-sealed 27.43MiB / 11.91GiB
+r12-flutter-git 27.58MiB / 11.91GiB
+app_redis_test 19.56MiB / 11.91GiB
+app_libpostal_test 1.889GiB / 11.91GiB
+app_db_test 139.4MiB / 11.91GiB
+shidduchcard-postgres-1 57.36MiB / 11.91GiB
+cps-ios 32.24MiB / 11.91GiB
+shorebird-cdn-cdn-cache-1 67.65MiB / 11.91GiB
+cps-android 31.69MiB / 11.91GiB
+shorebird-cdn-artifact-proxy-1 12.35MiB / 11.91GiB
+shidduchcard-minio-1 141.3MiB / 11.91GiB
 
 == arm B — fresh container, no host mounts ==
 
@@ -49,9 +48,10 @@ coolify-minio-init 29.82MiB / 7.75GiB
 == control-plane loopback forwarder ==
    localhost:18081          : 200 (forwarded to the host control plane)
 
-== gradle resource posture ==
-   GRADLE_USER_HOME         : /r12home/.gradle
-   org.gradle.jvmargs       : -Xmx3g (fixture asks 8G; VM cannot honour it)
+== gradle configuration ==
+   GRADLE_USER_HOME         : /r12home/.gradle (location only)
+   gradle properties        : NONE — the fixture's android/gradle.properties
+                              governs, including its -Xmx8G
 
 == trusting the mirror CA ==
    CA installed             : system bundle + JDK cacerts
@@ -59,8 +59,8 @@ coolify-minio-init 29.82MiB / 7.75GiB
 
 == bootstrap the OWNED toolchain ==
    repo                     : https://github.com/mml555/shorebird.git
-   sha                      : ab7819532b418e5dae303ce8841eeba2204227b8
-   checked out              : ab7819532b418e5dae303ce8841eeba2204227b8
+   sha                      : e2c8834edd346f9ae03a9f893c4263d31f1d166c
+   checked out              : e2c8834edd346f9ae03a9f893c4263d31f1d166c
    flutter.version (pinned) : a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61
    flutter git url          : git://host.docker.internal:9418/flutter.git
    artifact CDN (flutter)   : https://host.docker.internal:8087
@@ -85,7 +85,7 @@ coolify-minio-init 29.82MiB / 7.75GiB
 == ephemeral Android release key ==
    keystore                 : /r12home/r12-ephemeral.jks (ephemeral, dies with the container)
    key.properties           : written, not echoed
-   release version          : 1.1.2+1 (recorded adaptation)
+   release version          : 1.1.3+1 (recorded adaptation)
 
 == pre-arm control-plane state ==
    control plane            : http://localhost:18081
@@ -97,9 +97,65 @@ coolify-minio-init 29.82MiB / 7.75GiB
 
 == frozen ci_noninteractive.sh ==
    cmd: ci_noninteractive.sh --app-dir /r12src/selfhost/fixtures/android_signing_app --out /r12out/harness
+   harness exit             : 0
+     | 
+     | == preflight ==
+     |    app dir                  : /r12src/selfhost/fixtures/android_signing_app
+     |    stdout is a TTY          : no
+     |    stdin  is a TTY          : no (bash isatty) / YES to the CLI -- stdin is a
+     |                               CHARACTER DEVICE, which Dart reports as
+     |                               StdioType.terminal. canAcceptUserInput is TRUE.
+     |                               Attribute refusals to stdout, not to stdin.
+     |    CI detection vars        : none set
+     |    SHOREBIRD_TOKEN          : set (71 chars, not echoed)
+     |    control plane            : http://localhost:18081 -> 200
+     |    shorebird                : /r12src/bin/shorebird
+     | 
+     | == self-test A — preview, NO --json (TTY predicate only) ==
+     |    cmd: (cd /r12out/harness/detector_selftest_app && shorebird preview)
+     |    exit: 64  log: /r12out/harness/detector_selftest.log
+     |    exit: 64 (expected 64)   'non-interactive context' lines: 1 (expected >=1)
+     | 
+     | == self-test B — preview, WITH --json (arm 2's exact grep) ==
+     |    cmd: (cd /r12out/harness/detector_selftest_app && shorebird --json preview)
+     |    exit: 64  log: /r12out/harness/detector_selftest_json.log
+     |    exit: 64 (expected 64)   interactive_prompt_required: 1 (expected >=1)
+     |    host                     : Linux
+     |    release version          : 1.1.3+1
+     | 
+     | == arm 1 — release, NO --json ==
+     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird release android --no-confirm)
+     |    exit: 0  log: /r12out/harness/ci_run_notty.log
+     | 
+     | == arm 1 — patch, NO --json ==
+     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird patch android --no-confirm --release-version 1.1.3+1)
+     |    exit: 0  log: /r12out/harness/ci_run_notty.log.patch
+     | 
+     | == arm 2 — patch, WITH --json ==
+     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird --json patch android --no-confirm --release-version 1.1.3+1)
+     |    exit: 0  log: /r12out/harness/ci_run_json.log
+     |    interactive_prompt_required in arm 2: 0 (expected 0)
+     | 
+     | == arm 3 — patch, NO --release-version (the release chooser) ==
+     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && timeout 600 shorebird patch android --no-confirm)
+     |    exit: 64  log: /r12out/harness/ci_run_chooser.log
+     |    arm 3 refused the CHOOSER by name (exit 64) — outcome 11, the good failure
+     | 
+     | == verdict ==
+     |    PASS — the detector self-test fired (so a prompt WOULD have been seen),
+     |    and both arms completed with no TTY against http://localhost:18081.
+     |    
+     |    PARITY.md:2375 names exactly this arm as what its row requires; :2376 is
+     |    its patch twin. A green run here is the evidence for them — it is NOT
+     |    self-certifying. PROVEN means the real product workflow completed and the
+     |    observable result was verified (PARITY.md:3582-3583); a script printing
+     |    PASS is not that verification. Record the logs and let the row be moved
+     |    by whoever reads them.
+
+== arm B finished with exit 0 ==
 
 == collecting evidence ==
-   container state          : exit=137 oomkilled=false error= started=2026-08-30T18:41:38.412645709Z finished=2026-08-30T18:48:03.591669763Z
+   container state          : exit=0 oomkilled=false error= started=2026-08-30T22:56:27.475753008Z finished=2026-08-30T23:11:40.811858875Z
    evidence                 : /Users/mendell/shorebird/selfhost/ci/r12/../../evidence/r12-linux-ci/arm-B
 
-== arm B exit 137 ==
+== arm B exit 0 ==

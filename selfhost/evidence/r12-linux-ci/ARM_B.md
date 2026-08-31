@@ -1,8 +1,9 @@
 # Decisive Arm B — PASS
 
 Independently fresh container, its own ephemeral key, unused version, no caches
-crossing from Arm A. **And no Gradle override**: Arm B ran under the heap the
-fixture itself declares.
+crossing from Arm A. **And no R12 Gradle override**: the fixture's project Gradle
+configuration was left intact. The daemon's effective `-Xmx` was not directly
+observed.
 
     repo        e2c8834edd346f9ae03a9f893c4263d31f1d166c
     producer    fc184af6509a93eaf6fc068c6820639b324175a8
@@ -12,7 +13,8 @@ fixture itself declares.
                 CA validation enforced
     control pl. http://localhost:18081 — the historical endpoint, via loopback forward
     version     1.1.3+1 (unused)
-    gradle      NO override; android/gradle.properties governs, -Xmx8G included
+    gradle      no R12 override; the fixture's project configuration intact.
+                The daemon's effective -Xmx was NOT directly observed.
     builder     Docker VM 11.91 GiB / 9 CPUs, emulated linux/amd64
     container   exit=0  oomkilled=false  22:56:27 -> 23:11:40 (15m13s)
 
