@@ -41,7 +41,15 @@ RouteBCoverageAnalyzer get routeBCoverageAnalyzer =>
 /// granted. Reading a 7 document as a 6 would see the access with no
 /// `unsupported` reason and lower it unconditionally, which is the silent
 /// accept this gate exists for.
-const supportedRouteBAnalysisVersion = 9;
+///
+/// 10 reports a genuine `super.member()` as a `superInvocations` entry instead
+/// of the `unsupported` reason version 9 emitted. That is the same shape of
+/// hazard in the other direction: a version-9 consumer reading a version-10
+/// document would find a lowering with NO `unsupported` reason and conclude the
+/// body is fully lowerable. So this build refuses a version it does not know,
+/// and — until the producer can emit a direct-super replacement — refuses any
+/// reported super site too. See [RouteBLowering.superInvocations].
+const supportedRouteBAnalysisVersion = 10;
 
 /// What a patch may do with a changed member.
 enum RouteBRepresentability {
@@ -211,6 +219,8 @@ class RouteBLowering {
     required this.nameOffset,
     required this.accesses,
     required this.unsupported,
+    this.origin,
+    this.superInvocations = const [],
   });
 
   /// The class the receiver belongs to, used as the parameter's type.
@@ -227,6 +237,70 @@ class RouteBLowering {
   /// Reasons this body is outside the supported surface. Non-empty means
   /// refuse by name rather than lower on a guess.
   final List<String> unsupported;
+
+  /// Where this method lives, in SOURCE terms (analysis version 10).
+  ///
+  /// What a replacement compiler needs to find the method again in its own
+  /// kernel. Null for a document that did not carry one.
+  final RouteBOrigin? origin;
+
+  /// Genuine `super.member()` sites in this body (analysis version 10).
+  ///
+  /// REPORTED, not refused, by the analyzer — because the analyzer's kernel is
+  /// not the authority for either the shape or the target. This build cannot
+  /// yet produce a direct-super replacement, so a non-empty list is refused;
+  /// see `_lower` in `route_b_producer.dart`.
+  final List<RouteBSuperInvocation> superInvocations;
+}
+
+/// A method's source-level identity (analysis version 10).
+///
+/// `memberKind` travels with the name because a class may hold a method, a
+/// getter and a setter of one name, so name plus class is not an identity.
+class RouteBOrigin {
+  /// {@macro route_b_origin}
+  const RouteBOrigin({
+    required this.library,
+    required this.className,
+    required this.member,
+    required this.memberKind,
+  });
+
+  /// Library URI as the release's kernel names it.
+  final String library;
+
+  /// Declaring class.
+  final String className;
+
+  /// Member name.
+  final String member;
+
+  /// `method`, `getter`, `setter`, `operator`, `factory`.
+  final String memberKind;
+}
+
+/// One `super.member()` site.
+///
+/// Carries no resolved target, no declaring class and no argument count. Each
+/// was disqualified as a cross-boundary authority by measurement: AOT mixin
+/// deduplication renames the target's owner, and TFA can rewrite
+/// `super.tag('a', 7)` to zero arguments in the analyzer's own kernel.
+class RouteBSuperInvocation {
+  /// {@macro route_b_super_invocation}
+  const RouteBSuperInvocation({
+    required this.offset,
+    required this.member,
+    required this.kind,
+  });
+
+  /// Source offset of the member name at the call site.
+  final int offset;
+
+  /// The member `super.` names.
+  final String member;
+
+  /// Always `method` at version 10; getters and setters stay `unsupported`.
+  final String kind;
 }
 
 /// The whole-patch outcome.
@@ -385,6 +459,25 @@ class RouteBCoverage {
           unsupported: [
             for (final u in (l['unsupported'] as List<Object?>? ?? const []))
               u! as String,
+          ],
+          origin: switch (l['origin']) {
+            final Map<String, dynamic> o => RouteBOrigin(
+              library: o['library']! as String,
+              className: o['class']! as String,
+              member: o['member']! as String,
+              memberKind: o['memberKind']! as String,
+            ),
+            _ => null,
+          },
+          superInvocations: [
+            for (final v
+                in (l['superInvocations'] as List<Object?>? ?? const []))
+              if (v case final Map<String, dynamic> site)
+                RouteBSuperInvocation(
+                  offset: site['offset']! as int,
+                  member: site['member']! as String,
+                  kind: site['kind']! as String,
+                ),
           ],
         );
       }

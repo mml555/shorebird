@@ -47,6 +47,7 @@ void main() {
     RouteBCoverage coverage({
       List<String> representable = const ['package:app/main.dart#routeBValue'],
       Map<String, Object?>? sources,
+      Map<String, Object?>? lowering,
     }) => RouteBCoverage.fromJson(
       jsonEncode({
         'analysisVersion': supportedRouteBAnalysisVersion,
@@ -65,6 +66,7 @@ void main() {
                 'end': declaration.length,
               },
             },
+        if (lowering != null) 'lowering': lowering,
         'rejections': <Object>[],
         'refusalSummary': null,
       }),
@@ -1549,6 +1551,59 @@ void main() {
         );
       });
     });
+
+    test(
+      'D-SUPER-2B.1b: refuses a reported super site, because the analyzer '
+      'describes super at version 10 and this build cannot lower it',
+      () {
+        // The hazard the version bump creates: at v10 a `super.dispose()` body
+        // carries an EMPTY `unsupported` list, so "nothing unsupported" no
+        // longer means "fully lowerable". Without this gate, adopting v10 would
+        // silently open an acceptance path for a construct the producer has no
+        // way to emit.
+        expect(
+          () => runWithOverrides(
+            () => const RouteBProducer().produce(
+              compiler: compiler(),
+              coverage: coverage(
+                lowering: {
+                  'package:app/main.dart#routeBValue': {
+                    'receiverType': 'Thing',
+                    'nameOffset': 0,
+                    'accesses': <Object>[],
+                    'unsupported': <String>[],
+                    'origin': {
+                      'library': 'package:app/main.dart',
+                      'class': 'Thing',
+                      'member': 'routeBValue',
+                      'memberKind': 'Method',
+                    },
+                    'superInvocations': [
+                      {'offset': 42, 'member': 'dispose', 'kind': 'method'},
+                    ],
+                  },
+                },
+              ),
+              importKernel: File(p.join(cell.path, 'release_import.dill')),
+              releaseBuildId: 'deadbeef',
+              workingDirectory: work,
+              projectRoot: project,
+              run: compileOk,
+            ),
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              allOf(
+                contains('super.dispose()'),
+                contains('does not yet produce direct-super replacements'),
+              ),
+            ),
+          ),
+        );
+      },
+    );
 
     test('refuses a target the analysis gave no span for', () {
       expect(

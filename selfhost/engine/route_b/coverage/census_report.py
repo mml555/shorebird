@@ -150,6 +150,10 @@ def report(label, kind, path, out, exclude=(), drop_generated=False):
     w('    no usable source span          %6d\n' % header['skippedNoSpan'])
 
     w('\n  REFUSAL CATEGORIES\n')
+    w('  (from analysisVersion 10 a genuine super METHOD site is reported\n')
+    w('   structurally and no longer appears here as a reason string; it is\n')
+    w('   still counted as a blocker, in the construct table below. Super\n')
+    w('   getters and setters remain reason strings.)\n')
     w('  %-32s %8s %8s %8s %9s\n' % ('category', 'methods', '% of all', 'SOLE', '% unlock'))
     w('  %s\n' % ('-' * 74))
     # Ranked by marginal unlock -- the number a roadmap is read off -- not by
@@ -216,6 +220,12 @@ def report(label, kind, path, out, exclude=(), drop_generated=False):
     def constructs(r):
         cs = set()
         parents = set((r.get('unconsumedThisParents') or {}).keys())
+        # From analysisVersion 10 the analyzer REPORTS a genuine super method
+        # site structurally instead of emitting a refusal string for it, so this
+        # signal -- not a reason string -- is what identifies those methods. The
+        # product still cannot lower them, which is what the census measures.
+        if (r.get('superInvocations') or 0) > 0:
+            cs.add('construct.super')
         for u in r['unsupported']:
             c = canonical(u, r['target'])
             if c.startswith('receiver.super_'):

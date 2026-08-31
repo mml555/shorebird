@@ -506,6 +506,29 @@ class RouteBProducer {
     RouteBLowering lowering,
     RouteBCapabilities? capabilities,
   ) {
+    // ANALYSIS VERSION 10 SAFETY GATE, and the reason this build can consume a
+    // v10 document at all.
+    //
+    // Version 10 stopped putting `calls `super.x()`` in `unsupported` and began
+    // reporting the site structurally instead. That is strictly more
+    // information, but it means an empty `unsupported` list no longer implies
+    // "fully lowerable" — so without this check, adopting v10 would silently
+    // open an acceptance path for a construct nothing here can lower. The
+    // producer emits no direct-super intrinsic yet; the mechanism is proven in
+    // `selfhost/engine/route_b/super0/s2b1/` and lives only in a harness.
+    //
+    // Refused BEFORE the unsupported list is consulted, so the message names the
+    // real reason rather than whatever else the body may also contain.
+    if (lowering.superInvocations.isNotEmpty) {
+      final site = lowering.superInvocations.first;
+      throw RouteBUnsupportedTarget(
+        key,
+        'the Route B analyzer reported a `super.${site.member}()` invocation, '
+        'and this build does not yet produce direct-super replacements. The '
+        'analyzer describes the site (analysis version 10); the producer '
+        'cannot lower it.',
+      );
+    }
     if (lowering.unsupported.isNotEmpty) {
       // P4.3. The analyzer's wording is kept verbatim -- it is the part that
       // says which shape -- with a STABLE code in front of it. The prose may be

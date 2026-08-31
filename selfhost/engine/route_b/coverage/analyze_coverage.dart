@@ -63,7 +63,25 @@ import 'package:kernel/text/ast_to_text.dart';
 ///    compiler contract exactly -- the analyzer must never report a shape the
 ///    compiler will reject, because the refusal would then arrive at compile time
 ///    with a message about bytecode rather than about the patch.
-const analysisVersion = 9;
+///
+/// 10: a genuine `SuperMethodInvocation` is REPORTED as a `superInvocations`
+///     entry carrying its source-site identity, where 9 collapsed it into the
+///     `unsupported` reason `calls \`super.x()\``. A version-9 consumer reading
+///     a version-10 document would see a lowering with no `unsupported` reason
+///     and conclude the body is fully lowerable, which is why this is a version
+///     bump and not an additive field.
+///
+///     `super` GETTERS and SETTERS stay `unsupported`, unchanged.
+///
+///     WHAT IS DELIBERATELY NOT REPORTED: the resolved super target, its
+///     declaring class, its signature, and the call site's argument count.
+///     Each has been disqualified as a cross-boundary authority by measurement
+///     -- the target's canonical owner is renamed by AOT mixin deduplication
+///     (`super0/s2a/`), and TFA can rewrite `super.tag('a', 7)` to zero
+///     arguments in this very kernel (`super0/s2b0/`). The source is the
+///     authority for shape; the replacement compiler's own kernel is the
+///     authority for the target.
+const analysisVersion = 10;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -708,7 +726,15 @@ void _runCensus(String path, List<String> includePrefixes, String? outPath) {
           'kind': p.kind.name,
           'private': p.name.text.startsWith('_'),
           'accesses': accesses,
-          'lowerable': unsupported.isEmpty,
+          // The analyzer now DESCRIBES super instead of refusing it (v10), but
+          // the shipping product still cannot lower it. The census measures the
+          // product's surface, so a reported super site keeps counting as a
+          // blocker here -- otherwise D0.2/D0.4's banked numbers would move with
+          // no change in what a user can actually patch.
+          'superInvocations':
+              (lowering['superInvocations']! as List).length,
+          'lowerable': unsupported.isEmpty &&
+              (lowering['superInvocations']! as List).isEmpty,
           'unsupported': unsupported,
           // null when the source file could not be read, so "no rename needed"
           // and "not known" are never conflated.
@@ -808,6 +834,19 @@ Map<String, Object?> _lowering(Class cls, Procedure p) {
 
   return {
     'receiverType': cls.name,
+    // ORIGIN IDENTITY (analysis version 10). What the replacement compiler needs
+    // to find this method again in ITS OWN kernel and re-derive the super target
+    // there. Stable source-level facts only.
+    //
+    // `memberKind` is carried alongside the name rather than assumed: a class
+    // may hold a method, a getter and a setter of the same name, so name + class
+    // is not an identity. Cheap now; an implicit assumption later.
+    'origin': {
+      'library': cls.enclosingLibrary.importUri.toString(),
+      'class': cls.name,
+      'member': p.name.text,
+      'memberKind': p.kind.name,
+    },
     // Where the producer starts looking for the parameter list. Kernel puts
     // `fileOffset` on the NAME, and an annotation like @pragma('...') contains
     // parentheses of its own, so scanning from the declaration start would find
@@ -822,8 +861,29 @@ Map<String, Object?> _lowering(Class cls, Procedure p) {
           if (a.private != null) 'private': a.private,
         },
     ],
+    // Genuine `super.member()` sites. An EMPTY list is the common case and the
+    // only one a producer without direct-super support may proceed on.
+    'superInvocations': [
+      for (final site in visitor.superInvocations)
+        {
+          'offset': site.offset,
+          'member': site.member,
+          'kind': site.kind,
+        },
+    ],
     'unsupported': unsupported,
   };
+}
+
+/// A genuine `super.member()` site: where it is, and what it names.
+///
+/// Deliberately NOT the resolved target, its owner, or its arity. See the
+/// `analysisVersion` 10 note.
+class _SuperSite {
+  _SuperSite(this.offset, this.member, this.kind);
+  final int offset;
+  final String member;
+  final String kind;
 }
 
 class _Access {
@@ -886,6 +946,10 @@ class _ThisExpressions extends RecursiveVisitor {
 class _ReceiverUses extends RecursiveVisitor {
   final accesses = <_Access>[];
   final unsupported = <String>[];
+
+  /// Genuine `super.member()` sites, as STRUCTURE rather than as a refusal
+  /// string (analysis version 10).
+  final superInvocations = <_SuperSite>[];
 
   /// `ThisExpression` nodes already accounted for as the receiver of a
   /// supported access. Without this every `label` reports twice: once as the
@@ -1009,12 +1073,38 @@ class _ReceiverUses extends RecursiveVisitor {
 
   @override
   void visitSuperMethodInvocation(SuperMethodInvocation node) {
-    unsupported.add('calls `super.${node.name.text}()`');
+    // REPORTED, not refused. The producer decides admission from the SOURCE and
+    // the replacement compiler re-establishes the target and the shape in its
+    // own kernel; this tool's job is to say that a genuine super operation is
+    // here and where it is.
+    //
+    // The offset is the site's own, measured to be identical in the AOT and
+    // import kernels (`super0/s2b0/`), which is what makes it usable as the key
+    // the other two stages read from.
+    superInvocations.add(
+      _SuperSite(node.fileOffset, node.name.text, 'method'),
+    );
     node.visitChildren(this);
   }
 
   @override
   void visitThisExpression(ThisExpression node) {
+    // ONE CONSTRUCT, ONE REPORT. The CFE puts a synthesized `this` inside every
+    // `super` node -- proven on a probe whose source contains no `this` at all
+    // (`super0/`) -- so before version 10 a single `super.dispose()` produced
+    // TWO refusals: the super one, and this one. That double-reporting is what
+    // made `super` look like it had 0% marginal unlock in the first D0.2
+    // reading while inflating the `this` category with 43 methods that were
+    // really super calls.
+    //
+    // It is the super operation's own receiver, and the super handling above has
+    // already accounted for it.
+    final parent = node.parent;
+    if (parent is SuperMethodInvocation ||
+        parent is SuperPropertyGet ||
+        parent is SuperPropertySet) {
+      return;
+    }
     // A `this` that is not the receiver of a supported access -- passed as an
     // argument, captured by a closure, stored. Each is its own question.
     if (!consumed.contains(node)) {
