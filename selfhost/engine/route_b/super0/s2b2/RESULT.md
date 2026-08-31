@@ -104,3 +104,61 @@ inspection:
 
     CELL_ZIP=<v11+0017 cell> WORK=/tmp/p bash super0/s2b2/run_2b2.sh
     MUTATE=source_gate REL=…/argtarget_release.dart PAT=…/argtarget_patch.dart …
+
+---
+
+# A/B/C at cell level — and why the real `shorebird patch ios` is BLOCKED
+
+## What ran, against real cells
+
+**Control A — ordinary patch, unperturbed.** The D-HYGIENE `K` specimen (no
+super) through the v11+0017 cell and the real producer:
+
+    producer   ACCEPTED
+    container  924 bytes, b3bd6011…
+    execution  RIGHT-RECEIVER!  == source truth
+    verification kernel: none supplied, none mentioned
+
+**Control B — narrow-v1 super patch, qualified cell.** The positive arm above:
+producer-written intrinsic, both kernels reaching the compiler (proven
+behaviourally, since 0017 refuses without the verification dill), execution
+`WRAP:TICKER:APP-STATE`.
+
+**Control C — pre-0017 cell.** A cell carrying the v11 analyzer and the STOCK
+`dart2bytecode`:
+
+    this release resolves a compiler cell that does not implement
+    routeBDirectSuperDualKernelV1, so a `super.` call cannot be carried
+
+Refused for the right reason, decided by the **binary probe** against a real
+cell rather than by a mock. A fully stock cell could not test this: it refuses
+on `analysisVersion 9` before the capability is ever consulted, which is why the
+specimen mixes a v11 analyzer with an old compiler.
+
+## The blocker is policy, not effort
+
+Running A/B/C through the actual `shorebird patch ios` command needs two things
+this lane is not permitted to do:
+
+1. **A cell containing 0017, resolvable by a real release.** Cells are resolved
+   by the release's engine hash, and the only supported path to one is
+   `publish_route_b_compiler.sh`. Every ruling so far — and
+   `mint_throwaway_cell.sh`'s own banner — says 0017 has not earned that and must
+   never be published or pinned.
+2. **An installed CLI carrying these changes.** `~/.shorebird` is a separate
+   checkout (currently `207c4a7a`) and is shared-rig state; Route B needs the
+   INSTALLED shorebird, not the repo tree's.
+
+Both are mutations of shared state, so neither was attempted.
+
+**This is a sequencing problem in the plan, not a missing task.** A/B/C as
+specified can only run once 0017 has a real cell — which is D-SUPER-2C's
+qualification work. The rig itself is available (control plane answering on
+:18080, Xcode 26.6, the airgap fixture) and is not the constraint.
+
+There is a sanctioned middle path if it is wanted: `experimental_hashes.map` plus
+`overlay_publish.sh` exist precisely to serve an experimental engine hash from
+the local overlay. Publishing the 0017 cell under a fresh experimental hash and
+cutting a local release pinned to it would let A/B/C run end to end without
+touching any certified artifact. It still writes tracked files and mutates the
+installed CLI, so it needs an explicit decision rather than being assumed.
