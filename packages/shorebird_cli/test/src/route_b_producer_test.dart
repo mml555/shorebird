@@ -102,7 +102,7 @@ void main() {
         () => const RouteBProducer().produce(
           compiler: compiler(),
           coverage: coverage(),
-          importKernel: File(p.join(cell.path, 'release_import.dill')),
+          releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
           releaseBuildId: 'deadbeef',
           workingDirectory: work,
           projectRoot: project,
@@ -129,7 +129,7 @@ void main() {
           () => const RouteBProducer().produce(
             compiler: compiler(),
             coverage: coverage(),
-            importKernel: File(p.join(cell.path, 'release_import.dill')),
+            releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
             releaseBuildId: 'deadbeef',
             workingDirectory: work,
             projectRoot: project,
@@ -176,7 +176,7 @@ void main() {
         () => const RouteBProducer().produce(
           compiler: compiler(),
           coverage: coverage(),
-          importKernel: File(p.join(cell.path, 'release_import.dill')),
+          releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
           releaseBuildId: 'deadbeef',
           workingDirectory: work,
           projectRoot: project,
@@ -215,7 +215,7 @@ void main() {
         () => const RouteBProducer().produce(
           compiler: compiler(),
           coverage: coverage(),
-          importKernel: File(p.join(cell.path, 'release_import.dill')),
+          releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
           releaseBuildId: 'deadbeef',
           workingDirectory: work,
           projectRoot: project,
@@ -271,7 +271,7 @@ void main() {
           () => const RouteBProducer().produce(
             compiler: compiler(),
             coverage: cov,
-            importKernel: File(p.join(cell.path, 'release_import.dill')),
+            releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
             releaseBuildId: 'deadbeef',
             workingDirectory: work,
             projectRoot: project,
@@ -335,7 +335,7 @@ void main() {
         () => const RouteBProducer().produce(
           compiler: compiler(),
           coverage: coverage(),
-          importKernel: File(p.join(cell.path, 'release_import.dill')),
+          releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
           releaseBuildId: 'deadbeef',
           workingDirectory: work,
           projectRoot: project,
@@ -367,7 +367,7 @@ void main() {
                 },
             },
           ),
-          importKernel: File(p.join(cell.path, 'release_import.dill')),
+          releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
           releaseBuildId: 'deadbeef',
           workingDirectory: work,
           projectRoot: project,
@@ -477,7 +477,7 @@ void main() {
           () => const RouteBProducer().produce(
             compiler: compiler(),
             coverage: coverage,
-            importKernel: File(p.join(cell.path, 'release_import.dill')),
+            releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
             releaseBuildId: 'deadbeef',
             workingDirectory: work,
             projectRoot: project,
@@ -1350,7 +1350,7 @@ void main() {
         () => const RouteBProducer().produce(
           compiler: compiler(),
           coverage: coverage(),
-          importKernel: File(p.join(cell.path, 'release_import.dill')),
+          releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
           releaseBuildId: 'deadbeef',
           workingDirectory: work,
           projectRoot: project,
@@ -1477,7 +1477,7 @@ void main() {
                 'refusalSummary': null,
               }),
             ),
-            importKernel: File(p.join(cell.path, 'release_import.dill')),
+            releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
             releaseBuildId: 'deadbeef',
             workingDirectory: work,
             projectRoot: project,
@@ -1531,7 +1531,7 @@ void main() {
                   'refusalSummary': null,
                 }),
               ),
-              importKernel: File(p.join(cell.path, 'release_import.dill')),
+              releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
               releaseBuildId: 'deadbeef',
               workingDirectory: work,
               projectRoot: project,
@@ -1605,11 +1605,15 @@ void main() {
         String text,
         Map<String, Object?> lowering, {
         bool dualKernel = true,
+        bool withVerificationKernel = true,
       }) {
         source.writeAsStringSync(text);
         runWithOverrides(
           () => const RouteBProducer().produce(
             compiler: compiler(dualKernel: dualKernel),
+            patchedVerificationKernel: withVerificationKernel
+                ? File(p.join(cell.path, 'patched_verification.dill'))
+                : null,
             coverage: coverage(
               lowering: lowering,
               sources: {
@@ -1620,7 +1624,7 @@ void main() {
                 },
               },
             ),
-            importKernel: File(p.join(cell.path, 'release_import.dill')),
+            releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
             releaseBuildId: 'deadbeef',
             workingDirectory: work,
             projectRoot: project,
@@ -1824,6 +1828,100 @@ void main() {
         );
       });
 
+      test('the compiler invocation carries BOTH kernels, distinctly', () {
+        // THE ARCHITECTURAL BOUNDARY, asserted. Several STOPs were spent
+        // discovering that --import-dill must stay the shipped program while
+        // the patched body is verified separately, so the command that encodes
+        // that split is pinned rather than left implicit.
+        late List<String> args;
+        source.writeAsStringSync(superDeclaration);
+        runWithOverrides(
+          () => const RouteBProducer().produce(
+            compiler: compiler(),
+            coverage: coverage(
+              lowering: loweringFor(superDeclaration),
+              sources: {
+                'package:app/main.dart#routeBValue': {
+                  'fileUri': source.uri.toString(),
+                  'start': 0,
+                  'end': superDeclaration.length,
+                },
+              },
+            ),
+            releaseImportKernel: File(
+              p.join(cell.path, 'release_import.dill'),
+            ),
+            patchedVerificationKernel: File(
+              p.join(cell.path, 'patched_verification.dill'),
+            ),
+            releaseBuildId: 'deadbeef',
+            workingDirectory: work,
+            projectRoot: project,
+            run: (executable, arguments) {
+              args = arguments;
+              return compileOk(executable, arguments);
+            },
+          ),
+        );
+        // Binding stays the RELEASE kernel.
+        expect(
+          args[args.indexOf('--import-dill') + 1],
+          endsWith('release_import.dill'),
+        );
+        // Verification is a SEPARATE option, not an overload of the first.
+        expect(
+          args[args.indexOf('--patched-verification-dill') + 1],
+          endsWith('patched_verification.dill'),
+        );
+      });
+
+      test('an ordinary patch passes no verification kernel', () {
+        // The feature must not perturb the existing path.
+        late List<String> args;
+        runWithOverrides(
+          () => const RouteBProducer().produce(
+            compiler: compiler(),
+            coverage: coverage(),
+            releaseImportKernel: File(
+              p.join(cell.path, 'release_import.dill'),
+            ),
+            patchedVerificationKernel: File(
+              p.join(cell.path, 'patched_verification.dill'),
+            ),
+            releaseBuildId: 'deadbeef',
+            workingDirectory: work,
+            projectRoot: project,
+            run: (executable, arguments) {
+              args = arguments;
+              return compileOk(executable, arguments);
+            },
+          ),
+        );
+        // Supplied but UNUSED: no super site, so nothing to verify.
+        expect(args, isNot(contains('--patched-verification-dill')));
+      });
+
+      test('refuses a super site with no verification kernel', () {
+        // Null is correct for an ordinary patch and an error here: the compiler
+        // would otherwise have nothing to check the patched site against, and
+        // the only other kernel available is the release's — the exact
+        // substitution 2B.1c-SITE showed producing silent wrong semantics.
+        expect(
+          () => produce(
+            superDeclaration,
+            loweringFor(superDeclaration),
+            withVerificationKernel: false,
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              contains('no patched verification kernel was supplied'),
+            ),
+          ),
+        );
+      });
+
       test('refuses a super site with no origin identity', () {
         final lowering = loweringFor(superDeclaration);
         (lowering.values.first! as Map<String, Object?>).remove('origin');
@@ -1846,7 +1944,7 @@ void main() {
           () => const RouteBProducer().produce(
             compiler: compiler(),
             coverage: coverage(sources: const {}),
-            importKernel: File(p.join(cell.path, 'release_import.dill')),
+            releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
             releaseBuildId: 'deadbeef',
             workingDirectory: work,
             projectRoot: project,
@@ -1872,7 +1970,7 @@ void main() {
           () => const RouteBProducer().produce(
             compiler: compiler(),
             coverage: coverage(),
-            importKernel: File(p.join(cell.path, 'release_import.dill')),
+            releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
             releaseBuildId: 'deadbeef',
             workingDirectory: work,
             projectRoot: project,
@@ -1911,7 +2009,7 @@ void main() {
               },
             },
           ),
-          importKernel: File(p.join(cell.path, 'release_import.dill')),
+          releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
           releaseBuildId: 'deadbeef',
           workingDirectory: work,
           projectRoot: project,
@@ -1940,7 +2038,7 @@ void main() {
                 },
               },
             ),
-            importKernel: File(p.join(cell.path, 'release_import.dill')),
+            releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
             releaseBuildId: 'deadbeef',
             workingDirectory: work,
             projectRoot: project,

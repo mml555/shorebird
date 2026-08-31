@@ -207,7 +207,7 @@ void main() {
       () => const RouteBProducer().produce(
         compiler: compiler(),
         coverage: cov ?? coverage(signature: sameShape),
-        importKernel: File(p.join(cell.path, 'release_import.dill')),
+        releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
         releaseBuildId: 'deadbeef',
         workingDirectory: work,
         projectRoot: project,

@@ -88,13 +88,21 @@ class RouteBUnsupportedTarget implements Exception {
 /// declaration, and only one declaration in the library may carry
 /// `dyn-module:entry-point`.
 class _Lowered {
-  const _Lowered(this.declaration, {this.preamble = ''});
+  const _Lowered(
+    this.declaration, {
+    this.preamble = '',
+    this.needsSuperVerification = false,
+  });
 
   /// The replacement declaration itself.
   final String declaration;
 
   /// Emitted before the entry-point pragma. Empty for almost every target.
   final String preamble;
+
+  /// Whether this replacement lowers a `super.` call, and therefore needs the
+  /// patched verification kernel at compile time.
+  final bool needsSuperVerification;
 }
 
 /// Whether [declaration] reads the compile-time environment directly.
@@ -178,7 +186,7 @@ Object? $_superIntrinsicName(
   Uint8List produce({
     required RouteBCompiler compiler,
     required RouteBCoverage coverage,
-    required File importKernel,
+    required File releaseImportKernel,
     required String releaseBuildId,
     required Directory workingDirectory,
     required Directory projectRoot,
@@ -187,6 +195,7 @@ Object? $_superIntrinsicName(
     RouteBSurvivalOracle? survival,
     RouteBReleaseEvidence? releaseEvidence,
     RouteBCompileRunner run = Process.runSync,
+    File? patchedVerificationKernel,
   }) {
     // Every changed member that can land, in a stable order so the container is
     // reproducible byte-for-byte from the same inputs.
@@ -324,7 +333,14 @@ Object? $_superIntrinsicName(
 
       final lowering = coverage.lowering[key];
       final lowered = lowering != null
-          ? _lower(key, source, lowering, capabilities, compiler)
+          ? _lower(
+              key,
+              source,
+              lowering,
+              capabilities,
+              compiler,
+              patchedVerificationKernel,
+            )
           : _Lowered(_slice(key, source));
       final declaration = lowered.declaration;
       // G4.1c link 2, the LEGACY case. A release cut before injected defines
@@ -406,8 +422,19 @@ Object? $_superIntrinsicName(
         compiler.flutterPlatformDill.path,
         '--target',
         'flutter',
+        // BINDING. The RELEASE's kernel, always: this is the shipped program
+        // the whole replacement resolves against, which is why it is not
+        // swapped for the patched one when a super call is present.
         '--import-dill',
-        importKernel.path,
+        releaseImportKernel.path,
+        // VERIFICATION ONLY, and only when a super call is being lowered. Never
+        // merged into the binding universe by the compiler; it exists so the
+        // patched BODY can be checked against itself rather than against a
+        // different source version (2B.1c-SITE).
+        if (lowered.needsSuperVerification) ...[
+          '--patched-verification-dill',
+          patchedVerificationKernel!.path,
+        ],
         // G4.1: THE RELEASE'S DEFINES, threaded into the replacement's own
         // compilation. `const String.fromEnvironment` resolves at compile time, so
         // without these a replacement reading a define would silently bake in the
@@ -557,6 +584,7 @@ Object? $_superIntrinsicName(
     RouteBLowering lowering,
     RouteBCapabilities? capabilities,
     RouteBCompiler compiler,
+    File? patchedVerificationKernel,
   ) {
     // ANALYSIS VERSION 10: `super.member()`, admitted from the SOURCE.
     if (lowering.unsupported.isNotEmpty) {
@@ -618,6 +646,21 @@ Object? $_superIntrinsicName(
     final source = utf8.decode(
       File.fromUri(Uri.parse(span.fileUri)).readAsBytesSync(),
     );
+
+    // AND THE CALLER MUST HAVE SUPPLIED THE PATCHED BODY TO VERIFY AGAINST.
+    //
+    // Null is correct for an ordinary patch and an error here: without it the
+    // compiler would have nothing to check the patched site against, and the
+    // only other kernel available is the release's — the exact substitution
+    // 2B.1c-SITE showed producing silent wrong semantics.
+    if (lowering.superInvocations.isNotEmpty &&
+        patchedVerificationKernel == null) {
+      throw RouteBUnsupportedTarget(
+        key,
+        'a `super.` call was admitted but no patched verification kernel was '
+        'supplied, so the patched call site cannot be verified',
+      );
+    }
 
     // THE CELL MUST BE ABLE TO COMPILE WHAT THIS ADMITS.
     //
@@ -989,6 +1032,7 @@ Object? $_superIntrinsicName(
     return _Lowered(
       text,
       preamble: superEdits.isEmpty ? '' : '$_superIntrinsicDeclaration\n',
+      needsSuperVerification: superEdits.isNotEmpty,
     );
   }
 

@@ -68,7 +68,7 @@ Future<void> main(List<String> args) async {
     () => const RouteBProducer().produce(
       compiler: compiler,
       coverage: coverage,
-      importKernel: importDill,
+      releaseImportKernel: importDill,
       releaseBuildId: buildId,
       workingDirectory: work,
       projectRoot: Directory(

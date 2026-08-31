@@ -67,6 +67,13 @@ class IosPatcher extends Patcher
   @visibleForTesting
   double? lastBuildLinkPercentage;
 
+  /// The arguments the patch's own `flutter build ipa` ran with.
+  ///
+  /// Kept so the Route B block can regenerate a kernel from the SAME patched
+  /// source and configuration — same defines, same experiments, same flavor.
+  /// Set in `buildPatchArtifact`, which always runs first.
+  List<String> _patchBuildArgs = const [];
+
   /// The last build's link metadata.
   @visibleForTesting
   Json? lastBuildLinkMetadata;
@@ -131,6 +138,8 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
       ...extraBuildArgs,
       ...buildNameAndNumberArgsFromReleaseVersion(releaseVersion),
     ];
+
+    _patchBuildArgs = buildArgs;
 
     // If buildIpa is called with a different codesign value than the
     // release was, we will erroneously report native diffs.
@@ -276,11 +285,26 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
         _refuseCoverage(coverage);
       }
 
+      // ROUTE B SUPER: the patched body, for the compiler to verify against.
+      //
+      // CONDITIONAL ON THE ANALYSIS STRUCTURE, not on admission. Whether a site
+      // may actually be carried is the producer's decision — it owns the source
+      // argument gate and the release-evidence rule — and duplicating that here
+      // to decide whether to build an artifact would be a second admission
+      // implementation. A site can therefore cause this build and then be
+      // refused; that is the correct trade.
+      final patchedVerificationKernel = _patchedVerificationKernel(
+        compiler,
+        coverage,
+      );
+
       final buildId = _readReleaseBuildId(releaseArtifactFile);
       routeBContainer = _produceRouteBContainer(
         compiler: compiler,
         coverage: coverage,
-        importKernel: releaseArtifacts[routeBReleaseImportKernelFileName]!,
+        releaseImportKernel:
+            releaseArtifacts[routeBReleaseImportKernelFileName]!,
+        patchedVerificationKernel: patchedVerificationKernel,
         releaseBuildId: buildId,
         // WHAT THIS RELEASE GRANTED, from the release's own hash-verified
         // artifact. Absent for a release cut before manifests existed, and the
@@ -835,6 +859,70 @@ Nothing was uploaded. Create a new release and patch that instead.''',
   /// compilation, coverage analysis and packing that turn the resolved compiler
   /// into an SBRBPTCH container, so the message says exactly that rather than
   /// blaming tooling that is present and valid.
+  /// A `--no-aot` kernel of the PATCHED sources, or null when none is needed.
+  ///
+  /// Built only when the analysis REPORTS a super site. An ordinary patch pays
+  /// nothing: no extra kernel, and the compiler invocation is unchanged.
+  ///
+  /// The two patched kernels must describe the same patched world, so this is
+  /// generated from the same project root and the same build arguments the
+  /// patch's own build ran with, rather than from a restored release tree. The
+  /// relationship is established by CONSTRUCTION and then checked semantically
+  /// by the compiler's own site and fingerprint agreement — which is stronger
+  /// than a manifest line asserting two files were meant to correspond.
+  ///
+  /// A fresh per-patch file, never a reusable cache entry: this lane has
+  /// already produced enough stale-artifact readings.
+  File? _patchedVerificationKernel(
+    RouteBCompiler compiler,
+    RouteBCoverage coverage,
+  ) {
+    final needed = coverage.lowering.values.any(
+      (l) => l.superInvocations.isNotEmpty,
+    );
+    if (!needed) return null;
+
+    // EARLY, before paying to build anything. The producer checks this again
+    // and is the authority; this exists so an old cell fails fast and with the
+    // same reason rather than after a kernel compile.
+    if (!compiler.supportsDirectSuperDualKernel) {
+      logger.err(
+        '''
+This patch changes a method containing a `super.` call, and the compiler this release resolves cannot carry one.
+
+Cut a new release with a current engine and patch that instead. Nothing was
+uploaded.''',
+      );
+      throw ProcessExit(ExitCode.software.code);
+    }
+
+    final output = File(
+      p.join(
+        shorebirdEnv.buildDirectory.path,
+        'route_b',
+        'patched_verification.dill',
+      ),
+    )..parent.createSync(recursive: true);
+    final built = routeBReleaseKernelBuilder.build(
+      compiler: compiler,
+      projectRoot: projectRoot,
+      entrypoint: target ?? p.join('lib', 'main.dart'),
+      buildArgs: _patchBuildArgs,
+      outputFile: output,
+      flavor: _resolvedFlavor,
+    );
+    if (built == null) {
+      logger.err(
+        '''
+This patch changes a method containing a `super.` call, but the kernel needed to verify it could not be generated.
+
+Nothing was uploaded.''',
+      );
+      throw ProcessExit(ExitCode.software.code);
+    }
+    return built;
+  }
+
   /// Compile the replacement bodies and pack the container.
   ///
   /// A failure here is deliberately NOT a coverage rejection: coverage already
@@ -844,8 +932,9 @@ Nothing was uploaded. Create a new release and patch that instead.''',
   File _produceRouteBContainer({
     required RouteBCompiler compiler,
     required RouteBCoverage coverage,
-    required File importKernel,
+    required File releaseImportKernel,
     required String releaseBuildId,
+    File? patchedVerificationKernel,
     RouteBCapabilities? capabilities,
     RouteBBuildConfig? buildConfig,
     RouteBSurvivalOracle? survival,
@@ -859,7 +948,8 @@ Nothing was uploaded. Create a new release and patch that instead.''',
       bytes = routeBProducer.produce(
         compiler: compiler,
         coverage: coverage,
-        importKernel: importKernel,
+        releaseImportKernel: releaseImportKernel,
+        patchedVerificationKernel: patchedVerificationKernel,
         releaseBuildId: releaseBuildId,
         workingDirectory: workingDirectory,
         projectRoot: projectRoot,

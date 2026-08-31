@@ -298,3 +298,85 @@ landed, which is the gate working.
 The product still neither builds a patched no-AOT kernel at patch time nor passes
 one, so no super patch can actually be produced yet. That is the next task, and
 Part 2B remains blocked behind it.
+
+
+---
+
+# Part 2A integration, task 2 — patched verification kernel, generated conditionally
+
+## Generation policy
+
+Conditional on the **structure** the analyzer reports, never on admission:
+
+    coverage.lowering.values.any((l) => l.superInvocations.isNotEmpty)
+
+Whether a site may actually be carried belongs to the producer, which owns the
+source-argument gate and the release-evidence rule. Duplicating that in the
+patcher to decide whether to build an artifact would be a second admission
+implementation. A site can therefore cause the build and then be refused — the
+correct trade for one authoritative decision.
+
+An ordinary patch pays nothing: no extra kernel, and its compiler invocation is
+unchanged. Asserted, not assumed — see the test below.
+
+## Same patched world, by construction
+
+The verification kernel is built by the existing `RouteBReleaseKernelBuilder`
+(`--no-aot --no-link-platform`) from the same project root and the same build
+arguments the patch's own `flutter build ipa` ran with — same defines, same
+experiments, same flavor — captured in `_patchBuildArgs`. Not from a restored
+release tree, and written to a fresh per-patch file rather than a reusable cache
+entry.
+
+**No new manifest or checksum relationship was invented.** The relationship is
+construction provenance, then the compiler's own site rediscovery and three-way
+fingerprint agreement — semantic checks that are stronger than a metadata line
+asserting two files were meant to correspond.
+
+## Distinct, typed inputs
+
+    releaseImportKernel        required   BINDING
+    patchedVerificationKernel  File?      VERIFICATION ONLY
+
+Null is correct for an ordinary patch and an **error** when a super site was
+admitted: without it the compiler has nothing to check the patched site against,
+and the only other kernel available is the release's — the exact substitution
+2B.1c-SITE showed producing silent wrong semantics.
+
+The old generic `importKernel` name is gone from the producer's API, so the
+previous architecture is no longer expressible in it.
+
+## Early refusal on an old cell
+
+The patcher refuses before paying to build anything when the resolved cell lacks
+`routeBDirectSuperDualKernelV1`. The producer's identical check remains and is
+the authority; this is defence in depth plus a faster, better-attributed failure.
+
+## The invocation, pinned
+
+Several STOPs were spent discovering that `--import-dill` must stay the shipped
+program while the patched body is verified separately, so the command encoding
+that split is now a test rather than a convention:
+
+    args['--import-dill'  +1]                 endsWith release_import.dill
+    args['--patched-verification-dill' +1]    endsWith patched_verification.dill
+
+and, for an ordinary patch with the kernel supplied anyway:
+
+    args  does NOT contain --patched-verification-dill
+
+## Tests
+
+    route_b suites + ios_patcher   170 passed
+      + the compiler invocation carries BOTH kernels, distinctly
+      + an ordinary patch passes no verification kernel
+      + refuses a super site with no verification kernel
+      + refuses when the cell cannot compile a direct super call
+
+## Part 2A is closed. What Part 2B still needs
+
+The three integration controls A/B/C the ruling listed are covered at
+producer/unit level (ordinary patch unperturbed, both kernels threaded, old cell
+refused) but **not yet through a real `shorebird patch ios` invocation** — that
+is Part 2B's job, together with the TFA-symmetric fixture, the positive shipping
+arm and both mutations.
