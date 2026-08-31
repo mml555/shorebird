@@ -146,7 +146,7 @@ activated from a real production specimen and collecting from zero.*
     P6 workflow certification   CLOSED
     Signing                     CERTIFIED
     Lifecycle policy Epoch A    CLOSED
-    Lifecycle policy Epoch B    DEFINED / NOT ACTIVATED
+    Lifecycle policy Epoch B    ACTIVE / COLLECTING — 0 / 100
     CI / noninteractive Linux   CERTIFIED — two independent clean arms
     Add-to-App                  DEFERRED, explicitly unassessed
     formatting-only rebuild     DEFERRED, negative value on its own
