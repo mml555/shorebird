@@ -142,6 +142,10 @@ Object? $_superIntrinsicName(
   String originMemberKind,
   int siteOffset,
   String superMember,
+  String expectedTargetFileUri,
+  int expectedTargetFileOffset,
+  String expectedTargetName,
+  String expectedTargetKind,
 ) => throw StateError('Route B direct-super intrinsic was not lowered');
 ''';
 
@@ -727,6 +731,9 @@ Object? $_superIntrinsicName(
           // ORIGIN IDENTITY, verbatim from the analyzer. `originMemberKind`
           // travels because a class may hold a method, a getter and a setter of
           // one name, and the compiler resolves on name AND kind.
+          // The ANALYZER's resolved target travels with the site, so the
+          // compiler can prove it arrived at the same declaration
+          // independently. Provenance only: no canonical owner, no arity.
           '$_superIntrinsicName('
               '@RECEIVER@, '
               "'${origin.library}', "
@@ -734,7 +741,11 @@ Object? $_superIntrinsicName(
               "'${origin.member}', "
               "'${origin.memberKind}', "
               '${site.offset}, '
-              "'${site.member}') as dynamic",
+              "'${site.member}', "
+              "'${target.fileUri}', "
+              '${target.fileOffset}, '
+              "'${target.name}', "
+              "'${target.kind}') as dynamic",
         ));
       }
     }

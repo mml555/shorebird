@@ -1643,7 +1643,16 @@ void main() {
             "'routeBValue', 'Method', ",
           ),
         );
-        expect(emitted, contains("'dispose') as dynamic"));
+        // The ANALYZER's resolved target travels with the site, so the compiler
+        // can prove it arrived at the same declaration independently. Asserted
+        // as the exact tail, so a field cannot be dropped silently.
+        expect(
+          emitted,
+          contains(
+            "'dispose', 'file:///app/main.dart', 100, 'dispose', 'Method') "
+            'as dynamic',
+          ),
+        );
         // The intrinsic declaration must sit BEFORE the entry-point pragma, and
         // only the replacement may carry that pragma.
         expect(
