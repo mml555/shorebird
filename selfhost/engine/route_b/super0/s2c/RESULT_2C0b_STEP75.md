@@ -130,3 +130,87 @@ verified, as `--pinned` for font-subset in step 7 — so the two would agree.
 
 Not resolved unilaterally: complying reproduces a documented defect, deviating
 fails the stated acceptance test. Raised for ruling.
+
+---
+
+## UPDATE — 7.5c, 7.5e, 7.5f CLOSED. AUDIT CLEAN.
+
+### 7.5c — artifacts_manifest.yaml  DONE, per ruling on the conflict
+
+Ruling: use the UPSTREAM revision. Written with
+`selfhost/engine/generate_manifest.sh`, not the upstream ci script:
+
+    --base-manifest    <70974f81>/artifacts_manifest.yaml
+    --flutter-revision 371005c93a7c927b34bbd727eb2c4951f0ef090d
+    --dart-revision    9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
+    --host darwin-arm64 --target ios
+
+Served through :8085 — HTTP 200, `X-Overlay: hit`, 4,456 B,
+sha256 `eb6969bfcd09569c0486685e04311a18bc9b63cf119e45b7c3d65d876bfe2c3c`:
+
+    flutter_engine_revision: 83675ed27633283e7fc296c8bca22e841224c096
+    storage_bucket:          download.shorebird.dev
+    overrides:               38 entries
+
+    # selfhost_engine_hash:  a5a8be5854c529268378ce16762a16d6e31763e9
+    # flutter_revision:      371005c93a7c927b34bbd727eb2c4951f0ef090d
+    # dart_sdk_revision:     9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
+
+Note on `flutter_revision`: `371005c9…` is the git HEAD of the `a4a3c0d1…`
+cache directory — the ruling's banked candidate tree, and the immutable SHA of
+the bytes actually used. The sibling manifests record the cache-directory PIN
+LABEL instead (40eaa0ef records `c15ef637`, whose HEAD is in fact `a4a3c0d1`).
+The immutable SHA was chosen deliberately.
+
+### 7.5e — patch-linux-x64.zip  DONE, built on the Linux box
+
+Host: Hermes VPS, port 13549 as `jewgo`, key in repo, per HANDOFF.md. x86_64,
+cargo 1.96.0. Login shell used throughout — cargo's env lives in `~/.profile`
+and a non-login probe reports it missing.
+
+The box's existing clone at `/data/shorebird-engine/shorebird` was NOT touched:
+it is dirty and on an older revision (`73f68669`), i.e. another lane's state. A
+fresh isolated clone was made at `/data/shorebird-engine/route-b-2c-linux/`
+instead.
+
+Source identity banked on BOTH hosts and compared — all four equal:
+
+    control repo HEAD       319f54cf91a5d45610104b121a91efa6d9a1e657
+    vendor/updater subtree  9c380007fd5eae6f6dc755406d098c42f8c6c5d1
+    Cargo.lock sha256       466b66f5d695bf12259d1513703f2a1eb99c256e97953b742743c54fa0d1ac6d
+    publish_patch_tool.sh   ba652fdef714c0c4c8a41bea7a5409e9c412e4fa9429076ae377ab7383f2d7ca
+
+Built with `publish_patch_tool.sh --out <staging>`. Interface proved by
+EXECUTING it on Linux, where it can actually run:
+
+    members    patch
+    file       ELF 64-bit LSB pie executable, x86-64, ... BuildID 63d279f8…
+    interface  Usage: patch <base> <new> <output>
+
+Transferred back and published VERBATIM — no rebuild on the Mac:
+
+    linux-produced  fdc4e9eff5725fe946204075a6ad80e53dc6f3ef58da092626a19c1db87bcc1d
+    received        fdc4e9eff5725fe946204075a6ad80e53dc6f3ef58da092626a19c1db87bcc1d
+    served (:8085)  fdc4e9eff5725fe946204075a6ad80e53dc6f3ef58da092626a19c1db87bcc1d
+    size            375,673   HTTP 200   X-Overlay: hit
+
+The stock Linux differ was NOT substituted despite the historical byte-equality
+finding.
+
+### 7.5f — AUDIT
+
+    owned-built:       14
+    owned-mirrored:    0
+    compat-mirrored:   1
+    denied:            4
+    missing-required:  0
+    unprotected:       0
+    denied-present:    0
+
+    AUDIT CLEAN for a5a8be5854c529268378ce16762a16d6e31763e9 (macos-ios)
+
+Map and cdn-cache remain untouched. Step 8 is now unblocked by the audit, but
+not started.
+
+Housekeeping left behind: the isolated Linux clone and staging directory at
+`/data/shorebird-engine/route-b-2c-linux/` are retained as build evidence.
