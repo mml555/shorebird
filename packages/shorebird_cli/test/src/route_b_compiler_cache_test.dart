@@ -53,6 +53,8 @@ void main() {
     }
 
     setUpAll(() {
+
+      registerFallbackValue(Uri.parse('https://fallback.test'));
       registerFallbackValue(Directory(''));
       registerFallbackValue(File(''));
       registerFallbackValue(http.Request('GET', Uri.parse('https://x')));
@@ -78,6 +80,13 @@ void main() {
       when(() => shorebirdEnv.shorebirdRoot).thenReturn(shorebirdRoot);
       when(() => cache.storageBaseUrl).thenReturn('https://storage.test');
       when(() => cache.storageBucket).thenReturn('bucket.test');
+      // These cases are all about the v1 path, so the cell descriptor is
+      // genuinely ABSENT. Stubbed explicitly rather than left unstubbed: an
+      // unstubbed mock returns null and fails with a type error that says
+      // nothing about which rule was under test.
+      when(() => httpClient.get(any())).thenAnswer(
+        (_) async => http.Response('', HttpStatus.notFound),
+      );
       when(
         () => cache.getArtifactDirectory(any()),
       ).thenAnswer(

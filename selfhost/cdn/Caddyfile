@@ -202,6 +202,20 @@
 	# ADD A HASH HERE ONLY AFTER publish_sky_packages.sh has run for it.
 	# selfhost/cdn/audit_overlay.sh reads BOTH matchers and will say NOT SAFE TO
 	# PROTECT YET if you get the order wrong.
+	# ---- Route B cell descriptors ------------------------------------------
+	# `route-b-cell-v2` descriptors: the cryptographic preimages of cell
+	# addresses. LOCAL ONLY, unconditionally -- not gated on {stock_engine_hash},
+	# because a descriptor is meaningful before its cell is ever mapped and there
+	# is no upstream that could hold one. Shorebird has never published a
+	# self-hosted cell descriptor, so a fallback here could only ever serve
+	# something that is not the preimage of the requested address.
+	#
+	# Descriptors are deliberately NOT members of the cell they address: putting
+	# one inside its own manifest would make the address depend on itself.
+	@cell_manifest {
+		path_regexp ^/[^/]+/shorebird/cell-manifests/
+	}
+
 	@must_be_local_pkgs {
 		expression `{stock_engine_hash} != ""`
 		path_regexp ^/flutter_infra_release/flutter/((70974f811d448da19a927c581678ef1dbd33605c|760e3fabffbf31b4e86919a0ef47d6ce5f182991|881e4129ce06e8d61019e0ed892f3be7c039763e|4df8f9b6139b67d2cfe9f6aa8212372cade36278|40eaa0ef6cb6485833bf2e10ac97224ca82cbf25|a5a8be5854c529268378ce16762a16d6e31763e9|64ff9f592ae319eea04db6092b71319d4778b873)/(sky_engine|flutter_gpu)\.zip|a5a8be5854c529268378ce16762a16d6e31763e9/(ios|ios-profile)/artifacts\.zip|64ff9f592ae319eea04db6092b71319d4778b873/(ios|ios-profile)/artifacts\.zip|760e3fabffbf31b4e86919a0ef47d6ce5f182991/linux-x64/font-subset\.zip)$
@@ -239,6 +253,10 @@
 		}
 		handle @must_be_local_pkgs {
 			respond "overlay miss on owned artifact (sky package, supported cell)" 404
+		}
+		# A descriptor that is not on disk does not exist. Never fall through.
+		handle @cell_manifest {
+			respond "no such route-b cell descriptor (local-only namespace)" 404
 		}
 
 		# ---- Flow A: Flutter engine artifacts -------------------------------
