@@ -352,6 +352,177 @@ v2_address() { # <manifestFile>
   shasum -a 256 "${1:?}" | cut -c1-40
 }
 
+# ---- v2 TRANSACTIONAL PUBLICATION -------------------------------------------
+#
+# stage -> address -> render -> verify -> publish, in that order and no other.
+#
+# The ORDER is the whole point. v1's defect was an address computed over a
+# subset and a cell completed afterwards; installing ANY member after the
+# address is computed reproduces that defect in a new costume. So the address is
+# taken from a stage that is already complete, and the bytes published are the
+# bytes that were addressed -- proven by reconstructing the manifest from the
+# FINAL tree rather than trusting that rendering was harmless.
+
+# The canonical %H member path for each explicit input flag. Explicit inputs, so
+# a publish cannot silently pick up whatever out/ happens to contain.
+v2_member_for_flag() { # <flag>
+  case "${1:?}" in
+    ios-release-artifacts)     echo 'flutter_infra_release/flutter/%H/ios-release/artifacts.zip' ;;
+    ios-debug-artifacts)       echo 'flutter_infra_release/flutter/%H/ios/artifacts.zip' ;;
+    ios-profile-artifacts)     echo 'flutter_infra_release/flutter/%H/ios-profile/artifacts.zip' ;;
+    dart-sdk-darwin-arm64)     echo 'flutter_infra_release/flutter/%H/dart-sdk-darwin-arm64.zip' ;;
+    darwin-arm64-artifacts)    echo 'flutter_infra_release/flutter/%H/darwin-arm64/artifacts.zip' ;;
+    font-subset)               echo 'flutter_infra_release/flutter/%H/darwin-arm64/font-subset.zip' ;;
+    flutter-patched-sdk)       echo 'flutter_infra_release/flutter/%H/flutter_patched_sdk.zip' ;;
+    flutter-patched-sdk-product) echo 'flutter_infra_release/flutter/%H/flutter_patched_sdk_product.zip' ;;
+    sky-engine)                echo 'flutter_infra_release/flutter/%H/sky_engine.zip' ;;
+    flutter-gpu)               echo 'flutter_infra_release/flutter/%H/flutter_gpu.zip' ;;
+    engine-stamp)              echo 'flutter_infra_release/flutter/%H/engine_stamp.json' ;;
+    route-b-compiler)          echo 'download.shorebird.dev/shorebird/%H/route-b-compiler-darwin-arm64.zip' ;;
+    artifacts-manifest)        echo 'download.shorebird.dev/shorebird/%H/artifacts_manifest.yaml' ;;
+    patch-darwin-arm64)        echo 'download.shorebird.dev/shorebird/%H/patch-darwin-arm64.zip' ;;
+    patch-darwin-x64)          echo 'download.shorebird.dev/shorebird/%H/patch-darwin-x64.zip' ;;
+    patch-linux-x64)           echo 'download.shorebird.dev/shorebird/%H/patch-linux-x64.zip' ;;
+    *) return 1 ;;
+  esac
+}
+
+v2_stage_install() { # <stage> <member> <srcFile>
+  local stage=${1:?} member=${2:?} src=${3:?}
+  [[ -f "$src" ]] || { echo "v2: no such input: $src" >&2; return 2; }
+  mkdir -p "$stage/$(dirname "$member")"
+  cp "$src" "$stage/$member"
+}
+
+# Render %H -> the computed hash, ONLY where the schema permits it. Non-metadata
+# members are copied byte-for-byte; they must never contain the hash at all.
+v2_render() { # <stage> <final> <hash>
+  local stage=${1:?} final=${2:?} h=${3:?} rel base
+  rm -rf "$final"; mkdir -p "$final"
+  while IFS= read -r rel; do
+    base=$(basename "$rel")
+    mkdir -p "$final/$(dirname "$rel")"
+    case "$base" in
+      engine_stamp.json|artifacts_manifest.yaml)
+        sed "s/%H/$h/g" "$stage/$rel" > "$final/$rel" ;;
+      *)
+        cp "$stage/$rel" "$final/$rel" ;;
+    esac
+  done < <(cd "$stage" && find . -type f | sed 's|^\./||')
+}
+
+# THE integration control. Reconstruct the manifest from the FINAL tree and
+# require it to equal the one the address was taken from.
+v2_verify_render() { # <stage> <final> <hash> <policy> <cell> <fallback> <manifestBefore>
+  local stage=${1:?} final=${2:?} h=${3:?} policy=${4:?} cell=${5:?} fb=${6:?} before=${7:?}
+  local back rel rc=0
+  back=$(mktemp -d)
+  while IFS= read -r rel; do
+    mkdir -p "$back/$(dirname "$rel")"
+    if ! v2_canonicalize "$final/$rel" "$h" > "$back/$rel"; then
+      echo "v2: canonicalization refused for $rel" >&2; rm -rf "$back"; return 3
+    fi
+  done < <(cd "$final" && find . -type f | sed 's|^\./||')
+  # No literal %H may survive into the RENDERED METADATA. Scoped to those files
+  # on purpose: `%H` is two bytes, and it occurs by chance inside ~100 MB of
+  # compressed archive members, so a tree-wide grep is guaranteed to fire and
+  # would have made this control useless noise.
+  local meta
+  for meta in "$final/flutter_infra_release/flutter/%H/engine_stamp.json" \
+              "$final/download.shorebird.dev/shorebird/%H/artifacts_manifest.yaml"; do
+    [[ -f "$meta" ]] || continue
+    if grep -qF '%H' "$meta"; then
+      echo "v2: literal %H remains in $(basename "$meta")" >&2; rm -rf "$back"; return 4
+    fi
+  done
+  local after; after=$(mktemp)
+  v2_manifest "$back" "$policy" "$cell" "$fb" > "$after" || { rm -rf "$back" "$after"; return 5; }
+  cmp -s "$before" "$after" || {
+    echo "v2: final tree does not reconstruct the addressed manifest" >&2
+    diff "$before" "$after" >&2 || true; rc=6; }
+  rm -rf "$back" "$after"
+  return $rc
+}
+
+# Directory-atomic: both hash roots are moved into place only after the whole
+# transaction has verified, and a partial failure rolls the first one back.
+v2_publish_tree() { # <final> <overlay> <hash>
+  local final=${1:?} overlay=${2:?} h=${3:?} root moved=()
+  for root in "flutter_infra_release/flutter" "download.shorebird.dev/shorebird"; do
+    [[ -d "$final/$root/%H" ]] || continue
+    local dest="$overlay/$root/$h"
+    if [[ -e "$dest" ]]; then
+      echo "v2: destination already exists, refusing the whole transaction: $dest" >&2
+      local m; for m in "${moved[@]:-}"; do [[ -n "$m" ]] && rm -rf "$m"; done
+      return 7
+    fi
+    mkdir -p "$(dirname "$dest")"
+    mv "$final/$root/%H" "$dest" || {
+      local m; for m in "${moved[@]:-}"; do [[ -n "$m" ]] && rm -rf "$m"; done
+      return 8; }
+    moved+=("$dest")
+  done
+  return 0
+}
+
+# The whole transaction, in one place so no caller can reorder it.
+#
+# POLICY FREEZE. v2 membership is derived from artifact_policy.conf, so that
+# file's digest is load-bearing for the duration: a manifest computed under
+# policy A and published under policy B would be a cell whose membership changed
+# mid-transaction. The digest is banked at the start, re-checked before the move,
+# and recorded in the evidence.
+v2_transaction() { # <stage> <policy> <cell> <fallback> <overlay> <evidenceDir> [--dry-run]
+  local stage=${1:?} policy=${2:?} cell=${3:?} fb=${4:?} overlay=${5:?} ev=${6:?} dry=${7:-}
+  local pol_before pol_after manifest h2 final
+
+  pol_before=$(shasum -a 256 "$policy" | cut -d' ' -f1)
+  mkdir -p "$ev"
+
+  # 1. ADDRESS, from a stage that must already be complete.
+  manifest="$ev/cell_manifest.v2"
+  v2_manifest "$stage" "$policy" "$cell" "$fb" > "$manifest" || {
+    echo "v2: manifest refused -- the stage is not a complete cell" >&2; return 4; }
+
+  # A duplicate member would let one file be counted twice and mask another.
+  # A member line is one whose key is a path. The three preamble keys are also
+  # two-field, so counting bare NF==2 would treat them as members.
+  if [[ "$(awk '$1!="address_schema" && $1!="cell" && $1!="fallback_engine_revision" && NF==2{print $1}' "$manifest" | sort | uniq -d | wc -l | tr -d ' ')" != 0 ]]; then
+    echo "v2: duplicate member in manifest" >&2; return 4
+  fi
+
+  h2=$(v2_address "$manifest")
+  printf '%s\n' "$h2" > "$ev/cell_address.v2"
+
+  # 2. RENDER %H -> H2, only where permitted.
+  final="$ev/final"
+  v2_render "$stage" "$final" "$h2" || return 5
+
+  # 3. VERIFY the bytes about to be published ARE the cell that was addressed.
+  v2_verify_render "$stage" "$final" "$h2" "$policy" "$cell" "$fb" "$manifest" || return 6
+
+  # 4. The policy must not have moved under us.
+  pol_after=$(shasum -a 256 "$policy" | cut -d' ' -f1)
+  if [[ "$pol_before" != "$pol_after" ]]; then
+    echo "v2: artifact_policy.conf changed during the transaction" >&2; return 9
+  fi
+  cat > "$ev/address_provenance.txt" <<PEOF
+address_schema           $V2_SCHEMA_ID
+cell                     $cell
+fallback_engine_revision $fb
+artifact_policy.conf     $pol_before
+members                  $(awk '$1!="address_schema" && $1!="cell" && $1!="fallback_engine_revision" && NF==2' "$manifest" | wc -l | tr -d ' ')
+address                  $h2
+recompute                shasum -a 256 cell_manifest.v2 | cut -c1-40
+PEOF
+
+  [[ "$dry" == "--dry-run" ]] && { echo "$h2"; return 0; }
+
+  # 5. PUBLISH, directory-atomic, refusing rather than partially updating.
+  v2_publish_tree "$final" "$overlay" "$h2" || return 7
+  echo "$h2"
+}
+
 # Sourcing for test: define the functions above and stop, so the regression probe
 # exercises THE PRODUCT'S OWN generator rather than a copy of it. A copy would go
 # on passing after this script changed, which is the false-green shape this repo
