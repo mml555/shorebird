@@ -91,3 +91,48 @@ Ruled out:
 Pre-existing rig state, not a property of H. NOT repaired in this lane: the CDN
 stack is shared. It blocks F1, and it will block any release build against H
 that needs a passthrough artifact.
+
+---
+
+## UPDATE — F2 REPAIRED (authorized narrow restart), 2026-09-01
+
+Ran only:
+
+    docker compose -f selfhost/cdn/docker-compose.cdn.yaml restart artifact-proxy
+
+No `up --build`, no image rebuild, no Caddy restart, no volume changes.
+
+    BEFORE                                    AFTER
+    container e35efc5947c0                    e35efc5947c0   same (restarted, not recreated)
+    image     sha256:0719c42487a8              sha256:0719c42487a8   same
+    status    running                          running
+    started   2026-08-30T18:48:07Z             2026-09-01T02:01:04Z
+    restarts  0                                0
+
+    passthrough probe   502  ->  404 (no longer 502)   PASS
+    overlay H probe     200  ->  200                    PASS
+
+The passthrough now ANSWERS. The residual 404 is not the outage: shorebird's
+bucket genuinely does not carry `darwin-arm64/font-subset.zip` under its own
+engine hashes, which is why both shorebird-hash URLs 404 with a real body while
+the outage returned a bodyless 502 for everything.
+
+### Step 7 source located and verified reachable
+
+    /gcs/flutter_infra_release/flutter/83675ed2.../darwin-arm64/font-subset.zip
+        HTTP 200, size 2,320,692
+
+That is Google's own `flutter_infra_release` (the `/gcs/` prefix bypasses the
+shorebird-bucket rewrite), at the FLUTTER engine hash — and the size matches
+byte-for-byte the fetch recorded in the CDN access log of 2026-08-27, the run
+that produced the certified cell's font-subset.zip. Same source, not a
+substitute.
+
+So step 7 must invoke the publisher with BOTH:
+
+    --pinned 83675ed27633283e7fc296c8bca22e841224c096
+    --mirror http://localhost:8085/gcs
+
+The script's default `PINNED=69f9831c…` (a shorebird hash) can never work for
+this artifact; that default is what made the earlier run fail once the outage
+was out of the way.
