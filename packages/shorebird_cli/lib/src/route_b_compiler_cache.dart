@@ -98,6 +98,7 @@ class RouteBCompilerResolver {
     engineHash: engineRevision,
     cacheRoot: root,
     fetchBundle: (hash) => _fetchBundle(hash, root, allowCached: allowCached),
+    fetchCellManifest: _fetchCellManifest,
     extractTo: (archive, destination) => artifactManager.extractZip(
       zipFile: archive,
       outputDirectory: destination,
@@ -125,6 +126,58 @@ class RouteBCompilerResolver {
       slug = 'windows-x64';
     }
     return 'route-b-compiler-$slug.zip';
+  }
+
+  /// Downloads the `route-b-cell-v2` descriptor for [engineHash], or null when
+  /// the cell genuinely publishes none.
+  ///
+  /// THREE STATES, and the middle one is the point:
+  ///
+  ///   200            -> the descriptor, to be authenticated by the resolver
+  ///   404            -> null, meaning genuine absence, which selects v1
+  ///   anything else  -> THROW
+  ///
+  /// A transport error, a 5xx, an unexpected redirect or a truncated body is
+  /// NOT absence. Collapsing those into null would silently downgrade a v2 cell
+  /// to the weaker v1 rule the moment the network misbehaved -- the same
+  /// absent-vs-invalid confusion the parser was corrected for, one layer down.
+  ///
+  /// Deliberately NOT cached to disk. The descriptor is small, it is fetched
+  /// once per resolution, and a persistent copy would be a second thing that
+  /// could go stale or be tampered with between runs. It is written to a temp
+  /// file only because the resolver takes a File, and it is never promoted.
+  Future<File?> _fetchCellManifest(String engineHash) async {
+    final url =
+        '${cache.storageBaseUrl}/${cache.storageBucket}/shorebird/'
+        'cell-manifests/$engineHash.v2';
+
+    final http.Response response;
+    try {
+      response = await httpClient.get(Uri.parse(url));
+    } on Exception catch (error) {
+      throw RouteBCompilerDownloadException(
+        'Could not reach $url to download the Route B cell descriptor for '
+        '$engineHash: $error',
+      );
+    }
+
+    if (response.statusCode == HttpStatus.notFound) {
+      logger.detail('[route-b] no cell descriptor at $url (404); using v1');
+      return null;
+    }
+    if (response.statusCode != HttpStatus.ok) {
+      throw RouteBCompilerDownloadException(
+        'Failed to download the Route B cell descriptor for $engineHash from '
+        '$url: ${response.statusCode} ${response.reasonPhrase}',
+      );
+    }
+
+    final file = File(
+      p.join(Directory.systemTemp.createTempSync('route-b-cell').path,
+          '$engineHash.v2'),
+    )..writeAsBytesSync(response.bodyBytes);
+    logger.detail('[route-b] fetched cell descriptor from $url');
+    return file;
   }
 
   Future<File?> _fetchBundle(

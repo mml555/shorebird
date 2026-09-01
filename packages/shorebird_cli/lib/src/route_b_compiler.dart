@@ -17,6 +17,7 @@
 // The publish side validates what enters a cell (audit_route_b_compiler.sh);
 // this validates what leaves it. Those are different claims: one proves what we
 // published, the other proves what this machine actually received.
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
@@ -133,6 +134,125 @@ String _defaultProbe(File runtime, File compilerSnapshot) {
 /// Returns null when nothing is published for that engine.
 typedef RouteBBundleFetcher = Future<File?> Function(String engineHash);
 
+/// Locates the published `route-b-cell-v2` descriptor for [engineHash].
+/// Returns null when the cell publishes none, which selects the v1 rule.
+typedef RouteBCellManifestFetcher = Future<File?> Function(String engineHash);
+
+/// The manifest member that must carry the compiler bundle's digest.
+const _compilerMember =
+    'download.shorebird.dev/shorebird/%H/'
+    'route-b-compiler-darwin-arm64.zip';
+
+/// A `route-b-cell-v2` descriptor: the preimage of a cell address.
+///
+/// WHY THIS EXISTS. Until v2, one field carried two identities: the bundle's
+/// `PROVENANCE.txt` recorded an engine revision AND was required to
+/// equal the address it was published under. Those coincided while an address
+/// meant "the engine", and stopped coinciding the moment an address meant "this
+/// whole set of 16 artifacts". A cell can legitimately republish a
+/// byte-identical compiler under a new whole-cell address -- and writing that
+/// new address into the bundle cannot work, because its own digest is an
+/// addressed member, so each rewrite moves the address again. It never
+/// converges.
+///
+/// So the two identities are separated. The bundle's internal field is evidence
+/// about WHAT the bundle is (its producer lineage). The descriptor is evidence
+/// about WHICH CELL that exact bundle belongs to. Binding is by digest, which
+/// is strictly stronger than the equality it replaces: a bundle from another
+/// cell fails the member-digest check, a descriptor from another cell fails to
+/// hash to the requested address, and editing either changes a digest.
+class RouteBCellManifest {
+  RouteBCellManifest._({
+    required this.address,
+    required this.cell,
+    required this.compilerSha256,
+  });
+
+  /// Parses and SELF-AUTHENTICATES: the descriptor's own digest must be the
+  /// address being requested.
+  ///
+  /// ALWAYS returns a valid descriptor or THROWS. It deliberately has no
+  /// "not a v2 descriptor, carry on" result: absence is the fetcher's business
+  /// (it returns null), and anything actually RECEIVED must authenticate.
+  /// Collapsing the two would be a downgrade path -- a corrupt or foreign
+  /// descriptor would silently select the weaker v1 rule, and the only thing
+  /// standing between that and a mis-resolution would be whether the bundle's
+  /// lineage field happened to differ from the requested address. An invariant
+  /// must not rest on an accidental inequality.
+  factory RouteBCellManifest.parse({
+    required List<int> bytes,
+    required String engineHash,
+  }) {
+    final text = utf8.decode(bytes, allowMalformed: true);
+    // EXACTLY the schema line, not a prefix: `startsWith` would accept
+    // `address_schema route-b-cell-v2000` and any longer successor schema.
+    final lines = const LineSplitter().convert(text);
+    if (lines.isEmpty || lines.first != 'address_schema route-b-cell-v2') {
+      throw _invalid(
+        engineHash,
+        'the cell descriptor is not route-b-cell-v2 '
+        '(first line: ${lines.isEmpty ? '<empty>' : lines.first})',
+      );
+    }
+
+    final digest = sha256.convert(bytes).toString().substring(0, 40);
+    if (digest != engineHash) {
+      throw _invalid(
+        engineHash,
+        'the cell descriptor addresses $digest, not the cell it was '
+        'requested for',
+      );
+    }
+
+    String? cell;
+    String? compiler;
+    var cellCount = 0;
+    var compilerCount = 0;
+    for (final line in lines) {
+      final parts = line.split(' ');
+      if (parts.length != 2) continue;
+      if (parts[0] == 'cell') {
+        cellCount++;
+        cell = parts[1];
+      }
+      if (parts[0] == _compilerMember) {
+        compilerCount++;
+        compiler = parts[1];
+      }
+    }
+    // Exactly once, like the compiler member. Last-write-wins on a duplicated
+    // `cell` line would let a descriptor claim two cells and be read as one.
+    if (cellCount != 1 || cell == null) {
+      throw _invalid(
+        engineHash,
+        'the cell descriptor names the cell $cellCount times, '
+        'expected exactly once',
+      );
+    }
+    if (compilerCount != 1 || compiler == null) {
+      throw _invalid(
+        engineHash,
+        'the cell descriptor lists the compiler bundle $compilerCount times, '
+        'expected exactly once',
+      );
+    }
+    return RouteBCellManifest._(
+      address: digest,
+      cell: cell,
+      compilerSha256: compiler,
+    );
+  }
+
+  /// The cell address this descriptor is the preimage of.
+  final String address;
+
+  /// The build cell the descriptor is for, e.g. `macos-ios`.
+  final String cell;
+
+  /// The digest of the compiler bundle this cell addresses.
+  final String compilerSha256;
+}
+
 const _requiredFiles = [
   'dartaotruntime',
   'dart2bytecode.aot',
@@ -171,7 +291,22 @@ Future<RouteBCompiler> resolveRouteBCompiler({
   required Future<void> Function(File archive, Directory destination) extractTo,
   required Directory cacheRoot,
   RouteBProbe probe = _defaultProbe,
+  RouteBCellManifestFetcher? fetchCellManifest,
 }) async {
+  // The v2 descriptor, if this cell publishes one. Fetched BEFORE the bundle so
+  // a descriptor that fails to authenticate refuses without downloading tooling
+  // it would then have to discard.
+  RouteBCellManifest? manifest;
+  if (fetchCellManifest != null) {
+    final descriptor = await fetchCellManifest(engineHash);
+    if (descriptor != null && descriptor.existsSync()) {
+      manifest = RouteBCellManifest.parse(
+        bytes: descriptor.readAsBytesSync(),
+        engineHash: engineHash,
+      );
+    }
+  }
+
   final bundle = await fetchBundle(engineHash);
   if (bundle == null || !bundle.existsSync()) {
     throw RouteBCompilerException(
@@ -240,8 +375,10 @@ the release or with your Dart changes.''',
     }
   }
 
-  // The bundle must know which cell it belongs to. A bundle copied between
-  // engine hashes passes every other check.
+  // The bundle must be bound to the cell it is being resolved for. A bundle
+  // copied between cells passes every other check, so this is the gate that
+  // stops mixed provenance -- and it has two forms.
+  //
   // Deliberately not restricted to hex: a bundle whose provenance is mangled
   // should report what it actually contains, not "<none>", which reads as a
   // missing field rather than a wrong one.
@@ -249,12 +386,44 @@ the release or with your Dart changes.''',
     r'^engine revision\s*:\s*(\S+)',
     multiLine: true,
   ).firstMatch(provenance)?.group(1);
-  if (recordedEngine != engineHash) {
-    throw _invalid(
-      engineHash,
-      'the bundle records engine ${recordedEngine ?? '<none>'}, '
-      'not the engine it was published under',
-    );
+
+  if (manifest == null) {
+    // v1: the address MEANT the engine, so the bundle's own field is the
+    // binding. Unchanged, and it still governs every historical cell.
+    if (recordedEngine != engineHash) {
+      throw _invalid(
+        engineHash,
+        'the bundle records engine ${recordedEngine ?? '<none>'}, '
+        'not the engine it was published under',
+      );
+    }
+  } else {
+    // v2: the address means the WHOLE CELL, so the binding is by digest. The
+    // descriptor already proved it hashes to engineHash; now the archive we
+    // actually received must be the member that descriptor addresses.
+    //
+    // `recordedEngine` is NOT compared to engineHash here. Under v2 it records
+    // the producer lineage, which for a cell that republishes an unchanged
+    // bundle is legitimately an earlier address. It is still required to be
+    // PRESENT, so a bundle with no provenance at all cannot pass.
+    if (recordedEngine == null) {
+      throw _invalid(engineHash, 'the bundle records no engine revision');
+    }
+    if (manifest.cell != 'macos-ios') {
+      throw _invalid(
+        engineHash,
+        'the cell descriptor is for cell ${manifest.cell}, not macos-ios',
+      );
+    }
+    final bundleDigest = sha256.convert(bundle.readAsBytesSync()).toString();
+    if (bundleDigest != manifest.compilerSha256) {
+      throw _invalid(
+        engineHash,
+        'the compiler bundle digest ${bundleDigest.substring(0, 16)}… is not '
+        'the one this cell addresses '
+        '(${manifest.compilerSha256.substring(0, 16)}…)',
+      );
+    }
   }
 
   final runtime = File(p.join(staging.path, 'dartaotruntime'));
