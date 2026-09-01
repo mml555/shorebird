@@ -260,6 +260,98 @@ provenance_comment() {
   fi
 }
 
+# ---- ROUTE B CELL ADDRESS SCHEMA v2 -----------------------------------------
+#
+# WHY v2 EXISTS. v1's manifest covered the compiler cell, the platform dill and
+# a few engine digests -- and NOTHING ELSE. Measured 2026-09-01: of the five host
+# artifacts implicated in a real host-Dart-lineage defect, FOUR could not move a
+# v1 address at all (dart-sdk-darwin-arm64.zip, darwin-arm64/artifacts.zip,
+# flutter_patched_sdk.zip, darwin-arm64/font-subset.zip). So "THE ADDRESS IS THE
+# WHOLE CELL" was false as written, and a successor cell repairing that defect
+# would have reproduced its predecessor's inputs exactly.
+#
+# v1 ADDRESSES ARE NOT REINTERPRETED. They stay immutable and keep meaning
+# whatever their old manifest covered. v2 is a separate, explicitly versioned
+# scheme, and the schema marker is the FIRST manifest line so a v2 cell can never
+# collide with a v1 address merely because the remaining digests coincide.
+#
+# MEMBERSHIP IS DERIVED FROM artifact_policy.conf, not from a second hand-written
+# list -- a hand-written list is precisely how v1 fell behind. If the policy
+# gains another required, locally-owned artifact tomorrow, a v2 mint cannot
+# succeed without addressing it.
+V2_SCHEMA_ID="route-b-cell-v2"
+
+# Every path applicable to the cell that is `required` and locally owned, plus
+# the Route B compiler -- which the generic policy marks `optional` only because
+# non-Route-B hashes exist. For THIS tool it is mandatory.
+v2_members() { # <policy> <cell>
+  local policy=${1:?} cell=${2:?}
+  {
+    awk -v c="$cell" '($1==c||$1=="both") && $3=="required" &&
+                      ($2=="owned-built"||$2=="owned-mirrored") {print $4}' "$policy"
+    awk -v c="$cell" '($1==c||$1=="both") && $4 ~ /route-b-compiler-/ {print $4}' "$policy"
+  } | sort -u
+}
+
+# Files that legitimately carry the cell's own hash, and the ONLY places it may
+# appear in each. Anything else is refused rather than rewritten.
+v2_canonicalize() { # <file> <hash>  -> canonical bytes on stdout
+  local f=${1:?} h=${2:?}
+  python3 - "$f" "$h" <<'V2PY'
+import sys, os
+path, h = sys.argv[1], sys.argv[2]
+raw = open(path, 'rb').read()
+name = os.path.basename(path)
+if h.encode() not in raw:
+    sys.stdout.buffer.write(raw); sys.exit(0)
+text = raw.decode('utf-8')
+out = []
+for line in text.split('\n'):
+    if h in line:
+        if name == 'engine_stamp.json':
+            # only as the git_revision value
+            if f'"git_revision": "{h}"' not in line:
+                sys.stderr.write(f'{name}: {h} outside git_revision\n'); sys.exit(3)
+            line = line.replace(f'"git_revision": "{h}"', '"git_revision": "%H"')
+        elif name == 'artifacts_manifest.yaml':
+            # comments only. flutter_engine_revision is the UPSTREAM Flutter base
+            # and must never be this hash, so a hit on a data line is a defect.
+            if not line.lstrip().startswith('#'):
+                sys.stderr.write(f'{name}: {h} on a non-comment line\n'); sys.exit(3)
+            line = line.replace(h, '%H')
+        else:
+            sys.stderr.write(f'{name}: no permitted hash-bearing field\n'); sys.exit(3)
+        if h in line:
+            sys.stderr.write(f'{name}: residual hash after canonicalization\n'); sys.exit(3)
+    out.append(line)
+sys.stdout.buffer.write('\n'.join(out).encode('utf-8'))
+V2PY
+}
+
+# The canonical manifest. Staged tree mirrors the overlay with a LITERAL `%H`
+# directory, so the bytes hashed are the bytes published and no hash-of-itself
+# fixed point is ever needed.
+v2_manifest() { # <stage> <policy> <cell> <fallbackRev>
+  local stage=${1:?} policy=${2:?} cell=${3:?} fb=${4:?} m sha
+  printf 'address_schema %s\n' "$V2_SCHEMA_ID"
+  printf 'cell %s\n' "$cell"
+  printf 'fallback_engine_revision %s\n' "$fb"
+  while read -r m; do
+    [[ -n "$m" ]] || continue
+    local f="$stage/$m"
+    if [[ ! -f "$f" ]]; then
+      echo "v2: required member not staged: $m" >&2
+      return 4
+    fi
+    sha=$(shasum -a 256 "$f" | cut -d' ' -f1)
+    printf '%s %s\n' "$m" "$sha"
+  done < <(v2_members "$policy" "$cell")
+}
+
+v2_address() { # <manifestFile>
+  shasum -a 256 "${1:?}" | cut -c1-40
+}
+
 # Sourcing for test: define the functions above and stop, so the regression probe
 # exercises THE PRODUCT'S OWN generator rather than a copy of it. A copy would go
 # on passing after this script changed, which is the false-green shape this repo
@@ -275,12 +367,29 @@ while [[ $# -gt 0 ]]; do
     # so the address means "this host cell AND this engine" -- see below.
     --ios-artifacts) IOS_ARTIFACTS="${2:?}"; shift 2 ;;
     --note) NOTE="${2:?}"; shift 2 ;;
+    # v2 is required to PUBLISH. v1 is retained for forensics only -- it is the
+    # scheme every historical address was computed under, so being able to
+    # recompute one is useful; being able to mint a new one is not, because v1
+    # cannot express host-toolchain changes (measured 2026-09-01).
+    --address-schema) ADDRESS_SCHEMA="${2:?}"; shift 2 ;;
     --dry-run) DRY=1; shift ;;
     -h|--help) sed -n '3,24p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) die "unknown argument: $1" ;;
   esac
 done
 [[ -n "$DONOR" ]] || die "--donor <engineHash> is required"
+
+ADDRESS_SCHEMA=${ADDRESS_SCHEMA:-v2}
+case "$ADDRESS_SCHEMA" in
+  v2) ;;
+  v1) [[ "$DRY" == 1 ]] || die \
+        "--address-schema v1 is forensic only: it cannot express changes to \
+dart-sdk-darwin-arm64.zip, darwin-arm64/artifacts.zip, flutter_patched_sdk.zip \
+or darwin-arm64/font-subset.zip, so a v1 cell minted today can be incoherent and \
+still look new. Re-run with --dry-run to inspect a historical address, or use v2 \
+to publish." ;;
+  *) die "--address-schema must be v1 or v2 (got $ADDRESS_SCHEMA)" ;;
+esac
 
 # The same seven files publish_route_b_compiler.sh stages, named as they are
 # named inside the zip -- so the address is over what a consumer receives, not
