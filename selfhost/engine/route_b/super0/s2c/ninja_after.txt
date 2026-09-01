@@ -1,0 +1,7 @@
+# ninja repair — AFTER
+date_utc      : 2026-09-01T00:27:02Z
+list ninja    : ninja 1.13.2
+which ninja   : /opt/homebrew/bin/ninja
+ninja --version: 1.13.2
+opt/ninja     : resolves
+scope         : 1 formula installed, no upgrades (dry-run showed 'Would install 1 formula: ninja')
