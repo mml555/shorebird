@@ -72,6 +72,45 @@ replaced by a binding, not deleted.
 The matrix drives `resolveRouteBCompiler` itself, not a re-implementation, and
 the pre-existing 11-test resolver suite still passes unchanged.
 
+## FAIL-CLOSED FIX — absent vs present-but-invalid
+
+The first implementation returned `null` for anything that did not start with
+the schema line, and the caller reads `null` as "no descriptor, use v1". That
+collapsed two different states:
+
+    descriptor genuinely absent          -> v1 is correct
+    descriptor received but unreadable   -> corruption, must REFUSE
+
+It did not defeat H2 in practice, because H2's bundle records H and would then
+fail the v1 equality check anyway. But that is an ACCIDENTAL inequality, and an
+invariant must not rest on one.
+
+Corrected:
+
+    RouteBCellManifest.parse   always returns a valid descriptor or THROWS
+                               (now a factory constructor, so the type system
+                               says the same thing)
+    absence                    expressed ONLY by the fetcher returning null
+    schema line                compared EXACTLY, not `startsWith` -- which
+                               would have accepted `route-b-cell-v2000` and
+                               any longer successor schema
+    cell                       required EXACTLY ONCE, like the compiler member;
+                               it was last-write-wins, so a descriptor could
+                               name two cells and be read as one
+
+### Three added controls — 10/10 on the binding matrix
+
+    descriptor ABSENT (fetcher returns null) + valid v1 bundle   ACCEPT v1
+    descriptor PRESENT, unknown schema                           REFUSE,
+        and asserted to refuse BEFORE the bundle is fetched
+    descriptor with duplicate `cell` lines                       REFUSE ambiguous
+
+The unknown-schema control asserts `bundleFetched == false`, so it proves both
+that a malformed descriptor cannot downgrade to v1 AND that refusing costs no
+tooling download.
+
+Full suite: 21/21 (10 binding + 11 pre-existing resolver), analyzer clean.
+
 ## Not done — the rest of this lane
 
     publish the committed cell_manifest.v2 as a descriptor under a namespace

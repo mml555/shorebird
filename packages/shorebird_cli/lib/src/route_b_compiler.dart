@@ -168,25 +168,32 @@ class RouteBCellManifest {
     required this.compilerSha256,
   });
 
-  /// The cell address this descriptor is the preimage of.
-  final String address;
-
-  /// The build cell the descriptor is for, e.g. `macos-ios`.
-  final String cell;
-
-  /// The digest of the compiler bundle this cell addresses.
-  final String compilerSha256;
-
   /// Parses and SELF-AUTHENTICATES: the descriptor's own digest must be the
-  /// address being requested. Returns null when this is not a v2 descriptor at
-  /// all, so the caller can fall back to the v1 rule; throws when it IS a v2
-  /// descriptor and is wrong.
-  static RouteBCellManifest? parse({
+  /// address being requested.
+  ///
+  /// ALWAYS returns a valid descriptor or THROWS. It deliberately has no
+  /// "not a v2 descriptor, carry on" result: absence is the fetcher's business
+  /// (it returns null), and anything actually RECEIVED must authenticate.
+  /// Collapsing the two would be a downgrade path -- a corrupt or foreign
+  /// descriptor would silently select the weaker v1 rule, and the only thing
+  /// standing between that and a mis-resolution would be whether the bundle's
+  /// lineage field happened to differ from the requested address. An invariant
+  /// must not rest on an accidental inequality.
+  factory RouteBCellManifest.parse({
     required List<int> bytes,
     required String engineHash,
   }) {
     final text = utf8.decode(bytes, allowMalformed: true);
-    if (!text.startsWith('address_schema route-b-cell-v2')) return null;
+    // EXACTLY the schema line, not a prefix: `startsWith` would accept
+    // `address_schema route-b-cell-v2000` and any longer successor schema.
+    final lines = const LineSplitter().convert(text);
+    if (lines.isEmpty || lines.first != 'address_schema route-b-cell-v2') {
+      throw _invalid(
+        engineHash,
+        'the cell descriptor is not route-b-cell-v2 '
+        '(first line: ${lines.isEmpty ? '<empty>' : lines.first})',
+      );
+    }
 
     final digest = sha256.convert(bytes).toString().substring(0, 40);
     if (digest != engineHash) {
@@ -199,18 +206,28 @@ class RouteBCellManifest {
 
     String? cell;
     String? compiler;
+    var cellCount = 0;
     var compilerCount = 0;
-    for (final line in const LineSplitter().convert(text)) {
+    for (final line in lines) {
       final parts = line.split(' ');
       if (parts.length != 2) continue;
-      if (parts[0] == 'cell') cell = parts[1];
+      if (parts[0] == 'cell') {
+        cellCount++;
+        cell = parts[1];
+      }
       if (parts[0] == _compilerMember) {
         compilerCount++;
         compiler = parts[1];
       }
     }
-    if (cell == null) {
-      throw _invalid(engineHash, 'the cell descriptor names no cell');
+    // Exactly once, like the compiler member. Last-write-wins on a duplicated
+    // `cell` line would let a descriptor claim two cells and be read as one.
+    if (cellCount != 1 || cell == null) {
+      throw _invalid(
+        engineHash,
+        'the cell descriptor names the cell $cellCount times, '
+        'expected exactly once',
+      );
     }
     if (compilerCount != 1 || compiler == null) {
       throw _invalid(
@@ -225,6 +242,15 @@ class RouteBCellManifest {
       compilerSha256: compiler,
     );
   }
+
+  /// The cell address this descriptor is the preimage of.
+  final String address;
+
+  /// The build cell the descriptor is for, e.g. `macos-ios`.
+  final String cell;
+
+  /// The digest of the compiler bundle this cell addresses.
+  final String compilerSha256;
 }
 
 const _requiredFiles = [

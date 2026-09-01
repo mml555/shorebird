@@ -152,6 +152,61 @@ void main() {
     );
   });
 
+  test('descriptor ABSENT (fetcher returns null) + valid v1 bundle => ACCEPT',
+      () async {
+    final (f, _) = bundle(legacyH);
+    // The fetcher is wired but reports genuine absence. That, and only that,
+    // may select the v1 rule.
+    final c = await resolveRouteBCompiler(
+      engineHash: legacyH,
+      fetchBundle: (_) async => f,
+      extractTo: extract,
+      cacheRoot: Directory(p.join(tmp.path, 'cache-abs'))..createSync(),
+      probe: probe,
+      fetchCellManifest: (_) async => null,
+    );
+    expect(c.supportsDirectSuperDualKernel, isTrue);
+  });
+
+  test('descriptor PRESENT but unknown schema => REFUSE, before bundle fetch',
+      () async {
+    var bundleFetched = false;
+    await expectLater(
+      resolveRouteBCompiler(
+        engineHash: 'c' * 40,
+        fetchBundle: (_) async {
+          bundleFetched = true;
+          return bundle(legacyH).$1;
+        },
+        extractTo: extract,
+        cacheRoot: Directory(p.join(tmp.path, 'cache-bad'))..createSync(),
+        probe: probe,
+        fetchCellManifest: (_) async => File(p.join(tmp.path, 'bad.v2'))
+          ..writeAsStringSync(
+            'address_schema something-else\ncell macos-ios\n',
+          ),
+      ),
+      throwsA(predicate((e) => '$e'.contains('not route-b-cell-v2'))),
+    );
+    // A malformed descriptor must not silently downgrade to v1, and must not
+    // cost a tooling download.
+    expect(bundleFetched, isFalse);
+  });
+
+  test('descriptor with DUPLICATE cell lines => REFUSE as ambiguous', () async {
+    final (f, digest) = bundle(legacyH);
+    final text =
+        'address_schema route-b-cell-v2\n'
+        'cell macos-ios\n'
+        'cell linux-android\n'
+        '$_member $digest\n';
+    final addr = sha256.convert(utf8.encode(text)).toString().substring(0, 40);
+    await expectLater(
+      resolve(engineHash: addr, theBundle: f, manifestText: text),
+      throwsA(predicate((e) => '$e'.contains('names the cell 2 times'))),
+    );
+  });
+
   test('v1 legacy: bundle records the requested hash => ACCEPT', () async {
     final (f, _) = bundle(legacyH);
     final c = await resolve(engineHash: legacyH, theBundle: f);
