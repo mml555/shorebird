@@ -426,3 +426,21 @@ ca7d2c0d43bf975db2c42cc0aa6351d527443abf 69f9831c360d9152862ec3897c67fb09ae843f3
 #   same    route_b_release_probe.aot  37dffac8de643591
 #   same    vm_platform.dill  015ef32c6cb988d8
 4792f0eca461f3761001a1adbe131b4b115e3684 69f9831c360d9152862ec3897c67fb09ae843f3b
+# D-SUPER-2C candidate cell (2026-09-01). NOT certified; 4792f0ec remains the
+# certified cell. Engine binary carries the 2C candidate marker
+# (shorebird-route-b-2c-candidate-v1) and updater af6e842ccf87; engine source
+# dfa2b24ac38477f3705ff0357530f33fe09474b8.
+#
+# The compiler cell is v11 analyzer + 0017 dual-kernel, QUALIFIED for
+# routeBDirectSuperDualKernelV1: moved-site specimen executes WRAP:TICKER:APP-STATE
+# and the release-kernel verifier is REFUSED at the site offset.
+#
+# sky_engine.zip is NOT stock-equivalent for this cell -- internal_patch.dart,
+# internal.dart and hooks.dart all differ (killgate bytecode-attach). It is
+# published and protected in @must_be_local_pkgs; mapping without it would have
+# served stock dart:ui/dart:_internal sources against this engine, silently.
+#
+# artifacts_manifest.yaml names the UPSTREAM Flutter base 83675ed2, not this
+# hash -- that field is the revision non-overridden artifacts resolve from.
+# The fallback below is the pinned SHOREBIRD engine, which is a different thing.
+a5a8be5854c529268378ce16762a16d6e31763e9 69f9831c360d9152862ec3897c67fb09ae843f3b
