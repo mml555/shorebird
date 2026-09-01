@@ -28,6 +28,23 @@
 #
 #   package_ios_mode_artifacts.sh --mode debug|profile --hash <cellHash>
 #                                 [--out <engine out dir>] [--dry-run]
+#                                 [--allow-stale-release-engine-version <srcRev>]
+#
+# THE STALE-RELEASE-LABEL EXCEPTION, and why it is opt-in per invocation.
+#
+# Gate 2 uses the release's `args.gn engine_version` as a proxy for the lineage
+# of the release BYTES. For the 2C candidate cell that premise was falsified by
+# measurement: `out/ios_release` was rebuilt from the candidate tree on
+# 2026-08-31 by running ninja against an Aug 27 `args.gn` without re-running gn,
+# so the artifact that earned H declares the CERTIFIED revision while its bytes
+# carry the candidate marker.
+#
+# The wrong repair is to rebuild debug/profile declaring the same stale value:
+# that manufactures agreement by writing a label already proven false. So the
+# proxy is replaced -- for one explicitly named source revision, per invocation
+# -- by a direct lineage proof. DEFAULT BEHAVIOUR IS UNCHANGED: without the
+# flag, any mismatch still refuses, and even with it, only `engine_version` may
+# differ and only in the one direction named below.
 set -euo pipefail
 
 SRC=${SRC:-/Volumes/build/route-b/flutter/engine/src}
@@ -36,12 +53,12 @@ SELFHOST="$(cd "$HERE/../.." >/dev/null 2>&1 && pwd)"
 OVERLAY=${OVERLAY:-$SELFHOST/cdn/overlay}
 REFERENCE=${REFERENCE:-$SRC/out/ios_release}
 STAMP=${STAMP:-202001010000}
-MODE=""; HASH=""; OUTDIR=""; DRY=0; STAGE_TO=""
+MODE=""; HASH=""; OUTDIR=""; DRY=0; STAGE_TO=""; STALE_OK=""
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 note() { echo; echo "==> $*"; }
 
-usage() { sed -n '3,28p' "${BASH_SOURCE[0]}"; exit 2; }
+usage() { sed -n '3,46p' "${BASH_SOURCE[0]}"; exit 2; }
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --mode) MODE="${2:?}"; shift 2 ;;
@@ -52,6 +69,9 @@ while [[ $# -gt 0 ]]; do
     # is a function of these digests, so the mint needs the bytes before the
     # hash they will be filed under exists.
     --stage-to) STAGE_TO="${2:?}"; shift 2 ;;
+    # Opt-in, per invocation, and it names the source revision the MODE must
+    # actually have been built from. See the header.
+    --allow-stale-release-engine-version) STALE_OK="${2:?}"; shift 2 ;;
     -h|--help) usage ;;
     *) die "unknown argument: $1" ;;
   esac
@@ -83,12 +103,56 @@ got_mode=$(arg flutter_runtime_mode "$A")
 # 2. SAME PINNED TREE as the release. Three separate revisions, because an
 #    engine built from a different Dart or Skia is a different toolchain even
 #    when the Flutter revision matches.
+# The one release label this exception may forgive, spelled out so the
+# direction of the mismatch is part of the contract rather than a variable.
+STALE_RELEASE_ENGINE_VERSION=619fdad176ff457331b50230b9511e7230a6ed93
+EXPECTED_RELEASE_SHA1=a5a8be5854c529268378ce16762a16d6e31763e9
+MARKER=shorebird-route-b-2c-candidate-v1
+UPDATER=af6e842ccf87
+
+count_in() { python3 -c "import sys;print(open(sys.argv[1],'rb').read().count(sys.argv[2].encode()))" "$1" "$2"; }
+
+STALE_EXCEPTION_USED=0
 if [[ -f "$REFERENCE/args.gn" ]]; then
   for k in engine_version dart_version skia_version; do
     want=$(arg "$k" "$REFERENCE/args.gn"); got=$(arg "$k" "$A")
-    [[ "$want" == "$got" ]] \
+    if [[ "$want" == "$got" ]]; then
+      echo "    $k matches the release: ${got:0:16}"
+      continue
+    fi
+    # Only engine_version is ever forgivable, and only with the explicit flag.
+    [[ "$k" == "engine_version" && -n "$STALE_OK" ]] \
       || die "$k differs from the release build: release=$want $MODE=$got"
-    echo "    $k matches the release: ${got:0:16}"
+
+    note "STALE-RELEASE-LABEL EXCEPTION requested for engine_version"
+    # a. the mismatch must be exactly the documented one, in the one direction
+    [[ "$want" == "$STALE_RELEASE_ENGINE_VERSION" ]] \
+      || die "exception covers only release engine_version=$STALE_RELEASE_ENGINE_VERSION, got $want"
+    [[ "$got" == "$STALE_OK" ]] \
+      || die "$MODE args.gn engine_version is $got, not the declared source $STALE_OK"
+    # b. the mode must really come from that source revision, now
+    head=$(git -C "$SRC/flutter" rev-parse HEAD 2>/dev/null || echo unknown)
+    [[ "$head" == "$STALE_OK" ]] \
+      || die "engine source HEAD is $head, not the declared source $STALE_OK"
+    # c. the release artifact must be the frozen candidate one, by BYTES
+    RBIN="$REFERENCE/Flutter.xcframework/ios-arm64/Flutter.framework/Flutter"
+    [[ -f "$RBIN" ]] || die "no release device binary at $RBIN"
+    rsha=$(shasum -a 1 "$RBIN" | cut -d' ' -f1)
+    [[ "$rsha" == "$EXPECTED_RELEASE_SHA1" ]] \
+      || die "release device binary sha1 is $rsha, not the frozen $EXPECTED_RELEASE_SHA1"
+    [[ "$(count_in "$RBIN" "$MARKER")"  == 1 ]] || die "release binary marker count != 1"
+    [[ "$(count_in "$RBIN" "$UPDATER")" == 1 ]] || die "release binary updater count != 1"
+    # d. and so must this mode's own binary
+    MBIN="$OUTDIR/Flutter.xcframework/ios-arm64/Flutter.framework/Flutter"
+    [[ -f "$MBIN" ]] || die "no $MODE device binary at $MBIN"
+    [[ "$(count_in "$MBIN" "$MARKER")"  == 1 ]] || die "$MODE binary marker count != 1"
+    [[ "$(count_in "$MBIN" "$UPDATER")" == 1 ]] || die "$MODE binary updater count != 1"
+
+    STALE_EXCEPTION_USED=1
+    echo "    engine_version: release ${want:0:16} is STALE; lineage proved directly"
+    echo "      engine source HEAD          ${head:0:16}"
+    echo "      release binary sha1         ${rsha:0:16}  marker 1  updater 1"
+    echo "      $MODE binary                marker 1  updater 1"
   done
 else
   echo "    (no reference release args.gn; tree comparison skipped)"
@@ -201,6 +265,21 @@ engine rev   : $REV
 engine_version: $(arg engine_version "$A")
 dart_version : $(arg dart_version "$A")
 skia_version : $(arg skia_version "$A")
+$(if [[ "$STALE_EXCEPTION_USED" == 1 ]]; then cat <<XEOF
+engine source: $(git -C "$SRC/flutter" rev-parse HEAD)
+mode args engine_version: $(arg engine_version "$A")
+release args engine_version: $(arg engine_version "$REFERENCE/args.gn") (STALE;
+               the release binary was rebuilt from the candidate tree AFTER its
+               args.gn was written, so this label is not its lineage)
+release artifact identity: $EXPECTED_RELEASE_SHA1
+lineage exception: release args.gn engine_version is NOT authoritative for this
+               frozen cell. Accepted on direct evidence instead: engine source
+               HEAD, the frozen release binary's own sha1, and the candidate
+               marker + updater revision present exactly once in BOTH the
+               release and this mode's device binary. Equal dart_version and
+               skia_version inputs are required unchanged.
+XEOF
+fi)
 route b patchset: $PATCHSET (sha256 over engine/route_b/*.patch, first 16)
 flags        : dart_dynamic_modules=true shorebird_use_interpreter=false
 archive      : $D1

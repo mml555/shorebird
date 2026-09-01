@@ -82,3 +82,90 @@ LABELS agree are:
       mid-gate, which the standing ruling forbids.
 
 Nothing was published. Not overridden. Raised for ruling.
+
+---
+
+## UPDATE — option (b) implemented, controls held, modes published, PREFLIGHT PASSES
+
+### Wording correction, adopted
+
+The earlier note that the stale label "is not in the bytes" over-claimed. What is
+proven is narrower: **the release device binary's lineage is the candidate,
+despite the stale release `args.gn engine_version`** — its sha1 is H and it
+carries the marker. The archives also contain `gen_snapshot_arm64` and
+`analyze_snapshot_arm64`, and absence of a revision STRING from
+`Flutter.framework` says nothing about those. The justification for accepting
+the candidate modes is the full source/build lineage plus identical Dart and
+Skia inputs — not the absent string.
+
+### The exception is opt-in, narrow, and one-directional
+
+`package_ios_mode_artifacts.sh` gained:
+
+    --allow-stale-release-engine-version <srcRev>
+
+Default behaviour is UNCHANGED. With the flag, only `engine_version` may differ,
+and only from `619fdad1…` to the declared `<srcRev>`; every other field still
+refuses. It additionally requires, before packaging: mode `args.gn`
+engine_version == `<srcRev>`; engine source HEAD == `<srcRev>`; release
+`args.gn` engine_version == the documented stale `619fdad1…`; equal
+`dart_version` and `skia_version`; release device binary sha1 == H with marker
+and updater exactly once; and this mode's binary with marker and updater exactly
+once. Freshness, mode identity, Route B flags, host tools and deterministic
+double-packaging all still apply.
+
+### Three-arm control — the checker did not just become permissive
+
+    ordinary invocation                REFUSED
+      "engine_version differs from the release build: release=619fdad1… debug=dfa2b24a…"
+    wrong declared source (deadbeef…)  REFUSED
+      "debug args.gn engine_version is dfa2b24a…, not the declared source deadbeef…"
+    exact documented exception         ACCEPTED
+
+### Published under H
+
+    ios/artifacts.zip          5891a6bb82dbb2a4a246da262acc405852f462f85067d069d413bab47ece3d60  24,778,279
+    ios-profile/artifacts.zip  c0b922f2491f613cfed5d29abf3f3208b768a493fbaca82dd2c904b3a887425f  16,513,870
+
+Both REPRODUCIBLE (packaged twice, byte-identical). Fetched back through :8085,
+200 with `X-Overlay: hit` and `X-Engine-Hash` = H, archive sha256 equal to the
+published bytes.
+
+    ios          device c9ce68c8fbc1c477…  marker 1  updater 1
+                 gen_snapshot 7754258ddf081ae2…  analyze_snapshot 8348555850392e53…
+    ios-profile  device 585e884d410ce8ce…  marker 1  updater 1
+                 gen_snapshot 1d5599eef478b94a…  analyze_snapshot 8526b9a2aaff4b0e…
+
+### Policy and protection corrected
+
+`artifact_policy.conf`: both paths are now `macos-ios owned-built required`,
+with the measured reason recorded — `_iosBinaryDirs` requires all three modes
+for ANY iOS build, and fallback is not a substitute because the unowned path
+goes upstream into the mirror's ~10 s deadline.
+
+`@must_be_local_pkgs`: H-scoped protection added for
+`H/(ios|ios-profile)/artifacts.zip`. The GLOBAL matcher was deliberately NOT
+broadened — older mapped hashes may not have both.
+
+`cdn-cache` recreated (same image); `artifact-proxy` untouched.
+
+    owned-built 14 -> 16   missing-required 0   unprotected 0   denied-present 0
+    AUDIT CLEAN for a5a8be5854c529268378ce16762a16d6e31763e9 (macos-ios)
+
+### Pre-release resolution preflight — 7/7 PASS
+
+From an EMPTY candidate-local cache:
+
+    1  CLI Flutter pin f864f6c6 -> 371005c9            PASS
+    2  tracked Flutter engine.version = H              PASS
+    3  CLI resolver requests H                         PASS (engine.stamp = H)
+    4  flutter precache --ios COMPLETES                PASS (no 504)
+    5  consumed ios          = banked H debug          c9ce68c8…  MATCH
+    6  consumed ios-profile  = banked H profile        585e884d…  MATCH
+    7  consumed ios-release  sha1 = H, marker 1, updater 1        PASS
+
+The item-3 blocker is closed: the same command that previously died on
+`ios/artifacts.zip` now completes, because the cell owns all three modes.
+
+Compiler-cell resolution is deliberately NOT claimed here — it can only be
+observed on the patch path, after a release exists.
