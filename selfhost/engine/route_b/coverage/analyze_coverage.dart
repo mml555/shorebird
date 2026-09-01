@@ -177,8 +177,30 @@ coverage/census_report.py, for what the numbers may and may not be read as.
   // One hierarchy per component. The RELEASE's is what makes the release
   // evidence meaningful: it must be resolved in the kernel that was actually
   // compiled, not in the patch's.
-  final baseHierarchy = ClassHierarchy(base, CoreTypes(base));
-  final patchedHierarchy = ClassHierarchy(patched, CoreTypes(patched));
+  // LAZY, and that is load-bearing rather than a micro-optimisation.
+  //
+  // v11 added these two lines eagerly, which silently made a fully-LINKED base
+  // kernel a precondition of EVERY analysis. The release flow's early and late
+  // agreement checks pass the `--no-aot --no-link-platform` import kernel as
+  // the base: its `dart:core` classes are external references with no AST, so
+  // `ClassHierarchy` throws "Reference to dart:core::Object is not bound to an
+  // AST node" and the analyzer exits 255. `agreesWith()` catches that, warns,
+  // and returns false -- which makes the release DELETE `release_import.dill`
+  // and ship unpatchable. Measured on release 140; the pre-v11 analyzer handles
+  // the identical kernel at exit 0.
+  //
+  // Only the super-target paths need a hierarchy, and only for members that
+  // actually carry a super invocation. Deferring construction means an unlinked
+  // base kernel costs nothing unless something genuinely needs to resolve
+  // against it -- and then it still fails loudly, at the member that needed it.
+  // Whether the BASE component carries its platform. A `--no-link-platform`
+  // kernel names dart:core but binds no AST for it, so any hierarchy over it
+  // throws. Measured, not assumed: the class list is what ClassHierarchy walks.
+  final baseIsLinked = base.libraries.any(
+    (l) => l.importUri.toString() == 'dart:core' && l.classes.isNotEmpty,
+  );
+  late final baseHierarchy = ClassHierarchy(base, CoreTypes(base));
+  late final patchedHierarchy = ClassHierarchy(patched, CoreTypes(patched));
 
   bool isApp(Library lib) {
     final uri = lib.importUri.toString();
@@ -294,13 +316,27 @@ coverage/census_report.py, for what the numbers may and may not be read as.
         // An empty list is meaningful and is emitted: it says the release
         // version of this method direct-called nothing, so any super site the
         // patch introduces has no evidence behind it.
-        final releaseClass = _findClass(base, uri, cls.name);
-        final releaseMember = releaseClass == null
-            ? null
-            : _findProcedure(releaseClass, p.name.text, p.kind);
-        lowering[key]!['releaseSuperTargets'] = releaseMember == null
-            ? const <Map<String, Object?>>[]
-            : _superTargets(baseHierarchy, releaseClass!, releaseMember);
+        //
+        // Resolving a super target needs a ClassHierarchy over the BASE
+        // component, which needs its platform LINKED. The release flow also
+        // calls this analyzer with the `--no-link-platform` import kernel as
+        // base, to ask a different question -- does the import kernel contain
+        // everything the AOT kernel compiled. For that base there is no
+        // hierarchy to build, and v11 crashed the whole analysis trying.
+        //
+        // The key is OMITTED rather than emitted empty. Empty is a claim --
+        // "the release version of this method direct-called nothing" -- and
+        // making that claim from a kernel we could not examine would be a
+        // measurement we did not take. Absent says we did not look.
+        if (baseIsLinked) {
+          final releaseClass = _findClass(base, uri, cls.name);
+          final releaseMember = releaseClass == null
+              ? null
+              : _findProcedure(releaseClass, p.name.text, p.kind);
+          lowering[key]!['releaseSuperTargets'] = releaseMember == null
+              ? const <Map<String, Object?>>[]
+              : _superTargets(baseHierarchy, releaseClass!, releaseMember);
+        }
       }
     }
   }
