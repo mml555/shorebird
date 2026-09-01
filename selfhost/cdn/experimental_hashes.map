@@ -444,3 +444,24 @@ ca7d2c0d43bf975db2c42cc0aa6351d527443abf 69f9831c360d9152862ec3897c67fb09ae843f3
 # hash -- that field is the revision non-overridden artifacts resolve from.
 # The fallback below is the pinned SHOREBIRD engine, which is a different thing.
 a5a8be5854c529268378ce16762a16d6e31763e9 69f9831c360d9152862ec3897c67fb09ae843f3b
+# Route B cell address schema v2 — the FIRST cell addressed under it.
+# Host-lineage-coherent successor to the RETIRED H (a5a8be58…), whose published
+# host toolchain was Dart lineage 6b58bb3a72 while its engine and compiler cell
+# were 9e8c898a4d; `shorebird release ios` died in the AOT snapshotter with
+# "Can't load Kernel binary: Invalid SDK hash".
+#
+# H2 differs from H in exactly five members — dart-sdk-darwin-arm64.zip,
+# darwin-arm64/artifacts.zip, darwin-arm64/font-subset.zip, flutter_patched_sdk
+# .zip and flutter_patched_sdk_product.zip — all rebuilt at Dart 9e8c898a4d.
+# Engine bytes, all three iOS modes, sky packages, patch differs and the
+# qualified Route B compiler (9d4ace27…) are byte-identical to H's.
+#
+# address manifest: route-b-cell-v2
+#   selfhost/engine/route_b/super0/s2c/h2_address/cell_manifest.v2
+#   shasum -a 256 cell_manifest.v2 | cut -c1-40  ->  this hash
+#
+# The fallback below is the pinned SHOREBIRD engine, NOT the upstream Flutter
+# base 83675ed2 that artifacts_manifest.yaml names. They are different things.
+# H stays mapped: it is retired as a promotion target, not erased, and existing
+# evidence and caches still refer to it.
+64ff9f592ae319eea04db6092b71319d4778b873 69f9831c360d9152862ec3897c67fb09ae843f3b
