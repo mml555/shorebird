@@ -7,6 +7,7 @@ Unit: one instance method whose BODY changed between adjacent commits.
 Wonderous
 ------------------------------------------------------------------------------
   window 40 commits, 31 pairs, 8 with a changed method
+  excluded as generated: 0    not found in the candidate census: 0
 
   Metric                              Count
   ------------------------------------------
@@ -58,31 +59,30 @@ Wonderous
 ------------------------------------------------------------------------------
 LocalSend
 ------------------------------------------------------------------------------
-  window 40 commits, 27 pairs, 11 with a changed method
+  window 80 commits, 27 pairs, 11 with a changed method
+  excluded as generated: 21    not found in the candidate census: 26
 
   Metric                              Count
   ------------------------------------------
-  changed Dart instance methods         253
-  Route B admissible                    233
-  refused                                20
-  patch-demand compatibility %       92.09%
+  changed Dart instance methods         232
+  Route B admissible                    220
+  refused                                12
+  patch-demand compatibility %       94.83%
 
   REFUSAL RANKING (method-weighted)
   refusal reason                      methods     SOLE   % refused
   ------------------------------------------------------------------
-  abi.named_parameters                      8        5      25.00%
-  construct.this_escape                     7        4      20.00%
-  construct.method_tearoff                  4        3      15.00%
-  receiver.compound_same_offset             2        2      10.00%
-  reach.unreachable                         2        1       5.00%
-  abi.optional_positionals                  1        1       5.00%
+  abi.named_parameters                      5        4      33.33%
+  construct.method_tearoff                  3        3      25.00%
+  receiver.compound_same_offset             2        2      16.67%
+  reach.unreachable                         2        1       8.33%
+  abi.optional_positionals                  1        1       8.33%
 
   REFUSAL RANKING (commit-weighted: pairs containing the reason)
   refusal reason                        pairs     % pairs
   --------------------------------------------------------
   pair.member_set_changed                   6      54.55%
-  abi.named_parameters                      4      36.36%
-  construct.this_escape                     4      36.36%
+  abi.named_parameters                      3      27.27%
   construct.method_tearoff                  2      18.18%
   receiver.compound_same_offset             2      18.18%
   abi.optional_positionals                  1       9.09%
@@ -91,9 +91,8 @@ LocalSend
   INTRODUCED vs PRE-EXISTING (per refused method)
   construct                           introduced  pre-existing   unknown
   ----------------------------------------------------------------------
-  abi.named_parameters                         0             7         1
-  construct.this_escape                        0             7         0
-  construct.method_tearoff                     0             4         0
+  abi.named_parameters                         0             4         1
+  construct.method_tearoff                     0             3         0
   receiver.compound_same_offset                0             2         0
   abi.optional_positionals                     0             1         0
   reach.unreachable                            0             0         2
@@ -103,13 +102,13 @@ LocalSend
   LARGEST CONTRIBUTING PAIRS (so one refactor cannot hide as N methods)
   pair                  changed   refused  verdict
   ------------------------------------------------------------
-  af0416be_224ef8b1         137        12  reject
+  af0416be_224ef8b1         137         8  reject
   4b5236ce_63efbe6b          83         2  reject
-  0ff4e2a7_ad4d4de1          11         2  reject
+  0ff4e2a7_ad4d4de1          11         0  reject
   9aff08a3_89303dcf           5         0  reject
-  9fea48e7_fca481e6           4         2  accept
+  9fea48e7_fca481e6           4         1  accept
   f6962a17_c4e1edb2           4         0  accept
-    largest single pair is af0416be_224ef8b1 with 137 of 253 changed methods (54.15%)
+    largest single pair is af0416be_224ef8b1 with 137 of 232 changed methods (59.05%)
 
   SUPER in changed methods
     changed methods containing a super site        6

@@ -94,6 +94,7 @@ def analyse(work, label):
         shapes = json.load(open(sp))['shapes']
 
     obs = []                     # one entry per changed method
+    generated_skipped = []       # excluded by the marker rule, counted
     pair_rows = []               # one entry per pair
     pairs_dir = os.path.join(work, 'pairs')
     for name in sorted(os.listdir(pairs_dir)):
@@ -168,10 +169,21 @@ def analyse(work, label):
                 origin = {c: ('pre_existing' if c in brow_cats else 'introduced')
                           for c in cats}
 
+            # GENERATED CODE IS EXCLUDED, by the same declaration-marker rule
+            # D0.3 established and the precommit requires. It was missing here:
+            # the filter was applied to census rows but not to the observations
+            # built from pair documents, so 21 slang-generated LocalSend methods
+            # were being counted. A corpus that is 97% codegen cannot be allowed
+            # to re-enter through the back door.
+            if crow.get('generated'):
+                generated_skipped.append(target)
+                continue
+
             obs.append({
                 'pair': name[:-5], 'base': base, 'cand': cand, 'target': target,
                 'admissible': admissible, 'cats': cats, 'super_why': super_why,
                 'has_super': has_super, 'origin': origin,
+                'in_census': bool(crow),
             })
             if not admissible:
                 pair_cats |= cats
@@ -187,7 +199,9 @@ def analyse(work, label):
                            and not o['admissible']),
         })
 
-    return {'label': label, 'obs': obs, 'pairs': pair_rows, 'window': window}
+    return {'label': label, 'obs': obs, 'pairs': pair_rows, 'window': window,
+            'generated_skipped': generated_skipped,
+            'not_in_census': [o['target'] for o in obs if not o['in_census']]}
 
 
 def pct(n, d):
@@ -204,6 +218,8 @@ def report(a, w):
     w('\n' + '-' * 78 + '\n%s\n' % a['label'] + '-' * 78 + '\n')
     w('  window %d commits, %d pairs, %d with a changed method\n'
       % (len(a['window']), len(pairs), len(active)))
+    w('  excluded as generated: %d    not found in the candidate census: %d\n'
+      % (len(a['generated_skipped']), len(a['not_in_census'])))
     w('\n  %-32s %8s\n' % ('Metric', 'Count'))
     w('  %s\n' % ('-' * 42))
     w('  %-32s %8d\n' % ('changed Dart instance methods', changed))

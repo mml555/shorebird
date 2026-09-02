@@ -252,3 +252,39 @@ from 82.61% to 92.09%.
 * Two apps are not a distribution; two mechanical commits supply 87% of
   LocalSend's observations; and both windows are capped by structural boundaries
   rather than by choice.
+
+
+---
+
+# SUPERSEDED IN PART by D-PRODUCER-DEMAND-1
+
+Added after that stage measured this corpus again. The measurements above stand
+as what was computed; two of the numbers are withdrawn and one framing is
+narrowed.
+
+**1 — LocalSend's corpus included generated code.** The precommit excludes
+generated files by the declaration-marker rule. `demand_report` applied that
+filter to census rows but NOT to the observations built from pair documents, so
+21 slang-generated methods were counted in a corpus that is 97% codegen.
+Corrected:
+
+    LocalSend changed methods        253 -> 232
+    LocalSend Route B admissible     233 -> 220
+    LocalSend compatibility       92.09% -> 94.83%
+
+Wonderous is unaffected (0 generated). The corpus is 252 observations, not 273.
+
+**2 — these are analyzer-level upper bounds, and the gap is now measured.**
+Control 1 above already reported that the producer refuses changes the analyzer
+admits. D-PRODUCER-DEMAND-1 quantified it against each release's own capability
+manifest:
+
+    Wonderous  70.00% analyzer  ->  45.00% producer
+    LocalSend  94.83% analyzer  ->  92.67% producer
+
+**3 — the "method is the unit of refusal" reading is NARROWED.** This row
+suggested the highest-value work might be reducing refusal granularity. Once
+every refusal is classified by fix type, **no observed refusal is caused purely
+by the replacement unit being a whole method**: each is either a retention or
+evidence decision, or a capability the replacement compiler lacks. The
+sub-method reading is not supported by the evidence.

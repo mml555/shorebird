@@ -29,6 +29,19 @@ void main(List<String> args) {
   }
 
   final grant = args.contains('--grant');
+  // The REAL manifest the release itself would have published, generated from
+  // that release's own kernels by `route_b_gen_dynamic_interface`. Granting
+  // from the candidate's source instead would manufacture permission the
+  // release never gave, which is the one thing this replay must not do.
+  final manifestArg = args.indexOf('--manifest');
+  final manifestPath = manifestArg >= 0 && manifestArg + 1 < args.length
+      ? args[manifestArg + 1]
+      : null;
+  final enumerate = args.contains('--enumerate');
+  final importArg = args.indexOf('--release-import');
+  final importPath = importArg >= 0 && importArg + 1 < args.length
+      ? args[importArg + 1]
+      : null;
   final coverage = RouteBCoverage.fromJson(doc.readAsStringSync());
   say('document  : ${args[0].split('/').last}');
   say('verdict   : ${coverage.verdict}');
@@ -55,35 +68,83 @@ void main(List<String> args) {
     );
   }
 
-  // Now the producer itself. Everything it needs beyond the document is
-  // deliberately absent, so it must refuse before touching an artifact; a
-  // refusal that arrived later would not be evidence about the census reason.
+  // Now the producer itself. Every refusal is enumerated rather than only the
+  // first: `produce` stops at the first problem, so a document with several
+  // refusable targets would otherwise report one and hide the rest. Each
+  // iteration removes the target that just refused from the CHANGED set and
+  // asks again. Nothing else is altered -- `rejections` and `verdict` stay as
+  // the analyzer wrote them, because rewriting a verdict to make the replay
+  // proceed would be fabricating the document.
+  final capabilities = manifestPath != null
+      ? RouteBCapabilities.fromJson(File(manifestPath).readAsStringSync())
+      : (grant ? _grantFromDocument(coverage) : null);
+  if (manifestPath != null) {
+    say('capabilities: REAL manifest from ${manifestPath.split('/').last}');
+  }
+
+  var current = coverage;
+  final refused = <String, String>{};
+  var passed = false;
+  var rounds = 0;
   final tmp = Directory.systemTemp.createTempSync('demand_replay');
   try {
-    const RouteBProducer().produce(
-      compiler: _unusableCompiler(),
-      coverage: coverage,
-      capabilities: grant ? _grantFromDocument(coverage) : null,
-      releaseImportKernel: File('${tmp.path}/absent.dill'),
-      releaseBuildId: 'demand-replay',
-      workingDirectory: Directory('${tmp.path}/work'),
-      projectRoot: tmp,
-    );
-    say('PRODUCER: did NOT refuse (it got past admission)');
-  } on RouteBUnsupportedTarget catch (e) {
-    say('PRODUCER REFUSED');
-    say('  target: ${e.target}');
-    say('  reason: ${e.reason}');
-  } on Object catch (e) {
-    // Any other failure is reported verbatim rather than swallowed: it means
-    // admission was passed and the producer failed later, which is a different
-    // fact and must not be presented as a refusal.
-    say('PRODUCER failed AFTER admission: ${e.runtimeType}');
-    say('  ${e.toString().split('\n').first}');
+    while (rounds++ < 200) {
+      try {
+        const RouteBProducer().produce(
+          compiler: _unusableCompiler(),
+          coverage: current,
+          capabilities: capabilities,
+          releaseImportKernel: File(importPath ?? '${tmp.path}/absent.dill'),
+          releaseBuildId: 'demand-replay',
+          workingDirectory: Directory('${tmp.path}/work'),
+          projectRoot: tmp,
+        );
+        passed = true;
+        break;
+      } on RouteBUnsupportedTarget catch (e) {
+        refused[e.target] = e.reason;
+        if (!enumerate) break;
+        current = _without(current, e.target);
+        if (current.changed.isEmpty && current.conditional.isEmpty) break;
+      } on Object catch (e) {
+        // Reached the compiler (or something past admission). That is an
+        // ADMISSION PASS for every target still in the document, and is
+        // reported as such rather than counted as a refusal.
+        say('PAST ADMISSION (${e.runtimeType})');
+        passed = true;
+        break;
+      }
+    }
   } finally {
     tmp.deleteSync(recursive: true);
   }
+
+  say('PRODUCER RESULT');
+  say('  refused targets: ${refused.length}');
+  refused.forEach((target, reason) {
+    say('  REFUSE\t$target\t$reason');
+  });
+  say('  admission passed for the remainder: $passed');
 }
+
+/// The coverage document without [target] in the sets the producer walks.
+///
+/// `rejections` and `verdict` are untouched: they are the analyzer's statement
+/// about this pair, and editing them to keep the replay going would change what
+/// the document says.
+RouteBCoverage _without(RouteBCoverage c, String target) => RouteBCoverage(
+  verdict: c.verdict,
+  changed: c.changed.where((t) => t != target).toList(),
+  added: c.added,
+  removed: c.removed,
+  representable: c.representable.where((t) => t != target).toList(),
+  conditional: c.conditional.where((t) => t != target).toList(),
+  rejections: c.rejections,
+  refusalSummary: c.refusalSummary,
+  signatures: c.signatures,
+  sources: c.sources,
+  lowering: c.lowering,
+);
 
 /// A REAL [RouteBCompiler], pointing at paths that do not exist.
 ///

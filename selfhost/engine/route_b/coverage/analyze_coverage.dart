@@ -99,7 +99,31 @@ import 'package:kernel/text/ast_to_text.dart';
 ///     So the exact-key assertion changes deliberately rather than the
 ///     prohibition being weakened silently. Still never reported: the canonical
 ///     owner, the synthetic mixin-application name, and any argument count.
-const analysisVersion = 11;
+/// 12: a body's constructions of a PRIVATE class are reported as
+///     `privateConstructions`, each carrying the manifest key the release would
+///     have had to grant.
+///
+///     THE PARITY GAP D-PRODUCER-DEMAND-1 MEASURED. A version-11 document says
+///     nothing about them, so a consumer reads a body that constructs
+///     `_CustomFocusBuilder`, sees an empty `unsupported`, and calls it
+///     admissible -- while the producer, which scans the source for private
+///     identifiers, refuses it. Both were right about their own evidence and
+///     they disagreed, which is the definition of a measurement gap rather than
+///     a bug in either.
+///
+///     REPORTED, NOT REFUSED, and that is the same division of labour version 7
+///     established for private member accesses: the manifest is a per-release
+///     artifact and this tool ships in a cell resolved by engine hash, so it
+///     states the fact and the holder of the manifest decides. Under policy p2 a
+///     private class is retained so its members can be patch-targeted while its
+///     construction is withheld separately -- measured on one real release as
+///     119 withheld against zero constructible -- so the answer genuinely
+///     depends on the manifest and cannot be decided here.
+///
+///     The bump is mandatory for the reason 10's was: a version-11 consumer
+///     would read a version-12 document, see no field it recognises, and admit a
+///     construction the release never granted.
+const analysisVersion = 12;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -977,6 +1001,26 @@ Map<String, Object?> _lowering(
           if (a.private != null) 'private': a.private,
         },
     ],
+    // Private-class constructions (version 12). Reported with the manifest key
+    // the release would have had to grant, exactly as a private member access
+    // is; the consumer holding the manifest decides.
+    // ONLY the method's OWN library. Dart privacy is library-scoped, so a
+    // private class NAMED in this body can only be declared here -- and that is
+    // also exactly what the producer's source scan can see. Without this filter
+    // the list fills with SDK internals the compiler synthesised, such as
+    // `dart:core#_GrowableList._literal1` from a list literal: not named in any
+    // source, not the app's to grant, and not something the producer refuses on.
+    'privateConstructions': [
+      for (final c in visitor.privateConstructions)
+        if (c.library == cls.enclosingLibrary.importUri.toString())
+        {
+          'offset': c.offset,
+          'library': c.library,
+          'class': c.className,
+          'constructor': c.ctor,
+          'key': c.key,
+        },
+    ],
     // Genuine `super.member()` sites. An EMPTY list is the common case and the
     // only one a producer without direct-super support may proceed on.
     'superInvocations': [
@@ -1066,6 +1110,18 @@ List<Map<String, Object?>> _superTargets(
   return out;
 }
 
+/// A construction of a private class inside a body.
+class _PrivateConstruction {
+  _PrivateConstruction(this.offset, this.library, this.className, this.ctor);
+  final int offset;
+  final String library;
+  final String className;
+  final String ctor;
+
+  /// The manifest key, spelled as gen_dynamic_interface spells it.
+  String get key => '$library#$className.$ctor';
+}
+
 /// A genuine `super.member()` site: where it is, and what it names.
 ///
 /// Deliberately NOT the resolved target, its owner, or its arity. See the
@@ -1141,6 +1197,22 @@ class _ReceiverUses extends RecursiveVisitor {
   /// Genuine `super.member()` sites, as STRUCTURE rather than as a refusal
   /// string (analysis version 10).
   final superInvocations = <_SuperSite>[];
+
+  /// Constructions of a PRIVATE class in the body (analysis version 12).
+  ///
+  /// The parity gap D-PRODUCER-DEMAND-1 measured. A replacement declaration is
+  /// recompiled whole, so `_CustomFocusBuilder(...)` in the body becomes a
+  /// construction the PATCH performs -- and the release retains a private
+  /// class's constructor only if its manifest granted it. Under policy p2,
+  /// private classes are retained so their members can be PATCH-TARGETED, and
+  /// construction is withheld separately: on one real release, 119 withheld and
+  /// zero constructible.
+  ///
+  /// REPORTED, never refused here, exactly like a private member access: the
+  /// manifest is a per-release artifact and the analyzer ships in a cell
+  /// resolved by engine hash, so the decision belongs to the consumer holding
+  /// the manifest.
+  final privateConstructions = <_PrivateConstruction>[];
 
   /// `ThisExpression` nodes already accounted for as the receiver of a
   /// supported access. Without this every `label` reports twice: once as the
@@ -1260,6 +1332,45 @@ class _ReceiverUses extends RecursiveVisitor {
   void visitSuperPropertyGet(SuperPropertyGet node) {
     unsupported.add('reads `super.${node.name.text}`');
     node.visitChildren(this);
+  }
+
+  @override
+  void visitConstructorInvocation(ConstructorInvocation node) {
+    _recordPrivateConstruction(node.target, node.fileOffset);
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitStaticInvocation(StaticInvocation node) {
+    // Factory constructors are StaticInvocations whose target is a factory
+    // Procedure; they construct just as surely as a generative constructor.
+    final target = node.target;
+    if (target.isFactory) {
+      _recordPrivateConstruction(target, node.fileOffset);
+    }
+    node.visitChildren(this);
+  }
+
+  /// Keyed as the MANIFEST keys it -- `library#Class.constructor`, with the
+  /// unnamed constructor spelled `new`, which is what
+  /// gen_dynamic_interface emits under `constructionWithheld` and
+  /// `privateClassesConstructible`. The two must agree exactly or every lookup
+  /// misses.
+  void _recordPrivateConstruction(Member target, int offset) {
+    final cls = target.enclosingClass;
+    if (cls == null) return;
+    // Private to its LIBRARY, which is what `_` means in Dart and what the
+    // manifest enumerates. A public class needs no grant.
+    if (!cls.name.startsWith('_')) return;
+    final ctor = target.name.text.isEmpty ? 'new' : target.name.text;
+    privateConstructions.add(
+      _PrivateConstruction(
+        offset,
+        cls.enclosingLibrary.importUri.toString(),
+        cls.name,
+        ctor,
+      ),
+    );
   }
 
   @override
