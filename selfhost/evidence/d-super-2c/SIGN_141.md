@@ -575,3 +575,151 @@ Device-side patch identity binds to the **hash / reconstructed artifact
 identity**, never by searching for `105` — the device stores number `1`.
 
 The launch after this one is the activation test.
+
+## 141B first launch — reached the app, but not the server
+
+    app ran, fresh client_id 63982225-836e-417c-be2f-eae9b602a27c
+    state.json     release_version 1.0.2+3, queued_events []
+    patches/       absent
+    control plane  NO POST /api/v1/patches/check in the window
+
+Ruled out at the time, each by measurement rather than assumption:
+
+    base_url value        p6-flavor-ios:72 confirms http://10.0.0.7:18080 is the
+                          certified device address. (169.254.x in the container env
+                          is the USB link-local, which changes every session:
+                          ledger has .189.3, then .46.190, now en17 169.254.249.216.)
+    server reachability   POST to 10.0.0.7:18080 over the non-loopback interface -> 200
+    phone off Wi-Fi       10.0.0.227 answers ~50ms, randomised MAC (7e: prefix,
+                          iOS private Wi-Fi address); syslog shows Rssi -38, Snr 35
+
+The leading hypothesis was iOS local-network permission: `Info.plist` carries no
+`NSLocalNetworkUsageDescription`, and this bundle id had never been granted
+local-network access. **That remains probable but UNPROVEN** — syslog was not
+being captured during this launch, so no denial was observed. What is certain is
+that the first launch's request never reached the server and the next one's did,
+with a request to tap "Allow" on any local-network prompt in between.
+
+A first syslog capture attempt was inconclusive for a mundane reason worth
+recording so it is not re-attempted the same way: it ran only ~1 minute (the
+background process was killed early) and, more importantly, **the app was already
+running** — the updater logs only at launch, so a capture that does not span a
+cold start observes nothing.
+
+## 141B second launch — the endpoint correction works, and the lifecycle answers itself
+
+Captured with `idevicesyslog`, which attaches no debugger. The updater's own
+words, from the launch that ran (pid 8607):
+
+    [shorebird] Preparing next boot.
+    [shorebird] Prepared boot of the base release.
+    Shorebird updater: no active patch.
+    Starting Shorebird update
+    [shorebird] Sending patch check request: PatchCheckRequest { app_id:
+        "41344620-5d2d-9707-47e0-88ab230f8cbf", channel: "stable",
+        release_version: "1.0.2+3", platform: "ios", arch: "aarch64", … }
+    [shorebird] Patch check response: PatchCheckResponse { patch_available: true,
+        patch: Some(Patch { number: 1,
+        hash: "ea881e2dafc090248079a106bc40dc2a41cd26ed23ed19bd4bdc32166d36fd23", … })
+    [shorebird] Downloading patch 1 for app 41344620-… (version 1.0.2+3)
+    [shorebird] Downloading patch from: http://10.0.0.7:18080/download/9f01f2b7…
+    [shorebird] Downloaded patch to: …/downloads/1 (1317 bytes)
+    [shorebird] Inflating patch from …/downloads/1 (1317 bytes)
+    [shorebird] Patch successfully applied to …/patches/1/dlc.vmcode
+    [shorebird] Patch 1 successfully downloaded. It will be launched when the app
+        next restarts.
+    [shorebird] Update thread finished with status: Update installed
+
+`base_url` is confirmed in effect by the device's own log line naming
+`http://10.0.0.7:18080`, not merely by the file we wrote.
+
+### The lifecycle, recorded as it actually occurred
+
+**Staging happens after the baseline execution, not before it.** The updater
+prepared the base release and reported `no active patch` *first*, then checked,
+downloaded and staged. So the launch that fetches a patch necessarily runs
+unpatched, and `It will be launched when the app next restarts` is the updater's
+own statement of that model. This was not forced into an expected shape — it is
+what the log shows, and it is the answer to the question the milestone left open.
+
+    ROUTEB activation lines in the whole capture : 0
+
+### The staged patch, identified BY HASH
+
+Never by searching for `105`; the device stores release-scoped number `1`.
+
+    device  patches/1/dlc.vmcode          2194 B   ea881e2dafc09024…
+    server  artifacts.hash (owner_id 105)          ea881e2dafc09024…
+    host    build/route_b/patch.sbrbptch  2194 B   ea881e2dafc09024…
+
+Three independent points agree, so the staged bytes are patch 105's
+reconstructed artifact. Contents:
+
+    standalone 'WRAP:'  piece : 1     <-- the piece the release LACKS
+    routeBSuper               : 1
+    'TICKER:'                 : 0     (the release supplies that half)
+
+    patches/1/state.json  { kind: "Installed", signature: null, size: 2194 }
+
+`signature: null` is consistent: this release sets no `patch_public_key`, so
+`patch_verification` is not strict here. Patch-signature enforcement is ARM_C's
+subject and is not claimed by this row.
+
+### State at the moment of writing
+
+    pid 8607 still alive, running the BASE RELEASE
+    patch 105 staged, Installed, not active
+    activation will occur on the next cold start
+
+This is precisely the state the milestone asked for: **offered, downloaded and
+staged, but not yet influencing execution.**
+
+## 141B Tap 1B — PASS (endpoint-corrected baseline, with staged ≠ active PROVEN)
+
+By-hand tap on **RUN target()**, performed on the *still-running* pid 8607 —
+deliberately without a force-quit, so the reading comes from the same execution
+the updater staged into.
+
+    rendered   TICKER:APP-STATE
+    verdict    RELEASE (unpatched)
+
+Verified at the moment of the reading:
+
+    pid                                    8607   (unchanged; no restart intervened)
+    cold starts in the whole capture       1
+    ROUTEB / activation lines              0
+    patches/1/dlc.vmcode                   present, kind "Installed", ea881e2d…
+
+### Why this is stronger than 141A Tap 1
+
+141A Tap 1 established only "release renders the release string" — no patch had
+reached the device, so the staged-vs-active distinction could not be exercised
+and was explicitly not claimed.
+
+Tap 1B closes that gap. Patch 105 was **downloaded, inflated and staged on this
+very execution**, and this execution still rendered `TICKER:APP-STATE`. So:
+
+  * a staged patch does **not** influence the execution that staged it;
+  * the release behaviour is intact with a patch present on disk;
+  * `WRAP:` is absent from the rendered result even though the staged bytes
+    contain the `WRAP:` interpolation piece — the patch is on the device and
+    inert.
+
+Not `LEAF:APP-STATE`, so dispatch again went to `Ticker.close`, not virtually to
+`Leaf.close`.
+
+The identifier binding is by hash throughout: device `dlc.vmcode`, server
+`artifacts.hash` for `owner_id 105`, and host `patch.sbrbptch` all equal
+`ea881e2d…`. The device's own number is `1`.
+
+## STOPPED — awaiting the activation launch
+
+The next cold start is the activation test. Required:
+
+    WRAP:TICKER:APP-STATE      -> PATCHED narrow-v1 super   (the pass)
+    TICKER:APP-STATE           -> patch failed to activate
+    LEAF:APP-STATE             -> WRONG: virtual dispatch, narrow-v1 rule violated
+
+`WRAP:TICKER:` is the discriminating outcome: it proves the synthetic top-level
+function reached `Ticker.close` — the exact super-target the release itself
+direct-called — rather than re-dispatching virtually to `Leaf.close`.
