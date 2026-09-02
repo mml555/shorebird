@@ -396,7 +396,10 @@ void main() {
       ).thenAnswer((_) async => flutterRevision);
       when(
         () =>
-            shorebirdFlutter.installRevision(revision: any(named: 'revision')),
+            shorebirdFlutter.installRevision(
+              revision: any(named: 'revision'),
+              releasePlatform: any(named: 'releasePlatform'),
+            ),
       ).thenAnswer((_) async => {});
 
       when(
@@ -1912,6 +1915,7 @@ void main() {
         when(
           () => shorebirdFlutter.installRevision(
             revision: any(named: 'revision'),
+            releasePlatform: any(named: 'releasePlatform'),
           ),
         ).thenThrow(error);
       });
@@ -2343,6 +2347,7 @@ void main() {
                 () => patcher.extractReleaseVersionFromArtifact(any()),
                 () => shorebirdFlutter.installRevision(
                   revision: releaseFlutterRevision,
+                  releasePlatform: any(named: 'releasePlatform'),
                 ),
                 () => shorebirdEnv.copyWith(
                   flutterRevisionOverride: releaseFlutterRevision,

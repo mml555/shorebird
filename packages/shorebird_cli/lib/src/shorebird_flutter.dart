@@ -37,27 +37,75 @@ class ShorebirdFlutter {
       platform.environment['SHOREBIRD_FLUTTER_GIT_URL'] ??
       'https://github.com/shorebirdtech/flutter.git';
 
-  /// Arguments to pass to `flutter precache`.
-  List<String> get precacheArgs => ['--android', if (platform.isMacOS) '--ios'];
+  /// The `flutter precache` arguments that hydrate the engine artifacts a
+  /// release for [releasePlatform] actually needs.
+  ///
+  /// TARGET-SPECIFIC, and that is a correctness requirement rather than an
+  /// optimisation. Precaching unconditionally with `--android` makes an iOS
+  /// release depend on Android engine artifacts it will never use, and a cell
+  /// that legitimately owns only the iOS toolchain then cannot be installed at
+  /// all: `android-arm64-release/` is an overlay-owned path, so a miss is a
+  /// loud 404 rather than a silent fall-through. Measured 2026-09-02 against
+  /// cell d4c0dbc2 — a macos-ios cell — where it 404'd every fresh install.
+  ///
+  /// A null [releasePlatform] means "no particular target", which keeps the
+  /// historical behaviour for callers that are not installing for a release.
+  static List<String> precacheArgsFor(ReleasePlatform? releasePlatform) =>
+      switch (releasePlatform) {
+        ReleasePlatform.ios => const ['--ios'],
+        ReleasePlatform.android => const ['--android'],
+        ReleasePlatform.macos => const ['--macos'],
+        ReleasePlatform.windows => const ['--windows'],
+        ReleasePlatform.linux => const ['--linux'],
+        null => ['--android', if (platform.isMacOS) '--ios'],
+      };
+
+  /// Arguments to pass to `flutter precache` when no target is specified.
+  List<String> get precacheArgs => precacheArgsFor(null);
 
   String _workingDirectory({String? revision}) {
     revision ??= shorebirdEnv.flutterRevision;
     return p.join(shorebirdEnv.flutterDirectory.parent.path, revision);
   }
 
-  /// Install the provided Flutter [revision].
+  /// Install the provided Flutter [revision], and guarantee that the engine
+  /// artifacts a release for [releasePlatform] requires are present.
   ///
-  /// Runs `flutter precache` on first install as a convenience so the first
-  /// build is not unexpectedly slow. A precache failure is treated as a
-  /// corrupted install: Flutter's stamp-based cache will otherwise trust a
-  /// partial extraction and surface the missing artifact later as an opaque
-  /// Gradle error (see shorebirdtech/shorebird#3783). The user is directed
-  /// to run `shorebird cache clean` to start over.
-  Future<void> installRevision({required String revision}) async {
+  /// THE CONTRACT: selecting a Flutter revision for a target platform
+  /// guarantees that platform's engine artifacts exist BEFORE anything tries to
+  /// establish engine identity. Directory existence is evidence that a checkout
+  /// exists; it is NOT evidence that the target engine exists. Conflating the
+  /// two is what this used to do, and it produced a release that refused with
+  /// `COHERENCE_UNDETERMINABLE: …/engine/ios-release/gen_snapshot_arm64 is
+  /// missing` on a correctly published cell: the bootstrap had created the
+  /// checkout and fetched only the Dart SDK, this method saw the directory and
+  /// returned, and the coherence gate then correctly reported an absent engine.
+  /// Flutter's own lazy download never ran because coherence precedes the build.
+  ///
+  /// So hydration is UNCONDITIONAL and idempotent — `flutter precache` re-checks
+  /// its own stamps cheaply — rather than something that happens only on the
+  /// clone path.
+  ///
+  /// A precache failure is treated as a corrupted install: Flutter's
+  /// stamp-based cache will otherwise trust a partial extraction and surface
+  /// the missing artifact later as an opaque Gradle error (see
+  /// shorebirdtech/shorebird#3783). The user is directed to run
+  /// `shorebird cache clean` to start over.
+  Future<void> installRevision({
+    required String revision,
+    ReleasePlatform? releasePlatform,
+  }) async {
     final targetDirectory = Directory(_workingDirectory(revision: revision));
-    if (targetDirectory.existsSync()) return;
-
     final version = await getVersionForRevision(flutterRevision: revision);
+    if (targetDirectory.existsSync()) {
+      // Already checked out; still ensure the target engine is present.
+      await _precache(
+        revision: revision,
+        version: version,
+        releasePlatform: releasePlatform,
+      );
+      return;
+    }
 
     final installProgress = logger.progress(
       'Installing Flutter $version (${shortRevisionString(revision)})',
@@ -81,17 +129,47 @@ class ShorebirdFlutter {
       rethrow;
     }
 
+    await _precache(
+      revision: revision,
+      version: version,
+      releasePlatform: releasePlatform,
+    );
+  }
+
+  /// Hydrate [revision]'s engine artifacts for [releasePlatform].
+  ///
+  /// Runs the TARGET revision's own `flutter` binary, not the pinned one. The
+  /// pinned binary resolves its own `engine.version`, so using it while
+  /// installing a different revision asked the CDN for the wrong engine's
+  /// artifacts — measured while installing F3 (`ab29aee0`), which requested
+  /// paths under the previous cell.
+  Future<void> _precache({
+    required String revision,
+    required String? version,
+    required ReleasePlatform? releasePlatform,
+  }) async {
+    final targetDirectory = Directory(_workingDirectory(revision: revision));
     final precacheProgress = logger.progress(
       'Running ${lightCyan.wrap('flutter precache')}',
     );
 
-    final precacheArguments = ['precache', ...precacheArgs];
+    // The revision's own binary, via the env's existing accessor rather than
+    // re-deriving the platform-specific name here.
+    final targetFlutter = shorebirdEnv
+        .copyWith(flutterRevisionOverride: revision)
+        .flutterBinaryFile
+        .path;
+    final precacheArguments = [
+      'precache',
+      ...precacheArgsFor(releasePlatform),
+    ];
     final ShorebirdProcessResult result;
     try {
       result = await process.run(
-        executable,
+        targetFlutter,
         precacheArguments,
         workingDirectory: targetDirectory.path,
+        useVendedFlutter: false,
       );
     } on Exception catch (error) {
       precacheProgress.fail('Failed to precache Flutter $version');

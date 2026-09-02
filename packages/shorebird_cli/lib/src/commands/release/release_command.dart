@@ -281,12 +281,6 @@ of the iOS app that is using this module. (aar and ios-framework only)''',
   @visibleForTesting
   Future<void> createRelease(Releaser releaser) async {
     await releaser.assertPreconditions();
-    // BEFORE any artifact is produced. A mixed toolchain ships releases that
-    // cannot be patched and kernels that abort the mandatory profile step, and
-    // both were previously discovered only after publication.
-    toolchainCoherence.assertCoherent(
-      releasePlatform: releaser.releaseType.releasePlatform,
-    );
     await assertArgsAreValid(releaser);
 
     try {
@@ -305,10 +299,41 @@ of the iOS app that is using this module. (aar and ios-framework only)''',
     final app = await codePushClientWrapper.getApp(appId: appId);
     final targetFlutterRevision = await resolveTargetFlutterRevision();
     try {
-      await shorebirdFlutter.installRevision(revision: targetFlutterRevision);
+      await shorebirdFlutter.installRevision(
+        revision: targetFlutterRevision,
+        releasePlatform: releaser.releaseType.releasePlatform,
+      );
     } on Exception {
       throw ProcessExit(ExitCode.software.code);
     }
+
+    // COHERENCE COMES AFTER SELECTION AND HYDRATION, and the order is the whole
+    // point. It used to run first, against whatever revision happened to be
+    // pinned, and before the target revision's engine artifacts existed — so a
+    // correctly published cell was refused with
+    // `COHERENCE_UNDETERMINABLE: …/engine/ios-release/gen_snapshot_arm64 is
+    // missing` on a fresh checkout the bootstrap had just created. An absent
+    // engine is not an incoherent one; it is an engine nobody had fetched yet.
+    //
+    // Still BEFORE any artifact is produced, which is what the check is for: a
+    // mixed toolchain ships releases that cannot be patched and kernels that
+    // abort the mandatory profile step, and both were previously discovered
+    // only after publication.
+    //
+    // Asserted against the TARGET revision, not the ambient one, because
+    // --flutter-version may select a different Flutter than the pin.
+    // Captured BEFORE entering the scope. Building it inside the override
+    // closure resolves `shorebirdEnv` from the scope being defined, so
+    // copyWith recurses into itself — that overflowed the stack.
+    final targetEnv = shorebirdEnv.copyWith(
+      flutterRevisionOverride: targetFlutterRevision,
+    );
+    await runScoped(
+      () async => toolchainCoherence.assertCoherent(
+        releasePlatform: releaser.releaseType.releasePlatform,
+      ),
+      values: {shorebirdEnvRef.overrideWith(() => targetEnv)},
+    );
 
     // If a user explicitly specified --build-name (and optionally
     // --build-number), we ensure that the version is releasable to avoid

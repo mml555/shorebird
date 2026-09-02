@@ -229,7 +229,10 @@ void main() {
       ).thenAnswer((_) async => flutterRevision);
       when(
         () =>
-            shorebirdFlutter.installRevision(revision: any(named: 'revision')),
+            shorebirdFlutter.installRevision(
+              revision: any(named: 'revision'),
+              releasePlatform: any(named: 'releasePlatform'),
+            ),
       ).thenAnswer((_) async => {});
       when(
         () => shorebirdFlutter.fetchRemoteRefs(),
@@ -750,7 +753,10 @@ $exception'''),
           await runWithOverrides(command.run);
 
           verify(
-            () => shorebirdFlutter.installRevision(revision: revision),
+            () => shorebirdFlutter.installRevision(
+              revision: revision,
+              releasePlatform: any(named: 'releasePlatform'),
+            ),
           ).called(1);
         });
 
@@ -759,6 +765,7 @@ $exception'''),
             when(
               () => shorebirdFlutter.installRevision(
                 revision: any(named: 'revision'),
+                releasePlatform: any(named: 'releasePlatform'),
               ),
             ).thenThrow(Exception('oops'));
           });
@@ -769,7 +776,10 @@ $exception'''),
               exitsWithCode(ExitCode.software),
             );
             verify(
-              () => shorebirdFlutter.installRevision(revision: revision),
+              () => shorebirdFlutter.installRevision(
+              revision: revision,
+              releasePlatform: any(named: 'releasePlatform'),
+            ),
             ).called(1);
           });
         });

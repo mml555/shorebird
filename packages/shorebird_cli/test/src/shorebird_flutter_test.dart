@@ -895,14 +895,56 @@ origin/flutter_release/3.10.6''';
 
     group('installRevision', () {
       const revision = 'test-revision';
+      late String targetFlutter;
 
-      test('does nothing if the revision is already installed', () async {
+      setUp(() {
+        targetFlutter = p.join(
+          flutterDirectory.parent.path,
+          revision,
+          'bin',
+          'flutter',
+        );
+        // Hydration runs the TARGET revision's own binary, so the env is asked
+        // for that revision's flutter rather than the pinned one.
+        when(
+          () => shorebirdEnv.copyWith(
+            flutterRevisionOverride: any(named: 'flutterRevisionOverride'),
+          ),
+        ).thenReturn(shorebirdEnv);
+        when(
+          () => shorebirdEnv.flutterBinaryFile,
+        ).thenReturn(File(targetFlutter));
+        // Hydration now invokes the target revision's binary by PATH with
+        // useVendedFlutter: false, so the outer 'flutter' stub does not match.
+        when(
+          () => process.run(
+            targetFlutter,
+            any(that: contains('precache')),
+            workingDirectory: any(named: 'workingDirectory'),
+            useVendedFlutter: false,
+          ),
+        ).thenAnswer((_) async => precacheProcessResult);
+      });
+
+      // CONTRACT CHANGE, not a relaxed assertion. This test used to require
+      // that an existing directory short-circuit the whole install, precache
+      // included. That is the defect: the bootstrap creates the checkout and
+      // fetches only the Dart SDK, so "directory exists" was treated as
+      // "engine present", and an iOS release then refused with
+      // COHERENCE_UNDETERMINABLE on a correctly published cell. Selecting a
+      // revision for a platform must guarantee that platform's engine, so the
+      // clone is skipped and hydration still runs.
+      test('skips the clone but STILL hydrates when already checked out',
+          () async {
         Directory(
           p.join(flutterDirectory.parent.path, revision),
         ).createSync(recursive: true);
 
         await runWithOverrides(
-          () => shorebirdFlutter.installRevision(revision: revision),
+          () => shorebirdFlutter.installRevision(
+            revision: revision,
+            releasePlatform: ReleasePlatform.ios,
+          ),
         );
 
         verifyNever(
@@ -912,9 +954,65 @@ origin/flutter_release/3.10.6''';
             args: any(named: 'args'),
           ),
         );
-        verifyNever(
-          () => process.run('flutter', any(that: contains('precache'))),
+        verify(
+          () => process.run(
+            targetFlutter,
+            ['precache', '--ios'],
+            workingDirectory: p.join(flutterDirectory.parent.path, revision),
+            useVendedFlutter: false,
+          ),
+        ).called(1);
+      });
+
+      // An iOS release must not demand Android engine artifacts. A cell that
+      // owns only the iOS toolchain cannot serve them, and the overlay answers a
+      // loud 404 rather than falling through.
+      test('precaches ONLY the target platform', () async {
+        Directory(
+          p.join(flutterDirectory.parent.path, revision),
+        ).createSync(recursive: true);
+
+        await runWithOverrides(
+          () => shorebirdFlutter.installRevision(
+            revision: revision,
+            releasePlatform: ReleasePlatform.ios,
+          ),
         );
+
+        final captured = verify(
+          () => process.run(
+            targetFlutter,
+            captureAny(),
+            workingDirectory: any(named: 'workingDirectory'),
+            useVendedFlutter: false,
+          ),
+        ).captured.single as List<String>;
+        expect(captured, ['precache', '--ios']);
+        expect(captured, isNot(contains('--android')));
+      });
+
+      test('precaches Android for an Android release', () async {
+        Directory(
+          p.join(flutterDirectory.parent.path, revision),
+        ).createSync(recursive: true);
+
+        await runWithOverrides(
+          () => shorebirdFlutter.installRevision(
+            revision: revision,
+            releasePlatform: ReleasePlatform.android,
+          ),
+        );
+
+        final captured = verify(
+          () => process.run(
+            targetFlutter,
+            captureAny(),
+            workingDirectory: any(named: 'workingDirectory'),
+            useVendedFlutter: false,
+          ),
+        ).captured.single as List<String>;
+        expect(captured, ['precache', '--android']);
+        expect(captured, isNot(contains('--ios')));
       });
 
       test('clones from SHOREBIRD_FLUTTER_GIT_URL when set', () async {
@@ -1017,9 +1115,10 @@ origin/flutter_release/3.10.6''';
         setUp(() {
           when(
             () => process.run(
-              'flutter',
+              targetFlutter,
               any(that: contains('precache')),
               workingDirectory: any(named: 'workingDirectory'),
+              useVendedFlutter: false,
             ),
           ).thenThrow(Exception('oh no!'));
         });

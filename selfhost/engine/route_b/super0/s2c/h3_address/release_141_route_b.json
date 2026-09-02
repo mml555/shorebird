@@ -1,0 +1,36 @@
+{
+  "engineRevision": "d4c0dbc2905286eb4537d5f9a7802693096ca1fd",
+  "flutterRevision": "ab29aee0598b5a0d63cdfca1ddbe153ab8a5265e",
+  "patchableCallSites": 8462,
+  "patchableCallSitesPerMiB": 1902.2983768060262,
+  "artifacts": {
+    "release_app.dill": "8597b56a2ab81d3a6cfa03649cfd3ecc1ea1ab76c16771f0487641c06c8e3bf7",
+    "dynamic_interface.yaml": "c0b5945dfa2313c46c13165a93955a8800ec5f13365e4d9e13fd46c450c99091",
+    "route_b_retention.json": "14332b46e93d905a4bc9ac5e0cf4e9b23f4fa06ce4c4831c99353110b607ebbb",
+    "route_b_capabilities.json": "7649cffa2fb14d37c7eb01ac7f0ca56d28ef5d9c49c1f7190942892226c03c37",
+    "route_b_snapshot_profile.json": "e8e208d0ea478d478b75b098c7cb05fc542e48a62cc8f7712da32f00070ccf43",
+    "route_b_profile_binding.json": "a1441816e1ccca45a83def002a4483b524800c7c2d4d712254eaf3f2dae78a97",
+    "release_import.dill": "93012195e3f2893ab5d84a774fe8b16ed98791405f53766ce820ac9715a72742"
+  },
+  "releaseArtifactSha256": "8280c1257dca7a2d18c9e73bbdb3168ca66cd7aaed7d68c0fde2a36d4abb0bc8",
+  "compatibilityRevision": 1,
+  "releaseTarget": "lib/main.dart",
+  "buildConfig": {
+    "rawArgs": [
+      "--extra-gen-snapshot-options=--patchable_static_calls",
+      "--extra-gen-snapshot-options=--write-v8-snapshot-profile-to=/Volumes/build/route-b/superapp/build/route_b_snapshot_profile.json",
+      "--extra-front-end-options=--dynamic-interface=/Volumes/build/route-b/superapp/build/route_b/dynamic_interface.yaml"
+    ],
+    "effectiveDefines": {},
+    "obfuscate": false,
+    "injectedDefines": {
+      "FLUTTER_CHANNEL": "[user-branch]",
+      "FLUTTER_DART_VERSION": "3.12.2",
+      "FLUTTER_ENGINE_REVISION": "d4c0dbc290",
+      "FLUTTER_FRAMEWORK_REVISION": "ab29aee059",
+      "FLUTTER_GIT_URL": "unknown source",
+      "FLUTTER_VERSION": "3.46.0-1.0.pre-165"
+    },
+    "fingerprint": "494a8de866b142b6"
+  }
+}
