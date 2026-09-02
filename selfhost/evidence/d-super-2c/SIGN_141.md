@@ -919,3 +919,23 @@ No debugger attached at any point in the sequence: installed with
 `ios-deploy --bundle` and no `-d`/`-L`, every launch a by-hand tap, device state
 read only with `--list`/`--download`, and behaviour observed with
 `idevicesyslog`.
+
+## Stable re-read after the writer stopped
+
+The capture ended at its 30-minute timeout. With `idevicesyslog` no longer
+appending, the file was confirmed static (653 996 lines on two consecutive
+reads) and re-counted — this is the read the correction above calls for:
+
+    12:49:55  pid 8607  boot=the base release   ROUTEB=0   fetch-lines=4
+    12:54:37  pid 8648  boot=patch 1            ROUTEB=6   fetch-lines=0
+    12:56:25  pid 8666  boot=patch 1            ROUTEB=6   fetch-lines=0
+    13:04:49  pid 8725  boot=patch 1            ROUTEB=6   fetch-lines=0
+
+Fully coherent, and the two columns corroborate each other rather than merely
+coexisting: **the only boot that fetched anything is the base-release boot, and
+it is the only boot with no ROUTEB activation.** That is the updater's own
+lifecycle model — "It will be launched when the app next restarts" — visible as
+a measured pattern across four launches instead of a single log line.
+
+The Runner(Flutter) subset is banked at
+`selfhost/evidence/d-super-2c/d_super_2c_syslog_excerpt.txt`.
