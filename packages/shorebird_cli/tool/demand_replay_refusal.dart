@@ -8,13 +8,14 @@
 // needed, which is why this can run without a release container.
 import 'dart:io';
 
+import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
 
 /// One writer, so consecutive report lines are not a receiver duplicated
 /// a dozen times.
-void say(String message) => say(message);
+void say(String message) => stdout.writeln(message);
 
 void main(List<String> args) {
   if (args.isEmpty) {
@@ -27,6 +28,7 @@ void main(List<String> args) {
     exit(66);
   }
 
+  final grant = args.contains('--grant');
   final coverage = RouteBCoverage.fromJson(doc.readAsStringSync());
   say('document  : ${args[0].split('/').last}');
   say('verdict   : ${coverage.verdict}');
@@ -61,6 +63,7 @@ void main(List<String> args) {
     const RouteBProducer().produce(
       compiler: _unusableCompiler(),
       coverage: coverage,
+      capabilities: grant ? _grantFromDocument(coverage) : null,
       releaseImportKernel: File('${tmp.path}/absent.dill'),
       releaseBuildId: 'demand-replay',
       workingDirectory: Directory('${tmp.path}/work'),
@@ -100,5 +103,36 @@ RouteBCompiler _unusableCompiler() {
     releaseProbe: absent,
     flutterPlatformDill: absent,
     provenance: 'demand-replay: deliberately unusable',
+  );
+}
+
+/// A capability manifest granting EXACTLY the private members this document
+/// says the release would have had to grant, keyed the way
+/// `refuseInstanceMember` checks them.
+///
+/// Not a permissive stub. Without it, any changed method that touches a private
+/// member refuses on "this release published no capability manifest" — which is
+/// a property of the harness supplying none, not of the change. Granting the
+/// document's own reported keys isolates the question this control asks: does
+/// the CONSTRUCT gate admit a change the census called admissible.
+RouteBCapabilities _grantFromDocument(RouteBCoverage coverage) {
+  final keys = <String>{};
+  for (final entry in coverage.lowering.entries) {
+    final origin = entry.value.origin;
+    if (origin != null) {
+      keys.add('${origin.library}#${origin.className}#${origin.member}');
+    }
+    for (final access in entry.value.accesses) {
+      final t = access.privateTarget;
+      if (t != null) keys.add('${t.library}#${t.className}#${t.name}');
+    }
+  }
+  return RouteBCapabilities(
+    policy: "demand-replay: granted from the document's own reported keys",
+    topLevelCallable: const {},
+    staticsCallable: const {},
+    instanceCallable: keys,
+    classesConstructible: const {},
+    skipped: const {},
   );
 }

@@ -116,7 +116,11 @@ def analyse(work, label):
         # (`route_b_producer.produce`), so a changed method outside those is
         # refused for a REACHABILITY reason and must not be reported as a
         # lowering blocker.
-        reachable = set(doc.get('representable') or []) | set(
+        # The DOCUMENT key is `patchable`; `representable` is what the parsed
+        # Dart field is called. Reading the field name here silently made every
+        # static-shaped change look unreachable, which showed up as an
+        # implausible top refusal category.
+        reachable = set(doc.get('patchable') or []) | set(
             doc.get('conditional') or [])
         unreachable = set(doc.get('unreachable') or [])
         unknown_reach = set(doc.get('unknown') or [])

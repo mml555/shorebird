@@ -22,10 +22,16 @@ import subprocess
 import sys
 
 
-def package_roots(package_config_path):
-    """package name -> absolute directory its `package:` uris resolve against."""
+def package_roots(package_config_path, base=None):
+    """package name -> absolute directory its `package:` uris resolve against.
+
+    [base] is where pub WROTE the config, which is what relative rootUris are
+    relative to. It must be passed when the file has been copied elsewhere: the
+    harness caches one config per lockfile group, and resolving `../` against
+    the cache directory silently yields a path inside the cache.
+    """
     cfg = json.load(open(package_config_path))
-    base = os.path.dirname(os.path.abspath(package_config_path))
+    base = base or os.path.dirname(os.path.abspath(package_config_path))
     roots = {}
     for p in cfg['packages']:
         root = p['rootUri']
@@ -57,13 +63,34 @@ def uri_to_repo_path(uri, roots, repo):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--work', required=True)
-    ap.add_argument('--repo', required=True)
+    ap.add_argument('--repo', required=True, help='repo to `git show` from')
+    ap.add_argument('--package-config',
+                    help='any group package_config; defaults to the first '
+                         'under <work>/pkgcfg')
+    ap.add_argument('--checkout-root',
+                    help='root the package uris relativise against; defaults '
+                         'to <work>/wt, the harness worktree')
     ap.add_argument('--dart', required=True, help='dart to run the shape tool')
     ap.add_argument('--tool-dir', required=True, help='packages/shorebird_cli')
     ap.add_argument('--out', required=True)
     args = ap.parse_args()
 
-    roots = package_roots(os.path.join(args.work, 'frozen_package_config.json'))
+    pkg_cfg = args.package_config
+    if not pkg_cfg:
+        base = os.path.join(args.work, 'pkgcfg')
+        found = sorted(
+            os.path.join(base, d, 'package_config.json')
+            for d in (os.listdir(base) if os.path.isdir(base) else [])
+            if os.path.exists(os.path.join(base, d, 'package_config.json')))
+        if not found:
+            sys.exit('no package_config under %s' % base)
+        pkg_cfg = found[0]
+    # Package uris are relativised against the WORKTREE the harness compiled
+    # in, not the frozen checkout: that is where the resolution's rootUris
+    # point. The result is a repo-relative path either way, because the
+    # worktree mirrors the repository layout.
+    root = args.checkout_root or os.path.join(args.work, 'wt')
+    roots = package_roots(pkg_cfg, base=os.path.join(root, '.dart_tool'))
     full = [l.strip() for l in open(os.path.join(args.work, 'window.txt')) if l.strip()]
     by_prefix = {s[:8]: s for s in full}
 
@@ -85,7 +112,7 @@ def main():
             if not sites:
                 continue
             uri = target.split('#', 1)[0]
-            rel = uri_to_repo_path(uri, roots, args.repo)
+            rel = uri_to_repo_path(uri, roots, root)
             if rel is None:
                 missing.append((cand, target, 'uri_unmapped'))
                 continue

@@ -1,0 +1,117 @@
+==============================================================================
+D-DEMAND-1 -- could Route B carry the changes developers actually made?
+Unit: one instance method whose BODY changed between adjacent commits.
+==============================================================================
+
+------------------------------------------------------------------------------
+Wonderous
+------------------------------------------------------------------------------
+  window 40 commits, 31 pairs, 8 with a changed method
+
+  Metric                              Count
+  ------------------------------------------
+  changed Dart instance methods          20
+  Route B admissible                     14
+  refused                                 6
+  patch-demand compatibility %       70.00%
+
+  REFUSAL RANKING (method-weighted)
+  refusal reason                      methods     SOLE   % refused
+  ------------------------------------------------------------------
+  construct.method_tearoff                  6        4      66.67%
+  abi.named_parameters                      1        0       0.00%
+  construct.this_escape                     1        0       0.00%
+
+  REFUSAL RANKING (commit-weighted: pairs containing the reason)
+  refusal reason                        pairs     % pairs
+  --------------------------------------------------------
+  construct.method_tearoff                  5      62.50%
+  pair.member_set_changed                   4      50.00%
+  abi.named_parameters                      1      12.50%
+  construct.this_escape                     1      12.50%
+
+  INTRODUCED vs PRE-EXISTING (per refused method)
+  construct                           introduced  pre-existing   unknown
+  ----------------------------------------------------------------------
+  construct.method_tearoff                     1             5         0
+  abi.named_parameters                         0             1         0
+  construct.this_escape                        0             1         0
+    pre-existing = the developer did not touch the construct; Route B
+    refuses the whole method anyway. Real pain, different cause.
+
+  LARGEST CONTRIBUTING PAIRS (so one refactor cannot hide as N methods)
+  pair                  changed   refused  verdict
+  ------------------------------------------------------------
+  e1a8ba4a_8e5d737a           7         1  accept
+  b45e16fc_e6b9a28a           4         0  reject
+  002e1272_7b55750f           3         2  reject
+  397d9504_56086308           2         1  accept
+  22feb00e_540cca24           1         1  accept
+  540cca24_e1a8ba4a           1         1  reject
+    largest single pair is e1a8ba4a_8e5d737a with 7 of 20 changed methods (35.00%)
+
+  SUPER in changed methods
+    changed methods containing a super site        1
+    narrow-v1 admissible                           1
+    TARGET-EVIDENCE divergences (real, not manufactured)      0
+
+------------------------------------------------------------------------------
+LocalSend
+------------------------------------------------------------------------------
+  window 40 commits, 27 pairs, 11 with a changed method
+
+  Metric                              Count
+  ------------------------------------------
+  changed Dart instance methods         253
+  Route B admissible                    233
+  refused                                20
+  patch-demand compatibility %       92.09%
+
+  REFUSAL RANKING (method-weighted)
+  refusal reason                      methods     SOLE   % refused
+  ------------------------------------------------------------------
+  abi.named_parameters                      8        5      25.00%
+  construct.this_escape                     7        4      20.00%
+  construct.method_tearoff                  4        3      15.00%
+  receiver.compound_same_offset             2        2      10.00%
+  reach.unreachable                         2        1       5.00%
+  abi.optional_positionals                  1        1       5.00%
+
+  REFUSAL RANKING (commit-weighted: pairs containing the reason)
+  refusal reason                        pairs     % pairs
+  --------------------------------------------------------
+  pair.member_set_changed                   6      54.55%
+  abi.named_parameters                      4      36.36%
+  construct.this_escape                     4      36.36%
+  construct.method_tearoff                  2      18.18%
+  receiver.compound_same_offset             2      18.18%
+  abi.optional_positionals                  1       9.09%
+  reach.unreachable                         1       9.09%
+
+  INTRODUCED vs PRE-EXISTING (per refused method)
+  construct                           introduced  pre-existing   unknown
+  ----------------------------------------------------------------------
+  abi.named_parameters                         0             7         1
+  construct.this_escape                        0             7         0
+  construct.method_tearoff                     0             4         0
+  receiver.compound_same_offset                0             2         0
+  abi.optional_positionals                     0             1         0
+  reach.unreachable                            0             0         2
+    pre-existing = the developer did not touch the construct; Route B
+    refuses the whole method anyway. Real pain, different cause.
+
+  LARGEST CONTRIBUTING PAIRS (so one refactor cannot hide as N methods)
+  pair                  changed   refused  verdict
+  ------------------------------------------------------------
+  af0416be_224ef8b1         137        12  reject
+  4b5236ce_63efbe6b          83         2  reject
+  0ff4e2a7_ad4d4de1          11         2  reject
+  9aff08a3_89303dcf           5         0  reject
+  9fea48e7_fca481e6           4         2  accept
+  f6962a17_c4e1edb2           4         0  accept
+    largest single pair is af0416be_224ef8b1 with 137 of 253 changed methods (54.15%)
+
+  SUPER in changed methods
+    changed methods containing a super site        6
+    narrow-v1 admissible                           6
+    TARGET-EVIDENCE divergences (real, not manufactured)      0
