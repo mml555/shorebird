@@ -59,6 +59,49 @@ RouteBCoverageAnalyzer get routeBCoverageAnalyzer =>
 /// inside the app rather than one that refuses.
 const supportedRouteBAnalysisVersion = 11;
 
+/// Every analyzer version this build can decode, and nothing else.
+///
+/// A RANGE would be wrong. Versions are not ordered capabilities: 10 removed a
+/// refusal string that 9 emitted, and a decoder that accepted "anything >= 11"
+/// would read a future document whose meaning it has never seen. Membership of
+/// this set is a statement that a decode path EXISTS below, and unknown stays
+/// REFUSED.
+///
+/// Each version's absent fields keep their own meaning; see
+/// [RouteBLowering.privateConstructions] for the asymmetry that matters.
+const knownRouteBAnalysisVersions = {11, 12};
+
+/// A construction of a private class inside a replaced body.
+///
+/// [key] is spelled exactly as the release's capability manifest spells it —
+/// `library#Class.constructor`, with the unnamed constructor as `new` — so a
+/// grant can be looked up without re-deriving the format.
+class RouteBPrivateConstruction {
+  /// Creates a [RouteBPrivateConstruction].
+  const RouteBPrivateConstruction({
+    required this.offset,
+    required this.library,
+    required this.className,
+    required this.constructor,
+    required this.key,
+  });
+
+  /// Where the construction appears, in code units of the decoded source.
+  final int offset;
+
+  /// Import URI of the library declaring the class.
+  final String library;
+
+  /// The private class being constructed.
+  final String className;
+
+  /// The constructor named, `new` when unnamed.
+  final String constructor;
+
+  /// The manifest key the release would have had to grant.
+  final String key;
+}
+
 /// What a patch may do with a changed member.
 enum RouteBRepresentability {
   /// Static-shaped call. Emitted as the patchable form.
@@ -230,6 +273,7 @@ class RouteBLowering {
     this.origin,
     this.superInvocations = const [],
     this.releaseSuperTargets,
+    this.privateConstructions,
   });
 
   /// The class the receiver belongs to, used as the parameter's type.
@@ -282,6 +326,13 @@ class RouteBLowering {
   /// distinction is not a safety gap — it is the difference between a refusal
   /// that names a missing measurement and one that asserts a measured fact.
   final List<RouteBProvenance>? releaseSuperTargets;
+
+  /// Constructions of a PRIVATE class in this body, or null when the analyzer
+  /// did not measure them.
+  ///
+  /// Null means a version-11 document, which cannot say. It does NOT mean the
+  /// body constructs none.
+  final List<RouteBPrivateConstruction>? privateConstructions;
 
   /// Genuine `super.member()` sites in this body (analysis version 10).
   ///
@@ -450,12 +501,14 @@ class RouteBCoverage {
     }
 
     final version = decoded['analysisVersion'];
-    if (version != supportedRouteBAnalysisVersion) {
+    if (!knownRouteBAnalysisVersions.contains(version)) {
       throw FormatException(
         'the coverage analyzer speaks version $version, and this build of '
-        'Shorebird understands $supportedRouteBAnalysisVersion',
+        'Shorebird understands '
+        '${(knownRouteBAnalysisVersions.toList()..sort()).join(', ')}',
       );
     }
+    final analysisVersion = version! as int;
 
     final map = decoded;
     List<String> strings(String key) {
@@ -587,6 +640,34 @@ class RouteBCoverage {
               for (final v in raw)
                 if (_provenance(v) case final RouteBProvenance p) p,
             ],
+            _ => null,
+          },
+          // ASYMMETRIC BY VERSION, and that is the whole point.
+          //
+          // A version-11 document does not carry this field and never could, so
+          // its absence means UNMEASURED and stays null -- the consumer must
+          // then fall back to the conservative source scan. A version-12
+          // document always carries it, so an absent field there is a
+          // malformed document rather than an empty measurement.
+          //
+          // Reading a missing v11 field as `[]` would assert that the body
+          // constructs no private class, which nobody measured. That is the
+          // same absence-versus-empty rule that `releaseSuperTargets` needed.
+          privateConstructions: switch (l['privateConstructions']) {
+            final List<Object?> raw => [
+              for (final c in raw)
+                RouteBPrivateConstruction(
+                  offset: (c! as Map<String, dynamic>)['offset']! as int,
+                  library: (c as Map<String, dynamic>)['library']! as String,
+                  className: c['class']! as String,
+                  constructor: c['constructor']! as String,
+                  key: c['key']! as String,
+                ),
+            ],
+            _ when analysisVersion >= 12 => throw FormatException(
+              'the analysis speaks version $analysisVersion but a lowering '
+              'carries no "privateConstructions"',
+            ),
             _ => null,
           },
         );

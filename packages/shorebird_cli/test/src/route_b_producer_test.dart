@@ -1057,6 +1057,127 @@ void main() {
         );
       });
 
+      // PRIVATE CONSTRUCTION, measured (analysis version 12).
+      //
+      // D-PRODUCER-DEMAND-1 measured this as 70% of every analyzer->producer
+      // disagreement on real historical changes. Policy p2 retains a private
+      // class so its MEMBERS can be patch-targeted and withholds construction
+      // separately, so a granted member says nothing about the constructor —
+      // and a replacement declaration, recompiled whole, constructs it.
+      group('private constructions, against the release manifest', () {
+        const ctorKey = 'package:app/main.dart#_Helper.new';
+
+        RouteBCoverage constructs({
+          bool measured = true,
+          String decl = 'String value() => _Helper().toString();',
+        }) {
+          const preamble = 'class RouteBThing {\n  ';
+          source.writeAsStringSync('$preamble$decl');
+          final start = preamble.length;
+          return RouteBCoverage.fromJson(
+            jsonEncode({
+              'analysisVersion': measured ? 12 : 11,
+              'verdict': 'accept',
+              'changed': [key],
+              'added': <String>[],
+              'removed': <String>[],
+              'patchable': <String>[],
+              'conditional': [key],
+              'sources': {
+                key: {
+                  'fileUri': source.uri.toString(),
+                  'start': start,
+                  'end': start + decl.length,
+                },
+              },
+              'lowering': {
+                key: {
+                  'receiverType': 'RouteBThing',
+                  'nameOffset': start + decl.indexOf('value'),
+                  'accesses': <Object>[],
+                  'unsupported': <String>[],
+                  'origin': {
+                    'library': 'package:app/main.dart',
+                    'class': 'RouteBThing',
+                    'member': 'value',
+                    'memberKind': 'Method',
+                  },
+                  'superInvocations': <Object>[],
+                  if (measured)
+                    'privateConstructions': [
+                      {
+                        'offset': start + decl.indexOf('_Helper'),
+                        'library': 'package:app/main.dart',
+                        'class': '_Helper',
+                        'constructor': 'new',
+                        'key': ctorKey,
+                      },
+                    ],
+                },
+              },
+              'rejections': <Object>[],
+              'refusalSummary': null,
+            }),
+          );
+        }
+
+        test('REFUSES a construction the release did not retain', () {
+          expect(
+            () => lowered(constructs(), granting: grants()),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                allOf(contains('_Helper'), contains('did not retain')),
+              ),
+            ),
+          );
+        });
+
+        test('a MEMBER grant on that class is not a construction grant', () {
+          // The exact confusion the measurement found: p2 grants members and
+          // withholds `.new`, so admitting on a member grant would compile and
+          // then fail to bind.
+          expect(
+            () => lowered(
+              constructs(),
+              granting: grants(
+                instance: ['package:app/main.dart#_Helper#label'],
+                classPublicMembers: ['package:app/main.dart#_Helper#label'],
+              ),
+            ),
+            throwsA(isA<RouteBUnsupportedTarget>()),
+          );
+        });
+
+        test('carries a construction the release DID retain', () {
+          expect(
+            lowered(constructs(), granting: grants(classes: [ctorKey])),
+            contains('_Helper()'),
+          );
+        });
+
+        test('a version-11 document still uses the source scan', () {
+          // UNMEASURED is not "constructs none". An older release keeps the
+          // conservative text backstop and stays refused here — the same
+          // answer it gave before version 12 existed, which is what makes the
+          // consumer change safe for cells already in the field.
+          expect(
+            () => lowered(
+              constructs(measured: false),
+              granting: grants(classes: [ctorKey]),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('private identifier'),
+              ),
+            ),
+          );
+        });
+      });
+
       group('private members, against the release manifest', () {
         RouteBCoverage privateRead({String member = '_controller'}) =>
             instanceCoverage(

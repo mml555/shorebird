@@ -140,7 +140,8 @@ class RouteBProducer {
   static const _superIntrinsicName = r'$routeBSuper';
 
   /// The declaration, emitted only for a replacement that needs it.
-  static const _superIntrinsicDeclaration = '''
+  static const _superIntrinsicDeclaration =
+      '''
 @pragma('shorebird:direct-super')
 Object? $_superIntrinsicName(
   Object receiver,
@@ -793,7 +794,8 @@ Object? $_superIntrinsicName(
           offset: site.offset,
           member: site.member,
         );
-        if (callSpan == null || callSpan.start < span.start ||
+        if (callSpan == null ||
+            callSpan.start < span.start ||
             callSpan.end > span.end) {
           throw RouteBUnsupportedTarget(
             key,
@@ -1031,6 +1033,45 @@ Object? $_superIntrinsicName(
       for (final a in lowering.accesses)
         if (a.privateTarget != null) a.member,
     };
+
+    // PRIVATE CONSTRUCTIONS, when the analyzer measured them (version 12).
+    //
+    // A replacement declaration is recompiled whole, so a private class the
+    // body constructs is a class the PATCH constructs -- and a release retains
+    // a private class's constructor only if its manifest granted it. Policy p2
+    // retains such a class so its MEMBERS can be patch-targeted while
+    // withholding construction separately, so members being granted says
+    // nothing about the constructor.
+    //
+    // Null means a version-11 document, which cannot say. The text backstop
+    // below then refuses the class name as an unresolved private identifier,
+    // exactly as it did before: older releases stay patchable on the older,
+    // less precise path rather than being newly rejected or newly admitted.
+    final constructions = lowering.privateConstructions;
+    if (constructions != null) {
+      for (final construction in constructions) {
+        if (capabilities == null) {
+          throw RouteBUnsupportedTarget(
+            key,
+            'its body constructs the private class '
+            '`${construction.className}`, and this release published no '
+            'capability manifest — so there is no evidence its constructor was '
+            'retained.',
+          );
+        }
+        if (!capabilities.classesConstructible.contains(construction.key)) {
+          throw RouteBUnsupportedTarget(
+            key,
+            'its body constructs `${construction.className}`, whose '
+            'constructor `${construction.key}` this release did not retain. '
+            "Granting the class's members is not the same grant: a patch "
+            'that constructs it would fail to bind.',
+          );
+        }
+        // Granted, so the text backstop must not refuse the same name again.
+        granted.add(construction.className);
+      }
+    }
     // The declaration's own name may be private -- patching `_helper` is
     // ordinary -- and it is a declaration here, not a reference.
     final own = key.split('#').last.split('.').last;

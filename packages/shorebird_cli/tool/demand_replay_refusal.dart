@@ -8,6 +8,8 @@
 // needed, which is why this can run without a release container.
 import 'dart:io';
 
+import 'package:scoped_deps/scoped_deps.dart';
+import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
@@ -38,6 +40,26 @@ void main(List<String> args) {
       ? args[manifestArg + 1]
       : null;
   final enumerate = args.contains('--enumerate');
+  // A REAL compiler cell, so "admission passed" can be upgraded to "the
+  // replacement actually compiled". Getting farther and then dying at the
+  // compiler is not success.
+  final cellArg = args.indexOf('--cell');
+  final cellPath = cellArg >= 0 && cellArg + 1 < args.length
+      ? args[cellArg + 1]
+      : null;
+  // The REAL project root. The bytecode compiler resolves `package:` uris
+  // through the project's `.dart_tool/package_config.json`; a temp directory
+  // has none, and the resulting exit 254 says nothing about the change.
+  final rootArg = args.indexOf('--project-root');
+  final rootPath = rootArg >= 0 && rootArg + 1 < args.length
+      ? args[rootArg + 1]
+      : null;
+  // A KEPT working directory, so what the compiler actually produced can be
+  // inspected. "Admission passed" is a weaker claim than "a payload exists".
+  final workArg = args.indexOf('--work-dir');
+  final workPath = workArg >= 0 && workArg + 1 < args.length
+      ? args[workArg + 1]
+      : null;
   final importArg = args.indexOf('--release-import');
   final importPath = importArg >= 0 && importArg + 1 < args.length
       ? args[importArg + 1]
@@ -90,14 +112,37 @@ void main(List<String> args) {
   try {
     while (rounds++ < 200) {
       try {
-        const RouteBProducer().produce(
-          compiler: _unusableCompiler(),
-          coverage: current,
-          capabilities: capabilities,
-          releaseImportKernel: File(importPath ?? '${tmp.path}/absent.dill'),
-          releaseBuildId: 'demand-replay',
-          workingDirectory: Directory('${tmp.path}/work'),
-          projectRoot: tmp,
+        runScoped(
+          () => const RouteBProducer().produce(
+            compiler: cellPath == null
+                ? _unusableCompiler()
+                : _cellCompiler(cellPath),
+            coverage: current,
+            capabilities: capabilities,
+            releaseImportKernel: File(importPath ?? '${tmp.path}/absent.dill'),
+            releaseBuildId: 'demand-replay',
+            workingDirectory: Directory(workPath ?? '${tmp.path}/work'),
+            projectRoot: rootPath == null ? tmp : Directory(rootPath),
+            // Tee the compiler's own words. "exit 254" alone cannot distinguish
+            // a genuine language limit from a harness mistake, and this control
+            // turns on exactly that difference.
+            run: (executable, arguments) {
+              final result = Process.runSync(executable, arguments);
+              if (result.exitCode != 0) {
+                say('COMPILER exit ${result.exitCode}');
+                final err = '${result.stderr}'.trim();
+                final out = '${result.stdout}'.trim();
+                for (final line in [
+                  ...err.split('\n'),
+                  ...out.split('\n'),
+                ].where((l) => l.trim().isNotEmpty).take(12)) {
+                  say('  | $line');
+                }
+              }
+              return result;
+            },
+          ),
+          values: {loggerRef.overrideWith(ShorebirdLogger.new)},
         );
         passed = true;
         break;
@@ -111,6 +156,7 @@ void main(List<String> args) {
         // ADMISSION PASS for every target still in the document, and is
         // reported as such rather than counted as a refusal.
         say('PAST ADMISSION (${e.runtimeType})');
+        say('  ${e.toString().split('\n').first}');
         passed = true;
         break;
       }
@@ -144,6 +190,19 @@ RouteBCoverage _without(RouteBCoverage c, String target) => RouteBCoverage(
   signatures: c.signatures,
   sources: c.sources,
   lowering: c.lowering,
+);
+
+/// A real cell on disk, so `produce` runs the actual bytecode compiler.
+RouteBCompiler _cellCompiler(String dir) => RouteBCompiler(
+  runtime: File('$dir/dartaotruntime'),
+  compilerSnapshot: File('$dir/dart2bytecode.aot'),
+  platformDill: File('$dir/vm_platform.dill'),
+  analyzer: File('$dir/route_b_analyze.aot'),
+  frontend: File('$dir/route_b_gen_kernel.aot'),
+  interfaceGenerator: File('$dir/route_b_gen_dynamic_interface.aot'),
+  releaseProbe: File('$dir/route_b_release_probe.aot'),
+  flutterPlatformDill: File('$dir/flutter_platform_strong.dill'),
+  provenance: 'demand-replay: cell at $dir',
 );
 
 /// A REAL [RouteBCompiler], pointing at paths that do not exist.

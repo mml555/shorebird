@@ -30,6 +30,112 @@ void main() {
       'refusalSummary': refusalSummary,
     });
 
+    // VERSION-ASYMMETRIC MEASUREMENT STATE (analysis versions 11 and 12).
+    //
+    // v12 adds `privateConstructions`. The decoder must keep the two versions'
+    // silences apart: a v11 document CANNOT carry the field, so its absence is
+    // "unmeasured"; a v12 document always carries it, so an absence there is a
+    // malformed document. Collapsing either into `[]` would assert that the
+    // body constructs no private class, which in the v11 case nobody measured.
+    group('privateConstructions across versions 11 and 12', () {
+      String doc(int version, Map<String, Object?> lowering) => jsonEncode({
+        'analysisVersion': version,
+        'verdict': 'accept',
+        'changed': <String>[],
+        'added': <String>[],
+        'removed': <String>[],
+        'patchable': <String>[],
+        'conditional': <String>[],
+        'rejections': <Map<String, Object?>>[],
+        'refusalSummary': null,
+        'lowering': {'package:app/main.dart#Thing.go': lowering},
+      });
+
+      const body = {
+        'receiverType': 'Thing',
+        'nameOffset': 0,
+        'accesses': <Object>[],
+        'unsupported': <String>[],
+        'origin': {
+          'library': 'package:app/main.dart',
+          'class': 'Thing',
+          'member': 'go',
+          'memberKind': 'Method',
+        },
+        'superInvocations': <Object>[],
+      };
+
+      const construction = {
+        'offset': 42,
+        'library': 'package:app/main.dart',
+        'class': '_Helper',
+        'constructor': 'new',
+        'key': 'package:app/main.dart#_Helper.new',
+      };
+
+      RouteBLowering parse(int version, Map<String, Object?> extra) =>
+          RouteBCoverage.fromJson(
+            doc(version, {...body, ...extra}),
+          ).lowering['package:app/main.dart#Thing.go']!;
+
+      test('version 11 is still accepted', () {
+        expect(
+          () => RouteBCoverage.fromJson(doc(11, body)),
+          returnsNormally,
+        );
+      });
+
+      test('a version-11 document leaves it UNMEASURED, not empty', () {
+        expect(parse(11, const {}).privateConstructions, isNull);
+      });
+
+      test('a version-12 document with none reports MEASURED and empty', () {
+        final parsed = parse(12, const {'privateConstructions': <Object>[]});
+        expect(parsed.privateConstructions, isNotNull);
+        expect(parsed.privateConstructions, isEmpty);
+      });
+
+      test('a version-12 document parses the manifest key verbatim', () {
+        final parsed = parse(12, const {
+          'privateConstructions': [construction],
+        });
+        expect(parsed.privateConstructions, hasLength(1));
+        final c = parsed.privateConstructions!.single;
+        expect(c.className, '_Helper');
+        expect(c.constructor, 'new');
+        expect(c.offset, 42);
+        // Spelled exactly as the capability manifest spells it, so a grant can
+        // be looked up without re-deriving the format.
+        expect(c.key, 'package:app/main.dart#_Helper.new');
+      });
+
+      test('a version-12 document MISSING the field is malformed', () {
+        expect(
+          () => RouteBCoverage.fromJson(doc(12, body)),
+          throwsA(
+            isA<FormatException>().having(
+              (e) => e.message,
+              'message',
+              contains('privateConstructions'),
+            ),
+          ),
+        );
+      });
+
+      test('an unknown version is refused, and names what is understood', () {
+        expect(
+          () => RouteBCoverage.fromJson(doc(13, body)),
+          throwsA(
+            isA<FormatException>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains('version 13'), contains('11, 12')),
+            ),
+          ),
+        );
+      });
+    });
+
     // MEASUREMENT-STATE CONTRACT (analysis version 11).
     //
     // The analyzer omits `releaseSuperTargets` when it could not build a
