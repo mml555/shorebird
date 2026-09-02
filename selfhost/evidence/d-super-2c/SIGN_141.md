@@ -723,3 +723,83 @@ The next cold start is the activation test. Required:
 `WRAP:TICKER:` is the discriminating outcome: it proves the synthetic top-level
 function reached `Ticker.close` — the exact super-target the release itself
 direct-called — rather than re-dispatching virtually to `Leaf.close`.
+
+## 141B activation launch — PASS. Route B narrow-v1 super executes on device.
+
+Force-quit, cold start (pid 8648), by-hand tap on **RUN target()**.
+
+    rendered   WRAP:TICKER:APP-STATE
+    verdict    PATCHED narrow-v1 super
+
+### The updater's and the hook's own words
+
+    [shorebird] Preparing next boot.
+    [shorebird] No public key configured; skipping signature verification
+    [shorebird] Prepared boot of patch 1.
+    Shorebird updater: active path: …/shorebird_updater/patches/1/dlc.vmcode
+    Shorebird updater: active patch is a Route B container
+    ROUTEB: hook entered
+    ROUTEB: parsed, targets=1, built-for=1f3e34345c9130468810e732046ecee1
+    ROUTEB: running=1f3e34345c9130468810e732046ecee1
+    ROUTEB: assert-pool-offset supplied=0xd4a8
+    ROUTEB: activated Leaf.target in package:super_fixture/main.dart before main
+    ROUTEB: applied 1/1 targets, entering main
+    [shorebird] Patch check response: patch_available: false, patch: None
+    [shorebird] Update thread finished with status: No update
+
+### What the rendered string proves
+
+`WRAP:TICKER:APP-STATE` is the discriminating outcome, and each of the three
+possible readings was distinguishable in advance:
+
+    WRAP:TICKER:APP-STATE   the synthetic top-level function reached
+                            Ticker.close — the EXACT super-target the release
+                            itself direct-called
+    TICKER:APP-STATE        would have meant the patch never activated
+    LEAF:APP-STATE          would have meant virtual dispatch to Leaf.close,
+                            i.e. the narrow-v1 rule violated
+
+The `WRAP:` prefix can only come from the patch: the frozen release binary has
+**zero** standalone `WRAP:` interpolation pieces (only the `_verdict` case
+constant), while the staged `dlc.vmcode` has exactly one. And the `TICKER:`
+half can only come from the release, whose `Ticker.close` body supplies it.
+So the rendered string is a *composition* of patch and release code, which is
+what a Route B super patch is supposed to be.
+
+`activated Leaf.target … before main` names the exact member lowered, and
+`applied 1/1 targets` shows no target was skipped.
+
+### Release binding held on device
+
+    built-for  1f3e34345c9130468810e732046ecee1
+    running    1f3e34345c9130468810e732046ecee1   EQUAL
+
+The container's recorded release fingerprint equals the running snapshot's. This
+is the on-device half of the binding whose host-side half is the release-artifact
+digest `8280c125…` — and it held across a **re-signed** bundle, confirming what
+`make_track_clients.sh` asserts: re-signing does not disturb Route B's binding,
+because nothing on the device verifies the base binary's signature.
+
+### Lifecycle after activation
+
+    patches/1/state.json   { kind: "Installed", signature: null, size: 2194 }
+    patch check            patch_available: false  -> "No update"
+
+`patch_available: false` is correct rather than a regression: the client now
+reports `current_patch_number: 1`, and `api.dart` refuses to offer a patch whose
+`number <= clientPatch`. The device is on the newest patch for this release.
+
+`No public key configured; skipping signature verification` matches
+`signature: null` and this release's absent `patch_public_key`. Patch-signature
+enforcement is ARM_C's subject and is not claimed here.
+
+## STOPPED — awaiting the persistence launch
+
+One more cold start, with no intervening install or publish. Required:
+
+    WRAP:TICKER:APP-STATE   patch 105 still active from local state alone
+    TICKER:APP-STATE        activation did not persist -> FAIL
+
+The point is that activation survives a restart from the device's own stored
+state, without needing another download; the check on this launch already
+returned "No update", so nothing new can arrive to do the work.
