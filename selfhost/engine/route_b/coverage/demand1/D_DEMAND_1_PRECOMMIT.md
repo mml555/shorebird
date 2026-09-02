@@ -153,3 +153,62 @@ compatibility percentage would bound the *observed* demand, not all demand.
     named/optional ABI accounts for more failures    -> ABI expansion
     already ~97-99% of real patch demand             -> stop language expansion,
                                                         move to productionization
+
+---
+
+# SUPERSEDED, by measurement: "dependencies are held constant"
+
+Added after the first window ran and before any result was interpreted. The
+original section above stands as written; only its dependency decision is
+withdrawn, and the reason is a measurement, not a preference.
+
+## What happened
+
+Compiling every commit against the FROZEN checkout's resolution failed on the
+older half of the window. All failures shared one cause:
+
+    lib/logic/common/platform_info.dart: Error: Couldn't find constructor
+    'InternetConnectionChecker'.
+
+The pin's source reads `InternetConnectionChecker.instance.hasConnection`; older
+commits read `InternetConnectionChecker().hasConnection`. The app was migrated
+to a new package API at `3821b0c6` (2025-12-18), 24 commits back from the pin.
+So a single frozen resolution can only compile commits NEWER than that
+migration — 25 of the 40, and no amount of extending the window backwards adds
+any more. The pre-committed extension rule would have run to exhaustion against
+a wall.
+
+A measurement detail worth recording, because it cost a wrong conclusion first:
+`git log -S'InternetConnectionChecker'` found nothing, because `-S` counts
+OCCURRENCES of a string and the migration kept the count identical. `-G`, which
+matches diff content, found it immediately. The first search's silence was read
+as "the source never changed", which was false.
+
+## The replacement rule
+
+Commits are grouped into **contiguous runs sharing one committed
+`pubspec.lock`**, and each group is resolved ONCE:
+
+    FLUTTER_ROOT=<frozen SDK> <SDK>/bin/cache/dart-sdk/bin/dart pub get
+
+run at the group's first commit, with the resulting `package_config` reused for
+every commit in that group. The SDK's own `dart` is used rather than `flutter`,
+because the `flutter` tool can rebuild snapshots inside `~/.shorebird`, which
+the standing constraint forbids perturbing. Verified: after this ran, that
+checkout's only modification is the pre-existing uncommitted `engine.version`
+already banked as a separate provenance debt.
+
+Measured on Wonderous, a 60-commit window contains 10 contiguous lockfile
+groups (largest 28 commits, 8 distinct lock states), so ~10 resolutions cover
+60 commits and kernels are still shared between adjacent pairs inside a group.
+
+**Why this is better rather than merely workable.** A Route B patch cannot
+change dependencies. Inside a group the developers' own lockfile did not move,
+so the release and candidate genuinely share a resolution — which is the
+situation a real patch faces. Across a group boundary the lockfile DID move, and
+such a pair is recorded under its own category `pair.dependency_change`: a real
+refusal, counted and reported, never silently dropped.
+
+This changes WHICH pairs are analysable on toolchain-feasibility grounds. It
+does not select on construct content, and no pair is added, dropped or reordered
+because of what it contains.
