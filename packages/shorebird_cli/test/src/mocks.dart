@@ -42,6 +42,7 @@ import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/shorebird_android_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_cli_command_runner.dart';
+import 'package:shorebird_cli/src/runtime_endpoint.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/toolchain_coherence.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
@@ -153,8 +154,7 @@ class MockPatcher extends Mock implements Patcher {}
 
 class MockPlatform extends Mock implements Platform {}
 
-class MockToolchainCoherence extends Mock
-    implements ToolchainCoherence {}
+class MockToolchainCoherence extends Mock implements ToolchainCoherence {}
 
 class MockPowershell extends Mock implements Powershell {}
 
@@ -196,6 +196,8 @@ class MockShorebirdArtifacts extends Mock implements ShorebirdArtifacts {}
 
 class MockShorebirdCliCommandRunner extends Mock
     implements ShorebirdCliCommandRunner {}
+
+class MockRuntimeEndpoint extends Mock implements RuntimeEndpoint {}
 
 class MockShorebirdEnv extends Mock implements ShorebirdEnv {}
 

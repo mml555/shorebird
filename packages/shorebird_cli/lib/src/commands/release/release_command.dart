@@ -21,6 +21,7 @@ import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/shorebird_command.dart';
 import 'package:shorebird_cli/src/shorebird_documentation.dart';
+import 'package:shorebird_cli/src/runtime_endpoint.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_validator.dart';
@@ -291,6 +292,14 @@ of the iOS app that is using this module. (aar and ios-framework only)''',
     } on ValidationFailedException {
       throw ProcessExit(ExitCode.config.code);
     }
+
+    // BEFORE anything is built or fetched. A self-hosted workflow must not be
+    // able to publish a release whose runtime points at upstream Shorebird:
+    // the app would ask api.shorebird.dev for patches to an app that exists
+    // only here, be offered nothing, and report no error. Absence of a
+    // base_url still means "use Shorebird's service" for an upstream workflow,
+    // which this does not touch.
+    runtimeEndpoint.assertShippable();
 
     await cache.updateAll();
 

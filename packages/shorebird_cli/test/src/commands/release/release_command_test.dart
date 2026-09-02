@@ -17,6 +17,7 @@ import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/shorebird_documentation.dart';
+import 'package:shorebird_cli/src/runtime_endpoint.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/toolchain_coherence.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
@@ -68,6 +69,7 @@ void main() {
     late Progress progress;
     late Releaser releaser;
     late ShorebirdEnv shorebirdEnv;
+    late RuntimeEndpoint runtimeEndpoint;
     late ToolchainCoherence toolchainCoherence;
     late ShorebirdFlutter shorebirdFlutter;
     late ShorebirdValidator shorebirdValidator;
@@ -91,6 +93,7 @@ void main() {
           shorebirdEnvRef.overrideWith(() => shorebirdEnv),
           shorebirdFlutterRef.overrideWith(() => shorebirdFlutter),
           shorebirdValidatorRef.overrideWith(() => shorebirdValidator),
+          runtimeEndpointRef.overrideWith(() => runtimeEndpoint),
           toolchainCoherenceRef.overrideWith(
             () => toolchainCoherence,
           ),
@@ -127,6 +130,7 @@ void main() {
       // The producer's coherence gate is exercised by
       // toolchain_coherence_test.dart, including its refusal path; here it is
       // stubbed coherent so these tests keep testing the command.
+      runtimeEndpoint = MockRuntimeEndpoint();
       toolchainCoherence = MockToolchainCoherence();
       when(
         () => toolchainCoherence.check(
@@ -228,11 +232,10 @@ void main() {
         () => shorebirdFlutter.getVersionAndRevision(),
       ).thenAnswer((_) async => flutterRevision);
       when(
-        () =>
-            shorebirdFlutter.installRevision(
-              revision: any(named: 'revision'),
-              releasePlatform: any(named: 'releasePlatform'),
-            ),
+        () => shorebirdFlutter.installRevision(
+          revision: any(named: 'revision'),
+          releasePlatform: any(named: 'releasePlatform'),
+        ),
       ).thenAnswer((_) async => {});
       when(
         () => shorebirdFlutter.fetchRemoteRefs(),
@@ -370,6 +373,51 @@ void main() {
           () => logger.err(any(that: contains('bin/internal/engine.version'))),
         ).called(1);
         verifyNever(() => releaser.buildReleaseArtifacts());
+      });
+    });
+
+    // The runtime-endpoint gate, asserted at the ENTRYPOINT. Its rules are
+    // covered by runtime_endpoint_test, including the upstream control; these
+    // prove the release COMMAND consults it, and that it does so before
+    // anything is built.
+    group('runtime endpoint gate', () {
+      test('is consulted BEFORE any artifact is built', () async {
+        final exitCode = await runWithOverrides(command.run);
+        expect(exitCode, equals(ExitCode.success.code));
+
+        verifyInOrder([
+          runtimeEndpoint.assertShippable,
+          cache.updateAll,
+          () => releaser.buildReleaseArtifacts(),
+        ]);
+      });
+
+      test('a refusal aborts before anything is built', () async {
+        when(runtimeEndpoint.assertShippable).thenThrow(
+          ProcessExit(ExitCode.config.code),
+        );
+
+        await expectLater(
+          () => runWithOverrides(command.run),
+          throwsA(
+            isA<ProcessExit>().having(
+              (e) => e.exitCode,
+              'exitCode',
+              ExitCode.config.code,
+            ),
+          ),
+        );
+
+        // The point of refusing early: nothing is fetched, nothing is built,
+        // and no release is created that could not reach its control plane.
+        verifyNever(() => releaser.buildReleaseArtifacts());
+        verifyNever(
+          () => releaser.uploadReleaseArtifacts(
+            release: any(named: 'release'),
+            appId: any(named: 'appId'),
+          ),
+        );
+        verifyNever(cache.updateAll);
       });
     });
 
@@ -777,9 +825,9 @@ $exception'''),
             );
             verify(
               () => shorebirdFlutter.installRevision(
-              revision: revision,
-              releasePlatform: any(named: 'releasePlatform'),
-            ),
+                revision: revision,
+                releasePlatform: any(named: 'releasePlatform'),
+              ),
             ).called(1);
           });
         });
@@ -907,27 +955,30 @@ $exception'''),
           });
         });
 
-        test('install_only refuses BEFORE anything is built or created', () async {
-          // The refusal must land in the validation phase. If it only fired
-          // later, a release could already have been created or artifacts
-          // uploaded, and the whole point is that the shipped configuration is
-          // what determines what the device verifies.
-          withYaml(PatchVerification.installOnly);
-          withKey(path: false);
-          await expectLater(
-            () => runWithOverrides(command.run),
-            exitsWithCode(ExitCode.config),
-          );
-          verifyNever(() => releaser.buildReleaseArtifacts());
-          verifyNever(
-            () => codePushClientWrapper.createRelease(
-              appId: any(named: 'appId'),
-              version: any(named: 'version'),
-              flutterRevision: any(named: 'flutterRevision'),
-              platform: any(named: 'platform'),
-            ),
-          );
-        });
+        test(
+          'install_only refuses BEFORE anything is built or created',
+          () async {
+            // The refusal must land in the validation phase. If it only fired
+            // later, a release could already have been created or artifacts
+            // uploaded, and the whole point is that the shipped configuration is
+            // what determines what the device verifies.
+            withYaml(PatchVerification.installOnly);
+            withKey(path: false);
+            await expectLater(
+              () => runWithOverrides(command.run),
+              exitsWithCode(ExitCode.config),
+            );
+            verifyNever(() => releaser.buildReleaseArtifacts());
+            verifyNever(
+              () => codePushClientWrapper.createRelease(
+                appId: any(named: 'appId'),
+                version: any(named: 'version'),
+                flutterRevision: any(named: 'flutterRevision'),
+                platform: any(named: 'platform'),
+              ),
+            );
+          },
+        );
 
         group('unsigned releases warn whenever no key is provided', () {
           test('when patch_verification is OMITTED', () async {
