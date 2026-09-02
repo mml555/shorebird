@@ -864,3 +864,58 @@ consistent with a transient relay drop in `idevicesyslog`. **That cause is not
 proven**, and it is recorded as an open, non-load-bearing observation rather
 than explained away. One further cold start would settle it: if the six lines
 reappear, the gap was transient.
+
+## CORRECTION — the "logging anomaly" was a measurement error, not a device fact
+
+The section above reports zero ROUTEB lines for pid 8666. **That reading was
+wrong, and the cause was mine.** `idevicesyslog` was still writing to the
+capture file when I grepped it, and the six-line burst for that boot was
+delivered after my read. Re-reading the same file later:
+
+    pid 8607  boot=the base release   ROUTEB lines=0    (correct — unpatched boot)
+    pid 8648  boot=patch 1            ROUTEB lines=6
+    pid 8666  boot=patch 1            ROUTEB lines=6    <-- was read as 0
+    pid 8725  boot=patch 1            ROUTEB lines=6
+
+The earlier section's *measurements* stand as what the file contained at that
+moment; its *conclusion* — that a contiguous block was missing and might be a
+relay drop — is withdrawn. There was no anomaly. Every patched boot emits all
+six lines, exactly as the banked `g15/tombstone_lane` precedent showed, and the
+appeal to a "transient relay drop" was explaining a phenomenon that did not
+exist.
+
+The lesson, since it nearly became a finding: **absence in a log file that is
+still being written is not absence.** A live capture must be read after the
+writer has flushed, or the read repeated until stable.
+
+## Fourth cold start — pid 8725, persistence reconfirmed
+
+Force-quit and cold start, requested purely to settle the question above.
+
+    [shorebird] Prepared boot of patch 1.
+    ROUTEB: hook entered
+    ROUTEB: parsed, targets=1, built-for=1f3e34345c9130468810e732046ecee1
+    ROUTEB: running=1f3e34345c9130468810e732046ecee1
+    ROUTEB: assert-pool-offset supplied=0xd4a8
+    ROUTEB: activated Leaf.target in package:super_fixture/main.dart before main
+    ROUTEB: applied 1/1 targets, entering main
+    [shorebird] Patch check response: patch_available: false, patch: None
+    [shorebird] Update thread finished with status: No update
+
+    download / inflate / apply lines on this boot : 0
+
+Same `built-for == running` fingerprint as the first activation, three boots
+later. Persistence now rests on **two** independent restarts, both with nothing
+fetched and nothing offered.
+
+## Final sequence — four cold starts, one continuous capture
+
+    12:49:55  pid 8607  base release   TICKER:APP-STATE        staged 105 after -> inert
+    12:54:37  pid 8648  patch 1        WRAP:TICKER:APP-STATE   activation
+    12:56:25  pid 8666  patch 1        WRAP:TICKER:APP-STATE   persistence
+    13:04:4x  pid 8725  patch 1        (ROUTEB 6/6, no fetch)  persistence reconfirmed
+
+No debugger attached at any point in the sequence: installed with
+`ios-deploy --bundle` and no `-d`/`-L`, every launch a by-hand tap, device state
+read only with `--list`/`--download`, and behaviour observed with
+`idevicesyslog`.
