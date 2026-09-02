@@ -465,3 +465,15 @@ a5a8be5854c529268378ce16762a16d6e31763e9 69f9831c360d9152862ec3897c67fb09ae843f3
 # H stays mapped: it is retired as a promotion target, not erased, and existing
 # evidence and caches still refer to it.
 64ff9f592ae319eea04db6092b71319d4778b873 69f9831c360d9152862ec3897c67fb09ae843f3b
+# Route B cell address schema v2 — successor to H2 (64ff9f59…), differing in
+# EXACTLY ONE of sixteen members: route-b-compiler-darwin-arm64.zip, whose
+# analyzer was rebuilt to fix the v11 defect that made every release-time kernel
+# agreement check exit 255 (analyzer 799a0796 -> 18862acd, archive 9d4ace27 ->
+# 39ad75dd). The other fifteen members are byte-identical to H2's.
+#
+# Under v11 that crash made agreesWith() return false, so the release deleted
+# release_import.dill and shipped unpatchable — release 140 is the specimen.
+#
+# The compiler archive records the PRODUCER ENGINE a5a8be58, not this address;
+# cell membership is carried by the descriptor at cell-manifests/<hash>.v2.
+d4c0dbc2905286eb4537d5f9a7802693096ca1fd 69f9831c360d9152862ec3897c67fb09ae843f3b
