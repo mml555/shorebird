@@ -803,3 +803,64 @@ One more cold start, with no intervening install or publish. Required:
 The point is that activation survives a restart from the device's own stored
 state, without needing another download; the check on this launch already
 returned "No update", so nothing new can arrive to do the work.
+
+## 141B persistence launch — PASS (behaviourally), with one logging anomaly recorded
+
+Force-quit, cold start (pid 8666), by-hand tap on **RUN target()**.
+
+    rendered   WRAP:TICKER:APP-STATE
+    verdict    PATCHED narrow-v1 super
+
+### It ran from local state alone
+
+    [shorebird] Prepared boot of patch 1.
+    Shorebird updater: active path: …/shorebird_updater/patches/1/dlc.vmcode
+    Shorebird updater: active patch is a Route B container
+    [shorebird] Patch check response: patch_available: false, patch: None
+    [shorebird] Update thread finished with status: No update
+
+    download / inflate / "successfully applied" lines on this boot : 0
+
+Nothing arrived to do the work: the server offered nothing (the client now
+reports `current_patch_number: 1`), and no bytes were fetched. The patch was
+active because `patches/1/dlc.vmcode` was already on disk. That is the claim
+persistence was meant to test, and it holds.
+
+Three cold starts in one continuous capture, which is what makes the sequence
+readable as a lifecycle rather than three disconnected events:
+
+    12:49:55  pid 8607  "Prepared boot of the base release"  -> staged patch 105 after
+    12:54:37  pid 8648  "Prepared boot of patch 1"           -> activation
+    12:56:25  pid 8666  "Prepared boot of patch 1"           -> persistence
+
+### ANOMALY: the hook's own log lines are absent on this boot
+
+    shorebird.cc(247) ROUTEB lines   pid 8648: 5      pid 8666: 0
+    total ROUTEB lines               pid 8648: 6      pid 8666: 0
+    Runner-tagged lines (all subsys)  pid 8648: 409    pid 8666: 348
+
+This is **not** a normal repeat-boot gate. In the banked
+`g15/tombstone_lane/FINAL/syslog_lifecycle.txt`, every patched boot emits all
+six lines — pids 3687, 3690, 3696, 3699, 3701, 3731, 3734, 3736, 3737, 3739 each
+show exactly 6. So the hook is expected to log on every boot.
+
+Ruled out: os_log throttling (no throttle/drop records for this process) and
+general log loss (8666 still produced 348 lines).
+
+What the messages look like side by side: 8666 is identical to 8648 line for
+line, **except** that the six ROUTEB lines are missing as one contiguous block,
+with the message immediately before (`Sending patch check request`) and
+immediately after (`Patch check response`) both present.
+
+**The verdict does not rest on those lines.** Had the hook not run, `target()`
+would have returned `TICKER:APP-STATE` — the release body — because `WRAP:` has
+no standalone interpolation piece anywhere in the release binary. The device
+rendered `WRAP:TICKER:APP-STATE`, so the lowered replacement executed. The
+behavioural observable is the ground truth here; that is precisely why the
+fixture renders a discriminating string instead of relying on logs.
+
+A contiguous six-message gap in a sub-5ms burst, with neighbours intact, is most
+consistent with a transient relay drop in `idevicesyslog`. **That cause is not
+proven**, and it is recorded as an open, non-load-bearing observation rather
+than explained away. One further cold start would settle it: if the six lines
+reappear, the gap was transient.
