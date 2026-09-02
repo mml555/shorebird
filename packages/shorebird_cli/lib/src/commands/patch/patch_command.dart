@@ -447,7 +447,17 @@ Building with Flutter $flutterVersionString to determine the release version...
     }
 
     try {
-      await shorebirdFlutter.installRevision(revision: release.flutterRevision);
+      // Once per DISTINCT target platform: a patch may span several, and
+      // hydration is per-platform. installRevision is idempotent, so repeat
+      // calls only re-check stamps.
+      for (final releasePlatform in patchers
+          .map((patcher) => patcher.releaseType.releasePlatform)
+          .toSet()) {
+        await shorebirdFlutter.installRevision(
+          revision: release.flutterRevision,
+          releasePlatform: releasePlatform,
+        );
+      }
     } on Exception {
       throw ProcessExit(ExitCode.software.code);
     }

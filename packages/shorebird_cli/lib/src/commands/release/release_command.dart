@@ -305,7 +305,10 @@ of the iOS app that is using this module. (aar and ios-framework only)''',
     final app = await codePushClientWrapper.getApp(appId: appId);
     final targetFlutterRevision = await resolveTargetFlutterRevision();
     try {
-      await shorebirdFlutter.installRevision(revision: targetFlutterRevision);
+      await shorebirdFlutter.installRevision(
+        revision: targetFlutterRevision,
+        releasePlatform: releaser.releaseType.releasePlatform,
+      );
     } on Exception {
       throw ProcessExit(ExitCode.software.code);
     }
