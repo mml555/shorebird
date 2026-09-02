@@ -346,13 +346,6 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
     // runner would ship the Android patch and only then fail.
     for (final patcher in patchers) {
       await patcher.assertPreconditions();
-      // Same gate as the release path: a patch built by an incoherent
-      // toolchain is as unpublishable as a release cut by one.
-      // The PATCH path passes its own platform too. A release-only fix would
-      // recreate the asymmetry the platform scoping just removed.
-      toolchainCoherence.assertCoherent(
-        releasePlatform: patcher.releaseType.releasePlatform,
-      );
       await patcher.assertArgsAreValid();
     }
     results.assertAbsentOrValidKeyPairOrCommands();
@@ -450,9 +443,10 @@ Building with Flutter $flutterVersionString to determine the release version...
       // Once per DISTINCT target platform: a patch may span several, and
       // hydration is per-platform. installRevision is idempotent, so repeat
       // calls only re-check stamps.
-      for (final releasePlatform in patchers
-          .map((patcher) => patcher.releaseType.releasePlatform)
-          .toSet()) {
+      for (final releasePlatform
+          in patchers
+              .map((patcher) => patcher.releaseType.releasePlatform)
+              .toSet()) {
         await shorebirdFlutter.installRevision(
           revision: release.flutterRevision,
           releasePlatform: releasePlatform,
@@ -464,6 +458,28 @@ Building with Flutter $flutterVersionString to determine the release version...
 
     final releaseFlutterShorebirdEnv = shorebirdEnv.copyWith(
       flutterRevisionOverride: release.flutterRevision,
+    );
+
+    // AFTER selection and hydration, exactly as the release path does, and
+    // against the RELEASE's revision rather than the ambient one. Asserting
+    // first judged a checkout whose engine artifacts had not been fetched yet,
+    // and reported an absent engine as an incoherent toolchain.
+    //
+    // Same gate as the release path: a patch built by an incoherent toolchain
+    // is as unpublishable as a release cut by one. The PATCH path passes its
+    // own platform too — a release-only fix would recreate the asymmetry the
+    // platform scoping just removed.
+    await runScoped(
+      () async {
+        for (final patcher in patchers) {
+          toolchainCoherence.assertCoherent(
+            releasePlatform: patcher.releaseType.releasePlatform,
+          );
+        }
+      },
+      values: {
+        shorebirdEnvRef.overrideWith(() => releaseFlutterShorebirdEnv),
+      },
     );
 
     return await runScoped(

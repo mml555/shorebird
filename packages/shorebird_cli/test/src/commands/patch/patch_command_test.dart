@@ -395,11 +395,10 @@ void main() {
         () => shorebirdFlutter.getVersionAndRevision(),
       ).thenAnswer((_) async => flutterRevision);
       when(
-        () =>
-            shorebirdFlutter.installRevision(
-              revision: any(named: 'revision'),
-              releasePlatform: any(named: 'releasePlatform'),
-            ),
+        () => shorebirdFlutter.installRevision(
+          revision: any(named: 'revision'),
+          releasePlatform: any(named: 'releasePlatform'),
+        ),
       ).thenAnswer((_) async => {});
 
       when(
@@ -1951,6 +1950,106 @@ void main() {
         ).called(1);
         verifyNever(() => patcher.buildPatchArtifact());
       });
+    });
+
+    // PLATFORM-PRECACHE, asserted at the ENTRYPOINT. The mechanism is already
+    // covered elsewhere -- shorebird_flutter_test's "precaches ONLY the target
+    // platform" and "skips the clone but STILL hydrates when already checked
+    // out", and toolchain_coherence_test's refusal paths. Those prove the
+    // pieces exist; they cannot prove the patch COMMAND uses them, or that it
+    // runs them in the one order that matters. These do.
+    group('engine hydration and the coherence gate', () {
+      // The release's revision MUST differ from the local pin. Sharing one
+      // constant would make "asserted against the release's revision"
+      // indistinguishable from "asserted against the ambient one", and the
+      // regression these tests exist to catch would pass.
+      const releaseOnlyRevision = 'release-pinned-revision-not-the-local-one';
+      final revisionRelease = Release(
+        id: release.id,
+        appId: appId,
+        version: releaseVersion,
+        flutterRevision: releaseOnlyRevision,
+        flutterVersion: flutterVersion,
+        displayName: '1.2.3+1',
+        platformStatuses: const {releasePlatform: ReleaseStatus.active},
+        createdAt: DateTime(2023),
+        updatedAt: DateTime(2023),
+      );
+
+      setUp(() {
+        expect(
+          releaseOnlyRevision,
+          isNot(flutterRevision),
+          reason: 'the release revision and the local pin must differ',
+        );
+        when(
+          () => codePushClientWrapper.getRelease(
+            appId: any(named: 'appId'),
+            releaseVersion: any(named: 'releaseVersion'),
+          ),
+        ).thenAnswer((_) async => revisionRelease);
+      });
+
+      test(
+        'hydrates the release revision BEFORE asserting coherence',
+        () async {
+          final exitCode = await runWithOverrides(command.run);
+          expect(exitCode, equals(ExitCode.success.code));
+
+          // Order is the whole point: asserting first judges a checkout whose
+          // engine artifacts have not been fetched yet, and reports an absent
+          // engine as an incoherent toolchain.
+          verifyInOrder([
+            () => shorebirdFlutter.installRevision(
+              revision: releaseOnlyRevision,
+              releasePlatform: ReleasePlatform.android,
+            ),
+            () => toolchainCoherence.assertCoherent(
+              releasePlatform: ReleasePlatform.android,
+            ),
+          ]);
+        },
+      );
+
+      test('hydrates ONLY the target platform', () async {
+        await runWithOverrides(command.run);
+
+        verify(
+          () => shorebirdFlutter.installRevision(
+            revision: releaseOnlyRevision,
+            releasePlatform: ReleasePlatform.android,
+          ),
+        ).called(1);
+        verifyNever(
+          () => shorebirdFlutter.installRevision(
+            revision: any(named: 'revision'),
+            releasePlatform: ReleasePlatform.ios,
+          ),
+        );
+      });
+
+      test(
+        'asserts coherence against the RELEASE revision, not the local pin',
+        () async {
+          String? revisionSeenByGate;
+          when(
+            () => toolchainCoherence.assertCoherent(
+              releasePlatform: any(named: 'releasePlatform'),
+            ),
+          ).thenAnswer((_) {
+            revisionSeenByGate = shorebirdEnv.flutterRevision;
+          });
+
+          await runWithOverrides(command.run);
+
+          expect(revisionSeenByGate, equals(releaseOnlyRevision));
+          expect(
+            revisionSeenByGate,
+            isNot(flutterRevision),
+            reason: 'the gate must not judge the ambient pin',
+          );
+        },
+      );
     });
 
     group('when release version is specified', () {
