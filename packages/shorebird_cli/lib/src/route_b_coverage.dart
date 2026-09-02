@@ -229,7 +229,7 @@ class RouteBLowering {
     required this.unsupported,
     this.origin,
     this.superInvocations = const [],
-    this.releaseSuperTargets = const [],
+    this.releaseSuperTargets,
   });
 
   /// The class the receiver belongs to, used as the parameter's type.
@@ -266,8 +266,22 @@ class RouteBLowering {
   /// SAME METHOD, never program-wide: evidence from an unrelated release method
   /// would not support that chain.
   ///
-  /// An empty list is meaningful — the release version direct-called nothing.
-  final List<RouteBProvenance> releaseSuperTargets;
+  /// THREE STATES, and they are not interchangeable:
+  ///
+  ///   null   the measurement was UNAVAILABLE. The analyzer could not build
+  ///          a hierarchy over the release kernel — it is the
+  ///          `--no-link-platform` import kernel, whose `dart:core` classes
+  ///          carry no AST — so it did not look. Nothing may be concluded
+  ///          about what the release called.
+  ///   []     the measurement was TAKEN: the release version of this method
+  ///          direct-called nothing.
+  ///   [...]  the measurement was taken and these targets were observed.
+  ///
+  /// Collapsing null into `[]` would turn "we did not look" into the positive
+  /// claim "the release called nothing". Both refuse a super patch, so the
+  /// distinction is not a safety gap — it is the difference between a refusal
+  /// that names a missing measurement and one that asserts a measured fact.
+  final List<RouteBProvenance>? releaseSuperTargets;
 
   /// Genuine `super.member()` sites in this body (analysis version 10).
   ///
@@ -565,11 +579,16 @@ class RouteBCoverage {
                   target: _provenance(site['target']),
                 ),
           ],
-          releaseSuperTargets: [
-            for (final v
-                in (l['releaseSuperTargets'] as List<Object?>? ?? const []))
-              if (_provenance(v) case final RouteBProvenance p) p,
-          ],
+          // ABSENT is preserved as null. `?? const []` here would erase the
+          // analyzer's distinction at the boundary, which is exactly where it
+          // has to survive.
+          releaseSuperTargets: switch (l['releaseSuperTargets']) {
+            final List<Object?> raw => [
+              for (final v in raw)
+                if (_provenance(v) case final RouteBProvenance p) p,
+            ],
+            _ => null,
+          },
         );
       }
     }

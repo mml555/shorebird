@@ -30,6 +30,83 @@ void main() {
       'refusalSummary': refusalSummary,
     });
 
+    // MEASUREMENT-STATE CONTRACT (analysis version 11).
+    //
+    // The analyzer omits `releaseSuperTargets` when it could not build a
+    // hierarchy over the release kernel. Parsing must preserve that: `?? const
+    // []` at the boundary would convert "we did not look" into the positive
+    // claim "the release called nothing".
+    group('releaseSuperTargets measurement state', () {
+      String loweringDoc(Map<String, Object?> lowering) => jsonEncode({
+        'analysisVersion': supportedRouteBAnalysisVersion,
+        'verdict': 'accept',
+        'changed': <String>[],
+        'added': <String>[],
+        'removed': <String>[],
+        'patchable': <String>[],
+        'conditional': <String>[],
+        'rejections': <Map<String, Object?>>[],
+        'refusalSummary': null,
+        'lowering': {'package:app/main.dart#Thing.go': lowering},
+      });
+
+      const base = {
+        'receiverType': 'Thing',
+        'nameOffset': 0,
+        'accesses': <Object>[],
+        'unsupported': <String>[],
+        'origin': {
+          'library': 'package:app/main.dart',
+          'class': 'Thing',
+          'member': 'go',
+          'memberKind': 'Method',
+        },
+        'superInvocations': <Object>[],
+      };
+
+      const provenance = {
+        'fileUri': 'file:///app/lib/main.dart',
+        'fileOffset': 10,
+        'name': 'close',
+        'kind': 'Method',
+      };
+
+      RouteBLowering parseLowering(Map<String, Object?> extra) {
+        final c = RouteBCoverage.fromJson(loweringDoc({...base, ...extra}));
+        return c.lowering['package:app/main.dart#Thing.go']!;
+      }
+
+      test('A: field ABSENT parses as null — measurement unavailable', () {
+        expect(parseLowering(const {}).releaseSuperTargets, isNull);
+      });
+
+      test('B: field [] parses as empty — measured, called nothing', () {
+        expect(
+          parseLowering(const {'releaseSuperTargets': <Object>[]})
+              .releaseSuperTargets,
+          isEmpty,
+        );
+      });
+
+      test('C: field [target] parses the exact provenance', () {
+        final got = parseLowering(const {
+          'releaseSuperTargets': [provenance],
+        }).releaseSuperTargets;
+        expect(got, hasLength(1));
+        expect(got!.single.name, 'close');
+        expect(got.single.kind, 'Method');
+        expect(got.single.fileOffset, 10);
+      });
+
+      test('absent and empty are not equal', () {
+        expect(
+          parseLowering(const {}).releaseSuperTargets,
+          isNot(parseLowering(const {'releaseSuperTargets': <Object>[]})
+              .releaseSuperTargets),
+        );
+      });
+    });
+
     group('version', () {
       test('refuses an analysis it does not understand', () {
         // Best-effort parsing across versions is how you get a confident wrong

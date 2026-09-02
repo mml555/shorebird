@@ -762,7 +762,22 @@ Object? $_superIntrinsicName(
             'target, so there is no evidence the release compiled one',
           );
         }
-        if (!lowering.releaseSuperTargets.contains(target)) {
+        // ABSENT evidence and EMPTY evidence both refuse, and must say
+        // different things. "The analyzer did not look" sends a reader at the
+        // release pipeline; "the release called nothing" sends them at the
+        // patch. Reporting the second when the first is true would send them
+        // to the wrong place with confident wording.
+        final releaseTargets = lowering.releaseSuperTargets;
+        if (releaseTargets == null) {
+          throw RouteBUnsupportedTarget(
+            key,
+            'the analyzer did not measure what the release version of '
+            '`${origin.member}` direct-called, so there is no evidence either '
+            'way for super.${site.member}(). This is a missing measurement, '
+            'not a negative result',
+          );
+        }
+        if (!releaseTargets.contains(target)) {
           throw RouteBUnsupportedTarget(
             key,
             'super.${site.member}() resolves to a target this release never '

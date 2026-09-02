@@ -1576,7 +1576,8 @@ void main() {
         String memberKind = 'Method',
         int? offset,
         Object? siteTarget = target,
-        List<Object?> releaseSuperTargets = const [target],
+        List<Object?>? releaseSuperTargets = const [target],
+        bool omitReleaseSuperTargets = false,
       }) => {
         'package:app/main.dart#routeBValue': {
           'receiverType': 'Thing',
@@ -1597,7 +1598,8 @@ void main() {
               'target': siteTarget,
             },
           ],
-          'releaseSuperTargets': releaseSuperTargets,
+          if (!omitReleaseSuperTargets)
+            'releaseSuperTargets': releaseSuperTargets,
         },
       };
 
@@ -1772,6 +1774,47 @@ void main() {
               (e) => e.reason,
               'reason',
               contains('never direct-called'),
+            ),
+          ),
+        );
+      });
+
+      // MEASUREMENT-STATE CONTRACT. Absent and empty both refuse, and must
+      // refuse with DIFFERENT words: "we did not look" sends a reader at the
+      // release pipeline, "the release called nothing" sends them at the patch.
+      test('refuses by name when the release evidence is ABSENT', () {
+        expect(
+          () => produce(
+            superDeclaration,
+            loweringFor(superDeclaration, omitReleaseSuperTargets: true),
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              allOf(
+                contains('did not measure'),
+                contains('missing measurement, not a negative result'),
+              ),
+            ),
+          ),
+        );
+      });
+
+      test('an EMPTY measurement is a measured negative, not absence', () {
+        expect(
+          () => produce(
+            superDeclaration,
+            loweringFor(superDeclaration, releaseSuperTargets: const []),
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              allOf(
+                contains('never direct-called'),
+                isNot(contains('did not measure')),
+              ),
             ),
           ),
         );
