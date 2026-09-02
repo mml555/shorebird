@@ -109,6 +109,37 @@ def pct(n, d):
     return '   --  ' if not d else '%6.2f%%' % (100.0 * n / d)
 
 
+# D0.3's construct attribution, hoisted to module level in D-CENSUS-2 so the
+# narrow-v1 reporter shares ONE definition of it instead of restating the rule.
+# Pure move: the body is byte-identical apart from dedent, and it closed over
+# nothing but `canonical`.
+def constructs(r):
+    cs = set()
+    parents = set((r.get('unconsumedThisParents') or {}).keys())
+    # From analysisVersion 10 the analyzer REPORTS a genuine super method
+    # site structurally instead of emitting a refusal string for it, so this
+    # signal -- not a reason string -- is what identifies those methods. The
+    # product still cannot lower them, which is what the census measures.
+    if (r.get('superInvocations') or 0) > 0:
+        cs.add('construct.super')
+    for u in r['unsupported']:
+        c = canonical(u, r['target'])
+        if c.startswith('receiver.super_'):
+            cs.add('construct.super')
+        elif c == 'receiver.unconsumed_this':
+            continue          # attributed by parent, just below
+        else:
+            cs.add(c)
+    if any(n.startswith('Super') for n in parents):
+        cs.add('construct.super')
+    if 'InstanceTearOff' in parents:
+        cs.add('construct.method_tearoff')
+    if any(not n.startswith('Super') and n != 'InstanceTearOff'
+           for n in parents):
+        cs.add('construct.this_escape')
+    return cs
+
+
 def report(label, kind, path, out, exclude=(), drop_generated=False):
     header, rows = load(path)
     dropped = [r for r in rows if excluded_by(r, exclude, drop_generated)]
@@ -217,31 +248,7 @@ def report(label, kind, path, out, exclude=(), drop_generated=False):
     # calls. Both readings are wrong, and both point a roadmap the wrong way.
     #
     # So constructs are attributed once each. THIS is the table to plan from.
-    def constructs(r):
-        cs = set()
-        parents = set((r.get('unconsumedThisParents') or {}).keys())
-        # From analysisVersion 10 the analyzer REPORTS a genuine super method
-        # site structurally instead of emitting a refusal string for it, so this
-        # signal -- not a reason string -- is what identifies those methods. The
-        # product still cannot lower them, which is what the census measures.
-        if (r.get('superInvocations') or 0) > 0:
-            cs.add('construct.super')
-        for u in r['unsupported']:
-            c = canonical(u, r['target'])
-            if c.startswith('receiver.super_'):
-                cs.add('construct.super')
-            elif c == 'receiver.unconsumed_this':
-                continue          # attributed by parent, just below
-            else:
-                cs.add(c)
-        if any(n.startswith('Super') for n in parents):
-            cs.add('construct.super')
-        if 'InstanceTearOff' in parents:
-            cs.add('construct.method_tearoff')
-        if any(not n.startswith('Super') and n != 'InstanceTearOff'
-               for n in parents):
-            cs.add('construct.this_escape')
-        return cs
+    # Hoisted; see module-level `constructs`.
 
     ctouch, csole = Counter(), Counter()
     for r in rows:

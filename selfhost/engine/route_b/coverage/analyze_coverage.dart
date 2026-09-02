@@ -669,6 +669,14 @@ Never _die(String message) {
 void _runCensus(String path, List<String> includePrefixes, String? outPath) {
   final component = _load(path);
   final censusHierarchy = ClassHierarchy(component, CoreTypes(component));
+  // THE SAME PRECONDITION THE NORMAL PATH APPLIES (version 11). A base kernel
+  // whose `dart:core` carries no classes is unlinked, and `releaseSuperTargets`
+  // cannot be computed from it. Absent is not empty: the key is OMITTED rather
+  // than reported as `[]`, so a consumer can tell "the release direct-called
+  // nothing" from "nobody measured".
+  final censusIsLinked = component.libraries.any(
+    (l) => l.importUri.toString() == 'dart:core' && l.classes.isNotEmpty,
+  );
   bool isApp(Library lib) {
     final uri = lib.importUri.toString();
     if (uri.startsWith('dart:')) return false;
@@ -818,6 +826,24 @@ void _runCensus(String path, List<String> includePrefixes, String? outPath) {
           'needsAlphaRename': span == null ? null : span.contains('self'),
           'generated': isGenerated(p.fileUri),
           'unconsumedThisParents': parents,
+          // D-CENSUS-2, MEASUREMENT ONLY. Nothing below takes part in a
+          // refusal; `lowerable` above is unchanged, so D0.2/D0.4's banked
+          // numbers stay comparable.
+          //
+          // The file, so the SOURCE-SHAPE classifier can find the call. It is
+          // deliberately not classified here: "zero source arguments" is the
+          // product's rule and lives in the product's own fail-closed scanner
+          // (`route_b_super_source.dart`). Restating it in this tool would be a
+          // second definition free to drift from the one that admits patches.
+          'fileUri': p.fileUri.toString(),
+          // Every super site with its resolved target, not just how many.
+          'superSites': lowering['superInvocations'],
+          // What the RELEASE version of THIS method direct-called. In a census
+          // the corpus IS the release, which the header records as
+          // `releaseIsSelf`; see the reporter for what that does and does not
+          // license.
+          if (censusIsLinked)
+            'releaseSuperTargets': _superTargets(censusHierarchy, cls, p),
         });
       }
     }
@@ -830,8 +856,17 @@ void _runCensus(String path, List<String> includePrefixes, String? outPath) {
   final buffer = StringBuffer()
     ..writeln(
       jsonEncode({
-        'censusVersion': 1,
+        // 2: rows carry `fileUri`, `superSites` (each with its resolved
+        // target) and `releaseSuperTargets`. Additive -- `lowerable` and every
+        // version-1 field mean exactly what they did.
+        'censusVersion': 2,
         'dill': path,
+        // The corpus is its own release. A census has one kernel, so
+        // `releaseSuperTargets` answers "does the release direct-call the
+        // target its own super site names", never "would a NEW super call in a
+        // patch be admissible".
+        'releaseIsSelf': true,
+        'censusIsLinked': censusIsLinked,
         'include': includePrefixes,
         'considered': rows.length,
         'skippedStatic': skippedStatic,
