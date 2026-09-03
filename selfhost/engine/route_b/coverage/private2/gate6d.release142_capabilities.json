@@ -1,0 +1,38 @@
+{
+  "policy": "p2",
+  "policyDescription": "all app-private members and classes",
+  "privateEnumerationSource": "private-dill (non-AOT)",
+  "appLibraries": 1,
+  "counts": {
+    "privateTopLevelCallable": 0,
+    "privateStaticsCallable": 0,
+    "privateInstanceCallable": 3,
+    "privateClassPublicMembers": 5,
+    "privateClassesConstructible": 3,
+    "implicitlyConstructible": 0,
+    "constructionWithheld": 0,
+    "refused": 0
+  },
+  "privateTopLevelCallable": [],
+  "privateStaticsCallable": [],
+  "privateInstanceCallable": [
+    "package:super_fixture/main.dart#_PageState#_run",
+    "package:super_fixture/main.dart#_PageState#_positive",
+    "package:super_fixture/main.dart#_PageState#_negative"
+  ],
+  "privateClassPublicMembers": [
+    "package:super_fixture/main.dart#_Boxed#render",
+    "package:super_fixture/main.dart#_Boxed#value",
+    "package:super_fixture/main.dart#_Other#render",
+    "package:super_fixture/main.dart#_Other#tag",
+    "package:super_fixture/main.dart#_PageState#build"
+  ],
+  "privateClassesConstructible": [
+    "package:super_fixture/main.dart#_Boxed.new",
+    "package:super_fixture/main.dart#_Other.new",
+    "package:super_fixture/main.dart#_PageState.new"
+  ],
+  "implicitlyConstructible": [],
+  "constructionWithheld": [],
+  "refused": []
+}
