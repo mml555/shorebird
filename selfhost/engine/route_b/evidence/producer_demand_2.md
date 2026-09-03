@@ -50,7 +50,7 @@ product, and were discarded and re-run like-for-like. They are not reported.
 | Wonderous producer compatibility | 45.00% | **50.00%** |
 | LocalSend producer compatibility | 92.67% | **92.67%** |
 | private-construction refusals removed | — | **1 method** (Wonderous), 0 (LocalSend) |
-| remaining refusal leader | fragmented | **private non-construction references** |
+| only blocker class replicated across both corpora, among analyzer-accepted → producer-refused | fragmented | **private non-construction references** (one distinct method each) |
 
 Analyzer-level compatibility is unchanged in both corpora (70.00% / 94.83%), so
 v13 changed no analyzer verdict — the movement is entirely producer-side.
@@ -89,7 +89,13 @@ report, not an unexplained refusal.
 `private_type_reference` 3, `capability_not_granted` 1, `receiver_rewrite` 1.
 Not one LocalSend refusal involved a private construction.
 
-## The remaining leader
+## The only replicated disagreement class
+
+**Not the refusal leader overall** — that claim would be wrong. Across ALL
+producer-level refusals, Wonderous is still dominated by analyzer
+`construct.method_tearoff` (6 of 10) and LocalSend by analyzer
+`abi.named_parameters` (5 of 17). The statement below is scoped to the
+analyzer-accepted → producer-refused disagreements only.
 
 Both corpora's surviving private-reference refusals are private NON-construction
 references:
