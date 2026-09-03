@@ -1,0 +1,165 @@
+
+[1m7. re-arm the tunnel and install the RELEASE apk[0m
+    Performing Streamed Install
+    Success
+  control-plane requests so far: 56
+
+[1m8. human-equivalent launch, and the UNPATCHED marker[0m
+  marker on first launch: ANDROID-FINAL-V1-RELEASE
+
+[1m9. normal discovery + download (no manual trigger)[0m
+    requests the device made:
+      POST   /api/v1/apps                               200
+      GET    /api/v1/apps                               200
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases 200
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases 200
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases 200
+      PATCH  /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1 204
+      PATCH  /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1 204
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/artifacts 200
+      POST   /api/v1/uploads/9d1ac0e9831451169b66c049968302e7 204
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/artifacts 200
+      POST   /api/v1/uploads/4c9dcfff4372c8ad3ef01d78765aa148 204
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/artifacts 200
+      POST   /api/v1/uploads/266245638720b75c757a743130f5441e 204
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/artifacts 200
+      POST   /api/v1/uploads/c27a6c6913d34585070d09327caf6349 204
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/artifacts 200
+      POST   /api/v1/uploads/0c533837def1c7f1c29570a145d0afe2 204
+      PATCH  /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1 204
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases 200
+      GET    /api/v1/apps                               200
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases 200
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/artifacts 200
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/artifacts 200
+      GET    /download/c27a6c6913d34585070d09327caf6349 200
+      GET    /download/0c533837def1c7f1c29570a145d0afe2 200
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/artifacts 200
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/artifacts 200
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/artifacts 200
+      GET    /download/9d1ac0e9831451169b66c049968302e7 200
+      GET    /download/4c9dcfff4372c8ad3ef01d78765aa148 200
+      GET    /download/266245638720b75c757a743130f5441e 200
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/patches 200
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/patches/1/artifacts 200
+      POST   /api/v1/uploads/f042bdb26227802069095f31e6702fa7 204
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/patches/1/artifacts 200
+      POST   /api/v1/uploads/67620a3960e76e049907e024540ac464 204
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/patches/1/artifacts 200
+      POST   /api/v1/uploads/65bd365c883b4c1e46298977c9d32661 204
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/channels 200
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/channels 200
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/patches/promote 204
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/patches 200
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/patches 200
+      GET    /admin/audit                               200
+      POST   /api/v1/patches/check                      200
+      GET    /download/67620a3960e76e049907e024540ac464 200
+      POST   /api/v1/patches/events                     204
+      POST   /api/v1/patches/check                      200
+      POST   /api/v1/patches/events                     204
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/metrics 200
+      POST   /api/v1/patches/check                      200
+      GET    /download/67620a3960e76e049907e024540ac464 200
+      POST   /api/v1/patches/events                     204
+      POST   /api/v1/patches/check                      200
+      POST   /api/v1/patches/events                     204
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/metrics 200
+      POST   /api/v1/patches/check                      200
+      GET    /download/67620a3960e76e049907e024540ac464 200
+      POST   /api/v1/patches/events                     204
+
+[1m10. STAGED, not executed — the marker must still be V1 in this process[0m
+  marker after download, before restart: ANDROID-FINAL-V1-RELEASE
+
+[1m11. restart the app (the only lifecycle step) and read again[0m
+  marker after restart: ANDROID-FINAL-V2-PATCHED
+
+[1m12. what the device told the control plane[0m
+      POST   /api/v1/apps                               200
+      GET    /api/v1/apps                               200
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases 200
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases 200
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases 200
+      PATCH  /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1 204
+      PATCH  /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1 204
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/artifacts 200
+      POST   /api/v1/uploads/9d1ac0e9831451169b66c049968302e7 204
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/artifacts 200
+      POST   /api/v1/uploads/4c9dcfff4372c8ad3ef01d78765aa148 204
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/artifacts 200
+      POST   /api/v1/uploads/266245638720b75c757a743130f5441e 204
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/artifacts 200
+      POST   /api/v1/uploads/c27a6c6913d34585070d09327caf6349 204
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/artifacts 200
+      POST   /api/v1/uploads/0c533837def1c7f1c29570a145d0afe2 204
+      PATCH  /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1 204
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases 200
+      GET    /api/v1/apps                               200
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases 200
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/artifacts 200
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/artifacts 200
+      GET    /download/c27a6c6913d34585070d09327caf6349 200
+      GET    /download/0c533837def1c7f1c29570a145d0afe2 200
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/artifacts 200
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/artifacts 200
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/artifacts 200
+      GET    /download/9d1ac0e9831451169b66c049968302e7 200
+      GET    /download/4c9dcfff4372c8ad3ef01d78765aa148 200
+      GET    /download/266245638720b75c757a743130f5441e 200
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/patches 200
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/patches/1/artifacts 200
+      POST   /api/v1/uploads/f042bdb26227802069095f31e6702fa7 204
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/patches/1/artifacts 200
+      POST   /api/v1/uploads/67620a3960e76e049907e024540ac464 204
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/patches/1/artifacts 200
+      POST   /api/v1/uploads/65bd365c883b4c1e46298977c9d32661 204
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/channels 200
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/channels 200
+      POST   /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/patches/promote 204
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/patches 200
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/releases/1/patches 200
+      GET    /admin/audit                               200
+      POST   /api/v1/patches/check                      200
+      GET    /download/67620a3960e76e049907e024540ac464 200
+      POST   /api/v1/patches/events                     204
+      POST   /api/v1/patches/check                      200
+      POST   /api/v1/patches/events                     204
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/metrics 200
+      POST   /api/v1/patches/check                      200
+      GET    /download/67620a3960e76e049907e024540ac464 200
+      POST   /api/v1/patches/events                     204
+      POST   /api/v1/patches/check                      200
+      POST   /api/v1/patches/events                     204
+      GET    /api/v1/apps/65ca0d46-5143-0406-dfab-b5d008927e4b/metrics 200
+      POST   /api/v1/patches/check                      200
+      GET    /download/67620a3960e76e049907e024540ac464 200
+      POST   /api/v1/patches/events                     204
+      POST   /api/v1/patches/check                      200
+      POST   /api/v1/patches/events                     204
+    events recorded:
+      {
+          "total_events": 6,
+          "unique_clients": 3,
+          "events_by_type": {
+              "__patch_download__": 3,
+              "__patch_install__": 3
+          },
+          "patches": [
+              {
+                  "patch_number": 1,
+                  "downloads": 3,
+                  "installs": 3,
+                  "install_failures": 0,
+                  "update_failures": 0,
+                  "unique_clients": 3
+              }
+          ]
+      }
+
+[1mRESULT[0m
+  first launch : ANDROID-FINAL-V1-RELEASE
+  after download: ANDROID-FINAL-V1-RELEASE
+  after restart : ANDROID-FINAL-V2-PATCHED
+  PASS: release marker before, patched marker after restart
+  screenshots: /tmp/android1.Fyj85M/shots

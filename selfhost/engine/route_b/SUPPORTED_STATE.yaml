@@ -94,7 +94,29 @@ product_surfaces:
   # surface" have different remediations and collapsing them hides the second.
   standalone_flutter_app:
     ios: SUPPORTED — physically qualified, see physical_device_qualification
-    android: SUPPORTED — see ANDROID rows in WORKFLOW_CERTIFICATION.md
+    android:
+      status: UNSUPPORTED ON THIS CELL
+      assessed: 2026-09-03 (ANDROID-FINAL-STACK-1)
+      # CORRECTION. This line first read "SUPPORTED — see ANDROID rows in
+      # WORKFLOW_CERTIFICATION.md", written the same day in the ADD-TO-APP-1
+      # wording pass. That was an over-claim: the re-certification against the
+      # final stack is entirely iOS (rows 1 and 7 via 6F/6G, the rest carried
+      # forward), and ANDROID-FINAL-STACK-1 then measured the opposite.
+      #
+      # `shorebird release android` cannot build against cell cd848320: the
+      # cell publishes NO Android engine artifacts, the pinned Flutter's
+      # engine.version IS the cell, and `android-arm64-release/` is in the
+      # CDN's @must_be_local matcher — so the 404 is a deliberate protection,
+      # not a gap to route around.
+      what_works: the Android release → patch → discovery → download →
+        physical activation path itself is sound on today's CLI, producer and
+        control plane, proven end to end on a STOCK engine (309dd657…) with an
+        on-screen marker change on a physical CPH2551. Android patching is
+        bidiff; it needs neither Route B nor the AOT linker.
+      to_support: publish and qualify Android engine artifacts for the cell
+        (at minimum android-arm64-release, which @must_be_local requires be
+        genuinely ours). Cell/architecture work; not started.
+      evidence: evidence/android-final-stack-1/RESULT.md
   ios_add_to_app:
     status: UNSUPPORTED
     assessed: 2026-09-03 (ADD-TO-APP-1)

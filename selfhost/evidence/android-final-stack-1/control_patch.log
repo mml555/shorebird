@@ -1,0 +1,30 @@
+
+[1m3. change the marker — one line, in the never-inline function[0m
+  marker now ANDROID-FINAL-V2-PATCHED
+
+[1m4. shorebird patch android[0m
+  exit=0
+    | 
+    | 📱 App: android-final-stack-1 (65ca0d46-5143-0406-dfab-b5d008927e4b)
+    | 📦 Release Version: 1.0.0+1
+    | 🕹️  Platform: Android [arm32 (5.48 KB), arm64 (5.47 KB), x86_64 (5.47 KB)]
+    | 🟢 Track: Stable
+    | 
+    | Starting Creating patch...
+    | Done Creating patch
+    | Starting Uploading Android artifacts...
+    | Done Uploading Android artifacts
+    | Starting Fetching channels...
+    | Done Fetching channels
+    | Starting Creating channel...
+    | Done Creating channel
+    | Starting Promoting patch to stable...
+    | Done Promoting patch to stable
+    | 
+    | ✅ Published Patch 1!
+
+[1m5. what the control plane holds[0m
+  File "<string>", line 4
+    print(f"    patch id={p[\"id\"]} number={p[\"number\"]} status={p[\"status\"]} channel={p[\"channel\"]}")
+                             ^
+SyntaxError: unexpected character after line continuation character

@@ -1,0 +1,13 @@
+[WARN] No patch public key was provided. Patches for this release will not be cryptographically verified on the device.
+To enable verification, provide --public-key-path or --public-key-cmd.
+Starting Downloading aot-tools.dill......
+Starting Fetching apps...
+Done Fetching apps
+Starting Running flutter precache...
+Failed Failed to precache Flutter null
+
+If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
+
+You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
+/Users/mendell/Library/Application Support/shorebird/logs/1788476468635_shorebird.log
+

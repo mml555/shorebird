@@ -2,9 +2,69 @@
 <!-- cspell:words APFS CODEPATCH PRECOMPILER Werror caffeinate dartaotruntime SEGVs Specializer diskutil dumpsys flowgraph iface killgate libdart nodm nofail precompiler unapply -->
 <!-- cspell:words tearoff DNDEBUG SEGV LINKEDIT ourengine noinstall SELTOTAL hosttest unrun closurizing closurized closurize closurization bodyless pids footgun mtimes repointed rbtest Devirtualization genkernel misparse -->
 <!-- cspell:words airgap justlaunch noninteractive SIGTRAP dynmod absolutized DEFAULTPATH SIGPIPE PIPESTATUS -->
-<!-- cspell:words SBRBPTCH inspectable janky premain representability routeb reconstructibility productionization -->
+<!-- cspell:words SBRBPTCH inspectable janky premain representability routeb reconstructibility productionization uiautomator screencap keyguard bidiff Lockscreen -->
 
 # Handoff — engine improvements (as of 2026-08-07)
+
+## 2026-09-03 — ANDROID-FINAL-STACK-1: the Android workflow is sound; the FROZEN CELL cannot serve it
+
+**Read [`evidence/android-final-stack-1/RESULT.md`](evidence/android-final-stack-1/RESULT.md)
+before any Android work.** STOP AND REPORT per step 7. Nothing implemented,
+nothing fixed, no cell minted.
+
+**The A/B is the finding.** Identical harness, app, control plane and command;
+the only variable is the engine:
+
+    frozen  e64eb0af… -> cell cd848320…   exit 70   Failed to precache Flutter null
+    control 309dd657… -> stock e1eaecbc…  exit 0    release published
+
+`flutter precache --android` asks `download.shorebird.dev/.../cd848320…/
+android-arm-profile/darwin-x64.zip` → **404**. The pinned Flutter's own
+`engine.version` IS the cell, and the cell's overlay holds **zero** Android
+artifacts — it is a macOS/iOS cell. Through the local CDN the cell IS mapped to
+the Android-serving fallback and the *profile* artifact resolves (200), but
+`android-arm64-release/` is in the `@must_be_local` matcher and 404s **by
+design**: taking a stock release engine for a Route B cell would ship an app
+whose engine the cell never qualified. And the local CDN is not in the path by
+default anyway — the CLI hard-codes the storage URL and
+`SHOREBIRD_FLUTTER_STORAGE_BASE_URL` is a *proposed* patch, not implemented.
+
+**What IS proven, end to end, on a stock engine:** release id 1 (1.0.0+1, five
+artifacts with hashes recorded) → an ordinary bidiff code patch (patch 1,
+~5.6 KB per ABI) → self-hosted `patches/check` + `/download` → physical
+activation on **CPH2551, Android 16, arm64-v8a, wired USB** with
+`ANDROID-FINAL-V1-RELEASE` → (download, still V1) → restart →
+**`ANDROID-FINAL-V2-PATCHED`**, read both mechanically (`uiautomator`) and
+visually. `install_failures 0`. **Android patching is bidiff — it needs neither
+Route B nor the AOT linker**, which is why the mechanism is fine and only the
+engine supply is missing.
+
+**A record I wrote earlier the same day was WRONG and is corrected in the same
+commit.** `SUPPORTED_STATE.yaml`'s `product_surfaces` said
+`android: SUPPORTED — see ANDROID rows in WORKFLOW_CERTIFICATION.md`. The
+final-stack re-certification is **entirely iOS** (rows 1 and 7 via 6F/6G, rest
+carried forward). Now `UNSUPPORTED ON THIS CELL`, with what works and what it
+would take spelled out.
+
+**Two harness traps here produced a PLAUSIBLE wrong answer, and both are now
+refused rather than tolerated:**
+
+1. **`adb exec-out screencap -p` streams through stdout**, and this device
+   prints `[Warning] Multiple displays…` first — so every captured `.png` was
+   not a PNG, and two DIFFERENT screens gave BYTE-IDENTICAL files because both
+   were just the warning. Capture via `screencap` to a file plus `adb pull`, and
+   assert the result is a PNG. Never read an image through a channel that can
+   also carry text.
+2. **A secured keyguard leaves the app running and invisible.** The updater
+   completed check → download → `__patch_install__` while the on-screen marker
+   read `<none>` three times: mechanism evidence perfect, observable absent. The
+   device stage now exits 2 unless `mDreamingLockscreen=false`.
+
+Also worth knowing: `--release-version` is aar/ios-framework only (a full
+Android release takes its version from `pubspec.yaml`), and
+`fixtures/android_signing_app` is the SIGNING probe — its gradle refuses without
+a keystore at an uncommitted path, so it is the wrong fixture for an ordinary
+workflow.
 
 ## 2026-09-03 — ADD-TO-APP-1: STOPPED. Add-to-App fails at the FIRST command, for a reason that has nothing to do with Route B
 
