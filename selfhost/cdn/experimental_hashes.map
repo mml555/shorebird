@@ -477,3 +477,18 @@ a5a8be5854c529268378ce16762a16d6e31763e9 69f9831c360d9152862ec3897c67fb09ae843f3
 # The compiler archive records the PRODUCER ENGINE a5a8be58, not this address;
 # cell membership is carried by the descriptor at cell-manifests/<hash>.v2.
 d4c0dbc2905286eb4537d5f9a7802693096ca1fd 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# cd848320… -- the analysis-version-13 successor to H3 (d4c0dbc2…).
+#
+# ONE MEMBER DIFFERS from H3, and it is the Route B compiler archive:
+#   route-b-compiler-darwin-arm64.zip  39ad75dd… -> 7975b27c…
+# whose only functional change is route_b_analyze.aot at analysisVersion 13,
+# which reports `privateConstructions` and, per changed method, the RELEASE's
+# own `releasePrivateConstructions`. Thirteen members are H3's exact published
+# bytes; the two self-referential metadata members are byte-identical to H3's
+# once re-addressed, which was verified rather than assumed.
+#
+# The compiler archive was frozen BEFORE addressing (gate 6A) because `zip`
+# stamps mtimes and route_b_analyze.aot is not byte-reproducible, so re-staging
+# at publish time would have published different bytes than were addressed.
+cd848320d605ff8af5060cabf9a8d1b35853f752 69f9831c360d9152862ec3897c67fb09ae843f3b

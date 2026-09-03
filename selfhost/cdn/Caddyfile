@@ -218,7 +218,7 @@
 
 	@must_be_local_pkgs {
 		expression `{stock_engine_hash} != ""`
-		path_regexp ^/flutter_infra_release/flutter/((70974f811d448da19a927c581678ef1dbd33605c|760e3fabffbf31b4e86919a0ef47d6ce5f182991|881e4129ce06e8d61019e0ed892f3be7c039763e|4df8f9b6139b67d2cfe9f6aa8212372cade36278|40eaa0ef6cb6485833bf2e10ac97224ca82cbf25|a5a8be5854c529268378ce16762a16d6e31763e9|64ff9f592ae319eea04db6092b71319d4778b873|d4c0dbc2905286eb4537d5f9a7802693096ca1fd)/(sky_engine|flutter_gpu)\.zip|a5a8be5854c529268378ce16762a16d6e31763e9/(ios|ios-profile)/artifacts\.zip|64ff9f592ae319eea04db6092b71319d4778b873/(ios|ios-profile)/artifacts\.zip|d4c0dbc2905286eb4537d5f9a7802693096ca1fd/(ios|ios-profile)/artifacts\.zip|760e3fabffbf31b4e86919a0ef47d6ce5f182991/linux-x64/font-subset\.zip)$
+		path_regexp ^/flutter_infra_release/flutter/((70974f811d448da19a927c581678ef1dbd33605c|760e3fabffbf31b4e86919a0ef47d6ce5f182991|881e4129ce06e8d61019e0ed892f3be7c039763e|4df8f9b6139b67d2cfe9f6aa8212372cade36278|40eaa0ef6cb6485833bf2e10ac97224ca82cbf25|a5a8be5854c529268378ce16762a16d6e31763e9|64ff9f592ae319eea04db6092b71319d4778b873|d4c0dbc2905286eb4537d5f9a7802693096ca1fd|cd848320d605ff8af5060cabf9a8d1b35853f752)/(sky_engine|flutter_gpu)\.zip|a5a8be5854c529268378ce16762a16d6e31763e9/(ios|ios-profile)/artifacts\.zip|64ff9f592ae319eea04db6092b71319d4778b873/(ios|ios-profile)/artifacts\.zip|d4c0dbc2905286eb4537d5f9a7802693096ca1fd|cd848320d605ff8af5060cabf9a8d1b35853f752/(ios|ios-profile)/artifacts\.zip|760e3fabffbf31b4e86919a0ef47d6ce5f182991/linux-x64/font-subset\.zip)$
 	}
 
 	@has_stock expression `{stock_engine_hash} != ""`
