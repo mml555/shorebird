@@ -447,6 +447,26 @@ class Repository {
         'CREATE INDEX IF NOT EXISTS audit_log_request ON audit_log(request_id)',
       ],
     ),
+    (
+      12,
+      [
+        // Identity and tenancy mutations become first-class audit outcomes
+        // too — who was invited, whose role changed, which app someone was
+        // given access to, which credential was issued. That state decides who
+        // may mutate releases and patches at all, so recording it as an
+        // untyped free-text note was the weakest link in the trail.
+        //
+        // An identity mutation's SUBJECT is not an app/release/patch, so it
+        // needs its own columns. `target` already existed as free text; paired
+        // with `target_kind` it becomes queryable, and a row without
+        // `target_kind` is a legacy note whose `target` nobody can type.
+        'ALTER TABLE audit_log ADD COLUMN org_id INTEGER',
+        'ALTER TABLE audit_log ADD COLUMN target_kind TEXT',
+        'CREATE INDEX IF NOT EXISTS audit_log_org ON audit_log(org_id, id)',
+        'CREATE INDEX IF NOT EXISTS audit_log_target '
+            'ON audit_log(target_kind, target, id)',
+      ],
+    ),
   ];
 
   /// Indexes for the access paths that would otherwise scan. `events` is the
@@ -856,6 +876,29 @@ class Repository {
           },
         )
         .toList();
+  }
+
+  /// [userId]'s role in [orgId], or null if not a member.
+  ///
+  /// Exists so a role change can bank the role it REPLACED. "admin -> owner"
+  /// and "developer -> owner" are very different events, and an audit row that
+  /// records only the new value cannot tell them apart.
+  Future<String?> memberRole(int orgId, int userId) async {
+    final r = await _q(
+      'SELECT role FROM org_members WHERE org_id = @o AND user_id = @u',
+      {'o': orgId, 'u': userId},
+    );
+    return r.isEmpty ? null : r.first['role'] as String?;
+  }
+
+  /// [userId]'s role on [appId], or null if not a collaborator. Same purpose
+  /// as [memberRole]: the before value of a grant.
+  Future<String?> collaboratorRole(String appId, int userId) async {
+    final r = await _q(
+      'SELECT role FROM app_collaborators WHERE app_id = @a AND user_id = @u',
+      {'a': appId, 'u': userId},
+    );
+    return r.isEmpty ? null : r.first['role'] as String?;
   }
 
   Future<void> setMemberRole(int orgId, int userId, String role) => _q(
@@ -2057,14 +2100,17 @@ class Repository {
     int? patchId,
     int? patchNumber,
     String? track,
+    int? orgId,
+    String? targetKind,
     String? result,
     int? httpStatus,
   }) async {
     final r = await _q(
       'INSERT INTO audit_log(actor, action, target, detail, request_id, route, '
       'method, actor_id, actor_credential, app_id, release_id, patch_id, '
-      'patch_number, track, result, http_status) '
-      'VALUES (@ac,@an,@tg,@dt,@rq,@rt,@mt,@ai,@cr,@ap,@rl,@pt,@pn,@tk,@rs,@hs) '
+      'patch_number, track, org_id, target_kind, result, http_status) '
+      'VALUES (@ac,@an,@tg,@dt,@rq,@rt,@mt,@ai,@cr,@ap,@rl,@pt,@pn,@tk,@og,@tp,'
+      '@rs,@hs) '
       'RETURNING id',
       {
         'ac': actor,
@@ -2081,6 +2127,8 @@ class Repository {
         'pt': patchId,
         'pn': patchNumber,
         'tk': track,
+        'og': orgId,
+        'tp': targetKind,
         'rs': result,
         'hs': httpStatus,
       },
@@ -2108,6 +2156,9 @@ class Repository {
     String? appId,
     int? releaseId,
     int? patchId,
+    int? orgId,
+    String? targetKind,
+    String? target,
     String? requestId,
     List<String> operations = const [],
     String? result,
@@ -2126,6 +2177,9 @@ class Repository {
     eq('app_id', 'ap', appId);
     eq('release_id', 'rl', releaseId);
     eq('patch_id', 'pt', patchId);
+    eq('org_id', 'og', orgId);
+    eq('target_kind', 'tp', targetKind);
+    eq('target', 'tg', target);
     eq('request_id', 'rq', requestId);
     eq('result', 'rs', result);
     if (after != null) {
@@ -2153,7 +2207,8 @@ class Repository {
     final rows = await _q(
       'SELECT id, created_at, request_id, action, route, method, actor, '
       'actor_id, actor_credential, app_id, release_id, patch_id, patch_number, '
-      'track, result, http_status, target, detail FROM audit_log '
+      'track, org_id, target_kind, result, http_status, target, detail '
+      'FROM audit_log '
       '${clause}ORDER BY id ASC LIMIT ${limit.clamp(0, 1000)}',
       params,
     );
@@ -2180,6 +2235,8 @@ class Repository {
               ? null
               : _int(r['patch_number']),
           'track': r['track'],
+          'org_id': r['org_id'] == null ? null : _int(r['org_id']),
+          'target_kind': r['target_kind'],
           'result': r['result'],
           'http_status': r['http_status'] == null
               ? null

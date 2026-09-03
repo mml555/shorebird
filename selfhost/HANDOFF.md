@@ -6,6 +6,56 @@
 
 # Handoff — engine improvements (as of 2026-08-07)
 
+## 2026-09-03 (later still) — CONTROL-PLANE-AUDIT-2: identity and tenancy mutations are typed too
+
+**Audit work is now finished; the next lane is a choice between Add-to-App
+qualification and demand-driven capability expansion.**
+
+AUDIT-1 made the patch lifecycle auditable while the state governing *access to
+it* was still free text. That is closed: ten identity/tenancy operations —
+`user.create`, `user.register`, `org.invite`, `org.invite.accept`,
+`org.invite.revoke`, `org.member.role`, `org.member.remove`, `org.domains`,
+`app.collaborator.add`, `app.collaborator.remove` — each write one typed request
+row with a result and an HTTP status. That is the complete set of such routes;
+there is no key rotation or revocation endpoint to audit, only issue. Migration
+12 adds `org_id` and `target_kind`, which finally makes the pre-existing
+free-text `target` column typeable. Account:
+[`evidence/control_plane_audit_2.md`](evidence/control_plane_audit_2.md).
+
+**Three decisions to inherit rather than rediscover.**
+
+1. **Both sides of an access change are banked** (`role_before`/`role_after`,
+   `domains_before`/`domains_after`). `addCollaborator` UPSERTS, so that route
+   silently changes an existing grant; a row holding only the new role cannot
+   tell a fresh `developer` from a quiet `developer -> owner`.
+2. **Query-string values are banked before authorization decides**, so a refused
+   attempt keeps its subject — an outsider trying to grant themselves `owner`
+   reads as exactly that, not as a bare 403. Request *bodies* are still never
+   read before authentication; that AUDIT-1 limitation is unchanged and
+   deliberate.
+3. **Capabilities are fingerprinted, never stored.** `user.create` banks
+   `api_key_issued` (12 hex of SHA-256), so a key found in a CI config can be
+   fingerprinted the same way and matched to the request that issued it. An
+   invitation token fingerprints identically on its issue, accept and revoke
+   rows, which links the three without any of them holding the token.
+
+**Two things must stay OUT of the classifier, and both were once real defects.**
+`POST /login` and `GET /oauth/callback` are PUBLIC — classifying them would let
+an unauthenticated caller write a row per request, and "a failed login writes no
+audit row" is a tested guarantee (`api_test.dart:196`). And `admin.denied` stays
+a detail row: it is the only trace of a denied *read* of the operator surface,
+`GET /admin/audit` included, which by design writes no mutation event.
+
+`code_push_server` suite: **370 pass** (`dart test -x integration`), 33 new.
+`selfhost/scripts/audit_qualification.sh`: **23 pass** (18 + 5 new, over the
+real wire).
+
+**The trap here was in a test helper, not the product.** `POST /api/v1/apps`
+defaults to the ROOT org, which a freshly provisioned user is not in — so six
+tests failed with `type 'Null' is not a subtype of type 'String'` because the
+helper read `id` off a 403 body. The 403 is correct. A helper that ignores a
+status code fails later, and somewhere confusing.
+
 ## 2026-09-03 (later) — CONTROL-PLANE-AUDIT-1: control-plane mutations are now auditable
 
 **The one operational hole productionization exposed is closed.** Every mutating

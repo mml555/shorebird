@@ -459,14 +459,19 @@ added to a company org or onto one of its apps. With a policy set, both
 |---|---|---|---|
 | GET | `/admin/audit?…` | root-org owner/admin | `{"ceiling",<max id>,"count",n,"events":[…]}` |
 
-The record of every **mutating** control-plane operation: who did what to which
-app/release/patch, with what outcome, and which request caused it. Root-org only
-— the trail names who shipped what across the whole deployment.
+The record of every **mutating** control-plane operation — both the patch
+lifecycle and the identity/tenancy state that decides who may touch it: who did
+what to which app/release/patch/user/org, with what outcome, and which request
+caused it. Root-org only — the trail names who shipped what and who was given
+access, across the whole deployment.
 
-Filters, all optional and AND-ed: `app_id`, `release_id`, `patch_id`,
+Filters, all optional and AND-ed: `app_id`, `release_id`, `patch_id`, `org_id`,
+`target_kind` (`user` | `org` | `invitation` | `api_key`), `target`,
 `request_id`, `operation` (comma-separated), `result`
 (`success` | `refused` | `error`), `after` (exclusive audit id), `since`
-(ISO-8601), `limit` (default 100, max 1000). Rows come back oldest-first.
+(ISO-8601), `limit` (default 100, max 1000). Rows come back oldest-first. An
+unrecognized `result` or `target_kind` is a **400**, never a silently empty
+answer.
 
 Each event:
 
@@ -476,20 +481,36 @@ Each event:
 | `timestamp` | when |
 | `request_id` | the request that caused it — also returned to that caller in `X-Request-Id`, and on its request log line |
 | `kind` | `request` (the outcome of one HTTP request) or `detail` (a sub-fact of one, e.g. `release.ready`) |
-| `operation` | `app.create`, `release.create`, `release.update`, `release.artifact.create`, `patch.create`, `patch.update`, `patch.promote`, `patch.artifact.create`, `patch.withdraw`, `patch.rollout`, `channel.create`, `artifact.upload` |
+| `operation` | *patch lifecycle:* `app.create`, `release.create`, `release.update`, `release.artifact.create`, `patch.create`, `patch.update`, `patch.promote`, `patch.artifact.create`, `patch.withdraw`, `patch.rollout`, `channel.create`, `artifact.upload`. *identity & tenancy:* `user.create`, `user.register`, `org.invite`, `org.invite.accept`, `org.invite.revoke`, `org.member.role`, `org.member.remove`, `org.domains`, `app.collaborator.add`, `app.collaborator.remove` |
 | `route`, `method` | the route template that matched. Never holds an id, and never an upload token |
 | `actor`, `actor_id` | the account that acted |
 | `actor_credential` | `<kind>:<fingerprint>` — `bootstrap`, `api_key`, `oauth`, `rejected`, `anonymous`, plus 12 hex characters of SHA-256 of the bearer. Distinguishes two keys on one account; never the credential itself |
 | `app_id`, `release_id`, `patch_id`, `patch_number`, `track` | what was operated on, as far as the request got |
+| `org_id` | the organization an identity/tenancy mutation was scoped to |
+| `target_kind`, `target` | the SUBJECT of the mutation, when it isn't an app/release/patch. `user` → a user id or email; `org` → an org id; `invitation` / `api_key` → a **fingerprint**, never the credential. A row with no `target_kind` is a legacy note whose `target` nobody can type |
 | `result` | `success` \| `refused` \| `error`, derived from the response status — a handler cannot assert it |
 | `http_status` | the status the caller received |
-| `detail` | JSON: operation-specific extras (`rollout`, `arch`, `rollback`, …) |
+| `detail` | JSON: operation-specific extras (`rollout`, `arch`, `rollback`, `role_before` / `role_after`, `domains_before` / `domains_after`, `api_key_issued`, `account_existed`, …) |
 
 **Exactly one `kind: "request"` row per audited mutating request**, written after
-the outcome is known — including requests refused by rate limiting or by a bad
-credential, which never reach a handler. Reads write nothing at all, so a read
-cannot appear as a mutation. Never recorded: API keys, JWTs, authorization
-headers, upload tokens, request bodies.
+the outcome is known — including requests refused by rate limiting, by a bad
+credential, or by authorization, none of which reach a handler. Reads write
+nothing at all, so a read cannot appear as a mutation. Never recorded: API keys,
+JWTs, authorization headers, upload tokens, invitation tokens, request bodies.
+
+Access-control mutations bank **both sides** in `detail`, so a quiet privilege
+change is legible rather than merely present — `role_before` / `role_after` on
+memberships and collaborator grants, `domains_before` / `domains_after` on the
+org email policy. A refusal keeps the requested value, so an attempt to grant
+`owner` shows up as an attempt to grant `owner`.
+
+Two things stay outside this table on purpose. `POST /login` and
+`GET /oauth/callback` are **public**, so classifying them would let an
+unauthenticated caller write a row per request; a successful consent still
+records a `login.consent` detail row. And `admin.denied` remains a detail row
+because it also fires for denied *reads* of the operator surface — including
+`GET /admin/audit` itself, which writes no mutation event, so it is the only
+trace of someone probing the trail.
 
 **"Did anyone attempt to create/promote/withdraw a patch for release 142?"**
 
@@ -502,6 +523,37 @@ curl -H "Authorization: Bearer $KEY" \
 curl -H "Authorization: Bearer $KEY" \
   "$BASE/admin/audit?app_id=$APP&operation=patch.create,patch.promote,patch.withdraw"
 ```
+
+**"Who changed access to app X, what did they attempt, and did it succeed?"**
+
+```bash
+curl -H "Authorization: Bearer $KEY" \
+  "$BASE/admin/audit?app_id=$APP&operation=app.collaborator.add,app.collaborator.remove"
+```
+
+Each row names the actor and their credential fingerprint, the person granted or
+removed, the role before and after, and the result — so a refused attempt to
+self-grant `owner` reads as exactly that.
+
+**"What has been done to this account, and which key was issued to it?"**
+
+```bash
+curl -H "Authorization: Bearer $KEY" \
+  "$BASE/admin/audit?target_kind=user&target=someone@example.com"
+curl -H "Authorization: Bearer $KEY" "$BASE/admin/audit?org_id=1&operation=org.member.role"
+```
+
+`user.create` banks `api_key_issued`: 12 hex characters of SHA-256 of the key it
+returned. Fingerprint a key found in a CI config the same way
+(`printf %s "$key" | shasum -a 256 | cut -c1-12`) to find the request that
+issued it — the trail never holds a usable credential. It also banks
+`account_existed`, because that route returns the **existing** account on an
+email conflict, so "a key was issued for an account that already existed" is a
+distinct and more interesting event.
+
+Invitation tokens are fingerprinted the same way, which is what links an
+invitation's `org.invite`, `org.invite.accept` and `org.invite.revoke` rows
+without any of them holding the token.
 
 **Proving something wrote nothing.** Snapshot `ceiling`, run the thing, then ask
 what appeared above it:

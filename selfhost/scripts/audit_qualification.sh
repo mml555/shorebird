@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words getsockname reqs keyhits equest
+# cspell:words getsockname reqs keyhits equest hashlib hexdigest
 # CONTROL-PLANE-AUDIT-1 — the LIVE ceiling control.
 #
 # The unit tests (packages/code_push_server/test/audit_test.dart) prove the
@@ -266,6 +266,76 @@ if [ "$RESULTS" = "['refused', 'success']" ]; then
   ok "app-scoped: both the success and the pre-auth refusal are visible"
 else
   bad "app-scoped query returned results $RESULTS (expected refused + success)"
+fi
+
+step "9. identity + tenancy (CONTROL-PLANE-AUDIT-2), over the real wire"
+# The suite proves these properties at the request level; this is the
+# end-to-end confirmation that the same rows come out of a real server, through
+# the real endpoint, with the real JSON log sink.
+C3="$(audit 'limit=0' | jqf "d['ceiling']")"
+TEAM="$(curl -fsS -X POST "$BASE/admin/users?email=teammate@example.com" \
+  -H "Authorization: Bearer $API_KEY")"
+TEAM_ID="$(echo "$TEAM" | jqf "d['user_id']")"
+TEAM_KEY="$(echo "$TEAM" | jqf "d['api_key']")"
+echo "  issued a key for user $TEAM_ID"
+# Grant app access, then remove it.
+curl -fsS -o /dev/null -X POST \
+  "$BASE/admin/apps/$APP_ID/collaborators?email=teammate@example.com&role=developer" \
+  -H "Authorization: Bearer $API_KEY"
+curl -fsS -o /dev/null -X DELETE \
+  "$BASE/admin/apps/$APP_ID/collaborators/$TEAM_ID" \
+  -H "Authorization: Bearer $API_KEY"
+# And an attempt by someone with no business doing it.
+curl -sS -o /dev/null -X POST \
+  "$BASE/admin/apps/$APP_ID/collaborators?email=outsider@example.com&role=owner" \
+  -H "Authorization: Bearer $TEAM_KEY"
+
+# The credential issue is typed, and identifies the key WITHOUT storing it.
+UC="$(audit "after=$C3&operation=user.create")"
+if [ "$(echo "$UC" | jqf "d['count']==1 and d['events'][0]['result']=='success' and d['events'][0]['target']=='teammate@example.com' and d['events'][0]['target_kind']=='user'")" = "True" ]; then
+  ok "user.create is a typed success naming the account"
+else
+  bad "user.create row: $(echo "$UC" | jqf "d")"
+fi
+FP="$(echo "$UC" | jqf "__import__('json').loads(d['events'][0]['detail'])['api_key_issued']")"
+REAL_FP="$(python3 -c "import hashlib,sys;print(hashlib.sha256(sys.argv[1].encode()).hexdigest()[:12])" "$TEAM_KEY")"
+if [ "$FP" = "$REAL_FP" ]; then
+  ok "the issued key is identified by fingerprint ($FP)"
+else
+  bad "api_key_issued=$FP does not fingerprint the key that was returned"
+fi
+
+# THE ACCEPTANCE QUESTION for AUDIT-2.
+ACC="$(audit "app_id=$APP_ID&operation=app.collaborator.add,app.collaborator.remove")"
+echo "$ACC" | python3 -m json.tool | sed 's/^/    /'
+SHAPE="$(echo "$ACC" | jqf "[e['operation']+':'+e['result'] for e in d['events']]")"
+if [ "$SHAPE" = "['app.collaborator.add:success', 'app.collaborator.remove:success', 'app.collaborator.add:refused']" ]; then
+  ok "\"who changed access to app X, what did they attempt, did it succeed\" is answered"
+else
+  bad "access history shape was $SHAPE"
+fi
+
+# No new secret may have leaked, including the key just issued.
+ALL2="$WORK/captured2.txt"
+{ cat "$LOG"; audit 'limit=1000'; } > "$ALL2"
+LEAKS=0
+for secret in "$CANARY" "$API_KEY" "$TEAM_KEY"; do
+  n="$(grep -c "$secret" "$ALL2" || true)"
+  [ "$n" -eq 0 ] || { LEAKS=$((LEAKS+1)); echo "    leaked: $n occurrence(s)"; }
+done
+if [ "$LEAKS" -eq 0 ]; then
+  ok "no credential (canary, operator key, or newly issued key) is in the output"
+else
+  bad "$LEAKS credential(s) appear in captured output"
+fi
+# Reads still write nothing.
+C4="$(audit 'limit=0' | jqf "d['ceiling']")"
+curl -fsS -o /dev/null "$BASE/admin/orgs/1/members" -H "Authorization: Bearer $API_KEY"
+curl -fsS -o /dev/null "$BASE/admin/apps/$APP_ID/collaborators" -H "Authorization: Bearer $API_KEY"
+if [ "$(audit 'limit=0' | jqf "d['ceiling']")" = "$C4" ]; then
+  ok "admin reads wrote no audit rows"
+else
+  bad "an admin read wrote an audit row"
 fi
 
 step "RESULT"

@@ -308,6 +308,9 @@ class Api {
           appId: route.appId,
           releaseId: route.releaseId,
           patchId: route.patchId,
+          orgId: route.orgId,
+          targetKind: route.targetKind,
+          target: route.target,
         );
         try {
           final res = await inner(
@@ -346,6 +349,9 @@ class Api {
         patchId: scope.patchId,
         patchNumber: scope.patchNumber,
         track: event['track'] as String?,
+        orgId: scope.orgId,
+        targetKind: scope.targetKind?.wireName,
+        target: event['target'] as String?,
         result: result.name,
         httpStatus: status,
         detail: event['detail'] == null ? null : jsonEncode(event['detail']),
@@ -1188,18 +1194,21 @@ class Api {
         'Invitation is for a different email',
       );
     }
+    // Noted before the write: the role being granted, and to whom, is the
+    // interesting part whether or not the grant lands.
+    _audit(req)?.note(
+      orgId: inv['org_id'] as int,
+      detail: {
+        'role_after': inv['role'],
+        'user_id': user.id,
+        'email': user.email,
+      },
+    );
     await repo.acceptInvitation(
       token,
       user.id,
       inv['org_id'] as int,
       inv['role'] as String,
-    );
-    await repo.audit(
-      'org.invite.accept',
-      actor: '${user.id}',
-      actorId: user.id,
-      requestId: _rid(req),
-      target: '${inv['org_id']}',
     );
     return _json({'joined_org': inv['org_id'], 'role': inv['role']});
   }
@@ -1217,6 +1226,16 @@ class Api {
     final user = await repo.upsertUser(
       current?.email ?? config.loginEmail,
       _optStringField(body, 'name'),
+    );
+    // `upsertUser` provisions a personal org with an owner membership the
+    // first time it sees an address, so this is an identity mutation even
+    // though the CLI treats it as a no-op registration call.
+    _audit(req)?.note(
+      target: user.email,
+      detail: {
+        'display_name_set': _optStringField(body, 'name') != null,
+        'account_existed': current != null,
+      },
     );
     return _json(_privateUser(user));
   }
@@ -1268,6 +1287,25 @@ class Api {
     );
     _audit(req)?.note(appId: app.appId, detail: {'org_id': orgId});
     return _json({'id': app.appId, 'display_name': app.displayName});
+  }
+
+  /// Banks the subject and the role a grant REQUESTED, before authorization
+  /// decides whether it happens.
+  ///
+  /// These values come from the query string, which is already parsed — so
+  /// unlike a request body there is nothing to buffer and no cost to reading
+  /// them early. Recording them before the gate is what makes a refusal
+  /// actionable: "an outsider tried to grant themselves `owner` on this app"
+  /// is the event worth seeing, and a bare 403 with no subject is not.
+  ///
+  /// `role_after` holds the RAW requested value here; a later note replaces it
+  /// with the validated role on the paths that get that far, so the key means
+  /// the same thing on every row: the role the request asked to end at.
+  void _noteRequestedGrant(Request req, String? email) {
+    final role = req.url.queryParameters['role'];
+    _audit(
+      req,
+    )?.note(target: email, detail: {if (role != null) 'role_after': role});
   }
 
   /// Authorizes the caller for [appId] via org membership or collaboration.
@@ -1348,13 +1386,13 @@ class Api {
     String what = 'Issuing API keys',
   }) async {
     if (!await repo.userIsOrgAdmin(_uid(req), _rootOrgId)) {
-      await repo.audit(
-        'admin.denied',
-        actor: '${_uid(req)}',
-        actorId: _uid(req),
-        requestId: _rid(req),
-        target: target,
-      );
+      // Kept as a DETAIL row even though every mutating admin route now
+      // writes a typed refused event of its own. It is not redundant: this
+      // also fires for denied READS of the operator surface — `GET
+      // /admin/audit` above all — and a read writes no mutation event by
+      // design. Someone probing the audit log itself would otherwise leave no
+      // trace at all.
+      await _auditDetail(req, 'admin.denied', target: target);
       throw DomainException(
         HttpStatus.forbidden,
         'forbidden',
@@ -2702,6 +2740,7 @@ class Api {
         seg[0] == 'orgs' &&
         seg[2] == 'invitations') {
       final orgId = _pathId(seg[1], 'org id');
+      _noteRequestedGrant(req, req.url.queryParameters['email']);
       if (!await repo.userIsOrgAdmin(_uid(req), orgId)) {
         throw DomainException(
           HttpStatus.forbidden,
@@ -2715,16 +2754,13 @@ class Api {
         orDefault: 'developer',
       );
       if (email == null) throw badRequest('email required');
+      _audit(req)?.note(detail: {'role_after': role});
       await _requireEmailAllowedInOrg(orgId, email);
       final token = await repo.createInvitation(orgId, email, role);
-      await repo.audit(
-        'org.invite',
-        actor: '${_uid(req)}',
-        actorId: _uid(req),
-        requestId: _rid(req),
-        target: '$orgId',
-        detail: '$email as $role',
-      );
+      // `token` is deliberately absent from the audit event: presenting it
+      // grants the role. The classifier fingerprints it on the accept and
+      // revoke routes, which is what correlates the three rows.
+      _audit(req)?.note(detail: {'invitation': credentialFingerprint(token)});
       // SMTP is optional in a self-host; return the accept link for delivery.
       return _json({
         'token': token,
@@ -2744,17 +2780,24 @@ class Api {
       await _authorizeServerAdmin(req);
       final email = req.url.queryParameters['email'];
       if (email == null || email.isEmpty) throw badRequest('email required');
+      final existing = await repo.userByEmail(email);
       final user = await repo.upsertUser(
         email,
         req.url.queryParameters['name'],
       );
       final key = await repo.createApiKey(user.id);
-      await repo.audit(
-        'user.create',
-        actor: '${_uid(req)}',
-        actorId: _uid(req),
-        requestId: _rid(req),
+      // This route ISSUES A CREDENTIAL, and it returns the existing account on
+      // an email conflict — so "was this a new account or a second key for one
+      // that already existed?" is the question an incident asks first. The key
+      // is recorded only as a fingerprint, which is enough to match a key
+      // found in a CI config back to the request that issued it.
+      _audit(req)?.note(
         target: email,
+        detail: {
+          'user_id': user.id,
+          'account_existed': existing != null,
+          'api_key_issued': credentialFingerprint(key),
+        },
       );
       return _json({'user_id': user.id, 'email': user.email, 'api_key': key});
     }
@@ -2764,6 +2807,7 @@ class Api {
         seg[0] == 'apps' &&
         seg[2] == 'collaborators') {
       final appId = seg[1];
+      _noteRequestedGrant(req, req.url.queryParameters['email']);
       // Granting access is an admin action: a `developer` collaborator can
       // ship patches but must not be able to add or remove other people.
       await _authorizeAppAdmin(req, appId);
@@ -2773,24 +2817,27 @@ class Api {
         orDefault: 'developer',
       );
       if (email == null) throw badRequest('email required');
+      _audit(req)?.note(detail: {'role_after': role});
       // The policy lives on the owning org, and a collaborator grant is a way
       // into that org's app — so it has to be checked here too, not just on the
       // invitation path. This is the case the upstream request is really about:
       // a personal account added straight onto a company app.
       final appOrgId = await repo.appOrgId(appId);
       if (appOrgId == null) throw notFound('No app $appId');
+      _audit(req)?.note(orgId: appOrgId);
       await _requireEmailAllowedInOrg(appOrgId, email);
       final user = await repo.userByEmail(email);
       if (user == null) throw notFound('No user $email');
-      await repo.addCollaborator(appId, user.id, role);
-      await repo.audit(
-        'app.collaborator.add',
-        actor: '${_uid(req)}',
-        actorId: _uid(req),
-        requestId: _rid(req),
-        target: appId,
-        detail: '$email as $role',
+      // `addCollaborator` upserts, so this route silently CHANGES an existing
+      // grant as well as creating one. Banking the previous role is what makes
+      // a quiet privilege escalation legible after the fact.
+      _audit(req)?.note(
+        detail: {
+          'user_id': user.id,
+          'role_before': await repo.collaboratorRole(appId, user.id),
+        },
       );
+      await repo.addCollaborator(appId, user.id, role);
       return _json({'app_id': appId, 'user_id': user.id, 'role': role});
     }
     // POST /admin/apps/{appId}/patches/{patchId}/withdraw?channel=&rollback=
@@ -2870,6 +2917,7 @@ class Api {
         seg[2] == 'members') {
       final orgId = _pathId(seg[1], 'org id');
       final userId = _pathId(seg[3], 'user id');
+      _noteRequestedGrant(req, null);
       if (!await repo.userIsOrgAdmin(_uid(req), orgId)) {
         throw DomainException(
           HttpStatus.forbidden,
@@ -2878,6 +2926,15 @@ class Api {
         );
       }
       final role = _validRole(req.url.queryParameters['role']);
+      // Both roles, banked before the gate below can refuse. "admin -> owner"
+      // and "developer -> owner" are very different events, and the new value
+      // alone cannot tell them apart.
+      _audit(req)?.note(
+        detail: {
+          'role_before': await repo.memberRole(orgId, userId),
+          'role_after': role,
+        },
+      );
       // Same "don't strand the org" rule the DELETE below enforces: demoting
       // the last owner/admin leaves nobody who can invite, manage members, or
       // (for the root org) issue API keys, with no recovery short of the
@@ -2889,14 +2946,6 @@ class Api {
         throw conflict('Cannot demote the last owner/admin of the org');
       }
       await repo.setMemberRole(orgId, userId, role);
-      await repo.audit(
-        'org.member.role',
-        actor: '${_uid(req)}',
-        actorId: _uid(req),
-        requestId: _rid(req),
-        target: '$orgId',
-        detail: 'user $userId -> $role',
-      );
       return _json({'org_id': orgId, 'user_id': userId, 'role': role});
     }
     // DELETE /admin/orgs/{orgId}/members/{userId}
@@ -2922,20 +2971,18 @@ class Api {
         }
       }
       final r = target?['role'];
+      _audit(req)?.note(
+        detail: {
+          'role_before': r,
+          if (target?['email'] case final String email) 'email': email,
+        },
+      );
       if (r is String &&
           _adminRoles.contains(r) &&
           await repo.orgAdminCount(orgId) <= 1) {
         throw conflict('Cannot remove the last owner/admin of the org');
       }
       await repo.removeMember(orgId, userId);
-      await repo.audit(
-        'org.member.remove',
-        actor: '${_uid(req)}',
-        actorId: _uid(req),
-        requestId: _rid(req),
-        target: '$orgId',
-        detail: 'user $userId',
-      );
       return _json({'removed': true, 'org_id': orgId, 'user_id': userId});
     }
     // GET /admin/orgs/{orgId}/invitations
@@ -2962,6 +3009,11 @@ class Api {
         seg[2] == 'domains' &&
         (req.method == 'GET' || req.method == 'PUT')) {
       final orgId = _pathId(seg[1], 'org id');
+      // A no-op on the GET: that route is not a classified mutation, so there
+      // is no scope to note onto.
+      _audit(req)?.note(
+        detail: {'domains_after': req.url.queryParameters['domains'] ?? ''},
+      );
       // Reading is admin-only too: the allowlist names the company's mail
       // domains, which is not something a `developer` needs.
       if (!await repo.userIsOrgAdmin(_uid(req), orgId)) {
@@ -2976,6 +3028,15 @@ class Api {
       }
       final raw = req.url.queryParameters['domains'] ?? '';
       final domains = parseDomainList(raw);
+      // Before and after, banked ahead of the two gates below. This policy
+      // governs who may be added to the org from then on, so a REFUSED change
+      // is as worth seeing as an applied one.
+      _audit(req)?.note(
+        detail: {
+          'domains_before': (await repo.orgAllowedDomains(orgId)).join(','),
+          'domains_after': domains.join(','),
+        },
+      );
       // Refuse a policy that would lock out every current owner/admin: nobody
       // left could invite, and it is only ever a typo. Existing members keep
       // access either way, so this is about not stranding administration.
@@ -2998,14 +3059,6 @@ class Api {
         throw badRequest('No valid domains in "$raw"');
       }
       await repo.setOrgAllowedDomains(orgId, domains);
-      await repo.audit(
-        'org.domains',
-        actor: '${_uid(req)}',
-        actorId: _uid(req),
-        requestId: _rid(req),
-        target: '$orgId',
-        detail: domains.isEmpty ? 'cleared' : domains.join(','),
-      );
       return _json({'org_id': orgId, 'domains': domains});
     }
     // DELETE /admin/orgs/{orgId}/invitations/{token}
@@ -3021,15 +3074,18 @@ class Api {
           'Not an org admin',
         );
       }
-      await repo.revokeInvitation(orgId, seg[3]);
-      await repo.audit(
-        'org.invite.revoke',
-        actor: '${_uid(req)}',
-        actorId: _uid(req),
-        requestId: _rid(req),
-        target: '$orgId',
-        detail: seg[3],
+      // The invitation's own details, so a revocation says WHAT was revoked
+      // rather than only that something was. Read before the delete; absent
+      // when the token is unknown, which is itself worth seeing.
+      final inv = await repo.invitation(seg[3]);
+      _audit(req)?.note(
+        detail: {
+          if (inv?['email'] case final String email) 'email': email,
+          if (inv?['role'] case final String role) 'role_before': role,
+          'invitation_existed': inv != null,
+        },
       );
+      await repo.revokeInvitation(orgId, seg[3]);
       return _json({'revoked': true});
     }
     // GET /admin/apps/{appId}/collaborators
@@ -3055,15 +3111,17 @@ class Api {
       final appId = seg[1];
       await _authorizeAppAdmin(req, appId);
       final userId = _pathId(seg[3], 'user id');
-      await repo.removeCollaborator(appId, userId);
-      await repo.audit(
-        'app.collaborator.remove',
-        actor: '${_uid(req)}',
-        actorId: _uid(req),
-        requestId: _rid(req),
-        target: appId,
-        detail: 'user $userId',
+      // Both the id the request named and the address behind it, so an
+      // access-change history for an app reads as people rather than numbers.
+      _audit(req)?.note(
+        detail: {
+          'user_id': userId,
+          if ((await repo.userById(userId))?.email case final String email)
+            'email': email,
+          'role_before': await repo.collaboratorRole(appId, userId),
+        },
       );
+      await repo.removeCollaborator(appId, userId);
       return _json({'removed': true, 'user_id': userId});
     }
 
@@ -3106,6 +3164,17 @@ class Api {
   /// `?after=<ceiling>&operation=patch.create` — a claim that can be falsified,
   /// unlike "I looked and saw nothing".
   ///
+  /// The identity and tenancy mutations are in the same trail, and answer the
+  /// question that precedes "who shipped this?" — who was ALLOWED to:
+  ///
+  ///     GET /admin/audit?app_id=<app>&operation=app.collaborator.add,app.collaborator.remove
+  ///     GET /admin/audit?org_id=1&operation=org.member.role,org.member.remove,org.invite
+  ///     GET /admin/audit?target_kind=user&target=someone@example.com
+  ///
+  /// Role and policy changes bank both sides in `detail` (`role_before` /
+  /// `role_after`, `domains_before` / `domains_after`), so a quiet privilege
+  /// escalation is legible rather than merely present.
+  ///
   /// Server-admin only. The trail names who shipped what, and a `developer`
   /// collaborator on one app has no business reading the whole deployment's.
   Future<Response> _auditQuery(Request req) async {
@@ -3121,6 +3190,14 @@ class Api {
         'result must be one of ${AuditResult.values.map((r) => r.name).join(', ')}',
       );
     }
+    final targetKind = q['target_kind'];
+    if (targetKind != null &&
+        !AuditTargetKind.values.any((k) => k.wireName == targetKind)) {
+      throw badRequest(
+        'target_kind must be one of '
+        '${AuditTargetKind.values.map((k) => k.wireName).join(', ')}',
+      );
+    }
     final events = await repo.auditEvents(
       appId: q['app_id'],
       releaseId: q['release_id'] == null
@@ -3129,6 +3206,9 @@ class Api {
       patchId: q['patch_id'] == null
           ? null
           : _pathId(q['patch_id']!, 'patch_id'),
+      orgId: q['org_id'] == null ? null : _pathId(q['org_id']!, 'org_id'),
+      targetKind: targetKind,
+      target: q['target'],
       requestId: q['request_id'],
       operations: (q['operation'] ?? '')
           .split(',')

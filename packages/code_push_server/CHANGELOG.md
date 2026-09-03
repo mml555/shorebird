@@ -40,6 +40,42 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   upload tokens are structurally absent — with credential-shape scrubbing as a
   backstop on free text.
 
+- **Identity and tenancy mutations are typed audit outcomes too.** The state
+  that decides *who may mutate releases and patches* used to be recorded only as
+  free-text notes. `user.create`, `user.register`, `org.invite`,
+  `org.invite.accept`, `org.invite.revoke`, `org.member.role`,
+  `org.member.remove`, `org.domains`, `app.collaborator.add` and
+  `app.collaborator.remove` now each write one typed request row with a result
+  and an HTTP status, alongside two new columns (migration 12): `org_id`, and
+  `target_kind` — which finally makes the pre-existing `target` column typeable
+  (`user` → a user id or email, `org` → an org id, `invitation` / `api_key` → a
+  fingerprint).
+
+  Access-control changes bank **both sides**: `role_before` / `role_after` on
+  memberships and collaborator grants, `domains_before` / `domains_after` on the
+  org email policy. `addCollaborator` upserts, so that route silently *changes*
+  an existing grant as well as creating one — recording only the new role could
+  not tell a fresh `developer` from a quiet `developer -> owner`.
+
+  Values a caller supplied in the query string are banked **before**
+  authorization decides, so a refused attempt keeps its subject: an outsider
+  trying to grant themselves `owner` on someone else's app appears as exactly
+  that rather than as a bare 403. (Request *bodies* are still never read before
+  authentication — see the previous entry.)
+
+  `POST /login` and `GET /oauth/callback` stay unclassified: they are public
+  routes, and classifying them would let an unauthenticated caller write a row
+  per request. `admin.denied` also stays a detail row, because it is the only
+  trace of a denied *read* of the operator surface — `GET /admin/audit`
+  included, which by design writes no mutation event.
+
+- **`POST /admin/users` records which credential it issued**, as
+  `api_key_issued`: 12 hex characters of SHA-256 of the returned key, never the
+  key. Enough to match a key found in a CI config back to the request that
+  created it. It also records `account_existed`, because that route returns the
+  existing account on an email conflict — so a key issued against an account
+  that already existed is a distinct, more interesting event.
+
 - **`X-Request-Id` on every response**, echoed on the request log line and
   stored on the request's audit event. Adopted from an inbound header only when
   the socket peer is a configured trusted proxy.

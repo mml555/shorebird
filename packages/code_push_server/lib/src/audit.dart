@@ -1,4 +1,4 @@
-// cspell:words unrouted earer
+// cspell:words unrouted earer unqueryable
 import 'dart:convert';
 import 'dart:math';
 
@@ -45,6 +45,9 @@ class AuditRoute {
     this.appId,
     this.releaseId,
     this.patchId,
+    this.orgId,
+    this.targetKind,
+    this.target,
   });
 
   /// Dotted operation name, e.g. `patch.create`. The primary query key.
@@ -58,6 +61,50 @@ class AuditRoute {
   final String? appId;
   final int? releaseId;
   final int? patchId;
+
+  /// The organization the mutation is scoped to, for the identity/tenancy
+  /// routes. Null for the patch lifecycle, which is scoped by app.
+  final int? orgId;
+
+  /// What kind of thing was operated ON — as opposed to the app/release/patch
+  /// the operation happened within. An identity mutation's subject is a user,
+  /// an org, an invitation or a credential, and none of those fit the
+  /// patch-lifecycle columns.
+  final AuditTargetKind? targetKind;
+
+  /// The subject's safe identity: a user id, an email, an org id, or a
+  /// FINGERPRINT of a capability. Only interpretable together with
+  /// [targetKind].
+  final String? target;
+}
+
+/// What an audit event's `target` names.
+///
+/// Recorded alongside `target` because the same column holds a user id on one
+/// row and an email on the next; a bare string nobody can type is how an audit
+/// column becomes unqueryable.
+enum AuditTargetKind {
+  /// `target` is a user id or an email address.
+  user,
+
+  /// `target` is an organization id.
+  org,
+
+  /// `target` is a FINGERPRINT of an invitation token. The token itself grants
+  /// the role it carries, so it is a capability and is never recorded.
+  invitation,
+
+  /// `target` is a FINGERPRINT of an API key. Lets an operator match a key
+  /// found in a CI config to the request that issued it, without the audit
+  /// trail holding a usable credential.
+  apiKey;
+
+  String get wireName => switch (this) {
+    AuditTargetKind.user => 'user',
+    AuditTargetKind.org => 'org',
+    AuditTargetKind.invitation => 'invitation',
+    AuditTargetKind.apiKey => 'api_key',
+  };
 }
 
 /// Classifies a request as a mutating patch-lifecycle operation, or `null`.
@@ -69,12 +116,23 @@ class AuditRoute {
 /// read from ever masquerading as a mutation: there is no code path that could
 /// write one.
 ///
-/// Not covered here: the identity/tenancy admin surface (org invitations,
-/// members, collaborators, API-key issue). Those still write the older
-/// detail-only rows through `Repository.audit` — see the `kind` distinction in
-/// `Api._auditQuery`.
+/// The identity/tenancy surface IS covered — org invitations, memberships,
+/// collaborators, API-key issue — because those mutations decide who is
+/// allowed to mutate releases and patches in the first place.
+///
+/// `POST /login` and `GET /oauth/callback` are deliberately NOT covered. They
+/// are PUBLIC routes, so classifying them as mutations would let an
+/// unauthenticated caller write a row per request; a failed login writing an
+/// audit row was a real defect once (see `api_test.dart`). Consent still
+/// records a `login.consent` detail row on the SUCCESS path only.
 AuditRoute? classifyMutation(String method, List<String> segments) {
   int? id(String s) => int.tryParse(s);
+
+  // ---- /admin identity + tenancy ----
+  if (segments.isNotEmpty && segments[0] == 'admin') {
+    final r = _classifyAdminIdentity(method, segments.sublist(1));
+    if (r != null) return r;
+  }
 
   // ---- /admin/apps/{app}/patches/{patchId}/{action} ----
   if (method == 'POST' &&
@@ -111,6 +169,30 @@ AuditRoute? classifyMutation(String method, List<String> segments) {
 
   if (seg.length == 1 && seg[0] == 'apps' && method == 'POST') {
     return const AuditRoute('app.create', 'POST /api/v1/apps');
+  }
+
+  // The CLI's "register me": upserts the AUTHENTICATED caller's own account,
+  // and on first sight provisions a personal org with an owner membership.
+  if (seg.length == 1 && seg[0] == 'users' && method == 'POST') {
+    return const AuditRoute(
+      'user.register',
+      'POST /api/v1/users',
+      targetKind: AuditTargetKind.user,
+    );
+  }
+
+  // Accepting an invitation grants an org role. The token in the path IS the
+  // grant, so it is fingerprinted, never stored.
+  if (seg.length == 3 &&
+      seg[0] == 'invitations' &&
+      seg[2] == 'accept' &&
+      method == 'POST') {
+    return AuditRoute(
+      'org.invite.accept',
+      'POST /api/v1/invitations/{token}/accept',
+      targetKind: AuditTargetKind.invitation,
+      target: credentialFingerprint(seg[1]),
+    );
   }
 
   if (seg.length < 3 || seg[0] != 'apps') return null;
@@ -189,6 +271,106 @@ AuditRoute? classifyMutation(String method, List<String> segments) {
   return null;
 }
 
+/// The `/admin` identity and tenancy mutations, given the segments AFTER
+/// `admin`.
+///
+/// These decide who may mutate releases and patches, so they are first-class
+/// audit outcomes rather than incidental notes. Split out only to keep
+/// [classifyMutation] readable.
+AuditRoute? _classifyAdminIdentity(String method, List<String> seg) {
+  int? id(String s) => int.tryParse(s);
+
+  // POST /admin/users?email=&name=  — creates/updates a user AND issues an
+  // API key. The credential itself never reaches the audit record; the
+  // handler notes a fingerprint of it.
+  if (method == 'POST' && seg.length == 1 && seg[0] == 'users') {
+    return const AuditRoute(
+      'user.create',
+      'POST /admin/users',
+      targetKind: AuditTargetKind.user,
+    );
+  }
+
+  if (seg.length >= 3 && seg[0] == 'orgs') {
+    final orgId = id(seg[1]);
+    final what = seg[2];
+
+    if (what == 'invitations') {
+      if (method == 'POST' && seg.length == 3) {
+        return AuditRoute(
+          'org.invite',
+          'POST /admin/orgs/{org}/invitations',
+          orgId: orgId,
+          targetKind: AuditTargetKind.user,
+        );
+      }
+      if (method == 'DELETE' && seg.length == 4) {
+        // Same reasoning as accepting one: the token is the grant.
+        return AuditRoute(
+          'org.invite.revoke',
+          'DELETE /admin/orgs/{org}/invitations/{token}',
+          orgId: orgId,
+          targetKind: AuditTargetKind.invitation,
+          target: credentialFingerprint(seg[3]),
+        );
+      }
+      return null;
+    }
+
+    if (what == 'members' && seg.length == 4) {
+      final operation = switch (method) {
+        'PATCH' => 'org.member.role',
+        'DELETE' => 'org.member.remove',
+        _ => null,
+      };
+      if (operation == null) return null;
+      return AuditRoute(
+        operation,
+        '$method /admin/orgs/{org}/members/{user}',
+        orgId: orgId,
+        targetKind: AuditTargetKind.user,
+        target: seg[3],
+      );
+    }
+
+    if (what == 'domains' && seg.length == 3 && method == 'PUT') {
+      // The org's email-domain allowlist: it governs who can be ADDED to the
+      // org from then on, so changing it is an access-control change.
+      return AuditRoute(
+        'org.domains',
+        'PUT /admin/orgs/{org}/domains',
+        orgId: orgId,
+        targetKind: AuditTargetKind.org,
+        target: seg[1],
+      );
+    }
+    return null;
+  }
+
+  if (seg.length >= 3 && seg[0] == 'apps' && seg[2] == 'collaborators') {
+    if (method == 'POST' && seg.length == 3) {
+      return AuditRoute(
+        'app.collaborator.add',
+        'POST /admin/apps/{app}/collaborators',
+        appId: seg[1],
+        targetKind: AuditTargetKind.user,
+      );
+    }
+    if (method == 'DELETE' && seg.length == 4) {
+      return AuditRoute(
+        'app.collaborator.remove',
+        'DELETE /admin/apps/{app}/collaborators/{user}',
+        appId: seg[1],
+        targetKind: AuditTargetKind.user,
+        target: seg[3],
+      );
+    }
+    return null;
+  }
+
+  return null;
+}
+
 /// How the caller authenticated, for the `actor_credential` field.
 enum CredentialKind {
   /// A bearer that matched `API_KEY` — the operator key `setup.sh` seeds.
@@ -242,6 +424,9 @@ class AuditScope {
     this.appId,
     this.releaseId,
     this.patchId,
+    this.orgId,
+    this.targetKind,
+    this.target,
   });
 
   /// Shelf request-context key. Read it through `Api._audit`.
@@ -257,6 +442,9 @@ class AuditScope {
   int? patchId;
   int? patchNumber;
   String? track;
+  int? orgId;
+  AuditTargetKind? targetKind;
+  String? target;
 
   int? actorId;
   String? actorEmail;
@@ -290,6 +478,9 @@ class AuditScope {
     int? patchId,
     int? patchNumber,
     String? track,
+    int? orgId,
+    AuditTargetKind? targetKind,
+    String? target,
     Map<String, Object?> detail = const {},
   }) {
     this.appId ??= appId;
@@ -297,6 +488,9 @@ class AuditScope {
     this.patchId ??= patchId;
     this.patchNumber ??= patchNumber;
     this.track ??= track;
+    this.orgId ??= orgId;
+    this.targetKind ??= targetKind;
+    this.target ??= target;
     this.detail.addAll(detail);
   }
 
@@ -330,6 +524,9 @@ class AuditScope {
     'patch_id': patchId,
     'patch_number': patchNumber,
     'track': track == null ? null : auditSafeText(track!),
+    'org_id': orgId,
+    'target_kind': targetKind?.wireName,
+    'target': target == null ? null : auditSafeText(target!),
     'result': result.name,
     'http_status': httpStatus,
     if (detail.isNotEmpty) 'detail': auditSafeDetail(detail),
@@ -346,6 +543,10 @@ class AuditScope {
 final List<RegExp> _credentialShapes = [
   // This server's own API keys (`Repository.createApiKey`) and the seeded one.
   RegExp(r'sb_api_[A-Za-z0-9_-]{4,}'),
+  // Invitation tokens (`Repository.createInvitation`). A capability, not an
+  // identifier: whoever presents one gets the org role it carries, up to
+  // `owner`. Audit rows fingerprint them instead.
+  RegExp(r'sb_inv_[A-Za-z0-9_-]{4,}'),
   // An Authorization header value, however it got here.
   RegExp(r'[Bb]earer\s+[A-Za-z0-9._~+/=-]{4,}'),
   // A compact JWS/JWT — the shape `shorebird login` credentials take.

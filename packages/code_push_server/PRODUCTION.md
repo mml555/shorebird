@@ -223,7 +223,13 @@ only stateless `server` replicas + Caddy in compose.
 - [ ] **`POST /admin/users` is operator-only** — it issues API keys and returns
       the existing account on an email conflict, so it requires an owner/admin
       of the root organization (the identity `API_KEY` maps to). Keep that key
-      out of app-team hands; give teammates their own per-user keys.
+      out of app-team hands; give teammates their own per-user keys. Every use
+      is audited as `user.create`, with `account_existed` and a fingerprint of
+      the key it issued — periodically review
+      `?operation=user.create&result=success`.
+- [ ] **Review access-control history after any incident** —
+      `?operation=app.collaborator.add,app.collaborator.remove,org.member.role,org.domains`.
+      Refused attempts are recorded too, with the role they asked for.
 - [ ] **`GET /admin/audit` is operator-only** — the mutation trail names who
       shipped what across the whole deployment, so it requires an owner/admin
       of the root organization. Reading it is not something an app-team
@@ -257,7 +263,23 @@ curl -sH "Authorization: Bearer $KEY" "$BASE/admin/audit?request_id=req_…"
 # Everything refused in the last day
 curl -sH "Authorization: Bearer $KEY" \
   "$BASE/admin/audit?result=refused&since=$(date -u -v-1d +%Y-%m-%dT%H:%M:%SZ)"
+
+# Who changed access to an app, what did they attempt, did it succeed?
+curl -sH "Authorization: Bearer $KEY" \
+  "$BASE/admin/audit?app_id=$APP&operation=app.collaborator.add,app.collaborator.remove"
+
+# Everything ever done to one account, and which key was issued to it
+curl -sH "Authorization: Bearer $KEY" \
+  "$BASE/admin/audit?target_kind=user&target=someone@example.com"
+
+# Which request issued a key you found in a CI config (fingerprint, then search)
+printf %s "$suspect_key" | shasum -a 256 | cut -c1-12
 ```
+
+Role and policy changes bank both sides (`role_before` / `role_after`,
+`domains_before` / `domains_after`), and a refused attempt keeps the value it
+asked for — so a self-granted `owner` that was rejected is still visible as an
+attempt to grant `owner`.
 
 Field reference and the pattern for proving something published *nothing* (the
 `ceiling` snapshot): [`../../selfhost/API_REFERENCE.md`](../../selfhost/API_REFERENCE.md#audit-log).

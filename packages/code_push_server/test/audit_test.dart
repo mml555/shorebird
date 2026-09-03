@@ -1047,6 +1047,8 @@ class _ThrowingAudit extends Repository {
     int? patchId,
     int? patchNumber,
     String? track,
+    int? orgId,
+    String? targetKind,
     String? result,
     int? httpStatus,
   }) => throw StateError('injected audit write failure');
