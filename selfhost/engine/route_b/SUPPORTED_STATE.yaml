@@ -1,0 +1,108 @@
+# ROUTE-B-PRODUCTIONIZATION-1 — the supported Route B iOS stack.
+#
+# One record. Future upgrades diff against this file rather than against a
+# conversation. Every identity below was verified in place, not transcribed:
+# the selector chain was read out of the artifacts, and the cell was audited.
+#
+# Regenerate the checks with:
+#   selfhost/engine/route_b/verify_supported_state.sh
+
+schema: route-b-supported-state/1
+qualified: 2026-09-03
+
+lineage:
+  cli_revision: a1836ca46f3e36835e9940bf8a32ffb150746579
+  cli_contains: 6b4f6c422bab55143ef04c8f43f92015ee3b3feb   # private-name resolution for constructions
+  flutter_selector: e64eb0af52e1c43c3b21a39556d789538d0df9b3   # F4
+  cell_address: cd848320d605ff8af5060cabf9a8d1b35853f752
+  compiler_archive_sha256: 7975b27c724240e720f77d338c80fcace5296148bd78c17588cee1b089e3fb22
+  compiler_archive_bytes: 19256864
+  analyzer_sha256: 67741a082fcde5a9e2067fdfad1deb7ad69cb89b8d23aba78ed31b5afb6c2f5d
+  updater_revision: af6e842ccf87
+  producer_engine_revision: dfa2b24ac38477f3705ff0357530f33fe09474b8   # built in; NOT the address
+  fallback_engine_revision: 69f9831c360d9152862ec3897c67fb09ae843f3b
+  dart_revision: 9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
+
+# The chain a build actually walks. Each link was read from the artifact itself.
+selector_chain:
+  - "CLI bin/internal/flutter.version        -> e64eb0af52e1c43c3b21a39556d789538d0df9b3"
+  - "F4  bin/internal/engine.version         -> cd848320d605ff8af5060cabf9a8d1b35853f752"
+  - "cell cd848320 route-b-compiler-darwin-arm64.zip -> 7975b27c…fb22"
+  # F4's engine.version is a COMMITTED blob at F4's HEAD and its tree is clean.
+  # No uncommitted engine.version is part of this lineage.
+  engine_version_committed: true
+
+analysis_versions:
+  known: [11, 12, 13]
+  # A document declaring anything else is REFUSED. A missing v11 field is never
+  # read as an empty list -- absent, empty and populated are three states.
+  unknown_version_behaviour: refuse
+  v12_adds: privateConstructions
+  v13_adds: releasePrivateConstructions
+
+retention_policy:
+  policy: p2
+  # Private classes are retained so their members are patch-targetable;
+  # construction is withheld separately and granted per constructor.
+  constructor_grants: derived automatically from the release's own census
+  blanket_constructor_grants: rejected   # measured +8.35% AOT at 200 classes
+
+supported:
+  - instance method body replacement, lowered to a top-level function
+  - exact narrow-v1 `super.method()`
+  - private member access where the release manifest retained that exact member
+  - private construction, EXACT constructor, where the RELEASE version of that
+    same method already constructed it and the manifest retained it
+
+unsupported:
+  # Refused clearly, not silently. Each was measured, not assumed.
+  - candidate-introduced private construction (a constructor the released
+    version of that same method never used, even if globally retained)
+  - method tear-offs
+  - named / optional-positional parameter shape changes
+  - private non-construction references (private methods, private top-levels)
+    that the manifest did not retain
+  - blanket private-constructor access
+  - receiver rewrites the lowering cannot express
+
+operational_requirements:
+  # Product handles it, refuses clearly, or it is named here. No tribal knowledge.
+  local_network_permission:
+    applies_to: iOS with a LAN HTTP base_url
+    symptom_if_missing: updater fetches nothing; no request reaches the server;
+      app stays on the release build with no error
+    status: DOCUMENTED (WORKFLOW_CERTIFICATION.md §0); observed again in 6G
+  published_ios_engine_dir:
+    var: SHOREBIRD_PUBLISHED_IOS_ENGINE_DIR
+    role: coherence authority for the iOS engine a release is built against
+    status: DOCUMENTED
+  selfhost_endpoint_authority:
+    role: bundled flutter_assets/shorebird.yaml base_url is what the device uses
+    status: DOCUMENTED; fail-closed on mismatch
+  older_cells:
+    note: cells minted before the constructor census carry no grants, so they are
+      strictly narrower. Not retrofitted; they remain historical evidence.
+    status: DOCUMENTED
+  control_plane_jwt_issuer:
+    status: KNOWN DEBT — pre-existing control-plane configuration, not a Route B defect
+  control_plane_request_logging:
+    status: KNOWN GAP — cps-ios emits no HTTP request log, so "absent from the log"
+      is not evidence of anything. Do not build checks on it.
+
+physical_device_qualification:
+  date: 2026-09-03
+  device: iPhone 7, iOS 15.8.8 (19H422), udid 8cb4bc982ddf6437b1952520edee80f898196c74
+  release: 142 / 1.0.3+4
+  release_artifact_sha256: bbea5b9c72a6e25b7d20ba41abaafff9b0392da108b26f7ed673bb61489ff8b2
+  patch: id 106, number 1
+  patch_artifact_sha256: 89052f9d0811fd4c591bdfffe1091b49525c7ff24c19b03db0380f2ee3a576d3
+  baseline_observed: "BOXED[9]:APP-STATE"
+  activated_observed: "BOXED[11]:P:APP-STATE"
+  updater_state_after: {last_booted_patch: 1, boot_attempt_count: 0}
+  crash_reports: none dated 2026-09-03
+
+historical_compatibility:
+  # D-PRODUCER-DEMAND-2, producer truth over real commit history.
+  wonderous: {observations: 20, producer_compatibility: "50.00%"}
+  localsend: {observations: 232, producer_compatibility: "92.67%"}
+  note: constructor retention unblocked exactly ONE method across 252 observations.

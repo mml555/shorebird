@@ -472,7 +472,11 @@ void main() {
       /// flag as well as on the source.
       var lastArguments = <String>[];
 
-      String lowered(RouteBCoverage coverage, {RouteBCapabilities? granting}) {
+      String lowered(
+        RouteBCoverage coverage, {
+        RouteBCapabilities? granting,
+        RouteBBuildConfig? buildConfig,
+      }) {
         runWithOverrides(
           () => const RouteBProducer().produce(
             compiler: compiler(),
@@ -482,6 +486,7 @@ void main() {
             workingDirectory: work,
             projectRoot: project,
             capabilities: granting,
+            buildConfig: buildConfig,
             run: (executable, arguments) {
               lastArguments = arguments;
               return compileOk(executable, arguments);
@@ -1175,6 +1180,39 @@ void main() {
               ),
             ),
           );
+        });
+
+        test('carries defines AND private-name resolution together', () {
+          // ROUTE-B-PRODUCTIONIZATION-1 item B, the interaction the workflow matrix
+          // could not see. G4.1 (defines) and the private-name flag are certified on
+          // separate bodies: every defines test uses a body with no private
+          // reference, so the flag is OFF in all of them, and every private-name test
+          // passes no defines. A release that uses BOTH -- a flavored or
+          // define-carrying app patching a method that constructs a private class --
+          // was covered by neither.
+          //
+          // Both must survive in one argument list: losing the defines silently bakes
+          // a DEFAULT into the replacement while the release holds the real value,
+          // and losing the flag fails the compile outright.
+          lowered(
+            constructs(),
+            granting: grants(classes: [ctorKey]),
+            buildConfig: RouteBBuildConfig.fromBuildArgs([
+              '--dart-define=b=2',
+              '--dart-define=a=1',
+            ]),
+          );
+          expect(
+            lastArguments,
+            containsAllInOrder([
+              '--resolve-private-names-in-library',
+              'package:app/main.dart',
+            ]),
+          );
+          expect(lastArguments.where((a) => a.startsWith('-D')).toList(), [
+            '-Da=1',
+            '-Db=2',
+          ]);
         });
 
         test('REFUSES when the release method constructed NONE', () {

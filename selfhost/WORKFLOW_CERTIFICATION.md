@@ -229,3 +229,62 @@ the **telemetry epoch decision** in `MEASUREMENT_MODE.md`: `af6e842ccf87` is a
 lifecycle-behaviour change, so whether the sample continues across it, and whether
 it joins `eligibleUpdaterRevisions`, is a judgement to be made rather than a
 measurement to be taken.
+
+---
+
+# ROUTE-B-PRODUCTIONIZATION-1 — re-certification against the final stack
+
+The rows above were certified on the P6 / H3-era stack. The supported stack has
+since moved (see `selfhost/engine/route_b/SUPPORTED_STATE.yaml`). Two things
+changed that are common to EVERY row, which is why this section exists at all:
+
+* the **release** path now derives constructor grants automatically — it runs the
+  analyzer in census mode over the release's own prepass kernel and passes
+  `--grant-constructor` to the interface generator;
+* the **patch** path gained v13 construction admission and, with `6b4f6c42`,
+  private-name resolution for construction-only bodies.
+
+Per the ruling, rows are NOT re-run merely because a checklist exists. What
+follows says, for each row, whether its evidence carries forward and on what
+grounds — and where the grounds are an argument rather than a fresh run, it says
+so in those words.
+
+| row | status on final stack | basis |
+|---|---|---|
+| 0 · Local Network permission | **re-confirmed** | 6G hit it live: a fresh install fetched nothing until the permission was granted |
+| 1 · baseline | **re-certified** | 6F/6G are a baseline release → patch → device activation on the final stack |
+| 2 · flavor | carried forward | seam is flavor resolution at build time; **not re-run** |
+| 3 · Dart defines | carried forward + interaction proven | seam unchanged; the NEW interaction is covered, see below |
+| 4 · custom target | carried forward | seam is entrypoint selection; **not re-run** |
+| 5 · obfuscation | carried forward | seam is symbol mapping; **not re-run** |
+| 6 · CI / noninteractive | `BLOCKED`, unchanged | prerequisite still missing |
+| 7 · signing | **re-exercised** | 6G signed release 142's own xcarchive with the P6 mechanism, same profile digest `78b4e9ca…` |
+| 8 · tracks | carried forward | server-side routing; untouched by compiler or producer changes |
+| 9 · manual updater API | carried forward | app-facing API; untouched |
+| 10 · Add-to-App | `NOT ASSESSED`, unchanged | still unassessed — not a blocker, and not a claim |
+| 11 · private construction | **`CERTIFIED` (new)** | D-PRIVATE-CONSTRUCTION 6A–6G |
+
+## The interaction the matrix could not see
+
+Rows 2–5 and the private-construction work were certified on **disjoint bodies**.
+Every defines test uses a body with no private reference, so the private-name
+flag is off in all of them; every private-name test passes no defines. A release
+using both — a flavored or define-carrying app patching a method that constructs
+a private class — was covered by neither, and both live in the same compiler
+argument list.
+
+Now covered by `carries defines AND private-name resolution together`, verified
+red on both halves independently:
+
+    flag removed     → did not find '--resolve-private-names-in-library'
+    defines removed  → Expected: ['-Da=1','-Db=2']   Actual: []
+
+## What is NOT claimed here
+
+Rows 2, 4, 5, 8 and 9 were **not re-run on the final stack**. The argument for
+carrying them is that each row's unique seam is independent of constructor
+retention and private-name resolution, and that the shared release/patch path
+they all depend on is what 6F/6G re-certified. That is an argument from
+independence, not a measurement, and it should be read as exactly that. If any of
+those rows must be `CERTIFIED` on the final stack rather than carried, each needs
+its own run.
