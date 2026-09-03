@@ -1049,7 +1049,42 @@ Object? $_superIntrinsicName(
     // less precise path rather than being newly rejected or newly admitted.
     final constructions = lowering.privateConstructions;
     if (constructions != null) {
+      // TWO CONDITIONS, both load-bearing, and neither implies the other.
+      //
+      //   1 the RELEASE's version of THIS SAME METHOD already constructed the
+      //     exact constructor, and
+      //   2 the release's manifest retained that exact constructor.
+      //
+      // The manifest alone is not enough. It is release-WIDE, so it contains
+      // `_Private.new` whenever any released method constructed it — and a
+      // patch that newly introduces that construction into a method which
+      // never performed it would pass a program-wide check with no evidence
+      // behind it. This is the constructor equivalent of the exact-super
+      // same-method rule.
+      final releaseEvidence = lowering.releasePrivateConstructions;
       for (final construction in constructions) {
+        if (releaseEvidence == null) {
+          // A version-11 or version-12 document, or a version-13 one whose
+          // base could not be examined. Nothing was measured, so nothing may
+          // be admitted on it — absence is not permission.
+          throw RouteBUnsupportedTarget(
+            key,
+            'its body constructs the private class '
+            '`${construction.className}`, and this analysis did not measure '
+            'what the RELEASE version of this method constructed. Without that '
+            'evidence the construction cannot be carried.',
+          );
+        }
+        if (!releaseEvidence.any((c) => c.key == construction.key)) {
+          throw RouteBUnsupportedTarget(
+            key,
+            'its body constructs `${construction.className}`, which the '
+            'RELEASE version of this same method never constructed. A patch '
+            'may reuse a private construction the released method already '
+            'performed; it may not introduce a new one, even where some other '
+            'released method constructed it.',
+          );
+        }
         if (capabilities == null) {
           throw RouteBUnsupportedTarget(
             key,
@@ -1068,7 +1103,8 @@ Object? $_superIntrinsicName(
             'that constructs it would fail to bind.',
           );
         }
-        // Granted, so the text backstop must not refuse the same name again.
+        // Both conditions met, so the text backstop must not refuse the same
+        // name again.
         granted.add(construction.className);
       }
     }

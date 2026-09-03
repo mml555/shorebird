@@ -123,7 +123,27 @@ import 'package:kernel/text/ast_to_text.dart';
 ///     The bump is mandatory for the reason 10's was: a version-11 consumer
 ///     would read a version-12 document, see no field it recognises, and admit a
 ///     construction the release never granted.
-const analysisVersion = 12;
+/// 13: each changed method also carries `releasePrivateConstructions` -- the
+///     same measurement, taken on the RELEASE's version of that same method.
+///
+///     Version 12 reported only the CANDIDATE's constructions, which is not
+///     enough to admit one. A release-wide manifest contains `_Private.new`
+///     whenever ANY released method constructed it, so a patch that introduces
+///     that construction into a method which never performed it would pass a
+///     program-wide check while having no evidence behind it. This is the
+///     constructor equivalent of the exact-super same-method rule, and it needs
+///     the same per-method evidence.
+///
+///     ABSENT / EMPTY / POPULATED are three different answers, as they are for
+///     `releaseSuperTargets`. Absent means the base could not be examined and
+///     nothing was measured -- a consumer must refuse rather than assume.
+///     Empty is a measurement: the release version of this method constructed
+///     none.
+///
+///     The bump is mandatory for the usual reason: a version-12 consumer would
+///     read a version-13 document, find only the candidate list it already
+///     understands, and admit a construction with no same-method evidence.
+const analysisVersion = 13;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -360,6 +380,22 @@ coverage/census_report.py, for what the numbers may and may not be read as.
           lowering[key]!['releaseSuperTargets'] = releaseMember == null
               ? const <Map<String, Object?>>[]
               : _superTargets(baseHierarchy, releaseClass!, releaseMember);
+          // SAME-METHOD construction evidence (analysis version 13).
+          //
+          // The constructor equivalent of the exact-super rule. A release-wide
+          // manifest can contain `_Private.new` because SOME method constructed
+          // it; that is not evidence that THIS method did, and a patch that
+          // newly constructs it in a method which never did would be admitted
+          // by a program-wide check. So the evidence is per-method, from the
+          // release's own version of this same member.
+          //
+          // Emitted EMPTY when the release has no such member: the claim "the
+          // release version of this method constructed nothing" is exactly
+          // right for a member the release did not have. OMITTED entirely when
+          // the base could not be examined, which says we did not look.
+          lowering[key]!['releasePrivateConstructions'] = releaseMember == null
+              ? const <Map<String, Object?>>[]
+              : _privateConstructions(releaseClass!, releaseMember);
         }
       }
     }
@@ -862,6 +898,11 @@ void _runCensus(String path, List<String> includePrefixes, String? outPath) {
           'fileUri': p.fileUri.toString(),
           // Every super site with its resolved target, not just how many.
           'superSites': lowering['superInvocations'],
+          // The method's private-class constructions. Emitted so a RELEASE can
+          // derive exactly which private constructors its own methods depend
+          // on, without a second implementation of the measurement living in
+          // the interface generator. One definition, two readers.
+          'privateConstructions': lowering['privateConstructions'],
           // What the RELEASE version of THIS method direct-called. In a census
           // the corpus IS the release, which the header records as
           // `releaseIsSelf`; see the reporter for what that does and does not
@@ -1010,17 +1051,7 @@ Map<String, Object?> _lowering(
     // the list fills with SDK internals the compiler synthesised, such as
     // `dart:core#_GrowableList._literal1` from a list literal: not named in any
     // source, not the app's to grant, and not something the producer refuses on.
-    'privateConstructions': [
-      for (final c in visitor.privateConstructions)
-        if (c.library == cls.enclosingLibrary.importUri.toString())
-        {
-          'offset': c.offset,
-          'library': c.library,
-          'class': c.className,
-          'constructor': c.ctor,
-          'key': c.key,
-        },
-    ],
+    'privateConstructions': _privateConstructions(cls, p),
     // Genuine `super.member()` sites. An EMPTY list is the common case and the
     // only one a producer without direct-super support may proceed on.
     'superInvocations': [
@@ -1108,6 +1139,29 @@ List<Map<String, Object?>> _superTargets(
     if (provenance != null) out.add(provenance);
   }
   return out;
+}
+
+/// Every private-class construction in [p]'s body, keyed as the manifest keys
+/// it, and scoped to [cls]'s own library.
+///
+/// ONE definition, used for the candidate body and for the RELEASE's version of
+/// the same method. Measuring the two sides with different code is how an
+/// evidence rule quietly stops comparing like with like.
+List<Map<String, Object?>> _privateConstructions(Class cls, Procedure p) {
+  final visitor = _ReceiverUses();
+  p.function.accept(visitor);
+  final own = cls.enclosingLibrary.importUri.toString();
+  return [
+    for (final c in visitor.privateConstructions)
+      if (c.library == own)
+        {
+          'offset': c.offset,
+          'library': c.library,
+          'class': c.className,
+          'constructor': c.ctor,
+          'key': c.key,
+        },
+  ];
 }
 
 /// A construction of a private class inside a body.

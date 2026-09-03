@@ -122,14 +122,60 @@ void main() {
         );
       });
 
+      test('version 13 is accepted', () {
+        expect(
+          () => RouteBCoverage.fromJson(
+            doc(13, {...body, 'privateConstructions': <Object>[]}),
+          ),
+          returnsNormally,
+        );
+      });
+
+      test('release evidence: ABSENT stays null on version 13', () {
+        // The analyzer omits it when the base could not be examined. Nothing
+        // was measured, so nothing may be admitted on it.
+        final parsed = parse(13, const {'privateConstructions': <Object>[]});
+        expect(parsed.releasePrivateConstructions, isNull);
+      });
+
+      test('release evidence: EMPTY is a measurement, not an absence', () {
+        final parsed = parse(13, const {
+          'privateConstructions': <Object>[],
+          'releasePrivateConstructions': <Object>[],
+        });
+        expect(parsed.releasePrivateConstructions, isNotNull);
+        expect(parsed.releasePrivateConstructions, isEmpty);
+      });
+
+      test('release evidence: POPULATED carries the manifest key', () {
+        final parsed = parse(13, const {
+          'privateConstructions': [construction],
+          'releasePrivateConstructions': [construction],
+        });
+        expect(
+          parsed.releasePrivateConstructions!.single.key,
+          'package:app/main.dart#_Helper.new',
+        );
+      });
+
+      test('a version-11 or -12 document has no release evidence', () {
+        expect(parse(11, const {}).releasePrivateConstructions, isNull);
+        expect(
+          parse(12, const {
+            'privateConstructions': <Object>[],
+          }).releasePrivateConstructions,
+          isNull,
+        );
+      });
+
       test('an unknown version is refused, and names what is understood', () {
         expect(
-          () => RouteBCoverage.fromJson(doc(13, body)),
+          () => RouteBCoverage.fromJson(doc(14, body)),
           throwsA(
             isA<FormatException>().having(
               (e) => e.message,
               'message',
-              allOf(contains('version 13'), contains('11, 12')),
+              allOf(contains('version 14'), contains('11, 12, 13')),
             ),
           ),
         );
@@ -188,8 +234,9 @@ void main() {
 
       test('B: field [] parses as empty — measured, called nothing', () {
         expect(
-          parseLowering(const {'releaseSuperTargets': <Object>[]})
-              .releaseSuperTargets,
+          parseLowering(const {
+            'releaseSuperTargets': <Object>[],
+          }).releaseSuperTargets,
           isEmpty,
         );
       });
@@ -207,8 +254,11 @@ void main() {
       test('absent and empty are not equal', () {
         expect(
           parseLowering(const {}).releaseSuperTargets,
-          isNot(parseLowering(const {'releaseSuperTargets': <Object>[]})
-              .releaseSuperTargets),
+          isNot(
+            parseLowering(const {
+              'releaseSuperTargets': <Object>[],
+            }).releaseSuperTargets,
+          ),
         );
       });
     });

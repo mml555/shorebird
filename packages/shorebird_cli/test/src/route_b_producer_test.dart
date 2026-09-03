@@ -1057,26 +1057,34 @@ void main() {
         );
       });
 
-      // PRIVATE CONSTRUCTION, measured (analysis version 12).
+      // PRIVATE CONSTRUCTION, with SAME-METHOD release evidence (v13).
       //
-      // D-PRODUCER-DEMAND-1 measured this as 70% of every analyzer->producer
-      // disagreement on real historical changes. Policy p2 retains a private
-      // class so its MEMBERS can be patch-targeted and withholds construction
-      // separately, so a granted member says nothing about the constructor —
-      // and a replacement declaration, recompiled whole, constructs it.
-      group('private constructions, against the release manifest', () {
+      // Two conditions, neither implying the other: the release's version of
+      // THIS method already constructed the exact constructor, and the release
+      // retained it. The manifest alone is release-WIDE and would admit a
+      // construction newly introduced into a method that never performed it.
+      group('private constructions, against same-method release evidence', () {
         const ctorKey = 'package:app/main.dart#_Helper.new';
+        const otherKey = 'package:app/main.dart#_Other.new';
 
         RouteBCoverage constructs({
-          bool measured = true,
+          int version = 13,
+          List<String>? releaseKeys = const [ctorKey],
           String decl = 'String value() => _Helper().toString();',
         }) {
           const preamble = 'class RouteBThing {\n  ';
           source.writeAsStringSync('$preamble$decl');
           final start = preamble.length;
+          Map<String, Object?> entry(String key) => {
+            'offset': start + decl.indexOf('_'),
+            'library': 'package:app/main.dart',
+            'class': key.split('#').last.split('.').first,
+            'constructor': 'new',
+            'key': key,
+          };
           return RouteBCoverage.fromJson(
             jsonEncode({
-              'analysisVersion': measured ? 12 : 11,
+              'analysisVersion': version,
               'verdict': 'accept',
               'changed': [key],
               'added': <String>[],
@@ -1103,15 +1111,10 @@ void main() {
                     'memberKind': 'Method',
                   },
                   'superInvocations': <Object>[],
-                  if (measured)
-                    'privateConstructions': [
-                      {
-                        'offset': start + decl.indexOf('_Helper'),
-                        'library': 'package:app/main.dart',
-                        'class': '_Helper',
-                        'constructor': 'new',
-                        'key': ctorKey,
-                      },
+                  if (version >= 12) 'privateConstructions': [entry(ctorKey)],
+                  if (version >= 13 && releaseKeys != null)
+                    'releasePrivateConstructions': [
+                      for (final k in releaseKeys) entry(k),
                     ],
                 },
               },
@@ -1121,50 +1124,101 @@ void main() {
           );
         }
 
-        test('REFUSES a construction the release did not retain', () {
-          expect(
-            () => lowered(constructs(), granting: grants()),
-            throwsA(
-              isA<RouteBUnsupportedTarget>().having(
-                (e) => e.reason,
-                'reason',
-                allOf(contains('_Helper'), contains('did not retain')),
-              ),
-            ),
-          );
-        });
-
-        test('a MEMBER grant on that class is not a construction grant', () {
-          // The exact confusion the measurement found: p2 grants members and
-          // withholds `.new`, so admitting on a member grant would compile and
-          // then fail to bind.
-          expect(
-            () => lowered(
-              constructs(),
-              granting: grants(
-                instance: ['package:app/main.dart#_Helper#label'],
-                classPublicMembers: ['package:app/main.dart#_Helper#label'],
-              ),
-            ),
-            throwsA(isA<RouteBUnsupportedTarget>()),
-          );
-        });
-
-        test('carries a construction the release DID retain', () {
+        test('carries a construction the release method already performed', () {
           expect(
             lowered(constructs(), granting: grants(classes: [ctorKey])),
             contains('_Helper()'),
           );
         });
 
-        test('a version-11 document still uses the source scan', () {
-          // UNMEASURED is not "constructs none". An older release keeps the
-          // conservative text backstop and stays refused here — the same
-          // answer it gave before version 12 existed, which is what makes the
-          // consumer change safe for cells already in the field.
+        test('REFUSES one the release method never performed', () {
+          // THE CROSS-METHOD LEAKAGE CONTROL. The manifest globally grants the
+          // constructor — some other released method built it — but the
+          // release version of THIS method constructed something else, so the
+          // patch is introducing it here.
           expect(
             () => lowered(
-              constructs(measured: false),
+              constructs(releaseKeys: const [otherKey]),
+              granting: grants(classes: [ctorKey, otherKey]),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                allOf(
+                  contains('never constructed'),
+                  contains('may not introduce'),
+                ),
+              ),
+            ),
+          );
+        });
+
+        test('REFUSES when the release method constructed NONE', () {
+          // Empty is a measurement, and it is a negative one.
+          expect(
+            () => lowered(
+              constructs(releaseKeys: const []),
+              granting: grants(classes: [ctorKey]),
+            ),
+            throwsA(isA<RouteBUnsupportedTarget>()),
+          );
+        });
+
+        test('REFUSES when release evidence was not measured at all', () {
+          // Absent is not empty and not permission.
+          expect(
+            () => lowered(
+              constructs(releaseKeys: null),
+              granting: grants(classes: [ctorKey]),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('did not measure'),
+              ),
+            ),
+          );
+        });
+
+        test('a version-12 document cannot use the construction path', () {
+          // It measures the candidate but carries no same-method release
+          // evidence, so it may not admit even a granted constructor.
+          expect(
+            () => lowered(
+              constructs(version: 12),
+              granting: grants(classes: [ctorKey]),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('did not measure'),
+              ),
+            ),
+          );
+        });
+
+        test('evidence without a manifest grant still refuses', () {
+          // Both conditions are required; same-method evidence alone is not a
+          // grant, because the release may not have retained the constructor.
+          expect(
+            () => lowered(constructs(), granting: grants()),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('did not retain'),
+              ),
+            ),
+          );
+        });
+
+        test('a version-11 document still uses the source scan', () {
+          expect(
+            () => lowered(
+              constructs(version: 11),
               granting: grants(classes: [ctorKey]),
             ),
             throwsA(
@@ -1482,10 +1536,12 @@ void main() {
 
       test('publishes when a call site survived', () {
         expect(
-          () => produceWith(oracle(
-            RouteBSurvival.survivingCallsite,
-            instrument: 'ONE_OR_MORE_QUALIFYING_CALLSITES',
-          )),
+          () => produceWith(
+            oracle(
+              RouteBSurvival.survivingCallsite,
+              instrument: 'ONE_OR_MORE_QUALIFYING_CALLSITES',
+            ),
+          ),
           returnsNormally,
         );
       });
@@ -1652,7 +1708,9 @@ void main() {
                   'refusalSummary': null,
                 }),
               ),
-              releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
+              releaseImportKernel: File(
+                p.join(cell.path, 'release_import.dill'),
+              ),
               releaseBuildId: 'deadbeef',
               workingDirectory: work,
               projectRoot: project,
@@ -2263,7 +2321,9 @@ void main() {
       test('walks past candidates the declaration already uses', () {
         expect(fresh('self shorebirdReceiver0'), 'shorebirdReceiver1');
         expect(
-          fresh('self shorebirdReceiver0 shorebirdReceiver1 shorebirdReceiver2'),
+          fresh(
+            'self shorebirdReceiver0 shorebirdReceiver1 shorebirdReceiver2',
+          ),
           'shorebirdReceiver3',
         );
       });

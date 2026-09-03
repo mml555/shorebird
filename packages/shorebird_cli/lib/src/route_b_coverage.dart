@@ -69,7 +69,7 @@ const supportedRouteBAnalysisVersion = 11;
 ///
 /// Each version's absent fields keep their own meaning; see
 /// [RouteBLowering.privateConstructions] for the asymmetry that matters.
-const knownRouteBAnalysisVersions = {11, 12};
+const knownRouteBAnalysisVersions = {11, 12, 13};
 
 /// A construction of a private class inside a replaced body.
 ///
@@ -274,6 +274,7 @@ class RouteBLowering {
     this.superInvocations = const [],
     this.releaseSuperTargets,
     this.privateConstructions,
+    this.releasePrivateConstructions,
   });
 
   /// The class the receiver belongs to, used as the parameter's type.
@@ -333,6 +334,21 @@ class RouteBLowering {
   /// Null means a version-11 document, which cannot say. It does NOT mean the
   /// body constructs none.
   final List<RouteBPrivateConstruction>? privateConstructions;
+
+  /// The same measurement taken on the RELEASE's version of this same method,
+  /// or null when nobody measured it.
+  ///
+  /// THREE STATES, and a consumer must keep them apart. Null is "unavailable" —
+  /// a version-11 or version-12 document, or a version-13 one whose base could
+  /// not be examined — and admits nothing. Empty is a MEASUREMENT: the release
+  /// version of this method constructed none, so any construction the candidate
+  /// performs is newly introduced. Populated is positive evidence, per
+  /// constructor.
+  ///
+  /// A release-wide manifest cannot substitute for this. It contains
+  /// `_Private.new` whenever ANY released method constructed it, which says
+  /// nothing about whether THIS method did.
+  final List<RouteBPrivateConstruction>? releasePrivateConstructions;
 
   /// Genuine `super.member()` sites in this body (analysis version 10).
   ///
@@ -670,6 +686,26 @@ class RouteBCoverage {
             ),
             _ => null,
           },
+          // ABSENT stays null, on every version. A version-13 analyzer omits
+          // it when the base could not be examined, and that is a real answer:
+          // nothing was measured, so nothing may be admitted on it. Defaulting
+          // to `[]` would turn "we did not look" into "the release method
+          // constructed none", which is a claim, and the wrong one.
+          releasePrivateConstructions:
+              switch (l['releasePrivateConstructions']) {
+                final List<Object?> raw => [
+                  for (final c in raw)
+                    RouteBPrivateConstruction(
+                      offset: (c! as Map<String, dynamic>)['offset']! as int,
+                      library:
+                          (c as Map<String, dynamic>)['library']! as String,
+                      className: c['class']! as String,
+                      constructor: c['constructor']! as String,
+                      key: c['key']! as String,
+                    ),
+                ],
+                _ => null,
+              },
         );
       }
     }
