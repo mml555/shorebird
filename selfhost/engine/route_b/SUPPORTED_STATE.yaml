@@ -11,7 +11,12 @@ schema: route-b-supported-state/1
 qualified: 2026-09-03
 
 lineage:
-  cli_revision: a1836ca46f3e36835e9940bf8a32ffb150746579
+  # The revision this stack was QUALIFIED at. It cannot name the commit that
+  # writes it, so the verifier requires it to be an ancestor of (or equal to)
+  # HEAD rather than equal to it. Commits after it must not change product code
+  # without re-qualification; the repair commit that follows adds verification
+  # only.
+  cli_revision: cba3501615f80aa2c0f0c631366639899b0a7241
   cli_contains: 6b4f6c422bab55143ef04c8f43f92015ee3b3feb   # private-name resolution for constructions
   flutter_selector: e64eb0af52e1c43c3b21a39556d789538d0df9b3   # F4
   cell_address: cd848320d605ff8af5060cabf9a8d1b35853f752

@@ -1,10 +1,26 @@
 #!/usr/bin/env bash
-# verify_supported_state.sh -- re-check every mechanical claim in
+# verify_supported_state.sh -- re-check the DEPLOYABLE IDENTITY claims in
 # SUPPORTED_STATE.yaml against the artifacts themselves.
 #
 # The record is only worth having if it can be falsified. Each check below reads
 # the artifact rather than the record, then compares. A drifted stack fails here
 # instead of being discovered during an upgrade.
+#
+# COVERED: cli_revision and its ancestry, cli_contains, the selector chain on
+# both links from COMMITTED blobs, cell_address, compiler archive digest and
+# size, analyzer digest (from the published archive, mandatorily),
+# producer_engine_revision, dart_revision, fallback_engine_revision,
+# updater_revision against the committed compatibility pin, every addressed cell
+# member against the bytes served, and the deeper compiler/runtime audit.
+#
+# NOT COVERED, because they are not mechanically checkable from artifacts: the
+# supported/unsupported construct lists, the operational requirements, the
+# physical-device qualification, and the historical compatibility numbers. Those
+# are records of measurements made elsewhere and cited there.
+#
+# MISSING EVIDENCE IS NEVER A PASS. Every check that cannot read its artifact
+# fails; only the runtime-cache copy of the analyzer is optional, and only
+# because the published archive it mirrors is checked unconditionally first.
 #
 #   SHOREBIRD_ROOT=<a shorebird checkout with a populated bin/cache> \
 #     selfhost/engine/route_b/verify_supported_state.sh
@@ -27,6 +43,8 @@ cmp_v() { # <label> <expected> <actual>
 }
 
 SELECTOR=$(val flutter_selector)
+CLIREV=$(val cli_revision)
+CLICONTAINS=$(val cli_contains)
 CELL=$(val cell_address)
 ARCHIVE=$(val compiler_archive_sha256)
 ARCHBYTES=$(val compiler_archive_bytes)
@@ -35,9 +53,39 @@ ANALYZER=$(val analyzer_sha256)
 echo "verify_supported_state -- record $STATE"
 echo "  shorebird root : $ROOT"
 
-# 1. THE SELECTOR CHAIN, read from the artifacts a build actually walks.
-cmp_v "CLI flutter.version selects the recorded Flutter" \
-  "$SELECTOR" "$(cat "$ROOT/bin/internal/flutter.version" 2>/dev/null)"
+# 1. THE SELECTOR CHAIN, read from the artifacts a build actually walks --
+#    and on BOTH links from the COMMITTED blob, never the working tree.
+#
+# Reading the CLI's selector with `cat` was a hole: an uncommitted
+# bin/internal/flutter.version would have qualified, which is exactly what the
+# Flutter-side check below exists to prevent. Both sides now read git.
+if git -C "$REPO" cat-file -e "$CLIREV^{commit}" 2>/dev/null; then
+  ok "recorded cli_revision exists in this repository"
+  if git -C "$REPO" merge-base --is-ancestor "$CLIREV" HEAD 2>/dev/null; then
+    ok "cli_revision is in this branch's history"
+  else
+    bad "cli_revision $CLIREV is not an ancestor of HEAD — the record names a revision this branch does not contain"
+  fi
+  if [[ -n "$CLICONTAINS" ]] && git -C "$REPO" merge-base --is-ancestor "$CLICONTAINS" "$CLIREV" 2>/dev/null; then
+    ok "cli_revision contains ${CLICONTAINS:0:8} (private-name resolution)"
+  else
+    bad "cli_revision does not contain ${CLICONTAINS:-<none>}"
+  fi
+  cmp_v "CLI flutter.version (committed blob at cli_revision) selects the recorded Flutter" \
+    "$SELECTOR" "$(git -C "$REPO" show "$CLIREV:bin/internal/flutter.version" 2>/dev/null | tr -d '[:space:]')"
+else
+  bad "recorded cli_revision ${CLIREV:-<none>} is not a commit in this repository"
+fi
+
+# The RUNTIME checkout must be running that same committed selector, not a local
+# edit of it.
+cmp_v "runtime checkout's flutter.version matches the committed selector" \
+  "$SELECTOR" "$(cat "$ROOT/bin/internal/flutter.version" 2>/dev/null | tr -d '[:space:]')"
+if [[ -z "$(git -C "$ROOT" status --porcelain -- bin/internal 2>/dev/null)" ]]; then
+  ok "runtime checkout's bin/internal is clean"
+else
+  bad "runtime checkout has uncommitted changes under bin/internal"
+fi
 
 FDIR="$ROOT/bin/cache/flutter/$SELECTOR"
 if [[ -d "$FDIR/.git" ]]; then
@@ -64,12 +112,43 @@ else
   bad "no published compiler archive at $ZIP"
 fi
 
+# THE ANALYZER, FROM THE PUBLISHED ARCHIVE — MANDATORY.
+#
+# This used to fall back to "not resolved into this root's cache yet (not a
+# failure)" and still print VERIFIED. A record that names an exact consumed
+# analyzer digest cannot be verified by an absent artifact: missing evidence must
+# never produce a pass. The archive is the authority, because it is what any
+# machine resolves from; a local cache is a convenience on top of it.
+if [[ -f "$ZIP" ]]; then
+  UNZ=$(mktemp -d)
+  if unzip -qo "$ZIP" route_b_analyze.aot -d "$UNZ" 2>/dev/null && [[ -f "$UNZ/route_b_analyze.aot" ]]; then
+    cmp_v "analyzer digest (extracted from the published archive)" \
+      "$ANALYZER" "$(shasum -a 256 "$UNZ/route_b_analyze.aot" | cut -d' ' -f1)"
+    # PROVENANCE identities the record also claims.
+    if unzip -qo "$ZIP" PROVENANCE.txt -d "$UNZ" 2>/dev/null; then
+      cmp_v "producer engine revision" "$(val producer_engine_revision)" \
+        "$(sed -nE 's/^engine revision[[:space:]]*:[[:space:]]*([0-9a-f]+).*/\1/p' "$UNZ/PROVENANCE.txt" | head -1)"
+      cmp_v "dart revision" "$(val dart_revision)" \
+        "$(sed -nE 's/^dart revision[[:space:]]*:[[:space:]]*([0-9a-f]+).*/\1/p' "$UNZ/PROVENANCE.txt" | head -1)"
+    else
+      bad "published archive carries no PROVENANCE.txt"
+    fi
+  else
+    bad "published archive does not contain route_b_analyze.aot"
+  fi
+  rm -rf "$UNZ"
+else
+  bad "cannot verify the analyzer: no published archive"
+fi
+
+# The resolved cache, WHEN present, must agree with the archive. Absence here is
+# genuinely not a failure -- the mandatory check above already ran.
 CACHED="$ROOT/bin/cache/artifacts/route-b-compiler/$CELL/route_b_analyze.aot"
 if [[ -f "$CACHED" ]]; then
-  cmp_v "analyzer digest (the one the CLI consumes)" \
+  cmp_v "analyzer digest (as resolved into the runtime cache)" \
     "$ANALYZER" "$(shasum -a 256 "$CACHED" | cut -d' ' -f1)"
 else
-  echo "  --      analyzer not resolved into this root's cache yet (not a failure)"
+  echo "  --      analyzer not resolved into this root's cache (archive already verified)"
 fi
 
 # 3. THE ADDRESS AUTHENTICATES ITSELF.
@@ -81,7 +160,28 @@ else
   bad "no v2 address manifest registered for $CELL"
 fi
 
-# 4. THE FULL CELL AUDIT.
+# 4. EVERY ADDRESSED MEMBER STILL EQUALS THE BYTES SERVED.
+#    PUBLISH-V2 proved 16/16 at publication; this asks whether they have drifted
+#    since, which is the only question a supported-state check can answer.
+if bash "$HERE/verify_cell_members.sh" "$CELL" >/dev/null 2>&1; then
+  ok "all addressed cell members match the bytes served"
+else
+  bad "cell member drift — run verify_cell_members.sh $CELL for the detail"
+fi
+
+if [[ -f "$MAN" ]]; then
+  cmp_v "fallback engine revision" "$(val fallback_engine_revision)" \
+    "$(awk '$1=="fallback_engine_revision"{print $2}' "$MAN" | head -1)"
+fi
+
+# The updater pin, against the committed compatibility record rather than a
+# rebuilt binary: this proves the two committed records agree, which is what it
+# can honestly prove.
+cmp_v "updater revision agrees with selfhost/compatibility.yaml" \
+  "$(val updater_revision)" \
+  "$(sed -nE 's/^[[:space:]]*updater_revision:[[:space:]]*([0-9a-f]+).*/\1/p' "$REPO/selfhost/compatibility.yaml" | head -1)"
+
+# 5. THE DEEPER COMPILER/RUNTIME AUDIT.
 if bash "$HERE/audit_route_b_compiler.sh" --hash "$CELL" >/dev/null 2>&1; then
   ok "audit_route_b_compiler: AUDIT CLEAN"
 else
