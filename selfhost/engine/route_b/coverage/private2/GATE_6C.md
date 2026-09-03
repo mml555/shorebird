@@ -60,3 +60,71 @@ this cell audits exactly as the certified one does, and the honest claim is
 
     H3 descriptor  d4c0dbc2905286eb4537d5f9a7802693096ca1fd (self-authenticating, unchanged)
     H3 compiler    39ad75dd… unchanged
+
+---
+
+# REPAIR — the protection regex regression I introduced
+
+Caught in review, not by me. Adding the new cell with a blind
+`s/<H3>/<H3>|<new>/` substitution edited INSIDE a regex and broke grouping:
+
+    before   …|d4c0dbc2…/(ios|ios-profile)/artifacts\.zip|…
+    after    …|d4c0dbc2…|cd848320…/(ios|ios-profile)/artifacts\.zip|…
+
+The expression is end-anchored, so `d4c0dbc2…` became an alternative that can
+only match a path which IS that bare hash. **H3's `ios/artifacts.zip` and
+`ios-profile/artifacts.zip` stopped being protected**, while the file still
+parsed and `caddy validate` still said Valid. The claim in the original row that
+H3's protection was unchanged was therefore false.
+
+The `sky_engine|flutter_gpu` arm was unaffected, because H3 already sat inside a
+group there — which is exactly why one of the two edits was fine and the other
+was not.
+
+## Repaired by grouping
+
+    (d4c0dbc2905286eb4537d5f9a7802693096ca1fd|cd848320d605ff8af5060cabf9a8d1b35853f752)/(ios|ios-profile)/artifacts\.zip
+
+## Mechanical validation, so this cannot recur silently
+
+`selfhost/cdn/check_protection_matchers.py` reads the matchers out of the
+Caddyfile and evaluates a table of concrete paths, asserting COVERAGE rather
+than syntax: 20 paths that must be protected, 4 that must not be.
+
+Verified red-first against the broken committed file:
+
+    against ad733f97's Caddyfile
+      NOT PROTECTED (should be): …/d4c0dbc2…/ios/artifacts.zip
+      NOT PROTECTED (should be): …/d4c0dbc2…/ios-profile/artifacts.zip
+      MATCHER COVERAGE FAILED: 2
+
+    against the repair
+      MATCHER COVERAGE OK
+
+It names the same two paths the review did.
+
+## Behavioural checks, against the running server
+
+Protected artifacts serve their published bytes (local request), both cells:
+
+    d4c0dbc2  ios/artifacts.zip          200  bytes match published
+    d4c0dbc2  ios-profile/artifacts.zip  200  bytes match published
+    d4c0dbc2  sky_engine.zip             200  bytes match published
+    d4c0dbc2  flutter_gpu.zip            200  bytes match published
+    cd848320  ios/artifacts.zip          200  bytes match published
+    cd848320  ios-profile/artifacts.zip  200  bytes match published
+    cd848320  sky_engine.zip             200  bytes match published
+    cd848320  flutter_gpu.zip            200  bytes match published
+
+Owned but not published — must 404 rather than fall through, both cells:
+
+    d4c0dbc2  android-arm64-release/artifacts.zip  404  "overlay miss on owned artifact"
+    d4c0dbc2  darwin-x64/artifacts.zip             404  "overlay miss on owned artifact"
+    cd848320  android-arm64-release/artifacts.zip  404  "overlay miss on owned artifact"
+    cd848320  darwin-x64/artifacts.zip             404  "overlay miss on owned artifact"
+
+And a stock unmapped hash still resolves (69f9831c sky_engine.zip -> 200), so
+the 404s are ownership rather than a broken server.
+
+Digests unchanged by the repair: both descriptors still self-authenticate, H3's
+compiler is still 39ad75dd…, the new cell's is still 7975b27c….
