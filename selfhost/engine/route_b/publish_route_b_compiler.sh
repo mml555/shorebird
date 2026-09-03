@@ -20,6 +20,12 @@
 # The platform dill travels with them for the same reason: bytecode compiled
 # against a different platform does not bind, and that failure surfaces on
 # device rather than here.
+# EACH MEMBER IS OVERRIDABLE, so a CANDIDATE archive can be staged from bytes
+# that are not the ones sitting in the build tree. Route B's analyzer has
+# already proven non-byte-reproducible, so a qualification that rebuilds it and
+# carries the result over by source equality is not qualifying the bytes it
+# ships. Overriding lets one build be frozen and then used everywhere, and it
+# keeps the tree's certified copy untouched while a candidate is prepared.
 set -euo pipefail
 
 SRC=${SRC:-/Volumes/build/route-b/flutter/engine/src}
@@ -44,28 +50,28 @@ while [[ $# -gt 0 ]]; do
 done
 [[ -n "$REV" ]] || die "--rev <engineRevision> is required"
 
-SNAPSHOT="$OUT/zip_archives/dart2bytecode_aot.snapshot"
-RUNTIME="$OUT/dartaotruntime"
-PLATFORM="$OUT/vm_platform.dill"
+SNAPSHOT=${SNAPSHOT:-$OUT/zip_archives/dart2bytecode_aot.snapshot}
+RUNTIME=${RUNTIME:-$OUT/dartaotruntime}
+PLATFORM=${PLATFORM:-$OUT/vm_platform.dill}
 # The coverage analyzer travels with the compiler for the same reason the
 # platform dill does: it READS the release's kernel, and the kernel binary
 # format is versioned. An analyzer from another lineage would refuse the dill,
 # or worse, misread it.
-ANALYZER="$OUT/zip_archives/route_b_analyze.aot"
+ANALYZER=${ANALYZER:-$OUT/zip_archives/route_b_analyze.aot}
 # The release's own frontend. Both release kernels -- the AOT one flutter emits
 # and the --no-aot one dart2bytecode needs -- must come from ONE lineage, and
 # resolving it from the engine hash is what makes that structural rather than a
 # property of whichever machine cut the release.
-GEN_KERNEL="$OUT/zip_archives/route_b_gen_kernel.aot"
+GEN_KERNEL=${GEN_KERNEL:-$OUT/zip_archives/route_b_gen_kernel.aot}
 # Retention is declared at release time and must come from the same lineage as
 # everything else, or a release retains names the patch compiler does not agree
 # about.
-GEN_DI="$OUT/zip_archives/route_b_gen_dynamic_interface.aot"
+GEN_DI=${GEN_DI:-$OUT/zip_archives/route_b_gen_dynamic_interface.aot}
 # P4.1's release probe. It encodes gen_snapshot's v8 snapshot-profile schema,
 # which carries NO version field of its own -- so a probe from another lineage
 # would read the wrong columns and answer confidently. Same argument as the
 # analyzer, one format further along.
-RELEASE_PROBE="$OUT/zip_archives/route_b_release_probe.aot"
+RELEASE_PROBE=${RELEASE_PROBE:-$OUT/zip_archives/route_b_release_probe.aot}
 # The FLUTTER platform dill, not the VM one. vm_platform.dill ships too because
 # the host harness compiles --target vm toys against it, but a real app is
 # --target flutter and binding it against the VM platform fails at load time, on

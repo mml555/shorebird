@@ -80,7 +80,13 @@ does not grant them at all — no release method constructed them — so in norm
 operation both conditions refuse. Gate 3's widened manifest is what isolates the
 same-method condition on its own.
 
-## Gate 1 — release-time policy
+## Gate 1 — release-time policy (HOST/POLICY level only)
+
+**Closed at host and policy level, NOT at product level.** This row demonstrates
+deriving the constructor set and proves the policy's cost; it does NOT wire the
+normal release command to do it. A prerequisite that exists only in a
+qualification notebook is not a product feature — the lesson PLATFORM-PRECACHE
+already taught. Automatic derivation inside `shorebird release` is Gate 6 work.
 
 The release derives its grants from its OWN methods: run the analyzer in census
 mode over the release kernel, take the union of every method's
@@ -109,10 +115,16 @@ two arms differing only in the interface yaml, `--deterministic` snapshots.
 | **delta** | **+50,960 B (+0.367%)** | **−2,616 B (−0.009%)** |
 
 Both are negligible, and far from the **+8.35% at 200 classes** the generator
-records for granting every constructor. The reason is causal rather than lucky:
-these constructors are ones the release's own methods already construct, so
-their code is already retained and reachable — the narrow policy adds
-entry-point metadata, not code.
+records for granting every constructor.
+
+**The closure claim is the measurement, not a mechanism.** Exact release-derived
+constructor retention had negligible measured AOT size cost on both measured
+applications. An earlier draft of this row asserted that the policy "adds
+entry-point metadata, not code"; that is withdrawn. Changing entry-point
+retention can affect TFA, layout, metadata and emitted code indirectly, and
+LocalSend's NEGATIVE delta is itself evidence that the binary effect is not
+literally "metadata bytes added". The mechanism was not measured and is not
+claimed.
 
 **"Narrow" means very different things per app, and that is worth stating.** On
 Wonderous it grants 107 of 119 withheld constructors (90%): a small showcase app

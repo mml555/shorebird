@@ -32,6 +32,7 @@
 // And because "forwarded correctly" is still a promise, [agreesWith] turns it
 // into a check: every member of the AOT kernel must exist in the import kernel.
 // A wrong entrypoint, a wrong package config or a wrong target all break that.
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -337,6 +338,77 @@ ${result.stderr}''',
     run: run,
   );
 
+  /// The exact private constructors this release's own methods construct.
+  ///
+  /// Asked of the analyzer in CENSUS mode, over the same `--aot` prepass kernel
+  /// the interface is generated from, so the set describes the code this
+  /// release actually ships.
+  ///
+  /// NEVER FATAL, and deliberately quiet about it. A cell whose analyzer does
+  /// not report constructions, an analyzer that fails, or output this build
+  /// cannot parse all yield an EMPTY list — which reproduces the previous
+  /// behaviour exactly: nothing is granted, so nothing is newly constructible.
+  /// A release that retains less is narrower; a release that fails to build is
+  /// not a release.
+  List<String> _deriveConstructorGrants({
+    required RouteBCompiler compiler,
+    required File prepassKernel,
+    required String packageName,
+    required Directory workingDirectory,
+    required RouteBKernelRunner run,
+  }) {
+    final census = File(
+      p.join(workingDirectory.path, 'release_constructions.jsonl'),
+    );
+    try {
+      final result = run(compiler.runtime.path, [
+        compiler.analyzer.path,
+        '--census',
+        '--dill',
+        prepassKernel.path,
+        '--include',
+        'package:$packageName/',
+        '--out',
+        census.path,
+      ]);
+      if (result.exitCode != 0 || !census.existsSync()) {
+        logger.detail(
+          'Route B: could not enumerate this release\'s private constructions '
+          '(exit ${result.exitCode}); no constructors will be retained.',
+        );
+        return const [];
+      }
+      final keys = <String>{};
+      for (final line in census.readAsLinesSync()) {
+        if (line.trim().isEmpty) continue;
+        final decoded = jsonDecode(line);
+        if (decoded is! Map<String, dynamic>) continue;
+        final constructions = decoded['privateConstructions'];
+        if (constructions is! List) continue;
+        for (final entry in constructions) {
+          if (entry is Map<String, dynamic> && entry['key'] is String) {
+            keys.add(entry['key']! as String);
+          }
+        }
+      }
+      // Sorted so a release is reproducible from the same inputs.
+      final sorted = keys.toList()..sort();
+      if (sorted.isNotEmpty) {
+        logger.detail(
+          'Route B: retaining ${sorted.length} private constructor(s) this '
+          "release's own methods construct.",
+        );
+      }
+      return sorted;
+    } on Object catch (error) {
+      logger.detail(
+        'Route B: private-construction enumeration failed ($error); no '
+        'constructors will be retained.',
+      );
+      return const [];
+    }
+  }
+
   /// Generate the dynamic interface a release declares its retention with.
   ///
   /// Returns the file, or null with a warning. Never fatal: a release that
@@ -377,6 +449,31 @@ ${result.stderr}''',
       );
       return null;
     }
+
+    // EXACT CONSTRUCTOR RETENTION, derived from this release's OWN methods.
+    //
+    // A patch may reuse a private construction only when the released version
+    // of that same method already performed it, so the release has to retain
+    // exactly those constructors — no more, and not by hand. Deriving it here
+    // is what makes it product behaviour instead of a step in a qualification
+    // notebook.
+    //
+    // The measurement comes from the ANALYZER, in census mode, because the
+    // analyzer already computes it for the patch path. The interface generator
+    // does not read bodies at all, and teaching it to would put a second
+    // definition of "what does this method construct" in the tree, free to
+    // drift from the one that admits patches.
+    //
+    // A cell whose analyzer predates this reports nothing, the grant list is
+    // empty, and the release is exactly what it was before: narrower, not
+    // broken.
+    final constructorGrants = _deriveConstructorGrants(
+      compiler: compiler,
+      prepassKernel: prepassKernel,
+      packageName: packageName,
+      workingDirectory: outputFile.parent,
+      run: run,
+    );
 
     final result = run(compiler.runtime.path, [
       compiler.interfaceGenerator.path,
@@ -425,6 +522,9 @@ ${result.stderr}''',
       ],
       // BY NAME. The generator also accepts --sdk-libraries, which retains a
       // whole library; that was measured at +310% and is not product behaviour.
+      // One at a time, spelled `library#Class.name`, exactly as the generator
+      // and the capability manifest spell them.
+      for (final grant in constructorGrants) ...['--grant-constructor', grant],
       '--sdk-members',
       sdkMembers.join(','),
     ]);

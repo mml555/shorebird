@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:mocktail/mocktail.dart';
@@ -458,6 +459,166 @@ void main() {
         prepass = File(p.join(work.path, 'prepass.dill'))
           ..writeAsStringSync('KERNEL');
         output = File(p.join(work.path, 'dynamic_interface.yaml'));
+      });
+
+      // EXACT CONSTRUCTOR RETENTION, derived by the RELEASE ITSELF.
+      //
+      // The rule is that a patch may reuse a private construction only when the
+      // released version of that same method already performed it, which is
+      // worth nothing unless the release retains those exact constructors. A
+      // qualification notebook that runs a census by hand and passes
+      // --grant-constructor is not a product feature; PLATFORM-PRECACHE taught
+      // that. These tests exist at the release path so the derivation cannot
+      // quietly stop happening.
+      group('derives exact constructor grants from its own methods', () {
+        /// A `run` that answers the census with [rows] and records the
+        /// generator's argv.
+        List<String> generatorArgvFor(List<Map<String, Object?>> rows) {
+          late List<String> generatorArgs;
+          runWithOverrides(
+            () => const RouteBReleaseKernelBuilder().generateDynamicInterface(
+              compiler: compiler(),
+              prepassKernel: prepass,
+              outputFile: output,
+              appPackageName: 'my_app',
+              run: (executable, arguments) {
+                if (arguments.contains('--census')) {
+                  final out = arguments[arguments.indexOf('--out') + 1];
+                  File(out).writeAsStringSync(
+                    [
+                      jsonEncode({'censusVersion': 2}),
+                      for (final row in rows) jsonEncode(row),
+                    ].join('\n'),
+                  );
+                  return ProcessResult(0, 0, '', '');
+                }
+                generatorArgs = arguments;
+                output.writeAsStringSync('callable:');
+                return ProcessResult(0, 0, '', '');
+              },
+            ),
+          );
+          return generatorArgs;
+        }
+
+        Map<String, Object?> row(String target, List<String> keys) => {
+          'target': target,
+          'privateConstructions': [
+            for (final key in keys)
+              {
+                'offset': 0,
+                'library': 'package:my_app/main.dart',
+                'class': key.split('#').last.split('.').first,
+                'constructor': 'new',
+                'key': key,
+              },
+          ],
+        };
+
+        test('asks the analyzer, over the same prepass kernel', () {
+          late List<String> censusArgs;
+          runWithOverrides(
+            () => const RouteBReleaseKernelBuilder().generateDynamicInterface(
+              compiler: compiler(),
+              prepassKernel: prepass,
+              outputFile: output,
+              appPackageName: 'my_app',
+              run: (executable, arguments) {
+                if (arguments.contains('--census')) censusArgs = arguments;
+                output.writeAsStringSync('callable:');
+                return ProcessResult(0, 0, '', '');
+              },
+            ),
+          );
+          expect(censusArgs, contains('--census'));
+          expect(censusArgs, containsAllInOrder(['--dill', prepass.path]));
+          expect(
+            censusArgs,
+            containsAllInOrder(['--include', 'package:my_app/']),
+          );
+        });
+
+        test('grants exactly what release methods construct', () {
+          final args = generatorArgvFor([
+            row('package:my_app/main.dart#A.build', [
+              'package:my_app/main.dart#_One.new',
+            ]),
+            row('package:my_app/main.dart#B.build', [
+              'package:my_app/main.dart#_Two.new',
+            ]),
+          ]);
+          expect(
+            args,
+            containsAllInOrder([
+              '--grant-constructor',
+              'package:my_app/main.dart#_One.new',
+            ]),
+          );
+          expect(
+            args,
+            containsAllInOrder([
+              '--grant-constructor',
+              'package:my_app/main.dart#_Two.new',
+            ]),
+          );
+        });
+
+        test('grants each constructor once, in a stable order', () {
+          // Two methods constructing the same class must not produce two
+          // grants, and the order must not depend on census row order, or the
+          // same inputs would not produce the same release.
+          final args = generatorArgvFor([
+            row('package:my_app/main.dart#B.build', [
+              'package:my_app/main.dart#_Two.new',
+              'package:my_app/main.dart#_One.new',
+            ]),
+            row('package:my_app/main.dart#A.build', [
+              'package:my_app/main.dart#_One.new',
+            ]),
+          ]);
+          final granted = [
+            for (var i = 0; i < args.length; i++)
+              if (args[i] == '--grant-constructor') args[i + 1],
+          ];
+          expect(granted, [
+            'package:my_app/main.dart#_One.new',
+            'package:my_app/main.dart#_Two.new',
+          ]);
+        });
+
+        test('grants NOTHING when no method constructs privately', () {
+          final args = generatorArgvFor([
+            row('package:my_app/main.dart#A.build', const []),
+          ]);
+          expect(args, isNot(contains('--grant-constructor')));
+        });
+
+        test(
+          'an analyzer that cannot enumerate leaves the release narrower',
+          () {
+            // A cell whose analyzer predates this reports nothing. The release
+            // must be exactly what it was before — narrower, never broken.
+            late List<String> generatorArgs;
+            final result = runWithOverrides(
+              () => const RouteBReleaseKernelBuilder().generateDynamicInterface(
+                compiler: compiler(),
+                prepassKernel: prepass,
+                outputFile: output,
+                appPackageName: 'my_app',
+                run: (executable, arguments) {
+                  if (arguments.contains('--census')) {
+                    return ProcessResult(0, 1, '', 'unknown option --census');
+                  }
+                  generatorArgs = arguments;
+                  output.writeAsStringSync('callable:');
+                  return ProcessResult(0, 0, '', '');
+                },
+              ),
+            );
+            expect(result, isNotNull);
+            expect(generatorArgs, isNot(contains('--grant-constructor')));
+          },
+        );
       });
 
       test('restricts breadth to the app package', () {

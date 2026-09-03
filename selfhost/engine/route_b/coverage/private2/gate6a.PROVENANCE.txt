@@ -1,0 +1,23 @@
+Route B producer tooling — one logical artifact, eight files.
+Never substitute any of them independently.
+
+engine revision  : dfa2b24ac38477f3705ff0357530f33fe09474b8
+
+built            : 2026-09-03T00:23:09Z
+host out         : /Volumes/build/route-b/flutter/engine/src/out/host_release_arm64
+dart revision    : 9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
+platform         : darwin-arm64
+
+dart2bytecode.aot : 81b9a5fc7369c1e3d0fa26ac80c18da1420414c7e0966aa27cef2c86a88c9fce
+dartaotruntime    : 075ccbb2858f299db06c2ef56b1b60c7ab07abdbc7ff413f33d4bb956e09f292
+vm_platform.dill  : 015ef32c6cb988d8ec160e97da5ec62fb4d4798ac9e03815294c982b298c75d2
+route_b_analyze.aot : 67741a082fcde5a9e2067fdfad1deb7ad69cb89b8d23aba78ed31b5afb6c2f5d
+route_b_gen_kernel.aot : 81e1d8f4dc72bf2bb62ca3e157155568070327b4ea127e8dd6a8fe116d3e49d6
+route_b_gen_dynamic_interface.aot : c226800242a85028f85cbc8ff570a4650eb65beb78c278168711fdcc81cf2155
+route_b_release_probe.aot : 37dffac8de643591aa095749e16cb97b9b6be3912c209fa7c2ed670f609e72d0
+flutter_platform_strong.dill : 099b03133aea39273dcebf85ed8c5762ee22834e63d2ffba786be6ad7428d61c
+
+The runtime and the snapshot are version-locked: a mismatched pair either
+refuses to start ("Wrong full snapshot version") or, worse, runs and produces
+bytecode that fails to bind at load time -- on device, long after the CLI
+reported success.
