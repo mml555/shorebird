@@ -88,6 +88,37 @@ unsupported:
   - blanket private-constructor access
   - receiver rewrites the lowering cannot express
 
+product_surfaces:
+  # WHICH INTEGRATION SHAPES this stack supports, as distinct from which Dart
+  # constructs. Recorded because "unsupported construct" and "unsupported
+  # surface" have different remediations and collapsing them hides the second.
+  standalone_flutter_app:
+    ios: SUPPORTED — physically qualified, see physical_device_qualification
+    android: SUPPORTED — see ANDROID rows in WORKFLOW_CERTIFICATION.md
+  ios_add_to_app:
+    status: UNSUPPORTED
+    assessed: 2026-09-03 (ADD-TO-APP-1)
+    # Assessed, not implemented. Four independent blockers, measured:
+    #  1 the cell publishes a device-only Flutter.xcframework, so
+    #    `flutter build ios-framework` cannot assemble the module's
+    #    App.xcframework (its simulator slice builds against the debug engine)
+    #  2 the control plane refuses to ACTIVATE a release whose only arch is
+    #    `xcframework` (Api._requiredArchs is the full-app set)
+    #  3 Route B is not implemented for ios-framework at all
+    #  4 an ios-framework CODE patch needs Shorebird's AOT linker, which this
+    #    stack does not have
+    note: assets-only behaviour does NOT qualify as Route B code push — it
+      carries no code. Implementing this is a SECOND Route B product surface
+      for embedded Flutter, not a simulator slice plus a small API fix.
+    evidence: evidence/addtoapp1/RESULT.md
+  android_add_to_app_aar:
+    status: UNSUPPORTED
+    assessed: 2026-09-03 (ADD-TO-APP-1, control-plane half only)
+    note: an `aar` release is refused activation for the same reason as
+      `xcframework` (Api._requiredArchs gates android on {aab}). The build and
+      patch halves were NOT assessed.
+    evidence: evidence/addtoapp1/RESULT.md
+
 operational_requirements:
   # Product handles it, refuses clearly, or it is named here. No tribal knowledge.
   local_network_permission:

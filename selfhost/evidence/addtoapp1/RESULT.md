@@ -8,7 +8,7 @@ device run, no fail-closed rule loosened, no capability implemented.**
 ## Verdict
 
 **The frozen self-hosted Route B stack does not work in an iOS Add-to-App host,
-and it fails before Route B is even reached.** Steps 4–6 of the brief (produce a
+and it fails before Route B is reached.** Steps 4–6 of the brief (produce a
 patch, physically qualify, establish embedded restart semantics) are
 **unreachable** without implementing new capability, which the authorization
 explicitly excluded. Reporting rather than proceeding, per the stop condition.
@@ -17,13 +17,23 @@ Four independent blockers, in the order the developer workflow hits them:
 
 | # | Blocker | Where | Class |
 |---|---|---|---|
-| 1 | `flutter build ios-framework` fails: the cell publishes a **device-only** `Flutter.xcframework` | `flutter build`, before any Shorebird logic | engine publishing |
+| 1 | `flutter build ios-framework` fails: the cell publishes a **device-only** `Flutter.xcframework` | inside `flutter build`, before any Route B release machinery is reached | engine publishing |
 | 2 | An add-to-app release **cannot be activated** by the self-hosted control plane | `PATCH /releases/{id}` → 409 | control plane (ours) |
 | 3 | **Route B is not implemented** for `ios-framework` | `ios_framework_releaser` / `ios_framework_patcher` | architecture |
 | 4 | An `ios-framework` **code** patch requires Shorebird's AOT linker, which this stack does not have | `IosFrameworkPatcher.createPatchArtifacts` | toolchain |
 
 Blocker 1 alone stops step 3 at the first command. Blockers 2–4 were established
 independently, so removing 1 would not produce a path this lane could qualify.
+
+**A wording correction, made after review, because the first draft overstated
+it.** An earlier version of the table above said blocker 1 lands "before any
+Shorebird logic". That is wrong, and the captured log
+([`release_ios_framework.log`](release_ios_framework.log)) shows why: Shorebird
+fetches the app list, runs `flutter precache`, downloads `aot-tools.dill` and
+clears the coherence gate first, and only then invokes `flutter build`. The
+defensible statement is that the failure happens **inside `flutter build
+ios-framework`, before any Route B release machinery is reached** — which is
+what the table now says. The finding itself is unchanged.
 
 ## Blocker 1 — the cell publishes a device-only `Flutter.xcframework`
 

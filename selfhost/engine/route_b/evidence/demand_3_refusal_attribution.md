@@ -26,9 +26,18 @@ flutter_rust_bridge), 0 Wonderous — so the denominators are the frozen 20 / 23
 
 ## Instrument
 
-`packages/shorebird_cli/tool/demand_blocker_chain.dart` — new; the frozen
+`selfhost/engine/route_b/coverage/demand3_blocker_chain.dart` — new; the frozen
 `demand_replay_refusal.dart` was not touched, so the control above is a
 like-for-like reproduction.
+
+It deliberately does NOT live under `packages/shorebird_cli/tool/`, where it was
+first written. `SUPPORTED_STATE.yaml` freezes that package's git **tree**
+object, and `verify_supported_state.sh` failed with a product-tree drift whose
+whole content was this one harness file. Restamping a qualification record to
+accommodate a measurement tool would blunt the one check that catches real
+product drift, so the tool moved instead, restoring the qualified tree
+`e3ebed51cabcc05423b85b4ea4b146fc734a5413` exactly. Run it from the repo root
+with `dart --packages=.dart_tool/package_config.json run …`.
 
 It asks the shipping producer about **one target at a time**, records the
 refusal, applies the one *relaxation* that models that refusal, and asks again

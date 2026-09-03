@@ -28,6 +28,17 @@
 // mismatch), and release binding/signature evidence and the survival oracle are
 // absent for a historical commit. Every count this produces is therefore an
 // UPPER BOUND on real unlocks.
+//
+// WHY THIS LIVES OUTSIDE `packages/shorebird_cli`. It imports that package's
+// libraries and was first written under its `tool/`, which is the obvious home
+// — but `SUPPORTED_STATE.yaml` freezes that package's git TREE object, and
+// `verify_supported_state.sh` then failed with a product-tree drift whose
+// entire content was this one harness file. Restamping a qualification record
+// to accommodate a measurement tool would blunt the one check that catches real
+// product drift, so the tool moved. Run it from the repo root:
+//
+//     dart --packages=.dart_tool/package_config.json run \
+//       selfhost/engine/route_b/coverage/demand3_blocker_chain.dart …
 import 'dart:convert';
 import 'dart:io';
 

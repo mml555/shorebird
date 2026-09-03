@@ -13,7 +13,13 @@ sys.path.insert(0, '/Users/mendell/shorebird/selfhost/engine/route_b/coverage')
 from demand_report import analyse
 from producer_report import load_producer
 
-CLI = '/Users/mendell/shorebird/packages/shorebird_cli'
+# Run from the REPO ROOT, resolving packages through the workspace config.
+# The prober deliberately does NOT live inside packages/shorebird_cli: the
+# supported-state record freezes that package's git TREE, and adding a harness
+# file to it makes `verify_supported_state.sh` fail with a product-tree drift.
+# Restamping the record to accommodate a measurement tool would weaken the one
+# check that catches real product drift, so the tool moved instead.
+CLI = '/Users/mendell/shorebird'
 CORPORA = [('Wonderous', 'wonderous'), ('LocalSend', 'localsend')]
 
 
@@ -43,7 +49,8 @@ def run(work, real, pair, target):
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     if os.path.exists(pkg):
         subprocess.run(['cp', pkg, dst], check=False)
-    cmd = ['dart', 'run', 'tool/demand_blocker_chain.dart',
+    cmd = ['dart', '--packages=.dart_tool/package_config.json', 'run',
+           'selfhost/engine/route_b/coverage/demand3_blocker_chain.dart',
            f'{real}/pairs13/{pair}.json', '--target', target,
            '--manifest', man,
            '--patched-kernel', f'{real}/dills/{cand}.dill',
