@@ -24,6 +24,22 @@ lineage:
   compiler_archive_bytes: 19256864
   analyzer_sha256: 67741a082fcde5a9e2067fdfad1deb7ad69cb89b8d23aba78ed31b5afb6c2f5d
   updater_revision: af6e842ccf87
+
+  # THE QUALIFIED CLI PRODUCT TREE, as git tree objects at cli_revision.
+  #
+  # Ancestry is not enough. A descendant can change route_b_producer.dart, leave
+  # flutter.version alone, keep a clean checkout, and still satisfy "cli_revision
+  # is an ancestor of HEAD" -- while the patch producer in use is no longer the
+  # qualified one. That is precisely the drift this record exists to catch, so it
+  # is the BYTES that answer, not a judgement about whether a commit was
+  # "verification-only".
+  #
+  # Deliberately whole-package, tests included: a change to the producer's tests
+  # is a change to what "qualified" was established against. Re-qualifying is a
+  # matter of re-running the verifier and updating two lines here.
+  cli_product_tree:
+    packages_shorebird_cli: e3ebed51cabcc05423b85b4ea4b146fc734a5413
+    bin_internal: 67bb0a85a83177ad8afcf1765403e42a913e0377
   producer_engine_revision: dfa2b24ac38477f3705ff0357530f33fe09474b8   # built in; NOT the address
   fallback_engine_revision: 69f9831c360d9152862ec3897c67fb09ae843f3b
   dart_revision: 9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c

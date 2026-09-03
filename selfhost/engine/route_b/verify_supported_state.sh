@@ -77,6 +77,31 @@ else
   bad "recorded cli_revision ${CLIREV:-<none>} is not a commit in this repository"
 fi
 
+# THE QUALIFIED PRODUCT TREE, IN BOTH PLACES.
+#
+# Ancestry says a revision is in history; it says nothing about whether the CLI
+# code has moved since. A descendant that edits route_b_producer.dart and leaves
+# flutter.version alone passes every ancestry and cleanliness check while running
+# a producer that was never qualified. Compare the git TREE objects instead --
+# they are the bytes, and they cannot be argued with.
+TREE_CLI=$(val packages_shorebird_cli)
+TREE_BIN=$(val bin_internal)
+for spec in "packages/shorebird_cli|$TREE_CLI" "bin/internal|$TREE_BIN"; do
+  pth=${spec%%|*}; want=${spec##*|}
+  if [[ -z "$want" ]]; then bad "no recorded tree for $pth"; continue; fi
+  cmp_v "repo HEAD product tree $pth" "$want" \
+    "$(git -C "$REPO" rev-parse "HEAD:$pth" 2>/dev/null)"
+  # The runtime checkout, from its COMMITTED HEAD rather than its working tree:
+  # a clean tree only says nothing is unstaged, not that it is the right commit.
+  cmp_v "runtime checkout product tree $pth" "$want" \
+    "$(git -C "$ROOT" rev-parse "HEAD:$pth" 2>/dev/null)"
+done
+if [[ -z "$(git -C "$ROOT" status --porcelain 2>/dev/null)" ]]; then
+  ok "runtime checkout has no uncommitted changes at all"
+else
+  bad "runtime checkout has uncommitted changes"
+fi
+
 # The RUNTIME checkout must be running that same committed selector, not a local
 # edit of it.
 cmp_v "runtime checkout's flutter.version matches the committed selector" \
