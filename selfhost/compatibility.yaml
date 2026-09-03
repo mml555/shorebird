@@ -1,4 +1,4 @@
-# cspell:words CODEPATCH tearoff selfhost
+# cspell:words CODEPATCH tearoff selfhost requalification
 # Compatibility manifest — the pinned Shorebird revisions this self-hosted
 # control plane supports. "Current upstream" is NOT a target: a new
 # CLI/updater/engine revision is unsupported until the compatibility suite
@@ -27,6 +27,17 @@ shorebird:
                                                                   # engine.version at this commit is UNCHANGED from c15ef637
                                                                   # (measured: still 69f9831c), so engine_revision below stands.
   engine_revision: 69f9831c360d9152862ec3897c67fb09ae843f3b       # shorebirdtech/flutter bin/internal/engine.version
+                                                                    # ROUTE B USES A DIFFERENT AXIS. This value is the
+                                                                    # general toolchain's engine, and it is also the
+                                                                    # FALLBACK engine recorded in the v2 cell manifest.
+                                                                    # The Route B compiler cell is content-addressed and
+                                                                    # is NOT this revision; the supported cell, its
+                                                                    # archive, analyzer and CLI product trees live in
+                                                                    # engine/route_b/SUPPORTED_STATE.yaml and are re-checked
+                                                                    # by engine/route_b/verify_supported_state.sh.
+                                                                    # Do not reconcile the two by editing either value:
+                                                                    # producer engine, cell address and fallback engine are
+                                                                    # three distinct identities.
   updater_revision: af6e842ccf87                                  # PROVENANCE OF CONSUMED BYTES.
                                                                     # RESTAMPED 2026-08-27 for cell 4792f0ec. Full SHA
                                                                     # af6e842ccf87a083d1598b1e7c9e0868c5731931, durable

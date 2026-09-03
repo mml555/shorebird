@@ -6,6 +6,73 @@
 
 # Handoff — engine improvements (as of 2026-08-07)
 
+## 2026-09-03 — Route B is a frozen product, not a research lane. Start at `SUPPORTED_STATE.yaml`
+
+**If you are picking Route B up today, read
+[`engine/route_b/SUPPORTED_STATE.yaml`](engine/route_b/SUPPORTED_STATE.yaml)
+first and run `engine/route_b/verify_supported_state.sh`.** That file is the
+supported stack — lineage, selector chain, analysis versions, supported and
+refused constructs, operational requirements, device qualification — and the
+script re-reads every deployable identity in it from the artifacts. 24 checks,
+all falsifiable. Upgrades diff against that file.
+
+**Two things are closed and must not be reopened casually.**
+
+*Private construction.* A release now derives and retains the exact private
+constructors its own methods already used, automatically, from its own census. A
+patch may reuse one only where the RELEASE version of **that same method**
+already constructed it and the manifest retained it. Introducing a globally
+retained constructor into a different method is refused before publication.
+Device-proven 2026-09-03 on iPhone 7 / iOS 15.8.8, release 142 / patch 106:
+`BOXED[9]:APP-STATE` → `BOXED[11]:P:APP-STATE`, where the length is computed
+inside the constructed object, so activation alone could not produce it.
+
+*Capability expansion.* **Parked on evidence, not on difficulty.**
+D-PRODUCER-DEMAND-2 replayed 252 real changed methods through the shipping
+producer: Wonderous 50.00 %, LocalSend 92.67 %. Constructor retention unblocked
+**exactly one** historical method across both corpora. The remaining refusals are
+fragmented; the only class replicated across both is private *non-construction*
+references, at one distinct method each. Do not open tear-offs, private
+references, or parameter-shape work without new real demand.
+
+**Documents updated in this pass:**
+
+| document | what changed |
+|---|---|
+| `ROUTE_B.md` | capability statement superseded by a 2026-09-03 one. The 2026-08-11 text is kept verbatim and was stale twice over: it said `super` is refused (narrow-v1 closed in D-SUPER-2C) and predated private construction entirely |
+| `WORKFLOW_CERTIFICATION.md` | new section mapping every row onto the final stack — re-certified, re-exercised, or **carried forward on an argument from seam independence**, which it says in those words |
+| `compatibility.yaml` | cross-reference to `SUPPORTED_STATE.yaml`, so the two records point at each other instead of drifting |
+| `engine/route_b/cell_manifests/` | new. One v2 address manifest per cell, in the repo rather than a laboratory evidence dir |
+
+**Three traps this lane paid for, worth not repeating:**
+
+1. **The CLI bootstrap stamp keys on the git revision.** An uncommitted edit to
+   `packages/shorebird_cli` leaves `bin/cache/shorebird.snapshot` valid, so the
+   old snapshot runs and your change is silently ignored. It cost a full
+   `shorebird patch ios` run: the fix was right and the identical failure
+   reproduced. **Commit before exercising CLI changes.**
+2. **`cps-ios` emits no HTTP request logging at all.** "No request in the
+   control-plane log" is therefore evidence of nothing, and one 6E check that
+   said so has been struck as vacuous. Do not build controls on that log until
+   structured request logging exists — a worthwhile, non-blocking follow-up.
+3. **Ancestry is not identity.** A supported-state record pinned to a revision
+   plus `merge-base --is-ancestor` freezes nothing: a descendant can change
+   product code, leave the selector alone, keep a clean tree, and pass. The
+   record now banks git **tree objects** for `packages/shorebird_cli` and
+   `bin/internal`, compared against both the repo HEAD and the runtime
+   checkout's committed HEAD. It found real drift on its first run.
+
+**Rows 2, 4, 5, 8 and 9 of the workflow matrix were NOT re-run on the final
+stack.** They are carried on the argument that each row's unique seam is
+independent of constructor retention. That is an argument, not a measurement. If
+a downstream requirement needs them certified on `cd848320`, each needs its own
+run.
+
+**Not assessed, and not claims:** Add-to-App. **Outside this qualification:**
+Android hydration E2E. **Continuing naturally:** Lifecycle Epoch B collection —
+see `MEASUREMENT_MODE.md`, still no edits to counters, threshold, guard,
+emission or retry.
+
 ## 2026-08-23 — documentation pass after the lifecycle lane. What moved, and what is now FROZEN
 
 **If you are picking work up today, the one thing to know is that patch

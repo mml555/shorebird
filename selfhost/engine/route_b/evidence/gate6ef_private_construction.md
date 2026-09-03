@@ -1,3 +1,5 @@
+<!-- cspell:words idevice requalified -->
+
 # Gate 6E / 6F — private construction through the product path
 
 Both gates ran the shipped `shorebird patch ios` end to end against release 142.

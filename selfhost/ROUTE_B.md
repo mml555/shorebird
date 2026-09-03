@@ -16,6 +16,44 @@ Background lives in [`IOS_CODE_PUSH.md`](IOS_CODE_PUSH.md) (evidence chain) and
 executes). [`HANDOFF.md`](HANDOFF.md) is the working log — useful, long, and
 not required reading before you start.
 
+## The capability statement, as of 2026-09-03 — READ THIS ONE
+
+> **The supported stack is frozen and self-verifying.** Its single record is
+> [`engine/route_b/SUPPORTED_STATE.yaml`](engine/route_b/SUPPORTED_STATE.yaml):
+> CLI revision and product-tree identities, Flutter selector, cell address,
+> compiler archive, analyzer, updater, supported analysis versions, what is
+> supported, what is refused, operational requirements, and the latest
+> physical-device qualification. Re-check it with
+> `engine/route_b/verify_supported_state.sh` — 24 checks, every one falsifiable.
+> **Diff future upgrades against that file, not against this prose.**
+
+**Capability expansion is PARKED.** Not blocked, not deferred pending a fix —
+parked on evidence. D-PRODUCER-DEMAND-2 replayed 252 real changed methods from
+Wonderous and LocalSend history through the shipping producer: **50.00 %** and
+**92.67 %** producer-level compatibility. The remaining refusals are fragmented
+across four unrelated causes, and the only blocker class replicated across both
+corpora — private *non-construction* references — is **one distinct method in
+each**. There is no next capability whose measured demand justifies another
+compiler programme. Do not open tear-offs, private references, or named/optional
+parameter work without new real demand.
+
+**What closed since the 2026-08-11 statement below**, which is stale in two ways
+and kept for the record rather than edited:
+
+| | 2026-08-11 said | now |
+|---|---|---|
+| `super` | refused by design | **exact narrow-v1 `super.method()` carried** (D-SUPER-2C, device-proven) |
+| private construction | not addressed | **exact private constructor reuse carried**, where the RELEASE version of that same method already constructed it and the manifest retained it (D-PRIVATE-CONSTRUCTION, device-proven 2026-09-03, release 142 / patch 106) |
+
+Still refused, and each was measured rather than assumed: candidate-introduced
+private construction, tear-offs, named/optional-positional shape changes, private
+non-construction references the manifest did not retain, blanket private
+constructor access, and receiver rewrites the lowering cannot express.
+
+The rest of the 2026-08-11 statement — the closure rule, the retention boundary,
+and "ordinary Dart patches work" being too strong — is unchanged and still the
+governing idea.
+
 ## The capability statement, as of 2026-08-11
 
 > **Automatic iOS Dart code push works end to end without Shorebird's private

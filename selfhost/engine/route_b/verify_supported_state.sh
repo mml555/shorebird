@@ -35,6 +35,23 @@ ROOT=${SHOREBIRD_ROOT:-/Volumes/build/route-b/shorebird-candidate}
 [[ -f "$STATE" ]] || { echo "no SUPPORTED_STATE.yaml at $STATE" >&2; exit 2; }
 val() { sed -nE "s/^[[:space:]]*$1:[[:space:]]*([^[:space:]#]+).*/\1/p" "$STATE" | head -1; }
 
+# THE RECORD MUST ACTUALLY BE MACHINE-READABLE.
+#
+# It calls itself a machine/human-readable record, and `val` reads it with sed --
+# which happily parses a file no YAML loader accepts. It did: `selector_chain`
+# held a sequence and a mapping key at the same indent, so every check passed
+# against a document that would not load. A claim about format is a claim, and
+# claims here get checked.
+if command -v python3 >/dev/null 2>&1; then
+  if python3 -c 'import sys,yaml; yaml.safe_load(open(sys.argv[1]))' "$STATE" 2>/dev/null; then
+    PARSE_OK=1
+  else
+    PARSE_OK=0
+  fi
+else
+  PARSE_OK=skip
+fi
+
 fails=0
 ok()   { printf '  ok      %s\n' "$*"; }
 bad()  { printf '  FAILED  %s\n' "$*"; fails=$((fails+1)); }
@@ -51,6 +68,11 @@ ARCHBYTES=$(val compiler_archive_bytes)
 ANALYZER=$(val analyzer_sha256)
 
 echo "verify_supported_state -- record $STATE"
+case "$PARSE_OK" in
+  1) ok "record parses as YAML" ;;
+  0) bad "record does NOT parse as YAML — it claims to be machine-readable" ;;
+  *) echo "  --      no python3; YAML parse not checked" ;;
+esac
 echo "  shorebird root : $ROOT"
 
 # 1. THE SELECTOR CHAIN, read from the artifacts a build actually walks --

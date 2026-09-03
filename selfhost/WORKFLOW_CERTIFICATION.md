@@ -1,4 +1,4 @@
-<!-- cspell:words noninteractive precommitted -->
+<!-- cspell:words noninteractive precommitted productionization flavoredprobe jarsigner -->
 
 # Workflow certification — P6
 

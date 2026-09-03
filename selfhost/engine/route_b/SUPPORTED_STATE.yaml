@@ -1,3 +1,4 @@
+# cspell:words productionization localsend
 # ROUTE-B-PRODUCTIONIZATION-1 — the supported Route B iOS stack.
 #
 # One record. Future upgrades diff against this file rather than against a
@@ -46,9 +47,10 @@ lineage:
 
 # The chain a build actually walks. Each link was read from the artifact itself.
 selector_chain:
-  - "CLI bin/internal/flutter.version        -> e64eb0af52e1c43c3b21a39556d789538d0df9b3"
-  - "F4  bin/internal/engine.version         -> cd848320d605ff8af5060cabf9a8d1b35853f752"
-  - "cell cd848320 route-b-compiler-darwin-arm64.zip -> 7975b27c…fb22"
+  links:
+    - "CLI bin/internal/flutter.version        -> e64eb0af52e1c43c3b21a39556d789538d0df9b3"
+    - "F4  bin/internal/engine.version         -> cd848320d605ff8af5060cabf9a8d1b35853f752"
+    - "cell cd848320 route-b-compiler-darwin-arm64.zip -> 7975b27c…fb22"
   # F4's engine.version is a COMMITTED blob at F4's HEAD and its tree is clean.
   # No uncommitted engine.version is part of this lineage.
   engine_version_committed: true
