@@ -55,6 +55,28 @@ all, so an empty grep of its output would have "passed" whatever happened. The
 four counts above stand on their own, and patch 106 later landing exactly one
 above the ceiling of 105 confirms independently that 6E published nothing.
 
+**Addendum 2026-09-03 (same day, later — CONTROL-PLANE-AUDIT-1).** The
+withdrawal above stands; its stated *reason* was partly wrong, and the gap it
+named is now closed. Corrections, in order of how much they matter:
+
+1. `cps-ios` **does** emit one request line per request (1,343 of them in the
+   current container's log, `POST …/patches -> 200 (4ms)` among them). "Emits no
+   request logging at all" is wrong for image `cps-assets:local-m10`.
+2. The check was vacuous regardless, for reasons a request line cannot fix.
+   That log is `docker logs` — no retention guarantee, and cleared by the
+   2026-09-01 restart, so nothing from 6E survives to grep. And a request line
+   carries no actor, no credential, no patch or release id, and no notion of a
+   refused *attempt*: `-> 409` and `-> 200` are the same shape. Absence in it
+   was never falsifiable.
+3. The control plane now writes a structured, durable audit row per mutating
+   operation, and `GET /admin/audit` returns a `ceiling` specifically so
+   "this published nothing" can be stated as *no `patch.create` row above id N*.
+   See [`../../../evidence/control_plane_audit_1.md`](../../../evidence/control_plane_audit_1.md).
+
+None of this changes 6E's conclusion or its evidence. The four counts, and patch
+106 landing exactly one above the ceiling of 105, are what carried it then and
+still carry it. Nothing here is re-run.
+
 ## 6F — positive: a construction the released method already performed
 
 `Specimens.positive()` still constructs `_Boxed`, exactly as the released method

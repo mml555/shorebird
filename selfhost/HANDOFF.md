@@ -2,9 +2,73 @@
 <!-- cspell:words APFS CODEPATCH PRECOMPILER Werror caffeinate dartaotruntime SEGVs Specializer diskutil dumpsys flowgraph iface killgate libdart nodm nofail precompiler unapply -->
 <!-- cspell:words tearoff DNDEBUG SEGV LINKEDIT ourengine noinstall SELTOTAL hosttest unrun closurizing closurized closurize closurization bodyless pids footgun mtimes repointed rbtest Devirtualization genkernel misparse -->
 <!-- cspell:words airgap justlaunch noninteractive SIGTRAP dynmod absolutized DEFAULTPATH SIGPIPE PIPESTATUS -->
-<!-- cspell:words SBRBPTCH inspectable janky premain representability routeb reconstructibility -->
+<!-- cspell:words SBRBPTCH inspectable janky premain representability routeb reconstructibility productionization -->
 
 # Handoff — engine improvements (as of 2026-08-07)
+
+## 2026-09-03 (later) — CONTROL-PLANE-AUDIT-1: control-plane mutations are now auditable
+
+**The one operational hole productionization exposed is closed.** Every mutating
+patch-lifecycle operation on the self-hosted control plane writes one structured,
+durable audit row — actor, credential fingerprint, app/release/patch/track,
+outcome, HTTP status, request id — readable at `GET /admin/audit` (root-org
+only). Full account: [`evidence/control_plane_audit_1.md`](evidence/control_plane_audit_1.md).
+Field reference: [`API_REFERENCE.md`](API_REFERENCE.md#audit-log). Operator
+recipes: `packages/code_push_server/PRODUCTION.md` §8b.
+
+**Nothing in Route B moved.** No cell minted, no release cut, no physical iOS
+run, no workflow row re-run, no D-TEAROFF, no Add-to-App. The only live producer
+invocation is a `shorebird patch android` that refuses before building anything.
+
+**Trap 2 of the pass below is CORRECTED.** It said *"`cps-ios` emits no HTTP
+request logging at all"*. That is **wrong** for the current image
+(`cps-assets:local-m10`): it emits one line per request, 1,343 of them in the
+running container. The struck 6E check was vacuous anyway, for reasons a request
+line cannot fix — `docker logs` has no retention guarantee and was cleared by the
+2026-09-01 restart, and a request line carries no actor, no patch/release id and
+no notion of a refused *attempt*. Do not repeat the specific claim; do keep the
+conclusion, which is that absence in that log was never falsifiable. 6E's
+evidence is untouched and was not re-run — see the addendum in
+[`engine/route_b/evidence/gate6ef_private_construction.md`](engine/route_b/evidence/gate6ef_private_construction.md).
+
+**Three properties are structural, which is what separates this from a `print`.**
+The outcome is derived from the response the server actually sent, so no handler
+can assert `success` for work that conflicted or threw. The auditing middleware
+sits OUTSIDE authentication and rate limiting, so an attempt refused by a bad
+credential is recorded rather than indistinguishable from nobody having tried.
+And there is no code path that writes a request-outcome row for a route the
+classifier does not recognize, so a read cannot masquerade as a mutation.
+
+**The trap this lane paid for, and it is the same one twice.** An exit code does
+not tell you *where* something refused. The live ceiling control was written
+twice in a form that passed while measuring nothing:
+
+1. the fixture had no `android/app/src`, so the producer refused **before
+   opening a socket**, and the "reached the control plane" check was counting
+   the harness's own setup calls;
+2. with an android fixture it reached the server and refused — with
+   `FormatException: Failed to parse Release from JSON`, because the release had
+   been created over raw HTTP without `flutter_revision`/`flutter_version`,
+   which the CLI casts unguarded. A real refusal, at a real server, for the
+   wrong reason.
+
+Both were caught by **reading the producer log instead of trusting the exit
+code**, and the script now asserts the refusal *string* and counts only the
+producer's own requests. `selfhost/scripts/audit_qualification.sh`: 18 pass.
+`code_push_server` suite: **337 pass** (`dart test -x integration`), 30 new.
+
+**Known limitation, stated at the endpoint too.** `release_id` arrives in the
+request BODY on `patch.create`/`patch.promote`, and a request refused by
+authentication is never parsed — deliberately, since buffering an
+unauthenticated body to decorate an audit event would be a DoS surface. So
+`?release_id=N` is the precise query and `?app_id=X` is the complete one. Ask
+both.
+
+**Not converted:** the identity/tenancy admin surface (org invitations, members,
+collaborators, `POST /admin/users`) still writes detail-only rows —
+`request_id`-correlated now, but `result IS NULL`. `GET /admin/audit` labels
+those `kind: "detail"` so the two classes are never confused. Extending the
+classifier to that surface is the obvious next increment.
 
 ## 2026-09-03 — Route B is a frozen product, not a research lane. Start at `SUPPORTED_STATE.yaml`
 

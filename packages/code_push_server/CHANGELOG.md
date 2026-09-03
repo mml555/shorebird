@@ -10,6 +10,46 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Control-plane mutations are auditable.** Every mutating patch-lifecycle
+  request — `app.create`, `release.create`/`update`, release and patch artifact
+  registration, `artifact.upload`, `patch.create`/`update`/`promote`/
+  `withdraw`/`rollout`, `channel.create` — now writes exactly one structured
+  `audit_log` row, plus a JSON line to the operational log sink. Each row
+  answers when, who (account *and* a non-reversible fingerprint of the
+  credential presented), what operation, which app/release/patch/track, what
+  outcome, what HTTP status, and which request caused it.
+
+  Read it at `GET /admin/audit` (root-org owner/admin), filtered by
+  `app_id`/`release_id`/`patch_id`/`request_id`/`operation`/`result`/`after`/
+  `since`. The response always carries `ceiling` — the current maximum audit id
+  — so "this published nothing" can be stated as *no `patch.create` row above
+  id N*, which is falsifiable, rather than as "I looked and saw nothing", which
+  is not. Migration 11; `AUDIT_RETENTION_DAYS` still governs retention.
+
+  Three properties are structural rather than conventional. The outcome is
+  derived from the response the server actually sent, so no handler can assert
+  `success` for work that conflicted, was forbidden, or threw. The auditing
+  middleware sits *outside* authentication and rate limiting, so an attempt
+  refused by a bad credential is recorded rather than indistinguishable from
+  nobody having tried. And a route that is not a recognized mutation has no
+  code path that writes a request-outcome row, so a read cannot masquerade as
+  one.
+
+  Nothing sensitive is recorded: the event is an allowlist of computed fields,
+  never a copy of a header or body, so API keys, JWTs, authorization headers and
+  upload tokens are structurally absent — with credential-shape scrubbing as a
+  backstop on free text.
+
+- **`X-Request-Id` on every response**, echoed on the request log line and
+  stored on the request's audit event. Adopted from an inbound header only when
+  the socket peer is a configured trusted proxy.
+
+- **`code_push_audit_events_total`** and **`code_push_audit_write_failures_total`**
+  at `/metrics`. The second above zero means the durable trail has holes — an
+  audit write failure is logged loudly and the event still reaches the log sink,
+  because the mutation has already happened by then and a silently missing row
+  is what makes "nothing was logged" mean nothing.
+
 - **Assets-only patches.** `patches/check` can now serve a patch whose payload
   is an asset bundle and nothing else, which is what lets the engine's asset
   overlay ship on platforms where shipping *code* needs the AOT linker — there

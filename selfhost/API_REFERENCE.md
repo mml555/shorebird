@@ -453,6 +453,72 @@ added to a company org or onto one of its apps. With a policy set, both
 
 **Roles:** `owner`, `admin`, `appManager`, `developer`, `viewer`.
 
+### Audit log
+
+| Method | Path | Auth | Response |
+|---|---|---|---|
+| GET | `/admin/audit?…` | root-org owner/admin | `{"ceiling",<max id>,"count",n,"events":[…]}` |
+
+The record of every **mutating** control-plane operation: who did what to which
+app/release/patch, with what outcome, and which request caused it. Root-org only
+— the trail names who shipped what across the whole deployment.
+
+Filters, all optional and AND-ed: `app_id`, `release_id`, `patch_id`,
+`request_id`, `operation` (comma-separated), `result`
+(`success` | `refused` | `error`), `after` (exclusive audit id), `since`
+(ISO-8601), `limit` (default 100, max 1000). Rows come back oldest-first.
+
+Each event:
+
+| field | meaning |
+|---|---|
+| `id` | monotonic audit id; `ceiling` is the current maximum |
+| `timestamp` | when |
+| `request_id` | the request that caused it — also returned to that caller in `X-Request-Id`, and on its request log line |
+| `kind` | `request` (the outcome of one HTTP request) or `detail` (a sub-fact of one, e.g. `release.ready`) |
+| `operation` | `app.create`, `release.create`, `release.update`, `release.artifact.create`, `patch.create`, `patch.update`, `patch.promote`, `patch.artifact.create`, `patch.withdraw`, `patch.rollout`, `channel.create`, `artifact.upload` |
+| `route`, `method` | the route template that matched. Never holds an id, and never an upload token |
+| `actor`, `actor_id` | the account that acted |
+| `actor_credential` | `<kind>:<fingerprint>` — `bootstrap`, `api_key`, `oauth`, `rejected`, `anonymous`, plus 12 hex characters of SHA-256 of the bearer. Distinguishes two keys on one account; never the credential itself |
+| `app_id`, `release_id`, `patch_id`, `patch_number`, `track` | what was operated on, as far as the request got |
+| `result` | `success` \| `refused` \| `error`, derived from the response status — a handler cannot assert it |
+| `http_status` | the status the caller received |
+| `detail` | JSON: operation-specific extras (`rollout`, `arch`, `rollback`, …) |
+
+**Exactly one `kind: "request"` row per audited mutating request**, written after
+the outcome is known — including requests refused by rate limiting or by a bad
+credential, which never reach a handler. Reads write nothing at all, so a read
+cannot appear as a mutation. Never recorded: API keys, JWTs, authorization
+headers, upload tokens, request bodies.
+
+**"Did anyone attempt to create/promote/withdraw a patch for release 142?"**
+
+```bash
+# release-precise
+curl -H "Authorization: Bearer $KEY" \
+  "$BASE/admin/audit?release_id=142&operation=patch.create,patch.promote,patch.withdraw"
+# complete: also catches attempts refused BEFORE the body was parsed, which
+# therefore carry the app but not the release
+curl -H "Authorization: Bearer $KEY" \
+  "$BASE/admin/audit?app_id=$APP&operation=patch.create,patch.promote,patch.withdraw"
+```
+
+**Proving something wrote nothing.** Snapshot `ceiling`, run the thing, then ask
+what appeared above it:
+
+```bash
+CEILING=$(curl -sH "Authorization: Bearer $KEY" "$BASE/admin/audit?limit=0" | jq .ceiling)
+# … run the operation you expect to publish nothing …
+curl -sH "Authorization: Bearer $KEY" "$BASE/admin/audit?after=$CEILING&operation=patch.create"
+```
+
+A `count` of 0 is a falsifiable claim only if the same probe would have reported
+a create that *did* happen — so pair it with one known-valid create.
+`selfhost/scripts/audit_qualification.sh` runs exactly that pairing.
+
+Retention is `AUDIT_RETENTION_DAYS` (unset = keep forever). Nothing in the
+server updates or deletes an audit row apart from that purge.
+
 ---
 
 ## Analytics (`/api/v1/apps/{appId}/analytics/*`)

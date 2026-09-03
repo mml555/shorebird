@@ -224,7 +224,48 @@ only stateless `server` replicas + Caddy in compose.
       the existing account on an email conflict, so it requires an owner/admin
       of the root organization (the identity `API_KEY` maps to). Keep that key
       out of app-team hands; give teammates their own per-user keys.
+- [ ] **`GET /admin/audit` is operator-only** — the mutation trail names who
+      shipped what across the whole deployment, so it requires an owner/admin
+      of the root organization. Reading it is not something an app-team
+      `developer` collaborator needs.
+- [ ] **Decide `AUDIT_RETENTION_DAYS`** — unset (the default) keeps the audit
+      trail forever, which is usually what you want. Set it only if you have a
+      retention policy that says otherwise.
+- [ ] **Alert on `code_push_audit_write_failures_total > 0`** — above zero, the
+      durable trail has holes: some mutation happened whose row did not land.
+      The event is still on stdout (with `audit_persisted: false`) and logged as
+      `AUDIT WRITE FAILED`, so nothing is lost if you ship logs.
 - [ ] **Updates** — keep base images (postgres/minio/caddy/dart) patched.
+
+---
+
+## 8b. Answering "who changed this?"
+
+Every mutating patch-lifecycle request writes one structured row, readable
+without SQL:
+
+```bash
+KEY=<root-org API key>; BASE=https://your.host
+
+# What happened to release 142?
+curl -sH "Authorization: Bearer $KEY" \
+  "$BASE/admin/audit?release_id=142&operation=patch.create,patch.promote,patch.withdraw"
+
+# Everything one request did, from the X-Request-Id a caller reported
+curl -sH "Authorization: Bearer $KEY" "$BASE/admin/audit?request_id=req_…"
+
+# Everything refused in the last day
+curl -sH "Authorization: Bearer $KEY" \
+  "$BASE/admin/audit?result=refused&since=$(date -u -v-1d +%Y-%m-%dT%H:%M:%SZ)"
+```
+
+Field reference and the pattern for proving something published *nothing* (the
+`ceiling` snapshot): [`../../selfhost/API_REFERENCE.md`](../../selfhost/API_REFERENCE.md#audit-log).
+
+`LOG_FORMAT=json` also puts each event on stdout as one
+`{"msg":"audit", …}` object, so a stack that ships container logs can query
+mutations there. The database table stays the durable record; the log line is
+the copy that survives the database being the thing that broke.
 
 ---
 

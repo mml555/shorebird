@@ -78,7 +78,8 @@ restores it. Behind your own reverse proxy or using your own Postgres/S3? See
 | **Login** | `shorebird login` via self-consent or a real IdP (Google/Microsoft) |
 | **Analytics** | adoption / version / install metrics + a web console at `/console` |
 | **Boot-lifecycle telemetry** | non-terminal `__patch_boot_lifecycle__` events with outcome-aware dedupe, so a patch that merely failed to FINISH booting is visible as a retry-and-recovery rather than only as a retirement. Terminal events alone are survivor-biased. See [`../../selfhost/LIFECYCLE_POLICY.md`](../../selfhost/LIFECYCLE_POLICY.md) |
-| **Ops** | signed download URLs, migrations, audit log, rate limiting, health checks, backups |
+| **Audit trail** | every mutating patch-lifecycle operation — create, upload, promote, channel change, withdraw, rollout — recorded with actor, credential fingerprint, app/release/patch, outcome, HTTP status and request id. Queryable at `GET /admin/audit`; see [`../../selfhost/API_REFERENCE.md`](../../selfhost/API_REFERENCE.md#audit-log) |
+| **Ops** | signed download URLs, migrations, rate limiting, health checks, backups |
 
 Everything except billing (intentionally omitted — a self-host doesn't bill itself).
 

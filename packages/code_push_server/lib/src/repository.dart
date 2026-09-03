@@ -409,6 +409,44 @@ class Repository {
             'ON events(app_id, updater_revision)',
       ],
     ),
+    (
+      11,
+      [
+        // Makes `audit_log` a queryable record of control-plane MUTATIONS
+        // rather than a scattering of free-text notes.
+        //
+        // The columns an operator has to be able to answer from, without
+        // reconstructing anything from database side effects: who acted, on
+        // which app/release/patch, with what outcome, and which request caused
+        // it. `action`, `actor`, `target` and `detail` are unchanged, so every
+        // pre-existing row still reads.
+        //
+        // All nullable. A row with `result IS NULL` is either a pre-migration
+        // row or a DETAIL row — a sub-fact of the request named by its
+        // `request_id`, not that request's outcome. Only `result IS NOT NULL`
+        // rows are request-outcome events, and there is exactly one per
+        // audited mutating request.
+        'ALTER TABLE audit_log ADD COLUMN request_id TEXT',
+        'ALTER TABLE audit_log ADD COLUMN route TEXT',
+        'ALTER TABLE audit_log ADD COLUMN method TEXT',
+        'ALTER TABLE audit_log ADD COLUMN actor_id INTEGER',
+        'ALTER TABLE audit_log ADD COLUMN actor_credential TEXT',
+        'ALTER TABLE audit_log ADD COLUMN app_id TEXT',
+        'ALTER TABLE audit_log ADD COLUMN release_id INTEGER',
+        'ALTER TABLE audit_log ADD COLUMN patch_id INTEGER',
+        'ALTER TABLE audit_log ADD COLUMN patch_number INTEGER',
+        'ALTER TABLE audit_log ADD COLUMN track TEXT',
+        'ALTER TABLE audit_log ADD COLUMN result TEXT',
+        'ALTER TABLE audit_log ADD COLUMN http_status INTEGER',
+        // The access paths `GET /admin/audit` exposes. `(action, id)` carries
+        // the ceiling control: "no `patch.create` row above id N".
+        'CREATE INDEX IF NOT EXISTS audit_log_action_id ON audit_log(action, id)',
+        'CREATE INDEX IF NOT EXISTS audit_log_app ON audit_log(app_id, id)',
+        'CREATE INDEX IF NOT EXISTS audit_log_release ON audit_log(release_id, id)',
+        'CREATE INDEX IF NOT EXISTS audit_log_patch ON audit_log(patch_id, id)',
+        'CREATE INDEX IF NOT EXISTS audit_log_request ON audit_log(request_id)',
+      ],
+    ),
   ];
 
   /// Indexes for the access paths that would otherwise scan. `events` is the
@@ -1994,13 +2032,161 @@ class Repository {
 
   // ---- Audit log ----
 
-  Future<void> audit(
+  /// Appends one row to `audit_log` and returns its id.
+  ///
+  /// Append-only by construction: nothing in this class updates or deletes a
+  /// row except [purgeOldAuditLog], which an operator opts into with
+  /// `AUDIT_RETENTION_DAYS`.
+  ///
+  /// [action] is the operation name; the remaining fields are the structured
+  /// record (see migration 11). A caller that supplies [result] is recording a
+  /// request OUTCOME; one that omits it is recording a detail sub-fact of the
+  /// request named by [requestId].
+  Future<int> audit(
     String action, {
     String? actor,
     String? target,
     String? detail,
-  }) => _q(
-    'INSERT INTO audit_log(actor, action, target, detail) VALUES (@ac,@an,@tg,@dt)',
-    {'ac': actor, 'an': action, 'tg': target, 'dt': detail},
-  );
+    String? requestId,
+    String? route,
+    String? method,
+    int? actorId,
+    String? actorCredential,
+    String? appId,
+    int? releaseId,
+    int? patchId,
+    int? patchNumber,
+    String? track,
+    String? result,
+    int? httpStatus,
+  }) async {
+    final r = await _q(
+      'INSERT INTO audit_log(actor, action, target, detail, request_id, route, '
+      'method, actor_id, actor_credential, app_id, release_id, patch_id, '
+      'patch_number, track, result, http_status) '
+      'VALUES (@ac,@an,@tg,@dt,@rq,@rt,@mt,@ai,@cr,@ap,@rl,@pt,@pn,@tk,@rs,@hs) '
+      'RETURNING id',
+      {
+        'ac': actor,
+        'an': action,
+        'tg': target,
+        'dt': detail,
+        'rq': requestId,
+        'rt': route,
+        'mt': method,
+        'ai': actorId,
+        'cr': actorCredential,
+        'ap': appId,
+        'rl': releaseId,
+        'pt': patchId,
+        'pn': patchNumber,
+        'tk': track,
+        'rs': result,
+        'hs': httpStatus,
+      },
+    );
+    return _int(r.first['id']);
+  }
+
+  /// The highest audit id written so far, or 0 when the log is empty.
+  ///
+  /// This is the CEILING an operator snapshots before running something they
+  /// expect to write nothing: "no `patch.create` row exists above this id"
+  /// is a falsifiable claim, whereas "I saw nothing in the log" is not.
+  Future<int> auditCeiling() async {
+    final r = await _q('SELECT MAX(id) AS m FROM audit_log');
+    final m = r.first['m'];
+    return m == null ? 0 : _int(m);
+  }
+
+  /// Audit rows matching the given filters, oldest first.
+  ///
+  /// Every filter is AND-ed and every one is optional. [after] is exclusive, so
+  /// pairing it with a ceiling from [auditCeiling] answers "what happened
+  /// since?". [operations] matches `action` exactly.
+  Future<List<Map<String, Object?>>> auditEvents({
+    String? appId,
+    int? releaseId,
+    int? patchId,
+    String? requestId,
+    List<String> operations = const [],
+    String? result,
+    int? after,
+    DateTime? since,
+    int limit = 100,
+  }) async {
+    final where = <String>[];
+    final params = <String, Object?>{};
+    void eq(String column, String name, Object? value) {
+      if (value == null) return;
+      where.add('$column = @$name');
+      params[name] = value;
+    }
+
+    eq('app_id', 'ap', appId);
+    eq('release_id', 'rl', releaseId);
+    eq('patch_id', 'pt', patchId);
+    eq('request_id', 'rq', requestId);
+    eq('result', 'rs', result);
+    if (after != null) {
+      where.add('id > @after');
+      params['after'] = after;
+    }
+    if (since != null) {
+      where.add('created_at >= @since');
+      params['since'] = since.toUtc().toIso8601String();
+    }
+    if (operations.isNotEmpty) {
+      // Named placeholders, so the operation strings are bound, never
+      // interpolated: they arrive from a query parameter.
+      final names = <String>[];
+      for (var i = 0; i < operations.length; i++) {
+        names.add('@op$i');
+        params['op$i'] = operations[i];
+      }
+      where.add('action IN (${names.join(',')})');
+    }
+    final clause = where.isEmpty ? '' : 'WHERE ${where.join(' AND ')} ';
+    // `limit` is clamped by the caller and interpolated because the SQLite
+    // adapter binds parameters positionally and LIMIT placeholders are not
+    // portable across both backends.
+    final rows = await _q(
+      'SELECT id, created_at, request_id, action, route, method, actor, '
+      'actor_id, actor_credential, app_id, release_id, patch_id, patch_number, '
+      'track, result, http_status, target, detail FROM audit_log '
+      '${clause}ORDER BY id ASC LIMIT ${limit.clamp(0, 1000)}',
+      params,
+    );
+    return [
+      for (final r in rows)
+        {
+          'id': _int(r['id']),
+          'timestamp': _ts(r['created_at']),
+          'request_id': r['request_id'],
+          // `request` rows carry the outcome of one HTTP request; `detail`
+          // rows are sub-facts correlated to it by `request_id` (and, before
+          // migration 11, every row was a detail row).
+          'kind': r['result'] == null ? 'detail' : 'request',
+          'operation': r['action'],
+          'route': r['route'],
+          'method': r['method'],
+          'actor': r['actor'],
+          'actor_id': r['actor_id'] == null ? null : _int(r['actor_id']),
+          'actor_credential': r['actor_credential'],
+          'app_id': r['app_id'],
+          'release_id': r['release_id'] == null ? null : _int(r['release_id']),
+          'patch_id': r['patch_id'] == null ? null : _int(r['patch_id']),
+          'patch_number': r['patch_number'] == null
+              ? null
+              : _int(r['patch_number']),
+          'track': r['track'],
+          'result': r['result'],
+          'http_status': r['http_status'] == null
+              ? null
+              : _int(r['http_status']),
+          'target': r['target'],
+          'detail': r['detail'],
+        },
+    ];
+  }
 }
