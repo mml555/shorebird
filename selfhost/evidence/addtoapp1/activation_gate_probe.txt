@@ -1,0 +1,4 @@
+  ios-framework activation -> 409: {"code":"conflict","message":"Release 1 (ios) is missing artifacts: ios_supplement, runner, xcarchive"}
+  full-app ios activation -> 204
+  aar activation -> 409: {"code":"conflict","message":"Release 1 (android) is missing artifacts: aab"}
+00:00 +3: All tests passed!

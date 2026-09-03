@@ -6,6 +6,62 @@
 
 # Handoff — engine improvements (as of 2026-08-07)
 
+## 2026-09-03 — ADD-TO-APP-1: STOPPED. Add-to-App fails at the FIRST command, for a reason that has nothing to do with Route B
+
+**Do not start Add-to-App work without reading
+[`evidence/addtoapp1/RESULT.md`](evidence/addtoapp1/RESULT.md).** Four
+independent blockers; the first stops `shorebird release ios-framework` before
+any Shorebird logic runs. No cell minted, no release cut, no patch produced, no
+device run, nothing fixed.
+
+**BLOCKER 1, and it is the surprise: the Route B cell publishes a DEVICE-ONLY
+`Flutter.xcframework`.** `flutter build ios-framework` assembles the module's
+`App.xcframework` with both a device and a simulator slice, and the simulator
+slice is built against the DEBUG engine — so a `--no-debug --no-profile` release
+build still needs it. Measured against a stock control in the same cache:
+
+    stock 309dd657…   Info.plist  _CodeSignature  ios-arm64  ios-arm64_x86_64-simulator
+    cell  cd848320…   Info.plist                  ios-arm64        <-- no simulator slice
+
+`flutter build ios-framework --help` has no flag that skips it. A full-app iOS
+release never needs a simulator slice, which is exactly why every qualified lane
+to date has been unaffected — the gap was invisible until something asked for it.
+
+**BLOCKER 2 is ours and it is small: an add-to-app release cannot be ACTIVATED.**
+`Api._requiredArchs` gates `ios` on `{xcarchive, runner, ios_supplement}` and
+`android` on `{aab}`; add-to-app registers `xcframework` / `aar` and shares the
+platform wire value, so both 409 with "missing artifacts". Proven with a passing
+positive control. The gate's own comment says it was induced from releases 1-6,
+all full-app. **Left unfixed on purpose** — banked per the ruling, and fixing it
+unblocks nothing on its own.
+
+**BLOCKER 3: Route B is simply not implemented for `ios-framework`.** Zero
+`RouteB` references in `ios_framework_releaser.dart` / `ios_framework_patcher.dart`
+/ either Apple mixin, against 78 and 42 in the full-app iOS pair. The failure is
+QUIET, not loud, because `patch_command`'s Route B gates are platform-neutral:
+they key on `hasRouteBReleaseProvenance(supplementDir)`, which that path never
+writes, so they do not run. One fork guard *does* generalise — the
+toolchain-coherence gate refused until `SHOREBIRD_PUBLISHED_IOS_ENGINE_DIR`
+pointed at the cell's overlay. The guards travel; the capability does not.
+
+**BLOCKER 4: an `ios-framework` code patch needs Shorebird's AOT linker.** The
+pinned revision is not in `_preLinkerFlutterRevisions`, so `usesLinker` is true;
+the frozen `gen_snapshot_arm64` advertises 0 of the six fork link flags and holds
+0 "shorebird" strings — stock Dart. The fork's own comment in that file calls it
+"Shorebird's AOT linker, which we cannot build". **`--assets-only` is the only
+`ios-framework` patch shape this stack can produce**, and it carries no code.
+
+**Step 6 was not answered and is not carried on an argument.** What "restart"
+means for an embedded Flutter engine needs a patch to activate; none can be
+produced, so it is recorded as UNMEASURED.
+
+**Two harness faults I made and corrected before trusting anything** — both
+would have named the wrong first failure: writing `shorebird.yaml` without the
+`pubspec.yaml` asset entry `shorebird init` adds (the harness bypassing the
+developer workflow, which the brief warned against); and an ambiguous
+code-signing identity on this Mac, fixed with `-- --no-codesign`, which is also
+the correct product behaviour since the HOST app signs a module's frameworks.
+
 ## 2026-09-03 — D-DEMAND-3: the static census ranking is the WRONG guide to the next capability
 
 **If you are about to implement a Route B language feature, read
