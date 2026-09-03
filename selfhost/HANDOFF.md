@@ -6,6 +6,76 @@
 
 # Handoff — engine improvements (as of 2026-08-07)
 
+## 2026-09-03 — D-DEMAND-3: the static census ranking is the WRONG guide to the next capability
+
+**If you are about to implement a Route B language feature, read
+[`engine/route_b/evidence/demand_3_refusal_attribution.md`](engine/route_b/evidence/demand_3_refusal_attribution.md)
+first.** It replays the corrected historical demand corpus (20 Wonderous, 232
+LocalSend) through today's producer and asks, per refused observation, what
+would refuse NEXT if the named blocker were solved.
+
+**The headline result. Method tear-off — the top refusal category in Wonderous
+by touch count, 7 of 10 — would unlock ZERO of 20 observations if implemented
+alone.** Six of the seven land immediately on the private-reference text
+backstop naming the very handler being torn off. The tear-off *is* the private
+reference: `onDrag: _handleRightDrag` lowers to `self._handleRightDrag`. Ranking
+candidates by how often a construct appears would have picked exactly the wrong
+feature.
+
+**Single-blocker unlocks, per corpus, never pooled.** Only two candidates
+replicate across both corpora, at one observation each: **private
+method/top-level/type reference** (1 W, 1 L) and **retention** (1 W, 1 L).
+Everything else is 0 in Wonderous and 1–2 in LocalSend.
+
+**The engineering class of the leading candidate is A, not B/A** — and this is
+measured, not argued. For 8 of the 11 private-reference backstop refusals the
+named member is **already retained** by that release's own manifest. `granted`
+in `_lower` is built only from `lowering.accesses` entries carrying a private
+target, and these names never arrive as one. The release evidence is banked; the
+analysis simply does not resolve the reference.
+
+**The one move that changes Wonderous is TWO blockers, and is labelled as such.**
+Tear-off + private-reference resolution together: Wonderous 10 → 16 of 20
+(80.00%), LocalSend 215 → 220 of 232 (94.83%, which is exactly its analyzer
+upper bound).
+
+**Not a candidate, and do not treat it as one.** Candidate-introduced private
+construction (Wonderous `AppBtn.build`) and reachability (2 LocalSend) are class
+C: the first is a fail-closed rule the private-construction lane established
+deliberately, the second means the release cannot reach the member. Both are
+excluded from every unlock count.
+
+**A frozen-methodology artefact worth knowing.** Two observations counted
+refused are ADMITTED by the producer in their own pair; the frozen accounting
+propagates a target's refusal across every pair it appears in (D1 and D2 alike).
+Per-observation the figures are 55.00% / 93.10%. The headline 50.00% / 92.67%
+reproduced exactly on a FRESH replay, which was control 1.
+
+**Three harness defects this lane caught, all of which inflated the answer, all
+worth inheriting:**
+
+1. **A resume guard treated a truncated file as done.** A timeout killed the
+   replay mid-pair leaving a 0-byte output; the next run skipped it as complete,
+   and an empty replay reports no refusals. Caught by diffing every refusal set
+   against D2. No resume guard now, plus an assertion that every output reached
+   its verdict line.
+2. **`produce` walks `representable + conditional`, never `changed`.** A guard
+   written against `changed` let four reachability-refused observations report
+   ADMITTED on an empty selector list.
+3. **Accesses drive text edits BY OFFSET.** A synthetic access injected to model
+   "resolution" carried offset 0, gave a negative index into
+   `text.replaceRange`, and the catch-all counted the `RangeError` as
+   PAST_ADMISSION. The backstop needs no model: it is the last admission gate,
+   so a chain ending there has nothing further to hit.
+
+Category D is **zero** in the final measurement. Two D-class blockers were found
+and eliminated as harness artefacts (a missing patched verification kernel; the
+fake compiler advertising no super capability, fixed on a measured basis by
+running the frozen cell's own `dart2bytecode --help`).
+
+**No capability was implemented, no cell minted, no release cut, no device run,
+no fail-closed rule loosened.** D-TEAROFF not started.
+
 ## 2026-09-03 (later still) — CONTROL-PLANE-AUDIT-2: identity and tenancy mutations are typed too
 
 **Audit work is now finished; the next lane is a choice between Add-to-App

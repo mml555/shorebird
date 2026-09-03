@@ -1,0 +1,199 @@
+================================================================================================
+D-DEMAND-3 — refusal attribution on the frozen stack. Per corpus, never pooled.
+================================================================================================
+
+------------------------------------------------------------------------------------------------
+Wonderous: 10 observations counted refused by the frozen accounting
+------------------------------------------------------------------------------------------------
+
+  _RangeSelectorState._getHandle                         [002e1272_7b55750f]
+    analyzer admissible False  cats=['abi.named_parameters', 'construct.method_tearoff']
+    [0] A   named_parameters                
+    [1] A   unconsumed_this                 
+    [2] A   private_reference                 retained-by-release: InstanceCallable
+    -> MULTI(3)
+
+  _RangeSelectorState.build                              [002e1272_7b55750f]
+    analyzer admissible False  cats=['construct.method_tearoff']
+    [0] A   unconsumed_this                 
+    [1] A   private_reference                 retained-by-release: InstanceCallable
+    -> MULTI(2)
+
+  _FullscreenVideoViewerState.initState                  [22feb00e_540cca24]
+    analyzer admissible False  cats=['construct.method_tearoff']
+    [0] A   unconsumed_this                 
+    [1] A   private_reference                 retained-by-release: InstanceCallable
+    -> MULTI(2)
+
+  _ArtifactScreenState.build                             [397d9504_56086308]
+    analyzer admissible False  cats=['construct.method_tearoff', 'construct.this_escape']
+    [0] A   unconsumed_this                 
+    [1] A   private_reference                 retained-by-release: InstanceCallable
+    -> MULTI(2)
+
+  _BottomTextContent.build                               [397d9504_56086308]
+    analyzer admissible True   cats=[]
+    [0] A   private_reference                 retained-by-release: InstanceCallable
+    -> SOLE
+
+  _CollectionListState.build                             [540cca24_e1a8ba4a]
+    analyzer admissible False  cats=['construct.method_tearoff']
+    [0] A   unconsumed_this                 
+    [1] A   private_reference                 retained-by-release: ClassesConstructible
+    -> MULTI(2)
+
+  AppBtn.build                                           [56086308_002e1272]
+    analyzer admissible True   cats=[]
+    -> NONE  ADMITTED IN ITS OWN PAIR (frozen accounting marks it refused because the same target was refused in another pair)
+
+  AppBtn.build                                           [b45e16fc_e6b9a28a]
+    analyzer admissible True   cats=[]
+    [0] C   introduced_private_construction 
+    -> SOLE
+
+  _WonderEventsState._buildTwoColumn                     [e1a8ba4a_8e5d737a]
+    analyzer admissible False  cats=['construct.method_tearoff']
+    [0] A   unconsumed_this                 
+    [1] A   private_reference                 retained-by-release: InstanceCallable
+    -> MULTI(2)
+
+  _MapsThumbnailState.build                              [e6b9a28a_397d9504]
+    analyzer admissible True   cats=[]
+    [0] B   retention                       
+    -> SOLE
+
+------------------------------------------------------------------------------------------------
+LocalSend: 17 observations counted refused by the frozen accounting
+------------------------------------------------------------------------------------------------
+
+  _ProgressPageState.build                               [4b5236ce_63efbe6b]
+    analyzer admissible True   cats=[]
+    -> NONE  ADMITTED IN ITS OWN PAIR (frozen accounting marks it refused because the same target was refused in another pair)
+
+  _ProgressPageState.initState                           [4b5236ce_63efbe6b]
+    analyzer admissible False  cats=['receiver.compound_same_offset']
+    [0] A   compound_same_offset            
+    -> SOLE
+
+  _ReceiveTabState.build                                 [4b5236ce_63efbe6b]
+    analyzer admissible False  cats=['construct.method_tearoff']
+    [0] A   unconsumed_this                 
+    [1] A   private_reference                 retained-by-release: InstanceCallable
+    -> MULTI(2)
+
+  ServerService._handleEvent                             [9aff08a3_89303dcf]
+    analyzer admissible True   cats=[]
+    [0] B   retention                       
+    -> SOLE
+
+  ServerService.startServer                              [9fea48e7_fca481e6]
+    analyzer admissible False  cats=['abi.named_parameters']
+    [0] A   named_parameters                
+    [1] A   receiver_rewrite                
+    -> MULTI(2)
+
+  ServerStateCopyWith.call                               [af0416be_224ef8b1]
+    analyzer admissible False  cats=['abi.named_parameters', 'reach.unreachable']
+    [0] C   reachability                    
+    -> SOLE
+
+  _ProgressPageState.build                               [af0416be_224ef8b1]
+    analyzer admissible True   cats=[]
+    [0] A   private_reference                 retained-by-release: TopLevelCallable
+    -> SOLE
+
+  _ProgressPageState.initState                           [af0416be_224ef8b1]
+    analyzer admissible False  cats=['receiver.compound_same_offset']
+    [0] A   compound_same_offset            
+    -> SOLE
+
+  _ReceiveTabState.build                                 [af0416be_224ef8b1]
+    analyzer admissible False  cats=['construct.method_tearoff']
+    [0] A   unconsumed_this                 
+    [1] A   private_reference                 retained-by-release: InstanceCallable
+    -> MULTI(2)
+
+  ServerService.restartServer                            [af0416be_224ef8b1]
+    analyzer admissible False  cats=['abi.named_parameters']
+    [0] A   named_parameters                
+    -> SOLE
+
+  ServerService.startServer                              [af0416be_224ef8b1]
+    analyzer admissible False  cats=['abi.named_parameters']
+    [0] A   named_parameters                
+    [1] A   receiver_rewrite                
+    -> MULTI(2)
+
+  _AddressInputDialogState._submit                       [af0416be_224ef8b1]
+    analyzer admissible False  cats=['abi.optional_positionals']
+    [0] A   optional_positionals            
+    -> SOLE
+
+  _FavoritesDialogState.build                            [af0416be_224ef8b1]
+    analyzer admissible False  cats=['construct.method_tearoff']
+    [0] A   unconsumed_this                 
+    -> SOLE
+
+  RustLibApi.crateApiServerStartServer                   [af0416be_224ef8b1]
+    analyzer admissible False  cats=['reach.unreachable']
+    [0] C   reachability                    
+    -> SOLE
+
+  _ProgressPageState.build                               [deab2010_c1b9fa9c]
+    analyzer admissible True   cats=[]
+    [0] A+B private_reference                 retained-by-release: NO
+    -> SOLE
+
+  AddAndroidDirectoryAction.reduce                       [f6962a17_c4e1edb2]
+    analyzer admissible True   cats=[]
+    [0] A   receiver_rewrite                
+    -> SOLE
+
+  ServerService.startServer                              [fca481e6_deab2010]
+    analyzer admissible False  cats=['abi.named_parameters']
+    [0] A   named_parameters                
+    [1] A   receiver_rewrite                
+    -> MULTI(2)
+
+================================================================================================
+SOLE-BLOCKED vs MULTI-BLOCKED
+================================================================================================
+  corpus       refused  admits in own pair   sole   multi 
+  Wonderous          10                    1      3      6
+  LocalSend          17                    1     11      5
+
+================================================================================================
+IF WE SOLVED EXACTLY ONE BLOCKER — observations that become producible
+================================================================================================
+  candidate                                       Wonderous  LocalSend
+  --------------------------------------------------------------------
+  private method/top-level/type reference                 1          1
+  retention (release evidence)                            1          1
+  compound read+write at one offset                       0          2
+  named parameters                                        0          1
+  optional positionals                                    0          1
+  method tear-off / this-escape                           0          1
+  receiver rewrite                                        0          1
+
+  Multi-blocked observations, and what they would ALL need:
+    Wonderous   _RangeSelectorState._getHandle                 named_parameters + unconsumed_this + private_reference
+    Wonderous   _RangeSelectorState.build                      unconsumed_this + private_reference
+    Wonderous   _FullscreenVideoViewerState.initState          unconsumed_this + private_reference
+    Wonderous   _ArtifactScreenState.build                     unconsumed_this + private_reference
+    Wonderous   _CollectionListState.build                     unconsumed_this + private_reference
+    Wonderous   _WonderEventsState._buildTwoColumn             unconsumed_this + private_reference
+    LocalSend   _ReceiveTabState.build                         unconsumed_this + private_reference
+    LocalSend   ServerService.startServer                      named_parameters + receiver_rewrite
+    LocalSend   _ReceiveTabState.build                         unconsumed_this + private_reference
+    LocalSend   ServerService.startServer                      named_parameters + receiver_rewrite
+    LocalSend   ServerService.startServer                      named_parameters + receiver_rewrite
+
+================================================================================================
+THE PAIRED CASE — tear-off and private-reference resolution together
+================================================================================================
+  Every unconsumed-`this` observation that is NOT unlocked alone lands on the
+  private-reference backstop naming the very member being torn off. Counted
+  here because it is the one combination the measurement forces on us; it is
+  TWO blockers, not one, and is reported as such.
+  Wonderous    6 observations  (every named member ALREADY retained by its release)
+  LocalSend    5 observations  (at least one needs a retention change too)

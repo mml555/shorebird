@@ -1,0 +1,750 @@
+{
+ "Wonderous": [
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "constructs",
+     "reason": "UNSUPPORTED_PARAMETER_SHAPE(named_parameters) the method takes named parameters; uses `this` other than to read a member; uses `this` other than to read a member"
+    },
+    {
+     "i": 1,
+     "relaxed": "-",
+     "reason": "its body names `_handleRightDrag`, a private identifier this analysis did not resolve to a member the release granted. Private references are carried only when the release manifest shows the exact member was retained."
+    }
+   ],
+   "target": "package:wonders/ui/screens/artifact/artifact_search/time_range_selector/range_selector.dart#_RangeSelectorState._getHandle",
+   "doc": "002e1272_7b55750f.json",
+   "reach": "conditional",
+   "unsupported": "[\"the method takes named parameters\",\"uses `this` other than to read a member\",\"uses `this` other than to read a member\"]",
+   "private_keys": "[\"package:wonders/ui/screens/artifact/artifact_search/time_range_selector/range_selector.dart#_RangeSelectorState#_getDragDetector\"]",
+   "relaxed": "constructs",
+   "admitted": "false",
+   "backstop_final": "true",
+   "terminal": "PRIVATE_REFERENCE_TEXT_BACKSTOP(_handleRightDrag) final admission gate \u2014 nothing else gates this target",
+   "pair": "002e1272_7b55750f",
+   "analyzer_admissible": false,
+   "analyzer_cats": [
+    "abi.named_parameters",
+    "construct.method_tearoff"
+   ],
+   "origin": {
+    "abi.named_parameters": "pre_existing",
+    "construct.method_tearoff": "pre_existing"
+   },
+   "producer_first": null,
+   "rc": 0
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "constructs",
+     "reason": "uses `this` other than to read a member"
+    },
+    {
+     "i": 1,
+     "relaxed": "-",
+     "reason": "its body names `_handleMidDrag`, a private identifier this analysis did not resolve to a member the release granted. Private references are carried only when the release manifest shows the exact member was retained."
+    }
+   ],
+   "target": "package:wonders/ui/screens/artifact/artifact_search/time_range_selector/range_selector.dart#_RangeSelectorState.build",
+   "doc": "002e1272_7b55750f.json",
+   "reach": "conditional",
+   "unsupported": "[\"uses `this` other than to read a member\"]",
+   "private_keys": "[\"package:wonders/ui/screens/artifact/artifact_search/time_range_selector/range_selector.dart#_RangeSelectorState#_getDragDetector\",\"package:wonders/ui/screens/artifact/artifact_search/time_range_selector/range_selector.dart#_RangeSelectorState#_getHandle\",\"package:wonders/ui/screens/artifact/artifact_search/time_range_selector/range_selector.dart#_RangeSelectorState#get:_delta\",\"package:wonders/ui/screens/artifact/artifact_search/time_range_selector/range_selector.dart#_RangeSelectorState#get:_end\",\"package:wonders/ui/screens/artifact/artifact_search/time_range_selector/range_selector.dart#_RangeSelectorState#get:_min\",\"package:wonders/ui/screens/artifact/artifact_search/time_range_selector/range_selector.dart#_RangeSelectorState#get:_start\"]",
+   "relaxed": "constructs",
+   "admitted": "false",
+   "backstop_final": "true",
+   "terminal": "PRIVATE_REFERENCE_TEXT_BACKSTOP(_handleMidDrag) final admission gate \u2014 nothing else gates this target",
+   "pair": "002e1272_7b55750f",
+   "analyzer_admissible": false,
+   "analyzer_cats": [
+    "construct.method_tearoff"
+   ],
+   "origin": {
+    "construct.method_tearoff": "pre_existing"
+   },
+   "producer_first": null,
+   "rc": 0
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "constructs",
+     "reason": "uses `this` other than to read a member"
+    },
+    {
+     "i": 1,
+     "relaxed": "-",
+     "reason": "its body names `_handleKeyDown`, a private identifier this analysis did not resolve to a member the release granted. Private references are carried only when the release manifest shows the exact member was retained."
+    }
+   ],
+   "target": "package:wonders/ui/common/modals//fullscreen_video_viewer.dart#_FullscreenVideoViewerState.initState",
+   "doc": "22feb00e_540cca24.json",
+   "reach": "conditional",
+   "unsupported": "[\"uses `this` other than to read a member\"]",
+   "private_keys": "[\"package:wonders/ui/common/modals//fullscreen_video_viewer.dart#_FullscreenVideoViewerState#_controller\"]",
+   "relaxed": "constructs",
+   "admitted": "false",
+   "backstop_final": "true",
+   "terminal": "PRIVATE_REFERENCE_TEXT_BACKSTOP(_handleKeyDown) final admission gate \u2014 nothing else gates this target",
+   "pair": "22feb00e_540cca24",
+   "analyzer_admissible": false,
+   "analyzer_cats": [
+    "construct.method_tearoff"
+   ],
+   "origin": {
+    "construct.method_tearoff": "pre_existing"
+   },
+   "producer_first": "uses `this` other than to read a member",
+   "rc": 0
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "constructs",
+     "reason": "uses `this` other than to read a member; uses `this` other than to read a member; uses `this` other than to read a member"
+    },
+    {
+     "i": 1,
+     "relaxed": "-",
+     "reason": "its body names `_handlePageChanged`, a private identifier this analysis did not resolve to a member the release granted. Private references are carried only when the release manifest shows the exact member was retained."
+    }
+   ],
+   "target": "package:wonders/ui/screens/artifact/artifact_carousel/artifact_carousel_screen.dart#_ArtifactScreenState.build",
+   "doc": "397d9504_56086308.json",
+   "reach": "conditional",
+   "unsupported": "[\"uses `this` other than to read a member\",\"uses `this` other than to read a member\",\"uses `this` other than to read a member\"]",
+   "private_keys": "[\"package:wonders/ui/screens/artifact/artifact_carousel/artifact_carousel_screen.dart#_ArtifactScreenState#_artifacts\",\"package:wonders/ui/screens/artifact/artifact_carousel/artifact_carousel_screen.dart#_ArtifactScreenState#_buildBgCircle\",\"package:wonders/ui/screens/artifact/artifact_carousel/artifact_carousel_screen.dart#_ArtifactScreenState#_currentArtifactIndex\",\"package:wonders/ui/screens/artifact/artifact_carousel/artifact_carousel_screen.dart#_ArtifactScreenState#_currentPage\",\"package:wonders/ui/screens/artifact/artifact_carousel/artifact_carousel_screen.dart#_ArtifactScreenState#_handleArtifactTap\",\"package:wonders/ui/screens/artifact/artifact_carousel/artifact_carousel_screen.dart#_ArtifactScreenState#_pageController\"]",
+   "relaxed": "constructs",
+   "admitted": "false",
+   "backstop_final": "true",
+   "terminal": "PRIVATE_REFERENCE_TEXT_BACKSTOP(_handlePageChanged) final admission gate \u2014 nothing else gates this target",
+   "pair": "397d9504_56086308",
+   "analyzer_admissible": false,
+   "analyzer_cats": [
+    "construct.method_tearoff",
+    "construct.this_escape"
+   ],
+   "origin": {
+    "construct.method_tearoff": "pre_existing",
+    "construct.this_escape": "pre_existing"
+   },
+   "producer_first": "uses `this` other than to read a member; uses `this` other than to read a member; uses `this` other than to read a member",
+   "rc": 0
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "-",
+     "reason": "its body names `_handleArtifactTap`, a private identifier this analysis did not resolve to a member the release granted. Private references are carried only when the release manifest shows the exact member was retained."
+    }
+   ],
+   "target": "package:wonders/ui/screens/artifact/artifact_carousel/artifact_carousel_screen.dart#_BottomTextContent.build",
+   "doc": "397d9504_56086308.json",
+   "reach": "conditional",
+   "unsupported": "[]",
+   "private_keys": "[\"package:wonders/ui/screens/artifact/artifact_carousel/artifact_carousel_screen.dart#_BottomTextContent#get:_currentPage\"]",
+   "relaxed": "",
+   "admitted": "false",
+   "backstop_final": "true",
+   "terminal": "PRIVATE_REFERENCE_TEXT_BACKSTOP(_handleArtifactTap) final admission gate \u2014 nothing else gates this target",
+   "pair": "397d9504_56086308",
+   "analyzer_admissible": true,
+   "analyzer_cats": [],
+   "origin": {},
+   "producer_first": "its body names `_handleArtifactTap`, a private identifier this analysis did not resolve to a member the release granted. Private references are carried only when the release manifest shows the exact member was retained.",
+   "rc": 0
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "constructs",
+     "reason": "uses `this` other than to read a member"
+    },
+    {
+     "i": 1,
+     "relaxed": "-",
+     "reason": "its body names `_CollectionList`, a private identifier this analysis did not resolve to a member the release granted. Private references are carried only when the release manifest shows the exact member was retained."
+    }
+   ],
+   "target": "package:wonders/ui/screens/collection/collection_screen.dart#_CollectionListState.build",
+   "doc": "540cca24_e1a8ba4a.json",
+   "reach": "conditional",
+   "unsupported": "[\"uses `this` other than to read a member\"]",
+   "private_keys": "[\"package:wonders/ui/screens/collection/collection_screen.dart#_CollectionListState#_buildResetBtn\",\"package:wonders/ui/screens/collection/collection_screen.dart#_CollectionListState#_vtMode\"]",
+   "relaxed": "constructs",
+   "admitted": "false",
+   "backstop_final": "true",
+   "terminal": "PRIVATE_REFERENCE_TEXT_BACKSTOP(_CollectionList) final admission gate \u2014 nothing else gates this target",
+   "pair": "540cca24_e1a8ba4a",
+   "analyzer_admissible": false,
+   "analyzer_cats": [
+    "construct.method_tearoff"
+   ],
+   "origin": {
+    "construct.method_tearoff": "introduced"
+   },
+   "producer_first": "uses `this` other than to read a member",
+   "rc": 0
+  },
+  {
+   "blockers": [],
+   "target": "package:wonders/ui/common/controls/buttons.dart#AppBtn.build",
+   "doc": "56086308_002e1272.json",
+   "reach": "conditional",
+   "unsupported": "[]",
+   "private_keys": "[\"package:wonders/ui/common/controls/buttons.dart#AppBtn#_builder\"]",
+   "relaxed": "",
+   "admitted": "true",
+   "backstop_final": "false",
+   "terminal": "PAST_ADMISSION(ProcessException)",
+   "pair": "56086308_002e1272",
+   "analyzer_admissible": true,
+   "analyzer_cats": [],
+   "origin": {},
+   "producer_first": "its body constructs `_ButtonHoverEffect`, which the RELEASE version of this same method never constructed. A patch may reuse a private construction the released method already performed; it may not introduce a new one, even where some other released method constructed it.",
+   "rc": 0
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "-",
+     "reason": "its body constructs `_ButtonHoverEffect`, which the RELEASE version of this same method never constructed. A patch may reuse a private construction the released method already performed; it may not introduce a new one, even where some other released method constructed it."
+    }
+   ],
+   "target": "package:wonders/ui/common/controls/buttons.dart#AppBtn.build",
+   "doc": "b45e16fc_e6b9a28a.json",
+   "reach": "conditional",
+   "unsupported": "[]",
+   "private_keys": "[\"package:wonders/ui/common/controls/buttons.dart#AppBtn#_builder\"]",
+   "relaxed": "",
+   "admitted": "false",
+   "backstop_final": "false",
+   "terminal": "no relaxation models this refusal",
+   "pair": "b45e16fc_e6b9a28a",
+   "analyzer_admissible": true,
+   "analyzer_cats": [],
+   "origin": {},
+   "producer_first": "its body constructs `_ButtonHoverEffect`, which the RELEASE version of this same method never constructed. A patch may reuse a private construction the released method already performed; it may not introduce a new one, even where some other released method constructed it.",
+   "rc": 0
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "constructs",
+     "reason": "uses `this` other than to read a member"
+    },
+    {
+     "i": 1,
+     "relaxed": "-",
+     "reason": "its body names `_handleScroll`, a private identifier this analysis did not resolve to a member the release granted. Private references are carried only when the release manifest shows the exact member was retained."
+    }
+   ],
+   "target": "package:wonders/ui/screens/wonder_events/wonder_events.dart#_WonderEventsState._buildTwoColumn",
+   "doc": "e1a8ba4a_8e5d737a.json",
+   "reach": "conditional",
+   "unsupported": "[\"uses `this` other than to read a member\"]",
+   "private_keys": "[\"package:wonders/ui/screens/wonder_events/wonder_events.dart#_WonderEventsState#_data\",\"package:wonders/ui/screens/wonder_events/wonder_events.dart#_WonderEventsState#_eventsListKey\",\"package:wonders/ui/screens/wonder_events/wonder_events.dart#_WonderEventsState#_scrollPos\"]",
+   "relaxed": "constructs",
+   "admitted": "false",
+   "backstop_final": "true",
+   "terminal": "PRIVATE_REFERENCE_TEXT_BACKSTOP(_handleScroll) final admission gate \u2014 nothing else gates this target",
+   "pair": "e1a8ba4a_8e5d737a",
+   "analyzer_admissible": false,
+   "analyzer_cats": [
+    "construct.method_tearoff"
+   ],
+   "origin": {
+    "construct.method_tearoff": "pre_existing"
+   },
+   "producer_first": null,
+   "rc": 0
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "capability",
+     "reason": "references the private member `_loadGoogleMap`, which this release did not retain. A patch can only name a private member the release was built to keep."
+    }
+   ],
+   "target": "package:wonders/ui/screens/editorial/editorial_screen.dart#_MapsThumbnailState.build",
+   "doc": "e6b9a28a_397d9504.json",
+   "reach": "conditional",
+   "unsupported": "[]",
+   "private_keys": "[\"package:wonders/ui/screens/editorial/editorial_screen.dart#_MapsThumbnailState#_loadGoogleMap\"]",
+   "relaxed": "capability",
+   "admitted": "true",
+   "backstop_final": "false",
+   "terminal": "PAST_ADMISSION(ProcessException)",
+   "pair": "e6b9a28a_397d9504",
+   "analyzer_admissible": true,
+   "analyzer_cats": [],
+   "origin": {},
+   "producer_first": "references the private member `_loadGoogleMap`, which this release did not retain. A patch can only name a private member the release was built to keep.",
+   "rc": 0
+  }
+ ],
+ "LocalSend": [
+  {
+   "blockers": [],
+   "target": "package:localsend_app/pages/progress_page.dart#_ProgressPageState.build",
+   "doc": "4b5236ce_63efbe6b.json",
+   "reach": "conditional",
+   "unsupported": "[]",
+   "private_keys": "[\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_advanced\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_exit\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_files\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_finishCounter\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_finishTimer\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_lastRemainingTimeUpdate\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_lastStatus\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_remainingTime\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_selectedFiles\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_totalBytes\"]",
+   "relaxed": "",
+   "admitted": "true",
+   "backstop_final": "false",
+   "terminal": "PAST_ADMISSION(ProcessException)",
+   "pair": "4b5236ce_63efbe6b",
+   "analyzer_admissible": true,
+   "analyzer_cats": [],
+   "origin": {},
+   "producer_first": "its body names `_advancedProgressPanelExtraPadding`, a private identifier this analysis did not resolve to a member the release granted. Private references are carried only when the release manifest shows the exact member was retained.",
+   "rc": 0
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "-",
+     "reason": "reads and writes `_finishCounter` in one expression (set+get), which this lowering cannot rewrite as a single edit"
+    }
+   ],
+   "target": "package:localsend_app/pages/progress_page.dart#_ProgressPageState.initState",
+   "doc": "4b5236ce_63efbe6b.json",
+   "reach": "conditional",
+   "unsupported": "[\"reads and writes `_finishCounter` in one expression (set+get), which this lowering cannot rewrite as a single edit\"]",
+   "private_keys": "[\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_exit\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_files\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_finishCounter\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_finishTimer\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_selectedFiles\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_totalBytes\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_wakelockPlusTimer\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#get:_useWakelock\"]",
+   "relaxed": "",
+   "admitted": "false",
+   "backstop_final": "false",
+   "terminal": "no relaxation models this refusal",
+   "pair": "4b5236ce_63efbe6b",
+   "analyzer_admissible": false,
+   "analyzer_cats": [
+    "receiver.compound_same_offset"
+   ],
+   "origin": {
+    "receiver.compound_same_offset": "pre_existing"
+   },
+   "producer_first": null,
+   "rc": 0
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "constructs",
+     "reason": "uses `this` other than to read a member"
+    },
+    {
+     "i": 1,
+     "relaxed": "-",
+     "reason": "its body names `_toggleAdvanced`, a private identifier this analysis did not resolve to a member the release granted. Private references are carried only when the release manifest shows the exact member was retained."
+    }
+   ],
+   "target": "package:localsend_app/pages/tabs/receive_tab.dart#_ReceiveTabState.build",
+   "doc": "4b5236ce_63efbe6b.json",
+   "reach": "conditional",
+   "unsupported": "[\"uses `this` other than to read a member\"]",
+   "private_keys": "[\"package:localsend_app/pages/tabs/receive_tab.dart#_ReceiveTabState#_showAdvanced\",\"package:localsend_app/pages/tabs/receive_tab.dart#_ReceiveTabState#_showHistoryButton\"]",
+   "relaxed": "constructs",
+   "admitted": "false",
+   "backstop_final": "true",
+   "terminal": "PRIVATE_REFERENCE_TEXT_BACKSTOP(_toggleAdvanced) final admission gate \u2014 nothing else gates this target",
+   "pair": "4b5236ce_63efbe6b",
+   "analyzer_admissible": false,
+   "analyzer_cats": [
+    "construct.method_tearoff"
+   ],
+   "origin": {
+    "construct.method_tearoff": "pre_existing"
+   },
+   "producer_first": null,
+   "rc": 0
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "capability",
+     "reason": "references the private member `_restartAfterListenerFailure`, which this release did not retain. A patch can only name a private member the release was built to keep."
+    }
+   ],
+   "target": "package:localsend_app/provider/network/server/server_provider.dart#ServerService._handleEvent",
+   "doc": "9aff08a3_89303dcf.json",
+   "reach": "conditional",
+   "unsupported": "[]",
+   "private_keys": "[\"package:localsend_app/provider/network/server/server_provider.dart#ServerService#_receiveController\",\"package:localsend_app/provider/network/server/server_provider.dart#ServerService#_restartAfterListenerFailure\",\"package:localsend_app/provider/network/server/server_provider.dart#ServerService#_sendController\"]",
+   "relaxed": "capability",
+   "admitted": "true",
+   "backstop_final": "false",
+   "terminal": "PAST_ADMISSION(ProcessException)",
+   "pair": "9aff08a3_89303dcf",
+   "analyzer_admissible": true,
+   "analyzer_cats": [],
+   "origin": {},
+   "producer_first": "references the private member `_restartAfterListenerFailure`, which this release did not retain. A patch can only name a private member the release was built to keep.",
+   "rc": 0
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "constructs",
+     "reason": "UNSUPPORTED_PARAMETER_SHAPE(named_parameters) the method takes named parameters"
+    },
+    {
+     "i": 1,
+     "relaxed": "-",
+     "reason": "reads `_syncServerState` through a receiver this lowering cannot rewrite safely"
+    }
+   ],
+   "target": "package:localsend_app/provider/network/server/server_provider.dart#ServerService.startServer",
+   "doc": "9fea48e7_fca481e6.json",
+   "reach": "conditional",
+   "unsupported": "[\"the method takes named parameters\"]",
+   "private_keys": "[\"package:localsend_app/provider/network/server/server_provider.dart#ServerService#_handleEvent\",\"package:localsend_app/provider/network/server/server_provider.dart#ServerService#_subscription\",\"package:localsend_app/provider/network/server/server_provider.dart#ServerService#_syncServerState\"]",
+   "relaxed": "constructs",
+   "admitted": "false",
+   "backstop_final": "false",
+   "terminal": "no relaxation models this refusal",
+   "pair": "9fea48e7_fca481e6",
+   "analyzer_admissible": false,
+   "analyzer_cats": [
+    "abi.named_parameters"
+   ],
+   "origin": {
+    "abi.named_parameters": "pre_existing"
+   },
+   "producer_first": "UNSUPPORTED_PARAMETER_SHAPE(named_parameters) the method takes named parameters",
+   "rc": 0
+  },
+  {
+   "blockers": [],
+   "target": "package:localsend_app/model/state/server/server_state.dart#ServerStateCopyWith.call",
+   "doc": "af0416be_224ef8b1.json",
+   "reach": "unreachable",
+   "admitted": "not_walked",
+   "terminal": "NOT IN patchable/conditional \u2014 `produce` walks representable+conditional only, so this target is refused for reachability and the producer never gates it",
+   "pair": "af0416be_224ef8b1",
+   "analyzer_admissible": false,
+   "analyzer_cats": [
+    "abi.named_parameters",
+    "reach.unreachable"
+   ],
+   "origin": "base_row_missing",
+   "producer_first": null,
+   "rc": 3
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "-",
+     "reason": "its body names `_advancedProgressPanelExtraPadding`, a private identifier this analysis did not resolve to a member the release granted. Private references are carried only when the release manifest shows the exact member was retained."
+    }
+   ],
+   "target": "package:localsend_app/pages/progress_page.dart#_ProgressPageState.build",
+   "doc": "af0416be_224ef8b1.json",
+   "reach": "conditional",
+   "unsupported": "[]",
+   "private_keys": "[\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_advanced\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_exit\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_files\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_finishCounter\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_finishTimer\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_lastRemainingTimeUpdate\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_lastStatus\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_remainingTime\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_selectedFiles\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_totalBytes\"]",
+   "relaxed": "",
+   "admitted": "false",
+   "backstop_final": "true",
+   "terminal": "PRIVATE_REFERENCE_TEXT_BACKSTOP(_advancedProgressPanelExtraPadding) final admission gate \u2014 nothing else gates this target",
+   "pair": "af0416be_224ef8b1",
+   "analyzer_admissible": true,
+   "analyzer_cats": [],
+   "origin": {},
+   "producer_first": "its body names `_advancedProgressPanelExtraPadding`, a private identifier this analysis did not resolve to a member the release granted. Private references are carried only when the release manifest shows the exact member was retained.",
+   "rc": 0
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "-",
+     "reason": "reads and writes `_finishCounter` in one expression (set+get), which this lowering cannot rewrite as a single edit"
+    }
+   ],
+   "target": "package:localsend_app/pages/progress_page.dart#_ProgressPageState.initState",
+   "doc": "af0416be_224ef8b1.json",
+   "reach": "conditional",
+   "unsupported": "[\"reads and writes `_finishCounter` in one expression (set+get), which this lowering cannot rewrite as a single edit\"]",
+   "private_keys": "[\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_exit\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_files\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_finishCounter\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_finishTimer\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_selectedFiles\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_totalBytes\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_wakelockPlusTimer\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#get:_useWakelock\"]",
+   "relaxed": "",
+   "admitted": "false",
+   "backstop_final": "false",
+   "terminal": "no relaxation models this refusal",
+   "pair": "af0416be_224ef8b1",
+   "analyzer_admissible": false,
+   "analyzer_cats": [
+    "receiver.compound_same_offset"
+   ],
+   "origin": {
+    "receiver.compound_same_offset": "pre_existing"
+   },
+   "producer_first": null,
+   "rc": 0
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "constructs",
+     "reason": "uses `this` other than to read a member"
+    },
+    {
+     "i": 1,
+     "relaxed": "-",
+     "reason": "its body names `_toggleAdvanced`, a private identifier this analysis did not resolve to a member the release granted. Private references are carried only when the release manifest shows the exact member was retained."
+    }
+   ],
+   "target": "package:localsend_app/pages/tabs/receive_tab.dart#_ReceiveTabState.build",
+   "doc": "af0416be_224ef8b1.json",
+   "reach": "conditional",
+   "unsupported": "[\"uses `this` other than to read a member\"]",
+   "private_keys": "[\"package:localsend_app/pages/tabs/receive_tab.dart#_ReceiveTabState#_showAdvanced\",\"package:localsend_app/pages/tabs/receive_tab.dart#_ReceiveTabState#_showHistoryButton\"]",
+   "relaxed": "constructs",
+   "admitted": "false",
+   "backstop_final": "true",
+   "terminal": "PRIVATE_REFERENCE_TEXT_BACKSTOP(_toggleAdvanced) final admission gate \u2014 nothing else gates this target",
+   "pair": "af0416be_224ef8b1",
+   "analyzer_admissible": false,
+   "analyzer_cats": [
+    "construct.method_tearoff"
+   ],
+   "origin": {
+    "construct.method_tearoff": "pre_existing"
+   },
+   "producer_first": null,
+   "rc": 0
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "constructs",
+     "reason": "UNSUPPORTED_PARAMETER_SHAPE(named_parameters) the method takes named parameters"
+    }
+   ],
+   "target": "package:localsend_app/provider/network/server/server_provider.dart#ServerService.restartServer",
+   "doc": "af0416be_224ef8b1.json",
+   "reach": "conditional",
+   "unsupported": "[\"the method takes named parameters\"]",
+   "private_keys": "[]",
+   "relaxed": "constructs",
+   "admitted": "true",
+   "backstop_final": "false",
+   "terminal": "PAST_ADMISSION(ProcessException)",
+   "pair": "af0416be_224ef8b1",
+   "analyzer_admissible": false,
+   "analyzer_cats": [
+    "abi.named_parameters"
+   ],
+   "origin": {
+    "abi.named_parameters": "pre_existing"
+   },
+   "producer_first": null,
+   "rc": 0
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "constructs",
+     "reason": "UNSUPPORTED_PARAMETER_SHAPE(named_parameters) the method takes named parameters"
+    },
+    {
+     "i": 1,
+     "relaxed": "-",
+     "reason": "reads `_syncServerState` through a receiver this lowering cannot rewrite safely"
+    }
+   ],
+   "target": "package:localsend_app/provider/network/server/server_provider.dart#ServerService.startServer",
+   "doc": "af0416be_224ef8b1.json",
+   "reach": "conditional",
+   "unsupported": "[\"the method takes named parameters\"]",
+   "private_keys": "[\"package:localsend_app/provider/network/server/server_provider.dart#ServerService#_handleEvent\",\"package:localsend_app/provider/network/server/server_provider.dart#ServerService#_subscription\",\"package:localsend_app/provider/network/server/server_provider.dart#ServerService#_syncServerState\"]",
+   "relaxed": "constructs",
+   "admitted": "false",
+   "backstop_final": "false",
+   "terminal": "no relaxation models this refusal",
+   "pair": "af0416be_224ef8b1",
+   "analyzer_admissible": false,
+   "analyzer_cats": [
+    "abi.named_parameters"
+   ],
+   "origin": {
+    "abi.named_parameters": "pre_existing"
+   },
+   "producer_first": "UNSUPPORTED_PARAMETER_SHAPE(named_parameters) the method takes named parameters",
+   "rc": 0
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "constructs",
+     "reason": "UNSUPPORTED_PARAMETER_SHAPE(optional_positional_parameters) the method takes optional positional parameters"
+    }
+   ],
+   "target": "package:localsend_app/widget/dialogs/address_input_dialog.dart#_AddressInputDialogState._submit",
+   "doc": "af0416be_224ef8b1.json",
+   "reach": "conditional",
+   "unsupported": "[\"the method takes optional positional parameters\"]",
+   "private_keys": "[\"package:localsend_app/widget/dialogs/address_input_dialog.dart#_AddressInputDialogState#_error\",\"package:localsend_app/widget/dialogs/address_input_dialog.dart#_AddressInputDialogState#_fetching\",\"package:localsend_app/widget/dialogs/address_input_dialog.dart#_AddressInputDialogState#_input\"]",
+   "relaxed": "constructs",
+   "admitted": "true",
+   "backstop_final": "false",
+   "terminal": "PAST_ADMISSION(ProcessException)",
+   "pair": "af0416be_224ef8b1",
+   "analyzer_admissible": false,
+   "analyzer_cats": [
+    "abi.optional_positionals"
+   ],
+   "origin": {
+    "abi.optional_positionals": "pre_existing"
+   },
+   "producer_first": null,
+   "rc": 0
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "constructs",
+     "reason": "uses `this` other than to read a member"
+    }
+   ],
+   "target": "package:localsend_app/widget/dialogs/favorite_dialog.dart#_FavoritesDialogState.build",
+   "doc": "af0416be_224ef8b1.json",
+   "reach": "conditional",
+   "unsupported": "[\"uses `this` other than to read a member\"]",
+   "private_keys": "[\"package:localsend_app/widget/dialogs/favorite_dialog.dart#_FavoritesDialogState#_checkConnectionToDevice\",\"package:localsend_app/widget/dialogs/favorite_dialog.dart#_FavoritesDialogState#_error\",\"package:localsend_app/widget/dialogs/favorite_dialog.dart#_FavoritesDialogState#_fetching\",\"package:localsend_app/widget/dialogs/favorite_dialog.dart#_FavoritesDialogState#_showDeviceDialog\"]",
+   "relaxed": "constructs",
+   "admitted": "true",
+   "backstop_final": "false",
+   "terminal": "PAST_ADMISSION(ProcessException)",
+   "pair": "af0416be_224ef8b1",
+   "analyzer_admissible": false,
+   "analyzer_cats": [
+    "construct.method_tearoff"
+   ],
+   "origin": {
+    "construct.method_tearoff": "pre_existing"
+   },
+   "producer_first": null,
+   "rc": 0
+  },
+  {
+   "blockers": [],
+   "target": "package:localsend_isolates/rust/frb_generated.dart#RustLibApi.crateApiServerStartServer",
+   "doc": "af0416be_224ef8b1.json",
+   "reach": "unreachable",
+   "admitted": "not_walked",
+   "terminal": "NOT IN patchable/conditional \u2014 `produce` walks representable+conditional only, so this target is refused for reachability and the producer never gates it",
+   "pair": "af0416be_224ef8b1",
+   "analyzer_admissible": false,
+   "analyzer_cats": [
+    "reach.unreachable"
+   ],
+   "origin": "base_row_missing",
+   "producer_first": null,
+   "rc": 3
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "-",
+     "reason": "its body names `_advancedProgressPanelExtraPadding`, a private identifier this analysis did not resolve to a member the release granted. Private references are carried only when the release manifest shows the exact member was retained."
+    }
+   ],
+   "target": "package:localsend_app/pages/progress_page.dart#_ProgressPageState.build",
+   "doc": "deab2010_c1b9fa9c.json",
+   "reach": "conditional",
+   "unsupported": "[]",
+   "private_keys": "[\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_advanced\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_exit\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_files\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_finishCounter\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_finishTimer\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_lastRemainingTimeUpdate\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_lastStatus\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_remainingTime\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_selectedFiles\",\"package:localsend_app/pages/progress_page.dart#_ProgressPageState#_totalBytes\"]",
+   "relaxed": "",
+   "admitted": "false",
+   "backstop_final": "true",
+   "terminal": "PRIVATE_REFERENCE_TEXT_BACKSTOP(_advancedProgressPanelExtraPadding) final admission gate \u2014 nothing else gates this target",
+   "pair": "deab2010_c1b9fa9c",
+   "analyzer_admissible": true,
+   "analyzer_cats": [],
+   "origin": {},
+   "producer_first": "its body names `_advancedProgressPanelExtraPadding`, a private identifier this analysis did not resolve to a member the release granted. Private references are carried only when the release manifest shows the exact member was retained.",
+   "rc": 0
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "-",
+     "reason": "reads `state` through a receiver this lowering cannot rewrite safely"
+    }
+   ],
+   "target": "package:localsend_app/provider/selection/selected_sending_files_provider.dart#AddAndroidDirectoryAction.reduce",
+   "doc": "f6962a17_c4e1edb2.json",
+   "reach": "conditional",
+   "unsupported": "[]",
+   "private_keys": "[]",
+   "relaxed": "",
+   "admitted": "false",
+   "backstop_final": "false",
+   "terminal": "no relaxation models this refusal",
+   "pair": "f6962a17_c4e1edb2",
+   "analyzer_admissible": true,
+   "analyzer_cats": [],
+   "origin": {},
+   "producer_first": "reads `state` through a receiver this lowering cannot rewrite safely",
+   "rc": 0
+  },
+  {
+   "blockers": [
+    {
+     "i": 0,
+     "relaxed": "constructs",
+     "reason": "UNSUPPORTED_PARAMETER_SHAPE(named_parameters) the method takes named parameters"
+    },
+    {
+     "i": 1,
+     "relaxed": "-",
+     "reason": "reads `_syncServerState` through a receiver this lowering cannot rewrite safely"
+    }
+   ],
+   "target": "package:localsend_app/provider/network/server/server_provider.dart#ServerService.startServer",
+   "doc": "fca481e6_deab2010.json",
+   "reach": "conditional",
+   "unsupported": "[\"the method takes named parameters\"]",
+   "private_keys": "[\"package:localsend_app/provider/network/server/server_provider.dart#ServerService#_handleEvent\",\"package:localsend_app/provider/network/server/server_provider.dart#ServerService#_subscription\",\"package:localsend_app/provider/network/server/server_provider.dart#ServerService#_syncServerState\"]",
+   "relaxed": "constructs",
+   "admitted": "false",
+   "backstop_final": "false",
+   "terminal": "no relaxation models this refusal",
+   "pair": "fca481e6_deab2010",
+   "analyzer_admissible": false,
+   "analyzer_cats": [
+    "abi.named_parameters"
+   ],
+   "origin": {
+    "abi.named_parameters": "pre_existing"
+   },
+   "producer_first": "UNSUPPORTED_PARAMETER_SHAPE(named_parameters) the method takes named parameters",
+   "rc": 0
+  }
+ ]
+}
