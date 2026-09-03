@@ -45,8 +45,13 @@ measure" instead. So the refusal is itself the v13 reading: candidate side
 carries `_Other.new`, release side for that method carries it not at all.
 
 Nothing moved: patches for release 142 0 → 0; patch artifacts 114 → 114; max
-patch id 105 → 105; patch object dirs 104 → 104; no patch-creation request in
-the control-plane log.
+patch id 105 → 105; patch object dirs 104 → 104.
+
+**Struck 2026-09-03.** ~~no patch-creation request in the control-plane log~~ —
+that check was VACUOUS and is withdrawn. `cps-ios` emits no request logging at
+all, so an empty grep of its output would have "passed" whatever happened. The
+four counts above stand on their own, and patch 106 later landing exactly one
+above the ceiling of 105 confirms independently that 6E published nothing.
 
 ## 6F — positive: a construction the released method already performed
 
@@ -97,7 +102,119 @@ The pre-existing test asserted the lowered SOURCE and nothing else, so it stayed
 green across a body that could not compile. The new test asserts the compiler
 ARGUMENTS and was verified red before the fix.
 
+## 6G — activation on a physical iPhone 7
+
+Device `8cb4bc982ddf6437b1952520edee80f898196c74`, D10AP iPhone 7, iOS 15.8.8
+(19H422), wired USB. `devicectl` is blind to iOS 15, so detection is by
+`idevice_id` / `ios-deploy -c`. Every launch was a by-hand tap: `ios-deploy
+--bundle` with no `-d` and no `-L`.
+
+### What was installed
+
+The control plane's OWN xcarchive for release 142 (artifact 540), signed only.
+
+    downloaded          90813a068e2289d6dbf37c3ef700ce9401b3b6a10ab21b3c4b808bf5c8fc7c33
+                        11,917,825 B  == the server's recorded hash
+    App.framework/App   bbea5b9c72a6e25b7d20ba41abaafff9b0392da108b26f7ed673bb61489ff8b2
+                        == release 142's release-artifact digest, the bytes patch 106 binds to
+
+Signed with the certified P6 mechanism, unchanged: profile
+`e3a92ae5-fe6c-4b28-a3b3-ad2212a80330`, digest `78b4e9cab6fe2691…` — the same
+profile hash banked in SIGN-141 — identity `EE8685A4…` (Apple Development:
+Pesach Brody, team `SK85S6YZP9`), entitlements taken from the profile with
+`application-identifier` substituted. No new signing material was minted; no
+Flutter build, Xcode rebuild, relink or archive regeneration.
+
+Only signatures moved:
+
+| Property | Unsigned archive | Signed derivative | |
+|---|---|---|---|
+| `App` payload, signature stripped | `8203ab04ca98fd04…` | same | **SAME** |
+| `flutter_assets` tree (path-relative) | `08dc0c4e6026d161…` | same | **SAME** |
+| `Runner` LC_UUID | `49BA1C58-8E52-3E3B-B4AF-E259CFEFC9CB` | same | **SAME** |
+
+`diff -rq` over the whole bundle reports exactly four differences: `App` and
+`Runner` (signature blobs), plus the added `_CodeSignature` and
+`embedded.mobileprovision`. `codesign --verify --deep --strict`: exit 0, real
+Apple Development authority chain, no adhoc code remaining.
+
+The derivative's own identity, kept separate:
+
+    signed .app tree (path-relative)     3f0dcab49e11b4a0b9f6e161d3de9d1e6cea3dc32b744a1d3f47efb21ab78c64
+    signed App.framework/App file        abe9ac7f9ca0913514af4b411815a313a8ad27b3df997690e565172c670d5b1a
+
+**Neither is release 142's release-artifact digest.** That remains
+`bbea5b9c…ff8b2`, it is what patch 106 is bound to, and it must never be
+substituted with a digest from this row.
+
+The prior superFixture was uninstalled first, so no updater state survived from
+release 141 / patch 105.
+
+### Baseline — release behaviour, by hand
+
+Launched from the home screen, in-app `RUN` tapped:
+
+    positive()   BOXED[9]:APP-STATE
+
+**LEN=9 is the RELEASE value.** The patch produces LEN=11. A post-activation
+reading of 9 would be a failure, not a pass.
+
+Device-side, before activation:
+
+    state.json      release_version 1.0.3+4          <- identifies as release 142
+    pointers.json   next_boot_patch  null (absent)
+    patches/         (none)
+
+### Staging is not execution
+
+The first launch fetched nothing: `/Library/Caches/shorebird_updater/` empty and
+no patch slot. Cause was the iOS **Local Network** permission, which the
+uninstall reset — `base_url` is `http://10.0.0.7:18080`, a local address. Host
+side was clean throughout (macOS firewall disabled, `*.18080` LISTEN, HTTP 403
+from the LAN address, i.e. serving). Once the permission was granted and the app
+relaunched, the updater fetched:
+
+    patches/1/dlc.vmcode   89052f9d0811fd4c591bdfffe1091b49525c7ff24c19b03db0380f2ee3a576d3
+                           1891 B  == the produced patch.sbrbptch, byte for byte
+    patches/1/state.json   {"kind":"Installed","size":1891}
+    pointers.json          next_boot_patch 1
+                           last_booted_patch null      <- STAGED, NEVER EXECUTED
+                           boot_attempt_count 0
+
+That launch downloaded and staged the patch and is **not** evidence of
+execution; `last_booted_patch: null` states it explicitly.
+
+### Activation — force-quit, then a by-hand launch
+
+    positive()   BOXED[11]:P:APP-STATE
+
+Device-side after that launch:
+
+    pointers.json   last_booted_patch        1     <- executed
+                    boot_attempt_count       0     <- no retry
+                    currently_booting_patch  null  <- no boot left in flight
+
+No `Runner` crash report dated 2026-09-03; the newest are 2026-08-27. Patch 1 is
+the only patch that exists for release 142, and it is patch id 106.
+
+**Why LEN is the load-bearing observable.** `_Boxed.render()` computes
+`'BOXED[${value.length}]:$value'`. The length is computed by the constructed
+object at runtime, not baked into the replacement as a literal, so 11 cannot be
+produced by a patch that merely activated — it requires `_Boxed` to have been
+constructed and invoked. `last_booted_patch: 1` alone would prove only that the
+patch booted.
+
+### Note on syslog
+
+`idevicesyslog` captured the launches (`Runner[18842]` sandbox line, SpringBoard
+snapshot activity for `dev.shorebird.selfhost.superFixture`) but no updater
+output: on iOS 15 it relays the old syslog and does not carry third-party
+`os_log`. That absence is a capture limitation and is NOT evidence about the
+updater. The runtime evidence used here is the updater's own on-device state,
+read over AFC, plus the crash-report check.
+
 ## Not yet established
 
-6G — on-device activation — has not run. Nothing here shows the patch booting on
-the iPhone 7; it shows it was produced, admitted, compiled and published.
+Persistence across further launches was not requalified — one post-activation
+launch, as authorized. Nothing here speaks to Android, to non-exact
+constructors, to tear-offs, or to a broad private-construction policy.
