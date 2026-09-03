@@ -377,8 +377,28 @@ Object? $_superIntrinsicName(
       // to pass everywhere: a target that needs nothing private compiles under
       // exactly the rules already proven on device, and an older cell that does
       // not know the flag keeps working for those targets.
+      //
+      // A private CONSTRUCTION is a private reference too. `_Boxed(x)` names a
+      // class private to the target library, and the replacement is compiled as a
+      // separate synthetic library, so without this flag the CFE cannot see the
+      // name at all:
+      //
+      //   Error: Method not found: '_Boxed'.
+      //
+      // Retention and the manifest grant make the constructor EXIST and be
+      // CALLABLE in the shipped program; they do nothing about whether the
+      // replacement library may SPELL it. Those are separate problems, and this
+      // gate only ever solved the second for member accesses. Found by Gate 6F,
+      // the first positive private-construction patch to reach the compiler: exit
+      // 254 with the grant for `_Boxed.new` present in the manifest.
+      //
+      // Not a broadening of the admission rule. Admission -- same-method release
+      // evidence AND a manifest grant, per construction -- has already run and
+      // refused the whole patch before this point (Gate 6E). This decides only how
+      // a body that was already admitted gets spelled.
       final resolvesPrivateNames =
-          lowering?.accesses.any((a) => a.privateTarget != null) ?? false;
+          (lowering?.accesses.any((a) => a.privateTarget != null) ?? false) ||
+          (lowering?.privateConstructions?.isNotEmpty ?? false);
       // IMPORT THE TARGET'S OWN LIBRARY. A replacement body may reference other
       // members of the library it replaces a function in, and a synthetic
       // library that imports nothing cannot see them:

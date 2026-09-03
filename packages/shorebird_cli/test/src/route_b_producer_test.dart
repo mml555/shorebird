@@ -1131,6 +1131,29 @@ void main() {
           );
         });
 
+        test('asks the CFE to resolve a construction-only private name', () {
+          // GATE 6F's BUG, RED FIRST. The test above asserts the lowered SOURCE and
+          // nothing else, so it passed while the compile could not possibly succeed:
+          // `_Helper` is private to the target library and the replacement is a
+          // separate synthetic library, so without this flag the CFE reports
+          //
+          //   Error: Method not found: '_Helper'.
+          //
+          // and the producer surfaces a bare "exit 254". Retention and the manifest
+          // grant make the constructor exist and be callable; only this flag lets the
+          // replacement SPELL it. The predicate used to key on private member
+          // ACCESSES alone, and this body has none -- `accesses` is empty and the
+          // construction is the sole private reference.
+          lowered(constructs(), granting: grants(classes: [ctorKey]));
+          expect(
+            lastArguments,
+            containsAllInOrder([
+              '--resolve-private-names-in-library',
+              'package:app/main.dart',
+            ]),
+          );
+        });
+
         test('REFUSES one the release method never performed', () {
           // THE CROSS-METHOD LEAKAGE CONTROL. The manifest globally grants the
           // constructor — some other released method built it — but the
