@@ -107,13 +107,58 @@ for f in dart2bytecode.aot dartaotruntime vm_platform.dill route_b_analyze.aot \
   fi
 done
 
-# 4. The engine revision recorded inside the bundle is the one it is filed
-#    under. A bundle copied between hashes would otherwise pass everything else.
-FILED=$(sed -nE 's/^engine revision[[:space:]]*:[[:space:]]*([0-9a-f]+).*/\1/p' "$PROV" | head -1)
-if [[ "$FILED" == "$HASH" ]]; then
-  ok "records the engine revision it is filed under"
+# 4. THE ADDRESS IS THE ONE THIS CELL IS ENTITLED TO.
+#
+# Three identities, and conflating them is what made this check wrong:
+#
+#   producer_engine_revision   the engine tree the tooling binaries were compiled
+#                              in. Recorded in PROVENANCE.txt.
+#   cell_address               what the cell is published under.
+#   fallback_engine_revision   the engine a build falls back to. In the manifest.
+#
+# Under v1 the address WAS the producer engine revision, so equality was the
+# right test. Under `route-b-cell-v2` the address is the digest of the cell's own
+# member manifest, so the two DIFFER BY DESIGN -- and demanding equality reported
+# every v2 cell, including the supported one, as a finding. A certification that
+# has to explain away its own finding every time is not a certification.
+#
+# So: when a v2 manifest exists for this address, the address is checked against
+# the thing that actually defines it. The manifest cannot be moved to another
+# address, because the address IS its digest. What is still a finding is an
+# identity substitution -- a manifest that does not produce this address, or one
+# that produces it but describes a DIFFERENT bundle than the one served here.
+MANIFEST="$(dirname "${BASH_SOURCE[0]}")/cell_manifests/$HASH.v2"
+if [[ -f "$MANIFEST" ]]; then
+  RECOMPUTED=$(shasum -a 256 "$MANIFEST" | cut -c1-40)
+  if [[ "$RECOMPUTED" != "$HASH" ]]; then
+    fail "v2 manifest for $HASH recomputes to $RECOMPUTED — it does not authenticate this address"
+  else
+    ok "v2 address self-authenticates (manifest digest == address)"
+    # The manifest must describe THIS bundle. Without this, a genuine manifest
+    # could sit beside a substituted zip and the address would still "verify".
+    WANT_ZIP=$(awk -v m="$BUCKET/shorebird/%H/route-b-compiler-$PLAT.zip" \
+                   '$1==m{print $2}' "$MANIFEST" | head -1)
+    GOT_ZIP=$(shasum -a 256 "$ZIP" | cut -d' ' -f1)
+    if [[ -z "$WANT_ZIP" ]]; then
+      fail "v2 manifest names no route-b-compiler-$PLAT.zip member"
+    elif [[ "$WANT_ZIP" != "$GOT_ZIP" ]]; then
+      fail "SUBSTITUTED BUNDLE: address manifest requires ${WANT_ZIP:0:16}…, served zip is ${GOT_ZIP:0:16}…"
+    else
+      ok "served bundle is the one the address was computed over"
+    fi
+    FB=$(awk '$1=="fallback_engine_revision"{print $2}' "$MANIFEST" | head -1)
+    PRODUCER=$(sed -nE 's/^engine revision[[:space:]]*:[[:space:]]*([0-9a-f]+).*/\1/p' "$PROV" | head -1)
+    echo "  --      producer engine   ${PRODUCER:-<none>}   (built in; not the address)"
+    echo "  --      fallback engine   ${FB:-<none>}"
+  fi
 else
-  fail "records engine ${FILED:-<none>} but is published under $HASH"
+  # v1 / legacy: the address IS the producer engine revision, so equality holds.
+  FILED=$(sed -nE 's/^engine revision[[:space:]]*:[[:space:]]*([0-9a-f]+).*/\1/p' "$PROV" | head -1)
+  if [[ "$FILED" == "$HASH" ]]; then
+    ok "records the engine revision it is filed under (v1 address)"
+  else
+    fail "records engine ${FILED:-<none>} but is published under $HASH, and no v2 manifest authenticates the difference"
+  fi
 fi
 
 # THE iOS ENGINE DIGEST, recomputed rather than trusted.
