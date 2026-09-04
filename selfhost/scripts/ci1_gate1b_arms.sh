@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words getsockname noninteractive chardev nonint armeabi OPORT dists
+# cspell:words getsockname noninteractive chardev nonint armeabi OPORT dists noflag devnull cred wrongshape derivable nomatch ident sel conf
 # CI-NONINTERACTIVE-1 gate 1b: the interaction surface, with INDEPENDENT arms.
 #
 # The first pass got one real result and two worthless ones: arm 1 created
