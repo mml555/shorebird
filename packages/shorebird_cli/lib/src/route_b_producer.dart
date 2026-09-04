@@ -67,6 +67,7 @@ typedef RouteBCompileRunner =
     ProcessResult Function(String executable, List<String> arguments);
 
 /// A target the producer cannot turn into a payload, and why.
+// NEGATIVE CONTROL MUTATION — must trip the product-tree guard.
 class RouteBUnsupportedTarget implements Exception {
   /// {@macro route_b_unsupported_target}
   RouteBUnsupportedTarget(this.target, this.reason);
