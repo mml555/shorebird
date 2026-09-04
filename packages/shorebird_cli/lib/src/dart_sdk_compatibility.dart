@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:shorebird_cli/src/artifact_origin.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 
 /// A reference to a [DartSdkCompatibility] instance.
@@ -154,7 +155,7 @@ class DartSdkMismatchException implements Exception {
   rm -f $flutterDirectory/bin/cache/flutter_tools.stamp \\
         $flutterDirectory/bin/cache/engine-dart-sdk.stamp \\
         $shorebirdRoot/bin/cache/shorebird.stamp
-  FLUTTER_STORAGE_BASE_URL=\$FLUTTER_STORAGE_BASE_URL $flutterDirectory/bin/flutter --version
+  ${ArtifactOrigin.flutterStorageKey}=${ArtifactOrigin.flutterStorageBaseUrl()} $flutterDirectory/bin/flutter --version
   cat $flutterDirectory/bin/cache/dart-sdk/revision   # expect $expectedDartSdkRevision''';
 
   @override

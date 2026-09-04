@@ -7,6 +7,7 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
+import 'package:shorebird_cli/src/artifact_origin.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/formatters/formatters.dart';
 import 'package:shorebird_cli/src/http_client/http_client.dart';
@@ -35,11 +36,22 @@ class NetworkCheckerException implements Exception {
 /// {@endtemplate}
 class NetworkChecker {
   /// The URLs to check for network reachability.
-  static final urlsToCheck = [
+  ///
+  /// The artifact-storage entry is RESOLVED rather than hard-coded, so on a
+  /// self-hosted deployment `doctor` probes the origin the build will actually
+  /// use. Hard-coding upstream's got this wrong in both directions: it reported
+  /// a fault for an air-gapped stack that was working, and it stayed green
+  /// while the configured origin was unreachable — the one host whose
+  /// reachability the check exists to establish.
+  ///
+  /// The other entries are control-plane and auth endpoints, not artifact
+  /// storage, and are deliberately left alone: this is storage authority, not
+  /// general endpoint configuration.
+  static List<Uri> get urlsToCheck => [
     'https://api.shorebird.dev',
     'https://console.shorebird.dev',
     'https://oauth2.googleapis.com',
-    'https://storage.googleapis.com',
+    ArtifactOrigin.shorebirdStorageBaseUrl(),
     'https://cdn.shorebird.cloud',
   ].map(Uri.parse).toList();
 

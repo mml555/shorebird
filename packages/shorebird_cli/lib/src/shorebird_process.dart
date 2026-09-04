@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:meta/meta.dart';
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:shorebird_cli/src/artifact_origin.dart';
 import 'package:shorebird_cli/src/engine_config.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform.dart';
@@ -264,13 +265,19 @@ $stderr''');
 
   Map<String, String> _environmentOverrides({required String executable}) {
     if (executable == 'flutter') {
-      // If this ever changes we also need to update the `shorebird` shell
-      // wrapper which downloads runs Flutter to fetch artifacts the first time.
-      // Overridable via FLUTTER_STORAGE_BASE_URL so a self-hosted deployment
-      // can mirror engine artifacts off Shorebird's CDN (defaults to upstream).
-      const key = 'FLUTTER_STORAGE_BASE_URL';
+      // THE CHILD PROCESS IS WHERE THIS HAS TO LAND. Flutter fetches engine
+      // artifacts itself, so an origin the parent merely knows about changes
+      // nothing — it is handed over in the environment, under Flutter's own
+      // standard variable name.
+      //
+      // Resolved through ArtifactOrigin rather than read here, so this is not a
+      // fourth place that decides an origin. The `shorebird` shell wrapper
+      // (third_party/flutter/bin/internal/shared.sh) resolves the same
+      // authority for the first-run bootstrap, which happens before any Dart
+      // code runs at all.
       return {
-        key: platform.environment[key] ?? 'https://download.shorebird.dev',
+        ArtifactOrigin.flutterStorageKey:
+            ArtifactOrigin.flutterStorageBaseUrl(),
       };
     }
 

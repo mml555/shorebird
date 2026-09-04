@@ -10,8 +10,9 @@ unset CDPATH
 
 # Either clones or pulls the Shorebird Flutter repository, depending on whether FLUTTER_PATH exists.
 # A self-hosted deployment can point both network touches at its own mirror:
-# SHOREBIRD_FLUTTER_GIT_URL for the clone, FLUTTER_STORAGE_BASE_URL for the
-# artifact download (the default only applies when the caller did not set it).
+# SHOREBIRD_FLUTTER_GIT_URL for the clone, and for the artifact download either
+# FLUTTER_STORAGE_BASE_URL or the single SHOREBIRD_ARTIFACT_ORIGIN authority
+# (the upstream default applies only when the caller set neither).
 function update_flutter {
   if [[ -d "$FLUTTER_PATH" ]]; then
     git -C "$FLUTTER_PATH" fetch
@@ -22,8 +23,16 @@ function update_flutter {
   git -C "$FLUTTER_PATH" -c advice.detachedHead=false checkout "$FLUTTER_VERSION"
   SHOREBIRD_ENGINE_VERSION=`cat "$FLUTTER_PATH/bin/internal/engine.version"`
   echo "Shorebird Engine • revision $SHOREBIRD_ENGINE_VERSION"
-  # Install Shorebird Flutter Artifacts
-  FLUTTER_STORAGE_BASE_URL="${FLUTTER_STORAGE_BASE_URL:-https://download.shorebird.dev}" $FLUTTER_PATH/bin/flutter --version
+  # Install Shorebird Flutter Artifacts.
+  #
+  # This resolves the SAME authority as `ArtifactOrigin` in the CLI
+  # (packages/shorebird_cli/lib/src/artifact_origin.dart): the specific
+  # variable first, then SHOREBIRD_ARTIFACT_ORIGIN, then upstream. It has to be
+  # duplicated in shell rather than read from Dart because this bootstrap runs
+  # BEFORE any Dart code exists to ask — it is the download that produces the
+  # Dart SDK. Kept in step by a test that pins both defaults
+  # (`artifact_origin_test.dart`).
+  FLUTTER_STORAGE_BASE_URL="${FLUTTER_STORAGE_BASE_URL:-${SHOREBIRD_ARTIFACT_ORIGIN:-https://download.shorebird.dev}}" $FLUTTER_PATH/bin/flutter --version
 }
 
 function pub_get_with_retry {

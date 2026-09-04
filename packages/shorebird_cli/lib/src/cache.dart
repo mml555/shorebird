@@ -8,6 +8,7 @@ import 'package:retry/retry.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/abi.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
+import 'package:shorebird_cli/src/artifact_origin.dart';
 import 'package:shorebird_cli/src/checksum_checker.dart';
 import 'package:shorebird_cli/src/flutter_version_constraints.dart';
 import 'package:shorebird_cli/src/http_client/http_client.dart';
@@ -128,17 +129,15 @@ class Cache {
 
   final List<CachedArtifact> _artifacts = [];
 
-  /// The storage base url. Overridable via `SHOREBIRD_STORAGE_BASE_URL` so a
-  /// self-hosted deployment can mirror engine/patch artifacts off Shorebird's
-  /// CDN. Defaults to Google Cloud Storage (upstream behavior).
-  String get storageBaseUrl =>
-      platform.environment['SHOREBIRD_STORAGE_BASE_URL'] ??
-      'https://storage.googleapis.com';
+  /// The base for Shorebird's own artifact downloads — `aot-tools.dill`, the
+  /// `patch` executable, `bundletool`, and the Route B compiler cell bundle.
+  ///
+  /// Resolved by [ArtifactOrigin], which is the single authority; this getter
+  /// stays because it is what the URL builders below already read.
+  String get storageBaseUrl => ArtifactOrigin.shorebirdStorageBaseUrl();
 
-  /// The storage bucket host. Overridable via `SHOREBIRD_STORAGE_BUCKET`.
-  String get storageBucket =>
-      platform.environment['SHOREBIRD_STORAGE_BUCKET'] ??
-      'download.shorebird.dev';
+  /// The bucket segment of those same URLs. See [ArtifactOrigin].
+  String get storageBucket => ArtifactOrigin.shorebirdStorageBucket();
 
   /// Clear the cache.
   Future<void> clear() async {
