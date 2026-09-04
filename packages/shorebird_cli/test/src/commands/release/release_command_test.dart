@@ -13,6 +13,7 @@ import 'package:shorebird_cli/src/commands/release/release.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/config/config.dart';
 import 'package:shorebird_cli/src/dart_sdk_compatibility.dart';
+import 'package:shorebird_cli/src/interactive_mode.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/release_type.dart';
@@ -544,6 +545,7 @@ void main() {
             () => logger.confirm(
               any(),
               defaultValue: any(named: 'defaultValue'),
+              hint: any(named: 'hint'),
             ),
           ).thenReturn(true);
         });
@@ -554,6 +556,7 @@ void main() {
             () => logger.confirm(
               'Would you like to continue?',
               defaultValue: true,
+              hint: any(named: 'hint'),
             ),
           ).called(1);
         });
@@ -565,6 +568,7 @@ void main() {
             () => logger.confirm(
               any(),
               defaultValue: any(named: 'defaultValue'),
+              hint: any(named: 'hint'),
             ),
           ).thenReturn(false);
         });
@@ -579,6 +583,47 @@ void main() {
       });
     });
 
+    // CI-NONINTERACTIVE-1. A requested confirmation must reach logger.confirm
+    // even when nothing can answer, because logger.confirm is what fails
+    // closed (InteractivePromptRequiredException). The guard used to be
+    // `confirm && canAcceptUserInput`, which SKIPPED the confirmation and
+    // published anyway -- measured: `--confirm` with fd 0 closed exited 0.
+    //
+    // This is the regression guard: if the short-circuit comes back, the
+    // confirmation stops being reached and this test fails.
+    group('when --confirm is passed but input is unavailable', () {
+      setUp(() {
+        when(() => argResults['confirm']).thenReturn(true);
+        when(() => shorebirdEnv.canAcceptUserInput).thenReturn(false);
+        when(
+          () => logger.confirm(
+            any(),
+            defaultValue: any(named: 'defaultValue'),
+            hint: any(named: 'hint'),
+          ),
+        ).thenThrow(
+          const InteractivePromptRequiredException(
+            promptText: 'Would you like to continue?',
+            hint: 'hint',
+          ),
+        );
+      });
+
+      test('reaches the confirmation instead of approving itself', () async {
+        await expectLater(
+          runWithOverrides(command.run),
+          throwsA(isA<InteractivePromptRequiredException>()),
+        );
+        verify(
+          () => logger.confirm(
+            'Would you like to continue?',
+            defaultValue: true,
+            hint: any(named: 'hint'),
+          ),
+        ).called(1);
+      });
+    });
+
     group('when --confirm is not passed', () {
       setUp(() {
         when(() => argResults['confirm']).thenReturn(false);
@@ -590,6 +635,7 @@ void main() {
           () => logger.confirm(
             any(),
             defaultValue: any(named: 'defaultValue'),
+            hint: any(named: 'hint'),
           ),
         );
       });

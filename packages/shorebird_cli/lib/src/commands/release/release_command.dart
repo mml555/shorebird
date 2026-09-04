@@ -644,8 +644,34 @@ ${styleBold.wrap(lightGreen.wrap('🚀 Ready to create a new release!'))}
 ${summary.join('\n')}
 ''');
 
-    if (confirm && shorebirdEnv.canAcceptUserInput) {
-      if (!logger.confirm('Would you like to continue?', defaultValue: true)) {
+    // A REQUESTED CONFIRMATION MUST NOT BE SILENTLY DROPPED.
+    //
+    // This read `confirm && shorebirdEnv.canAcceptUserInput`, so when nothing
+    // could answer the confirmation was SKIPPED and the mutation went ahead.
+    // Measured by CI-NONINTERACTIVE-1: `shorebird release --confirm` with
+    // fd 0
+    // closed and CI=true published successfully, with no prompt in the output.
+    // An operator who explicitly asked to be asked was silently approved.
+    //
+    // `logger.confirm` already fails closed on its own -- it calls
+    // _failIfNonInteractive and throws InteractivePromptRequiredException,
+    // which the runner turns into a named error and a non-zero exit. The guard
+    // was preventing that mechanism from ever running. Removing it makes the
+    // non-interactive case REFUSE instead of approve.
+    //
+    // The default path is untouched: `confirm` comes from a hidden --confirm
+    // flag that defaults to FALSE (upstream #3223), so an ordinary
+    // `shorebird release` neither prompts before nor refuses after this change.
+    // Only an explicit --confirm is affected, which is exactly the case that
+    // asked to be asked.
+    if (confirm) {
+      if (!logger.confirm(
+        'Would you like to continue?',
+        defaultValue: true,
+        hint:
+            'Re-run with a TTY, or drop --confirm to proceed without '
+            'confirmation.',
+      )) {
         logger.info('Aborting.');
         throw ProcessExit(ExitCode.success.code);
       }
