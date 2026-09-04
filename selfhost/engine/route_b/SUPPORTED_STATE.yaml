@@ -17,7 +17,18 @@ lineage:
   # HEAD rather than equal to it. Commits after it must not change product code
   # without re-qualification; the repair commit that follows adds verification
   # only.
-  cli_revision: cba3501615f80aa2c0f0c631366639899b0a7241
+  # Re-qualified 2026-09-03 (FLUTTER-STORAGE-AUTHORITY-1). The previous
+  # identity was cba35016 / tree e3ebed51…, and it is superseded rather than
+  # deleted so a reader can tell WHICH product tree an older evidence document
+  # was measured against:
+  #   superseded: cli_revision cba3501615f80aa2c0f0c631366639899b0a7241
+  #               packages_shorebird_cli e3ebed51cabcc05423b85b4ea4b146fc734a5413
+  # What moved: `ArtifactOrigin` became the single artifact-storage authority,
+  # and the one call that downloads engine artifacts stopped escaping it. The
+  # SELECTORS did not move — same Flutter revision, same cell, same compiler
+  # archive, same analyzer, same updater — so this re-qualifies the producer
+  # tree, not the toolchain.
+  cli_revision: 5920a8bf0a992618bfe7d1680c5439abd7a4f55f
   cli_contains: 6b4f6c422bab55143ef04c8f43f92015ee3b3feb   # private-name resolution for constructions
   flutter_selector: e64eb0af52e1c43c3b21a39556d789538d0df9b3   # F4
   cell_address: cd848320d605ff8af5060cabf9a8d1b35853f752
@@ -39,7 +50,7 @@ lineage:
   # is a change to what "qualified" was established against. Re-qualifying is a
   # matter of re-running the verifier and updating two lines here.
   cli_product_tree:
-    packages_shorebird_cli: e3ebed51cabcc05423b85b4ea4b146fc734a5413
+    packages_shorebird_cli: 6c76e79a3ad1c86658a41b144dececb07ff5d3ca
     bin_internal: 67bb0a85a83177ad8afcf1765403e42a913e0377
   producer_engine_revision: dfa2b24ac38477f3705ff0357530f33fe09474b8   # built in; NOT the address
   fallback_engine_revision: 69f9831c360d9152862ec3897c67fb09ae843f3b
