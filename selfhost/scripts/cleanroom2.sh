@@ -139,7 +139,8 @@ PORT=$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print
 # every cell member must come from the overlay, and only non-cell assets may
 # fall through.
 python3 "$CLONE/selfhost/scripts/lib/overlay_origin.py" "$PORT" "$OVL" \
-  "$LOG/origin_requests.jsonl" > "$LOG/origin.log" 2>&1 &
+  "$LOG/origin_requests.jsonl" https://storage.googleapis.com "$CELL" \
+  > "$LOG/origin.log" 2>&1 &
 SRV=$!
 trap 'kill $SRV 2>/dev/null' EXIT
 for _ in $(seq 1 40); do
@@ -161,32 +162,51 @@ for plat in ios android; do
   else bad "precache --$plat failed"; tail -5 "$LOG/precache_$plat.log" | sed 's/^/      /'; fi
 done
 note "4b - ATTRIBUTION: every cell object came from the distribution"
-python3 - "$LOG/origin_requests.jsonl" "$CELL" <<'PY4'
+# THE PRECISE CLAIM. Everything the distribution CONTAINS must be served from
+# it; everything it deliberately does not contain may fall through. Keying on
+# "under the cell path" instead was too strict and failed on
+# android-arm-profile/darwin-x64.zip -- one of the ten CACHE/TRANSPORT objects
+# ANDROID-CELL-SUPPLY-1 measured as not identity-bearing and left
+# fallback-permitted on purpose. LAYOUT.txt is the exact membership list.
+python3 - "$LOG/origin_requests.jsonl" "$CELL" "$ROOT/boot/cell-dist/LAYOUT.txt" <<'PY4'
 import json, sys
 rows = [json.loads(l) for l in open(sys.argv[1]) if l.strip()]
 cell = sys.argv[2]
-inc = [r for r in rows if cell in r['path']]
-frm_overlay = [r for r in inc if r['source'] == 'overlay']
-frm_upstream = [r for r in inc if r['source'] == 'upstream']
-other = [r for r in rows if cell not in r['path']]
-print(f"    requests total                          {len(rows)}")
-print(f"    under the CELL path                     {len(inc)}")
-print(f"      served from the hydrated overlay      {len(frm_overlay)}")
-print(f"      fell through to upstream              {len(frm_upstream)}")
-print(f"    not under the cell path (fallthrough)   {len(other)}")
-for r in frm_upstream:
+distributed = set()
+for l in open(sys.argv[3]):
+    if l.startswith('#') or not l.strip():
+        continue
+    distributed.add('/' + l.split()[0])
+member = [r for r in rows if r['path'].split('?')[0] in distributed]
+other = [r for r in rows if r['path'].split('?')[0] not in distributed]
+m_over = [r for r in member if r['source'] == 'overlay']
+m_up = [r for r in member if r['source'] == 'upstream']
+o_cell = [r for r in other if cell in r['path']]
+print(f"    requests total                              {len(rows)}")
+print(f"    for objects IN the distribution             {len(member)}")
+print(f"      served from the hydrated overlay          {len(m_over)}")
+print(f"      served by upstream                        {len(m_up)}")
+print(f"    for objects NOT in the distribution         {len(other)}")
+print(f"      of those, under the cell path (rewritten) {len(o_cell)}")
+for r in m_up:
     print(f"      LEAKED TO UPSTREAM {r['path']}")
 bad = 0
-if not inc:
-    print('    FAIL no request reached the cell path — hydration proved nothing')
+if not member:
+    print('    FAIL no distributed object was requested — hydration proved nothing')
     bad = 1
-if frm_upstream:
-    print('    FAIL a cell object was served by upstream, not by the distribution')
+if m_up:
+    print('    FAIL a distributed object was served by upstream, not by the distribution')
+    bad = 1
+nonok = [r for r in rows if r['status'] not in (200, 206)]
+print(f"    non-200 responses                           {len(nonok)}")
+for r in nonok[:5]:
+    print(f"      {r['status']} {r['source']} {r['path'][:80]}")
+if nonok:
     bad = 1
 sys.exit(bad)
 PY4
-[[ $? -eq 0 ]] && ok "every cell-path object was served from the hydrated overlay, none from upstream" \
-               || bad "a cell object did not come from the distribution"
+[[ $? -eq 0 ]] && ok "every distributed object came from the hydrated overlay; every response 200" \
+               || bad "a distributed object did not come from the distribution, or a request failed"
 # And the artifacts must actually be on disk for both platforms.
 for d in ios-release android-arm64-release; do
   if compgen -G "$FD/bin/cache/artifacts/engine/$d/*" >/dev/null 2>&1; then

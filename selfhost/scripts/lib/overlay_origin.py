@@ -14,7 +14,26 @@ UPSTREAM. That distinction is the measurement: a cell member served from
 upstream would mean the distribution was not actually used, and an asset that
 cannot fall through would mean the origin is not operator-shaped.
 
-    overlay_origin.py <port> <overlayDir> <logPath> [upstreamBase]
+    overlay_origin.py <port> <overlayDir> <logPath> [upstreamBase] [hashMap]
+
+THE HASH REWRITE IS PART OF BEING OPERATOR-SHAPED. Upstream has never published
+our cell, so a non-overridden artifact has to be resolved under the UPSTREAM
+FLUTTER engine revision -- which is what the production CDN does, measured
+directly:
+
+    GET /flutter_infra_release/flutter/f85251f3…/android-arm-profile/darwin-x64.zip
+    302 -> /gcs/flutter_infra_release/flutter/83675ed2…/android-arm-profile/darwin-x64.zip
+
+Without that rewrite every CACHE/TRANSPORT object -- the ten that
+ANDROID-CELL-SUPPLY-1 deliberately left out of cell identity -- 404s, and
+Android hydration fails for a reason that has nothing to do with the
+distribution.
+
+The rewrite target is NOT outside knowledge: `flutter_engine_revision` lives in
+the cell's own `artifacts_manifest.yaml`, which is one of the 30 distributed
+members. Rewriting to experimental_hashes.map's FALLBACK engine instead was
+measured and is wrong -- 404, because that engine's artifacts are not in the
+flutter_infra_release bucket either.
 """
 import hashlib
 import http.server
@@ -39,6 +58,17 @@ LOG = sys.argv[3]
 # fonts live in the flutter_infra_release bucket, not beneath Shorebird's.
 UPSTREAM = (sys.argv[4] if len(sys.argv) > 4
             else 'https://storage.googleapis.com').rstrip('/')
+CELL = sys.argv[5] if len(sys.argv) > 5 else ''
+FALLBACK = {}
+if CELL:
+    # Read the rewrite target out of the DISTRIBUTION itself.
+    mf = os.path.join(OVERLAY, 'download.shorebird.dev', 'shorebird', CELL,
+                      'artifacts_manifest.yaml')
+    if os.path.isfile(mf):
+        for line in open(mf):
+            if line.startswith('flutter_engine_revision:'):
+                FALLBACK[CELL] = line.split(':', 1)[1].strip()
+                break
 lock = threading.Lock()
 
 
@@ -71,7 +101,14 @@ class H(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
-        url = UPSTREAM + '/' + self.path.lstrip('/')
+        rel = self.path.lstrip('/')
+        rewritten = None
+        for exp, pinned in FALLBACK.items():
+            if exp in rel:
+                rel = rel.replace(exp, pinned)
+                rewritten = f'{exp[:12]}->{pinned[:12]}'
+                break
+        url = UPSTREAM + '/' + rel
         try:
             with urllib.request.urlopen(url, timeout=300) as r:
                 body = r.read()
@@ -81,7 +118,7 @@ class H(http.server.BaseHTTPRequestHandler):
         except Exception as e:                        # noqa: BLE001
             body, status = str(e).encode(), 599
         record({'path': self.path, 'source': 'upstream', 'status': status,
-                'bytes': len(body),
+                'bytes': len(body), 'rewritten': rewritten,
                 'sha256': hashlib.sha256(body).hexdigest()})
         self.send_response(status)
         self.send_header('Content-Length', str(len(body)))
