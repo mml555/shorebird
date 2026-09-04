@@ -1,4 +1,4 @@
-# cspell:words nutsdb epath mabi mfile mext sbucket sfile
+# cspell:words nutsdb epath mabi mfile mext sbucket sfile armv
 #
 # Self-hosted Shorebird CDN cache (Caddy).
 #
@@ -158,11 +158,29 @@
 	# Upstream publishes no such artifact, so protecting it globally cannot 404 a
 	# fetch that would otherwise legitimately succeed.
 	#
+	# ALL THREE RELEASE ABIs, not just arm64 (2026-09-04). This read
+	# `android-arm64-release/` alone, which left an asymmetry that
+	# ANDROID-CELL-SUPPLY-1 measured and named: `android-arm-release/` and
+	# `android-x64-release/` were fallback-permitted, and each holds a host
+	# `gen_snapshot` that compiles the `libapp.so` shipping for armv7 and
+	# x86_64. Four of the fourteen identity-bearing Android members were
+	# therefore addressed by a cell while the CDN still allowed some other
+	# revision's bytes to satisfy them — the exact substitution the whole
+	# addressing scheme exists to prevent.
+	#
+	# This CHANGES BEHAVIOUR for mapped hashes that do not publish these paths:
+	# they now 404 instead of falling through to the pinned revision. That is
+	# intended and it is what arm64 has always done. A cell whose Android
+	# support is recorded as unsupported (cd848320…) should answer a request for
+	# a release-mode Android engine with a loud absence, not with a different
+	# lineage's engine — which is exactly the silent cross-toolchain mix the
+	# const_finder note above cost a full warm run to find.
+	#
 	# Caddy allows only one path_regexp per named matcher, so ownership is one
 	# alternation. expression is AND'd with it.
 	@must_be_local {
 		expression `{stock_engine_hash} != ""`
-		path_regexp ^/(flutter_infra_release/flutter/[0-9a-f]{40}/(android-arm64-release/|ios-release/|(linux|darwin|windows)-(x64|arm64)/artifacts\.zip$|darwin-arm64/font-subset\.zip$|flutter_patched_sdk_product\.zip$|flutter_patched_sdk\.zip$|dart-sdk-[a-z0-9-]+\.zip$|engine_stamp\.json$)|download\.flutter\.io/io/flutter/|[^/]+/shorebird/[0-9a-f]{40}/(patch-(darwin-arm64|darwin-x64|linux-x64)\.zip$|aot-tools\.dill$|artifacts_manifest\.yaml$|route-b-compiler-[a-z0-9-]+\.zip$))
+		path_regexp ^/(flutter_infra_release/flutter/[0-9a-f]{40}/(android-(arm|arm64|x64)-release/|ios-release/|(linux|darwin|windows)-(x64|arm64)/artifacts\.zip$|darwin-arm64/font-subset\.zip$|flutter_patched_sdk_product\.zip$|flutter_patched_sdk\.zip$|dart-sdk-[a-z0-9-]+\.zip$|engine_stamp\.json$)|download\.flutter\.io/io/flutter/|[^/]+/shorebird/[0-9a-f]{40}/(patch-(darwin-arm64|darwin-x64|linux-x64)\.zip$|aot-tools\.dill$|artifacts_manifest\.yaml$|route-b-compiler-[a-z0-9-]+\.zip$))
 	}
 
 	# ---- Per-cell ownership -------------------------------------------------

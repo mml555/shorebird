@@ -66,10 +66,53 @@ def main():
             expect_covered.append(
                 f'/flutter_infra_release/flutter/{cell}/{pkg}.zip')
 
+    # ANDROID: all three RELEASE ABIs, and only the release ones.
+    #
+    # `android-arm64-release/` was protected while `android-arm-release/` and
+    # `android-x64-release/` were not, and nothing here would have noticed --
+    # each of the latter two carries a host gen_snapshot that compiles a shipped
+    # libapp.so, so a fallback there substitutes another lineage's compiler.
+    # The uncovered half of this table is the part that keeps the fix narrow:
+    # the profile/debug objects are CACHE/TRANSPORT, cannot change a release,
+    # and must stay fallback-permitted so an unsupported cell's `precache`
+    # still completes.
+    for cell in PROTECTED_CELLS:
+        for abi in ('arm', 'arm64', 'x64'):
+            for obj in ('darwin-x64.zip', 'artifacts.zip'):
+                expect_covered.append(
+                    f'/flutter_infra_release/flutter/{cell}/'
+                    f'android-{abi}-release/{obj}')
+
+    # Maven is protected host-wide and hash-generically, which is the only thing
+    # that can work: Gradle validates the version inside the .pom body against
+    # the coordinate, so a fallback is refused by Gradle rather than silently
+    # accepted. Asserted so a future edit cannot narrow the prefix away.
+    for cell in PROTECTED_CELLS:
+        for art in ('arm64_v8a_release', 'armeabi_v7a_release',
+                    'x86_64_release', 'flutter_embedding_release'):
+            for ext in ('jar', 'pom'):
+                expect_covered.append(
+                    f'/download.flutter.io/io/flutter/{art}/'
+                    f'1.0.0-{cell}/{art}-1.0.0-{cell}.{ext}')
+
     # Deliberately NOT owned per cell: a path the per-cell arms must not claim.
     for cell in PROTECTED_CELLS:
         expect_uncovered.append(
             f'/flutter_infra_release/flutter/{cell}/linux-x64/font-subset.zip')
+    # The debug/profile Android objects: reconstructible, not consumed by a
+    # release build, and required only because `shorebird release android`
+    # runs `flutter precache --android` unconditionally. Protecting these would
+    # 404 precache on every cell that does not publish 619 MB it cannot use.
+    for cell in PROTECTED_CELLS:
+        for abi in ('arm', 'arm64', 'x64'):
+            expect_uncovered.append(
+                f'/flutter_infra_release/flutter/{cell}/'
+                f'android-{abi}-profile/darwin-x64.zip')
+            expect_uncovered.append(
+                f'/flutter_infra_release/flutter/{cell}/'
+                f'android-{abi}-profile/artifacts.zip')
+        expect_uncovered.append(
+            f'/flutter_infra_release/flutter/{cell}/android-arm64/artifacts.zip')
 
     failures = []
     for path in expect_covered:

@@ -1,0 +1,110 @@
+
+== A - the twin macOS/iOS lines agree between the two cells
+    shared paths: 10   divergent: 0   missing from twin: 0
+  PASS  no divergence and nothing dropped
+  PASS  policy derives 30 members for macos-ios-android
+  PASS  macos-ios still derives 16 (the existing cell is untouched)
+
+== B - the stage is the cell it claims to be
+  PASS  exactly 30 files staged
+  PASS  14 macOS/iOS members byte-identical to the donor
+  PASS  engine_stamp.json identical in canonical form (15th)
+  PASS  artifacts_manifest.yaml differs in exactly 2 lines (target, override_list_from)
+  PASS  and it declares target ios+android
+  PASS  10 Android binary members are the built bytes verbatim
+  PASS  4 POMs templated to 1.0.0-%H with no producer revision left
+
+== C - the address, from a stage that is already complete
+  PASS  address computed: f85251f344600ae08196925a174e9cff8f0ff18e
+  PASS  recomputes independently from the banked manifest
+  PASS  manifest carries 30 members
+  PASS  descriptor declares cell macos-ios-android
+  PASS  the address is NOT the donor's
+
+== D - MUTATION CONTROLS: one byte must move the address
+  PASS  a Maven JAR: address moved f85251f344600ae08196925a174e9cff8f0ff18e -> adb81cd4f6846fb28a208c033ee3d214b7fcccc0
+  PASS  a release gen_snapshot (darwin-x64.zip): address moved f85251f344600ae08196925a174e9cff8f0ff18e -> a19449f391d76a217be1371a67982c62332bc963
+  PASS  a release engine artifacts.zip: address moved f85251f344600ae08196925a174e9cff8f0ff18e -> e205d36cf3bea10192850441edea1c3e030ed9e7
+  PASS  an armv7 gen_snapshot: address moved f85251f344600ae08196925a174e9cff8f0ff18e -> ff72c8ff69afc753334d2904ccc43352b177c46b
+  PASS  an x86_64 gen_snapshot: address moved f85251f344600ae08196925a174e9cff8f0ff18e -> 292ff44147887b398281d00b4e56be0791ab2c96
+  PASS  an ordinary POM field change moves the address (8087b4a44f025f240aef73cc4a7ce7f807f35351)
+  PASS  an unmutated clone reproduces the same address (so the moves above are the mutations)
+
+== E - REFUSAL CONTROLS: the hash is permitted in exactly one POM field
+  PASS  baseline: the project <version> IS accepted
+  PASS  probe has exactly one hash-bearing line, and it is a dependency's
+  PASS  the hash in a dependency <version>: refused -- probe.pom: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa outside the project <version> element
+  PASS  the hash in a POM comment: refused -- probe.pom: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa outside the project <version> element
+  PASS  a second <version>1.0.0-hash</version> line: refused -- probe.pom: 2 hash-bearing lines, exactly 1 permitted
+  PASS  a second hash on engine_stamp.json's single line: refused -- engine_stamp.json: residual hash after canonicalization
+  PASS  the hash on a data line of artifacts_manifest.yaml: refused -- artifacts_manifest.yaml: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa on a non-comment line
+  PASS  any hash in a member with no permitted field: refused -- random.txt: no permitted hash-bearing field
+
+== F - publish for real, into a SCRATCH overlay
+  PASS  publish address matches the dry run (f85251f344600ae08196925a174e9cff8f0ff18e)
+  PASS  all 30 rendered paths present in the overlay
+  PASS  8 Maven files published under 4 version directories
+  PASS  no literal %H survives in any published PATH
+  PASS  no literal %H survives in any rendered metadata BODY
+
+== F2 - every published POM declares the version it is served under
+  PASS  4 of 4 -- Gradle's consistency check can succeed
+
+== F3 - FETCH BACK: the bytes in the overlay are the bytes we staged
+  PASS  24 of 24 non-metadata members byte-identical after publication
+
+== F4 - the published tree reconstructs the addressed manifest
+  PASS  manifest reconstructed byte-identical
+  PASS  address reconstructed from the overlay
+
+== G - verify_cell_members.sh sees a green 30/30, and can go red
+      ok      manifest authenticates the address
+      ok      30 of 30 addressed members match the bytes served
+      ok      4 Maven POM(s) declare the version they are served under
+    
+    CELL MEMBERS VERIFIED (30/30)
+  PASS  30/30 verified
+  PASS  the Maven coordinate check ran on 4 POMs
+
+== G2 - DRIFT: one byte in a published JAR
+  PASS  reports DRIFTED on the exact member
+
+== G3 - SMUGGLING: the address moved into a POM field the schema forbids
+  PASS  the verifier refuses rather than normalising it away
+
+== G4 - COORDINATE MISMATCH: a POM whose bytes are addressed but whose version is wrong
+  PASS  the probe file contains no occurrence of the cell hash
+  PASS  reports the coordinate mismatch
+  PASS  green again after every probe is reverted
+
+== G5 - MISSING: a member the manifest names but the overlay does not serve
+  PASS  reports MISSING, not a silent pass
+
+== H - transactional properties still hold at 30 members
+  PASS  a second publish into an existing destination refuses
+  PASS  a collision on a MAVEN root refuses the whole transaction
+  PASS  no other root left behind by the refused transaction
+  PASS  the pre-existing bytes were not overwritten
+  PASS  a stage missing one Maven POM refuses before any address exists
+  PASS  no address banked for the refused transaction
+
+== I - Caddy protection covers the new identity members
+      matchers parsed      : 3
+      paths expected cover : 76
+      paths expected clear : 32
+      MATCHER COVERAGE OK
+  PASS  matcher coverage OK
+    identity members checked: 14   unprotected: 0
+  PASS  all 14 identity-bearing members are must-be-local at THIS address
+    cache/transport paths checked: 9   wrongly protected: 0
+  PASS  the 10 cache/transport paths stay fallback-permitted (the fix is narrow)
+
+== Z - the LIVE overlay was never written
+  PASS  no scratch cell appeared in the live overlay
+  PASS  no scratch Maven module appeared in the live overlay
+  PASS  the donor cell still verifies 16/16, untouched
+
+  scratch address : f85251f344600ae08196925a174e9cff8f0ff18e
+  scratch overlay : /Volumes/build/route-b/acs2/qual5/overlay
+  evidence        : /Volumes/build/route-b/acs2/qual5/ev2
+RESULT: macos-ios-android CELL QUALIFIED

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words dartaotruntime psdk apfs
+# cspell:words dartaotruntime psdk apfs RSTART
 #
 # mint_route_b_cell.sh -- give a changed compiler cell its own engine hash.
 #
@@ -293,39 +293,13 @@ v2_members() { # <policy> <cell>
   } | sort -u
 }
 
-# Files that legitimately carry the cell's own hash, and the ONLY places it may
-# appear in each. Anything else is refused rather than rewritten.
+# Files that legitimately carry the cell's own hash. The rule, and its refusals,
+# live in ONE place -- lib/v2_canonicalize.py -- because the verifier applies the
+# same rule and two copies can drift apart in the direction that matters (a rule
+# relaxed in the verifier and not here reports a drifted cell as intact).
+V2_CANON="$HERE/lib/v2_canonicalize.py"
 v2_canonicalize() { # <file> <hash>  -> canonical bytes on stdout
-  local f=${1:?} h=${2:?}
-  python3 - "$f" "$h" <<'V2PY'
-import sys, os
-path, h = sys.argv[1], sys.argv[2]
-raw = open(path, 'rb').read()
-name = os.path.basename(path)
-if h.encode() not in raw:
-    sys.stdout.buffer.write(raw); sys.exit(0)
-text = raw.decode('utf-8')
-out = []
-for line in text.split('\n'):
-    if h in line:
-        if name == 'engine_stamp.json':
-            # only as the git_revision value
-            if f'"git_revision": "{h}"' not in line:
-                sys.stderr.write(f'{name}: {h} outside git_revision\n'); sys.exit(3)
-            line = line.replace(f'"git_revision": "{h}"', '"git_revision": "%H"')
-        elif name == 'artifacts_manifest.yaml':
-            # comments only. flutter_engine_revision is the UPSTREAM Flutter base
-            # and must never be this hash, so a hit on a data line is a defect.
-            if not line.lstrip().startswith('#'):
-                sys.stderr.write(f'{name}: {h} on a non-comment line\n'); sys.exit(3)
-            line = line.replace(h, '%H')
-        else:
-            sys.stderr.write(f'{name}: no permitted hash-bearing field\n'); sys.exit(3)
-        if h in line:
-            sys.stderr.write(f'{name}: residual hash after canonicalization\n'); sys.exit(3)
-    out.append(line)
-sys.stdout.buffer.write('\n'.join(out).encode('utf-8'))
-V2PY
+  python3 "$V2_CANON" "${1:?}" "${2:?}"
 }
 
 # The canonical manifest. Staged tree mirrors the overlay with a LITERAL `%H`
@@ -403,7 +377,10 @@ v2_render() { # <stage> <final> <hash>
     base=$(basename "$rel")
     mkdir -p "$final/$(dirname "$rel")"
     case "$base" in
-      engine_stamp.json|artifacts_manifest.yaml)
+      engine_stamp.json|artifacts_manifest.yaml|*.pom)
+        # A POM is rendered metadata for the same reason engine_stamp.json is:
+        # it declares the cell's own address, and Gradle validates that
+        # declaration against the coordinate it was fetched from.
         sed "s/%H/$h/g" "$stage/$rel" > "$final/$rel" ;;
       *)
         cp "$stage/$rel" "$final/$rel" ;;
@@ -428,13 +405,13 @@ v2_verify_render() { # <stage> <final> <hash> <policy> <cell> <fallback> <manife
   # compressed archive members, so a tree-wide grep is guaranteed to fire and
   # would have made this control useless noise.
   local meta
-  for meta in "$final/flutter_infra_release/flutter/%H/engine_stamp.json" \
-              "$final/download.shorebird.dev/shorebird/%H/artifacts_manifest.yaml"; do
+  while IFS= read -r meta; do
     [[ -f "$meta" ]] || continue
     if grep -qF '%H' "$meta"; then
       echo "v2: literal %H remains in $(basename "$meta")" >&2; rm -rf "$back"; return 4
     fi
-  done
+  done < <(find "$final" -type f \( -name engine_stamp.json -o \
+                                    -name artifacts_manifest.yaml -o -name '*.pom' \))
   local after; after=$(mktemp)
   v2_manifest "$back" "$policy" "$cell" "$fb" > "$after" || { rm -rf "$back" "$after"; return 5; }
   cmp -s "$before" "$after" || {
@@ -444,25 +421,55 @@ v2_verify_render() { # <stage> <final> <hash> <policy> <cell> <fallback> <manife
   return $rc
 }
 
-# Directory-atomic: both hash roots are moved into place only after the whole
-# transaction has verified, and a partial failure rolls the first one back.
+# Directory-atomic: every hash-bearing root is moved into place only after the
+# whole transaction has verified, and a partial failure rolls back the ones
+# already moved.
+#
+# THE ROOTS ARE DISCOVERED, NOT LISTED. This used to enumerate
+# flutter_infra_release/flutter and download.shorebird.dev/shorebird, which
+# worked while `%H` was always one directory component directly under a known
+# root. Maven breaks that shape: the version lives four levels down
+# (`download.flutter.io/io/flutter/<artifact>/1.0.0-%H/`) AND in the filename.
+# A hard-coded list would have silently published nothing for those members --
+# the manifest would still hold them, so the cell would authenticate against an
+# overlay that could not serve it. So the transaction roots are every directory
+# whose own name carries `%H` and whose ancestors do not.
 v2_publish_tree() { # <final> <overlay> <hash>
-  local final=${1:?} overlay=${2:?} h=${3:?} root moved=()
-  for root in "flutter_infra_release/flutter" "download.shorebird.dev/shorebird"; do
-    [[ -d "$final/$root/%H" ]] || continue
-    local dest="$overlay/$root/$h"
+  local final=${1:?} overlay=${2:?} h=${3:?} rel dest moved=() f nf
+  # Filenames carry %H as well. Render them INSIDE $final, before anything has
+  # been moved, so the overlay still sees exactly one mutation per root.
+  while IFS= read -r f; do
+    nf="$(dirname "$f")/$(basename "$f" | sed "s/%H/$h/g")"
+    [[ "$nf" == "$f" ]] || mv "$f" "$nf" || return 8
+  done < <(find "$final" -type f -name '*%H*')
+
+  while IFS= read -r rel; do
+    dest="$overlay/${rel//%H/$h}"
     if [[ -e "$dest" ]]; then
       echo "v2: destination already exists, refusing the whole transaction: $dest" >&2
       local m; for m in "${moved[@]:-}"; do [[ -n "$m" ]] && rm -rf "$m"; done
       return 7
     fi
     mkdir -p "$(dirname "$dest")"
-    mv "$final/$root/%H" "$dest" || {
+    mv "$final/$rel" "$dest" || {
       local m; for m in "${moved[@]:-}"; do [[ -n "$m" ]] && rm -rf "$m"; done
       return 8; }
     moved+=("$dest")
-  done
+  done < <(v2_publish_roots "$final")
   return 0
+}
+
+# Every directory under <final> whose own name contains `%H` and whose ancestors
+# do not -- the outermost hash-bearing directory on each branch, which is the
+# largest unit that can be moved into the overlay in one operation.
+v2_publish_roots() { # <final>
+  ( cd "${1:?}" && find . -type d -name '*%H*' | sed 's|^\./||' ) \
+    | awk '{ p=$0; keep=1
+             while (match(p, "/[^/]*$")) {
+               p = substr(p, 1, RSTART-1)
+               if (index(p, "%H")) { keep=0; break }
+             }
+             if (keep) print }' | sort
 }
 
 # The whole transaction, in one place so no caller can reorder it.
