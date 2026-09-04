@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words dups DUPPY
 # verify_supported_state.sh -- re-check the DEPLOYABLE IDENTITY claims in
 # SUPPORTED_STATE.yaml against the artifacts themselves.
 #
@@ -29,7 +30,9 @@
 set -uo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO=$(cd "$HERE/../../.." && pwd)
-STATE="$HERE/SUPPORTED_STATE.yaml"
+# Overridable so the record's own format checks can be falsified against a
+# deliberately malformed copy without touching the real one.
+STATE="${STATE:-$HERE/SUPPORTED_STATE.yaml}"
 ROOT=${SHOREBIRD_ROOT:-/Volumes/build/route-b/shorebird-candidate}
 
 [[ -f "$STATE" ]] || { echo "no SUPPORTED_STATE.yaml at $STATE" >&2; exit 2; }
@@ -42,8 +45,42 @@ val() { sed -nE "s/^[[:space:]]*$1:[[:space:]]*([^[:space:]#]+).*/\1/p" "$STATE"
 # held a sequence and a mapping key at the same indent, so every check passed
 # against a document that would not load. A claim about format is a claim, and
 # claims here get checked.
+# AND IT MUST NOT CONTAIN A DUPLICATE KEY. `yaml.safe_load` accepts one
+# silently and keeps the LAST value, so a parse check cannot see it -- which is
+# not hypothetical: on 2026-09-04 a wording pass added a current `evidence:` key
+# beside an older one at the same level, and the authoritative `evidence` for a
+# SUPPORTED surface quietly resolved to the document of the lane that had
+# measured it UNSUPPORTED. A record whose keys can be shadowed is not
+# machine-readable in the sense this file claims.
 if command -v python3 >/dev/null 2>&1; then
-  if python3 -c 'import sys,yaml; yaml.safe_load(open(sys.argv[1]))' "$STATE" 2>/dev/null; then
+  if python3 - "$STATE" <<'DUPPY' 2>/dev/null
+import sys, yaml
+
+dups = []
+
+
+class Strict(yaml.SafeLoader):
+    pass
+
+
+def no_dups(loader, node, deep=False):
+    seen = set()
+    for k, _ in node.value:
+        key = loader.construct_object(k, deep=deep)
+        if key in seen:
+            dups.append((key, k.start_mark.line + 1))
+        seen.add(key)
+    return yaml.SafeLoader.construct_mapping(loader, node, deep)
+
+
+Strict.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_dups)
+yaml.load(open(sys.argv[1]), Loader=Strict)
+for key, line in dups:
+    sys.stderr.write(f'duplicate key {key!r} at line {line}\n')
+sys.exit(1 if dups else 0)
+DUPPY
+  then
     PARSE_OK=1
   else
     PARSE_OK=0
@@ -70,7 +107,10 @@ ANALYZER=$(val analyzer_sha256)
 echo "verify_supported_state -- record $STATE"
 case "$PARSE_OK" in
   1) ok "record parses as YAML" ;;
-  0) bad "record does NOT parse as YAML — it claims to be machine-readable" ;;
+  0) bad "record is not cleanly machine-readable — it either fails to parse or \
+carries a duplicate key (a duplicate PARSES and silently keeps the last value, \
+which is how an authoritative field gets shadowed); rerun the check by hand for \
+the line number: python3 - $STATE < the DUPPY heredoc in this script" ;;
   *) echo "  --      no python3; YAML parse not checked" ;;
 esac
 echo "  shorebird root : $ROOT"

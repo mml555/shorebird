@@ -88,11 +88,15 @@ cells:
     members: 30
     minted: 2026-09-04 (ANDROID-CELL-SUPPLY-2)
     status: SUPPORTED — this is lineage.cell_address (moved here 2026-09-04)
-    # What is proven, and what is not. An Android RELEASE builds against this
-    # cell end to end from a pristine engine cache; an Android PATCH has not
-    # been qualified on a physical device against it, and until it has, this
-    # cell is not the supported stack. Switching lineage.cell_address before
-    # that would make this record claim more than its evidence supports.
+    # `proven` below is the RELEASE-side evidence from the mint
+    # (ANDROID-CELL-SUPPLY-2); `physically_qualified` is the device evidence
+    # that licensed the selector move (ANDROID-FINAL-STACK-2). Both are current.
+    #
+    # This comment previously said an Android PATCH had not been qualified and
+    # that the cell was therefore not the supported stack. That was true when
+    # the cell was minted and stopped being true on 2026-09-04; it is replaced
+    # rather than annotated, because a status line that contradicts the
+    # authoritative fields below is worse than no comment at all.
     proven: >-
       `shorebird release android --artifact apk` exit 0 from an empty engine
       cache and an empty Gradle home; the 24-object measured workflow closure
@@ -204,6 +208,7 @@ product_surfaces:
     android:
       status: SUPPORTED — physically qualified 2026-09-04 against cell f85251f3…
       qualified: 2026-09-04 (ANDROID-FINAL-STACK-2)
+      cell: f85251f344600ae08196925a174e9cff8f0ff18e
       # WHAT WAS PROVEN, in one line each, because "SUPPORTED" is the strongest
       # word in this file and it should be readable without opening the lane
       # document:
@@ -227,49 +232,51 @@ product_surfaces:
         distribution through the Play Store, and any Android ABI beyond the
         three shipped (armeabi-v7a, arm64-v8a, x86_64).
       evidence: evidence/android-final-stack-2/RESULT.md
-      # The assessment that preceded this, kept because it is what a reader
-      # needs to understand WHY the move took a cell change rather than a fix.
+      supporting_evidence: evidence/android-cell-supply-2/RESULT.md
+
+      # HISTORY, nested so it cannot be read as current and cannot collide with
+      # the keys above.
+      #
+      # A DEFECT THIS RESTRUCTURE FIXES, recorded because it is the more serious
+      # of the two problems here. The 2026-09-04 wording pass added a current
+      # `evidence:` key while leaving the older `evidence:` line at the SAME
+      # level, so the mapping had a duplicate key and the last one won -- the
+      # authoritative `evidence` for a SUPPORTED surface silently resolved to
+      # the document of the lane that had measured it UNSUPPORTED. A YAML
+      # duplicate key does not error, it just quietly takes the wrong value,
+      # which is exactly why the record's own machine-readability check exists.
+      # Two forward-looking keys (`to_support`, `remaining_for_support`) were
+      # also left at the authoritative level, where they contradicted the status
+      # line above them.
       superseded_assessment:
         status: UNSUPPORTED ON THIS CELL
         assessed: 2026-09-03 (ANDROID-FINAL-STACK-1)
         cell: cd848320d605ff8af5060cabf9a8d1b35853f752
-      # CORRECTION. This line first read "SUPPORTED — see ANDROID rows in
-      # WORKFLOW_CERTIFICATION.md", written the same day in the ADD-TO-APP-1
-      # wording pass. That was an over-claim: the re-certification against the
-      # final stack is entirely iOS (rows 1 and 7 via 6F/6G, the rest carried
-      # forward), and ANDROID-FINAL-STACK-1 then measured the opposite.
-      #
-      # `shorebird release android` cannot build against cell cd848320: the
-      # cell publishes NO Android engine artifacts, the pinned Flutter's
-      # engine.version IS the cell, and `android-arm64-release/` is in the
-      # CDN's @must_be_local matcher — so the 404 is a deliberate protection,
-      # not a gap to route around.
-      what_works: the Android release → patch → discovery → download →
-        physical activation path itself is sound on today's CLI, producer and
-        control plane, proven end to end on a STOCK engine (309dd657…) with an
-        on-screen marker change on a physical CPH2551. Android patching is
-        bidiff; it needs neither Route B nor the AOT linker.
-      to_support: publish and qualify Android engine artifacts for the cell
-        (at minimum android-arm64-release, which @must_be_local requires be
-        genuinely ours). Cell/architecture work; not started.
-      evidence: evidence/android-final-stack-1/RESULT.md
-      # ADDITION, 2026-09-04 (ANDROID-CELL-SUPPLY-2). Everything above remains
-      # true OF THIS CELL and is not edited. The `to_support` work has since
-      # been done, on a DIFFERENT cell: f85251f3… publishes all three Android
-      # release ABIs and the four Maven modules from our own engine lineage, and
-      # an ordinary `shorebird release android` completes against it from a
-      # pristine cache. See cells: above.
-      #
-      # That does NOT make Android supported. A release is not a patch: physical
-      # Android patch qualification against f85251f3… has not been run, so
-      # neither cell carries an Android support claim yet. What changed is that
-      # the blocker is no longer architectural.
-      superseded_blocker: >-
-        "the cell publishes NO Android engine artifacts" — no longer true of
-        f85251f3…, still true of cd848320…
-      remaining_for_support: physical Android patch qualification against
-        f85251f3…; then lineage.cell_address may move.
-      addition_evidence: evidence/android-cell-supply-2/RESULT.md
+        evidence: evidence/android-final-stack-1/RESULT.md
+        # Still true OF THAT CELL, and that is why the move took a new cell
+        # rather than a fix: `shorebird release android` cannot build against
+        # cd848320 because the cell publishes NO Android engine artifacts, the
+        # pinned Flutter's engine.version IS the cell, and
+        # `android-arm64-release/` is in the CDN's @must_be_local matcher — so
+        # the 404 is a deliberate protection, not a gap to route around.
+        finding: >-
+          the Android release → patch → discovery → download → physical
+          activation path was already sound on that day's CLI, producer and
+          control plane, proven end to end on a STOCK engine (309dd657…) with an
+          on-screen marker change on a physical CPH2551. What was missing was a
+          cell that served Android engine artifacts. Android patching is bidiff;
+          it needs neither Route B nor the AOT linker.
+        what_it_asked_for: >-
+          publish and qualify Android engine artifacts for the cell (at minimum
+          android-arm64-release, which @must_be_local requires be genuinely
+          ours). DONE 2026-09-04 on cell f85251f3…, for all three release ABIs
+          and the four Maven modules.
+        # An earlier version of this row read "SUPPORTED — see ANDROID rows in
+        # WORKFLOW_CERTIFICATION.md", written during the ADD-TO-APP-1 wording
+        # pass. That was an over-claim: the re-certification against the final
+        # stack is entirely iOS (rows 1 and 7 via 6F/6G, the rest carried
+        # forward), and ANDROID-FINAL-STACK-1 then measured the opposite.
+
   ios_add_to_app:
     status: UNSUPPORTED
     assessed: 2026-09-03 (ADD-TO-APP-1)
