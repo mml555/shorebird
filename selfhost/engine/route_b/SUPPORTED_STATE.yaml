@@ -293,11 +293,31 @@ distribution:
   # CLEANROOM-1 found; SELFHOST-CLEANROOM-2 is the hostile re-run that decides
   # whether `status: OK` is earned. Until it passes, this is not OK -- the
   # repairs are individually proven and the end-to-end claim is not.
-  status: REPAIRED — pending SELFHOST-CLEANROOM-2
-  reason: SELFHOST-DISTRIBUTION-1 closed the CLEANROOM-1 defects
-  assessed: 2026-09-04 (SELFHOST-CLEANROOM-1)
+  status: OK
+  reason: SELFHOST-CLEANROOM-2 reproduced the stack in a sealed cleanroom
+  assessed: 2026-09-04 (SELFHOST-CLEANROOM-1, negative)
   repaired: 2026-09-04 (SELFHOST-DISTRIBUTION-1)
-  cleanroom_reproducible: pending re-measurement
+  reproved: 2026-09-04 (SELFHOST-CLEANROOM-2)
+  cleanroom_reproducible: true
+  # What "true" rests on, measured with the qualification machine's paths and
+  # caches provably unreadable (a Seatbelt profile, with the denial asserted per
+  # path AND the control that those paths are readable outside it):
+  #   an immutable selfhost tag resolves anonymously
+  #   the bootstrap completes from that tag alone
+  #   the record lints clean with no external dependency
+  #   cli_revision and flutter_selector resolve
+  #   the RECORDED selector's engine.version IS the recorded cell
+  #   the cell hydrates 30/30 from the durable distribution
+  #   SUPPORTED STATE VERIFIED
+  #   iOS and Android release-side artifacts hydrate, no devices
+  #   18 of 18 distributed objects served from the hydrated overlay,
+  #     0 from upstream, 0 non-200 responses
+  # The cleanroom found two real defects in the repair before passing -- a
+  # bootstrap that hydrated where neither consumer reads, and an audit script
+  # with a hard-coded path on the qualification machine. Both are fixed; that
+  # is the argument for running it at all.
+  cleanroom_evidence: evidence/cleanroom-2/RESULT.md
+  proven_at_revision: df037532d3ce613651e22274abbd82bedf1820e2
   evidence: evidence/cleanroom-1/RESULT.md
   repair_evidence: evidence/distribution-1/RESULT.md
   repairs:
