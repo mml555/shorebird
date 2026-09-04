@@ -17,7 +17,14 @@ function update_flutter {
   if [[ -d "$FLUTTER_PATH" ]]; then
     git -C "$FLUTTER_PATH" fetch
   else
-    git clone --filter=tree:0 "${SHOREBIRD_FLUTTER_GIT_URL:-https://github.com/shorebirdtech/flutter.git}" --no-checkout "$FLUTTER_PATH"
+    # THE DEFAULT MUST BE A REMOTE THAT HAS OUR REVISIONS. It used to be
+    # shorebirdtech/flutter, which does not carry the self-hosted selector --
+    # SELFHOST-CLEANROOM-1 measured the consequence: a clean bootstrap died with
+    # `remote error: upload-pack: not our ref <selector>`, so nobody but the
+    # qualification machine could install this stack at all. The fork carries
+    # both the selector and the engine producers; SHOREBIRD_FLUTTER_GIT_URL
+    # still overrides it for an operator serving a local mirror.
+    git clone --filter=tree:0 "${SHOREBIRD_FLUTTER_GIT_URL:-https://github.com/mml555/shorebird-flutter.git}" --no-checkout "$FLUTTER_PATH"
   fi
   # -c to avoid printing a warning about being in a detached head state.
   git -C "$FLUTTER_PATH" -c advice.detachedHead=false checkout "$FLUTTER_VERSION"

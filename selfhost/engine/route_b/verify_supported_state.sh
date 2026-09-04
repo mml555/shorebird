@@ -189,11 +189,24 @@ fi
 
 FDIR="$ROOT/bin/cache/flutter/$SELECTOR"
 if [[ -d "$FDIR/.git" ]]; then
-  # COMMITTED blob, not the working tree: an uncommitted engine.version must
-  # never be part of the qualified lineage, and reading the file would not see
-  # the difference.
-  cmp_v "Flutter engine.version (committed blob) selects the recorded cell" \
-    "$CELL" "$(git -C "$FDIR" show HEAD:bin/internal/engine.version 2>/dev/null | tr -d '[:space:]')"
+  # THE CHAIN MUST BE READ AT THE RECORDED REVISION, NOT AT HEAD.
+  #
+  #   record.flutter_selector -> blob AT THAT REVISION -> engine.version
+  #                           -> record.cell_address
+  #
+  # This used to read `HEAD:bin/internal/engine.version`, which is satisfied by
+  # whatever HEAD happens to carry -- so it pinned no revision at all.
+  # SELFHOST-CLEANROOM-1 measured the consequence: the recorded selector's own
+  # blob named the SUPERSEDED cell while HEAD carried the supported one, and the
+  # check passed. An operator cloning the recorded selector would have got the
+  # wrong engine. HEAD is not an identity.
+  cmp_v "Flutter engine.version at the RECORDED selector selects the recorded cell" \
+    "$CELL" "$(git -C "$FDIR" show "$SELECTOR:bin/internal/engine.version" 2>/dev/null | tr -d '[:space:]')"
+  # HEAD must also BE the recorded selector, or the checkout in use is not the
+  # one the record describes -- the blob check above would still pass while the
+  # running tree was something else entirely.
+  cmp_v "the Flutter checkout's HEAD IS the recorded selector" \
+    "$SELECTOR" "$(git -C "$FDIR" rev-parse HEAD 2>/dev/null)"
   if [[ -z "$(git -C "$FDIR" status --porcelain 2>/dev/null)" ]]; then
     ok "Flutter checkout is clean"
   else

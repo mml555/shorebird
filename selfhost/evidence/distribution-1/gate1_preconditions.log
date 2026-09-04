@@ -1,0 +1,31 @@
+
+== 1a - the two candidate revisions
+    qualified checkout HEAD (SHOREBIRD_ROOT)       5b180d224df04a267a19888c3f344474e243b382
+    the commit the AFS2 run built from             7b253b2a0a47d8eacb52e50c78c2c548ba1e5d44
+    they are DIFFERENT commits — so commit identity alone cannot carry the claim
+
+== 1b - TREE identity, which is what Flutter's behaviour depends on
+    qualified HEAD tree                            0c265f64c428e94d0a1a5afcbd6431ea6a302b1e
+    AFS2 HEAD tree                                 0c265f64c428e94d0a1a5afcbd6431ea6a302b1e
+  PASS  IDENTICAL trees — the qualified revision's source is byte-identical to what AFS2 built from
+
+== 1c - ancestry
+  PASS  exactly one parent (not a merge)
+  PASS  parent is exactly the recorded selector e64eb0af52e1c43c3b21a39556d789538d0df9b3
+
+== 1d - the delta is ONLY the selector movement
+    files changed: bin/internal/engine.version 
+  PASS  exactly one file changed, and it is the selector
+  PASS  exactly one line replaced (2 changed lines)
+    cd848320d605ff8af5060cabf9a8d1b35853f752 -> f85251f344600ae08196925a174e9cff8f0ff18e
+  PASS  it moved FROM the superseded cell
+  PASS  it moved TO the supported cell
+
+== 1e - the working tree is clean, so HEAD is the whole story
+  PASS  qualified Flutter checkout is clean
+
+== RESULT
+  revision to make durable: 5b180d224df04a267a19888c3f344474e243b382
+  its tree:                 0c265f64c428e94d0a1a5afcbd6431ea6a302b1e
+  AFS2's commit (same tree, different metadata): 7b253b2a0a47d8eacb52e50c78c2c548ba1e5d44
+  GATE 1 PRECONDITIONS ESTABLISHED
