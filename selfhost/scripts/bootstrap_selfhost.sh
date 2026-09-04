@@ -15,7 +15,9 @@
 #
 #   bootstrap_selfhost.sh --root DIR [--ref TAG|REV] [--repo URL]
 #
-# --ref should be an immutable selfhost-v* tag. It defaults to the newest one
+# --ref should be an annotated selfhost-v* tag (immutable INTENT -- a tag can be
+# force-moved, so the real guarantees are the digests committed in the record).
+# It defaults to the newest one
 # the remote advertises, because "clone the repo" lands on a branch that is not
 # the supported stack.
 set -uo pipefail
@@ -48,7 +50,7 @@ DIST="$ROOT/cell-dist"
 # because the bytes were somewhere neither consumer looks.
 OVERLAY="$CLONE/selfhost/cdn/overlay"
 
-note "1 - the immutable distribution ref"
+note "1 - the distribution ref (annotated tag, immutable intent)"
 if [[ -z "$REF" ]]; then
   REF=$(git ls-remote --tags "$REPO_URL" 'selfhost-v*' 2>/dev/null \
         | sed 's|.*refs/tags/||' | grep -v '\^{}' | sort -V | tail -1)

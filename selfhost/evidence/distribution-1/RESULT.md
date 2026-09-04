@@ -99,6 +99,15 @@ promise from the host: a replaced asset stops matching `bundle_sha256` and stops
 reconstructing the address. The proof checks the download against both the
 digest shipped beside it and the one in `SUPPORTED_STATE.yaml`.
 
+**A wording correction, made after review.** GitHub reports this release as
+`immutable: false` — checked, not assumed — so the *asset* must not be described
+as immutable. The accurate claim, and the stronger one in the way that matters,
+is that the cell distribution is **durably distributed, content-addressed, and
+fail-closed against replacement**: a substituted asset fails verification
+instead of silently becoming the supported cell. Where "immutable" still appears
+in this document it refers to the annotated *tag*, whose guarantee is
+immutable-**intent** rather than enforced.
+
 | proof | result |
 |---|---|
 | download into an empty directory, anonymously, no HOME | ✓ 528 MB |

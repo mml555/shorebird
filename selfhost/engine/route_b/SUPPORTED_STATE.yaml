@@ -256,9 +256,13 @@ cell_distribution:
   bundle_bytes: 550801920
   layout_sha256: 476982bed83ae4206d3352209faa288bb1612dc5c5a3bf4eb2e25a581cba7f77
   descriptor_sha256: f85251f344600ae08196925a174e9cff8f0ff18e62de25fd8c03db748be1f84b
-  # The immutability guarantee is these digests being committed HERE, not a
-  # promise from the host: a release asset can be replaced, and a replaced one
-  # stops matching bundle_sha256 and stops reconstructing the address.
+  # NOT "immutable" -- GitHub reports this release as `immutable: false`, and
+  # that was checked rather than assumed. The guarantee is the one that matters
+  # and it is stronger in the way that matters: DURABLY DISTRIBUTED,
+  # CONTENT-ADDRESSED, AND FAIL-CLOSED AGAINST REPLACEMENT. The bundle digest is
+  # committed here and the cell address authenticates its members, so a replaced
+  # asset stops matching bundle_sha256, stops reconstructing the address, and
+  # fails verification instead of silently becoming the supported cell.
   location:
     kind: github-release-asset
     repo: https://github.com/mml555/shorebird
@@ -289,10 +293,13 @@ cell_distribution:
 #
 #   capability qualified  !=  product distributable
 distribution:
-  # REPAIRED but not yet re-proven. SELFHOST-DISTRIBUTION-1 closed every defect
-  # CLEANROOM-1 found; SELFHOST-CLEANROOM-2 is the hostile re-run that decides
-  # whether `status: OK` is earned. Until it passes, this is not OK -- the
-  # repairs are individually proven and the end-to-end claim is not.
+  # SELFHOST-DISTRIBUTION-1 closed every defect CLEANROOM-1 found, and
+  # SELFHOST-CLEANROOM-2 re-proved the whole path in the same hostile room --
+  # against the published tag, not merely its parent. This comment previously
+  # said the repairs were "not yet re-proven" and that the status was therefore
+  # not OK; that was true between the two lanes and stopped being true when
+  # CLEANROOM-2 passed. Replaced rather than annotated, because a comment
+  # contradicting the field below it is worse than no comment.
   status: OK
   reason: SELFHOST-CLEANROOM-2 reproduced the stack in a sealed cleanroom
   assessed: 2026-09-04 (SELFHOST-CLEANROOM-1, negative)
@@ -302,7 +309,7 @@ distribution:
   # What "true" rests on, measured with the qualification machine's paths and
   # caches provably unreadable (a Seatbelt profile, with the denial asserted per
   # path AND the control that those paths are readable outside it):
-  #   an immutable selfhost tag resolves anonymously
+  #   an annotated selfhost tag (immutable intent) resolves anonymously
   #   the bootstrap completes from that tag alone
   #   the record lints clean with no external dependency
   #   cli_revision and flutter_selector resolve
@@ -328,9 +335,14 @@ distribution:
   repair_evidence: evidence/distribution-1/RESULT.md
   repairs:
     - >-
-      immutable distribution ref: selfhost-v1.1.0 carries the current record,
-      the cell-distribution metadata, the corrected selector and the bootstrap
-      path. A bare clone no longer has to know about a branch.
+      a durable distribution ref: selfhost-v1.1.1 (annotated, immutable intent)
+      carries the current record, the cell-distribution metadata, the corrected
+      selector and the bootstrap path. A bare clone no longer has to know about
+      a branch. DO NOT PIN selfhost-v1.1.0 -- an earlier bullet here named it,
+      and its bootstrap cannot complete: it hydrated the cell where neither the
+      verifier nor the CDN reads. It is kept because refs are provenance, and
+      bootstrap_selfhost.sh auto-discovers the NEWEST selfhost-v* tag so an
+      operator following the documented path does not land on it.
     - >-
       the 30 cell member BYTES are published as release cell-f85251f3 with the
       bundle digest committed here. Proven: downloaded into an empty directory,
@@ -357,15 +369,17 @@ distribution:
   # non-byte-reproducible, so the cell can be DISTRIBUTED but never re-derived.
   # Recorded here so nobody plans a "rebuild it" recovery path.
   cell_is_distribution_only: true
-  # Measured in a Seatbelt-isolated cleanroom with the qualification machine's
-  # paths and caches provably unreadable. What survives and what does not:
-  durable:
+  # THE 2026-09-04 CLEANROOM-1 ASSESSMENT, kept as history. Every item under
+  # `not_durable_at_assessment` has since been repaired -- see `repairs` below
+  # and `cleanroom_evidence` for the re-proof. Retained rather than deleted so
+  # an older evidence document naming these gaps stays readable.
+  durable_at_assessment:
     - both repositories clone anonymously
     - cli_revision resolves in the durable repository
     - both engine producers resolve at refs pointing AT the commit
     - the cell DESCRIPTOR is committed, so membership and all 30 digests are durable
     - the cell address recomputes from that descriptor inside the cleanroom
-  not_durable:
+  not_durable_at_assessment:   # ALL REPAIRED — see `repairs`
     - >-
       all 30 addressed cell member BYTES are absent from a fresh clone.
       selfhost/cdn/overlay/* is gitignored, no release asset carries them, and
@@ -385,10 +399,15 @@ distribution:
       no immutable ref names the current record: the newest selfhost-v* tag
       carries none, and only the mutable tip of a non-default branch describes
       the current stack.
-  # So the honest one-line summary, which is what a reader should take away:
+  # The one-line summary a reader should take away. It said "the self-hosted
+  # distribution is not reproducible from durable sources" until 2026-09-04,
+  # which was the CLEANROOM-1 verdict and is now false -- and it sat directly
+  # under `status: OK`, contradicting it.
   summary: >-
-    the runtime stack is qualified; the self-hosted distribution is not
-    reproducible from durable sources. Repair is SELFHOST-DISTRIBUTION-1.
+    the runtime stack is qualified AND the self-hosted distribution reproduces
+    from durable sources: an annotated tag, two anonymously-clonable
+    repositories, and a content-addressed cell distribution. Verified in a
+    sealed cleanroom with the qualification machine unreadable.
 
 product_surfaces:
   # WHICH INTEGRATION SHAPES this stack supports, as distinct from which Dart
