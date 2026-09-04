@@ -2,9 +2,64 @@
 <!-- cspell:words APFS CODEPATCH PRECOMPILER Werror caffeinate dartaotruntime SEGVs Specializer diskutil dumpsys flowgraph iface killgate libdart nodm nofail precompiler unapply -->
 <!-- cspell:words tearoff DNDEBUG SEGV LINKEDIT ourengine noinstall SELTOTAL hosttest unrun closurizing closurized closurize closurization bodyless pids footgun mtimes repointed rbtest Devirtualization genkernel misparse -->
 <!-- cspell:words airgap justlaunch noninteractive SIGTRAP dynmod absolutized DEFAULTPATH SIGPIPE PIPESTATUS -->
-<!-- cspell:words SBRBPTCH inspectable janky premain representability routeb reconstructibility productionization uiautomator screencap keyguard bidiff Lockscreen armv cipd -->
+<!-- cspell:words SBRBPTCH inspectable janky premain representability routeb reconstructibility productionization uiautomator screencap keyguard bidiff Lockscreen armv cipd --> bmgr
 
 # Handoff — engine improvements (as of 2026-08-07)
+
+## 2026-09-04 — ANDROID-CELL-SUPPLY-2 + ANDROID-FINAL-STACK-2: Android is supported, and the supported cell moved
+
+    lineage.cell_address   cd848320d605ff8af5060cabf9a8d1b35853f752
+                       ->  f85251f344600ae08196925a174e9cff8f0ff18e   (30 members)
+    standalone_flutter_app.android   UNSUPPORTED ON THIS CELL -> SUPPORTED
+
+**Everything below this entry about Android and `cd848320…` is correct history
+and is not edited.** The entries dated 2026-09-03 say the frozen cell publishes
+no Android engine artifacts and cannot serve an Android release. That remains
+true *of that cell*. What changed is that a NEW cell was built, minted, served
+and physically qualified.
+
+The new cell is 16 macOS/iOS members **byte-identical** to `cd848320…`'s (14
+raw, plus `engine_stamp.json` identical in canonical form, plus
+`artifacts_manifest.yaml` deliberately regenerated so its `# target:` line says
+`ios+android` instead of `ios`) and 14 Android members built by us. Provenance
+is per-platform and stays that way: macOS/iOS from `dfa2b24a…`, Android from
+`f1a59b8a…` whose parent is exactly `dfa2b24a…`. There is deliberately no single
+`producer_engine_revision` for this cell, because 16 of the 30 members were not
+produced by the Android revision.
+
+The one engine change is an applicability gate in
+`engine/src/flutter/lib/snapshot/BUILD.gn` — 76 changed lines — so
+`analyze_snapshot` is not demanded for a 32-bit target Dart declines to build it
+for. Both producers are on the durable engine fork at refs that point AT the
+commit, and `verify_supported_state.sh` now checks that: the Android producer at
+full strength (its published diff must equal the banked patch) and the
+macOS/iOS producer for reachability. Offline is a failure there, not a skip.
+
+Physically qualified on a wired CPH2551:
+
+    first launch    AFS2-V1-RELEASE
+    after download  AFS2-V1-RELEASE   <- staged, NOT executing
+    after restart   AFS2-V2-PATCHED
+
+with `installs=1 install_failures=0 update_failures=0 unique_clients=1`, 14/14
+Android identity members served from the new cell and 0 via fallback, and all
+three packaged `libflutter.so` carrying our producer revision and not the
+fallback's.
+
+**Two traps worth carrying forward.** Android's backup manager will restore a
+package's `files/shorebird_updater/` from an earlier app of the *same package
+name* — including a patch inflated for a different engine — and the result is a
+`Wrong full snapshot version` abort that reads exactly like a broken cell. Use a
+lane-specific package name, disable `bmgr` for a device run, and assert the
+updater's own `No existing state file found`. And switching a Flutter
+checkout's `engine.version` **before** a bare `flutter create` invalidates the
+Dart SDK stamp, so the bootstrap fetches `dart-sdk-darwin-arm64.zip` from real
+upstream under a hash upstream has never published; create the app first, then
+bind the cell.
+
+Records: `evidence/android-cell-supply-2/RESULT.md`,
+`evidence/android-cell-supply-2/DURABILITY.md`,
+`evidence/android-final-stack-2/RESULT.md`.
 
 ## 2026-09-03 — ANDROID-CELL-SUPPLY-1: the Android closure is 24 objects, 14 identity-bearing, and Option A is forced
 
