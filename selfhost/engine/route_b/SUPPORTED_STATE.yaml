@@ -405,7 +405,7 @@ distribution:
   # under `status: OK`, contradicting it.
   summary: >-
     the runtime stack is qualified AND the self-hosted distribution reproduces
-    from durable sources: an annotated tag, two anonymously-clonable
+    from durable sources: an annotated tag, two anonymously-cloneable
     repositories, and a content-addressed cell distribution. Verified in a
     sealed cleanroom with the qualification machine unreadable.
 
