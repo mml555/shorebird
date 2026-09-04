@@ -33,7 +33,14 @@
 # Exit codes: 0 clean · 1 findings · 2 usage/environment error
 set -uo pipefail
 
-OVERLAY=${OVERLAY:-/Users/mendell/shorebird/selfhost/cdn/overlay}
+# DERIVED FROM THIS SCRIPT'S OWN LOCATION, not hard-coded. It used to default
+# to /Users/mendell/shorebird/selfhost/cdn/overlay -- an absolute path on the
+# qualification machine, so on any other checkout this audit read a directory
+# that does not exist and reported "no bundle published for this engine hash".
+# SELFHOST-CLEANROOM-2 hit exactly that: the bundle WAS present in the clone's
+# own overlay, and the audit was looking somewhere else entirely.
+HERE_AUDIT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+OVERLAY=${OVERLAY:-$(cd "$HERE_AUDIT/../../cdn/overlay" >/dev/null 2>&1 && pwd)}
 BUCKET=${BUCKET:-download.shorebird.dev}
 PLAT=${PLAT:-darwin-arm64}
 HASH=""

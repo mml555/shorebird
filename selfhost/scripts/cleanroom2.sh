@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words seatbelt sandboxed pubcache prebuilt getsockname realpath PREREQ prereq CLEANROOM cleanroom
+# cspell:words seatbelt sandboxed pubcache prebuilt getsockname realpath PREREQ prereq CLEANROOM cleanroom cellhits CELLREQ OTHERREQ
 # SELFHOST-CLEANROOM-2 -- the same hostile cleanroom as CLEANROOM-1, re-run
 # after SELFHOST-DISTRIBUTION-1.
 #
@@ -112,13 +112,21 @@ grep -q "SUPPORTED STATE VERIFIED" "$LOG/bootstrap.log" \
   || bad "the supported state does not verify in the cleanroom"
 
 note "4 - release-side artifact hydration, BOTH platforms, no devices"
-# The work CLEANROOM-1 could not reach. The operator's own CDN is the overlay
-# the bootstrap hydrated; a static server over it is enough for this claim,
-# because what is being tested is whether the CLI can RESOLVE the release-side
-# artifacts for each platform from the cell -- Caddy's rewrite and protection
-# semantics were proven separately in SELFHOST-DISTRIBUTION-1 gate 3c.
+# WHAT IS MEASURED: the release-side engine artifacts for each supported
+# platform resolve and install from the DURABLE DISTRIBUTION -- no inherited
+# cache, no /Volumes/build read. `flutter precache --<platform>` is the vehicle
+# because it is the step `shorebird release <platform>` runs internally; the
+# objects are the same ones a release build fetches.
+#
+# WHAT IS NOT MEASURED: the CLI's own translation of SHOREBIRD_ARTIFACT_ORIGIN
+# into FLUTTER_STORAGE_BASE_URL for its flutter children. A bare flutter reads
+# only the Flutter-native variable, so both are set here -- FLUTTER_STORAGE_BASE_URL
+# is the documented operator knob for exactly this. That translation was proven
+# separately by FLUTTER-STORAGE-AUTHORITY-1 (10 controls) and is not what this
+# lane is about.
+OVL="$ROOT/boot/shorebird/selfhost/cdn/overlay"
 PORT=$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1]);s.close()')
-( cd "$ROOT/boot/shorebird/selfhost/cdn/overlay" && exec python3 -m http.server "$PORT" --bind 127.0.0.1 ) >/dev/null 2>&1 &
+( cd "$OVL" && exec python3 -m http.server "$PORT" --bind 127.0.0.1 ) > "$LOG/origin_access.log" 2>&1 &
 SRV=$!
 trap 'kill $SRV 2>/dev/null' EXIT
 for _ in $(seq 1 40); do
@@ -127,17 +135,37 @@ for _ in $(seq 1 40); do
 done
 ORIGIN="http://127.0.0.1:$PORT"
 FLUTTER="$FD/bin/flutter"
+[[ -x "$FLUTTER" ]] && ok "the bootstrapped Flutter is executable" || bad "no flutter at $FLUTTER"
 for plat in ios android; do
-  ( cd "$ROOT/boot/runtime" && SHOREBIRD_ARTIFACT_ORIGIN="$ORIGIN" \
-      sandbox-exec -f "$PROFILE" /usr/bin/env -i \
-        PATH=/usr/bin:/bin:/usr/sbin:/sbin HOME="$CR_HOME" TMPDIR="$ROOT/tmp" \
-        LANG=en_US.UTF-8 TERM=dumb SHOREBIRD_ARTIFACT_ORIGIN="$ORIGIN" \
-        /bin/bash "$FLUTTER" precache "--$plat" --no-android-studio ) \
-    > "$LOG/precache_$plat.log" 2>&1
+  before=$(grep -c "GET /" "$LOG/origin_access.log" 2>/dev/null || echo 0)
+  sandbox-exec -f "$PROFILE" /usr/bin/env -i \
+    PATH=/usr/bin:/bin:/usr/sbin:/sbin HOME="$CR_HOME" TMPDIR="$ROOT/tmp" \
+    LANG=en_US.UTF-8 TERM=dumb \
+    SHOREBIRD_ARTIFACT_ORIGIN="$ORIGIN" FLUTTER_STORAGE_BASE_URL="$ORIGIN" \
+    /bin/bash "$FLUTTER" precache "--$plat" > "$LOG/precache_$plat.log" 2>&1
   rc=$?
   echo "    flutter precache --$plat exit=$rc"
   if [[ $rc -eq 0 ]]; then ok "release-side artifacts hydrated for $plat"
-  else bad "precache --$plat failed"; tail -6 "$LOG/precache_$plat.log" | sed 's/^/      /'; fi
+  else bad "precache --$plat failed"; tail -5 "$LOG/precache_$plat.log" | sed 's/^/      /'; fi
+  # ATTRIBUTION: the objects must have come from the CELL's path space on the
+  # operator's own origin, not from anywhere else.
+  after=$(grep -c "GET /" "$LOG/origin_access.log" 2>/dev/null || echo 0)
+  fetched=$(( after - before ))
+  cellhits=$(grep "GET /" "$LOG/origin_access.log" 2>/dev/null | grep -c "$CELL" || echo 0)
+  echo "    requests to the operator origin during this precache: $fetched (cumulative cell-path hits: $cellhits)"
+done
+CELLREQ=$(grep "GET /" "$LOG/origin_access.log" 2>/dev/null | grep -c "$CELL" || echo 0)
+OTHERREQ=$(grep "GET /" "$LOG/origin_access.log" 2>/dev/null | grep -vc "$CELL" || echo 0)
+[[ "$CELLREQ" -gt 0 ]] && ok "$CELLREQ requests were for the cell's own path space" \
+                       || bad "no request reached the cell's path space — hydration proved nothing"
+echo "    requests NOT under the cell path: $OTHERREQ"
+# And the artifacts must actually be on disk for both platforms.
+for d in ios-release android-arm64-release; do
+  if compgen -G "$FD/bin/cache/artifacts/engine/$d/*" >/dev/null 2>&1; then
+    ok "engine artifacts present on disk: artifacts/engine/$d"
+  else
+    bad "no artifacts installed at artifacts/engine/$d"
+  fi
 done
 
 note "5 - and no /Volumes/build read could have helped"
