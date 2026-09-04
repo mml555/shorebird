@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words dups DUPPY cleanroom noyaml pyyaml FDIR
+# cspell:words dups DUPPY cleanroom noyaml pyyaml FDIR stdlib nopython
 # verify_supported_state.sh -- re-check the DEPLOYABLE IDENTITY claims in
 # SUPPORTED_STATE.yaml against the artifacts themselves.
 #
@@ -33,7 +33,20 @@ REPO=$(cd "$HERE/../../.." && pwd)
 # Overridable so the record's own format checks can be falsified against a
 # deliberately malformed copy without touching the real one.
 STATE="${STATE:-$HERE/SUPPORTED_STATE.yaml}"
-ROOT=${SHOREBIRD_ROOT:-/Volumes/build/route-b/shorebird-candidate}
+# NO MACHINE-SPECIFIC DEFAULT. This used to default to
+# /Volumes/build/route-b/shorebird-candidate -- an absolute path on the
+# qualification machine, which SELFHOST-CLEANROOM-1 recorded as a defect: an
+# operator elsewhere had to know to override it and nothing said so.
+#
+# Resolution order, all three explicit:
+#   1 $SHOREBIRD_ROOT
+#   2 the path bootstrap_selfhost.sh writes into .runtime_root beside this
+#     script, which is how it is DERIVED from a bootstrap-created checkout
+#   3 nothing -- and then the check fails saying which of the two to provide
+ROOT=${SHOREBIRD_ROOT:-}
+if [[ -z "$ROOT" && -f "$HERE/.runtime_root" ]]; then
+  ROOT=$(tr -d '[:space:]' < "$HERE/.runtime_root")
+fi
 
 [[ -f "$STATE" ]] || { echo "no SUPPORTED_STATE.yaml at $STATE" >&2; exit 2; }
 val() { sed -nE "s/^[[:space:]]*$1:[[:space:]]*([^[:space:]#]+).*/\1/p" "$STATE" | head -1; }
@@ -52,49 +65,37 @@ val() { sed -nE "s/^[[:space:]]*$1:[[:space:]]*([^[:space:]#]+).*/\1/p" "$STATE"
 # SUPPORTED surface quietly resolved to the document of the lane that had
 # measured it UNSUPPORTED. A record whose keys can be shadowed is not
 # machine-readable in the sense this file claims.
-# THREE STATES, NOT TWO. A cleanroom run reported "record is not cleanly
-# machine-readable" against a record that is perfectly well-formed, because the
-# system python3 there has no PyYAML -- the checker could not run and its
-# inability was reported as a defect in the subject. Missing evidence must never
-# produce a pass, but it must not produce a MISATTRIBUTED FAILURE either: it has
-# to say which of the two things went wrong.
-if ! command -v python3 >/dev/null 2>&1; then
-  PARSE_OK=skip
-elif ! python3 -c 'import yaml' >/dev/null 2>&1; then
-  PARSE_OK=noyaml
-else
-  if python3 - "$STATE" <<'DUPPY' 2>/dev/null
-import sys, yaml
-
-dups = []
-
-
-class Strict(yaml.SafeLoader):
-    pass
-
-
-def no_dups(loader, node, deep=False):
-    seen = set()
-    for k, _ in node.value:
-        key = loader.construct_object(k, deep=deep)
-        if key in seen:
-            dups.append((key, k.start_mark.line + 1))
-        seen.add(key)
-    return yaml.SafeLoader.construct_mapping(loader, node, deep)
-
-
-Strict.add_constructor(
-    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_dups)
-yaml.load(open(sys.argv[1]), Loader=Strict)
-for key, line in dups:
-    sys.stderr.write(f'duplicate key {key!r} at line {line}\n')
-sys.exit(1 if dups else 0)
-DUPPY
-  then
+# NO EXTERNAL DEPENDENCY ON THE SUPPORTED PATH. This used to require PyYAML,
+# which the stock macOS python3 does not have -- SELFHOST-CLEANROOM-1 hit that
+# and the check reported "record is not cleanly machine-readable" against a
+# perfectly well-formed file, blaming its subject for its own inability.
+# "Install PyYAML when verification fails" is not an acceptable step in a
+# supported workflow, so the required check is now lib/record_lint.py: pure
+# stdlib, and it catches the two defects that actually occurred here (a
+# duplicate key silently shadowing an authoritative field, and a sequence
+# sharing an indent with a mapping).
+#
+# When PyYAML IS present a real load runs as well, so the stronger check is not
+# lost -- it is simply no longer required to run at all.
+LINT_OUT=""
+if command -v python3 >/dev/null 2>&1; then
+  if LINT_OUT=$(python3 "$HERE/lib/record_lint.py" "$STATE" 2>&1); then
     PARSE_OK=1
   else
     PARSE_OK=0
   fi
+  if python3 -c 'import yaml' >/dev/null 2>&1; then
+    if python3 -c 'import sys,yaml; yaml.safe_load(open(sys.argv[1]))' "$STATE" 2>/dev/null; then
+      YAML_OK=1
+    else
+      YAML_OK=0
+    fi
+  else
+    YAML_OK=absent
+  fi
+else
+  PARSE_OK=nopython
+  YAML_OK=absent
 fi
 
 fails=0
@@ -114,19 +115,27 @@ ANALYZER=$(val analyzer_sha256)
 
 echo "verify_supported_state -- record $STATE"
 case "$PARSE_OK" in
-  1) ok "record parses as YAML" ;;
-  0) bad "record is not cleanly machine-readable — it either fails to parse or \
+  1) ok "record format is clean (no duplicate keys, coherent indentation)" ;;
+  nopython) bad "cannot check the record's format: no python3 on PATH. This says \
+nothing about the record; it fails because an unchecked claim is not a verified \
+one." ;;
+  0) bad "record format is NOT clean: ${LINT_OUT:-see lib/record_lint.py} — it either fails to parse or \
 carries a duplicate key (a duplicate PARSES and silently keeps the last value, \
 which is how an authoritative field gets shadowed); rerun the check by hand for \
 the line number: python3 - $STATE < the DUPPY heredoc in this script" ;;
-  noyaml) bad "cannot check the record's format: python3 has no PyYAML module. \
-This says NOTHING about the record -- install PyYAML (pip install pyyaml) and \
-re-run. It still fails, because an unchecked claim is not a verified one." ;;
-  skip) bad "cannot check the record's format: no python3 on PATH. This says \
-nothing about the record; it fails because an unchecked claim is not a verified \
-one." ;;
 esac
-echo "  shorebird root : $ROOT"
+case "$YAML_OK" in
+  1) ok "and a real YAML loader accepts it (PyYAML present)" ;;
+  0) bad "a real YAML loader REJECTS the record even though the lint passed" ;;
+  absent) echo "  --      PyYAML absent; the stricter load was skipped (not required)" ;;
+esac
+if [[ -z "$ROOT" ]]; then
+  bad "no runtime checkout: set SHOREBIRD_ROOT, or run selfhost/scripts/bootstrap_selfhost.sh \
+which writes selfhost/engine/route_b/.runtime_root. There is deliberately no default."
+  echo "  shorebird root : <unset>"
+else
+  echo "  shorebird root : $ROOT"
+fi
 
 # 1. THE SELECTOR CHAIN, read from the artifacts a build actually walks --
 #    and on BOTH links from the COMMITTED blob, never the working tree.

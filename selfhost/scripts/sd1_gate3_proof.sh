@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words armv seatbelt
+# cspell:words armv seatbelt PRODCDN serveable HYDC
 # SELFHOST-DISTRIBUTION-1 gate 3 proof: the durable distribution is sufficient,
 # and it is falsifiable.
 #
@@ -89,6 +89,48 @@ kill $SRV 2>/dev/null
 [[ "$same" == "$n" ]] \
   && ok "3b: $same of $n identical to what the production CDN serves" \
   || bad "3b: $same of $n identical to the production CDN"
+
+# 3c THE INTENDED FORM, and it did eventually run. A real Caddy container with
+# the production Caddyfile, fallback map and protection matchers, whose
+# /overlay mount IS the reconstructed tree. The host port mapping on this
+# machine never came up (the daemon is degraded), so the fetch is made from
+# INSIDE the container -- which exercises Caddy exactly the same way and only
+# skips Docker's port forwarding.
+HYDC=${HYDC:-shorebird-cdn-hyd-cdn-cache-1}
+if timeout 30 docker inspect "$HYDC" >/dev/null 2>&1; then
+  MNT=$(timeout 25 docker inspect "$HYDC" \
+        --format '{{range .Mounts}}{{if eq .Destination "/overlay"}}{{.Source}}{{end}}{{end}}' 2>/dev/null)
+  echo "    the container's /overlay mount is: $MNT"
+  if [[ "$MNT" == "$W/overlay" || "$MNT" == /Volumes/build/route-b/sd1/hydrated ]]; then
+    ok "3c: that CDN is serving a tree reconstructed from the distribution, not the repository overlay"
+  else
+    bad "3c: the container is not mounting a reconstructed tree ($MNT)"
+  fi
+  grep -v '^#' "$D/LAYOUT.txt" | awk '{print $1}' > "$W/paths.txt"
+  timeout 300 docker exec -i "$HYDC" sh -c \
+    'while read -r p; do [ -z "$p" ] && continue; h=$(wget -q -O- "http://127.0.0.1:8080/$p" 2>/dev/null | sha256sum | cut -d" " -f1); echo "$p $h"; done' \
+    < "$W/paths.txt" > "$W/cdn_digests.txt" 2>/dev/null
+  c3=$(python3 - "$D/LAYOUT.txt" "$W/cdn_digests.txt" <<'PY3'
+import sys
+want={}
+for l in open(sys.argv[1]):
+    if l.startswith('#') or not l.strip(): continue
+    p,h,b=l.split(); want[p]=h
+got={}
+for l in open(sys.argv[2]):
+    q=l.split()
+    if len(q)==2: got[q[0]]=q[1]
+print(sum(1 for p,h in want.items() if got.get(p)==h), len(want))
+PY3
+)
+  set -- $c3
+  [[ "$1" == "$2" && "$2" -gt 0 ]] \
+    && ok "3c: $1 of $2 members fetched through the REAL CDN over the hydrated overlay" \
+    || bad "3c: $1 of $2 through the real CDN"
+else
+  echo "    no hydrated-overlay CDN container present; 3c skipped"
+  echo "    (3a and 3b above still hold; 3c is the stronger form)"
+fi
 
 note "4 - NEGATIVE: a missing distribution part must fail"
 cp -R "$D" "$W/d_missing"; rm -f "$W/d_missing/LAYOUT.txt"

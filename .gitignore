@@ -72,3 +72,8 @@ selfhost/fixtures/privatestate_app/.dart_tool/
 selfhost/fixtures/privatestate_app/build/
 selfhost/fixtures/privatestate_app/ios/Pods/
 selfhost/fixtures/privatestate_app/ios/Flutter/ephemeral/
+
+# Written by selfhost/scripts/bootstrap_selfhost.sh: where THIS machine keeps its
+# runtime CLI checkout. Machine-local by nature, so it is not committed -- the
+# verifier reads it only to avoid a hard-coded default.
+selfhost/engine/route_b/.runtime_root

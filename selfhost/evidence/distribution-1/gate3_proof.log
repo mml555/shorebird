@@ -1,12 +1,12 @@
 
 == 1 - download into an EMPTY directory, anonymously
-    drwxr-xr-x@ 3 mendell  staff         96 Sep  4 15:03 ..
-    -rw-r--r--@ 1 mendell  staff        386 Sep  4 15:03 CELL.txt
-    -rw-r--r--@ 1 mendell  staff       5992 Sep  4 15:03 LAYOUT.txt
-    -rw-r--r--@ 1 mendell  staff        276 Sep  4 15:03 MANIFEST.sha256
-    -rw-r--r--@ 1 mendell  staff  550801920 Sep  4 15:03 cell-f85251f344600ae08196925a174e9cff8f0ff18e.tar
-    -rw-r--r--@ 1 mendell  staff       4141 Sep  4 15:03 cell_manifest.v2
-  PASS  the bundle downloaded (528M)
+    drwxr-xr-x@ 3 mendell  staff         96 Sep  4 15:11 ..
+    -rw-r--r--@ 1 mendell  staff        386 Sep  4 15:11 CELL.txt
+    -rw-r--r--@ 1 mendell  staff       5992 Sep  4 15:11 LAYOUT.txt
+    -rw-r--r--@ 1 mendell  staff        276 Sep  4 15:11 MANIFEST.sha256
+    -rw-r--r--@ 1 mendell  staff  550801920 Sep  4 15:11 cell-f85251f344600ae08196925a174e9cff8f0ff18e.tar
+    -rw-r--r--@ 1 mendell  staff       4141 Sep  4 15:11 cell_manifest.v2
+  PASS  the bundle downloaded (529M)
   PASS  the downloaded bundle matches the recorded sha256
   PASS  and it matches the digest committed in SUPPORTED_STATE.yaml
 
@@ -22,9 +22,12 @@
 == 3 - serve the reconstructed tree over HTTP, and compare it to the real CDN
   PASS  3a: 30 of 30 members serveable over HTTP from the reconstructed tree
   PASS  3b: 30 of 30 identical to what the production CDN serves
+selfhost/scripts/sd1_gate3_proof.sh: line 133: 72473 Terminated: 15          ( cd "$W/overlay" && exec python3 -m http.server "$PORT" --bind 127.0.0.1 ) > /dev/null 2>&1
+    the container's /overlay mount is: /Volumes/build/route-b/sd1/hydrated
+  PASS  3c: that CDN is serving a tree reconstructed from the distribution, not the repository overlay
+  PASS  3c: 30 of 30 members fetched through the REAL CDN over the hydrated overlay
 
 == 4 - NEGATIVE: a missing distribution part must fail
-selfhost/scripts/sd1_gate3_proof.sh: line 94: 10980 Terminated: 15          ( cd "$W/overlay" && exec python3 -m http.server "$PORT" --bind 127.0.0.1 ) > /dev/null 2>&1
         FAIL  the distribution is missing LAYOUT.txt
   PASS  refused: the distribution is incomplete
 
