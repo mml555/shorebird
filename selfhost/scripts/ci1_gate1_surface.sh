@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words getsockname noninteractive chardev nonint armeabi
+# cspell:words getsockname noninteractive chardev nonint armeabi OPORT
 # CI-NONINTERACTIVE-1 gate 1: what does the ordinary workflow ASK FOR when
 # nothing can answer?
 #
@@ -85,6 +85,36 @@ ORIGIN=$ORIGIN
 BASE=$BASE
 ENV
 
+# DECLARED OPERATOR CONFIGURATION. env -i strips everything, so anything the
+# workflow needs has to be named here -- which is the point: the unattended
+# contract is the list below, and nothing reaches the CLI by accident.
+#
+# Found by measurement, in this order: without ANDROID_HOME the release exits 70
+# with "No Android SDK found. Try setting the ANDROID_HOME environment
+# variable." That is environment/configuration, not a prompt, and it fails
+# closed with the remedy named. The Android SDK and the JDK are operator-
+# supplied tooling exactly like Xcode; passing them explicitly is what keeps
+# them from being HIDDEN local state.
+#
+# ~/.gradle stays DENIED by the sandbox, so Gradle builds against a fresh
+# cache in the cleanroom HOME rather than inheriting one.
+# GRADLE_USER_HOME IS NOT OPTIONAL, and HOME does not cover it. Gradle is a
+# Java process, and Java resolves `user.home` from passwd rather than from the
+# HOME environment variable -- so with HOME pointed at the cleanroom, Gradle
+# still reached for /Users/mendell/.gradle, which the sandbox denies:
+#   java.io.FileNotFoundException: /Users/mendell/.gradle/wrapper/dists/
+#     gradle-9.1.0-all/.../gradle-9.1.0-all.zip.lck (Operation not permitted)
+# An unattended contract therefore has to name GRADLE_USER_HOME explicitly.
+# Measured, not assumed: this is why the release arms exited 70 on the second
+# pass rather than reaching any prompt.
+OP_GRADLE_HOME=${OP_GRADLE_HOME:-$W/gradle}
+mkdir -p "$OP_GRADLE_HOME"
+OP_ANDROID_HOME=${OP_ANDROID_HOME:-$HOME/Library/Android/sdk}
+OP_JAVA_HOME=${OP_JAVA_HOME:-$(/usr/libexec/java_home 2>/dev/null)}
+note "declared operator config: ANDROID_HOME=$OP_ANDROID_HOME"
+note "declared operator config: GRADLE_USER_HOME=$OP_GRADLE_HOME (fresh)"
+note "declared operator config: JAVA_HOME=$OP_JAVA_HOME"
+
 # Run a CLI command with the hostile shape. $1 = log name, $2 = stdin mode,
 # rest = args. Never a TTY: stdout and stderr both go to a file.
 arm() {
@@ -96,6 +126,8 @@ arm() {
         LANG=en_US.UTF-8 TERM=dumb CI=true \
         SHOREBIRD_ARTIFACT_ORIGIN="$ORIGIN" FLUTTER_STORAGE_BASE_URL="$ORIGIN" \
         SHOREBIRD_HOSTED_URL="$BASE" SHOREBIRD_TOKEN="$API_KEY" \
+        ANDROID_HOME="$OP_ANDROID_HOME" ANDROID_SDK_ROOT="$OP_ANDROID_HOME" \
+        JAVA_HOME="$OP_JAVA_HOME" GRADLE_USER_HOME="$OP_GRADLE_HOME" \
         /bin/bash "$SB" "$@" ) > "$LOG/$name.log" 2>&1 0<&-
     rc=$?
   else
@@ -104,6 +136,8 @@ arm() {
         LANG=en_US.UTF-8 TERM=dumb CI=true \
         SHOREBIRD_ARTIFACT_ORIGIN="$ORIGIN" FLUTTER_STORAGE_BASE_URL="$ORIGIN" \
         SHOREBIRD_HOSTED_URL="$BASE" SHOREBIRD_TOKEN="$API_KEY" \
+        ANDROID_HOME="$OP_ANDROID_HOME" ANDROID_SDK_ROOT="$OP_ANDROID_HOME" \
+        JAVA_HOME="$OP_JAVA_HOME" GRADLE_USER_HOME="$OP_GRADLE_HOME" \
         /bin/bash "$SB" "$@" ) > "$LOG/$name.log" 2>&1 < /dev/null
     rc=$?
   fi
