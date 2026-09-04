@@ -2,7 +2,7 @@
 <!-- cspell:words APFS CODEPATCH PRECOMPILER Werror caffeinate dartaotruntime SEGVs Specializer diskutil dumpsys flowgraph iface killgate libdart nodm nofail precompiler unapply -->
 <!-- cspell:words tearoff DNDEBUG SEGV LINKEDIT ourengine noinstall SELTOTAL hosttest unrun closurizing closurized closurize closurization bodyless pids footgun mtimes repointed rbtest Devirtualization genkernel misparse -->
 <!-- cspell:words airgap justlaunch noninteractive SIGTRAP dynmod absolutized DEFAULTPATH SIGPIPE PIPESTATUS -->
-<!-- cspell:words SBRBPTCH inspectable janky premain representability routeb reconstructibility productionization uiautomator screencap keyguard bidiff Lockscreen armv cipd --> bmgr
+<!-- cspell:words SBRBPTCH inspectable janky premain representability routeb reconstructibility productionization uiautomator screencap keyguard bidiff Lockscreen armv cipd bmgr -->
 
 # Handoff — engine improvements (as of 2026-08-07)
 
