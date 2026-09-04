@@ -1,0 +1,41 @@
+ANDROID-FINAL-STACK-2 — the incident that looked exactly like a broken cell
+=========================================================================
+Reproduced twice on package dev.selfhost.app (a name reused from
+ANDROID-FINAL-STACK-1, which ran against a different engine).
+
+  [FATAL:flutter/runtime/dart_vm_initializer.cc(88)] Error while initializing
+  the Dart VM: Wrong full snapshot version,
+    expected '21139db2770724220da55c72db00acdc'
+    found    '839937ddd3133a1c0758aeeefce5448c'
+  Fatal signal 6 (SIGABRT) ... io.flutter.embedding.engine.FlutterJNI.performNativeAttach
+
+WHICH VERSION IS WHOSE — measured, not inferred:
+  21139db2…  cell f85251f3… arm64 libflutter.so : 1 occurrence   <- OURS
+  21139db2…  the APK's libapp.so                : 2 occurrences  <- OURS
+  839937dd…  fallback 69f9831c arm64 libflutter.so : 1 occurrence <- FALLBACK
+So the engine was ours and the SNAPSHOT IT LOADED was the fallback lineage's.
+
+WHY, and it is not the cell:
+  A first launch after `adb uninstall` + `install -r` logged
+    current_patch_number: Some(1)
+    Prepared boot of patch 1
+    active path: .../files/shorebird_updater/patches/1/dlc.vmcode
+  200 ms after install, on a data directory that `ls -d /data/data/<pkg>`
+  confirms an uninstall removes. Android's backup manager had restored
+  files/shorebird_updater/ from the EARLIER same-package app -- a patch
+  inflated for a different engine.
+
+PROOF: with `adb shell bmgr enable false`, the same APK and the same patch gave
+    No existing state file found ... creating new state
+    current_patch_number: None
+    Patch successfully applied ... output_written=2884496b
+    Update thread finished with status: Update installed
+Nothing about the cell, the engine or the patch changed between those two runs.
+
+FIXED AT THE ROOT: a lane-specific org (dev.selfhost.afs2), so the package name
+cannot collide with another lane's app data.
+MADE DETECTABLE: afs2_device.sh disables the backup manager for the run and
+asserts the updater's own "No existing state file found" and
+"current_patch_number: None" -- so a restored state fails the run instead of
+being measured as a product result.
+

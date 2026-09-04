@@ -31,7 +31,16 @@ lineage:
   cli_revision: 5920a8bf0a992618bfe7d1680c5439abd7a4f55f
   cli_contains: 6b4f6c422bab55143ef04c8f43f92015ee3b3feb   # private-name resolution for constructions
   flutter_selector: e64eb0af52e1c43c3b21a39556d789538d0df9b3   # F4
-  cell_address: cd848320d605ff8af5060cabf9a8d1b35853f752
+  # MOVED 2026-09-04 by ANDROID-FINAL-STACK-2, from
+  # cd848320d605ff8af5060cabf9a8d1b35853f752. The predecessor is NOT deleted --
+  # it is the cell every iOS qualification in this record was measured against,
+  # and it is retained under `cells:` below with that role stated. What changed
+  # is that the supported cell now also carries Android, and the Android
+  # release -> patch -> physical activation sequence was qualified against it.
+  #
+  # The 16 macOS/iOS members are the BYTE-IDENTICAL bytes cd848320 published, so
+  # this move does not disturb any iOS claim in this file; it widens the cell.
+  cell_address: f85251f344600ae08196925a174e9cff8f0ff18e
   compiler_archive_sha256: 7975b27c724240e720f77d338c80fcace5296148bd78c17588cee1b089e3fb22
   compiler_archive_bytes: 19256864
   analyzer_sha256: 67741a082fcde5a9e2067fdfad1deb7ad69cb89b8d23aba78ed31b5afb6c2f5d
@@ -64,7 +73,13 @@ cells:
   cd848320d605ff8af5060cabf9a8d1b35853f752:
     scope: macos-ios
     members: 16
-    status: SUPPORTED — this is lineage.cell_address
+    status: >-
+      SUPERSEDED 2026-09-04 — the PREVIOUS iOS-qualified cell. Retained, not
+      deleted: every iOS qualification recorded in this file was measured
+      against it, so an older evidence document naming this address is still
+      readable. Its 16 members are byte-identical to 14 of the successor's plus
+      engine_stamp.json in canonical form, so nothing in the iOS record is
+      invalidated by the move.
     producer_lineage: dfa2b24ac38477f3705ff0357530f33fe09474b8
     android: none published; a release-mode Android request 404s by design
 
@@ -72,7 +87,7 @@ cells:
     scope: macos-ios-android
     members: 30
     minted: 2026-09-04 (ANDROID-CELL-SUPPLY-2)
-    status: PUBLISHED AND SERVED — NOT YET THE SUPPORTED STACK
+    status: SUPPORTED — this is lineage.cell_address (moved here 2026-09-04)
     # What is proven, and what is not. An Android RELEASE builds against this
     # cell end to end from a pristine engine cache; an Android PATCH has not
     # been qualified on a physical device against it, and until it has, this
@@ -84,7 +99,13 @@ cells:
       resolved as 14 identity-bearing from this cell and 10 cache/transport via
       fallback; zero identity requests answered by a redirect; all three ABIs in
       the APK carry OUR engine revision and none carries the fallback's.
-    not_proven: physical Android patch qualification against this cell.
+    physically_qualified: >-
+      2026-09-04 (ANDROID-FINAL-STACK-2) on a wired CPH2551. Fresh release ->
+      ordinary bidiff patch -> self-hosted discovery/download -> STAGED BUT NOT
+      EXECUTING -> restart -> patched code executing. Markers read mechanically
+      from the accessibility tree and corroborated by screenshots; the updater
+      reported installs=1, install_failures=0, update_failures=0 for a single
+      client. See evidence/android-final-stack-2/RESULT.md.
     # PROVENANCE IS PER-PLATFORM. There is deliberately NO single
     # producer_engine_revision here: 16 of the 30 members are the byte-identical
     # bytes cd848320 published, produced by dfa2b24a, and relabelling them with
@@ -131,8 +152,12 @@ cells:
 selector_chain:
   links:
     - "CLI bin/internal/flutter.version        -> e64eb0af52e1c43c3b21a39556d789538d0df9b3"
-    - "F4  bin/internal/engine.version         -> cd848320d605ff8af5060cabf9a8d1b35853f752"
-    - "cell cd848320 route-b-compiler-darwin-arm64.zip -> 7975b27c…fb22"
+    - "F4  bin/internal/engine.version         -> f85251f344600ae08196925a174e9cff8f0ff18e"
+    - "cell f85251f3 route-b-compiler-darwin-arm64.zip -> 7975b27c…fb22"
+  # The compiler archive digest is UNCHANGED across the move, and that is the
+  # point: it is one of the 14 members carried over byte-for-byte, so the Route
+  # B compiler the iOS qualification was performed with is the same file.
+  #   superseded: F4 engine.version -> cd848320d605ff8af5060cabf9a8d1b35853f752
   # F4's engine.version is a COMMITTED blob at F4's HEAD and its tree is clean.
   # No uncommitted engine.version is part of this lineage.
   engine_version_committed: true
@@ -177,8 +202,37 @@ product_surfaces:
   standalone_flutter_app:
     ios: SUPPORTED — physically qualified, see physical_device_qualification
     android:
-      status: UNSUPPORTED ON THIS CELL
-      assessed: 2026-09-03 (ANDROID-FINAL-STACK-1)
+      status: SUPPORTED — physically qualified 2026-09-04 against cell f85251f3…
+      qualified: 2026-09-04 (ANDROID-FINAL-STACK-2)
+      # WHAT WAS PROVEN, in one line each, because "SUPPORTED" is the strongest
+      # word in this file and it should be readable without opening the lane
+      # document:
+      #   release  — `shorebird release android --artifact apk` exit 0 from an
+      #              empty engine cache and an empty Gradle home; all 14 Android
+      #              identity members served from the cell, none via fallback;
+      #              all three packaged libflutter.so carry OUR producer
+      #              revision and not the fallback's
+      #   patch    — ordinary bidiff producer, patch 1, three artifacts each
+      #              ~0.2% of the release artifact they patch; the AOT linker
+      #              artifact 404'd throughout and no Route B compiler was
+      #              fetched
+      #   device   — CPH2551: release marker, then STILL the release marker
+      #              after download/install, then the patched marker only after
+      #              a restart; installs=1, install_failures=0,
+      #              update_failures=0, one client
+      # The middle observation is the load-bearing one: without it a changed
+      # marker is equally consistent with a rebuilt install.
+      what_is_not_covered: >-
+        iOS Add-to-App (separately UNSUPPORTED, below), Android app-bundle
+        distribution through the Play Store, and any Android ABI beyond the
+        three shipped (armeabi-v7a, arm64-v8a, x86_64).
+      evidence: evidence/android-final-stack-2/RESULT.md
+      # The assessment that preceded this, kept because it is what a reader
+      # needs to understand WHY the move took a cell change rather than a fix.
+      superseded_assessment:
+        status: UNSUPPORTED ON THIS CELL
+        assessed: 2026-09-03 (ANDROID-FINAL-STACK-1)
+        cell: cd848320d605ff8af5060cabf9a8d1b35853f752
       # CORRECTION. This line first read "SUPPORTED — see ANDROID rows in
       # WORKFLOW_CERTIFICATION.md", written the same day in the ADD-TO-APP-1
       # wording pass. That was an over-claim: the re-certification against the
