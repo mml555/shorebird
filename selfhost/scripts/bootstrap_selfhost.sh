@@ -40,7 +40,13 @@ mkdir -p "$ROOT"; ROOT=$(cd "$ROOT" && pwd)
 CLONE="$ROOT/shorebird"
 RUNTIME="$ROOT/runtime"
 DIST="$ROOT/cell-dist"
-OVERLAY="$ROOT/overlay"
+# THE OVERLAY GOES WHERE BOTH CONSUMERS LOOK. verify_supported_state.sh reads
+# cell members from <clone>/selfhost/cdn/overlay, and
+# selfhost/cdn/docker-compose.cdn.yaml mounts ./overlay from that same
+# directory. A first version of this script hydrated to $ROOT/overlay instead,
+# and the cleanroom run failed on "no published compiler archive" -- correctly,
+# because the bytes were somewhere neither consumer looks.
+OVERLAY="$CLONE/selfhost/cdn/overlay"
 
 note "1 - the immutable distribution ref"
 if [[ -z "$REF" ]]; then
