@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:mason_logger/mason_logger.dart';
 import 'package:meta/meta.dart';
+import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/artifact_origin.dart';
 import 'package:shorebird_cli/src/engine_config.dart';
@@ -153,7 +154,7 @@ class ShorebirdProcess {
     ProcessStartMode mode = ProcessStartMode.normal,
   }) {
     final resolvedEnvironment = environment ?? {};
-    if (useVendedFlutter) {
+    if (_appliesStorageOrigin(useVendedFlutter: useVendedFlutter)) {
       // Note: this will overwrite existing environment values.
       resolvedEnvironment.addAll(_environmentOverrides(executable: executable));
     }
@@ -186,13 +187,26 @@ class ShorebirdProcess {
     required bool useVendedFlutter,
   }) {
     final resolvedEnvironment = baseEnvironment ?? {};
-    if (useVendedFlutter) {
+    if (_appliesStorageOrigin(useVendedFlutter: useVendedFlutter)) {
       // Note: this will overwrite existing environment values.
       resolvedEnvironment.addAll(_environmentOverrides(executable: executable));
     }
 
     return resolvedEnvironment;
   }
+
+  /// Whether to hand the artifact origin to the child.
+  ///
+  /// `useVendedFlutter` is about WHICH flutter runs, not about where its
+  /// artifacts come from — but upstream only injected the origin for the vended
+  /// one, and `_precache` deliberately passes `useVendedFlutter: false` because
+  /// it runs the TARGET revision's own binary. So a configured origin applies
+  /// either way.
+  ///
+  /// When nothing is configured this reduces to the upstream condition exactly,
+  /// which is what keeps default behaviour byte-identical.
+  static bool _appliesStorageOrigin({required bool useVendedFlutter}) =>
+      useVendedFlutter || ArtifactOrigin.isOverridden;
 
   String _resolveExecutable(
     String executable, {
@@ -263,8 +277,33 @@ $stderr''');
     }
   }
 
+  /// Whether [executable] is a Flutter invocation, by BASENAME.
+  ///
+  /// Equality against the literal `'flutter'` was not enough, and this is the
+  /// bug that made FLUTTER-STORAGE-AUTHORITY-1 more than a rename:
+  /// `ShorebirdFlutter._precache` — the ONE call that downloads engine
+  /// artifacts — passes the target revision's ABSOLUTE binary path, so the
+  /// origin was never injected for it. It only appeared to work when the
+  /// operator had set `FLUTTER_STORAGE_BASE_URL` in their own shell, because
+  /// the child inherits that regardless.
+  static bool _isFlutterExecutable(String executable) {
+    final name = p.basename(executable);
+    return name == 'flutter' || name == 'flutter.bat';
+  }
+
+  /// [_environmentOverrides] combined with the [_appliesStorageOrigin] gate,
+  /// exposed so a test can assert on the environment a child would receive
+  /// without standing up a real process.
+  @visibleForTesting
+  Map<String, String> testEnvironmentOverrides({
+    required String executable,
+    required bool useVendedFlutter,
+  }) => _appliesStorageOrigin(useVendedFlutter: useVendedFlutter)
+      ? _environmentOverrides(executable: executable)
+      : const {};
+
   Map<String, String> _environmentOverrides({required String executable}) {
-    if (executable == 'flutter') {
+    if (_isFlutterExecutable(executable)) {
       // THE CHILD PROCESS IS WHERE THIS HAS TO LAND. Flutter fetches engine
       // artifacts itself, so an origin the parent merely knows about changes
       // nothing — it is handed over in the environment, under Flutter's own

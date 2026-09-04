@@ -13,6 +13,7 @@ import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/artifact_origin.dart';
 import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/platform.dart';
+import 'package:shorebird_cli/src/shorebird_process.dart';
 import 'package:test/test.dart';
 
 import 'mocks.dart';
@@ -155,6 +156,52 @@ void main() {
         // handed to the child. The variable NAME is Flutter's own, which is
         // what makes the handover work.
         expect(ArtifactOrigin.flutterStorageKey, 'FLUTTER_STORAGE_BASE_URL');
+      });
+
+      test('an absolute flutter path still gets the origin', () {
+        // THE BUG THIS LANE ACTUALLY FOUND. `ShorebirdFlutter._precache` — the
+        // one call that downloads engine artifacts — invokes the target
+        // revision's ABSOLUTE binary path with `useVendedFlutter: false`, so
+        // the old `executable == 'flutter'` test never matched and the origin
+        // was never injected. It only looked fine when the operator had set
+        // FLUTTER_STORAGE_BASE_URL in their own shell, which the child
+        // inherits regardless.
+        runWithEnv(const {'SHOREBIRD_ARTIFACT_ORIGIN': 'http://cdn.test'}, () {
+          final process = ShorebirdProcess();
+          final env = process.testEnvironmentOverrides(
+            executable: '/some/where/bin/cache/flutter/abc123/bin/flutter',
+            useVendedFlutter: false,
+          );
+          expect(env, {'FLUTTER_STORAGE_BASE_URL': 'http://cdn.test'});
+        });
+      });
+
+      test('with nothing configured, useVendedFlutter:false stays empty', () {
+        // Upstream behaviour, unchanged. This is the half that keeps the
+        // default identical rather than merely similar.
+        runWithEnv(const {}, () {
+          final process = ShorebirdProcess();
+          expect(
+            process.testEnvironmentOverrides(
+              executable: '/abs/path/bin/flutter',
+              useVendedFlutter: false,
+            ),
+            isEmpty,
+          );
+        });
+      });
+
+      test('a non-flutter executable never gets the origin', () {
+        runWithEnv(const {'SHOREBIRD_ARTIFACT_ORIGIN': 'http://cdn.test'}, () {
+          final process = ShorebirdProcess();
+          expect(
+            process.testEnvironmentOverrides(
+              executable: '/usr/bin/git',
+              useVendedFlutter: true,
+            ),
+            isEmpty,
+          );
+        });
       });
     });
 
