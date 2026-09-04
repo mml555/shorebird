@@ -318,6 +318,12 @@ distribution:
   # is the argument for running it at all.
   cleanroom_evidence: evidence/cleanroom-2/RESULT.md
   proven_at_revision: df037532d3ce613651e22274abbd82bedf1820e2
+  # And re-proven against the published tag itself, which is what an operator
+  # pins. The tag had to be cut after the first passing run -- a commit cannot
+  # name itself -- so this line is the confirmation that the pinned artifact,
+  # not merely its parent, reproduces.
+  proven_at_tag: selfhost-v1.1.1
+  proven_at_tag_revision: bdb234ab938fc0570e499d800928a0c3d640bfe1
   evidence: evidence/cleanroom-1/RESULT.md
   repair_evidence: evidence/distribution-1/RESULT.md
   repairs:

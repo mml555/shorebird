@@ -7,6 +7,25 @@ SELFHOST-CLEANROOM-1 is closed.
 
     CLEANROOM REPRODUCIBLE
     proven at revision  df037532d3ce613651e22274abbd82bedf1820e2
+    RE-PROVEN at the published tag selfhost-v1.1.1 (bdb234ab), fully green
+
+The first run was against the commit that fixed the last harness fault; the tag
+had to be cut after it, because a commit cannot name itself. So a second run was
+made with the tag AUTO-DISCOVERED from the remote --
+[`cleanroom2_at_tag.log`](cleanroom2_at_tag.log) -- and it is what makes the
+thing an operator actually pins the thing that was proven, rather than its
+parent:
+
+    newest selfhost-v* on the remote: selfhost-v1.1.1
+    PASS  the tag checks out (bdb234ab)
+    PASS  BOOTSTRAP COMPLETE
+    ... 30/30, SUPPORTED STATE VERIFIED, precache --ios 0, precache --android 0
+    18 of 18 distributed objects from the hydrated overlay, 0 upstream, 0 non-200
+    CLEANROOM REPRODUCIBLE
+
+Note that the record AT the tag names `proven_at_revision: df037532…`, which was
+true when the tag was cut. This paragraph is the addition-only confirmation for
+the tag itself.
 
 [`cleanroom2_run.log`](cleanroom2_run.log),
 [`bootstrap.log`](bootstrap.log),
