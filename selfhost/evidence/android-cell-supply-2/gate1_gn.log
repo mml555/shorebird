@@ -1,0 +1,57 @@
+=== started 2026-09-04T04:24:52Z ===
+----- gn --android --android-cpu=arm64 --runtime-mode=release -----
+Generating Xcode projects took 149ms
+Generating compile_commands took 82ms
+Done. Made 1355 targets from 362 files in 42198ms
+Generating GN files in: out/android_release_arm64
+  gn exit=0
+----- gn --android --android-cpu=arm --runtime-mode=release -----
+ERROR Unresolved dependencies.
+//flutter/lib/snapshot:create_macos_analyze_snapshot_arm64_arm(//build/toolchain/android:clang_arm)
+  needs //flutter/third_party/dart/runtime/bin:analyze_snapshot(//build/toolchain/mac:clang_arm64)
+//flutter/lib/snapshot:create_macos_analyze_snapshot_x64_arm(//build/toolchain/android:clang_arm)
+  needs //flutter/third_party/dart/runtime/bin:analyze_snapshot(//build/toolchain/mac:clang_x64)
+
+Generating GN files in: out/android_release
+  gn exit=1
+----- gn --android --android-cpu=x64 --runtime-mode=release -----
+Generating Xcode projects took 150ms
+Generating compile_commands took 70ms
+Done. Made 1335 targets from 362 files in 1031ms
+Generating GN files in: out/android_release_x64
+  gn exit=0
+=== generated out dirs ===
+out/android_release
+out/android_release_arm64
+out/android_release_x64
+--- out/android_release/args.gn (the lines that matter) ---
+    dart_version = "9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c"
+    is_official_build = true
+    enable_lto = true
+    target_os = "android"
+    target_cpu = "arm"
+    dart_target_arch = "arm"
+    flutter_runtime_mode = "release"
+    dart_version_git_info = true
+    dart_dynamic_modules = true
+--- out/android_release_arm64/args.gn (the lines that matter) ---
+    dart_version = "9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c"
+    is_official_build = true
+    enable_lto = true
+    target_os = "android"
+    target_cpu = "arm64"
+    dart_target_arch = "arm64"
+    flutter_runtime_mode = "release"
+    dart_version_git_info = true
+    dart_dynamic_modules = true
+--- out/android_release_x64/args.gn (the lines that matter) ---
+    dart_version = "9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c"
+    is_official_build = true
+    enable_lto = true
+    target_os = "android"
+    target_cpu = "x64"
+    dart_target_arch = "x64"
+    flutter_runtime_mode = "release"
+    dart_version_git_info = true
+    dart_dynamic_modules = true
+=== done 2026-09-04T04:25:37Z ===

@@ -11,7 +11,8 @@ cell, no Android release cut, no device run, no Route B compiler change.**
     closure            = 24 required objects (29 observed, 5 incidental)
     identity-bearing   = 14   (CELL-IDENTITY)
     cache/transport    = 10
-    buildable          = 24/24, no blocker found — but NOT YET BUILT
+    buildability       = no blocker identified; dependencies available;
+                         execution UNPROVEN (no Android engine has been built)
     recommended schema = A (extend the cell manifest), and the evidence forces it
 
 ## Gate 1 — the closure, derived from real requests
@@ -115,7 +116,7 @@ prefix is the only thing that can work.
 | host requirements | macOS arm64. `DEPS:102` gates Android deps on `host_os == "mac" or (linux && x64)` — **true here** |
 | Maven packaging | **in-tree**: `shell/platform/android/BUILD.gn` (`embedding_artifact_id = "flutter_embedding_$flutter_runtime_mode"`, `maven-metadata.xml` targets) and `flutter/tools/androidx/generate_pom_file.py`, which takes the version as an argument |
 | reproducible | unknown — not attempted |
-| **can we build it** | **no blocker found**, and not yet demonstrated |
+| **can we build it** | **no blocker identified; dependencies available; execution UNPROVEN.** This phrasing is deliberate — see the correction note below |
 
 **Two deltas from the iOS build, both favourable.** `shorebird_use_interpreter`
 defaults to `is_ios`, so it is already false on Android — the override that cost
@@ -135,6 +136,13 @@ DEPS-pinned versions ([`android_cipd_pinned.txt`](android_cipd_pinned.txt)):
 None is private. That matters because the Dart SDK prebuilt *is* private
 (`gs://shorebird-dart-sdk-prebuilt`, 401) and is exactly why this programme
 carries a Dart fork — the same failure mode does not recur for Android.
+
+**A WORDING CORRECTION, made after review.** An earlier version of the verdict
+block said `buildable = 24/24`. That reads as a demonstrated result and it is
+not one: no Android engine has been built. The defensible phrasing, and the one
+to carry forward until a scratch build actually succeeds, is **"no blocker
+identified; dependencies available; execution unproven"**. The body of this
+document always said so; the summary line overstated it.
 
 **What is NOT established, stated plainly.** No Android engine was built. The
 Android deps are absent from the engine checkout — that tree was configured for

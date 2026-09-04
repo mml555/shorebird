@@ -14,7 +14,7 @@ Measurement only. Nothing minted, nothing published, `cd848320…` untouched,
 
     closure = 24 required (29 observed, 5 incidental)
     identity-bearing = 14   cache/transport = 10
-    buildable = 24/24 with no blocker found — but NOT YET BUILT
+    buildability: no blocker identified; dependencies available; execution UNPROVEN
     schema = A (extend the cell manifest)
 
 **The finding a directory listing could never give you: the engine that ships in
