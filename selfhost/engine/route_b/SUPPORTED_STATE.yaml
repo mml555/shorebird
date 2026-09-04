@@ -199,6 +199,55 @@ unsupported:
   - blanket private-constructor access
   - receiver rewrites the lowering cannot express
 
+# CAN ANOTHER OPERATOR DEPLOY THIS STACK? A separate question from whether the
+# stack works, and it currently has a different answer.
+#
+# Kept distinct from product_surfaces below ON PURPOSE. Those statuses are about
+# MECHANISMS physically qualified on the supported cell, and they stand. This
+# field is about DISTRIBUTION, and it does not. Collapsing the two would let a
+# reader conclude from "iOS: SUPPORTED" that a third party can deploy iOS, which
+# is false today.
+#
+#   capability qualified  !=  product distributable
+distribution:
+  status: BLOCKED
+  reason: SELFHOST-CLEANROOM-1
+  assessed: 2026-09-04 (SELFHOST-CLEANROOM-1)
+  cleanroom_reproducible: false
+  evidence: evidence/cleanroom-1/RESULT.md
+  # Measured in a Seatbelt-isolated cleanroom with the qualification machine's
+  # paths and caches provably unreadable. What survives and what does not:
+  durable:
+    - both repositories clone anonymously
+    - cli_revision resolves in the durable repository
+    - both engine producers resolve at refs pointing AT the commit
+    - the cell DESCRIPTOR is committed, so membership and all 30 digests are durable
+    - the cell address recomputes from that descriptor inside the cleanroom
+  not_durable:
+    - >-
+      all 30 addressed cell member BYTES are absent from a fresh clone.
+      selfhost/cdn/overlay/* is gitignored, no release asset carries them, and
+      the record names no location to fetch them from. The CDN that serves them
+      reads that same local directory, so it is not an independent source.
+    - >-
+      rebuilding is NOT an equivalent recovery path: the address is a digest
+      over exact bytes and the Route B compiler archive is recorded as
+      non-byte-reproducible, so a rebuild yields a DIFFERENT address. The cell
+      is distribution-only.
+    - >-
+      flutter_selector e64eb0af… is not fetchable from any durable remote (the
+      CLI bootstrap fails with "not our ref"), and it selects the SUPERSEDED
+      cell cd848320…. The revision that selects the supported cell,
+      5b180d224df04a267a19888c3f344474e243b382, is unrecorded and unpushed.
+    - >-
+      no immutable ref names the current record: the newest selfhost-v* tag
+      carries none, and only the mutable tip of a non-default branch describes
+      the current stack.
+  # So the honest one-line summary, which is what a reader should take away:
+  summary: >-
+    the runtime stack is qualified; the self-hosted distribution is not
+    reproducible from durable sources. Repair is SELFHOST-DISTRIBUTION-1.
+
 product_surfaces:
   # WHICH INTEGRATION SHAPES this stack supports, as distinct from which Dart
   # constructs. Recorded because "unsupported construct" and "unsupported
