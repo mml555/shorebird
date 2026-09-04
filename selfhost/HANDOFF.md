@@ -6,6 +6,71 @@
 
 # Handoff — engine improvements (as of 2026-08-07)
 
+## 2026-09-03 — FLUTTER-STORAGE-AUTHORITY-1: one artifact origin, and the call that was escaping it
+
+Account: [`evidence/flutter-storage-authority-1/RESULT.md`](evidence/flutter-storage-authority-1/RESULT.md).
+**The CLI product tree is re-qualified** — `cli_revision` `5920a8bf`, tree
+`6c76e79a`; no selector moved.
+
+**A correction to inherit before anything else.** The claim in
+ANDROID-FINAL-STACK-1 that "the CLI hard-codes the storage URL" was **WRONG**,
+and it was mine. `FLUTTER_STORAGE_BASE_URL` has been overridable since
+`05fc58f5`, the original self-host commit. I cited `CDN_INDEPENDENCE.md`'s
+flow-A row, which described the behaviour *before* that same commit and was
+never updated. Both documents are corrected in place. The Android finding
+stands: routing was never the blocker, because there is no Android release
+engine at the cell address to route TO.
+
+**So `SHOREBIRD_FLUTTER_STORAGE_BASE_URL` was NOT implemented, deliberately.** A
+third alias for a working standard knob would be worse than the problem. What
+inspection found instead was that the authority was **split**: five sites under
+two differently-named variables plus one hard-coded literal — and the
+`SHOREBIRD_*` half is the one that fetches **the Route B compiler cell bundle**.
+A deployment that pointed only the Flutter variable at its own CDN would still
+have fetched the bytes that DEFINE its cell from Shorebird's.
+
+`ArtifactOrigin` is now the single authority and the only place a default
+literal lives: specific variable, then `SHOREBIRD_ARTIFACT_ORIGIN`, then
+upstream. `SHOREBIRD_ARTIFACT_ORIGIN` moves the base of both halves and leaves
+the BUCKET segment alone, because the self-host CDN mirrors upstream's
+`<bucket>/shorebird/<engine>/…` shape.
+
+**THE BUG THE LIVE CONTROL FOUND, and why code reading was not enough.**
+`ShorebirdFlutter._precache` — the one call that actually downloads engine
+artifacts — was escaping the injection twice over: it passes the target
+revision's ABSOLUTE binary path, so `executable == 'flutter'` never matched, and
+it passes `useVendedFlutter: false`, so the override was not consulted at all.
+My earlier hand-run looked correct only because I had exported
+`FLUTTER_STORAGE_BASE_URL` in my own shell, which the child inherits regardless.
+**A harness convenience had been standing in for the mechanism.** Fixed by
+matching on BASENAME and by applying a CONFIGURED origin even when
+`useVendedFlutter` is false; with nothing set the condition reduces to the
+upstream one exactly.
+
+**The enforcement test earned itself immediately** — it caught
+`network_checker.dart`, a hard-coded `storage.googleapis.com` in `doctor`'s
+reachability probe that I had missed. Origin literals are now banned outside the
+authority, with a reasoned allowlist (the authority's defaults;
+`RouteBCompiler`'s manifest MEMBER NAME, which is part of a cell-address
+preimage; and the maven URL printed for a developer's own build.gradle) plus a
+staleness check so an exemption cannot outlive its reason.
+
+Live controls: **10 pass / 0 fail** (`selfhost/scripts/fsa_qualify.sh`). CLI
+suite 2740 pass. Negative control: real product code mutated beneath the new
+qualification in a scratch WORKTREE → the product-tree guard fired with the
+exact drift. Its three other failures are the worktree lacking the untracked
+19 MB overlay archive, which the verifier refuses to skip — "missing evidence is
+never a pass".
+
+**Two harness faults of mine, each of which produced a wrong reading:** a
+substring match on a URL is not a host match (it called the bucket PATH SEGMENT
+a fallback leak), and `ls -t | head -1` returns 141 under `pipefail`. Also: I
+typed the new `cli_revision` from memory and got it wrong — banked identities
+now come from `git rev-parse` output, never transcription.
+
+**Routing is fixed and `cd848320…` still lacks Android artifacts.** Expected;
+that is ANDROID-CELL-SUPPLY-1.
+
 ## 2026-09-03 — ANDROID-FINAL-STACK-1: the Android workflow is sound; the FROZEN CELL cannot serve it
 
 **Read [`evidence/android-final-stack-1/RESULT.md`](evidence/android-final-stack-1/RESULT.md)
