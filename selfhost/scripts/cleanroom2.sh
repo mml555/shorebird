@@ -126,7 +126,15 @@ note "4 - release-side artifact hydration, BOTH platforms, no devices"
 # lane is about.
 OVL="$ROOT/boot/shorebird/selfhost/cdn/overlay"
 PORT=$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1]);s.close()')
-( cd "$OVL" && exec python3 -m http.server "$PORT" --bind 127.0.0.1 ) > "$LOG/origin_access.log" 2>&1 &
+# AN OPERATOR-SHAPED ORIGIN: overlay first, upstream fallthrough, which is what
+# selfhost/cdn's Caddy does for a mapped hash. A bare static server is not
+# equivalent and fails for the wrong reason -- the first attempt died on
+# `flutter/fonts/<hash>/fonts.zip`, a general Flutter asset no engine cell
+# contains. It logs the SOURCE of every response, which is the measurement:
+# every cell member must come from the overlay, and only non-cell assets may
+# fall through.
+python3 "$CLONE/selfhost/scripts/lib/overlay_origin.py" "$PORT" "$OVL" \
+  "$LOG/origin_requests.jsonl" > "$LOG/origin.log" 2>&1 &
 SRV=$!
 trap 'kill $SRV 2>/dev/null' EXIT
 for _ in $(seq 1 40); do
@@ -137,7 +145,6 @@ ORIGIN="http://127.0.0.1:$PORT"
 FLUTTER="$FD/bin/flutter"
 [[ -x "$FLUTTER" ]] && ok "the bootstrapped Flutter is executable" || bad "no flutter at $FLUTTER"
 for plat in ios android; do
-  before=$(grep -c "GET /" "$LOG/origin_access.log" 2>/dev/null || echo 0)
   sandbox-exec -f "$PROFILE" /usr/bin/env -i \
     PATH=/usr/bin:/bin:/usr/sbin:/sbin HOME="$CR_HOME" TMPDIR="$ROOT/tmp" \
     LANG=en_US.UTF-8 TERM=dumb \
@@ -147,18 +154,34 @@ for plat in ios android; do
   echo "    flutter precache --$plat exit=$rc"
   if [[ $rc -eq 0 ]]; then ok "release-side artifacts hydrated for $plat"
   else bad "precache --$plat failed"; tail -5 "$LOG/precache_$plat.log" | sed 's/^/      /'; fi
-  # ATTRIBUTION: the objects must have come from the CELL's path space on the
-  # operator's own origin, not from anywhere else.
-  after=$(grep -c "GET /" "$LOG/origin_access.log" 2>/dev/null || echo 0)
-  fetched=$(( after - before ))
-  cellhits=$(grep "GET /" "$LOG/origin_access.log" 2>/dev/null | grep -c "$CELL" || echo 0)
-  echo "    requests to the operator origin during this precache: $fetched (cumulative cell-path hits: $cellhits)"
 done
-CELLREQ=$(grep "GET /" "$LOG/origin_access.log" 2>/dev/null | grep -c "$CELL" || echo 0)
-OTHERREQ=$(grep "GET /" "$LOG/origin_access.log" 2>/dev/null | grep -vc "$CELL" || echo 0)
-[[ "$CELLREQ" -gt 0 ]] && ok "$CELLREQ requests were for the cell's own path space" \
-                       || bad "no request reached the cell's path space — hydration proved nothing"
-echo "    requests NOT under the cell path: $OTHERREQ"
+note "4b - ATTRIBUTION: every cell object came from the distribution"
+python3 - "$LOG/origin_requests.jsonl" "$CELL" <<'PY4'
+import json, sys
+rows = [json.loads(l) for l in open(sys.argv[1]) if l.strip()]
+cell = sys.argv[2]
+inc = [r for r in rows if cell in r['path']]
+frm_overlay = [r for r in inc if r['source'] == 'overlay']
+frm_upstream = [r for r in inc if r['source'] == 'upstream']
+other = [r for r in rows if cell not in r['path']]
+print(f"    requests total                          {len(rows)}")
+print(f"    under the CELL path                     {len(inc)}")
+print(f"      served from the hydrated overlay      {len(frm_overlay)}")
+print(f"      fell through to upstream              {len(frm_upstream)}")
+print(f"    not under the cell path (fallthrough)   {len(other)}")
+for r in frm_upstream:
+    print(f"      LEAKED TO UPSTREAM {r['path']}")
+bad = 0
+if not inc:
+    print('    FAIL no request reached the cell path — hydration proved nothing')
+    bad = 1
+if frm_upstream:
+    print('    FAIL a cell object was served by upstream, not by the distribution')
+    bad = 1
+sys.exit(bad)
+PY4
+[[ $? -eq 0 ]] && ok "every cell-path object was served from the hydrated overlay, none from upstream" \
+               || bad "a cell object did not come from the distribution"
 # And the artifacts must actually be on disk for both platforms.
 for d in ios-release android-arm64-release; do
   if compgen -G "$FD/bin/cache/artifacts/engine/$d/*" >/dev/null 2>&1; then
