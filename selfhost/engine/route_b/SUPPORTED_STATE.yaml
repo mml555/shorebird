@@ -94,10 +94,31 @@ cells:
       android_members: f1a59b8a1609c51397601c36d586ad7763d57153
       android_parent: dfa2b24ac38477f3705ff0357530f33fe09474b8
       android_delta: >-
-        one file, flutter/lib/snapshot/BUILD.gn — an applicability gate so
-        analyze_snapshot is not demanded for a 32-bit target Dart declines to
-        build it for. Reviewable at
+        one file, engine/src/flutter/lib/snapshot/BUILD.gn — an applicability
+        gate so analyze_snapshot is not demanded for a 32-bit target Dart
+        declines to build it for. 76 changed lines. Reviewable at
         selfhost/engine/route_b/patches/0001-gate-macos-analyze-snapshot-applicability.patch
+      # SOURCE DURABILITY. A cell whose executable members were produced by a
+      # commit that exists on one machine is authenticated but not
+      # repository-closed: nobody can rebuild or review the bytes. Both
+      # producers are on the durable engine fork, and each is advertised at a
+      # ref that points AT the commit -- reachability is not enough, because a
+      # force-push takes reachability away and a ref pointing at the commit does
+      # not. Checked by verify_engine_producer_durable.sh, which
+      # verify_supported_state.sh now runs.
+      durable_remote: https://github.com/mml555/shorebird-flutter.git
+      durable_refs:
+        android_members:
+          - refs/heads/route-b-2c-android
+          - refs/tags/acs2-android-producer      # annotated; immutable intent
+        macos_ios_members:
+          - refs/heads/route-b-2c-candidate
+          - refs/tags/acs2-macos-ios-producer    # annotated; immutable intent
+      durability_strength: >-
+        the Android producer is checked at FULL strength — the published diff
+        must equal the banked patch, so a rebuilt or amended commit with the
+        same message fails. The macOS/iOS producer is upstream-derived and this
+        repo banks no patch for it, so the honest claim there is reachability.
     member_provenance:
       byte_identical_to_cd848320: 14
       identical_in_canonical_form: 1     # engine_stamp.json, template vs rendered

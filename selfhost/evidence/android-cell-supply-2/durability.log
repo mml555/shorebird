@@ -1,0 +1,62 @@
+ANDROID-CELL-SUPPLY-2 addendum — SOURCE DURABILITY, falsification controls
+2026-09-04T16:47:11Z
+
+== POSITIVE: the Android producer, at full strength
+remote: https://github.com/mml555/shorebird-flutter.git
+rev:    f1a59b8a1609c51397601c36d586ad7763d57153
+  ok     the remote advertises f1a59b8a1609c51397601c36d586ad7763d57153 at: refs/heads/route-b-2c-android refs/tags/acs2-android-producer^{} 
+  ok     and by an annotated tag (peeled): refs/tags/acs2-android-producer^{} 
+  ok     the parent dfa2b24ac38477f3705ff0357530f33fe09474b8 is still advertised at: refs/heads/route-b-2c-candidate refs/tags/acs2-macos-ios-producer^{} 
+  ok     the revision fetches from the remote into a fresh repository
+  ok     exactly one parent (not a merge)
+  ok     the parent AS PUBLISHED is exactly dfa2b24ac38477f3705ff0357530f33fe09474b8
+  ok     the published commit changes engine/src/flutter/lib/snapshot/BUILD.gn (76 changed lines)
+  ok     and changes NOTHING else: engine/src/flutter/lib/snapshot/BUILD.gn 
+  ok     the published diff equals the banked patch (ab667fa27cbf73a4f03ef48c43361217d4836d18)
+  ok     both gate sites present in the published source
+
+ENGINE PRODUCER DURABLE: f1a59b8a1609c51397601c36d586ad7763d57153
+
+== POSITIVE: the macOS/iOS producer, reachability only
+remote: https://github.com/mml555/shorebird-flutter.git
+rev:    dfa2b24ac38477f3705ff0357530f33fe09474b8
+  ok     the remote advertises dfa2b24ac38477f3705ff0357530f33fe09474b8 at: refs/heads/route-b-2c-candidate refs/tags/acs2-macos-ios-producer^{} 
+  ok     and by an annotated tag (peeled): refs/tags/acs2-macos-ios-producer^{} 
+  ok     the revision fetches from the remote into a fresh repository
+
+ENGINE PRODUCER REACHABLE: dfa2b24ac38477f3705ff0357530f33fe09474b8
+
+== NEGATIVE 1: a real local commit that was NEVER pushed and is on no ref.
+   03583fa1… is a dangling commit-tree object in the build checkout. Its
+   TREE and PARENT are both already on the remote, so only the commit
+   itself is absent -- the narrowest possible absence.
+remote: https://github.com/mml555/shorebird-flutter.git
+rev:    03583fa168455986ddb5f8879b1b3ca0d5bcfb0b
+  FAILED no ref on the remote points at 03583fa168455986ddb5f8879b1b3ca0d5bcfb0b
+  note   no annotated tag peels to this commit
+  FAILED the revision does not fetch from the remote
+
+ENGINE PRODUCER NOT DURABLE: 2 failure(s)
+   exit=0
+
+== NEGATIVE 2: the right revision, a WRONG claimed parent
+  FAILED the parent revision is NOT on the remote
+  FAILED the published parent is dfa2b24ac38477f3705ff0357530f33fe09474b8, not 03583fa168455986ddb5f8879b1b3ca0d5bcfb0b
+  FAILED the published commit does not change engine/src/flutter/lib/snapshot/BUILD.gn
+  FAILED the published commit touches: 
+  FAILED the published diff (e3b0c44298fc1c149afbf4c8996fb92427ae41e4) differs from the banked patch (ab667fa27cbf73a4f03ef48c43361217d4836d18)
+ENGINE PRODUCER NOT DURABLE: 5 failure(s)
+
+== NEGATIVE 3: a reachable revision with no banked patch, run at FULL
+   strength -- must fail on CONTENT rather than pass by reachability alone
+  ok     the remote advertises dfa2b24ac38477f3705ff0357530f33fe09474b8 at: refs/heads/route-b-2c-candidate refs/tags/acs2-macos-ios-producer^{} 
+  ok     and by an annotated tag (peeled): refs/tags/acs2-macos-ios-producer^{} 
+  FAILED the parent revision is NOT on the remote
+  ok     the revision fetches from the remote into a fresh repository
+  ok     exactly one parent (not a merge)
+  ok     the parent AS PUBLISHED is exactly b456dc0dd88ff45575b364bd994a45892f2515f3
+  FAILED the published commit does not change engine/src/flutter/lib/snapshot/BUILD.gn
+  FAILED the published commit touches: engine/src/flutter/shell/common/shorebird/shorebird.cc 
+  FAILED the published diff (e3b0c44298fc1c149afbf4c8996fb92427ae41e4) differs from the banked patch (ab667fa27cbf73a4f03ef48c43361217d4836d18)
+  FAILED 0 gate site(s) in the published source, expected 2
+ENGINE PRODUCER NOT DURABLE: 5 failure(s)

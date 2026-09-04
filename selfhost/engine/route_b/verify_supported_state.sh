@@ -228,6 +228,50 @@ cmp_v "updater revision agrees with selfhost/compatibility.yaml" \
   "$(val updater_revision)" \
   "$(sed -nE 's/^[[:space:]]*updater_revision:[[:space:]]*([0-9a-f]+).*/\1/p' "$REPO/selfhost/compatibility.yaml" | head -1)"
 
+# 4b. SOURCE DURABILITY. Every engine revision the record names as a producer of
+#     EXECUTABLE cell members must be resolvable from a durable remote, at the
+#     identity the record claims -- commit sha and parent sha, not a branch name
+#     ([[branches-are-not-provenance]]).
+#
+#     A cell whose executables were produced by a commit living on one machine is
+#     authenticated but not repository-closed: nobody can rebuild or review the
+#     bytes. This was ruled a real durability defect, so it is checked here
+#     rather than left to a lane document.
+#
+#     Requires network, and being offline is a FAILURE, not a skip: this file's
+#     rule is that missing evidence must never produce a pass. SKIP_DURABILITY=1
+#     exists for a deliberately offline run and says so out loud.
+#     Two strengths, because the two producers are different kinds of thing.
+#     The Android producer carries a diff THIS REPO BANKS, so its content is
+#     checked against the banked patch. The macOS/iOS producer is
+#     upstream-derived and this repo banks no patch for it, so the honest claim
+#     there is reachability -- and claiming more would be a check that cannot
+#     fail for the right reason.
+DUR_PAR=$(sed -nE 's/^[[:space:]]*android_parent:[[:space:]]*([0-9a-f]{40}).*/\1/p' "$STATE" | head -1)
+DUR_FULL=$(sed -nE 's/^[[:space:]]*android_members:[[:space:]]*([0-9a-f]{40}).*/\1/p' "$STATE" | sort -u)
+DUR_ANY=$(sed -nE 's/^[[:space:]]*(producer_lineage|macos_ios_members):[[:space:]]*([0-9a-f]{40}).*/\2/p' "$STATE" | sort -u)
+if [[ "${SKIP_DURABILITY:-0}" == 1 ]]; then
+  echo "  SKIP    SOURCE DURABILITY NOT CHECKED (SKIP_DURABILITY=1) — this run does"
+  echo "          not establish that any producer revision is resolvable"
+else
+  for rev in $DUR_FULL; do
+    if bash "$HERE/verify_engine_producer_durable.sh" --rev "$rev" --parent "$DUR_PAR" >/dev/null 2>&1; then
+      ok "engine producer ${rev:0:12} durable AND matches the banked patch, parent ${DUR_PAR:0:12}"
+    else
+      bad "engine producer $rev is NOT durable — run verify_engine_producer_durable.sh --rev $rev"
+    fi
+  done
+  for rev in $DUR_ANY; do
+    grep -q "$rev" <<<"$DUR_FULL" && continue
+    if bash "$HERE/verify_engine_producer_durable.sh" --rev "$rev" --exists-only >/dev/null 2>&1; then
+      ok "engine producer ${rev:0:12} is reachable on the remote"
+    else
+      bad "engine producer $rev is NOT reachable — run verify_engine_producer_durable.sh --rev $rev --exists-only"
+    fi
+  done
+  [[ -n "$DUR_FULL$DUR_ANY" ]] || bad "the record names no engine producer revision to check"
+fi
+
 # 5. THE DEEPER COMPILER/RUNTIME AUDIT.
 if bash "$HERE/audit_route_b_compiler.sh" --hash "$CELL" >/dev/null 2>&1; then
   ok "audit_route_b_compiler: AUDIT CLEAN"

@@ -20,7 +20,7 @@ no product code changed yet.
 |---|---|
 | engine source, **before** | `dfa2b24ac38477f3705ff0357530f33fe09474b8` |
 | engine source, **Android members** | `f1a59b8a1609c51397601c36d586ad7763d57153` — parent is exactly `dfa2b24a…` |
-| the change | one file, `flutter/lib/snapshot/BUILD.gn`; banked as [`../../engine/route_b/patches/0001-gate-macos-analyze-snapshot-applicability.patch`](../../engine/route_b/patches/0001-gate-macos-analyze-snapshot-applicability.patch) |
+| the change | one file, `engine/src/flutter/lib/snapshot/BUILD.gn`; banked as [`../../engine/route_b/patches/0001-gate-macos-analyze-snapshot-applicability.patch`](../../engine/route_b/patches/0001-gate-macos-analyze-snapshot-applicability.patch) |
 | Dart | HEAD `9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c` + 2 local modifications, `git diff` digest `6b358f71…` — **byte-identical to the tree that produced `cd848320…`** |
 | DEPS identity | the original `.gclient`: Dart fork via `file://`, `download_dart_sdk: False`. Android deps added by `gclient sync`; all four CIPD packages public and pinned |
 | GN args | `--android --android-cpu={arm,arm64,x64} --runtime-mode=release --no-prebuilt-dart-sdk`; `enable_lto = true`, `is_official_build = true`, `dart_version = 9e8c898a…` |
@@ -76,7 +76,7 @@ instantiations would have left the action's `deps` dangling.
 | 2 | post-change armv7 configures | ✓ `gn exit=0`, `Unresolved dependencies` count **0** |
 | 3 | arm64 remains configurable | ✓ `gn exit=0`, all 10 `create_macos_analyze_snapshot` targets still present |
 | 4 | x64 remains configurable | ✓ `gn exit=0`, all 10 still present |
-| 5 | diff limited to the applicability gate | ✓ 4 hunks, both in the two affected regions, nothing outside; 81 changed lines of which the substance is two `if` guards and their comments, the rest being the indentation a wrapping `if` forces (normalised with the engine's own `gn format`) |
+| 5 | diff limited to the applicability gate | ✓ 4 hunks, both in the two affected regions, nothing outside; **76 changed lines** (47 added, 29 removed) of which the substance is two `if` guards and their comments, the rest being the indentation a wrapping `if` forces (normalised with the engine's own `gn format`). *Corrected: this first read 81, which counted the patch's two `+++`/`---` file-header lines and three of its trailer lines as content.* |
 | 6 | condition does not broaden beyond Dart | ✓ identical to `build_analyze_snapshot`'s predicate |
 
 Per-architecture effect, measured:
