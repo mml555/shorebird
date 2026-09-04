@@ -57,7 +57,12 @@ note(){ printf '\n\033[1m== %s\033[0m\n' "$1"; }
 
 EV="$SELFHOST/evidence/android-cell-supply-2/gate5_mint"
 note "1 - address"
-H=$(v2_transaction "$STAGE" "$POLICY" "$CELL" "$FB" "$OVERLAY" "$EV.dry" --dry-run)
+# The dry-run's evidence goes to a TEMPORARY directory, not beside the real
+# transaction's: they produce the same manifest and the same address by
+# construction, so a banked copy of both is a duplicate that invites a reader to
+# wonder which one is authoritative.
+DRYEV=$(mktemp -d); trap 'rm -rf "$DRYEV"' EXIT
+H=$(v2_transaction "$STAGE" "$POLICY" "$CELL" "$FB" "$OVERLAY" "$DRYEV" --dry-run)
 [[ -n "$H" ]] || { echo "no address; refusing" >&2; exit 1; }
 echo "  address: $H"
 if [[ "$PUBLISH_DRY" == 1 ]]; then echo "  (dry run; nothing published)"; exit 0; fi

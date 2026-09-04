@@ -1,7 +1,0 @@
-address_schema           route-b-cell-v2
-cell                     macos-ios-android
-fallback_engine_revision 69f9831c360d9152862ec3897c67fb09ae843f3b
-artifact_policy.conf     544b03fe33942c98d8290d8ae402594a7e764bf41b62ba3c9fc131d45913d16f
-members                  30
-address                  f85251f344600ae08196925a174e9cff8f0ff18e
-recompute                shasum -a 256 cell_manifest.v2 | cut -c1-40
