@@ -162,6 +162,7 @@ overrides:
     ignoreWords: ["Ünïcödé"]
 
 words:
+  - stdlib
   - cleanroom
   - unpushed
   - seatbelt
