@@ -28,9 +28,49 @@ lineage:
   # SELECTORS did not move — same Flutter revision, same cell, same compiler
   # archive, same analyzer, same updater — so this re-qualifies the producer
   # tree, not the toolchain.
-  cli_revision: 5920a8bf0a992618bfe7d1680c5439abd7a4f55f
+  # Re-qualified 2026-09-04 (SELFHOST-DISTRIBUTION-1 gates 1-2). Previous
+  # identity retained rather than deleted, so an older evidence document naming
+  # it stays readable:
+  #   superseded: cli_revision 5920a8bf0a992618bfe7d1680c5439abd7a4f55f
+  #               bin_internal 67bb0a85a83177ad8afcf1765403e42a913e0377
+  # What moved: bin/internal/flutter.version now names a Flutter revision an
+  # operator can actually FETCH, and third_party/flutter/bin/internal/shared.sh
+  # clones from the fork that carries it. The CELL did not move, the compiler
+  # archive did not move, the analyzer did not move -- so this re-qualifies the
+  # selector, not the toolchain.
+  cli_revision: 46ee70af56c3814d079cc2466b092481c7904e76
   cli_contains: 6b4f6c422bab55143ef04c8f43f92015ee3b3feb   # private-name resolution for constructions
-  flutter_selector: e64eb0af52e1c43c3b21a39556d789538d0df9b3   # F4
+  # THE FLUTTER REVISION, and it is now the one that actually selects the
+  # supported cell. e64eb0af's own engine.version names the SUPERSEDED cell
+  # cd848320; SELFHOST-CLEANROOM-1 found the record naming e64eb0af while the
+  # running checkout's HEAD carried the supported cell, and the verifier passed
+  # because it read HEAD's blob. It now reads the blob AT THIS REVISION.
+  #
+  #   superseded: flutter_selector e64eb0af52e1c43c3b21a39556d789538d0df9b3
+  flutter_selector: 5b180d224df04a267a19888c3f344474e243b382
+  flutter_selector_durability:
+    remote: https://github.com/mml555/shorebird-flutter.git
+    refs:
+      - refs/heads/selfhost/3.44.8-v13-cell-f85251f3
+      - refs/tags/selfhost-flutter-cell-f85251f3   # annotated; immutable intent
+    parent: e64eb0af52e1c43c3b21a39556d789538d0df9b3
+    tree: 0c265f64c428e94d0a1a5afcbd6431ea6a302b1e
+    delta_from_parent: >-
+      exactly one file and one line -- bin/internal/engine.version, cd848320…
+      -> f85251f3…. Nothing else.
+    # PROVENANCE NOTE, stated because the two are not the same commit. The
+    # ANDROID-FINAL-STACK-2 physical run built from 7b253b2a0a47d8eacb52e50c
+    # 78c2c548ba1e5d44, made in a clone; this revision was made in the qualified
+    # checkout. Same parent, and the IDENTICAL tree 0c265f64 -- and Flutter's
+    # behaviour depends on the blob in the tree, not on which commit object
+    # points at it. Recorded rather than glossed, so nobody has to rediscover it.
+    physically_qualified_commit: 7b253b2a0a47d8eacb52e50c78c2c548ba1e5d44
+    same_tree_as_qualified: true
+    clone_url_default: >-
+      third_party/flutter/bin/internal/shared.sh defaults to this fork.
+      shorebirdtech/flutter does NOT carry the selector, and a clean bootstrap
+      against it died with "upload-pack: not our ref".
+      SHOREBIRD_FLUTTER_GIT_URL still overrides for a local mirror.
   # MOVED 2026-09-04 by ANDROID-FINAL-STACK-2, from
   # cd848320d605ff8af5060cabf9a8d1b35853f752. The predecessor is NOT deleted --
   # it is the cell every iOS qualification in this record was measured against,
@@ -60,7 +100,7 @@ lineage:
   # matter of re-running the verifier and updating two lines here.
   cli_product_tree:
     packages_shorebird_cli: 6c76e79a3ad1c86658a41b144dececb07ff5d3ca
-    bin_internal: 67bb0a85a83177ad8afcf1765403e42a913e0377
+    bin_internal: 8ae6081fb375ed33515e8ae0d61bc4ecdb51b990
   producer_engine_revision: dfa2b24ac38477f3705ff0357530f33fe09474b8   # built in; NOT the address
   fallback_engine_revision: 69f9831c360d9152862ec3897c67fb09ae843f3b
   dart_revision: 9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c

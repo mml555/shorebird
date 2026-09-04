@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words dups DUPPY cleanroom noyaml pyyaml
+# cspell:words dups DUPPY cleanroom noyaml pyyaml FDIR
 # verify_supported_state.sh -- re-check the DEPLOYABLE IDENTITY claims in
 # SUPPORTED_STATE.yaml against the artifacts themselves.
 #
