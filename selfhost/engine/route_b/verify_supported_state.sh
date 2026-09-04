@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words dups DUPPY
+# cspell:words dups DUPPY cleanroom noyaml pyyaml
 # verify_supported_state.sh -- re-check the DEPLOYABLE IDENTITY claims in
 # SUPPORTED_STATE.yaml against the artifacts themselves.
 #
@@ -52,7 +52,17 @@ val() { sed -nE "s/^[[:space:]]*$1:[[:space:]]*([^[:space:]#]+).*/\1/p" "$STATE"
 # SUPPORTED surface quietly resolved to the document of the lane that had
 # measured it UNSUPPORTED. A record whose keys can be shadowed is not
 # machine-readable in the sense this file claims.
-if command -v python3 >/dev/null 2>&1; then
+# THREE STATES, NOT TWO. A cleanroom run reported "record is not cleanly
+# machine-readable" against a record that is perfectly well-formed, because the
+# system python3 there has no PyYAML -- the checker could not run and its
+# inability was reported as a defect in the subject. Missing evidence must never
+# produce a pass, but it must not produce a MISATTRIBUTED FAILURE either: it has
+# to say which of the two things went wrong.
+if ! command -v python3 >/dev/null 2>&1; then
+  PARSE_OK=skip
+elif ! python3 -c 'import yaml' >/dev/null 2>&1; then
+  PARSE_OK=noyaml
+else
   if python3 - "$STATE" <<'DUPPY' 2>/dev/null
 import sys, yaml
 
@@ -85,8 +95,6 @@ DUPPY
   else
     PARSE_OK=0
   fi
-else
-  PARSE_OK=skip
 fi
 
 fails=0
@@ -111,7 +119,12 @@ case "$PARSE_OK" in
 carries a duplicate key (a duplicate PARSES and silently keeps the last value, \
 which is how an authoritative field gets shadowed); rerun the check by hand for \
 the line number: python3 - $STATE < the DUPPY heredoc in this script" ;;
-  *) echo "  --      no python3; YAML parse not checked" ;;
+  noyaml) bad "cannot check the record's format: python3 has no PyYAML module. \
+This says NOTHING about the record -- install PyYAML (pip install pyyaml) and \
+re-run. It still fails, because an unchecked claim is not a verified one." ;;
+  skip) bad "cannot check the record's format: no python3 on PATH. This says \
+nothing about the record; it fails because an unchecked claim is not a verified \
+one." ;;
 esac
 echo "  shorebird root : $ROOT"
 

@@ -1,0 +1,24 @@
+SELFHOST-CLEANROOM-1 — the Flutter revision the supported state actually depends on
+Measured ON the qualification machine (2026-09-04), because the revisions
+involved are not fetchable anywhere else — which is the point.
+
+  record flutter_selector             e64eb0af52e1c43c3b21a39556d789538d0df9b3
+    its bin/internal/engine.version   cd848320d605ff8af5060cabf9a8d1b35853f752   <- SUPERSEDED cell
+
+  runtime checkout actual HEAD        5b180d224df04a267a19888c3f344474e243b382
+    its bin/internal/engine.version   f85251f344600ae08196925a174e9cff8f0ff18e   <- SUPPORTED cell
+
+  refs pointing at that HEAD          0
+  present in the local mirror         NO — it exists only in the runtime checkout
+
+  where e64eb0af itself lives:
+    runtime Flutter remote            file:///Users/mendell/shorebird/selfhost/cdn/mirrors/flutter.git
+    ref in that mirror                refs/heads/selfhost/3.44.8-v13
+    author                            Shorebird selfhost <selfhost@example.invalid>
+    subject                           candidate(6d): pin engine.version to the v13 cell cd848320
+
+CONSEQUENCE. The verifier check "Flutter engine.version (committed blob)
+selects the recorded cell" reads HEADs blob, so it is satisfied by WHATEVER
+HEAD carries the right bytes — it does not pin a revision. The supported
+state therefore depends on an unrecorded, unpushed commit, and an operator
+who cloned the RECORDED selector would select the superseded cell.

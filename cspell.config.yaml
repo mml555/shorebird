@@ -162,6 +162,9 @@ overrides:
     ignoreWords: ["Ünïcödé"]
 
 words:
+  - cleanroom
+  - unpushed
+  - seatbelt
   # --- Step 1 §2, admitted by the SEMANTIC test in
   # evidence/cspell/classification_precommit.md: "is this stable project or
   # domain vocabulary that should stay spell-checked in context?" -- never
