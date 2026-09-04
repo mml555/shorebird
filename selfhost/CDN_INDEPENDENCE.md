@@ -123,7 +123,22 @@ printed guidance for AAR consumers, not a CLI fetch, but it is another
 
 | Flow | What | Mechanism | Env-overridable today? | To redirect |
 |------|------|-----------|------------------------|-------------|
-| A | Flutter engine artifacts | `FLUTTER_STORAGE_BASE_URL` forced to `download.shorebird.dev` in 3 spots | **No** (CLI overwrites the env) | Patch A1–A3 to honor an env/default, **or** DNS+TLS override of `download.shorebird.dev`; then run `artifact_proxy` |
+| A | Flutter engine artifacts | resolved by `ArtifactOrigin`: `FLUTTER_STORAGE_BASE_URL`, else `SHOREBIRD_ARTIFACT_ORIGIN`, else `download.shorebird.dev` | **Yes** — set either variable | nothing; point it at `artifact_proxy` |
+
+> **This row was WRONG from `05fc58f5` until it was corrected on 2026-09-03**,
+> and it cost a wrong statement in an accepted evidence document
+> (`evidence/android-final-stack-1/RESULT.md`, since corrected). It read
+> *"forced … in 3 spots — **No** (CLI overwrites the env)"*, describing the
+> behaviour BEFORE the fork made the variable overridable in that very commit.
+> The proposed `SHOREBIRD_FLUTTER_STORAGE_BASE_URL` patch further down this
+> document was therefore never needed and was not implemented; a third alias for
+> a working standard knob would have been worse than the problem.
+>
+> What FLUTTER-STORAGE-AUTHORITY-1 did instead: made `ArtifactOrigin` the single
+> authority for **both** halves — Flutter/engine artifacts and Shorebird's own,
+> the latter including the Route B compiler cell bundle — and fixed the one call
+> that was still escaping it. See
+> [`evidence/flutter-storage-authority-1/RESULT.md`](evidence/flutter-storage-authority-1/RESULT.md).
 | B | `patch`, `aot-tools.dill` | `cache.dart` `storageBaseUrl`+`storageBucket` literals | **No** (literal getters) | Source patch (§6) to read env, **or** a proxy the patched base URL points at |
 | B | `bundletool.jar` | GitHub releases URL literal | **No**, but already off Shorebird infra | (optional) mirror GitHub asset |
 | — | `artifact_proxy` manifest fetch | literal GCS URL in `artifact_manifest_client.dart` | **No** | mirror the manifest into your GCS-fronting cache |

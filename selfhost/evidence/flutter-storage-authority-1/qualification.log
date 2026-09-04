@@ -1,0 +1,37 @@
+
+[1m0. throwaway control plane + a real Flutter app[0m
+  control plane :49741  app 61701cea-d39d-0130-eee0-42d63326fb76
+
+[1m1. POSITIVE ROUTING — one variable, both halves[0m
+  exit=70
+  requests the probe received:
+    {"method": "GET", "path": "/download.shorebird.dev/shorebird/cd848320d605ff8af5060cabf9a8d1b35853f752/aot-tools.dill", "host": "127.0.0.1:49822"}
+    {"method": "GET", "path": "/flutter_infra_release/flutter/cd848320d605ff8af5060cabf9a8d1b35853f752/android-arm-profile/darwin-x64.zip", "host": "127.0.0.1:49822"}
+    {"method": "GET", "path": "/flutter_infra_release/flutter/cd848320d605ff8af5060cabf9a8d1b35853f752/android-arm-profile/darwin-x64.zip", "host": "127.0.0.1:49822"}
+  [32mPASS[0m the FLUTTER half asked the configured origin (2 req)
+  [32mPASS[0m the SHOREBIRD half asked it too (1 req) — cell bytes included
+
+[1m2. POISON CONTROL — a refusal is not routed around[0m
+  [32mPASS[0m the CLI's own log records the configured origin
+  [32mPASS[0m the CLI FAILED on the origin's 404 (exit 70)
+  [32mPASS[0m ZERO requests whose HOST is upstream — no silent fallback
+
+[1m3. CHILD-PROCESS PROPAGATION[0m
+  [32mPASS[0m the flutter CHILD asked the configured origin (flutter_infra_release/flutter/cd848320…)
+
+[1m4. NO FAKE GREEN — an uncontacted origin must not pass[0m
+  [32mPASS[0m with nothing listening the probe log is empty, so control 1's assertion can fail
+  [32mPASS[0m the CLI also fails when the origin is unreachable (exit 70)
+
+[1m5. DEFAULT CONTROL — unset leaves upstream behaviour unchanged[0m
+  URLs fetched with nothing configured:
+    http://127.0.0.1:49741/api/v1/apps
+    https://download.shorebird.dev/flutter_infra_release/flutter/cd848320d605ff8af5060cabf9a8d1b35853f752/android-arm-profile/darwin-x64.zip.
+    https://storage.googleapis.com/download.shorebird.dev/shorebird/cd848320d605ff8af5060cabf9a8d1b35853f752/aot-tools.dill
+  [32mPASS[0m upstream HOSTS are used when nothing is configured (2 req)
+  [32mPASS[0m no local origin leaked into the default run
+
+[1mRESULT[0m
+  10 passed, 0 failed
+
+workdir: /tmp/fsaq.JLvxE7

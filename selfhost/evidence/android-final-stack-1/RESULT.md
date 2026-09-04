@@ -53,11 +53,23 @@ The frozen run's underlying error, from the CLI's own log:
   silent fall back to stock bytes. That protection is correct: taking a stock
   release-mode Android engine for a Route B cell would produce an app whose
   engine is not the one the cell qualified.
-* And the local CDN is not in the path by default anyway:
-  `CDN_INDEPENDENCE.md` records that the CLI forces
-  `FLUTTER_STORAGE_BASE_URL` to `download.shorebird.dev` in three places and
-  that `SHOREBIRD_FLUTTER_STORAGE_BASE_URL` is a **proposed** patch — `grep`
-  confirms it is not implemented in `lib/`.
+* And the local CDN is not in the path unless it is configured, which this run
+  did not do.
+
+  **CORRECTED 2026-09-03 (FLUTTER-STORAGE-AUTHORITY-1).** This bullet first
+  said the CLI "forces `FLUTTER_STORAGE_BASE_URL` to `download.shorebird.dev`",
+  citing `CDN_INDEPENDENCE.md`. That citation was **stale and the claim was
+  wrong**: the fork made that variable overridable in `05fc58f5`, the original
+  self-host commit, and pointing it at a probe origin demonstrably routes
+  `flutter precache`'s request there. What was true is the narrower half —
+  `SHOREBIRD_FLUTTER_STORAGE_BASE_URL` does not exist (and, on inspection,
+  should not: a third alias for a working standard knob would be worse).
+
+  It changes nothing about this lane's finding. Routing was never the Android
+  blocker; the blocker is that **no Android release engine exists at the cell
+  address to route TO**, which the `@must_be_local` 404 above establishes
+  independently of any origin configuration. See
+  [`../flutter-storage-authority-1/RESULT.md`](../flutter-storage-authority-1/RESULT.md).
 
 So the frozen stack has no Android release engine, by construction, and the
 refusal is the protection working.
