@@ -239,6 +239,45 @@ unsupported:
   - blanket private-constructor access
   - receiver rewrites the lowering cannot express
 
+# WHERE THE CELL BYTES COME FROM. The descriptor below authenticates 30 member
+# digests, but a digest is not a byte source: SELFHOST-CLEANROOM-1 found all 30
+# absent from a fresh clone, with no release asset and no recorded location, and
+# established that rebuilding is not an alternative because the address is a
+# digest over exact bytes and the compiler archive is non-byte-reproducible.
+#
+# So the cell is DISTRIBUTION-ONLY, and this is the distribution. The bytes are
+# the ones already published and qualified -- not a rebuild, which would be a
+# different cell.
+cell_distribution:
+  cell_address: f85251f344600ae08196925a174e9cff8f0ff18e
+  members: 30
+  bundle: cell-f85251f344600ae08196925a174e9cff8f0ff18e.tar
+  bundle_sha256: 63f3104d6c45a0d1a937ae0814a32361a07bd920067a8c105c35fff93898d333
+  bundle_bytes: 550801920
+  layout_sha256: 476982bed83ae4206d3352209faa288bb1612dc5c5a3bf4eb2e25a581cba7f77
+  descriptor_sha256: f85251f344600ae08196925a174e9cff8f0ff18e62de25fd8c03db748be1f84b
+  # The immutability guarantee is these digests being committed HERE, not a
+  # promise from the host: a release asset can be replaced, and a replaced one
+  # stops matching bundle_sha256 and stops reconstructing the address.
+  location:
+    kind: github-release-asset
+    repo: https://github.com/mml555/shorebird
+    tag: cell-f85251f3
+    assets:
+      - cell-f85251f344600ae08196925a174e9cff8f0ff18e.tar
+      - cell_manifest.v2
+      - LAYOUT.txt
+      - MANIFEST.sha256
+      - CELL.txt
+  # LAYOUT.txt gives each member's overlay-relative path, RAW sha256 and size,
+  # so a consumer reconstructs the CDN hierarchy without knowing anything about
+  # our tree. cell_manifest.v2 carries the CANONICAL-form digests the address is
+  # computed over -- the two differ for the three members that embed the address
+  # itself, which is why both are shipped.
+  reconstruct: selfhost/scripts/sd1_hydrate_cell.sh
+  verify: selfhost/engine/route_b/verify_cell_members.sh <address> --overlay <dir>
+  evidence: evidence/distribution-1/RESULT.md
+
 # CAN ANOTHER OPERATOR DEPLOY THIS STACK? A separate question from whether the
 # stack works, and it currently has a different answer.
 #
