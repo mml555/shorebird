@@ -1,0 +1,45 @@
+
+== 1 - download into an EMPTY directory, anonymously
+    drwxr-xr-x@ 3 mendell  staff         96 Sep  4 15:03 ..
+    -rw-r--r--@ 1 mendell  staff        386 Sep  4 15:03 CELL.txt
+    -rw-r--r--@ 1 mendell  staff       5992 Sep  4 15:03 LAYOUT.txt
+    -rw-r--r--@ 1 mendell  staff        276 Sep  4 15:03 MANIFEST.sha256
+    -rw-r--r--@ 1 mendell  staff  550801920 Sep  4 15:03 cell-f85251f344600ae08196925a174e9cff8f0ff18e.tar
+    -rw-r--r--@ 1 mendell  staff       4141 Sep  4 15:03 cell_manifest.v2
+  PASS  the bundle downloaded (528M)
+  PASS  the downloaded bundle matches the recorded sha256
+  PASS  and it matches the digest committed in SUPPORTED_STATE.yaml
+
+== 2 - hydrate, verify 30/30, recompute the address
+      PASS  the distribution carries the bundle, the descriptor and the layout
+      PASS  MANIFEST.sha256 verifies every distribution file
+      PASS  descriptor recomputes to f85251f344600ae08196925a174e9cff8f0ff18e
+      PASS  30 of 30 members match their recorded bytes exactly
+        CELL MEMBERS VERIFIED (30/30)
+      PASS  verify_cell_members: 30/30 against the hydrated overlay
+  PASS  hydrated and verified from the download alone
+
+== 3 - serve the reconstructed tree over HTTP, and compare it to the real CDN
+  PASS  3a: 30 of 30 members serveable over HTTP from the reconstructed tree
+  PASS  3b: 30 of 30 identical to what the production CDN serves
+
+== 4 - NEGATIVE: a missing distribution part must fail
+selfhost/scripts/sd1_gate3_proof.sh: line 94: 10980 Terminated: 15          ( cd "$W/overlay" && exec python3 -m http.server "$PORT" --bind 127.0.0.1 ) > /dev/null 2>&1
+        FAIL  the distribution is missing LAYOUT.txt
+  PASS  refused: the distribution is incomplete
+
+== 5 - NEGATIVE: one mutated byte must fail
+        FAIL  a distribution file does not match MANIFEST.sha256
+  PASS  refused: a single flipped byte is detected
+
+== 6 - NEGATIVE: the WRONG cell's descriptor must fail
+        FAIL  descriptor recomputes to cd848320d605ff8af5060cabf9a8d1b35853f752, not f85251f344600ae08196925a174e9cff8f0ff18e
+  PASS  refused: the descriptor does not authenticate this address
+
+== 7 - and it must succeed with the LOCAL OVERLAY UNREADABLE
+  PASS  the repository overlay is provably unreadable inside the sandbox
+          CELL MEMBERS VERIFIED (30/30)
+  PASS  hydration SUCCEEDS with the local overlay denied — the distribution is self-sufficient
+
+== RESULT
+  GATE 3 PROVEN

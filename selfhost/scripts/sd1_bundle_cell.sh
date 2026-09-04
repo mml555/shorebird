@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words ustar armv
+# cspell:words ustar armv canonicalizer filelist
 # SELFHOST-DISTRIBUTION-1 gate 3a: bundle the EXACT published cell bytes for
 # durable distribution.
 #
