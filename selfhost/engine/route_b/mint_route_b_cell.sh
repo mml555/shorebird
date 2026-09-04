@@ -523,10 +523,20 @@ address                  $h2
 recompute                shasum -a 256 cell_manifest.v2 | cut -c1-40
 PEOF
 
-  [[ "$dry" == "--dry-run" ]] && { echo "$h2"; return 0; }
+  # The rendered tree is a WORKING COPY, not evidence. It is a full second copy
+  # of the cell -- 1.3 GB for a 30-member cell -- and a dry run used to leave it
+  # sitting in the evidence directory, where the manifest and the address are
+  # the artifacts that actually matter. Removed once its purpose (being verified
+  # against the manifest, then moved into the overlay) is served.
+  if [[ "$dry" == "--dry-run" ]]; then
+    rm -rf "$final"
+    echo "$h2"
+    return 0
+  fi
 
   # 5. PUBLISH, directory-atomic, refusing rather than partially updating.
   v2_publish_tree "$final" "$overlay" "$h2" || return 7
+  rm -rf "$final"
   echo "$h2"
 }
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words armeabi embedding canonicalize MAPEOF
+# cspell:words armeabi embedding canonicalize canonicalizer MAPEOF
 # publish_android_cell.sh -- mint the macos-ios-android cell into the LIVE
 # overlay, wire the CDN to it, and then prove the wiring rather than assume it.
 #
@@ -25,11 +25,24 @@ CHECKER="$SELFHOST/cdn/check_protection_matchers.py"
 CELL=macos-ios-android
 FB=69f9831c360d9152862ec3897c67fb09ae843f3b
 CDN_BASE=${CDN_BASE:-http://localhost:8085}
-STAGE=""; DRY=0
+STAGE=""
+# Named PUBLISH_DRY, not DRY: sourcing the mint library declares its own DRY=0
+# for argument parsing and silently reset this -- so `--dry-run` published for
+# real. Third time this clobber has cost something in this file family (DONOR
+# twice, DRY once), so the rule is now that nothing this script parses may share
+# a name with a mint variable.
+PUBLISH_DRY=0
+# Re-run the PROOF steps (6-9) against an already-published cell, without
+# touching the overlay or the CDN wiring. The publish itself is a one-shot
+# transaction that refuses a second run, so without this the only way to
+# re-check a published cell would be to re-derive the checks by hand -- which is
+# how a proof stops being run.
+VERIFY_ONLY=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --stage) STAGE="${2:?}"; shift 2 ;;
-    --dry-run) DRY=1; shift ;;
+    --dry-run) PUBLISH_DRY=1; shift ;;
+    --verify-only) VERIFY_ONLY=1; shift ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -42,12 +55,17 @@ ok()  { printf '  \033[32mPASS\033[0m  %s\n' "$1"; }
 bad() { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; fail=$((fail+1)); }
 note(){ printf '\n\033[1m== %s\033[0m\n' "$1"; }
 
-EV="$SELFHOST/evidence/android-cell-supply-2/mint"
+EV="$SELFHOST/evidence/android-cell-supply-2/gate5_mint"
 note "1 - address"
 H=$(v2_transaction "$STAGE" "$POLICY" "$CELL" "$FB" "$OVERLAY" "$EV.dry" --dry-run)
 [[ -n "$H" ]] || { echo "no address; refusing" >&2; exit 1; }
 echo "  address: $H"
-if [[ "$DRY" == 1 ]]; then echo "  (dry run; nothing published)"; exit 0; fi
+if [[ "$PUBLISH_DRY" == 1 ]]; then echo "  (dry run; nothing published)"; exit 0; fi
+
+if [[ "$VERIFY_ONLY" == 1 ]]; then
+  H2="$H"
+  echo "  (verify only: steps 2-5 skipped, nothing published or rewired)"
+else
 
 note "2 - publish into the live overlay, transactionally"
 H2=$(v2_transaction "$STAGE" "$POLICY" "$CELL" "$FB" "$OVERLAY" "$EV")
@@ -112,6 +130,8 @@ done
 [[ "$code" == 200 ]] && ok "CDN answers for the new cell (engine_stamp.json 200)" \
                      || bad "CDN did not come back for the new cell (last code $code)"
 
+fi   # end of the publish/wire block
+
 note "6 - the verifier, on the live overlay"
 out=$(bash "$HERE/verify_cell_members.sh" "$H2" 2>&1)
 echo "$out" | sed 's/^/    /'
@@ -122,17 +142,22 @@ note "7 - FETCH BACK THROUGH THE CDN and compare bytes"
 T=$(mktemp -d); n=0; good=0
 while IFS= read -r m; do
   n=$((n+1)); url="$CDN_BASE/${m//%H/$H2}"
-  curl -fsS "$url" -o "$T/x" 2>/dev/null || { echo "    HTTP FAILED $url"; continue; }
+  # The download MUST keep the member's own basename: the canonicalizer
+  # dispatches its permitted-field rule on the file name, so fetching into a
+  # scratch name called `x` made every metadata member refuse and report as a
+  # mismatch. The name is part of the input, not decoration.
+  dl="$T/${m##*/}"; dl="${dl//%H/$H2}"
+  curl -fsS "$url" -o "$dl" 2>/dev/null || { echo "    HTTP FAILED $url"; continue; }
   case "$(basename "$m")" in
     engine_stamp.json|artifacts_manifest.yaml|*.pom)
       # Rendered metadata: compare the CANONICAL form against the stage, which
       # is the only comparison that is defined for a member carrying its own
       # address.
-      a=$(python3 "$HERE/lib/v2_canonicalize.py" "$T/x" "$H2" --digest 2>/dev/null)
+      a=$(python3 "$HERE/lib/v2_canonicalize.py" "$dl" "$H2" --digest 2>/dev/null)
       b=$(shasum -a 256 "$STAGE/$m" | cut -d' ' -f1)
       [[ -n "$a" && "$a" == "$b" ]] && good=$((good+1)) || echo "    CANONICAL MISMATCH $m" ;;
     *)
-      cmp -s "$T/x" "$STAGE/$m" && good=$((good+1)) || echo "    BYTES DIFFER $m" ;;
+      cmp -s "$dl" "$STAGE/$m" && good=$((good+1)) || echo "    BYTES DIFFER $m" ;;
   esac
 done < <(v2_members "$POLICY" "$CELL")
 rm -rf "$T"

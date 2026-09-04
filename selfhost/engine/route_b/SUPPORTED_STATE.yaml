@@ -56,6 +56,56 @@ lineage:
   fallback_engine_revision: 69f9831c360d9152862ec3897c67fb09ae843f3b
   dart_revision: 9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
 
+# CELLS PUBLISHED BY THIS PROGRAMME, and what each one's identity actually
+# covers. `lineage.cell_address` above names the SUPPORTED cell and is
+# unchanged; this block exists because a second cell now exists and a reader
+# must be able to tell them apart without reading a conversation.
+cells:
+  cd848320d605ff8af5060cabf9a8d1b35853f752:
+    scope: macos-ios
+    members: 16
+    status: SUPPORTED — this is lineage.cell_address
+    producer_lineage: dfa2b24ac38477f3705ff0357530f33fe09474b8
+    android: none published; a release-mode Android request 404s by design
+
+  f85251f344600ae08196925a174e9cff8f0ff18e:
+    scope: macos-ios-android
+    members: 30
+    minted: 2026-09-04 (ANDROID-CELL-SUPPLY-2)
+    status: PUBLISHED AND SERVED — NOT YET THE SUPPORTED STACK
+    # What is proven, and what is not. An Android RELEASE builds against this
+    # cell end to end from a pristine engine cache; an Android PATCH has not
+    # been qualified on a physical device against it, and until it has, this
+    # cell is not the supported stack. Switching lineage.cell_address before
+    # that would make this record claim more than its evidence supports.
+    proven: >-
+      `shorebird release android --artifact apk` exit 0 from an empty engine
+      cache and an empty Gradle home; the 24-object measured workflow closure
+      resolved as 14 identity-bearing from this cell and 10 cache/transport via
+      fallback; zero identity requests answered by a redirect; all three ABIs in
+      the APK carry OUR engine revision and none carries the fallback's.
+    not_proven: physical Android patch qualification against this cell.
+    # PROVENANCE IS PER-PLATFORM. There is deliberately NO single
+    # producer_engine_revision here: 16 of the 30 members are the byte-identical
+    # bytes cd848320 published, produced by dfa2b24a, and relabelling them with
+    # the Android producer would be a false claim about 16 artifacts.
+    producer_lineage:
+      macos_ios_members: dfa2b24ac38477f3705ff0357530f33fe09474b8
+      android_members: f1a59b8a1609c51397601c36d586ad7763d57153
+      android_parent: dfa2b24ac38477f3705ff0357530f33fe09474b8
+      android_delta: >-
+        one file, flutter/lib/snapshot/BUILD.gn — an applicability gate so
+        analyze_snapshot is not demanded for a 32-bit target Dart declines to
+        build it for. Reviewable at
+        selfhost/engine/route_b/patches/0001-gate-macos-analyze-snapshot-applicability.patch
+    member_provenance:
+      byte_identical_to_cd848320: 14
+      identical_in_canonical_form: 1     # engine_stamp.json, template vs rendered
+      regenerated: 1                     # artifacts_manifest.yaml, target ios -> ios+android
+      newly_built_by_us: 14
+    fallback_engine_revision: 69f9831c360d9152862ec3897c67fb09ae843f3b
+    evidence: evidence/android-cell-supply-2/
+
 # The chain a build actually walks. Each link was read from the artifact itself.
 selector_chain:
   links:
@@ -128,6 +178,23 @@ product_surfaces:
         (at minimum android-arm64-release, which @must_be_local requires be
         genuinely ours). Cell/architecture work; not started.
       evidence: evidence/android-final-stack-1/RESULT.md
+      # ADDITION, 2026-09-04 (ANDROID-CELL-SUPPLY-2). Everything above remains
+      # true OF THIS CELL and is not edited. The `to_support` work has since
+      # been done, on a DIFFERENT cell: f85251f3… publishes all three Android
+      # release ABIs and the four Maven modules from our own engine lineage, and
+      # an ordinary `shorebird release android` completes against it from a
+      # pristine cache. See cells: above.
+      #
+      # That does NOT make Android supported. A release is not a patch: physical
+      # Android patch qualification against f85251f3… has not been run, so
+      # neither cell carries an Android support claim yet. What changed is that
+      # the blocker is no longer architectural.
+      superseded_blocker: >-
+        "the cell publishes NO Android engine artifacts" — no longer true of
+        f85251f3…, still true of cd848320…
+      remaining_for_support: physical Android patch qualification against
+        f85251f3…; then lineage.cell_address may move.
+      addition_evidence: evidence/android-cell-supply-2/RESULT.md
   ios_add_to_app:
     status: UNSUPPORTED
     assessed: 2026-09-03 (ADD-TO-APP-1)

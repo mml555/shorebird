@@ -53,9 +53,13 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n "$HASH" ]] || { echo "ERROR: --hash is required" >&2; exit 2; }
-[[ -n "$CELL" ]] || { echo "ERROR: --cell is required (macos-ios | linux-android)" >&2; exit 2; }
-[[ "$CELL" == "macos-ios" || "$CELL" == "linux-android" ]] || {
-  echo "ERROR: unknown cell '$CELL' (expected macos-ios or linux-android)" >&2; exit 2; }
+# The cell names are validated against artifact_policy.conf rather than hard
+# coded, so adding a cell to the policy cannot leave the auditor unable to audit
+# it -- which is exactly what happened when macos-ios-android was added.
+CELLS=$(awk '!/^#/ && NF>=4 && $1!="both" {print $1}' "$POLICY" | sort -u | tr '\n' ' ')
+[[ -n "$CELL" ]] || { echo "ERROR: --cell is required (one of: $CELLS)" >&2; exit 2; }
+grep -qw -- "$CELL" <<<"$CELLS" || {
+  echo "ERROR: unknown cell '$CELL' (artifact_policy.conf declares: $CELLS)" >&2; exit 2; }
 [[ -r "$POLICY" ]] || { echo "ERROR: cannot read policy $POLICY" >&2; exit 2; }
 [[ -d "$OVERLAY" ]] || { echo "ERROR: no overlay directory at $OVERLAY" >&2; exit 2; }
 

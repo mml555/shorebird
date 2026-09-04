@@ -26,6 +26,7 @@ PROTECTED_CELLS = [
     '64ff9f592ae319eea04db6092b71319d4778b873',
     'd4c0dbc2905286eb4537d5f9a7802693096ca1fd',   # H3
     'cd848320d605ff8af5060cabf9a8d1b35853f752',   # v13 successor
+    'f85251f344600ae08196925a174e9cff8f0ff18e',   # macos-ios-android
 ]
 # Cells whose sky/gpu packages are protected but whose iOS modes are not.
 SKY_ONLY_CELLS = [
