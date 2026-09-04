@@ -29,8 +29,16 @@ import urllib.request
 PORT = int(sys.argv[1])
 OVERLAY = sys.argv[2]
 LOG = sys.argv[3]
+# THE BUCKET IS THE FIRST PATH SEGMENT, so the upstream base is the GCS host
+# and the request path passes through verbatim:
+#   flutter_infra_release/...   -> storage.googleapis.com/flutter_infra_release/...
+#   download.shorebird.dev/...  -> storage.googleapis.com/download.shorebird.dev/...
+#   download.flutter.io/...     -> storage.googleapis.com/download.flutter.io/...
+# Defaulting to .../download.shorebird.dev instead made every stock Flutter
+# asset 404 twice over -- once locally and once upstream -- because Flutter's
+# fonts live in the flutter_infra_release bucket, not beneath Shorebird's.
 UPSTREAM = (sys.argv[4] if len(sys.argv) > 4
-            else 'https://storage.googleapis.com/download.shorebird.dev').rstrip('/')
+            else 'https://storage.googleapis.com').rstrip('/')
 lock = threading.Lock()
 
 

@@ -27,6 +27,11 @@ ok()   { printf '  \033[32mPASS\033[0m  %s\n' "$1"; }
 bad()  { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; fail=$((fail+1)); }
 note() { printf '\n\033[1m== %s\033[0m\n' "$1"; }
 mkdir -p "$ROOT"; cd "$ROOT"
+# A RUN STAMP, because a wait-for-this-string guard matched a PREVIOUS run's
+# output twice in this programme before the new job had truncated the log.
+# Anything waiting on this run should wait on the process, and anything reading
+# the log should check this line first.
+printf 'SELFHOST-CLEANROOM-2 run %s pid %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$$"
 LOG="$ROOT/logs"; mkdir -p "$LOG" "$ROOT/tmp"
 PROFILE="$ROOT/cleanroom.sb"
 
