@@ -1,0 +1,12 @@
+=== PRE-CHANGE armv7 configuration, engine source dfa2b24ac38477f3705ff0357530f33fe09474b8 ===
+--- flutter/lib/snapshot/BUILD.gn is unmodified: ---
+    (empty above = unmodified)
+--- gn --android --android-cpu=arm --runtime-mode=release --no-prebuilt-dart-sdk ---
+ERROR Unresolved dependencies.
+//flutter/lib/snapshot:create_macos_analyze_snapshot_arm64_arm(//build/toolchain/android:clang_arm)
+  needs //flutter/third_party/dart/runtime/bin:analyze_snapshot(//build/toolchain/mac:clang_arm64)
+//flutter/lib/snapshot:create_macos_analyze_snapshot_x64_arm(//build/toolchain/android:clang_arm)
+  needs //flutter/third_party/dart/runtime/bin:analyze_snapshot(//build/toolchain/mac:clang_x64)
+
+Generating GN files in: out/android_release
+--- exit= ---

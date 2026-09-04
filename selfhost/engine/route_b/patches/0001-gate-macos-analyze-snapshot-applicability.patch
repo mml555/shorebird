@@ -1,0 +1,135 @@
+From f1a59b8a1609c51397601c36d586ad7763d57153 Mon Sep 17 00:00:00 2001
+From: Route B selfhost <selfhost@route-b>
+Date: Fri, 4 Sep 2026 00:55:57 -0400
+Subject: [PATCH] Gate the shorebird-added macOS analyze_snapshot block on
+ Dart's applicability
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+`build_mac_analyze_snapshot` and its consumer were added for
+create_ios_framework.py and instantiated unconditionally, but Dart defines
+`analyze_snapshot` only for 64-bit AOT target CPUs — `build_analyze_snapshot`
+in third_party/dart/runtime/runtime_args.gni, "The analyze_snapshot tool is
+only supported on 64 bit AOT builds".
+
+So an android-arm (32-bit) build on a macOS host named a target that was never
+defined:
+
+  ERROR Unresolved dependencies.
+  //flutter/lib/snapshot:create_macos_analyze_snapshot_arm64_arm(...)
+    needs //flutter/third_party/dart/runtime/bin:analyze_snapshot(...)
+
+Gated on Dart's own predicate, expressed with target_cpu to match the
+surrounding code. Deliberately NOT the narrower host_os-sensitive condition
+used by the upstream analyze_snapshot guard above: that one is false for a
+macOS-host x64 build, so it would also have dropped analyze_snapshot from x64
+and changed artifacts this fix must leave untouched.
+
+arm64 and x64 keep the target; arm no longer asks for it. The predicate is
+identical to Dart's, so it cannot broaden analyze_snapshot to any target Dart
+declines to build.
+---
+ engine/src/flutter/lib/snapshot/BUILD.gn | 77 +++++++++++++++---------
+ 1 file changed, 48 insertions(+), 29 deletions(-)
+
+diff --git a/engine/src/flutter/lib/snapshot/BUILD.gn b/engine/src/flutter/lib/snapshot/BUILD.gn
+index e495383162..fc4abc1a7a 100644
+--- a/engine/src/flutter/lib/snapshot/BUILD.gn
++++ b/engine/src/flutter/lib/snapshot/BUILD.gn
+@@ -35,10 +35,19 @@ group("generate_snapshot_bins") {
+   if (host_os == "mac" &&
+       (target_os == "mac" || target_os == "ios" || target_os == "android")) {
+     # For macOS target builds: needed for both target CPUs (arm64, x64).
+-    public_deps += [
+-      ":create_macos_analyze_snapshots",
+-      ":create_macos_gen_snapshots",
+-    ]
++    public_deps += [ ":create_macos_gen_snapshots" ]
++
++    # analyze_snapshot exists only for the target CPUs Dart builds it for --
++    # `build_analyze_snapshot` in third_party/dart/runtime/runtime_args.gni:
++    # "The analyze_snapshot tool is only supported on 64 bit AOT builds".
++    # Without this gate an android-arm (32-bit) build on a macOS host asks for
++    # a target that was never defined and gn fails with unresolved
++    # dependencies. Same predicate as the guard on the shorebird-added
++    # instantiations below.
++    if (target_cpu == "x64" || target_cpu == "arm64" ||
++        target_cpu == "riscv64") {
++      public_deps += [ ":create_macos_analyze_snapshots" ]
++    }
+   } else if (host_os == "mac" &&
+              (target_cpu == "arm" || target_cpu == "arm64")) {
+     # For iOS, Android target builds: all AOT target CPUs are arm/arm64.
+@@ -297,33 +306,43 @@ if (host_os == "mac" &&
+     }
+   }
+ 
+-  build_mac_analyze_snapshot(
+-      "create_macos_analyze_snapshot_arm64_${target_cpu}") {
+-    host_arch = "arm64"
+-  }
++  # Gated for the reason given at the `create_macos_analyze_snapshots`
++  # dependency above: Dart defines `analyze_snapshot` only for 64-bit AOT
++  # target CPUs, so instantiating these for android-arm names a target that
++  # does not exist. The predicate mirrors `build_analyze_snapshot` in
++  # third_party/dart/runtime/runtime_args.gni rather than the narrower
++  # host_os-sensitive condition used by the upstream block above, which would
++  # also have dropped analyze_snapshot from the macOS-host x64 build and
++  # changed artifacts this gate must leave alone.
++  if (target_cpu == "x64" || target_cpu == "arm64" || target_cpu == "riscv64") {
++    build_mac_analyze_snapshot(
++        "create_macos_analyze_snapshot_arm64_${target_cpu}") {
++      host_arch = "arm64"
++    }
+ 
+-  build_mac_analyze_snapshot(
+-      "create_macos_analyze_snapshot_x64_${target_cpu}") {
+-    host_arch = "x64"
+-  }
++    build_mac_analyze_snapshot(
++        "create_macos_analyze_snapshot_x64_${target_cpu}") {
++      host_arch = "x64"
++    }
+ 
+-  action("create_macos_analyze_snapshots") {
+-    script = "//flutter/sky/tools/create_macos_binary.py"
+-    outputs = [ "${root_out_dir}/analyze_snapshot_${target_cpu}" ]
+-    args = [
+-      "--in-arm64",
+-      rebase_path(
+-          "${root_out_dir}/artifacts_arm64/analyze_snapshot_${target_cpu}"),
+-      "--in-x64",
+-      rebase_path(
+-          "${root_out_dir}/artifacts_x64/analyze_snapshot_${target_cpu}"),
+-      "--out",
+-      rebase_path("${root_out_dir}/analyze_snapshot_${target_cpu}"),
+-    ]
+-    deps = [
+-      ":create_macos_analyze_snapshot_arm64_${target_cpu}",
+-      ":create_macos_analyze_snapshot_x64_${target_cpu}",
+-    ]
++    action("create_macos_analyze_snapshots") {
++      script = "//flutter/sky/tools/create_macos_binary.py"
++      outputs = [ "${root_out_dir}/analyze_snapshot_${target_cpu}" ]
++      args = [
++        "--in-arm64",
++        rebase_path(
++            "${root_out_dir}/artifacts_arm64/analyze_snapshot_${target_cpu}"),
++        "--in-x64",
++        rebase_path(
++            "${root_out_dir}/artifacts_x64/analyze_snapshot_${target_cpu}"),
++        "--out",
++        rebase_path("${root_out_dir}/analyze_snapshot_${target_cpu}"),
++      ]
++      deps = [
++        ":create_macos_analyze_snapshot_arm64_${target_cpu}",
++        ":create_macos_analyze_snapshot_x64_${target_cpu}",
++      ]
++    }
+   }
+ }
+ 
+-- 
+2.55.0
+

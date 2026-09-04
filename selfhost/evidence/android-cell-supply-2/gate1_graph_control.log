@@ -1,0 +1,17 @@
+=== started 2026-09-04T06:00:21Z HEAD=f1a59b8a1609c51397601c36d586ad7763d57153 ===
+--- with the PATCHED BUILD.gn ---
+  patched: 21856 targets
+--- with the PARENT's BUILD.gn (only that one file reverted) ---
+post-checkout: The engine source tree has been updated.
+
+You may need to run "gclient sync -D"
+
+  parent: 21856 targets
+post-checkout: The engine source tree has been updated.
+
+You may need to run "gclient sync -D"
+
+  BUILD.gn restored: 0 modifications
+=== arm64 graph diff ===
+  IDENTICAL — the gate changed nothing in arm64's build graph
+=== done 2026-09-04T06:00:27Z ===

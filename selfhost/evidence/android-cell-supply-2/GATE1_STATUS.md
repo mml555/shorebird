@@ -2,6 +2,14 @@
 
 # ANDROID-CELL-SUPPLY-2 · Gate 1 — STOPPED for a decision on armv7
 
+> **SUPERSEDED CONCLUSION — 2026-09-04.** The stop this document asked for was
+> ruled on: Option A authorized. The armv7 blocker below is real and its
+> reproduction is still the evidence of record, but the conclusion *"arm CANNOT
+> CONFIGURE"* no longer holds — a narrow, PM-authorized applicability gate in
+> `flutter/lib/snapshot/BUILD.gn` fixed it and all three architectures now
+> configure and build. See [`GATE1_RESULT.md`](GATE1_RESULT.md). Nothing below
+> is edited.
+
 2026-09-04. The scratch build is the load-bearing gate and it has produced a
 definite, partial answer.
 
