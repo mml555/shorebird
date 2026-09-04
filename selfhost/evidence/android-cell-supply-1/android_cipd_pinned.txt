@@ -1,0 +1,4 @@
+flutter/android/sdk/all/mac-amd64 version:36v8unmodified
+flutter/android/embedding_bundle last_updated:2025-10-15T09:53:03-0700
+flutter/java/openjdk/mac-amd64 version:21
+gn/gn/mac-amd64 git_revision:81b24e01531ecf0eff12ec9359a555ec3944ec4e

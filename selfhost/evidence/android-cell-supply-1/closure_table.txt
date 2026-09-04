@@ -1,0 +1,47 @@
+ANDROID-CELL-SUPPLY-1 — the measured Android closure for cell cd848320
+======================================================================================================================================================
+  # object                                                         req  local?   ovl  addr  identity               bytes  why
+------------------------------------------------------------------------------------------------------------------------------------------------------
+  1 fir/android-arm/artifacts.zip                                  yes  fallback no   no    CACHE/TRANSPORT    113736959  debug/profile only; a release build does not consume it
+  2 fir/android-arm64/artifacts.zip                                yes  fallback no   no    CACHE/TRANSPORT    178928893  debug/profile only; a release build does not consume it
+  3 fir/android-x64/artifacts.zip                                  yes  fallback no   no    CACHE/TRANSPORT    118923848  debug/profile only; a release build does not consume it
+  4 fir/android-x86/artifacts.zip                                  yes  fallback no   no    CACHE/TRANSPORT    114294893  debug/profile only; a release build does not consume it
+  5 fir/android-arm-profile/artifacts.zip                          yes  fallback no   no    CACHE/TRANSPORT     43129241  debug/profile only; a release build does not consume it
+  6 fir/android-arm-profile/darwin-x64.zip                         yes  fallback no   no    CACHE/TRANSPORT      5339294  debug/profile only; a release build does not consume it
+  7 fir/android-arm64-profile/artifacts.zip                        yes  fallback no   no    CACHE/TRANSPORT     43965002  debug/profile only; a release build does not consume it
+  8 fir/android-arm64-profile/darwin-x64.zip                       yes  fallback no   no    CACHE/TRANSPORT      5467479  debug/profile only; a release build does not consume it
+  9 fir/android-x64-profile/artifacts.zip                          yes  fallback no   no    CACHE/TRANSPORT     44186525  debug/profile only; a release build does not consume it
+ 10 fir/android-x64-profile/darwin-x64.zip                         yes  fallback no   no    CACHE/TRANSPORT      5451359  debug/profile only; a release build does not consume it
+ 11 fir/android-arm-release/artifacts.zip                          yes  fallback no   no    CELL-IDENTITY       42285130  release-mode engine jar; could not be excluded
+ 12 fir/android-arm-release/darwin-x64.zip                         yes  fallback no   no    CELL-IDENTITY        4420825  compiles the libapp.so that ships
+ 13 fir/android-arm64-release/artifacts.zip                        yes  MUST     no   no    CELL-IDENTITY       43564803  release-mode engine jar; could not be excluded
+ 14 fir/android-arm64-release/darwin-x64.zip                       yes  MUST     no   no    CELL-IDENTITY        4570098  compiles the libapp.so that ships
+ 15 fir/android-x64-release/artifacts.zip                          yes  fallback no   no    CELL-IDENTITY       43709802  release-mode engine jar; could not be excluded
+ 16 fir/android-x64-release/darwin-x64.zip                         yes  fallback no   no    CELL-IDENTITY        4527502  compiles the libapp.so that ships
+ 17 mvn/flutter_embedding_release/flutter_embedding_release.jar    yes  MUST     no   no    CELL-IDENTITY        1572878  ships in the APK
+ 18 mvn/flutter_embedding_release/flutter_embedding_release.pom    yes  MUST     no   no    CELL-IDENTITY           2544  version-bound; Gradle validates it against the coordinate
+ 19 mvn/flutter_embedding_release/flutter_embedding_release.pom.sha1 NO   MUST     no   no    INCIDENTAL                 0  absent in a run that SUCCEEDED
+ 20 mvn/armeabi_v7a_release/armeabi_v7a_release.jar                yes  MUST     no   no    CELL-IDENTITY       43130632  ships in the APK
+ 21 mvn/armeabi_v7a_release/armeabi_v7a_release.pom                yes  MUST     no   no    CELL-IDENTITY            512  version-bound; Gradle validates it against the coordinate
+ 22 mvn/armeabi_v7a_release/armeabi_v7a_release.pom.sha1           NO   MUST     no   no    INCIDENTAL                 0  absent in a run that SUCCEEDED
+ 23 mvn/arm64_v8a_release/arm64_v8a_release.jar                    yes  MUST     no   no    CELL-IDENTITY       44469803  ships in the APK
+ 24 mvn/arm64_v8a_release/arm64_v8a_release.pom                    yes  MUST     no   no    CELL-IDENTITY            510  version-bound; Gradle validates it against the coordinate
+ 25 mvn/arm64_v8a_release/arm64_v8a_release.pom.sha1               NO   MUST     no   no    INCIDENTAL                 0  absent in a run that SUCCEEDED
+ 26 mvn/x86_64_release/x86_64_release.jar                          yes  MUST     no   no    CELL-IDENTITY       44658133  ships in the APK
+ 27 mvn/x86_64_release/x86_64_release.pom                          yes  MUST     no   no    CELL-IDENTITY            507  version-bound; Gradle validates it against the coordinate
+ 28 mvn/x86_64_release/x86_64_release.pom.sha1                     NO   MUST     no   no    INCIDENTAL                 0  absent in a run that SUCCEEDED
+ 29 sb/aot-tools.dill                                              NO   MUST     no   no    INCIDENTAL          23217232  absent in a run that SUCCEEDED
+------------------------------------------------------------------------------------------------------------------------------------------------------
+closure            : 29 observed, 24 required, 5 incidental
+CELL-IDENTITY      : 14
+CACHE/TRANSPORT    : 10
+INCIDENTAL         : 5
+
+CELL-IDENTITY members the CDN currently lets FALL BACK: 4
+    android-arm-release/artifacts.zip
+    android-arm-release/darwin-x64.zip
+    android-x64-release/artifacts.zip
+    android-x64-release/darwin-x64.zip
+
+in the overlay today: 0 of 29
+addressed by the cell today: 0 of 29

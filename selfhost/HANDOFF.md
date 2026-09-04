@@ -2,9 +2,75 @@
 <!-- cspell:words APFS CODEPATCH PRECOMPILER Werror caffeinate dartaotruntime SEGVs Specializer diskutil dumpsys flowgraph iface killgate libdart nodm nofail precompiler unapply -->
 <!-- cspell:words tearoff DNDEBUG SEGV LINKEDIT ourengine noinstall SELTOTAL hosttest unrun closurizing closurized closurize closurization bodyless pids footgun mtimes repointed rbtest Devirtualization genkernel misparse -->
 <!-- cspell:words airgap justlaunch noninteractive SIGTRAP dynmod absolutized DEFAULTPATH SIGPIPE PIPESTATUS -->
-<!-- cspell:words SBRBPTCH inspectable janky premain representability routeb reconstructibility productionization uiautomator screencap keyguard bidiff Lockscreen -->
+<!-- cspell:words SBRBPTCH inspectable janky premain representability routeb reconstructibility productionization uiautomator screencap keyguard bidiff Lockscreen armv cipd -->
 
 # Handoff — engine improvements (as of 2026-08-07)
+
+## 2026-09-03 — ANDROID-CELL-SUPPLY-1: the Android closure is 24 objects, 14 identity-bearing, and Option A is forced
+
+Measurement only. Nothing minted, nothing published, `cd848320…` untouched,
+`@must_be_local` unchanged. Account:
+[`evidence/android-cell-supply-1/RESULT.md`](evidence/android-cell-supply-1/RESULT.md).
+
+    closure = 24 required (29 observed, 5 incidental)
+    identity-bearing = 14   cache/transport = 10
+    buildable = 24/24 with no blocker found — but NOT YET BUILT
+    schema = A (extend the cell manifest)
+
+**The finding a directory listing could never give you: the engine that ships in
+the APK comes from MAVEN, not from `artifacts.zip`.** Gradle adds
+`io.flutter:<arch>_release:<v>` and resolves it from
+`$FLUTTER_STORAGE_BASE_URL/download.flutter.io`; the AAR carries
+`lib/<abi>/libflutter.so`. Those objects live under a different host prefix
+entirely, so only a real request log surfaces them.
+
+**Maven artifacts CANNOT fall back — Gradle refuses it structurally**, not by
+policy: `inconsistent module metadata … bad version: expected='1.0.0-cd848320…'
+found='1.0.0-69f9831c…'`. The POM names its own version and Gradle compares it to
+the requested coordinate. So `@must_be_local` on `download.flutter.io/io/flutter/`
+is the only thing that CAN work, and the eight Maven objects must be genuinely
+published under the cell hash.
+
+**`shorebird release android` unconditionally runs `flutter precache --android`,**
+so the workflow's closure (24) is strictly larger than the release-defining
+subset (14). Ten debug/profile objects — 619 MB — are needed for the command to
+run and contribute nothing to the shipped app.
+
+**A POLICY GAP, reported and deliberately not touched.** `@must_be_local` covers
+`android-arm64-release/` but **not** `android-arm-release/` or
+`android-x64-release/`, so **4 of the 14 identity-bearing members are
+fallback-permitted today** — including the `gen_snapshot` that compiles the
+shipped `libapp.so` for armv7 and x86_64. Close it in the same change as the new
+cell, or the asymmetry is inherited silently.
+
+**Option B is not mechanically expressible.** Every required path derives from
+ONE value — `bin/internal/engine.version`, which for this stack *is* the cell
+address. A separate Android set needs a second hash in the same path space and
+Flutter resolves one. Option A is what the schema already anticipates: the v2
+descriptor's second line is literally `cell macos-ios`, and the cell's
+`artifacts_manifest.yaml` already lists the Android overrides (48 declared, 10
+published — which is why the 404s are fail-closed rather than wrong bytes).
+
+**The circularity is already solved, and I got it wrong first.** A POM must
+contain the address, and the address is computed over member digests — apparently
+circular. `verify_cell_members.sh`'s `canon_hash` canonicalises the cell's own
+hash back to a literal `%H` before hashing and REFUSES it outside one permitted
+field per file type. I read the raw mismatch (`ab8f1247…` vs the descriptor's
+`0f4e4cb2…`) as a defect before realising I had hashed the file instead of
+canonicalising it. The one schema addition CELL-SUPPLY-2 needs is a permitted
+field for the POM's `<version>1.0.0-%H</version>`.
+
+**Buildability: no blocker found, and NOT demonstrated.** All four DEPS-pinned
+Android CIPD packages resolve HTTP 200 at their exact pinned versions and none is
+private — unlike the Dart SDK prebuilt whose 401 is why this programme carries a
+Dart fork. Maven packaging is in-tree (`generate_pom_file.py`,
+`embedding_artifact_id`). Two deltas from the iOS build are both favourable:
+`shorebird_use_interpreter` already defaults false on Android, and
+`--dart-dynamic-modules` is not needed at all because Android patches are bidiff.
+**I did NOT run `gclient sync` on the engine checkout** — that tree produced the
+qualified cell and moving its third-party deps could compromise the
+reproducibility of an artifact already in service. A scratch build in a separate
+checkout is CELL-SUPPLY-2's first task.
 
 ## 2026-09-03 — FLUTTER-STORAGE-AUTHORITY-1: one artifact origin, and the call that was escaping it
 
