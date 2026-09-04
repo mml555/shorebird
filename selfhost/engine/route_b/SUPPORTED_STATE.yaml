@@ -38,7 +38,16 @@ lineage:
   # clones from the fork that carries it. The CELL did not move, the compiler
   # archive did not move, the analyzer did not move -- so this re-qualifies the
   # selector, not the toolchain.
-  cli_revision: 46ee70af56c3814d079cc2466b092481c7904e76
+  # Re-qualified 2026-09-04 (CI-NONINTERACTIVE-1). Previous identity retained:
+  #   superseded: cli_revision 46ee70af56c3814d079cc2466b092481c7904e76
+  #               packages_shorebird_cli 6c76e79a3ad1c86658a41b144dececb07ff5d3ca
+  # What moved: a REQUESTED confirmation now refuses instead of approving
+  # itself. release_command.dart and patch_command.dart guarded
+  # `logger.confirm` with `&& canAcceptUserInput`, so with nothing able to
+  # answer the confirmation was skipped and the mutation proceeded -- measured,
+  # `--confirm` with fd 0 closed published successfully. The cell, the compiler
+  # archive, the analyzer and the selector did not move.
+  cli_revision: 5cc178ef070cf74f4b9420e8905319e667da04ef
   cli_contains: 6b4f6c422bab55143ef04c8f43f92015ee3b3feb   # private-name resolution for constructions
   # THE FLUTTER REVISION, and it is now the one that actually selects the
   # supported cell. e64eb0af's own engine.version names the SUPERSEDED cell
@@ -110,7 +119,7 @@ lineage:
   # is a change to what "qualified" was established against. Re-qualifying is a
   # matter of re-running the verifier and updating two lines here.
   cli_product_tree:
-    packages_shorebird_cli: 6c76e79a3ad1c86658a41b144dececb07ff5d3ca
+    packages_shorebird_cli: 486a7714320f795d5d8d3f9f132f192b58b29641
     bin_internal: 8ae6081fb375ed33515e8ae0d61bc4ecdb51b990
   producer_engine_revision: dfa2b24ac38477f3705ff0357530f33fe09474b8   # built in; NOT the address
   fallback_engine_revision: 69f9831c360d9152862ec3897c67fb09ae843f3b
@@ -419,6 +428,87 @@ distribution:
     from durable sources: an annotated tag, two anonymously-cloneable
     repositories, and a content-addressed cell distribution. Verified in a
     sealed cleanroom with the qualification machine unreadable.
+
+# CAN AN AUTOMATED JOB RUN THIS WITHOUT A HUMAN? Certified 2026-09-04 by
+# CI-NONINTERACTIVE-1: bootstrap -> authenticate -> release -> patch ->
+# publish/promote, with file descriptor 0 CLOSED for every invocation.
+ci_noninteractive:
+  status: CERTIFIED
+  qualified: 2026-09-04 (CI-NONINTERACTIVE-1)
+  evidence: evidence/ci-noninteractive-1/RESULT.md
+  # STDIN CLOSED MEANS `0<&-`, NOT `< /dev/null`. Dart classifies stdin by
+  # st_mode and /dev/null is a character device, which it reports as a
+  # terminal -- so under /dev/null `stdin.hasTerminal` is TRUE and the CLI
+  # believes it can prompt. A contract written against /dev/null tests the
+  # wrong thing. Measured both ways in this lane.
+  certified_stdin_shape: fd 0 closed (0<&-)
+  # The full declared environment. env -i strips everything, so this list IS
+  # the contract: nothing reaches the CLI by accident.
+  required_environment:
+    - SHOREBIRD_TOKEN            # an sb_api_ key; never printed
+    - SHOREBIRD_HOSTED_URL       # the operator's control plane
+    - SHOREBIRD_ARTIFACT_ORIGIN  # or FLUTTER_STORAGE_BASE_URL
+    - ANDROID_HOME               # and ANDROID_SDK_ROOT
+    - JAVA_HOME
+    - GRADLE_USER_HOME           # HOME does NOT cover this -- see below
+    - CI                         # any value; presence alone suppresses prompting
+  # Found by failure, in this order, and each fails closed with its remedy
+  # named rather than prompting:
+  prerequisites:
+    - >-
+      the app needs the INTERNET permission; a `flutter create` app lacks it.
+      `shorebird doctor --fix` supplies it and runs unattended (exit 0).
+    - >-
+      GRADLE_USER_HOME must be set explicitly. Gradle is a Java process and
+      resolves user.home from PASSWD, not from the HOME environment variable,
+      so pointing HOME at a clean directory still sends Gradle to the invoking
+      user's ~/.gradle. This stays invisible on any machine where that
+      directory happens to be readable and warm.
+    - >-
+      the Flutter remote must carry upstream's version tags, or the SDK
+      resolves 0.0.0-unknown and `flutter pub get` refuses flutter_test. See
+      lineage.flutter_selector_durability.
+  # Every mutable target is explicit or refused. Nothing is ever chosen for you.
+  deterministic_selection:
+    app: shorebird.yaml app_id
+    release: >-
+      --release-version. Omitted non-interactively the CLI does NOT prompt and
+      does NOT pick the first object: it warns and DERIVES the version from
+      pubspec, then proceeds; if that version has no release it exits 70.
+      Measured with four releases present. CI should pass the flag, because
+      derivation depends on a mutable pubspec.
+    track: >-
+      --track on `patch` publishes and assigns the track, auto-creating the
+      channel. `patches set-track` moves a patch to an EXISTING channel. Both
+      unattended. `patches promote` is deprecated in favour of set-track.
+    mandatory_args: >-
+      `patches set-track` declares --release, --patch and --track mandatory, so
+      the arg parser refuses before the command runs -- deterministic by
+      construction, not by a runtime check. Measured: omitting one exits 70.
+  confirmation:
+    contract: >-
+      an ordinary invocation does not prompt at all: `confirm` comes from a
+      hidden --confirm flag that defaults to false (upstream #3223). When
+      --confirm IS passed and nothing can answer, the CLI now REFUSES (exit 64)
+      and names the prompt. It previously approved itself silently, which is
+      the defect this lane fixed.
+    bypass: --no-confirm
+  # The one place a genuine prompt remains, and it refuses rather than hanging.
+  documented_refusals:
+    - >-
+      `patches set-track --track <NEW>` asks "No channel named X found. Do you
+      want to create it?" and has no flag to skip it. It refuses with exit 64
+      and names the prompt. Create the channel by publishing a patch with
+      --track=<name>, which auto-creates it.
+  secret_handling: >-
+      the token appears in 0 captured stdout/stderr files, and 0 audit rows
+      contain it. Every mutation is attributed to a credential FINGERPRINT
+      (actor_credential, e.g. bootstrap:1b1486344a85) with a request_id.
+  proven_run:
+    release_id: 10
+    patch_numbers: [1, 2]
+    audit_events: 35
+    interactive_prompts_on_the_certified_path: 0
 
 product_surfaces:
   # WHICH INTEGRATION SHAPES this stack supports, as distinct from which Dart

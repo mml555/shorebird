@@ -1,0 +1,4 @@
+Input was required for the following prompt but the CLI is running in a non-interactive context:
+  No channel named ci1-nonexistent found. Do you want to create it?
+
+Hint: Pass --track=<existing-channel> to use an existing channel. Channels are auto-created when a patch is published with --track=<name>; set-track itself has no flag to skip this confirmation.

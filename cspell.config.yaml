@@ -162,6 +162,8 @@ overrides:
     ignoreWords: ["Ünïcödé"]
 
 words:
+  - newchannel
+  - settrack
   - stdlib
   - cleanroom
   - unpushed
