@@ -134,6 +134,29 @@ else
                           || bad "the selector's engine.version is $got, not $CELL"
 fi
 
+# THE FLUTTER VERSION MUST RESOLVE, and this check exists because it did not.
+#
+# Flutter derives its version with `git describe --match '*.*.*' --first-parent
+# --long --tags`. A clone whose remote carries no upstream VERSION TAGS yields
+# `0.0.0-unknown`, and then `flutter pub get` refuses flutter_test --
+# "leak_tracker_flutter_testing requires Flutter SDK >=3.18.0" -- so no app can
+# be built at all. CI-NONINTERACTIVE-1 hit exactly that: the fork this script
+# clones from had 3 tags where upstream has 1102, because
+# SELFHOST-DISTRIBUTION-1 moved the default clone URL to it without carrying
+# the tags across. Artifact hydration does not notice (precache needs no
+# version solving), so only an actual app build exposes it.
+#
+# Asserted here rather than left to the first operator who tries to build.
+FV=$(git -C "$FD" describe --match '*.*.*' --first-parent --long --tags 2>/dev/null)
+if [[ -n "$FV" && "$FV" != 0.0.0* ]]; then
+  ok "the Flutter version resolves from tags: $FV"
+else
+  bad "the Flutter version does not resolve (describe gave '${FV:-<nothing>}'). \
+The clone's remote is missing upstream version tags, so `flutter pub get` will \
+refuse flutter_test and no app can be built. Push the version tags to the \
+remote named by flutter_selector_durability.remote."
+fi
+
 note "7 - derive SHOREBIRD_ROOT mechanically, so nothing has to be known"
 printf '%s\n' "$RUNTIME" > "$CLONE/selfhost/engine/route_b/.runtime_root"
 ok "wrote .runtime_root = $RUNTIME"

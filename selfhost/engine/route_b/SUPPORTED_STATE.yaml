@@ -66,6 +66,17 @@ lineage:
     # points at it. Recorded rather than glossed, so nobody has to rediscover it.
     physically_qualified_commit: 7b253b2a0a47d8eacb52e50c78c2c548ba1e5d44
     same_tree_as_qualified: true
+    # THE REMOTE MUST ALSO CARRY UPSTREAM'S VERSION TAGS. Flutter derives its
+    # version with `git describe --match '*.*.*' --first-parent --long --tags`;
+    # a remote with none yields 0.0.0-unknown, `flutter pub get` then refuses
+    # flutter_test, and NO APP CAN BE BUILT. Moving the default clone URL to
+    # this fork in SELFHOST-DISTRIBUTION-1 did not carry the tags across -- the
+    # fork had 3 where upstream has 1102 -- and artifact hydration does not
+    # notice, because precache needs no version solving. Found by
+    # CI-NONINTERACTIVE-1, fixed by pushing the tags, and now asserted by
+    # bootstrap_selfhost.sh so it cannot regress silently.
+    version_tags_on_remote: 1101
+    version_resolves_to: 3.46.0-1.0.pre-167
     clone_url_default: >-
       third_party/flutter/bin/internal/shared.sh defaults to this fork.
       shorebirdtech/flutter does NOT carry the selector, and a clean bootstrap
