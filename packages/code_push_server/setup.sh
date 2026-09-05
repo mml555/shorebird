@@ -8,13 +8,15 @@
 #   ./setup.sh --down                   # stop everything
 #   ./setup.sh --backup                 # snapshot the data volume (single-container)
 #   ./setup.sh --restore <file.tgz>     # restore a snapshot (single-container)
+#   ./setup.sh --backup --volume NAME   # name the target volume explicitly
 #
 # It generates all secrets, starts the stack, waits until healthy, and prints
 # what to do next. Re-running is safe (keeps your .env).
+# cspell:words cands cpslib
 set -euo pipefail
 cd "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 
-MODE=single DOMAIN="" EMAIL="" ACTION=up RESTORE_FILE=""
+MODE=single DOMAIN="" EMAIL="" ACTION=up RESTORE_FILE="" VOLUME=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --domain)  DOMAIN="${2:?--domain needs a hostname}"; shift 2 ;;
@@ -23,7 +25,8 @@ while [[ $# -gt 0 ]]; do
     --down)    ACTION=down; shift ;;
     --backup)  ACTION=backup; shift ;;
     --restore) ACTION=restore; RESTORE_FILE="${2:?--restore needs a file}"; shift 2 ;;
-    -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
+    --volume)  VOLUME="${2:?--volume needs a docker volume name}"; shift 2 ;;
+    -h|--help) sed -n '2,14p' "$0"; exit 0 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
@@ -48,37 +51,129 @@ else
 fi
 
 # --- resolve the single-container data volume (for backup/restore) ----------
+# The compose-derived lookup is the only authoritative one. The old fallback
+# was `docker volume ls -q | grep -E 'cps_data$' | head -1`, which picks ANY
+# volume on the host whose name ends `cps_data` — and `--restore` had a looser
+# one still. Measured 2026-09-04: running `--restore` from a directory with no
+# deployment of its own wiped a different, live, healthy deployment's volume,
+# announcing the correct-looking `Restoring … into single_cps_data`. Guessing
+# the target of a destructive operation is not a convenience worth having, so
+# an ambiguous resolution now refuses and asks for --volume.
 data_volume() {
   local cid v
-  cid="$(docker compose ps -q server 2>/dev/null | head -1)"
+  cid="$(docker compose ps -aq server 2>/dev/null | head -1)"
   if [[ -n "$cid" ]]; then
     v="$(docker inspect "$cid" -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}' 2>/dev/null)"
-    [[ -n "$v" ]] && { echo "$v"; return; }
+    [[ -n "$v" ]] && { echo "$v"; return 0; }
   fi
-  docker volume ls -q | grep -E 'cps_data$' | head -1
+  return 1
+}
+
+# Resolve the volume or refuse, naming what the operator can do about it.
+resolve_volume() {
+  local v
+  if [[ -n "$VOLUME" ]]; then
+    docker volume inspect "$VOLUME" >/dev/null 2>&1 || die "no such docker volume: $VOLUME"
+    echo "$VOLUME"; return
+  fi
+  if v="$(data_volume)"; then echo "$v"; return; fi
+  local cands; cands="$(docker volume ls -q | grep -E 'cps_data$' || true)"
+  if [[ -z "$cands" ]]; then
+    die "No data volume for this deployment (no 'server' container here). Scale mode: use ops/backup.sh."
+  fi
+  die "This directory has no running 'server' container, so the target volume is ambiguous.
+   Candidates on this host:
+$(printf '     %s\n' $cands)
+   Re-run from the deployment's own directory, or name it explicitly:
+     $0 --$ACTION --volume <name>"
+}
+
+# Wait for the deployment to serve again after a stop, so --backup does not
+# return while the server is still starting.
+wait_healthy() {
+  local port; port="$(grep -E '^PORT=' .env 2>/dev/null | cut -d= -f2)"; port="${port:-8080}"
+  for _ in $(seq 1 60); do
+    curl -fsS --max-time 2 "http://127.0.0.1:${port}/healthz" >/dev/null 2>&1 && return 0
+    sleep 1
+  done
+  printf '\033[33m !\033[0m the server did not become healthy on 127.0.0.1:%s within 60s\n' "$port" >&2
+}
+
+# Prove the deployment cannot be written to. `stop server || true` discarded
+# both the output and the exit status, so a no-op stop was indistinguishable
+# from a real one and the tar ran against a live volume — measured, and it
+# produced a torn archive in 1 of 5 runs while the quiesced arm produced 0 of 5.
+# A snapshot is not taken unless this returns cleanly.
+assert_quiesced() {
+  local vol=$1 cid running port
+  cid="$(docker compose ps -aq server 2>/dev/null | head -1)"
+  if [[ -n "$cid" ]]; then
+    running="$(docker inspect "$cid" -f '{{.State.Running}}' 2>/dev/null || echo unknown)"
+    [[ "$running" == "false" ]] || die "the server container is still running ($running) — refusing to snapshot a live volume"
+  fi
+  # Anything else still holding the volume can write to it too.
+  local holders
+  holders="$(docker ps -q --filter volume="$vol" 2>/dev/null || true)"
+  if [[ -n "$holders" ]]; then
+    die "these running containers still have $vol mounted — refusing to snapshot:
+$(docker ps --filter volume="$vol" --format '     {{.Names}} ({{.Image}})')"
+  fi
+  # And nothing may still be answering on the published port.
+  port="$(grep -E '^PORT=' .env 2>/dev/null | cut -d= -f2)"; port="${port:-8080}"
+  if curl -fsS --max-time 2 "http://127.0.0.1:${port}/healthz" >/dev/null 2>&1; then
+    die "something is still serving on 127.0.0.1:${port} — refusing to snapshot a writable deployment"
+  fi
 }
 
 case "$ACTION" in
   down)
     say "Stopping the stack…"; "${COMPOSE[@]}" down; ok "Stopped."; exit 0 ;;
   backup)
-    V="$(data_volume)"; [[ -n "$V" ]] || die "No single-container data volume found (scale mode: use ops/backup.sh)."
+    V="$(resolve_volume)"
     mkdir -p backups; STAMP="$(date -u +%Y%m%dT%H%M%SZ)"; NAME="cps-backup-$STAMP.tgz"
-    say "Backing up volume $V (brief pause)…"
+    BID="$(openssl rand -hex 16)"
+    say "Backing up volume $V (the server stops for the snapshot)…"
     "${COMPOSE[@]}" stop server >/dev/null 2>&1 || true
+    assert_quiesced "$V"
+
+    # The manifest travels INSIDE the archive; it is what lets a restore check
+    # the archive before it destroys anything. See ops/lib/write_manifest.sh.
+    docker run --rm -v "$V":/data -v "$PWD/ops/lib":/opt/cpslib:ro \
+      -e BID="$BID" -e STAMP="$STAMP" busybox sh /opt/cpslib/write_manifest.sh
     docker run --rm -v "$V":/data -v "$PWD/backups":/backup busybox \
-      tar czf "/backup/$NAME" -C /data .
+      tar czf "/backup/$NAME" -C /data --exclude='code_push.db-shm' .
+    # A sidecar copy, so a backup can be identified without unpacking it.
+    docker run --rm -v "$V":/data -v "$PWD/backups":/backup busybox \
+      sh -c "cp /data/MANIFEST.json '/backup/${NAME%.tgz}.manifest.json'; rm -f /data/MANIFEST.json"
     "${COMPOSE[@]}" start server >/dev/null 2>&1 || true
-    ok "Wrote backups/$NAME  ($(du -h "backups/$NAME" | cut -f1)). Copy it off-host."
+    wait_healthy
+    ok "Wrote backups/$NAME  ($(du -h "backups/$NAME" | cut -f1)), backup_id $BID."
+    say "It contains PLAINTEXT API KEYS (api_keys.key holds the key itself). Store it as you would a password."
     exit 0 ;;
   restore)
     [[ -f "$RESTORE_FILE" ]] || die "no such file: $RESTORE_FILE"
     ABS="$(cd "$(dirname "$RESTORE_FILE")" && pwd)/$(basename "$RESTORE_FILE")"
-    V="$(data_volume)"; [[ -n "$V" ]] || V="$(basename "$PWD" | tr 'A-Z' 'a-z')_cps_data"
+    V="$(resolve_volume)"
+    BN="$(basename "$ABS")"; BD="$(dirname "$ABS")"
+
+    # VALIDATE BEFORE DESTROYING. The previous restore ran `rm -rf /data/*` and
+    # then `tar xzf`, validating nothing: a truncated archive destroyed the
+    # copy the operator still had (303 rows left with 4 objects on disk), and a
+    # well-formed archive with no database restored with exit 0, a green tick
+    # and a healthy server holding zero apps, releases and audit records. Both
+    # are caught here, with the live volume still intact.
+    say "Validating $BN before touching ${V}…"
+    docker run --rm -v "$BD":/backup:ro busybox sh -c "tar tzf '/backup/$BN' >/dev/null" \
+      || die "archive is not a readable gzip tar (truncated or corrupt): $BN"
+    docker run --rm -v "$BD":/backup:ro -v "$PWD/ops/lib":/opt/cpslib:ro busybox sh -c "
+      mkdir -p /tmp/r && cd /tmp/r && tar xzf '/backup/$BN' && sh /opt/cpslib/verify_manifest.sh" \
+      || die "archive failed verification — NOTHING was changed on $V.
+   If this predates manifests, verify it by hand and extract it yourself."
+
     say "Restoring $ABS into $V (DESTRUCTIVE, brief pause)…"
     "${COMPOSE[@]}" stop server >/dev/null 2>&1 || true
-    docker run --rm -v "$V":/data -v "$(dirname "$ABS")":/backup busybox \
-      sh -c "rm -rf /data/* /data/..?* 2>/dev/null; tar xzf /backup/$(basename "$ABS") -C /data"
+    docker run --rm -v "$V":/data -v "$BD":/backup:ro busybox \
+      sh -c "rm -rf /data/* /data/..?* 2>/dev/null; tar xzf '/backup/$BN' -C /data; rm -f /data/MANIFEST.json"
     "${COMPOSE[@]}" up -d >/dev/null 2>&1
     ok "Restored. Server restarting."
     exit 0 ;;

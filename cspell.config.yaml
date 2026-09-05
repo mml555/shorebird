@@ -162,6 +162,23 @@ overrides:
     ignoreWords: ["Ünïcödé"]
 
 words:
+  # --- BACKUP-RESTORE-1. Vocabulary shared by the backup/restore scripts, the
+  # certification harness and the ops docs: the quiesce family (the property
+  # the backup now enforces), Postgres catalog column names, and the python
+  # stdlib names the manifest tooling calls. Per-file identifiers stay inline.
+  - quiesce
+  - quiesced
+  - quiesces
+  - quiescing
+  - unquiesced
+  - psql
+  - tablename
+  - schemaname
+  - hashlib
+  - hexdigest
+  - relpath
+  - isfile
+  - isoformat
   - newchannel
   - settrack
   - stdlib

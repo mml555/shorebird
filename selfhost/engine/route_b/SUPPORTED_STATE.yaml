@@ -648,6 +648,65 @@ physical_device_qualification:
   updater_state_after: {last_booted_patch: 1, boot_attempt_count: 0}
   crash_reports: none dated 2026-09-03
 
+# BACKUP-RESTORE-1. Both persistence profiles, certified independently and by
+# a re-runnable script that was also run against the PRE-REPAIR code to confirm
+# it can fail (single 15/9, scale 14/15 -- every guard added is a check that
+# fails without it).
+backup_restore:
+  status: CERTIFIED
+  qualified: 2026-09-04 (BACKUP-RESTORE-1)
+  evidence: selfhost/backup_restore/CERTIFICATION.md
+  # State the claim precisely. This is NOT full disaster recovery: .env, the
+  # image tag, TLS material and the host topology are external prerequisites.
+  claim: control-plane data backup and restore
+  boundary: selfhost/backup_restore/SECRETS_BOUNDARY.md
+  profiles:
+    single:
+      subject: setup.sh --backup / --restore
+      harness: selfhost/scripts/br1_certify_single.sh
+      result: 24 passed, 0 failed
+    scale:
+      subject: ops/backup.sh / ops/restore.sh
+      harness: selfhost/scripts/br1_certify_scale.sh
+      result: 30 passed, 0 failed
+  # THE CONSISTENCY PREDICATE IS NOT "the halves disagree". An artifact row is
+  # INSERTed before its bytes are written, so a `pending` row with no object is
+  # a FAITHFUL capture of an upload in flight, and scoring it as damage
+  # produced a false finding in this lane before it was caught. Only states the
+  # live system can never occupy count (selfhost/scripts/br1_tear_check.sh):
+  torn_states:
+    - object present, no row at all
+    - object present, row says pending
+    - row says verified, object absent
+  # Why the scale pair needs a shared id and the single archive does not.
+  causal_defects_repaired:
+    - >-
+      scale: pg_dump and mc mirror were taken at different instants with no
+      quiescing. Every backup taken while serving held at least one object no
+      row accounted for (4 of 4 runs).
+    - >-
+      scale: restore compared nothing. One run's dump with another's objects
+      exited 0 silently and produced an artifact reported `verified` that
+      answered 404 -- patches/check handed devices a URL that did not resolve.
+      Filenames sharing a timestamp are not provenance; nothing read them.
+    - >-
+      single: the target volume was resolved by a host-wide `grep cps_data$`.
+      A --restore run in a directory with NO deployment wiped a different,
+      live, healthy deployment's volume.
+    - >-
+      single: restore wiped /data BEFORE reading the archive, so a truncated
+      backup destroyed the copy the operator still had. A well-formed archive
+      with no database restored with exit 0, a green tick and a healthy server
+      holding zero apps, releases and audit records.
+    - >-
+      both: quiescing was `stop server || true`. From a foreign directory the
+      server stayed up for 94 of 94 requests and the backup reported success.
+  # The backup file is a credential store: api_keys.key holds the PLAINTEXT
+  # key, so rotating the env API_KEY does NOT revoke what a leaked backup
+  # carries. Measured: after rotation the old bootstrap key 403s but a
+  # DB-stored collaborator key still authenticates.
+  backup_is_a_secret: true
+
 historical_compatibility:
   # D-PRODUCER-DEMAND-2, producer truth over real commit history.
   wonderous: {observations: 20, producer_compatibility: "50.00%"}

@@ -119,23 +119,66 @@ enforced on top of the placeholder-secret checks, which always run).
 
 ## 5. Backups & restore
 
-Back up **both** Postgres and MinIO — they must be restored as a matched pair
-(metadata references object keys).
+Back up **both** Postgres and MinIO. They are one backup: the metadata
+references object keys, and the two halves are only a matched pair if they came
+from the same run.
 
 ```bash
-# Back up (writes timestamped files under $BACKUP_DIR, default ./backups)
+# Back up. Stops the server for the snapshot, then brings it back and waits
+# until it is serving again. Writes three things under $BACKUP_DIR (./backups):
+#   postgres_<STAMP>.dump
+#   postgres_<STAMP>.dump.manifest.json
+#   minio/<STAMP>/          (with its own MANIFEST.json)
 ./ops/backup.sh
 
-# Restore (DESTRUCTIVE — stop the server first)
+# Restore (DESTRUCTIVE — the script refuses while the server is running)
 docker compose -f docker-compose.prod.yaml stop server
 ./ops/restore.sh backups/postgres_<STAMP>.dump backups/minio/<STAMP>
 docker compose -f docker-compose.prod.yaml up -d server
 ```
 
-- Copy backups off-host (another disk / bucket / region).
+**The backup file is a secret.** `api_keys.key` stores the API key itself, not
+a digest, and one of those keys authenticates as an owner of the root org.
+Anyone holding a backup holds working credentials. Store it where you would
+store a password, and rotate keys if a backup is ever exposed.
+
+### What the manifests are for
+
+Both halves carry a shared `backup_id`. `ops/restore.sh` refuses a pair whose
+ids disagree, verifies the dump's sha256 and every object's sha256 **before**
+touching the target, and reconciles per-table row counts afterwards. This is
+not theoretical caution: restoring one run's dump alongside another run's
+object snapshot used to succeed silently and leave artifacts the control plane
+reported as `verified` and answered 404 for — `patches/check` handed devices a
+download URL that did not resolve. Two files sharing a timestamp in their
+*names* is not provenance; nothing reads a filename.
+
+The backup also refuses to run unless the server is genuinely stopped. A
+snapshot taken while the deployment was serving reliably captured objects that
+no row in the same backup accounted for.
+
+### Operational notes
+
+- Copy backups off-host (another disk / bucket / region), encrypted.
 - Test a restore into a throwaway stack periodically — an untested backup is
   not a backup.
 - Apply a retention policy (the scripts never delete old snapshots).
+- Keep a half with its partner. A dump without its `.manifest.json`, or an
+  object snapshot without its `MANIFEST.json`, cannot be verified and
+  `ops/restore.sh` will refuse it.
+
+### What is NOT in these backups
+
+This is a **control-plane data backup**, not full disaster recovery. Restoring
+it into a fresh stack requires you to supply, separately:
+
+| not backed up | why it matters |
+|---|---|
+| `.env` — `API_KEY`, `URL_SIGNING_SECRET`, DB and S3 credentials | the stack will not boot without them, and `URL_SIGNING_SECRET` must match or every previously-issued download URL breaks |
+| TLS material (Caddy's cert store) | reissued automatically on a reachable domain; a private CA is not |
+| the container image tag | a restore onto a newer image runs its migrations against the restored schema |
+| in-flight resumable upload chunks | staged in the server container's ephemeral filesystem; an interrupted upload does not survive |
+| host, DNS, firewall, and volume topology | the compose files describe them, they are not captured |
 
 ---
 

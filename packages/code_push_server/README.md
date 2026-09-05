@@ -56,8 +56,11 @@ checks; the published placeholder `API_KEY` / `URL_SIGNING_SECRET` are refused
 in every mode). Only when you need horizontal scale do you add Postgres + S3/MinIO with
 `./setup.sh --scale --domain …`.
 
-Backups: `./setup.sh --backup` snapshots the data volume, `--restore <file>`
-restores it. Behind your own reverse proxy or using your own Postgres/S3? See
+Backups: `./setup.sh --backup` stops the server, snapshots the data volume with
+a manifest of every file's sha256, and starts it again; `--restore <file>`
+verifies the archive against that manifest **before** it overwrites anything.
+The archive contains plaintext API keys — store it as you would a password.
+Behind your own reverse proxy or using your own Postgres/S3? See
 [`../../selfhost/INTEGRATION.md`](../../selfhost/INTEGRATION.md). Full ops runbook in
 [`PRODUCTION.md`](PRODUCTION.md) and [`../../selfhost/GO_LIVE.md`](../../selfhost/GO_LIVE.md).
 
