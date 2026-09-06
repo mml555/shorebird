@@ -1,0 +1,41 @@
+FROZEN_LINEAGE:                   VERIFIED
+CURRENT_DART:                     NOT_TRIGGERED
+BYTECODE_TO_AOT:                  PROVEN
+AOT_TO_BYTECODE:                  PROVEN
+SHARED_HEAP:                      PROVEN
+OBJECT_IDENTITY:                  PROVEN
+AOT_ROOT_TO_PATCH_OBJECT:         PROVEN
+PATCH_ROOT_TO_AOT_OBJECT:         PROVEN
+CROSS_RUNTIME_CYCLE_COLLECTION:   PROVEN
+BYTECODE_EXCEPTION_TO_AOT:        PROVEN
+AOT_EXCEPTION_TO_BYTECODE:        PROVEN
+FINALLY:                          PROVEN
+STACK_UNWINDING:                  PROVEN
+PATCH_CLASS:                      PROVEN
+IMPLEMENTS_AOT_INTERFACE:         PROVEN
+EXTENDS_AOT_CLASS:                PROVEN
+SUPER_TO_AOT:                     PROVEN
+IS_CHECK:                         PROVEN
+CAST:                             PROVEN
+GENERICS:                         PROVEN
+OPTIMIZER_DIRECT_VIRTUAL:         SOUND_WITH_CONTRACT__BYPASSED_WITHOUT
+OPTIMIZER_MONOMORPHIC:            SOUND_WITH_CONTRACT__BYPASSED_WITHOUT
+OPTIMIZER_HELPER_CHAIN:           SOUND_WITH_CONTRACT__BYPASSED_WITHOUT
+OPTIMIZER_GENERIC:                SOUND_WITH_CONTRACT__BYPASSED_WITHOUT
+OPTIMIZER_FIELD_RECEIVER:         SOUND_WITH_CONTRACT__BYPASSED_WITHOUT
+SUBSTRATE_COST:                   dartaotruntime +2.76%; vm_platform.dill 0.00%; normal AOT perf: no measurable difference
+DYNAMIC_INTERFACE_COST:           +16,704 bytes (+1.88%) retained AOT per declared-patchable member
+MODULE_COST:                      module 1,190 B; load ~99 us; RSS delta ~112 KB
+
+CALL_COST:                        direct 2.27 ns · virtual 2.52 ns · AOT->bc 20.78 ns · bc->AOT 27.94 ns · bc->bc 28.39 ns
+                                  alloc: AOT 5.69 ns · bc/AOT-type 77.15 ns · bc/patch-type 95.52 ns
+
+KNOWN_GAPS:
+  MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION  UNRESOLVED
+  NEGATIVE_CONTROLS_FAIL_OPEN               FINDING
+  SUPPORTED_CELL_REPRODUCIBILITY            NOT_ESTABLISHED_BY_THIS_LANE
+  GC_COST_CHARACTERISATION                  PARTIAL
+  PLATFORM_SCOPE                            LIMIT
+  CALL_SITE_REBINDING                       OUT_OF_SCOPE
+
+VERDICT:                          PROCEED
