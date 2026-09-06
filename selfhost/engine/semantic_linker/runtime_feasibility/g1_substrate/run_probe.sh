@@ -70,8 +70,20 @@ JSON
     "$DART" "$GEN_KERNEL" --platform "$OUT/vm_platform.dill" --aot \
       --packages "$W/.dart_tool/package_config.json" \
       --dynamic-interface "$HERE/probe/di.yaml" \
+      --dump-detailed-dynamic-interface "$W/di_actual.json" \
       -o "$W/host.dill" "$URI" 2>&1 | sed 's/^/   /'
     echo "   gen_kernel exit=${PIPESTATUS[0]}"
+
+    # WHAT THE ANNOTATOR ACTUALLY DID, not what the yaml asked for. A contract
+    # entry the toolchain silently ignores is a claim nothing enforces, so the
+    # requested and the applied sets are both recorded and can be compared.
+    if [[ -f "$W/di_actual.json" ]]; then
+      echo "   dynamic interface APPLIED:"
+      python3 -c "import json,sys;d=json.load(open(sys.argv[1]));[print('     %-20s %s'%(k,v)) for k,v in d.items()]" "$W/di_actual.json" 2>&1 | sed 's/^/   /'
+      cp "$W/di_actual.json" "$EVID/di_applied_$arm.json"
+    else
+      echo "   NO detailed dynamic interface was dumped"
+    fi
 
     echo "== 2. AOT snapshot =="
     "$OUT/gen_snapshot" --snapshot_kind=app-aot-elf --elf="$W/host.aot" "$W/host.dill" 2>&1 | sed 's/^/   /'

@@ -11,15 +11,27 @@
 # LibraryIndex as "The library ... has not been indexed", which reads like a
 # compiler bug rather than a bad reference.
 #
-# Every host declaration this lane exposes is listed. `can-be-overridden` keeps
-# AOT's type-flow analysis from devirtualizing or inlining the member so the
-# dispatch point stays open -- it does NOT redirect the member, which is the
-# dynmod lane's finding and is not contradicted here.
+# EVERY exposed host declaration is listed, and nothing else is.
 callable:
   - library: 'package:dynamic_modules/host_probe.dart'
     member: 'target'
   - library: 'package:dynamic_modules/host_probe.dart'
     member: 'hostSuffix'
-can-be-overridden:
-  - library: 'package:dynamic_modules/host_probe.dart'
-    member: 'target'
+
+# `can-be-overridden` is DELIBERATELY ABSENT, and its absence is a statement
+# rather than an oversight. In dynamic_interface_annotator.dart that section is
+# built with `annotateStaticMembers: false, annotateInstanceMembers: true`, so
+# it applies to INSTANCE members only. Both declarations here are top-level
+# functions, so listing them would add a contract entry the toolchain silently
+# ignores -- a banked claim about retention that nothing enforces, which is
+# worse than no entry at all.
+#
+# It is also not needed for what G1 asks. `can-be-overridden` keeps a DISPATCH
+# point open against devirtualization so a module's subclass can be reached; it
+# does not redirect a member (the dynmod lane's finding, unchanged here). G1
+# measures whether the substrate exists, not whether dispatch reaches it.
+# Instance-member retention is G3's question (#40).
+#
+# The probe does not take this on trust: gen_kernel is run with
+# --dump-detailed-dynamic-interface, so what the annotator ACTUALLY annotated is
+# recorded next to what was requested.
