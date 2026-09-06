@@ -1,0 +1,26 @@
+diff --git a/pkg/front_end/lib/src/source/source_loader.dart b/pkg/front_end/lib/src/source/source_loader.dart
+index 665bf9884f9..cb03596ba16 100644
+--- a/pkg/front_end/lib/src/source/source_loader.dart
++++ b/pkg/front_end/lib/src/source/source_loader.dart
+@@ -432,6 +432,21 @@ class SourceLoader extends Loader implements ProblemReportingHelper {
+     final Uri? resolvePrivateNamesIn =
+         target.context.options.resolvePrivateNamesInLibrary;
+     if (resolvePrivateNamesIn != null && !isDartLib) {
++      // A PLATFORM LIBRARY MAY NOT BE THE TARGET. `isDartLib` above is about the
++      // library being COMPILED and does not constrain what this option NAMES:
++      // `--resolve-private-names-in-library dart:core` granted a package: source
++      // dart:core's private namespace and `_GrowableList` compiled. Measured by
++      // `probes/p1_private_scope_controls.sh` arm A5, which refused the same body
++      // under the app library.
++      if (resolvePrivateNamesIn.isScheme('dart')) {
++        throw new StateError(
++          "resolvePrivateNamesInLibrary was set to '$resolvePrivateNamesIn', "
++          "which is a platform library. This option may only name an "
++          "application library: it exists so generated code can act as part of "
++          "the library it replaces a member in, not to widen resolution into "
++          "the platform.",
++        );
++      }
+       resolveInLibrary = target.dillTarget.loader.lookupLibraryBuilder(
+         resolvePrivateNamesIn,
+       );

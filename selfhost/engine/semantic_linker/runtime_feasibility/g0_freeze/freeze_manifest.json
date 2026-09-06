@@ -1,0 +1,80 @@
+{
+  "schema": "semantic-linker-1/g0-freeze/1",
+  "gate": "SL1-G0",
+  "tracker": 36,
+  "issue": 37,
+  "frozen": "2026-09-06T19:13:38Z",
+  "distribution": {
+    "tag": "selfhost-v1.1.1",
+    "tag_object": "315d364383890d29fbf9bc2c7f30aac53f4e5b48",
+    "tag_is_annotated": true,
+    "commit": "bdb234ab938fc0570e499d800928a0c3d640bfe1",
+    "commit_tree": "2280e5c61f835a201097424f00fbe3845fc1e96c"
+  },
+  "record_at_tag": {
+    "cli_revision": "46ee70af56c3814d079cc2466b092481c7904e76",
+    "cli_contains": "6b4f6c422bab55143ef04c8f43f92015ee3b3feb",
+    "flutter_selector": "5b180d224df04a267a19888c3f344474e243b382",
+    "cell_address": "f85251f344600ae08196925a174e9cff8f0ff18e",
+    "producer_engine_revision": "dfa2b24ac38477f3705ff0357530f33fe09474b8",
+    "fallback_engine_revision": "69f9831c360d9152862ec3897c67fb09ae843f3b",
+    "dart_revision": "9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c",
+    "updater_revision": "af6e842ccf87",
+    "packages_shorebird_cli": "6c76e79a3ad1c86658a41b144dececb07ff5d3ca",
+    "bin_internal": "8ae6081fb375ed33515e8ae0d61bc4ecdb51b990"
+  },
+  "cell": {
+    "address": "f85251f344600ae08196925a174e9cff8f0ff18e",
+    "v2_manifest_sha256": "f85251f344600ae08196925a174e9cff8f0ff18e62de25fd8c03db748be1f84b",
+    "compiler_archive_sha256": "7975b27c724240e720f77d338c80fcace5296148bd78c17588cee1b089e3fb22",
+    "compiler_archive_bytes": 19256864,
+    "analyzer_sha256": "67741a082fcde5a9e2067fdfad1deb7ad69cb89b8d23aba78ed31b5afb6c2f5d",
+    "uncommitted_guard_in_shipped_dart2bytecode": true
+  },
+  "producing_source": {
+    "engine": {
+      "revision": "dfa2b24ac38477f3705ff0357530f33fe09474b8",
+      "tree": "26acc7f47d809563a08212c8264516aae64f10d5",
+      "clean": true,
+      "untracked_build_inputs": {
+        ".gcs_entries": "engine/src/flutter/prebuilts/macos-arm64/dart-sdk <- db98bdaa9d8f8e2250ff83d24abcaf775807244c/dart-sdk-darwin-arm64.tar.gz"
+      },
+      "durable_remote": "https://github.com/mml555/shorebird-flutter.git",
+      "durable_refs": ["refs/heads/route-b-2c-candidate", "refs/tags/acs2-macos-ios-producer"]
+    },
+    "dart": {
+      "revision": "9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c",
+      "head_tree": "aa55ff960f07682fd098195e4884f2cbcb4f5f27",
+      "effective_tree": "7b04b01bdc10ec990143257f0d28580571c2122f",
+      "effective_tree_note": "HEAD plus the uncommitted guard; THIS is what built the cell",
+      "deps_pinned_base": "d684a576a6aa954ae107a03b2b4e1d61c3bebe93",
+      "dirty_paths": ["pkg/front_end/lib/src/source/source_loader.dart"],
+      "durable_remote": null,
+      "durability": "LOCAL-DISK-ONLY — banked here as patches",
+      "bank": {
+        "0001-Add-snapshot-size-accessors-for-code-push.patch": "4e119599829b0d4968623226fc51232f7bd4f9b44cfd5eed034e3d9f4068b06f",
+        "0002-Route-B-Dart-SDK-support-bytecode-producer-and-the-t.patch": "2f59d6a836e746a097a2482d6f0cc3339dce0e7e6536277b517680591784aad1",
+        "9999-worktree-uncommitted.patch": "6b358f715e491bd9829e00fee0262ac7b637982f3bf66e748befcec84075262c"
+      }
+    }
+  },
+  "qualification_references": {
+    "ios": "SUPPORTED_STATE.yaml physical_device_qualification — iPhone 7 / iOS 15.8.8, 2026-09-03, release 142, patch 106/1",
+    "android": "evidence/android-final-stack-2/RESULT.md — wired CPH2551, 2026-09-04",
+    "note": "referenced, not rewritten; this lane measures neither"
+  },
+  "producer_demand_baseline": {
+    "wonderous": "50.00%",
+    "localsend": "92.67%",
+    "source": "selfhost/engine/route_b/evidence/producer_demand_2.md"
+  },
+  "corpus_pins": {
+    "wonderous_window_sha256": "90c68620396f9b6054a89be80a868016a19668de91a96b3e7e561c3cde14a66c",
+    "localsend_window_sha256": "44115081675b0e82a3e9fbf62cd41685e109de3a758b7c03297d3664888831f2",
+    "replay_is_optional": true,
+    "rule": "a fresh replay must never substitute newer app revisions"
+  },
+  "excluded": {
+    "coverage/baseline_a.json": "VOID — minted from an engine tree carrying 18 uncommitted files; retracted in COMPATIBILITY_STUDY.md. Must not be used as a baseline."
+  }
+}
