@@ -1,0 +1,184 @@
+{
+  "schema": "semantic-linker-1/g6c-falsification/1",
+  "gate": "SL1-G6C",
+  "issue": 45,
+  "inventory": "g6c_harness/mandatory_evidence.json",
+  "inventory_count": 12,
+  "falsified_count": 12,
+  "caught_count": 12,
+  "equality_holds": true,
+  "supplementary_count": 12,
+  "supplementary_caught": 12,
+  "originals_restored": true,
+  "post_restore_reproduction_pass": true,
+  "mutations": [
+    {
+      "pass": "required",
+      "id": "freeze_manifest",
+      "path": "g0_freeze/freeze_manifest.json",
+      "mutation": "corrupt",
+      "caught": true
+    },
+    {
+      "pass": "required",
+      "id": "negatives",
+      "path": "g6a_negatives/evidence/negatives.json",
+      "mutation": "corrupt",
+      "caught": true
+    },
+    {
+      "pass": "required",
+      "id": "probe_g3_on",
+      "path": "g1_substrate/evidence/probe_g3_on.txt",
+      "mutation": "delete",
+      "caught": true
+    },
+    {
+      "pass": "required",
+      "id": "g2_g3_on",
+      "path": "g2_execution/evidence/g2_g3_on.txt",
+      "mutation": "delete",
+      "caught": true
+    },
+    {
+      "pass": "required",
+      "id": "g3_g3_on",
+      "path": "g3_types_gc/evidence/g3_g3_on.txt",
+      "mutation": "delete",
+      "caught": true
+    },
+    {
+      "pass": "required",
+      "id": "g4_solo_fenced",
+      "path": "g4_optimizer/evidence/g4_solo_fenced.txt",
+      "mutation": "delete",
+      "caught": true
+    },
+    {
+      "pass": "required",
+      "id": "g4_solo_unfenced",
+      "path": "g4_optimizer/evidence/g4_solo_unfenced.txt",
+      "mutation": "delete",
+      "caught": true
+    },
+    {
+      "pass": "required",
+      "id": "costs",
+      "path": "g6b_cost/evidence/costs.txt",
+      "mutation": "delete",
+      "caught": true
+    },
+    {
+      "pass": "required",
+      "id": "alloc_gc",
+      "path": "g6b_cost/evidence/alloc_gc.txt",
+      "mutation": "delete",
+      "caught": true
+    },
+    {
+      "pass": "required",
+      "id": "9999-worktree-uncommitted",
+      "path": "g0_freeze/banked_source/dart/9999-worktree-uncommitted.patch",
+      "mutation": "corrupt",
+      "caught": true
+    },
+    {
+      "pass": "required",
+      "id": "0001-g2-function-execution-mode-instrument",
+      "path": "g2_execution/banked_experiment/0001-g2-function-execution-mode-instrument.patch",
+      "mutation": "corrupt",
+      "caught": true
+    },
+    {
+      "pass": "required",
+      "id": "0001-g3-expose-full-gc-for-testing",
+      "path": "g3_types_gc/banked_experiment/0001-g3-expose-full-gc-for-testing.patch",
+      "mutation": "corrupt",
+      "caught": true
+    },
+    {
+      "pass": "supplementary",
+      "id": "freeze_manifest",
+      "path": "g0_freeze/freeze_manifest.json",
+      "mutation": "delete",
+      "caught": true
+    },
+    {
+      "pass": "supplementary",
+      "id": "negatives",
+      "path": "g6a_negatives/evidence/negatives.json",
+      "mutation": "delete",
+      "caught": true
+    },
+    {
+      "pass": "supplementary",
+      "id": "probe_g3_on",
+      "path": "g1_substrate/evidence/probe_g3_on.txt",
+      "mutation": "truncate",
+      "caught": true
+    },
+    {
+      "pass": "supplementary",
+      "id": "g2_g3_on",
+      "path": "g2_execution/evidence/g2_g3_on.txt",
+      "mutation": "truncate",
+      "caught": true
+    },
+    {
+      "pass": "supplementary",
+      "id": "g3_g3_on",
+      "path": "g3_types_gc/evidence/g3_g3_on.txt",
+      "mutation": "truncate",
+      "caught": true
+    },
+    {
+      "pass": "supplementary",
+      "id": "g4_solo_fenced",
+      "path": "g4_optimizer/evidence/g4_solo_fenced.txt",
+      "mutation": "truncate",
+      "caught": true
+    },
+    {
+      "pass": "supplementary",
+      "id": "g4_solo_unfenced",
+      "path": "g4_optimizer/evidence/g4_solo_unfenced.txt",
+      "mutation": "truncate",
+      "caught": true
+    },
+    {
+      "pass": "supplementary",
+      "id": "costs",
+      "path": "g6b_cost/evidence/costs.txt",
+      "mutation": "truncate",
+      "caught": true
+    },
+    {
+      "pass": "supplementary",
+      "id": "alloc_gc",
+      "path": "g6b_cost/evidence/alloc_gc.txt",
+      "mutation": "truncate",
+      "caught": true
+    },
+    {
+      "pass": "supplementary",
+      "id": "9999-worktree-uncommitted",
+      "path": "g0_freeze/banked_source/dart/9999-worktree-uncommitted.patch",
+      "mutation": "delete",
+      "caught": true
+    },
+    {
+      "pass": "supplementary",
+      "id": "0001-g2-function-execution-mode-instrument",
+      "path": "g2_execution/banked_experiment/0001-g2-function-execution-mode-instrument.patch",
+      "mutation": "delete",
+      "caught": true
+    },
+    {
+      "pass": "supplementary",
+      "id": "0001-g3-expose-full-gc-for-testing",
+      "path": "g3_types_gc/banked_experiment/0001-g3-expose-full-gc-for-testing.patch",
+      "mutation": "delete",
+      "caught": true
+    }
+  ]
+}

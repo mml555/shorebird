@@ -106,21 +106,31 @@ qualitative distinctions hold — interpreted execution ~9-12x a direct AOT call
 the interpreted modes close to each other, and flat GC cost across modes. They
 do. No numeric tolerance was imposed after the fact.
 
-## Falsifiability — permanent, not a one-off
+## Falsifiability — derived from one inventory, never maintained
 
-`falsify.sh` deletes or corrupts each mandatory item, requires a nonzero exit,
-restores it, and finally re-verifies the evidence set is exactly as found:
+`reproduce.sh` and `falsify.sh` both read
+[`mandatory_evidence.json`](mandatory_evidence.json). Neither keeps a list and
+neither keeps a count, and the equality is asserted at run time:
 
-    caught  structured_negatives (delete)        caught  g4_disassembly (delete)
-    caught  structured_negatives_corrupt         caught  g1_probe_trace (delete)
-    caught  g2_trace (delete)                    caught  freeze_manifest (corrupt)
-    caught  g3_trace (delete)                    caught  banked_patch (corrupt)
+    inventory_count = 12   falsified_count = 12   caught_count = 12
+    supplementary   = 12   supplementary_caught = 12
+    all 12 originals restored byte-for-byte
+    post-restore report-only: REPRODUCTION=PASS
 
-    SUMMARY caught=8 not-caught=0
+Every item is mutated the required way and then a second, complementary way; a
+supplementary miss fails the run too. Structured output:
+[`evidence/falsification.json`](evidence/falsification.json).
 
-This exists because G6C found a harness that printed `structured: negatives.json`
-while that file did not exist — a direct violation of the lane's evidence model,
-and the defect that would have made every other check worthless.
+**This replaces a defective first version, and the defect is the point.** That
+version kept its own eight cases against the twelve `reproduce.sh` enforced, and
+still printed *"every mandatory-evidence mutation is refused"* — a claim broader
+than what it had tested. Omitted then: the G4 unfenced transcript, both cost
+transcripts, and the G2 and G3 experiment patches. A hand-maintained count is
+precisely how a harness comes to overstate itself, so there is no longer one.
+
+The whole mechanism exists because G6C found a harness that printed
+`structured: negatives.json` for a file it had never written — the defect that
+would have made every other check worthless.
 
 ## Four harness defects found by building this gate
 
@@ -136,6 +146,10 @@ Each is a G6C finding, not a footnote:
 4. **`re.M` missing in the cost extraction**, so every row silently failed to
    match while `PERFORMANCE` read `NOT_MEASURED` — a green-looking field derived
    from nothing.
+5. **The falsification matrix was narrower than the evidence it claimed to
+   cover** — 8 hand-listed cases against 12 enforced items. Both scripts now
+   derive from one inventory and assert the equality rather than asserting the
+   conclusion.
 
 ## Provenance of this record
 

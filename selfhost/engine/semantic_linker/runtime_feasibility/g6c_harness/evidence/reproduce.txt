@@ -1,5 +1,5 @@
 
-=== SEMANTIC-LINKER-1 reproduction -- mode=report-only started=2026-09-06T23:32:22Z
+=== SEMANTIC-LINKER-1 reproduction -- mode=report-only started=2026-09-06T23:49:41Z
     repo : /Users/mendell/shorebird
     lane : /Volumes/build/semantic-linker/sl1
     host : Apple M1 Max

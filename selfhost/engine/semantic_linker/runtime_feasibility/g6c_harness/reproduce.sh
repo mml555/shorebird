@@ -227,37 +227,31 @@ def sha(p):
         return h.hexdigest()
     except OSError: return None
 
-# MANDATORY EVIDENCE. Missing OR unparseable is a refusal, not a lower score.
-# This is the list falsify.sh mutates, and the reason it exists: a harness that
-# announced a structured file it had never written is what G6C found.
-MANDATORY_JSON = ['g0_freeze/freeze_manifest.json',
-                  'g6a_negatives/evidence/negatives.json']
-MANDATORY_TEXT = ['g1_substrate/evidence/probe_g3_on.txt',
-                  'g2_execution/evidence/g2_g3_on.txt',
-                  'g3_types_gc/evidence/g3_g3_on.txt',
-                  'g4_optimizer/evidence/g4_solo_fenced.txt',
-                  'g4_optimizer/evidence/g4_solo_unfenced.txt',
-                  'g6b_cost/evidence/costs.txt',
-                  'g6b_cost/evidence/alloc_gc.txt']
-MANDATORY_BLOB = ['g0_freeze/banked_source/dart/9999-worktree-uncommitted.patch',
-                  'g2_execution/banked_experiment/0001-g2-function-execution-mode-instrument.patch',
-                  'g3_types_gc/banked_experiment/0001-g3-expose-full-gc-for-testing.patch']
+# MANDATORY EVIDENCE comes from ONE inventory, shared with falsify.sh.
+# Neither script keeps its own list and neither keeps a count: a hand-maintained
+# count is exactly how falsify.sh came to claim it refused "every
+# mandatory-evidence mutation" while testing 8 of the 12 enforced here.
+INVENTORY = json.load(open(os.path.join(os.path.dirname(os.path.abspath(out)), '..', 'mandatory_evidence.json')))['items']
 missing_evidence = []
 loaded = {}
-for rel in MANDATORY_JSON:
+for item in INVENTORY:
+    rel, kind = item['path'], item['kind']
     fp = os.path.join(rf, rel)
-    try:
-        loaded[rel] = json.load(open(fp))
-    except Exception as e:
-        missing_evidence.append({'evidence': rel, 'problem': f'{type(e).__name__}: {e}'})
-for rel in MANDATORY_TEXT:
-    fp = os.path.join(rf, rel)
-    if not os.path.isfile(fp) or os.path.getsize(fp) < 64:
-        missing_evidence.append({'evidence': rel, 'problem': 'missing or truncated'})
-for rel in MANDATORY_BLOB:
-    fp = os.path.join(rf, rel)
-    if not os.path.isfile(fp) or not open(fp, 'rb').read(4).startswith(b'diff') and b'---' not in open(fp,'rb').read(4096):
-        missing_evidence.append({'evidence': rel, 'problem': 'missing or not a patch'})
+    if kind == 'json':
+        try:
+            loaded[rel] = json.load(open(fp))
+        except Exception as e:
+            missing_evidence.append({'evidence': rel, 'problem': f'{type(e).__name__}: {e}'})
+    elif kind == 'text':
+        if not os.path.isfile(fp) or os.path.getsize(fp) < 64:
+            missing_evidence.append({'evidence': rel, 'problem': 'missing or truncated'})
+    elif kind == 'blob':
+        ok = False
+        if os.path.isfile(fp):
+            head = open(fp, 'rb').read(4096)
+            ok = head.startswith(b'diff') or b'---' in head
+        if not ok:
+            missing_evidence.append({'evidence': rel, 'problem': 'missing or not a patch'})
 
 freeze = loaded.get('g0_freeze/freeze_manifest.json', {})
 negs   = loaded.get('g6a_negatives/evidence/negatives.json', {})
@@ -358,9 +352,10 @@ for arm in ('dm_off','dm_on','g3_off','g3_on'):
     for a in ('dartaotruntime','gen_snapshot','vm_platform.dill'):
         fp=os.path.join(src,'out','sl1_'+arm,a)
         if os.path.isfile(fp): artifacts[f'out/sl1_{arm}/{a}']=sha(fp)
-for rel in MANDATORY_BLOB:
-    fp=os.path.join(rf,rel)
-    if os.path.isfile(fp): artifacts[rel]=sha(fp)
+for item in INVENTORY:
+    if item['kind'] == 'blob':
+        fp=os.path.join(rf,item['path'])
+        if os.path.isfile(fp): artifacts[item['path']]=sha(fp)
 
 gates_bad = [k for k,v in gates.items() if v['status']!='PASS']
 blocking  = [p for p in prereqs if p['status']=='UNRESOLVED']
@@ -415,6 +410,9 @@ doc = {
     'fail_open':len(fail_open),'evidence':'g6a_negatives/evidence/negatives.json'},
  'fail_open_findings':fail_open,
  'costs':costs,'artifacts':artifacts,'unresolved_prerequisites':prereqs,
+ 'mandatory_evidence_inventory':{'source':'g6c_harness/mandatory_evidence.json',
+                                'count':len(INVENTORY),
+                                'items':[i['path'] for i in INVENTORY]},
  'missing_or_mutated_evidence':missing_evidence,
  'verdict_rule':('REPRODUCTION cannot be PASS while mandatory evidence is missing or '
                  'unparseable, or while a positive gate did not reproduce. Reproducing a '

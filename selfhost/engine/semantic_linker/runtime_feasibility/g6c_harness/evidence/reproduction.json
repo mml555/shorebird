@@ -8,8 +8,8 @@
   "source_run_started": "2026-09-06T22:38:06Z",
   "clean_reproduction": true,
   "regenerated_from_evidence": true,
-  "started": "2026-09-06T23:32:22Z",
-  "finished": "2026-09-06T23:32:22Z",
+  "started": "2026-09-06T23:49:41Z",
+  "finished": "2026-09-06T23:49:41Z",
   "result": {
     "REPRODUCTION": "PASS",
     "FEASIBILITY_EVIDENCE": "REPRODUCED",
@@ -266,6 +266,24 @@
       "consumed_by": 46
     }
   ],
+  "mandatory_evidence_inventory": {
+    "source": "g6c_harness/mandatory_evidence.json",
+    "count": 12,
+    "items": [
+      "g0_freeze/freeze_manifest.json",
+      "g6a_negatives/evidence/negatives.json",
+      "g1_substrate/evidence/probe_g3_on.txt",
+      "g2_execution/evidence/g2_g3_on.txt",
+      "g3_types_gc/evidence/g3_g3_on.txt",
+      "g4_optimizer/evidence/g4_solo_fenced.txt",
+      "g4_optimizer/evidence/g4_solo_unfenced.txt",
+      "g6b_cost/evidence/costs.txt",
+      "g6b_cost/evidence/alloc_gc.txt",
+      "g0_freeze/banked_source/dart/9999-worktree-uncommitted.patch",
+      "g2_execution/banked_experiment/0001-g2-function-execution-mode-instrument.patch",
+      "g3_types_gc/banked_experiment/0001-g3-expose-full-gc-for-testing.patch"
+    ]
+  },
   "missing_or_mutated_evidence": [],
   "verdict_rule": "REPRODUCTION cannot be PASS while mandatory evidence is missing or unparseable, or while a positive gate did not reproduce. Reproducing a known fail-open negative is a reproduced FINDING and is never rendered as a safety result.",
   "phases": [
