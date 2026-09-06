@@ -1,0 +1,61 @@
+# cspell:words dynmod
+# SL1-G2's dynamic interface: every host declaration the modules touch.
+#
+# Disambiguated names follow the CFE's own spelling, and the two cases differ:
+# a GETTER is `get:name` (StackTrace.current is `get:current`), but a FIELD is
+# its bare name (`hostFinallyMark`, `Box.v`). Getting it wrong fails loudly --
+#   A member with disambiguated name 'get:hostFinallyMark' was not found ...
+# and the error even lists the names that do exist, which is how these were
+# settled rather than guessed.
+#
+# `extendable` + `can-be-overridden` are what keep the dispatch point open:
+# without them AOT's type-flow analysis may devirtualize or inline
+# Handler.execute, and the module's implementation would never be reached. That
+# is the dynmod lane's finding used as designed, not worked around.
+extendable:
+  - library: 'package:dynamic_modules/g2_host.dart'
+    class: 'Handler'
+can-be-used-as-type:
+  - library: 'package:dynamic_modules/g2_host.dart'
+    class: 'Handler'
+  - library: 'package:dynamic_modules/g2_host.dart'
+    class: 'Box'
+  - library: 'package:dynamic_modules/g2_host.dart'
+    class: 'HostException'
+can-be-overridden:
+  - library: 'package:dynamic_modules/g2_host.dart'
+    class: 'Handler'
+    member: 'execute'
+callable:
+  # The oracle's falsification subjects. attachTarget must be retained by NAME
+  # for attachBytecodeToFunction to resolve it -- AOT drops library dictionaries
+  # otherwise, which is the killgate lane's finding.
+  - library: 'package:dynamic_modules/g2_host.dart'
+    member: 'attachTarget'
+  - library: 'package:dynamic_modules/g2_host.dart'
+    member: 'knownHost'
+  - library: 'package:dynamic_modules/g2_host.dart'
+    member: 'callHandler'
+  - library: 'package:dynamic_modules/g2_host.dart'
+    member: 'multiply'
+  - library: 'package:dynamic_modules/g2_host.dart'
+    member: 'seedA'
+  - library: 'package:dynamic_modules/g2_host.dart'
+    member: 'seedB'
+  - library: 'package:dynamic_modules/g2_host.dart'
+    member: 'getSharedBox'
+  - library: 'package:dynamic_modules/g2_host.dart'
+    member: 'hostThrows'
+  - library: 'package:dynamic_modules/g2_host.dart'
+    member: 'hostThrowsWithFinally'
+  - library: 'package:dynamic_modules/g2_host.dart'
+    member: 'hostFinallyMark'
+  - library: 'package:dynamic_modules/g2_host.dart'
+    class: 'Box'
+    member: 'v'
+  - library: 'package:dynamic_modules/g2_host.dart'
+    class: 'Box'
+    member: 'held'
+  - library: 'package:dynamic_modules/g2_host.dart'
+    class: 'Handler'
+    member: 'execute'
