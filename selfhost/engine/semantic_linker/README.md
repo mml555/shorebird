@@ -47,6 +47,14 @@ decision on the gate before them. The Dart durability repair is
 [#47](https://github.com/mml555/shorebird/issues/47) and is deliberately NOT
 part of this lane: nothing qualified is rebuilt for it.
 
+## Reproducing everything
+
+    selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/reproduce.sh --mode full
+
+Re-clones the frozen source, rebuilds all four engine configurations, applies the
+banked experiment patches, and reruns every gate. `falsify.sh` beside it proves
+the harness refuses missing or mutated evidence rather than reporting success.
+
 ## Hard prerequisite for #46
 
 Module-side dynamic-interface validation must become **fail-closed** before this
