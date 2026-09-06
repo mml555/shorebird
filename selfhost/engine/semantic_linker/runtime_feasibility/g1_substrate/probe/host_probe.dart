@@ -7,15 +7,23 @@
 // about patching applications; that is G2 onward.
 //
 // ignore_for_file: implementation_imports
-import 'dart:_internal' show attachBytecodeToFunction;
+import 'dart:_internal' show attachBytecodeToFunction, loadDynamicModule;
 import 'dart:io';
 import 'dart:typed_data';
 
-/// The dynamic-module loader, bound the way dynmod/host.dart binds it, so the
-/// probe can measure its off-path behaviour without importing a private library
-/// member that does not exist in an OFF build.
-@pragma("vm:external-name", "Internal_loadDynamicModule")
-external Object? _loadDynamicModule(Uint8List bytes);
+// WHY loadDynamicModule IS IMPORTED, NOT BOUND BY NAME. The first cut of this
+// probe copied dynmod/host.dart and bound the native directly with
+// @pragma("vm:external-name", "Internal_loadDynamicModule"). It aborted the OFF
+// arm at native_entry.cc:253, "Failed to resolve native function" -- because
+// VM-internal natives resolve by name only for `dart:` libraries, which is the
+// dynmod lane's own documented finding.
+//
+// That measured the user-library binding restriction, not the substrate, and it
+// would have failed IDENTICALLY on the ON arm -- so the comparison would have
+// been worthless in both directions. dynmod needed that workaround because it
+// ran on a stock SDK; this frozen lineage exposes loadDynamicModule on
+// dart:_internal (sdk/lib/internal/internal.dart), and the `dynamic_modules`
+// package name is upstream's own allowance for importing it.
 
 /// The function whose body a module replaces. never-inline is not decoration:
 /// without it AOT inlines the callee into main and the probe would report a
@@ -28,7 +36,7 @@ String target() => 'OLD';
 @pragma('vm:entry-point')
 String hostSuffix() => 'HOST';
 
-void main(List<String> args) {
+Future<void> main(List<String> args) async {
   // 1. NORMAL AOT. Both arms must pass this; a build that cannot run its own
   //    AOT output is broken independently of the question being asked.
   print('AOT: target()=${target()} hostSuffix()=${hostSuffix()}');
@@ -53,9 +61,11 @@ void main(List<String> args) {
   //    change in that answer is visible rather than assumed.
   print('DART-CALL: target()=${target()}');
 
-  // 4. LOAD. Throws UnsupportedError when built without dynamic modules.
+  // 4. LOAD. Throws UnsupportedError when built without dynamic modules --
+  //    a DIFFERENT off-path from attach, which refuses by return value. Both
+  //    are recorded separately because conflating them would hide one.
   try {
-    final r = _loadDynamicModule(bytes);
+    final r = await loadDynamicModule(bytes: bytes);
     print('LOAD: returned=$r');
   } on Object catch (e) {
     print('LOAD: threw=${e.runtimeType}: $e');
