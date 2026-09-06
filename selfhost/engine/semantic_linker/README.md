@@ -28,16 +28,24 @@ macOS/arm64:
 
 | | gate | state |
 |---|---|---|
-| [#37](https://github.com/mml555/shorebird/issues/37) | G0 freeze the baseline and source provenance | **done** — [`runtime_feasibility/g0_freeze/`](runtime_feasibility/g0_freeze) |
-| [#38](https://github.com/mml555/shorebird/issues/38) | G1 matched Dynamic Modules OFF/ON substrate | next |
-| [#39](https://github.com/mml555/shorebird/issues/39) | G2 AOT ↔ bytecode execution, shared heap identity | |
-| [#40](https://github.com/mml555/shorebird/issues/40) | G3 class, type, generic, GC interoperability | |
+| [#37](https://github.com/mml555/shorebird/issues/37) | G0 freeze the baseline and source provenance | **ACCEPTED / CLOSED** — [`g0_freeze/`](runtime_feasibility/g0_freeze) |
+| [#38](https://github.com/mml555/shorebird/issues/38) | G1 matched Dynamic Modules OFF/ON substrate | **ACCEPTED / CLOSED** — [`g1_substrate/`](runtime_feasibility/g1_substrate) |
+| [#39](https://github.com/mml555/shorebird/issues/39) | G2 AOT ↔ bytecode execution, shared heap identity | **PASS, awaiting PM decision** — [`g2_execution/`](runtime_feasibility/g2_execution) |
+| [#40](https://github.com/mml555/shorebird/issues/40) | G3 class, type, generic, GC interoperability | NOT AUTHORISED — gated on the #39 decision |
 | [#41](https://github.com/mml555/shorebird/issues/41) | G4 optimizer adversity, required compiler fences | |
 | [#42](https://github.com/mml555/shorebird/issues/42) | G5 replay on pinned current Dart | conditional |
 | [#43](https://github.com/mml555/shorebird/issues/43) | G6A categorized negative controls | |
 | [#44](https://github.com/mml555/shorebird/issues/44) | G6B substrate/interface/module/execution cost | |
 | [#45](https://github.com/mml555/shorebird/issues/45) | G6C one-command reproduction harness | |
 | [#46](https://github.com/mml555/shorebird/issues/46) | FINAL classified verdict and lane routing | |
+
+## Standing rule for this lane
+
+G3–G6 are expensive **because** they assume the primitive G2 establishes. Do not
+start them, and do not fill in #43's scaffolding, ahead of an explicit decision
+on #39. The Dart durability repair is
+[#47](https://github.com/mml555/shorebird/issues/47) and is deliberately NOT
+part of this lane: nothing qualified is rebuilt for it.
 
 ## The one thing to carry forward from G0
 
