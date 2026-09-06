@@ -1,0 +1,99 @@
+SL1-G3 types + GC probe -- arm g3_off
+out  : /Volumes/build/semantic-linker/sl1/flutter/engine/src/out/sl1_g3_off
+date : 2026-09-06T21:16:23Z
+dm   : 0 line(s) in args.gn
+sha256 5c690847d2246494176ae6bea080fefdfb4c55f4c216d69808ad9dfab182aadc  gen_snapshot
+sha256 e656386f77855a017a487cbd5ffeab02eae4bf37e9f5e7abd6f4b1a734a271c6  dartaotruntime
+sha256 78d43b1d25bb8ea4f25beb8c5fcf4fb053604053a2b4e5ee91a233eae09cc6b1  vm_platform.dill
+
+== host kernel + AOT snapshot ==
+   gen_kernel exit=0
+   gen_snapshot exit=0
+== pre-AOT import kernel ==
+   gen_kernel(import) exit=0
+
+=================== TEST gc_control ===================
+   CHECK ok   before GC: unrooted object is still there
+   GC: collectAllGarbageForTesting x2
+   CHECK ok   unrooted ordinary AOT object WAS collected: null
+   CHECK ok   rooted ordinary AOT object SURVIVED: Instance of 'Tracked'
+   CHECK ok   and the rooted one is the object the holder still names
+   G3-TEST PASS
+   run exit=0
+   CONTROL ok: the collector behaves identically with dynamic modules OFF
+
+=================== TEST gc_aot_roots_patch ===================
+   dart2bytecode(m_gc_aot_roots_patch) exit=0
+   bytecode sha256 f242db8c1a981e19a7df70abb04faf59967cce492e4394936a356f7bfc4f7b11
+   ORACLE: dispatchBase -> UNSUPPORTED
+   G3: ORACLE UNSUPPORTED — this build has no dynamic modules
+   run exit=3
+   CONTROL ok: the substrate is correctly absent on this arm
+
+=================== TEST gc_patch_roots_aot ===================
+   dart2bytecode(m_gc_patch_roots_aot) exit=0
+   bytecode sha256 4825b91e724c826ad7414b63cd9716c09502583274c3332f5112d0447bf26364
+   ORACLE: dispatchBase -> UNSUPPORTED
+   G3: ORACLE UNSUPPORTED — this build has no dynamic modules
+   run exit=3
+   CONTROL ok: the substrate is correctly absent on this arm
+
+=================== TEST gc_cycle_collects ===================
+   dart2bytecode(m_gc_cycle) exit=0
+   bytecode sha256 701058b7da4f771d936113a855f945f3f73e328f04ad44d8640a08332b2f8a11
+   ORACLE: dispatchBase -> UNSUPPORTED
+   G3: ORACLE UNSUPPORTED — this build has no dynamic modules
+   run exit=3
+   CONTROL ok: the substrate is correctly absent on this arm
+
+=================== TEST type_implements ===================
+   dart2bytecode(m_iface) exit=0
+   bytecode sha256 171701af59f710d577c128953525dcd9eaf866cbcf1541b13739296171222ba0
+   ORACLE: dispatchBase -> UNSUPPORTED
+   G3: ORACLE UNSUPPORTED — this build has no dynamic modules
+   run exit=3
+   CONTROL ok: the substrate is correctly absent on this arm
+
+=================== TEST type_extends ===================
+   dart2bytecode(m_child) exit=0
+   bytecode sha256 8da9c0c7c51c5473775cf9036ee0ab7945733e6006c4fc930818ccd95865cfe8
+   ORACLE: dispatchBase -> UNSUPPORTED
+   G3: ORACLE UNSUPPORTED — this build has no dynamic modules
+   run exit=3
+   CONTROL ok: the substrate is correctly absent on this arm
+
+=================== TEST type_return ===================
+   dart2bytecode(m_child) exit=0
+   bytecode sha256 8da9c0c7c51c5473775cf9036ee0ab7945733e6006c4fc930818ccd95865cfe8
+   ORACLE: dispatchBase -> UNSUPPORTED
+   G3: ORACLE UNSUPPORTED — this build has no dynamic modules
+   run exit=3
+   CONTROL ok: the substrate is correctly absent on this arm
+
+=================== TEST type_collections ===================
+   dart2bytecode(m_child) exit=0
+   bytecode sha256 8da9c0c7c51c5473775cf9036ee0ab7945733e6006c4fc930818ccd95865cfe8
+   ORACLE: dispatchBase -> UNSUPPORTED
+   G3: ORACLE UNSUPPORTED — this build has no dynamic modules
+   run exit=3
+   CONTROL ok: the substrate is correctly absent on this arm
+
+=================== TEST type_generic ===================
+   dart2bytecode(m_child) exit=0
+   bytecode sha256 8da9c0c7c51c5473775cf9036ee0ab7945733e6006c4fc930818ccd95865cfe8
+   ORACLE: dispatchBase -> UNSUPPORTED
+   G3: ORACLE UNSUPPORTED — this build has no dynamic modules
+   run exit=3
+   CONTROL ok: the substrate is correctly absent on this arm
+
+=================== TEST type_generic_patcharg ===================
+   dart2bytecode(m_generic) exit=0
+   bytecode sha256 b320b45dabced114daea95220a60b4b52160a1c43b94abd3eae208321c9b184c
+   ORACLE: dispatchBase -> UNSUPPORTED
+   G3: ORACLE UNSUPPORTED — this build has no dynamic modules
+   run exit=3
+   CONTROL ok: the substrate is correctly absent on this arm
+
+SUMMARY arm=g3_off tests=10 failed=0
+G3 ARM PASS
+(OFF arm: PASS means the substrate is correctly ABSENT)

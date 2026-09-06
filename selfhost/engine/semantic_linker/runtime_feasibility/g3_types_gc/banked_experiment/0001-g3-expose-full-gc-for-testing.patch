@@ -1,0 +1,32 @@
+--- a/sdk/lib/internal/internal.dart
++++ b/sdk/lib/internal/internal.dart
+@@ -1178,6 +1178,17 @@
+ /// "not found" as "not interpreted".
+ external int functionExecutionMode(String libraryUri, String targetName);
+ 
++/// SEMANTIC-LINKER-1 G3 instrument, experiment-only: run a full, synchronous
++/// garbage collection.
++///
++/// This introduces NO collector behaviour. It is a thin wrapper over the VM's
++/// existing `VMInternalsForTesting.collectAllGarbage`, which calls
++/// `heap()->CollectAllGarbage(GCReason::kDebugging, compact: true)` -- the same
++/// collector ordinary objects already go through. Dynamic-module objects get no
++/// special handling, because giving them any would make the thing under test
++/// depend on the instrument.
++external void collectAllGarbageForTesting();
++
+ /// The GNU build ID of the running AOT snapshot, lowercase hex, or null when
+ /// the snapshot carries none.
+ ///
+--- a/sdk/lib/_internal/vm/lib/internal_patch.dart
++++ b/sdk/lib/_internal/vm/lib/internal_patch.dart
+@@ -505,6 +505,9 @@
+ external int _functionExecutionMode(String libraryUri, String targetName);
+ 
+ @patch
++void collectAllGarbageForTesting() => VMInternalsForTesting.collectAllGarbage();
++
++@patch
+ String? releaseBuildId() => _releaseBuildId();
+ 
+ @pragma("vm:external-name", "Internal_releaseBuildId")

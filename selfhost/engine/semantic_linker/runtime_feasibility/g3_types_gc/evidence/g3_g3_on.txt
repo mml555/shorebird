@@ -1,0 +1,137 @@
+SL1-G3 types + GC probe -- arm g3_on
+out  : /Volumes/build/semantic-linker/sl1/flutter/engine/src/out/sl1_g3_on
+date : 2026-09-06T21:15:28Z
+dm   : 1 line(s) in args.gn
+sha256 5f030c5f7d886956df5197fd7f7b3c399a550177399d46666f7fc12ec12ee6ab  gen_snapshot
+sha256 29bebdf721ecb4a2d2377d46866818a2b2134e35312d1de613ffa1876b8dbf36  dartaotruntime
+sha256 78d43b1d25bb8ea4f25beb8c5fcf4fb053604053a2b4e5ee91a233eae09cc6b1  vm_platform.dill
+
+== host kernel + AOT snapshot ==
+   gen_kernel exit=0
+   gen_snapshot exit=0
+== pre-AOT import kernel ==
+   gen_kernel(import) exit=0
+
+=================== TEST gc_control ===================
+   CHECK ok   before GC: unrooted object is still there
+   GC: collectAllGarbageForTesting x2
+   CHECK ok   unrooted ordinary AOT object WAS collected: null
+   CHECK ok   rooted ordinary AOT object SURVIVED: Instance of 'Tracked'
+   CHECK ok   and the rooted one is the object the holder still names
+   G3-TEST PASS
+   run exit=0
+
+=================== TEST gc_aot_roots_patch ===================
+   dart2bytecode(m_gc_aot_roots_patch) exit=0
+   bytecode sha256 0d1649b64ac542322532e3bf89ef1866d58f21e0fe46e2d43a29c3736e16a98c
+   ORACLE: dispatchBase -> AOT
+   CHECK ok   module rooted a patch object in an AOT field: PatchIface
+   GC: collectAllGarbageForTesting x2
+   CHECK ok   patch object survived a full GC
+   CHECK ok   it is the SAME object the AOT field names
+   CHECK ok   its method still dispatches after GC: PATCH-IFACE
+   MODE ok   and still dispatches INTO BYTECODE after GC: PatchIface.tag -> INTERPRETED (want INTERPRETED)
+   CHECK ok   patch object state readable after GC
+   G3-TEST PASS
+   run exit=0
+
+=================== TEST gc_patch_roots_aot ===================
+   dart2bytecode(m_gc_patch_roots_aot) exit=0
+   bytecode sha256 0589887a7636785d4a8ff63fd34e5594548539ec3c746514ab3932723b7afb30
+   ORACLE: dispatchBase -> AOT
+   CHECK ok   module installed a bytecode probe
+   CHECK ok   probe returns an AOT object: Tracked
+   GC: collectAllGarbageForTesting x2
+   CHECK ok   AOT object survived, rooted only through patch code
+   CHECK ok   bytecode still returns the SAME AOT object
+   CHECK ok   its state is preserved: 42
+   CHECK ok   and an AOT call on it still works
+   G3-TEST PASS
+   run exit=0
+
+=================== TEST gc_cycle_collects ===================
+   dart2bytecode(m_gc_cycle) exit=0
+   bytecode sha256 53461bb7254bc160d95fa2250ce05761f42a39a33e646d8052f5b3c9b1040feb
+   ORACLE: dispatchBase -> AOT
+   CHECK ok   the patch node existed before collection
+   CHECK ok   the AOT node existed before collection
+   GC: collectAllGarbageForTesting x3
+   CHECK ok   unrooted patch object in the cycle WAS collected: null
+   CHECK ok   unrooted AOT object in the cycle WAS collected: null
+   G3-TEST PASS
+   run exit=0
+
+=================== TEST type_implements ===================
+   dart2bytecode(m_iface) exit=0
+   bytecode sha256 3d8e140ca02814901591d2bce6c75fa6226d239a93b822cba979648724068a31
+   ORACLE: dispatchBase -> AOT
+   CHECK ok   construct: module returned an object: PatchIface
+   CHECK ok   is Iface: true
+   CHECK ok   AOT cast + virtual dispatch: PATCH-IFACE
+   MODE ok   dispatch entered bytecode: PatchIface.tag -> INTERPRETED (want INTERPRETED)
+   G3-TEST PASS
+   run exit=0
+
+=================== TEST type_extends ===================
+   dart2bytecode(m_child) exit=0
+   bytecode sha256 2961dd5fc218bfae675c6ff0aea87ca1b1a5f12357fb3b8047834ae6e8ebdea2
+   ORACLE: dispatchBase -> AOT
+   CHECK ok   construct: PatchChild
+   CHECK ok   is Base: true
+   CHECK ok   inherited AOT method: INHERITED
+   CHECK ok   override ran and super reached AOT: PATCH:AOT-BASE
+   MODE ok   the override is INTERPRETED: PatchChild.execute -> INTERPRETED (want INTERPRETED)
+   MODE ok   the super target is AOT: Base.execute -> AOT (want AOT)
+   CHECK ok   inherited field is writable and readable: 5
+   G3-TEST PASS
+   run exit=0
+
+=================== TEST type_return ===================
+   dart2bytecode(m_child) exit=0
+   bytecode sha256 2961dd5fc218bfae675c6ff0aea87ca1b1a5f12357fb3b8047834ae6e8ebdea2
+   ORACLE: dispatchBase -> AOT
+   CHECK ok   runtimeType is the patch class: PatchChild
+   CHECK ok   repeated calls agree: PATCH:AOT-BASE/PATCH:AOT-BASE
+   CHECK ok   identity is stable across calls
+   G3-TEST PASS
+   run exit=0
+
+=================== TEST type_collections ===================
+   dart2bytecode(m_child) exit=0
+   bytecode sha256 2961dd5fc218bfae675c6ff0aea87ca1b1a5f12357fb3b8047834ae6e8ebdea2
+   ORACLE: dispatchBase -> AOT
+   CHECK ok   List<Base> retrieve
+   CHECK ok   List<Base> dispatch: PATCH:AOT-BASE
+   CHECK ok   Map<String,Base> retrieve
+   CHECK ok   Map<String,Base> dispatch: PATCH:AOT-BASE
+   CHECK ok   elements are still the patch type: PatchChild
+   G3-TEST PASS
+   run exit=0
+
+=================== TEST type_generic ===================
+   dart2bytecode(m_child) exit=0
+   bytecode sha256 2961dd5fc218bfae675c6ff0aea87ca1b1a5f12357fb3b8047834ae6e8ebdea2
+   ORACLE: dispatchBase -> AOT
+   CHECK ok   returned T is identical
+   CHECK ok   runtime type is still the patch class: PatchChild
+   CHECK ok   AOT treats the result as Base
+   CHECK ok   virtual dispatch on the generic result: PATCH:AOT-BASE
+   MODE ok   and it still enters bytecode: PatchChild.execute -> INTERPRETED (want INTERPRETED)
+   G3-TEST PASS
+   run exit=0
+
+=================== TEST type_generic_patcharg ===================
+   dart2bytecode(m_generic) exit=0
+   bytecode sha256 75f9b250bf7318ea7535953157e0bfb7a376be356ce2c181b608b0074100a5f4
+   ORACLE: dispatchBase -> AOT
+   CHECK ok   module instantiated the AOT generic at its own type: identical=true
+   CHECK ok   runtime type of the returned T is the patch class: PatchChild
+   CHECK ok   the patch type test held inside bytecode: true
+   CHECK ok   AOT treats the result as Base
+   CHECK ok   and dispatch still enters bytecode: PATCH:AOT-BASE
+   MODE ok   confirmed by execution mode: PatchChild.execute -> INTERPRETED (want INTERPRETED)
+   G3-TEST PASS
+   run exit=0
+
+SUMMARY arm=g3_on tests=10 failed=0
+G3 ARM PASS
