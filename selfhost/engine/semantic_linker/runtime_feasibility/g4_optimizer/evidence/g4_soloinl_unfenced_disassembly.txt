@@ -1,0 +1,105 @@
+########## s1_virtual (soloinl_unfenced) : DIRECT_CALL_DEVIRTUALIZED
+00000000000a00a0 <s1_virtual>:
+   a00a0:      	stp	x29, x30, [x15, #-0x10]!
+   a00a4:      	mov	x29, x15
+   a00a8:      	sub	x15, x15, #0x8
+   a00ac:      	ldr	x16, [x26, #0x48]
+   a00b0:      	cmp	x15, x16
+   a00b4:      	b.ls	 <L1>
+<L0>:
+   a00b8:      	ldr	x16, [x29, #0x10]
+   a00bc:      	str	x16, [x15]
+   a00c0:      	ldr	x4, [x27, #0x60]
+   a00c4:      	bl	 <Base.execute>
+   a00c8:      	mov	x15, x29
+   a00cc:      	ldp	x29, x30, [x15], #0x10
+   a00d0:      	ret
+
+########## s2_monomorphic (soloinl_unfenced) : DIRECT_CALL_DEVIRTUALIZED
+00000000000a0064 <s2_monomorphic>:
+   a0064:      	stp	x29, x30, [x15, #-0x10]!
+   a0068:      	mov	x29, x15
+   a006c:      	sub	x15, x15, #0x8
+   a0070:      	ldr	x16, [x26, #0x48]
+   a0074:      	cmp	x15, x16
+   a0078:      	b.ls	 <L1>
+<L0>:
+   a007c:      	ldr	x16, [x29, #0x10]
+   a0080:      	str	x16, [x15]
+   a0084:      	ldr	x4, [x27, #0x60]
+   a0088:      	bl	 <Base.execute>
+   a008c:      	mov	x15, x29
+   a0090:      	ldp	x29, x30, [x15], #0x10
+   a0094:      	ret
+
+########## s3_chain_a (soloinl_unfenced) : DIRECT_CALL_DEVIRTUALIZED
+00000000000a0028 <s3_chain_a>:
+   a0028:      	stp	x29, x30, [x15, #-0x10]!
+   a002c:      	mov	x29, x15
+   a0030:      	sub	x15, x15, #0x8
+   a0034:      	ldr	x16, [x26, #0x48]
+   a0038:      	cmp	x15, x16
+   a003c:      	b.ls	 <L1>
+<L0>:
+   a0040:      	ldr	x16, [x29, #0x10]
+   a0044:      	str	x16, [x15]
+   a0048:      	ldr	x4, [x27, #0x60]
+   a004c:      	bl	 <Base.execute>
+   a0050:      	mov	x15, x29
+   a0054:      	ldp	x29, x30, [x15], #0x10
+   a0058:      	ret
+
+########## s4_generic (soloinl_unfenced) : DIRECT_CALL_DEVIRTUALIZED
+000000000009ff94 <s4_generic>:
+   9ff94:      	stp	x29, x30, [x15, #-0x10]!
+   9ff98:      	mov	x29, x15
+   9ff9c:      	sub	x15, x15, #0x10
+   9ffa0:      	ldur	x0, [x4, #0x17]
+   9ffa4:      	cbnz	x0,  <L0>
+   9ffa8:      	mov	x2, x22
+   9ffac:      	b	 <L1>
+<L0>:
+   9ffb0:      	ldur	x1, [x4, #0x27]
+   9ffb4:      	add	x2, x29, x1, lsl #2
+   9ffb8:      	ldr	x2, [x2, #0x10]
+<L1>:
+   9ffbc:      	ldr	x1, [x29, #0x18]
+   9ffc0:      	ldur	x3, [x1, #0x17]
+   9ffc4:      	ldr	x16, [x26, #0xa8]
+   9ffc8:      	cmp	x3, x16
+   9ffcc:      	b.ne	 <L2>
+   9ffd0:      	mov	x1, x2
+   9ffd4:      	b	 <L3>
+<L2>:
+   9ffd8:      	mov	x1, x3
+<L3>:
+   9ffdc:      	ldr	x16, [x26, #0x48]
+   9ffe0:      	cmp	x15, x16
+   9ffe4:      	b.ls	 <L7>
+<L4>:
+   9ffe8:      	cbnz	x0,  <L5>
+   9ffec:      	ldr	x16, [x26, #0xa8]
+   9fff0:      	cmp	x3, x16
+   9fff4:      	b.ne	 <L5>
+   9fff8:      	ldr	x0, [x27, #0x908]
+   9fffc:      	b	 <L6>
+<L5>:
+   a0000:      	mov	x0, x1
+<L6>:
+   a0004:      	ldr	x16, [x29, #0x10]
+   a0008:      	stp	x16, x0, [x15]
+   a000c:      	ldr	x4, [x27, #0x910]
+   a0010:      	bl	 <Base.execute>
+   a0014:      	mov	x15, x29
+   a0018:      	ldp	x29, x30, [x15], #0x10
+   a001c:      	ret
+
+########## s5_fieldCall (soloinl_unfenced) : NO_CALL_INLINED
+000000000009f8e8 <s5_fieldCall>:
+   9f8e8:      	ldr	x1, [x26, #0x70]
+   9f8ec:      	ldr	x1, [x1, #0x758]
+   9f8f0:      	cmp	x1, x22
+   9f8f4:      	b.eq	 <L0>
+   9f8f8:      	ldr	x0, [x27, #0x900]
+   9f8fc:      	ret
+

@@ -1,0 +1,163 @@
+########## s1_virtual (solo_fenced) : DISPATCH_TABLE
+00000000000a3d3c <s1_virtual>:
+   a3d3c:      	stp	x29, x30, [x15, #-0x10]!
+   a3d40:      	mov	x29, x15
+   a3d44:      	sub	x15, x15, #0x8
+   a3d48:      	ldr	x16, [x26, #0x48]
+   a3d4c:      	cmp	x15, x16
+   a3d50:      	b.ls	 <L3>
+<L0>:
+   a3d54:      	ldr	x0, [x29, #0x10]
+   a3d58:      	ldur	x1, [x0, #-0x1]
+   a3d5c:      	ubfx	x1, x1, #12, #20
+   a3d60:      	cmp	x1, #0x270
+   a3d64:      	b.hi	 <L1>
+   a3d68:      	str	x0, [x15]
+   a3d6c:      	mov	x0, x1
+   a3d70:      	mov	x30, x0
+   a3d74:      	ldr	x30, [x21, x30, lsl #3]
+   a3d78:      	blr	x30
+   a3d7c:      	b	 <L2>
+<L1>:
+   a3d80:      	str	x0, [x15]
+   a3d84:      	mov	x4, #0x0                // =0
+   a3d88:      	ldr	x0, [x15]
+   a3d8c:      	add	x16, x27, #0x950
+   a3d90:      	ldp	x30, x5, [x16]
+   a3d94:      	blr	x30
+<L2>:
+   a3d98:      	mov	x15, x29
+   a3d9c:      	ldp	x29, x30, [x15], #0x10
+   a3da0:      	ret
+
+########## s2_monomorphic (solo_fenced) : DISPATCH_TABLE
+00000000000a3dac <s2_monomorphic>:
+   a3dac:      	stp	x29, x30, [x15, #-0x10]!
+   a3db0:      	mov	x29, x15
+   a3db4:      	sub	x15, x15, #0x8
+   a3db8:      	ldr	x16, [x26, #0x48]
+   a3dbc:      	cmp	x15, x16
+   a3dc0:      	b.ls	 <L3>
+<L0>:
+   a3dc4:      	ldr	x0, [x29, #0x10]
+   a3dc8:      	ldur	x1, [x0, #-0x1]
+   a3dcc:      	ubfx	x1, x1, #12, #20
+   a3dd0:      	cmp	x1, #0x270
+   a3dd4:      	b.hi	 <L1>
+   a3dd8:      	str	x0, [x15]
+   a3ddc:      	mov	x0, x1
+   a3de0:      	mov	x30, x0
+   a3de4:      	ldr	x30, [x21, x30, lsl #3]
+   a3de8:      	blr	x30
+   a3dec:      	b	 <L2>
+<L1>:
+   a3df0:      	str	x0, [x15]
+   a3df4:      	mov	x4, #0x0                // =0
+   a3df8:      	ldr	x0, [x15]
+   a3dfc:      	add	x16, x27, #0x940
+   a3e00:      	ldp	x30, x5, [x16]
+   a3e04:      	blr	x30
+<L2>:
+   a3e08:      	mov	x15, x29
+   a3e0c:      	ldp	x29, x30, [x15], #0x10
+   a3e10:      	ret
+
+########## s3_chain_a (solo_fenced) : DISPATCH_TABLE
+00000000000a3a60 <s3_chain_a>:
+   a3a60:      	stp	x29, x30, [x15, #-0x10]!
+   a3a64:      	mov	x29, x15
+   a3a68:      	sub	x15, x15, #0x8
+   a3a6c:      	ldr	x16, [x26, #0x48]
+   a3a70:      	cmp	x15, x16
+   a3a74:      	b.ls	 <L3>
+<L0>:
+   a3a78:      	ldr	x0, [x29, #0x10]
+   a3a7c:      	ldur	x1, [x0, #-0x1]
+   a3a80:      	ubfx	x1, x1, #12, #20
+   a3a84:      	cmp	x1, #0x270
+   a3a88:      	b.hi	 <L1>
+   a3a8c:      	str	x0, [x15]
+   a3a90:      	mov	x0, x1
+   a3a94:      	mov	x30, x0
+   a3a98:      	ldr	x30, [x21, x30, lsl #3]
+   a3a9c:      	blr	x30
+   a3aa0:      	b	 <L2>
+<L1>:
+   a3aa4:      	str	x0, [x15]
+   a3aa8:      	mov	x4, #0x0                // =0
+   a3aac:      	ldr	x0, [x15]
+   a3ab0:      	add	x16, x27, #0x930
+   a3ab4:      	ldp	x30, x5, [x16]
+   a3ab8:      	blr	x30
+<L2>:
+   a3abc:      	mov	x15, x29
+   a3ac0:      	ldp	x29, x30, [x15], #0x10
+   a3ac4:      	ret
+
+########## s4_generic (solo_fenced) : DISPATCH_TABLE
+00000000000a39f0 <s4_generic>:
+   a39f0:      	stp	x29, x30, [x15, #-0x10]!
+   a39f4:      	mov	x29, x15
+   a39f8:      	sub	x15, x15, #0x8
+   a39fc:      	ldr	x16, [x26, #0x48]
+   a3a00:      	cmp	x15, x16
+   a3a04:      	b.ls	 <L3>
+<L0>:
+   a3a08:      	ldr	x0, [x29, #0x10]
+   a3a0c:      	ldur	x1, [x0, #-0x1]
+   a3a10:      	ubfx	x1, x1, #12, #20
+   a3a14:      	cmp	x1, #0x270
+   a3a18:      	b.hi	 <L1>
+   a3a1c:      	str	x0, [x15]
+   a3a20:      	mov	x0, x1
+   a3a24:      	mov	x30, x0
+   a3a28:      	ldr	x30, [x21, x30, lsl #3]
+   a3a2c:      	blr	x30
+   a3a30:      	b	 <L2>
+<L1>:
+   a3a34:      	str	x0, [x15]
+   a3a38:      	mov	x4, #0x0                // =0
+   a3a3c:      	ldr	x0, [x15]
+   a3a40:      	add	x16, x27, #0x920
+   a3a44:      	ldp	x30, x5, [x16]
+   a3a48:      	blr	x30
+<L2>:
+   a3a4c:      	mov	x15, x29
+   a3a50:      	ldp	x29, x30, [x15], #0x10
+   a3a54:      	ret
+
+########## s5_fieldCall (solo_fenced) : DISPATCH_TABLE
+00000000000a3970 <s5_fieldCall>:
+   a3970:      	stp	x29, x30, [x15, #-0x10]!
+   a3974:      	mov	x29, x15
+   a3978:      	sub	x15, x15, #0x8
+   a397c:      	ldr	x16, [x26, #0x48]
+   a3980:      	cmp	x15, x16
+   a3984:      	b.ls	 <L3>
+<L0>:
+   a3988:      	ldr	x0, [x26, #0x70]
+   a398c:      	ldr	x0, [x0, #0x758]
+   a3990:      	cmp	x0, x22
+   a3994:      	b.eq	 <L4>
+   a3998:      	ldur	x1, [x0, #-0x1]
+   a399c:      	ubfx	x1, x1, #12, #20
+   a39a0:      	cmp	x1, #0x270
+   a39a4:      	b.hi	 <L1>
+   a39a8:      	str	x0, [x15]
+   a39ac:      	mov	x0, x1
+   a39b0:      	mov	x30, x0
+   a39b4:      	ldr	x30, [x21, x30, lsl #3]
+   a39b8:      	blr	x30
+   a39bc:      	b	 <L2>
+<L1>:
+   a39c0:      	str	x0, [x15]
+   a39c4:      	mov	x4, #0x0                // =0
+   a39c8:      	ldr	x0, [x15]
+   a39cc:      	add	x16, x27, #0x900
+   a39d0:      	ldp	x30, x5, [x16]
+   a39d4:      	blr	x30
+<L2>:
+   a39d8:      	mov	x15, x29
+   a39dc:      	ldp	x29, x30, [x15], #0x10
+   a39e0:      	ret
+

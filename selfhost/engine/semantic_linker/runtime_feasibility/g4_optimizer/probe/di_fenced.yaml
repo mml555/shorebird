@@ -1,0 +1,21 @@
+# cspell:words dynmod
+# VARIANT A — the DESIGNED contract. Base.execute is declared can-be-overridden,
+# which is what tells AOT's type-flow analysis to keep the dispatch point open
+# for a subtype that does not exist yet.
+extendable:
+  - library: 'package:dynamic_modules/g4_host.dart'
+    class: 'Base'
+can-be-used-as-type:
+  - library: 'package:dynamic_modules/g4_host.dart'
+    class: 'Base'
+can-be-overridden:
+  - library: 'package:dynamic_modules/g4_host.dart'
+    class: 'Base'
+    member: 'execute'
+callable:
+  - library: 'package:dynamic_modules/g4_host.dart'
+    class: 'Base'
+    member: ''
+  - library: 'package:dynamic_modules/g4_host.dart'
+    class: 'Base'
+    member: 'execute'
