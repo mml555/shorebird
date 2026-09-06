@@ -1,0 +1,25 @@
+# cspell:words dynmod
+# SL1-G1's POSITIVE DYNAMIC-INTERFACE CONTRACT, in upstream's own schema.
+#
+# gen_kernel's annotator turns `callable` into @pragma('dyn-module:callable'),
+# which the VM treats identically to vm:entry-point (runtime/vm/object.cc,
+# FindEntryPointPragma). Listing a declaration here is therefore the DESIGNED
+# retention mechanism, not a workaround, and it is what a real release-time
+# contract would ship.
+#
+# Library URIs must be the CFE-indexed package: URI. A file: URI fails deep in
+# LibraryIndex as "The library ... has not been indexed", which reads like a
+# compiler bug rather than a bad reference.
+#
+# Every host declaration this lane exposes is listed. `can-be-overridden` keeps
+# AOT's type-flow analysis from devirtualizing or inlining the member so the
+# dispatch point stays open -- it does NOT redirect the member, which is the
+# dynmod lane's finding and is not contradicted here.
+callable:
+  - library: 'package:dynamic_modules/host_probe.dart'
+    member: 'target'
+  - library: 'package:dynamic_modules/host_probe.dart'
+    member: 'hostSuffix'
+can-be-overridden:
+  - library: 'package:dynamic_modules/host_probe.dart'
+    member: 'target'
