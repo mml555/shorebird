@@ -1,18 +1,17 @@
-// D1. A patch-DEFINED exception type crosses into AOT. The module catches it
-// itself first to prove the type is real on the bytecode side, then rethrows a
-// marker the host can assert on without needing the type at compile time.
-import 'package:dynamic_modules/g2_host.dart';
-
+// D1. A patch-DEFINED exception type propagates OUT of bytecode and is caught by
+// AOT. The first version of this test caught it inside the module and returned a
+// String marker -- so nothing ever crossed the boundary, and the host's check
+// "a patch-defined throwable reached AOT" was satisfied by a String. It now
+// throws uncaught, and the AOT side does the catching.
 class ModuleException implements Exception {
+  final String detail;
+  ModuleException(this.detail);
   @override
-  String toString() => 'ModuleException';
+  String toString() => 'ModuleException($detail)';
 }
+
+@pragma('vm:never-inline')
+Never raise() => throw ModuleException('from-module');
 
 @pragma('dyn-module:entry-point')
-Object? entry() {
-  try {
-    throw ModuleException();
-  } on Object catch (e) {
-    return 'CAUGHT:$e';
-  }
-}
+Object? entry() => raise();

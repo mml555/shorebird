@@ -27,6 +27,15 @@ can-be-overridden:
     class: 'Handler'
     member: 'execute'
 callable:
+  # SDK RETENTION. `identical` is dart:core, and without an entry here the
+  # identity module dies at load time with
+  #   bytecode_reader.cc:1172: Unable to find function identical in Library:'dart:core'
+  # which is the canonical failure killgate's Spike B characterised: a patch's
+  # references do NOT resolve against the base snapshot for free. Listing it is
+  # the DESIGNED mechanism (dyn-module:callable is treated identically to
+  # vm:entry-point), not a workaround for a substrate limitation.
+  - library: 'dart:core'
+    member: 'identical'
   # The oracle's falsification subjects. attachTarget must be retained by NAME
   # for attachBytecodeToFunction to resolve it -- AOT drops library dictionaries
   # otherwise, which is the killgate lane's finding.

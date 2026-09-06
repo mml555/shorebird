@@ -171,10 +171,19 @@ Future<void> main(List<String> args) async {
     return;
   }
 
+  // The load itself is the boundary for the `throw` test, so its error is
+  // captured rather than allowed to abort the process.
   Object? loaded;
+  Object? loadError;
+  StackTrace? loadStack;
   if (modulePath != null) {
     final bytes = Uint8List.fromList(File(modulePath).readAsBytesSync());
-    loaded = await loadDynamicModule(bytes: bytes);
+    try {
+      loaded = await loadDynamicModule(bytes: bytes);
+    } on Object catch (e, st) {
+      loadError = e;
+      loadStack = st;
+    }
   }
 
   switch (test) {
@@ -205,21 +214,34 @@ Future<void> main(List<String> args) async {
 
     // C. shared heap and exact identity.
     case 'identity':
-      expect('module returned the very same Box',
-          identical(loaded, sharedBox), '${identical(loaded, sharedBox)}');
-      expect('module mutation is visible to AOT', sharedBox.v == 99, '${sharedBox.v}');
-      expect('AOT can retain a patch object', sharedBox.held != null,
+      final parts = loaded as List<Object?>;
+      final returnedBox = parts[0];
+      expect('module returned the very same Box (identity, not equality)',
+          identical(returnedBox, sharedBox), '${identical(returnedBox, sharedBox)}');
+      expect('module mutation B->A is visible to AOT', sharedBox.v == 99, '${sharedBox.v}');
+      expect('AOT retains a patch-defined object', sharedBox.held != null,
           '${sharedBox.held.runtimeType}');
+      expect('patch retains the AOT object, by identity',
+          parts[1] == true, '${parts[1]}');
       sharedBox.v = 7;
-      expect('AOT mutation is visible through the same reference',
-          (loaded as Box).v == 7, '${(loaded as Box).v}');
+      expect('AOT mutation A->B is visible through the same reference',
+          (returnedBox as Box).v == 7, '${returnedBox.v}');
 
     // D1. bytecode throws, AOT catches.
     case 'throw':
-      expect('a patch-defined throwable reached AOT', loaded is String,
-          '${loaded.runtimeType}');
-      expect('AOT caught it and recorded the type', '$loaded' == 'CAUGHT:ModuleException',
-          '$loaded');
+      expect('AOT caught a throw that originated in bytecode', loadError != null,
+          '${loadError.runtimeType}');
+      expect('it is the patch-DEFINED type, carrying its own payload',
+          '$loadError' == 'ModuleException(from-module)', '$loadError');
+      expect('the throw produced a stack trace', loadStack != null);
+      print('TRACE-BEGIN module-throw');
+      print('$loadStack'.trimRight());
+      print('TRACE-END');
+      // The boundary must still be usable after an exception unwound through it.
+      expectMode('multiply still AOT after a bytecode throw unwound into AOT',
+          'package:dynamic_modules/g2_host.dart', 'multiply', kAot);
+      expect('AOT still executes correctly after the unwind',
+          multiply(6, 7) == 42, '${multiply(6, 7)}');
 
     // D2. AOT throws, bytecode catches -- including through a host finally.
     case 'catch':

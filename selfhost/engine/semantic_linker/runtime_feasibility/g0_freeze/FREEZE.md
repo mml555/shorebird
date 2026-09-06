@@ -99,6 +99,11 @@ This is the same class of defect [`NEXT_LANES.md`](../../../../NEXT_LANES.md) §
 already recorded once for the updater fork. It is recorded here, not repaired
 here: pushing a Dart fork is not inside this gate's stop boundary.
 
+**Tracked separately as [#47](https://github.com/mml555/shorebird/issues/47)
+(DART-DURABILITY-1).** It is deliberately NOT folded into SEMANTIC-LINKER-1, and
+no qualified artifact is to be rebuilt as part of it. This lane proceeds on the
+bank below, which is what makes that separation safe.
+
 ## What was banked, and how the bank was checked
 
 [`banked_source/dart/`](banked_source/dart) — 2,116 insertions across 22 files,
