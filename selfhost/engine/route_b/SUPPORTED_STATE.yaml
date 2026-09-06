@@ -793,6 +793,54 @@ upgrade_rollback:
     (selfhost/upgrade_rollback/fixtures/), never by a migration in the
     permanent history.
 
+# SERVER-IMAGE-PROVENANCE-1. The release process behind U-0: a semantic image
+# tag that does not name the release it is named after.
+release_provenance:
+  status: CERTIFIED
+  qualified: 2026-09-06 (SERVER-IMAGE-PROVENANCE-1)
+  evidence: selfhost/release_provenance/CERTIFICATION.md
+  harness: selfhost/scripts/spp1_certify.sh
+  result: 36 passed, 0 failed (22/14 against the publisher it replaces)
+  invariant: >-
+    a server version names one source revision, one multi-arch manifest digest,
+    and one permanently retrievable set of bytes.
+  # Measured from GHCR, not inferred. Left in place on purpose: this is the
+  # evidence, and re-pointing the tag would be a third silent move.
+  historical_defect:
+    "ghcr.io/mml555/code-push-server:code_push_server-v1.3.0":
+      digest: sha256:a6e8bde71d5e4bfe8cbcd6b24e03ab61bf3225fb9f35536a34a5079cb1fb0cf9
+      schema: 8
+      source: cf74eeda3e432a7d69175fdcec95f5c0dbe28d43
+      note: the actual 1.3.0 release
+    "ghcr.io/mml555/code-push-server:1.3.0":
+      digest: sha256:320338b891c4471d47a2e92a37898666ae21cac3b03606083264a982379f76b9
+      schema: 12
+      also_tagged: [selfhost-v1.1.1, latest]
+      note: >-
+        a distribution tag whose pubspec also said 1.3.0. The publisher fired on
+        selfhost-v* too, read version: from the ref it built, and re-tagged
+        unconditionally, so the last one to run won.
+  enforced:
+    - only code_push_server-vX.Y.Z may create :X.Y.Z or move :latest
+    - the tag's X.Y.Z must equal pubspec.yaml at the commit the tag resolves to
+    - a semantic tag is write-once; a differing digest refuses, a matching one is idempotent
+    - every publish also gets :source-<full commit>, never reused, never moved
+    - both architecture child digests are read back out of the published manifest
+    - every reference is resolved back from the registry after publishing
+  # THE OTHER HALF OF RECOVERABILITY. Refusing the wrong build is not enough if
+  # the right one is gone: a backup records a digest, and those bytes must stay
+  # obtainable for as long as the backup is considered restorable.
+  retention:
+    reference: "<image>:source-<full commit>"
+    certified: >-
+      after a later release and with every local image deleted, release A pulls
+      by its recorded digest alone, verifies against its banked provenance
+      record, and the digest-enforced restore accepts it -- while a different
+      release is refused in its place.
+    tie_to_backups: >-
+      a backup's server_image_id IS the release record's manifest_digest, so the
+      two systems name the same object rather than agreeing in spirit.
+
 historical_compatibility:
   # D-PRODUCER-DEMAND-2, producer truth over real commit history.
   wonderous: {observations: 20, producer_compatibility: "50.00%"}

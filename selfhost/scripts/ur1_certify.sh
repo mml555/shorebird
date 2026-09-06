@@ -183,7 +183,12 @@ stop_server
 set_image "$NEW_IMAGE"
 out=$(do_restore "$BK"); rc=$?
 if (( rc == 0 )); then no "restoring the pre-upgrade backup under the NEW image was accepted"
-elif printf '%s' "$out" | grep -q "different server image"; then ok "restoring it under the wrong image is refused, naming both"
+elif printf '%s' "$out" | grep -qE "different server image|a different build"; then
+  # Either refusal is correct. SERVER-IMAGE-PROVENANCE-1 made the DIGEST check
+  # run first, so a backup that records one now refuses on the build rather
+  # than on the name -- the stronger of the two, and the one that catches a
+  # republished tag.
+  ok "restoring it under the wrong image is refused, naming both"
 else no "refused, but not for the image: $(printf '%s' "$out" | tr '\n' ' ' | cut -c1-100)"; fi
 set_image "$OLD_IMAGE"
 out=$(do_restore "$BK"); rc=$?

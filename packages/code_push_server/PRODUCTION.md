@@ -218,6 +218,10 @@ things that follow from that are enforced, not left to care:
   refused. Restoring a pre-upgrade backup with the new image still selected
   does not roll anything back; it migrates the restored database forward again
   and reports success. Pass `ALLOW_IMAGE_CHANGE=1` when you mean it.
+- Keep the image, not just its name. Every release is also published as
+  `:source-<full commit>`, a reference nothing in normal publishing moves; that
+  is what keeps a backup's recorded digest pullable after `:latest` and the
+  semantic tag have moved on.
 - The check is on the image **digest**, not its name. A tag is mutable, and
   this project has published one that misdescribes its code, so a reference
   republished over a different build is refused even though the name matches.

@@ -69,10 +69,21 @@ def lint(path):
 
         if ':' not in stripped:
             continue
-        key = stripped.split(':', 1)[0].strip()
-        if key.startswith(('"', "'")):
-            key = key[1:-1] if len(key) > 1 and key[-1] == key[0] else key
-        rest = stripped.split(':', 1)[1].strip()
+        # A QUOTED key may itself contain colons -- an image reference like
+        # "ghcr.io/owner/name:1.3.0" is one key, not a key of
+        # "ghcr.io/owner/name". Splitting on the first colon reported two such
+        # keys as duplicates of each other, failing a well-formed record and
+        # sending the reader to fix the wrong artifact.
+        if stripped[0] in ('"', "'"):
+            quote = stripped[0]
+            close = stripped.find(quote, 1)
+            if close == -1 or stripped[close + 1:close + 2] != ':':
+                continue
+            key = stripped[1:close]
+            rest = stripped[close + 2:].strip()
+        else:
+            key = stripped.split(':', 1)[0].strip()
+            rest = stripped.split(':', 1)[1].strip()
 
         if stack[-1][0] < indent:
             stack.append((indent, 'map', set(), stack[-1][3]))

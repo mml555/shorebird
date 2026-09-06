@@ -168,6 +168,11 @@ words:
   # stdlib names the manifest tooling calls. Per-file identifiers stay inline.
   # UPGRADE-ROLLBACK-1: the standard exit-code name the migration guard uses.
   - DATAERR
+  # SERVER-IMAGE-PROVENANCE-1: the OCI label namespace, and the two properties
+  # a released image has to have.
+  - opencontainers
+  - pullable
+  - reacquirable
   - quiesce
   - quiesced
   - quiesces

@@ -113,9 +113,14 @@ compose_image() {
 # A backup records ONE of these; any of them identifies the same bytes, so the
 # comparison is set membership rather than string equality against whichever
 # one happened to be first at backup time.
+# An image that is not present locally is a normal answer -- "cannot resolve"
+# is a case the caller handles and reports. Without the `|| true` the failing
+# inspect propagates through `pipefail`, `set -e` exits at the assignment, and
+# the restore stops with NO message at all: neither refusing nor proceeding,
+# which is worse than either.
 image_identities() {
   docker image inspect "$1" -f '{{range .RepoDigests}}{{println .}}{{end}}{{.Id}}' 2>/dev/null \
-    | sed '/^$/d'
+    | sed '/^$/d' || true
 }
 
 # Assert quiescence, and put the deployment back if the assertion refuses.
@@ -205,45 +210,32 @@ case "$ACTION" in
       || die "archive failed verification — NOTHING was changed on $V.
    If this predates manifests, verify it by hand and extract it yourself."
 
-    # "Restore onto the image the backup came from, then upgrade" was
-    # documented guidance and nothing enforced it. Measured 2026-09-06:
-    # restoring a pre-upgrade backup with the successor image still selected
-    # printed `✓ Restored`, came up healthy, and had already migrated the
-    # restored database straight back to the schema the operator was rolling
-    # back FROM. A rollback that silently re-upgrades is worse than one that
-    # fails, because nothing distinguishes it from success.
-    WANT_IMG="$(tar xzOf "$ABS" ./MANIFEST.json 2>/dev/null \
-      | sed -n 's/.*"server_image": "\([^"]*\)".*/\1/p' | head -1)"
+    # Which build produced this backup, and is that what we are about to run?
+    #
+    # Read the manifest ONCE. `tar … | sed … | head -1` let `head` close the
+    # pipe early, and under `set -o pipefail` the resulting SIGPIPE failed the
+    # assignment and `set -e` exited the script with no message at all --
+    # non-deterministically, depending on whether tar finished first. A restore
+    # that neither refuses nor proceeds, silently, is the worst of the three.
+    MANIFEST_JSON="$(tar xzOf "$ABS" ./MANIFEST.json 2>/dev/null || true)"
+    manifest_field() { printf '%s' "$MANIFEST_JSON" | sed -n "s/.*\"$1\": \"\([^\"]*\)\".*/\1/p" | sed -n '1p'; }
+    WANT_IMG="$(manifest_field server_image)"
+    WANT_ID="$(manifest_field server_image_id)"
     HAVE_IMG="$(compose_image)"
     if [[ -z "$HAVE_IMG" ]]; then
       die "cannot tell which image this compose would start — it declares no 'server' service.
    Run --restore from the deployment's own directory."
     fi
-    if [[ -n "$WANT_IMG" && "$WANT_IMG" != unknown && "$WANT_IMG" != "$HAVE_IMG" ]]; then
-      if [[ "$ALLOW_IMAGE_CHANGE" == 1 ]]; then
-        say "image differs from the backup's ($WANT_IMG -> $HAVE_IMG); continuing because --allow-image-change was given."
-      else
-        die "this backup was taken by a different server image.
-     backup was taken under : $WANT_IMG
-     this compose will start: $HAVE_IMG
-   Restoring it here does not roll anything back — the selected image will
-   migrate the restored database forward again as soon as it boots.
-   Point the compose file at $WANT_IMG and re-run, or pass
-   --allow-image-change if you meant to restore into a different version."
-      fi
-    fi
 
-    # A matching REFERENCE is not a matching image. A tag is mutable: the same
-    # `:1.3.0` can be republished over a different build, and this project has
-    # already shipped one such image (the git tag code_push_server-v1.3.0
-    # carries schema 8; the published :1.3.0 applies 12). Measured 2026-09-06:
-    # with the tag repointed at a different build, restoring a backup taken
-    # under the first one was ACCEPTED and migrated the restored database to a
-    # schema the backup had never seen. So the recorded identity is enforced,
-    # not merely recorded.
-    WANT_ID="$(tar xzOf "$ABS" ./MANIFEST.json 2>/dev/null \
-      | sed -n 's/.*"server_image_id": "\([^"]*\)".*/\1/p' | head -1)"
-    if [[ -n "$WANT_ID" && "$WANT_ID" != unknown && "$ALLOW_IMAGE_CHANGE" != 1 ]]; then
+    # The DIGEST is the authority, and it is checked first. A tag is mutable:
+    # this project has published one whose name misdescribes its code, so a
+    # matching reference proves nothing. It also runs first because pinning the
+    # compose to `repo@sha256:…` is the CORRECT operator action when rolling
+    # back, and comparing references would reject it for not looking like the
+    # tag the backup happened to be taken under.
+    if [[ "$ALLOW_IMAGE_CHANGE" == 1 ]]; then
+      say "image identity not enforced (--allow-image-change)."
+    elif [[ -n "$WANT_ID" && "$WANT_ID" != unknown ]]; then
       HAVE_IDS="$(image_identities "$HAVE_IMG")"
       if [[ -z "$HAVE_IDS" ]]; then
         die "cannot resolve $HAVE_IMG to an image identity, and this backup records one.
@@ -252,12 +244,23 @@ case "$ACTION" in
    --allow-image-change if you accept restoring under an unverified image."
       fi
       if ! printf '%s\n' "$HAVE_IDS" | grep -qxF "$WANT_ID"; then
-        die "the selected image has the right NAME but is a different build.
+        die "the selected image is a different build from the one that took this backup.
      backup was taken under : $WANT_ID
      $HAVE_IMG resolves to  : $(printf '%s' "$HAVE_IDS" | tr '\n' ' ')
-   A tag is mutable; the same reference can be republished over different
-   code. Select the recorded build, or pass --allow-image-change."
+   Restoring here does not roll anything back — the selected image will
+   migrate the restored database forward again as soon as it boots. Select the
+   recorded build (pull it by digest and point the compose at
+   ${WANT_ID}), or pass --allow-image-change."
       fi
+    elif [[ -n "$WANT_IMG" && "$WANT_IMG" != unknown && "$WANT_IMG" != "$HAVE_IMG" ]]; then
+      # No digest recorded: an archive from before image identity existed. The
+      # reference is all there is to compare, so compare it.
+      die "this backup was taken by a different server image.
+     backup was taken under : $WANT_IMG
+     this compose will start: $HAVE_IMG
+   This archive predates image identity, so only the name can be checked.
+   Point the compose file at $WANT_IMG and re-run, or pass
+   --allow-image-change if you meant to restore into a different version."
     fi
 
     say "Restoring $ABS into $V (DESTRUCTIVE, brief pause)…"
