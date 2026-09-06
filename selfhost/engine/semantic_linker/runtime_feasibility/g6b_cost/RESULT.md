@@ -96,13 +96,66 @@ much code is patched, not how often the boundary is crossed.
 - 2.40 ns/call at ~3 GHz is roughly 7 cycles, which is a real call, not an
   elided one. A folded loop would report ~0.
 
+## Family E (addendum) — allocation throughput and collection under mixed execution
+
+Required by #44 and added after the first four families. Reproduce with
+`run_alloc.sh`; raw per-rep samples in
+[`evidence/alloc_raw_samples.txt`](evidence/alloc_raw_samples.txt), transcript in
+[`evidence/alloc_gc.txt`](evidence/alloc_gc.txt). 5,000,000 allocations per mode,
+5 reps, using the **existing G3 GC instrument** and nothing new.
+
+Three modes, chosen so two costs that would otherwise be conflated can be told
+apart: comparing 1 with 2 isolates *running interpreted*; comparing 2 with 3
+isolates *the object being patch-defined*.
+
+| mode | ns/alloc (median) | min | max | vs AOT | M allocs/s |
+|---|---:|---:|---:|---:|---:|
+| AOT code, AOT-defined type | 5.50 | 5.32 | 6.13 | 1.0x | 181.8 |
+| bytecode code, AOT-defined type | 74.85 | 73.66 | 78.31 | **13.6x** | 13.4 |
+| bytecode code, **patch-defined** type | 94.11 | 92.63 | 104.76 | **17.1x** | 10.6 |
+
+**Interpretation costs ~13.6x; the patch-defined type adds a further ~26% on top
+of that** (74.85 → 94.11 ns). The second increment is the one that is new
+information: allocating a class the base snapshot never knew about is measurably
+more expensive than allocating a known class from the same interpreted code, and
+it is attributable to the type rather than to the execution mode.
+
+### Collection
+
+    full GC after each mode:   587-729 us, in every mode
+
+Collection cost is **flat across the three modes**. A full `CollectAllGarbage`
+costs the same whether the garbage was produced by AOT code, by bytecode, or as
+patch-defined objects — so mixed execution does not make collection more
+expensive on this workload.
+
+### The RSS delta is order-dependent, and is reported as such
+
+The first mode to run absorbs heap growth and later modes reuse those pages. In
+the default order the AOT mode showed a ~1.9 MB delta and the two bytecode modes
+~0.5 MB; with `G6B_SKIP_AOT=1` so that `bytecode_aot_type` runs first, it
+absorbs ~2.4 MB instead. So the per-mode RSS deltas say nothing about the modes
+and are **not** reported as a per-mode property. The throughput figures were
+stable across that reordering (77.15 / 97.41 ns vs 74.85 / 94.11), which is what
+makes the ratios above trustworthy.
+
+`ProcessInfo.currentRss` is resident set, not Dart heap. A precise heap figure
+needs service-protocol access that a product AOT build does not have, and adding
+it would be the broader GC project this addendum is explicitly not.
+
+### Anti-elision
+
+Every allocation is stored through a never-inline `keep()` into a ring buffer, so
+it cannot be scalar-replaced; the object's field feeds a printed checksum. A ring
+rather than a growing list on purpose — retaining every object would have
+measured heap growth and left the collector nothing to do.
+
 ## What is deliberately NOT concluded
 
 - No production threshold. This lane reports magnitudes; whether 10-12x on
   patched code is acceptable is a product decision made against a real
   application's hot-path profile, which this gate does not have.
-- Allocation throughput and GC behaviour under mixed execution are **not**
-  measured here. G3 proved GC correctness across the mixed graph; its *cost*
-  needs an allocation-heavy benchmark that is a separate piece of work, and
-  claiming a number without it would be inventing one.
+- No GC *optimization* work. Family E measures the collector's existing
+  behaviour on three allocation paths; it does not tune anything, and one
+  workload on one machine is not a GC characterisation.
 - Host macOS/arm64, one module, one machine, no iOS and no real application.

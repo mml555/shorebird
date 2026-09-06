@@ -1,0 +1,40 @@
+ALLOC alloc_aot_aot_type n=5000000 micros=27116 ns_per_alloc=5.42 rss_before=15974400 rss_after=17858560 rss_delta=1884160
+GC alloc_aot_aot_type micros=637 rss_before=17891328 rss_after=17956864 rss_delta=65536
+ALLOC alloc_bytecode_aot_type n=5000000 micros=374255 ns_per_alloc=74.85 rss_before=18087936 rss_after=18612224 rss_delta=524288
+GC alloc_bytecode_aot_type micros=623 rss_before=18612224 rss_after=18612224 rss_delta=0
+ALLOC alloc_bytecode_patch_type n=5000000 micros=463171 ns_per_alloc=92.63 rss_before=18612224 rss_after=18628608 rss_delta=16384
+GC alloc_bytecode_patch_type micros=519 rss_before=18628608 rss_after=18628608 rss_delta=0
+RSS_STEADY 18628608
+SINK 5015568
+ALLOC alloc_aot_aot_type n=5000000 micros=27505 ns_per_alloc=5.50 rss_before=15958016 rss_after=17858560 rss_delta=1900544
+GC alloc_aot_aot_type micros=754 rss_before=17891328 rss_after=17989632 rss_delta=98304
+ALLOC alloc_bytecode_aot_type n=5000000 micros=371684 ns_per_alloc=74.34 rss_before=18120704 rss_after=18644992 rss_delta=524288
+GC alloc_bytecode_aot_type micros=616 rss_before=18644992 rss_after=18644992 rss_delta=0
+ALLOC alloc_bytecode_patch_type n=5000000 micros=484948 ns_per_alloc=96.99 rss_before=18644992 rss_after=18661376 rss_delta=16384
+GC alloc_bytecode_patch_type micros=535 rss_before=18661376 rss_after=18661376 rss_delta=0
+RSS_STEADY 18661376
+SINK 50000
+ALLOC alloc_aot_aot_type n=5000000 micros=26586 ns_per_alloc=5.32 rss_before=15941632 rss_after=17858560 rss_delta=1916928
+GC alloc_aot_aot_type micros=614 rss_before=17891328 rss_after=17940480 rss_delta=49152
+ALLOC alloc_bytecode_aot_type n=5000000 micros=384887 ns_per_alloc=76.98 rss_before=18071552 rss_after=18071552 rss_delta=0
+GC alloc_bytecode_aot_type micros=486 rss_before=18071552 rss_after=18071552 rss_delta=0
+ALLOC alloc_bytecode_patch_type n=5000000 micros=523808 ns_per_alloc=104.76 rss_before=18071552 rss_after=18612224 rss_delta=540672
+GC alloc_bytecode_patch_type micros=587 rss_before=18612224 rss_after=18612224 rss_delta=0
+RSS_STEADY 18612224
+SINK 5015568
+ALLOC alloc_aot_aot_type n=5000000 micros=27616 ns_per_alloc=5.52 rss_before=15958016 rss_after=17858560 rss_delta=1900544
+GC alloc_aot_aot_type micros=849 rss_before=17891328 rss_after=17940480 rss_delta=49152
+ALLOC alloc_bytecode_aot_type n=5000000 micros=368319 ns_per_alloc=73.66 rss_before=18087936 rss_after=18087936 rss_delta=0
+GC alloc_bytecode_aot_type micros=522 rss_before=18087936 rss_after=18104320 rss_delta=16384
+ALLOC alloc_bytecode_patch_type n=5000000 micros=463609 ns_per_alloc=92.72 rss_before=18104320 rss_after=18628608 rss_delta=524288
+GC alloc_bytecode_patch_type micros=654 rss_before=18628608 rss_after=18628608 rss_delta=0
+RSS_STEADY 18628608
+SINK 50000
+ALLOC alloc_aot_aot_type n=5000000 micros=30664 ns_per_alloc=6.13 rss_before=16007168 rss_after=17924096 rss_delta=1916928
+GC alloc_aot_aot_type micros=662 rss_before=17956864 rss_after=18022400 rss_delta=65536
+ALLOC alloc_bytecode_aot_type n=5000000 micros=391539 ns_per_alloc=78.31 rss_before=18169856 rss_after=18726912 rss_delta=557056
+GC alloc_bytecode_aot_type micros=716 rss_before=18726912 rss_after=18743296 rss_delta=16384
+ALLOC alloc_bytecode_patch_type n=5000000 micros=470575 ns_per_alloc=94.11 rss_before=18743296 rss_after=19251200 rss_delta=507904
+GC alloc_bytecode_patch_type micros=693 rss_before=19251200 rss_after=19251200 rss_delta=0
+RSS_STEADY 19251200
+SINK 5015568

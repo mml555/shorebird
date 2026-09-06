@@ -1,0 +1,18 @@
+can-be-used-as-type:
+  - library: 'package:dynamic_modules/alloc_host.dart'
+    class: 'Cell'
+callable:
+  - library: 'package:dynamic_modules/alloc_host.dart'
+    member: 'makeCell'
+  - library: 'package:dynamic_modules/alloc_host.dart'
+    member: 'keep'
+  - library: 'package:dynamic_modules/alloc_host.dart'
+    member: 'allocBytecodeAotType'
+  - library: 'package:dynamic_modules/alloc_host.dart'
+    member: 'allocBytecodePatchType'
+  - library: 'package:dynamic_modules/alloc_host.dart'
+    class: 'Cell'
+    member: ''
+  - library: 'package:dynamic_modules/alloc_host.dart'
+    class: 'Cell'
+    member: 'v'
