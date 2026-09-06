@@ -1,0 +1,51 @@
+SL1-G6A negative controls
+arm  : g3_on   alt build for identity negatives: dm_on
+date : 2026-09-06T22:00:59Z
+
+== NON-VACUITY: the positive path must work first ==
+   LOADED: Instance of 'PatchChild'
+   DISPATCH: PATCH-CHILD
+   POSITIVE OK (exit 0, dispatch reached the patch override)
+
+== MODULE_INTEGRITY ==
+  malformed_kbc              exit=134  expected=MODULE_INTEGRITY         observed=IMPORT_RESOLUTION        CLOSED_OTHER_CATEGORY
+    evidence: ../../flutter/third_party/dart/runtime/vm/bytecode_reader.cc: 1118: error: Unable to find class ° in Library:'dart:core'
+  truncated_kbc              exit=134  expected=MODULE_INTEGRITY         observed=MODULE_INTEGRITY         CLOSED_EXPECTED
+    evidence: ../../flutter/third_party/dart/runtime/vm/bytecode_reader.cc: 1080: error: unreachable code
+  wrong_bytecode_version     exit=134  expected=MODULE_INTEGRITY         observed=MODULE_INTEGRITY         CLOSED_EXPECTED
+    evidence: ../../flutter/third_party/dart/runtime/vm/bytecode_reader.cc: 905: error: Unsupported Dart bytecode format version 32638. This version of Dart VM supports bytecode format version 1.
+  corrupt_digest             NOT APPLICABLE AT THIS LAYER
+    loadDynamicModule takes raw bytes and carries no digest; integrity of
+    a delivered patch is the cell/patch layer's contract (verify_cell_members.sh,
+    the signing model), not the runtime substrate's. Exercising it here would
+    be testing a mechanism this gate does not contain.
+
+== HOST_IDENTITY ==
+  wrong_platform_dill        exit=0    expected=HOST_IDENTITY            observed=UNCLASSIFIED             FAIL_OPEN
+    evidence: LOADED: Instance of 'PatchChild'
+DISPATCH: PATCH-CHILD
+  wrong_runtime_build        exit=0    expected=HOST_IDENTITY            observed=UNCLASSIFIED             FAIL_OPEN
+    evidence: LOADED: Instance of 'PatchChild'
+DISPATCH: PATCH-CHILD
+  wrong_import_dill          exit=255  expected=HOST_IDENTITY            observed=HOST_IDENTITY            CLOSED_EXPECTED
+    evidence: Unhandled exception:
+Bad state: Unable to load dynamic module: library 'package:dynamic_modules/n_host.dart' is already loaded
+#0      _loadDynamicModule (dart:_internal-patch/internal_patch.dart:477)
+
+== IMPORT_RESOLUTION ==
+  tree_shaken_target         exit=134  expected=IMPORT_RESOLUTION        observed=IMPORT_RESOLUTION        CLOSED_EXPECTED
+    evidence: ../../flutter/third_party/dart/runtime/vm/bytecode_reader.cc: 1172: error: Unable to find function shakenAway in Library:'package:dynamic_modules/n_host.dart' Class: ::
+  missing_retained_import    exit=134  expected=IMPORT_RESOLUTION        observed=IMPORT_RESOLUTION        CLOSED_EXPECTED
+    evidence: ../../flutter/third_party/dart/runtime/vm/bytecode_reader.cc: 1172: error: Unable to find function retained in Library:'package:dynamic_modules/n_host.dart' Class: ::
+
+== DYNAMIC_INTERFACE_POLICY ==
+  no_extendable              exit=0    expected=DYNAMIC_INTERFACE_POLICY observed=UNCLASSIFIED             FAIL_OPEN
+    evidence: LOADED: Instance of 'PatchChild'
+  no_type                    exit=0    expected=DYNAMIC_INTERFACE_POLICY observed=UNCLASSIFIED             FAIL_OPEN
+    evidence: LOADED: Instance of 'PatchChild'
+DISPATCH: PATCH-CHILD
+  member_not_overridable     exit=0    expected=DYNAMIC_INTERFACE_POLICY observed=FAIL_OPEN_SILENT_BYPASS  FAIL_OPEN
+    evidence: LOADED: Instance of 'PatchChild'
+DISPATCH: AOT-BASE
+
+SUMMARY negatives=12 not-closed-with-expected-category=6
