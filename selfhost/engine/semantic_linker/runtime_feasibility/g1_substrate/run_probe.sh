@@ -91,7 +91,7 @@ JSON
     [[ -f "$W/host.aot" ]] && echo "   host.aot sha256 $(shasum -a 256 "$W/host.aot" | cut -d' ' -f1) bytes $(wc -c < "$W/host.aot" | tr -d ' ')"
 
     echo "== 3. normal-AOT check (no module) =="
-    "$OUT/dartaotruntime" "$W/host.aot" 2>&1 | sed 's/^/   /'
+    "$OUT/dartaotruntime" "$W/host.aot" aot 2>&1 | sed 's/^/   /'
     echo "   exit=${PIPESTATUS[0]}"
 
     echo "== 4. replacement -> KBC bytecode =="
@@ -100,9 +100,20 @@ JSON
     echo "   dart2bytecode exit=${PIPESTATUS[0]}"
     [[ -f "$W/replacement.bytecode" ]] && echo "   replacement.bytecode sha256 $(shasum -a 256 "$W/replacement.bytecode" | cut -d' ' -f1) bytes $(wc -c < "$W/replacement.bytecode" | tr -d ' ')"
 
-    echo "== 5. the three natives, under this arm =="
+    # ONE NATIVE PER PROCESS. Running attach and load in one process made load
+    # report "library is already loaded" -- attach had loaded that same module
+    # moments earlier. That is the harness contaminating its own measurement.
+    echo "== 5. attach, in its own process =="
     if [[ -f "$W/replacement.bytecode" ]]; then
-      "$OUT/dartaotruntime" "$W/host.aot" "$W/replacement.bytecode" "$URI" 2>&1 | sed 's/^/   /'
+      "$OUT/dartaotruntime" "$W/host.aot" attach "$W/replacement.bytecode" "$URI" 2>&1 | sed 's/^/   /'
+      echo "   exit=${PIPESTATUS[0]}"
+    else
+      echo "   SKIPPED: no bytecode was produced"
+    fi
+
+    echo "== 6. loadDynamicModule, in its own process =="
+    if [[ -f "$W/replacement.bytecode" ]]; then
+      "$OUT/dartaotruntime" "$W/host.aot" load "$W/replacement.bytecode" 2>&1 | sed 's/^/   /'
       echo "   exit=${PIPESTATUS[0]}"
     else
       echo "   SKIPPED: no bytecode was produced"

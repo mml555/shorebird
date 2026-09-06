@@ -1,0 +1,126 @@
+{
+  "schema": "semantic-linker-1/g1-substrate/1",
+  "gate": "SL1-G1",
+  "tracker": 36,
+  "issue": 38,
+  "built": "2026-09-06T19:46:56Z",
+  "lane_source": {
+    "root": "/Volumes/build/semantic-linker/sl1/flutter/engine/src",
+    "engine_revision": "dfa2b24ac38477f3705ff0357530f33fe09474b8",
+    "engine_tree": "26acc7f47d809563a08212c8264516aae64f10d5",
+    "dart_revision": "9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c",
+    "dart_effective_tree": "7b04b01bdc10ec990143257f0d28580571c2122f",
+    "matches_frozen": true
+  },
+  "experiment_patches": {
+    "engine": [],
+    "dart": [],
+    "note": "EMPTY, and that is a result. The frozen lineage already registers attachBytecodeToFunction and detachBytecodeFromFunction unconditionally in bootstrap_natives.h and exposes them plus loadDynamicModule on dart:_internal, so the substrate under test needs no experiment-only source change. The killgate lane still banks 0001-attach-bytecode-native.patch because it predates that landing; it is NOT applied here."
+  },
+  "arms": {
+    "dm_off": {
+      "out_dir": "/Volumes/build/semantic-linker/sl1/flutter/engine/src/out/sl1_dm_off",
+      "dart_dynamic_modules": false,
+      "args_gn_sha256": "18c97c94880994d4ff9976fab8a6dad83faf64db1d67d35ed4e2190ff0b5549a",
+      "args_gn_lines": 77,
+      "artifacts": {
+        "gen_snapshot": {
+          "sha256": "a1220d87c8c127ea5b57daa1c395184d0c5cf07174ebfcfaa00d43e583d21834",
+          "bytes": 6875632
+        },
+        "dartaotruntime": {
+          "sha256": "4f2ff7a849656c430b530252fba8ba0a55d564ccd330d3aa085477dc6fbeb398",
+          "bytes": 6297392
+        },
+        "dart": {
+          "sha256": "c34dec14d891d0af33df983ac8ee12bc6a003a62fc8949a0add3cf0d1e67ca3d",
+          "bytes": 5364224
+        },
+        "vm_platform.dill": {
+          "sha256": "015ef32c6cb988d8ec160e97da5ec62fb4d4798ac9e03815294c982b298c75d2",
+          "bytes": 8270936
+        },
+        "dart-sdk/bin/dart": {
+          "sha256": "c34dec14d891d0af33df983ac8ee12bc6a003a62fc8949a0add3cf0d1e67ca3d",
+          "bytes": 5364224
+        }
+      }
+    },
+    "dm_on": {
+      "out_dir": "/Volumes/build/semantic-linker/sl1/flutter/engine/src/out/sl1_dm_on",
+      "dart_dynamic_modules": true,
+      "args_gn_sha256": "3b984ab93aad4e8c308f398296147a4499fc062b26a238d028da2f9dc52e9bf2",
+      "args_gn_lines": 78,
+      "artifacts": {
+        "gen_snapshot": {
+          "sha256": "935f3938d0c981bff08c6699f4e538d665bfb24e5722201169242b913e58d8ef",
+          "bytes": 7007248
+        },
+        "dartaotruntime": {
+          "sha256": "a9cd02be1c29379685a16df7ddc88101e351c9702a8b996c76dab89886f66be9",
+          "bytes": 6471040
+        },
+        "dart": {
+          "sha256": "b706f8c85c6fc278dccaf328379a0777dc1470137f34546d9c44ce72e3b775d3",
+          "bytes": 5537856
+        },
+        "vm_platform.dill": {
+          "sha256": "015ef32c6cb988d8ec160e97da5ec62fb4d4798ac9e03815294c982b298c75d2",
+          "bytes": 8270936
+        },
+        "dart-sdk/bin/dart": {
+          "sha256": "b706f8c85c6fc278dccaf328379a0777dc1470137f34546d9c44ce72e3b775d3",
+          "bytes": 5537856
+        }
+      }
+    }
+  },
+  "pair_is_matched": {
+    "differ_only_by": "dart_dynamic_modules",
+    "enforced_by": "build_matched.sh refuses to build unless the two args.gn differ by exactly that one line",
+    "executables_differ": {
+      "gen_snapshot": true,
+      "dartaotruntime": true,
+      "dart": true,
+      "vm_platform.dill": false,
+      "dart-sdk/bin/dart": true
+    }
+  },
+  "reproduces_shipped_cell_members": {
+    "vm_platform.dill": {
+      "shipped_sha256": "015ef32c6cb988d8ec160e97da5ec62fb4d4798ac9e03815294c982b298c75d2",
+      "lane_dm_on_sha256": "015ef32c6cb988d8ec160e97da5ec62fb4d4798ac9e03815294c982b298c75d2",
+      "byte_identical": true
+    },
+    "dartaotruntime": {
+      "shipped_sha256": "075ccbb2858f299db06c2ef56b1b60c7ab07abdbc7ff413f33d4bb956e09f292",
+      "lane_dm_on_sha256": "a9cd02be1c29379685a16df7ddc88101e351c9702a8b996c76dab89886f66be9",
+      "byte_identical": false
+    }
+  },
+  "dynamic_interface": {
+    "requested": "/Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g1_substrate/probe/di.yaml",
+    "requested_sha256": "ef8fe6d47bf865733dfaee34432da15465278b31f59ddcf8ef22bd63ffcc0841",
+    "applied_dumps": {
+      "dm_off": "3486cb7a7bd36a685692f7c02cccf507c73325e42746454e3c0a80f18636ad7e",
+      "dm_on": "3486cb7a7bd36a685692f7c02cccf507c73325e42746454e3c0a80f18636ad7e"
+    }
+  },
+  "probe_sources": {
+    "host_probe.dart": "82603c378c66fdf2b52731946b6b89ce9bb60bd9d76d6771306d2a5eced38747",
+    "replacement.dart": "0e1fa9b10aea2fca6b2b3c8cd4ee52ed0c5cf78112ea5259d83828d88781ca82",
+    "di.yaml": "ef8fe6d47bf865733dfaee34432da15465278b31f59ddcf8ef22bd63ffcc0841"
+  },
+  "evidence": {
+    "probe_dm_off.txt": "368d1d68c3b071fcc18564997f422e0509b3fc6080a94e4da3a93f09952fc717",
+    "probe_dm_on.txt": "693aa12bca585b5f506e358a1f8a1db10c7f5f0beacff54782f53116d59878e7"
+  },
+  "supported_producer_untouched": {
+    "engine_tree_now": "26acc7f47d809563a08212c8264516aae64f10d5",
+    "engine_tree_frozen": "26acc7f47d809563a08212c8264516aae64f10d5",
+    "dart_effective_tree_now": "7b04b01bdc10ec990143257f0d28580571c2122f",
+    "dart_effective_tree_frozen": "7b04b01bdc10ec990143257f0d28580571c2122f",
+    "cell_out_dir_present": true,
+    "unchanged": true
+  }
+}

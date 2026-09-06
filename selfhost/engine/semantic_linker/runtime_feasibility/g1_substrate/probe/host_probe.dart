@@ -37,37 +37,54 @@ String target() => 'OLD';
 String hostSuffix() => 'HOST';
 
 Future<void> main(List<String> args) async {
+  // ONE MODE PER PROCESS. The first version ran attach and then load in the
+  // same process, and load came back
+  //   StateError: library '...replacement.dart' is already loaded
+  // -- because attach had already loaded that very module. That is a fact about
+  // the harness's ordering, not about whether the load path is available, and
+  // it would have been recorded as if it were the latter. Each native now gets
+  // a clean process.
+  final mode = args.isEmpty ? 'aot' : args[0];
+
   // 1. NORMAL AOT. Both arms must pass this; a build that cannot run its own
   //    AOT output is broken independently of the question being asked.
   print('AOT: target()=${target()} hostSuffix()=${hostSuffix()}');
-
-  if (args.isEmpty) {
-    print('PROBE: no module supplied; normal-AOT check only');
+  if (mode == 'aot') {
+    print('PROBE: normal-AOT check only');
     return;
   }
-  final bytes = Uint8List.fromList(File(args[0]).readAsBytesSync());
-  final libraryUri = args[1];
 
-  // 2. ATTACH. Refuses by RETURN VALUE when built without dynamic modules.
-  try {
-    final ok = attachBytecodeToFunction(bytes, libraryUri, 'target');
-    print('ATTACH: returned=$ok');
-  } on Object catch (e) {
-    print('ATTACH: threw=${e.runtimeType}: $e');
+  final bytes = Uint8List.fromList(File(args[1]).readAsBytesSync());
+
+  if (mode == 'attach') {
+    // ATTACH refuses by RETURN VALUE when built without dynamic modules.
+    final libraryUri = args[2];
+    try {
+      final ok = attachBytecodeToFunction(bytes, libraryUri, 'target');
+      print('ATTACH: returned=$ok');
+    } on Object catch (e) {
+      print('ATTACH: threw=${e.runtimeType}: $e');
+    }
+    // EXPECTED to stay OLD on both arms: AOT binds these sites statically (the
+    // 2026-08-04 call-emission gap). Printed so a change in that answer is
+    // visible rather than assumed.
+    print('DART-CALL: target()=${target()}');
+    return;
   }
 
-  // 3. The Dart-side call. EXPECTED to stay OLD on both arms -- AOT binds these
-  //    sites statically (the 2026-08-04 call-emission gap). Printed so a future
-  //    change in that answer is visible rather than assumed.
-  print('DART-CALL: target()=${target()}');
-
-  // 4. LOAD. Throws UnsupportedError when built without dynamic modules --
-  //    a DIFFERENT off-path from attach, which refuses by return value. Both
-  //    are recorded separately because conflating them would hide one.
-  try {
-    final r = await loadDynamicModule(bytes: bytes);
-    print('LOAD: returned=$r');
-  } on Object catch (e) {
-    print('LOAD: threw=${e.runtimeType}: $e');
+  if (mode == 'load') {
+    // LOAD refuses by THROWING UnsupportedError when built without dynamic
+    // modules -- a different off-path from attach's, which is why they are
+    // reported separately and now measured separately too.
+    try {
+      final r = await loadDynamicModule(bytes: bytes);
+      print('LOAD: returned=$r');
+    } on Object catch (e) {
+      print('LOAD: threw=${e.runtimeType}: $e');
+    }
+    return;
   }
+
+  print('PROBE: unknown mode $mode');
+  exitCode = 2;
 }

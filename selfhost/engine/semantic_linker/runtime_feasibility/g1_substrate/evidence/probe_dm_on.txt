@@ -1,10 +1,10 @@
-SL1-G1 substrate probe -- arm dm_off
-out          : /Volumes/build/semantic-linker/sl1/flutter/engine/src/out/sl1_dm_off
-date         : 2026-09-06T19:45:22Z
-dm flag lines: 0
-sha256 a1220d87c8c127ea5b57daa1c395184d0c5cf07174ebfcfaa00d43e583d21834  gen_snapshot
-sha256 4f2ff7a849656c430b530252fba8ba0a55d564ccd330d3aa085477dc6fbeb398  dartaotruntime
-sha256 c34dec14d891d0af33df983ac8ee12bc6a003a62fc8949a0add3cf0d1e67ca3d  dart-sdk/bin/dart
+SL1-G1 substrate probe -- arm dm_on
+out          : /Volumes/build/semantic-linker/sl1/flutter/engine/src/out/sl1_dm_on
+date         : 2026-09-06T19:45:34Z
+dm flag lines: 1
+sha256 935f3938d0c981bff08c6699f4e538d665bfb24e5722201169242b913e58d8ef  gen_snapshot
+sha256 a9cd02be1c29379685a16df7ddc88101e351c9702a8b996c76dab89886f66be9  dartaotruntime
+sha256 b706f8c85c6fc278dccaf328379a0777dc1470137f34546d9c44ce72e3b775d3  dart-sdk/bin/dart
 sha256 015ef32c6cb988d8ec160e97da5ec62fb4d4798ac9e03815294c982b298c75d2  vm_platform.dill
 
 == 1. AOT kernel (with the banked dynamic interface) ==
@@ -16,20 +16,24 @@ sha256 015ef32c6cb988d8ec160e97da5ec62fb4d4798ac9e03815294c982b298c75d2  vm_plat
         can-be-used-as-type  []
 == 2. AOT snapshot ==
    gen_snapshot exit=0
-   host.aot sha256 457411a774b945688cad83fadb26e2d32fb98c8cbc674c1eae38cefc94d6733d bytes 889544
+   host.aot sha256 bf32fc9f35dd5463c03ef5cd8db18f92ced76a345ae0b0f4a6df19d6f99df75a bytes 889552
 == 3. normal-AOT check (no module) ==
    AOT: target()=OLD hostSuffix()=HOST
    PROBE: normal-AOT check only
    exit=0
 == 4. replacement -> KBC bytecode ==
    dart2bytecode exit=0
-   replacement.bytecode sha256 82629ff32f09cd226ffb19cebb7e67b2eef4cae500dbbfac171a0edb2b2809c1 bytes 411
+   replacement.bytecode sha256 25df81629ab2e1585ff5fd51037e4724e79536a39023acf90cabb3a317358673 bytes 411
 == 5. attach, in its own process ==
    AOT: target()=OLD hostSuffix()=HOST
-   ATTACH: returned=false
+   ATTACH: before -> IsInterpreted=0 HasBytecode=0
+   ATTACH: after  -> IsInterpreted=1 HasBytecode=1
+   ATTACH: pool len=1685, rewrote 0 slot(s) (other Code slots=117)
+   ATTACH: C++ invoke of target returned: NEW
+   ATTACH: returned=true
    DART-CALL: target()=OLD
    exit=0
 == 6. loadDynamicModule, in its own process ==
    AOT: target()=OLD hostSuffix()=HOST
-   LOAD: threw=UnsupportedError: Unsupported operation: Loading of dynamic modules is not supported.
+   LOAD: returned=NEW
    exit=0
