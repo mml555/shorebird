@@ -1,6 +1,6 @@
 SL1-G3 types + GC probe -- arm g3_off
 out  : /Volumes/build/semantic-linker/sl1/flutter/engine/src/out/sl1_g3_off
-date : 2026-09-06T21:16:23Z
+date : 2026-09-06T23:26:34Z
 dm   : 0 line(s) in args.gn
 sha256 5c690847d2246494176ae6bea080fefdfb4c55f4c216d69808ad9dfab182aadc  gen_snapshot
 sha256 e656386f77855a017a487cbd5ffeab02eae4bf37e9f5e7abd6f4b1a734a271c6  dartaotruntime
@@ -24,7 +24,7 @@ sha256 78d43b1d25bb8ea4f25beb8c5fcf4fb053604053a2b4e5ee91a233eae09cc6b1  vm_plat
 
 =================== TEST gc_aot_roots_patch ===================
    dart2bytecode(m_gc_aot_roots_patch) exit=0
-   bytecode sha256 f242db8c1a981e19a7df70abb04faf59967cce492e4394936a356f7bfc4f7b11
+   bytecode sha256 77c9ddecb81340c4cdc34368c872935a753e31b72098305a82480e28b3b515ed
    ORACLE: dispatchBase -> UNSUPPORTED
    G3: ORACLE UNSUPPORTED — this build has no dynamic modules
    run exit=3
@@ -32,7 +32,7 @@ sha256 78d43b1d25bb8ea4f25beb8c5fcf4fb053604053a2b4e5ee91a233eae09cc6b1  vm_plat
 
 =================== TEST gc_patch_roots_aot ===================
    dart2bytecode(m_gc_patch_roots_aot) exit=0
-   bytecode sha256 4825b91e724c826ad7414b63cd9716c09502583274c3332f5112d0447bf26364
+   bytecode sha256 1fb9c14c1a45e79035fe603d9224d72da8540c6945e3fc0a0d885aa9374d43da
    ORACLE: dispatchBase -> UNSUPPORTED
    G3: ORACLE UNSUPPORTED — this build has no dynamic modules
    run exit=3
@@ -40,7 +40,7 @@ sha256 78d43b1d25bb8ea4f25beb8c5fcf4fb053604053a2b4e5ee91a233eae09cc6b1  vm_plat
 
 =================== TEST gc_cycle_collects ===================
    dart2bytecode(m_gc_cycle) exit=0
-   bytecode sha256 701058b7da4f771d936113a855f945f3f73e328f04ad44d8640a08332b2f8a11
+   bytecode sha256 c83701eae26941d54c0494528beeaa9deccbebf405fa8bde12d6fc48d5430f4f
    ORACLE: dispatchBase -> UNSUPPORTED
    G3: ORACLE UNSUPPORTED — this build has no dynamic modules
    run exit=3
@@ -48,7 +48,7 @@ sha256 78d43b1d25bb8ea4f25beb8c5fcf4fb053604053a2b4e5ee91a233eae09cc6b1  vm_plat
 
 =================== TEST type_implements ===================
    dart2bytecode(m_iface) exit=0
-   bytecode sha256 171701af59f710d577c128953525dcd9eaf866cbcf1541b13739296171222ba0
+   bytecode sha256 b9a9c94e7a1ec2b75592e5f926e49a5da547b9811f41200fb3e20e8fff5b26af
    ORACLE: dispatchBase -> UNSUPPORTED
    G3: ORACLE UNSUPPORTED — this build has no dynamic modules
    run exit=3
@@ -56,7 +56,7 @@ sha256 78d43b1d25bb8ea4f25beb8c5fcf4fb053604053a2b4e5ee91a233eae09cc6b1  vm_plat
 
 =================== TEST type_extends ===================
    dart2bytecode(m_child) exit=0
-   bytecode sha256 8da9c0c7c51c5473775cf9036ee0ab7945733e6006c4fc930818ccd95865cfe8
+   bytecode sha256 f492a8fb952d16c5fde47edcafe3c501affc27c53488f38c50e00a39d05711e8
    ORACLE: dispatchBase -> UNSUPPORTED
    G3: ORACLE UNSUPPORTED — this build has no dynamic modules
    run exit=3
@@ -64,7 +64,7 @@ sha256 78d43b1d25bb8ea4f25beb8c5fcf4fb053604053a2b4e5ee91a233eae09cc6b1  vm_plat
 
 =================== TEST type_return ===================
    dart2bytecode(m_child) exit=0
-   bytecode sha256 8da9c0c7c51c5473775cf9036ee0ab7945733e6006c4fc930818ccd95865cfe8
+   bytecode sha256 f492a8fb952d16c5fde47edcafe3c501affc27c53488f38c50e00a39d05711e8
    ORACLE: dispatchBase -> UNSUPPORTED
    G3: ORACLE UNSUPPORTED — this build has no dynamic modules
    run exit=3
@@ -72,7 +72,7 @@ sha256 78d43b1d25bb8ea4f25beb8c5fcf4fb053604053a2b4e5ee91a233eae09cc6b1  vm_plat
 
 =================== TEST type_collections ===================
    dart2bytecode(m_child) exit=0
-   bytecode sha256 8da9c0c7c51c5473775cf9036ee0ab7945733e6006c4fc930818ccd95865cfe8
+   bytecode sha256 f492a8fb952d16c5fde47edcafe3c501affc27c53488f38c50e00a39d05711e8
    ORACLE: dispatchBase -> UNSUPPORTED
    G3: ORACLE UNSUPPORTED — this build has no dynamic modules
    run exit=3
@@ -80,7 +80,7 @@ sha256 78d43b1d25bb8ea4f25beb8c5fcf4fb053604053a2b4e5ee91a233eae09cc6b1  vm_plat
 
 =================== TEST type_generic ===================
    dart2bytecode(m_child) exit=0
-   bytecode sha256 8da9c0c7c51c5473775cf9036ee0ab7945733e6006c4fc930818ccd95865cfe8
+   bytecode sha256 f492a8fb952d16c5fde47edcafe3c501affc27c53488f38c50e00a39d05711e8
    ORACLE: dispatchBase -> UNSUPPORTED
    G3: ORACLE UNSUPPORTED — this build has no dynamic modules
    run exit=3
@@ -88,7 +88,7 @@ sha256 78d43b1d25bb8ea4f25beb8c5fcf4fb053604053a2b4e5ee91a233eae09cc6b1  vm_plat
 
 =================== TEST type_generic_patcharg ===================
    dart2bytecode(m_generic) exit=0
-   bytecode sha256 b320b45dabced114daea95220a60b4b52160a1c43b94abd3eae208321c9b184c
+   bytecode sha256 3e132f241c2b0fc86d3c803b9485e1c3723be4b353871a414c6fdb607282531a
    ORACLE: dispatchBase -> UNSUPPORTED
    G3: ORACLE UNSUPPORTED — this build has no dynamic modules
    run exit=3

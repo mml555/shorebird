@@ -1,6 +1,6 @@
 SL1-G6B cost measurement
-date  : 2026-09-06T22:06:05Z
-arm   : g3_on   iters=10000000 reps=3
+date  : 2026-09-06T23:30:15Z
+arm   : g3_on   iters=10000000 reps=5
 host  : Apple M1 Max
 
 =================== FAMILY A — runtime substrate (DM OFF vs ON) ===================
@@ -12,15 +12,19 @@ vm_platform.dill              8270936        8270936     +0.00%
 dart-sdk/bin/dart             5364224        5537856     +3.24%
 
 tiny.aot (off) bytes=841480
-  rep1 TINY micros=47284 peak_rss=14893056
-  rep2 TINY micros=34683 peak_rss=14925824
-  rep3 TINY micros=75856 peak_rss=14909440
-  startup: 36577 micros/run over 20 runs (empty main)
+  rep1 TINY micros=19371 peak_rss=14860288
+  rep2 TINY micros=19447 peak_rss=14909440
+  rep3 TINY micros=19737 peak_rss=14942208
+  rep4 TINY micros=19405 peak_rss=14958592
+  rep5 TINY micros=19715 peak_rss=14876672
+  startup: 17268 micros/run over 20 runs (empty main)
 tiny.aot (on) bytes=841488
-  rep1 TINY micros=21216 peak_rss=14942208
-  rep2 TINY micros=20678 peak_rss=15024128
-  rep3 TINY micros=24136 peak_rss=14974976
-  startup: 25581 micros/run over 20 runs (empty main)
+  rep1 TINY micros=19860 peak_rss=14974976
+  rep2 TINY micros=19393 peak_rss=14925824
+  rep3 TINY micros=19965 peak_rss=14909440
+  rep4 TINY micros=20399 peak_rss=14991360
+  rep5 TINY micros=19588 peak_rss=14942208
+  startup: 17423 micros/run over 20 runs (empty main)
 
 =================== FAMILY B — dynamic-interface / patchability cost ===================
 The SAME host with and without the required contract (G4's fenced/unfenced
@@ -37,42 +41,62 @@ solo pair). This is the cost of declaring a member patchable.
   bench.aot bytes=925464  module bytes=965
 
 --- rep 1 ---
-   BENCH aot_to_aot_direct iters=10000000 micros=25275 ns_per_call=2.53
-   BENCH aot_to_aot_virtual iters=10000000 micros=26989 ns_per_call=2.70
+   BENCH aot_to_aot_direct iters=10000000 micros=22782 ns_per_call=2.28
+   BENCH aot_to_aot_virtual iters=10000000 micros=25100 ns_per_call=2.51
    MODULE bytes=965
-   LOAD micros=121 rss_before=15220736 rss_after=15335424 rss_delta=114688
-   BENCH aot_to_bytecode iters=10000000 micros=325434 ns_per_call=32.54
-   BENCH bytecode_to_aot iters=10000000 micros=323040 ns_per_call=32.30
-   BENCH bytecode_to_bytecode iters=10000000 micros=283230 ns_per_call=28.32
+   LOAD micros=81 rss_before=15220736 rss_after=15335424 rss_delta=114688
+   BENCH aot_to_bytecode iters=10000000 micros=208956 ns_per_call=20.90
+   BENCH bytecode_to_aot iters=10000000 micros=282528 ns_per_call=28.25
+   BENCH bytecode_to_bytecode iters=10000000 micros=283886 ns_per_call=28.39
    RSS_STEADY 15335424
    SINK 10000000
 --- rep 2 ---
-   BENCH aot_to_aot_direct iters=10000000 micros=24044 ns_per_call=2.40
-   BENCH aot_to_aot_virtual iters=10000000 micros=26535 ns_per_call=2.65
+   BENCH aot_to_aot_direct iters=10000000 micros=22642 ns_per_call=2.26
+   BENCH aot_to_aot_virtual iters=10000000 micros=25008 ns_per_call=2.50
    MODULE bytes=965
-   LOAD micros=99 rss_before=15171584 rss_after=15286272 rss_delta=114688
-   BENCH aot_to_bytecode iters=10000000 micros=246183 ns_per_call=24.62
-   BENCH bytecode_to_aot iters=10000000 micros=285335 ns_per_call=28.53
-   BENCH bytecode_to_bytecode iters=10000000 micros=285124 ns_per_call=28.51
-   RSS_STEADY 15286272
+   LOAD micros=75 rss_before=15171584 rss_after=15302656 rss_delta=131072
+   BENCH aot_to_bytecode iters=10000000 micros=206126 ns_per_call=20.61
+   BENCH bytecode_to_aot iters=10000000 micros=278879 ns_per_call=27.89
+   BENCH bytecode_to_bytecode iters=10000000 micros=277813 ns_per_call=27.78
+   RSS_STEADY 15302656
    SINK 0
 --- rep 3 ---
-   BENCH aot_to_aot_direct iters=10000000 micros=23615 ns_per_call=2.36
-   BENCH aot_to_aot_virtual iters=10000000 micros=25576 ns_per_call=2.56
+   BENCH aot_to_aot_direct iters=10000000 micros=22523 ns_per_call=2.25
+   BENCH aot_to_aot_virtual iters=10000000 micros=25305 ns_per_call=2.53
    MODULE bytes=965
-   LOAD micros=96 rss_before=15269888 rss_after=15368192 rss_delta=98304
-   BENCH aot_to_bytecode iters=10000000 micros=213280 ns_per_call=21.33
-   BENCH bytecode_to_aot iters=10000000 micros=285507 ns_per_call=28.55
-   BENCH bytecode_to_bytecode iters=10000000 micros=352583 ns_per_call=35.26
+   LOAD micros=90 rss_before=15138816 rss_after=15253504 rss_delta=114688
+   BENCH aot_to_bytecode iters=10000000 micros=207811 ns_per_call=20.78
+   BENCH bytecode_to_aot iters=10000000 micros=278442 ns_per_call=27.84
+   BENCH bytecode_to_bytecode iters=10000000 micros=294116 ns_per_call=29.41
+   RSS_STEADY 15253504
+   SINK 10000000
+--- rep 4 ---
+   BENCH aot_to_aot_direct iters=10000000 micros=22675 ns_per_call=2.27
+   BENCH aot_to_aot_virtual iters=10000000 micros=25233 ns_per_call=2.52
+   MODULE bytes=965
+   LOAD micros=89 rss_before=15237120 rss_after=15368192 rss_delta=131072
+   BENCH aot_to_bytecode iters=10000000 micros=208229 ns_per_call=20.82
+   BENCH bytecode_to_aot iters=10000000 micros=279951 ns_per_call=28.00
+   BENCH bytecode_to_bytecode iters=10000000 micros=283224 ns_per_call=28.32
    RSS_STEADY 15368192
+   SINK 0
+--- rep 5 ---
+   BENCH aot_to_aot_direct iters=10000000 micros=23795 ns_per_call=2.38
+   BENCH aot_to_aot_virtual iters=10000000 micros=25885 ns_per_call=2.59
+   MODULE bytes=965
+   LOAD micros=90 rss_before=15171584 rss_after=15302656 rss_delta=131072
+   BENCH aot_to_bytecode iters=10000000 micros=206398 ns_per_call=20.64
+   BENCH bytecode_to_aot iters=10000000 micros=279416 ns_per_call=27.94
+   BENCH bytecode_to_bytecode iters=10000000 micros=287273 ns_per_call=28.73
+   RSS_STEADY 15302656
    SINK 10000000
 
-=================== SUMMARY (medians over 3 reps) ===================
+=================== SUMMARY (medians over 5 reps) ===================
 mode                      ns/call (median)       min       max  x direct
-aot_to_aot_direct                     2.40      2.36      2.53      1.0x
-aot_to_aot_virtual                    2.65      2.56      2.70      1.1x
-aot_to_bytecode                      24.62     21.33     32.54     10.3x
-bytecode_to_aot                      28.55     28.53     32.30     11.9x
-bytecode_to_bytecode                 28.51     28.32     35.26     11.9x
-load latency (us)                     99.0      96.0     121.0
-rss delta (bytes)                 114688.0   98304.0  114688.0
+aot_to_aot_direct                     2.27      2.25      2.38      1.0x
+aot_to_aot_virtual                    2.52      2.50      2.59      1.1x
+aot_to_bytecode                      20.78     20.61     20.90      9.2x
+bytecode_to_aot                      27.94     27.84     28.25     12.3x
+bytecode_to_bytecode                 28.39     27.78     29.41     12.5x
+load latency (us)                     89.0      75.0      90.0
+rss delta (bytes)                 131072.0  114688.0  131072.0

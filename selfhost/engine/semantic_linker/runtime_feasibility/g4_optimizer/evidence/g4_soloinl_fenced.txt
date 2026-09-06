@@ -1,7 +1,7 @@
 SL1-G4 optimizer adversity -- contract variant: soloinl_fenced
 out  : /Volumes/build/semantic-linker/sl1/flutter/engine/src/out/sl1_g3_on
 di   : /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_fenced.yaml
-date : 2026-09-06T21:40:01Z
+date : 2026-09-06T23:28:54Z
 
 == host kernel + AOT snapshot ==
    gen_kernel exit=0

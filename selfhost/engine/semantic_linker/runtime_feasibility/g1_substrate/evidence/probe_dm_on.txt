@@ -1,6 +1,6 @@
 SL1-G1 substrate probe -- arm dm_on
 out          : /Volumes/build/semantic-linker/sl1/flutter/engine/src/out/sl1_dm_on
-date         : 2026-09-06T19:45:34Z
+date         : 2026-09-06T23:25:08Z
 dm flag lines: 1
 sha256 935f3938d0c981bff08c6699f4e538d665bfb24e5722201169242b913e58d8ef  gen_snapshot
 sha256 a9cd02be1c29379685a16df7ddc88101e351c9702a8b996c76dab89886f66be9  dartaotruntime
@@ -23,7 +23,7 @@ sha256 015ef32c6cb988d8ec160e97da5ec62fb4d4798ac9e03815294c982b298c75d2  vm_plat
    exit=0
 == 4. replacement -> KBC bytecode ==
    dart2bytecode exit=0
-   replacement.bytecode sha256 25df81629ab2e1585ff5fd51037e4724e79536a39023acf90cabb3a317358673 bytes 411
+   replacement.bytecode sha256 55d5886c17dc0bca1a16bffa07aeafafe4541234afe348a8ae07d942396e3045 bytes 411
 == 5. attach, in its own process ==
    AOT: target()=OLD hostSuffix()=HOST
    ATTACH: before -> IsInterpreted=0 HasBytecode=0

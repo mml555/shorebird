@@ -209,10 +209,22 @@ echo
 echo "SUMMARY negatives=${#RESULTS[@]} not-closed-with-expected-category=$FAILED"
 } > "$LOGF" 2>&1
 
-python3 - "$JSON" <<PY
+# The rows are JSON, so they are parsed as JSON -- not pasted into a Python
+# literal. The first version did the latter and died on `null` in the
+# corrupt_digest row, and the script still printed "structured: ..." because
+# nothing checked. Missing evidence announcing itself as present is exactly the
+# failure this lane refuses everywhere else, so the write is now verified.
+printf '%s\n' "[$(IFS=,; echo "${RESULTS[*]}")]" > "$W/rows.json"
+python3 - "$JSON" "$W/rows.json" "$ARM" <<'G6AJSON'
 import json,sys
-rows=[$(IFS=,; echo "${RESULTS[*]}")]
-json.dump({"schema":"semantic-linker-1/g6a-negatives/1","gate":"SL1-G6A","issue":43,
-           "arm":"$ARM","negatives":rows}, open(sys.argv[1],'w'), indent=2)
-PY
+out, rowsfile, arm = sys.argv[1:4]
+rows = json.load(open(rowsfile))
+json.dump({"schema":"semantic-linker-1/g6a-negatives/2","gate":"SL1-G6A","issue":43,
+           "arm":arm,"negatives":rows}, open(out,"w"), indent=2)
+G6AJSON
+if [[ ! -s "$JSON" ]]; then
+  echo "FAILED to write structured results to $JSON" >&2
+  exit 1
+fi
+
 tail -3 "$LOGF"; echo "transcript: $LOGF"; echo "structured: $JSON"

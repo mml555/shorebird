@@ -1,0 +1,331 @@
+SL1-G6C falsifiability -- mandatory evidence must not be optional
+date : 2026-09-06T23:32:19Z
+
+
+=== SEMANTIC-LINKER-1 reproduction -- mode=report-only started=2026-09-06T23:32:20Z
+    repo : /Users/mendell/shorebird
+    lane : /Volumes/build/semantic-linker/sl1
+    host : Apple M1 Max
+
+=== 11. structured results
+{
+  "result": {
+    "REPRODUCTION": "FAIL",
+    "FEASIBILITY_EVIDENCE": "REPRODUCED",
+    "KNOWN_FAIL_OPEN_FINDINGS": "ABSENT",
+    "PRODUCTION_PREREQUISITES": "UNRESOLVED"
+  },
+  "state": {
+    "RUNTIME_SUBSTRATE": "PASS",
+    "MIXED_EXECUTION": "PASS",
+    "TYPE_AND_GC": "PASS",
+    "OPTIMIZER_CONTRACT": "PASS_IF_CAN_BE_OVERRIDDEN",
+    "NEGATIVE_CONTROLS": "NO_FINDINGS",
+    "PERFORMANCE": "MEASURED",
+    "REPRODUCIBILITY": "PASS",
+    "UNRESOLVED_PREREQUISITES": [
+      "MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION"
+    ]
+  },
+  "missing_or_mutated": 1
+}
+    [FAILED] structured_output -- could not emit structured results
+
+=== RESULT
+    result : REPRODUCTION=FAIL FEASIBILITY_EVIDENCE=REPRODUCED KNOWN_FAIL_OPEN_FINDINGS=ABSENT PRODUCTION_PREREQUISITES=UNRESOLVED
+    failed phases : 1
+    structured : /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduction.json
+    log : /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduce.txt
+  caught      structured_negatives (delete)
+
+=== SEMANTIC-LINKER-1 reproduction -- mode=report-only started=2026-09-06T23:32:20Z
+    repo : /Users/mendell/shorebird
+    lane : /Volumes/build/semantic-linker/sl1
+    host : Apple M1 Max
+
+=== 11. structured results
+{
+  "result": {
+    "REPRODUCTION": "FAIL",
+    "FEASIBILITY_EVIDENCE": "REPRODUCED",
+    "KNOWN_FAIL_OPEN_FINDINGS": "ABSENT",
+    "PRODUCTION_PREREQUISITES": "UNRESOLVED"
+  },
+  "state": {
+    "RUNTIME_SUBSTRATE": "PASS",
+    "MIXED_EXECUTION": "PASS",
+    "TYPE_AND_GC": "PASS",
+    "OPTIMIZER_CONTRACT": "PASS_IF_CAN_BE_OVERRIDDEN",
+    "NEGATIVE_CONTROLS": "NO_FINDINGS",
+    "PERFORMANCE": "MEASURED",
+    "REPRODUCIBILITY": "PASS",
+    "UNRESOLVED_PREREQUISITES": [
+      "MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION"
+    ]
+  },
+  "missing_or_mutated": 1
+}
+    [FAILED] structured_output -- could not emit structured results
+
+=== RESULT
+    result : REPRODUCTION=FAIL FEASIBILITY_EVIDENCE=REPRODUCED KNOWN_FAIL_OPEN_FINDINGS=ABSENT PRODUCTION_PREREQUISITES=UNRESOLVED
+    failed phases : 1
+    structured : /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduction.json
+    log : /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduce.txt
+  caught      structured_negatives_corrupt (corrupt)
+
+=== SEMANTIC-LINKER-1 reproduction -- mode=report-only started=2026-09-06T23:32:20Z
+    repo : /Users/mendell/shorebird
+    lane : /Volumes/build/semantic-linker/sl1
+    host : Apple M1 Max
+
+=== 11. structured results
+{
+  "result": {
+    "REPRODUCTION": "FAIL",
+    "FEASIBILITY_EVIDENCE": "NOT_REPRODUCED",
+    "KNOWN_FAIL_OPEN_FINDINGS": "REPRODUCED",
+    "PRODUCTION_PREREQUISITES": "UNRESOLVED"
+  },
+  "state": {
+    "RUNTIME_SUBSTRATE": "PASS",
+    "MIXED_EXECUTION": "FAIL",
+    "TYPE_AND_GC": "PASS",
+    "OPTIMIZER_CONTRACT": "PASS_IF_CAN_BE_OVERRIDDEN",
+    "NEGATIVE_CONTROLS": "FINDINGS_PRESENT",
+    "PERFORMANCE": "MEASURED",
+    "REPRODUCIBILITY": "PASS",
+    "UNRESOLVED_PREREQUISITES": [
+      "MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION"
+    ]
+  },
+  "missing_or_mutated": 1
+}
+    [FAILED] structured_output -- could not emit structured results
+
+=== RESULT
+    result : REPRODUCTION=FAIL FEASIBILITY_EVIDENCE=NOT_REPRODUCED KNOWN_FAIL_OPEN_FINDINGS=REPRODUCED PRODUCTION_PREREQUISITES=UNRESOLVED
+    failed phases : 1
+    structured : /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduction.json
+    log : /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduce.txt
+  caught      g2_trace (delete)
+
+=== SEMANTIC-LINKER-1 reproduction -- mode=report-only started=2026-09-06T23:32:20Z
+    repo : /Users/mendell/shorebird
+    lane : /Volumes/build/semantic-linker/sl1
+    host : Apple M1 Max
+
+=== 11. structured results
+{
+  "result": {
+    "REPRODUCTION": "FAIL",
+    "FEASIBILITY_EVIDENCE": "NOT_REPRODUCED",
+    "KNOWN_FAIL_OPEN_FINDINGS": "REPRODUCED",
+    "PRODUCTION_PREREQUISITES": "UNRESOLVED"
+  },
+  "state": {
+    "RUNTIME_SUBSTRATE": "PASS",
+    "MIXED_EXECUTION": "PASS",
+    "TYPE_AND_GC": "FAIL",
+    "OPTIMIZER_CONTRACT": "PASS_IF_CAN_BE_OVERRIDDEN",
+    "NEGATIVE_CONTROLS": "FINDINGS_PRESENT",
+    "PERFORMANCE": "MEASURED",
+    "REPRODUCIBILITY": "PASS",
+    "UNRESOLVED_PREREQUISITES": [
+      "MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION"
+    ]
+  },
+  "missing_or_mutated": 1
+}
+    [FAILED] structured_output -- could not emit structured results
+
+=== RESULT
+    result : REPRODUCTION=FAIL FEASIBILITY_EVIDENCE=NOT_REPRODUCED KNOWN_FAIL_OPEN_FINDINGS=REPRODUCED PRODUCTION_PREREQUISITES=UNRESOLVED
+    failed phases : 1
+    structured : /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduction.json
+    log : /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduce.txt
+  caught      g3_trace (delete)
+
+=== SEMANTIC-LINKER-1 reproduction -- mode=report-only started=2026-09-06T23:32:21Z
+    repo : /Users/mendell/shorebird
+    lane : /Volumes/build/semantic-linker/sl1
+    host : Apple M1 Max
+
+=== 11. structured results
+{
+  "result": {
+    "REPRODUCTION": "FAIL",
+    "FEASIBILITY_EVIDENCE": "NOT_REPRODUCED",
+    "KNOWN_FAIL_OPEN_FINDINGS": "REPRODUCED",
+    "PRODUCTION_PREREQUISITES": "UNRESOLVED"
+  },
+  "state": {
+    "RUNTIME_SUBSTRATE": "PASS",
+    "MIXED_EXECUTION": "PASS",
+    "TYPE_AND_GC": "PASS",
+    "OPTIMIZER_CONTRACT": "FAIL",
+    "NEGATIVE_CONTROLS": "FINDINGS_PRESENT",
+    "PERFORMANCE": "MEASURED",
+    "REPRODUCIBILITY": "PASS",
+    "UNRESOLVED_PREREQUISITES": [
+      "MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION"
+    ]
+  },
+  "missing_or_mutated": 1
+}
+    [FAILED] structured_output -- could not emit structured results
+
+=== RESULT
+    result : REPRODUCTION=FAIL FEASIBILITY_EVIDENCE=NOT_REPRODUCED KNOWN_FAIL_OPEN_FINDINGS=REPRODUCED PRODUCTION_PREREQUISITES=UNRESOLVED
+    failed phases : 1
+    structured : /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduction.json
+    log : /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduce.txt
+  caught      g4_disassembly (delete)
+
+=== SEMANTIC-LINKER-1 reproduction -- mode=report-only started=2026-09-06T23:32:21Z
+    repo : /Users/mendell/shorebird
+    lane : /Volumes/build/semantic-linker/sl1
+    host : Apple M1 Max
+
+=== 11. structured results
+{
+  "result": {
+    "REPRODUCTION": "FAIL",
+    "FEASIBILITY_EVIDENCE": "NOT_REPRODUCED",
+    "KNOWN_FAIL_OPEN_FINDINGS": "REPRODUCED",
+    "PRODUCTION_PREREQUISITES": "UNRESOLVED"
+  },
+  "state": {
+    "RUNTIME_SUBSTRATE": "FAIL",
+    "MIXED_EXECUTION": "PASS",
+    "TYPE_AND_GC": "PASS",
+    "OPTIMIZER_CONTRACT": "PASS_IF_CAN_BE_OVERRIDDEN",
+    "NEGATIVE_CONTROLS": "FINDINGS_PRESENT",
+    "PERFORMANCE": "MEASURED",
+    "REPRODUCIBILITY": "PASS",
+    "UNRESOLVED_PREREQUISITES": [
+      "MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION"
+    ]
+  },
+  "missing_or_mutated": 1
+}
+    [FAILED] structured_output -- could not emit structured results
+
+=== RESULT
+    result : REPRODUCTION=FAIL FEASIBILITY_EVIDENCE=NOT_REPRODUCED KNOWN_FAIL_OPEN_FINDINGS=REPRODUCED PRODUCTION_PREREQUISITES=UNRESOLVED
+    failed phases : 1
+    structured : /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduction.json
+    log : /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduce.txt
+  caught      g1_probe_trace (delete)
+
+=== SEMANTIC-LINKER-1 reproduction -- mode=report-only started=2026-09-06T23:32:21Z
+    repo : /Users/mendell/shorebird
+    lane : /Volumes/build/semantic-linker/sl1
+    host : Apple M1 Max
+
+=== 11. structured results
+{
+  "result": {
+    "REPRODUCTION": "FAIL",
+    "FEASIBILITY_EVIDENCE": "REPRODUCED",
+    "KNOWN_FAIL_OPEN_FINDINGS": "REPRODUCED",
+    "PRODUCTION_PREREQUISITES": "UNRESOLVED"
+  },
+  "state": {
+    "RUNTIME_SUBSTRATE": "PASS",
+    "MIXED_EXECUTION": "PASS",
+    "TYPE_AND_GC": "PASS",
+    "OPTIMIZER_CONTRACT": "PASS_IF_CAN_BE_OVERRIDDEN",
+    "NEGATIVE_CONTROLS": "FINDINGS_PRESENT",
+    "PERFORMANCE": "MEASURED",
+    "REPRODUCIBILITY": "PASS",
+    "UNRESOLVED_PREREQUISITES": [
+      "MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION"
+    ]
+  },
+  "missing_or_mutated": 1
+}
+    [FAILED] structured_output -- could not emit structured results
+
+=== RESULT
+    result : REPRODUCTION=FAIL FEASIBILITY_EVIDENCE=REPRODUCED KNOWN_FAIL_OPEN_FINDINGS=REPRODUCED PRODUCTION_PREREQUISITES=UNRESOLVED
+    failed phases : 1
+    structured : /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduction.json
+    log : /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduce.txt
+  caught      freeze_manifest (corrupt)
+
+=== SEMANTIC-LINKER-1 reproduction -- mode=report-only started=2026-09-06T23:32:21Z
+    repo : /Users/mendell/shorebird
+    lane : /Volumes/build/semantic-linker/sl1
+    host : Apple M1 Max
+
+=== 11. structured results
+{
+  "result": {
+    "REPRODUCTION": "FAIL",
+    "FEASIBILITY_EVIDENCE": "REPRODUCED",
+    "KNOWN_FAIL_OPEN_FINDINGS": "REPRODUCED",
+    "PRODUCTION_PREREQUISITES": "UNRESOLVED"
+  },
+  "state": {
+    "RUNTIME_SUBSTRATE": "PASS",
+    "MIXED_EXECUTION": "PASS",
+    "TYPE_AND_GC": "PASS",
+    "OPTIMIZER_CONTRACT": "PASS_IF_CAN_BE_OVERRIDDEN",
+    "NEGATIVE_CONTROLS": "FINDINGS_PRESENT",
+    "PERFORMANCE": "MEASURED",
+    "REPRODUCIBILITY": "PASS",
+    "UNRESOLVED_PREREQUISITES": [
+      "MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION"
+    ]
+  },
+  "missing_or_mutated": 1
+}
+    [FAILED] structured_output -- could not emit structured results
+
+=== RESULT
+    result : REPRODUCTION=FAIL FEASIBILITY_EVIDENCE=REPRODUCED KNOWN_FAIL_OPEN_FINDINGS=REPRODUCED PRODUCTION_PREREQUISITES=UNRESOLVED
+    failed phases : 1
+    structured : /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduction.json
+    log : /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduce.txt
+  caught      banked_patch (corrupt)
+
+
+=== SEMANTIC-LINKER-1 reproduction -- mode=report-only started=2026-09-06T23:32:22Z
+    repo : /Users/mendell/shorebird
+    lane : /Volumes/build/semantic-linker/sl1
+    host : Apple M1 Max
+
+=== 11. structured results
+{
+  "result": {
+    "REPRODUCTION": "PASS",
+    "FEASIBILITY_EVIDENCE": "REPRODUCED",
+    "KNOWN_FAIL_OPEN_FINDINGS": "REPRODUCED",
+    "PRODUCTION_PREREQUISITES": "UNRESOLVED"
+  },
+  "state": {
+    "RUNTIME_SUBSTRATE": "PASS",
+    "MIXED_EXECUTION": "PASS",
+    "TYPE_AND_GC": "PASS",
+    "OPTIMIZER_CONTRACT": "PASS_IF_CAN_BE_OVERRIDDEN",
+    "NEGATIVE_CONTROLS": "FINDINGS_PRESENT",
+    "PERFORMANCE": "MEASURED",
+    "REPRODUCIBILITY": "PASS",
+    "UNRESOLVED_PREREQUISITES": [
+      "MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION"
+    ]
+  },
+  "missing_or_mutated": 0
+}
+    [OK] structured_output -- /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduction.json
+
+=== RESULT
+    result : REPRODUCTION=PASS FEASIBILITY_EVIDENCE=REPRODUCED KNOWN_FAIL_OPEN_FINDINGS=REPRODUCED PRODUCTION_PREREQUISITES=UNRESOLVED
+    failed phases : 0
+    structured : /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduction.json
+    log : /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduce.txt
+restored: the harness reports normally again
+
+SUMMARY caught=8 not-caught=0
+FALSIFIABILITY PASS — every mandatory-evidence mutation is refused

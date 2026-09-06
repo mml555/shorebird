@@ -1,0 +1,65 @@
+SL1-G2 mixed-execution probe -- arm g3_off
+out  : /Volumes/build/semantic-linker/sl1/flutter/engine/src/out/sl1_g3_off
+date : 2026-09-06T23:25:29Z
+dm   : 0 line(s) in args.gn
+sha256 5c690847d2246494176ae6bea080fefdfb4c55f4c216d69808ad9dfab182aadc  gen_snapshot
+sha256 e656386f77855a017a487cbd5ffeab02eae4bf37e9f5e7abd6f4b1a734a271c6  dartaotruntime
+sha256 78d43b1d25bb8ea4f25beb8c5fcf4fb053604053a2b4e5ee91a233eae09cc6b1  vm_platform.dill
+
+== host kernel + AOT snapshot ==
+   gen_kernel exit=0
+   gen_snapshot exit=0
+== pre-AOT import kernel (modules compile against the host's kernel) ==
+   gen_kernel(import) exit=0
+
+=================== TEST sanity ===================
+   dart2bytecode exit=0
+   bytecode sha256 ca8b513c2c0d27076381d163de8c4eb0cbfa2555b24c7f9d50718c7109b028b0 bytes 414
+   ORACLE: callHandler -> UNSUPPORTED
+   G2: ORACLE UNSUPPORTED — this build has no dynamic modules
+   run exit=3
+   CONTROL ok: the oracle is gated on dart_dynamic_modules
+
+=================== TEST dispatch ===================
+   dart2bytecode exit=0
+   bytecode sha256 981ff738d0928a61adfdb98f9beb9fe60247238aa10a432a6bd76d863a2e8c2d bytes 606
+   ORACLE: callHandler -> UNSUPPORTED
+   G2: ORACLE UNSUPPORTED — this build has no dynamic modules
+   run exit=3
+   CONTROL ok: the oracle is gated on dart_dynamic_modules
+
+=================== TEST callback ===================
+   dart2bytecode exit=0
+   bytecode sha256 252a80e33024d55717945882f233021d8d55ce04409f1052ad8b660f21adebd2 bytes 506
+   ORACLE: callHandler -> UNSUPPORTED
+   G2: ORACLE UNSUPPORTED — this build has no dynamic modules
+   run exit=3
+   CONTROL ok: the oracle is gated on dart_dynamic_modules
+
+=================== TEST identity ===================
+   dart2bytecode exit=0
+   bytecode sha256 d626902291755bbf16c5c286c5744b9f4d8f5a859db2a765e06744a99484f625 bytes 850
+   ORACLE: callHandler -> UNSUPPORTED
+   G2: ORACLE UNSUPPORTED — this build has no dynamic modules
+   run exit=3
+   CONTROL ok: the oracle is gated on dart_dynamic_modules
+
+=================== TEST throw ===================
+   dart2bytecode exit=0
+   bytecode sha256 c76d6b7f0eb80ddbbaa0da839c5c6977ed36c32919a57ee1759d2048f65e0168 bytes 813
+   ORACLE: callHandler -> UNSUPPORTED
+   G2: ORACLE UNSUPPORTED — this build has no dynamic modules
+   run exit=3
+   CONTROL ok: the oracle is gated on dart_dynamic_modules
+
+=================== TEST catch ===================
+   dart2bytecode exit=0
+   bytecode sha256 9443356a94ad42cae19c7d2eb59355b87f88fb6eb570caf46580cdd44d911281 bytes 828
+   ORACLE: callHandler -> UNSUPPORTED
+   G2: ORACLE UNSUPPORTED — this build has no dynamic modules
+   run exit=3
+   CONTROL ok: the oracle is gated on dart_dynamic_modules
+
+SUMMARY arm=g3_off tests=6 failed=0
+G2 ARM PASS
+(OFF arm: PASS here means the substrate is correctly ABSENT, not present)

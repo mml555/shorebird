@@ -1,0 +1,278 @@
+{
+  "schema": "semantic-linker-1/g6c-reproduction/3",
+  "gate": "SL1-G6C",
+  "issue": 45,
+  "tracker": 36,
+  "mode": "report-only",
+  "source_run_mode": "full",
+  "source_run_started": "2026-09-06T22:38:06Z",
+  "clean_reproduction": true,
+  "regenerated_from_evidence": true,
+  "started": "2026-09-06T23:32:22Z",
+  "finished": "2026-09-06T23:32:22Z",
+  "result": {
+    "REPRODUCTION": "PASS",
+    "FEASIBILITY_EVIDENCE": "REPRODUCED",
+    "KNOWN_FAIL_OPEN_FINDINGS": "REPRODUCED",
+    "PRODUCTION_PREREQUISITES": "UNRESOLVED"
+  },
+  "machine_readable_state": {
+    "RUNTIME_SUBSTRATE": "PASS",
+    "MIXED_EXECUTION": "PASS",
+    "TYPE_AND_GC": "PASS",
+    "OPTIMIZER_CONTRACT": "PASS_IF_CAN_BE_OVERRIDDEN",
+    "NEGATIVE_CONTROLS": "FINDINGS_PRESENT",
+    "PERFORMANCE": "MEASURED",
+    "REPRODUCIBILITY": "PASS",
+    "UNRESOLVED_PREREQUISITES": [
+      "MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION"
+    ]
+  },
+  "frozen_baseline": {
+    "tag": "selfhost-v1.1.1",
+    "tag_object": "315d364383890d29fbf9bc2c7f30aac53f4e5b48",
+    "tag_is_annotated": true,
+    "commit": "bdb234ab938fc0570e499d800928a0c3d640bfe1",
+    "commit_tree": "2280e5c61f835a201097424f00fbe3845fc1e96c"
+  },
+  "record_at_tag": {
+    "cli_revision": "46ee70af56c3814d079cc2466b092481c7904e76",
+    "cli_contains": "6b4f6c422bab55143ef04c8f43f92015ee3b3feb",
+    "flutter_selector": "5b180d224df04a267a19888c3f344474e243b382",
+    "cell_address": "f85251f344600ae08196925a174e9cff8f0ff18e",
+    "producer_engine_revision": "dfa2b24ac38477f3705ff0357530f33fe09474b8",
+    "fallback_engine_revision": "69f9831c360d9152862ec3897c67fb09ae843f3b",
+    "dart_revision": "9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c",
+    "updater_revision": "af6e842ccf87",
+    "packages_shorebird_cli": "6c76e79a3ad1c86658a41b144dececb07ff5d3ca",
+    "bin_internal": "8ae6081fb375ed33515e8ae0d61bc4ecdb51b990"
+  },
+  "source_identity": {
+    "engine": {
+      "revision": "dfa2b24ac38477f3705ff0357530f33fe09474b8",
+      "tree": "26acc7f47d809563a08212c8264516aae64f10d5",
+      "clean": true,
+      "untracked_build_inputs": {
+        ".gcs_entries": "engine/src/flutter/prebuilts/macos-arm64/dart-sdk <- db98bdaa9d8f8e2250ff83d24abcaf775807244c/dart-sdk-darwin-arm64.tar.gz"
+      },
+      "durable_remote": "https://github.com/mml555/shorebird-flutter.git",
+      "durable_refs": [
+        "refs/heads/route-b-2c-candidate",
+        "refs/tags/acs2-macos-ios-producer"
+      ]
+    },
+    "dart": {
+      "revision": "9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c",
+      "head_tree": "aa55ff960f07682fd098195e4884f2cbcb4f5f27",
+      "effective_tree": "7b04b01bdc10ec990143257f0d28580571c2122f",
+      "effective_tree_note": "HEAD plus the uncommitted guard; THIS is what built the cell",
+      "deps_pinned_base": "d684a576a6aa954ae107a03b2b4e1d61c3bebe93",
+      "dirty_paths": [
+        "pkg/front_end/lib/src/source/source_loader.dart"
+      ],
+      "durable_remote": null,
+      "durability": "LOCAL-DISK-ONLY \u2014 banked here as patches",
+      "bank": {
+        "0001-Add-snapshot-size-accessors-for-code-push.patch": "4e119599829b0d4968623226fc51232f7bd4f9b44cfd5eed034e3d9f4068b06f",
+        "0002-Route-B-Dart-SDK-support-bytecode-producer-and-the-t.patch": "2f59d6a836e746a097a2482d6f0cc3339dce0e7e6536277b517680591784aad1",
+        "9999-worktree-uncommitted.patch": "6b358f715e491bd9829e00fee0262ac7b637982f3bf66e748befcec84075262c"
+      }
+    }
+  },
+  "builds": {
+    "dm_off": {
+      "dart_dynamic_modules": false,
+      "artifacts": {
+        "gen_snapshot": "a1220d87c8c127ea5b57daa1c395184d0c5cf07174ebfcfaa00d43e583d21834",
+        "dartaotruntime": "4f2ff7a849656c430b530252fba8ba0a55d564ccd330d3aa085477dc6fbeb398",
+        "dart": "c34dec14d891d0af33df983ac8ee12bc6a003a62fc8949a0add3cf0d1e67ca3d",
+        "vm_platform.dill": "015ef32c6cb988d8ec160e97da5ec62fb4d4798ac9e03815294c982b298c75d2",
+        "dart-sdk/bin/dart": "c34dec14d891d0af33df983ac8ee12bc6a003a62fc8949a0add3cf0d1e67ca3d"
+      }
+    },
+    "dm_on": {
+      "dart_dynamic_modules": true,
+      "artifacts": {
+        "gen_snapshot": "935f3938d0c981bff08c6699f4e538d665bfb24e5722201169242b913e58d8ef",
+        "dartaotruntime": "a9cd02be1c29379685a16df7ddc88101e351c9702a8b996c76dab89886f66be9",
+        "dart": "b706f8c85c6fc278dccaf328379a0777dc1470137f34546d9c44ce72e3b775d3",
+        "vm_platform.dill": "015ef32c6cb988d8ec160e97da5ec62fb4d4798ac9e03815294c982b298c75d2",
+        "dart-sdk/bin/dart": "b706f8c85c6fc278dccaf328379a0777dc1470137f34546d9c44ce72e3b775d3"
+      }
+    }
+  },
+  "LANE_BUILD_REPRODUCIBILITY": {
+    "dm_off": {
+      "byte_identical": 5,
+      "total": 5
+    },
+    "dm_on": {
+      "byte_identical": 5,
+      "total": 5
+    },
+    "verdict": "REPRODUCIBLE",
+    "claim": "The SEMANTIC-LINKER-1 G1 host toolchain builds are byte-reproducible from the G0-banked frozen source lineage.",
+    "evidence": "g6c_harness/evidence/g1_rebuild_comparison.json"
+  },
+  "SUPPORTED_CELL_REPRODUCIBILITY": {
+    "verdict": "NOT_ESTABLISHED_BY_THIS_GATE",
+    "prior_evidence": {
+      "vm_platform.dill": "reproduced",
+      "full_cell": "not reproduced"
+    },
+    "note": "This gate reproduces the LANE's builds, not the historical supported cell. NEXT_LANES.md's \"nothing reproduces the cell\" is narrowed by new evidence, not retracted."
+  },
+  "gates": {
+    "G1_substrate": {
+      "evidence": "g1_substrate/evidence/probe_g3_on.txt",
+      "present": true,
+      "status": "PASS"
+    },
+    "G2_execution": {
+      "evidence": "g2_execution/evidence/g2_g3_on.txt",
+      "present": true,
+      "status": "PASS"
+    },
+    "G3_types_gc": {
+      "evidence": "g3_types_gc/evidence/g3_g3_on.txt",
+      "present": true,
+      "status": "PASS"
+    },
+    "G4_optimizer": {
+      "evidence": "g4_optimizer/evidence/g4_solo_fenced.txt",
+      "present": true,
+      "status": "PASS",
+      "bypass_reproduced": true
+    }
+  },
+  "negative_controls": {
+    "total": 12,
+    "closed_expected": 5,
+    "closed_other_category": 1,
+    "fail_open": 5,
+    "evidence": "g6a_negatives/evidence/negatives.json"
+  },
+  "fail_open_findings": [
+    {
+      "name": "wrong_platform_dill",
+      "expected": "HOST_IDENTITY",
+      "observed": "UNCLASSIFIED",
+      "exit": 0,
+      "outcome": "FAIL_OPEN",
+      "evidence": "LOADED: Instance of 'PatchChild'\nDISPATCH: PATCH-CHILD\n"
+    },
+    {
+      "name": "wrong_runtime_build",
+      "expected": "HOST_IDENTITY",
+      "observed": "UNCLASSIFIED",
+      "exit": 0,
+      "outcome": "FAIL_OPEN",
+      "evidence": "LOADED: Instance of 'PatchChild'\nDISPATCH: PATCH-CHILD\n"
+    },
+    {
+      "name": "no_extendable",
+      "expected": "DYNAMIC_INTERFACE_POLICY",
+      "observed": "UNCLASSIFIED",
+      "exit": 0,
+      "outcome": "FAIL_OPEN",
+      "evidence": "LOADED: Instance of 'PatchChild'\n"
+    },
+    {
+      "name": "no_type",
+      "expected": "DYNAMIC_INTERFACE_POLICY",
+      "observed": "UNCLASSIFIED",
+      "exit": 0,
+      "outcome": "FAIL_OPEN",
+      "evidence": "LOADED: Instance of 'PatchChild'\nDISPATCH: PATCH-CHILD\n"
+    },
+    {
+      "name": "member_not_overridable",
+      "expected": "DYNAMIC_INTERFACE_POLICY",
+      "observed": "FAIL_OPEN_SILENT_BYPASS",
+      "exit": 0,
+      "outcome": "FAIL_OPEN",
+      "evidence": "LOADED: Instance of 'PatchChild'\nDISPATCH: AOT-BASE\n"
+    }
+  ],
+  "costs": {
+    "execution_ns_per_call": {
+      "aot_to_aot_direct": 2.27,
+      "aot_to_aot_virtual": 2.52,
+      "aot_to_bytecode": 20.78,
+      "bytecode_to_aot": 27.94,
+      "bytecode_to_bytecode": 28.39
+    },
+    "allocation_ns_per_alloc": {
+      "alloc_aot_aot_type": 5.69,
+      "alloc_bytecode_aot_type": 77.15,
+      "alloc_bytecode_patch_type": 95.52
+    },
+    "measurement_semantics": "Timings are not required to reproduce byte-identically. What must reproduce is that the measurement RAN, that raw samples and methodology are retained, and that the qualitative distinctions hold: interpreted execution ~10-12x a direct AOT call, all three interpreted modes within noise of each other, and full-GC cost flat across modes.",
+    "raw_samples": [
+      "g6b_cost/evidence/raw_samples.txt",
+      "g6b_cost/evidence/alloc_raw_samples.txt"
+    ]
+  },
+  "artifacts": {
+    "out/sl1_dm_off/dartaotruntime": "4f2ff7a849656c430b530252fba8ba0a55d564ccd330d3aa085477dc6fbeb398",
+    "out/sl1_dm_off/gen_snapshot": "a1220d87c8c127ea5b57daa1c395184d0c5cf07174ebfcfaa00d43e583d21834",
+    "out/sl1_dm_off/vm_platform.dill": "015ef32c6cb988d8ec160e97da5ec62fb4d4798ac9e03815294c982b298c75d2",
+    "out/sl1_dm_on/dartaotruntime": "a9cd02be1c29379685a16df7ddc88101e351c9702a8b996c76dab89886f66be9",
+    "out/sl1_dm_on/gen_snapshot": "935f3938d0c981bff08c6699f4e538d665bfb24e5722201169242b913e58d8ef",
+    "out/sl1_dm_on/vm_platform.dill": "015ef32c6cb988d8ec160e97da5ec62fb4d4798ac9e03815294c982b298c75d2",
+    "out/sl1_g3_off/dartaotruntime": "e656386f77855a017a487cbd5ffeab02eae4bf37e9f5e7abd6f4b1a734a271c6",
+    "out/sl1_g3_off/gen_snapshot": "5c690847d2246494176ae6bea080fefdfb4c55f4c216d69808ad9dfab182aadc",
+    "out/sl1_g3_off/vm_platform.dill": "78d43b1d25bb8ea4f25beb8c5fcf4fb053604053a2b4e5ee91a233eae09cc6b1",
+    "out/sl1_g3_on/dartaotruntime": "29bebdf721ecb4a2d2377d46866818a2b2134e35312d1de613ffa1876b8dbf36",
+    "out/sl1_g3_on/gen_snapshot": "5f030c5f7d886956df5197fd7f7b3c399a550177399d46666f7fc12ec12ee6ab",
+    "out/sl1_g3_on/vm_platform.dill": "78d43b1d25bb8ea4f25beb8c5fcf4fb053604053a2b4e5ee91a233eae09cc6b1",
+    "g0_freeze/banked_source/dart/9999-worktree-uncommitted.patch": "6b358f715e491bd9829e00fee0262ac7b637982f3bf66e748befcec84075262c",
+    "g2_execution/banked_experiment/0001-g2-function-execution-mode-instrument.patch": "6466c7d9bc707018fb5e1bad966ab441d37951211658fb7ece44cb0ad2260b2f",
+    "g3_types_gc/banked_experiment/0001-g3-expose-full-gc-for-testing.patch": "30286207aa0124ec58dde6d3dcd61f42e54a9672cef5d8d4e4a4978afa993e06"
+  },
+  "unresolved_prerequisites": [
+    {
+      "id": "MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION",
+      "status": "UNRESOLVED",
+      "severity": "BLOCKING_FOR_PRODUCTION",
+      "statement": "Patch compilation must invoke the CFE with the dynamic-interface specification so a violating module is refused before it reaches the runtime.",
+      "why": "KernelTarget.validateDynamicModule runs only when the CFE is given dynamicInterfaceSpecificationUri while compiling the MODULE. dart2bytecode has no such option and gen_kernel consumes --dynamic-interface on the host compile, where it annotates rather than validates.",
+      "observed_consequence": "All four DYNAMIC_INTERFACE_POLICY negatives load silently; member_not_overridable additionally produces silently wrong behaviour.",
+      "evidence": [
+        "g6a_negatives/RESULT.md",
+        "g6a_negatives/evidence/negatives.json"
+      ],
+      "consumed_by": 46
+    },
+    {
+      "id": "PATCHABILITY_CONTRACT_INVARIANT",
+      "status": "CARRY_FORWARD",
+      "severity": "DESIGN_CONSTRAINT",
+      "statement": "Every member intended to remain patchable must be emitted as can-be-overridden by the release-time contract generator.",
+      "why": "G4: with a single closed-world implementation the precompiler devirtualizes every call site and inlines one outright. extendable plus callable are not sufficient.",
+      "evidence": [
+        "g4_optimizer/RESULT.md"
+      ],
+      "consumed_by": 46
+    },
+    {
+      "id": "CORRUPT_KBC_MISCLASSIFIES_AS_IMPORT_FAILURE",
+      "status": "CARRY_FORWARD",
+      "severity": "TOOLING_CONSTRAINT",
+      "statement": "Explain tooling must not classify a module failure from the VM error string alone.",
+      "evidence": [
+        "g6a_negatives/RESULT.md"
+      ],
+      "consumed_by": 46
+    }
+  ],
+  "missing_or_mutated_evidence": [],
+  "verdict_rule": "REPRODUCTION cannot be PASS while mandatory evidence is missing or unparseable, or while a positive gate did not reproduce. Reproducing a known fail-open negative is a reproduced FINDING and is never rendered as a safety result.",
+  "phases": [
+    {
+      "phase": "structured_output",
+      "status": "OK",
+      "detail": "/Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduction.json"
+    }
+  ]
+}

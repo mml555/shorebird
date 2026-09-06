@@ -83,9 +83,11 @@ cmp_v "producer Dart EFFECTIVE tree (HEAD + the uncommitted guard)" "$WANT_DART_
 [[ "$fails" -eq 0 ]] || { echo; echo "REFUSING TO STAGE: the producer tree is not the frozen lineage"; exit 1; }
 
 # ---------------------------------------------------------------------- clone
+CLONED=0
 if [[ -d "$DEST" && "$FORCE" == 0 ]]; then
   ok "lane tree already staged (pass --force to re-clone)"
 else
+  CLONED=1
   [[ "$FORCE" == 1 ]] && rm -rf "$DEST"
   mkdir -p "$DEST/engine"
   echo "  cloning source (APFS clonefile; out/ excluded)..."
@@ -111,8 +113,15 @@ cmp_v "lane engine tree"            "$WANT_ENGINE_TREE"   "$(git -C "$DEST" rev-
 cmp_v "lane Dart HEAD"              "$WANT_DART_REV"      "$(git -C "$DD" rev-parse HEAD 2>/dev/null)"
 cmp_v "lane Dart committed tree"    "$WANT_DART_HEAD_TREE" "$(git -C "$DD" rev-parse 'HEAD^{tree}' 2>/dev/null)"
 cmp_v "lane Dart EFFECTIVE tree"    "$WANT_DART_EFF_TREE" "$(eff_tree "$DD")"
-[[ -d "$DEST/engine/src/out" ]] && bad "the clone carries an out/ dir; it must start with none" \
-                                || ok "no inherited out/ — both configurations will be built here from scratch"
+# THIS ASSERTION BELONGS TO A FRESH CLONE ONLY. Once the lane has been built in,
+# out/ is supposed to exist, and asserting its absence on a re-verify turned a
+# correctly-staged tree into a failure.
+if [[ "$CLONED" == 1 ]]; then
+  [[ -d "$DEST/engine/src/out" ]] && bad "the clone carries an out/ dir; it must start with none" \
+                                  || ok "no inherited out/ — both configurations will be built here from scratch"
+else
+  ok "re-verified an already-staged tree (out/ is expected to exist and is not asserted against)"
+fi
 
 # THE SUPPORTED TREE MUST BE UNCHANGED BY ALL OF THE ABOVE.
 cmp_v "producer engine STILL at the frozen tree (untouched by staging)" \

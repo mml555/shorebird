@@ -1,0 +1,14 @@
+
+=== SEMANTIC-LINKER-1 reproduction -- mode=report-only started=2026-09-06T23:32:22Z
+    repo : /Users/mendell/shorebird
+    lane : /Volumes/build/semantic-linker/sl1
+    host : Apple M1 Max
+
+=== 11. structured results
+    [OK] structured_output -- /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduction.json
+
+=== RESULT
+    result : REPRODUCTION=PASS FEASIBILITY_EVIDENCE=REPRODUCED KNOWN_FAIL_OPEN_FINDINGS=REPRODUCED PRODUCTION_PREREQUISITES=UNRESOLVED
+    failed phases : 0
+    structured : /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduction.json
+    log : /Users/mendell/shorebird/selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduce.txt

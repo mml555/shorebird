@@ -1,29 +1,10 @@
-A off rep1 TINY micros=47284 sink=0 rss=14876672
-        0.16 real         0.02 user         0.01 sys
-            14893056  maximum resident set size
+A off rep1 TINY micros=19371 sink=0 rss=14843904
+        0.03 real         0.02 user         0.00 sys
+            14860288  maximum resident set size
                    0  average shared memory size
                    0  average unshared data size
                    0  average unshared stack size
-                1021  page reclaims
-                 109  page faults
-                   0  swaps
-                   0  block input operations
-                   0  block output operations
-                   0  messages sent
-                   0  messages received
-                   0  signals received
-                   1  voluntary context switches
-                 310  involuntary context switches
-           451740118  instructions retired
-           119406720  cycles elapsed
-             4752768  peak memory footprint
-A off rep2 TINY micros=34683 sink=0 rss=14909440
-        0.06 real         0.02 user         0.00 sys
-            14925824  maximum resident set size
-                   0  average shared memory size
-                   0  average unshared data size
-                   0  average unshared stack size
-                1132  page reclaims
+                1128  page reclaims
                    0  page faults
                    0  swaps
                    0  block input operations
@@ -32,12 +13,12 @@ A off rep2 TINY micros=34683 sink=0 rss=14909440
                    0  messages received
                    0  signals received
                    0  voluntary context switches
-                 133  involuntary context switches
-           440921741  instructions retired
-            98052808  cycles elapsed
-             4801984  peak memory footprint
-A off rep3 TINY micros=75856 sink=0 rss=14893056
-        0.10 real         0.02 user         0.00 sys
+                  80  involuntary context switches
+           440856542  instructions retired
+            88703248  cycles elapsed
+             4720000  peak memory footprint
+A off rep2 TINY micros=19447 sink=0 rss=14876672
+        0.03 real         0.02 user         0.00 sys
             14909440  maximum resident set size
                    0  average shared memory size
                    0  average unshared data size
@@ -51,37 +32,17 @@ A off rep3 TINY micros=75856 sink=0 rss=14893056
                    0  messages received
                    0  signals received
                    0  voluntary context switches
-                 160  involuntary context switches
-           441422102  instructions retired
-           100191629  cycles elapsed
-             4785600  peak memory footprint
-A off startup_micros_per_run 36577
-A on rep1 TINY micros=21216 sink=0 rss=14925824
-        0.06 real         0.02 user         0.00 sys
+                  99  involuntary context switches
+           440339633  instructions retired
+            87566082  cycles elapsed
+             4769152  peak memory footprint
+A off rep3 TINY micros=19737 sink=0 rss=14909440
+        0.03 real         0.02 user         0.00 sys
             14942208  maximum resident set size
                    0  average shared memory size
                    0  average unshared data size
                    0  average unshared stack size
-                1017  page reclaims
-                 118  page faults
-                   0  swaps
-                   0  block input operations
-                   0  block output operations
-                   0  messages sent
-                   0  messages received
-                   0  signals received
-                   0  voluntary context switches
-                 166  involuntary context switches
-           469927891  instructions retired
-           109964666  cycles elapsed
-             4670912  peak memory footprint
-A on rep2 TINY micros=20678 sink=0 rss=15007744
-        0.03 real         0.02 user         0.00 sys
-            15024128  maximum resident set size
-                   0  average shared memory size
-                   0  average unshared data size
-                   0  average unshared stack size
-                1140  page reclaims
+                1133  page reclaims
                    0  page faults
                    0  swaps
                    0  block input operations
@@ -90,12 +51,51 @@ A on rep2 TINY micros=20678 sink=0 rss=15007744
                    0  messages received
                    0  signals received
                    0  voluntary context switches
-                 134  involuntary context switches
-           461311625  instructions retired
-            94816609  cycles elapsed
-             4752832  peak memory footprint
-A on rep3 TINY micros=24136 sink=0 rss=14958592
-        0.04 real         0.02 user         0.00 sys
+                  84  involuntary context switches
+           440253930  instructions retired
+            88314447  cycles elapsed
+             4818368  peak memory footprint
+A off rep4 TINY micros=19405 sink=0 rss=14942208
+        0.03 real         0.02 user         0.00 sys
+            14958592  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                1134  page reclaims
+                   0  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   0  voluntary context switches
+                  93  involuntary context switches
+           440355373  instructions retired
+            88227582  cycles elapsed
+             4834752  peak memory footprint
+A off rep5 TINY micros=19715 sink=0 rss=14860288
+        0.03 real         0.02 user         0.00 sys
+            14876672  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                1129  page reclaims
+                   0  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   0  voluntary context switches
+                 104  involuntary context switches
+           440429937  instructions retired
+            87611616  cycles elapsed
+             4736384  peak memory footprint
+A off startup_micros_per_run 17268
+A on rep1 TINY micros=19860 sink=0 rss=14958592
+        0.03 real         0.02 user         0.00 sys
             14974976  maximum resident set size
                    0  average shared memory size
                    0  average unshared data size
@@ -109,37 +109,131 @@ A on rep3 TINY micros=24136 sink=0 rss=14958592
                    0  messages received
                    0  signals received
                    0  voluntary context switches
-                 159  involuntary context switches
-           461427386  instructions retired
-            99603929  cycles elapsed
-             4687232  peak memory footprint
-A on startup_micros_per_run 25581
+                  58  involuntary context switches
+           460429561  instructions retired
+            89260032  cycles elapsed
+             4703680  peak memory footprint
+A on rep2 TINY micros=19393 sink=0 rss=14909440
+        0.03 real         0.02 user         0.00 sys
+            14925824  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                1134  page reclaims
+                   0  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   0  voluntary context switches
+                  71  involuntary context switches
+           460119810  instructions retired
+            86970507  cycles elapsed
+             4638080  peak memory footprint
+A on rep3 TINY micros=19965 sink=0 rss=14893056
+        0.03 real         0.02 user         0.00 sys
+            14909440  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                1133  page reclaims
+                   0  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   0  voluntary context switches
+                  99  involuntary context switches
+           460451945  instructions retired
+            88123531  cycles elapsed
+             4621696  peak memory footprint
+A on rep4 TINY micros=20399 sink=0 rss=14974976
+        0.03 real         0.02 user         0.00 sys
+            14991360  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                1138  page reclaims
+                   0  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   0  voluntary context switches
+                 113  involuntary context switches
+           460625857  instructions retired
+            90379519  cycles elapsed
+             4720064  peak memory footprint
+A on rep5 TINY micros=19588 sink=0 rss=14925824
+        0.03 real         0.02 user         0.00 sys
+            14942208  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                1135  page reclaims
+                   0  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   0  voluntary context switches
+                  81  involuntary context switches
+           460327189  instructions retired
+            90405121  cycles elapsed
+             4654464  peak memory footprint
+A on startup_micros_per_run 17423
 B fenced dill=4561408 aot=907000
 B unfenced dill=4561536 aot=890296
-D rep1 BENCH aot_to_aot_direct iters=10000000 micros=25275 ns_per_call=2.53
-BENCH aot_to_aot_virtual iters=10000000 micros=26989 ns_per_call=2.70
+D rep1 BENCH aot_to_aot_direct iters=10000000 micros=22782 ns_per_call=2.28
+BENCH aot_to_aot_virtual iters=10000000 micros=25100 ns_per_call=2.51
 MODULE bytes=965
-LOAD micros=121 rss_before=15220736 rss_after=15335424 rss_delta=114688
-BENCH aot_to_bytecode iters=10000000 micros=325434 ns_per_call=32.54
-BENCH bytecode_to_aot iters=10000000 micros=323040 ns_per_call=32.30
-BENCH bytecode_to_bytecode iters=10000000 micros=283230 ns_per_call=28.32
+LOAD micros=81 rss_before=15220736 rss_after=15335424 rss_delta=114688
+BENCH aot_to_bytecode iters=10000000 micros=208956 ns_per_call=20.90
+BENCH bytecode_to_aot iters=10000000 micros=282528 ns_per_call=28.25
+BENCH bytecode_to_bytecode iters=10000000 micros=283886 ns_per_call=28.39
 RSS_STEADY 15335424
 SINK 10000000
-D rep2 BENCH aot_to_aot_direct iters=10000000 micros=24044 ns_per_call=2.40
-BENCH aot_to_aot_virtual iters=10000000 micros=26535 ns_per_call=2.65
+D rep2 BENCH aot_to_aot_direct iters=10000000 micros=22642 ns_per_call=2.26
+BENCH aot_to_aot_virtual iters=10000000 micros=25008 ns_per_call=2.50
 MODULE bytes=965
-LOAD micros=99 rss_before=15171584 rss_after=15286272 rss_delta=114688
-BENCH aot_to_bytecode iters=10000000 micros=246183 ns_per_call=24.62
-BENCH bytecode_to_aot iters=10000000 micros=285335 ns_per_call=28.53
-BENCH bytecode_to_bytecode iters=10000000 micros=285124 ns_per_call=28.51
-RSS_STEADY 15286272
+LOAD micros=75 rss_before=15171584 rss_after=15302656 rss_delta=131072
+BENCH aot_to_bytecode iters=10000000 micros=206126 ns_per_call=20.61
+BENCH bytecode_to_aot iters=10000000 micros=278879 ns_per_call=27.89
+BENCH bytecode_to_bytecode iters=10000000 micros=277813 ns_per_call=27.78
+RSS_STEADY 15302656
 SINK 0
-D rep3 BENCH aot_to_aot_direct iters=10000000 micros=23615 ns_per_call=2.36
-BENCH aot_to_aot_virtual iters=10000000 micros=25576 ns_per_call=2.56
+D rep3 BENCH aot_to_aot_direct iters=10000000 micros=22523 ns_per_call=2.25
+BENCH aot_to_aot_virtual iters=10000000 micros=25305 ns_per_call=2.53
 MODULE bytes=965
-LOAD micros=96 rss_before=15269888 rss_after=15368192 rss_delta=98304
-BENCH aot_to_bytecode iters=10000000 micros=213280 ns_per_call=21.33
-BENCH bytecode_to_aot iters=10000000 micros=285507 ns_per_call=28.55
-BENCH bytecode_to_bytecode iters=10000000 micros=352583 ns_per_call=35.26
+LOAD micros=90 rss_before=15138816 rss_after=15253504 rss_delta=114688
+BENCH aot_to_bytecode iters=10000000 micros=207811 ns_per_call=20.78
+BENCH bytecode_to_aot iters=10000000 micros=278442 ns_per_call=27.84
+BENCH bytecode_to_bytecode iters=10000000 micros=294116 ns_per_call=29.41
+RSS_STEADY 15253504
+SINK 10000000
+D rep4 BENCH aot_to_aot_direct iters=10000000 micros=22675 ns_per_call=2.27
+BENCH aot_to_aot_virtual iters=10000000 micros=25233 ns_per_call=2.52
+MODULE bytes=965
+LOAD micros=89 rss_before=15237120 rss_after=15368192 rss_delta=131072
+BENCH aot_to_bytecode iters=10000000 micros=208229 ns_per_call=20.82
+BENCH bytecode_to_aot iters=10000000 micros=279951 ns_per_call=28.00
+BENCH bytecode_to_bytecode iters=10000000 micros=283224 ns_per_call=28.32
 RSS_STEADY 15368192
+SINK 0
+D rep5 BENCH aot_to_aot_direct iters=10000000 micros=23795 ns_per_call=2.38
+BENCH aot_to_aot_virtual iters=10000000 micros=25885 ns_per_call=2.59
+MODULE bytes=965
+LOAD micros=90 rss_before=15171584 rss_after=15302656 rss_delta=131072
+BENCH aot_to_bytecode iters=10000000 micros=206398 ns_per_call=20.64
+BENCH bytecode_to_aot iters=10000000 micros=279416 ns_per_call=27.94
+BENCH bytecode_to_bytecode iters=10000000 micros=287273 ns_per_call=28.73
+RSS_STEADY 15302656
 SINK 10000000

@@ -1,6 +1,6 @@
 SL1-G2 mixed-execution probe -- arm g3_on
 out  : /Volumes/build/semantic-linker/sl1/flutter/engine/src/out/sl1_g3_on
-date : 2026-09-06T21:13:29Z
+date : 2026-09-06T23:26:01Z
 dm   : 1 line(s) in args.gn
 sha256 5f030c5f7d886956df5197fd7f7b3c399a550177399d46666f7fc12ec12ee6ab  gen_snapshot
 sha256 29bebdf721ecb4a2d2377d46866818a2b2134e35312d1de613ffa1876b8dbf36  dartaotruntime
@@ -14,7 +14,7 @@ sha256 78d43b1d25bb8ea4f25beb8c5fcf4fb053604053a2b4e5ee91a233eae09cc6b1  vm_plat
 
 =================== TEST sanity ===================
    dart2bytecode exit=0
-   bytecode sha256 7dc50d10a525f874d76a5c3c780a76bfee0d0fa3f2cbbd4e6f94b8ab5459a855 bytes 414
+   bytecode sha256 2a1e2cc8b10c929e64fa55cb2c18991cf9442da4041bcfbf3dacec22502c7921 bytes 414
    ORACLE: callHandler -> AOT
    MODE ok   before attach: target: attachTarget -> AOT (want AOT)
    MODE ok   before attach: knownHost: knownHost -> AOT (want AOT)
@@ -36,7 +36,7 @@ sha256 78d43b1d25bb8ea4f25beb8c5fcf4fb053604053a2b4e5ee91a233eae09cc6b1  vm_plat
 
 =================== TEST dispatch ===================
    dart2bytecode exit=0
-   bytecode sha256 7cd7d9641ba7c0e05e13cd991b8a486a604258eef26b74b4ddbfa061873df9c0 bytes 606
+   bytecode sha256 9d70eb918f14cceb499475e63d22c2d2e80d9faf6b2c38a3d7ad94d5ff7bafa7 bytes 606
    ORACLE: callHandler -> AOT
    CHECK ok   module returned a Handler: PatchHandler
    MODE ok   module implementation is interpreted: PatchHandler.execute -> INTERPRETED (want INTERPRETED)
@@ -48,7 +48,7 @@ sha256 78d43b1d25bb8ea4f25beb8c5fcf4fb053604053a2b4e5ee91a233eae09cc6b1  vm_plat
 
 =================== TEST callback ===================
    dart2bytecode exit=0
-   bytecode sha256 52da5cb18c1569067aca69c3a5e88c388ec07aa2924095639dc3eb067b693e7c bytes 506
+   bytecode sha256 fbc5cde11945464bde97c468cf000361235388ecb0eb8f460db5c5946ccaa2e0 bytes 506
    ORACLE: callHandler -> AOT
    MODE ok   module entry is interpreted: entry -> INTERPRETED (want INTERPRETED)
    MODE ok   multiply is RETAINED AOT, not interpreted: multiply -> AOT (want AOT)
@@ -56,7 +56,7 @@ sha256 78d43b1d25bb8ea4f25beb8c5fcf4fb053604053a2b4e5ee91a233eae09cc6b1  vm_plat
    CHECK ok   multiply captured a stack trace
    TRACE-BEGIN multiply
    #0      multiply (package:dynamic_modules/g2_host.dart:61)
-   #1      entry (file:///var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.P5S67CPtfT/m_callback.dart)
+   #1      entry (file:///var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.MYiOedie65/m_callback.dart)
    #2      _loadDynamicModule (dart:_internal-patch/internal_patch.dart:477)
    #3      loadDynamicModule (dart:_internal-patch/internal_patch.dart:470)
    #4      main (package:dynamic_modules/g2_host.dart:182)
@@ -68,7 +68,7 @@ sha256 78d43b1d25bb8ea4f25beb8c5fcf4fb053604053a2b4e5ee91a233eae09cc6b1  vm_plat
 
 =================== TEST identity ===================
    dart2bytecode exit=0
-   bytecode sha256 248ebdc04d2b0deebdfee7cd1c3c463b3227fff04a747a645bf6d2a306231039 bytes 850
+   bytecode sha256 f96f2fe1d36a275538da5da66a379c3d2378a560a9a23d43a911d296cd43847f bytes 850
    ORACLE: callHandler -> AOT
    CHECK ok   module returned the very same Box (identity, not equality): true
    CHECK ok   module mutation B->A is visible to AOT: 99
@@ -80,14 +80,14 @@ sha256 78d43b1d25bb8ea4f25beb8c5fcf4fb053604053a2b4e5ee91a233eae09cc6b1  vm_plat
 
 =================== TEST throw ===================
    dart2bytecode exit=0
-   bytecode sha256 767c1bc606e4b2a785e44a71b5123a2f0d7899be2f7c8e5f86fee2fd8dcfd132 bytes 813
+   bytecode sha256 fa8688ac448bd4be3456663f6351e9741154b12630f7b3f4148ac07da74cd4ce bytes 813
    ORACLE: callHandler -> AOT
    CHECK ok   AOT caught a throw that originated in bytecode: ModuleException
    CHECK ok   it is the patch-DEFINED type, carrying its own payload: ModuleException(from-module)
    CHECK ok   the throw produced a stack trace
    TRACE-BEGIN module-throw
-   #0      raise (file:///var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.P5S67CPtfT/m_throw.dart)
-   #1      entry (file:///var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.P5S67CPtfT/m_throw.dart)
+   #0      raise (file:///var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.MYiOedie65/m_throw.dart)
+   #1      entry (file:///var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.MYiOedie65/m_throw.dart)
    #2      _loadDynamicModule (dart:_internal-patch/internal_patch.dart:477)
    #3      loadDynamicModule (dart:_internal-patch/internal_patch.dart:470)
    #4      main (package:dynamic_modules/g2_host.dart:182)
@@ -101,7 +101,7 @@ sha256 78d43b1d25bb8ea4f25beb8c5fcf4fb053604053a2b4e5ee91a233eae09cc6b1  vm_plat
 
 =================== TEST catch ===================
    dart2bytecode exit=0
-   bytecode sha256 a8843d123d033316076a500cbbdbc280b3ea0856620749f6f9f964e7ee3365da bytes 828
+   bytecode sha256 41831d4547fe00d1d7d069f22402de401cc8146437715b3df6e393fbd5fea507 bytes 828
    ORACLE: callHandler -> AOT
    CHECK ok   module caught the host exception: MODULE-CAUGHT:HostException(from-host)|FINALLY:HOST-FINALLY-RAN|AGAIN:80
    CHECK ok   the host finally ran during unwinding: HOST-FINALLY-RAN
