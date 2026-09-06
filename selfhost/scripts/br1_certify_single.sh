@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words objkey unservable cpslib BKRC STOPFILE RUNTAG nodb nomanifest missingobj noserver wstop
+# cspell:words objkey unservable cpslib BKRC STOPFILE RUNTAG nodb nomanifest missingobj noserver wstop fpsnap fpinv BKSZ TRSZ TMPB
 # BACKUP-RESTORE-1 — certification pass for the DEFAULT (single) profile.
 #
 # Re-runnable end to end against a throwaway deployment. Every check states
@@ -27,7 +27,19 @@ snap(){ docker compose stop server >/dev/null 2>&1; rm -rf "$1"; mkdir -p "$1"
         for _ in $(seq 1 60); do curl -fsS "$BASE/healthz" >/dev/null 2>&1 && break; sleep 1; done; }
 inv(){ PROFILE=single SQLITE_DB="$1/code_push.db" STORE=files FILES_DIR="$1/artifacts" OUT="$2" \
          bash "$SCRIPTS/br1_inventory.sh" >/dev/null 2>&1; }
-fp(){ docker run --rm -v "$VOL":/data busybox sh -c 'echo "$(find /data -type f | wc -l | tr -d " ")-$(sha256sum /data/code_push.db 2>/dev/null | cut -c1-16)"'; }
+# Fingerprint the DURABLE state only. SQLite deletes -wal and -shm on a clean
+# close, so a check that stops the server changes the raw file count without
+# changing anything that survives -- counting them made a correct refusal look
+# like data loss.
+fp(){ docker run --rm -v "$VOL":/data busybox sh -c \
+  'echo "$(find /data -type f ! -name "code_push.db-wal" ! -name "code_push.db-shm" | wc -l | tr -d " ")-$(sha256sum /data/code_push.db 2>/dev/null | cut -c1-16)"'; }
+
+# A LOGICAL fingerprint, for checks that stop the server. SQLite folds the WAL
+# into the main file on a clean close, so `code_push.db` legitimately changes
+# BYTES across a stop while losing nothing -- which made a correct refusal read
+# as data loss. This digests the inventory instead: every row of every
+# state-bearing table plus every object's sha256.
+lfp(){ snap /tmp/br1c.fpsnap; inv /tmp/br1c.fpsnap /tmp/br1c.fpinv; shasum -a 256 /tmp/br1c.fpinv | cut -d' ' -f1; }
 
 step "0. subject"
 echo "  deployment $DIR  volume $VOL  port $PORT"
@@ -121,7 +133,15 @@ fi
 step "5. negative controls — each must refuse, for its own reason, changing nothing"
 BN=$(basename "$BK"); BD=$(dirname "$BK")
 mkdir -p /tmp/br1c.neg && rm -f /tmp/br1c.neg/*.tgz
-head -c 300000 "$BK" > /tmp/br1c.neg/truncated.tgz
+# Truncate to HALF the archive, not a fixed byte count: a fresh rig's archive
+# can be smaller than the constant, in which case `head -c` copies the whole
+# file and the "truncated" control silently becomes a valid-archive control --
+# which is exactly what it did, reporting the good archive as ACCEPTED.
+BKSZ=$(stat -f%z "$BK")
+head -c $(( BKSZ / 2 )) "$BK" > /tmp/br1c.neg/truncated.tgz
+TRSZ=$(stat -f%z /tmp/br1c.neg/truncated.tgz)
+if (( TRSZ < BKSZ )); then ok "the truncated control is genuinely shorter ($TRSZ of $BKSZ bytes)"
+else no "the truncated control is not truncated ($TRSZ of $BKSZ) — it cannot fail"; fi
 docker run --rm -v "$BD":/b:ro -v /tmp/br1c.neg:/o busybox sh -c "
   mkdir -p /w/a && tar xzf /b/$BN -C /w/a && rm -f /w/a/code_push.db* && (cd /w/a && tar czf /o/nodb.tgz .)
   mkdir -p /w/b && tar xzf /b/$BN -C /w/b && V=\$(cd /w/b/artifacts && find . -type f | sort | head -1) && rm -f /w/b/artifacts/\$V && (cd /w/b && tar czf /o/missingobj.tgz .)
@@ -150,7 +170,45 @@ done
 if [[ "$(fp)" == "$BEFORE" ]]; then ok "the volume is byte-unchanged after all five refusals"
 else no "the volume was modified by a rejected archive"; fi
 
-step "6. the target of a destructive operation is never guessed"
+step "6. restore refuses a destination that is still writable"
+# `--backup` proved it quiesces; `--restore` was stopping the server and then
+# wiping /data without ever checking the stop worked. A normal run cannot
+# distinguish a real stop from a no-op, so both causes are forced here.
+BEFORE_R=$(lfp)
+# Arm A: something else still holds the volume. The compose `stop server`
+# succeeds, so only the holder check can catch this.
+docker run -d --rm --name br1c-holder -v "$VOL":/data busybox sleep 300 >/dev/null 2>&1
+out=$(bash setup.sh --restore "$BK" 2>&1); rc=$?
+if (( rc == 0 )); then no "restore proceeded while another container held the volume"
+elif printf '%s' "$out" | grep -q "still have $VOL mounted"; then ok "refuses while another container holds the volume"
+else no "refused, but not for the holder: $(printf '%s' "$out" | tr '\n' ' ' | cut -c1-110)"; fi
+docker rm -f br1c-holder >/dev/null 2>&1
+if [[ "$(lfp)" == "$BEFORE_R" ]]; then ok "  … and every row and object is unchanged"
+else no "  … but the durable state changed"; fi
+
+# Arm B: the stop itself no-ops. Run from a deployment dir whose compose has no
+# `server` service, with the volume named explicitly so target resolution is
+# not what refuses -- otherwise this would re-measure step 6's guard.
+TMPB=$(mktemp -d); cp setup.sh "$TMPB/"; mkdir -p "$TMPB/ops/lib"; cp ops/lib/*.sh "$TMPB/ops/lib/"
+sed 's/^PORT=.*/PORT=19997/' .env > "$TMPB/.env"
+awk '/^  server:/{skip=1;next} /^  [a-z_]+:/{skip=0} /^[a-z]/{skip=0} !skip' docker-compose.yaml > "$TMPB/docker-compose.yaml"
+grep -q '^  server:' "$TMPB/docker-compose.yaml" && no "the arm-B compose still declares a server service — the no-op stop is not isolated"
+# Precondition, asserted rather than assumed: arm A left the deployment down
+# once, and this arm then measured a quiet volume and refused for an unrelated
+# reason while reporting as though it had tested the guard.
+if [[ -n "$(docker ps -q --filter volume="$VOL")" ]]; then ok "  (arm B precondition: the real server is running and holds the volume)"
+else no "  (arm B precondition failed: nothing holds the volume, so the guard cannot fire)"; fi
+BEFORE_B=$(lfp)
+out=$( cd "$TMPB" && bash setup.sh --restore "$BK" --volume "$VOL" 2>&1 ); rc=$?
+if (( rc == 0 )); then no "restore proceeded after a no-op stop"
+elif printf '%s' "$out" | grep -q "still have $VOL mounted"; then ok "refuses when the stop no-ops and the real server keeps the volume"
+else no "refused, but not for the live volume: $(printf '%s' "$out" | tr '\n' ' ' | cut -c1-110)"; fi
+rm -rf "$TMPB"
+if [[ "$(lfp)" == "$BEFORE_B" ]]; then ok "  … and every row and object is unchanged"
+else no "  … but the durable state changed"; fi
+chk "the deployment is still serving throughout" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/healthz")" "200"
+
+step "7. the target of a destructive operation is never guessed"
 TMPD=$(mktemp -d); cp setup.sh docker-compose.yaml "$TMPD/"; mkdir -p "$TMPD/ops/lib"; cp ops/lib/*.sh "$TMPD/ops/lib/"
 sed 's/^PORT=.*/PORT=19998/' .env > "$TMPD/.env"
 for act in --backup "--restore $BK"; do

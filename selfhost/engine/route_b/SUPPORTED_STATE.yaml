@@ -664,7 +664,7 @@ backup_restore:
     single:
       subject: setup.sh --backup / --restore
       harness: selfhost/scripts/br1_certify_single.sh
-      result: 24 passed, 0 failed
+      result: 31 passed, 0 failed
     scale:
       subject: ops/backup.sh / ops/restore.sh
       harness: selfhost/scripts/br1_certify_scale.sh
@@ -701,6 +701,13 @@ backup_restore:
     - >-
       both: quiescing was `stop server || true`. From a foreign directory the
       server stayed up for 94 of 94 requests and the backup reported success.
+    - >-
+      single: the FIRST repair guarded --backup and left --restore fail-open --
+      it validated the archive, stopped the server, and wiped /data without
+      ever checking the stop worked. Falsified with a container holding the
+      volume: the unguarded restore proceeded and the durable state changed.
+      A refusal now also restarts the deployment, so the safety check cannot
+      cause the outage it exists to prevent.
   # The backup file is a credential store: api_keys.key holds the PLAINTEXT
   # key, so rotating the env API_KEY does NOT revoke what a leaked backup
   # carries. Measured: after rotation the old bootstrap key 403s but a

@@ -99,6 +99,19 @@ wait_healthy() {
   printf '\033[33m !\033[0m the server did not become healthy on 127.0.0.1:%s within 60s\n' "$port" >&2
 }
 
+# Assert quiescence, and put the deployment back if the assertion refuses.
+# Both callers stop the server before asserting, so a bare `die` here left the
+# deployment DOWN -- a safety check causing the outage it exists to prevent,
+# and (measured) enough to contaminate the next check that assumed a running
+# neighbour. assert_quiesced runs in a subshell so its specific reason still
+# reaches stderr before the server is brought back.
+require_quiesced() {
+  if ! ( assert_quiesced "$1" ); then
+    "${COMPOSE[@]}" start server >/dev/null 2>&1 || true
+    die "refusing to touch $1 while it is still writable — the deployment has been restarted, nothing was changed."
+  fi
+}
+
 # Prove the deployment cannot be written to. `stop server || true` discarded
 # both the output and the exit status, so a no-op stop was indistinguishable
 # from a real one and the tar ran against a live volume — measured, and it
@@ -134,7 +147,7 @@ case "$ACTION" in
     BID="$(openssl rand -hex 16)"
     say "Backing up volume $V (the server stops for the snapshot)…"
     "${COMPOSE[@]}" stop server >/dev/null 2>&1 || true
-    assert_quiesced "$V"
+    require_quiesced "$V"
 
     # The manifest travels INSIDE the archive; it is what lets a restore check
     # the archive before it destroys anything. See ops/lib/write_manifest.sh.
@@ -172,6 +185,12 @@ case "$ACTION" in
 
     say "Restoring $ABS into $V (DESTRUCTIVE, brief pause)…"
     "${COMPOSE[@]}" stop server >/dev/null 2>&1 || true
+    # The same proof --backup requires, for the same reason. Reading a live
+    # volume produces a torn archive; WIPING one loses whatever the writer was
+    # in the middle of, and `stop server || true` cannot tell a real stop from
+    # a no-op. Validating the archive first is not enough: the destination has
+    # to be provably quiet before `rm -rf /data/*` runs.
+    require_quiesced "$V"
     docker run --rm -v "$V":/data -v "$BD":/backup:ro busybox \
       sh -c "rm -rf /data/* /data/..?* 2>/dev/null; tar xzf '/backup/$BN' -C /data; rm -f /data/MANIFEST.json"
     "${COMPOSE[@]}" up -d >/dev/null 2>&1

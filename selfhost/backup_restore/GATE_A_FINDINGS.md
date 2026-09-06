@@ -169,6 +169,41 @@ GET  <that download_url>    ->  HTTP 404
 Every device on `stable` for that release asks for a patch the server has
 advertised and cannot deliver.
 
+## A-7 — DEFECT (found in review of the first repair): `--restore` asserted
+## nothing about the destination
+
+The first repair gave `--backup` a real quiescence proof and left `--restore`
+without one:
+
+```sh
+validate archive
+"${COMPOSE[@]}" stop server >/dev/null 2>&1 || true
+rm -rf /data/* … && tar xzf …
+```
+
+Validating the archive is not the same as proving the destination is quiet. If
+the stop fails or no-ops, or another container holds the volume, the wipe runs
+against a live writer. The first certification passed 24/24 without noticing,
+because it only ever exercised a stop that worked.
+
+Falsified against the unguarded script, with a throwaway container holding the
+volume and an otherwise valid archive:
+
+```
+restore proceeded while another container held the volume
+  … and the durable state changed
+```
+
+With `require_quiesced` in place the same run refuses, names the holder, and
+leaves every row and object unchanged. A second arm removes the `server`
+service from the compose file so `stop server` genuinely no-ops, with the
+volume named explicitly so target resolution is not what refuses.
+
+A related consequence, fixed at the same time: because both call sites stop the
+server *before* asserting, a bare refusal left the deployment **down** — a
+safety check causing the outage it exists to prevent. `require_quiesced`
+restarts the server before failing.
+
 ## A-6 — the archive is credential-bearing, by schema
 
 `api_keys.key` stores the **plaintext API key** (`repository.dart:742` inserts
