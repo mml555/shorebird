@@ -34,8 +34,8 @@ macOS/arm64:
 | [#40](https://github.com/mml555/shorebird/issues/40) | G3 class, type, generic, GC interoperability | **PASS, awaiting PM decision** — [`g3_types_gc/`](runtime_feasibility/g3_types_gc) |
 | [#41](https://github.com/mml555/shorebird/issues/41) | G4 optimizer adversity, required compiler fences | **COMPLETE, awaiting PM decision** — [`g4_optimizer/`](runtime_feasibility/g4_optimizer) |
 | [#42](https://github.com/mml555/shorebird/issues/42) | G5 replay on pinned current Dart | CLOSED / NOT TRIGGERED |
-| [#43](https://github.com/mml555/shorebird/issues/43) | G6A categorized negative controls | **COMPLETE** — [`g6a_negatives/`](runtime_feasibility/g6a_negatives) |
-| [#44](https://github.com/mml555/shorebird/issues/44) | G6B substrate/interface/module/execution cost | **COMPLETE** — [`g6b_cost/`](runtime_feasibility/g6b_cost) |
+| [#43](https://github.com/mml555/shorebird/issues/43) | G6A categorized negative controls | **CLOSED / ACCEPTED** — [`g6a_negatives/`](runtime_feasibility/g6a_negatives) |
+| [#44](https://github.com/mml555/shorebird/issues/44) | G6B substrate/interface/module/execution cost | **COMPLETE incl. allocation/GC addendum** — [`g6b_cost/`](runtime_feasibility/g6b_cost) |
 | [#45](https://github.com/mml555/shorebird/issues/45) | G6C one-command reproduction harness | |
 | [#46](https://github.com/mml555/shorebird/issues/46) | FINAL classified verdict and lane routing | |
 
@@ -46,6 +46,14 @@ not start them, and do not fill in #43's scaffolding, ahead of an explicit
 decision on the gate before them. The Dart durability repair is
 [#47](https://github.com/mml555/shorebird/issues/47) and is deliberately NOT
 part of this lane: nothing qualified is rebuilt for it.
+
+## Hard prerequisite for #46
+
+Module-side dynamic-interface validation must become **fail-closed** before this
+design is production-safe. Patch compilation has to invoke the CFE with the
+dynamic-interface specification so a violating module is refused before it
+reaches the runtime. See the obligation below and
+[`g6a_negatives/RESULT.md`](runtime_feasibility/g6a_negatives/RESULT.md).
 
 ## The second obligation G6A produced
 
