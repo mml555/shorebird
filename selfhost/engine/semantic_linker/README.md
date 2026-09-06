@@ -39,6 +39,16 @@ macOS/arm64:
 | [#45](https://github.com/mml555/shorebird/issues/45) | G6C one-command reproduction harness | |
 | [#46](https://github.com/mml555/shorebird/issues/46) | FINAL classified verdict and lane routing | |
 
+## Verdict
+
+**`PROCEED`** — published 2026-09-06, [`final/RESULT.md`](runtime_feasibility/final/RESULT.md).
+Next lane: **`SEMANTIC-MAP-1`**, which is *not* begun here.
+
+Carried forward as mandatory constraints: the patchability-contract invariant;
+module-side dynamic-interface validation must become fail-closed before this
+design is production-safe; and explain tooling must not classify module failures
+from the VM error string alone.
+
 ## Standing rule for this lane
 
 G4–G6 are expensive **because** they assume what the earlier gates establish. Do
