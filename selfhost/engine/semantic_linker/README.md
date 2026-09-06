@@ -32,8 +32,8 @@ macOS/arm64:
 | [#38](https://github.com/mml555/shorebird/issues/38) | G1 matched Dynamic Modules OFF/ON substrate | **ACCEPTED / CLOSED** — [`g1_substrate/`](runtime_feasibility/g1_substrate) |
 | [#39](https://github.com/mml555/shorebird/issues/39) | G2 AOT ↔ bytecode execution, shared heap identity | **PASS, awaiting PM decision** — [`g2_execution/`](runtime_feasibility/g2_execution) |
 | [#40](https://github.com/mml555/shorebird/issues/40) | G3 class, type, generic, GC interoperability | **PASS, awaiting PM decision** — [`g3_types_gc/`](runtime_feasibility/g3_types_gc) |
-| [#41](https://github.com/mml555/shorebird/issues/41) | G4 optimizer adversity, required compiler fences | NOT AUTHORISED — gated on the #40 decision |
-| [#42](https://github.com/mml555/shorebird/issues/42) | G5 replay on pinned current Dart | conditional |
+| [#41](https://github.com/mml555/shorebird/issues/41) | G4 optimizer adversity, required compiler fences | **COMPLETE, awaiting PM decision** — [`g4_optimizer/`](runtime_feasibility/g4_optimizer) |
+| [#42](https://github.com/mml555/shorebird/issues/42) | G5 replay on pinned current Dart | NOT TRIGGERED — G4 found a fenceable policy, not a lineage limitation |
 | [#43](https://github.com/mml555/shorebird/issues/43) | G6A categorized negative controls | |
 | [#44](https://github.com/mml555/shorebird/issues/44) | G6B substrate/interface/module/execution cost | |
 | [#45](https://github.com/mml555/shorebird/issues/45) | G6C one-command reproduction harness | |
@@ -46,6 +46,14 @@ not start them, and do not fill in #43's scaffolding, ahead of an explicit
 decision on the gate before them. The Dart durability repair is
 [#47](https://github.com/mml555/shorebird/issues/47) and is deliberately NOT
 part of this lane: nothing qualified is rebuilt for it.
+
+## The contract obligation G4 produced
+
+Release tooling must emit `can-be-overridden` for **every patchable member**.
+`extendable` on the class and `callable` on the member are *not* sufficient: the
+bypassed arms carried both and the precompiler still devirtualized, and at a
+field receiver with inlining permitted it inlined the body outright. See
+[`g4_optimizer/RESULT.md`](runtime_feasibility/g4_optimizer/RESULT.md).
 
 ## The one thing to carry forward from G0
 
