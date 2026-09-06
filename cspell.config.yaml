@@ -166,6 +166,8 @@ words:
   # certification harness and the ops docs: the quiesce family (the property
   # the backup now enforces), Postgres catalog column names, and the python
   # stdlib names the manifest tooling calls. Per-file identifiers stay inline.
+  # UPGRADE-ROLLBACK-1: the standard exit-code name the migration guard uses.
+  - DATAERR
   - quiesce
   - quiesced
   - quiesces

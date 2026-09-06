@@ -46,7 +46,17 @@ Future<void> main() async {
     });
   }
 
-  final repo = await Repository.open(config);
+  // A rollback that lands an old image on a database a newer one has already
+  // migrated. Surfaced as a FATAL with a distinct exit code rather than an
+  // unhandled exception, so the operator is told what to do instead of reading
+  // a stack trace out of a crash loop.
+  final Repository repo;
+  try {
+    repo = await Repository.open(config);
+  } on SchemaTooNewException catch (e) {
+    stderr.writeln('FATAL: $e');
+    exit(65); // EX_DATAERR
+  }
   final store = await ArtifactStore.open(config);
 
   // Persist the OAuth signing key so issued JWTs survive restarts and are

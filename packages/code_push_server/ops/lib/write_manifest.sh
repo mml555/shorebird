@@ -12,6 +12,12 @@
 # is a hazard rather than a backup. `-wal` IS included; it holds committed data.
 set -e
 BID=${BID:?}; STAMP=${STAMP:?}
+# The image the deployment was running. A backup and a server binary are only
+# a matched pair if the binary implements the schema the backup carries:
+# restoring a pre-upgrade backup with the NEW image still selected does not
+# roll anything back, it silently migrates the restored database straight
+# forward again and reports success. Measured 2026-09-06.
+IMAGE=${IMAGE:-unknown}; IMAGE_ID=${IMAGE_ID:-unknown}
 cd /data
 rm -f MANIFEST.json
 OUT=/tmp/m.json
@@ -23,6 +29,8 @@ OUT=/tmp/m.json
   echo "  \"profile\": \"single\","
   echo "  \"db_engine\": \"sqlite\","
   echo "  \"object_store\": \"files\","
+  echo "  \"server_image\": \"$IMAGE\","
+  echo "  \"server_image_id\": \"$IMAGE_ID\","
   echo "  \"objects\": $(find ./artifacts -type f 2>/dev/null | wc -l | tr -d ' '),"
   echo '  "files": {'
 } > "$OUT"

@@ -1,3 +1,4 @@
+// cspell:words queryability unactivated
 import 'dart:convert';
 import 'dart:math';
 
@@ -231,6 +232,34 @@ enum PolicyEpoch {
 
   /// Whether this epoch is finished collecting.
   final bool closed;
+}
+
+/// {@template schema_too_new}
+/// Thrown when the database has been migrated by a newer server than this
+/// binary implements. Rolling a release back does not roll its schema back, so
+/// this is the ordinary consequence of starting an old image against a
+/// database a newer one has already upgraded.
+///
+/// The supported recovery is the one PRODUCTION.md documents and
+/// UPGRADE-ROLLBACK-1 certifies: restore the pre-upgrade backup taken with the
+/// image you are rolling back to, then start that image.
+/// {@endtemplate}
+class SchemaTooNewException implements Exception {
+  /// {@macro schema_too_new}
+  const SchemaTooNewException({required this.applied, required this.known});
+
+  /// The highest migration version recorded in the database.
+  final int applied;
+
+  /// The highest migration version this binary implements.
+  final int known;
+
+  @override
+  String toString() =>
+      'database schema is at version $applied but this server implements only '
+      'up to $known. It has been migrated by a newer release. Start that '
+      'release, or restore the backup taken before the upgrade with the image '
+      'you are rolling back to.';
 }
 
 class Repository {
@@ -498,6 +527,24 @@ class Repository {
     final applied = (await _q(
       'SELECT version FROM schema_migrations',
     )).map((m) => _int(m['version'])).toSet();
+
+    // A database migrated by a NEWER server than this one. The migration loop
+    // below simply skips versions it does not know, so without this the old
+    // binary boots, answers /healthz AND /readyz with 200, serves every table
+    // the newer schema did not touch -- and 500s the device update path.
+    // Measured 2026-09-06 against a schema this binary did not implement:
+    // healthz 200, readyz 200, apps 200, releases 200, patches/check 500.
+    // An orchestrator sees a ready server; every device sees a broken one.
+    //
+    // Refusing to boot is the safer failure. A control plane that cannot serve
+    // patch checks must not be in rotation, and being down is visible in a way
+    // that a 500 on one route is not.
+    final maxKnown = _migrations.fold<int>(0, (a, m) => m.$1 > a ? m.$1 : a);
+    final maxApplied = applied.fold<int>(0, (a, v) => v > a ? v : a);
+    if (maxApplied > maxKnown) {
+      throw SchemaTooNewException(applied: maxApplied, known: maxKnown);
+    }
+
     for (final (version, statements) in _migrations) {
       if (applied.contains(version)) continue;
       await _db.tx((s) async {

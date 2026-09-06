@@ -126,6 +126,30 @@ print(f"    backup_id {pgm['backup_id']}  created_at {pgm['created_at']}  "
 PY
 echo "    Verified. Nothing has been changed yet."
 
+# --- refuse a backup taken by a different server image ---------------------
+# "Restore onto the image the backup came from, then upgrade" was documented
+# guidance that nothing enforced. Restoring a pre-upgrade dump with the
+# successor still selected re-runs its migrations on the restored data and
+# reports success -- indistinguishable from a rollback that worked.
+WANT_IMAGE="$(python3 -c "
+import json,sys
+try: print(json.load(open('${PG_MANIFEST}')).get('server_image','unknown'))
+except Exception: print('unknown')")"
+HAVE_IMAGE="$("${DC[@]}" config 2>/dev/null | awk '/^  server:/{f=1} f && /^    image:/{print $2; exit}')"
+if [[ -n "$WANT_IMAGE" && "$WANT_IMAGE" != unknown && "$WANT_IMAGE" != "$HAVE_IMAGE" ]]; then
+  if [[ "${ALLOW_IMAGE_CHANGE:-0}" == 1 ]]; then
+    echo "==> image differs from the backup's (${WANT_IMAGE} -> ${HAVE_IMAGE}); continuing because ALLOW_IMAGE_CHANGE=1."
+  else
+    die "this backup was taken by a different server image.
+     backup was taken under : ${WANT_IMAGE}
+     this compose will start: ${HAVE_IMAGE}
+   Restoring it here does not roll anything back — the selected image will
+   migrate the restored database forward again as soon as it boots.
+   Point ${COMPOSE_FILE} at ${WANT_IMAGE} and re-run, or set
+   ALLOW_IMAGE_CHANGE=1 if you meant to restore into a different version."
+  fi
+fi
+
 # --- refuse to restore under a live server ---------------------------------
 cid="$("${DC[@]}" ps -aq server 2>/dev/null | head -1)"
 if [[ -n "$cid" ]]; then
@@ -141,6 +165,20 @@ echo "!! DESTRUCTIVE restore. Ctrl-C within 5s to abort."
 sleep 5
 
 echo "==> Restoring Postgres from ${PG_DUMP}"
+# `pg_restore --clean` only drops the objects the DUMP mentions, so anything a
+# NEWER schema added is invisible to it and survives. Measured 2026-09-06
+# rolling a scale stack back from schema 12 to 7: the `crash_reports` table
+# that migration 8 had created was still there afterwards, because the schema-7
+# dump had never heard of it. The single profile has no such gap -- it replaces
+# the whole volume -- so a rollback was exact on one backend and not the other.
+#
+# Dropping and recreating the schema first makes the restore mean what it says.
+# It is safe here and nowhere else in this script: the dump's sha256 has
+# already been verified against its manifest, so there IS a good copy to
+# restore from before anything is dropped.
+"${DC[@]}" exec -T postgres psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -v ON_ERROR_STOP=1 -c \
+  "DROP SCHEMA public CASCADE; CREATE SCHEMA public; ALTER SCHEMA public OWNER TO \"${POSTGRES_USER}\";" \
+  || die "could not reset the target schema"
 "${DC[@]}" exec -T postgres \
   pg_restore --clean --if-exists --no-owner \
   -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" \

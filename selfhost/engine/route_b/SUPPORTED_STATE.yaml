@@ -650,7 +650,7 @@ physical_device_qualification:
 
 # BACKUP-RESTORE-1. Both persistence profiles, certified independently and by
 # a re-runnable script that was also run against the PRE-REPAIR code to confirm
-# it can fail (single 15/9, scale 14/15 -- every guard added is a check that
+# it can fail (single 20/12, scale 14/15 -- every guard added is a check that
 # fails without it).
 backup_restore:
   status: CERTIFIED
@@ -664,7 +664,7 @@ backup_restore:
     single:
       subject: setup.sh --backup / --restore
       harness: selfhost/scripts/br1_certify_single.sh
-      result: 31 passed, 0 failed
+      result: 32 passed, 0 failed
     scale:
       subject: ops/backup.sh / ops/restore.sh
       harness: selfhost/scripts/br1_certify_scale.sh
@@ -713,6 +713,63 @@ backup_restore:
   # carries. Measured: after rotation the old bootstrap key 403s but a
   # DB-stored collaborator key still authenticates.
   backup_is_a_secret: true
+
+# UPGRADE-ROLLBACK-1. Both database backends, certified independently by a
+# harness that was also run against the pre-guard binary to confirm it can fail
+# (29/3, and the three failures are in the dangerous direction: the old binary
+# answered 200 over a schema it could not serve).
+upgrade_rollback:
+  status: CERTIFIED
+  qualified: 2026-09-06 (UPGRADE-ROLLBACK-1)
+  evidence: selfhost/upgrade_rollback/CERTIFICATION.md
+  harness: selfhost/scripts/ur1_certify.sh
+  backends:
+    sqlite: 32 passed, 0 failed
+    postgres: 32 passed, 0 failed
+  # The upgrade actually exercised, rather than a version bump with no DDL.
+  measured_migration:
+    from: {image: "ghcr.io/mml555/code-push-server:1.2.0", schema: 7}
+    to: {image: built from this checkout, schema: 12}
+    migrations: 5 (new crash_reports table, columns on events and audit_log)
+  # IMAGE TAGS ARE NOT A STATEMENT ABOUT THE CODE INSIDE THEM. The git tag
+  # code_push_server-v1.3.0 carries a tree whose highest migration is 8; the
+  # published :1.3.0 image applies 12. Identity is by digest.
+  image_identity: digest, recorded in the backup manifest
+  causal_defects_repaired:
+    - >-
+      an old binary met a database a newer release had migrated and simply
+      carried on: healthz 200, readyz 200, reads 200, patches/check 500. An
+      orchestrator saw a ready server while every device saw a broken one.
+      Repaired with SchemaTooNewException -> FATAL and exit 65 (EX_DATAERR),
+      unit-tested in test/schema_guard_test.dart.
+    - >-
+      restoring the pre-upgrade backup with the successor image still selected
+      printed a green tick, came up healthy, and had already migrated the
+      restored database back to the schema being rolled back FROM. The manifest
+      now records server_image/server_image_id and restore refuses a mismatch
+      on both profiles.
+    - >-
+      pg_restore --clean drops only what the dump mentions, so a scale rollback
+      left the newer schema's crash_reports table behind. ops/restore.sh now
+      resets the schema first -- safe only because the dump's digest has
+      already been verified against its manifest.
+  # THE UPGRADE IS NOT ATOMIC EVEN THOUGH EACH MIGRATION IS. Measured on both
+  # engines: a failure at version 13 leaves 8..12 committed, no partial DDL,
+  # nothing serving -- and the database NOT at the version it started from.
+  failed_upgrade:
+    partial_ddl_survives: {sqlite: false, postgres: false}
+    serves_afterwards: {sqlite: false, postgres: false}
+    schema_left_at: "the last migration that committed, not the starting version"
+    supported_recovery: >-
+      stop the candidate, select the old image, restore the pre-upgrade
+      certified backup. NOT "put the old image back" (that only appears to work
+      while the intervening migrations happen to be additive) and NOT "retry".
+  fixtures: >-
+    every shipped migration is additive, so an old binary survives them by
+    accident and a rollback test would pass for the wrong reason. The break is
+    manufactured by scratch successors applied to a COPY of the package
+    (selfhost/upgrade_rollback/fixtures/), never by a migration in the
+    permanent history.
 
 historical_compatibility:
   # D-PRODUCER-DEMAND-2, producer truth over real commit history.

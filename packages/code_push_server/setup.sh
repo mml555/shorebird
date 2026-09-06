@@ -9,14 +9,15 @@
 #   ./setup.sh --backup                 # snapshot the data volume (single-container)
 #   ./setup.sh --restore <file.tgz>     # restore a snapshot (single-container)
 #   ./setup.sh --backup --volume NAME   # name the target volume explicitly
+#   ./setup.sh --restore F --allow-image-change   # restore into a different version
 #
 # It generates all secrets, starts the stack, waits until healthy, and prints
 # what to do next. Re-running is safe (keeps your .env).
-# cspell:words cands cpslib
+# cspell:words cands cpslib IMGID
 set -euo pipefail
 cd "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 
-MODE=single DOMAIN="" EMAIL="" ACTION=up RESTORE_FILE="" VOLUME=""
+MODE=single DOMAIN="" EMAIL="" ACTION=up RESTORE_FILE="" VOLUME="" ALLOW_IMAGE_CHANGE=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --domain)  DOMAIN="${2:?--domain needs a hostname}"; shift 2 ;;
@@ -26,7 +27,8 @@ while [[ $# -gt 0 ]]; do
     --backup)  ACTION=backup; shift ;;
     --restore) ACTION=restore; RESTORE_FILE="${2:?--restore needs a file}"; shift 2 ;;
     --volume)  VOLUME="${2:?--volume needs a docker volume name}"; shift 2 ;;
-    -h|--help) sed -n '2,14p' "$0"; exit 0 ;;
+    --allow-image-change) ALLOW_IMAGE_CHANGE=1; shift ;;
+    -h|--help) sed -n '2,15p' "$0"; exit 0 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
@@ -99,6 +101,14 @@ wait_healthy() {
   printf '\033[33m !\033[0m the server did not become healthy on 127.0.0.1:%s within 60s\n' "$port" >&2
 }
 
+# The image this compose will start. A backup and a server binary are a matched
+# pair only if the binary implements the schema the backup carries, so both
+# --backup and --restore need to know which image is selected.
+compose_image() {
+  docker compose config 2>/dev/null \
+    | awk '/^  server:/{f=1} f && /^    image:/{print $2; exit}'
+}
+
 # Assert quiescence, and put the deployment back if the assertion refuses.
 # Both callers stop the server before asserting, so a bare `die` here left the
 # deployment DOWN -- a safety check causing the outage it exists to prevent,
@@ -151,8 +161,11 @@ case "$ACTION" in
 
     # The manifest travels INSIDE the archive; it is what lets a restore check
     # the archive before it destroys anything. See ops/lib/write_manifest.sh.
+    IMG="$(compose_image)"
+    IMGID="$(docker image inspect "$IMG" -f '{{if .RepoDigests}}{{index .RepoDigests 0}}{{else}}{{.Id}}{{end}}' 2>/dev/null || echo unknown)"
     docker run --rm -v "$V":/data -v "$PWD/ops/lib":/opt/cpslib:ro \
-      -e BID="$BID" -e STAMP="$STAMP" busybox sh /opt/cpslib/write_manifest.sh
+      -e BID="$BID" -e STAMP="$STAMP" -e IMAGE="$IMG" -e IMAGE_ID="$IMGID" \
+      busybox sh /opt/cpslib/write_manifest.sh
     docker run --rm -v "$V":/data -v "$PWD/backups":/backup busybox \
       tar czf "/backup/$NAME" -C /data --exclude='code_push.db-shm' .
     # A sidecar copy, so a backup can be identified without unpacking it.
@@ -182,6 +195,34 @@ case "$ACTION" in
       mkdir -p /tmp/r && cd /tmp/r && tar xzf '/backup/$BN' && sh /opt/cpslib/verify_manifest.sh" \
       || die "archive failed verification — NOTHING was changed on $V.
    If this predates manifests, verify it by hand and extract it yourself."
+
+    # "Restore onto the image the backup came from, then upgrade" was
+    # documented guidance and nothing enforced it. Measured 2026-09-06:
+    # restoring a pre-upgrade backup with the successor image still selected
+    # printed `✓ Restored`, came up healthy, and had already migrated the
+    # restored database straight back to the schema the operator was rolling
+    # back FROM. A rollback that silently re-upgrades is worse than one that
+    # fails, because nothing distinguishes it from success.
+    WANT_IMG="$(tar xzOf "$ABS" ./MANIFEST.json 2>/dev/null \
+      | sed -n 's/.*"server_image": "\([^"]*\)".*/\1/p' | head -1)"
+    HAVE_IMG="$(compose_image)"
+    if [[ -z "$HAVE_IMG" ]]; then
+      die "cannot tell which image this compose would start — it declares no 'server' service.
+   Run --restore from the deployment's own directory."
+    fi
+    if [[ -n "$WANT_IMG" && "$WANT_IMG" != unknown && "$WANT_IMG" != "$HAVE_IMG" ]]; then
+      if [[ "$ALLOW_IMAGE_CHANGE" == 1 ]]; then
+        say "image differs from the backup's ($WANT_IMG -> $HAVE_IMG); continuing because --allow-image-change was given."
+      else
+        die "this backup was taken by a different server image.
+     backup was taken under : $WANT_IMG
+     this compose will start: $HAVE_IMG
+   Restoring it here does not roll anything back — the selected image will
+   migrate the restored database forward again as soon as it boots.
+   Point the compose file at $WANT_IMG and re-run, or pass
+   --allow-image-change if you meant to restore into a different version."
+      fi
+    fi
 
     say "Restoring $ABS into $V (DESTRUCTIVE, brief pause)…"
     "${COMPOSE[@]}" stop server >/dev/null 2>&1 || true

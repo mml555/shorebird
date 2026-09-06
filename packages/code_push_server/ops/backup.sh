@@ -57,6 +57,16 @@ S3_BUCKET="${S3_BUCKET:-code-push-artifacts}"
 BACKUP_DIR="${BACKUP_DIR:-${ROOT_DIR}/backups}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 BACKUP_ID="$(openssl rand -hex 16)"
+# The image this compose runs. A backup and a server binary are a matched pair
+# only if the binary implements the schema the backup carries: restoring a
+# pre-upgrade backup with the successor still selected does not roll anything
+# back, it migrates the restored database straight forward again and reports
+# success. Measured 2026-09-06 on the single profile; the scale pair had the
+# same hole.
+SERVER_IMAGE="$(docker compose -f "${COMPOSE_FILE}" config 2>/dev/null \
+  | awk '/^  server:/{f=1} f && /^    image:/{print $2; exit}')"
+SERVER_IMAGE_ID="$(docker image inspect "${SERVER_IMAGE:-none}" \
+  -f '{{if .RepoDigests}}{{index .RepoDigests 0}}{{else}}{{.Id}}{{end}}' 2>/dev/null || echo unknown)"
 PG_OUT="${BACKUP_DIR}/postgres_${STAMP}.dump"
 PG_MANIFEST="${PG_OUT}.manifest.json"
 MINIO_OUT="${BACKUP_DIR}/minio/${STAMP}"
@@ -109,6 +119,7 @@ echo "==> Postgres backup → ${PG_OUT}"
          (xpath('/row/c/text()', query_to_xml(format('select count(*) as c from %I', tablename), false, true, '')))[1]::text::bigint
   from pg_tables where schemaname='public' order by tablename" > "${BACKUP_DIR}/.counts.tsv"
 
+SERVER_IMAGE="${SERVER_IMAGE:-unknown}" SERVER_IMAGE_ID="${SERVER_IMAGE_ID:-unknown}" \
 python3 - "${PG_OUT}" "${PG_MANIFEST}" "${BACKUP_ID}" "${STAMP}" "${BACKUP_DIR}/.counts.tsv" <<'PYMANIFEST'
 import hashlib, json, os, sys
 dump, out, bid, stamp, counts_tsv = sys.argv[1:6]
@@ -130,6 +141,8 @@ json.dump({
     'profile': 'scale',
     'half': 'postgres',
     'db_engine': 'postgres',
+    'server_image': os.environ.get('SERVER_IMAGE', 'unknown'),
+    'server_image_id': os.environ.get('SERVER_IMAGE_ID', 'unknown'),
     'dump_file': os.path.basename(dump),
     'dump_sha256': h.hexdigest(),
     'row_counts': counts,
@@ -177,7 +190,7 @@ json.dump({
 print(f"    objects: {len(files)}")
 PY
 
-echo "==> Done.  backup_id ${BACKUP_ID}"
+echo "==> Done.  backup_id ${BACKUP_ID}  image ${SERVER_IMAGE:-unknown}"
 echo "    postgres : ${PG_OUT}"
 echo "    manifest : ${PG_MANIFEST}"
 echo "    minio    : ${MINIO_OUT}"

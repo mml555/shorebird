@@ -45,6 +45,25 @@ esac
 : > "$OUT"
 printf '# br1-inventory v1\nprofile=%s\n' "$PROFILE" >> "$OUT"
 
+# Column introspection, so one inventory can describe databases at different
+# schema versions. UPGRADE-ROLLBACK-1 needs to diff a schema-7 baseline against
+# a schema-12 database; projecting columns that do not exist yet would make the
+# older side simply fail, and projecting only what happens to exist would make
+# the two sides quietly incomparable.
+cols_of(){ # table -> comma-separated column names
+  if [[ "$PROFILE" == scale ]]; then
+    q "select string_agg(column_name,',' order by ordinal_position) from information_schema.columns where table_name='$1'"
+  else
+    q "select group_concat(name,',') from pragma_table_info('$1')"
+  fi
+}
+# PROJ_FROM pins the projection to the one a previous inventory recorded, so a
+# later database is described with EXACTLY the earlier one's columns and any
+# difference in the diff is a difference in the data. A column the pinned
+# projection needs but the database lacks is a hard error: a column vanishing
+# is a finding, not something to quietly drop.
+PROJ_FROM=${PROJ_FROM:-}
+
 # Volatile-by-design tables are counted but never diffed row-by-row: they are
 # caches (rate_limits) or short-lived auth handshakes whose contents may
 # legitimately differ across a backup boundary.
@@ -60,7 +79,7 @@ done
 # Row-level content. Each row becomes `row <table> <sha256>`, sorted, so a
 # diff names the table and how many rows differ without putting the payload
 # in the report.
-dump_rows(){ # table  select-expression
+dump_rows(){ # table  select-expression   (raw form, used by dump_cols)
   local t=$1 expr=$2 out err rc want got
   case "$VOLATILE" in *" $t "*) return 0;; esac
   out=$(q "select $expr from $t" 2>/tmp/br1q.$$); rc=$?
@@ -84,6 +103,37 @@ dump_rows(){ # table  select-expression
   fi
 }
 
+# dump_cols <table> <col>=<sql-expression> ...
+# Each piece names the single column it reads, so the tool can tell which
+# pieces this database actually supports and record the projection it used.
+dump_cols(){
+  local t=$1; shift
+  local have want_list=() expr="" names="" pinned=""
+  have=",$(cols_of "$t"),"
+  if [[ "$have" == ",," ]]; then
+    echo "absent $t" >> "$OUT"; return 0
+  fi
+  if [[ -n "$PROJ_FROM" ]]; then
+    pinned=$(sed -n "s/^proj $t //p" "$PROJ_FROM" | head -1)
+    [[ -z "$pinned" ]] && { echo "absent $t" >> "$OUT"; return 0; }
+  fi
+  local pair name ex
+  for pair in "$@"; do
+    name=${pair%%=*}; ex=${pair#*=}
+    if [[ -n "$pinned" ]]; then
+      case ",$pinned," in *",$name,"*) ;; *) continue;; esac
+      case "$have" in *",$name,"*) ;; *) fail "pinned projection needs $t.$name but the database has no such column"; return 1;; esac
+    else
+      case "$have" in *",$name,"*) ;; *) continue;; esac
+    fi
+    if [[ -z "$expr" ]]; then expr="$ex"; names="$name"
+    else expr="$expr||'|'||$ex"; names="$names,$name"; fi
+  done
+  [[ -z "$expr" ]] && { fail "no usable columns for $t"; return 1; }
+  echo "proj $t $names" >> "$OUT"
+  dump_rows "$t" "$expr"
+}
+
 # Explicit projections against the REAL columns (information_schema, not
 # memory). Timestamps a restore may legitimately rewrite are excluded; the
 # state that must survive is not.
@@ -93,21 +143,21 @@ dump_rows(){ # table  select-expression
 # api_keys.key holds the PLAINTEXT credential (repository.dart:742 inserts the
 # key itself, not a digest). It is emitted here only so the shell can hash the
 # whole row line -- the inventory file receives sha256(row) and never the key.
-dump_rows apps                    "app_id||'|'||coalesce(display_name,'')||'|'||coalesce(cast(org_id as text),'')"
-dump_rows users                   "cast(id as text)||'|'||email||'|'||coalesce(display_name,'')"
-dump_rows api_keys                "cast(user_id as text)||'|'||key"
-dump_rows app_collaborators       "app_id||'|'||cast(user_id as text)||'|'||role"
-dump_rows organizations           "cast(id as text)||'|'||name"
-dump_rows org_members             "cast(org_id as text)||'|'||cast(user_id as text)||'|'||role"
-dump_rows releases                "cast(id as text)||'|'||app_id||'|'||version||'|'||coalesce(flutter_revision,'')||'|'||coalesce(flutter_version,'')||'|'||coalesce(display_name,'')||'|'||lifecycle||'|'||coalesce(notes,'')"
-dump_rows release_platform_status "cast(release_id as text)||'|'||platform||'|'||status"
-dump_rows patches                 "cast(id as text)||'|'||app_id||'|'||cast(release_id as text)||'|'||cast(number as text)||'|'||status||'|'||coalesce(notes,'')"
-dump_rows channels                "cast(id as text)||'|'||app_id||'|'||name"
-dump_rows channel_patches         "cast(channel_id as text)||'|'||cast(patch_id as text)||'|'||status||'|'||coalesce(cast(rollout as text),'')||'|'||cast(rolled_back as text)"
-dump_rows artifacts               "cast(id as text)||'|'||owner_kind||'|'||cast(owner_id as text)||'|'||arch||'|'||platform||'|'||hash||'|'||cast(size as text)||'|'||storage_key||'|'||status||'|'||cast(can_sideload as text)"
-dump_rows audit_log               "cast(id as text)||'|'||actor||'|'||action||'|'||coalesce(target,'')||'|'||coalesce(result,'')||'|'||coalesce(cast(http_status as text),'')"
-dump_rows settings                "key||'|'||value"
-dump_rows invitations             "token||'|'||email||'|'||coalesce(role,'')"
+dump_cols apps                    app_id="app_id" display_name="coalesce(display_name,'')" org_id="coalesce(cast(org_id as text),'')"
+dump_cols users                   id="cast(id as text)" email="email" display_name="coalesce(display_name,'')"
+dump_cols api_keys                user_id="cast(user_id as text)" key="key"
+dump_cols app_collaborators       app_id="app_id" user_id="cast(user_id as text)" role="role"
+dump_cols organizations           id="cast(id as text)" name="name"
+dump_cols org_members             org_id="cast(org_id as text)" user_id="cast(user_id as text)" role="role"
+dump_cols releases                id="cast(id as text)" app_id="app_id" version="version" flutter_revision="coalesce(flutter_revision,'')" flutter_version="coalesce(flutter_version,'')" display_name="coalesce(display_name,'')" lifecycle="lifecycle" notes="coalesce(notes,'')"
+dump_cols release_platform_status release_id="cast(release_id as text)" platform="platform" status="status"
+dump_cols patches                 id="cast(id as text)" app_id="app_id" release_id="cast(release_id as text)" number="cast(number as text)" status="status" notes="coalesce(notes,'')"
+dump_cols channels                id="cast(id as text)" app_id="app_id" name="name"
+dump_cols channel_patches         channel_id="cast(channel_id as text)" patch_id="cast(patch_id as text)" status="status" rollout="coalesce(cast(rollout as text),'')" rolled_back="cast(rolled_back as text)"
+dump_cols artifacts               id="cast(id as text)" owner_kind="owner_kind" owner_id="cast(owner_id as text)" arch="arch" platform="platform" hash="hash" size="cast(size as text)" storage_key="storage_key" status="status" can_sideload="cast(can_sideload as text)"
+dump_cols audit_log               id="cast(id as text)" actor="actor" action="action" target="coalesce(target,'')" result="coalesce(result,'')" http_status="coalesce(cast(http_status as text),'')"
+dump_cols settings                key="key" value="value"
+dump_cols invitations             token="token" email="email" role="coalesce(role,'')"
 
 # --- objects: the half a DB-only backup silently loses
 case "${STORE:-}" in

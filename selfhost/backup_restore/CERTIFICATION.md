@@ -6,7 +6,7 @@ to confirm it can fail.
 
 | profile | subject | verdict |
 |---|---|---|
-| **single** (default: SQLite + files in one volume) | `setup.sh --backup` / `--restore` | **CERTIFIED** — `br1_certify_single.sh`, 31 passed, 0 failed |
+| **single** (default: SQLite + files in one volume) | `setup.sh --backup` / `--restore` | **CERTIFIED** — `br1_certify_single.sh`, 32 passed, 0 failed |
 | **scale** (Postgres + MinIO) | `ops/backup.sh` / `ops/restore.sh` | **CERTIFIED** — `br1_certify_scale.sh`, 30 passed, 0 failed |
 
 Scope of the claim: **control-plane data backup and restore.** Not complete
@@ -19,7 +19,7 @@ The same scripts, unchanged, against the code as it was before this lane:
 
 | profile | pre-repair | post-repair |
 |---|---|---|
-| single | 20 passed, **12 failed** | 31 passed, 0 failed |
+| single | 20 passed, **12 failed** | 32 passed, 0 failed |
 | scale  | 14 passed, **15 failed** | 30 passed, 0 failed |
 
 Every guard added is a check that fails without it. A certification that passed
@@ -85,6 +85,13 @@ Measured before any change, and the reason each guard exists:
 
 Full evidence: [GATE_A_FINDINGS.md](GATE_A_FINDINGS.md) (single),
 [GATE_B_FINDINGS.md](GATE_B_FINDINGS.md) (scale).
+
+## Re-certified after UPGRADE-ROLLBACK-1
+
+That lane changed `setup.sh` and `ops/restore.sh` (image identity, and a schema
+reset before `pg_restore`), so both certifications were re-earned rather than
+assumed: single **32/32**, scale **30/30**. The single count rose by one because
+its arm-B control gained an explicit precondition check.
 
 ## Corrections made during the lane
 

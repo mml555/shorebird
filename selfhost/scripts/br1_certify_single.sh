@@ -186,13 +186,16 @@ docker rm -f br1c-holder >/dev/null 2>&1
 if [[ "$(lfp)" == "$BEFORE_R" ]]; then ok "  … and every row and object is unchanged"
 else no "  … but the durable state changed"; fi
 
-# Arm B: the stop itself no-ops. Run from a deployment dir whose compose has no
-# `server` service, with the volume named explicitly so target resolution is
-# not what refuses -- otherwise this would re-measure step 6's guard.
-TMPB=$(mktemp -d); cp setup.sh "$TMPB/"; mkdir -p "$TMPB/ops/lib"; cp ops/lib/*.sh "$TMPB/ops/lib/"
+# Arm B: the stop itself no-ops. A second checkout of the same deployment --
+# an intact compose, but a project with no containers -- so `stop server`
+# succeeds while stopping nothing at all. The volume is named explicitly so
+# target resolution is not what refuses, and the compose is left intact so the
+# image check is not what refuses either; only the quiescence guard can fire.
+TMPB=$(mktemp -d); cp setup.sh docker-compose.yaml "$TMPB/"; mkdir -p "$TMPB/ops/lib"; cp ops/lib/*.sh "$TMPB/ops/lib/"
 sed 's/^PORT=.*/PORT=19997/' .env > "$TMPB/.env"
-awk '/^  server:/{skip=1;next} /^  [a-z_]+:/{skip=0} /^[a-z]/{skip=0} !skip' docker-compose.yaml > "$TMPB/docker-compose.yaml"
-grep -q '^  server:' "$TMPB/docker-compose.yaml" && no "the arm-B compose still declares a server service — the no-op stop is not isolated"
+if [[ -z "$(docker compose -f "$TMPB/docker-compose.yaml" --env-file "$TMPB/.env" ps -aq server 2>/dev/null)" ]]; then
+  ok "  (arm B precondition: that project has no containers, so its stop is a genuine no-op)"
+else no "  (arm B precondition failed: the throwaway project already has a container)"; fi
 # Precondition, asserted rather than assumed: arm A left the deployment down
 # once, and this arm then measured a quiet volume and refused for an unrelated
 # reason while reporting as though it had tested the guard.

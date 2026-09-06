@@ -182,19 +182,60 @@ it into a fresh stack requires you to supply, separately:
 
 ---
 
-## 6. Upgrades
+## 6. Upgrades and rollback
 
 ```bash
+# 1. Back up FIRST (section 5). This backup is the rollback boundary, and it
+#    records the image that produced it.
+./ops/backup.sh
+
+# 2. Upgrade.
 git pull                                  # get the new server source/image
 docker compose -f docker-compose.prod.yaml build server
 docker compose -f docker-compose.prod.yaml up -d server
 ```
 
-- Take a backup (section 5) **before** upgrading.
-- Base-image updates: `docker compose -f docker-compose.prod.yaml pull`
-  (postgres/minio/caddy) then `up -d`.
-- Roll back by checking out the previous revision and rebuilding; restore the
-  pre-upgrade backup if a schema migration is not backward compatible.
+Migrations run at boot, each in its own transaction.
+
+### Rolling back
+
+```bash
+docker compose -f docker-compose.prod.yaml stop server
+#   point the compose file back at the previous image, then:
+./ops/restore.sh backups/postgres_<STAMP>.dump backups/minio/<STAMP>
+docker compose -f docker-compose.prod.yaml up -d server
+```
+
+**A rollback moves the binary back. It does not move the schema back.** The two
+things that follow from that are enforced, not left to care:
+
+- Starting an old server against a database a newer one has migrated is
+  refused: it exits 65 with `FATAL: database schema is at version N but this
+  server implements only up to M`. Without that check it boots, answers
+  `/healthz` **and** `/readyz` with 200, and 500s the device update path —
+  measured, and the reason the check exists.
+- Restoring a backup under a different image than the one that produced it is
+  refused. Restoring a pre-upgrade backup with the new image still selected
+  does not roll anything back; it migrates the restored database forward again
+  and reports success. Pass `ALLOW_IMAGE_CHANGE=1` when you mean it.
+
+### If an upgrade fails part-way
+
+Migrations commit one at a time, so a failure at version N leaves versions
+before N **already applied**. The failing migration itself rolls back cleanly on
+both SQLite and Postgres — no partial DDL survives, and the server refuses to
+serve rather than coming up half-migrated — but the database is no longer at the
+version you started from.
+
+So the recovery is not "put the old image back", and it is not "retry":
+
+```
+stop the candidate  ->  select the old image  ->  restore the pre-upgrade backup
+```
+
+Putting the old image back appears to work whenever the migrations in between
+happened to be additive, which is exactly the case that hides the problem until
+one of them is not. Certified in `selfhost/upgrade_rollback/`.
 
 ---
 
