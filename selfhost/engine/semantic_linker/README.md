@@ -33,9 +33,9 @@ macOS/arm64:
 | [#39](https://github.com/mml555/shorebird/issues/39) | G2 AOT ↔ bytecode execution, shared heap identity | **PASS, awaiting PM decision** — [`g2_execution/`](runtime_feasibility/g2_execution) |
 | [#40](https://github.com/mml555/shorebird/issues/40) | G3 class, type, generic, GC interoperability | **PASS, awaiting PM decision** — [`g3_types_gc/`](runtime_feasibility/g3_types_gc) |
 | [#41](https://github.com/mml555/shorebird/issues/41) | G4 optimizer adversity, required compiler fences | **COMPLETE, awaiting PM decision** — [`g4_optimizer/`](runtime_feasibility/g4_optimizer) |
-| [#42](https://github.com/mml555/shorebird/issues/42) | G5 replay on pinned current Dart | NOT TRIGGERED — G4 found a fenceable policy, not a lineage limitation |
-| [#43](https://github.com/mml555/shorebird/issues/43) | G6A categorized negative controls | |
-| [#44](https://github.com/mml555/shorebird/issues/44) | G6B substrate/interface/module/execution cost | |
+| [#42](https://github.com/mml555/shorebird/issues/42) | G5 replay on pinned current Dart | CLOSED / NOT TRIGGERED |
+| [#43](https://github.com/mml555/shorebird/issues/43) | G6A categorized negative controls | **COMPLETE** — [`g6a_negatives/`](runtime_feasibility/g6a_negatives) |
+| [#44](https://github.com/mml555/shorebird/issues/44) | G6B substrate/interface/module/execution cost | **COMPLETE** — [`g6b_cost/`](runtime_feasibility/g6b_cost) |
 | [#45](https://github.com/mml555/shorebird/issues/45) | G6C one-command reproduction harness | |
 | [#46](https://github.com/mml555/shorebird/issues/46) | FINAL classified verdict and lane routing | |
 
@@ -46,6 +46,15 @@ not start them, and do not fill in #43's scaffolding, ahead of an explicit
 decision on the gate before them. The Dart durability repair is
 [#47](https://github.com/mml555/shorebird/issues/47) and is deliberately NOT
 part of this lane: nothing qualified is rebuilt for it.
+
+## The second obligation G6A produced
+
+Dynamic-interface **policy is not enforced anywhere in this toolchain path**.
+The validator exists (`KernelTarget.validateDynamicModule`) but runs only when
+the CFE is handed `dynamicInterfaceSpecificationUri` while compiling the
+*module*, and neither `dart2bytecode` nor `gen_kernel` does that. Until module
+compilation routes through such an invocation, a contract violation loads
+silently — and for `can-be-overridden` it produces silently wrong behaviour.
 
 ## The contract obligation G4 produced
 
