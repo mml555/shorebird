@@ -1,10 +1,18 @@
-# State of the system — practical, 2026-08-18; lifecycle lane folded in 2026-08-23
+<!-- cspell:words jank unshallowed -->
+# State of the system — practical, 2026-08-18; lifecycle lane folded in 2026-08-23; operational durability folded in 2026-09-06
 
 What we have actually achieved, how it compares to upstream Shorebird, and which
 parts would mean anything to them. Uses `PARITY.md`'s status vocabulary.
 
-> **What changed since the 2026-08-18 body below was written.** The lifecycle lane
-> closed. §5's *"Next steps"* item 1 — *"finish tombstone/retry scoring, one
+> **What changed since the 2026-08-18 body below was written.** Two things: the
+> lifecycle lane closed, and — later — the operational lanes did.
+>
+> §1 has a new **Operational durability** subsection: off-machine reproduction,
+> unattended CI, backup/restore, upgrade/rollback and release identity, all
+> certified on both persistence profiles and both database backends. It is a
+> different axis from parity and moves no row in §2.
+>
+> §5's *"Next steps"* item 1 — *"finish tombstone/retry scoring, one
 > precommitted manual action outstanding"* — is **DONE**, so the next actionable item
 > is item 2, the unreachable-target refusal. Read this addition, then the body; the
 > body is otherwise unchanged and was not re-verified in this pass.
@@ -113,6 +121,42 @@ repair on the target that had failed for the entire investigation
   files and ~3,350 commits, `updater_rev` unchanged so the wire contract is safe;
 * repo reduced from 16,930 tracked files to 1,206;
 * publish durability content-read on both halves.
+
+### Operational durability — CERTIFIED 2026-09-05/06, both profiles and both backends
+
+Added after this document's original date. It is a different axis from parity:
+it says nothing about what Route B can patch, and everything about whether an
+operator can run this without losing data.
+
+    off-machine reproduction   CERTIFIED   SELFHOST-DISTRIBUTION-1 / CLEANROOM-2
+    unattended CI              CERTIFIED   CI-NONINTERACTIVE-1 (fd 0 closed, token never printed)
+    backup / restore           CERTIFIED   BACKUP-RESTORE-1   single 32/32  scale 30/30
+    upgrade / rollback         CERTIFIED   UPGRADE-ROLLBACK-1 sqlite 40/40  postgres 40/40
+    release identity           CERTIFIED   SERVER-IMAGE-PROVENANCE-1  36/36
+                                           (22/14 against the publisher it replaces)
+
+Each is a re-runnable harness under [`scripts/`](scripts), and each was also run
+against the pre-repair code — a certification that passes both ways measures
+nothing. Accounts: [`backup_restore/`](backup_restore),
+[`upgrade_rollback/`](upgrade_rollback),
+[`release_provenance/`](release_provenance).
+
+**What was actually wrong is the useful part.** Every one of these reported
+success at the time: a scale backup that captured objects no row accounted for;
+a restore that accepted one run's database with another run's objects and served
+404s for artifacts it called ready; a `--restore` in the wrong directory that
+wiped a different live deployment; an old server binary answering `/healthz` and
+`/readyz` with 200 over a schema whose device path it could only 500; and a
+published `:1.3.0` that names a build which is not the 1.3.0 release.
+
+**The claim is bounded, and the boundary is written down.** This is
+control-plane data backup and restore, not machine disaster recovery —
+[`backup_restore/SECRETS_BOUNDARY.md`](backup_restore/SECRETS_BOUNDARY.md)
+classifies every piece of configuration as must-restore-unchanged, safe to
+rotate, external prerequisite, or reconstructible. It also records that
+`api_keys.key` stores the **plaintext** key, so a backup is a credential store
+and rotating the deployment's own `API_KEY` does not revoke what a leaked one
+carries.
 
 ---
 
@@ -228,7 +272,11 @@ Turning this into a refusal converts the project's most embarrassing failure mod
 ## 5. NEXT STEPS, in execution order
 
 > **SUPERSEDED AS A SEQUENCE 2026-08-25 by [`ROADMAP.md`](ROADMAP.md)**, which is
-> now the authority on order. The list below is kept because its *reasoning* is
+> now the authority on order. A second supersession, 2026-09-06: the operational
+> lanes ran ahead of this list entirely, and closed. They were worth doing
+> before item 2 for a reason this list could not have known — the product was
+> shippable and not operable, and none of them touch what Route B can patch. See
+> [`NEXT_LANES.md`](NEXT_LANES.md) for what they did and did not close. The list below is kept because its *reasoning* is
 > still what the roadmap rests on, and because item 2's argument — the
 > unreachable-target refusal — is the roadmap's P4 almost verbatim. Two changes
 > worth knowing before reading it: item 1 is done, and a new item ranks ahead of

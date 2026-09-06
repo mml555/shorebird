@@ -1,4 +1,45 @@
+<!-- cspell:words operationalization unioned attributability -->
 # What is open after P6 closure
+
+> ### STATE UPDATE — 2026-09-06
+>
+>     Android code push            SUPPORTED and physically qualified (cell f85251f3)
+>     Off-machine reproduction     CERTIFIED  (SELFHOST-DISTRIBUTION-1 / CLEANROOM-2)
+>     Unattended CI                CERTIFIED  (CI-NONINTERACTIVE-1)
+>     Backup / restore             CERTIFIED  (BACKUP-RESTORE-1) both profiles
+>     Upgrade / rollback           CERTIFIED  (UPGRADE-ROLLBACK-1) both backends
+>     Release identity + retention CERTIFIED  (SERVER-IMAGE-PROVENANCE-1)
+>     DEFERRED                     Add-to-App; formatting-only engine rebuild
+>
+> The operational block above is what changed since 2026-08-28. It is
+> **operational durability**, not parity: it says an operator can deploy this
+> off a fresh machine, drive it from CI, back it up, upgrade it, and get back to
+> exactly where they were — with the image they rolled back to still
+> retrievable. It says nothing new about what Route B can patch.
+>
+> Start at [`engine/route_b/SUPPORTED_STATE.yaml`](engine/route_b/SUPPORTED_STATE.yaml);
+> it is the record, and `verify_supported_state.sh` is what makes it falsifiable.
+> Lane accounts: [`backup_restore/`](backup_restore),
+> [`upgrade_rollback/`](upgrade_rollback),
+> [`release_provenance/`](release_provenance).
+>
+> **What the operational lanes did NOT close, and is the honest next boundary:**
+>
+>   - **Nothing reproduces the cell.** It is distribution-only: the compiler
+>     archive is not reproducible from source, so durability means *these exact
+>     bytes, addressed by digest*. If the release asset and its mirror are both
+>     lost, the cell is lost.
+>   - **The release guard is forward-looking.** `:1.3.0` in the live registry
+>     still names a build that is not the 1.3.0 release, deliberately, as
+>     evidence. Older published images predate the retention reference and have
+>     no `:source-<commit>` alias keeping them alive.
+>   - **No maintained runner exists.** CI-NONINTERACTIVE-1 proves the workflow
+>     runs unattended; standing up and maintaining a deployment of it is an
+>     operationalization task nobody has done.
+>   - **Route B still cannot patch real applications** for the reasons
+>     [`PARITY.md`](PARITY.md) and [`ROADMAP.md`](ROADMAP.md) already rank
+>     ahead of everything here: private-library scope and the replacement ABI.
+>     None of the operational work moves that.
 
 > ### STATE UPDATE — 2026-08-28
 >
@@ -6,6 +47,7 @@
 >     First-activation disappearance CLOSED -- NOT REPRODUCED (evidence 78c9324a)
 >                                    historical events remain unexplained
 >     NEXT ACTIVE                    CI / noninteractive -- Linux builder
+>                                    (CLOSED 2026-09-05, see the 2026-09-06 block)
 >     DEFERRED                       Add-to-App; formatting-only engine rebuild
 >
 > Sections 1 and 2 below were written before either outcome and are kept for the

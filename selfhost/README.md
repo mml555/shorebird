@@ -86,6 +86,18 @@ existed and were reachable only from `PARITY.md` and each other)*
 - [`../packages/code_push_server/PRODUCTION.md`](../packages/code_push_server/PRODUCTION.md) — scale-profile operational runbook (Postgres + S3 + Caddy)
 - [`GO_LIVE.md`](GO_LIVE.md) — deployment-shape decisions & the app-cutover sequence
 - [`IDP_SETUP.md`](IDP_SETUP.md) — real Google / Microsoft login for `shorebird login`
+- [`backup_restore/`](backup_restore) — **backup and restore, certified on both
+  persistence profiles.** What the guarantee is (control-plane data, not machine
+  disaster recovery), what is *not* in a backup, and why a backup is a credential
+  store. [`SECRETS_BOUNDARY.md`](backup_restore/SECRETS_BOUNDARY.md) is the file to
+  read before trusting one
+- [`upgrade_rollback/`](upgrade_rollback) — **upgrade and rollback, certified on
+  both database backends.** Why "put the old image back" is not recovery from a
+  failed upgrade, and why an old server refuses a schema a newer one migrated
+- [`release_provenance/`](release_provenance) — **release identity and
+  retention.** Why `:1.3.0` does not name the 1.3.0 release, what enforces that
+  it cannot happen again, and the `:source-<commit>` reference that keeps a
+  backup's recorded image pullable after the aliases move
 
 **Platform coverage**
 - [`PARITY.md`](PARITY.md) — **the goal document.** What full Android/iOS parity with upstream means, where we're holding against it, and the queue. Open this to decide what to work on next — then open [`plans/`](plans) for the executable work order for the piece you picked

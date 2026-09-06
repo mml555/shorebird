@@ -120,7 +120,20 @@ from you — the code is built and, where possible, stub-verified:
 - [ ] Domain + DNS + TLS live; `PUBLIC_BASE_URL` / `SHOREBIRD_JWT_ISSUER` match
       the HTTPS URL (`PRODUCTION.md` §4).
 - [ ] All secrets real (`PRODUCTION.md` §8 security checklist complete).
-- [ ] Backups configured **and a restore tested** (`PRODUCTION.md` §5).
+- [ ] Backups configured **and a restore tested** (`PRODUCTION.md` §5). Store
+      them encrypted: a backup contains plaintext API keys
+      ([`backup_restore/SECRETS_BOUNDARY.md`](backup_restore/SECRETS_BOUNDARY.md)).
+- [ ] `.env` backed up **separately** and encrypted. It is deliberately not in
+      the data backup, and without `URL_SIGNING_SECRET` every already-issued
+      download URL breaks.
+- [ ] The server image you are running is retained by digest, and you know its
+      digest. A rollback restores onto *that build* — restore refuses a
+      different one, so an image you cannot pull is a backup you cannot use
+      (`PRODUCTION.md` §6, [`release_provenance/`](release_provenance)).
+- [ ] Upgrade path understood: migrations run at boot, and a failure part-way
+      leaves the earlier ones applied. Recovery is old image + pre-upgrade
+      backup, not "put the old image back"
+      ([`upgrade_rollback/`](upgrade_rollback)).
 - [ ] Uptime alert on `/readyz`; logs aggregated (§2).
 - [ ] Device loop proven on your prod server (§3 step 4) before store submission.
 - [ ] `base_url` baked into the store build points at the **permanent** domain.

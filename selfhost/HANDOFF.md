@@ -6,6 +6,133 @@
 
 # Handoff — engine improvements (as of 2026-08-07)
 
+## 2026-09-06 — BACKUP-RESTORE-1 + UPGRADE-ROLLBACK-1 + SERVER-IMAGE-PROVENANCE-1: operational durability, and four guarantees that reported success
+
+The control plane could be built, shipped and driven unattended. It could not be
+*operated*: three lanes asked whether an operator can lose data, upgrade, roll
+back, and still have the bytes they rolled back to. Four guarantees failed those
+questions — backup, restore, rollback and release identity — and every one of
+them reported success at the time.
+
+    BACKUP-RESTORE-1          single 32/32   scale 30/30    CERTIFIED
+    UPGRADE-ROLLBACK-1        sqlite 40/40   postgres 40/40 CERTIFIED
+    SERVER-IMAGE-PROVENANCE-1 36/36 (22/14 against the publisher it replaces)
+
+Records: [`backup_restore/`](backup_restore), [`upgrade_rollback/`](upgrade_rollback),
+[`release_provenance/`](release_provenance). Harnesses:
+`scripts/br1_certify_{single,scale}.sh`, `scripts/ur1_certify.sh`,
+`scripts/spp1_certify.sh` — each also run against the pre-repair code, because a
+certification that passes both ways measures nothing.
+
+**Backup: a scale backup is two snapshots, and they were never one.** `pg_dump`
+then `mc mirror`, no quiescing: every backup taken while serving held at least
+one object no row accounted for (4/4 runs). Restore compared the halves not at
+all — one run's dump with another's objects exited 0 and produced an artifact
+the restored plane reported `verified` and answered **404** for, with
+`patches/check` handing devices a URL that did not resolve. On the single
+profile a `--restore` run in a directory with **no deployment** wiped a
+different, live one; a truncated archive destroyed the copy the operator still
+had, because the wipe preceded any validation; and a well-formed archive with no
+database restored green onto a healthy server holding **zero** apps, releases
+and audit records. Both profiles now stop the server and *prove* it, stamp a
+manifest with per-file digests and a shared backup id, and verify everything
+before touching the target.
+
+**The consistency predicate is not "the halves disagree."** A row is INSERTed
+before its bytes, so a `pending` row with no object is a *faithful* capture of an
+upload in flight. Scoring it as damage produced a false finding before it was
+caught. Only three states are impossible live, and only those count:
+object-with-no-row, object-with-a-`pending`-row, `verified`-with-no-object.
+`scripts/br1_tear_check.sh`.
+
+**Upgrade: the migration is atomic; the upgrade is not.** Measured on both
+engines — a failure at version 13 leaves no partial DDL and nothing serving, but
+8 through 12 have already committed, so the database is **not** where it
+started. "Put the old image back" only appears to work while the intervening
+migrations happen to be additive, which is exactly the case that hides the
+problem until one is not. The supported recovery is *stop the candidate → old
+image → pre-upgrade backup*, and it is now certified rather than documented.
+
+**An old binary met a newer schema and simply carried on**: `/healthz` 200,
+`/readyz` 200, reads 200, `patches/check` **500**. An orchestrator saw a ready
+server while every device saw a broken one. `SchemaTooNewException` now exits 65
+before serving, naming both versions and the remedy.
+
+**Provenance: `:1.3.0` does not name the 1.3.0 release.** Resolved from GHCR:
+`:code_push_server-v1.3.0` is `a6e8bde7…` (schema 8, `cf74eeda`), while
+`:1.3.0` = `:selfhost-v1.1.1` = `:latest` is `320338b8…` (schema 12,
+`bdb234ab`). Three tags in this repository carry a pubspec saying `1.3.0`; the
+publisher fired on `selfhost-v*` too, read `version:` from whichever ref it
+built, and re-tagged unconditionally. **That tag is left exactly where it
+points** — it is the evidence, and moving it again would be the same mistake a
+third time. The actual release is at `:code_push_server-v1.3.0`.
+
+**Identity correctness is not retention.** Refusing the wrong build only helps
+while the right one is still obtainable, so every publish also gets
+`:source-<full commit>`, which nothing in normal publishing moves. The tie is
+exact: a backup's `server_image_id` **is** the release record's
+`manifest_digest`, so restore and release name the same object rather than
+agreeing in spirit.
+
+**Traps worth carrying forward.**
+
+`set -e` + `pipefail` will delete a check without saying so. A helper whose
+command legitimately fails when a thing is absent (`docker image inspect` on an
+image you do not have) must not let that failure escape an assignment: the
+script exits silently, and a restore that neither refuses nor proceeds is worse
+than either. This shape was fixed once and reintroduced twice in the same file.
+
+A clean SQLite close deletes `-wal`/`-shm` and folds the WAL into the main file,
+so any check that stops the server legitimately changes both the file count and
+`code_push.db`'s bytes. Fingerprint the *logical* state, not the file.
+
+`pg_restore --clean` drops only what the dump mentions, so anything a newer
+schema added survives a rollback. The single profile has no such gap because it
+replaces the whole volume — the same operation was exact on one backend and not
+the other.
+
+And the harness lies in both directions. A truncated-archive control that cut a
+fixed 300 KB stopped truncating when the archive got smaller and reported the
+*good* archive as accepted; a reproducibility table read four clean zeros from a
+writer that was dead; five "correct" refusals were a bash `unbound variable`
+from a multi-byte ellipsis after `$V`. Assert the reason, not just the exit code.
+
+## 2026-09-05 — SELFHOST-DISTRIBUTION-1 + SELFHOST-CLEANROOM-2 + CI-NONINTERACTIVE-1: the stack reproduces off this machine, unattended
+
+Records: [`evidence/distribution-1/RESULT.md`](evidence/distribution-1/RESULT.md),
+[`evidence/cleanroom-2/RESULT.md`](evidence/cleanroom-2/RESULT.md),
+[`evidence/ci-noninteractive-1/RESULT.md`](evidence/ci-noninteractive-1/RESULT.md);
+the negative result that started it is
+[`evidence/cleanroom-1/RESULT.md`](evidence/cleanroom-1/RESULT.md).
+
+CLEANROOM-1 asked whether someone could reproduce the supported stack from
+durable repositories and published artifacts alone, under a Seatbelt profile
+with this machine's caches denied. They could not, and each failure was a
+productization defect rather than a missing copy: `audit_route_b_compiler.sh`
+had `/Users/mendell/shorebird/selfhost/cdn/overlay` hard-coded; the bare static
+origin 404'd on `flutter/fonts/<hash>/fonts.zip`; the fork's Flutter remote
+carried 3 version tags against upstream's 1102, so `git describe` produced
+`0.0.0-unknown` and pub refused `flutter_test`.
+
+DISTRIBUTION-1 fixed them and made the cell durable: a GitHub release
+`cell-f85251f3` whose bundle is `63f3104d…`, an overlay-first origin that falls
+through to upstream and logs which served, 1098 tags pushed to the Flutter fork,
+and a one-command bootstrap. **The cell is distribution-only**, not
+byte-reproducible: the compiler archive is not reproducible from source, so what
+is durable is the exact bytes, addressed by digest — never "rebuild it and get
+the same thing". CLEANROOM-2 then re-ran the hostile acceptance and passed.
+
+CI-NONINTERACTIVE-1 proved bootstrap → authenticate → release → patch → publish
+→ promote with **fd 0 closed**, no TTY, and the token appearing zero times in
+captured output. Two things worth keeping: **`< /dev/null` is not a closed
+stdin** — Dart classifies by `st_mode` and `/dev/null` is a character device, so
+`stdin.hasTerminal` is TRUE and the CLI believes it can prompt; only `0<&-` is
+genuinely closed. And **`CI=true` must not mean yes to everything**: the fix was
+to make `--confirm` with nothing able to answer *refuse* (exit 64, naming the
+prompt) rather than approve itself silently. `patches promote` is deprecated in
+favour of `set-track`, whose mandatory arguments make it deterministic by
+construction.
+
 ## 2026-09-04 — ANDROID-CELL-SUPPLY-2 + ANDROID-FINAL-STACK-2: Android is supported, and the supported cell moved
 
     lineage.cell_address   cd848320d605ff8af5060cabf9a8d1b35853f752

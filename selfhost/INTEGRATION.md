@@ -138,12 +138,36 @@ Read by `lib/src/config.dart`. Everything has a default; set only what you need.
 
 ## Backups
 
+Both paths are certified end to end — see
+[`backup_restore/`](backup_restore) for what the guarantee covers and, more
+usefully, what it does not.
+
 - **Single container:** the `/data` volume is everything. `./setup.sh --backup`
-  writes a timestamped tarball (brief pause for a consistent snapshot);
-  `./setup.sh --restore <file>` restores it. Or just snapshot the volume with
-  your own tooling.
-- **Scale:** back up your Postgres and object store as you already do (or see
-  `packages/code_push_server/ops/backup.sh`). They must be restored as a pair.
+  stops the server for the snapshot (and **refuses** rather than snapshotting a
+  volume something can still write to), then writes a timestamped tarball with a
+  manifest of every file's sha256. `./setup.sh --restore <file>` verifies the
+  archive against that manifest *before* overwriting anything.
+- **Scale:** `packages/code_push_server/ops/backup.sh`. The Postgres dump and the
+  object snapshot are **one backup**: both halves carry a shared `backup_id`, and
+  `ops/restore.sh` refuses a pair whose halves came from different runs. It is not
+  a matched pair because the filenames agree — nothing reads a filename.
+
+Three things worth knowing before you rely on either:
+
+- **A backup is a credential store.** `api_keys.key` holds the plaintext key.
+  Store backups encrypted, and if one leaks, revoke those rows — rotating the
+  deployment's own `API_KEY` does not.
+- **`.env` is not in the backup**, deliberately. Back it up separately and
+  encrypted; without `URL_SIGNING_SECRET` every previously issued download URL
+  breaks.
+- **Restore onto the image the backup came from.** This is enforced, not advice:
+  the manifest records that image's digest and restore refuses a different build,
+  including the same tag republished over different code. Keep the image
+  reachable — releases are also published as `:source-<commit>` for exactly that
+  reason.
+
+Snapshotting the volume with your own tooling still works, but you lose the
+manifest, so a restore cannot check the archive before destroying what is there.
 
 ## Connecting your app
 
