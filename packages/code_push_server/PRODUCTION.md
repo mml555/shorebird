@@ -218,6 +218,11 @@ things that follow from that are enforced, not left to care:
   refused. Restoring a pre-upgrade backup with the new image still selected
   does not roll anything back; it migrates the restored database forward again
   and reports success. Pass `ALLOW_IMAGE_CHANGE=1` when you mean it.
+- The check is on the image **digest**, not its name. A tag is mutable, and
+  this project has published one that misdescribes its code, so a reference
+  republished over a different build is refused even though the name matches.
+  If the recorded image is not present locally, restore refuses rather than
+  falling back to comparing names — pull or build it first.
 
 ### If an upgrade fails part-way
 

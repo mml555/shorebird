@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words objkey failmig setimg psql projfrom mcsh AFTERFAIL ENVF NEWSCHEMA OLDSCHEMA SCRSCHEMA reupgrade
+# cspell:words objkey failmig setimg psql projfrom mcsh AFTERFAIL ENVF NEWSCHEMA OLDSCHEMA SCRSCHEMA reupgrade SAMETAG sametag
 # UPGRADE-ROLLBACK-1 — certification pass, one backend per run.
 #
 #   old populated deployment
@@ -69,9 +69,22 @@ scale)
       STORE=minio PROFILE=scale COMPOSE="$DCF" OUT="$1" bash "$SCRIPTS/br1_inventory.sh" >/dev/null 2>&1; }
   do_backup(){ COMPOSE_FILE="$DCF" ENV_FILE="$ENVF" BACKUP_DIR="$DIR/bk" bash ops/backup.sh 2>&1; }
   latest_backup(){ ls -t "$DIR"/bk/postgres_*.dump | head -1; }
-  do_restore(){ local extra=${2:-}
+  # Pair the halves by their shared backup_id, not by "the newest directory".
+  # Taking the latest mirror silently crossed a step-1 dump with a step-8b
+  # mirror -- which ops/restore.sh correctly refused, and the harness then
+  # reported as a rollback failure three steps later.
+  mirror_for(){ local want d
+    want=$(python3 -c "import json;print(json.load(open('$1.manifest.json'))['backup_id'])" 2>/dev/null) || return 1
+    for d in "$DIR"/bk/minio/*; do
+      [[ -f "$d/MANIFEST.json" ]] || continue
+      [[ "$(python3 -c "import json;print(json.load(open('$d/MANIFEST.json'))['backup_id'])" 2>/dev/null)" == "$want" ]] && { echo "$d"; return 0; }
+    done
+    return 1
+  }
+  do_restore(){ local extra=${2:-} mir
     [[ "$extra" == "--allow-image-change" ]] && export ALLOW_IMAGE_CHANGE=1 || export ALLOW_IMAGE_CHANGE=0
-    COMPOSE_FILE="$DCF" ENV_FILE="$ENVF" bash ops/restore.sh "$1" "$(ls -d "$DIR"/bk/minio/* | tail -1)" 2>&1; }
+    mir=$(mirror_for "$1") || { echo "no object half shares this dump's backup_id"; return 1; }
+    COMPOSE_FILE="$DCF" ENV_FILE="$ENVF" bash ops/restore.sh "$1" "$mir" 2>&1; }
   ;;
 *) echo "unknown PROFILE" >&2; exit 2;;
 esac
@@ -191,10 +204,53 @@ chk "the re-upgrade serves" "$(health)" "200"
 chk "and reaches the successor schema again" "$(schema)" "$NEWSCHEMA"
 mutate post-reupgrade && ok "and still accepts new work" || no "mutation after the second upgrade failed"
 
+step "8b. a tag is not an identity"
+# The reference matching is not the check that matters. A tag is mutable, and
+# this project has already published one image whose tag misdescribes its code
+# (git tag code_push_server-v1.3.0 carries schema 8; the :1.3.0 image applies
+# 12). So the decisive control is not another differently-NAMED image -- it is
+# the SAME name over two different builds.
+SAMETAG=ur1-sametag:under-test
+docker tag "$NEW_IMAGE" "$SAMETAG" >/dev/null 2>&1
+DIGEST_A=$(docker image inspect "$SAMETAG" -f '{{.Id}}')
+stop_server; set_image "$SAMETAG"; boot; wait_up
+if [[ "$(health)" == 200 ]]; then ok "a deployment running $SAMETAG (build A)"; else no "the same-tag deployment did not come up"; fi
+out=$(do_backup); BK_A=$(latest_backup)
+[[ -n "$BK_A" ]] && ok "backup taken under build A" || no "backup under build A failed"
+STATE_BEFORE=$(schema); stop_server
+# Repoint the SAME reference at a different build. Nothing about the name
+# changes; only the bytes behind it do.
+docker tag "$SCRATCH_IMAGE" "$SAMETAG" >/dev/null 2>&1
+DIGEST_B=$(docker image inspect "$SAMETAG" -f '{{.Id}}')
+if [[ "$DIGEST_A" != "$DIGEST_B" ]]; then ok "the reference now resolves to a different build"
+else no "both tags resolve to the same image — this control cannot fail"; fi
+stop_server
+out=$(do_restore "$BK_A"); rc=$?
+if (( rc == 0 )); then no "restoring under the same tag but a DIFFERENT build was accepted"
+elif printf '%s' "$out" | grep -q "different build"; then
+  ok "restoring under a republished tag is refused"
+  printf '%s' "$out" | grep -q "${DIGEST_A#sha256:}" && ok "  and the refusal names the recorded build" || no "  but it does not name the recorded build"
+  printf '%s' "$out" | grep -q "${DIGEST_B#sha256:}" && ok "  and the one actually selected" || no "  but it does not name the selected build"
+else no "refused, but not on the build: $(printf '%s' "$out" | tr '\n' ' ' | cut -c1-110)"; fi
+# Read the state WITHOUT booting: the reference still points at the other
+# build, and starting it would migrate the database -- which the first version
+# of this check did, then blamed the refusal for the change it had caused.
+chk "nothing was mutated by the refusal" "$(schema_down)" "$STATE_BEFORE"
+# The control that proves this did not simply break restore.
+docker tag "$NEW_IMAGE" "$SAMETAG" >/dev/null 2>&1
+out=$(do_restore "$BK_A"); rc=$?
+chk "and with the recorded build selected again it succeeds" "$rc" "0"
+boot; wait_up
+stop_server; set_image "$NEW_IMAGE"; boot; wait_up
+docker rmi "$SAMETAG" >/dev/null 2>&1
+
 step "9. a migration that starts and then fails"
 # Reset to the pre-upgrade schema so the failure happens with earlier
 # migrations still pending -- the realistic failed upgrade.
-stop_server; set_image "$OLD_IMAGE"; do_restore "$BK" >/dev/null 2>&1; boot; wait_up
+stop_server; set_image "$OLD_IMAGE"
+rst=$(do_restore "$BK"); rc=$?
+(( rc == 0 )) || no "the reset restore failed: $(printf '%s' "$rst" | tr '\n' ' ' | cut -c1-120)"
+boot; wait_up
 chk "reset to the pre-upgrade schema" "$(schema)" "$OLDSCHEMA"
 stop_server; set_image "$FAIL_IMAGE"; boot; sleep 12
 chk "a failed migration leaves nothing serving" "$(health)" "000"
@@ -209,7 +265,10 @@ if [[ "$AFTERFAIL" -gt "$OLDSCHEMA" ]]; then
 else no "expected the earlier migrations to have committed; got $AFTERFAIL"; fi
 
 step "10. recovering from the failed upgrade"
-set_image "$OLD_IMAGE"; do_restore "$BK" >/dev/null 2>&1; boot; wait_up
+set_image "$OLD_IMAGE"
+rst=$(do_restore "$BK"); rc=$?
+(( rc == 0 )) || no "the recovery restore failed: $(printf '%s' "$rst" | tr '\n' ' ' | cut -c1-120)"
+boot; wait_up
 chk "old image + pre-upgrade backup restores service" "$(health)" "200"
 chk "at the pre-upgrade schema" "$(schema)" "$OLDSCHEMA"
 inventory "$DIR/ur1_recovered.txt"

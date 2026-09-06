@@ -88,6 +88,44 @@ covers the deliberate case of restoring into a different version. A backup taken
 before this change carries no image and is not refused, so older archives still
 restore.
 
+## U-2b — DEFECT (fixed): the digest was recorded and not enforced
+
+The first repair recorded `server_image` **and** `server_image_id`, and the
+supported-state record said `image_identity: digest`. Both restore paths
+compared only the reference string. The record claimed something the code did
+not do.
+
+That gap is not hypothetical here, because U-0 is the counterexample: this
+project has already published an image whose tag misdescribes its code. A tag
+is mutable, so:
+
+```
+backup taken under  :1.3.0 @ digest A
+:1.3.0 later republished over digest B
+restore sees "1.3.0 == 1.3.0"  ->  ACCEPTED
+```
+
+Measured against `8e64536b` with one reference over two builds:
+
+```
+✓ Restored          exit 0
+schema before 12  ->  schema after 13
+```
+
+The operator asked to roll back and got a database migrated to a schema the
+backup had never seen.
+
+**Fixed**: both profiles now resolve the selected image to the set of
+identities it answers to (its repo digests and its own id) and require the
+manifest's `server_image_id` to be one of them. An image that cannot be
+resolved to any identity is refused rather than falling back to the tag —
+falling back is what made the guarantee hollow in the first place. A manifest
+with no recorded identity keeps the documented tag-only behaviour so older
+archives still restore.
+
+Falsified: against `8e64536b` the same control reports `restoring under the
+same tag but a DIFFERENT build was accepted` on both backends.
+
 ## U-3 — DEFECT (fixed): the scale rollback left the newer schema behind
 
 `pg_restore --clean` drops only the objects the dump mentions. Anything a newer

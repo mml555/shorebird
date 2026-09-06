@@ -50,7 +50,7 @@ Store backups encrypted, wherever you store passwords.
 |---|---|
 | `URL_SIGNING_SECRET` | every already-issued download URL stops working. Measured: a URL issued under the old secret returned 200, returned **403** after rotation, and a re-issued URL returned 200. Devices recover on their next `patches/check`; anything holding a URL does not. |
 | `PUBLIC_BASE_URL` / `SHOREBIRD_JWT_ISSUER` | baked into the download URLs the server hands devices and into JWT issuance. Changing it points devices somewhere else. |
-| the image the backup was taken under | **enforced, not advice.** The manifest records `server_image` and `server_image_id`, and restore refuses a mismatch: restoring a pre-upgrade backup with the successor still selected does not roll anything back, it migrates the restored database straight forward again. Pass `--allow-image-change` (single) / `ALLOW_IMAGE_CHANGE=1` (scale) for the deliberate case. Certified by UPGRADE-ROLLBACK-1. |
+| the image the backup was taken under | **enforced, not advice.** The manifest records `server_image` and `server_image_id`, and restore enforces the **digest**, not the tag — one reference republished over a different build is refused. A mismatch means: restoring a pre-upgrade backup with the successor still selected does not roll anything back, it migrates the restored database straight forward again. Pass `--allow-image-change` (single) / `ALLOW_IMAGE_CHANGE=1` (scale) for the deliberate case. Certified by UPGRADE-ROLLBACK-1. |
 
 ### May be rotated safely
 

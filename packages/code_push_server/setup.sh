@@ -109,6 +109,15 @@ compose_image() {
     | awk '/^  server:/{f=1} f && /^    image:/{print $2; exit}'
 }
 
+# Every identity a local image answers to: its repo digests and its own id.
+# A backup records ONE of these; any of them identifies the same bytes, so the
+# comparison is set membership rather than string equality against whichever
+# one happened to be first at backup time.
+image_identities() {
+  docker image inspect "$1" -f '{{range .RepoDigests}}{{println .}}{{end}}{{.Id}}' 2>/dev/null \
+    | sed '/^$/d'
+}
+
 # Assert quiescence, and put the deployment back if the assertion refuses.
 # Both callers stop the server before asserting, so a bare `die` here left the
 # deployment DOWN -- a safety check causing the outage it exists to prevent,
@@ -221,6 +230,33 @@ case "$ACTION" in
    migrate the restored database forward again as soon as it boots.
    Point the compose file at $WANT_IMG and re-run, or pass
    --allow-image-change if you meant to restore into a different version."
+      fi
+    fi
+
+    # A matching REFERENCE is not a matching image. A tag is mutable: the same
+    # `:1.3.0` can be republished over a different build, and this project has
+    # already shipped one such image (the git tag code_push_server-v1.3.0
+    # carries schema 8; the published :1.3.0 applies 12). Measured 2026-09-06:
+    # with the tag repointed at a different build, restoring a backup taken
+    # under the first one was ACCEPTED and migrated the restored database to a
+    # schema the backup had never seen. So the recorded identity is enforced,
+    # not merely recorded.
+    WANT_ID="$(tar xzOf "$ABS" ./MANIFEST.json 2>/dev/null \
+      | sed -n 's/.*"server_image_id": "\([^"]*\)".*/\1/p' | head -1)"
+    if [[ -n "$WANT_ID" && "$WANT_ID" != unknown && "$ALLOW_IMAGE_CHANGE" != 1 ]]; then
+      HAVE_IDS="$(image_identities "$HAVE_IMG")"
+      if [[ -z "$HAVE_IDS" ]]; then
+        die "cannot resolve $HAVE_IMG to an image identity, and this backup records one.
+     backup was taken under: $WANT_ID
+   Pull or build that image so the identity can be checked, or pass
+   --allow-image-change if you accept restoring under an unverified image."
+      fi
+      if ! printf '%s\n' "$HAVE_IDS" | grep -qxF "$WANT_ID"; then
+        die "the selected image has the right NAME but is a different build.
+     backup was taken under : $WANT_ID
+     $HAVE_IMG resolves to  : $(printf '%s' "$HAVE_IDS" | tr '\n' ' ')
+   A tag is mutable; the same reference can be republished over different
+   code. Select the recorded build, or pass --allow-image-change."
       fi
     fi
 

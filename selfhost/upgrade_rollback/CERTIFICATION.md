@@ -2,8 +2,8 @@
 
 | backend | harness | verdict |
 |---|---|---|
-| **SQLite** (single profile) | `ur1_certify.sh` PROFILE=single | **CERTIFIED** — 32 passed, 0 failed |
-| **Postgres** (scale profile) | `ur1_certify.sh` PROFILE=scale | **CERTIFIED** — 32 passed, 0 failed |
+| **SQLite** (single profile) | `ur1_certify.sh` PROFILE=single | **CERTIFIED** — 40 passed, 0 failed |
+| **Postgres** (scale profile) | `ur1_certify.sh` PROFILE=scale | **CERTIFIED** — 40 passed, 0 failed |
 
 Both backends are certified independently. The repository surface is shared but
 the engines are not, and this lane's two decisive questions — what a failed
@@ -20,6 +20,7 @@ old populated deployment (1.2.0, schema 7)
   -> a deliberately incompatible successor (schema 13)
   -> the previous binary REFUSES that schema (exit 65, FATAL, nothing served)
   -> wrong-image restore REFUSED; right-image restore succeeds
+  -> the SAME reference over two different builds is REFUSED on the digest
   -> state IDENTICAL to the pre-upgrade baseline
   -> mutate, then upgrade again
   -> a migration that starts and fails: nothing serves, no partial DDL,
@@ -41,6 +42,19 @@ FAIL  no FATAL naming schema 13 vs 12
 
 A `200` there is the whole defect: an old binary answering health checks over a
 schema it cannot serve.
+
+The digest control discriminates separately, against the commit that first
+recorded the digest without enforcing it (`8e64536b`):
+
+```
+FAIL  restoring under the same tag but a DIFFERENT build was accepted
+single 36 passed, 2 failed      scale 37 passed, 1 failed
+```
+
+That control deliberately does **not** use a differently-named image. It builds
+one reference over two builds, because a reference comparison passes that case
+and a digest comparison does not — and U-0 shows this project has already
+shipped a tag that misdescribes its code.
 
 ## Reproducing
 
@@ -80,7 +94,23 @@ mismatch on both profiles, and the deliberate case has an explicit flag.
    appended a second copy and every "is it down" check failed while the server
    was correctly down. The same mistake as in BACKUP-RESTORE-1's probe, made
    again in a new script.
-4. **A correct refusal was reported as the wrong refusal.** Arm B of the
+4. **The record described a guarantee the code did not implement.**
+   `image_identity: digest` was written into the supported-state record while
+   both restore paths compared only the reference string. Caught in review, not
+   by the suite: the harness varied `OLD_IMAGE` against `NEW_IMAGE`, which two
+   different *names* satisfy, so nothing ever exercised the mutable-tag case
+   the guarantee existed for.
+5. **A refusal was blamed for a change the harness itself caused.** After the
+   digest refusal the harness booted the deployment to read its schema — with
+   the reference still pointing at the other build, so booting migrated the
+   database and the check reported the refusal as having mutated state. It now
+   reads the state without starting anything.
+6. **The scale harness crossed a pair and blamed the rollback.** It paired a
+   step-1 dump with "the newest mirror directory", which by then belonged to a
+   later step. `ops/restore.sh` correctly refused the crossed pair; the harness
+   swallowed that output and reported a rollback failure three steps later. It
+   now pairs the halves by their shared `backup_id`.
+7. **A correct refusal was reported as the wrong refusal.** Arm B of the
    BACKUP-RESTORE-1 harness began tripping this lane's new image check before
    reaching the quiescence guard it exists to test. Fixed by giving that arm an
    intact compose in a container-less project, so only the guard under test can

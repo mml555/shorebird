@@ -724,8 +724,8 @@ upgrade_rollback:
   evidence: selfhost/upgrade_rollback/CERTIFICATION.md
   harness: selfhost/scripts/ur1_certify.sh
   backends:
-    sqlite: 32 passed, 0 failed
-    postgres: 32 passed, 0 failed
+    sqlite: 40 passed, 0 failed
+    postgres: 40 passed, 0 failed
   # The upgrade actually exercised, rather than a version bump with no DDL.
   measured_migration:
     from: {image: "ghcr.io/mml555/code-push-server:1.2.0", schema: 7}
@@ -733,8 +733,25 @@ upgrade_rollback:
     migrations: 5 (new crash_reports table, columns on events and audit_log)
   # IMAGE TAGS ARE NOT A STATEMENT ABOUT THE CODE INSIDE THEM. The git tag
   # code_push_server-v1.3.0 carries a tree whose highest migration is 8; the
-  # published :1.3.0 image applies 12. Identity is by digest.
-  image_identity: digest, recorded in the backup manifest
+  # published :1.3.0 image applies 12.
+  #
+  # This field claimed "digest" for one commit while both restore paths
+  # compared only the reference string -- a guarantee written down and not
+  # implemented. It now means what it says: restore resolves the selected image
+  # to the identities it answers to and requires the manifest's
+  # server_image_id to be one of them, refusing rather than falling back to the
+  # tag when the image cannot be resolved at all.
+  image_identity:
+    recorded: server_image (reference) and server_image_id (digest)
+    enforced: >-
+      digest, on both profiles, before any destructive mutation. Falsified by a
+      control that publishes ONE reference over TWO builds -- the case a
+      reference comparison passes and this project has already shipped once.
+      Against the commit that recorded the digest without enforcing it, that
+      control reports "restoring under the same tag but a DIFFERENT build was
+      accepted" and the restore migrates the database to a schema the backup
+      never held.
+    pre_identity_manifests: tag-only comparison, so older archives still restore
   causal_defects_repaired:
     - >-
       an old binary met a database a newer release had migrated and simply
@@ -748,6 +765,11 @@ upgrade_rollback:
       restored database back to the schema being rolled back FROM. The manifest
       now records server_image/server_image_id and restore refuses a mismatch
       on both profiles.
+    - >-
+      the recorded image DIGEST was not enforced: both restore paths compared
+      the reference string, so one tag republished over a different build was
+      accepted. Measured on the single profile: exit 0, green tick, and the
+      restored database migrated from schema 12 to 13.
     - >-
       pg_restore --clean drops only what the dump mentions, so a scale rollback
       left the newer schema's crash_reports table behind. ops/restore.sh now

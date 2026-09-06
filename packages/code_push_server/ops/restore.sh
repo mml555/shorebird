@@ -150,6 +150,36 @@ if [[ -n "$WANT_IMAGE" && "$WANT_IMAGE" != unknown && "$WANT_IMAGE" != "$HAVE_IM
   fi
 fi
 
+# A matching REFERENCE is not a matching image. A tag is mutable: the same
+# `:1.3.0` can be republished over a different build, and this project has
+# already shipped one such image (the git tag code_push_server-v1.3.0 carries
+# schema 8; the published :1.3.0 applies 12). Measured 2026-09-06 on the single
+# profile: with the tag repointed at a different build, restoring a backup
+# taken under the first one was ACCEPTED and migrated the restored database to
+# a schema the backup had never seen. So the recorded identity is enforced.
+WANT_IMAGE_ID="$(python3 -c "
+import json
+try: print(json.load(open('${PG_MANIFEST}')).get('server_image_id','unknown'))
+except Exception: print('unknown')")"
+if [[ -n "$WANT_IMAGE_ID" && "$WANT_IMAGE_ID" != unknown && "${ALLOW_IMAGE_CHANGE:-0}" != 1 ]]; then
+  # Every identity the local image answers to: its repo digests and its own id.
+  HAVE_IDS="$(docker image inspect "$HAVE_IMAGE" \
+    -f '{{range .RepoDigests}}{{println .}}{{end}}{{.Id}}' 2>/dev/null | sed '/^$/d')"
+  if [[ -z "$HAVE_IDS" ]]; then
+    die "cannot resolve ${HAVE_IMAGE} to an image identity, and this backup records one.
+     backup was taken under: ${WANT_IMAGE_ID}
+   Pull or build that image so the identity can be checked, or set
+   ALLOW_IMAGE_CHANGE=1 if you accept restoring under an unverified image."
+  fi
+  if ! printf '%s\n' "$HAVE_IDS" | grep -qxF "$WANT_IMAGE_ID"; then
+    die "the selected image has the right NAME but is a different build.
+     backup was taken under : ${WANT_IMAGE_ID}
+     ${HAVE_IMAGE} resolves to : $(printf '%s' "$HAVE_IDS" | tr '\n' ' ')
+   A tag is mutable; the same reference can be republished over different
+   code. Select the recorded build, or set ALLOW_IMAGE_CHANGE=1."
+  fi
+fi
+
 # --- refuse to restore under a live server ---------------------------------
 cid="$("${DC[@]}" ps -aq server 2>/dev/null | head -1)"
 if [[ -n "$cid" ]]; then
