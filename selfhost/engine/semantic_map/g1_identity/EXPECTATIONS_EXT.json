@@ -15,7 +15,8 @@
       "subject": "package:corpus/app.dart::topLevel",
       "dimension": "the subject itself is renamed",
       "declaration_id_stable": false,
-      "note": "MUST move: a renamed declaration is a different declaration"
+      "note": "MUST move: a renamed declaration is a different declaration",
+      "expected_new_subject": "package:corpus/app.dart::topLevelRenamed"
     },
     {
       "id": "ext_kind_change",
@@ -29,14 +30,16 @@
       "subject": "package:corpus/app.dart::topLevel",
       "dimension": "the subject is re-owned (top level -> static member of Shape)",
       "declaration_id_stable": false,
-      "note": "MUST move: owner path is part of the identity"
+      "note": "MUST move: owner path is part of the identity",
+      "expected_new_subject": "package:corpus/app.dart::Shape.topLevel"
     },
     {
       "id": "ext_moved_library",
       "subject": "package:corpus/app.dart::topLevel",
       "dimension": "the subject moves to a different library",
       "declaration_id_stable": false,
-      "note": "MUST move. Worth stating plainly: this means renaming a package re-identifies every declaration in it, which is a real design consequence for SM1-G6 to weigh, not a defect of the identity."
+      "note": "MUST move. Worth stating plainly: this means renaming a package re-identifies every declaration in it, which is a real design consequence for SM1-G6 to weigh, not a defect of the identity.",
+      "expected_new_subject": "package:corpus/helper.dart::topLevel"
     },
     {
       "id": "ext_two_extensions",
@@ -52,7 +55,8 @@
       "dimension": "the extension OWNER is renamed",
       "declaration_id_stable": false,
       "note": "MUST move: the owner path is part of the identity, and the extension is the owner.",
-      "baseline": "ext_extension_member"
+      "baseline": "ext_extension_member",
+      "expected_new_subject": "package:corpus/app.dart::ShapeXRenamed.doubled"
     },
     {
       "id": "ext_generic_owner_bound",
@@ -76,5 +80,16 @@
       "note": "The unrelated subject must not move. What the walker NAMES among the generated members, and how it flags them, is checked by the synthetic arm."
     }
   ],
-  "baseline_note": "Each case compares against `base` unless it names a `baseline`. ext_extension_owner_renamed must compare against ext_extension_member, because base declares no extension at all and the subject does not exist there."
+  "baseline_note": "Each case compares against `base` unless it names a `baseline`. ext_extension_owner_renamed must compare against ext_extension_member, because base declares no extension at all and the subject does not exist there.",
+  "destination_note": "A must-move case declares expected_new_subject. Disappearance from the old key is NOT sufficient evidence that identity moved -- a walker that simply dropped the declaration would satisfy it. The scorer requires: old key absent, the expected new key present EXACTLY ONCE, and the new declaration_id different from the old one.",
+  "scope_expectations": {
+    "nested_functions_named": 0,
+    "why": "The accepted scope is that local/nested functions are NOT independently addressable. named != 0 must FAIL until that scope is deliberately changed, not merely reported as a FINDING.",
+    "required_synthetic_row": {
+      "selector": "Mixed.",
+      "kind": "constructor",
+      "synthetic": true,
+      "why": "The implicit constructor the CFE generates must be present AND flagged. An arm that fails only when NO generated members are found can green with flagged_synthetic == 0, which would let the flag rot unnoticed."
+    }
+  }
 }

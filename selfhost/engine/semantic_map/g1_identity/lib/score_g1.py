@@ -25,6 +25,22 @@ def ids(label):
     return load(p)
 
 
+def find_all(doc, subject_key):
+    """Every declaration matching library + owner + name.
+
+    Separate from find() because a destination must be proven to exist EXACTLY
+    ONCE. find() picks one when several match, which is right for locating a
+    subject and wrong for counting.
+    """
+    lib, _, rest = subject_key.partition('::')
+    if '.' in rest:
+        owner, name = rest.split('.', 1)
+    else:
+        owner, name = None, rest
+    return [r for r in doc['declarations']
+            if r['library'] == lib and r['owner'] == owner and r['name'] == name]
+
+
 def find(doc, subject_key):
     """Locate a declaration STRUCTURALLY, by library + owner + name.
 
@@ -69,7 +85,8 @@ fails = 0
 lines = []
 
 
-def check(mutant_id, subject, want_stable, source, note='', baseline='base'):
+def check(mutant_id, subject, want_stable, source, note='', baseline='base',
+          expected_new_subject=None):
     global fails
     base_doc = ids(baseline)
     if base_doc is None:
@@ -92,14 +109,39 @@ def check(mutant_id, subject, want_stable, source, note='', baseline='base'):
         rows.append({'id': mutant_id, 'outcome': 'SUBJECT_MISSING_IN_BASE'})
         return
     if m is None:
-        # For a MUST-MOVE case the subject legitimately no longer exists under
-        # that key (renamed, re-owned, moved). That satisfies "the id moved",
-        # and is reported as its own state rather than as an absence.
+        # ABSENCE IS NOT EVIDENCE THAT THE IDENTITY MOVED. A walker that simply
+        # dropped the declaration would satisfy "gone from the old key", so a
+        # must-move case has to name where it went and the destination has to be
+        # there exactly once, under a different id.
         if not want_stable:
-            lines.append(f'  ok      {mutant_id:24} subject no longer exists under '
-                         f'its old identity (moved, as required)')
-            rows.append({'id': mutant_id, 'outcome': 'MOVED_ABSENT',
-                         'base_declaration_id': b['declaration_id']})
+            if not expected_new_subject:
+                lines.append(f'  FAILED  {mutant_id:24} gone from its old key, but the '
+                             f'case declares no expected_new_subject — absence alone '
+                             f'does not show the identity moved')
+                fails += 1
+                rows.append({'id': mutant_id, 'outcome': 'ABSENT_NO_DESTINATION'})
+                return
+            hits = find_all(doc, expected_new_subject)
+            if len(hits) != 1:
+                lines.append(f'  FAILED  {mutant_id:24} destination '
+                             f'{expected_new_subject} found {len(hits)} time(s), want exactly 1')
+                fails += 1
+                rows.append({'id': mutant_id, 'outcome': 'DESTINATION_NOT_UNIQUE',
+                             'destination_hits': len(hits)})
+                return
+            new_id = hits[0]['declaration_id']
+            if new_id == b['declaration_id']:
+                lines.append(f'  FAILED  {mutant_id:24} destination exists but carries the '
+                             f'SAME declaration_id — the identity did not move')
+                fails += 1
+                rows.append({'id': mutant_id, 'outcome': 'DESTINATION_SAME_ID'})
+                return
+            lines.append(f'  ok      {mutant_id:24} moved: gone from the old key, present '
+                         f'exactly once at {expected_new_subject.split("::")[-1]}, new id')
+            rows.append({'id': mutant_id, 'outcome': 'MOVED_TO_DESTINATION',
+                         'old_declaration_id': b['declaration_id'],
+                         'new_declaration_id': new_id,
+                         'destination': expected_new_subject})
             return
         lines.append(f'  FAILED  {mutant_id:24} subject {key} vanished but was '
                      f'expected stable')
@@ -141,7 +183,8 @@ for m in load(ext_exp)['mutants']:
         continue
     check(m['id'], m['subject'], m['declaration_id_stable'],
           'g1_identity/EXPECTATIONS_EXT.json', m.get('note', ''),
-          baseline=m.get('baseline', 'base'))
+          baseline=m.get('baseline', 'base'),
+          expected_new_subject=m.get('expected_new_subject'))
 
 # THE POSITIVE CONTROL ON THE HARNESS. An order-derived identity must be caught
 # by the reorder case; if it is not, nothing above is evidence.
@@ -283,13 +326,18 @@ if loc is None:
 else:
     named = [r for r in loc['declarations'] if r['name'] == 'nestedHelper']
     extra['nested_functions'] = {'named': len(named), 'names': [r['selector'] for r in named]}
-    if named:
-        lines.append(f'  FINDING the local function IS named ({named[0]["selector"]}) — '
-                     'its owner path and patchability need a stated rule')
+    allowed = load(ext_exp)['scope_expectations']['nested_functions_named']
+    if len(named) != allowed:
+        seen = [r['selector'] for r in named] or ['<none>']
+        lines.append(f'  FAILED  local functions named={len(named)} ({", ".join(seen)}) but the '
+                     f'accepted scope allows {allowed}. Locals are not independently '
+                     f'addressable; changing that is a deliberate scope change, not a finding.')
+        fails += 1
     else:
-        lines.append('  ok      the local function is NOT named — SCOPE STATEMENT: the map does '
-                     'not address local/nested functions, so a patch targeting one must be '
-                     'refused rather than silently missed. Carried to SM1-G5.')
+        lines.append(f'  ok      the local function is NOT named ({len(named)} named, scope '
+                     f'allows {allowed}) — SCOPE STATEMENT: the map does not address '
+                     'local/nested functions, so a patch targeting one must be REFUSED '
+                     'rather than silently missed. Carried to SM1-G5.')
 
 # 5. SYNTHETIC / GENERATED MEMBERS: what is named, and how flagged.
 arm('synthetic / generated members')
@@ -304,12 +352,30 @@ else:
         'named': [{'selector': r['selector'], 'kind': r['kind'], 'synthetic': r['synthetic']}
                   for r in gen],
         'flagged_synthetic': len(flagged)}
-    lines.append(f'  ok      {len(gen)} member(s) named on the generated classes, '
-                 f'{len(flagged)} flagged synthetic')
     for r in gen:
         lines.append(f"            {r['selector']:28} {r['kind']:12} synthetic={r['synthetic']}")
     if not gen:
         lines.append('  FAILED  no generated members were named at all')
+        fails += 1
+    # THE FLAG ITSELF IS REQUIRED. An arm that fails only when nothing is found
+    # can green with flagged_synthetic == 0, and the flag would rot unnoticed.
+    req = load(ext_exp)['scope_expectations']['required_synthetic_row']
+    match = [r for r in gen
+             if r['selector'] == req['selector'] and r['kind'] == req['kind']
+             and r['synthetic'] == req['synthetic']]
+    extra['synthetic_members']['required_row'] = req
+    extra['synthetic_members']['required_row_present'] = bool(match)
+    if match:
+        lines.append(f'  ok      required generated row present and flagged: '
+                     f"{req['selector']} ({req['kind']}) synthetic={req['synthetic']}")
+    else:
+        present = [f"{r['selector']}({r['kind']},synthetic={r['synthetic']})" for r in gen]
+        lines.append(f'  FAILED  required generated row missing or not flagged: '
+                     f"want {req['selector']} ({req['kind']}) synthetic={req['synthetic']}; "
+                     f"saw {present}")
+        fails += 1
+    if len(flagged) == 0:
+        lines.append('  FAILED  no generated member was flagged synthetic at all')
         fails += 1
 
 # 6. WHICH KERNEL THE MAP IS DERIVED FROM. Measured here because it changes what

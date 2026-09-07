@@ -69,7 +69,14 @@
           "synthetic": false
         }
       ],
-      "flagged_synthetic": 1
+      "flagged_synthetic": 1,
+      "required_row": {
+        "selector": "Mixed.",
+        "kind": "constructor",
+        "synthetic": true,
+        "why": "The implicit constructor the CFE generates must be present AND flagged. An arm that fails only when NO generated members are found can green with flagged_synthetic == 0, which would let the flag rot unnoticed."
+      },
+      "required_row_present": true
     },
     "kernel_domain": {
       "aot_declarations": 28,
@@ -218,8 +225,10 @@
     },
     {
       "id": "ext_renamed_subject",
-      "outcome": "MOVED_ABSENT",
-      "base_declaration_id": "66384f87886ea5ed8fd1ebd44bebce37ff222f55f3391c3a714bcfab40439f1d"
+      "outcome": "MOVED_TO_DESTINATION",
+      "old_declaration_id": "66384f87886ea5ed8fd1ebd44bebce37ff222f55f3391c3a714bcfab40439f1d",
+      "new_declaration_id": "856204f7412600fec1dc6ce8bfeb3b7f5c7a0b822acad6346cf6e935a8d530f5",
+      "destination": "package:corpus/app.dart::topLevelRenamed"
     },
     {
       "id": "ext_kind_change",
@@ -233,18 +242,24 @@
     },
     {
       "id": "ext_owner_change",
-      "outcome": "MOVED_ABSENT",
-      "base_declaration_id": "66384f87886ea5ed8fd1ebd44bebce37ff222f55f3391c3a714bcfab40439f1d"
+      "outcome": "MOVED_TO_DESTINATION",
+      "old_declaration_id": "66384f87886ea5ed8fd1ebd44bebce37ff222f55f3391c3a714bcfab40439f1d",
+      "new_declaration_id": "6e41306072d1431bdfb7b8b2ad5a29a56c4c9a8a5fc53f9ded56c704f706dc87",
+      "destination": "package:corpus/app.dart::Shape.topLevel"
     },
     {
       "id": "ext_moved_library",
-      "outcome": "MOVED_ABSENT",
-      "base_declaration_id": "66384f87886ea5ed8fd1ebd44bebce37ff222f55f3391c3a714bcfab40439f1d"
+      "outcome": "MOVED_TO_DESTINATION",
+      "old_declaration_id": "66384f87886ea5ed8fd1ebd44bebce37ff222f55f3391c3a714bcfab40439f1d",
+      "new_declaration_id": "1954b8800c365a491d698ece985a06f21bdfadd7367f7114ef0185fc3d73d98f",
+      "destination": "package:corpus/helper.dart::topLevel"
     },
     {
       "id": "ext_extension_owner_renamed",
-      "outcome": "MOVED_ABSENT",
-      "base_declaration_id": "0a3c1002c4240241e0653e33372433a013b57281eb0f77d3b0573abc2f55fc32"
+      "outcome": "MOVED_TO_DESTINATION",
+      "old_declaration_id": "0a3c1002c4240241e0653e33372433a013b57281eb0f77d3b0573abc2f55fc32",
+      "new_declaration_id": "7132ff02fefc9e37d34eee0a813f623d4ad2a6622c015067a4fbd975534162a5",
+      "destination": "package:corpus/app.dart::ShapeXRenamed.doubled"
     },
     {
       "id": "ext_generic_owner_bound",

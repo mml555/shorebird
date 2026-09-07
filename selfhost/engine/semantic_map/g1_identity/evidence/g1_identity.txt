@@ -1,5 +1,7 @@
 --- G0 frozen corpus: the untouched subject must keep its identity ---
   ok      body_only                declaration_id stable (want stable)   index_id stable
+  ok      abi_added_positio--- G0 frozen corpus: the untouched subject must keep its identity ---
+  ok      body_only                declaration_id stable (want stable)   index_id stable
   ok      abi_added_positional     declaration_id stable (want stable)   index_id stable
   ok      abi_nullability          declaration_id stable (want stable)   index_id stable
   ok      abi_positional_to_named  declaration_id stable (want stable)   index_id stable
@@ -14,12 +16,12 @@
 
 --- G1 corpus extension: sufficiency, and the MUST-MOVE cases ---
   ok      ext_extension_member     declaration_id stable (want stable)   index_id moved
-  ok      ext_renamed_subject      subject no longer exists under its old identity (moved, as required)
+  ok      ext_renamed_subject      moved: gone from the old key, present exactly once at topLevelRenamed, new id
   ok      ext_kind_change          declaration_id moved (want moved)   index_id stable
-  ok      ext_owner_change         subject no longer exists under its old identity (moved, as required)
-  ok      ext_moved_library        subject no longer exists under its old identity (moved, as required)
+  ok      ext_owner_change         moved: gone from the old key, present exactly once at Shape.topLevel, new id
+  ok      ext_moved_library        moved: gone from the old key, present exactly once at topLevel, new id
   --      ext_two_extensions       scored by the distinctness arm, not by comparison to base
-  ok      ext_extension_owner_renamed subject no longer exists under its old identity (moved, as required)
+  ok      ext_extension_owner_renamed moved: gone from the old key, present exactly once at ShapeXRenamed.doubled, new id
   ok      ext_generic_owner_bound  declaration_id stable (want stable)   index_id stable
   ok      ext_local_function       declaration_id stable (want stable)   index_id stable
   ok      ext_synthetic_members    declaration_id stable (want stable)   index_id stable
@@ -41,13 +43,13 @@
           kernel lowered them to ShapeX|doubled / BoxX|doubled; the identity does not depend on that mangling
 
 --- nested scope: is a local function named at all? ---
-  ok      the local function is NOT named — SCOPE STATEMENT: the map does not address local/nested functions, so a patch targeting one must be refused rather than silently missed. Carried to SM1-G5.
+  ok      the local function is NOT named (0 named, scope allows 0) — SCOPE STATEMENT: the map does not address local/nested functions, so a patch targeting one must be REFUSED rather than silently missed. Carried to SM1-G5.
 
 --- synthetic / generated members ---
-  ok      3 member(s) named on the generated classes, 1 flagged synthetic
             Doubler.base                 method       synthetic=False
             Mixed.                       constructor  synthetic=True
             Mixed.base                   method       synthetic=False
+  ok      required generated row present and flagged: Mixed. (constructor) synthetic=True
 
 --- kernel domain: --aot tree-shakes declarations away ---
   FINDING --aot removed 5 declaration(s): 28 named vs 33 pre-AOT

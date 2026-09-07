@@ -183,6 +183,47 @@ collisions. A collision is a `FAIL_OPEN` — two distinct declarations sharing o
 id is what would silently misroute a patch — so it is searched for rather than
 assumed away.
 
+## The scorer fails closed on missing evidence
+
+Three checks were tightened after PM review, and each is shown able to fail —
+[`evidence/scorer_hardening.txt`](evidence/scorer_hardening.txt):
+
+**1. A must-move case has to prove a destination.** Disappearance from the old
+key is *not* evidence the identity moved: a walker that simply dropped the
+declaration would satisfy it. Each must-move case now declares
+`expected_new_subject`, and the scorer requires the old key **absent**, the new
+key present **exactly once**, and a **different** `declaration_id`.
+
+    destination removed      FAILED  absence alone does not show the identity moved
+    destination nonexistent  FAILED  found 0 time(s), want exactly 1
+
+**2. Nested scope is scored, not merely reported.** Locals being named was
+printing `FINDING` without incrementing failures. The accepted scope is
+`nested_functions_named: 0`, and any other count now **fails** — changing that
+scope is a deliberate decision, not a finding.
+
+    scope set to expect 1 while 0 are named   FAILED
+
+**3. The synthetic flag is required, not observed.** The arm used to fail only
+when *no* generated members were found, so it could green with
+`flagged_synthetic == 0`. A specific row is now required to exist **and** carry
+the flag.
+
+    required synthetic=false on a row flagged true   FAILED  want … saw …
+
+## A harness defect this pass exposed — non-reentrant builds
+
+`build_corpus_dill.sh` builds at a **stable path**, because the `rootUri` is
+baked into the dill and cross-run determinism is what lets G0's frozen release
+identity be re-verified at all. A stable path plus `rm -rf` is **not reentrant**,
+and during this hardening pass two overlapping harness runs destroyed each
+other's work directory — the second reported *"could not produce base ids"* for a
+reason with nothing to do with the map.
+
+A unique path per run would fix the race and break determinism, so the builder
+now takes an **atomic `mkdir` lock** and serialises. Verified: two concurrent
+builds both succeed and produce byte-identical output.
+
 ## The controls, and why they are not decoration
 
 **The order-derived control earns its place three different ways.** `index_id` is
@@ -246,6 +287,9 @@ Both were mine, and both would have produced a wrong reading:
 - [x] **Nested/local scope** stated explicitly as out of the map's domain, fail-closed
 - [x] **Synthetic/generated members** named and flagged
 - [x] **Generic-owner** arm: member identity stable while the owner's bound changes
+- [x] **Must-move cases prove a destination** — old key absent, new key present exactly once, different id
+- [x] **Nested scope fails closed** if locals ever become independently named
+- [x] **The synthetic flag is required**, not merely observed
 
 ## Not established by this gate
 

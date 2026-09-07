@@ -1,0 +1,37 @@
+SM1-G1 scorer hardening — each of the three tightened checks must be able to FAIL
+date : 2026-09-07T06:07:52Z
+
+############ 1. MOVED_ABSENT must prove a destination ############
+1a. drop the destination from a must-move case: absence alone must not pass
+    FAILED  ext_renamed_subject      gone from its old key, but the case declares no expected_new_subject — absence alone does not show the identity moved
+  SUMMARY checks_failed=1 collisions=0
+
+1b. point the destination at a name that does not exist
+    FAILED  ext_renamed_subject      destination package:corpus/app.dart::noSuchDestination found 0 time(s), want exactly 1
+  SUMMARY checks_failed=1 collisions=0
+
+############ 2. nested scope must FAIL if locals become named ############
+$ set the accepted scope to expect 1 named local while 0 are named
+  --- nested scope: is a local function named at all? ---
+    FAILED  local functions named=0 (<none>) but the accepted scope allows 1. Locals are not independently addressable; changing that is a deliberate scope change, not a finding.
+  SUMMARY checks_failed=1 collisions=0
+
+############ 3. the synthetic flag must be REQUIRED ############
+$ require synthetic=false on the implicit constructor, which is flagged true
+    FAILED  required generated row missing or not flagged: want Mixed. (constructor) synthetic=False; saw ['Doubler.base(method,synthetic=False)', 'Mixed.(constructor,synthetic=True)', 'Mixed.base(method,synthetic=False)']
+  SUMMARY checks_failed=1 collisions=0
+
+############ restored ############
+  SUMMARY checks_failed=0 collisions=0
+  G1 IDENTITY VERIFIED
+
+############ note: the runs above must be SEQUENTIAL ############
+  build_corpus_dill.sh builds at a STABLE path, because the rootUri is baked
+  into the dill and cross-run determinism is what lets the frozen release
+  identity be re-verified. A stable path plus `rm -rf` is not reentrant, and two
+  overlapping harness runs destroyed each other's work directory during this
+  very hardening pass -- the second reported "could not produce base ids" for a
+  reason that had nothing to do with the map.
+  A unique path per run would fix the race and break determinism, so the builder
+  now takes an atomic mkdir lock and serialises instead. Verified: two
+  concurrent builds both succeed and produce byte-identical output.
