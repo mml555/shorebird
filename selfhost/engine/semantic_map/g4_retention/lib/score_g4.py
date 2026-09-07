@@ -30,6 +30,16 @@ NO_EFFECT = 'NO_OBSERVABLE_EFFECT'
 CONTROL_OK = 'CONTROL_DISPATCH_OK'
 UNCLASSIFIED = 'UNCLASSIFIED'
 
+# SL1's category vocabulary, which #53 requires this gate to reuse. NONE is the
+# control's cause; UNCLASSIFIED_MESSAGE is the classifier's own fail-closed
+# value and must never survive into a scored result.
+SL1_CAUSES = {
+    'IMPORT_RESOLUTION',
+    'DYNAMIC_INTERFACE_POLICY',
+    'MODULE_INTEGRITY',
+    'HOST_IDENTITY',
+}
+
 
 def arm_category_surface(runner_path):
     """Every category run_arms.sh can emit, read from its own source.
@@ -113,8 +123,37 @@ def main():
     if not stray and UNCLASSIFIED not in observed:
         lines.append('  ok      every arm carries a category the runner can justify')
     for r in arms_doc['rows']:
-        lines.append(f'    {r["variant"]:24} {r["category"]}')
+        lines.append(f'    {r["variant"]:24} {r["category"]:22} '
+                     f'{r.get("cause", "-")} (from {r.get("cause_source", "-")})')
         lines.append(f'      {r["detail"][:110]}')
+
+    # ---- 3b. the structured cause, in SL1's vocabulary -------------------
+    arm("#53: the underlying cause in SL1's vocabulary, not just the outcome")
+    causes = arms_doc.get('cause_at_load', {})
+    extra['cause_at_load'] = causes
+    extra['cause_sources'] = {r['variant']: r.get('cause_source')
+                              for r in arms_doc['rows']}
+    bad = {k: v for k, v in causes.items() if v not in SL1_CAUSES}
+    if not causes:
+        lines.append('  FAILED  no structured cause was recorded, so the evidence says '
+                     'what happened but not why')
+        fails += 1
+    elif bad:
+        lines.append(f'  FAILED  cause(s) outside SL1 vocabulary: {bad}')
+        fails += 1
+    else:
+        lines.append(f'  ok      every withheld class carries an SL1 cause')
+        for k, v in sorted(causes.items()):
+            src = next((r.get('cause_source') for r in arms_doc['rows']
+                        if r.get('cause') == v and k in r['variant']), '?')
+            lines.append(f'            {k:22} {v}')
+    # THE DERIVATION MATTERS. SL1-G6C found that classification must not rely on
+    # the error string alone, and here the fail-open arms have no string at all.
+    srcs = {r.get('cause_source') for r in arms_doc['rows']}
+    if 'structural' in srcs:
+        lines.append('  note    at least one cause is STRUCTURAL, derived from which '
+                     'contract entry was withheld rather than from a message -- the '
+                     'fail-open arms produce no error text to classify')
 
     # ---- 4. THE REQUIREMENT, AND WHERE THE SYSTEM DOES NOT MEET IT -------
     arm('#53: each withheld class must FAIL CLOSED at load')
@@ -201,22 +240,49 @@ def main():
                          'figure, so naive multiplication was not an overestimate here')
 
     state = ('PARTIAL' if open_ or noeff else 'FULL') if closed else 'NONE'
+
+    # TWO INDEPENDENT VERDICTS, AND THEY ARE NOT THE SAME QUESTION.
+    #
+    # The first submission printed a single `G4 RETENTION VERIFIED` next to
+    # checks_failed=0, which reads as though the gate passed. It did not:
+    # checks_failed=0 only says the experiment is trustworthy. #53 requires
+    # EVERY withheld class to fail closed, and two do not.
+    #
+    # So the markers are separate and independently greppable, gate-prefixed so
+    # G8/FINAL extraction cannot confuse them with another gate's.
+    measurement = 'VERIFIED' if fails == 0 else 'FAILED'
+    acceptance = 'MET' if (fails == 0 and state == 'FULL') else 'NOT_MET'
+    unmet = []
+    if state != 'FULL':
+        unmet.append('every withheld retention class must fail closed at load')
+
     print('\n'.join(lines))
     print()
-    print(f'RETENTION_ENFORCEMENT={state}')
     print(f'SUMMARY checks_failed={fails}')
-    print('G4 RETENTION VERIFIED' if fails == 0 else 'G4 RETENTION FAILED')
+    print(f'SM1_G4_MEASUREMENT={measurement}')
+    print(f'SM1_G4_ACCEPTANCE={acceptance}')
+    print(f'SM1_G4_RETENTION_ENFORCEMENT={state}')
+    if unmet:
+        for u in unmet:
+            print(f'SM1_G4_UNMET={u}')
+    print('# MEASUREMENT answers whether the experiment is trustworthy; '
+          'ACCEPTANCE answers whether #53 is satisfied.')
+    print('# They are different questions, and a VERIFIED measurement is not a '
+          'pass.')
 
     json.dump({
         'schema': 'semantic-map-1/g4-score/1', 'gate': 'SM1-G4', 'issue': 53,
         'checks_failed': fails,
+        'measurement': measurement,
+        'acceptance': acceptance,
+        'acceptance_unmet': unmet,
         'retention_enforcement': state,
         'fail_open_classes': open_,
         'no_effect_classes': noeff,
         'fails_closed_classes': closed,
         'arms': extra,
     }, open(out_json, 'w'), indent=2)
-    return 1 if fails else 0
+    return 0 if (fails == 0 and acceptance == 'MET') else 1
 
 
 if __name__ == '__main__':

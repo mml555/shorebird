@@ -3,6 +3,11 @@
   "gate": "SM1-G4",
   "issue": 53,
   "checks_failed": 0,
+  "measurement": "VERIFIED",
+  "acceptance": "NOT_MET",
+  "acceptance_unmet": [
+    "every withheld retention class must fail closed at load"
+  ],
   "retention_enforcement": "PARTIAL",
   "fail_open_classes": [
     "extendable",
@@ -28,6 +33,19 @@
       "FAILS_OPEN",
       "NO_OBSERVABLE_EFFECT"
     ],
+    "cause_at_load": {
+      "callable": "IMPORT_RESOLUTION",
+      "extendable": "DYNAMIC_INTERFACE_POLICY",
+      "can-be-used-as-type": "DYNAMIC_INTERFACE_POLICY",
+      "can-be-overridden": "DYNAMIC_INTERFACE_POLICY"
+    },
+    "cause_sources": {
+      "full": "control",
+      "no_callable": "message",
+      "no_extendable": "structural",
+      "no_can_be_used_as_type": "structural",
+      "no_can_be_overridden": "structural"
+    },
     "enforced_at_load": {
       "callable": "FAILS_CLOSED",
       "extendable": "FAILS_OPEN",

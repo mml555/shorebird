@@ -26,16 +26,16 @@ SM1-G4 retention contract and measured cost
       | SUBJECT callWork(PatchTarget()) = PATCH-TARGET
       | DISPATCH_OK
       | DONE
-    -> CONTROL_DISPATCH_OK
+    -> CONTROL_DISPATCH_OK / NONE (from control)
   ──────── contract variant: no_callable ────────
     gen_kernel        exit=0
     gen_snapshot      exit=0  aot=889072
     dart2bytecode     exit=0
-  /Users/mendell/shorebird/selfhost/engine/semantic_map/g4_retention/lib/run_arms.sh: line 36: 53759 Abort trap: 6           "$OUT/dartaotruntime" "$W/host.aot" "$W/m.bytecode" "file://$W/m_patch.dart" > "$W/run.log" 2>&1
+  /Users/mendell/shorebird/selfhost/engine/semantic_map/g4_retention/lib/run_arms.sh: line 67: 21260 Abort trap: 6           "$OUT/dartaotruntime" "$W/host.aot" "$W/m.bytecode" "file://$W/m_patch.dart" > "$W/run.log" 2>&1
     dartaotruntime    exit=134
       | CONTROL callWork(Target()) = AOT-TARGET
       | ../../flutter/third_party/dart/runtime/vm/bytecode_reader.cc: 1172: error: Unable to find function Target. in Library:'package:dynamic_modules/host.dart' Class: Target
-    -> FAILS_CLOSED
+    -> FAILS_CLOSED / IMPORT_RESOLUTION (from message)
   ──────── contract variant: no_extendable ────────
     gen_kernel        exit=0
     gen_snapshot      exit=0  aot=889128
@@ -45,7 +45,7 @@ SM1-G4 retention contract and measured cost
       | SUBJECT callWork(PatchTarget()) = AOT-TARGET
       | DISPATCH_BYPASS
       | DONE
-    -> FAILS_OPEN
+    -> FAILS_OPEN / DYNAMIC_INTERFACE_POLICY (from structural)
   ──────── contract variant: no_can_be_used_as_type ────────
     gen_kernel        exit=0
     gen_snapshot      exit=0  aot=889160
@@ -55,7 +55,7 @@ SM1-G4 retention contract and measured cost
       | SUBJECT callWork(PatchTarget()) = PATCH-TARGET
       | DISPATCH_OK
       | DONE
-    -> NO_OBSERVABLE_EFFECT
+    -> NO_OBSERVABLE_EFFECT / DYNAMIC_INTERFACE_POLICY (from structural)
   ──────── contract variant: no_can_be_overridden ────────
     gen_kernel        exit=0
     gen_snapshot      exit=0  aot=889128
@@ -65,26 +65,17 @@ SM1-G4 retention contract and measured cost
       | SUBJECT callWork(PatchTarget()) = AOT-TARGET
       | DISPATCH_BYPASS
       | DONE
-    -> FAILS_OPEN
+    -> FAILS_OPEN / DYNAMIC_INTERFACE_POLICY (from structural)
   
     control (full contract) dispatched to the patch: True
-    full                     CONTROL_DISPATCH_OK
-    no_callable              FAILS_CLOSED
-    no_extendable            FAILS_OPEN
-    no_can_be_used_as_type   NO_OBSERVABLE_EFFECT
-    no_can_be_overridden     FAILS_OPEN
+    full                     CONTROL_DISPATCH_OK    NONE (control)
+    no_callable              FAILS_CLOSED           IMPORT_RESOLUTION (message)
+    no_extendable            FAILS_OPEN             DYNAMIC_INTERFACE_POLICY (structural)
+    no_can_be_used_as_type   NO_OBSERVABLE_EFFECT   DYNAMIC_INTERFACE_POLICY (structural)
+    no_can_be_overridden     FAILS_OPEN             DYNAMIC_INTERFACE_POLICY (structural)
 
 --- COST CURVE: measured at release scale, not extrapolated ---
-  N,aot_absent,aot_present,delta,pct,per_member
-  0,838520,879432,40912,+4.879,n/a
-  1,838728,879720,40992,+4.887,40992.0
-  2,838816,879888,41072,+4.896,20536.0
-  4,838984,880216,41232,+4.915,10308.0
-  8,839320,880872,41552,+4.951,5194.0
-  16,840000,882200,42200,+5.024,2637.5
-  32,841384,884880,43496,+5.170,1359.2
-  64,844144,890240,46096,+5.461,720.2
-  128,866152,917584,51432,+5.938,401.8
+  reusing /Users/mendell/shorebird/selfhost/engine/semantic_map/g4_retention/evidence/scale.json (set REMEASURE=1 to rebuild the curve)
   N,aot_absent,aot_present,delta,pct,per_member
   0,838520,879432,40912,+4.879,n/a
   1,838728,879720,40992,+4.887,40992.0
@@ -109,16 +100,24 @@ SM1-G4 retention contract and measured cost
 --- each withheld class is categorised, from a surface read off the runner ---
   runner category surface: 5 (CONTROL_DISPATCH_OK, FAILS_CLOSED, FAILS_OPEN, NO_OBSERVABLE_EFFECT, UNCLASSIFIED)
   ok      every arm carries a category the runner can justify
-    full                     CONTROL_DISPATCH_OK
+    full                     CONTROL_DISPATCH_OK    NONE (from control)
       the patch subtype answered
-    no_callable              FAILS_CLOSED
+    no_callable              FAILS_CLOSED           IMPORT_RESOLUTION (from message)
       runtime refused (exit 134): ../../flutter/third_party/dart/runtime/vm/bytecode_reader.cc: 1172: error: Unable 
-    no_extendable            FAILS_OPEN
+    no_extendable            FAILS_OPEN             DYNAMIC_INTERFACE_POLICY (from structural)
       the module loaded and the call site still reached the AOT body
-    no_can_be_used_as_type   NO_OBSERVABLE_EFFECT
+    no_can_be_used_as_type   NO_OBSERVABLE_EFFECT   DYNAMIC_INTERFACE_POLICY (from structural)
       loaded and dispatched to the patch exactly as the full contract did
-    no_can_be_overridden     FAILS_OPEN
+    no_can_be_overridden     FAILS_OPEN             DYNAMIC_INTERFACE_POLICY (from structural)
       the module loaded and the call site still reached the AOT body
+
+--- #53: the underlying cause in SL1's vocabulary, not just the outcome ---
+  ok      every withheld class carries an SL1 cause
+            callable               IMPORT_RESOLUTION
+            can-be-overridden      DYNAMIC_INTERFACE_POLICY
+            can-be-used-as-type    DYNAMIC_INTERFACE_POLICY
+            extendable             DYNAMIC_INTERFACE_POLICY
+  note    at least one cause is STRUCTURAL, derived from which contract entry was withheld rather than from a message -- the fail-open arms produce no error text to classify
 
 --- #53: each withheld class must FAIL CLOSED at load ---
     callable               FAILS_CLOSED
@@ -142,6 +141,10 @@ SM1-G4 retention contract and measured cost
           actual at N=128         51,432 bytes
           naive 16,704xN would be 2,138,112 bytes  (42x the measurement)
 
-RETENTION_ENFORCEMENT=PARTIAL
 SUMMARY checks_failed=0
-G4 RETENTION VERIFIED
+SM1_G4_MEASUREMENT=VERIFIED
+SM1_G4_ACCEPTANCE=NOT_MET
+SM1_G4_RETENTION_ENFORCEMENT=PARTIAL
+SM1_G4_UNMET=every withheld retention class must fail closed at load
+# MEASUREMENT answers whether the experiment is trustworthy; ACCEPTANCE answers whether #53 is satisfied.
+# They are different questions, and a VERIFIED measurement is not a pass.

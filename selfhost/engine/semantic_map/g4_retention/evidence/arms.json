@@ -7,27 +7,37 @@
     {
       "variant": "full",
       "category": "CONTROL_DISPATCH_OK",
-      "detail": "the patch subtype answered"
+      "detail": "the patch subtype answered",
+      "cause": "NONE",
+      "cause_source": "control"
     },
     {
       "variant": "no_callable",
       "category": "FAILS_CLOSED",
-      "detail": "runtime refused (exit 134): ../../flutter/third_party/dart/runtime/vm/bytecode_reader.cc: 1172: error: Unable to find function Target. in Library:'package:dynamic_modul"
+      "detail": "runtime refused (exit 134): ../../flutter/third_party/dart/runtime/vm/bytecode_reader.cc: 1172: error: Unable to find function Target. in Library:'package:dynamic_modul",
+      "cause": "IMPORT_RESOLUTION",
+      "cause_source": "message"
     },
     {
       "variant": "no_extendable",
       "category": "FAILS_OPEN",
-      "detail": "the module loaded and the call site still reached the AOT body"
+      "detail": "the module loaded and the call site still reached the AOT body",
+      "cause": "DYNAMIC_INTERFACE_POLICY",
+      "cause_source": "structural"
     },
     {
       "variant": "no_can_be_used_as_type",
       "category": "NO_OBSERVABLE_EFFECT",
-      "detail": "loaded and dispatched to the patch exactly as the full contract did"
+      "detail": "loaded and dispatched to the patch exactly as the full contract did",
+      "cause": "DYNAMIC_INTERFACE_POLICY",
+      "cause_source": "structural"
     },
     {
       "variant": "no_can_be_overridden",
       "category": "FAILS_OPEN",
-      "detail": "the module loaded and the call site still reached the AOT body"
+      "detail": "the module loaded and the call site still reached the AOT body",
+      "cause": "DYNAMIC_INTERFACE_POLICY",
+      "cause_source": "structural"
     }
   ],
   "enforced_at_load": {
@@ -35,5 +45,11 @@
     "extendable": "FAILS_OPEN",
     "can-be-used-as-type": "NO_OBSERVABLE_EFFECT",
     "can-be-overridden": "FAILS_OPEN"
+  },
+  "cause_at_load": {
+    "callable": "IMPORT_RESOLUTION",
+    "extendable": "DYNAMIC_INTERFACE_POLICY",
+    "can-be-used-as-type": "DYNAMIC_INTERFACE_POLICY",
+    "can-be-overridden": "DYNAMIC_INTERFACE_POLICY"
   }
 }

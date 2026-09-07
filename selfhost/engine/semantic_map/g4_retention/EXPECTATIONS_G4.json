@@ -9,7 +9,25 @@
     "can-be-used-as-type",
     "can-be-overridden"
   ],
-  "scale_points": [0, 1, 2, 4, 8, 16, 32, 64, 128],
+  "scale_points": [
+    0,
+    1,
+    2,
+    4,
+    8,
+    16,
+    32,
+    64,
+    128
+  ],
   "sl1_per_member_bytes": 16704,
-  "sl1_per_member_source": "SL1-G6B Family B measured +16,704 bytes (+1.88%) for ONE declared-patchable member on the g4_host_solo shape, and stated that the number must not be multiplied naively. This gate tests that statement."
+  "sl1_per_member_source": "SL1-G6B Family B measured +16,704 bytes (+1.88%) for ONE declared-patchable member on the g4_host_solo shape, and stated that the number must not be multiplied naively. This gate tests that statement.",
+  "required_cause_vocabulary": [
+    "IMPORT_RESOLUTION",
+    "DYNAMIC_INTERFACE_POLICY",
+    "MODULE_INTEGRITY",
+    "HOST_IDENTITY"
+  ],
+  "cause_vocabulary_source": "SL1's classifier in semantic_linker/runtime_feasibility/g6a_negatives/run_negatives.sh, patterns reused verbatim. #53 requires this gate to reuse that vocabulary.",
+  "acceptance_requires": "every class in must_fail_closed observed FAILS_CLOSED. checks_failed=0 establishes only that the experiment is trustworthy; it is not a pass."
 }

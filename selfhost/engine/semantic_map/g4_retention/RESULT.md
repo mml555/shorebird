@@ -2,12 +2,22 @@
 # SM1-G4 — retention contract and measured cost
 
 **Gate:** [#53](https://github.com/mml555/shorebird/issues/53) · **Tracker:** [#48](https://github.com/mml555/shorebird/issues/48)
-**Run:** 2026-09-07 · **Verdict: `checks_failed=0`,
-`RETENTION_ENFORCEMENT=PARTIAL`.**
+**Run:** 2026-09-07, corrected after PM review · **Verdict:**
 
-The harness is sound and every check was falsified. The *system* does not meet
-one of #53's requirements, and that is the gate's substantive result rather than
-a defect in the measurement:
+    SM1_G4_MEASUREMENT=VERIFIED
+    SM1_G4_ACCEPTANCE=NOT_MET
+    SM1_G4_RETENTION_ENFORCEMENT=PARTIAL
+    SM1_G4_UNMET=every withheld retention class must fail closed at load
+
+**The measurement is trustworthy and the gate does not pass.** Those are
+different questions, and the first submission conflated them by printing a
+single `G4 RETENTION VERIFIED` beside `checks_failed=0` — which reads as a pass
+when all it establishes is that the experiment can be believed. `run_g4.sh` now
+also exits non-zero while acceptance is unmet, because an exit 0 carries the
+same false reassurance the old marker did.
+
+The system does not meet one of #53's requirements, and that is the gate's
+substantive result rather than a defect in the measurement:
 
 > **Only one of the four retention classes fails closed. Two fail OPEN — the
 > module loads, and the call site silently returns the release's own answer.**
@@ -96,6 +106,33 @@ it does not dispatch to the patch, no refusal below is attributable.
 | `can-be-used-as-type` | indistinguishable from the full contract | `NO_OBSERVABLE_EFFECT` |
 | `can-be-overridden` | loads, call site returns `AOT-TARGET` | **`FAILS_OPEN`** |
 
+### The structured cause, in SL1's vocabulary
+
+#53 requires this gate to reuse SL1's category vocabulary, so the enforcement
+outcome (*what* happened) is now paired with a cause (*why*):
+
+| withheld | outcome | cause | derived from |
+|---|---|---|---|
+| `callable` | `FAILS_CLOSED` | `IMPORT_RESOLUTION` | the runtime's own message |
+| `extendable` | `FAILS_OPEN` | `DYNAMIC_INTERFACE_POLICY` | **structural** |
+| `can-be-used-as-type` | `NO_OBSERVABLE_EFFECT` | `DYNAMIC_INTERFACE_POLICY` | **structural** |
+| `can-be-overridden` | `FAILS_OPEN` | `DYNAMIC_INTERFACE_POLICY` | **structural** |
+
+The classifier is SL1's own, patterns lifted verbatim from
+`g6a_negatives/run_negatives.sh`, so the vocabulary is the lane's rather than a
+paraphrase. `IMPORT_RESOLUTION` is matched by SL1's `unable to find (function|
+class|field)` pattern against the VM's actual text.
+
+**Three of the four causes cannot come from a message, and that is the point.**
+SL1-G6C carried forward the finding that classification must not rely on the
+error string alone. Here it is not a subtlety but the common case: the two
+`FAILS_OPEN` arms throw nothing, print nothing, and exit 0 — there is no text to
+classify. Their cause is therefore derived **structurally**, from which
+dynamic-interface entry was withheld, which is sound precisely because the five
+builds differ by exactly one entry each. Every arm records which derivation was
+used, so a structural attribution can never be mistaken for a message the
+runtime emitted.
+
 ### The finding
 
 #53 requires each withheld class to **fail closed at load with an attributable
@@ -107,9 +144,11 @@ sits loaded and inert.
 That is the failure mode this project has repeatedly been bitten by: success
 reported, nothing done. It is recorded as a FINDING and is deliberately **not**
 collapsed into the pass/fail axis — `checks_failed` counts only what would make
-the measurement untrustworthy, and the enforcement result is reported separately
-as `RETENTION_ENFORCEMENT=PARTIAL`. A green tick beside "every withheld class
-fails closed" would have been the exact over-claim this lane exists to prevent.
+the measurement untrustworthy, and the verdict carries two independent markers
+so the distinction survives extraction by G8/FINAL. `ACCEPTANCE` is **derived**
+from the observed enforcement, not asserted: the falsification pass shows it
+flipping to `MET` the moment all four classes report `FAILS_CLOSED`, so
+`NOT_MET` is a measurement and not a constant.
 
 `can-be-used-as-type` had no observable effect **on this shape**. That is
 reported as "this corpus does not establish that it is required", not as "it is
@@ -180,11 +219,18 @@ back byte-identical, so these figures are reproducible across independent builds
 
 | mutation | must break | observed |
 |---|---|---|
-| confound reports `NOT_CONTROLLED` | the whole gate | refuses to score; `checks_failed=1` |
+| confound reports `NOT_CONTROLLED` | the whole gate | refuses to score; `MEASUREMENT=FAILED` |
 | control did not dispatch | attribution | "every refusal below is unattributable" |
 | an arm is `UNCLASSIFIED` | category attribution | "its outcome is not attributable to the withheld entry" |
+| a cause outside SL1's vocabulary | the #53 vocabulary requirement | "cause(s) outside SL1 vocabulary: {'extendable': 'SOMETHING_I_MADE_UP'}" |
+| no structured cause at all | the cause requirement | "the evidence says what happened but not why" |
+| **all four classes report `FAILS_CLOSED`** | a hardcoded verdict | `ACCEPTANCE=MET`, `RETENTION_ENFORCEMENT=FULL` — the marker is derived |
 | rows claim `UNMEASURED` enforcement | the contract map | "23 row(s) claim a contract class whose enforcement was never measured" |
 | drop N≥16 from the curve | release-scale claim | "missing N=[16, 32, 64, 128], so it was not measured at release scale" |
+
+The sixth row is the one that matters for reading this gate's verdict: without
+it, `ACCEPTANCE=NOT_MET` could be a constant that merely looks correct against
+today's evidence.
 
 Plus the generator's own refusal: `gen_retention_rows.dart` will not emit a
 contract at all without measured enforcement.
@@ -206,9 +252,10 @@ start and so missed the control arm's mid-line assignment, which surfaced as a
 
 - [x] Retention contract derived per patchable declaration — 23 rows, each
       naming its own entries; the stop condition is not triggered
-- [~] Every withheld-retention arm fails closed with a category — **every arm is
-      categorised, but only `callable` fails closed.** `extendable` and
-      `can-be-overridden` fail OPEN; recorded as findings, never as passes
+- [ ] **NOT MET.** Every withheld-retention arm fails closed with a category —
+      every arm is categorised and carries an SL1 cause, but only `callable`
+      fails closed. `extendable` and `can-be-overridden` fail OPEN; recorded as
+      findings, never as passes. This is why `SM1_G4_ACCEPTANCE=NOT_MET`
 - [x] Pragma-absence is asserted before any retention arm is trusted — against
       the built kernel, with a control showing a pragma *masks* a withheld
       contract, and the gate refuses to score without it
