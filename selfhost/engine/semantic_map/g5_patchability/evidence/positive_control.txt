@@ -1,0 +1,70 @@
+SM1-G5 — the .sbrb POSITIVE CONTROL, and a release-build precondition
+date : 2026-09-07T23:24:35Z
+
+THE PATH, as authorised. Success means THE OBSERVED PROGRAM RESULT MOVED.
+Exit 0, 'patch parsed', 'module loaded' and 'attach succeeded' are all
+insufficient -- and the second run below shows exactly why.
+
+  release source            selfhost/engine/route_b/packaging/container_target.dart
+  release kernel            gen_kernel --aot --dynamic-interface di.yaml
+  dynamic interface         gen_dynamic_interface --policy p2 (generated, not hand-written)
+  release AOT               gen_snapshot --patchable_static_calls --snapshot_kind=app-aot-elf
+  changed source            repl_alpha.dart  -> 'PATCHED-a'
+  bytecode                  dart2bytecode --import-dill import.dill      (528 bytes)
+  container                 pack_patch.dart --release-build-id --target  (811 bytes)
+  execution                 dartaotruntime app.aot patch.sbrb
+
+Both bodies route their value through DateTime.now(): container_target.dart
+records that a literal is constant-folded by TFA even under vm:never-inline,
+which once made a working mechanism report OLD.
+
+############ POSITIVE CONTROL — release built WITH --patchable_static_calls ############
+  BUILD_ID 97c212a3bf2a72c2f1e700f8a882d85f
+  before alpha=OLD-a beta=OLD-b
+  ATTACH: before -> IsInterpreted=0 HasBytecode=0
+  ATTACH: after  -> IsInterpreted=1 HasBytecode=1
+  ATTACH: pool len=2650, rewrote 0 slot(s) (other Code slots=121)
+  ATTACH: C++ invoke of target returned: PATCHED-a
+  APPLY ok: 1 target(s)
+  after  alpha=PATCHED-a beta=OLD-b
+
+  OBSERVED: alpha OLD-a -> PATCHED-a.
+  beta was not targeted and stayed OLD-b, so the change is attributable to
+  the patch rather than to anything global about the run.
+
+############ SAME PATCH — release built WITHOUT --patchable_static_calls ############
+  BUILD_ID 97c212a3462f3275f1e700f8af654aad
+  before alpha=OLD-a beta=OLD-b
+  ATTACH: before -> IsInterpreted=0 HasBytecode=0
+  ATTACH: after  -> IsInterpreted=1 HasBytecode=1
+  ATTACH: pool len=1945, rewrote 0 slot(s) (other Code slots=121)
+  ATTACH: C++ invoke of target returned: PATCHED-a
+  APPLY ok: 1 target(s)
+  after  alpha=OLD-a beta=OLD-b
+
+  OBSERVED: alpha stayed OLD-a. Same source, same replacement bytecode, same
+  container format, same apply path -- and APPLY still reported ok.
+
+############ WHAT THIS ESTABLISHES ############
+  1. The demonstrator is now FAITHFUL and has a trusted positive control.
+     DEMONSTRATOR_FIDELITY=ESTABLISHED
+
+  2. --patchable_static_calls is a RELEASE-BUILD PRECONDITION for
+     patchability. It is not a property of the declaration, the map, or the
+     patch; it is how the release binary was produced.
+
+  3. Its absence FAILS OPEN. The container verified hashes, matched the
+     release id, attached the bytecode, and reported 'APPLY ok: 1 target(s)'
+     while the program went on running the old body. That is the same
+     silent-bypass shape SM1-G4 measured for two retention classes, now
+     observed at the apply layer.
+
+  4. It also explains this gate's earlier direct-attach nulls, which were
+     recorded as a harness state rather than a finding. They were: that
+     harness never passed --patchable_static_calls. Recording them as
+     'not demonstrated patchable' would have been wrong.
+
+  NOT established here: whether call-site shape (devirtualized / inlined)
+  changes observed patchability independently of this flag. That is the
+  paired experiment authorised next, and no REDUCE_SCOPE or
+  MODIFY_MAP_DESIGN classification is made from this run.
