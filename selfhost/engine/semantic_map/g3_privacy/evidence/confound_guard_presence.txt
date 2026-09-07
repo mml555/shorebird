@@ -1,0 +1,60 @@
+SM1-G3 confound assertion — it must FAIL against a tree without the guard
+date : 2026-09-07T16:57:13Z
+
+THE CONFOUND, as G0 recorded it (id PLATFORM_LIBRARY_GUARD_IS_UNCOMMITTED):
+the guard refusing --resolve-private-names-in-library on a platform library
+is uncommitted-but-shipped source, present in effective tree 7b04b01b and
+absent from a clean checkout of 9e8c898a. Built from the wrong tree, the
+platform-library arm passes vacuously -- 'nothing was granted' looks exactly
+like 'the guard never ran'.
+
+METHOD. The shared engine checkout is NEVER mutated. The dart tree's
+package_config uses RELATIVE rootUris (../pkg/front_end), so an APFS
+clonefile copy resolves its OWN CFE. The clone (3.2G, 41s, near-zero bytes)
+has only the isScheme('dart') refusal removed: 0005 without its fix.
+
+THE PROBE BODY reaches dart:core's private namespace and nothing else
+private. An earlier version also read the app's own private member, and
+that made arm 3a pass for the wrong reason: under flag=dart:core the app
+namespace is out of scope, so the body failed on the APP private whether or
+not the guard existed. Narrowed to a platform private alone, a guard-less
+tree COMPILES it -- which is precisely the hole P1.1 arm A5 found.
+
+############ 1. as shipped: the frozen effective tree 7b04b01b ############
+    confound (from G0's manifest) : PLATFORM_LIBRARY_GUARD_IS_UNCOMMITTED
+    guarded path (from manifest)  : pkg/front_end/lib/src/source/source_loader.dart
+    ok      frozen effective tree 7b04b01bdc10ec990143257f0d28580571c2122f
+    ok      the guarded source exists (133482 bytes)
+    ok      the refusal text is present in the guarded source
+    ok      the refusal FIRES: flag=dart:core throws the platform-library StateError (rc=255)
+    ok      anti-vacuity: the same body under an app library fails on _GrowableList,
+            so it genuinely required dart:core's private namespace
+  GUARD_PRESENCE=PROVEN_FIRING
+
+############ 2. the same assertion against the guard-less clone ############
+    confound (from G0's manifest) : PLATFORM_LIBRARY_GUARD_IS_UNCOMMITTED
+    guarded path (from manifest)  : pkg/front_end/lib/src/source/source_loader.dart
+    ok      frozen effective tree 7b04b01bdc10ec990143257f0d28580571c2122f
+    ok      the guarded source exists (133044 bytes)
+    FAILED  the refusal text is absent -- this tree predates the guard
+    FAILED  flag=dart:core COMPILED (rc=0). The guard did not fire and dart:core's
+              private namespace was granted to package source -- P1.1 arm A5's hole,
+              open again. Every platform-library arm in this gate is vacuous.
+    ok      anti-vacuity: the same body under an app library fails on _GrowableList,
+            so it genuinely required dart:core's private namespace
+  GUARD_PRESENCE=NOT_PROVEN
+
+############ reproduce ############
+  DT=$SRC/flutter/third_party/dart
+  CLONE=/Volumes/build/sm1_g3_noguard_dart
+  cp -c -R "$DT" "$CLONE"                      # APFS clonefile, ~41s
+  # strip ONLY the platform-library refusal from the clone:
+  #   $CLONE/pkg/front_end/lib/src/source/source_loader.dart
+  #   delete the `if (resolvePrivateNamesIn.isScheme('dart')) { throw ... }` block
+  bash lib/assert_guard.sh                     # frozen tree -> PROVEN_FIRING
+  DT="$CLONE" bash lib/assert_guard.sh         # guard-less   -> NOT_PROVEN
+  rm -rf "$CLONE"
+
+  The clone is deleted after use. The shared engine checkout is never edited --
+  P1.1 had to edit and restore it, and a restore that is forgotten leaves a
+  shared resource wrong for every later lane.

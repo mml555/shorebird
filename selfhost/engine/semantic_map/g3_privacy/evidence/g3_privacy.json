@@ -1,0 +1,80 @@
+{
+  "schema": "semantic-map-1/g3-privacy-score/1",
+  "gate": "SM1-G3",
+  "issue": 52,
+  "checks_failed": 0,
+  "results": [
+    {
+      "id": "positive_read_private_field",
+      "corpus": "base",
+      "mode": "read",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "ACCEPT",
+      "got": "ACCEPT",
+      "subject": "package:corpus/app.dart#Shape#_scaled"
+    },
+    {
+      "id": "positive_invoke_private_method",
+      "corpus": "base",
+      "mode": "read",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "ACCEPT",
+      "got": "ACCEPT",
+      "subject": "package:corpus/app.dart##_privateHelper"
+    },
+    {
+      "id": "cross_library_private",
+      "corpus": "base",
+      "mode": "read",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "CROSS_DOMAIN_PRIVATE",
+      "got": "CROSS_DOMAIN_PRIVATE",
+      "subject": "package:corpus/helper.dart##_privateHelper"
+    },
+    {
+      "id": "platform_library_grant",
+      "corpus": "base",
+      "mode": "read",
+      "grant_scope": "dart:core",
+      "expected": "PLATFORM_DOMAIN_PRIVATE",
+      "got": "PLATFORM_DOMAIN_PRIVATE",
+      "subject": "package:corpus/app.dart#Shape#_scaled"
+    },
+    {
+      "id": "tree_shaken_private",
+      "corpus": "g3_shaken",
+      "mode": "read",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "NOT_RETAINED",
+      "got": "NOT_RETAINED",
+      "subject": "package:corpus/app.dart##_shakenAway"
+    },
+    {
+      "id": "private_write_read_only_grant",
+      "corpus": "base",
+      "mode": "write",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "WRITE_NOT_GRANTED",
+      "got": "WRITE_NOT_GRANTED",
+      "subject": "package:corpus/app.dart#Shape#_scaled"
+    }
+  ],
+  "arms": {
+    "domains": {
+      "public": 20,
+      "package:corpus/app.dart": 2,
+      "package:corpus/helper.dart": 1
+    },
+    "underivable": 0,
+    "write_collapsed": [
+      "package:corpus/app.dart#Shape#_scaled"
+    ],
+    "categories_exercised": [
+      "ACCEPT",
+      "CROSS_DOMAIN_PRIVATE",
+      "NOT_RETAINED",
+      "PLATFORM_DOMAIN_PRIVATE",
+      "WRITE_NOT_GRANTED"
+    ]
+  }
+}

@@ -1,0 +1,45 @@
+SM1-G3 falsification — every check must be able to FAIL
+date : 2026-09-07T17:08:59Z
+
+The confound assertion's own falsification (against a real guard-less tree)
+is separate: evidence/confound_guard_presence.txt.
+
+############ 1. domain from the NAME instead of Name.libraryReference ############
+   If the privacy domain were inferred from the enclosing library rather than
+   read off the Name node, the two _privateHelper declarations would still
+   differ -- so the sharper mutation is to key the domain on the SIMPLE NAME,
+   which is what a name-based check effectively does.
+            census: 3 private, 20 public
+    FAILED  two libraries declaring `_privateHelper` did not produce two distinct domains, so the domain is not library-scoped
+    ok      cross_library_private        read  refuses  CROSS_DOMAIN_PRIVATE
+  SUMMARY checks_failed=6
+
+############ 2. ignore retained_in_release ############
+    FAILED  tree_shaken_private          READ_NOT_GRANTED (want NOT_RETAINED)
+    FAILED  never exercised: ['NOT_RETAINED'] — an unexercised category may be unreachable
+  SUMMARY checks_failed=2
+
+############ 3. ignore capability_key_identifies_mode ############
+    FAILED  private_write_read_only_grant ACCEPT (want WRITE_NOT_GRANTED)
+    FAILED  never exercised: ['WRITE_NOT_GRANTED'] — an unexercised category may be unreachable
+  SUMMARY checks_failed=2
+
+############ 4. drop the platform-library refusal from the POLICY ############
+   (the CFE-side guard still fires; this tests the map's own refusal)
+    FAILED  platform_library_grant       CROSS_DOMAIN_PRIVATE (want PLATFORM_DOMAIN_PRIVATE)
+    FAILED  never exercised: ['PLATFORM_DOMAIN_PRIVATE'] — an unexercised category may be unreachable
+  SUMMARY checks_failed=2
+
+############ 5. a policy that refuses EVERYTHING ############
+   The positive controls exist so this cannot pass. Without them, arms 1-4
+   would all be satisfied by 'return REFUSE'.
+    FAILED  positive_read_private_field  CROSS_DOMAIN_PRIVATE (want ACCEPT); the positive control refused, so every refusal below may be a policy that refuses everything
+    FAILED  positive_invoke_private_method CROSS_DOMAIN_PRIVATE (want ACCEPT); the positive control refused, so every refusal below may be a policy that refuses everything
+    FAILED  never exercised: ['ACCEPT', 'NOT_RETAINED', 'PLATFORM_DOMAIN_PRIVATE', 'WRITE_NOT_GRANTED'] — an unexercised category may be unreachable
+  SUMMARY checks_failed=6
+
+############ restored ############
+  --- identity parity with G1 (recomputed, not imported) ---
+    G1/G3 identity parity : 23 shared declarations, 0 disagreement(s)
+  SUMMARY checks_failed=0
+  G3 PRIVACY VERIFIED

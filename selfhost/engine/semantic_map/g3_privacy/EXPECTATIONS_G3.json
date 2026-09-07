@@ -1,0 +1,85 @@
+{
+  "schema": "semantic-map-1/g3-expectations/1",
+  "gate": "SM1-G3",
+  "issue": 52,
+  "note": "Precommitted before scoring. Each case is (subject, requested mode, grant scope) -> the category the map must return. The two ACCEPT cases are load-bearing: a policy that refused everything would satisfy every refusal arm, so a refused positive control fails the gate.",
+  "base_corpus": "base",
+  "corpora": [
+    "base",
+    "g3_shaken"
+  ],
+  "cases": [
+    {
+      "id": "positive_read_private_field",
+      "corpus": "base",
+      "library": "package:corpus/app.dart",
+      "owner": "Shape",
+      "name": "_scaled",
+      "kind": "field",
+      "mode": "read",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "ACCEPT",
+      "note": "POSITIVE CONTROL. Same domain, retained, read granted. This is the one access mode ROADMAP P1.4 device-proved (release 32 patch 2, `value() => _secret`). It must be accepted or the refusals below prove nothing."
+    },
+    {
+      "id": "positive_invoke_private_method",
+      "corpus": "base",
+      "library": "package:corpus/app.dart",
+      "owner": null,
+      "name": "_privateHelper",
+      "kind": "method",
+      "mode": "read",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "ACCEPT",
+      "note": "Second positive control: an invoke of a retained same-domain private top-level."
+    },
+    {
+      "id": "cross_library_private",
+      "corpus": "base",
+      "library": "package:corpus/helper.dart",
+      "owner": null,
+      "name": "_privateHelper",
+      "kind": "method",
+      "mode": "read",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "CROSS_DOMAIN_PRIVATE",
+      "note": "A patch scoped to corpus/app.dart reaching corpus/helper.dart's private. The simple name is IDENTICAL to the app's own private, so a name-based check would have accepted it; only the derived domain separates them."
+    },
+    {
+      "id": "platform_library_grant",
+      "corpus": "base",
+      "library": "package:corpus/app.dart",
+      "owner": "Shape",
+      "name": "_scaled",
+      "kind": "field",
+      "mode": "read",
+      "grant_scope": "dart:core",
+      "expected": "PLATFORM_DOMAIN_PRIVATE",
+      "note": "The grant NAMES a platform library. Refused before the scope comparison, so it cannot launder itself by matching the domain it names. The compiler-side truth for this arm is lib/assert_guard.sh, which proves the CFE's own StateError fires -- and that guard is uncommitted-but-shipped source, so its presence is asserted before this arm is trusted."
+    },
+    {
+      "id": "tree_shaken_private",
+      "corpus": "g3_shaken",
+      "library": "package:corpus/app.dart",
+      "owner": null,
+      "name": "_shakenAway",
+      "kind": "method",
+      "mode": "read",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "NOT_RETAINED",
+      "note": "Same domain and same grant as the accepted control, differing only in retention: --aot shook it out. NOT_RETAINED is a distinct category because its remedy is re-releasing, not a policy change."
+    },
+    {
+      "id": "private_write_read_only_grant",
+      "corpus": "base",
+      "library": "package:corpus/app.dart",
+      "owner": "Shape",
+      "name": "_scaled",
+      "kind": "field",
+      "mode": "write",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "WRITE_NOT_GRANTED",
+      "note": "THE SAME SUBJECT AND THE SAME GRANT AS positive_read_private_field, differing only in the requested mode. The manifest key is identical in both cases -- bare, because RouteBPrivateTarget keys a field bare -- so the shipped refuseInstanceMember cannot tell them apart. The map's capability_key_identifies_mode=false is what refuses the write."
+    }
+  ]
+}

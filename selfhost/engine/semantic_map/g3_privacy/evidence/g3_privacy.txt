@@ -1,0 +1,49 @@
+SM1-G3 privacy domains
+  frozen effective tree : 7b04b01bdc10ec990143257f0d28580571c2122f
+  analyzer pin          : 67741a082fcde5a9e2067fdfad1deb7ad69cb89b8d23aba78ed31b5afb6c2f5d
+
+--- CONFOUND FIRST: the platform-library guard must be present AND firing ---
+    confound (from G0's manifest) : PLATFORM_LIBRARY_GUARD_IS_UNCOMMITTED
+    guarded path (from manifest)  : pkg/front_end/lib/src/source/source_loader.dart
+    ok      frozen effective tree 7b04b01bdc10ec990143257f0d28580571c2122f
+    ok      the guarded source exists (133482 bytes)
+    ok      the refusal text is present in the guarded source
+    ok      the refusal FIRES: flag=dart:core throws the platform-library StateError (rc=255)
+    ok      anti-vacuity: the same body under an app library fails on _GrowableList,
+            so it genuinely required dart:core's private namespace
+  GUARD_PRESENCE=PROVEN_FIRING
+
+--- building privacy rows ---
+  base: rows=23 private=3 write-collapsed=1
+  g3_shaken: rows=24 private=4 write-collapsed=1
+
+--- identity parity with G1 (recomputed, not imported) ---
+  G1/G3 identity parity : 23 shared declarations, 0 disagreement(s)
+
+
+--- a privacy domain is derived for every declaration ---
+  ok      all 23 rows carry a domain derived from Name.isPrivate / Name.libraryReference
+          census: 2 package:corpus/app.dart, 1 package:corpus/helper.dart, 20 public
+  ok      the same private simple name in two libraries gets two domains
+            package:corpus/app.dart
+            package:corpus/helper.dart
+
+--- read and write capability are distinguished, not merged ---
+  ok      an accessor names its mode: set:scale vs get:perimeter
+  FINDING 1 mutable private field(s) whose ONE manifest key authorises both modes:
+            package:corpus/app.dart#Shape#_scaled
+          The map records capability_key_identifies_mode=false, so a write is refused before publication rather than accepted on the strength of a read grant.
+
+--- adversarial arms: each must refuse, and refuse for the right reason ---
+  ok      positive_read_private_field  read  accepts  ACCEPT
+  ok      positive_invoke_private_method read  accepts  ACCEPT
+  ok      cross_library_private        read  refuses  CROSS_DOMAIN_PRIVATE
+  ok      platform_library_grant       read  refuses  PLATFORM_DOMAIN_PRIVATE
+  ok      tree_shaken_private          read  refuses  NOT_RETAINED
+  ok      private_write_read_only_grant write refuses  WRITE_NOT_GRANTED
+
+--- every refusal category is exercised by some arm ---
+  ok      all 5 categories exercised: ACCEPT, CROSS_DOMAIN_PRIVATE, NOT_RETAINED, PLATFORM_DOMAIN_PRIVATE, WRITE_NOT_GRANTED
+
+SUMMARY checks_failed=0
+G3 PRIVACY VERIFIED
