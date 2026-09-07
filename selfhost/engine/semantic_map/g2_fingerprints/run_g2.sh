@@ -18,9 +18,18 @@ G0C="$SM/g0_freeze/corpus"
 G1="$SM/g1_identity"
 XC="$HERE/corpus_ext"
 EVID="$HERE/evidence"; mkdir -p "$EVID"
+TRANSCRIPT="$EVID/g2_fingerprints.txt"
 W=${W:-${TMPDIR:-/tmp}/sm1_g2}
 rm -rf "$W"; mkdir -p "$W"
 
+# THE TRANSCRIPT AND THE JSON MUST COME FROM ONE RUN.
+# score_g2.py writes evidence/g2_fingerprints.json at a fixed path, but the
+# transcript used to depend on the CALLER redirecting stdout. That is how the
+# two artifacts drifted: a transcript written by an earlier invocation was
+# missing a case the JSON had already scored, and nothing detected it. The
+# script now writes its own transcript from the same invocation, so a
+# transcript that disagrees with the JSON is no longer reachable.
+{
 EFF=$(python3 -c "import json;print(json.load(open('$SM/g0_freeze/freeze_manifest.json'))['inherited_lineage']['producing_source']['dart']['effective_tree'])")
 [[ "$EFF" == "7b04b01bdc10ec990143257f0d28580571c2122f" ]] \
   || { echo "REFUSING: frozen effective tree is $EFF, not 7b04b01b" >&2; exit 2; }
@@ -92,3 +101,5 @@ python3 "$HERE/lib/score_g2.py" "$W" "$G0C/EXPECTATIONS.json" \
   "$HERE/EXPECTATIONS_G2.json" "$EVID/g2_fingerprints.json"
 SCORE=$?
 [[ "$PARITY" -eq 0 && "$SCORE" -eq 0 ]] || exit 1
+} 2>&1 | tee "$TRANSCRIPT"
+exit "${PIPESTATUS[0]}"

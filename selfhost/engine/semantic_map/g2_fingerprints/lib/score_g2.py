@@ -47,7 +47,8 @@ def norm(subject):
     return subject
 
 
-def classify(abi_equal, body_equal, owner_abi_equal=True, body_status='supported'):
+def classify(abi_equal, body_equal, owner_abi_equal=True, body_status='supported',
+             baseline_body_status='supported'):
     """The three answers G2 exists to give, fail-closed.
 
     An unsupported body can never become candidate_unchanged: the encoder hit a
@@ -58,7 +59,10 @@ def classify(abi_equal, body_equal, owner_abi_equal=True, body_status='supported
     is unchanged -- Box.unwrap reads T -> T while Box<T extends Shape> becomes
     Box<T extends Object>.
     """
-    if body_status != 'supported':
+    # BOTH sides must be encodable. An unsupported BASELINE is just as
+    # disqualifying as an unsupported variant: reuse compares two encodings, and
+    # if either is incomplete "equal" means "equal in the parts I looked at".
+    if body_status != 'supported' or baseline_body_status != 'supported':
         return 'refused:unsupported_body'
     if not abi_equal:
         return 'not_reusable_under_old_abi'
@@ -100,9 +104,14 @@ def case(cid, subject, want_abi_equal, want_body_equal, want_class,
     decl_equal = b['declaration_id'] == m['declaration_id']
     owner_abi_equal = b.get('owner_abi_fingerprint') == m.get('owner_abi_fingerprint')
     status = m.get('body_status', 'supported')
-    got_class = classify(abi_equal, body_equal, owner_abi_equal, status)
+    base_status = b.get('body_status', 'supported')
+    got_class = classify(abi_equal, body_equal, owner_abi_equal, status, base_status)
 
     problems = []
+    if want_class == 'refused:unsupported_body':
+        want_abi_equal = None
+        want_body_equal = None
+        want_owner_abi_equal = None
     if want_abi_equal is not None and abi_equal != want_abi_equal:
         problems.append(f'abi {"equal" if abi_equal else "differs"} '
                         f'(want {"equal" if want_abi_equal else "differs"})')
@@ -112,8 +121,12 @@ def case(cid, subject, want_abi_equal, want_body_equal, want_class,
     if want_owner_abi_equal is not None and owner_abi_equal != want_owner_abi_equal:
         problems.append(f'owner_abi {"equal" if owner_abi_equal else "differs"} '
                         f'(want {"equal" if want_owner_abi_equal else "differs"})')
-    if status != 'supported':
-        problems.append(f'body_status {status}')
+    expects_refusal = want_class == 'refused:unsupported_body'
+    if not expects_refusal and (status != 'supported' or base_status != 'supported'):
+        problems.append(f'body_status variant={status} baseline={base_status}')
+    if expects_refusal and status == 'supported' and base_status == 'supported':
+        problems.append('expected an unsupported body on one side, both are supported — '
+                        'the refusal arm would prove nothing')
     if want_class and got_class != want_class:
         problems.append(f'class {got_class} (want {want_class})')
     # G1's separation must hold: identity is not a function of ABI or body.
@@ -132,6 +145,7 @@ def case(cid, subject, want_abi_equal, want_body_equal, want_class,
         'id': label or cid, 'variant': cid, 'subject': key, 'baseline': baseline,
         'abi_equal': abi_equal, 'body_equal': body_equal,
         'owner_abi_equal': owner_abi_equal, 'body_status': status,
+        'baseline_body_status': base_status,
         'declaration_id_stable': decl_equal,
         'classification': got_class, 'expected_classification': want_class,
         'outcome': 'OK' if not problems else 'MISMATCH', 'note': note,

@@ -235,14 +235,18 @@ void main(List<String> args) {
         .join(','),
     'abstract', '${c.isAbstract}',
   ];
+  // KEYED BY (library, class), using the same structured domain as the
+  // declaration identity. Keying by bare class name let two libraries that each
+  // declare a `Box` overwrite one another, attaching the wrong owner contract to
+  // a member -- an identity built from a name alone is not an identity, which is
+  // the same lesson G1 recorded about joined selector strings.
   final classAbi = <String, String>{};
   for (final lib in component.libraries.where(isApp)) {
+    final library = lib.importUri.toString();
     for (final cls in lib.classes) {
-      final preCls =
-          preClasses[memberKeyOf(lib.importUri.toString(), null, 'class', cls.name)] ??
-              cls;
-      classAbi[cls.name] =
-          _hash(['abi', 'class', 'false', '', ...classAbiParts(preCls)]);
+      final key = memberKeyOf(library, null, 'class', cls.name);
+      final preCls = preClasses[key] ?? cls;
+      classAbi[key] = _hash(['abi', 'class', 'false', '', ...classAbiParts(preCls)]);
     }
   }
 
@@ -339,7 +343,9 @@ void main(List<String> args) {
         bodyStatus: aotEnc.status,
         bodyPre: preEnc == null ? null : _hash(['body', preEnc.tokens]),
         bodyStatusPre: preEnc?.status,
-        ownerAbiFingerprint: owner == null ? null : classAbi[owner],
+        ownerAbiFingerprint: owner == null
+            ? null
+            : classAbi[memberKeyOf(library, null, 'class', owner)],
         printed: incumbentPrinted(p),
         loweredName: ext == null ? null : p.name.text,
         ownerKind: ext == null ? null : 'extension',
@@ -412,7 +418,8 @@ void main(List<String> args) {
           bodyStatus: aotEnc.status,
           bodyPre: preEnc == null ? null : _hash(['body', preEnc.tokens]),
           bodyStatusPre: preEnc?.status,
-          ownerAbiFingerprint: classAbi[cls.name],
+          ownerAbiFingerprint:
+              classAbi[memberKeyOf(library, null, 'class', cls.name)],
           printed: incumbentPrinted(c),
           abiFromPreAot: preFn != null,
         );
@@ -435,7 +442,8 @@ void main(List<String> args) {
           bodyStatus: fAotEnc.status,
           bodyPre: fPreEnc == null ? null : _hash(['field-init', fPreEnc.tokens]),
           bodyStatusPre: fPreEnc?.status,
-          ownerAbiFingerprint: classAbi[cls.name],
+          ownerAbiFingerprint:
+              classAbi[memberKeyOf(library, null, 'class', cls.name)],
           printed: incumbentPrinted(f),
         );
       }

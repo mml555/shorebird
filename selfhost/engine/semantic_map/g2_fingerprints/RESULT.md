@@ -2,8 +2,13 @@
 # SM1-G2 — ABI and canonical body fingerprints
 
 **Gate:** [#51](https://github.com/mml555/shorebird/issues/51) · **Tracker:** [#48](https://github.com/mml555/shorebird/issues/48)
-**Run:** 2026-09-07, hardened after PM review · **Verdict: 19/19 cases,
-independence proven both ways, every row's body encoding complete, no failures.**
+**Run:** 2026-09-07, hardened after three PM reviews · **Verdict: 23/23 cases,
+`checks_failed=0`, independence proven both ways, every guard in this gate
+falsified, no failures.**
+
+The 23 cases classify as 9 `candidate_unchanged`, 7 `not_reusable_under_old_abi`,
+5 `changed_existing_declaration`, 2 `refused:unsupported_body` — counts read off
+`evidence/g2_fingerprints.json`, not maintained by hand.
 
 One finding forced a design correction inside this gate rather than a note for a
 later one: **`gen_kernel --aot` strips parameters**, so the ABI cannot be read
@@ -12,7 +17,9 @@ from the AOT kernel at all.
 Transcript: [`evidence/g2_fingerprints.txt`](evidence/g2_fingerprints.txt) ·
 structured: [`evidence/g2_fingerprints.json`](evidence/g2_fingerprints.json) ·
 the kernel-domain measurement:
-[`evidence/kernel_domain_abi.txt`](evidence/kernel_domain_abi.txt).
+[`evidence/kernel_domain_abi.txt`](evidence/kernel_domain_abi.txt) ·
+the fail-closed falsifications:
+[`evidence/fail_closed_plumbing.txt`](evidence/fail_closed_plumbing.txt).
 Reproduce: `run_g2.sh`.
 
 ## The finding: --aot strips parameters
@@ -58,7 +65,7 @@ Invocation targets are keyed by **canonical name read off the `Reference`**
 rather than by dereferencing to a `Member`, so the same encoder works on both
 kernels.
 
-## Five blocking defects closed
+## Seven blocking defects closed
 
 Each was real, and the gate's own arms or the new fail-closed status caught them.
 
@@ -99,6 +106,99 @@ move. Every member row now carries **`owner_abi_fingerprint`**, and reuse
 requires *both* to match. New arm `g2_owner_bound_member`: `abi=` `body=`
 `owner≠` → `not_reusable_under_old_abi`.
 
+## Round 3: two fail-closed plumbing defects closed
+
+Both were cases of a check that was *present* but could not actually fail. The
+requirement was not a redesign — the domain split, the allowlist and the
+fingerprint model are unchanged — it was to make the two newest guards
+falsifiable and then falsify them.
+Transcript: [`evidence/fail_closed_plumbing.txt`](evidence/fail_closed_plumbing.txt).
+
+**6. The unsupported-body refusal was asserted, never exercised.** Every corpus
+program encoded within the allowlist, so `refused:unsupported_body` was a branch
+no arm ever took. Worse, the scorer treated *any* non-`supported` status as a
+problem, so a refusal could not be an expected outcome — a correct refusal would
+have been reported as a failure.
+
+Two changes:
+
+- `refused:unsupported_body` is now a legal `expected_classification`. When a
+  case expects refusal, an unsupported status is the *result*, not a problem; and
+  the guard runs in reverse too — if a case expects refusal and **both** sides
+  encoded cleanly, the case is failed as vacuous ("the refusal arm would prove
+  nothing").
+- Reuse now requires **both** encodings supported. `classify()` took only the
+  variant's status, so an unencodable *baseline* compared against a clean variant
+  would still have been classified on body equality. Reuse compares two
+  encodings; if either is incomplete, "equal" means "equal in the parts I looked
+  at".
+
+New arms `g2_unsupported_base` / `g2_unsupported_node` put a `for` loop —
+deliberately outside the allowlist — in the subject, and both directions are
+scored:
+
+    g2_unsupported_node        base supported, variant unsupported  -> refused:unsupported_body
+    g2_unsupported_baseline_side  base unsupported, variant supported  -> refused:unsupported_body
+
+**7. The owner ABI was keyed by bare class name.** `classAbi` was a map from
+`cls.name`, so two libraries in one component each declaring `Box` collided and
+whichever was walked last supplied the owner ABI for **both**. A member could
+inherit an owner fingerprint computed from a different library's class. The key
+is now the same structured domain identity G1 uses:
+
+    memberKeyOf(library, null, 'class', cls.name)
+
+This is the lesson G1 already recorded about joined selector strings, in a second
+place: an identity built from a name alone is not an identity.
+
+New arms `g2_twolib_base` / `g2_twolib_bound`: each declares `Box` in both
+`corpus/app.dart` and `corpus/other.dart`, and only `corpus.other`'s bound moves.
+Both members are scored from the one pair:
+
+    g2_twolib_untouched_owner  abi= body= owner=  -> candidate_unchanged
+    g2_twolib_moved_owner      abi= body= owner≠  -> not_reusable_under_old_abi
+
+### Each new guard was falsified
+
+A guard that is present but cannot fail certifies nothing, which is how both of
+these defects survived round 2. So each was broken deliberately and observed to
+fail before being restored:
+
+| mutation | expected to break | observed |
+|---|---|---|
+| `classify()` ignores `body_status` entirely | the refusal arm | `g2_unsupported_node` → `changed_existing_declaration` |
+| `classify()` reads only the variant's status | the reversed arm | `g2_unsupported_baseline_side` → `changed_existing_declaration` |
+| `classAbi` keyed by `cls.name` | the two-library pair | `g2_twolib_untouched_owner` → owner_abi differs, `not_reusable_under_old_abi` |
+
+Each mutation was reverted and the suite re-run green in the same transcript, so
+the failures are attributable to the mutation and not to a broken tree.
+
+Note the third row: the *contaminated* case is the **untouched** one.
+`corpus.app::Box.unwrap`, whose owner never changed, inherited
+`corpus.other::Box`'s moved bound and was refused. A bare-name key does not merely
+lose a distinction — it hands a member another library's contract.
+
+### A third defect the round-3 work exposed in the harness itself
+
+`score_g2.py` writes `evidence/g2_fingerprints.json` at a fixed path, but the
+**transcript** depended on the *caller* redirecting stdout. The two artifacts
+therefore drifted inside this gate: `g2_fingerprints.txt` had been left by an
+earlier invocation and was missing `g2_unsupported_baseline_side`, a case
+`g2_fingerprints.json` had already scored — and nothing detected it. A reader
+comparing the two would have found the structured evidence claiming a case the
+transcript never mentions.
+
+`run_g2.sh` now writes its own transcript from the same invocation, so a
+transcript that disagrees with the JSON is not reachable rather than merely
+unlikely. G1 already did this; G2 was the outlier. The `tee` wrapper was itself
+falsified — a run with no toolchain must still exit non-zero rather than have the
+pipeline hide it:
+
+    $ SRC=/nonexistent bash run_g2.sh
+      exit=1        # 0 would mean the pipeline swallowed the failure
+
+Transcript: [`evidence/harness_integrity.txt`](evidence/harness_integrity.txt).
+
 ## An ABI leak the independence arm caught
 
 While fixing #1 I emitted formal types and the return type into the **body**
@@ -132,8 +232,17 @@ return type is not written to the body at all.
       g2_ctor_init                 abi=  body≠  owner=   changed_existing_declaration
       g2_owner_bound_member        abi=  body=  owner≠   not_reusable_under_old_abi
 
+    fail-closed refusal, both directions
+      g2_unsupported_node          variant unencodable   refused:unsupported_body
+      g2_unsupported_baseline_side baseline unencodable  refused:unsupported_body
+
+    cross-library owner identity, from one pair
+      g2_twolib_untouched_owner    abi=  body=  owner=   candidate_unchanged
+      g2_twolib_moved_owner        abi=  body=  owner≠   not_reusable_under_old_abi
+
     every row's body encoding is complete
-      all 23 rows encoded within the allowlist
+      all 23 base rows encoded within the allowlist; the two refusal arms are
+      separate corpora and are expected to refuse
 
 `field_added` keeps the boundary G0 set: the *method* is unchanged, so the
 fingerprints say unchanged. Whether the owning class's layout change makes it
@@ -256,7 +365,10 @@ disagreements**. Shared code would make the check prove nothing — the reasonin
 - [x] Formal parameters are in the body's scope; parameter selection moves the fingerprint
 - [x] Field initializer contents and constructor initializer lists are encoded
 - [x] Body encoding is an explicit allowlist; an unsupported node refuses the row and can never be `candidate_unchanged`
-- [x] The owner/type relationship is carried as `owner_abi_fingerprint`, and reuse requires both to match
+- [x] The owner/type relationship is carried as `owner_abi_fingerprint`, keyed by the same structured domain as identity, and reuse requires both to match
+- [x] Reuse requires BOTH encodings supported; refusal is a first-class expected outcome, and a refusal arm where neither side is unsupported is failed as vacuous
+- [x] Every guard added in this gate was falsified by breaking it deliberately and shown to fail
+- [x] The transcript and the structured evidence come from one invocation, and the exit path was falsified
 - [x] `DECLARATION_ID` / `ABI_FINGERPRINT` / `BODY_FINGERPRINT` remain separate; identity is stable across every same-declaration comparison
 
 ## Not established by this gate

@@ -73,6 +73,52 @@
       "owner_abi_equal": false,
       "expected_classification": "not_reusable_under_old_abi",
       "note": "G1 deferred the owner/type relationship here. Box.unwrap's own signature is unchanged, so its ABI is equal -- but reuse still must be refused, because the owner's ABI moved. The row carries owner_abi_fingerprint and the classifier requires BOTH to match."
+    },
+    {
+      "id": "g2_unsupported_node",
+      "baseline": "g2_unsupported_base",
+      "subject": "package:corpus/app.dart::looped",
+      "dimension": "the body uses a node kind OUTSIDE the allowlist (a for loop)",
+      "abi_equal": null,
+      "body_equal": null,
+      "expected_classification": "refused:unsupported_body",
+      "note": "The refusal must be REACHABLE and expected, not merely representable. The classifier returns refused:unsupported_body before any equality check, and reuse requires BOTH baseline and variant encodings to be supported -- an unsupported baseline is just as disqualifying.",
+      "expects_unsupported_side": "variant"
+    },
+    {
+      "id": "g2_twolib_bound",
+      "baseline": "g2_twolib_base",
+      "subject": "package:corpus/app.dart::Box.unwrap",
+      "dimension": "two libraries each declare a Box; only corpus.other's bound moves",
+      "abi_equal": true,
+      "body_equal": true,
+      "owner_abi_equal": true,
+      "expected_classification": "candidate_unchanged",
+      "case_id": "g2_twolib_untouched_owner",
+      "note": "app's Box is UNTOUCHED, so its member's owner ABI must not move. With the owner table keyed by bare class name, corpus.other's Box overwrote corpus.app's and this member would inherit the wrong contract."
+    },
+    {
+      "id": "g2_twolib_bound",
+      "baseline": "g2_twolib_base",
+      "subject": "package:corpus/other.dart::Box.unwrap",
+      "dimension": "the SAME member name in the library whose Box bound did move",
+      "abi_equal": true,
+      "body_equal": true,
+      "owner_abi_equal": false,
+      "expected_classification": "not_reusable_under_old_abi",
+      "case_id": "g2_twolib_moved_owner",
+      "note": "Same class name, same member name, different library: this one's owner ABI must move. The pair only passes if the owner table is library-qualified."
+    },
+    {
+      "id": "g2_unsupported_base",
+      "baseline": "g2_unsupported_node",
+      "subject": "package:corpus/app.dart::looped",
+      "abi_equal": null,
+      "body_equal": null,
+      "expected_classification": "refused:unsupported_body",
+      "case_id": "g2_unsupported_baseline_side",
+      "note": "reversed direction: the BASELINE is the unencodable side. classify() originally read only the variant's body_status, so an unencodable OLD body compared against a clean new one would have been classified on body equality. Reuse compares two encodings; either being incomplete makes 'equal' mean 'equal in the parts I looked at'.",
+      "expects_unsupported_side": "baseline"
     }
   ]
 }

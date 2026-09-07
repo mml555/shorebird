@@ -29,6 +29,10 @@ SM1-G2 ABI and body fingerprints
   ok      g2_field_init_b            abi== body=≠ owner==  -> changed_existing_declaration
   ok      g2_ctor_init               abi== body=≠ owner==  -> changed_existing_declaration
   ok      g2_owner_bound_member      abi== body== owner=≠  -> not_reusable_under_old_abi
+  ok      g2_unsupported_node        abi== body=≠ owner==  -> refused:unsupported_body
+  ok      g2_twolib_untouched_owner  abi== body== owner==  -> candidate_unchanged
+  ok      g2_twolib_moved_owner      abi== body== owner=≠  -> not_reusable_under_old_abi
+  ok      g2_unsupported_baseline_side abi== body=≠ owner==  -> refused:unsupported_body
 
 --- independence: neither fingerprint is derived from the other ---
   ok      4 case(s) move the ABI with the body identical (abi_nullability, abi_positional_to_named, abi_generic_bound, abi_return_type) — a body-derived ABI would have reported equal
@@ -43,7 +47,7 @@ SM1-G2 ABI and body fingerprints
   base abi_shape census: 1 refused:type_parameters, 22 supported
 
 --- cross-check against the incumbent printed-Kernel oracle ---
-  agree on 15 case(s); disagree on 4
+  agree on 19 case(s); disagree on 4
     FINDING abi_positional_to_named: ours abi=False body=True, incumbent printed_equal=True
     FINDING abi_generic_bound: ours abi=False body=True, incumbent printed_equal=True
     FINDING g2_local_rename: ours abi=True body=True, incumbent printed_equal=False

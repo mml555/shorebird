@@ -1,7 +1,5 @@
 --- G0 frozen corpus: the untouched subject must keep its identity ---
   ok      body_only                declaration_id stable (want stable)   index_id stable
-  ok      abi_added_positio--- G0 frozen corpus: the untouched subject must keep its identity ---
-  ok      body_only                declaration_id stable (want stable)   index_id stable
   ok      abi_added_positional     declaration_id stable (want stable)   index_id stable
   ok      abi_nullability          declaration_id stable (want stable)   index_id stable
   ok      abi_positional_to_named  declaration_id stable (want stable)   index_id stable
