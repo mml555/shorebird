@@ -53,13 +53,26 @@ if d.get('adversarial_corpus_digest') != corpus_digest:
 else:
     print('  ok      adversarial corpus aggregate digest unchanged')
 
+# THE RELEASE-DILL PROOF IS MANDATORY ON VERIFY, IN BOTH DIRECTIONS.
+#
+# It used to report "not rebuilt this run" without incrementing fails, so
+# `SKIP_DILL=1 freeze.sh --verify` printed G0 FREEZE VERIFIED while skipping the
+# one proof #49 actually specifies. A fail-closed freeze does not offer an opt
+# out of its own mandatory check, so both of these are failures:
+#
+#   the manifest records no release identity   -> the freeze is INCOMPLETE
+#   this run did not rebuild it                -> the proof was SKIPPED
 rec = d.get('release_identity', {}).get('base_corpus_dill_sha256')
-if base_dill:
-    if rec != base_dill:
-        print(f'  FAILED  base release dill drifted: {str(rec)[:12]} -> {base_dill[:12]}'); fails += 1
-    else:
-        print('  ok      base release dill matches the frozen release identity')
-elif rec:
-    print('  --      release dill not rebuilt this run (SKIP_DILL); its identity is unverified')
+if not rec:
+    print('  FAILED  the freeze records no release identity — incomplete freeze, '
+          'cannot satisfy #49 or G8'); fails += 1
+elif not base_dill:
+    print('  FAILED  release-dill proof was SKIPPED this run (SKIP_DILL) — mandatory '
+          'on verify; a skipped proof is not a passed one'); fails += 1
+elif rec != base_dill:
+    print(f'  FAILED  release dill does not match the frozen identity: '
+          f'{str(rec)[:12]} != {base_dill[:12]}'); fails += 1
+else:
+    print('  ok      release dill rebuilt and matches the frozen release identity')
 
 sys.exit(1 if fails else 0)

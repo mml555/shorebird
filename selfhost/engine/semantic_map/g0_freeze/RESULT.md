@@ -2,8 +2,9 @@
 # SM1-G0 — frozen inputs, corpus and reference implementations
 
 **Gate:** [#49](https://github.com/mml555/shorebird/issues/49) · **Tracker:** [#48](https://github.com/mml555/shorebird/issues/48)
-**Run:** 2026-09-06 · **Verdict: FROZEN.** Hardened after PM review closed three
-acceptance gaps; one finding recorded before it could mislead a later gate.
+**Run:** 2026-09-06, hardened 2026-09-07 · **Verdict: FROZEN and fail-closed.**
+Two PM review passes closed four acceptance gaps; one finding is recorded before
+it could mislead a later gate.
 
 Machine-readable: [`freeze_manifest.json`](freeze_manifest.json).
 Re-check with `freeze.sh` (default `--verify`); rewrite only with `--emit`.
@@ -142,6 +143,30 @@ The arm #49 actually specifies:
       -> digest MUST differ           ✔
       -> frozen verification refuses  ✔
 
+### The refusal is exercised, not asserted
+
+Banked in [`evidence/fail_closed_proofs.txt`](evidence/fail_closed_proofs.txt) —
+run through the same verifier, with exit codes:
+
+    1. baseline                                  G0 FREEZE VERIFIED   exit=0
+    2. SKIP_DILL=1 --verify                      FAILED: 2 check(s)   exit=1
+    3. DILL_SOURCE=mutants/body_only --verify    FAILED: 1 check      exit=1
+         release dill does not match the frozen identity:
+         fe114c0f64be != f0944ebc7760
+    4. restored                                  G0 FREEZE VERIFIED   exit=0
+
+**Case 2 closes a fail-open.** `SKIP_DILL=1 freeze.sh --verify` used to print
+`G0 FREEZE VERIFIED` while skipping the one proof #49 specifies: the verifier
+reported the dill as unverified without incrementing failures. A fail-closed
+freeze does not offer an opt-out of its own mandatory check, so both a *skipped*
+proof and a manifest carrying *no* release identity are now failures.
+
+**Case 3 is isolated on purpose.** `DILL_SOURCE` points the rebuild at a mutant
+while leaving every frozen corpus file untouched, so all 34 input hashes still
+pass and the **only** failing check is the release identity. Mutating the corpus
+on disk would have failed the input hashes too, and the transcript would not show
+which refusal fired.
+
 **Its confound is controlled first, every run:** "the digest differs" proves
 nothing unless a rebuild of the *same* source is deterministic. Two builds of the
 base produce an identical digest, and that control runs on every invocation
@@ -181,6 +206,8 @@ regenerated and are now clean under a check proven able to fail.
 - [x] Every input recorded with a digest **and re-hashed on verify** — 34 inputs
 - [x] Reference implementations frozen, unmodified, identified by digest, and their **parity harness runs clean (8/8) against the shipped analyzer**
 - [x] A mutated **release dill** changes the frozen release identity, with determinism controlled first
+- [x] The verifier **refuses** a mutated dill, exercised end-to-end and banked with its nonzero exit
+- [x] The mandatory dill proof **cannot be skipped** on `--verify`; a skipped proof and an incomplete freeze are both failures
 - [x] Producer-demand baselines recorded as historical, with their scope
 - [x] No supported artifact, selector or cell modified
 

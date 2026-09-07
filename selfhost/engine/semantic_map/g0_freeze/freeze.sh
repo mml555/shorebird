@@ -123,18 +123,34 @@ fi
 # nothing unless a rebuild of the SAME source is shown to be deterministic. It
 # is, and the control runs every time rather than being asserted once.
 BASE_DILL_SHA=""
+# DILL_SOURCE exists so the verifier's refusal can be exercised in ISOLATION:
+# pointing it at a mutant changes the rebuilt dill while leaving every frozen
+# corpus file untouched, so the only check that fails is the release-identity
+# one. Without it, mutating the corpus on disk fails the input hashes too and the
+# transcript would not show which refusal fired.
+DILL_SOURCE=${DILL_SOURCE:-$HERE/corpus/base}
 if [[ "${SKIP_DILL:-0}" == 1 ]]; then
-  echo "  SKIP    release-dill arm not run (SKIP_DILL=1) — this run does not establish it"
+  if [[ "$MODE" == verify ]]; then
+    bad "SKIP_DILL is not honoured on --verify: the release-dill proof is mandatory"
+  else
+    echo "  SKIP    release-dill arm not run (SKIP_DILL=1) — the emitted freeze will be INCOMPLETE and will not verify"
+  fi
 else
   DW=$(mktemp -d)
-  if bash "$HERE/lib/build_corpus_dill.sh" "$HERE/corpus/base" "$DW/base1.dill" >/dev/null 2>&1 \
-  && bash "$HERE/lib/build_corpus_dill.sh" "$HERE/corpus/base" "$DW/base2.dill" >/dev/null 2>&1; then
+  if bash "$HERE/lib/build_corpus_dill.sh" "$DILL_SOURCE" "$DW/base1.dill" >/dev/null 2>&1 \
+  && bash "$HERE/lib/build_corpus_dill.sh" "$DILL_SOURCE" "$DW/base2.dill" >/dev/null 2>&1; then
     if [[ -s "$DW/base1.dill" && -s "$DW/base2.dill" ]]; then
       B1=$(sha "$DW/base1.dill"); B2=$(sha "$DW/base2.dill")
       if [[ "$B1" == "$B2" ]]; then
-        ok "release dill is deterministic across rebuilds (control)"
+        ok "release dill is deterministic across rebuilds (control; source $(basename "$DILL_SOURCE"))"
         BASE_DILL_SHA=$B1
-        if bash "$HERE/lib/build_corpus_dill.sh" "$HERE/corpus/mutants/body_only" "$DW/mut.dill" >/dev/null 2>&1 \
+        # In refusal-exercise mode DILL_SOURCE already points at a mutant, so
+        # comparing it against that same mutant would report "did not move" and
+        # contradict the refusal the run is demonstrating. The sub-arm applies
+        # only when the source is the base.
+        if [[ "$DILL_SOURCE" != "$HERE/corpus/base" ]]; then
+          echo "  --      mutation sub-arm not applicable: DILL_SOURCE is $(basename "$DILL_SOURCE"), not base (refusal-exercise mode)"
+        elif bash "$HERE/lib/build_corpus_dill.sh" "$HERE/corpus/mutants/body_only" "$DW/mut.dill" >/dev/null 2>&1 \
            && [[ -s "$DW/mut.dill" ]]; then
           MS=$(sha "$DW/mut.dill")
           [[ "$MS" != "$B1" ]] && ok "one-declaration mutation changes the release dill (${B1:0:12} -> ${MS:0:12})" \
