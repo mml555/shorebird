@@ -1,7 +1,7 @@
 <!-- cspell:words semantic linker dartaotruntime aot -->
-# SEMANTIC-LINKER-1 — runtime feasibility
+# SEMANTIC-LINKER-1 — runtime feasibility  ·  **CLOSED / PROCEED**
 
-Tracker: [#36](https://github.com/mml555/shorebird/issues/36).
+Tracker: [#36](https://github.com/mml555/shorebird/issues/36) — **closed 2026-09-06**. All ten gates closed; verdict `PROCEED`.
 
 **Feasibility only.** Nothing here changes the supported cell, the production
 CLI, the patch format, the signing model, the control plane, or the physical
@@ -49,13 +49,22 @@ module-side dynamic-interface validation must become fail-closed before this
 design is production-safe; and explain tooling must not classify module failures
 from the VM error string alone.
 
-## Standing rule for this lane
+## What SEMANTIC-MAP-1 inherits
 
-G4–G6 are expensive **because** they assume what the earlier gates establish. Do
-not start them, and do not fill in #43's scaffolding, ahead of an explicit
-decision on the gate before them. The Dart durability repair is
-[#47](https://github.com/mml555/shorebird/issues/47) and is deliberately NOT
-part of this lane: nothing qualified is rebuilt for it.
+The next lane is authorized and is **not started here**. It inherits three
+mandatory constraints, each with the evidence that produced it:
+
+1. **Patchable members must carry the `can-be-overridden` contract.** Without
+   it the precompiler devirtualizes every call site and, at a field receiver,
+   inlines the body outright — [`g4_optimizer/RESULT.md`](runtime_feasibility/g4_optimizer/RESULT.md).
+2. **Module-side dynamic-interface validation must become fail-closed** before
+   production. It is unenforced today in both shipped tools —
+   [`g6a_negatives/RESULT.md`](runtime_feasibility/g6a_negatives/RESULT.md).
+3. **Module failure classification cannot rely on VM error strings alone.**
+   Corrupt bytecode reports as an import-resolution failure — same document.
+
+The Dart durability repair is [#47](https://github.com/mml555/shorebird/issues/47),
+independent of this lane and of the next: nothing qualified is rebuilt for it.
 
 ## Reproducing everything
 
