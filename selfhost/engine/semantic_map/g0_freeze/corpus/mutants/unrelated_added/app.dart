@@ -39,3 +39,23 @@ int usesPrivate(int x) => _privateHelper(x);
 int usesOtherLibrary(int x) => helperAdd(x);
 
 int brandNew(int x) => x - 7;
+
+/// Entry point. The corpus is compiled as a release program, so it needs one;
+/// it references every declaration so nothing is tree-shaken before the map can
+/// see it.
+void main() {
+  final s = Shape(3);
+  print(s.area(2, 4));
+  print(s.perimeter);
+  s.scale = 2;
+  print(s.scaled);
+  print(Shape.square().sides);
+  print(Shape.unit().sides);
+  print(s + Shape(1));
+  print(Box<Shape>(s).unwrap().sides);
+  print(topLevel(1));
+  print(brandNew(9));
+  print(usesPrivate(2));
+  print(usesOtherLibrary(3));
+  print(helperUsesPrivate(4));
+}

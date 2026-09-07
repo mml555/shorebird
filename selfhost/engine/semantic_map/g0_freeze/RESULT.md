@@ -2,7 +2,8 @@
 # SM1-G0 — frozen inputs, corpus and reference implementations
 
 **Gate:** [#49](https://github.com/mml555/shorebird/issues/49) · **Tracker:** [#48](https://github.com/mml555/shorebird/issues/48)
-**Run:** 2026-09-06 · **Verdict: FROZEN. One finding recorded before it could mislead a later gate.**
+**Run:** 2026-09-06 · **Verdict: FROZEN.** Hardened after PM review closed three
+acceptance gaps; one finding recorded before it could mislead a later gate.
 
 Machine-readable: [`freeze_manifest.json`](freeze_manifest.json).
 Re-check with `freeze.sh` (default `--verify`); rewrite only with `--emit`.
@@ -95,17 +96,75 @@ explicitly so no later gate reads them as semantic-map quality scores.
    retains regardless of the contract; SEMANTIC-LINKER-1's
    `missing_retained_import` control passed while measuring the pragma.
 
+## Verification re-hashes every frozen input
+
+`frozen_inputs` in the manifest is **the** inventory — 34 entries: 4 reference
+implementations, 2 real-world corpus pins, the supported record, and 27
+adversarial-corpus files. `--verify` iterates that list and re-hashes each one;
+it keeps no separate inventory to drift from it.
+
+**This closes a real gap.** The first version recorded digests for the reference
+tools and corpus pins and then checked only their **existence**, so a one-byte
+edit to `gen_target_manifest.dart` still printed `G0 FREEZE VERIFIED`. A freeze
+that records a digest it never compares is decorative.
+
+Falsified per input class, each caught:
+
+    gen_target_manifest.dart   caught      wonderous.window.txt   caught
+    SUPPORTED_STATE.yaml       caught      corpus/base/helper.dart caught
+
+## Parity runs clean, against the analyzer the cell ships
+
+    coverage parity: 8 passed, 0 failed        EXIT=0
+
+    ANALYZER pinned to 67741a08…  (the shipped cell artifact)
+    parity.sh's build-tree default 18862acd…  was NOT used
+
+Transcript: [`evidence/parity_shipped_analyzer.txt`](evidence/parity_shipped_analyzer.txt).
+Eight cases — `added_member`, `dispatch_table`, `instance_method`,
+`mixed_rejection`, `private_accessor`, `static_function`, `tearoff_closure`,
+`unreachable_target` — comparing the shipped analyzer against both untouched
+reference implementations on changed-target set, target identity, representable,
+conditional and rejected sets, **the exact rejection reason for each**, and the
+whole-patch verdict.
+
+Given the analyzer divergence above, running this against the default would have
+proved agreement for an artifact the product does not use.
+
+## The release-dill mutation arm
+
+The arm #49 actually specifies:
+
+    frozen source + frozen toolchain
+      -> build base release dill      fe114c0f64be…
+      -> mutate ONE declaration       (body_only: return x + 1 -> x + 2)
+      -> rebuild                      f0944ebc7760…
+      -> digest MUST differ           ✔
+      -> frozen verification refuses  ✔
+
+**Its confound is controlled first, every run:** "the digest differs" proves
+nothing unless a rebuild of the *same* source is deterministic. Two builds of the
+base produce an identical digest, and that control runs on every invocation
+rather than being asserted once.
+
+That control immediately earned its place. The first builder used a fresh
+`mktemp` directory per call, and the package `rootUri` is a `file://` URI baked
+into the dill — so every build was unique and the control failed for a reason
+with nothing to do with the compiler. The builder now uses a stable path.
+
+Worth carrying to G1: the `reorder` mutant **also** moves the dill digest,
+because a dill preserves declaration order. That is precisely why
+`DECLARATION_ID` must not be derived from dill ordering.
+
+The source-corpus mutation is kept as a **supplementary** control — cheap, and
+independent of the toolchain.
+
 ## The freeze is falsifiable
 
-    baseline                          G0 FREEZE VERIFIED
-    one comment appended to base      FAILED  adversarial corpus digest unchanged…
-                                              expected 4a85fcc2…, got 89a6d016…
-    restored                          G0 FREEZE VERIFIED
-
-The freeze is a function of the bytes, not of a recorded label. `freeze.sh` also
-carries its own adversarial arm: it mutates a scratch copy of the corpus every
-run and requires the digest to move, so a freeze that had become decorative would
-report it.
+The freeze is a function of the bytes, not of a recorded label, and every input
+class was mutated in turn and caught (above). `freeze.sh` also carries its own
+arms — the release-dill rebuild and the scratch-copy corpus mutation — so a
+freeze that had become decorative would report it rather than pass.
 
 ## A vacuous check caught during authoring
 
@@ -119,9 +178,9 @@ regenerated and are now clean under a check proven able to fail.
 
 ## Acceptance
 
-- [x] Every input recorded with a digest or immutable revision
-- [x] Reference implementations frozen, unmodified, and identified by digest
-- [x] Mutated input changes the freeze record — demonstrated in both directions
+- [x] Every input recorded with a digest **and re-hashed on verify** — 34 inputs
+- [x] Reference implementations frozen, unmodified, identified by digest, and their **parity harness runs clean (8/8) against the shipped analyzer**
+- [x] A mutated **release dill** changes the frozen release identity, with determinism controlled first
 - [x] Producer-demand baselines recorded as historical, with their scope
 - [x] No supported artifact, selector or cell modified
 
@@ -132,3 +191,7 @@ regenerated and are now clean under a check proven able to fail.
 - The twelve mutants and their declared expectations are the substrate; `reorder`
   is the one that fails an order-derived identity, and G1 owes a deliberately
   index-derived control to prove its harness can detect that failure.
+- `reorder` moves the release-dill digest too, so dill order is not a safe basis
+  for `DECLARATION_ID`.
+- Build corpus dills with `lib/build_corpus_dill.sh`; a fresh temp path per build
+  makes them non-reproducible.

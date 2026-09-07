@@ -1,9 +1,10 @@
 {
-  "schema": "semantic-map-1/g0-freeze/1",
+  "schema": "semantic-map-1/g0-freeze/2",
   "gate": "SM1-G0",
   "issue": 49,
   "tracker": 48,
-  "frozen": "2026-09-07T03:11:50Z",
+  "frozen": "2026-09-07T03:33:11Z",
+  "inventory_contract": "frozen_inputs is THE inventory. verify re-hashes every entry and compares; it keeps no separate list. The v1 manifest recorded digests for the reference tools and corpus pins and then checked only their existence, so a one-byte edit still verified.",
   "inherited_lineage": {
     "from": "semantic_linker/runtime_feasibility/g0_freeze/freeze_manifest.json",
     "distribution": {
@@ -45,60 +46,253 @@
         }
       }
     },
-    "note": "SEMANTIC-MAP-1 builds from this lineage. #47 is off the critical path; the bank is what makes that safe."
+    "note": "#47 is off the critical path; the SL1 bank is what makes that safe."
   },
   "analyzer": {
     "shipped_sha256": "67741a082fcde5a9e2067fdfad1deb7ad69cb89b8d23aba78ed31b5afb6c2f5d",
     "cell": "f85251f344600ae08196925a174e9cff8f0ff18e",
     "build_tree_sha256": "18862acd7de2af6381205064a7290b5fb67a6b9c707eabad8d645cff04c4eccb",
     "divergence": true,
-    "finding": "coverage/parity.sh defaults ANALYZER to the BUILD TREE copy, which is not the artifact the cell ships. Any parity run in this lane must pin ANALYZER= to the shipped digest, or it measures something the product does not use."
+    "finding": "coverage/parity.sh defaults ANALYZER to the BUILD TREE copy, which is not the artifact the cell ships. Every parity run in this lane must pin ANALYZER= to the shipped digest.",
+    "parity_evidence": "evidence/parity_shipped_analyzer.txt"
   },
-  "reference_implementations": {
-    "identity/gen_target_manifest.dart": "6278e04619df5904c133269c7ea601a5a458275dc65254192f64ea02bff33fac",
-    "packaging/build_patch.dart": "84252e21559aa6b0c2c60d2d3f856f9089110c200b454f3fdee9b19a00c65f55",
-    "coverage/analyze_coverage.dart": "757a40c394f6e4ab96c7e1776d66aaab87044dd3a3b34ea6856798acc2cfd9d3",
-    "coverage/parity.sh": "5f40dc41077233ffbef8c8024c1d268ff87e393b10d01f9ebe179106f6ae4bea"
+  "release_identity": {
+    "base_corpus_dill_sha256": "fe114c0f64be3b4fe63a826edd33ef97d040ac39dc2d3b11d5cdbcce7bf92920",
+    "built_by": "lib/build_corpus_dill.sh, using the frozen toolchain",
+    "determinism": "two builds of identical source produce an identical digest; re-checked every run",
+    "note": "The `reorder` mutant also moves this digest, because a dill preserves declaration order. That is exactly why SM1-G1 must not derive DECLARATION_ID from dill order."
   },
-  "reference_implementation_note": "gen_target_manifest.dart and build_patch.dart are the incumbent reference oracles and stay UNMODIFIED; parity.sh proves the shipped analyzer agrees with them. Printed-Kernel equality is that incumbent, not this lane's wire contract.",
-  "corpus": {
-    "real_world_regression": {
-      "pins": {
-        "coverage/demand1/wonderous.window.txt": "90c68620396f9b6054a89be80a868016a19668de91a96b3e7e561c3cde14a66c",
-        "coverage/demand1/localsend.window.txt": "44115081675b0e82a3e9fbf62cd41685e109de3a758b7c03297d3664888831f2"
-      },
-      "scope": "continuity anchor only; selected for a different question"
+  "frozen_inputs": [
+    {
+      "id": "SUPPORTED_STATE.yaml",
+      "path": "selfhost/engine/route_b/SUPPORTED_STATE.yaml",
+      "kind": "supported_record",
+      "sha256": "7ec13123c0e8b495bfd18b6a5a51d234c03021b12210b1f2dd25827d7c91b7ff"
     },
-    "adversarial_semantic": {
-      "digest": "4a85fcc2b48cb283fe857c599642469b1478ed84e0cf9df2124c6f0d62be0753",
-      "expectations": "corpus/EXPECTATIONS.json",
-      "mutants": 12
+    {
+      "id": "analyze_coverage.dart",
+      "path": "selfhost/engine/route_b/coverage/analyze_coverage.dart",
+      "kind": "reference_implementation",
+      "sha256": "757a40c394f6e4ab96c7e1776d66aaab87044dd3a3b34ea6856798acc2cfd9d3"
+    },
+    {
+      "id": "localsend.window.txt",
+      "path": "selfhost/engine/route_b/coverage/demand1/localsend.window.txt",
+      "kind": "real_world_corpus_pin",
+      "sha256": "44115081675b0e82a3e9fbf62cd41685e109de3a758b7c03297d3664888831f2"
+    },
+    {
+      "id": "wonderous.window.txt",
+      "path": "selfhost/engine/route_b/coverage/demand1/wonderous.window.txt",
+      "kind": "real_world_corpus_pin",
+      "sha256": "90c68620396f9b6054a89be80a868016a19668de91a96b3e7e561c3cde14a66c"
+    },
+    {
+      "id": "parity.sh",
+      "path": "selfhost/engine/route_b/coverage/parity.sh",
+      "kind": "reference_implementation",
+      "sha256": "5f40dc41077233ffbef8c8024c1d268ff87e393b10d01f9ebe179106f6ae4bea"
+    },
+    {
+      "id": "gen_target_manifest.dart",
+      "path": "selfhost/engine/route_b/identity/gen_target_manifest.dart",
+      "kind": "reference_implementation",
+      "sha256": "6278e04619df5904c133269c7ea601a5a458275dc65254192f64ea02bff33fac"
+    },
+    {
+      "id": "build_patch.dart",
+      "path": "selfhost/engine/route_b/packaging/build_patch.dart",
+      "kind": "reference_implementation",
+      "sha256": "84252e21559aa6b0c2c60d2d3f856f9089110c200b454f3fdee9b19a00c65f55"
+    },
+    {
+      "id": "EXPECTATIONS.json",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/EXPECTATIONS.json",
+      "kind": "adversarial_corpus_file",
+      "sha256": "b6ce64572de28c0a838930132b669b38f2b6671b72324b8bc7bdb33706830bc2"
+    },
+    {
+      "id": "base/app.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/base/app.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "72e825fdffde04fe9fc2f48df16b53c46f1f705db8742a6e145ee19f9ca16dc1"
+    },
+    {
+      "id": "base/helper.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/base/helper.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "911ce749ce4b9ab273e7a44c5492f800a7d1a52f437d53a4e7f6f5cb20bfc3db"
+    },
+    {
+      "id": "mutants/abi_added_positional/app.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/abi_added_positional/app.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "a576d1c65123a1cde42c05d6356fc5187d972147931a7e5a65e0ca80bc2fc8f6"
+    },
+    {
+      "id": "mutants/abi_added_positional/helper.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/abi_added_positional/helper.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "911ce749ce4b9ab273e7a44c5492f800a7d1a52f437d53a4e7f6f5cb20bfc3db"
+    },
+    {
+      "id": "mutants/abi_generic_bound/app.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/abi_generic_bound/app.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "21c88c84da1c87345d92163d70e6417cf3d4c4f6401a752db7bbbb616a270476"
+    },
+    {
+      "id": "mutants/abi_generic_bound/helper.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/abi_generic_bound/helper.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "911ce749ce4b9ab273e7a44c5492f800a7d1a52f437d53a4e7f6f5cb20bfc3db"
+    },
+    {
+      "id": "mutants/abi_nullability/app.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/abi_nullability/app.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "30781752fdd6e772225fe9e2bde6644b7e5d5f407be0b29d0f550dc9bd18217a"
+    },
+    {
+      "id": "mutants/abi_nullability/helper.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/abi_nullability/helper.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "911ce749ce4b9ab273e7a44c5492f800a7d1a52f437d53a4e7f6f5cb20bfc3db"
+    },
+    {
+      "id": "mutants/abi_positional_to_named/app.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/abi_positional_to_named/app.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "4c61d6979027f09dfbe2eb50f5d75ff1c9f0c541bbe137ee101cd50d8ef504d5"
+    },
+    {
+      "id": "mutants/abi_positional_to_named/helper.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/abi_positional_to_named/helper.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "911ce749ce4b9ab273e7a44c5492f800a7d1a52f437d53a4e7f6f5cb20bfc3db"
+    },
+    {
+      "id": "mutants/abi_return_type/app.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/abi_return_type/app.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "2b99ad5f2ea93994711ae0939ac120932a96ccf65b04b75223ca7474993e987d"
+    },
+    {
+      "id": "mutants/abi_return_type/helper.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/abi_return_type/helper.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "911ce749ce4b9ab273e7a44c5492f800a7d1a52f437d53a4e7f6f5cb20bfc3db"
+    },
+    {
+      "id": "mutants/body_only/app.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/body_only/app.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "28962874bc352e9d4fb773bc9458dcc50430e362ca1376ade7ed8e67881be314"
+    },
+    {
+      "id": "mutants/body_only/helper.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/body_only/helper.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "911ce749ce4b9ab273e7a44c5492f800a7d1a52f437d53a4e7f6f5cb20bfc3db"
+    },
+    {
+      "id": "mutants/field_added/app.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/field_added/app.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "e7feeb2409f546ad58449ef659cfaba2a71003e019487b7ce224526db4545a46"
+    },
+    {
+      "id": "mutants/field_added/helper.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/field_added/helper.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "911ce749ce4b9ab273e7a44c5492f800a7d1a52f437d53a4e7f6f5cb20bfc3db"
+    },
+    {
+      "id": "mutants/private_other_domain/app.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/private_other_domain/app.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "72e825fdffde04fe9fc2f48df16b53c46f1f705db8742a6e145ee19f9ca16dc1"
+    },
+    {
+      "id": "mutants/private_other_domain/helper.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/private_other_domain/helper.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "2edc18a79b6851e4874d8e8394e38f2f56e1586899ede7e0f233243b49ed90cc"
+    },
+    {
+      "id": "mutants/reorder/app.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/reorder/app.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "fe8efba4ce08251b2e44ad63b964bbd2b918b7a77f213eb41fdb7e43c4a459e0"
+    },
+    {
+      "id": "mutants/reorder/helper.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/reorder/helper.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "911ce749ce4b9ab273e7a44c5492f800a7d1a52f437d53a4e7f6f5cb20bfc3db"
+    },
+    {
+      "id": "mutants/unrelated_added/app.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/unrelated_added/app.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "fb72ef4b40685b26f6cb02c3b3a1c8640dc63c7e7dc13f1464245dc4a7c46a30"
+    },
+    {
+      "id": "mutants/unrelated_added/helper.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/unrelated_added/helper.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "911ce749ce4b9ab273e7a44c5492f800a7d1a52f437d53a4e7f6f5cb20bfc3db"
+    },
+    {
+      "id": "mutants/unrelated_removed/app.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/unrelated_removed/app.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "e7c3c98601772c39d64be56a4b7f0b6f93c46db748858b07c9e012106dbd8142"
+    },
+    {
+      "id": "mutants/unrelated_removed/helper.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/unrelated_removed/helper.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "911ce749ce4b9ab273e7a44c5492f800a7d1a52f437d53a4e7f6f5cb20bfc3db"
+    },
+    {
+      "id": "mutants/unrelated_renamed/app.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/unrelated_renamed/app.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "50ff1fb52e9069586abb1e286525f40b91cb47e53bfe57b7d8a209c0c7bd0bb5"
+    },
+    {
+      "id": "mutants/unrelated_renamed/helper.dart",
+      "path": "selfhost/engine/semantic_map/g0_freeze/corpus/mutants/unrelated_renamed/helper.dart",
+      "kind": "adversarial_corpus_file",
+      "sha256": "911ce749ce4b9ab273e7a44c5492f800a7d1a52f437d53a4e7f6f5cb20bfc3db"
     }
-  },
+  ],
+  "adversarial_corpus_digest": "9f6c06abb3dd4f1d7c47524307ed0d953f18926cd1329aa40842cefc03e1bf19",
   "historical_baselines": {
     "wonderous": "50.00%",
     "localsend": "92.67%",
-    "scope": "Route B PRODUCER-DEMAND baselines, measured for a different question. They are NOT semantic-map quality scores and are not reinterpreted as such by this lane.",
+    "scope": "Route B PRODUCER-DEMAND baselines, measured for a different question. NOT semantic-map quality scores and not reinterpreted as such by this lane.",
     "source": "selfhost/engine/route_b/evidence/producer_demand_2.md"
   },
   "confounds_recorded": [
     {
       "id": "PLATFORM_LIBRARY_GUARD_IS_UNCOMMITTED",
+      "owner_gate": "SM1-G3",
       "statement": "The guard refusing --resolve-private-names-in-library on a platform library is uncommitted-but-shipped source, present in effective tree 7b04b01b and absent from a clean checkout of 9e8c898a.",
-      "consequence": "A gate built from the wrong tree makes the platform-library arm pass vacuously.",
-      "owner_gate": "SM1-G3"
+      "consequence": "A gate built from the wrong tree makes the platform-library arm pass vacuously."
     },
     {
       "id": "ANALYZER_BUILD_TREE_DIVERGENCE",
+      "owner_gate": "SM1-G0",
       "statement": "parity.sh defaults to a build-tree analyzer that is not the shipped one.",
-      "consequence": "Freezing or measuring the wrong analyzer.",
-      "owner_gate": "SM1-G0 (recorded here)"
+      "consequence": "Freezing or measuring the wrong analyzer."
     },
     {
       "id": "VM_ENTRY_POINT_RETAINS_INDEPENDENTLY",
+      "owner_gate": "SM1-G4",
       "statement": "@pragma('vm:entry-point') retains a symbol regardless of the dynamic-interface contract.",
-      "consequence": "A retention control passes while measuring the pragma.",
-      "owner_gate": "SM1-G4"
+      "consequence": "A retention control passes while measuring the pragma."
     }
   ],
   "unmodified": {

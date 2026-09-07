@@ -115,96 +115,73 @@ else
   bad "no corpus expectations at $EXP"
 fi
 
-# ---- 6. the adversarial arm: a mutated input must change the freeze ---------
-# The freeze record must be a function of the bytes. If a mutant can be swapped
-# in without the record moving, the freeze is decorative.
+# ---- 6. adversarial arms ---------------------------------------------------
+# THE ONE #49 ASKS FOR: build a release dill from the frozen source, mutate ONE
+# declaration, rebuild, and require the release identity to move.
+#
+# Its confound is stated and controlled first: "the digest differs" proves
+# nothing unless a rebuild of the SAME source is shown to be deterministic. It
+# is, and the control runs every time rather than being asserted once.
+BASE_DILL_SHA=""
+if [[ "${SKIP_DILL:-0}" == 1 ]]; then
+  echo "  SKIP    release-dill arm not run (SKIP_DILL=1) — this run does not establish it"
+else
+  DW=$(mktemp -d)
+  if bash "$HERE/lib/build_corpus_dill.sh" "$HERE/corpus/base" "$DW/base1.dill" >/dev/null 2>&1 \
+  && bash "$HERE/lib/build_corpus_dill.sh" "$HERE/corpus/base" "$DW/base2.dill" >/dev/null 2>&1; then
+    if [[ -s "$DW/base1.dill" && -s "$DW/base2.dill" ]]; then
+      B1=$(sha "$DW/base1.dill"); B2=$(sha "$DW/base2.dill")
+      if [[ "$B1" == "$B2" ]]; then
+        ok "release dill is deterministic across rebuilds (control)"
+        BASE_DILL_SHA=$B1
+        if bash "$HERE/lib/build_corpus_dill.sh" "$HERE/corpus/mutants/body_only" "$DW/mut.dill" >/dev/null 2>&1 \
+           && [[ -s "$DW/mut.dill" ]]; then
+          MS=$(sha "$DW/mut.dill")
+          [[ "$MS" != "$B1" ]] && ok "one-declaration mutation changes the release dill (${B1:0:12} -> ${MS:0:12})" \
+                               || bad "the release dill did NOT move under a one-declaration mutation"
+        else
+          bad "could not build the mutant release dill"
+        fi
+      else
+        bad "release dill is NOT deterministic — a digest difference would prove nothing"
+      fi
+    else
+      bad "release dill build produced no output; the arm would compare empty strings"
+    fi
+  else
+    bad "could not build the base release dill"
+  fi
+  rm -rf "$DW"
+fi
+
+# SUPPLEMENTARY, kept because it is cheap and independent of the toolchain:
+# a source mutation must move the corpus digest.
 CORPUS_DIGEST=$(find "$CORP" -type f | LC_ALL=C sort | xargs shasum -a 256 | shasum -a 256 | cut -d' ' -f1)
 T=$(mktemp -d); cp -R "$CORP" "$T/corpus"
 printf '\n// adversarial arm\n' >> "$T/corpus/base/app.dart"
 MUT_DIGEST=$(find "$T/corpus" -type f | LC_ALL=C sort | xargs shasum -a 256 | shasum -a 256 | cut -d' ' -f1)
-if [[ "$CORPUS_DIGEST" != "$MUT_DIGEST" ]]; then
-  ok "adversarial arm: a one-line mutation changes the corpus digest"
-else
-  bad "adversarial arm: the corpus digest did NOT move under mutation — the freeze is decorative"
-fi
+[[ "$CORPUS_DIGEST" != "$MUT_DIGEST" ]] && ok "supplementary: a source mutation changes the corpus digest" \
+                                        || bad "supplementary: the corpus digest did NOT move under mutation"
 rm -rf "$T"
 
 # ---- 7. emit / verify ------------------------------------------------------
+# THE MANIFEST IS THE SOURCE OF TRUTH. Verification iterates `frozen_inputs` and
+# re-hashes every entry; there is no parallel hard-coded inventory to drift from
+# it. The first version of this script recorded hashes for the reference tools
+# and the corpus pins and then checked only their EXISTENCE -- so a one-byte edit
+# to gen_target_manifest.dart still printed G0 FREEZE VERIFIED. A freeze that
+# records a digest it never compares is decorative.
 if [[ "$MODE" == emit ]]; then
-  python3 - "$MANIFEST" "$REPO" "$HERE" "$ANALYZER_SHIPPED" "${ANALYZER_BUILD_TREE:-}" "$CORPUS_DIGEST" "$CELL" <<'G0JSON'
-import json,sys,os,hashlib,datetime,subprocess
-man, repo, here, an_ship, an_build, corpus_digest, cell = sys.argv[1:8]
-def sha(p):
-    try:
-        h=hashlib.sha256()
-        with open(p,'rb') as f:
-            for c in iter(lambda: f.read(1<<20), b''): h.update(c)
-        return h.hexdigest()
-    except OSError: return None
-rb = os.path.join(repo,'selfhost/engine/route_b')
-sl1 = os.path.join(repo,'selfhost/engine/semantic_linker/runtime_feasibility/g0_freeze/freeze_manifest.json')
-inherited = json.load(open(sl1)) if os.path.isfile(sl1) else {}
-refs = {rel: sha(os.path.join(rb,rel)) for rel in
-        ('identity/gen_target_manifest.dart','packaging/build_patch.dart',
-         'coverage/analyze_coverage.dart','coverage/parity.sh')}
-pins = {rel: sha(os.path.join(rb,rel)) for rel in
-        ('coverage/demand1/wonderous.window.txt','coverage/demand1/localsend.window.txt')}
-doc = {
- 'schema':'semantic-map-1/g0-freeze/1','gate':'SM1-G0','issue':49,'tracker':48,
- 'frozen': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
- 'inherited_lineage': {
-   'from':'semantic_linker/runtime_feasibility/g0_freeze/freeze_manifest.json',
-   'distribution': inherited.get('distribution',{}),
-   'producing_source': inherited.get('producing_source',{}),
-   'note':'SEMANTIC-MAP-1 builds from this lineage. #47 is off the critical path; the bank is what makes that safe.'},
- 'analyzer': {
-   'shipped_sha256': an_ship, 'cell': cell,
-   'build_tree_sha256': an_build or None,
-   'divergence': (an_build is not None and an_build != an_ship),
-   'finding': ('coverage/parity.sh defaults ANALYZER to the BUILD TREE copy, which is not the '
-               'artifact the cell ships. Any parity run in this lane must pin ANALYZER= to the '
-               'shipped digest, or it measures something the product does not use.')},
- 'reference_implementations': refs,
- 'reference_implementation_note': ('gen_target_manifest.dart and build_patch.dart are the incumbent '
-   'reference oracles and stay UNMODIFIED; parity.sh proves the shipped analyzer agrees with them. '
-   'Printed-Kernel equality is that incumbent, not this lane\'s wire contract.'),
- 'corpus': {
-   'real_world_regression': {'pins': pins,
-     'scope':'continuity anchor only; selected for a different question'},
-   'adversarial_semantic': {'digest': corpus_digest,
-     'expectations': 'corpus/EXPECTATIONS.json',
-     'mutants': len(json.load(open(os.path.join(here,'corpus/EXPECTATIONS.json')))['mutants'])}},
- 'historical_baselines': {
-   'wonderous':'50.00%','localsend':'92.67%',
-   'scope':('Route B PRODUCER-DEMAND baselines, measured for a different question. They are NOT '
-            'semantic-map quality scores and are not reinterpreted as such by this lane.'),
-   'source':'selfhost/engine/route_b/evidence/producer_demand_2.md'},
- 'confounds_recorded': [
-   {'id':'PLATFORM_LIBRARY_GUARD_IS_UNCOMMITTED',
-    'statement':('The guard refusing --resolve-private-names-in-library on a platform library is '
-                 'uncommitted-but-shipped source, present in effective tree 7b04b01b and absent '
-                 'from a clean checkout of 9e8c898a.'),
-    'consequence':'A gate built from the wrong tree makes the platform-library arm pass vacuously.',
-    'owner_gate':'SM1-G3'},
-   {'id':'ANALYZER_BUILD_TREE_DIVERGENCE',
-    'statement':'parity.sh defaults to a build-tree analyzer that is not the shipped one.',
-    'consequence':'Freezing or measuring the wrong analyzer.','owner_gate':'SM1-G0 (recorded here)'},
-   {'id':'VM_ENTRY_POINT_RETAINS_INDEPENDENTLY',
-    'statement':"@pragma('vm:entry-point') retains a symbol regardless of the dynamic-interface contract.",
-    'consequence':'A retention control passes while measuring the pragma.','owner_gate':'SM1-G4'}],
- 'unmodified': {
-   'claim':'no supported artifact, selector or cell is modified by this lane',
-   'checked':['packages/','bin/','selfhost/engine/route_b/','selfhost/compatibility.yaml']},
-}
-json.dump(doc, open(man,'w'), indent=2)
-print(f'  ok      wrote {man}')
-G0JSON
+  python3 "$HERE/lib/emit_manifest.py" "$MANIFEST" "$REPO" "$HERE" \
+    "$ANALYZER_SHIPPED" "${ANALYZER_BUILD_TREE:-}" "$CORPUS_DIGEST" "$CELL" \
+    "${BASE_DILL_SHA:-}" && ok "wrote $MANIFEST" || bad "could not write $MANIFEST"
 else
   if [[ -f "$MANIFEST" ]]; then
-    REC=$(python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print(d['corpus']['adversarial_semantic']['digest'])" "$MANIFEST" 2>/dev/null)
-    cmp_v "adversarial corpus digest unchanged since the freeze" "$REC" "$CORPUS_DIGEST"
-    RECAN=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['analyzer']['shipped_sha256'])" "$MANIFEST" 2>/dev/null)
-    cmp_v "shipped analyzer unchanged since the freeze" "$RECAN" "$ANALYZER_SHIPPED"
+    OUTPUT=$(python3 "$HERE/lib/verify_manifest.py" "$MANIFEST" "$REPO" "$HERE" \
+      "$ANALYZER_SHIPPED" "$CORPUS_DIGEST" "${BASE_DILL_SHA:-}")
+    RC=$?
+    printf '%s\n' "$OUTPUT"
+    [[ "$RC" -eq 0 ]] || fails=$((fails + $(grep -c 'FAILED' <<<"$OUTPUT")))
   else
     bad "no freeze manifest — run with --emit"
   fi

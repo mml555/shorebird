@@ -1,0 +1,37 @@
+SM1-G0 parity run — ANALYZER pinned to the SHIPPED cell artifact
+date     : 2026-09-07T03:32:52Z
+ANALYZER : /Volumes/build/semantic-map/shipped_analyzer/route_b_analyze.aot
+digest   : 67741a082fcde5a9e2067fdfad1deb7ad69cb89b8d23aba78ed31b5afb6c2f5d
+           (== SUPPORTED_STATE.yaml analyzer_sha256; NOT parity.sh's build-tree default)
+build-tree default that was NOT used:
+           18862acd7de2af6381205064a7290b5fb67a6b9c707eabad8d645cff04c4eccb
+
+
+==> added_member
+  PASS  added_member
+
+==> dispatch_table
+  PASS  dispatch_table
+
+==> instance_method
+  PASS  instance_method
+
+==> mixed_rejection
+  PASS  mixed_rejection
+
+==> private_accessor
+  PASS  private_accessor
+
+==> static_function
+  PASS  static_function
+
+==> tearoff_closure
+  PASS  tearoff_closure
+
+==> unreachable_target
+  PASS  unreachable_target
+
+--------------------------------------------------
+coverage parity: 8 passed, 0 failed
+work dir kept: /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.pmCGvS1eyF
+EXIT=0
