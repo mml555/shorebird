@@ -1,0 +1,26 @@
+{
+  "schema": "semantic-map-1/g2-expectations/1",
+  "purpose": "G2's own cases: each justifies one canonicalization exclusion, or proves an exclusion was NOT made. Kept separate from G0's frozen corpus so G0's digest and acceptance stay valid.",
+  "cases": [
+    { "id": "g2_local_rename", "baseline": "g2_local_base",
+      "subject": "package:corpus/app.dart::usesPrivate",
+      "dimension": "a local variable is renamed",
+      "abi_equal": true, "body_equal": true,
+      "expected_classification": "candidate_unchanged",
+      "note": "JUSTIFIES body exclusion #2. A local's name is not observable, so encoding locals by binding ordinal is safe. Compared against g2_local_base rather than base, because base writes the member as an arrow expression with no local at all -- comparing against it would measure a shape change, not a rename." },
+
+    { "id": "g2_stmt_order", "baseline": "g2_stmt_order_base",
+      "subject": "package:corpus/app.dart::usesPrivate",
+      "dimension": "two independent statements are swapped",
+      "abi_equal": true, "body_equal": false,
+      "expected_classification": "changed_existing_declaration",
+      "note": "PROVES order is NOT excluded. Execution order is observable, so the body fingerprint must move. If this case reported body_equal the canonicalizer would be discarding something that changes behaviour." },
+
+    { "id": "g2_typeparam_rename", "baseline": "base",
+      "subject": "package:corpus/app.dart::Box",
+      "dimension": "a type parameter is renamed T -> S",
+      "abi_equal": true, "body_equal": true,
+      "expected_classification": "candidate_unchanged",
+      "note": "JUSTIFIES the ABI exclusion. A type parameter's name is not observable at a call site; position and bound are what a caller depends on." }
+  ]
+}

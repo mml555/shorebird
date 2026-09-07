@@ -1,0 +1,46 @@
+SM1-G2 ABI and body fingerprints
+  frozen effective tree : 7b04b01bdc10ec990143257f0d28580571c2122f
+  analyzer pin          : 67741a082fcde5a9e2067fdfad1deb7ad69cb89b8d23aba78ed31b5afb6c2f5d
+  G1/G2 identity parity : 23 shared declarations, 0 disagreement(s)
+
+--- same ABI + different body  ->  changed_existing_declaration ---
+  ok      body_only                  abi== body=≠  -> changed_existing_declaration
+
+--- different ABI  ->  not_reusable_under_old_abi (one dimension each) ---
+  ok      abi_added_positional       abi=≠ body=≠  -> not_reusable_under_old_abi
+  ok      abi_nullability            abi=≠ body==  -> not_reusable_under_old_abi
+  ok      abi_positional_to_named    abi=≠ body==  -> not_reusable_under_old_abi
+  ok      abi_generic_bound          abi=≠ body==  -> not_reusable_under_old_abi
+  ok      abi_return_type            abi=≠ body==  -> not_reusable_under_old_abi
+
+--- unrelated-program mutation  ->  both fingerprints identical ---
+  ok      reorder                    abi== body==  -> candidate_unchanged
+  ok      unrelated_added            abi== body==  -> candidate_unchanged
+  ok      unrelated_removed          abi== body==  -> candidate_unchanged
+  ok      unrelated_renamed          abi== body==  -> candidate_unchanged
+  ok      field_added                abi== body==  -> candidate_unchanged
+  ok      private_other_domain       abi== body==  -> candidate_unchanged
+
+--- canonicalization exclusions, each justified by its own arm ---
+  ok      g2_local_rename            abi== body==  -> candidate_unchanged
+  ok      g2_stmt_order              abi== body=≠  -> changed_existing_declaration
+  ok      g2_typeparam_rename        abi== body==  -> candidate_unchanged
+
+--- independence: neither fingerprint is derived from the other ---
+  ok      4 case(s) move the ABI with the body identical (abi_nullability, abi_positional_to_named, abi_generic_bound, abi_return_type) — a body-derived ABI would have reported equal
+  ok      body_only moves the body with the ABI identical — an ABI-derived body would have reported equal
+
+--- the map STATES the P2 refusal boundary ---
+  ok      a named parameter is stated as 'refused:named' in the row itself
+  ok      a generic class is stated as 'refused:type_parameters'
+  base abi_shape census: 1 refused:type_parameters, 22 supported
+
+--- cross-check against the incumbent printed-Kernel oracle ---
+  agree on 12 case(s); disagree on 3
+    FINDING abi_positional_to_named: ours abi=False body=True, incumbent printed_equal=True
+    FINDING abi_generic_bound: ours abi=False body=True, incumbent printed_equal=True
+    FINDING g2_local_rename: ours abi=True body=True, incumbent printed_equal=False
+  A disagreement is not automatically a defect: the incumbent prints a whole Procedure, so it also moves when a signature moves, where our two fingerprints separate that. Each is recorded for review.
+
+SUMMARY checks_failed=0
+G2 FINGERPRINTS VERIFIED

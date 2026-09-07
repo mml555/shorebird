@@ -1,0 +1,265 @@
+{
+  "schema": "semantic-map-1/g2-fingerprints/1",
+  "gate": "SM1-G2",
+  "issue": 51,
+  "checks_failed": 0,
+  "base_row_count": 23,
+  "contract": {
+    "kernel_domains": "DOMAIN (which declarations exist) comes from the AOT kernel, the conservative choice. ABI comes from the PRE-AOT kernel, because --aot strips parameters: topLevel(int x) reads req=1 pre-AOT and req=0 after, so two different declared signatures erase to the same empty shape and an AOT-derived ABI over-claims. BODY is combined from both and counts as changed if EITHER moved.",
+    "independence": "abi_fingerprint is built from signature nodes and body_fingerprint from a walk of the function body. Neither is derived from the other.",
+    "incumbent": "incumbent_printed_sha256 is printed Kernel as build_patch.dart computes it -- a reference ORACLE for cross-checking, never the contract, and not an input to either fingerprint.",
+    "body_exclusions": [
+      "source positions (fileOffset, file URIs) -- incidental source metadata",
+      "local variable NAMES, encoded by binding ordinal instead -- a local name is not observable (justified by g2_local_rename)"
+    ],
+    "body_non_exclusions": [
+      "statement and expression ORDER -- execution order is observable (g2_stmt_order)",
+      "literal values (body_only)",
+      "invocation target declaration identities",
+      "named-argument names at call sites"
+    ],
+    "abi_exclusions": [
+      "type-parameter NAMES, encoded by position and bound -- not observable at a call site (justified by g2_typeparam_rename)"
+    ],
+    "abi_shape": "States the ROADMAP P2 refusal boundary in the map itself: named, optional-positional and type arguments are refused before publication, so the map says so rather than classifying them reusable."
+  },
+  "results": [
+    {
+      "id": "body_only",
+      "subject": "package:corpus/app.dart::topLevel",
+      "baseline": "base",
+      "abi_equal": true,
+      "body_equal": false,
+      "declaration_id_stable": true,
+      "classification": "changed_existing_declaration",
+      "expected_classification": "changed_existing_declaration",
+      "outcome": "OK",
+      "note": "the load-bearing case: a body change must NOT move the declaration id, or the map cannot say 'same declaration, new implementation'",
+      "incumbent_printed_equal": false
+    },
+    {
+      "id": "abi_added_positional",
+      "subject": "package:corpus/app.dart::Shape.area",
+      "baseline": "base",
+      "abi_equal": false,
+      "body_equal": false,
+      "declaration_id_stable": true,
+      "classification": "not_reusable_under_old_abi",
+      "expected_classification": "not_reusable_under_old_abi",
+      "outcome": "OK",
+      "note": "",
+      "incumbent_printed_equal": false
+    },
+    {
+      "id": "abi_nullability",
+      "subject": "package:corpus/app.dart::topLevel",
+      "baseline": "base",
+      "abi_equal": false,
+      "body_equal": true,
+      "declaration_id_stable": true,
+      "classification": "not_reusable_under_old_abi",
+      "expected_classification": "not_reusable_under_old_abi",
+      "outcome": "OK",
+      "note": "body is textually identical; only the return type moved. If the map reports abi_equal here it is deriving ABI from the body.",
+      "incumbent_printed_equal": false
+    },
+    {
+      "id": "abi_positional_to_named",
+      "subject": "package:corpus/app.dart::Shape.area",
+      "baseline": "base",
+      "abi_equal": false,
+      "body_equal": true,
+      "declaration_id_stable": true,
+      "classification": "not_reusable_under_old_abi",
+      "expected_classification": "not_reusable_under_old_abi",
+      "outcome": "OK",
+      "note": "also inside the ROADMAP P2 refusal boundary; the map must state the refusal rather than mis-classify",
+      "incumbent_printed_equal": true
+    },
+    {
+      "id": "abi_generic_bound",
+      "subject": "package:corpus/app.dart::Box",
+      "baseline": "base",
+      "abi_equal": false,
+      "body_equal": true,
+      "declaration_id_stable": true,
+      "classification": "not_reusable_under_old_abi",
+      "expected_classification": "not_reusable_under_old_abi",
+      "outcome": "OK",
+      "note": "",
+      "incumbent_printed_equal": true
+    },
+    {
+      "id": "abi_return_type",
+      "subject": "package:corpus/app.dart::Shape.perimeter",
+      "baseline": "base",
+      "abi_equal": false,
+      "body_equal": true,
+      "declaration_id_stable": true,
+      "classification": "not_reusable_under_old_abi",
+      "expected_classification": "not_reusable_under_old_abi",
+      "outcome": "OK",
+      "note": "",
+      "incumbent_printed_equal": false
+    },
+    {
+      "id": "reorder",
+      "subject": "package:corpus/app.dart::topLevel",
+      "baseline": "base",
+      "abi_equal": true,
+      "body_equal": true,
+      "declaration_id_stable": true,
+      "classification": "candidate_unchanged",
+      "expected_classification": "candidate_unchanged",
+      "outcome": "OK",
+      "note": "the anti-order-dependence case: an index- or offset-derived identity fails here",
+      "incumbent_printed_equal": true
+    },
+    {
+      "id": "unrelated_added",
+      "subject": "package:corpus/app.dart::topLevel",
+      "baseline": "base",
+      "abi_equal": true,
+      "body_equal": true,
+      "declaration_id_stable": true,
+      "classification": "candidate_unchanged",
+      "expected_classification": "candidate_unchanged",
+      "outcome": "OK",
+      "note": "",
+      "incumbent_printed_equal": true
+    },
+    {
+      "id": "unrelated_removed",
+      "subject": "package:corpus/app.dart::topLevel",
+      "baseline": "base",
+      "abi_equal": true,
+      "body_equal": true,
+      "declaration_id_stable": true,
+      "classification": "candidate_unchanged",
+      "expected_classification": "candidate_unchanged",
+      "outcome": "OK",
+      "note": "",
+      "incumbent_printed_equal": true
+    },
+    {
+      "id": "unrelated_renamed",
+      "subject": "package:corpus/app.dart::topLevel",
+      "baseline": "base",
+      "abi_equal": true,
+      "body_equal": true,
+      "declaration_id_stable": true,
+      "classification": "candidate_unchanged",
+      "expected_classification": "candidate_unchanged",
+      "outcome": "OK",
+      "note": "",
+      "incumbent_printed_equal": true
+    },
+    {
+      "id": "field_added",
+      "subject": "package:corpus/app.dart::Shape.area",
+      "baseline": "base",
+      "abi_equal": true,
+      "body_equal": true,
+      "declaration_id_stable": true,
+      "classification": "candidate_unchanged",
+      "expected_classification": "candidate_unchanged",
+      "outcome": "OK",
+      "note": "the METHOD is unchanged. Whether the owning class's layout change makes the method unsafe to reuse is a SEPARATE question owned by SM1-G5, and must not be smuggled into the fingerprints.",
+      "incumbent_printed_equal": true
+    },
+    {
+      "id": "private_other_domain",
+      "subject": "package:corpus/app.dart::usesPrivate",
+      "baseline": "base",
+      "abi_equal": true,
+      "body_equal": true,
+      "declaration_id_stable": true,
+      "classification": "candidate_unchanged",
+      "expected_classification": "candidate_unchanged",
+      "outcome": "OK",
+      "note": "corpus.helper::_privateHelper and corpus.app::_privateHelper share a simple name across privacy domains; a map that confuses them will report app's caller as changed",
+      "incumbent_printed_equal": true
+    },
+    {
+      "id": "g2_local_rename",
+      "subject": "package:corpus/app.dart::usesPrivate",
+      "baseline": "g2_local_base",
+      "abi_equal": true,
+      "body_equal": true,
+      "declaration_id_stable": true,
+      "classification": "candidate_unchanged",
+      "expected_classification": "candidate_unchanged",
+      "outcome": "OK",
+      "note": "JUSTIFIES body exclusion #2. A local's name is not observable, so encoding locals by binding ordinal is safe. Compared against g2_local_base rather than base, because base writes the member as an arrow expression with no local at all -- comparing against it would measure a shape change, not a rename.",
+      "incumbent_printed_equal": false
+    },
+    {
+      "id": "g2_stmt_order",
+      "subject": "package:corpus/app.dart::usesPrivate",
+      "baseline": "g2_stmt_order_base",
+      "abi_equal": true,
+      "body_equal": false,
+      "declaration_id_stable": true,
+      "classification": "changed_existing_declaration",
+      "expected_classification": "changed_existing_declaration",
+      "outcome": "OK",
+      "note": "PROVES order is NOT excluded. Execution order is observable, so the body fingerprint must move. If this case reported body_equal the canonicalizer would be discarding something that changes behaviour.",
+      "incumbent_printed_equal": false
+    },
+    {
+      "id": "g2_typeparam_rename",
+      "subject": "package:corpus/app.dart::Box",
+      "baseline": "base",
+      "abi_equal": true,
+      "body_equal": true,
+      "declaration_id_stable": true,
+      "classification": "candidate_unchanged",
+      "expected_classification": "candidate_unchanged",
+      "outcome": "OK",
+      "note": "JUSTIFIES the ABI exclusion. A type parameter's name is not observable at a call site; position and bound are what a caller depends on.",
+      "incumbent_printed_equal": true
+    }
+  ],
+  "arms": {
+    "independence": {
+      "signature_moved_body_identical": [
+        "abi_nullability",
+        "abi_positional_to_named",
+        "abi_generic_bound",
+        "abi_return_type"
+      ],
+      "body_moved_signature_identical": [
+        "body_only"
+      ],
+      "abi_not_body_derived": true,
+      "body_not_abi_derived": true
+    },
+    "abi_shape_counts": {
+      "refused:type_parameters": 1,
+      "supported": 22
+    },
+    "named_case_shape": "refused:named",
+    "generic_class_shape": "refused:type_parameters",
+    "incumbent_crosscheck": {
+      "agree": [
+        "body_only",
+        "abi_added_positional",
+        "abi_nullability",
+        "abi_return_type",
+        "reorder",
+        "unrelated_added",
+        "unrelated_removed",
+        "unrelated_renamed",
+        "field_added",
+        "private_other_domain",
+        "g2_stmt_order",
+        "g2_typeparam_rename"
+      ],
+      "disagree": [
+        "abi_positional_to_named",
+        "abi_generic_bound",
+        "g2_local_rename"
+      ]
+    }
+  }
+}
