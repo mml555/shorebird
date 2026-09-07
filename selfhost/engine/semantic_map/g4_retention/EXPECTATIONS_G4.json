@@ -29,5 +29,12 @@
     "HOST_IDENTITY"
   ],
   "cause_vocabulary_source": "SL1's classifier in semantic_linker/runtime_feasibility/g6a_negatives/run_negatives.sh, patterns reused verbatim. #53 requires this gate to reuse that vocabulary.",
-  "acceptance_requires": "every class in must_fail_closed observed FAILS_CLOSED. checks_failed=0 establishes only that the experiment is trustworthy; it is not a pass."
+  "acceptance_requires": "every class in must_fail_closed observed FAILS_CLOSED. checks_failed=0 establishes only that the experiment is trustworthy; it is not a pass.",
+  "disposition": "completed measurement; limitation carried forward to G5/G6. The two runtime fail-open classes do NOT trigger compiler or runtime work inside G4, and #53's requirement is NOT rewritten as satisfied.",
+  "carried_forward": {
+    "G5": "a predicted-patchable declaration requires ALL its required retention entries mechanically proven present in the exact release; a missing, stale or unproven entry REFUSES BEFORE PUBLICATION. Necessary because extendable and can-be-overridden cannot be relied on as runtime safety nets: omitted, the runtime loads the module and silently executes the old AOT body.",
+    "G6": "bind that retention/map evidence to the exact release Kernel and AOT identity, so stale or swapped proof cannot satisfy G5.",
+    "G7": "consume the accepted cost curve only: 40,912-byte floor + ~82 bytes per member on this measured shape."
+  },
+  "can_be_used_as_type_note": "stays conservatively REQUIRED wherever the retention contract requires it. NO_OBSERVABLE_EFFECT on this one shape is not evidence that the entry is unnecessary."
 }

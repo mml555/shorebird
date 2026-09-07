@@ -9,35 +9,40 @@
       "category": "CONTROL_DISPATCH_OK",
       "detail": "the patch subtype answered",
       "cause": "NONE",
-      "cause_source": "control"
+      "cause_source": "control",
+      "withheld_class": null
     },
     {
       "variant": "no_callable",
       "category": "FAILS_CLOSED",
       "detail": "runtime refused (exit 134): ../../flutter/third_party/dart/runtime/vm/bytecode_reader.cc: 1172: error: Unable to find function Target. in Library:'package:dynamic_modul",
       "cause": "IMPORT_RESOLUTION",
-      "cause_source": "message"
+      "cause_source": "message",
+      "withheld_class": "callable"
     },
     {
       "variant": "no_extendable",
       "category": "FAILS_OPEN",
       "detail": "the module loaded and the call site still reached the AOT body",
       "cause": "DYNAMIC_INTERFACE_POLICY",
-      "cause_source": "structural"
+      "cause_source": "structural",
+      "withheld_class": "extendable"
     },
     {
       "variant": "no_can_be_used_as_type",
       "category": "NO_OBSERVABLE_EFFECT",
       "detail": "loaded and dispatched to the patch exactly as the full contract did",
       "cause": "DYNAMIC_INTERFACE_POLICY",
-      "cause_source": "structural"
+      "cause_source": "structural",
+      "withheld_class": "can-be-used-as-type"
     },
     {
       "variant": "no_can_be_overridden",
       "category": "FAILS_OPEN",
       "detail": "the module loaded and the call site still reached the AOT body",
       "cause": "DYNAMIC_INTERFACE_POLICY",
-      "cause_source": "structural"
+      "cause_source": "structural",
+      "withheld_class": "can-be-overridden"
     }
   ],
   "enforced_at_load": {

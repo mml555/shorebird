@@ -8,6 +8,7 @@
   "acceptance_unmet": [
     "every withheld retention class must fail closed at load"
   ],
+  "disposition": "completed measurement; limitation carried forward to G5/G6. The two runtime fail-open classes do NOT trigger compiler or runtime work inside G4, and #53's requirement is NOT rewritten as satisfied.",
   "retention_enforcement": "PARTIAL",
   "fail_open_classes": [
     "extendable",

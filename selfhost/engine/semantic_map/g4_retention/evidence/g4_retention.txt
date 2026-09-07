@@ -31,7 +31,7 @@ SM1-G4 retention contract and measured cost
     gen_kernel        exit=0
     gen_snapshot      exit=0  aot=889072
     dart2bytecode     exit=0
-  /Users/mendell/shorebird/selfhost/engine/semantic_map/g4_retention/lib/run_arms.sh: line 67: 21260 Abort trap: 6           "$OUT/dartaotruntime" "$W/host.aot" "$W/m.bytecode" "file://$W/m_patch.dart" > "$W/run.log" 2>&1
+  /Users/mendell/shorebird/selfhost/engine/semantic_map/g4_retention/lib/run_arms.sh: line 67: 80493 Abort trap: 6           "$OUT/dartaotruntime" "$W/host.aot" "$W/m.bytecode" "file://$W/m_patch.dart" > "$W/run.log" 2>&1
     dartaotruntime    exit=134
       | CONTROL callWork(Target()) = AOT-TARGET
       | ../../flutter/third_party/dart/runtime/vm/bytecode_reader.cc: 1172: error: Unable to find function Target. in Library:'package:dynamic_modules/host.dart' Class: Target
@@ -112,11 +112,11 @@ SM1-G4 retention contract and measured cost
       the module loaded and the call site still reached the AOT body
 
 --- #53: the underlying cause in SL1's vocabulary, not just the outcome ---
-  ok      every withheld class carries an SL1 cause
-            callable               IMPORT_RESOLUTION
-            can-be-overridden      DYNAMIC_INTERFACE_POLICY
-            can-be-used-as-type    DYNAMIC_INTERFACE_POLICY
-            extendable             DYNAMIC_INTERFACE_POLICY
+  ok      all 4 withheld classes carry an SL1 cause, each with a stated derivation that agrees with its row
+            callable               IMPORT_RESOLUTION          from message
+            can-be-overridden      DYNAMIC_INTERFACE_POLICY   from structural
+            can-be-used-as-type    DYNAMIC_INTERFACE_POLICY   from structural
+            extendable             DYNAMIC_INTERFACE_POLICY   from structural
   note    at least one cause is STRUCTURAL, derived from which contract entry was withheld rather than from a message -- the fail-open arms produce no error text to classify
 
 --- #53: each withheld class must FAIL CLOSED at load ---
@@ -146,5 +146,6 @@ SM1_G4_MEASUREMENT=VERIFIED
 SM1_G4_ACCEPTANCE=NOT_MET
 SM1_G4_RETENTION_ENFORCEMENT=PARTIAL
 SM1_G4_UNMET=every withheld retention class must fail closed at load
+SM1_G4_DISPOSITION=completed measurement; limitation carried forward to G5/G6. The two runtime fail-open classes do NOT trigger compiler or runtime work inside G4, and #53's requirement is NOT rewritten as satisfied.
 # MEASUREMENT answers whether the experiment is trustworthy; ACCEPTANCE answers whether #53 is satisfied.
 # They are different questions, and a VERIFIED measurement is not a pass.

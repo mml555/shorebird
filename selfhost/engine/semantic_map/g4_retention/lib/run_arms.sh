@@ -162,6 +162,8 @@ withheld = {
     'no_can_be_used_as_type': 'can-be-used-as-type',
     'no_can_be_overridden': 'can-be-overridden',
 }
+for r in rows:
+    r['withheld_class'] = withheld.get(r['variant'])
 enforced = {withheld[r['variant']]: r['category']
             for r in rows if r['variant'] in withheld}
 causes_by_class = {withheld[r['variant']]: r['cause']

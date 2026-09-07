@@ -1,10 +1,8 @@
 SM1-G4 falsification — every check must be able to FAIL
-date : 2026-09-07T19:41:07Z
+date : 2026-09-07T20:07:01Z
 
-Regenerated against the scorer as committed. An earlier copy of this file
-was hand-patched to fix a wording change in the scorer's explainer line;
-that was wrong -- banked evidence is regenerated, never edited, or it
-drifts from the code it claims to describe (the defect G2 closed).
+Regenerated against the scorer as committed. Banked evidence is
+regenerated, never hand-edited, or it drifts from the code it describes.
 
 The confound's OWN control (a pragma masking a withheld contract) is
 demonstrated in evidence/confound_pragma.txt and not repeated here.
@@ -17,6 +15,7 @@ demonstrated in evidence/confound_pragma.txt and not repeated here.
   SM1_G4_ACCEPTANCE=NOT_MET
   SM1_G4_RETENTION_ENFORCEMENT=PARTIAL
   SM1_G4_UNMET=every withheld retention class must fail closed at load
+  SM1_G4_DISPOSITION=completed measurement; limitation carried forward to G5/G6. The two runtime fail-open classes do NOT trigger compiler or runtime work inside G4, and #53's requirement is NOT rewritten as satisfied.
 
 ############ 2. the full-contract CONTROL did not dispatch ############
     FAILED  the full-contract control did not dispatch to the patch; every refusal below is unattributable
@@ -25,6 +24,7 @@ demonstrated in evidence/confound_pragma.txt and not repeated here.
   SM1_G4_ACCEPTANCE=NOT_MET
   SM1_G4_RETENTION_ENFORCEMENT=PARTIAL
   SM1_G4_UNMET=every withheld retention class must fail closed at load
+  SM1_G4_DISPOSITION=completed measurement; limitation carried forward to G5/G6. The two runtime fail-open classes do NOT trigger compiler or runtime work inside G4, and #53's requirement is NOT rewritten as satisfied.
 
 ############ 3. an arm that cannot be categorised ############
     FAILED  an arm was UNCLASSIFIED, so its outcome is not attributable to the withheld entry
@@ -33,9 +33,9 @@ demonstrated in evidence/confound_pragma.txt and not repeated here.
   SM1_G4_ACCEPTANCE=NOT_MET
   SM1_G4_RETENTION_ENFORCEMENT=PARTIAL
   SM1_G4_UNMET=every withheld retention class must fail closed at load
+  SM1_G4_DISPOSITION=completed measurement; limitation carried forward to G5/G6. The two runtime fail-open classes do NOT trigger compiler or runtime work inside G4, and #53's requirement is NOT rewritten as satisfied.
 
 ############ 4. a cause OUTSIDE SL1's vocabulary ############
-   #53 requires the SL1 vocabulary; an invented category must be refused.
   --- #53: the underlying cause in SL1's vocabulary, not just the outcome ---
     FAILED  cause(s) outside SL1 vocabulary: {'extendable': 'SOMETHING_I_MADE_UP'}
   SUMMARY checks_failed=1
@@ -43,33 +43,63 @@ demonstrated in evidence/confound_pragma.txt and not repeated here.
   SM1_G4_ACCEPTANCE=NOT_MET
   SM1_G4_RETENTION_ENFORCEMENT=PARTIAL
   SM1_G4_UNMET=every withheld retention class must fail closed at load
+  SM1_G4_DISPOSITION=completed measurement; limitation carried forward to G5/G6. The two runtime fail-open classes do NOT trigger compiler or runtime work inside G4, and #53's requirement is NOT rewritten as satisfied.
 
-############ 5. no structured cause recorded at all ############
-    FAILED  no structured cause was recorded, so the evidence says what happened but not why
+############ 5. EXACTLY ONE cause deleted, the other three intact ############
+   The partial-omission case. The previous falsification removed ALL causes,
+   which a check testing only non-emptiness would still catch -- so it never
+   exposed that three-of-four passed while the transcript claimed four.
+    FAILED  no cause recorded for: ['can-be-overridden'] — the evidence says what happened to 3 of 4 classes but not why
+    FAILED  no_can_be_overridden: row cause 'DYNAMIC_INTERFACE_POLICY' disagrees with cause_at_load['can-be-overridden']=None
+  SUMMARY checks_failed=2
+  SM1_G4_MEASUREMENT=FAILED
+  SM1_G4_ACCEPTANCE=NOT_MET
+  SM1_G4_RETENTION_ENFORCEMENT=PARTIAL
+  SM1_G4_UNMET=every withheld retention class must fail closed at load
+  SM1_G4_DISPOSITION=completed measurement; limitation carried forward to G5/G6. The two runtime fail-open classes do NOT trigger compiler or runtime work inside G4, and #53's requirement is NOT rewritten as satisfied.
+
+############ 5b. EXACTLY ONE cause_source deleted ############
+    FAILED  no_can_be_overridden: cause_source None is not one of ['message', 'structural'], so the derivation is unstated
   SUMMARY checks_failed=1
   SM1_G4_MEASUREMENT=FAILED
   SM1_G4_ACCEPTANCE=NOT_MET
   SM1_G4_RETENTION_ENFORCEMENT=PARTIAL
   SM1_G4_UNMET=every withheld retention class must fail closed at load
+  SM1_G4_DISPOSITION=completed measurement; limitation carried forward to G5/G6. The two runtime fail-open classes do NOT trigger compiler or runtime work inside G4, and #53's requirement is NOT rewritten as satisfied.
+
+############ 5c. a row whose cause DISAGREES with the summary map ############
+    FAILED  no_extendable: row cause 'IMPORT_RESOLUTION' disagrees with cause_at_load['extendable']='DYNAMIC_INTERFACE_POLICY'
+  SUMMARY checks_failed=1
+  SM1_G4_MEASUREMENT=FAILED
+  SM1_G4_ACCEPTANCE=NOT_MET
+  SM1_G4_RETENTION_ENFORCEMENT=PARTIAL
+  SM1_G4_UNMET=every withheld retention class must fail closed at load
+  SM1_G4_DISPOSITION=completed measurement; limitation carried forward to G5/G6. The two runtime fail-open classes do NOT trigger compiler or runtime work inside G4, and #53's requirement is NOT rewritten as satisfied.
+
+############ 5d. a cause for a class that was never withheld ############
+    FAILED  cause recorded for classes that were never withheld: ['not-a-real-class']
+  SUMMARY checks_failed=1
+  SM1_G4_MEASUREMENT=FAILED
+  SM1_G4_ACCEPTANCE=NOT_MET
+  SM1_G4_RETENTION_ENFORCEMENT=PARTIAL
+  SM1_G4_UNMET=every withheld retention class must fail closed at load
+  SM1_G4_DISPOSITION=completed measurement; limitation carried forward to G5/G6. The two runtime fail-open classes do NOT trigger compiler or runtime work inside G4, and #53's requirement is NOT rewritten as satisfied.
 
 ############ 6. ACCEPTANCE must be DERIVED, not a constant NOT_MET ############
-   If all four classes were observed FAILS_CLOSED the marker must flip to MET.
-   Without this, ACCEPTANCE=NOT_MET could be hardcoded and still look right
-   against today's evidence.
   SUMMARY checks_failed=0
   SM1_G4_MEASUREMENT=VERIFIED
   SM1_G4_ACCEPTANCE=MET
   SM1_G4_RETENTION_ENFORCEMENT=FULL
+  SM1_G4_DISPOSITION=completed measurement; limitation carried forward to G5/G6. The two runtime fail-open classes do NOT trigger compiler or runtime work inside G4, and #53's requirement is NOT rewritten as satisfied.
 
 ############ 7. a contract row claiming UNMEASURED enforcement ############
-   gen_retention_rows.dart refuses to run without --enforcement at all:
-     gen_retention_rows: --enforcement is required: whether withholding a class actually stops a patch is measured by this gate's arms, never assumed
     FAILED  23 row(s) claim a contract class whose enforcement was never measured
   SUMMARY checks_failed=1
   SM1_G4_MEASUREMENT=FAILED
   SM1_G4_ACCEPTANCE=NOT_MET
   SM1_G4_RETENTION_ENFORCEMENT=PARTIAL
   SM1_G4_UNMET=every withheld retention class must fail closed at load
+  SM1_G4_DISPOSITION=completed measurement; limitation carried forward to G5/G6. The two runtime fail-open classes do NOT trigger compiler or runtime work inside G4, and #53's requirement is NOT rewritten as satisfied.
 
 ############ 8. the cost curve is missing release-scale points ############
     FAILED  the curve is missing N=[16, 32, 64, 128], so it was not measured at release scale
@@ -78,10 +108,13 @@ demonstrated in evidence/confound_pragma.txt and not repeated here.
   SM1_G4_ACCEPTANCE=NOT_MET
   SM1_G4_RETENTION_ENFORCEMENT=PARTIAL
   SM1_G4_UNMET=every withheld retention class must fail closed at load
+  SM1_G4_DISPOSITION=completed measurement; limitation carried forward to G5/G6. The two runtime fail-open classes do NOT trigger compiler or runtime work inside G4, and #53's requirement is NOT rewritten as satisfied.
 
 ############ restored ############
+    ok      all 4 withheld classes carry an SL1 cause, each with a stated derivation that agrees with its row
   SUMMARY checks_failed=0
   SM1_G4_MEASUREMENT=VERIFIED
   SM1_G4_ACCEPTANCE=NOT_MET
   SM1_G4_RETENTION_ENFORCEMENT=PARTIAL
   SM1_G4_UNMET=every withheld retention class must fail closed at load
+  SM1_G4_DISPOSITION=completed measurement; limitation carried forward to G5/G6. The two runtime fail-open classes do NOT trigger compiler or runtime work inside G4, and #53's requirement is NOT rewritten as satisfied.

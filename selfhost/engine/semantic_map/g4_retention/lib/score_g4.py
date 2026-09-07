@@ -40,6 +40,10 @@ SL1_CAUSES = {
     'HOST_IDENTITY',
 }
 
+# How a cause may have been arrived at. `control` belongs to the full-contract
+# arm, which withholds nothing and therefore has no cause to explain.
+VALID_CAUSE_SOURCES = {'message', 'structural'}
+
 
 def arm_category_surface(runner_path):
     """Every category run_arms.sh can emit, read from its own source.
@@ -129,24 +133,70 @@ def main():
 
     # ---- 3b. the structured cause, in SL1's vocabulary -------------------
     arm("#53: the underlying cause in SL1's vocabulary, not just the outcome")
+    required = exp['must_fail_closed']
     causes = arms_doc.get('cause_at_load', {})
     extra['cause_at_load'] = causes
     extra['cause_sources'] = {r['variant']: r.get('cause_source')
                               for r in arms_doc['rows']}
+
+    # COMPLETENESS IS CHECKED, NOT INFERRED FROM NON-EMPTINESS.
+    #
+    # The first version asked only "is the map non-empty, and is every value it
+    # happens to contain in the vocabulary?" -- so three valid entries with the
+    # fourth silently absent passed while the transcript claimed every withheld
+    # class carried a cause. Missing and stray keys are now separate failures,
+    # and the required set is the same `must_fail_closed` the acceptance check
+    # uses, so the two can never disagree about which classes exist.
+    required_set = set(required)
+    missing_causes = sorted(required_set - set(causes))
+    stray_causes = sorted(set(causes) - required_set)
     bad = {k: v for k, v in causes.items() if v not in SL1_CAUSES}
-    if not causes:
-        lines.append('  FAILED  no structured cause was recorded, so the evidence says '
-                     'what happened but not why')
+
+    if missing_causes:
+        lines.append(f'  FAILED  no cause recorded for: {missing_causes} — the '
+                     f'evidence says what happened to {len(causes)} of '
+                     f'{len(required_set)} classes but not why')
         fails += 1
-    elif bad:
+    if stray_causes:
+        lines.append(f'  FAILED  cause recorded for classes that were never '
+                     f'withheld: {stray_causes}')
+        fails += 1
+    if bad:
         lines.append(f'  FAILED  cause(s) outside SL1 vocabulary: {bad}')
         fails += 1
-    else:
-        lines.append(f'  ok      every withheld class carries an SL1 cause')
-        for k, v in sorted(causes.items()):
-            src = next((r.get('cause_source') for r in arms_doc['rows']
-                        if r.get('cause') == v and k in r['variant']), '?')
-            lines.append(f'            {k:22} {v}')
+
+    # EVERY WITHHELD ROW MUST SAY HOW ITS CAUSE WAS DERIVED, and must agree with
+    # the summary map. A row and the map disagreeing means one of them was
+    # written by hand.
+    withheld_rows = [r for r in arms_doc['rows'] if r.get('withheld_class')]
+    if len(withheld_rows) != len(required_set):
+        lines.append(f'  FAILED  {len(withheld_rows)} withheld arm(s) ran but '
+                     f'{len(required_set)} classes must be withheld')
+        fails += 1
+    for r in withheld_rows:
+        cls = r['withheld_class']
+        src = r.get('cause_source')
+        if src not in VALID_CAUSE_SOURCES:
+            lines.append(f'  FAILED  {r["variant"]}: cause_source {src!r} is not one '
+                         f'of {sorted(VALID_CAUSE_SOURCES)}, so the derivation is '
+                         f'unstated')
+            fails += 1
+        if causes.get(cls) != r.get('cause'):
+            lines.append(f'  FAILED  {r["variant"]}: row cause {r.get("cause")!r} '
+                         f'disagrees with cause_at_load[{cls!r}]='
+                         f'{causes.get(cls)!r}')
+            fails += 1
+
+    if not (missing_causes or stray_causes or bad) and \
+            len(withheld_rows) == len(required_set) and \
+            all(r.get('cause_source') in VALID_CAUSE_SOURCES and
+                causes.get(r['withheld_class']) == r.get('cause')
+                for r in withheld_rows):
+        lines.append(f'  ok      all {len(required_set)} withheld classes carry an SL1 '
+                     f'cause, each with a stated derivation that agrees with its row')
+        for r in sorted(withheld_rows, key=lambda x: x['withheld_class']):
+            lines.append(f'            {r["withheld_class"]:22} {r["cause"]:26} '
+                         f'from {r["cause_source"]}')
     # THE DERIVATION MATTERS. SL1-G6C found that classification must not rely on
     # the error string alone, and here the fail-open arms have no string at all.
     srcs = {r.get('cause_source') for r in arms_doc['rows']}
@@ -158,7 +208,6 @@ def main():
     # ---- 4. THE REQUIREMENT, AND WHERE THE SYSTEM DOES NOT MEET IT -------
     arm('#53: each withheld class must FAIL CLOSED at load')
     enforced = arms_doc['enforced_at_load']
-    required = exp['must_fail_closed']
     closed = [k for k in required if enforced.get(k) == FAILS_CLOSED]
     open_ = [k for k in required if enforced.get(k) == FAILS_OPEN]
     noeff = [k for k in required if enforced.get(k) == NO_EFFECT]
@@ -265,6 +314,11 @@ def main():
     if unmet:
         for u in unmet:
             print(f'SM1_G4_UNMET={u}')
+    # The disposition is a PM decision recorded in the expectations, not a
+    # verdict this scorer derives -- it says what happens to an unmet
+    # requirement, which is a plan question rather than a measurement.
+    if exp.get('disposition'):
+        print(f'SM1_G4_DISPOSITION={exp["disposition"]}')
     print('# MEASUREMENT answers whether the experiment is trustworthy; '
           'ACCEPTANCE answers whether #53 is satisfied.')
     print('# They are different questions, and a VERIFIED measurement is not a '
@@ -276,6 +330,7 @@ def main():
         'measurement': measurement,
         'acceptance': acceptance,
         'acceptance_unmet': unmet,
+        'disposition': exp.get('disposition'),
         'retention_enforcement': state,
         'fail_open_classes': open_,
         'no_effect_classes': noeff,
