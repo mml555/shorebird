@@ -221,8 +221,15 @@ other's work directory — the second reported *"could not produce base ids"* fo
 reason with nothing to do with the map.
 
 A unique path per run would fix the race and break determinism, so the builder
-now takes an **atomic `mkdir` lock** and serialises. Verified: two concurrent
-builds both succeed and produce byte-identical output.
+now takes an **atomic `mkdir` lock** and serialises.
+
+The first lock was itself wrong: it ended with `[[ -d "$LOCK" ]] || exit 2`, which
+proves only that *a* lock exists — possibly another process's — so a contender
+could proceed into the shared directory and later delete a lock it never owned.
+Acquisition is now proven by `mkdir` succeeding, and the cleanup trap is
+installed only after that. Controls, including a timeout negative where a foreign
+holder keeps the lock for the whole budget, are banked in
+[`../g0_freeze/evidence/build_lock_controls.txt`](../g0_freeze/evidence/build_lock_controls.txt).
 
 ## The controls, and why they are not decoration
 

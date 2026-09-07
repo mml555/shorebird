@@ -184,6 +184,43 @@ because a dill preserves declaration order. That is precisely why
 The source-corpus mutation is kept as a **supplementary** control — cheap, and
 independent of the toolchain.
 
+## The corpus build lock — ownership is proven, not inferred
+
+`lib/build_corpus_dill.sh` builds at a **stable path**, because the `rootUri` is
+baked into the dill and cross-run determinism is what makes the frozen release
+identity re-verifiable at all. A stable path plus `rm -rf` is not reentrant, so
+the builder serialises on an atomic `mkdir` lock.
+
+**Two defects were found in that lock, in sequence.** The first was the absence
+of any lock: two overlapping harness runs destroyed each other's work directory
+during SM1-G1, and the second reported *"could not produce base ids"* for a
+reason with nothing to do with the map.
+
+The second was subtler and is the one worth recording. The retry loop ended with
+
+    [[ -d "$LOCK" ]] || exit 2
+
+which proves only that *some* lock directory exists — possibly the one another
+process still holds. A contender could fall through into the shared work
+directory and, on exit, **delete a lock it never owned**. `mkdir` succeeding is
+the only evidence of ownership, so that is now what is recorded, and the cleanup
+trap is installed **only after acquisition**.
+
+Controls in [`evidence/build_lock_controls.txt`](evidence/build_lock_controls.txt):
+
+    1. NEGATIVE — a foreign holder keeps the lock for the whole retry budget
+         contender exit=2                        (nonzero, as required)
+         foreign lock still present              yes
+         sentinel in the shared workdir survived yes
+         no dill produced                        yes
+    2. POSITIVE — two concurrent builds
+         both exit 0, byte-identical (fe114c0f64be…, the frozen base identity)
+         lock released afterwards
+    3. a normal build still works after the negative control
+
+The negative control is the one that matters: it shows the contender neither
+built nor touched state it did not own.
+
 ## The freeze is falsifiable
 
 The freeze is a function of the bytes, not of a recorded label, and every input

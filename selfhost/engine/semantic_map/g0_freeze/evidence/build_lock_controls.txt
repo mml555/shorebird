@@ -1,0 +1,22 @@
+SM1-G0 corpus build lock — ownership must be proven, not inferred
+date : 2026-09-07T06:29:11Z
+
+############ 1. NEGATIVE: another process holds the lock for the whole budget ############
+  foreign lock held : /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_corpus_build.lock
+  sentinel in shared workdir: sentinel
+could not acquire the corpus build lock at /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_corpus_build.lock after 3 tries; another build holds it. Not touching the shared work directory.
+  contender exit=2   (must be nonzero)
+  lock still present after contender: yes
+  sentinel survived                 : yes
+  no dill produced                  : yes
+
+############ 2. POSITIVE: concurrent builds both succeed, byte-identical ############
+  B exit=0 bytes=4393056
+  A exit=0 bytes=4393056
+  A fe114c0f64be3b4f
+  B fe114c0f64be3b4f
+  byte-identical: yes
+  lock released : yes
+
+############ 3. after the negative control, a normal build still works ############
+  exit=0 bytes=4393056
