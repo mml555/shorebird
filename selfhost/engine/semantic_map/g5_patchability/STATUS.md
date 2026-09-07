@@ -137,6 +137,50 @@ refuse `PRIVATE_REFERENCE_UNGRANTED`; and a direct comparison shows the fallback
 strategy selecting the **getter** row for a **write**, which is a different
 declaration from the one the body names.
 
+## Step 1 closeout, third pass — the allowlist cannot hide a reference (done)
+
+The walker fail-closed on **unknown** node kinds but still allowlisted several
+that carry a member reference with **no fact-bearing visitor**. "Allowlisted"
+was being used to mean "understood", and it was not: a private reference through
+such a node was reported as *no reference at all*.
+
+Every allowlisted kind was audited for `Reference` / `Name` / `Member` fields
+and split three ways:
+
+* **modelled** — `InstanceTearOff`, `StaticTearOff`, `ConstructorTearOff`,
+  `RedirectingFactoryTearOff`, `InstanceGetterInvocation`, `EqualsCall`, and
+  `Super*`/`AbstractSuper*` property and method access, plus `ConstantExpression`
+  through an explicit constant walk with a fail-closed default — a constant can
+  name a member, and `--aot` folds tear-offs into constants;
+* **removed, so they refuse** — `DynamicGet` / `DynamicSet` /
+  `DynamicInvocation`, which carry a `Name` but no resolved target and so cannot
+  yield an exact `target_key`, and `InstanceCreation`, whose several references
+  are unmodelled;
+* **genuinely referenceless** — kept. Three allowlisted nodes carry a reference
+  that is not to a member (`CheckLibraryIsLoaded`, `LoadLibrary` reference a
+  library; `_PrivateName` carries the libraryReference defining a name's privacy
+  domain) and so cannot hide a member access.
+
+New corpus `corpus_ext/g5_tearoff` reaches a private member four ways:
+
+    viaStaticTearOff     supported                  #method#_secret
+    viaSuper             supported                  Base#method#_hidden
+    viaInstanceTearOff   supported                  Base#method#_hidden
+    viaDynamic           refused:DynamicInvocation  --
+
+Falsified in `evidence/step1_falsification.txt` §5: deleting
+`visitInstanceTearOff` while leaving the node allowlisted makes the private
+tear-off **invisible** (still "supported", nothing recorded); re-allowlisting the
+dynamic nodes flips `viaDynamic` from refused to "supported" with nothing
+recorded.
+
+§5c records a correction worth keeping: the arm first tried to demonstrate this
+with `StaticTearOff` and its own output disagreed, because that tear-off is
+carried by the constant path as well. Removing both paths makes it *refuse*
+rather than go silent, since the constant walk's default is fail-closed — so the
+static tear-off is covered twice, and 5a is the arm that actually shows the
+false negative.
+
 ## Step 2 — the demonstrator (next, not started)
 
 Rebuild on the shipping path, with success meaning THE PATCHED VALUE WAS

@@ -73,3 +73,50 @@ date : 2026-09-07T21:30:34Z
    restored:
     Holder.readIt   -> ['MISSING_CAN_BE_OVERRIDDEN', 'RETENTION_UNPROVEN']
     Holder.writeIt  -> ['MISSING_CAN_BE_OVERRIDDEN', 'RETENTION_UNPROVEN']
+
+############ 5. an ALLOWLISTED node with no fact-bearing visitor ############
+   Round 3 fail-closed on UNKNOWN node kinds but still allowlisted several nodes
+   that carry a member reference with no visitor. "Allowlisted" was being used
+   to mean "understood", and it was not: a private reference through such a node
+   was reported as no reference at all -- a false negative rather than a refusal.
+
+   An audit of every allowlisted kind for Reference/Name/Member fields split
+   them into modelled, removed, and genuinely referenceless. corpus_ext/
+   g5_tearoff reaches a private member through four of the previously unmodelled
+   shapes.
+
+   as built --
+      viaStaticTearOff     supported                  ['#method#_secret']
+      viaSuper             supported                  ['Base#method#_hidden']
+      viaInstanceTearOff   supported                  ['Base#method#_hidden']
+      viaDynamic           refused:DynamicInvocation  []
+
+   5a. DELETE visitInstanceTearOff, leaving InstanceTearOff allowlisted
+      viaInstanceTearOff   supported                  []
+      -> the private tear-off becomes INVISIBLE: status still "supported", no
+         reference recorded. This is the defect exactly.
+
+   5b. RE-ALLOWLIST the dynamic nodes, which carry a Name but no resolved target
+      viaDynamic           supported                  []
+      -> flips from refused to "supported" with nothing recorded. An unresolved
+         dynamic private access must never become "no private reference found",
+         which is why those kinds are removed rather than modelled: there is no
+         exact identity to record.
+
+   5c. A CORRECTION TO THIS ARM'S FIRST VERSION, kept rather than quietly fixed.
+   It deleted visitStaticTearOff alone and claimed the static tear-off would go
+   invisible. Its own output showed the reference still present, because in this
+   kernel the tear-off is ALSO carried as a StaticTearOffConstant, which the
+   constant walk records. Deleting both paths gives:
+
+      viaStaticTearOff     refused:Constant:StaticTearOffConstant  []
+
+   -- it REFUSES rather than going silent, because the constant walk's default
+   branch is fail-closed. So the static tear-off is covered twice over, and the
+   arm that actually demonstrates the false negative is 5a.
+
+   restored:
+      viaStaticTearOff     supported                  ['#method#_secret']
+      viaSuper             supported                  ['Base#method#_hidden']
+      viaInstanceTearOff   supported                  ['Base#method#_hidden']
+      viaDynamic           refused:DynamicInvocation  []

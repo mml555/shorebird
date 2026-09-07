@@ -101,6 +101,33 @@ class References {
 
 /// NODE KINDS THIS WALKER UNDERSTANDS.
 ///
+/// A NODE IS ONLY "KNOWN" IF ITS REFERENCE SEMANTICS ARE MODELLED. Round 3
+/// fail-closed on unknown node kinds but still ALLOWLISTED several nodes that
+/// carry a member or name reference with no fact-bearing visitor -- a private
+/// static tear-off could pass through an allowlisted `StaticTearOff` without
+/// `_record` ever running, and the body would read as clean. Auditing the
+/// Kernel classes for `Reference`/`Name`/`Member` fields split them three ways:
+///
+///   modelled here          InstanceTearOff, StaticTearOff, ConstructorTearOff,
+///                          RedirectingFactoryTearOff, InstanceGetterInvocation,
+///                          Super*/AbstractSuper* property and method access,
+///                          ConstantExpression (via an explicit constant walk)
+///   removed, so they REFUSE DynamicGet/Set/Invocation -- a Name with no
+///                          resolved target cannot yield an exact target_key --
+///                          and InstanceCreation, whose several references are
+///                          not modelled
+///   genuinely referenceless TypedefTearOff, FunctionTearOff, FunctionInvocation,
+///                          LocalFunctionInvocation, record access, literals
+///
+/// Three allowlisted nodes carry a Reference that is NOT to a member and so
+/// cannot hide a private member access: `CheckLibraryIsLoaded` and
+/// `LoadLibrary` reference a LIBRARY, and `_PrivateName` carries the
+/// libraryReference that defines a name's privacy domain -- the member it names
+/// is recorded by whichever node carries that Name.
+///
+/// "Do not model the entire Kernel language" -- so anything not in the first
+/// group refuses as BODY_REFERENCES_UNPROVEN rather than being understood.
+///
 /// Everything outside this set lands in `defaultNode` and marks the body
 /// unsupported. That is the difference between a walker that reports "no
 /// private references found" and one that reports "I could not see all of this
@@ -117,24 +144,24 @@ const allowedNodes = <String>{
   'IfStatement', 'NamedExpression', 'Let', 'BlockExpression',
   // literals and constants
   'IntLiteral', 'DoubleLiteral', 'StringLiteral', 'BoolLiteral', 'NullLiteral',
-  'SymbolLiteral', 'TypeLiteral', 'ConstantExpression', 'ListLiteral',
+  'SymbolLiteral', 'TypeLiteral', 'ListLiteral',
   'MapLiteral', 'SetLiteral', 'StringConcatenation',
   // control flow that cannot hide a reference from the overrides below
   'Not', 'LogicalExpression', 'ConditionalExpression', 'ThisExpression',
-  'EqualsCall', 'EqualsNull', 'VariableGet', 'VariableSet', 'Throw',
+  'EqualsCall', 'EqualsNull', 'FunctionInvocation', 'VariableGet', 'VariableSet', 'Throw',
   'Rethrow', 'AwaitExpression', 'ForStatement', 'ForInStatement',
   'WhileStatement', 'DoStatement', 'SwitchStatement', 'SwitchCase',
   'TryCatch', 'Catch', 'TryFinally', 'BreakStatement', 'LabeledStatement',
   'ContinueSwitchStatement', 'AssertStatement', 'AssertBlock',
   'FunctionDeclaration', 'FunctionExpression', 'YieldStatement',
   'InstanceTearOff', 'StaticTearOff', 'FunctionTearOff',
-  'LocalFunctionInvocation', 'DynamicInvocation', 'DynamicGet', 'DynamicSet',
+  'LocalFunctionInvocation', 
   'InstanceGetterInvocation', 'RecordLiteral', 'RecordIndexGet',
-  'RecordNameGet', 'NullCheck', 'InstanceCreation', 'FileUriExpression',
+  'RecordNameGet', 'NullCheck', 'FileUriExpression',
   'CheckLibraryIsLoaded', 'LoadLibrary', 'SuperMethodInvocation',
   'SuperPropertyGet', 'SuperPropertySet', 'AbstractSuperMethodInvocation',
   'AbstractSuperPropertyGet', 'AbstractSuperPropertySet',
-  'ConstructorTearOff', 'RedirectingFactoryTearOff', 'TypedefTearOff',
+  'TypedefTearOff',
   'IsExpression', 'AsExpression', 'InvalidExpression',
   // Kernel's Name is abstract; the runtime types are these two.
   '_PrivateName', '_PublicName',
@@ -308,6 +335,149 @@ class _Walker extends RecursiveVisitor {
       _noteType(t);
     }
     node.visitChildren(this);
+  }
+
+  // ---- tear-offs. A tear-off names a member exactly as an invocation does;
+  // the reference is a read of that member.
+  @override
+  void visitInstanceTearOff(InstanceTearOff node) {
+    _record(node.interfaceTarget, node.name, 'read');
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitStaticTearOff(StaticTearOff node) {
+    _record(node.target, node.target.name, 'read');
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitConstructorTearOff(ConstructorTearOff node) {
+    final m = node.target;
+    if (m is Constructor) {
+      final cls = m.enclosingClass;
+      if (_classIsPrivate(cls)) {
+        r.privateTypes.add('${cls.enclosingLibrary.importUri}::${cls.name}');
+      }
+    }
+    _record(m, m.name, 'construct');
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitRedirectingFactoryTearOff(RedirectingFactoryTearOff node) {
+    _record(node.target, node.target.name, 'construct');
+    node.visitChildren(this);
+  }
+
+  /// `==` carries an interfaceTargetReference like any instance call. An
+  /// operator name can never be private, so this can only ever record nothing --
+  /// but it is modelled rather than reasoned about, because "I convinced myself
+  /// this one is safe" is how the other unvisited nodes got allowlisted.
+  @override
+  void visitEqualsCall(EqualsCall node) {
+    // EqualsCall carries no Name of its own; the target it references is always
+    // `==`, which cannot be private.
+    final t = node.interfaceTarget;
+    _record(t, t.name, 'read');
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitInstanceGetterInvocation(InstanceGetterInvocation node) {
+    _record(node.interfaceTarget, node.name, 'read');
+    node.visitChildren(this);
+  }
+
+  // ---- super access. The target is resolved, so it keys exactly.
+  @override
+  void visitSuperMethodInvocation(SuperMethodInvocation node) {
+    _record(node.interfaceTarget, node.name, 'read');
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitSuperPropertyGet(SuperPropertyGet node) {
+    _record(node.interfaceTarget, node.name, 'read');
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitSuperPropertySet(SuperPropertySet node) {
+    _record(node.interfaceTarget, node.name, 'write');
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitAbstractSuperMethodInvocation(AbstractSuperMethodInvocation node) {
+    _record(node.interfaceTarget, node.name, 'read');
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitAbstractSuperPropertyGet(AbstractSuperPropertyGet node) {
+    _record(node.interfaceTarget, node.name, 'read');
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitAbstractSuperPropertySet(AbstractSuperPropertySet node) {
+    _record(node.interfaceTarget, node.name, 'write');
+    node.visitChildren(this);
+  }
+
+  /// A CONSTANT CAN NAME A MEMBER. `--aot` folds tear-offs and instances into
+  /// constants, so a ConstantExpression allowlisted as "just a literal" would
+  /// hide exactly the reference this file exists to find. Unmodelled constant
+  /// kinds refuse, mirroring SM1-G2's constant allowlist.
+  void _constant(Constant c) {
+    switch (c) {
+      case StaticTearOffConstant():
+        _record(c.target, c.target.name, 'read');
+      case InstanceConstant():
+        final cls = c.classNode;
+        if (_classIsPrivate(cls)) {
+          r.privateTypes.add('${cls.enclosingLibrary.importUri}::${cls.name}');
+        }
+        for (final e in c.fieldValues.entries) {
+          final f = e.key.asField;
+          _record(f, f.name, 'read');
+          _constant(e.value);
+        }
+        for (final t in c.typeArguments) {
+          _noteType(t);
+        }
+      case ListConstant():
+        for (final e in c.entries) {
+          _constant(e);
+        }
+      case SetConstant():
+        for (final e in c.entries) {
+          _constant(e);
+        }
+      case MapConstant():
+        for (final e in c.entries) {
+          _constant(e.key);
+          _constant(e.value);
+        }
+      case TypeLiteralConstant():
+        _noteType(c.type);
+      case IntConstant():
+      case DoubleConstant():
+      case StringConstant():
+      case BoolConstant():
+      case NullConstant():
+      case SymbolConstant():
+        break;
+      default:
+        r.unsupported.add('Constant:${c.runtimeType}');
+    }
+  }
+
+  @override
+  void visitConstantExpression(ConstantExpression node) {
+    _constant(node.constant);
+    _noteType(node.type);
   }
 
   @override
