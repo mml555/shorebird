@@ -1,0 +1,147 @@
+SM1-G4 retention contract and measured cost
+  frozen effective tree : 7b04b01bdc10ec990143257f0d28580571c2122f
+  substrate             : /Volumes/build/route-b/flutter/engine/src/out/host_release_arm64
+  dynamic modules       : dart_dynamic_modules=true
+
+--- CONFOUND FIRST: retention must be attributable to the contract ---
+    ok      subject and confound demonstrator exist
+    ok      built with NO contract, the subject carries no retaining pragma at all
+            (source-pragma retained=0, contract retained=0)
+    ok      built WITH the contract, retention comes from the contract alone
+            (source-pragma retained=0, contract retained=3)
+            callable withheld, subject CLEAN            -> rc=134
+            callable withheld, subject has entry-point  -> rc=0
+    ok      the pragma MASKS the withheld contract: the same withholding that fails on
+            a clean subject succeeds on one carrying vm:entry-point, so an arm
+            measured on such a subject would be vacuous
+  PRAGMA_CONFOUND=CONTROLLED
+
+--- ARMS: withhold each retention class in turn ---
+  ──────── contract variant: full ────────
+    gen_kernel        exit=0
+    gen_snapshot      exit=0  aot=889160
+    dart2bytecode     exit=0
+    dartaotruntime    exit=0
+      | CONTROL callWork(Target()) = AOT-TARGET
+      | SUBJECT callWork(PatchTarget()) = PATCH-TARGET
+      | DISPATCH_OK
+      | DONE
+    -> CONTROL_DISPATCH_OK
+  ──────── contract variant: no_callable ────────
+    gen_kernel        exit=0
+    gen_snapshot      exit=0  aot=889072
+    dart2bytecode     exit=0
+  /Users/mendell/shorebird/selfhost/engine/semantic_map/g4_retention/lib/run_arms.sh: line 36: 53759 Abort trap: 6           "$OUT/dartaotruntime" "$W/host.aot" "$W/m.bytecode" "file://$W/m_patch.dart" > "$W/run.log" 2>&1
+    dartaotruntime    exit=134
+      | CONTROL callWork(Target()) = AOT-TARGET
+      | ../../flutter/third_party/dart/runtime/vm/bytecode_reader.cc: 1172: error: Unable to find function Target. in Library:'package:dynamic_modules/host.dart' Class: Target
+    -> FAILS_CLOSED
+  ──────── contract variant: no_extendable ────────
+    gen_kernel        exit=0
+    gen_snapshot      exit=0  aot=889128
+    dart2bytecode     exit=0
+    dartaotruntime    exit=0
+      | CONTROL callWork(Target()) = AOT-TARGET
+      | SUBJECT callWork(PatchTarget()) = AOT-TARGET
+      | DISPATCH_BYPASS
+      | DONE
+    -> FAILS_OPEN
+  ──────── contract variant: no_can_be_used_as_type ────────
+    gen_kernel        exit=0
+    gen_snapshot      exit=0  aot=889160
+    dart2bytecode     exit=0
+    dartaotruntime    exit=0
+      | CONTROL callWork(Target()) = AOT-TARGET
+      | SUBJECT callWork(PatchTarget()) = PATCH-TARGET
+      | DISPATCH_OK
+      | DONE
+    -> NO_OBSERVABLE_EFFECT
+  ──────── contract variant: no_can_be_overridden ────────
+    gen_kernel        exit=0
+    gen_snapshot      exit=0  aot=889128
+    dart2bytecode     exit=0
+    dartaotruntime    exit=0
+      | CONTROL callWork(Target()) = AOT-TARGET
+      | SUBJECT callWork(PatchTarget()) = AOT-TARGET
+      | DISPATCH_BYPASS
+      | DONE
+    -> FAILS_OPEN
+  
+    control (full contract) dispatched to the patch: True
+    full                     CONTROL_DISPATCH_OK
+    no_callable              FAILS_CLOSED
+    no_extendable            FAILS_OPEN
+    no_can_be_used_as_type   NO_OBSERVABLE_EFFECT
+    no_can_be_overridden     FAILS_OPEN
+
+--- COST CURVE: measured at release scale, not extrapolated ---
+  N,aot_absent,aot_present,delta,pct,per_member
+  0,838520,879432,40912,+4.879,n/a
+  1,838728,879720,40992,+4.887,40992.0
+  2,838816,879888,41072,+4.896,20536.0
+  4,838984,880216,41232,+4.915,10308.0
+  8,839320,880872,41552,+4.951,5194.0
+  16,840000,882200,42200,+5.024,2637.5
+  32,841384,884880,43496,+5.170,1359.2
+  64,844144,890240,46096,+5.461,720.2
+  128,866152,917584,51432,+5.938,401.8
+  N,aot_absent,aot_present,delta,pct,per_member
+  0,838520,879432,40912,+4.879,n/a
+  1,838728,879720,40992,+4.887,40992.0
+  2,838816,879888,41072,+4.896,20536.0
+  4,838984,880216,41232,+4.915,10308.0
+  8,839320,880872,41552,+4.951,5194.0
+  16,840000,882200,42200,+5.024,2637.5
+  32,841384,884880,43496,+5.170,1359.2
+  64,844144,890240,46096,+5.461,720.2
+  128,866152,917584,51432,+5.938,401.8
+
+--- RETENTION CONTRACT, per declaration, over the frozen corpus ---
+    retention rows=23 -> /Users/mendell/shorebird/selfhost/engine/semantic_map/g4_retention/evidence/retention_rows.json
+
+
+--- confound: retention must be attributable to the contract, not a pragma ---
+  ok      the subject carries no retaining pragma, the contract is what retains it, and a pragma is shown to MASK a withheld contract
+
+--- control: the full contract must reach the patch ---
+  ok      with the complete contract the patch subtype answered, so a refusal below is attributable to the withheld entry
+
+--- each withheld class is categorised, from a surface read off the runner ---
+  runner category surface: 5 (CONTROL_DISPATCH_OK, FAILS_CLOSED, FAILS_OPEN, NO_OBSERVABLE_EFFECT, UNCLASSIFIED)
+  ok      every arm carries a category the runner can justify
+    full                     CONTROL_DISPATCH_OK
+      the patch subtype answered
+    no_callable              FAILS_CLOSED
+      runtime refused (exit 134): ../../flutter/third_party/dart/runtime/vm/bytecode_reader.cc: 1172: error: Unable 
+    no_extendable            FAILS_OPEN
+      the module loaded and the call site still reached the AOT body
+    no_can_be_used_as_type   NO_OBSERVABLE_EFFECT
+      loaded and dispatched to the patch exactly as the full contract did
+    no_can_be_overridden     FAILS_OPEN
+      the module loaded and the call site still reached the AOT body
+
+--- #53: each withheld class must FAIL CLOSED at load ---
+    callable               FAILS_CLOSED
+    extendable             FAILS_OPEN
+    can-be-used-as-type    NO_OBSERVABLE_EFFECT
+    can-be-overridden      FAILS_OPEN
+  FINDING 2 of 4 retention classes do NOT fail closed: extendable, can-be-overridden
+          The module loaded and the call site still reached the AOT body, so the release answered its own question and the patch was silently ignored. #53 designates this FAIL_OPEN and requires it be reported as a finding, never as a pass.
+  FINDING can-be-used-as-type had no observable effect on this shape, so this corpus does not establish that it is required
+  ok      callable fails closed with an attributable cause
+
+--- #53's stop condition: retention stated per declaration, not per library ---
+  ok      all 23 declarations name their own contract entries, so the stop condition is not triggered
+          histogram: {'callable': 21, 'can-be-used-as-type': 15, 'extendable': 15, 'can-be-overridden': 6}
+  ok      every row carries measured enforcement, so "required" is never mistaken for "enforced"
+
+--- #53: release-scale retention cost measured, not extrapolated ---
+  ok      measured at N=[0, 1, 2, 4, 8, 16, 32, 64, 128]
+          fixed floor (N=0)      40,912 bytes
+          marginal per member    ~82 bytes
+          actual at N=128         51,432 bytes
+          naive 16,704xN would be 2,138,112 bytes  (42x the measurement)
+
+RETENTION_ENFORCEMENT=PARTIAL
+SUMMARY checks_failed=0
+G4 RETENTION VERIFIED

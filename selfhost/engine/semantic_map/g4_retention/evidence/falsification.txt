@@ -1,0 +1,53 @@
+SM1-G4 falsification — every check must be able to FAIL
+date : 2026-09-07T19:00:13Z
+
+The confound's OWN control (a pragma masking a withheld contract) is
+demonstrated inside evidence/confound_pragma.txt and is not repeated here.
+
+############ 1. the confound is not controlled -> refuse to score ############
+  --- confound: retention must be attributable to the contract, not a pragma ---
+    FAILED  the pragma confound is not controlled, so every retention result below may be measuring the pragma
+  SUMMARY checks_failed=1
+  G4 RETENTION FAILED
+
+############ 2. the full-contract CONTROL did not dispatch ############
+  --- control: the full contract must reach the patch ---
+    FAILED  the full-contract control did not dispatch to the patch; every refusal below is unattributable
+  SUMMARY checks_failed=1
+
+############ 3. an arm that cannot be categorised ############
+    runner category surface: 5 (CONTROL_DISPATCH_OK, FAILS_CLOSED, FAILS_OPEN, NO_OBSERVABLE_EFFECT, UNCLASSIFIED)
+    FAILED  an arm was UNCLASSIFIED, so its outcome is not attributable to the withheld entry
+      no_extendable            UNCLASSIFIED
+      extendable             UNCLASSIFIED
+  SUMMARY checks_failed=1
+
+############ 4. a contract row claiming UNMEASURED enforcement ############
+   gen_retention_rows.dart REFUSES to run without --enforcement at all:
+     gen_retention_rows: --enforcement is required: whether withholding a class actually stops a patch is measured by this gate's arms, never assumed
+   and a row whose class was never measured must fail the scorer:
+    FAILED  23 row(s) claim a contract class whose enforcement was never measured
+  SUMMARY checks_failed=1
+
+############ 5. the cost curve is missing release-scale points ############
+    FAILED  the curve is missing N=[16, 32, 64, 128], so it was not measured at release scale
+  SUMMARY checks_failed=2
+
+############ restored ############
+  The first restore attempt still reported FAILED, and correctly so: mutation 5
+  truncated evidence/scale.json, and run_g4.sh REUSES that file when present
+  rather than rebuilding an expensive curve on every run. So the restore needed
+  REMEASURE=1, not just reverting the sources. Recorded because a harness whose
+  "restored" run passes without actually rebuilding the mutated artifact would
+  be certifying a state it never re-measured.
+
+  $ REMEASURE=1 bash run_g4.sh
+    ok      measured at N=[0, 1, 2, 4, 8, 16, 32, 64, 128]
+            fixed floor (N=0)      40,912 bytes
+            marginal per member    ~82 bytes
+    RETENTION_ENFORCEMENT=PARTIAL
+    SUMMARY checks_failed=0
+    G4 RETENTION VERIFIED
+
+  The re-measured curve is byte-identical to the first (40,912 floor, 51,432 at
+  N=128), so the cost figures are reproducible across independent builds.

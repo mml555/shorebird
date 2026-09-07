@@ -1,0 +1,113 @@
+{
+  "schema": "semantic-map-1/g4-score/1",
+  "gate": "SM1-G4",
+  "issue": 53,
+  "checks_failed": 0,
+  "retention_enforcement": "PARTIAL",
+  "fail_open_classes": [
+    "extendable",
+    "can-be-overridden"
+  ],
+  "no_effect_classes": [
+    "can-be-used-as-type"
+  ],
+  "fails_closed_classes": [
+    "callable"
+  ],
+  "arms": {
+    "arm_category_surface": [
+      "CONTROL_DISPATCH_OK",
+      "FAILS_CLOSED",
+      "FAILS_OPEN",
+      "NO_OBSERVABLE_EFFECT",
+      "UNCLASSIFIED"
+    ],
+    "arm_categories_observed": [
+      "CONTROL_DISPATCH_OK",
+      "FAILS_CLOSED",
+      "FAILS_OPEN",
+      "NO_OBSERVABLE_EFFECT"
+    ],
+    "enforced_at_load": {
+      "callable": "FAILS_CLOSED",
+      "extendable": "FAILS_OPEN",
+      "can-be-used-as-type": "NO_OBSERVABLE_EFFECT",
+      "can-be-overridden": "FAILS_OPEN"
+    },
+    "retention_row_count": 23,
+    "required_class_histogram": {
+      "callable": 21,
+      "can-be-used-as-type": 15,
+      "extendable": 15,
+      "can-be-overridden": 6
+    },
+    "scale": [
+      {
+        "n": 0,
+        "absent": 838520,
+        "present": 879432,
+        "delta": 40912,
+        "per_member": "n/a"
+      },
+      {
+        "n": 1,
+        "absent": 838728,
+        "present": 879720,
+        "delta": 40992,
+        "per_member": "40992.0"
+      },
+      {
+        "n": 2,
+        "absent": 838816,
+        "present": 879888,
+        "delta": 41072,
+        "per_member": "20536.0"
+      },
+      {
+        "n": 4,
+        "absent": 838984,
+        "present": 880216,
+        "delta": 41232,
+        "per_member": "10308.0"
+      },
+      {
+        "n": 8,
+        "absent": 839320,
+        "present": 880872,
+        "delta": 41552,
+        "per_member": "5194.0"
+      },
+      {
+        "n": 16,
+        "absent": 840000,
+        "present": 882200,
+        "delta": 42200,
+        "per_member": "2637.5"
+      },
+      {
+        "n": 32,
+        "absent": 841384,
+        "present": 884880,
+        "delta": 43496,
+        "per_member": "1359.2"
+      },
+      {
+        "n": 64,
+        "absent": 844144,
+        "present": 890240,
+        "delta": 46096,
+        "per_member": "720.2"
+      },
+      {
+        "n": 128,
+        "absent": 866152,
+        "present": 917584,
+        "delta": 51432,
+        "per_member": "401.8"
+      }
+    ],
+    "fixed_floor_bytes": 40912,
+    "marginal_bytes_per_member": 82.2,
+    "naive_overestimate_factor": 41.6
+  }
+}

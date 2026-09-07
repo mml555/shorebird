@@ -1,0 +1,21 @@
+# SM1-G4: the complete contract MINUS only `Target.work`'s callable entry.
+#
+# di_no_callable.yaml withholds the whole callable: block, which also drops the
+# unnamed constructor -- and the VM then aborts on `Target.` before `work` is
+# ever reached, so that variant cannot isolate a single member. This one keeps
+# the constructor callable and withholds exactly one member, which is what makes
+# the mechanism control attributable.
+extendable:
+  - library: 'package:dynamic_modules/host.dart'
+    class: 'Target'
+can-be-used-as-type:
+  - library: 'package:dynamic_modules/host.dart'
+    class: 'Target'
+can-be-overridden:
+  - library: 'package:dynamic_modules/host.dart'
+    class: 'Target'
+    member: 'work'
+callable:
+  - library: 'package:dynamic_modules/host.dart'
+    class: 'Target'
+    member: ''

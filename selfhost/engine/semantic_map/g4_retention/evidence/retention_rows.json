@@ -1,0 +1,738 @@
+{
+  "schema": "semantic-map-1/g4-retention/1",
+  "gate": "SM1-G4",
+  "issue": 53,
+  "count": 23,
+  "required_class_histogram": {
+    "callable": 21,
+    "can-be-used-as-type": 15,
+    "extendable": 15,
+    "can-be-overridden": 6
+  },
+  "enforcement_source": "/Users/mendell/shorebird/selfhost/engine/semantic_map/g4_retention/evidence/arms.json",
+  "enforced_at_load": {
+    "callable": "FAILS_CLOSED",
+    "extendable": "FAILS_OPEN",
+    "can-be-used-as-type": "NO_OBSERVABLE_EFFECT",
+    "can-be-overridden": "FAILS_OPEN"
+  },
+  "rows": [
+    {
+      "library": "package:corpus/app.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "topLevel",
+      "required_entries": [
+        {
+          "key": "callable",
+          "library": "package:corpus/app.dart",
+          "member": "topLevel"
+        }
+      ],
+      "required_classes": [
+        "callable"
+      ],
+      "enforced_at_load": {
+        "callable": "FAILS_CLOSED"
+      },
+      "rationale": "a top-level member is called directly; there is no dispatch point to keep open and no class to extend"
+    },
+    {
+      "library": "package:corpus/app.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "_privateHelper",
+      "required_entries": [
+        {
+          "key": "callable",
+          "library": "package:corpus/app.dart",
+          "member": "_privateHelper"
+        }
+      ],
+      "required_classes": [
+        "callable"
+      ],
+      "enforced_at_load": {
+        "callable": "FAILS_CLOSED"
+      },
+      "rationale": "a top-level member is called directly; there is no dispatch point to keep open and no class to extend"
+    },
+    {
+      "library": "package:corpus/app.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "usesPrivate",
+      "required_entries": [
+        {
+          "key": "callable",
+          "library": "package:corpus/app.dart",
+          "member": "usesPrivate"
+        }
+      ],
+      "required_classes": [
+        "callable"
+      ],
+      "enforced_at_load": {
+        "callable": "FAILS_CLOSED"
+      },
+      "rationale": "a top-level member is called directly; there is no dispatch point to keep open and no class to extend"
+    },
+    {
+      "library": "package:corpus/app.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "usesOtherLibrary",
+      "required_entries": [
+        {
+          "key": "callable",
+          "library": "package:corpus/app.dart",
+          "member": "usesOtherLibrary"
+        }
+      ],
+      "required_classes": [
+        "callable"
+      ],
+      "enforced_at_load": {
+        "callable": "FAILS_CLOSED"
+      },
+      "rationale": "a top-level member is called directly; there is no dispatch point to keep open and no class to extend"
+    },
+    {
+      "library": "package:corpus/app.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "main",
+      "required_entries": [
+        {
+          "key": "callable",
+          "library": "package:corpus/app.dart",
+          "member": "main"
+        }
+      ],
+      "required_classes": [
+        "callable"
+      ],
+      "enforced_at_load": {
+        "callable": "FAILS_CLOSED"
+      },
+      "rationale": "a top-level member is called directly; there is no dispatch point to keep open and no class to extend"
+    },
+    {
+      "library": "package:corpus/app.dart",
+      "owner": null,
+      "kind": "class",
+      "name": "Shape",
+      "required_entries": [
+        {
+          "key": "extendable",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        },
+        {
+          "key": "can-be-used-as-type",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        }
+      ],
+      "required_classes": [
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "enforced_at_load": {
+        "can-be-used-as-type": "NO_OBSERVABLE_EFFECT",
+        "extendable": "FAILS_OPEN"
+      },
+      "rationale": "a module that subclasses this class must be able to name it and to extend it"
+    },
+    {
+      "library": "package:corpus/app.dart",
+      "owner": "Shape",
+      "kind": "constructor",
+      "name": "",
+      "required_entries": [
+        {
+          "key": "extendable",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        },
+        {
+          "key": "can-be-used-as-type",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        },
+        {
+          "key": "callable",
+          "library": "package:corpus/app.dart",
+          "class": "Shape",
+          "member": ""
+        }
+      ],
+      "required_classes": [
+        "callable",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "enforced_at_load": {
+        "callable": "FAILS_CLOSED",
+        "can-be-used-as-type": "NO_OBSERVABLE_EFFECT",
+        "extendable": "FAILS_OPEN"
+      },
+      "rationale": "a module instantiating a subtype resolves the superclass constructor first; '' is the unnamed one"
+    },
+    {
+      "library": "package:corpus/app.dart",
+      "owner": "Shape",
+      "kind": "constructor",
+      "name": "square",
+      "required_entries": [
+        {
+          "key": "extendable",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        },
+        {
+          "key": "can-be-used-as-type",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        },
+        {
+          "key": "callable",
+          "library": "package:corpus/app.dart",
+          "class": "Shape",
+          "member": "square"
+        }
+      ],
+      "required_classes": [
+        "callable",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "enforced_at_load": {
+        "callable": "FAILS_CLOSED",
+        "can-be-used-as-type": "NO_OBSERVABLE_EFFECT",
+        "extendable": "FAILS_OPEN"
+      },
+      "rationale": "a module instantiating a subtype resolves the superclass constructor first; '' is the unnamed one"
+    },
+    {
+      "library": "package:corpus/app.dart",
+      "owner": "Shape",
+      "kind": "method",
+      "name": "area",
+      "required_entries": [
+        {
+          "key": "extendable",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        },
+        {
+          "key": "can-be-used-as-type",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        },
+        {
+          "key": "callable",
+          "library": "package:corpus/app.dart",
+          "class": "Shape",
+          "member": "area"
+        },
+        {
+          "key": "can-be-overridden",
+          "library": "package:corpus/app.dart",
+          "class": "Shape",
+          "member": "area"
+        }
+      ],
+      "required_classes": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "enforced_at_load": {
+        "callable": "FAILS_CLOSED",
+        "can-be-overridden": "FAILS_OPEN",
+        "can-be-used-as-type": "NO_OBSERVABLE_EFFECT",
+        "extendable": "FAILS_OPEN"
+      },
+      "rationale": "an overridable instance member needs its dispatch point kept open for a subtype that does not exist at build time"
+    },
+    {
+      "library": "package:corpus/app.dart",
+      "owner": "Shape",
+      "kind": "getter",
+      "name": "perimeter",
+      "required_entries": [
+        {
+          "key": "extendable",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        },
+        {
+          "key": "can-be-used-as-type",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        },
+        {
+          "key": "callable",
+          "library": "package:corpus/app.dart",
+          "class": "Shape",
+          "member": "perimeter"
+        },
+        {
+          "key": "can-be-overridden",
+          "library": "package:corpus/app.dart",
+          "class": "Shape",
+          "member": "perimeter"
+        }
+      ],
+      "required_classes": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "enforced_at_load": {
+        "callable": "FAILS_CLOSED",
+        "can-be-overridden": "FAILS_OPEN",
+        "can-be-used-as-type": "NO_OBSERVABLE_EFFECT",
+        "extendable": "FAILS_OPEN"
+      },
+      "rationale": "an overridable instance member needs its dispatch point kept open for a subtype that does not exist at build time"
+    },
+    {
+      "library": "package:corpus/app.dart",
+      "owner": "Shape",
+      "kind": "setter",
+      "name": "scale",
+      "required_entries": [
+        {
+          "key": "extendable",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        },
+        {
+          "key": "can-be-used-as-type",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        },
+        {
+          "key": "callable",
+          "library": "package:corpus/app.dart",
+          "class": "Shape",
+          "member": "scale"
+        },
+        {
+          "key": "can-be-overridden",
+          "library": "package:corpus/app.dart",
+          "class": "Shape",
+          "member": "scale"
+        }
+      ],
+      "required_classes": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "enforced_at_load": {
+        "callable": "FAILS_CLOSED",
+        "can-be-overridden": "FAILS_OPEN",
+        "can-be-used-as-type": "NO_OBSERVABLE_EFFECT",
+        "extendable": "FAILS_OPEN"
+      },
+      "rationale": "an overridable instance member needs its dispatch point kept open for a subtype that does not exist at build time"
+    },
+    {
+      "library": "package:corpus/app.dart",
+      "owner": "Shape",
+      "kind": "getter",
+      "name": "scaled",
+      "required_entries": [
+        {
+          "key": "extendable",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        },
+        {
+          "key": "can-be-used-as-type",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        },
+        {
+          "key": "callable",
+          "library": "package:corpus/app.dart",
+          "class": "Shape",
+          "member": "scaled"
+        },
+        {
+          "key": "can-be-overridden",
+          "library": "package:corpus/app.dart",
+          "class": "Shape",
+          "member": "scaled"
+        }
+      ],
+      "required_classes": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "enforced_at_load": {
+        "callable": "FAILS_CLOSED",
+        "can-be-overridden": "FAILS_OPEN",
+        "can-be-used-as-type": "NO_OBSERVABLE_EFFECT",
+        "extendable": "FAILS_OPEN"
+      },
+      "rationale": "an overridable instance member needs its dispatch point kept open for a subtype that does not exist at build time"
+    },
+    {
+      "library": "package:corpus/app.dart",
+      "owner": "Shape",
+      "kind": "factory",
+      "name": "unit",
+      "required_entries": [
+        {
+          "key": "extendable",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        },
+        {
+          "key": "can-be-used-as-type",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        },
+        {
+          "key": "callable",
+          "library": "package:corpus/app.dart",
+          "class": "Shape",
+          "member": "unit"
+        }
+      ],
+      "required_classes": [
+        "callable",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "enforced_at_load": {
+        "callable": "FAILS_CLOSED",
+        "can-be-used-as-type": "NO_OBSERVABLE_EFFECT",
+        "extendable": "FAILS_OPEN"
+      },
+      "rationale": "a static or factory member is called directly, so no dispatch point has to stay open"
+    },
+    {
+      "library": "package:corpus/app.dart",
+      "owner": "Shape",
+      "kind": "operator",
+      "name": "+",
+      "required_entries": [
+        {
+          "key": "extendable",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        },
+        {
+          "key": "can-be-used-as-type",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        },
+        {
+          "key": "callable",
+          "library": "package:corpus/app.dart",
+          "class": "Shape",
+          "member": "+"
+        },
+        {
+          "key": "can-be-overridden",
+          "library": "package:corpus/app.dart",
+          "class": "Shape",
+          "member": "+"
+        }
+      ],
+      "required_classes": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "enforced_at_load": {
+        "callable": "FAILS_CLOSED",
+        "can-be-overridden": "FAILS_OPEN",
+        "can-be-used-as-type": "NO_OBSERVABLE_EFFECT",
+        "extendable": "FAILS_OPEN"
+      },
+      "rationale": "an overridable instance member needs its dispatch point kept open for a subtype that does not exist at build time"
+    },
+    {
+      "library": "package:corpus/app.dart",
+      "owner": "Shape",
+      "kind": "field",
+      "name": "sides",
+      "required_entries": [
+        {
+          "key": "extendable",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        },
+        {
+          "key": "can-be-used-as-type",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        },
+        {
+          "key": "callable",
+          "library": "package:corpus/app.dart",
+          "class": "Shape",
+          "member": "sides"
+        }
+      ],
+      "required_classes": [
+        "callable",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "enforced_at_load": {
+        "callable": "FAILS_CLOSED",
+        "can-be-used-as-type": "NO_OBSERVABLE_EFFECT",
+        "extendable": "FAILS_OPEN"
+      },
+      "rationale": "an instance field is reached through its implicit accessors, which the callable entry covers"
+    },
+    {
+      "library": "package:corpus/app.dart",
+      "owner": "Shape",
+      "kind": "field",
+      "name": "_scaled",
+      "required_entries": [
+        {
+          "key": "extendable",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        },
+        {
+          "key": "can-be-used-as-type",
+          "library": "package:corpus/app.dart",
+          "class": "Shape"
+        },
+        {
+          "key": "callable",
+          "library": "package:corpus/app.dart",
+          "class": "Shape",
+          "member": "_scaled"
+        }
+      ],
+      "required_classes": [
+        "callable",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "enforced_at_load": {
+        "callable": "FAILS_CLOSED",
+        "can-be-used-as-type": "NO_OBSERVABLE_EFFECT",
+        "extendable": "FAILS_OPEN"
+      },
+      "rationale": "an instance field is reached through its implicit accessors, which the callable entry covers"
+    },
+    {
+      "library": "package:corpus/app.dart",
+      "owner": null,
+      "kind": "class",
+      "name": "Box",
+      "required_entries": [
+        {
+          "key": "extendable",
+          "library": "package:corpus/app.dart",
+          "class": "Box"
+        },
+        {
+          "key": "can-be-used-as-type",
+          "library": "package:corpus/app.dart",
+          "class": "Box"
+        }
+      ],
+      "required_classes": [
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "enforced_at_load": {
+        "can-be-used-as-type": "NO_OBSERVABLE_EFFECT",
+        "extendable": "FAILS_OPEN"
+      },
+      "rationale": "a module that subclasses this class must be able to name it and to extend it"
+    },
+    {
+      "library": "package:corpus/app.dart",
+      "owner": "Box",
+      "kind": "constructor",
+      "name": "",
+      "required_entries": [
+        {
+          "key": "extendable",
+          "library": "package:corpus/app.dart",
+          "class": "Box"
+        },
+        {
+          "key": "can-be-used-as-type",
+          "library": "package:corpus/app.dart",
+          "class": "Box"
+        },
+        {
+          "key": "callable",
+          "library": "package:corpus/app.dart",
+          "class": "Box",
+          "member": ""
+        }
+      ],
+      "required_classes": [
+        "callable",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "enforced_at_load": {
+        "callable": "FAILS_CLOSED",
+        "can-be-used-as-type": "NO_OBSERVABLE_EFFECT",
+        "extendable": "FAILS_OPEN"
+      },
+      "rationale": "a module instantiating a subtype resolves the superclass constructor first; '' is the unnamed one"
+    },
+    {
+      "library": "package:corpus/app.dart",
+      "owner": "Box",
+      "kind": "method",
+      "name": "unwrap",
+      "required_entries": [
+        {
+          "key": "extendable",
+          "library": "package:corpus/app.dart",
+          "class": "Box"
+        },
+        {
+          "key": "can-be-used-as-type",
+          "library": "package:corpus/app.dart",
+          "class": "Box"
+        },
+        {
+          "key": "callable",
+          "library": "package:corpus/app.dart",
+          "class": "Box",
+          "member": "unwrap"
+        },
+        {
+          "key": "can-be-overridden",
+          "library": "package:corpus/app.dart",
+          "class": "Box",
+          "member": "unwrap"
+        }
+      ],
+      "required_classes": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "enforced_at_load": {
+        "callable": "FAILS_CLOSED",
+        "can-be-overridden": "FAILS_OPEN",
+        "can-be-used-as-type": "NO_OBSERVABLE_EFFECT",
+        "extendable": "FAILS_OPEN"
+      },
+      "rationale": "an overridable instance member needs its dispatch point kept open for a subtype that does not exist at build time"
+    },
+    {
+      "library": "package:corpus/app.dart",
+      "owner": "Box",
+      "kind": "field",
+      "name": "value",
+      "required_entries": [
+        {
+          "key": "extendable",
+          "library": "package:corpus/app.dart",
+          "class": "Box"
+        },
+        {
+          "key": "can-be-used-as-type",
+          "library": "package:corpus/app.dart",
+          "class": "Box"
+        },
+        {
+          "key": "callable",
+          "library": "package:corpus/app.dart",
+          "class": "Box",
+          "member": "value"
+        }
+      ],
+      "required_classes": [
+        "callable",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "enforced_at_load": {
+        "callable": "FAILS_CLOSED",
+        "can-be-used-as-type": "NO_OBSERVABLE_EFFECT",
+        "extendable": "FAILS_OPEN"
+      },
+      "rationale": "an instance field is reached through its implicit accessors, which the callable entry covers"
+    },
+    {
+      "library": "package:corpus/helper.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "helperAdd",
+      "required_entries": [
+        {
+          "key": "callable",
+          "library": "package:corpus/helper.dart",
+          "member": "helperAdd"
+        }
+      ],
+      "required_classes": [
+        "callable"
+      ],
+      "enforced_at_load": {
+        "callable": "FAILS_CLOSED"
+      },
+      "rationale": "a top-level member is called directly; there is no dispatch point to keep open and no class to extend"
+    },
+    {
+      "library": "package:corpus/helper.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "_privateHelper",
+      "required_entries": [
+        {
+          "key": "callable",
+          "library": "package:corpus/helper.dart",
+          "member": "_privateHelper"
+        }
+      ],
+      "required_classes": [
+        "callable"
+      ],
+      "enforced_at_load": {
+        "callable": "FAILS_CLOSED"
+      },
+      "rationale": "a top-level member is called directly; there is no dispatch point to keep open and no class to extend"
+    },
+    {
+      "library": "package:corpus/helper.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "helperUsesPrivate",
+      "required_entries": [
+        {
+          "key": "callable",
+          "library": "package:corpus/helper.dart",
+          "member": "helperUsesPrivate"
+        }
+      ],
+      "required_classes": [
+        "callable"
+      ],
+      "enforced_at_load": {
+        "callable": "FAILS_CLOSED"
+      },
+      "rationale": "a top-level member is called directly; there is no dispatch point to keep open and no class to extend"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+  ok      subject and confound demonstrator exist
+  ok      built with NO contract, the subject carries no retaining pragma at all
+          (source-pragma retained=0, contract retained=0)
+  ok      built WITH the contract, retention comes from the contract alone
+          (source-pragma retained=0, contract retained=3)
+          callable withheld, subject CLEAN            -> rc=134
+          callable withheld, subject has entry-point  -> rc=0
+  ok      the pragma MASKS the withheld contract: the same withholding that fails on
+          a clean subject succeeds on one carrying vm:entry-point, so an arm
+          measured on such a subject would be vacuous
+PRAGMA_CONFOUND=CONTROLLED

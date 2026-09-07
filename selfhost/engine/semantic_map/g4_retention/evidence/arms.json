@@ -1,0 +1,39 @@
+{
+  "schema": "semantic-map-1/g4-arms/1",
+  "gate": "SM1-G4",
+  "issue": 53,
+  "control_dispatch_ok": true,
+  "rows": [
+    {
+      "variant": "full",
+      "category": "CONTROL_DISPATCH_OK",
+      "detail": "the patch subtype answered"
+    },
+    {
+      "variant": "no_callable",
+      "category": "FAILS_CLOSED",
+      "detail": "runtime refused (exit 134): ../../flutter/third_party/dart/runtime/vm/bytecode_reader.cc: 1172: error: Unable to find function Target. in Library:'package:dynamic_modul"
+    },
+    {
+      "variant": "no_extendable",
+      "category": "FAILS_OPEN",
+      "detail": "the module loaded and the call site still reached the AOT body"
+    },
+    {
+      "variant": "no_can_be_used_as_type",
+      "category": "NO_OBSERVABLE_EFFECT",
+      "detail": "loaded and dispatched to the patch exactly as the full contract did"
+    },
+    {
+      "variant": "no_can_be_overridden",
+      "category": "FAILS_OPEN",
+      "detail": "the module loaded and the call site still reached the AOT body"
+    }
+  ],
+  "enforced_at_load": {
+    "callable": "FAILS_CLOSED",
+    "extendable": "FAILS_OPEN",
+    "can-be-used-as-type": "NO_OBSERVABLE_EFFECT",
+    "can-be-overridden": "FAILS_OPEN"
+  }
+}

@@ -1,0 +1,18 @@
+# The COMPLETE contract for one patchable instance method.
+extendable:
+  - library: 'package:dynamic_modules/host.dart'
+    class: 'Target'
+can-be-used-as-type:
+  - library: 'package:dynamic_modules/host.dart'
+    class: 'Target'
+can-be-overridden:
+  - library: 'package:dynamic_modules/host.dart'
+    class: 'Target'
+    member: 'work'
+callable:
+  - library: 'package:dynamic_modules/host.dart'
+    class: 'Target'
+    member: ''
+  - library: 'package:dynamic_modules/host.dart'
+    class: 'Target'
+    member: 'work'

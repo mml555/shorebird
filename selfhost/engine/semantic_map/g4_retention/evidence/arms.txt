@@ -1,0 +1,56 @@
+──────── contract variant: full ────────
+  gen_kernel        exit=0
+  gen_snapshot      exit=0  aot=889160
+  dart2bytecode     exit=0
+  dartaotruntime    exit=0
+    | CONTROL callWork(Target()) = AOT-TARGET
+    | SUBJECT callWork(PatchTarget()) = PATCH-TARGET
+    | DISPATCH_OK
+    | DONE
+  -> CONTROL_DISPATCH_OK
+──────── contract variant: no_callable ────────
+  gen_kernel        exit=0
+  gen_snapshot      exit=0  aot=889072
+  dart2bytecode     exit=0
+selfhost/engine/semantic_map/g4_retention/lib/run_arms.sh: line 36: 51579 Abort trap: 6           "$OUT/dartaotruntime" "$W/host.aot" "$W/m.bytecode" "file://$W/m_patch.dart" > "$W/run.log" 2>&1
+  dartaotruntime    exit=134
+    | CONTROL callWork(Target()) = AOT-TARGET
+    | ../../flutter/third_party/dart/runtime/vm/bytecode_reader.cc: 1172: error: Unable to find function Target. in Library:'package:dynamic_modules/host.dart' Class: Target
+  -> FAILS_CLOSED
+──────── contract variant: no_extendable ────────
+  gen_kernel        exit=0
+  gen_snapshot      exit=0  aot=889128
+  dart2bytecode     exit=0
+  dartaotruntime    exit=0
+    | CONTROL callWork(Target()) = AOT-TARGET
+    | SUBJECT callWork(PatchTarget()) = AOT-TARGET
+    | DISPATCH_BYPASS
+    | DONE
+  -> FAILS_OPEN
+──────── contract variant: no_can_be_used_as_type ────────
+  gen_kernel        exit=0
+  gen_snapshot      exit=0  aot=889160
+  dart2bytecode     exit=0
+  dartaotruntime    exit=0
+    | CONTROL callWork(Target()) = AOT-TARGET
+    | SUBJECT callWork(PatchTarget()) = PATCH-TARGET
+    | DISPATCH_OK
+    | DONE
+  -> NO_OBSERVABLE_EFFECT
+──────── contract variant: no_can_be_overridden ────────
+  gen_kernel        exit=0
+  gen_snapshot      exit=0  aot=889128
+  dart2bytecode     exit=0
+  dartaotruntime    exit=0
+    | CONTROL callWork(Target()) = AOT-TARGET
+    | SUBJECT callWork(PatchTarget()) = AOT-TARGET
+    | DISPATCH_BYPASS
+    | DONE
+  -> FAILS_OPEN
+
+  control (full contract) dispatched to the patch: True
+  full                     CONTROL_DISPATCH_OK
+  no_callable              FAILS_CLOSED
+  no_extendable            FAILS_OPEN
+  no_can_be_used_as_type   NO_OBSERVABLE_EFFECT
+  no_can_be_overridden     FAILS_OPEN
