@@ -2,10 +2,10 @@
 # SM1-G3 — privacy domains
 
 **Gate:** [#52](https://github.com/mml555/shorebird/issues/52) · **Tracker:** [#48](https://github.com/mml555/shorebird/issues/48)
-**Run:** 2026-09-07 · **Verdict: `checks_failed=0`. Every declaration's privacy
-domain is derived from a Kernel fact, all four adversarial arms refuse with
-distinct categories, both positive controls accept, and every check was
-falsified.**
+**Run:** 2026-09-07, hardened after PM review · **Verdict: `checks_failed=0`,
+10 arms. Every declaration's privacy domain is derived and its *effective*
+domain resolved through the owner; six refusal causes are separated; three
+positive controls accept; every check was falsified.**
 
 Transcript: [`evidence/g3_privacy.txt`](evidence/g3_privacy.txt) ·
 structured: [`evidence/g3_privacy.json`](evidence/g3_privacy.json) ·
@@ -99,6 +99,87 @@ A domain that cannot be derived is recorded
 `UNDERIVABLE_NO_LIBRARY_REFERENCE` and **classified**, per the gate's stop
 condition — never defaulted to the permissive case.
 
+## The owner decides for a public member of a private class
+
+Round 1 got this wrong, and the corpus hid it.
+
+```dart
+class _Hidden {
+  int ping() => 1;      // its own Name is PUBLIC
+}
+```
+
+`ping`'s own `Name` is public, so the row carried `privacy_domain: public` with
+`owner_is_private: true`. The policy gated on `is_private or owner_is_private`
+— correctly deciding a grant was needed — and then compared the **member's own**
+domain against the grant scope:
+
+    'public' != 'package:corpus/app.dart'   ->  CROSS_DOMAIN_PRIVATE
+
+So a legitimate same-library access to a public member of a private class was
+refused as cross-domain. The base corpus contains no private class, so the green
+result never touched the path. A matching defect sat in the grant construction:
+granted read keys were collected where `is_private` was true, which omits every
+public-named member under a private class — so even with the comparison fixed,
+the access would have failed as `READ_NOT_GRANTED`.
+
+**The fix records the three facts separately and derives the fourth.** Each row
+now carries the member's own privacy, the owner's, and the effective domain with
+the source that decided it:
+
+| declaration | member | owner | effective domain | source |
+|---|---|---|---|---|
+| `_Hidden` (class) | private | — | `package:corpus/app.dart` | `member` |
+| `_Hidden.ping` | **public** | private | `package:corpus/app.dart` | `owner(public-member-of-private-class)` |
+| `_Hidden._secretPing` | private | private | `package:corpus/app.dart` | `member` |
+| `_Hidden.<unnamed>` | **public** | private | `package:corpus/app.dart` | `owner(...)` |
+| `_Hidden.seed` | **public** | private | `package:corpus/app.dart` | `owner(...)` |
+
+Effective privacy is what the policy gates on, and what the synthetic grant set
+is built from. "Wholly public" is now one test (`effective == 'public'`) rather
+than two flags that could disagree with the domain being compared.
+
+### A class has no Kernel `Name`, and the row now says so
+
+Kernel models `Class.name` as a plain `String` — there is no `libraryReference`
+to read. Round 1 synthesised a `Name` from `cls.name` and let the row carry the
+member rule's derivation label, which asserted a Kernel fact that **does not
+exist for classes**. Class privacy is now derived from the two facts Kernel does
+carry, and the derivation string says exactly that:
+
+    derived:Class.name(leading-underscore)+Class.enclosingLibrary
+            (kernel-has-no-Name-node-for-a-class)
+
+The scorer's allowlist accepts it as a distinct value rather than folding it in
+with the `kernel:Name.*` labels.
+
+### Construction is its own mode
+
+The unnamed constructor exposed a third gap. Its `Name` text is the empty
+string, so `''.startsWith('_')` is false and its own privacy is public — the
+quietest case the owner rule exists for. But `accessKeys` returned no key at all
+for a constructor, so a legitimate construction of a private class reported
+`NO_SUCH_MODE`.
+
+Constructors are neither read nor written. The shipped manifest already keeps
+constructibility in its **own** list with its own key shape:
+
+    package:super_fixture/main.dart#_Boxed.new     privateClassesConstructible
+
+so the map now emits `capability_key_construct` (`library#Class.new` for the
+unnamed constructor, matching that spelling) and `construct` is a third mode
+with its own `CONSTRUCT_NOT_GRANTED` category.
+
+### The counts are asserted, not eyeballed
+
+Fixing the census surfaced a disagreement worth keeping a check for:
+`private_count` was computed from effective privacy while the census was still
+keyed on the member's own domain, so the same document reported **11**
+effectively-private rows and a census summing to **4** non-public. Both numbers
+were emitted; neither was compared. The scorer now asserts they agree, and the
+document carries `member_own_domains` alongside `domains` so the two are visibly
+different numbers rather than one number that could silently be either.
+
 ## Read is not write, and the shipped key cannot always tell them apart
 
 `RouteBPrivateTarget.name` is VM-shaped: `get:`/`set:`-prefixed for an accessor,
@@ -140,12 +221,27 @@ in the corpus and in the shipped releases, and the map states it.
 Every one refuses with an attributable category, and the two ACCEPTs are
 load-bearing.
 
-    positive_read_private_field     read   ACCEPT
-    positive_invoke_private_method  read   ACCEPT
-    cross_library_private           read   CROSS_DOMAIN_PRIVATE
-    platform_library_grant          read   PLATFORM_DOMAIN_PRIVATE
-    tree_shaken_private             read   NOT_RETAINED
-    private_write_read_only_grant   write  WRITE_NOT_GRANTED
+    positive_read_private_field                 read       ACCEPT
+    positive_invoke_private_method              read       ACCEPT
+    cross_library_private                       read       CROSS_DOMAIN_PRIVATE
+    platform_library_grant                      read       PLATFORM_DOMAIN_PRIVATE
+    tree_shaken_private                         read       NOT_RETAINED
+    private_write_read_only_grant               write      WRITE_NOT_GRANTED
+    privowner_public_method_same_library         read       ACCEPT
+    privowner_public_method_foreign_scope        read       CROSS_DOMAIN_PRIVATE
+    privowner_unnamed_constructor_same_library   construct  ACCEPT
+    privowner_second_library_same_class_name     read       CROSS_DOMAIN_PRIVATE
+
+The four private-owner arms are their own minimal-pair set. All four name a
+member whose OWN name is public, so a member-only model treats them
+identically; only the owner's derived domain separates accept from refuse:
+
+- `privowner_public_method_same_library` vs `..._foreign_scope` — same subject,
+  same mode, **only the grant scope moves**.
+- `privowner_second_library_same_class_name` — `helper.dart` declares its own
+  private `_Hidden`, so the class simple name, the member simple name and the
+  mode all match the accepted case. If owner domains collided this would be
+  accepted.
 
 Three of these are minimal pairs against the accepted control, which is what
 makes each attributable to one dimension:
@@ -174,23 +270,40 @@ See [`evidence/falsification.txt`](evidence/falsification.txt).
 | mutation | must break | observed | failures |
 |---|---|---|---|
 | one domain for every private name | the domain-distinctness check | `_privateHelper` × 2 no longer produce two domains; census collapses to `3 private` | 6 |
-| ignore `retained_in_release` | the tree-shaken arm | `tree_shaken_private` → `READ_NOT_GRANTED` (want `NOT_RETAINED`); `NOT_RETAINED` unexercised | 2 |
-| ignore `capability_key_identifies_mode` | the write arm | `private_write_read_only_grant` → **`ACCEPT`**; `WRITE_NOT_GRANTED` unexercised | 2 |
+| ignore `retained_in_release` | the tree-shaken arm | `tree_shaken_private` → `READ_NOT_GRANTED` (want `NOT_RETAINED`); category unexercised | 2 |
+| ignore `capability_key_identifies_mode` | the write arm | `private_write_read_only_grant` → **`ACCEPT`**; category unexercised | 2 |
 | drop the platform refusal from the policy | the platform arm | `platform_library_grant` → `CROSS_DOMAIN_PRIVATE` (want `PLATFORM_DOMAIN_PRIVATE`) | 2 |
-| a policy that refuses everything | both positive controls | both → `CROSS_DOMAIN_PRIVATE` (want `ACCEPT`); 4 categories unexercised | 6 |
+| a policy that refuses everything | all three positive controls | all three → `CROSS_DOMAIN_PRIVATE`; 4 categories unexercised | 8 |
+| **6a** member-only privacy, as originally shipped | the same-library owner arms | `privowner_public_method_same_library` and `..._unnamed_constructor...` → `CROSS_DOMAIN_PRIVATE` (want `ACCEPT`) | 2 |
+| **6b** ignore the owner entirely | the foreign-scope owner arms | `..._foreign_scope` and `..._second_library_same_class_name` → **`ACCEPT`** (want `CROSS_DOMAIN_PRIVATE`); `_Hidden.ping` effective domain `public` via `neither` | 5 |
 
 Each mutation was reverted and the suite re-run green in the same transcript, so
 the failures are attributable to the mutation and not to a broken tree.
 
-**Three of these rows say something the arms alone would not.**
+**The two owner mutations fail in opposite directions, which is the point.**
+6a is the defect exactly as reported: gate on `is_private or owner_is_private`,
+then compare the *member's* domain, and a legitimate same-library access is
+**refused**. 6b drops the owner from effective privacy instead, and the same
+declarations become **wholly public** — so a patch scoped to `helper.dart` is
+*accepted* against `app.dart`'s private class. One direction blocks valid
+patches; the other authorises invalid ones. Only carrying member privacy, owner
+privacy and the derived effective domain separately gets both right.
+
+6b also shows a check that does **not** catch it: the count-agreement assertion
+passes (`4 effectively-private of 18` — internally consistent, and wrong). What
+catches 6b is the `_Hidden.ping` row check and the two foreign-scope arms.
+
+**Four other rows say something the arms alone would not.**
 
 *Mutation 1 does not break the cross-library arm.* With every private collapsed
 into one domain, `cross_library_private` still reports
-`CROSS_DOMAIN_PRIVATE` — it refuses for a reason that is now accidental. What
-catches the mutation is the **domain-distinctness check** (two libraries
-declaring the same private simple name must produce two domains) and the
-positive controls, which start refusing. An adversarial arm that only asks "was
-it refused?" would have passed a map with no library scoping at all.
+`CROSS_DOMAIN_PRIVATE` — refusing for a reason that is now accidental. What
+catches it is the **domain-distinctness check** and the positive controls.
+An adversarial arm that only asks "was it refused?" would pass a map with no
+library scoping at all. (The *class*-level distinctness check still passes under
+this mutation, because class domains come from `Class.enclosingLibrary` rather
+than from the mutated member rule — the two derivations are independent, and the
+transcript shows it.)
 
 *Mutation 3 is the sharpest.* Ignoring one boolean turns the private write into
 **`ACCEPT`** — a write authorised purely on the strength of a read grant, which
@@ -198,13 +311,13 @@ is the precise hazard #52 names, reached by deleting one condition.
 
 *Mutation 4 still refuses.* Dropping the platform rule leaves the platform arm
 refusing, just as `CROSS_DOMAIN_PRIVATE`. Only requiring the **right category**
-catches it. This is why the arms are scored on category rather than on
-refusal.
+catches it, which is why arms are scored on category rather than on refusal.
 
-The last row is the point of the positive controls: arms 1–4 are all satisfied by
-`return REFUSE`, so without a case that must be **accepted**, this gate would
-certify a policy that refuses every patch. Category exhaustion is the second
-net — it caught a dead category in three of the five mutations.
+*Mutation 5* is the point of the positive controls: arms 1–4 and the two
+foreign-scope owner arms are all satisfied by `return REFUSE`, so without cases
+that must be **accepted**, this gate would certify a policy that refuses every
+patch. Category exhaustion is the second net — it caught a dead category in four
+of the seven mutations.
 
 ## Parity with G1
 
@@ -218,14 +331,39 @@ the separation G2's acceptance fixed.
 ## Acceptance (#52)
 
 - [x] Privacy domain is derived for every declaration in the corpus — from
-      `Name.isPrivate` / `Name.libraryReference`, with the derivation recorded
-      per row and non-Kernel derivations failed
+      `Name.isPrivate` / `Name.libraryReference` for members and from
+      `Class.name` + `Class.enclosingLibrary` for classes, with the derivation
+      recorded per row and any unrecognised derivation failed
+- [x] Member privacy and owner privacy are recorded **separately**, and the
+      effective domain is derived from them with its source named — a public
+      member of a private class is access-controlled by the owner
 - [x] Read and write capability are distinguished, not merged — and where the
       shipped key *cannot* distinguish them, the map says so and refuses the write
 - [x] Each adversarial arm refuses with an attributable reason — four distinct
       categories, three of them minimal pairs against an accepted control
 - [x] The guard-presence assertion runs before the platform-library arm is
       trusted — and `run_g3.sh` refuses to score without it
+
+## What round 1 got wrong
+
+Three defects, all in the same place, and the corpus is what hid them: the
+frozen base corpus contains **no private class**, so the entire owner path was
+unexercised while the gate reported green.
+
+1. **A public member of a private class was refused as cross-domain.** The
+   policy compared the member's own domain (`public`) against the grant scope.
+2. **The synthetic grant set omitted those members.** Keys were collected where
+   `is_private` was true, so even a fixed comparison would have failed
+   `READ_NOT_GRANTED`.
+3. **A class's derivation claimed a Kernel fact that does not exist.** A `Name`
+   was synthesised from `cls.name` and the row carried the member rule's label.
+
+A fourth surfaced while fixing them: the constructor had **no** capability mode,
+so constructing a private class reported `NO_SUCH_MODE`. Construction is its own
+mode in the shipped manifest, and now in the map.
+
+None of this changes the guard evidence or the six original arms, which are
+unmodified. The corpus gained `g3_privowner`; the base corpus stays frozen.
 
 ## Not established by this gate
 

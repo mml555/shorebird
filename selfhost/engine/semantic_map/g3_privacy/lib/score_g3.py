@@ -23,6 +23,7 @@ PLATFORM_DOMAIN = 'PLATFORM_DOMAIN_PRIVATE'
 NOT_RETAINED = 'NOT_RETAINED'
 WRITE_NOT_GRANTED = 'WRITE_NOT_GRANTED'
 READ_NOT_GRANTED = 'READ_NOT_GRANTED'
+CONSTRUCT_NOT_GRANTED = 'CONSTRUCT_NOT_GRANTED'
 NO_SUCH_MODE = 'NO_SUCH_MODE'
 ACCEPT = 'ACCEPT'
 
@@ -31,15 +32,30 @@ def decide(row, mode, granted, grant_scope):
     """May a patch whose grant scope is `grant_scope` access `row` in `mode`?
 
     `granted` is the release's capability manifest, as the set of keys it
-    published. `mode` is 'read' or 'write'.
+    published. `mode` is 'read', 'write' or 'construct'.
+
+    CONSTRUCTION IS ITS OWN MODE. The shipped manifest keeps constructibility in
+    a separate list with its own key shape (`#_Boxed.new`), so a constructor is
+    neither read nor written -- treating it as a read reported NO_SUCH_MODE for
+    a legitimate construction of a private class.
     """
-    # A public declaration needs no private grant at all.
-    if not row['is_private'] and not row['owner_is_private']:
+    # EFFECTIVE privacy decides, not the member's own name.
+    #
+    # A public method of a private class carries privacy_domain == 'public'
+    # (its Name is public) with owner_is_private == True. The first version
+    # gated on `is_private or owner_is_private` and then compared the MEMBER's
+    # domain against the grant scope, so `'public' != 'package:its/lib.dart'`
+    # and a legitimate same-library access was refused CROSS_DOMAIN_PRIVATE.
+    # The corpus had no private class, so nothing exercised it.
+    domain = row['effective_privacy_domain']
+
+    # A wholly public declaration needs no private grant at all.
+    if domain == 'public':
         if mode == 'write' and not row['write_mode_exists']:
             return NO_SUCH_MODE
+        if mode == 'construct' and not row['construct_mode_exists']:
+            return NO_SUCH_MODE
         return ACCEPT
-
-    domain = row['privacy_domain']
 
     # 1. THE PLATFORM IS NEVER RESOLVABLE. Checked before the scope comparison
     #    so a grant that NAMES a platform library cannot launder itself by
@@ -62,6 +78,13 @@ def decide(row, mode, granted, grant_scope):
     # 4. MODE. A write must be provably granted, and for a mutable field the
     #    manifest key cannot even express which mode it authorised -- so the
     #    write can never be proven granted, and is refused.
+    if mode == 'construct':
+        if not row['construct_mode_exists']:
+            return NO_SUCH_MODE
+        if row['capability_key_construct'] not in granted:
+            return CONSTRUCT_NOT_GRANTED
+        return ACCEPT
+
     if mode == 'write':
         if not row['write_mode_exists']:
             return NO_SUCH_MODE
@@ -120,8 +143,15 @@ def main():
                        if r['privacy_domain'].startswith('UNDERIVABLE')]
         # The derivation must be a KERNEL fact, never an inference from the
         # name. A row whose derivation is not one of these is not derived.
+        # A CLASS derivation is deliberately NOT a `kernel:Name.*` label:
+        # Kernel has no Name node for a class, so claiming one would assert a
+        # fact that does not exist. Each allowed value names what was actually
+        # read.
         allowed = {'kernel:Name.isPrivate=false', 'kernel:Name.libraryReference',
-                   'kernel:Name.libraryReference(foreign-domain)'}
+                   'kernel:Name.libraryReference(foreign-domain)',
+                   'derived:Class.name(no-leading-underscore)',
+                   'derived:Class.name(leading-underscore)+Class.enclosingLibrary'
+                   '(kernel-has-no-Name-node-for-a-class)'}
         bad = [r for r in base['rows'] if r['domain_derivation'] not in allowed]
         extra['domains'] = base['domains']
         extra['underivable'] = len(underivable)
@@ -138,7 +168,7 @@ def main():
         else:
             lines.append(f'  ok      all {base["count"]} rows carry a domain derived '
                          f'from Name.isPrivate / Name.libraryReference')
-        lines.append('          census: ' + ', '.join(
+        lines.append('          census (EFFECTIVE domains): ' + ', '.join(
             f'{v} {k}' for k, v in sorted(base['domains'].items())))
 
         # THE DISCRIMINATING CASE. Two libraries declare the same private simple
@@ -155,6 +185,85 @@ def main():
             lines.append('  FAILED  two libraries declaring `_privateHelper` did not '
                          'produce two distinct domains, so the domain is not '
                          'library-scoped')
+            fails += 1
+
+    # ---- 1b. the owner rule, on a corpus that has private owners -----------
+    arm('a PUBLIC member of a PRIVATE class is still access-controlled')
+    po = docs.get('g3_privowner')
+    if po is None:
+        lines.append('  FAILED  g3_privowner rows unavailable, so the owner rule is '
+                     'not exercised')
+        fails += 1
+    else:
+        # THE COUNTS MUST AGREE. private_count is computed from effective
+        # privacy and the census is a separate traversal; they disagreed while
+        # the census was still keyed on the member's own domain (11 vs 4), and
+        # the number that mattered was the one nobody was looking at.
+        non_public = sum(v for k, v in po['domains'].items() if k != 'public')
+        if non_public != po['private_count']:
+            lines.append(f'  FAILED  census disagrees with private_count: '
+                         f'{non_public} non-public in the census vs '
+                         f'{po["private_count"]} counted')
+            fails += 1
+        else:
+            lines.append(f'  ok      census and private_count agree: {non_public} '
+                         f'effectively-private of {po["count"]} rows')
+        extra['privowner_domains'] = po['domains']
+        extra['privowner_member_own_domains'] = po['member_own_domains']
+
+        ping = find(po, 'package:corpus/app.dart', '_Hidden', 'ping', 'method')
+        if ping is None:
+            lines.append('  FAILED  _Hidden.ping not found')
+            fails += 1
+        else:
+            # Its OWN name is public; only the owner is private. A member-only
+            # model records domain `public` here and then compares that against
+            # a library URI.
+            okrow = (ping['is_private'] is False
+                     and ping['owner_is_private'] is True
+                     and ping['effective_privacy_domain'] == 'package:corpus/app.dart'
+                     and ping['effective_domain_source'].startswith('owner'))
+            if okrow:
+                lines.append('  ok      _Hidden.ping: own name public, owner private, '
+                             'effective domain from the OWNER')
+                lines.append(f'            member privacy_domain     = '
+                             f'{ping["privacy_domain"]}')
+                lines.append(f'            effective_privacy_domain  = '
+                             f'{ping["effective_privacy_domain"]}')
+                lines.append(f'            effective_domain_source   = '
+                             f'{ping["effective_domain_source"]}')
+            else:
+                lines.append(f'  FAILED  _Hidden.ping effective domain is '
+                             f'{ping["effective_privacy_domain"]} via '
+                             f'{ping["effective_domain_source"]}')
+                fails += 1
+
+        # THE OWNER-LEVEL ANALOGUE of the two `_privateHelper` declarations: two
+        # libraries each declaring a private class of the same simple name. The
+        # effective domain of their members is read from the OWNER, so if owner
+        # domains collided every member of both classes would share one domain.
+        a = find(po, 'package:corpus/app.dart', '_Hidden', 'ping', 'method')
+        h = find(po, 'package:corpus/helper.dart', '_Hidden', 'ping', 'method')
+        if a and h and a['effective_privacy_domain'] != h['effective_privacy_domain']:
+            lines.append('  ok      the same private CLASS name in two libraries gives '
+                         'its members two domains')
+            lines.append(f'            {a["effective_privacy_domain"]}')
+            lines.append(f'            {h["effective_privacy_domain"]}')
+        else:
+            lines.append('  FAILED  two libraries declaring `_Hidden` did not give '
+                         'their members distinct effective domains')
+            fails += 1
+
+        # The unnamed constructor is the quietest case: its Name text is '', so
+        # `''.startsWith('_')` is false and its own privacy is public.
+        ctor = find(po, 'package:corpus/app.dart', '_Hidden', '', 'constructor')
+        if ctor and ctor['effective_privacy_domain'] == 'package:corpus/app.dart' \
+                and ctor['effective_domain_source'].startswith('owner'):
+            lines.append("  ok      _Hidden's unnamed constructor (Name text '') takes "
+                         'its domain from the owner')
+        else:
+            lines.append('  FAILED  the unnamed constructor of a private class did not '
+                         'take the owner\'s domain')
             fails += 1
 
     # ---- 2. read and write are distinguished, not merged -------------------
@@ -210,9 +319,20 @@ def main():
         # private READ key. This models a release that recorded reads -- which
         # is what every real manifest in this repo contains, and none contains a
         # `set:` key.
+        # Built on EFFECTIVE privacy. Keyed on `is_private` alone, a public
+        # member of a private class was left out of the synthetic grant set,
+        # so the accept case below would have failed as READ_NOT_GRANTED even
+        # once the domain comparison was fixed.
         granted = {r['capability_key_read'] for r in doc['rows']
-                   if r['is_private'] and r['retained_in_release']
+                   if r['effective_privacy_domain'] != 'public'
+                   and r['retained_in_release']
                    and r['capability_key_read']}
+        # Constructibility is published separately by the real manifest, so it
+        # is granted separately here too.
+        granted |= {r['capability_key_construct'] for r in doc['rows']
+                    if r['effective_privacy_domain'] != 'public'
+                    and r['retained_in_release']
+                    and r['capability_key_construct']}
         got = decide(row, case['mode'], granted, case['grant_scope'])
         want = case['expected']
         problems = []

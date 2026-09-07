@@ -80,12 +80,24 @@ String? capabilityKey(String library, String? owner, String? vmName) =>
         ? null
         : (owner == null ? '$library#$vmName' : '$library#$owner#$vmName');
 
-/// What it takes to READ and to WRITE this declaration, as manifest keys.
+/// What it takes to READ, to WRITE and to CONSTRUCT this declaration, as
+/// manifest keys.
 ///
 /// `null` means the mode does not exist for this declaration -- a getter cannot
-/// be written, a `final` field cannot be written -- which is a different fact
-/// from "the mode exists and is ungranted".
-({String? read, String? write}) accessKeys({
+/// be written, a `final` field cannot be written, only a constructor can be
+/// constructed -- which is a different fact from "the mode exists and is
+/// ungranted".
+///
+/// CONSTRUCTION IS ITS OWN MODE, not a read. The shipped manifest keeps it in a
+/// separate list (`privateClassesConstructible` / `implicitlyConstructible`)
+/// with its own key shape, e.g.
+///
+///   package:super_fixture/main.dart#_Boxed.new
+///
+/// so the unnamed constructor is `.new` rather than an empty member name. An
+/// earlier version returned no key at all for a constructor, which made a
+/// legitimate construction of a private class report NO_SUCH_MODE.
+({String? read, String? write, String? construct}) accessKeys({
   required String library,
   required String? owner,
   required String kind,
@@ -97,18 +109,42 @@ String? capabilityKey(String library, String? owner, String? vmName) =>
       final bare = capabilityKey(library, owner, name);
       // ONE KEY FOR BOTH MODES. This is the collapse: a release that only ever
       // evidenced a read grants the same string a write would present.
-      return (read: bare, write: isMutableField ? bare : null);
+      return (read: bare, write: isMutableField ? bare : null, construct: null);
     case 'getter':
-      return (read: capabilityKey(library, owner, 'get:$name'), write: null);
+      return (
+        read: capabilityKey(library, owner, 'get:$name'),
+        write: null,
+        construct: null,
+      );
     case 'setter':
-      return (read: null, write: capabilityKey(library, owner, 'set:$name'));
+      return (
+        read: null,
+        write: capabilityKey(library, owner, 'set:$name'),
+        construct: null,
+      );
     case 'method':
     case 'operator':
       // An invoke reads the member in order to call it; there is no write mode.
-      return (read: capabilityKey(library, owner, name), write: null);
+      return (
+        read: capabilityKey(library, owner, name),
+        write: null,
+        construct: null,
+      );
+    case 'constructor':
+    case 'factory':
+      // `library#Class.new` for the unnamed constructor, matching the shipped
+      // manifest's own spelling.
+      return (
+        read: null,
+        write: null,
+        construct: owner == null
+            ? null
+            : '$library#$owner.${name.isEmpty ? 'new' : name}',
+      );
     default:
-      // constructor / factory / class: not a member read or write.
-      return (read: null, write: null);
+      // A class itself is not read, written or constructed; its constructors
+      // are.
+      return (read: null, write: null, construct: null);
   }
 }
 
@@ -198,10 +234,17 @@ void main(List<String> args) {
 
   final rows = <Map<String, Object?>>[];
 
-  /// The privacy domain, read off the Name node.
-  ({String domain, String derivation}) domainOf(Name name, Library enclosing) {
+  /// A MEMBER's own privacy, read off its `Name` node.
+  ({bool isPrivate, String domain, String derivation}) memberPrivacy(
+    Name name,
+    Library enclosing,
+  ) {
     if (!name.isPrivate) {
-      return (domain: 'public', derivation: 'kernel:Name.isPrivate=false');
+      return (
+        isPrivate: false,
+        domain: 'public',
+        derivation: 'kernel:Name.isPrivate=false',
+      );
     }
     final ref = name.libraryReference;
     if (ref == null) {
@@ -209,38 +252,91 @@ void main(List<String> args) {
       // unreachable. It is NOT defaulted to the enclosing library: a domain
       // that cannot be derived is classified, per this gate's stop condition.
       return (
+        isPrivate: true,
         domain: 'UNDERIVABLE_NO_LIBRARY_REFERENCE',
         derivation: 'kernel:Name.libraryReference=null',
       );
     }
     final uri = ref.asLibrary.importUri.toString();
     return (
+      isPrivate: true,
       domain: uri,
       derivation: uri == enclosing.importUri.toString()
           ? 'kernel:Name.libraryReference'
-          // Worth distinguishing: a private name whose domain is NOT the
-          // library it appears in is the `_enumToString` shape, which
-          // `routeBUnconditionalRefusals` refuses under every policy.
+          // A private name whose domain is NOT the library it appears in is the
+          // `_enumToString` shape, which `routeBUnconditionalRefusals` refuses
+          // under every policy.
           : 'kernel:Name.libraryReference(foreign-domain)',
     );
+  }
+
+  /// A CLASS HAS NO `Name` NODE, and this is stated rather than papered over.
+  ///
+  /// Kernel models `Class.name` as a plain `String`, so there is no
+  /// `libraryReference` to read and no honest way to claim one. An earlier
+  /// version synthesised a `Name` from `cls.name` and let the row carry the
+  /// member rule's derivation label -- which asserted a Kernel fact that does
+  /// not exist for classes. Class privacy is instead derived from the two facts
+  /// Kernel does carry, the declared name and the enclosing library, and the
+  /// derivation string says exactly that.
+  ({bool isPrivate, String domain, String derivation}) classPrivacy(
+    Class cls,
+    Library enclosing,
+  ) {
+    if (!cls.name.startsWith('_')) {
+      return (
+        isPrivate: false,
+        domain: 'public',
+        derivation: 'derived:Class.name(no-leading-underscore)',
+      );
+    }
+    return (
+      isPrivate: true,
+      domain: enclosing.importUri.toString(),
+      derivation: 'derived:Class.name(leading-underscore)+Class.enclosingLibrary'
+          '(kernel-has-no-Name-node-for-a-class)',
+    );
+  }
+
+  /// WHICH DOMAIN ACTUALLY GATES ACCESS.
+  ///
+  /// A public member of a private class is not reachable from outside that
+  /// class's library, so its EFFECTIVE domain is the owner's even though its own
+  /// name is public. Comparing the member's own domain against a grant scope
+  /// turned every such declaration into a cross-domain refusal, including a
+  /// legitimate same-library access -- the member's domain was the string
+  /// `public`, which matches no library.
+  ({String domain, String derivation}) effectivePrivacy({
+    required ({bool isPrivate, String domain, String derivation}) member,
+    required ({bool isPrivate, String domain, String derivation})? owner,
+  }) {
+    if (member.isPrivate) {
+      return (domain: member.domain, derivation: 'member');
+    }
+    if (owner != null && owner.isPrivate) {
+      return (domain: owner.domain, derivation: 'owner(public-member-of-private-class)');
+    }
+    return (domain: 'public', derivation: 'neither');
   }
 
   void addRow({
     required Library lib,
     required String? owner,
-    required bool ownerIsPrivate,
+    required ({bool isPrivate, String domain, String derivation})? ownerPriv,
     required String kind,
-    required Name name,
+    required String name,
+    required ({bool isPrivate, String domain, String derivation}) memberPriv,
     required bool isMutableField,
   }) {
     final library = lib.importUri.toString();
-    final d = domainOf(name, lib);
-    final id = declarationId(library, owner, kind, name.text);
+    final eff = effectivePrivacy(member: memberPriv, owner: ownerPriv);
+    final ownerIsPrivate = ownerPriv?.isPrivate ?? false;
+    final id = declarationId(library, owner, kind, name);
     final keys = accessKeys(
       library: library,
       owner: owner,
       kind: kind,
-      name: name.text,
+      name: name,
       isMutableField: isMutableField,
     );
     // DOES THIS DECLARATION'S CAPABILITY KEY NAME THE ACCESS MODE?
@@ -262,19 +358,29 @@ void main(List<String> args) {
       'library': library,
       'owner': owner,
       'kind': kind,
-      'name': name.text,
-      'is_private': name.isPrivate,
-      'privacy_domain': d.domain,
-      'domain_derivation': d.derivation,
-      'domain_is_enclosing_library': d.domain == library,
+      'name': name,
+      // THE MEMBER'S OWN privacy, and the OWNER'S, recorded separately -- then
+      // the effective domain derived from them. Collapsing the three is what
+      // made a public method of a private class compare `public` against a
+      // library URI and refuse as cross-domain.
+      'is_private': memberPriv.isPrivate,
+      'privacy_domain': memberPriv.domain,
+      'domain_derivation': memberPriv.derivation,
       'owner_is_private': ownerIsPrivate,
+      'owner_privacy_domain': ownerPriv?.domain,
+      'owner_domain_derivation': ownerPriv?.derivation,
+      'effective_privacy_domain': eff.domain,
+      'effective_domain_source': eff.derivation,
+      'domain_is_enclosing_library': eff.domain == library,
       // The scope `--resolve-private-names-in-library` may name for a patch
       // replacing THIS declaration. Derived from the target's own identity,
       // which is what route_b_producer.dart does per compile.
-      'grant_scope': name.isPrivate || ownerIsPrivate ? library : null,
+      'grant_scope': eff.domain == 'public' ? null : library,
       'capability_key_read': keys.read,
       'capability_key_write': keys.write,
+      'capability_key_construct': keys.construct,
       'write_mode_exists': keys.write != null,
+      'construct_mode_exists': keys.construct != null,
       // False when ONE manifest key authorises both modes -- a mutable field.
       // That is exactly the shape whose read is the only mode ever
       // device-proven, so it is the shape a write can hide behind.
@@ -288,9 +394,10 @@ void main(List<String> args) {
       addRow(
         lib: lib,
         owner: null,
-        ownerIsPrivate: false,
+        ownerPriv: null,
         kind: _procKind(p),
-        name: p.name,
+        name: p.name.text,
+        memberPriv: memberPrivacy(p.name, lib),
         isMutableField: false,
       );
     }
@@ -298,44 +405,47 @@ void main(List<String> args) {
       addRow(
         lib: lib,
         owner: null,
-        ownerIsPrivate: false,
+        ownerPriv: null,
         kind: 'field',
-        name: f.name,
+        name: f.name.text,
+        memberPriv: memberPrivacy(f.name, lib),
         isMutableField: !f.isFinal && !f.isConst,
       );
     }
     for (final cls in lib.classes) {
-      final ownerIsPrivate = cls.name.startsWith('_');
-      // A CLASS has no `Name` node of its own in Kernel -- `Class.name` is a
-      // bare String. One is constructed here so the domain is derived by the
-      // same rule as every other row rather than by a second, parallel code
-      // path; `Name.byReference` requires the library for a private name and
-      // rejects one for a public name, which is itself the check.
+      final clsPriv = classPrivacy(cls, lib);
       addRow(
         lib: lib,
         owner: null,
-        ownerIsPrivate: false,
+        ownerPriv: null,
         kind: 'class',
-        name: Name(cls.name, ownerIsPrivate ? lib : null),
+        name: cls.name,
+        memberPriv: clsPriv,
         isMutableField: false,
       );
       for (final p in cls.procedures) {
         addRow(
           lib: lib,
           owner: cls.name,
-          ownerIsPrivate: ownerIsPrivate,
+          ownerPriv: clsPriv,
           kind: _procKind(p),
-          name: p.name,
+          name: p.name.text,
+          memberPriv: memberPrivacy(p.name, lib),
           isMutableField: false,
         );
       }
       for (final c in cls.constructors) {
+        // The unnamed constructor's `Name` text is the empty string, so its own
+        // privacy is PUBLIC. Under a private class its effective domain must
+        // still come from the owner, which is the case the owner rule exists
+        // for -- and the one a member-only model gets wrong most quietly.
         addRow(
           lib: lib,
           owner: cls.name,
-          ownerIsPrivate: ownerIsPrivate,
+          ownerPriv: clsPriv,
           kind: 'constructor',
-          name: c.name,
+          name: c.name.text,
+          memberPriv: memberPrivacy(c.name, lib),
           isMutableField: false,
         );
       }
@@ -343,16 +453,22 @@ void main(List<String> args) {
         addRow(
           lib: lib,
           owner: cls.name,
-          ownerIsPrivate: ownerIsPrivate,
+          ownerPriv: clsPriv,
           kind: 'field',
-          name: f.name,
+          name: f.name.text,
+          memberPriv: memberPrivacy(f.name, lib),
           isMutableField: !f.isFinal && !f.isConst,
         );
       }
     }
   }
 
-  final privateRows = rows.where((r) => r['is_private'] == true).toList();
+  // "Private" for census and grant purposes means EFFECTIVELY private: a
+  // public member of a private class is not reachable from outside its
+  // library, so it belongs here.
+  final privateRows = rows
+      .where((r) => r['effective_privacy_domain'] != 'public')
+      .toList();
   final collapsed = privateRows
       .where(
         (r) =>
@@ -368,7 +484,19 @@ void main(List<String> args) {
       'issue': 52,
       'count': rows.length,
       'private_count': privateRows.length,
+      // EFFECTIVE domains. A census keyed on the member's own domain files a
+      // public method of a private class under `public`, which is the very
+      // conflation that hid the owner defect: private_count said 11 while the
+      // census summed to 4 non-public.
       'domains': {
+        for (final d in {
+          for (final r in rows) r['effective_privacy_domain'] as String,
+        })
+          d: rows.where((r) => r['effective_privacy_domain'] == d).length,
+      },
+      // Kept alongside it so the two are visibly different numbers rather than
+      // one number that could silently be either.
+      'member_own_domains': {
         for (final d in {for (final r in rows) r['privacy_domain'] as String})
           d: rows.where((r) => r['privacy_domain'] == d).length,
       },

@@ -57,6 +57,42 @@
       "expected": "WRITE_NOT_GRANTED",
       "got": "WRITE_NOT_GRANTED",
       "subject": "package:corpus/app.dart#Shape#_scaled"
+    },
+    {
+      "id": "privowner_public_method_same_library",
+      "corpus": "g3_privowner",
+      "mode": "read",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "ACCEPT",
+      "got": "ACCEPT",
+      "subject": "package:corpus/app.dart#_Hidden#ping"
+    },
+    {
+      "id": "privowner_public_method_foreign_scope",
+      "corpus": "g3_privowner",
+      "mode": "read",
+      "grant_scope": "package:corpus/helper.dart",
+      "expected": "CROSS_DOMAIN_PRIVATE",
+      "got": "CROSS_DOMAIN_PRIVATE",
+      "subject": "package:corpus/app.dart#_Hidden#ping"
+    },
+    {
+      "id": "privowner_unnamed_constructor_same_library",
+      "corpus": "g3_privowner",
+      "mode": "construct",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "ACCEPT",
+      "got": "ACCEPT",
+      "subject": "package:corpus/app.dart#_Hidden#"
+    },
+    {
+      "id": "privowner_second_library_same_class_name",
+      "corpus": "g3_privowner",
+      "mode": "read",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "CROSS_DOMAIN_PRIVATE",
+      "got": "CROSS_DOMAIN_PRIVATE",
+      "subject": "package:corpus/helper.dart#_Hidden#ping"
     }
   ],
   "arms": {
@@ -66,6 +102,16 @@
       "package:corpus/helper.dart": 1
     },
     "underivable": 0,
+    "privowner_domains": {
+      "public": 7,
+      "package:corpus/app.dart": 7,
+      "package:corpus/helper.dart": 4
+    },
+    "privowner_member_own_domains": {
+      "public": 14,
+      "package:corpus/app.dart": 3,
+      "package:corpus/helper.dart": 1
+    },
     "write_collapsed": [
       "package:corpus/app.dart#Shape#_scaled"
     ],

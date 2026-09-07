@@ -1,16 +1,13 @@
 SM1-G3 falsification — every check must be able to FAIL
-date : 2026-09-07T17:08:59Z
+date : 2026-09-07T17:41:04Z
 
-The confound assertion's own falsification (against a real guard-less tree)
-is separate: evidence/confound_guard_presence.txt.
+The confound assertion's own falsification (against a real guard-less tree,
+which COMPILES the probe) is separate: evidence/confound_guard_presence.txt.
 
 ############ 1. domain from the NAME instead of Name.libraryReference ############
-   If the privacy domain were inferred from the enclosing library rather than
-   read off the Name node, the two _privateHelper declarations would still
-   differ -- so the sharper mutation is to key the domain on the SIMPLE NAME,
-   which is what a name-based check effectively does.
-            census: 3 private, 20 public
+            census (EFFECTIVE domains): 3 private, 20 public
     FAILED  two libraries declaring `_privateHelper` did not produce two distinct domains, so the domain is not library-scoped
+    ok      the same private CLASS name in two libraries gives its members two domains
     ok      cross_library_private        read  refuses  CROSS_DOMAIN_PRIVATE
   SUMMARY checks_failed=6
 
@@ -25,21 +22,43 @@ is separate: evidence/confound_guard_presence.txt.
   SUMMARY checks_failed=2
 
 ############ 4. drop the platform-library refusal from the POLICY ############
-   (the CFE-side guard still fires; this tests the map's own refusal)
     FAILED  platform_library_grant       CROSS_DOMAIN_PRIVATE (want PLATFORM_DOMAIN_PRIVATE)
     FAILED  never exercised: ['PLATFORM_DOMAIN_PRIVATE'] — an unexercised category may be unreachable
   SUMMARY checks_failed=2
 
 ############ 5. a policy that refuses EVERYTHING ############
-   The positive controls exist so this cannot pass. Without them, arms 1-4
-   would all be satisfied by 'return REFUSE'.
     FAILED  positive_read_private_field  CROSS_DOMAIN_PRIVATE (want ACCEPT); the positive control refused, so every refusal below may be a policy that refuses everything
     FAILED  positive_invoke_private_method CROSS_DOMAIN_PRIVATE (want ACCEPT); the positive control refused, so every refusal below may be a policy that refuses everything
+    FAILED  privowner_public_method_same_library CROSS_DOMAIN_PRIVATE (want ACCEPT); the positive control refused, so every refusal below may be a policy that refuses everything
     FAILED  never exercised: ['ACCEPT', 'NOT_RETAINED', 'PLATFORM_DOMAIN_PRIVATE', 'WRITE_NOT_GRANTED'] — an unexercised category may be unreachable
-  SUMMARY checks_failed=6
+  SUMMARY checks_failed=8
+
+############ 6a. MEMBER-ONLY privacy, as originally shipped ############
+   Gate on (is_private or owner_is_private), then compare the MEMBER's own
+   domain against the grant scope. This is the defect exactly as reported:
+   a public method of a private class carries domain 'public', which
+   matches no library, so a legitimate SAME-LIBRARY access is refused.
+    FAILED  privowner_public_method_same_library CROSS_DOMAIN_PRIVATE (want ACCEPT); the positive control refused, so every refusal below may be a policy that refuses everything
+    ok      privowner_public_method_foreign_scope read  refuses  CROSS_DOMAIN_PRIVATE
+    FAILED  privowner_unnamed_constructor_same_library CROSS_DOMAIN_PRIVATE (want ACCEPT); the positive control refused, so every refusal below may be a policy that refuses everything
+    ok      privowner_second_library_same_class_name read  refuses  CROSS_DOMAIN_PRIVATE
+  SUMMARY checks_failed=2
+
+############ 6b. ignore the OWNER entirely (the opposite failure) ############
+   Effective privacy = the member's own only. Now a public member of a
+   private class looks wholly public, so a FOREIGN-scoped patch is
+   ACCEPTED -- the over-permissive direction of the same defect.
+    ok      census and private_count agree: 4 effectively-private of 18 rows
+    FAILED  _Hidden.ping effective domain is public via neither
+    ok      privowner_public_method_same_library read  accepts  ACCEPT
+    FAILED  privowner_public_method_foreign_scope ACCEPT (want CROSS_DOMAIN_PRIVATE)
+    ok      privowner_unnamed_constructor_same_library construct accepts  ACCEPT
+    FAILED  privowner_second_library_same_class_name ACCEPT (want CROSS_DOMAIN_PRIVATE)
+  SUMMARY checks_failed=5
 
 ############ restored ############
   --- identity parity with G1 (recomputed, not imported) ---
     G1/G3 identity parity : 23 shared declarations, 0 disagreement(s)
+    ok      census and private_count agree: 11 effectively-private of 18 rows
   SUMMARY checks_failed=0
   G3 PRIVACY VERIFIED

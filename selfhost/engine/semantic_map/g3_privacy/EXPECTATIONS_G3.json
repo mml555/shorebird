@@ -6,7 +6,8 @@
   "base_corpus": "base",
   "corpora": [
     "base",
-    "g3_shaken"
+    "g3_shaken",
+    "g3_privowner"
   ],
   "cases": [
     {
@@ -80,6 +81,54 @@
       "grant_scope": "package:corpus/app.dart",
       "expected": "WRITE_NOT_GRANTED",
       "note": "THE SAME SUBJECT AND THE SAME GRANT AS positive_read_private_field, differing only in the requested mode. The manifest key is identical in both cases -- bare, because RouteBPrivateTarget keys a field bare -- so the shipped refuseInstanceMember cannot tell them apart. The map's capability_key_identifies_mode=false is what refuses the write."
+    },
+    {
+      "id": "privowner_public_method_same_library",
+      "corpus": "g3_privowner",
+      "library": "package:corpus/app.dart",
+      "owner": "_Hidden",
+      "name": "ping",
+      "kind": "method",
+      "mode": "read",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "ACCEPT",
+      "note": "A PUBLIC method of a PRIVATE class, accessed from its own library. Its own Name is public, so a member-only privacy model records domain `public`, compares that against the grant scope, and refuses a legitimate access as CROSS_DOMAIN_PRIVATE. The base corpus has no private class, so nothing exercised this."
+    },
+    {
+      "id": "privowner_public_method_foreign_scope",
+      "corpus": "g3_privowner",
+      "library": "package:corpus/app.dart",
+      "owner": "_Hidden",
+      "name": "ping",
+      "kind": "method",
+      "mode": "read",
+      "grant_scope": "package:corpus/helper.dart",
+      "expected": "CROSS_DOMAIN_PRIVATE",
+      "note": "THE MINIMAL PAIR of the case above: same subject, same mode, only the grant scope moves. The owner's domain is what makes this cross-domain, so accepting the pair above must not be achieved by accepting everything with a public member name."
+    },
+    {
+      "id": "privowner_unnamed_constructor_same_library",
+      "corpus": "g3_privowner",
+      "library": "package:corpus/app.dart",
+      "owner": "_Hidden",
+      "name": "",
+      "kind": "constructor",
+      "mode": "construct",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "ACCEPT",
+      "note": "The unnamed constructor's Name text is the empty string, so `''.startsWith('_')` is false and its own privacy is public; under a private class its effective domain must still come from the owner. Its mode is CONSTRUCT, not read: the shipped manifest publishes constructibility in its own list with its own key shape (`#_Boxed.new`), and treating it as a read reported NO_SUCH_MODE for a legitimate construction."
+    },
+    {
+      "id": "privowner_second_library_same_class_name",
+      "corpus": "g3_privowner",
+      "library": "package:corpus/helper.dart",
+      "owner": "_Hidden",
+      "name": "ping",
+      "kind": "method",
+      "mode": "read",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "CROSS_DOMAIN_PRIVATE",
+      "note": "helper.dart declares its OWN private `_Hidden`. Same class simple name, same member simple name, same mode as the accepted case -- only the owner's library differs. If owner domains collided this would be accepted."
     }
   ]
 }

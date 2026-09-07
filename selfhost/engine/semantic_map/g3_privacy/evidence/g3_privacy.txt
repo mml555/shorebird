@@ -15,6 +15,7 @@ SM1-G3 privacy domains
 
 --- building privacy rows ---
   base: rows=23 private=3 write-collapsed=1
+  g3_privowner: rows=18 private=11 write-collapsed=1
   g3_shaken: rows=24 private=4 write-collapsed=1
 
 --- identity parity with G1 (recomputed, not imported) ---
@@ -23,10 +24,21 @@ SM1-G3 privacy domains
 
 --- a privacy domain is derived for every declaration ---
   ok      all 23 rows carry a domain derived from Name.isPrivate / Name.libraryReference
-          census: 2 package:corpus/app.dart, 1 package:corpus/helper.dart, 20 public
+          census (EFFECTIVE domains): 2 package:corpus/app.dart, 1 package:corpus/helper.dart, 20 public
   ok      the same private simple name in two libraries gets two domains
             package:corpus/app.dart
             package:corpus/helper.dart
+
+--- a PUBLIC member of a PRIVATE class is still access-controlled ---
+  ok      census and private_count agree: 11 effectively-private of 18 rows
+  ok      _Hidden.ping: own name public, owner private, effective domain from the OWNER
+            member privacy_domain     = public
+            effective_privacy_domain  = package:corpus/app.dart
+            effective_domain_source   = owner(public-member-of-private-class)
+  ok      the same private CLASS name in two libraries gives its members two domains
+            package:corpus/app.dart
+            package:corpus/helper.dart
+  ok      _Hidden's unnamed constructor (Name text '') takes its domain from the owner
 
 --- read and write capability are distinguished, not merged ---
   ok      an accessor names its mode: set:scale vs get:perimeter
@@ -41,6 +53,10 @@ SM1-G3 privacy domains
   ok      platform_library_grant       read  refuses  PLATFORM_DOMAIN_PRIVATE
   ok      tree_shaken_private          read  refuses  NOT_RETAINED
   ok      private_write_read_only_grant write refuses  WRITE_NOT_GRANTED
+  ok      privowner_public_method_same_library read  accepts  ACCEPT
+  ok      privowner_public_method_foreign_scope read  refuses  CROSS_DOMAIN_PRIVATE
+  ok      privowner_unnamed_constructor_same_library construct accepts  ACCEPT
+  ok      privowner_second_library_same_class_name read  refuses  CROSS_DOMAIN_PRIVATE
 
 --- every refusal category is exercised by some arm ---
   ok      all 5 categories exercised: ACCEPT, CROSS_DOMAIN_PRIVATE, NOT_RETAINED, PLATFORM_DOMAIN_PRIVATE, WRITE_NOT_GRANTED
