@@ -243,16 +243,19 @@ void main(List<String> args) {
           reasons.add('PRIVATE_REFERENCE_UNRESOLVED');
           continue;
         }
-        final target = privacyBy[key(ref['library'], ref['owner'],
-            'field', ref['name'])] ??
-            privacyBy[key(ref['library'], ref['owner'], 'method',
-                ref['name'])] ??
-            privacyBy[key(ref['library'], ref['owner'], 'getter',
-                ref['name'])] ??
-            privacyBy[key(ref['library'], ref['owner'], 'setter',
-                ref['name'])] ??
-            privacyBy[key(ref['library'], ref['owner'], 'constructor',
-                ref['name'])];
+        // EXACT LOOKUP, no fallback across kinds. Searching kinds and taking
+        // the first match let a private getter's G3 row answer for a same-named
+        // setter, which is evidence for one declaration authorising another.
+        //
+        // A refs document written before target_key existed refuses here rather
+        // than crashing on a null cast: a stale input is exactly the case that
+        // must not silently resolve to some other declaration.
+        final tk = ref['target_key'];
+        if (tk is! String) {
+          reasons.add('PRIVATE_REFERENCE_UNRESOLVED');
+          continue;
+        }
+        final target = privacyBy[tk];
         if (target == null) {
           reasons.add('PRIVATE_REFERENCE_UNRESOLVED');
           continue;
@@ -262,9 +265,16 @@ void main(List<String> args) {
         }
         switch (mode) {
           case 'write':
-            // SM1-G3 measured that for a mutable field one manifest key serves
-            // both modes, so a write can never be PROVEN granted.
-            reasons.add('PRIVATE_WRITE');
+            // NOT a blanket refusal. SM1-G3 measured that a SETTER's key names
+            // its mode (`set:x`), so a write through one can be proven granted;
+            // it is a mutable FIELD whose single bare key serves both modes and
+            // therefore can never prove a write. Refusing both would ignore the
+            // very row-level distinction the exact identity exists to make.
+            if (target['capability_key_write'] == null) {
+              reasons.add('PRIVATE_REFERENCE_UNGRANTED');
+            } else if (target['capability_key_identifies_mode'] != true) {
+              reasons.add('PRIVATE_WRITE');
+            }
           case 'construct':
             if (target['capability_key_construct'] == null) {
               reasons.add('PRIVATE_REFERENCE_UNGRANTED');

@@ -102,6 +102,41 @@ branch refuses 16 of 21; and the release contract shows `get:perimeter`,
 `set:scale` and `get:scaled` holding distinct keys, so one cannot prove
 retention for another.
 
+## Step 1 closeout, second pass — exact private-reference identity (done)
+
+`PrivateRef` carried `library + owner + name + mode` but **not the referenced
+declaration's kind**, so the predictor searched G3 across kinds and took the
+first match. That is the same loose-identity fault removed from the
+release-contract path: evidence for one declaration authorising another. The
+claim in this file that references resolved to "the exact referenced
+declaration" was not yet true.
+
+The kind is now derived from the resolved `Member` — `Field` → field,
+`Constructor` → constructor, `Procedure` → its procedure kind — and each
+reference carries an exact `target_key`. The predictor does one lookup with **no
+fallback**, and a reference whose kind cannot be established is refused rather
+than recorded with a guessed one.
+
+New corpus `corpus_ext/g5_accessor_pair` declares a private getter and a private
+setter both named `_x`:
+
+    Holder.readIt   read   -> Holder#getter#_x
+    Holder.writeIt  write  -> Holder#setter#_x
+
+**This also exposed a bug in my own write policy.** It refused every private
+write unconditionally. That is right for a mutable FIELD, whose single bare key
+cannot express which mode it authorised, but wrong for a SETTER, whose key names
+its mode (`set:x`) and can therefore be proven granted. Refusing both would have
+discarded the very row-level distinction exact identity exists to make. The
+write branch now consults the resolved row: `Shape.scale` (mutable field) still
+refuses `PRIVATE_WRITE`; `Holder.writeIt` (setter) is allowed.
+
+Falsified in `evidence/step1_falsification.txt` §4: removing the kind refuses
+both references; corrupting it makes the write consult the getter's row and
+refuse `PRIVATE_REFERENCE_UNGRANTED`; and a direct comparison shows the fallback
+strategy selecting the **getter** row for a **write**, which is a different
+declaration from the one the body names.
+
 ## Step 2 — the demonstrator (next, not started)
 
 Rebuild on the shipping path, with success meaning THE PATCHED VALUE WAS

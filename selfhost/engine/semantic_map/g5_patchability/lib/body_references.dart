@@ -55,22 +55,35 @@ bool _classIsPrivate(Class c) => c.name.startsWith('_');
 class PrivateRef {
   final String library;
   final String? owner;
+  /// The referenced declaration's KIND, derived from the resolved Member.
+  ///
+  /// Without it the predictor had to search G3 across kinds and take the first
+  /// match, so a private getter's row could answer for a same-named setter --
+  /// the identical loose-identity fault just removed from the release-contract
+  /// path, where evidence for A authorises B.
+  final String kind;
   final String name;
   final String mode; // read | write | construct
   final bool resolved;
-  PrivateRef(this.library, this.owner, this.name, this.mode, this.resolved);
+  PrivateRef(this.library, this.owner, this.kind, this.name, this.mode,
+      this.resolved);
+
+  /// The exact key the predictor looks up. No fallback search.
+  String get targetKey => '$library#${owner ?? ''}#$kind#$name';
 
   Map<String, Object?> toJson() => {
     'library': library,
     'owner': owner,
+    'kind': kind,
     'name': name,
+    'target_key': targetKey,
     'mode': mode,
     // An unresolved reference must fail closed in the predictor: "we could not
     // tell which declaration this was" is not "there was nothing to check".
     'resolved': resolved,
   };
 
-  String get k => '$library#${owner ?? ''}#$name#$mode';
+  String get k => '$library#${owner ?? ''}#$kind#$name#$mode';
 }
 
 class References {
@@ -218,15 +231,27 @@ class _Walker extends RecursiveVisitor {
   String? _libOf(Member? m) => m?.enclosingLibrary.importUri.toString();
   String? _ownerOf(Member? m) => m?.enclosingClass?.name;
 
+  /// The declaration kind, read off the resolved Member rather than guessed.
+  String? _kindOf(Member? m) => switch (m) {
+    Field() => 'field',
+    Constructor() => 'constructor',
+    Procedure() => _procKind(m),
+    _ => null,
+  };
+
   void _record(Member? target, Name name, String mode) {
     if (!name.isPrivate) return;
     final lib = _libOf(target) ??
         name.libraryReference?.asLibrary.importUri.toString();
-    if (lib == null) {
+    final kind = _kindOf(target);
+    // A reference whose declaration kind cannot be established is REFUSED, not
+    // recorded with a guessed kind. "We could not tell which declaration this
+    // was" must never become "here is a declaration that looks close enough".
+    if (lib == null || kind == null) {
       r.unsupported.add('UnresolvedPrivateRef');
       return;
     }
-    r.add(PrivateRef(lib, _ownerOf(target), name.text, mode, target != null));
+    r.add(PrivateRef(lib, _ownerOf(target), kind, name.text, mode, true));
   }
 
   // ---- the fact-bearing nodes. NOTE: these call visitChildren directly, not
@@ -277,7 +302,7 @@ class _Walker extends RecursiveVisitor {
     if (_classIsPrivate(cls)) {
       r.privateTypes.add('${cls.enclosingLibrary.importUri}::${cls.name}');
       r.add(PrivateRef(cls.enclosingLibrary.importUri.toString(), cls.name,
-          node.target.name.text, 'construct', true));
+          'constructor', node.target.name.text, 'construct', true));
     }
     for (final t in node.arguments.types) {
       _noteType(t);

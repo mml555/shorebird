@@ -30,3 +30,46 @@ date : 2026-09-07T21:30:34Z
 
 ############ restored ############
     bodies=21 private-type-refs=0 private-writes=1 traversal-refused=0 -> /tmp/refs_ok.json
+
+############ 4. private-reference identity must be EXACT ############
+   Corpus corpus_ext/g5_accessor_pair declares a private GETTER and a
+   private SETTER both named _x, so a reference resolved only to
+   (library, owner, name) cannot say which declaration it meant.
+
+   as built -- each reference carries the kind read off the resolved Member:
+      Holder.readIt   read   -> Holder#getter#_x
+      Holder.writeIt  write  -> Holder#setter#_x
+    Holder.readIt   -> ['MISSING_CAN_BE_OVERRIDDEN', 'RETENTION_UNPROVEN']
+    Holder.writeIt  -> ['MISSING_CAN_BE_OVERRIDDEN', 'RETENTION_UNPROVEN']
+
+   4a. REMOVE the recorded kind from every reference
+    Holder.readIt   -> ['MISSING_CAN_BE_OVERRIDDEN', 'PRIVATE_REFERENCE_UNRESOLVED', 'RETENTION_UNPROVEN']
+    Holder.writeIt  -> ['MISSING_CAN_BE_OVERRIDDEN', 'PRIVATE_REFERENCE_UNRESOLVED', 'RETENTION_UNPROVEN']
+
+   4b. CORRUPT the kind: the setter's write now points at the getter's row
+    Holder.readIt   -> ['MISSING_CAN_BE_OVERRIDDEN', 'RETENTION_UNPROVEN']
+    Holder.writeIt  -> ['MISSING_CAN_BE_OVERRIDDEN', 'PRIVATE_REFERENCE_UNGRANTED', 'RETENTION_UNPROVEN']
+      -> the getter row has no write key, so it refuses. A wrong row still
+         fails closed; it does not quietly authorise the write.
+
+   4c. WHICH G3 ROW EACH STRATEGY SELECTS
+   The first version of this arm claimed the reinstated fallback would silently
+   resolve; its own output refused instead, because the stale-input guard runs
+   before the fallback. Rather than leave a caption the evidence contradicts, the
+   arm is replaced with the direct comparison it was trying to make: for the same
+   reference, which G3 row does each lookup strategy pick?
+
+      Holder.readIt   read   exact-> getter  (write_key=False)   fallback-> getter  (write_key=False)
+      Holder.writeIt  write  exact-> setter  (write_key=True)   fallback-> getter  (write_key=False)
+
+      The fallback searches field -> method -> getter -> setter and stops at the
+      first hit, so BOTH the read and the write select the GETTER row. The write
+      would then be judged against a declaration that has no write key at all --
+      a different declaration from the one the body actually names. On this
+      corpus that happens to be less permissive, so the harm here is a wrong
+      attribution rather than an over-claim; the exact lookup removes the class
+      of error rather than relying on it landing safely.
+
+   restored:
+    Holder.readIt   -> ['MISSING_CAN_BE_OVERRIDDEN', 'RETENTION_UNPROVEN']
+    Holder.writeIt  -> ['MISSING_CAN_BE_OVERRIDDEN', 'RETENTION_UNPROVEN']
