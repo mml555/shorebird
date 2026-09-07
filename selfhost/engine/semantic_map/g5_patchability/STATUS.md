@@ -1,69 +1,94 @@
 # SM1-G5 — work in progress, NOT a gate submission
 
-**Gate:** [#54](https://github.com/mml555/shorebird/issues/54) · started 2026-09-07
+**Gate:** [#54](https://github.com/mml555/shorebird/issues/54) · updated 2026-09-07
 
-## What is built and sound
+Step 1 of the PM's order is done: the predictor is corrected. Step 2, the
+shipping `.sbrb` demonstrator, is next and nothing is scored until it has a
+trustworthy positive control.
 
-`lib/predict_patchable.dart` — the PREDICTION path. Consumes only G2/G3/G4 map
-rows and emits, per declaration, `predicted_patchable` plus a refusal reason
-from a fixed vocabulary. On the frozen base corpus: 23 declarations, 14
-predicted patchable, 9 refused, coverage 60.9% (emitted as
-`coverage_diagnostic_only`, and #54 forbids it from affecting any verdict).
+## Step 1 — predictor corrections (done)
 
-Two design points worth keeping:
+All five defects were the same mistake in different places: asking a question
+about the TARGET when the fact lives somewhere else.
 
-* **Independence is structural.** This file never reads the demonstrator and the
-  demonstrator never reads it. #54's confound is that a subset check between two
-  outputs of the same model compares the model with itself.
-* **`PRIVATE_TYPE_REFERENCE` is a refusal reason even though #54 does not list
-  it.** D-DEMAND-1 measured the shipping ANALYZER admitting changes the shipping
-  PRODUCER refuses (Wonderous 70.00% analyzer vs 45.00% producer, later 50.00%),
-  and D-PRODUCER-DEMAND-2 found the only blocker class replicated across both
-  corpora was `private non-construction references` — a body naming a private
-  TYPE. Omitting it would reproduce a known, measured over-claim.
+**A. Exact-release retention proof.** Round 1 used
+`enforced_at_load.containsKey(c)`, which only means "G4 measured this retention
+class". The predictor now takes `--release-pragmas`, the annotations read off
+the BUILT RELEASE KERNEL by G4's `dump_pragmas.dart`, and checks the specific
+entry for each required class on that declaration. `RETENTION_UNPROVEN` now
+fires 10 times on the frozen corpus, where before it could not fire at all.
+Missing `--release-pragmas` is refused outright rather than defaulted.
 
-## What is NOT yet trustworthy, and why nothing is claimed from it
+**B. `MISSING_CAN_BE_OVERRIDDEN` reads the release, not the requirement list.**
+It asked whether G4's *required* list contained the entry — which it always
+does by construction, so the reason was unreachable. It now asks whether the
+release kernel carries `dyn-module:can-be-overridden` on that member. It fires
+on `Shape.+`, whose contract genuinely omits it.
 
-`probe/demo_host.dart` calls `attachBytecodeToFunction` directly from `main` and
-then re-invokes the subject. Against the frozen corpus every subject reports:
+**C/D. Body facts come from the body.** New `lib/body_references.dart` walks the
+Kernel body and reports private type references, private writes and private
+reads per declaration, failing closed (`refused:<Kind>`) on anything it cannot
+traverse. Validated on both corpora:
 
-    ATTACHED true
-    ATTACH: pool len=1691, rewrote 0 slot(s)
-    DEMO_RESULT SILENT_NO_EFFECT
+    Shape.scale   private write -> _scaled          (the SETTER's body, not the field)
+    useHidden     private type  -> _Hidden          (a body naming a private type)
+    helperUsesHidden  private type -> _Hidden
 
-A control rules out the obvious harness explanation: adding a
-`@pragma('vm:never-inline')` indirection between the observer and the subject
-changed nothing, so it is not the observer's own call being inlined.
+Members *of* `_Hidden` are correctly NOT flagged — owning a private class is not
+the same fact as naming a private type in a body, which is what round 1
+conflated.
 
-**That is still not evidence about the system.** `probes/p1_bind_private_receiver.sh`
-demonstrably patches this same shape, and it does NOT use a bare attach: it packs
-a patch with `packaging/pack_patch.dart` into an `.sbrb` and runs
-`dartaotruntime app.aot patch.sbrb`, letting the RELEASE apply it, then reads the
-program's own call. So the difference is very likely my harness, not the VM, and
-`SILENT_NO_EFFECT` is recorded here as a harness state rather than a finding.
+**E. Call-site shape is unproven, so it refuses.** `DEVIRTUALIZED_CALL_SITE` and
+`INLINED_BODY` had no code able to emit them, so two of #54's named arms
+silently defaulted every declaration to patchable. Deciding them needs the
+release's machine code, the way SL1-G4 read dispatch-table calls out of the AOT
+with llvm-objdump. Until that exists the fact is UNKNOWN and every replaceable
+declaration is refused `CALL_SITE_SHAPE_UNPROVEN`.
 
-Reporting those nulls as "not demonstrated patchable" would manufacture
-over-claims out of a demonstrator that does not represent the shipping path --
-the exact failure #54's confound section warns about.
+**Owner ABI propagates.** `Box.unwrap` is no longer predicted patchable on the
+strength of its own signature while `Box` is `refused:type_parameters`; it now
+refuses `OWNER_ABI_SHAPE_UNSUPPORTED`.
 
-## Next step
+### Result
 
-Rebuild the demonstrator on the shipping apply path (`pack_patch.dart` ->
-`.sbrb` -> runtime apply -> the program's own call), which is both faithful and
-independent of the map. Only then can the subset check mean anything.
+    predicted patchable   0 of 23      coverage_diagnostic_only 0.0%
 
-## Open question for the PM
+    CALL_SITE_SHAPE_UNPROVEN      14
+    RETENTION_UNPROVEN            10
+    ABI_SHAPE_UNSUPPORTED          9
+    OWNER_ABI_SHAPE_UNSUPPORTED    3
+    MISSING_CAN_BE_OVERRIDDEN      1
+    PRIVATE_WRITE                  1
 
-Two candidate over-claims are already visible in the predictions and are
-recorded as HYPOTHESES, not results, pending a faithful demonstrator:
+Zero is the correct answer while call-site shape is undecidable here: under-claim
+is safe degradation, and the alternative is defaulting two of #54's arms to
+patchable. It also makes the subset check trivially true, which is exactly why
+it must not be scored yet — a vacuous subset proves nothing.
 
-1. `Box.unwrap` is predicted patchable while its owner `Box` carries
-   `abi_shape: refused:type_parameters`. A member of a generic class may not be
-   patchable even when its own signature is supported.
-2. Patchability may be a property of the CALL SITE rather than of the
-   declaration. If a direct-bound call site cannot be redirected, a
-   per-declaration map cannot decide patchability alone, and #54's
-   `REDUCE_SCOPE` stop condition would be in scope -- naming the class and
-   proving the exclusion is decidable fail-closed.
+## Step 2 — the demonstrator (next, not started)
 
-Neither is established. Both need the faithful demonstrator first.
+Rebuild on the shipping path, with success meaning THE PATCHED VALUE WAS
+OBSERVED — not exit 0, not "attached":
+
+    release source -> exact release AOT/Kernel -> changed source -> bytecode
+    -> pack_patch.dart -> .sbrb -> dartaotruntime release.aot patch.sbrb
+    -> program observes a deliberately changed result
+
+The existing direct-attach probe stays recorded only as:
+
+    DEMONSTRATOR_FIDELITY=NOT_ESTABLISHED
+    SILENT_NO_EFFECT=HARNESS_OBSERVATION_ONLY
+
+## Then, in order
+
+3. one positive arm: release says OLD, patch must visibly produce PATCHED;
+4. paired negatives on the SAME target — open/virtual, direct/devirtualizable,
+   inlineable caller, and a `can-be-overridden` contract control — to ask
+   whether observed patchability differs by call-site shape alone;
+5. only then compute `predicted ⊆ observed`;
+6. only then Wonderous + LocalSend.
+
+Whether the call-site distinction implies `REDUCE_SCOPE` (detectable and
+conservatively excludable) or `MODIFY_MAP_DESIGN` (required for soundness but
+not representable per declaration) is deliberately NOT classified from the
+direct-attach nulls.
