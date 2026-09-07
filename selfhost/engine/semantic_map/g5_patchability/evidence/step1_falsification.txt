@@ -1,0 +1,32 @@
+SM1-G5 step 1 falsification — the predictor's inputs must be able to FAIL
+date : 2026-09-07T21:30:34Z
+
+############ 1. the body walker must FAIL CLOSED on an unmodelled node ############
+   Round 2 extended RecursiveVisitor and overrode selected node types, so
+   an unhandled construct traversed silently and the body read as clean.
+   Removing one kind from the allowlist must now refuse every body using it.
+    bodies=21 private-type-refs=0 private-writes=1 traversal-refused=14 -> /tmp/refs_bad.json
+  bodies refused: 14 of 21
+  example status: refused:ReturnStatement
+
+############ 2. an unmodelled TYPE must refuse, not be ignored ############
+   The first attempt at this mutation did not compile, so it tested nothing and
+   was replaced rather than reported. `case InterfaceType() when false:` makes
+   every interface type fall to the default branch, which must refuse.
+  bodies=21 private-type-refs=0 private-writes=1 traversal-refused=16 -> /tmp/refs_ty.json
+  bodies refusing an unmodelled type: 16 of 21
+  example: refused:Type:InterfaceType
+   (16 rather than 21 because five bodies -- constructors and fields with no
+   interface-typed node reached -- never present one to the walker. The check
+   fires wherever the fact exists, which is what it has to do.)
+
+############ 3. release identity must not merge a getter/setter pair ############
+  release rows: 17  ambiguous: 0  duplicate keys: none
+    Shape.perimeter  kind=getter  vm=get:perimeter  entries=['dyn-module:callable', 'dyn-module:can-be-overridden']
+    Shape.scale      kind=setter  vm=set:scale      entries=['dyn-module:callable', 'dyn-module:can-be-overridden']
+    Shape.scaled     kind=getter  vm=get:scaled     entries=['dyn-module:callable', 'dyn-module:can-be-overridden']
+  a getter and setter of the same name now hold DIFFERENT keys, so one
+  cannot serve as retention proof for the other.
+
+############ restored ############
+    bodies=21 private-type-refs=0 private-writes=1 traversal-refused=0 -> /tmp/refs_ok.json

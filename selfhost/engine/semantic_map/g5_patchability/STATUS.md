@@ -2,7 +2,7 @@
 
 **Gate:** [#54](https://github.com/mml555/shorebird/issues/54) · updated 2026-09-07
 
-Step 1 of the PM's order is done: the predictor is corrected. Step 2, the
+Step 1 closeout: three further predictor defects fixed after PM review. Step 2, the
 shipping `.sbrb` demonstrator, is next and nothing is scored until it has a
 trustworthy positive control.
 
@@ -64,6 +64,43 @@ Zero is the correct answer while call-site shape is undecidable here: under-clai
 is safe degradation, and the alternative is defaulting two of #54's arms to
 patchable. It also makes the subset check trivially true, which is exactly why
 it must not be scored yet — a vacuous subset proves nothing.
+
+## Step 1 closeout — three further defects (done)
+
+**1. The body walker was not actually fail-closed.** It extended
+`RecursiveVisitor` and overrode selected node types, so any construct it did not
+recognise traversed silently and the body read as clean — the exact false
+negative SM1 prohibits. It now has an explicit node allowlist with everything
+else landing in `defaultNode` and marking the body unsupported, and the
+allowlist is **grounded by census** over both corpora rather than guessed.
+Types no longer fall through at all: `defaultDartType` routes every type into
+one exhaustive switch that refuses anything it does not model, and named
+parameter types — previously skipped — are walked.
+
+**2. Private reads were discovered and then ignored.** The predictor consumed
+only writes and private types, and built a G3 index it never used. Every private
+reference is now resolved and asked of G3 by mode:
+
+    body reference -> exact referenced declaration -> read/write/construct
+                   -> G3 grant decision -> allowed or refused
+
+Reads that G3 grants are ALLOWED, not blanket-refused: `Shape.scaled` reads
+`_scaled` and passes, while `Shape.scale` writes it and refuses `PRIVATE_WRITE`,
+because for a mutable field the manifest key cannot express which mode it
+authorised. An unresolvable reference fails closed.
+
+**3. Release identity was too loose.** The predictor rekeyed G4's pragma dump as
+`library#owner#name` and unioned the pragmas, so an entry on `get:x` could stand
+as proof for `set:x`. New `lib/release_contract.dart` carries full identity —
+library, owner, **kind**, name, vm_name — and marks any key answered by more
+than one declaration `ambiguous`, which the predictor refuses rather than
+merging. G4's banked tool is untouched, since that gate is closed.
+
+Falsified in `evidence/step1_falsification.txt`: removing one node kind from the
+allowlist refuses 14 of 21 bodies; making interface types fall to the default
+branch refuses 16 of 21; and the release contract shows `get:perimeter`,
+`set:scale` and `get:scaled` holding distinct keys, so one cannot prove
+retention for another.
 
 ## Step 2 — the demonstrator (next, not started)
 

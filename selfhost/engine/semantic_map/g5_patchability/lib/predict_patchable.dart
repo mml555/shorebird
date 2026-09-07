@@ -51,6 +51,9 @@ const refusalReasons = <String>[
   'BODY_ENCODING_REFUSED',
   'BODY_REFERENCES_UNPROVEN',
   'NOT_RETAINED',
+  'PRIVATE_REFERENCE_UNGRANTED',
+  'PRIVATE_REFERENCE_UNRESOLVED',
+  'RELEASE_IDENTITY_AMBIGUOUS',
 ];
 
 /// The dynamic-interface entry a required retention class lowers to, as it
@@ -82,7 +85,7 @@ void main(List<String> args) {
         g4Path = next();
       case '--refs':
         refsPath = next();
-      case '--release-pragmas':
+      case '--release-contract':
         releasePath = next();
       case '--generated':
         genPath = next();
@@ -104,7 +107,7 @@ void main(List<String> args) {
     // SM1-G4's carried-forward rule is that every required retention entry must
     // be PROVEN present in the exact release. With no release to inspect there
     // is no proof, and unproven refuses.
-    _die('--release-pragmas is required: retention must be proven present in '
+    _die('--release-contract is required: retention must be proven present in '
         'THE EXACT RELEASE, and "G4 measured this class" is not that proof');
   }
 
@@ -143,22 +146,34 @@ void main(List<String> args) {
     refsBy[rowKey(r)] = r;
   }
 
-  // THE EXACT-RELEASE RETENTION PROOF. dump_pragmas reports, per declaration in
-  // the built release kernel, which dyn-module annotations it actually carries.
-  // Keyed loosely by (library, owner, name) because that document uses
-  // 'procedure' for every procedure kind.
-  final releasePragmas = <String, Set<String>>{};
+  // THE EXACT-RELEASE RETENTION PROOF, at FULL identity.
+  //
+  // Round 2 keyed this `library#owner#name` and unioned the pragmas, so an
+  // entry on `get:x` could stand as proof for `set:x`. Identity now includes
+  // KIND, and a key answered by more than one release declaration is refused
+  // rather than merged -- merging is how a proof becomes a guess.
+  final releaseRows = <String, Map<String, Object?>>{};
+  final releaseAmbiguous = <String>{};
   for (final r in (release['rows'] as List).cast<Map<String, Object?>>()) {
-    final k = '${r['library']}#${r['owner'] ?? ''}#${r['name']}';
-    releasePragmas
-        .putIfAbsent(k, () => <String>{})
-        .addAll((r['pragmas'] as List).cast<String>());
+    final k = r['key'] as String;
+    if (r['ambiguous'] == true) releaseAmbiguous.add(k);
+    releaseRows[k] = r;
   }
-  bool releaseHas(String library, String? owner, String name, String cls) {
+  ({bool present, bool ambiguous, bool known}) releaseHas(
+      String library, String? owner, String kind, String name, String cls) {
     final want = pragmaForClass[cls];
-    if (want == null) return false;
-    return releasePragmas['$library#${owner ?? ''}#$name']?.contains(want) ??
-        false;
+    if (want == null) return (present: false, ambiguous: false, known: false);
+    final k = '$library#${owner ?? ''}#$kind#$name';
+    final row = releaseRows[k];
+    if (row == null) return (present: false, ambiguous: false, known: false);
+    if (releaseAmbiguous.contains(k)) {
+      return (present: false, ambiguous: true, known: true);
+    }
+    return (
+      present: (row['contract_entries'] as List).contains(want),
+      ambiguous: false,
+      known: true,
+    );
   }
 
   // Owner ABI, so a member of a class the map refuses cannot be predicted
@@ -212,11 +227,53 @@ void main(List<String> args) {
       if (br['traversal_status'] != 'supported') {
         reasons.add('BODY_REFERENCES_UNPROVEN');
       }
-      if ((br['private_writes'] as List).isNotEmpty) {
-        reasons.add('PRIVATE_WRITE');
-      }
       if (br['references_private_type'] == true) {
         reasons.add('PRIVATE_TYPE_REFERENCE');
+      }
+      // EVERY private reference the body makes is asked of G3, by mode. Round 2
+      // consumed only writes and ignored reads entirely, leaving the historical
+      // blocker family -- private member references, not just private types --
+      // unchecked. A reference that cannot be resolved to a G3 declaration
+      // fails closed: "we could not tell what this was" is not "there was
+      // nothing to check".
+      for (final ref in (br['private_refs'] as List)
+          .cast<Map<String, Object?>>()) {
+        final mode = ref['mode'] as String;
+        if (ref['resolved'] != true) {
+          reasons.add('PRIVATE_REFERENCE_UNRESOLVED');
+          continue;
+        }
+        final target = privacyBy[key(ref['library'], ref['owner'],
+            'field', ref['name'])] ??
+            privacyBy[key(ref['library'], ref['owner'], 'method',
+                ref['name'])] ??
+            privacyBy[key(ref['library'], ref['owner'], 'getter',
+                ref['name'])] ??
+            privacyBy[key(ref['library'], ref['owner'], 'setter',
+                ref['name'])] ??
+            privacyBy[key(ref['library'], ref['owner'], 'constructor',
+                ref['name'])];
+        if (target == null) {
+          reasons.add('PRIVATE_REFERENCE_UNRESOLVED');
+          continue;
+        }
+        if (target['retained_in_release'] == false) {
+          reasons.add('NOT_RETAINED');
+        }
+        switch (mode) {
+          case 'write':
+            // SM1-G3 measured that for a mutable field one manifest key serves
+            // both modes, so a write can never be PROVEN granted.
+            reasons.add('PRIVATE_WRITE');
+          case 'construct':
+            if (target['capability_key_construct'] == null) {
+              reasons.add('PRIVATE_REFERENCE_UNGRANTED');
+            }
+          default:
+            if (target['capability_key_read'] == null) {
+              reasons.add('PRIVATE_REFERENCE_UNGRANTED');
+            }
+        }
       }
     }
 
@@ -228,10 +285,13 @@ void main(List<String> args) {
       if (ret['retained_in_release'] == false) reasons.add('NOT_RETAINED');
       for (final c in (ret['required_classes'] as List).cast<String>()) {
         final onClass = c == 'extendable' || c == 'can-be-used-as-type';
-        final present = onClass && owner != null
-            ? releaseHas(library, null, owner, c)
-            : releaseHas(library, owner, name, c);
-        if (!present) {
+        final q = onClass && owner != null
+            ? releaseHas(library, null, 'class', owner, c)
+            : releaseHas(library, owner, kind, name, c);
+        if (q.ambiguous) {
+          reasons.add('RELEASE_IDENTITY_AMBIGUOUS');
+        }
+        if (!q.present) {
           // MISSING can-be-overridden is its own reason because SM1-G4
           // measured that omitting it FAILS OPEN -- the module loads and the
           // release's own body answers. It cannot be a runtime safety net, so

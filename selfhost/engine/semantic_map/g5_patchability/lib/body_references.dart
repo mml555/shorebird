@@ -49,11 +49,36 @@ String _procKind(Procedure p) => switch (p.kind) {
 /// node, so privacy is the declared name plus the enclosing library.
 bool _classIsPrivate(Class c) => c.name.startsWith('_');
 
+/// One private reference a body makes, resolved to a structured identity so the
+/// predictor can join it to G3's capability rows. A canonical-name string is
+/// not enough: the predictor has to ask G3 about a specific declaration.
+class PrivateRef {
+  final String library;
+  final String? owner;
+  final String name;
+  final String mode; // read | write | construct
+  final bool resolved;
+  PrivateRef(this.library, this.owner, this.name, this.mode, this.resolved);
+
+  Map<String, Object?> toJson() => {
+    'library': library,
+    'owner': owner,
+    'name': name,
+    'mode': mode,
+    // An unresolved reference must fail closed in the predictor: "we could not
+    // tell which declaration this was" is not "there was nothing to check".
+    'resolved': resolved,
+  };
+
+  String get k => '$library#${owner ?? ''}#$name#$mode';
+}
+
 class References {
   final Set<String> privateTypes = {};
-  final Set<String> privateWrites = {};
-  final Set<String> privateReads = {};
+  final Map<String, PrivateRef> refs = {};
   final Set<String> unsupported = {};
+
+  void add(PrivateRef r) => refs[r.k] = r;
 
   bool get supported => unsupported.isEmpty;
   String get status => supported
@@ -61,116 +86,228 @@ class References {
       : 'refused:${(unsupported.toList()..sort()).join(",")}';
 }
 
+/// NODE KINDS THIS WALKER UNDERSTANDS.
+///
+/// Everything outside this set lands in `defaultNode` and marks the body
+/// unsupported. That is the difference between a walker that reports "no
+/// private references found" and one that reports "I could not see all of this
+/// body" -- and it is the whole reason this file exists, since the first
+/// version overrode selected node types under RecursiveVisitor and therefore
+/// made an unhandled construct look clean.
+///
+/// The set is grounded by censusing the corpora (`--census`) rather than
+/// guessed, exactly as SM1-G2 grounded its body allowlist.
+const allowedNodes = <String>{
+  // structural / benign
+  'Arguments', 'Block', 'Name', 'FunctionNode', 'EmptyStatement',
+  'ExpressionStatement', 'ReturnStatement', 'VariableDeclaration',
+  'IfStatement', 'NamedExpression', 'Let', 'BlockExpression',
+  // literals and constants
+  'IntLiteral', 'DoubleLiteral', 'StringLiteral', 'BoolLiteral', 'NullLiteral',
+  'SymbolLiteral', 'TypeLiteral', 'ConstantExpression', 'ListLiteral',
+  'MapLiteral', 'SetLiteral', 'StringConcatenation',
+  // control flow that cannot hide a reference from the overrides below
+  'Not', 'LogicalExpression', 'ConditionalExpression', 'ThisExpression',
+  'EqualsCall', 'EqualsNull', 'VariableGet', 'VariableSet', 'Throw',
+  'Rethrow', 'AwaitExpression', 'ForStatement', 'ForInStatement',
+  'WhileStatement', 'DoStatement', 'SwitchStatement', 'SwitchCase',
+  'TryCatch', 'Catch', 'TryFinally', 'BreakStatement', 'LabeledStatement',
+  'ContinueSwitchStatement', 'AssertStatement', 'AssertBlock',
+  'FunctionDeclaration', 'FunctionExpression', 'YieldStatement',
+  'InstanceTearOff', 'StaticTearOff', 'FunctionTearOff',
+  'LocalFunctionInvocation', 'DynamicInvocation', 'DynamicGet', 'DynamicSet',
+  'InstanceGetterInvocation', 'RecordLiteral', 'RecordIndexGet',
+  'RecordNameGet', 'NullCheck', 'InstanceCreation', 'FileUriExpression',
+  'CheckLibraryIsLoaded', 'LoadLibrary', 'SuperMethodInvocation',
+  'SuperPropertyGet', 'SuperPropertySet', 'AbstractSuperMethodInvocation',
+  'AbstractSuperPropertyGet', 'AbstractSuperPropertySet',
+  'ConstructorTearOff', 'RedirectingFactoryTearOff', 'TypedefTearOff',
+  'IsExpression', 'AsExpression', 'InvalidExpression',
+  // Kernel's Name is abstract; the runtime types are these two.
+  '_PrivateName', '_PublicName',
+};
+
 class _Walker extends RecursiveVisitor {
   final References r;
-  _Walker(this.r);
+  final bool census;
+  final Set<String> seen;
+  _Walker(this.r, {this.census = false, Set<String>? seen})
+      : seen = seen ?? <String>{};
 
+  // ---- exhaustive type handling ----------------------------------------
   void _noteType(DartType t) {
-    if (t is InterfaceType) {
-      final cls = t.classNode;
-      if (_classIsPrivate(cls)) {
-        r.privateTypes.add('${cls.enclosingLibrary.importUri}::${cls.name}');
-      }
-      for (final a in t.typeArguments) {
-        _noteType(a);
-      }
-    } else if (t is FunctionType) {
-      _noteType(t.returnType);
-      for (final p in t.positionalParameters) {
-        _noteType(p);
-      }
-    } else if (t is FutureOrType) {
-      _noteType(t.typeArgument);
+    switch (t) {
+      case InterfaceType():
+        final cls = t.classNode;
+        if (_classIsPrivate(cls)) {
+          r.privateTypes.add('${cls.enclosingLibrary.importUri}::${cls.name}');
+        }
+        for (final a in t.typeArguments) {
+          _noteType(a);
+        }
+      case ExtensionType():
+        for (final a in t.typeArguments) {
+          _noteType(a);
+        }
+      case FunctionType():
+        _noteType(t.returnType);
+        for (final p in t.positionalParameters) {
+          _noteType(p);
+        }
+        // NAMED PARAMETER TYPES. The first version walked return and positional
+        // types only, so a private type reachable only through a named
+        // parameter was invisible.
+        for (final n in t.namedParameters) {
+          _noteType(n.type);
+        }
+      case RecordType():
+        for (final p in t.positional) {
+          _noteType(p);
+        }
+        for (final n in t.named) {
+          _noteType(n.type);
+        }
+      case FutureOrType():
+        _noteType(t.typeArgument);
+      case TypedefType():
+        for (final a in t.typeArguments) {
+          _noteType(a);
+        }
+        _noteType(t.unalias);
+      case IntersectionType():
+        _noteType(t.left);
+        _noteType(t.right);
+      case TypeParameterType():
+      case StructuralParameterType():
+      case DynamicType():
+      case VoidType():
+      case NeverType():
+      case NullType():
+      case InvalidType():
+        break;
+      default:
+        // A type this walker does not model cannot be certified free of
+        // private references.
+        r.unsupported.add('Type:${t.runtimeType}');
     }
   }
 
-  String _member(Reference? ref) =>
-      ref?.canonicalName?.toString() ?? '<unbound>';
-
-  bool _privateName(Name n) => n.isPrivate;
+  /// TYPES NEVER FALL THROUGH TO defaultNode.
+  ///
+  /// A DartType reaching the generic path would only be checked against the
+  /// node allowlist, which says nothing about whether it hides a private type.
+  /// Routing every type through `_noteType` keeps the exhaustive switch there
+  /// the single decision point -- and that switch refuses anything it does not
+  /// model.
+  @override
+  void defaultDartType(DartType node) {
+    _noteType(node);
+  }
 
   @override
-  void visitVariableDeclaration(VariableDeclaration node) {
-    _noteType(node.type);
-    super.visitVariableDeclaration(node);
+  void defaultNode(Node node) {
+    final kind = node.runtimeType.toString();
+    if (census) {
+      seen.add(kind);
+    } else if (!allowedNodes.contains(kind)) {
+      r.unsupported.add(kind);
+    }
+    node.visitChildren(this);
+  }
+
+  String? _libOf(Member? m) => m?.enclosingLibrary.importUri.toString();
+  String? _ownerOf(Member? m) => m?.enclosingClass?.name;
+
+  void _record(Member? target, Name name, String mode) {
+    if (!name.isPrivate) return;
+    final lib = _libOf(target) ??
+        name.libraryReference?.asLibrary.importUri.toString();
+    if (lib == null) {
+      r.unsupported.add('UnresolvedPrivateRef');
+      return;
+    }
+    r.add(PrivateRef(lib, _ownerOf(target), name.text, mode, target != null));
+  }
+
+  // ---- the fact-bearing nodes. NOTE: these call visitChildren directly, not
+  // super.visitX, because super would route through defaultNode and mark an
+  // allowlisted node unsupported.
+  @override
+  void visitInstanceSet(InstanceSet node) {
+    _record(node.interfaceTarget, node.name, 'write');
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitStaticSet(StaticSet node) {
+    _record(node.target, node.target.name, 'write');
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitInstanceGet(InstanceGet node) {
+    _record(node.interfaceTarget, node.name, 'read');
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitStaticGet(StaticGet node) {
+    _record(node.target, node.target.name, 'read');
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitInstanceInvocation(InstanceInvocation node) {
+    _record(node.interfaceTarget, node.name, 'read');
+    node.visitChildren(this);
   }
 
   @override
   void visitStaticInvocation(StaticInvocation node) {
+    _record(node.target, node.target.name, 'read');
     for (final t in node.arguments.types) {
       _noteType(t);
     }
-    super.visitStaticInvocation(node);
+    node.visitChildren(this);
   }
 
   @override
   void visitConstructorInvocation(ConstructorInvocation node) {
-    // Naming a private class to construct it is a private TYPE reference.
     final cls = node.target.enclosingClass;
     if (_classIsPrivate(cls)) {
       r.privateTypes.add('${cls.enclosingLibrary.importUri}::${cls.name}');
+      r.add(PrivateRef(cls.enclosingLibrary.importUri.toString(), cls.name,
+          node.target.name.text, 'construct', true));
     }
     for (final t in node.arguments.types) {
       _noteType(t);
     }
-    super.visitConstructorInvocation(node);
+    node.visitChildren(this);
+  }
+
+  @override
+  void visitVariableDeclaration(VariableDeclaration node) {
+    _noteType(node.type);
+    node.visitChildren(this);
   }
 
   @override
   void visitAsExpression(AsExpression node) {
     _noteType(node.type);
-    super.visitAsExpression(node);
+    node.visitChildren(this);
   }
 
   @override
   void visitIsExpression(IsExpression node) {
     _noteType(node.type);
-    super.visitIsExpression(node);
-  }
-
-  // ---- the access modes that matter for capability ----------------------
-  @override
-  void visitInstanceSet(InstanceSet node) {
-    if (_privateName(node.name)) {
-      r.privateWrites.add(_member(node.interfaceTargetReference));
-    }
-    super.visitInstanceSet(node);
-  }
-
-  @override
-  void visitStaticSet(StaticSet node) {
-    final t = node.target;
-    if (t.name.isPrivate) r.privateWrites.add(_member(node.targetReference));
-    super.visitStaticSet(node);
-  }
-
-  @override
-  void visitInstanceGet(InstanceGet node) {
-    if (_privateName(node.name)) {
-      r.privateReads.add(_member(node.interfaceTargetReference));
-    }
-    super.visitInstanceGet(node);
-  }
-
-  @override
-  void visitStaticGet(StaticGet node) {
-    final t = node.target;
-    if (t.name.isPrivate) r.privateReads.add(_member(node.targetReference));
-    super.visitStaticGet(node);
-  }
-
-  @override
-  void visitInstanceInvocation(InstanceInvocation node) {
-    if (_privateName(node.name)) {
-      r.privateReads.add(_member(node.interfaceTargetReference));
-    }
-    super.visitInstanceInvocation(node);
+    node.visitChildren(this);
   }
 }
 
 void main(List<String> args) {
   String? dillPath;
   var outPath = 'body_references.json';
+  var census = false;
   final includePrefixes = <String>[];
   for (var i = 0; i < args.length; i++) {
     final a = args[i];
@@ -186,6 +323,9 @@ void main(List<String> args) {
         outPath = next();
       case '--include':
         includePrefixes.add(next());
+      case '--census':
+        // Grounds the allowlist against real corpora instead of guessing it.
+        census = true;
       default:
         _die('unknown argument: $a');
     }
@@ -203,6 +343,7 @@ void main(List<String> args) {
   }
 
   final rows = <Map<String, Object?>>[];
+  final censusSeen = <String>{};
 
   void add(String library, String? owner, String kind, String name,
       Member m) {
@@ -211,7 +352,7 @@ void main(List<String> args) {
     if (f == null && m is! Field) {
       refs.unsupported.add('NoFunctionNode');
     }
-    final w = _Walker(refs);
+    final w = _Walker(refs, census: census, seen: censusSeen);
     try {
       if (f != null) {
         for (final p in f.positionalParameters) {
@@ -226,6 +367,8 @@ void main(List<String> args) {
       // A traversal that throws is refused, never treated as "nothing found".
       refs.unsupported.add('TraversalThrew');
     }
+    final all = refs.refs.values.toList()
+      ..sort((a, b) => a.k.compareTo(b.k));
     rows.add({
       'library': library,
       'owner': owner,
@@ -233,8 +376,12 @@ void main(List<String> args) {
       'name': name,
       'references_private_type': refs.privateTypes.isNotEmpty,
       'private_types': refs.privateTypes.toList()..sort(),
-      'private_writes': refs.privateWrites.toList()..sort(),
-      'private_reads': refs.privateReads.toList()..sort(),
+      // STRUCTURED, so the predictor can join each reference to a G3 row and
+      // ask the capability question rather than pattern-matching a string.
+      'private_refs': [for (final r in all) r.toJson()],
+      'private_writes': [for (final r in all) if (r.mode == 'write') r.k],
+      'private_reads': [for (final r in all) if (r.mode == 'read') r.k],
+      'unresolved_refs': [for (final r in all) if (!r.resolved) r.k],
       'traversal_status': refs.status,
     });
   }
@@ -264,6 +411,8 @@ void main(List<String> args) {
       rows.where((r) => r['references_private_type'] == true).length;
   final withPrivateWrite =
       rows.where((r) => (r['private_writes'] as List).isNotEmpty).length;
+  final withPrivateRead =
+      rows.where((r) => (r['private_reads'] as List).isNotEmpty).length;
   final refused =
       rows.where((r) => r['traversal_status'] != 'supported').length;
 
@@ -275,6 +424,8 @@ void main(List<String> args) {
       'count': rows.length,
       'references_private_type_count': withPrivateType,
       'private_write_count': withPrivateWrite,
+      'private_read_count': withPrivateRead,
+      if (census) 'census_node_kinds': (censusSeen.toList()..sort()),
       'traversal_refused_count': refused,
       'rows': rows,
     })}\n',
