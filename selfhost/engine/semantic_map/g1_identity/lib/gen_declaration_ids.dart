@@ -108,6 +108,33 @@ void main(List<String> args) {
   final rows = <Map<String, Object?>>[];
   var libIndex = 0;
 
+  // EXTENSION MEMBERS ARE LOWERED TO MANGLED TOP-LEVEL PROCEDURES.
+  // `extension ShapeX on Shape { int doubled() => ...; }` reaches the kernel as
+  // a top-level procedure literally named `ShapeX|doubled` with no owner. Taking
+  // that at face value would put a VM-internal mangling into what becomes a wire
+  // contract -- the same complaint gen_target_manifest.dart records about
+  // `get:`/`set:` -- and would leave the extension name buried in a string
+  // instead of being a structured component.
+  //
+  // So the Extension nodes are read first and the real owner and declared name
+  // are recovered. Two extensions on different types that both declare `doubled`
+  // then differ by OWNER rather than by accident of the mangling.
+  final extensionOwner = <Reference, List<String>>{};
+  for (final lib in component.libraries.where(isApp)) {
+    for (final ext in lib.extensions) {
+      for (final d in ext.memberDescriptors) {
+        final ref = d.memberReference;
+        if (ref != null) extensionOwner[ref] = [ext.name, d.name.text];
+      }
+      final tearOffs = ext.memberDescriptors
+          .map((d) => d.tearOffReference)
+          .whereType<Reference>();
+      for (final ref in tearOffs) {
+        extensionOwner[ref] = [ext.name, 'tearOff'];
+      }
+    }
+  }
+
   void add({
     required String library,
     required String? owner,
@@ -116,6 +143,8 @@ void main(List<String> args) {
     required bool isStatic,
     required bool isSynthetic,
     required int memberIndex,
+    String? loweredName,
+    String? ownerKind,
   }) {
     rows.add({
       // Human-readable components retained BESIDE the hash rather than replaced
@@ -126,7 +155,12 @@ void main(List<String> args) {
       'kind': kind,
       'static': isStatic,
       'synthetic': isSynthetic,
-      'vmName': vmMemberName(name, kind),
+      'ownerKind': ownerKind,
+      // What the kernel actually called it, kept only where it differs from the
+      // declared name -- so a reader can see the lowering without the identity
+      // depending on it.
+      'loweredName': loweredName,
+      'vmName': vmMemberName(loweredName ?? name, kind),
       'selector': owner == null
           ? vmMemberName(name, kind)
           : '$owner.${vmMemberName(name, kind)}',
@@ -145,14 +179,19 @@ void main(List<String> args) {
     final library = lib.importUri.toString();
     var m = 0;
     for (final p in lib.procedures) {
+      final ext = extensionOwner[p.reference];
       add(
         library: library,
-        owner: null,
-        name: p.name.text,
+        // An extension member's owner is its EXTENSION, recovered above, not
+        // `null` with the extension name mangled into the member name.
+        owner: ext?[0],
+        name: ext?[1] ?? p.name.text,
         kind: _procKind(p),
         isStatic: true,
         isSynthetic: p.isSynthetic,
         memberIndex: m++,
+        loweredName: ext == null ? null : p.name.text,
+        ownerKind: ext == null ? null : 'extension',
       );
     }
     for (final f in lib.fields) {

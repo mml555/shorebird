@@ -20,6 +20,71 @@
     "canonical_stable_under_reorder": true,
     "index_derived_stable_under_reorder": false
   },
+  "extra_arms": {
+    "recompilation": {
+      "base_count": 23,
+      "rebuild_count": 23,
+      "identical_sets": true,
+      "only_in_base": [],
+      "only_in_rebuild": []
+    },
+    "obfuscation": {
+      "obfuscation_map_entries": 4579,
+      "declared_names_renamed": {
+        "topLevel": "pF",
+        "Shape": "Ji",
+        "area": "lF",
+        "usesPrivate": "rF",
+        "Box": "Ki",
+        "helperAdd": "tF"
+      },
+      "declaration_ids_unchanged": true
+    },
+    "extension_distinctness": {
+      "distinct_ids": true,
+      "differ_by_owner": true,
+      "shapex_lowered": "ShapeX|doubled",
+      "boxx_lowered": "BoxX|doubled",
+      "owner_kind": "extension"
+    },
+    "nested_functions": {
+      "named": 0,
+      "names": []
+    },
+    "synthetic_members": {
+      "named": [
+        {
+          "selector": "Doubler.base",
+          "kind": "method",
+          "synthetic": false
+        },
+        {
+          "selector": "Mixed.",
+          "kind": "constructor",
+          "synthetic": true
+        },
+        {
+          "selector": "Mixed.base",
+          "kind": "method",
+          "synthetic": false
+        }
+      ],
+      "flagged_synthetic": 1
+    },
+    "kernel_domain": {
+      "aot_declarations": 28,
+      "pre_aot_declarations": 33,
+      "shaken_out": [
+        "._Mixed&Object&Doubler (class)",
+        "Doubler.doubledViaMixin (method)",
+        "_Mixed&Object&Doubler. (constructor)",
+        "_Mixed&Object&Doubler.base (method)",
+        "_Mixed&Object&Doubler.doubledViaMixin (method)"
+      ],
+      "consequence": "A map derived from the AOT kernel describes a TREE-SHAKEN program, not the program that was written. Deriving from the AOT kernel is the CONSERVATIVE choice -- it cannot claim a shaken-out declaration is patchable -- but it cannot explain \"you wrote it and it is not here\" either. Deriving from the pre-AOT kernel would name declarations the release does not contain, which is an over-claim and a FAIL_OPEN under SM1-G5's subset rule.",
+      "recommendation": "derive the map from the AOT kernel; carry the pre-AOT set alongside only as explanatory data, never as the patchable set"
+    }
+  },
   "results": [
     {
       "id": "body_only",
@@ -175,6 +240,41 @@
       "id": "ext_moved_library",
       "outcome": "MOVED_ABSENT",
       "base_declaration_id": "66384f87886ea5ed8fd1ebd44bebce37ff222f55f3391c3a714bcfab40439f1d"
+    },
+    {
+      "id": "ext_extension_owner_renamed",
+      "outcome": "MOVED_ABSENT",
+      "base_declaration_id": "0a3c1002c4240241e0653e33372433a013b57281eb0f77d3b0573abc2f55fc32"
+    },
+    {
+      "id": "ext_generic_owner_bound",
+      "subject": "package:corpus/app.dart::Box.unwrap",
+      "source": "g1_identity/EXPECTATIONS_EXT.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": "MUST stay stable. `Box.unwrap` was not renamed, re-owned or re-kinded, so it is the same declaration. Whether it is still ABI-compatible is SM1-G2's question -- G1 must not smuggle ABI semantics into identity."
+    },
+    {
+      "id": "ext_local_function",
+      "subject": "package:corpus/app.dart::topLevel",
+      "source": "g1_identity/EXPECTATIONS_EXT.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": "The enclosing declaration keeps its identity. Whether the nested function is NAMED at all is a separate scope claim, checked by the nested-scope arm."
+    },
+    {
+      "id": "ext_synthetic_members",
+      "subject": "package:corpus/app.dart::topLevel",
+      "source": "g1_identity/EXPECTATIONS_EXT.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": "The unrelated subject must not move. What the walker NAMES among the generated members, and how it flags them, is checked by the synthetic arm."
     }
   ]
 }

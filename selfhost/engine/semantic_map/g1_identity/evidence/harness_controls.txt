@@ -1,28 +1,27 @@
-SM1-G1 harness controls — the scorer and the identity must both be falsifiable
-date : 2026-09-07T04:58:31Z
+SM1-G1 harness controls
+date : 2026-09-07T05:41:44Z
 
-############ A. the order-derived control, per variant ############
-The index_id column in g1_identity.txt is a DELIBERATELY order-derived
-identity, emitted beside the canonical one. It is not a candidate; it exists
-so the harness can be shown able to detect an order-dependent identity.
-
+############ A. the order-derived control, in BOTH directions ############
     ok      reorder                  declaration_id stable (want stable)   index_id moved
     ok      ext_extension_member     declaration_id stable (want stable)   index_id moved
     ok      ext_kind_change          declaration_id moved (want moved)   index_id stable
   --- positive control: the order-derived identity MUST fail reorder ---
     ok      the order-derived control MOVED under reorder (harness can detect the defect)
-    ok      the canonical identity survived reorder
 
-  reorder             canonical stable, index MOVED  -> the control fails exactly
-                      where an order-derived identity would be wrong
-  ext_extension_member canonical stable, index MOVED -> the control would have
-                      falsely reported an untouched declaration as changed
-  ext_kind_change     canonical MOVED, index stable  -> the control would have
-                      falsely reported a changed declaration as unchanged
+  reorder              canonical stable, index MOVED  -> fails exactly where an
+                       order-derived identity is wrong
+  ext_extension_member canonical stable, index MOVED  -> would have called an
+                       UNTOUCHED declaration changed
+  ext_kind_change      canonical MOVED, index stable  -> would have called a
+                       CHANGED declaration unchanged
 
-############ B. the scorer itself must fail on a false expectation ############
+############ B. the scorer must fail on a false expectation ############
 $ flip ext_renamed_subject to claim a renamed declaration keeps its id
-  FAILED  ext_renamed_subject  subject package:corpus/app.dart::topLevel vanished but was expected stable
-  SUMMARY checks_failed=1   G1 IDENTITY FAILED
+    FAILED  ext_renamed_subject      subject package:corpus/app.dart::topLevel vanished but was expected stable
+  SUMMARY checks_failed=1 collisions=0
+  G1 IDENTITY FAILED
+  
 $ restored
-  SUMMARY checks_failed=0   G1 IDENTITY VERIFIED
+  SUMMARY checks_failed=0 collisions=0
+  G1 IDENTITY VERIFIED
+  

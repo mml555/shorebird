@@ -3,25 +3,78 @@
   "purpose": "G1's OWN corpus extension, kept separate from G0's frozen corpus so G0's frozen digest stays valid and its acceptance is not disturbed. These cover the sufficiency conditions #50 lists that G0's dimensions do not reach.",
   "subject_default": "corpus.app::topLevel",
   "mutants": [
-    { "id": "ext_extension_member", "subject": "package:corpus/app.dart::topLevel",
+    {
+      "id": "ext_extension_member",
+      "subject": "package:corpus/app.dart::topLevel",
       "dimension": "extension member added elsewhere in the library",
       "declaration_id_stable": true,
-      "note": "sufficiency: extension members must not disturb an unrelated declaration's identity" },
-    { "id": "ext_renamed_subject", "subject": "package:corpus/app.dart::topLevel",
+      "note": "sufficiency: extension members must not disturb an unrelated declaration's identity"
+    },
+    {
+      "id": "ext_renamed_subject",
+      "subject": "package:corpus/app.dart::topLevel",
       "dimension": "the subject itself is renamed",
       "declaration_id_stable": false,
-      "note": "MUST move: a renamed declaration is a different declaration" },
-    { "id": "ext_kind_change", "subject": "package:corpus/app.dart::topLevel",
+      "note": "MUST move: a renamed declaration is a different declaration"
+    },
+    {
+      "id": "ext_kind_change",
+      "subject": "package:corpus/app.dart::topLevel",
       "dimension": "the subject changes kind (function -> getter)",
       "declaration_id_stable": false,
-      "note": "MUST move: kind is part of the identity, and the VM name changes too (topLevel -> get:topLevel)" },
-    { "id": "ext_owner_change", "subject": "package:corpus/app.dart::topLevel",
+      "note": "MUST move: kind is part of the identity, and the VM name changes too (topLevel -> get:topLevel)"
+    },
+    {
+      "id": "ext_owner_change",
+      "subject": "package:corpus/app.dart::topLevel",
       "dimension": "the subject is re-owned (top level -> static member of Shape)",
       "declaration_id_stable": false,
-      "note": "MUST move: owner path is part of the identity" },
-    { "id": "ext_moved_library", "subject": "package:corpus/app.dart::topLevel",
+      "note": "MUST move: owner path is part of the identity"
+    },
+    {
+      "id": "ext_moved_library",
+      "subject": "package:corpus/app.dart::topLevel",
       "dimension": "the subject moves to a different library",
       "declaration_id_stable": false,
-      "note": "MUST move. Worth stating plainly: this means renaming a package re-identifies every declaration in it, which is a real design consequence for SM1-G6 to weigh, not a defect of the identity." }
-  ]
+      "note": "MUST move. Worth stating plainly: this means renaming a package re-identifies every declaration in it, which is a real design consequence for SM1-G6 to weigh, not a defect of the identity."
+    },
+    {
+      "id": "ext_two_extensions",
+      "subject": "package:corpus/app.dart::ShapeX.doubled",
+      "dimension": "two same-named extension members in DIFFERENT extensions",
+      "declaration_id_stable": null,
+      "note": "Not a stability case. The claim is DISTINCTNESS: ShapeX.doubled and BoxX.doubled must get different identities, and they must differ by OWNER rather than by accident of the kernel's `ShapeX|doubled` mangling. Scored by the distinctness arm, not by comparison to base.",
+      "scored_by": "distinctness"
+    },
+    {
+      "id": "ext_extension_owner_renamed",
+      "subject": "package:corpus/app.dart::ShapeX.doubled",
+      "dimension": "the extension OWNER is renamed",
+      "declaration_id_stable": false,
+      "note": "MUST move: the owner path is part of the identity, and the extension is the owner.",
+      "baseline": "ext_extension_member"
+    },
+    {
+      "id": "ext_generic_owner_bound",
+      "subject": "package:corpus/app.dart::Box.unwrap",
+      "dimension": "the owner's generic BOUND changes; the member is the subject",
+      "declaration_id_stable": true,
+      "note": "MUST stay stable. `Box.unwrap` was not renamed, re-owned or re-kinded, so it is the same declaration. Whether it is still ABI-compatible is SM1-G2's question -- G1 must not smuggle ABI semantics into identity."
+    },
+    {
+      "id": "ext_local_function",
+      "subject": "package:corpus/app.dart::topLevel",
+      "dimension": "a LOCAL (nested) function inside the subject",
+      "declaration_id_stable": true,
+      "note": "The enclosing declaration keeps its identity. Whether the nested function is NAMED at all is a separate scope claim, checked by the nested-scope arm."
+    },
+    {
+      "id": "ext_synthetic_members",
+      "subject": "package:corpus/app.dart::topLevel",
+      "dimension": "synthetic/generated members appear (implicit ctor, mixin forwarders)",
+      "declaration_id_stable": true,
+      "note": "The unrelated subject must not move. What the walker NAMES among the generated members, and how it flags them, is checked by the synthetic arm."
+    }
+  ],
+  "baseline_note": "Each case compares against `base` unless it names a `baseline`. ext_extension_owner_renamed must compare against ext_extension_member, because base declares no extension at all and the subject does not exist there."
 }

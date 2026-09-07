@@ -47,8 +47,46 @@ echo "  analyzer pin          : $(python3 -c "import json;print(json.load(open('
 echo
 
 ids_for "$G0C/base" base || { echo "could not produce base ids" >&2; exit 1; }
+
+# RECOMPILATION, as its own G1 arm. An INDEPENDENT rebuild in a separate work
+# directory, compared on the complete declaration-id set. G0's deterministic-dill
+# result is supporting evidence, not a substitute for this.
+W2="$W/independent"; mkdir -p "$W2"
+( export CORPUS_BUILD_DIR="$W2/build"
+  bash "$SM/g0_freeze/lib/build_corpus_dill.sh" "$G0C/base" "$W/base_rebuild.dill" >/dev/null 2>&1 )
+if [[ -s "$W/base_rebuild.dill" ]]; then
+  "$DART" --packages="$DT/.dart_tool/package_config.json" \
+    "$HERE/lib/gen_declaration_ids.dart" --dill "$W/base_rebuild.dill" \
+    --include package:corpus/ --out "$W/base_rebuild.json" >/dev/null 2>&1
+fi
+
+# OBFUSCATION, measured. The snapshots are built and the rename map saved, then
+# the ids are recomputed from the SAME kernel so both halves are on the record.
+OBFW="$W/obf"
+bash "$HERE/lib/obfuscation_arm.sh" "$G0C/base" "$OBFW" >/dev/null 2>&1 || true
+if [[ -s "$OBFW/obf.dill" ]]; then
+  "$DART" --packages="$DT/.dart_tool/package_config.json" \
+    "$HERE/lib/gen_declaration_ids.dart" --dill "$OBFW/obf.dill" \
+    --include package:corpus/ --out "$W/base_obfuscated.json" >/dev/null 2>&1
+fi
 for d in "$G0C"/mutants/*; do ids_for "$d" "$(basename "$d")" || echo "  WARN could not build $(basename "$d")"; done
 for d in "$XC"/*;            do ids_for "$d" "$(basename "$d")" || echo "  WARN could not build $(basename "$d")"; done
 
+# KERNEL DOMAIN. Build the same source both ways so the tree-shaking arm can
+# measure what --aot removes, rather than the map inheriting a silent choice.
+SK="$W/shake"; mkdir -p "$SK/lib" "$SK/.dart_tool"
+cp "$XC/ext_synthetic_members"/*.dart "$SK/lib/"
+printf '{"configVersion":2,"packages":[{"name":"corpus","rootUri":"file://%s/","packageUri":"lib/","languageVersion":"3.9"}]}' "$SK" > "$SK/.dart_tool/package_config.json"
+for mode in aot noaot; do
+  if [[ "$mode" == aot ]]; then KF="--aot"; else KF="--no-aot --no-link-platform"; fi
+  # shellcheck disable=SC2086
+  "$DART" "$DT/pkg/vm/bin/gen_kernel.dart" --platform "$OUT/vm_platform.dill" $KF \
+    --packages "$SK/.dart_tool/package_config.json" -o "$SK/$mode.dill" \
+    package:corpus/app.dart >/dev/null 2>&1
+  [[ -s "$SK/$mode.dill" ]] && "$DART" --packages="$DT/.dart_tool/package_config.json" \
+    "$HERE/lib/gen_declaration_ids.dart" --dill "$SK/$mode.dill" \
+    --include package:corpus/ --out "$W/shake_$mode.json" >/dev/null 2>&1
+done
+
 python3 "$HERE/lib/score_g1.py" "$W" "$G0C/EXPECTATIONS.json" "$HERE/EXPECTATIONS_EXT.json" \
-  "$EVID/g1_identity.json" | tee "$EVID/g1_identity.txt"
+  "$EVID/g1_identity.json" "$OBFW" | tee "$EVID/g1_identity.txt"

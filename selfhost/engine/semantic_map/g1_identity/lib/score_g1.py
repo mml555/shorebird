@@ -10,6 +10,7 @@ import os
 import sys
 
 work, g0_exp, ext_exp, out_json = sys.argv[1:5]
+obf_dir = sys.argv[5] if len(sys.argv) > 5 else None
 
 
 def load(path):
@@ -68,8 +69,14 @@ fails = 0
 lines = []
 
 
-def check(mutant_id, subject, want_stable, source, note=''):
+def check(mutant_id, subject, want_stable, source, note='', baseline='base'):
     global fails
+    base_doc = ids(baseline)
+    if base_doc is None:
+        lines.append(f'  FAILED  {mutant_id:24} baseline {baseline!r} unavailable')
+        fails += 1
+        rows.append({'id': mutant_id, 'outcome': 'NO_BASELINE'})
+        return
     doc = ids(mutant_id)
     if doc is None:
         lines.append(f'  FAILED  {mutant_id:24} could not build/collect ids')
@@ -77,7 +84,7 @@ def check(mutant_id, subject, want_stable, source, note=''):
         rows.append({'id': mutant_id, 'outcome': 'NO_EVIDENCE'})
         return
     key = norm(subject)
-    b = find(base, key)
+    b = find(base_doc, key)
     m = find(doc, key)
     if b is None:
         lines.append(f'  FAILED  {mutant_id:24} subject {key} not found in BASE')
@@ -128,8 +135,13 @@ for m in load(g0_exp)['mutants']:
 lines.append('')
 lines.append("--- G1 corpus extension: sufficiency, and the MUST-MOVE cases ---")
 for m in load(ext_exp)['mutants']:
+    if m.get('scored_by'):
+        lines.append(f"  --      {m['id']:24} scored by the "
+                     f"{m['scored_by']} arm, not by comparison to base")
+        continue
     check(m['id'], m['subject'], m['declaration_id_stable'],
-          'g1_identity/EXPECTATIONS_EXT.json', m.get('note', ''))
+          'g1_identity/EXPECTATIONS_EXT.json', m.get('note', ''),
+          baseline=m.get('baseline', 'base'))
 
 # THE POSITIVE CONTROL ON THE HARNESS. An order-derived identity must be caught
 # by the reorder case; if it is not, nothing above is evidence.
@@ -164,6 +176,177 @@ else:
             fails += 1
         else:
             lines.append('  ok      the canonical identity survived reorder')
+
+
+
+# ---------------------------------------------------------------- extra arms
+extra = {}
+
+def arm(title):
+    lines.append('')
+    lines.append(f'--- {title} ---')
+
+# 1. RECOMPILATION. #50 wants its own G1 arm: rebuild identical source
+#    independently and compare the COMPLETE id set. G0's deterministic-dill
+#    result is supporting evidence, not a substitute for the identity check.
+arm('recompilation: an independent rebuild of identical source')
+rebuild = ids('base_rebuild')
+if rebuild is None:
+    lines.append('  FAILED  no independent rebuild was produced')
+    fails += 1
+else:
+    a = {r['declaration_id'] for r in base['declarations']}
+    b = {r['declaration_id'] for r in rebuild['declarations']}
+    extra['recompilation'] = {
+        'base_count': len(a), 'rebuild_count': len(b),
+        'identical_sets': a == b,
+        'only_in_base': sorted(a - b)[:5], 'only_in_rebuild': sorted(b - a)[:5]}
+    if a == b and len(a) == base['count']:
+        lines.append(f'  ok      complete id set identical across an independent '
+                     f'rebuild ({len(a)} declarations)')
+    else:
+        lines.append(f'  FAILED  id set differs across rebuild: '
+                     f'{len(a - b)} only in base, {len(b - a)} only in rebuild')
+        fails += 1
+
+# 2. OBFUSCATION, measured rather than reasoned about.
+arm('obfuscation: identity vs the runtime-resolvable name')
+if not obf_dir or not os.path.isfile(os.path.join(obf_dir, 'obfmap.json')):
+    lines.append('  FAILED  the obfuscation arm did not run; #50 requires it measured')
+    fails += 1
+else:
+    om = load(os.path.join(obf_dir, 'obfmap.json'))
+    pairs = ([(om[i], om[i + 1]) for i in range(0, len(om), 2)]
+             if isinstance(om, list) else list(om.items()))
+    renamed = {a: b for a, b in pairs}
+    subjects = ['topLevel', 'Shape', 'area', 'usesPrivate', 'Box', 'helperAdd']
+    hit = {k: renamed[k] for k in subjects if k in renamed and renamed[k] != k}
+    obf_ids = ids('base_obfuscated')
+    same_ids = (obf_ids is not None and
+                {r['declaration_id'] for r in obf_ids['declarations']} ==
+                {r['declaration_id'] for r in base['declarations']})
+    extra['obfuscation'] = {
+        'obfuscation_map_entries': len(pairs),
+        'declared_names_renamed': hit,
+        'declaration_ids_unchanged': same_ids}
+    if same_ids:
+        lines.append('  ok      declaration_id is UNCHANGED under obfuscation '
+                     '(the map is kernel-derived; obfuscation is a snapshot-time transform)')
+    else:
+        lines.append('  FAILED  declaration_id moved under obfuscation')
+        fails += 1
+    if hit:
+        lines.append(f'  ok      but the RUNTIME name does change, measured: '
+                     + ', '.join(f'{k}->{v}' for k, v in list(hit.items())[:4]))
+        lines.append('          => identity is obfuscation-invariant; the BINDING name is not, '
+                     'and needs the release obfuscation map')
+    else:
+        lines.append('  FAILED  the obfuscation map renamed none of our declarations, so this '
+                     'arm measured nothing')
+        fails += 1
+
+# 3. EXTENSION-MEMBER DISTINCTNESS, not just non-disturbance.
+arm('extension members: two same-named members in different extensions')
+two = ids('ext_two_extensions')
+if two is None:
+    lines.append('  FAILED  ext_two_extensions unavailable')
+    fails += 1
+else:
+    sx = find(two, 'package:corpus/app.dart::ShapeX.doubled')
+    bx = find(two, 'package:corpus/app.dart::BoxX.doubled')
+    if sx is None or bx is None:
+        lines.append(f'  FAILED  could not locate both extension members '
+                     f'(ShapeX.doubled={sx is not None}, BoxX.doubled={bx is not None})')
+        fails += 1
+    else:
+        distinct = sx['declaration_id'] != bx['declaration_id']
+        by_owner = sx['owner'] != bx['owner'] and sx['name'] == bx['name']
+        extra['extension_distinctness'] = {
+            'distinct_ids': distinct, 'differ_by_owner': by_owner,
+            'shapex_lowered': sx.get('loweredName'), 'boxx_lowered': bx.get('loweredName'),
+            'owner_kind': sx.get('ownerKind')}
+        if distinct and by_owner:
+            lines.append('  ok      distinct identities, differing by OWNER with the same '
+                         f"declared name ({sx['owner']} vs {bx['owner']}, both `{sx['name']}`)")
+            lines.append(f"          kernel lowered them to {sx.get('loweredName')} / "
+                         f"{bx.get('loweredName')}; the identity does not depend on that mangling")
+        else:
+            lines.append(f'  FAILED  distinct={distinct} differ_by_owner={by_owner}')
+            fails += 1
+
+# 4. NESTED / LOCAL FUNCTIONS: a scope claim, stated explicitly.
+arm('nested scope: is a local function named at all?')
+loc = ids('ext_local_function')
+if loc is None:
+    lines.append('  FAILED  ext_local_function unavailable')
+    fails += 1
+else:
+    named = [r for r in loc['declarations'] if r['name'] == 'nestedHelper']
+    extra['nested_functions'] = {'named': len(named), 'names': [r['selector'] for r in named]}
+    if named:
+        lines.append(f'  FINDING the local function IS named ({named[0]["selector"]}) — '
+                     'its owner path and patchability need a stated rule')
+    else:
+        lines.append('  ok      the local function is NOT named — SCOPE STATEMENT: the map does '
+                     'not address local/nested functions, so a patch targeting one must be '
+                     'refused rather than silently missed. Carried to SM1-G5.')
+
+# 5. SYNTHETIC / GENERATED MEMBERS: what is named, and how flagged.
+arm('synthetic / generated members')
+syn = ids('ext_synthetic_members')
+if syn is None:
+    lines.append('  FAILED  ext_synthetic_members unavailable')
+    fails += 1
+else:
+    gen = [r for r in syn['declarations'] if r['owner'] in ('Mixed', 'Doubler')]
+    flagged = [r for r in gen if r['synthetic']]
+    extra['synthetic_members'] = {
+        'named': [{'selector': r['selector'], 'kind': r['kind'], 'synthetic': r['synthetic']}
+                  for r in gen],
+        'flagged_synthetic': len(flagged)}
+    lines.append(f'  ok      {len(gen)} member(s) named on the generated classes, '
+                 f'{len(flagged)} flagged synthetic')
+    for r in gen:
+        lines.append(f"            {r['selector']:28} {r['kind']:12} synthetic={r['synthetic']}")
+    if not gen:
+        lines.append('  FAILED  no generated members were named at all')
+        fails += 1
+
+# 6. WHICH KERNEL THE MAP IS DERIVED FROM. Measured here because it changes what
+#    "the set of declarations" even means, which is G1's subject.
+arm('kernel domain: --aot tree-shakes declarations away')
+aot_doc, pre_doc = ids('shake_aot'), ids('shake_noaot')
+if aot_doc is None or pre_doc is None:
+    lines.append('  FAILED  could not build both an AOT and a pre-AOT kernel to compare')
+    fails += 1
+else:
+    a = {(r['library'], r['owner'], r['name'], r['kind']) for r in aot_doc['declarations']}
+    b = {(r['library'], r['owner'], r['name'], r['kind']) for r in pre_doc['declarations']}
+    lost = sorted(b - a, key=lambda t: tuple('' if x is None else x for x in t))
+    extra['kernel_domain'] = {
+        'aot_declarations': aot_doc['count'],
+        'pre_aot_declarations': pre_doc['count'],
+        'shaken_out': [f"{o or ''}.{n} ({k})" for (_l, o, n, k) in lost],
+        'consequence': ('A map derived from the AOT kernel describes a TREE-SHAKEN program, '
+                        'not the program that was written. Deriving from the AOT kernel is the '
+                        'CONSERVATIVE choice -- it cannot claim a shaken-out declaration is '
+                        'patchable -- but it cannot explain "you wrote it and it is not here" '
+                        'either. Deriving from the pre-AOT kernel would name declarations the '
+                        'release does not contain, which is an over-claim and a FAIL_OPEN under '
+                        "SM1-G5's subset rule."),
+        'recommendation': ('derive the map from the AOT kernel; carry the pre-AOT set alongside '
+                           'only as explanatory data, never as the patchable set'),
+    }
+    if lost:
+        lines.append(f'  FINDING --aot removed {len(lost)} declaration(s): '
+                     f'{aot_doc["count"]} named vs {pre_doc["count"]} pre-AOT')
+        for (_l, o, n, k) in lost[:6]:
+            lines.append(f"            shaken out: {(o or '<top>')}.{n} ({k})")
+        lines.append('          => which kernel the map is derived from is a DESIGN DECISION,')
+        lines.append('             not an implementation detail. AOT kernel is the conservative')
+        lines.append('             choice; the pre-AOT set is explanatory data only.')
+    else:
+        lines.append('  ok      no declarations were shaken out on this corpus')
 
 # Collisions across every variant. A FAIL_OPEN.
 lines.append('')
@@ -203,6 +386,7 @@ json.dump({
     'base_declaration_count': base['count'],
     'member_kinds_named': kinds,
     'harness_control': control,
+    'extra_arms': extra,
     'results': rows,
 }, open(out_json, 'w'), indent=2)
 sys.exit(1 if fails else 0)

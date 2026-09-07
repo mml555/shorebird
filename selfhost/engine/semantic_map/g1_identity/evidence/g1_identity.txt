@@ -1,7 +1,5 @@
 --- G0 frozen corpus: the untouched subject must keep its identity ---
   ok      body_only                declaration_id stable (want stable)   index_id stable
-  ok      abi_added_positio--- G0 frozen corpus: the untouched subject must keep its identity ---
-  ok      body_only                declaration_id stable (want stable)   index_id stable
   ok      abi_added_positional     declaration_id stable (want stable)   index_id stable
   ok      abi_nullability          declaration_id stable (want stable)   index_id stable
   ok      abi_positional_to_named  declaration_id stable (want stable)   index_id stable
@@ -20,10 +18,47 @@
   ok      ext_kind_change          declaration_id moved (want moved)   index_id stable
   ok      ext_owner_change         subject no longer exists under its old identity (moved, as required)
   ok      ext_moved_library        subject no longer exists under its old identity (moved, as required)
+  --      ext_two_extensions       scored by the distinctness arm, not by comparison to base
+  ok      ext_extension_owner_renamed subject no longer exists under its old identity (moved, as required)
+  ok      ext_generic_owner_bound  declaration_id stable (want stable)   index_id stable
+  ok      ext_local_function       declaration_id stable (want stable)   index_id stable
+  ok      ext_synthetic_members    declaration_id stable (want stable)   index_id stable
 
 --- positive control: the order-derived identity MUST fail reorder ---
   ok      the order-derived control MOVED under reorder (harness can detect the defect)
   ok      the canonical identity survived reorder
+
+--- recompilation: an independent rebuild of identical source ---
+  ok      complete id set identical across an independent rebuild (23 declarations)
+
+--- obfuscation: identity vs the runtime-resolvable name ---
+  ok      declaration_id is UNCHANGED under obfuscation (the map is kernel-derived; obfuscation is a snapshot-time transform)
+  ok      but the RUNTIME name does change, measured: topLevel->pF, Shape->Ji, area->lF, usesPrivate->rF
+          => identity is obfuscation-invariant; the BINDING name is not, and needs the release obfuscation map
+
+--- extension members: two same-named members in different extensions ---
+  ok      distinct identities, differing by OWNER with the same declared name (ShapeX vs BoxX, both `doubled`)
+          kernel lowered them to ShapeX|doubled / BoxX|doubled; the identity does not depend on that mangling
+
+--- nested scope: is a local function named at all? ---
+  ok      the local function is NOT named — SCOPE STATEMENT: the map does not address local/nested functions, so a patch targeting one must be refused rather than silently missed. Carried to SM1-G5.
+
+--- synthetic / generated members ---
+  ok      3 member(s) named on the generated classes, 1 flagged synthetic
+            Doubler.base                 method       synthetic=False
+            Mixed.                       constructor  synthetic=True
+            Mixed.base                   method       synthetic=False
+
+--- kernel domain: --aot tree-shakes declarations away ---
+  FINDING --aot removed 5 declaration(s): 28 named vs 33 pre-AOT
+            shaken out: <top>._Mixed&Object&Doubler (class)
+            shaken out: Doubler.doubledViaMixin (method)
+            shaken out: _Mixed&Object&Doubler. (constructor)
+            shaken out: _Mixed&Object&Doubler.base (method)
+            shaken out: _Mixed&Object&Doubler.doubledViaMixin (method)
+          => which kernel the map is derived from is a DESIGN DECISION,
+             not an implementation detail. AOT kernel is the conservative
+             choice; the pre-AOT set is explanatory data only.
 
 --- collision search across every variant ---
   ok      no declaration_id collisions in any variant (23 declarations in base)

@@ -2,7 +2,12 @@
 # SM1-G1 — stable declaration identity
 
 **Gate:** [#50](https://github.com/mml555/shorebird/issues/50) · **Tracker:** [#48](https://github.com/mml555/shorebird/issues/48)
-**Run:** 2026-09-07 · **Verdict: identity is stable and sufficient over the corpus. 17/17, no collisions.**
+**Run:** 2026-09-07, extended after PM review · **Verdict: identity is stable and
+sufficient over the corpus. 22 cases + 6 arms, 0 failures, no collisions.**
+
+One finding reaches past this gate: `gen_kernel --aot` **tree-shakes declarations
+away**, so which kernel the map is derived from is a design decision, not an
+implementation detail. See *Kernel domain* below.
 
 Transcript: [`evidence/g1_identity.txt`](evidence/g1_identity.txt) ·
 structured: [`evidence/g1_identity.json`](evidence/g1_identity.json) ·
@@ -60,6 +65,99 @@ G0's dimensions do not reach. Kept in `corpus_ext/` with its own expectations so
 | `ext_kind_change` | **moved** | moved (function → getter; the VM name changes too, `topLevel` → `get:topLevel`) |
 | `ext_owner_change` | **moved** | moved (top level → static member of `Shape`) |
 | `ext_moved_library` | **moved** | moved |
+
+## The four contract gaps the PM held on, now closed
+
+### 1. Obfuscation — measured, not reasoned
+
+An obfuscated snapshot is actually built, with `--save-obfuscation-map`:
+
+    declaration_id under obfuscation   UNCHANGED
+    obfuscation map entries            4,579
+    our declarations renamed           topLevel->pF  Shape->Ji  area->lF  usesPrivate->rF
+
+**Identity is obfuscation-invariant; the binding name is not.** The map is
+kernel-derived and obfuscation is a snapshot-time transform, so `declaration_id`
+does not move — but the runtime-resolvable name does, and binding therefore needs
+the release's obfuscation map. Both halves are on the record because only
+measuring the first would have implied the second was fine.
+
+### 2. Recompilation — its own arm
+
+An **independent** rebuild in a separate work directory, compared on the
+**complete** declaration-id set: identical, 23/23. G0's deterministic-dill result
+is supporting evidence, not a substitute for this.
+
+### 3. Extension-member identity — distinctness, not just non-disturbance
+
+Two same-named members in different extensions:
+
+    ShapeX.doubled  vs  BoxX.doubled     distinct ids, differing by OWNER
+    kernel lowered them to ShapeX|doubled / BoxX|doubled
+
+The kernel lowers an extension member to a **mangled top-level procedure** —
+`ShapeX|doubled`, owner `null`. Taking that at face value would put a VM-internal
+mangling into what becomes a wire contract, the same complaint
+`gen_target_manifest.dart` records about `get:`/`set:`, and would leave the
+extension name buried in a string. The tool now reads the `Extension` nodes and
+recovers the real owner and declared name, so the two differ **by owner** rather
+than by accident of the mangling. `loweredName` is retained beside it so a reader
+can see the lowering without the identity depending on it.
+
+Renaming the extension owner moves the identity, as required — compared against
+`ext_extension_member` rather than `base`, because base declares no extension and
+the subject does not exist there. Baselines are now per-case and declared.
+
+### 4. Nested, synthetic and generated scope
+
+**Local functions are not named**, and that is now an explicit scope statement
+rather than an omission:
+
+> The map does not address local/nested functions. A patch targeting one must be
+> **refused** rather than silently missed. Carried to SM1-G5.
+
+**Generated members are named and flagged.** For a class with an implicit
+constructor and a mixin application:
+
+    Doubler.base        method       synthetic=False
+    Mixed.<unnamed>      constructor  synthetic=True
+    Mixed.base          method       synthetic=False
+
+### Plus the generic-owner arm
+
+`Box.unwrap` with the owner's bound changed `<T extends Shape>` → `<T extends
+Object>`: **identity stable**. The member was not renamed, re-owned or re-kinded,
+so it is the same declaration. Whether it is still ABI-compatible is **SM1-G2's**
+question — G1 must not smuggle ABI semantics into identity.
+
+## Kernel domain — the finding that reaches past G1
+
+    AOT kernel      28 declarations
+    pre-AOT kernel  33 declarations
+    removed by --aot:
+      Doubler.doubledViaMixin                     (method)  <- user-written
+      _Mixed&Object&Doubler                       (class)
+      _Mixed&Object&Doubler.<unnamed>             (constructor)
+      _Mixed&Object&Doubler.base                  (method)
+      _Mixed&Object&Doubler.doubledViaMixin       (method)
+
+`gen_kernel --aot` runs the global transformations, and TFA removes declarations.
+`Doubler.doubledViaMixin` is **written by the developer, called from `main`, and
+absent from the AOT kernel** — the mixin was inlined into `Mixed`.
+
+So **a map derived from the AOT kernel describes a tree-shaken program, not the
+program that was written.** Which kernel it is derived from is a design decision:
+
+- **AOT kernel — the conservative choice.** It names only what survived, so it
+  cannot claim a shaken-out declaration is patchable.
+- **Pre-AOT kernel — unsafe on its own.** It would name declarations the release
+  does not contain, which is an over-claim and a `FAIL_OPEN` under **SM1-G5**'s
+  subset rule.
+
+**Recommendation:** derive the map from the AOT kernel, and carry the pre-AOT set
+alongside **only as explanatory data** — so *"you wrote it and it is not here"*
+can be explained rather than merely refused. That is a G5/G6 concern and is not
+decided here.
 
 ## Sufficiency: two gaps in the reference tool's coverage
 
@@ -142,12 +240,22 @@ Both were mine, and both would have produced a wrong reading:
 - [x] The index-derived control **fails**, in both directions, proving the harness can detect the defect
 - [x] Collisions searched across the whole corpus — 18 variants, zero
 - [x] Human-readable components retained beside the hash
+- [x] **Obfuscation measured**, both halves: identity invariant, binding name not
+- [x] **Recompilation** as its own arm — complete id set identical across an independent rebuild
+- [x] **Extension-member distinctness** proven, differing by owner rather than by mangling
+- [x] **Nested/local scope** stated explicitly as out of the map's domain, fail-closed
+- [x] **Synthetic/generated members** named and flagged
+- [x] **Generic-owner** arm: member identity stable while the owner's bound changes
 
 ## Not established by this gate
 
-- **Extension members are covered only as a non-disturbance case.** An extension
-  member's *own* identity is emitted as a procedure of its enclosing library, and
-  whether that is the right owner path for a patch to target is not tested here.
-- **Synthetic and generated members** are named but not exercised as subjects.
-- **Obfuscation** is reasoned about, not measured.
-- **Nested generic ownership** is covered only through `Box<T extends Shape>`.
+- **Which kernel the map should use is not decided here** — only measured, with a
+  recommendation. It belongs to G5/G6.
+- **Synthetic members are named and flagged but not exercised as patch subjects.**
+  Whether a generated member is a legitimate target is SM1-G5's question.
+- **Obfuscated binding is not exercised end-to-end.** The rename is measured; that
+  a patch actually binds through the obfuscation map at runtime is not shown here.
+- **Extension-member patchability** is not claimed. Distinctness of identity is
+  proven; whether an extension member can be patched at all is G5's.
+- **Nested generic ownership** beyond `Box<T>` — deeper nesting, generic methods
+  on generic owners — is not covered.
