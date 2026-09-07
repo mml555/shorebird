@@ -10,7 +10,9 @@ REFUSAL IS NOT THE DEFAULT. A gate whose every arm refuses proves nothing: a
 policy of `return REFUSE` would pass it. The positive control is therefore a
 first-class arm, and if it ever refuses the whole gate fails.
 """
+import ast
 import json
+import pathlib
 import sys
 
 # ---------------------------------------------------------------- the policy
@@ -99,6 +101,44 @@ def decide(row, mode, granted, grant_scope):
     if row['capability_key_read'] not in granted:
         return READ_NOT_GRANTED
     return ACCEPT
+
+
+def policy_return_surface():
+    """Every category `decide()` can return, READ FROM ITS OWN SOURCE.
+
+    The first version carried a hand-written set of five while `decide()` could
+    return eight, so `READ_NOT_GRANTED`, `CONSTRUCT_NOT_GRANTED` and
+    `NO_SUCH_MODE` were outside the exhaustion check entirely -- the newest
+    category, added with the `construct` mode, was unexercised and the gate said
+    every category was covered. A hand-maintained inventory is how a harness
+    comes to overstate itself; this one cannot drift from the policy because it
+    is derived from it.
+
+    Fail-closed: a return the reader cannot resolve to a literal aborts rather
+    than being silently dropped from the inventory.
+    """
+    tree = ast.parse(pathlib.Path(__file__).read_text())
+    consts = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant):
+            for t in node.targets:
+                if isinstance(t, ast.Name):
+                    consts[t.id] = node.value.value
+    fn = next(n for n in tree.body
+              if isinstance(n, ast.FunctionDef) and n.name == 'decide')
+    surface = set()
+    for node in ast.walk(fn):
+        if isinstance(node, ast.Return) and node.value is not None:
+            v = node.value
+            if isinstance(v, ast.Name) and v.id in consts:
+                surface.add(consts[v.id])
+            elif isinstance(v, ast.Constant) and isinstance(v.value, str):
+                surface.add(v.value)
+            else:
+                print('score_g3: decide() has a return the category inventory '
+                      f'cannot resolve to a literal: {ast.dump(v)}', file=sys.stderr)
+                raise SystemExit(2)
+    return surface
 
 
 # ---------------------------------------------------------------- the harness
@@ -333,6 +373,24 @@ def main():
                     if r['effective_privacy_domain'] != 'public'
                     and r['retained_in_release']
                     and r['capability_key_construct']}
+
+        # A RELEASE MAY RETAIN SOMETHING AND STILL NOT GRANT IT. That is not a
+        # hypothetical: the shipped manifest carries `constructionWithheld` and
+        # `refused` lists precisely for it. `withhold_modes` removes this
+        # subject's own key for the named modes from the synthetic manifest, so
+        # the ungranted categories can be reached without inventing a key.
+        withheld = set()
+        for m in case.get('withhold_modes') or []:
+            k = row.get(f'capability_key_{m}')
+            if k is None:
+                lines.append(f'  FAILED  {cid:28} withhold_modes names {m!r}, but the '
+                             f'subject has no key for that mode, so nothing was '
+                             f'withheld and the arm would prove nothing')
+                fails += 1
+                k = None
+            else:
+                withheld.add(k)
+        granted = granted - withheld
         got = decide(row, case['mode'], granted, case['grant_scope'])
         want = case['expected']
         problems = []
@@ -353,21 +411,31 @@ def main():
             'id': cid, 'corpus': case['corpus'], 'mode': case['mode'],
             'grant_scope': case['grant_scope'], 'expected': want, 'got': got,
             'subject': f'{case["library"]}#{case.get("owner") or ""}#{case["name"]}',
+            'withhold_modes': case.get('withhold_modes') or [],
         })
 
     # EVERY CATEGORY THE POLICY CAN RETURN MUST BE EXERCISED. Otherwise a
     # category could be dead code and the arms would still all pass.
     arm('every refusal category is exercised by some arm')
     exercised = {r['got'] for r in results}
-    declared = {CROSS_DOMAIN, PLATFORM_DOMAIN, NOT_RETAINED, WRITE_NOT_GRANTED,
-                ACCEPT}
+    declared = policy_return_surface()
     missing = declared - exercised
+    stray = exercised - declared
     extra['categories_exercised'] = sorted(exercised)
+    extra['policy_return_surface'] = sorted(declared)
+    lines.append(f'  policy return surface, read from decide()\'s own source: '
+                 f'{len(declared)} categories')
     if missing:
         lines.append(f'  FAILED  never exercised: {sorted(missing)} — an unexercised '
                      f'category may be unreachable')
         fails += 1
-    else:
+    if stray:
+        # An outcome no return statement can produce means the reader and the
+        # policy have diverged.
+        lines.append(f'  FAILED  produced but not in the policy surface: '
+                     f'{sorted(stray)}')
+        fails += 1
+    if not missing and not stray:
         lines.append(f'  ok      all {len(declared)} categories exercised: '
                      f'{", ".join(sorted(declared))}')
 

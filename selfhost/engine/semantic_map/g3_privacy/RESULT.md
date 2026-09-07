@@ -2,10 +2,11 @@
 # SM1-G3 — privacy domains
 
 **Gate:** [#52](https://github.com/mml555/shorebird/issues/52) · **Tracker:** [#48](https://github.com/mml555/shorebird/issues/48)
-**Run:** 2026-09-07, hardened after PM review · **Verdict: `checks_failed=0`,
-10 arms. Every declaration's privacy domain is derived and its *effective*
-domain resolved through the owner; six refusal causes are separated; three
-positive controls accept; every check was falsified.**
+**Run:** 2026-09-07, hardened after two PM reviews · **Verdict:
+`checks_failed=0`, 13 arms, all 8 policy categories exercised. Every
+declaration's privacy domain is derived and its *effective* domain resolved
+through the owner; seven refusal causes are separated; four positive controls
+accept; every check was falsified.**
 
 Transcript: [`evidence/g3_privacy.txt`](evidence/g3_privacy.txt) ·
 structured: [`evidence/g3_privacy.json`](evidence/g3_privacy.json) ·
@@ -231,6 +232,9 @@ load-bearing.
     privowner_public_method_foreign_scope        read       CROSS_DOMAIN_PRIVATE
     privowner_unnamed_constructor_same_library   construct  ACCEPT
     privowner_second_library_same_class_name     read       CROSS_DOMAIN_PRIVATE
+    privowner_construction_withheld              construct  CONSTRUCT_NOT_GRANTED
+    privowner_read_withheld                      read       READ_NOT_GRANTED
+    privowner_write_final_field                  write      NO_SUCH_MODE
 
 The four private-owner arms are their own minimal-pair set. All four name a
 member whose OWN name is public, so a member-only model treats them
@@ -270,54 +274,101 @@ See [`evidence/falsification.txt`](evidence/falsification.txt).
 | mutation | must break | observed | failures |
 |---|---|---|---|
 | one domain for every private name | the domain-distinctness check | `_privateHelper` × 2 no longer produce two domains; census collapses to `3 private` | 6 |
-| ignore `retained_in_release` | the tree-shaken arm | `tree_shaken_private` → `READ_NOT_GRANTED` (want `NOT_RETAINED`); category unexercised | 2 |
+| ignore `retained_in_release` | the tree-shaken arm | → `READ_NOT_GRANTED` (want `NOT_RETAINED`); category unexercised | 2 |
 | ignore `capability_key_identifies_mode` | the write arm | `private_write_read_only_grant` → **`ACCEPT`**; category unexercised | 2 |
-| drop the platform refusal from the policy | the platform arm | `platform_library_grant` → `CROSS_DOMAIN_PRIVATE` (want `PLATFORM_DOMAIN_PRIVATE`) | 2 |
-| a policy that refuses everything | all three positive controls | all three → `CROSS_DOMAIN_PRIVATE`; 4 categories unexercised | 8 |
-| **6a** member-only privacy, as originally shipped | the same-library owner arms | `privowner_public_method_same_library` and `..._unnamed_constructor...` → `CROSS_DOMAIN_PRIVATE` (want `ACCEPT`) | 2 |
-| **6b** ignore the owner entirely | the foreign-scope owner arms | `..._foreign_scope` and `..._second_library_same_class_name` → **`ACCEPT`** (want `CROSS_DOMAIN_PRIVATE`); `_Hidden.ping` effective domain `public` via `neither` | 5 |
+| drop the platform refusal | the platform arm | → `CROSS_DOMAIN_PRIVATE` (want `PLATFORM_DOMAIN_PRIVATE`) | 2 |
+| a policy that refuses everything | all four positive controls | 7 of 8 categories unexercised | 11 |
+| **6a** member-only privacy, as originally shipped | the same-library owner arms | same-library method and unnamed constructor → `CROSS_DOMAIN_PRIVATE` (want `ACCEPT`) | 6 |
+| **6b** ignore the owner entirely | the foreign-scope owner arms | foreign scope and second-library → **`ACCEPT`**; `_Hidden.ping` effective domain `public` via `neither` | 8 |
+| **7** skip the construct membership check | the withheld-construction arm | `privowner_construction_withheld` → **`ACCEPT`**; `CONSTRUCT_NOT_GRANTED` unexercised | 2 |
+| **8** add a ninth return to `decide()` | the derived inventory | surface reads **9 categories**; `SPURIOUS_CATEGORY` flagged unexercised | 1 |
+| **9** withhold a mode the subject has no key for | the withholding guard | "nothing was withheld and the arm would prove nothing"; the arm then → `ACCEPT` | 3 |
 
 Each mutation was reverted and the suite re-run green in the same transcript, so
 the failures are attributable to the mutation and not to a broken tree.
 
+**Mutation 8 is the one that settles the inventory question.** Adding a return
+`decide()` could produce but no arm exercises makes the surface read **nine**
+categories and fails on the new one. A hand-written set would have stayed at
+eight and noticed nothing — which is precisely how `CONSTRUCT_NOT_GRANTED`
+shipped unexercised while the gate reported full coverage.
+
+**Mutation 9 keeps the new withholding machinery honest.** `withhold_modes` is
+how the ungranted categories are reached, so a withhold that removes nothing
+would make those arms vacuous. Pointed at a mode the subject has no key for, the
+scorer says so and the arm then wrongly accepts.
+
 **The two owner mutations fail in opposite directions, which is the point.**
-6a is the defect exactly as reported: gate on `is_private or owner_is_private`,
-then compare the *member's* domain, and a legitimate same-library access is
-**refused**. 6b drops the owner from effective privacy instead, and the same
-declarations become **wholly public** — so a patch scoped to `helper.dart` is
+6a is the round-1 defect exactly: compare the *member's* domain and a legitimate
+same-library access is **refused**. 6b drops the owner instead, and the same
+declarations become wholly public — so a patch scoped to `helper.dart` is
 *accepted* against `app.dart`'s private class. One direction blocks valid
-patches; the other authorises invalid ones. Only carrying member privacy, owner
-privacy and the derived effective domain separately gets both right.
+patches; the other authorises invalid ones. 6b also **passes** the
+count-agreement assertion while being wrong (`4 effectively-private of 18` —
+internally consistent, and wrong); what catches it is the `_Hidden.ping` row
+check and the foreign-scope arms.
 
-6b also shows a check that does **not** catch it: the count-agreement assertion
-passes (`4 effectively-private of 18` — internally consistent, and wrong). What
-catches 6b is the `_Hidden.ping` row check and the two foreign-scope arms.
-
-**Four other rows say something the arms alone would not.**
+**Three more rows say something the arms alone would not.**
 
 *Mutation 1 does not break the cross-library arm.* With every private collapsed
-into one domain, `cross_library_private` still reports
-`CROSS_DOMAIN_PRIVATE` — refusing for a reason that is now accidental. What
-catches it is the **domain-distinctness check** and the positive controls.
-An adversarial arm that only asks "was it refused?" would pass a map with no
-library scoping at all. (The *class*-level distinctness check still passes under
-this mutation, because class domains come from `Class.enclosingLibrary` rather
-than from the mutated member rule — the two derivations are independent, and the
-transcript shows it.)
+into one domain, `cross_library_private` still reports `CROSS_DOMAIN_PRIVATE` —
+refusing for a reason that is now accidental. The **domain-distinctness check**
+and the positive controls catch it. An arm that only asks "was it refused?"
+would pass a map with no library scoping at all. (The *class*-level distinctness
+check still passes here, because class domains come from
+`Class.enclosingLibrary` rather than the mutated member rule — the two
+derivations are independent, and the transcript shows it.)
 
 *Mutation 3 is the sharpest.* Ignoring one boolean turns the private write into
-**`ACCEPT`** — a write authorised purely on the strength of a read grant, which
-is the precise hazard #52 names, reached by deleting one condition.
+**`ACCEPT`** — a write authorised purely on the strength of a read grant.
 
 *Mutation 4 still refuses.* Dropping the platform rule leaves the platform arm
-refusing, just as `CROSS_DOMAIN_PRIVATE`. Only requiring the **right category**
-catches it, which is why arms are scored on category rather than on refusal.
+refusing, just as the wrong category. Only scoring on category catches it.
 
-*Mutation 5* is the point of the positive controls: arms 1–4 and the two
-foreign-scope owner arms are all satisfied by `return REFUSE`, so without cases
-that must be **accepted**, this gate would certify a policy that refuses every
-patch. Category exhaustion is the second net — it caught a dead category in four
-of the seven mutations.
+## The category inventory is derived from the policy, not written beside it
+
+Round 2 shipped an exhaustion check that read:
+
+> every category the policy can return must be exercised
+
+with a **hand-written set of five**, while `decide()` could return **eight**.
+`READ_NOT_GRANTED`, `CONSTRUCT_NOT_GRANTED` and `NO_SUCH_MODE` sat outside the
+check entirely — so the newest category, added in the same round as the
+`construct` mode, had no arm and the gate still reported that every category was
+covered. A hand-maintained inventory is exactly how a harness comes to overstate
+itself.
+
+The inventory is now **read out of `decide()`'s own source**: its AST is parsed,
+every `Return` in the function is resolved against the module's constants, and
+the resulting set is the inventory. It cannot drift from the policy, because it
+is derived from it. It is fail-closed too — a return the reader cannot resolve
+to a literal aborts the scorer rather than being quietly dropped from the set.
+
+The check now runs in both directions: a category in the surface that no arm
+produced fails, and an outcome produced that is not in the surface fails.
+
+### Retaining a thing and granting it are different facts
+
+Reaching the ungranted categories needed a way to say "the release retained this
+and did not grant it". That is not hypothetical — the shipped manifest carries
+`constructionWithheld` and `refused` lists for precisely this — so a case may
+name `withhold_modes`, and the scorer removes that subject's own key for those
+modes from the synthetic manifest.
+
+The withholding is itself guarded: naming a mode the subject has no key for
+fails the case, because nothing would have been withheld and the arm would prove
+nothing.
+
+Three arms complete the surface, each a minimal pair against an accepted case:
+
+    privowner_construction_withheld  construct  CONSTRUCT_NOT_GRANTED
+    privowner_read_withheld          read       READ_NOT_GRANTED
+    privowner_write_final_field      write      NO_SUCH_MODE
+
+`NO_SUCH_MODE` is deliberately not `WRITE_NOT_GRANTED`: `seed` is `final`, so no
+write mode exists for anyone. "This cannot be written at all" and "this write
+was not granted by this release" have different remedies, and collapsing them
+would send a patch author looking for a grant that could never exist.
 
 ## Parity with G1
 
@@ -339,8 +390,10 @@ the separation G2's acceptance fixed.
       member of a private class is access-controlled by the owner
 - [x] Read and write capability are distinguished, not merged — and where the
       shipped key *cannot* distinguish them, the map says so and refuses the write
-- [x] Each adversarial arm refuses with an attributable reason — four distinct
-      categories, three of them minimal pairs against an accepted control
+- [x] Each adversarial arm refuses with an attributable reason — seven distinct
+      refusal categories, most of them minimal pairs against an accepted control
+- [x] Every category the policy can return is exercised, against an inventory
+      **derived from the policy's own source** rather than maintained beside it
 - [x] The guard-presence assertion runs before the platform-library arm is
       trusted — and `run_g3.sh` refuses to score without it
 
@@ -361,6 +414,12 @@ unexercised while the gate reported green.
 A fourth surfaced while fixing them: the constructor had **no** capability mode,
 so constructing a private class reported `NO_SUCH_MODE`. Construction is its own
 mode in the shipped manifest, and now in the map.
+
+Round 2 then shipped a fifth, in the harness rather than the model: the
+exhaustion check carried a hand-written set of five categories against an
+eight-way policy surface, so the `construct` mode's own refusal category had no
+arm while the gate reported full coverage. The inventory is now derived from
+`decide()`'s source.
 
 None of this changes the guard evidence or the six original arms, which are
 unmodified. The corpus gained `g3_privowner`; the base corpus stays frozen.

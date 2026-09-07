@@ -1,5 +1,5 @@
 SM1-G3 falsification — every check must be able to FAIL
-date : 2026-09-07T17:41:04Z
+date : 2026-09-07T18:13:38Z
 
 The confound assertion's own falsification (against a real guard-less tree,
 which COMPILES the probe) is separate: evidence/confound_guard_presence.txt.
@@ -27,38 +27,57 @@ which COMPILES the probe) is separate: evidence/confound_guard_presence.txt.
   SUMMARY checks_failed=2
 
 ############ 5. a policy that refuses EVERYTHING ############
-    FAILED  positive_read_private_field  CROSS_DOMAIN_PRIVATE (want ACCEPT); the positive control refused, so every refusal below may be a policy that refuses everything
-    FAILED  positive_invoke_private_method CROSS_DOMAIN_PRIVATE (want ACCEPT); the positive control refused, so every refusal below may be a policy that refuses everything
-    FAILED  privowner_public_method_same_library CROSS_DOMAIN_PRIVATE (want ACCEPT); the positive control refused, so every refusal below may be a policy that refuses everything
-    FAILED  never exercised: ['ACCEPT', 'NOT_RETAINED', 'PLATFORM_DOMAIN_PRIVATE', 'WRITE_NOT_GRANTED'] — an unexercised category may be unreachable
-  SUMMARY checks_failed=8
+    FAILED  never exercised: ['ACCEPT', 'CONSTRUCT_NOT_GRANTED', 'NOT_RETAINED', 'NO_SUCH_MODE', 'PLATFORM_DOMAIN_PRIVATE', 'READ_NOT_GRANTED', 'WRITE_NOT_GRANTED'] — an unexercised category may be unreachable
+  SUMMARY checks_failed=11
 
 ############ 6a. MEMBER-ONLY privacy, as originally shipped ############
-   Gate on (is_private or owner_is_private), then compare the MEMBER's own
-   domain against the grant scope. This is the defect exactly as reported:
-   a public method of a private class carries domain 'public', which
-   matches no library, so a legitimate SAME-LIBRARY access is refused.
     FAILED  privowner_public_method_same_library CROSS_DOMAIN_PRIVATE (want ACCEPT); the positive control refused, so every refusal below may be a policy that refuses everything
     ok      privowner_public_method_foreign_scope read  refuses  CROSS_DOMAIN_PRIVATE
     FAILED  privowner_unnamed_constructor_same_library CROSS_DOMAIN_PRIVATE (want ACCEPT); the positive control refused, so every refusal below may be a policy that refuses everything
     ok      privowner_second_library_same_class_name read  refuses  CROSS_DOMAIN_PRIVATE
-  SUMMARY checks_failed=2
+    FAILED  privowner_construction_withheld CROSS_DOMAIN_PRIVATE (want CONSTRUCT_NOT_GRANTED)
+    FAILED  privowner_read_withheld      CROSS_DOMAIN_PRIVATE (want READ_NOT_GRANTED)
+    FAILED  privowner_write_final_field  CROSS_DOMAIN_PRIVATE (want NO_SUCH_MODE)
+  SUMMARY checks_failed=6
 
 ############ 6b. ignore the OWNER entirely (the opposite failure) ############
-   Effective privacy = the member's own only. Now a public member of a
-   private class looks wholly public, so a FOREIGN-scoped patch is
-   ACCEPTED -- the over-permissive direction of the same defect.
     ok      census and private_count agree: 4 effectively-private of 18 rows
     FAILED  _Hidden.ping effective domain is public via neither
     ok      privowner_public_method_same_library read  accepts  ACCEPT
     FAILED  privowner_public_method_foreign_scope ACCEPT (want CROSS_DOMAIN_PRIVATE)
     ok      privowner_unnamed_constructor_same_library construct accepts  ACCEPT
     FAILED  privowner_second_library_same_class_name ACCEPT (want CROSS_DOMAIN_PRIVATE)
-  SUMMARY checks_failed=5
+    FAILED  privowner_construction_withheld ACCEPT (want CONSTRUCT_NOT_GRANTED)
+    FAILED  privowner_read_withheld      ACCEPT (want READ_NOT_GRANTED)
+    ok      privowner_write_final_field  write refuses  NO_SUCH_MODE
+  SUMMARY checks_failed=8
+
+############ 7. skip the CONSTRUCT membership check ############
+   A withheld construction must not be authorised by retention alone.
+    ok      privowner_unnamed_constructor_same_library construct accepts  ACCEPT
+    FAILED  privowner_construction_withheld ACCEPT (want CONSTRUCT_NOT_GRANTED)
+    FAILED  never exercised: ['CONSTRUCT_NOT_GRANTED'] — an unexercised category may be unreachable
+  SUMMARY checks_failed=2
+
+############ 8. the category inventory must TRACK the policy ############
+   Add a ninth return to decide() that no arm can produce. A hand-written
+   inventory would not notice; one derived from decide()'s own source must.
+    policy return surface, read from decide()'s own source: 9 categories
+    FAILED  never exercised: ['SPURIOUS_CATEGORY'] — an unexercised category may be unreachable
+  SUMMARY checks_failed=1
+
+############ 9. a withhold that withholds NOTHING ############
+   Point withhold_modes at a mode the subject has no key for. The arm would
+   otherwise 'pass' while the manifest was never actually reduced.
+    FAILED  privowner_read_withheld      withhold_modes names 'construct', but the subject has no key for that mode, so nothing was withheld and the arm would prove nothing
+    FAILED  privowner_read_withheld      ACCEPT (want READ_NOT_GRANTED)
+    FAILED  never exercised: ['READ_NOT_GRANTED'] — an unexercised category may be unreachable
+  SUMMARY checks_failed=3
 
 ############ restored ############
   --- identity parity with G1 (recomputed, not imported) ---
     G1/G3 identity parity : 23 shared declarations, 0 disagreement(s)
-    ok      census and private_count agree: 11 effectively-private of 18 rows
+    policy return surface, read from decide()'s own source: 8 categories
+    ok      all 8 categories exercised: ACCEPT, CONSTRUCT_NOT_GRANTED, CROSS_DOMAIN_PRIVATE, NOT_RETAINED, NO_SUCH_MODE, PLATFORM_DOMAIN_PRIVATE, READ_NOT_GRANTED, WRITE_NOT_GRANTED
   SUMMARY checks_failed=0
   G3 PRIVACY VERIFIED

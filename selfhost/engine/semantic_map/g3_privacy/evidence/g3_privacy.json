@@ -11,7 +11,8 @@
       "grant_scope": "package:corpus/app.dart",
       "expected": "ACCEPT",
       "got": "ACCEPT",
-      "subject": "package:corpus/app.dart#Shape#_scaled"
+      "subject": "package:corpus/app.dart#Shape#_scaled",
+      "withhold_modes": []
     },
     {
       "id": "positive_invoke_private_method",
@@ -20,7 +21,8 @@
       "grant_scope": "package:corpus/app.dart",
       "expected": "ACCEPT",
       "got": "ACCEPT",
-      "subject": "package:corpus/app.dart##_privateHelper"
+      "subject": "package:corpus/app.dart##_privateHelper",
+      "withhold_modes": []
     },
     {
       "id": "cross_library_private",
@@ -29,7 +31,8 @@
       "grant_scope": "package:corpus/app.dart",
       "expected": "CROSS_DOMAIN_PRIVATE",
       "got": "CROSS_DOMAIN_PRIVATE",
-      "subject": "package:corpus/helper.dart##_privateHelper"
+      "subject": "package:corpus/helper.dart##_privateHelper",
+      "withhold_modes": []
     },
     {
       "id": "platform_library_grant",
@@ -38,7 +41,8 @@
       "grant_scope": "dart:core",
       "expected": "PLATFORM_DOMAIN_PRIVATE",
       "got": "PLATFORM_DOMAIN_PRIVATE",
-      "subject": "package:corpus/app.dart#Shape#_scaled"
+      "subject": "package:corpus/app.dart#Shape#_scaled",
+      "withhold_modes": []
     },
     {
       "id": "tree_shaken_private",
@@ -47,7 +51,8 @@
       "grant_scope": "package:corpus/app.dart",
       "expected": "NOT_RETAINED",
       "got": "NOT_RETAINED",
-      "subject": "package:corpus/app.dart##_shakenAway"
+      "subject": "package:corpus/app.dart##_shakenAway",
+      "withhold_modes": []
     },
     {
       "id": "private_write_read_only_grant",
@@ -56,7 +61,8 @@
       "grant_scope": "package:corpus/app.dart",
       "expected": "WRITE_NOT_GRANTED",
       "got": "WRITE_NOT_GRANTED",
-      "subject": "package:corpus/app.dart#Shape#_scaled"
+      "subject": "package:corpus/app.dart#Shape#_scaled",
+      "withhold_modes": []
     },
     {
       "id": "privowner_public_method_same_library",
@@ -65,7 +71,8 @@
       "grant_scope": "package:corpus/app.dart",
       "expected": "ACCEPT",
       "got": "ACCEPT",
-      "subject": "package:corpus/app.dart#_Hidden#ping"
+      "subject": "package:corpus/app.dart#_Hidden#ping",
+      "withhold_modes": []
     },
     {
       "id": "privowner_public_method_foreign_scope",
@@ -74,7 +81,8 @@
       "grant_scope": "package:corpus/helper.dart",
       "expected": "CROSS_DOMAIN_PRIVATE",
       "got": "CROSS_DOMAIN_PRIVATE",
-      "subject": "package:corpus/app.dart#_Hidden#ping"
+      "subject": "package:corpus/app.dart#_Hidden#ping",
+      "withhold_modes": []
     },
     {
       "id": "privowner_unnamed_constructor_same_library",
@@ -83,7 +91,8 @@
       "grant_scope": "package:corpus/app.dart",
       "expected": "ACCEPT",
       "got": "ACCEPT",
-      "subject": "package:corpus/app.dart#_Hidden#"
+      "subject": "package:corpus/app.dart#_Hidden#",
+      "withhold_modes": []
     },
     {
       "id": "privowner_second_library_same_class_name",
@@ -92,7 +101,42 @@
       "grant_scope": "package:corpus/app.dart",
       "expected": "CROSS_DOMAIN_PRIVATE",
       "got": "CROSS_DOMAIN_PRIVATE",
-      "subject": "package:corpus/helper.dart#_Hidden#ping"
+      "subject": "package:corpus/helper.dart#_Hidden#ping",
+      "withhold_modes": []
+    },
+    {
+      "id": "privowner_construction_withheld",
+      "corpus": "g3_privowner",
+      "mode": "construct",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "CONSTRUCT_NOT_GRANTED",
+      "got": "CONSTRUCT_NOT_GRANTED",
+      "subject": "package:corpus/app.dart#_Hidden#",
+      "withhold_modes": [
+        "construct"
+      ]
+    },
+    {
+      "id": "privowner_read_withheld",
+      "corpus": "g3_privowner",
+      "mode": "read",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "READ_NOT_GRANTED",
+      "got": "READ_NOT_GRANTED",
+      "subject": "package:corpus/app.dart#_Hidden#ping",
+      "withhold_modes": [
+        "read"
+      ]
+    },
+    {
+      "id": "privowner_write_final_field",
+      "corpus": "g3_privowner",
+      "mode": "write",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "NO_SUCH_MODE",
+      "got": "NO_SUCH_MODE",
+      "subject": "package:corpus/app.dart#_Hidden#seed",
+      "withhold_modes": []
     }
   ],
   "arms": {
@@ -117,9 +161,22 @@
     ],
     "categories_exercised": [
       "ACCEPT",
+      "CONSTRUCT_NOT_GRANTED",
       "CROSS_DOMAIN_PRIVATE",
       "NOT_RETAINED",
+      "NO_SUCH_MODE",
       "PLATFORM_DOMAIN_PRIVATE",
+      "READ_NOT_GRANTED",
+      "WRITE_NOT_GRANTED"
+    ],
+    "policy_return_surface": [
+      "ACCEPT",
+      "CONSTRUCT_NOT_GRANTED",
+      "CROSS_DOMAIN_PRIVATE",
+      "NOT_RETAINED",
+      "NO_SUCH_MODE",
+      "PLATFORM_DOMAIN_PRIVATE",
+      "READ_NOT_GRANTED",
       "WRITE_NOT_GRANTED"
     ]
   }

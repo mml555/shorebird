@@ -57,9 +57,13 @@ SM1-G3 privacy domains
   ok      privowner_public_method_foreign_scope read  refuses  CROSS_DOMAIN_PRIVATE
   ok      privowner_unnamed_constructor_same_library construct accepts  ACCEPT
   ok      privowner_second_library_same_class_name read  refuses  CROSS_DOMAIN_PRIVATE
+  ok      privowner_construction_withheld construct refuses  CONSTRUCT_NOT_GRANTED
+  ok      privowner_read_withheld      read  refuses  READ_NOT_GRANTED
+  ok      privowner_write_final_field  write refuses  NO_SUCH_MODE
 
 --- every refusal category is exercised by some arm ---
-  ok      all 5 categories exercised: ACCEPT, CROSS_DOMAIN_PRIVATE, NOT_RETAINED, PLATFORM_DOMAIN_PRIVATE, WRITE_NOT_GRANTED
+  policy return surface, read from decide()'s own source: 8 categories
+  ok      all 8 categories exercised: ACCEPT, CONSTRUCT_NOT_GRANTED, CROSS_DOMAIN_PRIVATE, NOT_RETAINED, NO_SUCH_MODE, PLATFORM_DOMAIN_PRIVATE, READ_NOT_GRANTED, WRITE_NOT_GRANTED
 
 SUMMARY checks_failed=0
 G3 PRIVACY VERIFIED
