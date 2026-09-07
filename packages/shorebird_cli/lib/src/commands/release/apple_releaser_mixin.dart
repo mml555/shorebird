@@ -4,6 +4,7 @@ import 'package:shorebird_cli/src/commands/release/releaser.dart';
 import 'package:shorebird_cli/src/executables/xcodebuild.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
+import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_validator.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
 import 'package:shorebird_cli/src/validators/validators.dart';
@@ -16,6 +17,13 @@ import 'package:shorebird_cli/src/validators/validators.dart';
 mixin AppleReleaserMixin on Releaser {
   /// The doctor validators that should run before this Apple release.
   List<Validator> get applePlatformValidators;
+
+  /// Apple targets are the only ones where Flutter runs the DD pass
+  /// (`usesLinker`), so they are the only ones that need to check whether the
+  /// engine supports it. macOS overrides this with its own `gen_snapshot`.
+  @override
+  ShorebirdArtifact? get ddGenSnapshotArtifact =>
+      ShorebirdArtifact.genSnapshotIos;
 
   @override
   Future<void> assertPreconditions() async {
