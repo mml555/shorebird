@@ -1,0 +1,27 @@
+{
+  "schema": "semantic-map-1/g1-expectations-ext/1",
+  "purpose": "G1's OWN corpus extension, kept separate from G0's frozen corpus so G0's frozen digest stays valid and its acceptance is not disturbed. These cover the sufficiency conditions #50 lists that G0's dimensions do not reach.",
+  "subject_default": "corpus.app::topLevel",
+  "mutants": [
+    { "id": "ext_extension_member", "subject": "package:corpus/app.dart::topLevel",
+      "dimension": "extension member added elsewhere in the library",
+      "declaration_id_stable": true,
+      "note": "sufficiency: extension members must not disturb an unrelated declaration's identity" },
+    { "id": "ext_renamed_subject", "subject": "package:corpus/app.dart::topLevel",
+      "dimension": "the subject itself is renamed",
+      "declaration_id_stable": false,
+      "note": "MUST move: a renamed declaration is a different declaration" },
+    { "id": "ext_kind_change", "subject": "package:corpus/app.dart::topLevel",
+      "dimension": "the subject changes kind (function -> getter)",
+      "declaration_id_stable": false,
+      "note": "MUST move: kind is part of the identity, and the VM name changes too (topLevel -> get:topLevel)" },
+    { "id": "ext_owner_change", "subject": "package:corpus/app.dart::topLevel",
+      "dimension": "the subject is re-owned (top level -> static member of Shape)",
+      "declaration_id_stable": false,
+      "note": "MUST move: owner path is part of the identity" },
+    { "id": "ext_moved_library", "subject": "package:corpus/app.dart::topLevel",
+      "dimension": "the subject moves to a different library",
+      "declaration_id_stable": false,
+      "note": "MUST move. Worth stating plainly: this means renaming a package re-identifies every declaration in it, which is a real design consequence for SM1-G6 to weigh, not a defect of the identity." }
+  ]
+}

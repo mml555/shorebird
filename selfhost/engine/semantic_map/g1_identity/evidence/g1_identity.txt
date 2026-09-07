@@ -1,0 +1,35 @@
+--- G0 frozen corpus: the untouched subject must keep its identity ---
+  ok      body_only                declaration_id stable (want stable)   index_id stable
+  ok      abi_added_positio--- G0 frozen corpus: the untouched subject must keep its identity ---
+  ok      body_only                declaration_id stable (want stable)   index_id stable
+  ok      abi_added_positional     declaration_id stable (want stable)   index_id stable
+  ok      abi_nullability          declaration_id stable (want stable)   index_id stable
+  ok      abi_positional_to_named  declaration_id stable (want stable)   index_id stable
+  ok      abi_generic_bound        declaration_id stable (want stable)   index_id stable
+  ok      abi_return_type          declaration_id stable (want stable)   index_id stable
+  ok      reorder                  declaration_id stable (want stable)   index_id moved
+  ok      unrelated_added          declaration_id stable (want stable)   index_id stable
+  ok      unrelated_removed        declaration_id stable (want stable)   index_id stable
+  ok      unrelated_renamed        declaration_id stable (want stable)   index_id stable
+  ok      field_added              declaration_id stable (want stable)   index_id stable
+  ok      private_other_domain     declaration_id stable (want stable)   index_id stable
+
+--- G1 corpus extension: sufficiency, and the MUST-MOVE cases ---
+  ok      ext_extension_member     declaration_id stable (want stable)   index_id moved
+  ok      ext_renamed_subject      subject no longer exists under its old identity (moved, as required)
+  ok      ext_kind_change          declaration_id moved (want moved)   index_id stable
+  ok      ext_owner_change         subject no longer exists under its old identity (moved, as required)
+  ok      ext_moved_library        subject no longer exists under its old identity (moved, as required)
+
+--- positive control: the order-derived identity MUST fail reorder ---
+  ok      the order-derived control MOVED under reorder (harness can detect the defect)
+  ok      the canonical identity survived reorder
+
+--- collision search across every variant ---
+  ok      no declaration_id collisions in any variant (23 declarations in base)
+
+--- member kinds named in base ---
+  2 class, 3 constructor, 1 factory, 3 field, 2 getter, 10 method, 1 operator, 1 setter
+
+SUMMARY checks_failed=0 collisions=0
+G1 IDENTITY VERIFIED

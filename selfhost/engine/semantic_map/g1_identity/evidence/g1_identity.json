@@ -1,0 +1,180 @@
+{
+  "schema": "semantic-map-1/g1-identity/1",
+  "gate": "SM1-G1",
+  "issue": 50,
+  "checks_failed": 0,
+  "collisions": 0,
+  "base_declaration_count": 23,
+  "member_kinds_named": {
+    "class": 2,
+    "method": 10,
+    "constructor": 3,
+    "field": 3,
+    "factory": 1,
+    "getter": 2,
+    "operator": 1,
+    "setter": 1
+  },
+  "harness_control": {
+    "available": true,
+    "canonical_stable_under_reorder": true,
+    "index_derived_stable_under_reorder": false
+  },
+  "results": [
+    {
+      "id": "body_only",
+      "subject": "package:corpus/app.dart::topLevel",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": "the load-bearing case: a body change must NOT move the declaration id, or the map cannot say 'same declaration, new implementation'"
+    },
+    {
+      "id": "abi_added_positional",
+      "subject": "package:corpus/app.dart::Shape.area",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": ""
+    },
+    {
+      "id": "abi_nullability",
+      "subject": "package:corpus/app.dart::topLevel",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": "body is textually identical; only the return type moved. If the map reports abi_equal here it is deriving ABI from the body."
+    },
+    {
+      "id": "abi_positional_to_named",
+      "subject": "package:corpus/app.dart::Shape.area",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": "also inside the ROADMAP P2 refusal boundary; the map must state the refusal rather than mis-classify"
+    },
+    {
+      "id": "abi_generic_bound",
+      "subject": "package:corpus/app.dart::Box",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": ""
+    },
+    {
+      "id": "abi_return_type",
+      "subject": "package:corpus/app.dart::Shape.perimeter",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": ""
+    },
+    {
+      "id": "reorder",
+      "subject": "package:corpus/app.dart::topLevel",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": false,
+      "outcome": "OK",
+      "note": "the anti-order-dependence case: an index- or offset-derived identity fails here"
+    },
+    {
+      "id": "unrelated_added",
+      "subject": "package:corpus/app.dart::topLevel",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": ""
+    },
+    {
+      "id": "unrelated_removed",
+      "subject": "package:corpus/app.dart::topLevel",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": ""
+    },
+    {
+      "id": "unrelated_renamed",
+      "subject": "package:corpus/app.dart::topLevel",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": ""
+    },
+    {
+      "id": "field_added",
+      "subject": "package:corpus/app.dart::Shape.area",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": "the METHOD is unchanged. Whether the owning class's layout change makes the method unsafe to reuse is a SEPARATE question owned by SM1-G5, and must not be smuggled into the fingerprints."
+    },
+    {
+      "id": "private_other_domain",
+      "subject": "package:corpus/app.dart::usesPrivate",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": "corpus.helper::_privateHelper and corpus.app::_privateHelper share a simple name across privacy domains; a map that confuses them will report app's caller as changed"
+    },
+    {
+      "id": "ext_extension_member",
+      "subject": "package:corpus/app.dart::topLevel",
+      "source": "g1_identity/EXPECTATIONS_EXT.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": false,
+      "outcome": "OK",
+      "note": "sufficiency: extension members must not disturb an unrelated declaration's identity"
+    },
+    {
+      "id": "ext_renamed_subject",
+      "outcome": "MOVED_ABSENT",
+      "base_declaration_id": "66384f87886ea5ed8fd1ebd44bebce37ff222f55f3391c3a714bcfab40439f1d"
+    },
+    {
+      "id": "ext_kind_change",
+      "subject": "package:corpus/app.dart::topLevel",
+      "source": "g1_identity/EXPECTATIONS_EXT.json",
+      "want_declaration_id_stable": false,
+      "declaration_id_stable": false,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": "MUST move: kind is part of the identity, and the VM name changes too (topLevel -> get:topLevel)"
+    },
+    {
+      "id": "ext_owner_change",
+      "outcome": "MOVED_ABSENT",
+      "base_declaration_id": "66384f87886ea5ed8fd1ebd44bebce37ff222f55f3391c3a714bcfab40439f1d"
+    },
+    {
+      "id": "ext_moved_library",
+      "outcome": "MOVED_ABSENT",
+      "base_declaration_id": "66384f87886ea5ed8fd1ebd44bebce37ff222f55f3391c3a714bcfab40439f1d"
+    }
+  ]
+}
