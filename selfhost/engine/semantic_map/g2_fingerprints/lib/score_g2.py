@@ -47,9 +47,22 @@ def norm(subject):
     return subject
 
 
-def classify(abi_equal, body_equal):
-    """The three answers G2 exists to give."""
+def classify(abi_equal, body_equal, owner_abi_equal=True, body_status='supported'):
+    """The three answers G2 exists to give, fail-closed.
+
+    An unsupported body can never become candidate_unchanged: the encoder hit a
+    node kind outside its allowlist, so "equal" would mean "equal in the parts I
+    looked at".
+
+    A member whose OWNER's ABI moved is not reusable even when its own signature
+    is unchanged -- Box.unwrap reads T -> T while Box<T extends Shape> becomes
+    Box<T extends Object>.
+    """
+    if body_status != 'supported':
+        return 'refused:unsupported_body'
     if not abi_equal:
+        return 'not_reusable_under_old_abi'
+    if not owner_abi_equal:
         return 'not_reusable_under_old_abi'
     return 'candidate_unchanged' if body_equal else 'changed_existing_declaration'
 
@@ -63,7 +76,7 @@ def arm(title):
 
 
 def case(cid, subject, want_abi_equal, want_body_equal, want_class,
-         baseline='base', note=''):
+         baseline='base', note='', want_owner_abi_equal=None, label=None):
     """Compare one declaration between a baseline and a variant."""
     global fails
     b_doc, m_doc = rows(baseline), rows(cid)
@@ -85,7 +98,9 @@ def case(cid, subject, want_abi_equal, want_body_equal, want_class,
     abi_equal = b['abi_fingerprint'] == m['abi_fingerprint']
     body_equal = b['body_fingerprint'] == m['body_fingerprint']
     decl_equal = b['declaration_id'] == m['declaration_id']
-    got_class = classify(abi_equal, body_equal)
+    owner_abi_equal = b.get('owner_abi_fingerprint') == m.get('owner_abi_fingerprint')
+    status = m.get('body_status', 'supported')
+    got_class = classify(abi_equal, body_equal, owner_abi_equal, status)
 
     problems = []
     if want_abi_equal is not None and abi_equal != want_abi_equal:
@@ -94,6 +109,11 @@ def case(cid, subject, want_abi_equal, want_body_equal, want_class,
     if want_body_equal is not None and body_equal != want_body_equal:
         problems.append(f'body {"equal" if body_equal else "differs"} '
                         f'(want {"equal" if want_body_equal else "differs"})')
+    if want_owner_abi_equal is not None and owner_abi_equal != want_owner_abi_equal:
+        problems.append(f'owner_abi {"equal" if owner_abi_equal else "differs"} '
+                        f'(want {"equal" if want_owner_abi_equal else "differs"})')
+    if status != 'supported':
+        problems.append(f'body_status {status}')
     if want_class and got_class != want_class:
         problems.append(f'class {got_class} (want {want_class})')
     # G1's separation must hold: identity is not a function of ABI or body.
@@ -103,13 +123,15 @@ def case(cid, subject, want_abi_equal, want_body_equal, want_class,
 
     if problems:
         fails += 1
-        lines.append(f'  FAILED  {cid:26} ' + '; '.join(problems))
+        lines.append(f'  FAILED  {(label or cid):26} ' + '; '.join(problems))
     else:
-        lines.append(f'  ok      {cid:26} abi={"=" if abi_equal else "≠"} '
-                     f'body={"=" if body_equal else "≠"}  -> {got_class}')
+        lines.append(f'  ok      {(label or cid):26} abi={"=" if abi_equal else "≠"} '
+                     f'body={"=" if body_equal else "≠"} '
+                     f'owner={"=" if owner_abi_equal else "≠"}  -> {got_class}')
     results.append({
-        'id': cid, 'subject': key, 'baseline': baseline,
+        'id': label or cid, 'variant': cid, 'subject': key, 'baseline': baseline,
         'abi_equal': abi_equal, 'body_equal': body_equal,
+        'owner_abi_equal': owner_abi_equal, 'body_status': status,
         'declaration_id_stable': decl_equal,
         'classification': got_class, 'expected_classification': want_class,
         'outcome': 'OK' if not problems else 'MISMATCH', 'note': note,
@@ -148,7 +170,8 @@ arm('canonicalization exclusions, each justified by its own arm')
 for m in load(g2_exp)['cases']:
     case(m['id'], m['subject'], m['abi_equal'], m['body_equal'],
          m['expected_classification'], baseline=m.get('baseline', 'base'),
-         note=m.get('note', ''))
+         note=m.get('note', ''), want_owner_abi_equal=m.get('owner_abi_equal'),
+         label=m.get('case_id'))
 
 # INDEPENDENCE. The two fingerprints must not be functions of each other. The
 # ABI arms are the proof: four of them leave the body text identical while the
@@ -178,6 +201,20 @@ if ok_body:
 else:
     lines.append('  FAILED  body independence is not demonstrated')
     fails += 1
+
+# NO ROW MAY CARRY AN UNSUPPORTED BODY SILENTLY.
+arm('body encoding is complete for every row, or the row says it is not')
+bad_status = [f"{r['owner'] or ''}.{r['name']} -> {r['body_status']}"
+              for r in base['rows'] if r.get('body_status') != 'supported']
+extra['unsupported_bodies'] = bad_status
+if bad_status:
+    lines.append(f'  FINDING {len(bad_status)} row(s) refuse their body encoding:')
+    for b in bad_status[:8]:
+        lines.append(f'            {b}')
+    lines.append('          These are REFUSALS, not equalities: an unsupported body can '
+                 'never classify as candidate_unchanged.')
+else:
+    lines.append(f'  ok      all {base["count"]} rows encoded within the allowlist')
 
 # THE REFUSAL BOUNDARY MUST BE IN THE MAP, not inferred by a caller.
 arm('the map STATES the P2 refusal boundary')

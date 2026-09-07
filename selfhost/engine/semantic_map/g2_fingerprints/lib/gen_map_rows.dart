@@ -58,8 +58,10 @@ import 'dart:io';
 import 'package:crypto/crypto.dart' show sha256;
 import 'package:kernel/ast.dart';
 import 'package:kernel/binary/ast_from_binary.dart';
-import 'package:kernel/src/printer.dart' show defaultAstTextStrategy;
 import 'package:kernel/text/ast_to_text.dart' show Printer;
+
+import 'body_encoder.dart';
+import 'type_text.dart';
 
 const String _sep = '\u0000';
 
@@ -83,11 +85,6 @@ String canonicalId({
   required String kind,
   required String name,
 }) => _hash([library, ownerPath, kind, name]);
-
-/// Canonical text for a type. Structural, carries nullability and type
-/// arguments, and contains no source position.
-String typeText(DartType? t) =>
-    t == null ? '<null>' : t.toText(defaultAstTextStrategy);
 
 // ---------------------------------------------------------------- ABI shape
 /// What the release-time contract can actually support today, STATED by the map
@@ -127,141 +124,6 @@ List<String> _abiOfFunction(FunctionNode f) => [
         ..sort())
       .join(','),
 ];
-
-// ------------------------------------------------------------ body encoding
-/// A structural, order-preserving encoding of a function body.
-///
-/// EXCLUDED, each justified by an arm in the corpus:
-///   1. source positions (fileOffset, file URIs) -- incidental source metadata
-///   2. local variable NAMES, encoded by binding ordinal instead -- a local's
-///      name is not observable (g2_local_rename)
-///
-/// NOT EXCLUDED, deliberately:
-///   * statement and expression ORDER -- execution order is observable
-///     (g2_stmt_order proves the encoding moves when order does)
-///   * literal values -- `x + 1` and `x + 2` must differ (body_only)
-///   * invocation target identities -- calling a different function is a
-///     different body
-///   * named-argument names at call sites
-class _BodyEncoder extends RecursiveVisitor {
-  final StringBuffer out = StringBuffer();
-  final Map<VariableDeclaration, int> _locals = {};
-
-  void _emit(String s) => out.write('$s;');
-
-  int _ordinal(VariableDeclaration v) =>
-      _locals.putIfAbsent(v, () => _locals.length);
-
-  @override
-  void defaultNode(Node node) {
-    // The node KIND, and nothing positional about where it came from.
-    _emit(node.runtimeType.toString());
-    node.visitChildren(this);
-  }
-
-  @override
-  void visitVariableDeclaration(VariableDeclaration node) {
-    _emit('VarDecl#${_ordinal(node)}:${typeText(node.type)}');
-    node.visitChildren(this);
-  }
-
-  @override
-  void visitVariableGet(VariableGet node) {
-    _emit('VarGet#${_locals[node.variable] ?? -1}');
-    node.visitChildren(this);
-  }
-
-  @override
-  void visitVariableSet(VariableSet node) {
-    _emit('VarSet#${_locals[node.variable] ?? -1}');
-    node.visitChildren(this);
-  }
-
-  @override
-  void visitIntLiteral(IntLiteral node) => _emit('Int:${node.value}');
-
-  @override
-  void visitDoubleLiteral(DoubleLiteral node) => _emit('Double:${node.value}');
-
-  @override
-  void visitStringLiteral(StringLiteral node) => _emit('Str:${node.value}');
-
-  @override
-  void visitBoolLiteral(BoolLiteral node) => _emit('Bool:${node.value}');
-
-  @override
-  void visitNullLiteral(NullLiteral node) => _emit('Null');
-
-  @override
-  void visitStaticInvocation(StaticInvocation node) {
-    _emit('StaticInvoke:${_refKey(node.targetReference)}');
-    node.visitChildren(this);
-  }
-
-  @override
-  void visitStaticGet(StaticGet node) {
-    _emit('StaticGet:${_refKey(node.targetReference)}');
-    node.visitChildren(this);
-  }
-
-  @override
-  void visitInstanceInvocation(InstanceInvocation node) {
-    _emit('InstanceInvoke:${_refKey(node.interfaceTargetReference)}');
-    node.visitChildren(this);
-  }
-
-  @override
-  void visitInstanceGet(InstanceGet node) {
-    _emit('InstanceGet:${_refKey(node.interfaceTargetReference)}');
-    node.visitChildren(this);
-  }
-
-  @override
-  void visitInstanceSet(InstanceSet node) {
-    _emit('InstanceSet:${_refKey(node.interfaceTargetReference)}');
-    node.visitChildren(this);
-  }
-
-  @override
-  void visitConstructorInvocation(ConstructorInvocation node) {
-    _emit('CtorInvoke:${_refKey(node.targetReference)}');
-    node.visitChildren(this);
-  }
-
-  @override
-  void visitArguments(Arguments node) {
-    // Named-argument names are observable at a call site.
-    _emit('Args:${node.named.map((n) => n.name).join(',')}'
-        ':${node.types.map(typeText).join(',')}');
-    node.visitChildren(this);
-  }
-
-  /// A target is identified by its CANONICAL NAME, never by a reference index.
-  ///
-  /// Read from the Reference rather than by dereferencing to a Member: the
-  /// pre-AOT kernel is built `--no-link-platform`, so `dart:core` targets are
-  /// unbound and `interfaceTarget` throws
-  ///
-  ///   Reference to dart:core::num::@methods::+ is not bound to an AST node
-  ///
-  /// The canonical name carries library, class and member and is available
-  /// whether or not the platform was linked, so it works on both kernels --
-  /// which is required, since the body is fingerprinted from both.
-  static String _refKey(Reference? r) {
-    if (r == null) return '<none>';
-    final cn = r.canonicalName;
-    return cn == null ? '<unbound>' : cn.toString();
-  }
-}
-
-String bodyFingerprint(FunctionNode? f) {
-  if (f == null) return _hash(['no-function-node']);
-  final body = f.body;
-  if (body == null) return _hash(['no-body']);
-  final enc = _BodyEncoder();
-  body.accept(enc);
-  return _hash(['body', enc.out.toString()]);
-}
 
 /// The INCUMBENT oracle: printed Kernel, as `build_patch.dart` computes it.
 /// Emitted for cross-checking only; neither fingerprint is derived from it.
@@ -361,6 +223,29 @@ void main(List<String> args) {
     }
   }
 
+  // The class ABI is needed by every member of that class, so it is computed
+  // first, from the PRE-AOT class, with the same components and the same hash
+  // the class's own row uses.
+  List<String> classAbiParts(Class c) => [
+    'typeParams', c.typeParameters.map((p) => typeText(p.bound)).join(','),
+    'super', typeText(c.supertype?.asInterfaceType),
+    'mixin', typeText(c.mixedInType?.asInterfaceType),
+    'implements',
+    (c.implementedTypes.map((t) => typeText(t.asInterfaceType)).toList()..sort())
+        .join(','),
+    'abstract', '${c.isAbstract}',
+  ];
+  final classAbi = <String, String>{};
+  for (final lib in component.libraries.where(isApp)) {
+    for (final cls in lib.classes) {
+      final preCls =
+          preClasses[memberKeyOf(lib.importUri.toString(), null, 'class', cls.name)] ??
+              cls;
+      classAbi[cls.name] =
+          _hash(['abi', 'class', 'false', '', ...classAbiParts(preCls)]);
+    }
+  }
+
   final rows = <Map<String, Object?>>[];
 
   void addRow({
@@ -377,6 +262,9 @@ void main(List<String> args) {
     String? ownerKind,
     String? bodyPre,
     bool abiFromPreAot = false,
+    String bodyStatus = 'supported',
+    String? bodyStatusPre,
+    String? ownerAbiFingerprint,
   }) {
     // CONSERVATIVE BODY COMBINATION. Changed if EITHER kernel's body moved, so
     // the map can never report unchanged when something did change.
@@ -405,6 +293,20 @@ void main(List<String> args) {
       'body_fingerprint': bodyCombined,
       'body_fingerprint_aot': body,
       'body_fingerprint_pre_aot': bodyPre,
+      // FAIL-CLOSED. If either kernel's body hit a node outside the allowlist,
+      // the row says so and a caller must refuse it. An unsupported body can
+      // never become candidate_unchanged.
+      'body_status': (bodyStatus == 'supported' &&
+              (bodyStatusPre == null || bodyStatusPre == 'supported'))
+          ? 'supported'
+          : [bodyStatus, bodyStatusPre].whereType<String>()
+              .where((x) => x != 'supported').join('|'),
+      // OWNER-ABI DEPENDENCY. A member's own signature can read T -> T while
+      // its owner's bound moves from <T extends Shape> to <T extends Object>.
+      // G1 deferred that here deliberately; #51 includes the owner/type
+      // relationship, so the row carries the owner's ABI and reuse requires
+      // BOTH to match.
+      'owner_abi_fingerprint': ownerAbiFingerprint,
       'incumbent_printed_sha256': printed,
     });
   }
@@ -421,6 +323,8 @@ void main(List<String> args) {
       // recorded as such -- never silently taken from the AOT signature.
       final pre = preByKey[memberKeyOf(library, owner, _procKind(p), p.name.text)];
       final preFn = pre is Procedure ? pre.function : null;
+      final aotEnc = BodyEncoder().encodeFunction(p.function);
+      final preEnc = preFn == null ? null : BodyEncoder().encodeFunction(preFn);
       addRow(
         library: library,
         owner: rowOwner,
@@ -431,8 +335,11 @@ void main(List<String> args) {
             ? const ['abi', 'UNAVAILABLE_NO_PRE_AOT_COUNTERPART']
             : _abiOfFunction(preFn),
         shape: preFn == null ? 'unknown:no_pre_aot_counterpart' : abiShape(preFn),
-        body: bodyFingerprint(p.function),
-        bodyPre: preFn == null ? null : bodyFingerprint(preFn),
+        body: _hash(['body', aotEnc.tokens]),
+        bodyStatus: aotEnc.status,
+        bodyPre: preEnc == null ? null : _hash(['body', preEnc.tokens]),
+        bodyStatusPre: preEnc?.status,
+        ownerAbiFingerprint: owner == null ? null : classAbi[owner],
         printed: incumbentPrinted(p),
         loweredName: ext == null ? null : p.name.text,
         ownerKind: ext == null ? null : 'extension',
@@ -446,6 +353,11 @@ void main(List<String> args) {
     for (final f in lib.fields) {
       final preF = preByKey[memberKeyOf(library, null, 'field', f.name.text)];
       final ft = preF is Field ? preF : f;
+      // The initializer CONTENTS matter: recording only "present" let
+      // `final x = 1` -> `final x = 2` stay equal.
+      final fAotEnc = BodyEncoder().encodeExpression(f.initializer);
+      final fPreEnc =
+          preF is Field ? BodyEncoder().encodeExpression(preF.initializer) : null;
       addRow(
         library: library, owner: null, name: f.name.text, kind: 'field',
         isStatic: true,
@@ -453,7 +365,10 @@ void main(List<String> args) {
         abiParts: ['type', typeText(ft.type), 'final', '${ft.isFinal}',
                    'const', '${ft.isConst}'],
         shape: 'supported',
-        body: _hash(['field-initializer', f.initializer == null ? 'none' : 'present']),
+        body: _hash(['field-init', fAotEnc.tokens]),
+        bodyStatus: fAotEnc.status,
+        bodyPre: fPreEnc == null ? null : _hash(['field-init', fPreEnc.tokens]),
+        bodyStatusPre: fPreEnc?.status,
         printed: incumbentPrinted(f),
       );
     }
@@ -466,15 +381,7 @@ void main(List<String> args) {
         // A class's ABI is its shape as a TYPE: type parameters and bounds,
         // supertype, mixin and interfaces. A generic bound lives here and on no
         // member, which is why SM1-G1 had to name classes at all.
-        abiParts: [
-          'typeParams', preCls.typeParameters.map((p) => typeText(p.bound)).join(','),
-          'super', typeText(preCls.supertype?.asInterfaceType),
-          'mixin', typeText(preCls.mixedInType?.asInterfaceType),
-          'implements',
-          (preCls.implementedTypes.map((t) => typeText(t.asInterfaceType)).toList()..sort())
-              .join(','),
-          'abstract', '${preCls.isAbstract}',
-        ],
+        abiParts: classAbiParts(preCls),
         shape: preCls.typeParameters.isEmpty
             ? 'supported'
             : 'refused:type_parameters',
@@ -487,14 +394,25 @@ void main(List<String> args) {
       for (final c in cls.constructors) {
         final pre = preByKey[memberKeyOf(library, cls.name, 'constructor', c.name.text)];
         final preFn = pre is Constructor ? pre.function : null;
+        // Constructor initializer lists are separate structure and are NOT
+        // reachable from function.body.
+        final aotEnc = BodyEncoder()
+            .encodeFunction(c.function, initializers: c.initializers);
+        final preEnc = preFn == null
+            ? null
+            : BodyEncoder().encodeFunction(preFn,
+                initializers: (pre as Constructor).initializers);
         addRow(
           library: library, owner: cls.name, name: c.name.text, kind: 'constructor',
           abiParts: preFn == null
               ? const ['abi', 'UNAVAILABLE_NO_PRE_AOT_COUNTERPART']
               : _abiOfFunction(preFn),
           shape: preFn == null ? 'unknown:no_pre_aot_counterpart' : abiShape(preFn),
-          body: bodyFingerprint(c.function),
-          bodyPre: preFn == null ? null : bodyFingerprint(preFn),
+          body: _hash(['body', aotEnc.tokens]),
+          bodyStatus: aotEnc.status,
+          bodyPre: preEnc == null ? null : _hash(['body', preEnc.tokens]),
+          bodyStatusPre: preEnc?.status,
+          ownerAbiFingerprint: classAbi[cls.name],
           printed: incumbentPrinted(c),
           abiFromPreAot: preFn != null,
         );
@@ -502,6 +420,10 @@ void main(List<String> args) {
       for (final f in cls.fields) {
         final preF = preByKey[memberKeyOf(library, cls.name, 'field', f.name.text)];
         final ft = preF is Field ? preF : f;
+        final fAotEnc = BodyEncoder().encodeExpression(f.initializer);
+        final fPreEnc = preF is Field
+            ? BodyEncoder().encodeExpression(preF.initializer)
+            : null;
         addRow(
           library: library, owner: cls.name, name: f.name.text, kind: 'field',
           isStatic: f.isStatic,
@@ -509,7 +431,11 @@ void main(List<String> args) {
           abiParts: ['type', typeText(ft.type), 'final', '${ft.isFinal}',
                      'const', '${ft.isConst}'],
           shape: 'supported',
-          body: _hash(['field-initializer', f.initializer == null ? 'none' : 'present']),
+          body: _hash(['field-init', fAotEnc.tokens]),
+          bodyStatus: fAotEnc.status,
+          bodyPre: fPreEnc == null ? null : _hash(['field-init', fPreEnc.tokens]),
+          bodyStatusPre: fPreEnc?.status,
+          ownerAbiFingerprint: classAbi[cls.name],
           printed: incumbentPrinted(f),
         );
       }

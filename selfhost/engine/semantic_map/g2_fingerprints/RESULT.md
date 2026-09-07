@@ -2,7 +2,8 @@
 # SM1-G2 — ABI and canonical body fingerprints
 
 **Gate:** [#51](https://github.com/mml555/shorebird/issues/51) · **Tracker:** [#48](https://github.com/mml555/shorebird/issues/48)
-**Run:** 2026-09-07 · **Verdict: 15/15 cases, independence proven both ways, no failures.**
+**Run:** 2026-09-07, hardened after PM review · **Verdict: 19/19 cases,
+independence proven both ways, every row's body encoding complete, no failures.**
 
 One finding forced a design correction inside this gate rather than a note for a
 later one: **`gen_kernel --aot` strips parameters**, so the ABI cannot be read
@@ -57,6 +58,55 @@ Invocation targets are keyed by **canonical name read off the `Reference`**
 rather than by dereferencing to a `Member`, so the same encoder works on both
 kernels.
 
+## Five blocking defects closed
+
+Each was real, and the gate's own arms or the new fail-closed status caught them.
+
+**1. Formal parameters collapsed.** The walk began at `f.body`, so formals never
+entered the local table and every reference encoded as `VarGet#-1` — making
+`pick(int a, int b) => a` and `=> b` **identical**. Formals are now registered in
+declaration order, and an unregistered variable is a **refusal**, not an ordinal.
+New arm `g2_formal_b` moves the body.
+
+**2. Field initializer contents were discarded.** The field body recorded only
+`present`/`none`, so `final x = 1` → `final x = 2` stayed equal. The initializer
+**expression** is now encoded. New arm `g2_field_init_b`.
+
+**3. Constructor initializer lists were omitted.** They are separate Kernel
+structure, not reachable from `function.body`, so `Shape.square() : sides = 4` →
+`: sides = 5` vanished entirely. Constructors now encode `c.initializers`. New
+arm `g2_ctor_init`.
+
+**4. The generic visitor silently dropped semantic fields.** `defaultNode`
+emitted only a node's runtime type plus its children, which cannot support the
+claim that *only* positions and local names are excluded — every scalar and
+reference field of every un-special-cased node was dropped. Replaced with an
+**explicit allowlist**: each supported node has its behaviour-relevant fields
+written out, and an unrecognised kind sets
+`body_status: refused:unsupported_node:<Kind>`. **An unsupported body can never
+classify as `candidate_unchanged`** — the classifier returns
+`refused:unsupported_body` first.
+
+The allowlist was grounded by censusing the node kinds the corpus actually
+produces, **on both kernels**. Censusing only the pre-AOT side was itself a
+mistake the run exposed: `--aot` folds literals into `ConstantExpression`, which
+the first allowlist refused on 5 rows. Constants have their own allowlist and
+encode by **value**.
+
+**5. The owner's generic ABI was unresolved.** `Box.unwrap` reads `T → T` while
+`Box<T extends Shape>` becomes `Box<T extends Object>`, so its own ABI does not
+move. Every member row now carries **`owner_abi_fingerprint`**, and reuse
+requires *both* to match. New arm `g2_owner_bound_member`: `abi=` `body=`
+`owner≠` → `not_reusable_under_old_abi`.
+
+## An ABI leak the independence arm caught
+
+While fixing #1 I emitted formal types and the return type into the **body**
+encoding. That made the body a partial function of the ABI, and
+`abi_return_type` promptly moved the body fingerprint — the independence arm
+failed and named it. Formals are now **registered but not emitted**, and the
+return type is not written to the body at all.
+
 ## Results
 
     same ABI + different body  ->  changed_existing_declaration
@@ -74,9 +124,16 @@ kernels.
       field_added · private_other_domain
 
     canonicalization exclusions, each with its own arm
-      g2_local_rename              abi=  body=   candidate_unchanged
-      g2_stmt_order                abi=  body≠   changed_existing_declaration
-      g2_typeparam_rename          abi=  body=   candidate_unchanged
+      g2_local_rename              abi=  body=  owner=   candidate_unchanged
+      g2_stmt_order                abi=  body≠  owner=   changed_existing_declaration
+      g2_typeparam_rename          abi=  body=  owner=   candidate_unchanged
+      g2_formal_b                  abi=  body≠  owner=   changed_existing_declaration
+      g2_field_init_b              abi=  body≠  owner=   changed_existing_declaration
+      g2_ctor_init                 abi=  body≠  owner=   changed_existing_declaration
+      g2_owner_bound_member        abi=  body=  owner≠   not_reusable_under_old_abi
+
+    every row's body encoding is complete
+      all 23 rows encoded within the allowlist
 
 `field_added` keeps the boundary G0 set: the *method* is unchanged, so the
 fingerprints say unchanged. Whether the owning class's layout change makes it
@@ -139,6 +196,7 @@ directions:
 | `abi_positional_to_named` | abi ≠ | printed **equal** | the incumbent is blind to a signature-only change on an AOT kernel |
 | `abi_generic_bound` | abi ≠ | printed **equal** | it prints the *member*; a class-level bound change is invisible to it |
 | `g2_local_rename` | body = | printed **differs** | it prints local names, so it over-reports a rename our canonicalization correctly excludes |
+| `g2_formal_b` | body ≠ | printed **equal** | it emits a constant-table *reference*, and indices are per-kernel — see below |
 
 The first two are the same finding seen from the incumbent's side, and they are
 worth stating carefully:
@@ -156,8 +214,31 @@ P2 refuses named arguments before publication by a separate mechanism, and
 whether that refusal fires first is **SM1-G5's** question. Recorded, not
 concluded.
 
-The third disagreement is the incumbent being *stricter* than necessary — safe,
-but it would refuse a patch whose implementation is genuinely identical.
+The third is the incumbent being *stricter* than necessary — safe, but it would
+refuse a patch whose implementation is genuinely identical.
+
+**The fourth is the sharpest, and the mechanism is not parameter stripping.**
+Full detail in [`evidence/incumbent_findings.txt`](evidence/incumbent_findings.txt):
+
+    source        pick(int a, int b) => a      vs      => b
+    printed AOT   static method pick() -> dart.core::int
+                    return #C1;                        (IDENTICAL)
+    actual        IntConstant(1)                       IntConstant(2)
+
+`--aot` stripped the parameters and folded each body to a constant; the printer
+then emitted a constant-**table reference**, and table indices are assigned *per
+kernel* — so two independently compiled dills each name their own first constant
+`#C1`. A printed-text diff across two kernels therefore compares **indices, not
+values**, and can report unchanged for a changed constant.
+`build_patch.dart` compares a base and a patched dill, which are separately
+compiled.
+
+Our fingerprints encode the constant's **value**, so both the AOT-side and
+pre-AOT-side body fingerprints move.
+
+**Still not concluded:** whether production would ship such a patch. P2 refuses
+named arguments by a separate mechanism and the analyzer computes more than a
+printed diff; whether any of that fires first is **SM1-G5's** question.
 
 ## Parity with G1
 
@@ -172,6 +253,10 @@ disagreements**. Shared code would make the check prove nothing — the reasonin
 - [x] Every adversarial arm classifies as specified
 - [x] The refusal boundary is represented in the map, not inferred by a caller
 - [x] Canonicalization exclusions enumerated and justified individually, each with its own arm
+- [x] Formal parameters are in the body's scope; parameter selection moves the fingerprint
+- [x] Field initializer contents and constructor initializer lists are encoded
+- [x] Body encoding is an explicit allowlist; an unsupported node refuses the row and can never be `candidate_unchanged`
+- [x] The owner/type relationship is carried as `owner_abi_fingerprint`, and reuse requires both to match
 - [x] `DECLARATION_ID` / `ABI_FINGERPRINT` / `BODY_FINGERPRINT` remain separate; identity is stable across every same-declaration comparison
 
 ## Not established by this gate

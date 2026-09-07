@@ -2,25 +2,77 @@
   "schema": "semantic-map-1/g2-expectations/1",
   "purpose": "G2's own cases: each justifies one canonicalization exclusion, or proves an exclusion was NOT made. Kept separate from G0's frozen corpus so G0's digest and acceptance stay valid.",
   "cases": [
-    { "id": "g2_local_rename", "baseline": "g2_local_base",
+    {
+      "id": "g2_local_rename",
+      "baseline": "g2_local_base",
       "subject": "package:corpus/app.dart::usesPrivate",
       "dimension": "a local variable is renamed",
-      "abi_equal": true, "body_equal": true,
+      "abi_equal": true,
+      "body_equal": true,
       "expected_classification": "candidate_unchanged",
-      "note": "JUSTIFIES body exclusion #2. A local's name is not observable, so encoding locals by binding ordinal is safe. Compared against g2_local_base rather than base, because base writes the member as an arrow expression with no local at all -- comparing against it would measure a shape change, not a rename." },
-
-    { "id": "g2_stmt_order", "baseline": "g2_stmt_order_base",
+      "note": "JUSTIFIES body exclusion #2. A local's name is not observable, so encoding locals by binding ordinal is safe. Compared against g2_local_base rather than base, because base writes the member as an arrow expression with no local at all -- comparing against it would measure a shape change, not a rename."
+    },
+    {
+      "id": "g2_stmt_order",
+      "baseline": "g2_stmt_order_base",
       "subject": "package:corpus/app.dart::usesPrivate",
       "dimension": "two independent statements are swapped",
-      "abi_equal": true, "body_equal": false,
+      "abi_equal": true,
+      "body_equal": false,
       "expected_classification": "changed_existing_declaration",
-      "note": "PROVES order is NOT excluded. Execution order is observable, so the body fingerprint must move. If this case reported body_equal the canonicalizer would be discarding something that changes behaviour." },
-
-    { "id": "g2_typeparam_rename", "baseline": "base",
+      "note": "PROVES order is NOT excluded. Execution order is observable, so the body fingerprint must move. If this case reported body_equal the canonicalizer would be discarding something that changes behaviour."
+    },
+    {
+      "id": "g2_typeparam_rename",
+      "baseline": "base",
       "subject": "package:corpus/app.dart::Box",
       "dimension": "a type parameter is renamed T -> S",
-      "abi_equal": true, "body_equal": true,
+      "abi_equal": true,
+      "body_equal": true,
       "expected_classification": "candidate_unchanged",
-      "note": "JUSTIFIES the ABI exclusion. A type parameter's name is not observable at a call site; position and bound are what a caller depends on." }
+      "note": "JUSTIFIES the ABI exclusion. A type parameter's name is not observable at a call site; position and bound are what a caller depends on."
+    },
+    {
+      "id": "g2_formal_b",
+      "baseline": "g2_formal_a",
+      "subject": "package:corpus/app.dart::pick",
+      "dimension": "which FORMAL PARAMETER the body returns: a -> b",
+      "abi_equal": true,
+      "body_equal": false,
+      "expected_classification": "changed_existing_declaration",
+      "note": "The body walk used to start at f.body, so formals never entered the local table and every reference encoded as VarGet#-1 -- making `=> a` and `=> b` identical. Formals are now registered in declaration order, and an unregistered variable is a refusal rather than an ordinal."
+    },
+    {
+      "id": "g2_field_init_b",
+      "baseline": "g2_field_init_a",
+      "subject": "package:corpus/app.dart::topConst",
+      "dimension": "FIELD INITIALIZER contents: 1 -> 2",
+      "abi_equal": true,
+      "body_equal": false,
+      "expected_classification": "changed_existing_declaration",
+      "note": "The field body used to record only whether an initializer existed, so `final x = 1` -> `final x = 2` stayed equal. The initializer expression is now encoded."
+    },
+    {
+      "id": "g2_ctor_init",
+      "baseline": "base",
+      "subject": "package:corpus/app.dart::Shape.square",
+      "dimension": "CONSTRUCTOR INITIALIZER LIST: sides = 4 -> 5",
+      "abi_equal": true,
+      "body_equal": false,
+      "expected_classification": "changed_existing_declaration",
+      "note": "Initializer lists are separate Kernel structure and are not reachable from function.body, so this change vanished entirely. Constructors now encode c.initializers."
+    },
+    {
+      "id": "abi_generic_bound",
+      "baseline": "base",
+      "subject": "package:corpus/app.dart::Box.unwrap",
+      "case_id": "g2_owner_bound_member",
+      "dimension": "the OWNER's generic bound moves while the member's own signature reads T -> T",
+      "abi_equal": true,
+      "body_equal": true,
+      "owner_abi_equal": false,
+      "expected_classification": "not_reusable_under_old_abi",
+      "note": "G1 deferred the owner/type relationship here. Box.unwrap's own signature is unchanged, so its ABI is equal -- but reuse still must be refused, because the owner's ABI moved. The row carries owner_abi_fingerprint and the classifier requires BOTH to match."
+    }
   ]
 }

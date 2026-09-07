@@ -1,0 +1,50 @@
+SM1-G2 incumbent-oracle findings — where printed Kernel loses information
+date : 2026-09-07T07:46:09Z
+
+############ 1. printed text emits a CONSTANT-TABLE REFERENCE ############
+
+source, same ABI, different body:
+    pick(int a, int b) => a        vs        pick(int a, int b) => b
+
+printed AOT Procedure, both variants:
+    static method pick() -> dart.core::int
+      return #C1;
+
+the AOT kernel actually holds DIFFERENT constants:
+    g2_formal_a  returns IntConstant(1)
+    g2_formal_b  returns IntConstant(2)
+
+  Two factors combine. --aot stripped the parameters and folded the body to
+  a constant; the printer then emitted a constant-TABLE REFERENCE rather
+  than the value. Table indices are assigned per kernel, so two
+  independently compiled dills can both name their own first constant #C1.
+
+  CONSEQUENCE for a printed-text diff across two kernels: it compares
+  indices, not values, and can report UNCHANGED for a changed constant.
+  build_patch.dart compares a base and a patched dill, which are separately
+  compiled, so the indices are independently assigned.
+
+  Our fingerprints encode the constant's VALUE, so both the AOT-side and
+  pre-AOT-side body fingerprints move:
+    body AOT       d52b71d5f0dc814d  05b546ebf21882dd  DIFFERS
+    body pre-AOT   2136e2f9d9f2d387  acedcaac21d7faee  DIFFERS
+    incumbent      6e2154fa198d869f  6e2154fa198d869f  equal
+
+############ 2. all four incumbent disagreements ############
+  --- cross-check against the incumbent printed-Kernel oracle ---
+    agree on 15 case(s); disagree on 4
+      FINDING abi_positional_to_named: ours abi=False body=True, incumbent printed_equal=True
+      FINDING abi_generic_bound: ours abi=False body=True, incumbent printed_equal=True
+      FINDING g2_local_rename: ours abi=True body=True, incumbent printed_equal=False
+      FINDING g2_formal_b: ours abi=True body=False, incumbent printed_equal=True
+    A disagreement is not automatically a defect: the incumbent prints a whole Procedure, so it also moves when a signature moves, where our two fingerprints separate that. Each is recorded for review.
+  
+############ what this does and does not establish ############
+  ESTABLISHED: printed-Kernel equality across two separately compiled
+  kernels can report equal for (a) a signature-only change and (b) a body
+  that returns a different constant.
+
+  NOT ESTABLISHED: that the production pipeline would ship such a patch.
+  ROADMAP P2 refuses named arguments before publication by a separate
+  mechanism, and the analyzer computes more than a printed diff. Whether
+  any of those fire first is SM1-G5's question. Recorded, not concluded.
