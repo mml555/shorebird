@@ -54,6 +54,12 @@ const refusalReasons = <String>[
   'PRIVATE_REFERENCE_UNGRANTED',
   'PRIVATE_REFERENCE_UNRESOLVED',
   'RELEASE_IDENTITY_AMBIGUOUS',
+  // RELEASE-LEVEL, and deliberately two reasons rather than one. "We could not
+  // establish this release is patch-capable" is a different fact from "this
+  // release is established as not patch-capable", and collapsing them would
+  // turn a missing input into a positive claim about the artifact.
+  'RELEASE_PATCHABILITY_UNPROVEN',
+  'RELEASE_NOT_PATCHABLE_BUILD',
 ];
 
 /// The dynamic-interface entry a required retention class lowers to, as it
@@ -185,6 +191,17 @@ void main(List<String> args) {
           r['abi_shape'] as String? ?? 'unknown';
     }
   }
+
+  // RELEASE-LEVEL PREREQUISITE, evaluated once. SM1-G5's positive control
+  // measured that a release built without --patchable_static_calls attaches the
+  // replacement, reports "APPLY ok", and keeps running the old body -- so no
+  // declaration in such a release may be predicted patchable.
+  final capability = release['release_patch_capability'] as String? ?? 'UNPROVEN';
+  final releaseReason = switch (capability) {
+    'PROVEN' => null,
+    'NOT_PATCHABLE' => 'RELEASE_NOT_PATCHABLE_BUILD',
+    _ => 'RELEASE_PATCHABILITY_UNPROVEN',
+  };
 
   final out = <Map<String, Object?>>[];
 
@@ -331,6 +348,10 @@ void main(List<String> args) {
     // the gate exists to prevent.
     if (replaceable) reasons.add('CALL_SITE_SHAPE_UNPROVEN');
 
+    // Applies to every declaration, because it is a fact about the release
+    // rather than about any one of them.
+    if (releaseReason != null && replaceable) reasons.add(releaseReason);
+
     final uniq = reasons.toSet().toList()..sort();
     out.add({
       'key': k,
@@ -367,6 +388,9 @@ void main(List<String> args) {
           ? null
           : '${(patchable * 100 / out.length).toStringAsFixed(1)}%',
       'refusal_reason_vocabulary': refusalReasons,
+      'release_patch_capability': capability,
+      'release_patch_capability_evidence':
+          release['release_patch_capability_evidence'],
       'refusal_histogram': byReason,
       'unproven_facts': [
         if (byReason.containsKey('CALL_SITE_SHAPE_UNPROVEN'))

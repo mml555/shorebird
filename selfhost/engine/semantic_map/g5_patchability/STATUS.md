@@ -210,7 +210,18 @@ The same patch against a release built **without** `--patchable_static_calls`:
     APPLY ok: 1 target(s)
     after  alpha=OLD-a beta=OLD-b
 
-Same source, same replacement bytecode, same container, same apply path. The
+The paired experiment holds everything but one variable:
+
+    same release source
+    same replacement bytecode
+    same target
+    same container construction
+    same apply path
+    container REBOUND to each release's build ID
+    semantic variable: --patchable_static_calls
+
+The containers cannot be byte-identical: the two AOTs carry different GNU build
+IDs, `.sbrb` embeds `release.buildId`, and `pack_patch.dart` requires it. The
 container verified hashes, matched the release id, attached the bytecode and
 reported success — while the program went on running the old body.
 
@@ -226,7 +237,68 @@ Recording them as "not demonstrated patchable" would have been wrong.
 
 Evidence: [`evidence/positive_control.txt`](evidence/positive_control.txt).
 
-## Step 3 — paired call-site arms (next)
+## Step 3 — paired call-site arms (run)
+
+One patch target, `Base.work`, reached four ways in the SAME release and patched
+by the SAME `.sbrb`:
+
+| call site | shape | after |
+|---|---|---|
+| `direct` | concrete receiver, devirtualizable | **`PATCHED-w`** |
+| `virtual` | receiver the compiler cannot bind | `OLD-w` |
+| `inlined` | `vm:prefer-inline` helper | `OLD-w` |
+| `other` | a different declaration (untargeted control) | `OTHER-w` |
+
+**Observed patchability differs by call-site shape** for one declaration, one
+patch, one release. The untargeted control never moved, so the change is
+attributable to the patch.
+
+The `can-be-overridden` control did **not** rescue the virtual or inlined sites.
+Adding the entry changed the release bytes (1,035,488 → 1,035,496, different
+sha256) and the recorded contract entry (`['dyn-module:callable']` →
+`[..., 'dyn-module:can-be-overridden']`), and changed none of the four observed
+values. The mutation was real, not inert — I checked, having first wrongly
+claimed the opposite from a coincidence of build IDs.
+
+The direction is the opposite of the naive expectation: the *devirtualized* site
+takes the patch and the dispatched ones do not, consistent with
+`--patchable_static_calls` making direct calls patchable while an instance
+dispatch still reaches the original AOT code object.
+
+**Not classified.** Whether this is `REDUCE_SCOPE` or `MODIFY_MAP_DESIGN` is not
+decided here. Evidence: [`evidence/callsite_arms.txt`](evidence/callsite_arms.txt).
+
+### A release-identity finding, carried to G6
+
+The two releases above are **different artifacts with the same release
+identity**:
+
+    app.aot      sha 62a17ab7ba56c36b   BUILD_ID 97c212a34226f975f1e700f8ac5b12e6
+    app_cbo.aot  sha a63398add9052b7f   BUILD_ID 97c212a34226f975f1e700f8ac5b12e6
+
+Different bytes, different dynamic-interface contracts, identical GNU build ID.
+Route B binds a patch to a release by that build ID — `pack_patch.dart` requires
+it and the container matches on it — so a patch packed against one of these is
+accepted by the other. That is the stale/swapped-proof hazard G6 exists to
+close, now observed rather than hypothesised. Recorded; this gate does not act
+on it.
+
+## Step 4 — release-level prerequisite in the predictor (plumbed)
+
+Three states, never two, so a missing input cannot become a claim about the
+artifact:
+
+    PROVEN          -> no refusal
+    NOT_PATCHABLE   -> RELEASE_NOT_PATCHABLE_BUILD
+    anything else   -> RELEASE_PATCHABILITY_UNPROVEN
+
+The frozen corpus release currently reports
+`UNPROVEN_NO_ARTIFACT_MARKER`, so every replaceable declaration additionally
+refuses `RELEASE_PATCHABILITY_UNPROVEN`. Deriving `PROVEN` needs a mechanically
+checkable artifact fact; a build transcript saying `--patchable_static_calls` is
+not one, and inferring capability from the flag's *effect* would be circular.
+That is the remaining work before any subset calculation.
+
 
 
 Rebuild on the shipping path, with success meaning THE PATCHED VALUE WAS

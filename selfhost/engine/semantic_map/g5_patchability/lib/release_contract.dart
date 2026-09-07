@@ -22,6 +22,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart' show sha256;
 import 'package:kernel/ast.dart';
 import 'package:kernel/binary/ast_from_binary.dart';
 
@@ -76,6 +77,7 @@ List<String> _pragmaNames(List<Expression> annotations) {
 
 void main(List<String> args) {
   String? dillPath;
+  String? aotPath;
   var outPath = 'release_contract.json';
   final includePrefixes = <String>[];
   for (var i = 0; i < args.length; i++) {
@@ -90,6 +92,8 @@ void main(List<String> args) {
         dillPath = next();
       case '--out':
         outPath = next();
+      case '--aot':
+        aotPath = next();
       case '--include':
         includePrefixes.add(next());
       default:
@@ -159,9 +163,41 @@ void main(List<String> args) {
     if (dup) ambiguous++;
   }
 
+  // RELEASE-LEVEL PATCH CAPABILITY.
+  //
+  // SM1-G5's positive control measured that a release built WITHOUT
+  // --patchable_static_calls attaches the replacement, reports "APPLY ok", and
+  // then keeps running the old body. So patchability depends on how the RELEASE
+  // BINARY was produced, not only on the declaration -- and its absence is a
+  // silent bypass.
+  //
+  // THREE STATES, NEVER TWO. "We could not establish this" is not "this release
+  // is incapable"; collapsing them would turn a missing input into a positive
+  // claim about the artifact.
+  var capability = 'UNPROVEN';
+  String? capabilityEvidence;
+  if (aotPath != null) {
+    final f = File(aotPath);
+    if (!f.existsSync()) {
+      capabilityEvidence = 'no artifact at $aotPath';
+    } else {
+      // The flag leaves a mark the runtime itself reads: patchable static calls
+      // are emitted as an indirection through the object pool. Absent a
+      // documented artifact-level marker this is recorded as UNPROVEN rather
+      // than inferred, because a wrong inference here authorises patches.
+      capabilityEvidence = 'artifact present, sha256 '
+          '${sha256.convert(f.readAsBytesSync()).toString().substring(0, 16)}';
+      capability = 'UNPROVEN_NO_ARTIFACT_MARKER';
+    }
+  } else {
+    capabilityEvidence = 'no --aot supplied';
+  }
+
   File(outPath).writeAsStringSync(
     '${const JsonEncoder.withIndent('  ').convert({
-      'schema': 'semantic-map-1/g5-release-contract/1',
+      'schema': 'semantic-map-1/g5-release-contract/2',
+      'release_patch_capability': capability,
+      'release_patch_capability_evidence': capabilityEvidence,
       'gate': 'SM1-G5',
       'issue': 54,
       'dill': dillPath,
