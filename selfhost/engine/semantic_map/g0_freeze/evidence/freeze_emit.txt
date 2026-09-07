@@ -1,0 +1,19 @@
+SEMANTIC-MAP-1 G0 freeze (emit)
+  repo : /Users/mendell/shorebird
+  ok      inherits the SEMANTIC-LINKER-1 freeze (freeze_manifest.json)
+  ok      producing Dart effective tree
+  ok      shipped analyzer matches the supported record
+  ok      build-tree analyzer differs from the shipped one, as recorded (18862acd7de2 vs 67741a082fcd)
+  ok      frozen: selfhost/engine/route_b/identity/gen_target_manifest.dart
+  ok      frozen: selfhost/engine/route_b/packaging/build_patch.dart
+  ok      frozen: selfhost/engine/route_b/coverage/analyze_coverage.dart
+  ok      frozen: selfhost/engine/route_b/coverage/parity.sh
+  ok      corpus pin: selfhost/engine/route_b/coverage/demand1/wonderous.window.txt (40 revisions)
+  ok      corpus pin: selfhost/engine/route_b/coverage/demand1/localsend.window.txt (80 revisions)
+  ok      declared mutants == mutants on disk
+  ok      every declared mutant differs from base
+  ok      adversarial arm: a one-line mutation changes the corpus digest
+  ok      wrote /Users/mendell/shorebird/selfhost/engine/semantic_map/g0_freeze/freeze_manifest.json
+  ok      no supported artifact, selector or cell modified
+
+G0 FREEZE VERIFIED

@@ -1,0 +1,113 @@
+{
+  "schema": "semantic-map-1/g0-freeze/1",
+  "gate": "SM1-G0",
+  "issue": 49,
+  "tracker": 48,
+  "frozen": "2026-09-07T03:11:50Z",
+  "inherited_lineage": {
+    "from": "semantic_linker/runtime_feasibility/g0_freeze/freeze_manifest.json",
+    "distribution": {
+      "tag": "selfhost-v1.1.1",
+      "tag_object": "315d364383890d29fbf9bc2c7f30aac53f4e5b48",
+      "tag_is_annotated": true,
+      "commit": "bdb234ab938fc0570e499d800928a0c3d640bfe1",
+      "commit_tree": "2280e5c61f835a201097424f00fbe3845fc1e96c"
+    },
+    "producing_source": {
+      "engine": {
+        "revision": "dfa2b24ac38477f3705ff0357530f33fe09474b8",
+        "tree": "26acc7f47d809563a08212c8264516aae64f10d5",
+        "clean": true,
+        "untracked_build_inputs": {
+          ".gcs_entries": "engine/src/flutter/prebuilts/macos-arm64/dart-sdk <- db98bdaa9d8f8e2250ff83d24abcaf775807244c/dart-sdk-darwin-arm64.tar.gz"
+        },
+        "durable_remote": "https://github.com/mml555/shorebird-flutter.git",
+        "durable_refs": [
+          "refs/heads/route-b-2c-candidate",
+          "refs/tags/acs2-macos-ios-producer"
+        ]
+      },
+      "dart": {
+        "revision": "9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c",
+        "head_tree": "aa55ff960f07682fd098195e4884f2cbcb4f5f27",
+        "effective_tree": "7b04b01bdc10ec990143257f0d28580571c2122f",
+        "effective_tree_note": "HEAD plus the uncommitted guard; THIS is what built the cell",
+        "deps_pinned_base": "d684a576a6aa954ae107a03b2b4e1d61c3bebe93",
+        "dirty_paths": [
+          "pkg/front_end/lib/src/source/source_loader.dart"
+        ],
+        "durable_remote": null,
+        "durability": "LOCAL-DISK-ONLY \u2014 banked here as patches",
+        "bank": {
+          "0001-Add-snapshot-size-accessors-for-code-push.patch": "4e119599829b0d4968623226fc51232f7bd4f9b44cfd5eed034e3d9f4068b06f",
+          "0002-Route-B-Dart-SDK-support-bytecode-producer-and-the-t.patch": "2f59d6a836e746a097a2482d6f0cc3339dce0e7e6536277b517680591784aad1",
+          "9999-worktree-uncommitted.patch": "6b358f715e491bd9829e00fee0262ac7b637982f3bf66e748befcec84075262c"
+        }
+      }
+    },
+    "note": "SEMANTIC-MAP-1 builds from this lineage. #47 is off the critical path; the bank is what makes that safe."
+  },
+  "analyzer": {
+    "shipped_sha256": "67741a082fcde5a9e2067fdfad1deb7ad69cb89b8d23aba78ed31b5afb6c2f5d",
+    "cell": "f85251f344600ae08196925a174e9cff8f0ff18e",
+    "build_tree_sha256": "18862acd7de2af6381205064a7290b5fb67a6b9c707eabad8d645cff04c4eccb",
+    "divergence": true,
+    "finding": "coverage/parity.sh defaults ANALYZER to the BUILD TREE copy, which is not the artifact the cell ships. Any parity run in this lane must pin ANALYZER= to the shipped digest, or it measures something the product does not use."
+  },
+  "reference_implementations": {
+    "identity/gen_target_manifest.dart": "6278e04619df5904c133269c7ea601a5a458275dc65254192f64ea02bff33fac",
+    "packaging/build_patch.dart": "84252e21559aa6b0c2c60d2d3f856f9089110c200b454f3fdee9b19a00c65f55",
+    "coverage/analyze_coverage.dart": "757a40c394f6e4ab96c7e1776d66aaab87044dd3a3b34ea6856798acc2cfd9d3",
+    "coverage/parity.sh": "5f40dc41077233ffbef8c8024c1d268ff87e393b10d01f9ebe179106f6ae4bea"
+  },
+  "reference_implementation_note": "gen_target_manifest.dart and build_patch.dart are the incumbent reference oracles and stay UNMODIFIED; parity.sh proves the shipped analyzer agrees with them. Printed-Kernel equality is that incumbent, not this lane's wire contract.",
+  "corpus": {
+    "real_world_regression": {
+      "pins": {
+        "coverage/demand1/wonderous.window.txt": "90c68620396f9b6054a89be80a868016a19668de91a96b3e7e561c3cde14a66c",
+        "coverage/demand1/localsend.window.txt": "44115081675b0e82a3e9fbf62cd41685e109de3a758b7c03297d3664888831f2"
+      },
+      "scope": "continuity anchor only; selected for a different question"
+    },
+    "adversarial_semantic": {
+      "digest": "4a85fcc2b48cb283fe857c599642469b1478ed84e0cf9df2124c6f0d62be0753",
+      "expectations": "corpus/EXPECTATIONS.json",
+      "mutants": 12
+    }
+  },
+  "historical_baselines": {
+    "wonderous": "50.00%",
+    "localsend": "92.67%",
+    "scope": "Route B PRODUCER-DEMAND baselines, measured for a different question. They are NOT semantic-map quality scores and are not reinterpreted as such by this lane.",
+    "source": "selfhost/engine/route_b/evidence/producer_demand_2.md"
+  },
+  "confounds_recorded": [
+    {
+      "id": "PLATFORM_LIBRARY_GUARD_IS_UNCOMMITTED",
+      "statement": "The guard refusing --resolve-private-names-in-library on a platform library is uncommitted-but-shipped source, present in effective tree 7b04b01b and absent from a clean checkout of 9e8c898a.",
+      "consequence": "A gate built from the wrong tree makes the platform-library arm pass vacuously.",
+      "owner_gate": "SM1-G3"
+    },
+    {
+      "id": "ANALYZER_BUILD_TREE_DIVERGENCE",
+      "statement": "parity.sh defaults to a build-tree analyzer that is not the shipped one.",
+      "consequence": "Freezing or measuring the wrong analyzer.",
+      "owner_gate": "SM1-G0 (recorded here)"
+    },
+    {
+      "id": "VM_ENTRY_POINT_RETAINS_INDEPENDENTLY",
+      "statement": "@pragma('vm:entry-point') retains a symbol regardless of the dynamic-interface contract.",
+      "consequence": "A retention control passes while measuring the pragma.",
+      "owner_gate": "SM1-G4"
+    }
+  ],
+  "unmodified": {
+    "claim": "no supported artifact, selector or cell is modified by this lane",
+    "checked": [
+      "packages/",
+      "bin/",
+      "selfhost/engine/route_b/",
+      "selfhost/compatibility.yaml"
+    ]
+  }
+}

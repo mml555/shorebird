@@ -1,9 +1,9 @@
 <!-- cspell:words dynmod localsend wonderous devirtualized devirtualization KBC dill -->
 # SEMANTIC-MAP-1 — tracker and gate design
 
-**Filed as [#48](https://github.com/mml555/shorebird/issues/48) with ten child
-issues [#49–#58](https://github.com/mml555/shorebird/issues/48). PM decisions of
-2026-09-06 are incorporated; this file mirrors the tracker body.**
+**Canonical plan.** Filed as [#48](https://github.com/mml555/shorebird/issues/48)
+with ten child issues #49–#58. PM decisions of 2026-09-06 are incorporated; this
+file mirrors the tracker body.
 
 Predecessor: [SEMANTIC-LINKER-1](../engine/semantic_linker/README.md), closed at
 `PROCEED`.
@@ -166,4 +166,4 @@ inside this lane.
   the affected gates before routing
 - `ABANDON_OR_REDESIGN` → stop and reassess the architecture
 
-Design draft: `selfhost/plans/SEMANTIC-MAP-1-DRAFT.md`.
+Canonical plan: `selfhost/plans/SEMANTIC-MAP-1.md`. (this file)
