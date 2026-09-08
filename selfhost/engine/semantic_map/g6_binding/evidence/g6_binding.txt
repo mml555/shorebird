@@ -1,5 +1,5 @@
 SM1-G6 -- map schema, identity, versioning and release binding
-generated 2026-09-08T22:10:56Z by run_g6.sh
+generated 2026-09-08T22:20:11Z by run_g6.sh
 
 WHAT IS BOUND
 
@@ -69,9 +69,19 @@ flutter_dart_compiler_identities.dart_revision swapped         pass   sides diff
 flutter_dart_compiler_identities.frozen_effective_tree swapped pass   sides differ, REFUSED, COMPILER_TREE_MISMATCH
 flutter_dart_compiler_identities.gen_snapshot_sha256 swapped   pass   sides differ, REFUSED, COMPILER_SNAPSHOT_MISMATCH
 generator_identity.generator_sha256 swapped                    pass   sides differ, REFUSED, GENERATOR_MISMATCH
+digest swapped for another map's, content untouched            pass   sides differ, REFUSED, DIGEST_MISMATCH
+digest replaced with a well-formed but wrong value             pass   sides differ, REFUSED, DIGEST_MISMATCH
+generator tool digest changed (_check_manifest.py) and re-digested pass   sides differ, REFUSED, GENERATOR_TOOLS_MISMATCH
+generator tool digests removed entirely                        pass   REFUSED, GENERATOR_TOOLS_MISSING
+schema_version is JSON true, which Python equates with 1       pass   REFUSED, SCHEMA_VERSION_NOT_AN_INTEGER
+schema_version is 1.0, which Python equates with 1             pass   REFUSED, SCHEMA_VERSION_NOT_AN_INTEGER
+schema_version is the string "1"                               pass   REFUSED, SCHEMA_VERSION_NOT_AN_INTEGER
 build id matches but the AOT digest does not                   pass   sides differ, REFUSED, RELEASE_AOT_MISMATCH
 map A against a REBUILD of the same source (identical declarations) pass   sides differ, REFUSED, RELEASE_ID_MISMATCH, RELEASE_AOT_MISMATCH
   (that rebuild has identical declarations)                    pass   declarations_identical=True
+real pair: build_id_A == build_id_A2, sha256_A != sha256_A2    pass   build_id=97c212a37be47fbf shared; digests differ
+that real pair refuses on the digest, not the build id         pass   REFUSED, RELEASE_ID_MISMATCH, RELEASE_AOT_MISMATCH
+  and RELEASE_BUILD_ID_MISMATCH is absent (ids match)          pass   codes=['RELEASE_ID_MISMATCH', 'RELEASE_AOT_MISMATCH']
 schema_version unknown to this verifier                        pass   REFUSED, SCHEMA_VERSION_UNSUPPORTED
 schema_version absent                                          pass   REFUSED, SCHEMA_VERSION_MISSING
 map content tampered WITHOUT re-digesting                      pass   REFUSED, DIGEST_MISMATCH
@@ -79,7 +89,7 @@ digest absent                                                  pass   REFUSED, D
 map bytes truncated                                            pass   REFUSED, MAP_UNPARSEABLE
 map is not JSON at all                                         pass   REFUSED, MAP_UNPARSEABLE
 --------------------------------------------------------------------------------------------------------------------
-arms=19 passed=19 failed=0
+arms=29 passed=29 failed=0
 SM1_G6_BINDING_FALSIFICATION: EVERY_SWAP_REFUSED
 exit=0  (asserted: 0)
 
@@ -88,19 +98,21 @@ exit=0  (asserted: 0)
   ONE check from a copy of the verifier, so each proves the check it names:
 
     bind removed    -- the release-binding comparisons go, so any map binds to
-                       any release. Every identity swap must flip.
-    digest removed  -- the digest comparison goes, so a tampered map binds. The
-                       tamper-without-re-digest arm must flip, and only it.
+                       any release. All eleven identity arms must flip.
+    digest removed  -- the digest comparison goes, so a tampered or
+                       wrongly-digested map binds. Exactly the three digest
+                       arms must flip: stale digest after tampering, a digest
+                       swapped from another map, and a well-formed wrong one.
 
   --- control: bind ---
   weakened verifier written: bind
     --------------------------------------------------------------------------------------------------------------------
-    arms=19 passed=9 failed=10
+    arms=29 passed=18 failed=11
     SM1_G6_BINDING_FALSIFICATION: DEFECTS_PRESENT
   --- control: digest ---
   weakened verifier written: digest
     --------------------------------------------------------------------------------------------------------------------
-    arms=19 passed=18 failed=1
+    arms=29 passed=26 failed=3
     SM1_G6_BINDING_FALSIFICATION: DEFECTS_PRESENT
 
 ############ 6. LIMITS ############
@@ -127,9 +139,9 @@ ASSERTIONS (15 checked)
   pass  the rebuild really has identical declarations
   pass  the rebuild differs in AOT digest but not in kernel
   pass  removing the binding checks fails the identity arms
-  pass  and fails exactly the ten identity arms
+  pass  and fails exactly the eleven identity arms
   pass  removing the digest check fails the integrity arm
-  pass  and fails exactly that one arm
+  pass  and fails exactly the three integrity arms
   pass  the weakener refuses a missing anchor
 
 SM1_G6: BINDING_ENFORCED

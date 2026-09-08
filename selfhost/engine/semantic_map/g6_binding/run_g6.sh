@@ -40,19 +40,31 @@ GEN_SHA=$(sha "$G/lib/gen_bound_map.py")
 
 # facts <name> <kernel> <aot> <out>  -- read from the artifacts, not asserted
 facts() {
-  python3 - "$1" "$2" "$3" "$4" "$DART_REV" "$TREE" "$GS" "$GEN_SHA" <<'PY'
+  python3 - "$1" "$2" "$3" "$4" "$DART_REV" "$TREE" "$GS" "$GEN_SHA" \
+           "$G5/lib" "$G/lib/gen_bound_map.py" <<'PY'
 import hashlib, json, pathlib, sys
-name, kernel, aot, out, rev, tree, gs, gen = sys.argv[1:9]
+name, kernel, aot, out, rev, tree, gs, gen, tools, genmod = sys.argv[1:11]
 sha = lambda p: hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()
 kh, ah = sha(kernel), sha(aot)
+
+# The build id is read from the artifact, using the generator's own reader so
+# the two sides cannot disagree by construction.
+src = pathlib.Path(genmod).read_text()
+ns = {'pathlib': pathlib, 'struct': __import__('struct')}
+exec(src[src.index('def gnu_build_id'):src.index('def canonical')], ns)
+
 json.dump({
     'release_name': name,
     'release_id': hashlib.sha256(f'{name}|{kh}|{ah}'.encode()).hexdigest(),
     'release_kernel_hash': kh,
     'release_aot_sha256': ah,
+    'gnu_build_id': ns['gnu_build_id'](aot),
     'compiler': {'dart_revision': rev, 'frozen_effective_tree': tree,
                  'gen_snapshot_sha256': gs},
     'generator_sha256': gen,
+    'generator_tools': {p.name: sha(p) for p in
+                        sorted(pathlib.Path(tools).iterdir())
+                        if p.is_file() and p.suffix in ('.py', '.dart')},
 }, open(out, 'w'), indent=2)
 PY
 }
@@ -144,9 +156,11 @@ cat <<'TXT'
   ONE check from a copy of the verifier, so each proves the check it names:
 
     bind removed    -- the release-binding comparisons go, so any map binds to
-                       any release. Every identity swap must flip.
-    digest removed  -- the digest comparison goes, so a tampered map binds. The
-                       tamper-without-re-digest arm must flip, and only it.
+                       any release. All eleven identity arms must flip.
+    digest removed  -- the digest comparison goes, so a tampered or
+                       wrongly-digested map binds. Exactly the three digest
+                       arms must flip: stale digest after tampering, a digest
+                       swapped from another map, and a well-formed wrong one.
 TXT
 echo
 for mode in bind digest; do
@@ -211,14 +225,14 @@ B_OUT=$(SM1_VERIFIER="$W/weak_bind.py" python3 "$G/lib/falsify_binding.py" \
     "$W/map_a.json" "$W/facts_a.json" "$W/map_b.json" "$W/facts_b.json" \
     "$W" "$W/facts_a2.json" 2>&1)
 want 'removing the binding checks fails the identity arms' 1 "$?"
-want 'and fails exactly the ten identity arms' 'arms=19 passed=9 failed=10' \
-     "$(echo "$B_OUT" | grep -o 'arms=19 passed=9 failed=10')"
+want 'and fails exactly the eleven identity arms' 'arms=29 passed=18 failed=11' \
+     "$(echo "$B_OUT" | grep -o 'arms=29 passed=18 failed=11')"
 D_OUT=$(SM1_VERIFIER="$W/weak_digest.py" python3 "$G/lib/falsify_binding.py" \
     "$W/map_a.json" "$W/facts_a.json" "$W/map_b.json" "$W/facts_b.json" \
     "$W" "$W/facts_a2.json" 2>&1)
 want 'removing the digest check fails the integrity arm' 1 "$?"
-want 'and fails exactly that one arm' 'arms=19 passed=18 failed=1' \
-     "$(echo "$D_OUT" | grep -o 'arms=19 passed=18 failed=1')"
+want 'and fails exactly the three integrity arms' 'arms=29 passed=26 failed=3' \
+     "$(echo "$D_OUT" | grep -o 'arms=29 passed=26 failed=3')"
 want 'the weakener refuses a missing anchor' 1 \
      "$(python3 "$G/lib/weaken_verifier.py" "$W/weak_bind.py" /dev/null bind \
         >/dev/null 2>&1; echo $?)"

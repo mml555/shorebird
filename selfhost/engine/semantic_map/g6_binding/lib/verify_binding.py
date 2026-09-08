@@ -59,6 +59,13 @@ if m is not None:
     if sv is None:
         refuse('SCHEMA_VERSION_MISSING', 'MODULE_INTEGRITY',
                'the map declares no schema_version')
+    elif isinstance(sv, bool) or not isinstance(sv, int):
+        # TYPE-STRICT, deliberately. Python equates True == 1 and 1.0 == 1, so
+        # a JSON `true` or `1.0` would otherwise pass as schema version 1 --
+        # a map written to an unknown contract silently accepted.
+        refuse('SCHEMA_VERSION_NOT_AN_INTEGER', 'MODULE_INTEGRITY',
+               f'schema_version has type {type(sv).__name__} '
+               f'({sv!r}); an integer is required')
     elif sv not in SUPPORTED_SCHEMA_VERSIONS:
         refuse('SCHEMA_VERSION_UNSUPPORTED', 'MODULE_INTEGRITY',
                f'schema_version={sv!r}; this verifier implements '
@@ -114,6 +121,26 @@ if m is not None:
     gi = m.get('generator_identity') or {}
     bind('generator_identity.generator_sha256', 'GENERATOR_MISMATCH',
          gi.get('generator_sha256'), facts['generator_sha256'])
+    # THE TOOL DIGESTS ARE PART OF THE IDENTITY, so they are compared. The map
+    # advertises "the generator plus tool digests"; comparing only the
+    # generator left a re-digested tool-digest change able to bind, which meant
+    # the map could claim a producing toolchain it was not produced by.
+    want_tools = facts.get('generator_tools')
+    got_tools = gi.get('tools')
+    if want_tools is None:
+        refuse('GENERATOR_TOOLS_UNVERIFIABLE', 'MODULE_INTEGRITY',
+               'the release facts carry no generator tool digests to compare')
+    elif got_tools is None:
+        refuse('GENERATOR_TOOLS_MISSING', 'MODULE_INTEGRITY',
+               'the map carries no generator tool digests')
+    elif got_tools != want_tools:
+        extra = sorted(set(got_tools) - set(want_tools))
+        gone = sorted(set(want_tools) - set(got_tools))
+        changed = sorted(k for k in set(got_tools) & set(want_tools)
+                         if got_tools[k] != want_tools[k])
+        refuse('GENERATOR_TOOLS_MISMATCH', 'HOST_IDENTITY',
+               f'tool digests differ: changed={changed[:3]} '
+               f'added={extra[:3]} removed={gone[:3]}')
 
 verdict = 'BOUND' if not findings else 'REFUSED'
 categories = sorted({f['category'] for f in findings})

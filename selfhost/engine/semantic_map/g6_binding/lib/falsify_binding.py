@@ -139,6 +139,45 @@ run('generator_identity.generator_sha256 swapped',
     'REFUSED', 'GENERATOR_MISMATCH', 'HOST_IDENTITY',
     differs=('e' * 64, FA['generator_sha256']))
 
+# ---- the digest field itself, swapped independently ---------------------
+# Distinct from "tampered content, stale digest": here the CONTENT is untouched
+# and only the digest is replaced, so the arm exercises the digest comparison
+# on its own rather than as a side effect of changing something else.
+dg = copy.deepcopy(A)
+dg['digest'] = B['digest']
+run('digest swapped for another map\'s, content untouched', dg, FA,
+    'REFUSED', 'DIGEST_MISMATCH', 'MODULE_INTEGRITY',
+    differs=(B['digest'], A['digest']))
+dg2 = copy.deepcopy(A)
+dg2['digest'] = '0' * 64
+run('digest replaced with a well-formed but wrong value', dg2, FA,
+    'REFUSED', 'DIGEST_MISMATCH', 'MODULE_INTEGRITY',
+    differs=('0' * 64, A['digest']))
+
+# ---- defect 3's arm: a tool digest changed, then re-digested -------------
+tl = copy.deepcopy(A)
+tools = tl['generator_identity']['tools']
+first = sorted(tools)[0]
+tl['generator_identity']['tools'][first] = 'd' * 64
+run(f'generator tool digest changed ({first}) and re-digested',
+    redigest(tl), FA, 'REFUSED', 'GENERATOR_TOOLS_MISMATCH', 'HOST_IDENTITY',
+    differs=('d' * 64, FA['generator_tools'][first]))
+tl2 = copy.deepcopy(A)
+tl2['generator_identity'].pop('tools')
+run('generator tool digests removed entirely', redigest(tl2), FA,
+    'REFUSED', 'GENERATOR_TOOLS_MISSING', 'MODULE_INTEGRITY')
+
+# ---- defect 2's arms: schema_version type strictness --------------------
+run('schema_version is JSON true, which Python equates with 1',
+    redigest({**copy.deepcopy(A), 'schema_version': True}), FA,
+    'REFUSED', 'SCHEMA_VERSION_NOT_AN_INTEGER', 'MODULE_INTEGRITY')
+run('schema_version is 1.0, which Python equates with 1',
+    redigest({**copy.deepcopy(A), 'schema_version': 1.0}), FA,
+    'REFUSED', 'SCHEMA_VERSION_NOT_AN_INTEGER', 'MODULE_INTEGRITY')
+run('schema_version is the string "1"',
+    redigest({**copy.deepcopy(A), 'schema_version': '1'}), FA,
+    'REFUSED', 'SCHEMA_VERSION_NOT_AN_INTEGER', 'MODULE_INTEGRITY')
+
 # ---- a matching build id must not substitute for a matching digest -------
 m = copy.deepcopy(A)
 m['release_aot_identity']['sha256'] = B['release_aot_identity']['sha256']
@@ -152,13 +191,47 @@ run('build id matches but the AOT digest does not', redigest(m), FA,
 if len(sys.argv) > 6:
     FACTS_A2 = sys.argv[6]
     FA2 = json.load(open(FACTS_A2))
-    same_decls = A['declarations'] == B['declarations']
     run('map A against a REBUILD of the same source (identical declarations)',
         A, FA2, 'REFUSED', 'RELEASE_AOT_MISMATCH', 'HOST_IDENTITY',
         differs=(A['release_aot_identity']['sha256'], FA2['release_aot_sha256']))
     results.append(('  (that rebuild has identical declarations)',
                     'pass' if FA2.get('declarations_identical_to_a') else 'FAIL',
                     f"declarations_identical={FA2.get('declarations_identical_to_a')}"))
+
+    # THE BUILD-ID COLLISION, ON REAL ARTIFACTS. The rebuild is not a
+    # synthesised map combination: it is a second build of the same kernel that
+    # genuinely shares release A's GNU build id while differing in sha256. That
+    # is the collision G5 measured, and it is what makes "the build id is
+    # recorded but never trusted" a demonstrated property rather than a stated
+    # intention.
+    id_a = A['release_aot_identity'].get('gnu_build_id')
+    id_a2 = FA2.get('gnu_build_id')
+    sha_a = A['release_aot_identity']['sha256']
+    sha_a2 = FA2['release_aot_sha256']
+    if id_a is None or id_a2 is None:
+        results.append(('real build-id collision pair', 'FAIL',
+                        'a build id could not be read from one side'))
+    elif id_a != id_a2:
+        results.append(('real build-id collision pair', 'FAIL',
+                        f'build ids differ ({id_a[:12]} vs {id_a2[:12]}), so '
+                        f'this pair does not exercise a collision'))
+    elif sha_a == sha_a2:
+        results.append(('real build-id collision pair', 'FAIL',
+                        'the two artifacts have the same sha256, so there is '
+                        'nothing for the digest check to catch'))
+    else:
+        results.append((
+            'real pair: build_id_A == build_id_A2, sha256_A != sha256_A2',
+            'pass', f'build_id={id_a[:16]} shared; digests differ'))
+        # And the refusal must come from the DIGEST, not the build id.
+        v = json.load(open(f'{W}/fx_out.json'))
+        run('that real pair refuses on the digest, not the build id',
+            A, FA2, 'REFUSED', 'RELEASE_AOT_MISMATCH', 'HOST_IDENTITY')
+        last = json.load(open(f'{W}/fx_out.json'))
+        results.append((
+            '  and RELEASE_BUILD_ID_MISMATCH is absent (ids match)',
+            'pass' if 'RELEASE_BUILD_ID_MISMATCH' not in last['codes'] else 'FAIL',
+            f"codes={last['codes']}"))
 
 # ---- integrity: unknown schema, corruption, tampering -------------------
 run('schema_version unknown to this verifier',
