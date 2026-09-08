@@ -1,5 +1,5 @@
 SM1-G5 -- Base.work virtual/instance dispatch
-generated 2026-09-08T20:21:24Z by run_dispatch_experiment.sh
+generated 2026-09-08T20:28:41Z by run_dispatch_experiment.sh
 
 THE QUESTION
   Can the exact release mechanically determine that a non-inlined declaration
@@ -259,28 +259,37 @@ release: /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/app_release
 
   arm                                              result reasons / defect
   ------------------------------------------------------------------------------------------------------------
-  instance method (the Base.work shape)            pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, NON_STATIC_DISPATCH_UNPROVEN, RELEASE_PATCHA
-  instance getter                                  pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, NON_STATIC_DISPATCH_UNPROVEN, RELEASE_PATCHA
-  instance setter                                  pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, NON_STATIC_DISPATCH_UNPROVEN, RELEASE_PATCHA
-  instance operator                                pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, NON_STATIC_DISPATCH_UNPROVEN, RELEASE_PATCHA
-  static metadata absent                           pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
-  static metadata null                             pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
-  static metadata is the STRING "true", not a bool pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
-  static metadata is the integer 1                 pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
-  top-level static function                        pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
+  instance method (the Base.work shape)            pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, NON_STATI
+  instance getter                                  pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, NON_STATI
+  instance setter                                  pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, NON_STATI
+  instance operator                                pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, NON_STATI
+  static metadata absent                           pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, RELEASE_P
+  static metadata null                             pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, RELEASE_P
+  static metadata is the STRING "true", not a bool pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, RELEASE_P
+  static metadata is the integer 1                 pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, RELEASE_P
+  top-level static function                        pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, RELEASE_P
+  static target still refuses front-end materialization pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, RELEASE_P
+  instance target refuses both dispatch and materialization pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, NON_STATI
   a field, which is not a replaceable callable     pass   ABI_SHAPE_UNSUPPORTED
   ------------------------------------------------------------------------------------------------------------
-  arms=10 passed=10 failed=0
-  SURVIVORS: instance method (the Base.work shape) | instance getter | instance setter | instance operator | static metadata absent | static metadata null | static metadata is the STRING "true", not a bool | static metadata is the integer 1 | top-level static function | a field, which is not a replaceable callable
+  arms=12 passed=12 failed=0
+  SURVIVORS: instance method (the Base.work shape) | instance getter | instance setter | instance operator | static metadata absent | static metadata null | static metadata is the STRING "true", not a bool | static metadata is the integer 1 | top-level static function | static target still refuses front-end materialization | instance target refuses both dispatch and materialization | a field, which is not a replaceable callable
   SM1_G5_DISPATCH_PREDICATE: FAIL_CLOSED
   exit=0  (asserted: 0)
 
-  POSITIVE CONTROL. The same arms run against a copy of the predictor with the
-  predicate block deleted. The eight arms that depend on it must flip; the two
-  that must NOT depend on it -- a static declaration, and a field, which is not
-  a replaceable callable -- must keep passing.
+  POSITIVE CONTROLS, ONE PER GATE. Each removes a single gate, so a control
+  proves the gate it names rather than "some refusal disappeared":
 
-  weakened predictor written: predicate block of 323 chars removed
+    dispatch removed  -> exactly the arms asserting a dispatch reason flip.
+                         Survivors: the static target (which asserts only
+                         front-end materialization), and the field, which is
+                         not a replaceable callable.
+    frontend removed  -> exactly the two arms asserting front-end
+                         materialization flip, and nothing else.
+
+  weakened predictor written: gate 'dispatch', 323 chars removed
+  weakened predictor written: gate 'frontend', 71 chars removed
+  --- gate removed: dispatch ---
   arm                                              result reasons / defect
   ------------------------------------------------------------------------------------------------------------
   instance method (the Base.work shape)            FAIL   missing ['NON_STATIC_DISPATCH_UNPROVEN']
@@ -291,15 +300,37 @@ release: /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/app_release
   static metadata null                             FAIL   missing ['STATIC_METADATA_UNUSABLE']
   static metadata is the STRING "true", not a bool FAIL   missing ['STATIC_METADATA_UNUSABLE']
   static metadata is the integer 1                 FAIL   missing ['STATIC_METADATA_UNUSABLE']
-  top-level static function                        pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
+  top-level static function                        pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, RELEASE_P
+  static target still refuses front-end materialization pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, RELEASE_P
+  instance target refuses both dispatch and materialization FAIL   missing ['NON_STATIC_DISPATCH_UNPROVEN']
   a field, which is not a replaceable callable     pass   ABI_SHAPE_UNSUPPORTED
   ------------------------------------------------------------------------------------------------------------
-  arms=10 passed=2 failed=8
-  SURVIVORS: top-level static function | a field, which is not a replaceable callable
+  arms=12 passed=3 failed=9
+  SURVIVORS: top-level static function | static target still refuses front-end materialization | a field, which is not a replaceable callable
   SM1_G5_DISPATCH_PREDICATE: DEFECTS_PRESENT
-  exit=1  (asserted: non-zero)
+  exit=1  (asserted: non-zero, with an EXACT arm split)
+  --- gate removed: frontend ---
+  arm                                              result reasons / defect
+  ------------------------------------------------------------------------------------------------------------
+  instance method (the Base.work shape)            pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, NON_STATIC_DISPATCH_UNPROVEN, RELEASE_PATCHA
+  instance getter                                  pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, NON_STATIC_DISPATCH_UNPROVEN, RELEASE_PATCHA
+  instance setter                                  pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, NON_STATIC_DISPATCH_UNPROVEN, RELEASE_PATCHA
+  instance operator                                pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, NON_STATIC_DISPATCH_UNPROVEN, RELEASE_PATCHA
+  static metadata absent                           pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
+  static metadata null                             pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
+  static metadata is the STRING "true", not a bool pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
+  static metadata is the integer 1                 pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
+  top-level static function                        pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
+  static target still refuses front-end materialization FAIL   missing ['FRONTEND_MATERIALIZATION_UNPROVEN']
+  instance target refuses both dispatch and materialization FAIL   missing ['FRONTEND_MATERIALIZATION_UNPROVEN']
+  a field, which is not a replaceable callable     pass   ABI_SHAPE_UNSUPPORTED
+  ------------------------------------------------------------------------------------------------------------
+  arms=12 passed=10 failed=2
+  SURVIVORS: instance method (the Base.work shape) | instance getter | instance setter | instance operator | static metadata absent | static metadata null | static metadata is the STRING "true", not a bool | static metadata is the integer 1 | top-level static function | a field, which is not a replaceable callable
+  SM1_G5_DISPATCH_PREDICATE: DEFECTS_PRESENT
+  exit=1  (asserted: non-zero, with an EXACT arm split)
 
-ASSERTIONS (21 checked)
+ASSERTIONS (23 checked)
   pass  reader read the same artifact the demo ran
   pass  reader validated the note on the release AOT
   pass  reader reports Base.work NOT_INLINED there
@@ -314,10 +345,12 @@ ASSERTIONS (21 checked)
   pass  viaDirect carries no dispatch-table call site
   pass  viaInlined carries NO dispatch-table call site, yet stayed stale
   pass  the dispatch predicate is fail-closed on every arm
-  pass  predicate baseline is exactly 10/10
-  pass  deleting the predicate makes those arms fail
-  pass  weakened predicate is exactly 2 pass / 8 fail
-  pass  the two survivors are exactly the arms that must not depend on it
+  pass  predicate baseline is exactly 12/12
+  pass  removing the dispatch gate fails the arms
+  pass  dispatch gate removed is exactly 3 pass / 9 fail
+  pass  dispatch survivors are exactly the arms not asserting a dispatch reason
+  pass  removing the front-end gate fails the arms
+  pass  front-end gate removed is exactly 10 pass / 2 fail
   pass  no producer in this run failed
   pass  the predicate transcript records FAIL_CLOSED
   pass  the reader bank and this demonstration used one artifact

@@ -77,12 +77,24 @@ ARMS = [
      row('alpha', 'method', True),
      {'CALL_SITE_SHAPE_UNPROVEN'},
      {'NON_STATIC_DISPATCH_UNPROVEN', 'STATIC_METADATA_UNUSABLE'}),
+    # PHASE B. Front-end materialization is not an instance-dispatch fact, so
+    # it must attach to a STATIC replaceable too -- that is the whole point of
+    # the Phase B exclusion.
+    ('static target still refuses front-end materialization',
+     row('alpha2', 'method', True),
+     {'FRONTEND_MATERIALIZATION_UNPROVEN'},
+     {'NON_STATIC_DISPATCH_UNPROVEN', 'STATIC_METADATA_UNUSABLE'}),
+    ('instance target refuses both dispatch and materialization',
+     row('work2', 'method', False, owner='Base'),
+     {'FRONTEND_MATERIALIZATION_UNPROVEN', 'NON_STATIC_DISPATCH_UNPROVEN'},
+     set()),
     # A kind the predictor does not consider replaceable must not acquire a
     # dispatch reason: the predicate is scoped to replaceable callables.
     ('a field, which is not a replaceable callable',
      row('tag', 'field', False, owner='Base'),
      {'ABI_SHAPE_UNSUPPORTED'},
-     {'NON_STATIC_DISPATCH_UNPROVEN', 'STATIC_METADATA_UNUSABLE'}),
+     {'NON_STATIC_DISPATCH_UNPROVEN', 'STATIC_METADATA_UNUSABLE',
+      'FRONTEND_MATERIALIZATION_UNPROVEN'}),
 ]
 
 

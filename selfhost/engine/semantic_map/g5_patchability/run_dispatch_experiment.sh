@@ -33,7 +33,8 @@ sha() { shasum -a 256 "$1" | awk '{print $1}'; }
 # then consumes a stale artifact and passes. Same defect the reader
 # falsification harness had.
 rm -f "$W/basework.bytecode" "$W/patch_basework.sbrb" "$W/rel.json" \
-      "$W/weak_predictor.dart" "$W/patched_run.txt" "$W/shapes.txt"
+      "$W/weak_dispatch.dart" "$W/weak_frontend.dart" \
+      "$W/patched_run.txt" "$W/shapes.txt"
 
 # EVERY PRODUCER'S EXIT STATUS IS LOAD-BEARING. Checking only that an output
 # file is non-empty accepts a producer that failed after writing a partial
@@ -72,6 +73,18 @@ TXT
 echo
 
 # ---------------------------------------------------------------- the release
+# THE G1 PROJECTION IS BANKED, NOT ASSUMED. g2_r.json is consumed by the reader
+# and by every falsification arm, but no checked-in script produces it -- it was
+# a work-directory artifact. An input the whole bank rests on cannot be
+# unreproducible, so the exact bytes are banked as evidence/g1_projection.json
+# and the workdir copy must match them.
+if ! cmp -s "$W/g2_r.json" "$G/evidence/g1_projection.json"; then
+  echo "  G1 projection in the workdir differs from the banked copy"
+  echo "    workdir $(sha "$W/g2_r.json")"
+  echo "    banked  $(sha "$G/evidence/g1_projection.json")"
+  rc=1
+fi
+
 echo "############ 1. THE CANONICAL RELEASE, TAKEN NOT REBUILT ############"
 if [ ! -f "$SUBJ" ]; then
   echo "  MISSING $SUBJ -- run run_route2.sh first; this script does not"
@@ -311,17 +324,27 @@ python3 "$G/lib/falsify_dispatch_predicate.py" "$S/dart" "$W" 2>&1 | sed 's/^/  
 echo "  exit=$?  (asserted: 0)"
 echo
 cat <<'TXT'
-  POSITIVE CONTROL. The same arms run against a copy of the predictor with the
-  predicate block deleted. The eight arms that depend on it must flip; the two
-  that must NOT depend on it -- a static declaration, and a field, which is not
-  a replaceable callable -- must keep passing.
+  POSITIVE CONTROLS, ONE PER GATE. Each removes a single gate, so a control
+  proves the gate it names rather than "some refusal disappeared":
+
+    dispatch removed  -> exactly the arms asserting a dispatch reason flip.
+                         Survivors: the static target (which asserts only
+                         front-end materialization), and the field, which is
+                         not a replaceable callable.
+    frontend removed  -> exactly the two arms asserting front-end
+                         materialization flip, and nothing else.
 TXT
 echo
-must weaken-predictor python3 "$G/lib/weaken_predictor.py" \
-    "$G/lib/predict_patchable.dart" "$W/weak_predictor.dart"
-SM1_PREDICTOR="$W/weak_predictor.dart" python3 \
-    "$G/lib/falsify_dispatch_predicate.py" "$S/dart" "$W" 2>&1 | sed 's/^/  /'
-echo "  exit=$?  (asserted: non-zero)"
+for gate in dispatch frontend; do
+  must "weaken-predictor:$gate" python3 "$G/lib/weaken_predictor.py" \
+      "$G/lib/predict_patchable.dart" "$W/weak_$gate.dart" "$gate"
+done
+for gate in dispatch frontend; do
+  echo "  --- gate removed: $gate ---"
+  SM1_PREDICTOR="$W/weak_$gate.dart" python3 \
+      "$G/lib/falsify_dispatch_predicate.py" "$S/dart" "$W" 2>&1 | sed 's/^/  /'
+  echo "  exit=$?  (asserted: non-zero, with an EXACT arm split)"
+done
 } > "$G/evidence/dispatch_experiment.txt" 2>&1
 
 # ------------------------------------------------------------- assertions
@@ -364,19 +387,28 @@ want 'viaInlined carries NO dispatch-table call site, yet stayed stale' 0 \
         | grep -c 'viaInlined.*DISPATCH_TABLE')"
 BASE_OUT=$(python3 "$G/lib/falsify_dispatch_predicate.py" "$S/dart" "$W" 2>&1)
 want 'the dispatch predicate is fail-closed on every arm' 0 "$?"
-want 'predicate baseline is exactly 10/10' 'arms=10 passed=10 failed=0' \
-     "$(echo "$BASE_OUT" | grep -o 'arms=10 passed=10 failed=0')"
+want 'predicate baseline is exactly 12/12' 'arms=12 passed=12 failed=0' \
+     "$(echo "$BASE_OUT" | grep -o 'arms=12 passed=12 failed=0')"
 
-# THE CONTROL'S OUTCOME IS EXACT, NOT MERELY NON-ZERO. A weakened predictor
-# that failed only one arm would otherwise satisfy "the control failed".
-CTL_OUT=$(SM1_READER= SM1_PREDICTOR="$W/weak_predictor.dart" python3 \
+# EACH CONTROL'S OUTCOME IS EXACT, NOT MERELY NON-ZERO, and each isolates ONE
+# gate. A weakened predictor that failed only one arm, or that failed arms
+# belonging to a different gate, must not satisfy the control.
+D_OUT=$(SM1_PREDICTOR="$W/weak_dispatch.dart" python3 \
     "$G/lib/falsify_dispatch_predicate.py" "$S/dart" "$W" 2>&1)
-want 'deleting the predicate makes those arms fail' 1 "$?"
-want 'weakened predicate is exactly 2 pass / 8 fail' 'arms=10 passed=2 failed=8' \
-     "$(echo "$CTL_OUT" | grep -o 'arms=10 passed=2 failed=8')"
-want 'the two survivors are exactly the arms that must not depend on it' \
-     'top-level static function | a field, which is not a replaceable callable' \
-     "$(echo "$CTL_OUT" | sed -n 's/^SURVIVORS: //p')"
+want 'removing the dispatch gate fails the arms' 1 "$?"
+want 'dispatch gate removed is exactly 3 pass / 9 fail' \
+     'arms=12 passed=3 failed=9' \
+     "$(echo "$D_OUT" | grep -o 'arms=12 passed=3 failed=9')"
+want 'dispatch survivors are exactly the arms not asserting a dispatch reason' \
+     'top-level static function | static target still refuses front-end materialization | a field, which is not a replaceable callable' \
+     "$(echo "$D_OUT" | sed -n 's/^SURVIVORS: //p')"
+
+F_OUT=$(SM1_PREDICTOR="$W/weak_frontend.dart" python3 \
+    "$G/lib/falsify_dispatch_predicate.py" "$S/dart" "$W" 2>&1)
+want 'removing the front-end gate fails the arms' 1 "$?"
+want 'front-end gate removed is exactly 10 pass / 2 fail' \
+     'arms=12 passed=10 failed=2' \
+     "$(echo "$F_OUT" | grep -o 'arms=12 passed=10 failed=2')"
 want 'no producer in this run failed' '' "$PRODUCER_FAILED"
 want 'the predicate transcript records FAIL_CLOSED' 1 \
      "$(grep -c 'SM1_G5_DISPATCH_PREDICATE: FAIL_CLOSED' "$T")"

@@ -66,6 +66,10 @@ const refusalReasons = <String>[
   // let a missing input read as a measurement.
   'NON_STATIC_DISPATCH_UNPROVEN',
   'STATIC_METADATA_UNUSABLE',
+  // SM1-G5 PHASE B. The static-CALL path is closed by construction, but a
+  // front-end transform can make a body stale without any call site being at
+  // fault, and Route 2 cannot be shown to witness it.
+  'FRONTEND_MATERIALIZATION_UNPROVEN',
 ];
 
 /// The dynamic-interface entry a required retention class lowers to, as it
@@ -223,6 +227,35 @@ void main(List<String> args) {
     final replaceable =
         const {'method', 'getter', 'setter', 'operator'}.contains(kind);
     if (!replaceable) reasons.add('ABI_SHAPE_UNSUPPORTED');
+
+    // ---- FRONT-END MATERIALIZATION ---------------------------------------
+    //
+    // PHASE B closed the static-call question and opened this one.
+    //
+    // WHAT IS PROVEN SAFE: under --patchable_static_calls,
+    // FlowGraphCompiler::GenerateStaticDartCall returns early and dispatches
+    // through the callee's FUNCTION, which Function::AttachBytecode redirects
+    // via SetInstructions(StubCode::InterpretCall()). The two forms that do not
+    // consult the Function -- a PC-relative branch and a Code-holding pool slot
+    // bound by ProgramVisitor::BindStaticCalls -- live only in the non-flag
+    // branch of that one emitter, which has three call sites in the tree. So
+    // for a static target in a flag-built release, the static-call inbound path
+    // is redirectable by construction.
+    //
+    // WHAT IS NOT: a front-end transform can materialize a declaration's VALUE
+    // into its callers before the VM compiler runs. This lane recorded the
+    // behaviour directly -- route_b/packaging/container_target.dart and four
+    // probe scripts note that a literal return is constant-folded by the
+    // type-flow analysis EVEN UNDER vm:never-inline, and that a working patch
+    // mechanism then reported OLD. Route 2's note records the VM inliner's own
+    // decisions; whether it witnesses a kernel-level fold is UNTESTED, and it
+    // cannot be tested on the canonical release without extending the corpus,
+    // which needs a G1 projection producer that is not checked in.
+    //
+    // An untested mechanism that can produce stale behaviour is a refusal, not
+    // a permission. This applies to every replaceable declaration, static or
+    // not -- it is not an instance-dispatch fact.
+    if (replaceable) reasons.add('FRONTEND_MATERIALIZATION_UNPROVEN');
 
     // ---- INSTANCE DISPATCH -----------------------------------------------
     //

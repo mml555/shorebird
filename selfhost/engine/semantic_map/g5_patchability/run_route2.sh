@@ -47,6 +47,18 @@ want() { # want <description> <expected> <actual>
   fi
 }
 
+# THE G1 PROJECTION IS BANKED, NOT ASSUMED. g2_r.json is consumed by the reader
+# and by every falsification arm, but no checked-in script produces it -- it was
+# a work-directory artifact. An input the whole bank rests on cannot be
+# unreproducible, so the exact bytes are banked as evidence/g1_projection.json
+# and the workdir copy must match them.
+if ! cmp -s "$W/g2_r.json" "$G/evidence/g1_projection.json"; then
+  echo "  G1 projection in the workdir differs from the banked copy"
+  echo "    workdir $(sha "$W/g2_r.json")"
+  echo "    banked  $(sha "$G/evidence/g1_projection.json")"
+  rc=1
+fi
+
 # ---------------------------------------------------------------- 1. producer
 R="$W/route2_replay"; rm -rf "$R"; mkdir -p "$R"
 for f in "${FILES[@]}"; do mkdir -p "$R/$(dirname "$f")"; git -C "$D" show "$T:$f" > "$R/$f"; done
