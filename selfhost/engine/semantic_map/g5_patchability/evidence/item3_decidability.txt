@@ -295,37 +295,45 @@ date : 2026-09-08T05:13:05Z
   Predictor consumption stays unauthorized. Virtual/instance dispatch remains a
   separate unresolved mechanism. No classification is made.
 
-############ SCHEMA 4 — parent linkage, and the implicit-closure verdict ############
-date : 2026-09-08T05:51:53Z
+############ SCHEMA 5 — full parent identity, and the implicit-closure verdict ############
 
   THE POLICY CORRECTION ACCEPTED. "Same declared name under two VM kinds =>
   UNKNOWN" was too coarse. An ImplicitClosureFunction is a tear-off wrapper, not
   a competing identity for the declaration; only the RegularFunction is an
-  eligible DIRECT mapping. So the emitter now carries the link the policy needs:
+  eligible DIRECT mapping.
 
-    schema_version=4, fields_per_record=12
-    per side: library URI, owner, VM kind, declared name, parent kind, parent name
+  SCHEMA 4 WAS NOT ENOUGH, and is superseded. It carried only parent kind and
+  name, which would have forced the reader to assume a child and its parent
+  always share library and owner. That invariant is unstated and unproven, so
+  schema 5 emits the parent's OWN library and owner too:
 
-  The parent fields are empty for an ordinary function and populated for an
-  implicit closure. An unresolved synthetic parent is emitted "<unknown>" so the
-  mapper can refuse rather than assume the wrapper is unrelated.
+    schema_version=5, fields_per_record=16
+    per side: library URI, owner, kind, declared name,
+              then the same four for the synthetic parent
 
-  Constructor kinds are disambiguated at the source, since the VM's Constructor
-  covers both: "Constructor:generative" vs "Constructor:factory", decided by
-  staticness rather than left to the reader.
+  Measured rather than assumed -- and on this corpus they do agree, which is a
+  result rather than a premise.
 
-############ THE ADVERSARIAL ARM, exactly as specified ############
+  Constructor kinds are disambiguated at the source, for both a function and a
+  synthetic parent, since the VM's Constructor covers both:
+  "Constructor:generative" vs "Constructor:factory", by staticness.
 
-  tearOffTarget is reached ONLY through a tear-off, so the VM synthesises an
-  implicit closure for it. The note records precisely the ambiguous shape:
+############ THE ADVERSARIAL ARM — full transcript banked ############
 
-    INLINEE ImplicitClosureFunction  tearOffTarget   parent=('RegularFunction','tearOffTarget')
-      INTO  RegularFunction          callsViaTearOff parent=('','')
+  evidence/implicit_closure_arm.txt carries the authoritative run: every input
+  and output hash, the decoded schema-5 rows, and the verbatim execution. The
+  numbers below are quoted from it, not restated from memory.
 
-  and the declared RegularFunction tearOffTarget appears ONLY in the caller
-  column -- it is not itself an inlinee.
+  The decoded rows show exactly the ambiguous shape:
 
-  Patching the DECLARED function, 71 -> 171:
+    inlinee  lib=package:dynamic_modules/callsite_target.dart owner='' kind=ImplicitClosureFunction name=tearOffTarget
+      parent lib='package:dynamic_modules/callsite_target.dart' owner='' kind='RegularFunction' name='tearOffTarget'
+      INTO     lib=package:dynamic_modules/callsite_target.dart owner='' kind=RegularFunction name=callsViaTearOff
+
+    declared RegularFunction tearOffTarget in the INLINEE column : False
+    its ImplicitClosureFunction in the INLINEE column            : True
+
+  and the run, patching the DECLARED function 71 -> 171:
 
     before  tearOff=72
     ATTACH: C++ invoke of target returned: 171
@@ -334,19 +342,24 @@ date : 2026-09-08T05:51:53Z
 
   VERDICT: the synthetic-parent relation is HARMLESS for this shape. Behaviour
   moved, so a declaration whose only inlining involvement is through its
-  implicit closure does NOT require UNKNOWN on that account. The tear-off
-  wrapper evidently dispatches to the target rather than embedding its body.
+  implicit closure does NOT require UNKNOWN on that account.
 
-  THE LIMIT OF THAT CLAIM. This is one shape: a top-level function torn off
-  within its own library and called immediately. It does not establish the same
-  for an instance-method tear-off, a tear-off stored and called later, or one
-  crossing a library boundary. The finding reduces required conservatism, so it
-  is stated narrowly on purpose -- it is the direction of error that matters
-  here, and over-generalising it would silently authorise patches.
+  THE LIMIT OF THAT CLAIM. One shape: a top-level function torn off inside its
+  own library and called immediately. It does not cover an instance-method
+  tear-off, a tear-off stored and called later, or one crossing a library
+  boundary. The finding REDUCES required conservatism, which is the direction
+  where over-generalising would silently authorise patches, so it stays a
+  per-shape result rather than a rule.
 
   Contrast with the smallTarget arm, where the DECLARED function was itself the
-  inlinee and behaviour did NOT move. The two together separate the cases:
+  inlinee and behaviour did NOT move:
 
     declared function is an inlinee            -> patch does not reach the copies
     only its implicit closure is an inlinee    -> patch still reaches behaviour
                                                   (this shape)
+
+  DETERMINISM AND REPLAY, regenerated for the schema-5 producer and banked as
+  hashes in instrumentation/MANIFEST.json: note-section sha256 equal across two
+  builds; frozen + 0001 + 0002 equal to the built clone per file; full AOT
+  sha256 recorded. The two AOT hashes DIFFER, so what is shown is deterministic
+  NOTE CONTENT, not byte-reproducible whole-AOT output.

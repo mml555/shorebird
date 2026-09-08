@@ -1,0 +1,37 @@
+SM1-G5 route 2 / schema 5 — AUTHORITATIVE RUN
+date : 2026-09-08T06:12:21Z
+
+IDENTITY OF EVERY INPUT AND OUTPUT
+  instrumented gen_snapshot sha256 : e0ada2216becd46b38f2cb75a1df144d0d58431939a49d41c7dfff3d1c684fd8
+  release kernel release3.dill     : a93b4be09e7efa06279f42860e64208d86d7b7a0ab7e71156960f50bf2bfd888
+  release app_s5.aot               : ba5ed2c50958ef0d260e18e4331b147be51efcdfcd1347eb6d77e033460de58c
+  release build id                 : 97c212a37be47fbff1e700f874190707
+  replacement source               : probe/repl_tearOffTarget.dart
+  replacement KBC                  : 51be8d1481e4f2998242d583fe71a5287f9a8c34ecda8a7470dec52c6a8362da
+  patch container patch_s5.sbrb    : 0f5a386040475f8e9b9eec0eecb7a3a37f570e448e9644d65716825bc8ad0bd5
+  target selector                  : package:dynamic_modules/callsite_target.dart#tearOffTarget
+  note section sha256              : 127fe69331eccf5a980c388d07c4ec2d37ac853dc3edead095f55e668aa1667b
+  note section sha256 (rebuild)    : 127fe69331eccf5a980c388d07c4ec2d37ac853dc3edead095f55e668aa1667b
+  deterministic                    : True
+  note header                      : schema_version=5; fields_per_record=16; records=3353
+
+DECODED SCHEMA-5 ROWS FOR THE SUBJECT
+  parsed 3353 records; header count matches: True
+
+  rows whose INLINEE is tearOffTarget in any form:
+    inlinee  lib=package:dynamic_modules/callsite_target.dart owner='' kind=ImplicitClosureFunction name=tearOffTarget
+      parent lib='package:dynamic_modules/callsite_target.dart' owner='' kind='RegularFunction' name='tearOffTarget'
+      INTO     lib=package:dynamic_modules/callsite_target.dart owner='' kind=RegularFunction name=callsViaTearOff
+
+  declared RegularFunction tearOffTarget present in the INLINEE column: False
+  its ImplicitClosureFunction present in the INLINEE column        : True
+
+THE RUN, VERBATIM
+  BUILD_ID 97c212a37be47fbff1e700f874190707
+  before alpha=OLD-a beta=OLD-b virtual=OLD-w direct=OLD-w inlined=OLD-w other=OTHER-w small=41 callsSmall=42 tearOff=72
+  ATTACH: before -> IsInterpreted=0 HasBytecode=0
+  ATTACH: after  -> IsInterpreted=1 HasBytecode=1
+  ATTACH: pool len=2667, rewrote 0 slot(s) (other Code slots=121)
+  ATTACH: C++ invoke of target returned: 171
+  APPLY ok: 1 target(s)
+  after  alpha=OLD-a beta=OLD-b virtual=OLD-w direct=OLD-w inlined=OLD-w other=OTHER-w small=41 callsSmall=42 tearOff=172

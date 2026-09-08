@@ -25,41 +25,43 @@
     "instrumented_gen_snapshot_sha256": "fe1f523a43dd03429532e31e929d235bdea54c529aea6900929c06343ad81eda",
     "frozen_gen_snapshot_sha256": "4310aebd39be52ec9fd30adf801e698b599cfb7c2eba69e26d2af1b08e39812b",
     "build_shim": "vpython3 -> python3; depot_tools wrapper fails on Python 3.13",
-    "instrumented_gen_snapshot_sha256_with_delta_2": "6fc4d1a0198d062d1ccd3d4784765fcab26c243ce5454ea91c01913dd20c545d"
+    "instrumented_gen_snapshot_sha256_with_delta_2": "e0ada2216becd46b38f2cb75a1df144d0d58431939a49d41c7dfff3d1c684fd8"
   },
   "delta_2": {
     "path": "instrumentation/0002-g5-inlining-relation.patch",
-    "sha256": "f7826262d5a8559c9e0f5e5ae2acef3fb1e4e70b1b24a6959d1f8335333d274d",
+    "sha256": "5752eed32508a8eaeeb83388654a08bfabbe1ac12c46809230f6aba7196d99c3",
     "files": [
       "runtime/vm/elf.h",
       "runtime/vm/elf.cc",
       "runtime/vm/compiler/backend/flow_graph_compiler.cc"
     ],
-    "what": "route 2: FlowGraphCompiler records inline_id_to_function -- the inliner's own post-optimization decisions -- and ElfWriter emits them as .note.shorebird.inlining (owner Shorebird, note type 2).",
+    "what": "route 2 schema 5: FlowGraphCompiler records the inliner's own inline_id_to_function decisions with FULL G1 identity for both sides and for a synthetic parent; ElfWriter emits them as .note.shorebird.inlining, sorted, de-duplicated, length-prefixed, and sealed against late appends.",
     "bug_found_and_fixed": "A ZoneGrowableArray global segfaulted gen_snapshot: it allocates in the current zone, which does not outlive one compilation, so the pointer dangled by the time the ELF writer ran. Malloc-backed storage persists for the process.",
     "semantics": "incremental, applies after 0001"
   },
   "route2_witness": {
     "note": ".note.shorebird.inlining",
-    "note_schema_version": 4,
-    "encoding": "header lines, then records=N, then N records of 12 length-prefixed \"<len>:<bytes>\" fields: per side library URI, owner, VM kind, declared name, parent kind, parent name. No separators.",
-    "records": 3348,
-    "fields_per_record": 12,
+    "note_schema_version": 5,
+    "fields_per_record": 16,
+    "records": 3353,
+    "encoding": "header lines, then records=N, then N records of 16 length-prefixed \"<len>:<bytes>\" fields: per side the full G1 identity (library URI, owner, kind, declared name) followed by the full G1 identity of the synthetic parent when that side is an implicit closure. Schema 4 carried only parent kind+name, which would have forced the reader to assume child and parent share library and owner -- unstated and unproven, so both are now emitted.",
     "sealed_after_emission": true,
+    "note_sha256_covers": "the full note SECTION bytes (header + owner + payload)",
     "determinism": {
       "build_a": {
-        "aot": "app_s3.aot",
-        "aot_sha256": "8b0a7ea93b88950d40faf2c9944ee8b978e0e4de5717923d58b978d7928193b6",
-        "note_sha256": "2e53596e2f88d782fcc0e49e91003c10a23f891fd274bd303a23a447475676e0"
+        "aot": "app_s5.aot",
+        "aot_sha256": "ba5ed2c50958ef0d260e18e4331b147be51efcdfcd1347eb6d77e033460de58c",
+        "note_section_sha256": "127fe69331eccf5a980c388d07c4ec2d37ac853dc3edead095f55e668aa1667b"
       },
       "build_b": {
-        "aot": "app_s3b.aot",
-        "aot_sha256": "e6b0d56144f861a650f176e583dc1db7530f9a26720f849b8f04d4151858f3e1",
-        "note_sha256": "2e53596e2f88d782fcc0e49e91003c10a23f891fd274bd303a23a447475676e0"
+        "aot": "app_s5b.aot",
+        "aot_sha256": "c87d6b39bde557299e5def7653f0f0066eb739df4cfb3446c27c026a9368d876",
+        "note_section_sha256": "127fe69331eccf5a980c388d07c4ec2d37ac853dc3edead095f55e668aa1667b"
       },
-      "note_sha256_equal": true
-    },
-    "note_sha256_covers": "the FULL note section bytes as they appear in the ELF (note header + owner + payload), not the stripped payload. An earlier transcript line hashed the stripped payload and so shows a different value for the same artifact; both were equal across the two builds."
+      "note_sha256_equal": true,
+      "aot_sha256_equal": false,
+      "note": "what is demonstrated is deterministic NOTE CONTENT, not byte-reproducible whole-AOT output; the two AOT hashes differ."
+    }
   },
   "replay": {
     "order": [
@@ -70,30 +72,35 @@
     "verified": "frozen + 0001 + 0002 reproduces the built clone byte for byte across all three files.",
     "per_file": {
       "runtime/vm/elf.h": {
-        "replayed_sha256": "084463131386c44cdccac47341449f9622363679af49ca7e48f82326861f1d20",
-        "built_sha256": "084463131386c44cdccac47341449f9622363679af49ca7e48f82326861f1d20",
+        "replayed_sha256": "662c94bfc69699b847548373a92844415f67355e057e00e802ae665caee4e44b",
+        "built_sha256": "662c94bfc69699b847548373a92844415f67355e057e00e802ae665caee4e44b",
         "equal": true
       },
       "runtime/vm/elf.cc": {
-        "replayed_sha256": "a110572c445390e27bf726fd6fcc3b4b57856882bc5e7c7a73b81630c9486fe0",
-        "built_sha256": "a110572c445390e27bf726fd6fcc3b4b57856882bc5e7c7a73b81630c9486fe0",
+        "replayed_sha256": "dde2d57c918bf920fe845905a2446218d1239b5d2408a306f32e1ee8b59527e8",
+        "built_sha256": "dde2d57c918bf920fe845905a2446218d1239b5d2408a306f32e1ee8b59527e8",
         "equal": true
       },
       "runtime/vm/compiler/backend/flow_graph_compiler.cc": {
-        "replayed_sha256": "5c29a17aa3e8c9c8ae296c7b9409e8454ed6efcbaa03094337d007e2bce6c510",
-        "built_sha256": "5c29a17aa3e8c9c8ae296c7b9409e8454ed6efcbaa03094337d007e2bce6c510",
+        "replayed_sha256": "0723d19e1f4a4c08f881f3741272eb830ccb3ca2bd06b754e9694ce87ba18a1c",
+        "built_sha256": "0723d19e1f4a4c08f881f3741272eb830ccb3ca2bd06b754e9694ce87ba18a1c",
         "equal": true
       }
     },
     "all_files_equal": true
   },
   "implicit_closure_arm": {
-    "aot": "app_to.aot",
-    "aot_sha256": "a9942e8473711df5ecd9d252fc574f561a88b9e125501419f78b8aca61f57fa3",
+    "transcript": "evidence/implicit_closure_arm.txt",
+    "aot": "app_s5.aot",
+    "aot_sha256": "ba5ed2c50958ef0d260e18e4331b147be51efcdfcd1347eb6d77e033460de58c",
+    "note_section_sha256": "127fe69331eccf5a980c388d07c4ec2d37ac853dc3edead095f55e668aa1667b",
+    "release_kernel_sha256": "a93b4be09e7efa06279f42860e64208d86d7b7a0ab7e71156960f50bf2bfd888",
     "patch_sbrb_sha256": "0f5a386040475f8e9b9eec0eecb7a3a37f570e448e9644d65716825bc8ad0bd5",
     "replacement_kbc_sha256": "51be8d1481e4f2998242d583fe71a5287f9a8c34ecda8a7470dec52c6a8362da",
-    "records": 3353,
-    "observed": "tearOff 72 -> 172; direct invoke of the attached replacement returned 171",
-    "verdict": "synthetic-parent relation harmless FOR THIS SHAPE; not generalised"
+    "replacement_source": "probe/repl_tearOffTarget.dart",
+    "target_selector": "package:dynamic_modules/callsite_target.dart#tearOffTarget",
+    "declared_regular_function_is_inlinee": false,
+    "implicit_closure_is_inlinee": true,
+    "verdict": "behaviour moved 72 -> 172, so the synthetic-parent relation is harmless FOR THIS SHAPE: a top-level function torn off inside its own library and called immediately. Not generalised."
   }
 }
