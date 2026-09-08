@@ -2,7 +2,7 @@
   "schema": "semantic-map-1/g5-final/1",
   "gate": "SM1-G5",
   "issue": 54,
-  "experimental_head": "080860f7eaef2ee429ed1fada90cfb7930e3d822",
+  "experimental_head": "d4d3fc988f925e49c0870a1a1ddc32c102f5ade3",
   "disposition": "REDUCE_SCOPE",
   "coverage_used_as_safety_gate": false,
   "identity": {
@@ -16,12 +16,12 @@
   "inputs": {
     "callsite_arms.txt": "220eef3e7c83d8d565c9d7049490f6c76193d474a4be87406bc072d55c54e369",
     "capability_marker.txt": "7eb060c33e3e1c5a15a3363d3ee718824416f00ef91ebb743a173b9e3e9fa102",
-    "corpora.txt": "8071d3e4d584d3f791588c3807bc0945199a871ec8df4bc5f8fdf8fae578bd8f",
-    "corpus_localsend.json": "2deae3df510739dd0b73e742cb5a8bd3bad300e7376e2eadf3fd9d3a94bd57d5",
-    "corpus_wonderous.json": "bbe93a594e9fd53b6ea81bd5e746ef43266475c7705ae3083d39e906e023f5dd",
+    "corpora.txt": "e7e37cb28b4e693f6d881f115d7859b50393442e35db234f719c83aca7ad2d58",
+    "corpus_localsend.json": "b6f36d272e4e6aee098a5b7c6557a2f821fb7cad0afced6685660709c6f007b2",
+    "corpus_wonderous.json": "b73265b454f93df709cb36ff616acec738de119dff0e21a342dbc9ff82f692dd",
     "demonstrated.json": "92974f55902d9d9fb46d663a4dfbe24808e48c7a3d5b2cda95f4b9735006e9bc",
     "demonstrated_derived.json": "d2c263efaa26f4315f3679d9a8b2de40df7771b726780941d8e378a87f42612b",
-    "dispatch_experiment.txt": "19adf8e35fd0ed90a8b986361052b672e816dd669e52a4f639c2e4582bc77651",
+    "dispatch_experiment.txt": "374ce3d19b76ce7b8cf06d0ef2d362bb6518c95000ef91366c56c494bb37b425",
     "g1_projection.json": "b9b29d23f37e5e11a5ab181f7f9674c5a482f52b5bcd0483272e6f57c0f90550",
     "implicit_closure_arm.txt": "21a02cbf9032eae515bf507176cb1e21455184ef674b22d5268a3f1a4bd66027",
     "inlined_target.txt": "e6317c484336a8b86b83cd2154997fe712372e8a96ff02c03d16dc8de3e50a81",
@@ -29,17 +29,17 @@
     "item3_decidability.txt": "4de6a402126fea23d2679aabac9155abb19b974e4398bdbf46b4252301df039b",
     "positive_control.txt": "0adb0f4d2d744c1a3292c6925dd03b66b57485566c2c356342df15b1f2ede0d3",
     "predictions.json": "4ff45fc3049b00850f7468b4ace17f860a69007a2710072e8e1eda6325c73b77",
-    "predictor_falsification.txt": "bbb1645017576598df66b5e56839abce0c0239f654c902eff12d63f6242fdb9f",
-    "reader_falsification.txt": "e071866e4b74dbcadcccbe0fed0f6443e46b8b25f12faa9fc39efb84f269cc6d",
-    "reader_state.txt": "63490ead34771f1773f2a196dcd841370b21e22031d98767b90dc873199159e0",
+    "predictor_falsification.txt": "b3768506d039f114580600ce5661214b5725c009f178f58493534bce0ea6111f",
+    "reader_falsification.txt": "67b920b3b5f9be372dd66a2fcb806e78435f49ac1750855110a6ec1d3d436892",
+    "reader_state.txt": "d34f2caf1eb6fbbb026871c7c084306422aa27710ab792c5ae99005b205ce27f",
     "recorder_completeness.md": "c29d51bb62da09b9d64553eefefb112e76c87b206ee3a9d2f4340bc3a2fcd715",
-    "recorder_completeness.txt": "933e873ffea964f78c10d678d2ad65024e1062339e5872720e12dde2f9f60b97",
+    "recorder_completeness.txt": "a5feafc58d345c2d0732997882efe642625e397dc4179e36e46702fc7a275c64",
     "step1_falsification.txt": "0f0d5e107b646839f46a56e6aa76b8ff7674b0b662d1be78453a66b1298c6699",
     "subset.json": "f690165551419aad60c8015e0cd813d0a0dff8c88521ae7c98607f9f1ee3dfad",
-    "subset_check.txt": "32eeeb7876279428a431e1d629d0e2f313dd0be6a32f08d41b98634fc9f87e6d"
+    "subset_check.txt": "a68463516233943a17af4891a9ce8fcd94b69a57eea1861f0439123883f37d4c"
   },
   "scripts": {
-    "run_corpora.sh": "649f85874153989bcff2c7908b3c10682f618058b3cbb3b4b46f558bb2b5cadf",
+    "run_corpora.sh": "30978d90ee5da578c62ff61726dec92d90f328620a34c83a7515665ebb9c0296",
     "run_dispatch_experiment.sh": "efb155296aea5d3f4bf34a988747dda9408bd8c782a4f4cadcc1adb91d31a9ef",
     "run_predictor_bank.sh": "c54db55274d7ae212b70f512c22c09eff11bc69e134603fbbdd8ceb96c457d42",
     "run_route2.sh": "adb9a491a2ad1137d91f13d9d8d27efd1b83a9fce7acf3aa1fa5515606b3f2e4",
@@ -57,7 +57,7 @@
     "falsify_predictor.py": "11c06267de0c7efc571e835837eb302814229ce786a00a97eb9aa15d3e0e7429",
     "falsify_reader.py": "f405a7badeea0e6511c386068791de49366db859673415f88c442d2b2fa4e85c",
     "falsify_subset.py": "99ab6029e4d685d91a7866a2bf74156ad8888a8a276942b4126f85443048e73d",
-    "gen_final_report.py": "4cf8038d0e617061f46019e2bc0be91d1cf972a36fc4e97ce0d795dd0c426656",
+    "gen_final_report.py": "28f17b53689b5af1257900e6ac4c89035dbe6f8b931f9328de6b99e1fb821edc",
     "predict_patchable.dart": "f4032e7d6675135908db4f0e03806d3e47ac5a4ec4c15870438b26956383a68c",
     "read_inlining.py": "8e1a23b59fb5e7be435019bd1b0840f81057abee424b48b570b9745d7646ac13",
     "release_contract.dart": "168fad415f8ac66e341b4ea4bbf293c55a80ae246cf1853ea1f8d29266a0bfb8",
@@ -85,6 +85,24 @@
     "predicted_patchable": 0,
     "subset_verdict": "SUBSET_HOLDS_VACUOUSLY"
   },
+  "scope_exclusion_proof": {
+    "adversarial": {
+      "replaceable_declarations": 18,
+      "missing_a_scope_reason": 0,
+      "covers_every_replaceable": true
+    },
+    "localsend": {
+      "replaceable_declarations": 19148,
+      "missing_a_scope_reason": 0,
+      "covers_every_replaceable": true
+    },
+    "wonderous": {
+      "replaceable_declarations": 1718,
+      "missing_a_scope_reason": 0,
+      "covers_every_replaceable": true
+    }
+  },
+  "scope_holds_on_every_corpus": true,
   "refusal_vocabulary": [
     "ABI_SHAPE_UNSUPPORTED",
     "BODY_ENCODING_REFUSED",

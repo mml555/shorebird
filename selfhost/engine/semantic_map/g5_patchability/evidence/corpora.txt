@@ -1,5 +1,5 @@
 SM1-G5 Phase D -- real application corpora
-generated 2026-09-08T21:32:08Z by run_corpora.sh
+generated 2026-09-08T22:00:53Z by run_corpora.sh
 
   gen_snapshot b307906fe7dc9ef254231023e0862c89da23840e7fef3911cfd10308abc4a81a  (frozen + 0001 + 0002)
   platform     099b03133aea39273dcebf85ed8c5762ee22834e63d2ffba786be6ad7428d61c
@@ -14,6 +14,8 @@ THE RULING THIS IMPLEMENTS (#54)
 
   If a corpus ever admits a declaration, behavioural GUI observability becomes
   necessary for those rows only.
+  wonderous prepared fresh: 1026 files,
+    one recorded source change in lib/logic/common/platform_info.dart
 
 ################################ localsend ################################
   worktree /Volumes/build/route-b/demand1/localsend/wt
@@ -26,21 +28,21 @@ THE RULING THIS IMPLEMENTS (#54)
     4133a0ff6cf111aad1d7974e8868a8148877ea3c21515a37cd11cc635c8c2bf5  localsend.aot
 
 --- 2. all four evidence inputs, produced not stubbed ---
-    wrote localsend_g1.json  rows=35139
-      rows=41114 private=33551 write-collapsed=89 -> localsend_g3.json
-      retention rows=35139 -> localsend_g4.json
-      bodies=30317 private-type-refs=4596 private-writes=52 traversal-refused=27 -> localsend_refs.json
+wrote localsend_g1.json  rows=35139
+  rows=41114 private=33551 write-collapsed=89 -> localsend_g3.json
+  retention rows=35139 -> localsend_g4.json
+  bodies=30317 private-type-refs=4596 private-writes=52 traversal-refused=27 -> localsend_refs.json
 
 --- 3. release contract, from the release artifact ---
-      release declarations=35139 ambiguous=0 -> localsend_contract.json
+  release declarations=35139 ambiguous=0 -> localsend_contract.json
     capability PROVEN
     evidence   note: schema_version=1;patchable_static_calls=true
 
 --- 4. Route 2 reader over that exact AOT ---
-      total_g1_rows=35139 INLINED=805 NOT_INLINED=0 UNKNOWN=29512 NO_BODY=4822 accounted=35139 -> /Volumes/build/g5_corpora/localsend_inlining.json
+  total_g1_rows=35139 INLINED=805 NOT_INLINED=0 UNKNOWN=29512 NO_BODY=4822 accounted=35139 -> /Volumes/build/g5_corpora/localsend_inlining.json
 
 --- 5. the real predictor ---
-      predictions=35139 patchable=0 refused=35139 -> /Volumes/build/g5_corpora/localsend_predictions.json
+  predictions=35139 patchable=0 refused=35139 -> /Volumes/build/g5_corpora/localsend_predictions.json
     declarations=35139 predicted_patchable=0
        35139  RETENTION_UNPROVEN
        19148  CALL_SITE_SHAPE_UNPROVEN
@@ -88,21 +90,21 @@ THE RULING THIS IMPLEMENTS (#54)
     12a582027384678471dd072a2e1421caab488e850c97045338cc267d1bc800c6  wonderous.aot
 
 --- 2. all four evidence inputs, produced not stubbed ---
-    wrote wonderous_g1.json  rows=3016
-      rows=3757 private=1372 write-collapsed=97 -> wonderous_g3.json
-      retention rows=3016 -> wonderous_g4.json
-      bodies=2741 private-type-refs=251 private-writes=58 traversal-refused=11 -> wonderous_refs.json
+wrote wonderous_g1.json  rows=3016
+  rows=3757 private=1372 write-collapsed=97 -> wonderous_g3.json
+  retention rows=3016 -> wonderous_g4.json
+  bodies=2741 private-type-refs=251 private-writes=58 traversal-refused=11 -> wonderous_refs.json
 
 --- 3. release contract, from the release artifact ---
-      release declarations=3016 ambiguous=0 -> wonderous_contract.json
+  release declarations=3016 ambiguous=0 -> wonderous_contract.json
     capability PROVEN
     evidence   note: schema_version=1;patchable_static_calls=true
 
 --- 4. Route 2 reader over that exact AOT ---
-      total_g1_rows=3016 INLINED=780 NOT_INLINED=0 UNKNOWN=1961 NO_BODY=275 accounted=3016 -> /Volumes/build/g5_corpora/wonderous_inlining.json
+  total_g1_rows=3016 INLINED=780 NOT_INLINED=0 UNKNOWN=1961 NO_BODY=275 accounted=3016 -> /Volumes/build/g5_corpora/wonderous_inlining.json
 
 --- 5. the real predictor ---
-      predictions=3016 patchable=0 refused=3016 -> /Volumes/build/g5_corpora/wonderous_predictions.json
+  predictions=3016 patchable=0 refused=3016 -> /Volumes/build/g5_corpora/wonderous_predictions.json
     declarations=3016 predicted_patchable=0
         3016  RETENTION_UNPROVEN
         1718  CALL_SITE_SHAPE_UNPROVEN
@@ -140,7 +142,7 @@ THE RULING THIS IMPLEMENTS (#54)
     SM1_G5_SUBSET: FAIL_OPEN
     exit=1  (asserted: non-zero)
 
-ASSERTIONS (30 checked)
+ASSERTIONS (38 checked)
   pass  localsend: G1 projection is non-empty
   pass  localsend: g3 privacy rows produced
   pass  localsend: g4 retention rows produced
@@ -155,6 +157,10 @@ ASSERTIONS (30 checked)
   pass  localsend: no demonstration required for an empty set
   pass  localsend: subset holds vacuously
   pass  localsend: an injected admitted row FAILS OPEN
+  pass  localsend: the injected over-claim EXITS NON-ZERO
+  pass  localsend: both scope reasons cover EVERY replaceable declaration
+  pass  localsend: no non-replaceable declaration is admitted
+  pass  localsend: every corpus product is digest-bound
   pass  localsend: coverage is reported as zero of N
   pass  wonderous: G1 projection is non-empty
   pass  wonderous: g3 privacy rows produced
@@ -170,6 +176,10 @@ ASSERTIONS (30 checked)
   pass  wonderous: no demonstration required for an empty set
   pass  wonderous: subset holds vacuously
   pass  wonderous: an injected admitted row FAILS OPEN
+  pass  wonderous: the injected over-claim EXITS NON-ZERO
+  pass  wonderous: both scope reasons cover EVERY replaceable declaration
+  pass  wonderous: no non-replaceable declaration is admitted
+  pass  wonderous: every corpus product is digest-bound
   pass  wonderous: coverage is reported as zero of N
 
 SM1_G5_CORPORA: ALL_EMPTY_AND_FAIL_CLOSED

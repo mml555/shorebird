@@ -6,7 +6,7 @@ banked evidence; none is transcribed.
 ## Identity
 
 ```text
-experimental HEAD          080860f7eaef2ee429ed1fada90cfb7930e3d822
+experimental HEAD          d4d3fc988f925e49c0870a1a1ddc32c102f5ade3
 frozen effective tree      7b04b01bdc10ec990143257f0d28580571c2122f
 frozen dart revision       9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
 instrumented gen_snapshot  b307906fe7dc9ef254231023e0862c89da23840e7fef3911cfd10308abc4a81a
@@ -64,12 +64,20 @@ complete           True
 | field | 8 | 0 |
 | method | 18 | 0 |
 
-**Excluded, and by what predicate.** These refuse for every replaceable
-declaration regardless of any other evidence, which is why no declaration
-class is admitted:
+**Excluded, and by what predicate.** Both of these are asserted to be
+present on EVERY replaceable declaration, per row, on every corpus — not
+merely present in the aggregate histogram:
 
-* `CALL_SITE_SHAPE_UNPROVEN` — 18 declarations
-* `FRONTEND_MATERIALIZATION_UNPROVEN` — 18 declarations
+* `CALL_SITE_SHAPE_UNPROVEN`
+* `FRONTEND_MATERIALIZATION_UNPROVEN`
+
+Replaceable kinds, read from the predictor: `getter`, `method`, `operator`, `setter`.
+
+| corpus | replaceable | missing a scope reason | covers all |
+|---|---:|---:|---|
+| adversarial | 18 | 0 | True |
+| localsend | 19148 | 0 | True |
+| wonderous | 1718 | 0 | True |
 
 ## Corpora
 
@@ -134,6 +142,11 @@ sensitivity control. A reason in the vocabulary with no arm fails the run.
 ## Disposition
 
 ### REDUCE_SCOPE
+
+Two things are required, and both are proven above: nothing is admitted on
+any corpus, AND both scope reasons are present on every replaceable
+declaration of every corpus. Zero-admitted alone would not justify this —
+that could be an accident of the corpus rather than a scope reduction.
 
 Zero replaceable declarations are admitted on any corpus. The subset
 property `predicted ⊆ demonstrated` holds everywhere it was checked, and

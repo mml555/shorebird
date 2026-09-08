@@ -6,6 +6,22 @@
     "wonderous_pre.dill": "3ffb719f8b24bcf7596f3708e360718665300f0a297ecd6d8b83c1abe83fad0e",
     "wonderous.aot": "12a582027384678471dd072a2e1421caab488e850c97045338cc267d1bc800c6"
   },
+  "evidence_sha256": {
+    "g1": "67093ac55f68aeb9aee4bbcf4232b50eec69eb48ddc19e9f09e37d58ae19d59f",
+    "g3": "668f7f6212480b5173df27e117e547904953fae9a699a3f6c05b7fa6daba78df",
+    "g4": "ad4dbdb2b3b2afc1ae435ffe3bf6a105d1fa5c39d34ccafa37a2313a9b6c0940",
+    "refs": "c6ac70cc699dbeabe9420fefdc35242c0c4d79faa1b44895a509257f11f7dd5e",
+    "contract": "0da9329e8e5accb7db2a83d3d588853e5851e8210019c9056d09ec65c92c48b0",
+    "inlining": "fa90e511a3a75a6675e75167c8dc5be5d1e84cd15c86da83e85cb578d97f8e77",
+    "predictions": "5f10a1cbba469fc8cb9f2b87bdcc6f6261396064ec4ed29e94b5561a035cf18a",
+    "subset": "8c7dc04302f55d6bddc47826e7b6b92a807117a4f88b5365d31cae09a9369853"
+  },
+  "evidence_rows": {
+    "g1": 3016,
+    "g3": 3757,
+    "g4": 3016,
+    "refs": 2741
+  },
   "declarations": 3016,
   "predicted_patchable": 0,
   "refusal_histogram": {
@@ -40,6 +56,23 @@
       "accounted": 3016
     },
     "unprojected_count": 1065
+  },
+  "scope_exclusion_proof": {
+    "replaceable_kinds": [
+      "getter",
+      "method",
+      "operator",
+      "setter"
+    ],
+    "scope_reasons": [
+      "CALL_SITE_SHAPE_UNPROVEN",
+      "FRONTEND_MATERIALIZATION_UNPROVEN"
+    ],
+    "replaceable_declarations": 1718,
+    "replaceable_missing_a_scope_reason": 0,
+    "examples_missing": [],
+    "covers_every_replaceable": true,
+    "non_replaceable_admitted": 0
   },
   "subset_verdict": "SUBSET_HOLDS_VACUOUSLY",
   "prediction_set": "EMPTY",

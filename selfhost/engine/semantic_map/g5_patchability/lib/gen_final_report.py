@@ -16,6 +16,8 @@ import sys
 
 G, HEAD, OUT_MD, OUT_MAN = sys.argv[1:5]
 E = pathlib.Path(G) / 'evidence'
+# This generator's own products, excluded from the input digests below.
+GENERATED = {pathlib.Path(OUT_MAN).name, pathlib.Path(OUT_MD).name}
 
 
 def sha(p):
@@ -67,13 +69,54 @@ for r in preds['rows']:
     if r.get('predicted_patchable') is True:
         kinds[r['kind']]['admitted'] += 1
 
-unconditional = [c for c in ('CALL_SITE_SHAPE_UNPROVEN',
-                             'FRONTEND_MATERIALIZATION_UNPROVEN')
-                 if preds['refusal_histogram'].get(c)]
+# THE SCOPE EXCLUSION IS PROVEN, NOT INFERRED FROM PRESENCE. A reason can
+# appear in the histogram and still be absent from one row -- and that row is
+# precisely the one that would be admissible. So it is checked per row on the
+# adversarial corpus, and read from each app corpus's banked per-row proof.
+SCOPE = ('CALL_SITE_SHAPE_UNPROVEN', 'FRONTEND_MATERIALIZATION_UNPROVEN')
+m = re.search(r"const \{([^}]*)\}\.contains\(kind\)", src)
+if m is None:
+    raise SystemExit('cannot locate the replaceable-kind set in the predictor')
+REPLACEABLE = set(re.findall(r"'(\w+)'", m.group(1)))
+
+adv_repl = [r for r in preds['rows'] if r['kind'] in REPLACEABLE]
+adv_missing = [r['key'] for r in adv_repl
+               if not all(c in r['refusal_reasons'] for c in SCOPE)]
+
+scope_proof = {
+    'adversarial': {
+        'replaceable_declarations': len(adv_repl),
+        'missing_a_scope_reason': len(adv_missing),
+        'covers_every_replaceable': not adv_missing,
+    },
+}
+for n, c in corpora.items():
+    pr = c.get('scope_exclusion_proof')
+    if pr is None:
+        raise SystemExit(f'{n}: corpus summary carries no scope_exclusion_proof; '
+                         f'REDUCE_SCOPE cannot be justified from it')
+    scope_proof[n] = {
+        'replaceable_declarations': pr['replaceable_declarations'],
+        'missing_a_scope_reason': pr['replaceable_missing_a_scope_reason'],
+        'covers_every_replaceable': pr['covers_every_replaceable'],
+    }
+scope_holds_everywhere = all(v['covers_every_replaceable']
+                             for v in scope_proof.values())
+unconditional = list(SCOPE)
 
 total_admitted = (preds['predicted_patchable']
                   + sum(c['predicted_patchable'] for c in corpora.values()))
-disposition = 'REDUCE_SCOPE' if total_admitted == 0 else 'REVIEW_REQUIRED'
+
+# REDUCE_SCOPE requires BOTH: nothing admitted anywhere, AND a proven predicate
+# that excludes the whole replaceable class on every corpus. Zero admitted
+# alone would also be produced by an accident of the corpus, which is not a
+# scope reduction -- it is a coincidence.
+if total_admitted != 0:
+    disposition = 'REVIEW_REQUIRED'
+elif not scope_holds_everywhere:
+    disposition = 'REVIEW_REQUIRED'
+else:
+    disposition = 'REDUCE_SCOPE'
 
 md = []
 w = md.append
@@ -131,12 +174,21 @@ w('|---|---:|---:|')
 for k in sorted(kinds):
     w(f"| {k} | {kinds[k]['n']} | {kinds[k]['admitted']} |")
 w('')
-w('**Excluded, and by what predicate.** These refuse for every replaceable')
-w('declaration regardless of any other evidence, which is why no declaration')
-w('class is admitted:')
+w('**Excluded, and by what predicate.** Both of these are asserted to be')
+w('present on EVERY replaceable declaration, per row, on every corpus — not')
+w('merely present in the aggregate histogram:')
 w('')
 for c in unconditional:
-    w(f'* `{c}` — {preds["refusal_histogram"][c]} declarations')
+    w(f'* `{c}`')
+w('')
+w(f'Replaceable kinds, read from the predictor: '
+  f'{", ".join("`" + k + "`" for k in sorted(REPLACEABLE))}.')
+w('')
+w('| corpus | replaceable | missing a scope reason | covers all |')
+w('|---|---:|---:|---|')
+for n, v in scope_proof.items():
+    w(f"| {n} | {v['replaceable_declarations']} | "
+      f"{v['missing_a_scope_reason']} | {v['covers_every_replaceable']} |")
 w('')
 w('## Corpora')
 w('')
@@ -177,6 +229,11 @@ w('')
 w('## Disposition')
 w('')
 w(f'### {disposition}')
+w('')
+w('Two things are required, and both are proven above: nothing is admitted on')
+w('any corpus, AND both scope reasons are present on every replaceable')
+w('declaration of every corpus. Zero-admitted alone would not justify this —')
+w('that could be an accident of the corpus rather than a scope reduction.')
 w('')
 w('Zero replaceable declarations are admitted on any corpus. The subset')
 w('property `predicted ⊆ demonstrated` holds everywhere it was checked, and')
@@ -221,7 +278,10 @@ manifest = {
         'route2_note_section_sha256':
             man['route2_witness']['determinism']['note_section_sha256'],
     },
-    'inputs': {p.name: sha(p) for p in sorted(E.iterdir()) if p.is_file()},
+    # IDEMPOTENT. The generator's OWN outputs are excluded, or a rerun hashes
+    # the previous manifest into the new one and the manifest never converges.
+    'inputs': {p.name: sha(p) for p in sorted(E.iterdir())
+               if p.is_file() and p.name not in GENERATED},
     'scripts': {p.name: sha(p) for p in
                 sorted(pathlib.Path(G).glob('run_*.sh'))},
     'tools': {p.name: sha(p) for p in sorted(pathlib.Path(G, 'lib').iterdir())
@@ -234,6 +294,8 @@ manifest = {
     'adversarial': {'declarations': preds['count'],
                     'predicted_patchable': preds['predicted_patchable'],
                     'subset_verdict': subset['verdict']},
+    'scope_exclusion_proof': scope_proof,
+    'scope_holds_on_every_corpus': scope_holds_everywhere,
     'refusal_vocabulary': vocab,
 }
 json.dump(manifest, open(OUT_MAN, 'w'), indent=2)
