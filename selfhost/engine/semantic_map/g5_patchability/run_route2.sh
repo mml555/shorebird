@@ -66,7 +66,7 @@ for n in r rb; do
         --elf="$W/app_s6$n.aot" "$W/prepass3.dill" >/dev/null 2>&1 || rc=1
   python3 "$G/lib/read_inlining.py" "$W/app_s6$n.aot" "$W/g2_r.json" - "$W/s6$n.json" >/dev/null || rc=1
 done
-cp "$W/s6r.json" "$G/evidence/inlining_state.json"
+cp "$W/s6r.json" "$G/evidence/inlining_state.json" || rc=1
 
 # Determinism and replay are ASSERTED here; the transcript merely shows them.
 det=$(python3 "$G/lib/_det.py" "$W/s6r.json" "$W/s6rb.json")
@@ -399,9 +399,12 @@ m['regenerated_by'] = 'run_route2.sh'
 json.dump(m, open(f'{G}/instrumentation/MANIFEST.json', 'w'), indent=2)
 print('  manifest digests recomputed')
 PY
+want 'the manifest step succeeded' 0 "$?"
+want 'banked manifest digests match the live artifacts' ok \
+     "$(python3 "$G/lib/_check_manifest.py" "$G" "$D" "$GS" "$W" | tail -1)"
 
 echo
-echo "ASSERTIONS"
+echo "ASSERTIONS (${#ASSERTIONS[@]} checked)"
 printf '%s\n' "${ASSERTIONS[@]}"
 echo
 echo "replay_reproduces_clone=$([ "$replay_ok" = 1 ] && echo true || echo false)"

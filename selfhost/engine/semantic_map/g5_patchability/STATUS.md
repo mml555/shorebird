@@ -459,16 +459,23 @@ Regenerated end to end by [`run_route2.sh`](run_route2.sh), which re-derives the
 patch, re-verifies the replay, rebuilds both AOTs, re-runs the reader, and
 re-runs both falsification sets with their positive controls.
 
-Every outcome is **asserted, not printed** — 16 assertions covering note-hash
-and verdict equality across the two builds, that the whole-AOT hashes still
-differ (so the weaker claim cannot be quietly upgraded), per-file replay
-equality, the arm count, the shipped reader refusing every arm, both reader
-controls failing all but the baseline, and the completeness control being valid
-and sensitive. Printing an exit code would let a control that unexpectedly
-starts passing leave the run green, which is the same defect as a probe that
-cannot fail. The assertion set has already earned its keep: it caught a
-duplicated `ENUMERATION_HOLDS` marker the moment the completeness control began
-running its own baseline.
+Every outcome is **asserted, not printed**. The script's own `ASSERTIONS`
+block prints the count and each result, so it is not restated here — counts in
+prose drift, which is why this paragraph previously claimed the wrong two.
+What is covered: note-hash and verdict equality across the two builds; that the
+whole-AOT hashes still differ, so the weaker claim cannot be quietly upgraded;
+per-file replay equality; the arm count; the shipped reader refusing every arm;
+both reader controls failing all but the baseline; the completeness control
+being valid and sensitive; and — as postconditions rather than exit codes —
+that the banked reader state is the run just performed and that every digest in
+the manifest still matches the artifact it names.
+
+Printing an exit code would let a control that unexpectedly starts passing
+leave the run green, the same defect as a probe that cannot fail. The set has
+already earned its keep twice: it caught a duplicated `ENUMERATION_HOLDS`
+marker the moment the completeness control began running its own baseline, and
+the manifest postcondition exists because "the step succeeded" and "the step
+recorded correct digests" are different claims.
 
 ### 1. Schema-6 exact private-key carrier — done
 
@@ -529,10 +536,10 @@ Two positive controls, because one is not enough:
 
 * **A — a reader that trusts the note.** `complete = note_ok and not
   unprojected` becomes `complete = True` and the `note_ok` interception is
-  removed. 29 of 30 arms flip to `FAIL`, naming the `NOT_INLINED` rows they
-  manufactured.
+  removed. 33 of 34 arms flip to `FAIL`, naming the `NOT_INLINED` rows they
+  manufactured — only the baseline still passes.
 * **B — a reader that refuses without saying why.** Every refusal code is
-  rewritten to `GENERIC_FAILURE`, prose untouched. 29 of 30 flip, each naming
+  rewritten to `GENERIC_FAILURE`, prose untouched. 33 of 34 flip, each naming
   the code it wanted. Control A cannot detect this failure mode at all.
 
 The first version of control B was itself wrong: its regex was `[A-Z_]+`, so
