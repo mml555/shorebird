@@ -296,8 +296,10 @@ Patching it 41 → 141:
     APPLY ok: 1 target(s)
     small=41  callsSmall=42        (both unchanged)
 
-**The patch replaced a function that nothing calls.** Every call site holds a
-stale inlined copy and the replacement is unreachable. It fails **open** — the
+**The ordinary source-level observations under test do not dispatch to the
+attached replacement.** They continue executing stale inlined copies of the old
+body, while the replacement itself is present and demonstrably computes 141 when
+invoked directly. It fails **open** — the
 same shape as G4's two retention classes and as a release built without
 `--patchable_static_calls`: success reported, nothing done.
 

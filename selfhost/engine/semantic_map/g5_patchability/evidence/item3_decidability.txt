@@ -1,0 +1,79 @@
+SM1-G5 item 3 — is the unsafe call-site condition mechanically decidable
+                per declaration from the exact release?
+IN PROGRESS. No classification is made in this file.
+
+THE QUESTION, from #54's authorization:
+  * if a sound, fail-closed release analysis can decide a declaration has no
+    stale inlined/devirtualized copies -> REDUCE_SCOPE remains viable;
+  * if representing that distinction requires adding release-level call-site
+    facts to the semantic-map model -> MODIFY_MAP_DESIGN.
+  Source pragmas, symbol absence and "probably not inlined" are insufficient,
+  and unknown must remain refusal.
+
+############ FINDING A — the fact is not a property of the declaration ############
+
+  The same declaration, from the same source, has different call-site treatment
+  in two releases that differ only by a gen_snapshot flag:
+
+    --patchable_static_calls      static call becomes an indirect call through
+                                  the object pool (ldr x0,[x27,#..] / blr x30)
+    without it                    the same site is a direct bl
+
+  Both were measured in this gate (evidence/capability_marker.txt, arms 1-2 and
+  evidence/inlined_target.txt). So "is this declaration reachable by a
+  redirectable call" is a property of the (declaration, RELEASE) pair. No
+  per-declaration fact, and no source-level property, can answer it -- which is
+  the same reason a build transcript could not answer the capability question.
+
+############ FINDING B — the artifact does retain the inlining relation ############
+
+  runtime/vm/code_descriptors.h: "A CodeSourceMap maps from pc offsets to a
+  stack of inlined functions", retained in AOT so stack traces can be
+  symbolized. The information therefore EXISTS in the shipped snapshot.
+
+############ FINDING C — no shipped tool exposes it (a negative result) ############
+
+  analyze_snapshot, which ships in the same out/ directory, was run against the
+  item-2 release:
+
+    objects        12550
+    Function       1911      each carrying a `code` id
+    Code           1901
+    ObjectPool     1
+
+  It does NOT surface the inlining relation. Every occurrence of "inlin" in its
+  1.1 MB output is one of this corpus's own identifiers (`_inlineHelper`,
+  " inlined="), and `CodeSourceMap` appears only as a Class name, never as
+  decoded content.
+
+  The single ObjectPool object exposes a flat `references` array of 7284 ids
+  rather than typed pool slots, and none of the four target Code objects
+  (smallTarget 5650, alpha 5602/5600, callsSmall 5658, beta 5611) appears in it.
+  So pool membership as dumped is not a usable "has a redirectable call site"
+  signal either.
+
+  STATED AS A NEGATIVE RESULT, NOT A PROOF OF IMPOSSIBILITY. This says the
+  existing tool does not answer the question; it does not establish that no
+  sound analysis could. Two routes remain open and neither has been built:
+    1. decode the CodeSourceMap / inlining intervals out of the snapshot --
+       possible in principle, but VM-internal and version-coupled;
+    2. have gen_snapshot emit the relation, as it now emits the capability
+       marker, since the compiler knows exactly what it inlined.
+
+############ WHAT THIS BEARS ON, WITHOUT DECIDING IT ############
+
+  Route 2 IS "adding release-level call-site facts", which is the condition #54
+  attaches to MODIFY_MAP_DESIGN. Route 1 would extract the same facts from the
+  artifact instead of emitting them, but the facts are still release-level: by
+  Finding A they cannot be attributed to a declaration alone.
+
+  What is NOT yet established, and what item 3 still owes:
+    * whether either route yields a SOUND, fail-closed decision -- in
+      particular whether "no inlined copies" can be proven rather than merely
+      not-observed;
+    * whether devirtualized dispatch (the virtual/OLD-w arm) is decidable by
+      the same mechanism or needs a separate one;
+    * a predictor that CONSUMES the answer, which #54 requires before any
+      subset scoring.
+
+  No REDUCE_SCOPE or MODIFY_MAP_DESIGN classification is made here.
