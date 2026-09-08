@@ -21,9 +21,21 @@ THE QUESTION, from #54's authorization:
 
   Both were measured in this gate (evidence/capability_marker.txt, arms 1-2 and
   evidence/inlined_target.txt). So "is this declaration reachable by a
-  redirectable call" is a property of the (declaration, RELEASE) pair. No
-  per-declaration fact, and no source-level property, can answer it -- which is
-  the same reason a build transcript could not answer the capability question.
+  redirectable call" is a property of the (declaration, RELEASE) pair.
+
+  WHAT THAT DOES AND DOES NOT DISPROVE. It disproves that a SOURCE-ONLY
+  per-declaration fact can answer it -- the same reason a build transcript could
+  not answer the capability question. It does NOT disprove that a
+  per-declaration fact can answer it at all: the semantic map describes ONE
+  SPECIFIC RELEASE, so a fact DERIVED from that exact release still belongs in a
+  declaration row. The predictor already works that way, combining
+  per-declaration G2/G3/G4 rows with exact-release evidence to produce one
+  verdict per declaration.
+
+    release-global              patchable_static_calls(release)
+    release-derived per-decl    call_site_safety(declaration, release)
+
+  The second is what route 2 has to produce.
 
 ############ FINDING B — the artifact does retain the inlining relation ############
 
@@ -62,10 +74,14 @@ THE QUESTION, from #54's authorization:
 
 ############ WHAT THIS BEARS ON, WITHOUT DECIDING IT ############
 
-  Route 2 IS "adding release-level call-site facts", which is the condition #54
-  attaches to MODIFY_MAP_DESIGN. Route 1 would extract the same facts from the
-  artifact instead of emitting them, but the facts are still release-level: by
-  Finding A they cannot be attributed to a declaration alone.
+  CORRECTION TO THIS FILE'S FIRST VERSION. It argued that release-level facts
+  imply MODIFY_MAP_DESIGN. That does not follow. MODIFY_MAP_DESIGN applies only
+  if the map CANNOT REPRESENT the required distinction -- and a
+  release-derived per-declaration predicate is representable in the existing
+  model, as a column on a row describing one specific release. Whether the
+  facts are emitted by the compiler (route 2) or extracted from the artifact
+  (route 1) is an implementation choice and does not by itself decide the
+  classification.
 
   What is NOT yet established, and what item 3 still owes:
     * whether either route yields a SOUND, fail-closed decision -- in
@@ -77,3 +93,71 @@ THE QUESTION, from #54's authorization:
       subset scoring.
 
   No REDUCE_SCOPE or MODIFY_MAP_DESIGN classification is made here.
+
+############ ROUTE 2, BUILT — the compiler emits its own inlining decisions ############
+date : 2026-09-08T04:10:34Z
+
+  FlowGraphCompiler already receives inlining_info.inline_id_to_function, where
+  index 0 is the function being compiled and every later entry is a function the
+  inliner COPIED INTO it. That is the compiler's own post-optimization decision:
+  not a pragma, not source shape, not inferred from symbol absence.
+
+  Those pairs are now recorded and emitted as an ELF note:
+
+    .note.shorebird.inlining     owner Shorebird, note type 2
+    payload  schema_version=1, then one "inlinee<TAB>caller" line per decision
+
+  On the item-2 release:
+
+    note size            532,011 bytes
+    inlining pairs       4,785
+    distinct inlinees    970
+    bound to AOT         033c9bb04193bda6...  (full hash in instrumentation/MANIFEST.json)
+
+  THE TWO CLASSIFICATIONS THAT MATTER, read mechanically out of that note:
+
+    smallTarget   inlinee somewhere?  TRUE    <- the subject whose patch was
+                                                 silently bypassed in item 2
+    alpha         inlinee somewhere?  FALSE   <- the patch-sensitive control that
+                                                 moved OLD-a -> PATCHED-a
+    beta          inlinee somewhere?  FALSE
+    Base.work     inlinee somewhere?  FALSE
+
+  The relation records smallTarget inlined into BOTH of its source-level call
+  sites:
+
+    ::_smallTarget   INTO   ::__state
+    ::_smallTarget   INTO   ::_callsSmall
+
+  So the compiler-derived fact agrees with every behavioural observation in item
+  2, and it distinguishes the unsafe declaration from the safe one without
+  consulting a pragma.
+
+  INSTANCE/VIRTUAL DISPATCH IS SEPARATE, as required. Base.work is NOT an
+  inlinee, yet its virtual call site still read OLD-w after patching. That is a
+  DISPATCH question, not an inlining one, and this note does not answer it. No
+  claim is made here that viaDirect was "devirtualized" -- that was a
+  source-level description and the exact transformation has not been proved.
+
+  A BUG WORTH RECORDING. The first version used a ZoneGrowableArray as a
+  process-global and segfaulted gen_snapshot: a zone does not outlive one
+  compilation, so the pointer dangled by the time the ELF writer read it.
+  Malloc-backed storage fixed it. Recorded because a crash here would otherwise
+  look like an unrelated toolchain failure.
+
+############ WHAT ROUTE 2 STILL OWES ############
+
+  1. every G2 candidate mapped to an explicit state, with missing evidence
+     UNKNOWN rather than safe -- the note's names are the VM's mangled
+     qualified form (e.g. "::_smallTarget"), so a mapping to the map's
+     library#owner#kind#name identity is required, and any declaration that
+     cannot be mapped must refuse;
+  2. the predictor consuming that state in place of CALL_SITE_SHAPE_UNPROVEN;
+  3. a separate mechanism for the virtual/dispatch hazard;
+  4. falsification arms for the note itself, as the capability marker has.
+
+  No REDUCE_SCOPE / MODIFY_MAP_DESIGN / MODIFY_ANALYZER / ABANDON_OR_REDESIGN
+  classification is made. What route 2 establishes so far is that a
+  release-derived per-declaration inlining fact IS obtainable from the compiler
+  and agrees with observed behaviour -- which is evidence about feasibility, not
+  a classification.

@@ -1,0 +1,187 @@
+--- a/runtime/vm/elf.h	2026-08-03 16:52:14
++++ b/runtime/vm/elf.h	2026-09-08 00:05:54
+@@ -18,6 +18,10 @@
+ 
+ namespace dart {
+ 
++// SM1-G5 route 2: recorded by FlowGraphCompiler as the inliner's own decisions,
++// emitted by ElfWriter::GenerateInliningRelation into the shipped artifact.
++void ShorebirdRecordInlined(const char* inlinee, const char* caller);
++
+ // The max page size on all supported architectures. Used to determine
+ // the alignment of load segments, so that they are guaranteed page-aligned,
+ // and no shared object section or segment should have a larger alignment.
+@@ -86,6 +90,14 @@
+                                 const ElfWriter* debug_info);
+ 
+   static constexpr const char kBuildIdNoteName[] = ".note.gnu.build-id";
++  // SM1-G5 evidence instrumentation: a compiler-owned record of the patch
++  // capabilities this snapshot was actually compiled with.
++  static constexpr const char kCapabilitiesNoteName[] =
++      ".note.shorebird.capabilities";
++  // SM1-G5 route 2: the POST-OPTIMIZATION inlining relation, as the compiler
++  // actually decided it.
++  static constexpr const char kInliningNoteName[] =
++      ".note.shorebird.inlining";
+   static constexpr const char kTextName[] = ".text";
+   static constexpr const char kDataName[] = ".rodata";
+   static constexpr const char kBssName[] = ".bss";
+@@ -93,6 +105,8 @@
+ 
+   void CreateBSS();
+   void GenerateBuildId();
++  void GenerateCapabilities();
++  void GenerateInliningRelation();
+   void InitializeSymbolTables();
+   void FinalizeDwarfSections();
+   void FinalizeEhFrame();
+--- a/runtime/vm/elf.cc	2026-08-03 16:52:14
++++ b/runtime/vm/elf.cc	2026-09-08 00:07:45
+@@ -1565,6 +1565,8 @@
+ void ElfWriter::Finalize() {
+   // Generate the build ID now that we have all user-provided sections.
+   GenerateBuildId();
++  GenerateCapabilities();
++  GenerateInliningRelation();
+ 
+   // We add a BSS section in all cases, even to the separate debugging
+   // information, to ensure that relocated addresses are consistent between ELF
+@@ -1726,7 +1728,98 @@
+ // Includes the note name, but not the description.
+ static constexpr intptr_t kBuildIdHeaderSize =
+     sizeof(elf::Note) + sizeof(elf::ELF_NOTE_GNU);
++
++// SM1-G5 EVIDENCE INSTRUMENTATION.
++//
++// G5 measured that a release built WITHOUT --patchable_static_calls attaches a
++// replacement, reports "APPLY ok", and then keeps running the old body. So
++// patchability depends on how the RELEASE BINARY was produced, and its absence
++// is a silent bypass. A build transcript is not evidence of that: it records
++// what someone typed, not what the compiler did.
++//
++// This writes the compiler's OWN parsed flag state into the artifact, so the
++// fact can be read back off the exact bytes that will ship. It is versioned so
++// a reader can distinguish "false" from "written by a schema I do not know".
++DECLARE_FLAG(bool, patchable_static_calls);
++
++static constexpr char kShorebirdNoteOwner[] = "Shorebird";
++
++// A ZoneGrowableArray here segfaulted: it allocates in the CURRENT zone, which
++// does not outlive a single compilation, so the global pointer dangled by the
++// time the ELF writer read it. Malloc-backed storage persists for the process.
++//
++// SM1-G5 route 2 registry. Compilation can be concurrent, so the set is
++// mutex-guarded; an unguarded container would drop entries and a dropped entry
++// is a declaration silently reported as not-inlined.
++static Mutex* shorebird_inlining_mutex = nullptr;
++static MallocGrowableArray<const char*>* shorebird_inlining = nullptr;
+ 
++void ShorebirdRecordInlined(const char* inlinee, const char* caller) {
++  if (shorebird_inlining_mutex == nullptr) {
++    shorebird_inlining_mutex = new Mutex();
++  }
++  MutexLocker ml(shorebird_inlining_mutex);
++  if (shorebird_inlining == nullptr) {
++    shorebird_inlining = new MallocGrowableArray<const char*>();
++  }
++  shorebird_inlining->Add(Utils::StrDup(inlinee));
++  shorebird_inlining->Add(Utils::StrDup(caller));
++}
++
++void ElfWriter::GenerateCapabilities() {
++  ASSERT(section_table_->Find(kCapabilitiesNoteName) == nullptr);
++  const char* const payload =
++      FLAG_patchable_static_calls
++          ? "schema_version=1;patchable_static_calls=true"
++          : "schema_version=1;patchable_static_calls=false";
++  const intptr_t description_length = strlen(payload) + 1;
++  ZoneWriteStream stream(
++      zone(), sizeof(elf::Note) + sizeof(kShorebirdNoteOwner) +
++                  description_length);
++  stream.WriteFixed<decltype(elf::Note::name_size)>(
++      sizeof(kShorebirdNoteOwner));
++  stream.WriteFixed<decltype(elf::Note::description_size)>(description_length);
++  stream.WriteFixed<decltype(elf::Note::type)>(
++      static_cast<elf::NoteType>(1));
++  stream.WriteBytes(kShorebirdNoteOwner, sizeof(kShorebirdNoteOwner));
++  stream.WriteBytes(reinterpret_cast<const uint8_t*>(payload),
++                    description_length);
++  auto* const container = new (zone_) NoteSection();
++  container->AddPortion(stream.buffer(), stream.bytes_written());
++  section_table_->Add(container, kCapabilitiesNoteName);
++}
++
++// One line per inlining decision: "inlinee<TAB>caller". A declaration that
++// appears in the FIRST column has at least one copy of its body somewhere else
++// in this release, so a patch to it cannot reach that copy.
++void ElfWriter::GenerateInliningRelation() {
++  ASSERT(section_table_->Find(kInliningNoteName) == nullptr);
++  TextBuffer buf(1024);
++  buf.AddString("schema_version=1\n");
++  if (shorebird_inlining != nullptr) {
++    MutexLocker ml(shorebird_inlining_mutex);
++    for (intptr_t i = 0; i + 1 < shorebird_inlining->length(); i += 2) {
++      buf.Printf("%s\t%s\n", (*shorebird_inlining)[i],
++                 (*shorebird_inlining)[i + 1]);
++    }
++  }
++  const char* payload = buf.buffer();
++  const intptr_t description_length = strlen(payload) + 1;
++  ZoneWriteStream stream(
++      zone(), sizeof(elf::Note) + sizeof(kShorebirdNoteOwner) +
++                  description_length);
++  stream.WriteFixed<decltype(elf::Note::name_size)>(
++      sizeof(kShorebirdNoteOwner));
++  stream.WriteFixed<decltype(elf::Note::description_size)>(description_length);
++  stream.WriteFixed<decltype(elf::Note::type)>(static_cast<elf::NoteType>(2));
++  stream.WriteBytes(kShorebirdNoteOwner, sizeof(kShorebirdNoteOwner));
++  stream.WriteBytes(reinterpret_cast<const uint8_t*>(payload),
++                    description_length);
++  auto* const container = new (zone_) NoteSection();
++  container->AddPortion(stream.buffer(), stream.bytes_written());
++  section_table_->Add(container, kInliningNoteName);
++}
++
+ void ElfWriter::GenerateBuildId() {
+   // Not idempotent.
+   ASSERT(section_table_->Find(kBuildIdNoteName) == nullptr);
+--- a/runtime/vm/compiler/backend/flow_graph_compiler.cc	2026-08-09 02:55:21
++++ b/runtime/vm/compiler/backend/flow_graph_compiler.cc	2026-09-08 00:05:43
+@@ -3,6 +3,7 @@
+ // BSD-style license that can be found in the LICENSE file.
+ 
+ #include "vm/compiler/backend/flow_graph_compiler.h"
++#include "vm/elf.h"
+ #include "vm/globals.h"  // Needed here to get TARGET_ARCH_XXX.
+ 
+ #include "platform/utils.h"
+@@ -209,6 +210,29 @@
+ #else
+   const bool stack_traces_only = false;
+ #endif
++
++  // SM1-G5 EVIDENCE INSTRUMENTATION (route 2).
++  //
++  // inline_id_to_function[0] is the function being compiled; every entry after
++  // it is a function the inliner COPIED INTO it. This is the compiler's own
++  // decision, recorded after optimization -- not a pragma, not source shape,
++  // and not inferred from symbol absence.
++  //
++  // G5 measured that a patch to an inlined target attaches, reports APPLY ok,
++  // and leaves every ordinary call site running the stale copy. The map needs
++  // this relation to refuse such a declaration before publication.
++  {
++    const auto& info = flow_graph->inlining_info();
++    if (info.inline_id_to_function.length() > 1) {
++      const char* caller =
++          info.inline_id_to_function[0]->ToLibNamePrefixedQualifiedCString();
++      for (intptr_t i = 1; i < info.inline_id_to_function.length(); i++) {
++        dart::ShorebirdRecordInlined(
++            info.inline_id_to_function[i]->ToLibNamePrefixedQualifiedCString(),
++            caller);
++      }
++    }
++  }
+ 
+   const auto& inlining_info = flow_graph->inlining_info();
+   // Make sure that the function is at the position for inline_id 0.

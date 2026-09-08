@@ -24,6 +24,25 @@
     "target": "ninja gen_snapshot",
     "instrumented_gen_snapshot_sha256": "fe1f523a43dd03429532e31e929d235bdea54c529aea6900929c06343ad81eda",
     "frozen_gen_snapshot_sha256": "4310aebd39be52ec9fd30adf801e698b599cfb7c2eba69e26d2af1b08e39812b",
-    "build_shim": "vpython3 -> python3; depot_tools wrapper fails on Python 3.13"
+    "build_shim": "vpython3 -> python3; depot_tools wrapper fails on Python 3.13",
+    "instrumented_gen_snapshot_sha256_with_delta_2": "92caea53a268f4f1349830654b50cb622a06d9036da2fbc599275661f9c3e724"
+  },
+  "delta_2": {
+    "path": "instrumentation/0002-g5-inlining-relation.patch",
+    "sha256": "843f5ef9f43684201cc684509f327409cb030bb88861d975d8c470983922d44d",
+    "files": [
+      "runtime/vm/elf.h",
+      "runtime/vm/elf.cc",
+      "runtime/vm/compiler/backend/flow_graph_compiler.cc"
+    ],
+    "what": "route 2: FlowGraphCompiler records inline_id_to_function -- the inliner's own post-optimization decisions -- and ElfWriter emits them as .note.shorebird.inlining (owner Shorebird, note type 2).",
+    "bug_found_and_fixed": "A ZoneGrowableArray global segfaulted gen_snapshot: it allocates in the current zone, which does not outlive one compilation, so the pointer dangled by the time the ELF writer ran. Malloc-backed storage persists for the process."
+  },
+  "route2_witness": {
+    "aot": "app_inl.aot",
+    "aot_sha256": "033c9bb04193bda62c613f1f085f0e99bf6204fc2cf7a8b9d1d750e96f1049c3",
+    "note": ".note.shorebird.inlining",
+    "pairs": 4785,
+    "distinct_inlinees": 970
   }
 }
