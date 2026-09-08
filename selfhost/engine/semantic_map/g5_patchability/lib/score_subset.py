@@ -24,19 +24,40 @@ NOT demonstrated.
 The demonstration input must not be derived from the predictor. This scorer
 refuses if the demonstration declares itself predictor-derived.
 
-usage: score_subset.py <predictions.json> <demonstrated.json> <out.json>
+EMPTY PREDICTION SETS. Per the #54 ruling, a fully-evidenced predictor result of
+zero admitted declarations satisfies the subset property without any behavioural
+demonstration, because the empty set is a subset of anything. The demonstration
+argument is therefore optional -- but ONLY when the prediction set is empty. If
+anything is predicted patchable and no demonstration is supplied, that is
+FAIL_OPEN, not a pass: an admitted declaration with no witness is exactly the
+over-claim this gate exists to catch.
+
+Emptiness must come from evidence, not omission. This scorer cannot verify how
+the inputs were produced, so it records the accounting it was given and refuses
+a prediction file whose row count does not match its own declared count.
+
+usage: score_subset.py <predictions.json> <demonstrated.json|-> <out.json>
 """
 import json
 import sys
 
 PRED, DEMO, OUT = sys.argv[1], sys.argv[2], sys.argv[3]
 pred = json.load(open(PRED))
-demo = json.load(open(DEMO))
+NO_DEMO = DEMO == '-'
+demo = {} if NO_DEMO else json.load(open(DEMO))
 
 problems = []
 
+# The prediction file must be internally consistent before anything is read
+# from it: a truncated or filtered row list would understate what was admitted.
+if pred.get('count') is not None and pred['count'] != len(pred.get('rows', [])):
+    problems.append(f"prediction count={pred['count']} disagrees with "
+                    f"{len(pred.get('rows', []))} rows")
+
 # INDEPENDENCE. A demonstration that consumed the predictor cannot witness it.
-if demo.get('derived_from_predictor') is True:
+if NO_DEMO:
+    pass
+elif demo.get('derived_from_predictor') is True:
     problems.append('the demonstration declares itself predictor-derived')
 if demo.get('source') == PRED:
     problems.append('the demonstration input IS the predictions file')
@@ -49,11 +70,15 @@ if demo.get('source') == PRED:
 # the printed fields.
 schema = demo.get('schema', '')
 DERIVED = schema.endswith('/2')
+if NO_DEMO:
+    DERIVED = False
 cmap = demo.get('call_site_map') or {}
 printed = set(demo.get('printed_fields') or [])
 excluded = set(demo.get('excluded_printed_fields') or {})
 
-if DERIVED:
+if NO_DEMO:
+    pass
+elif DERIVED:
     # SCHEMA 2 -- derived by single-target diff, with no call-site map. The
     # completeness guarantee is different and is checkable from each row: the
     # stale set must contain EVERY observed field that still shows a value the
@@ -149,7 +174,14 @@ for r in predicted:
         })
 
 n = len(rows)
-verdict = 'FAIL_OPEN' if (violations or problems) else 'SUBSET_HOLDS'
+if problems or violations:
+    verdict = 'FAIL_OPEN'
+elif not predicted:
+    # Vacuous, and labelled as such. The distinction matters: this is not
+    # evidence that anything IS patchable.
+    verdict = 'SUBSET_HOLDS_VACUOUSLY'
+else:
+    verdict = 'SUBSET_HOLDS'
 out = {
     'schema': 'semantic-map-1/g5-subset/1',
     'gate': 'SM1-G5', 'issue': 54,
@@ -163,6 +195,10 @@ out = {
     'coverage_diagnostic_only': (
         f'{len(predicted)}/{n}'
         + (f' = {100.0 * len(predicted) / n:.1f}%' if n else '')),
+    'prediction_set': 'EMPTY' if not predicted else 'NON_EMPTY',
+    'behavioral_demonstration': (
+        'NOT_REQUIRED_FOR_EMPTY_PREDICTION' if not predicted and NO_DEMO
+        else ('SUPPLIED' if not NO_DEMO else 'ABSENT')),
     'violations': violations,
     'demonstration_detail': demo_detail,
     'verdict': verdict,
@@ -177,5 +213,7 @@ for p in problems:
     print(f'  INDEPENDENCE: {p}')
 for v in violations:
     print(f'  OVER-CLAIM: {v["key"]} -- {v["why"]}')
+print(f'  prediction_set          {out["prediction_set"]}')
+print(f'  behavioral_demonstration {out["behavioral_demonstration"]}')
 print(f'SM1_G5_SUBSET: {verdict}')
 sys.exit(1 if verdict == 'FAIL_OPEN' else 0)
