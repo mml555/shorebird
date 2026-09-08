@@ -1,0 +1,48 @@
+{
+  "schema": "semantic-map-1/g5-corpus-summary/1",
+  "corpus": "wonderous",
+  "artifacts": {
+    "wonderous_aot.dill": "361d62f79bea1319381b93609c145f5d7dcb3c2935ccd765847ae346d21b39e5",
+    "wonderous_pre.dill": "3ffb719f8b24bcf7596f3708e360718665300f0a297ecd6d8b83c1abe83fad0e",
+    "wonderous.aot": "12a582027384678471dd072a2e1421caab488e850c97045338cc267d1bc800c6"
+  },
+  "declarations": 3016,
+  "predicted_patchable": 0,
+  "refusal_histogram": {
+    "ABI_SHAPE_UNSUPPORTED": 1328,
+    "RETENTION_UNPROVEN": 3016,
+    "BODY_ENCODING_REFUSED": 514,
+    "CALL_SITE_SHAPE_UNPROVEN": 1718,
+    "FRONTEND_MATERIALIZATION_UNPROVEN": 1718,
+    "INLINING_EVIDENCE_UNVALIDATED": 1718,
+    "BODY_REFERENCES_UNPROVEN": 24,
+    "MISSING_CAN_BE_OVERRIDDEN": 1640,
+    "NON_STATIC_DISPATCH_UNPROVEN": 1640,
+    "PRIVATE_REFERENCE_UNRESOLVED": 236,
+    "PRIVATE_TYPE_REFERENCE": 251,
+    "PRIVATE_WRITE": 54,
+    "OWNER_ABI_SHAPE_UNSUPPORTED": 5,
+    "PRIVATE_REFERENCE_UNGRANTED": 5
+  },
+  "release_patch_capability": "PROVEN",
+  "release_aot_sha256": "12a582027384678471dd072a2e1421caab488e850c97045338cc267d1bc800c6",
+  "route2": {
+    "note_validated": true,
+    "complete_projection": false,
+    "note_section_sha256": "ca598ced444dd3d7657ed69178f41050ee0619cf5c8e887258398bdc44a5af8e",
+    "records": 60853,
+    "accounting": {
+      "total_g1_rows": 3016,
+      "INLINED": 780,
+      "NOT_INLINED": 0,
+      "UNKNOWN": 1961,
+      "NO_BODY": 275,
+      "accounted": 3016
+    },
+    "unprojected_count": 1065
+  },
+  "subset_verdict": "SUBSET_HOLDS_VACUOUSLY",
+  "prediction_set": "EMPTY",
+  "behavioral_demonstration": "NOT_REQUIRED_FOR_EMPTY_PREDICTION",
+  "coverage_diagnostic_only": "0/3016 = 0.0%"
+}

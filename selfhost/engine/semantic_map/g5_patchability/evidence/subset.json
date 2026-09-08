@@ -9,6 +9,8 @@
   "predicted_patchable": 0,
   "refused": 36,
   "coverage_diagnostic_only": "0/36 = 0.0%",
+  "prediction_set": "EMPTY",
+  "behavioral_demonstration": "SUPPLIED",
   "violations": [],
   "demonstration_detail": {
     "dbcb9971475a4d212e95035ad5e2edb7fd28456250b0380391882116705d4799": {
@@ -56,5 +58,5 @@
       "direct_invoke": "171"
     }
   },
-  "verdict": "SUBSET_HOLDS"
+  "verdict": "SUBSET_HOLDS_VACUOUSLY"
 }

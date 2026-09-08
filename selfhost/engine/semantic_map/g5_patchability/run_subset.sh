@@ -220,7 +220,11 @@ want 'the release contract binds to the canonical subject' "$(sha "$SUBJ")" \
 want 'route 2 evidence is bound to the same artifact' \
      "$(python3 -c "import json;print(json.load(open('$W/release_contract.json'))['release_aot_sha256'])" 2>/dev/null)" \
      "$(python3 -c "import json;print(json.load(open('$G/evidence/inlining_state.json'))['diagnostics']['aot_sha256'])")"
-want 'the subset property holds' SUBSET_HOLDS \
+# With nothing admitted the holding is VACUOUS, and the verdict says so. The
+# assertion names the exact verdict rather than accepting either, so a future
+# run that starts admitting declarations must update this deliberately.
+want 'the subset property holds (vacuously, nothing admitted)' \
+     SUBSET_HOLDS_VACUOUSLY \
      "$(python3 -c "import json;print(json.load(open('$W/subset.json'))['verdict'])" 2>/dev/null)"
 want 'the G1 projection regenerates byte-identically' '' \
      "$(cmp -s "$W/g1_regen.json" "$G/evidence/g1_projection.json" || echo differs)"

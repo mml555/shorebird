@@ -198,6 +198,39 @@ PY
        "$(jq_ "$C/${NAME}_inj_subset.json" "d['verdict']")"
   want "$NAME: coverage is reported as zero of N" "0/$N" \
        "$(jq_ "$C/${NAME}_subset.json" "d['coverage_diagnostic_only'].split(' ')[0]")"
+
+  # A SMALL SUMMARY IS BANKED. The row files are 40-115 MB and stay out of the
+  # repository; these digests plus this script are the provenance.
+  python3 - "$C" "$NAME" "$G/evidence/corpus_${NAME}.json" <<'PY'
+import hashlib, json, pathlib, sys
+C, NAME, OUT = sys.argv[1:4]
+sha = lambda p: hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()
+pred = json.load(open(f'{C}/{NAME}_predictions.json'))
+sub = json.load(open(f'{C}/{NAME}_subset.json'))
+inl = json.load(open(f'{C}/{NAME}_inlining.json'))
+con = json.load(open(f'{C}/{NAME}_contract.json'))
+json.dump({
+    'schema': 'semantic-map-1/g5-corpus-summary/1',
+    'corpus': NAME,
+    'artifacts': {n: sha(f'{C}/{n}') for n in
+                  (f'{NAME}_aot.dill', f'{NAME}_pre.dill', f'{NAME}.aot')},
+    'declarations': pred['count'],
+    'predicted_patchable': pred['predicted_patchable'],
+    'refusal_histogram': pred['refusal_histogram'],
+    'release_patch_capability': con['release_patch_capability'],
+    'release_aot_sha256': con['release_aot_sha256'],
+    'route2': {'note_validated': inl['note_validated'],
+               'complete_projection': inl['note_complete_projection'],
+               'note_section_sha256': inl['diagnostics'].get('note_section_sha256'),
+               'records': inl['diagnostics'].get('records'),
+               'accounting': inl['accounting'],
+               'unprojected_count': inl['unprojected_count']},
+    'subset_verdict': sub['verdict'],
+    'prediction_set': sub['prediction_set'],
+    'behavioral_demonstration': sub['behavioral_demonstration'],
+    'coverage_diagnostic_only': sub['coverage_diagnostic_only'],
+}, open(OUT, 'w'), indent=2)
+PY
 done
 } > "$G/evidence/corpora.txt" 2>&1
 

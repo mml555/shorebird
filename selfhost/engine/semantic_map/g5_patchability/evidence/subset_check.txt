@@ -1,5 +1,5 @@
 SM1-G5 Phase D -- predicted patchable SUBSET-OF demonstrated patchable
-generated 2026-09-08T21:05:44Z by run_subset.sh
+generated 2026-09-08T21:35:27Z by run_subset.sh
 
 SUBJECT (the canonical release, taken not rebuilt)
   7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34  app_release.aot
@@ -97,7 +97,9 @@ wrote g1_regen.json  rows=36
   predicted patchable   0
   refused               36
   coverage (diagnostic) 0/36 = 0.0%
-SM1_G5_SUBSET: SUBSET_HOLDS
+  prediction_set          EMPTY
+  behavioral_demonstration SUPPLIED
+SM1_G5_SUBSET: SUBSET_HOLDS_VACUOUSLY
 
 ############ 6. THE SCORER MUST BE ABLE TO FAIL ############
   The subset property is trivially satisfied while nothing is predicted
@@ -107,12 +109,12 @@ SM1_G5_SUBSET: SUBSET_HOLDS
 
 arm                                                        result detail
 --------------------------------------------------------------------------------------------------------
-BASELINE the banked pair                                   pass   SUBSET_HOLDS
+BASELINE the banked pair                                   pass   SUBSET_HOLDS_VACUOUSLY
 over-claim: a declaration with a stale ordinary call site  pass   FAIL_OPEN
 over-claim: a declaration whose every call site is stale   pass   FAIL_OPEN
 over-claim: a declaration with no demonstration row at all pass   FAIL_OPEN
 a demonstrated declaration may be predicted                pass   SUBSET_HOLDS
-reduced coverage is safe (nothing predicted)               pass   SUBSET_HOLDS
+reduced coverage is safe (nothing predicted)               pass   SUBSET_HOLDS_VACUOUSLY
 attach and direct invoke alone do not demonstrate          pass   FAIL_OPEN
 under-observation: stale sites deleted from the demonstration pass   FAIL_OPEN
 under-observation: stale sites deleted AND the count lowered pass   FAIL_OPEN
@@ -146,7 +148,7 @@ ASSERTIONS (14 checked)
   pass  no producer in this run failed
   pass  the release contract binds to the canonical subject
   pass  route 2 evidence is bound to the same artifact
-  pass  the subset property holds
+  pass  the subset property holds (vacuously, nothing admitted)
   pass  the G1 projection regenerates byte-identically
   pass  real privacy evidence reached the predictor
   pass  real retention evidence reached the predictor

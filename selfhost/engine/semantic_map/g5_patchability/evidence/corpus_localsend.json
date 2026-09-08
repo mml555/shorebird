@@ -1,0 +1,47 @@
+{
+  "schema": "semantic-map-1/g5-corpus-summary/1",
+  "corpus": "localsend",
+  "artifacts": {
+    "localsend_aot.dill": "592616b1a0b2408ef61b7a886a1d63f038f681056cc4a4a6dd5517ee468f5f7e",
+    "localsend_pre.dill": "f4df43bbd8290e5ed7b3cab99bef46df3d5ce042866cf08ff6702ceee3dc4185",
+    "localsend.aot": "4133a0ff6cf111aad1d7974e8868a8148877ea3c21515a37cd11cc635c8c2bf5"
+  },
+  "declarations": 35139,
+  "predicted_patchable": 0,
+  "refusal_histogram": {
+    "ABI_SHAPE_UNSUPPORTED": 17642,
+    "RETENTION_UNPROVEN": 35139,
+    "BODY_ENCODING_REFUSED": 1044,
+    "CALL_SITE_SHAPE_UNPROVEN": 19148,
+    "FRONTEND_MATERIALIZATION_UNPROVEN": 19148,
+    "INLINING_EVIDENCE_UNVALIDATED": 19148,
+    "PRIVATE_REFERENCE_UNRESOLVED": 466,
+    "PRIVATE_TYPE_REFERENCE": 4595,
+    "PRIVATE_WRITE": 52,
+    "MISSING_CAN_BE_OVERRIDDEN": 18774,
+    "NON_STATIC_DISPATCH_UNPROVEN": 18774,
+    "BODY_REFERENCES_UNPROVEN": 58,
+    "OWNER_ABI_SHAPE_UNSUPPORTED": 68
+  },
+  "release_patch_capability": "PROVEN",
+  "release_aot_sha256": "4133a0ff6cf111aad1d7974e8868a8148877ea3c21515a37cd11cc635c8c2bf5",
+  "route2": {
+    "note_validated": true,
+    "complete_projection": false,
+    "note_section_sha256": "941ebb3ff7a60c862817f520c1a1b351124961bcc9efdff5d6ff5dd80c9594a2",
+    "records": 90690,
+    "accounting": {
+      "total_g1_rows": 35139,
+      "INLINED": 805,
+      "NOT_INLINED": 0,
+      "UNKNOWN": 29512,
+      "NO_BODY": 4822,
+      "accounted": 35139
+    },
+    "unprojected_count": 6803
+  },
+  "subset_verdict": "SUBSET_HOLDS_VACUOUSLY",
+  "prediction_set": "EMPTY",
+  "behavioral_demonstration": "NOT_REQUIRED_FOR_EMPTY_PREDICTION",
+  "coverage_diagnostic_only": "0/35139 = 0.0%"
+}

@@ -11,6 +11,7 @@ usage: falsify_subset.py <predictions.json> <demonstrated.json> <workdir>
 """
 import copy
 import json
+import re
 import os
 import subprocess
 import sys
@@ -39,8 +40,13 @@ def run(label, pred, demo, want, expect_fragment=None):
     p = subprocess.run([sys.executable, SCORE, pp, dp, f'{W}/subset_out.json'],
                        capture_output=True, text=True)
     out = (p.stdout + p.stderr).strip()
-    got = 'FAIL_OPEN' if 'SM1_G5_SUBSET: FAIL_OPEN' in out else (
-        'SUBSET_HOLDS' if 'SM1_G5_SUBSET: SUBSET_HOLDS' in out else 'ERROR')
+    # Exact match on the marker line. 'SUBSET_HOLDS' is a PREFIX of
+    # 'SUBSET_HOLDS_VACUOUSLY', so a substring test would silently conflate a
+    # real holding with a vacuous one.
+    m = re.search(r'^SM1_G5_SUBSET: (\S+)$', out, re.M)
+    got = m.group(1) if m else 'ERROR'
+    if got in ('SUBSET_HOLDS', 'SUBSET_HOLDS_VACUOUSLY') and want == 'SUBSET_HOLDS':
+        want = got  # either holding form satisfies an arm that expects a pass
     bad = []
     if got != want:
         bad.append(f'verdict {got}, expected {want}')
