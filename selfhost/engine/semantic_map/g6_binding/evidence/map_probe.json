@@ -1,0 +1,296 @@
+{
+  "schema": "semantic-map-1/bound-map/1",
+  "schema_version": 1,
+  "release_id": "5a39848592e0c3faa40bcf528a3baf98eda2d2745fdbd50392655db35f1ce033",
+  "release_name": "probe",
+  "release_kernel_hash": "a93b4be09e7efa06279f42860e64208d86d7b7a0ab7e71156960f50bf2bfd888",
+  "release_aot_identity": {
+    "sha256": "7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34",
+    "gnu_build_id": "97c212a37be47fbff1e700f874190707",
+    "identity_field": "sha256",
+    "why": "a GNU build id hashes only four snapshot segments, so two different AOTs can share one; it is recorded, not trusted"
+  },
+  "flutter_dart_compiler_identities": {
+    "dart_revision": "9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c",
+    "frozen_effective_tree": "7b04b01bdc10ec990143257f0d28580571c2122f",
+    "gen_snapshot_sha256": "b307906fe7dc9ef254231023e0862c89da23840e7fef3911cfd10308abc4a81a"
+  },
+  "generator_identity": {
+    "generator": "g6_binding/lib/gen_bound_map.py",
+    "generator_sha256": "d75f48f55379f8cef3376ca500f6d39dd60b41d9eac9eee69439eb613cdba76a",
+    "tools": {
+      "_check_manifest.py": "c6414739f17b2b75ca97261e18022def4346a0bfb6490c67caddc505e6f06c9b",
+      "_det.py": "711b1663bdcedd6e2c36fe678c63850a3ffed299dfc07bbce23f57290d930f28",
+      "body_references.dart": "0d3ba8ae23de1782992e593f4ae9f48d5cac1dddd0804097d53fc1442986e7f9",
+      "collect_demonstration.py": "010f33b287e81b5b2f6cf9337d1bb9e028d5cee7b2577b4cb61703208248e077",
+      "derive_demonstration.py": "5bf1f79f7d650d4db31c18565cbcd161b5414c0490cba0e462a89309eed422c4",
+      "falsify_dispatch_predicate.py": "546fefd12c495b73c0f6418387a1cc983e1ca39ecd12e0d6d0c97c957a6d20f8",
+      "falsify_manifest.py": "48da84dad5d9f6ea820ace0eb8a5819f214e8804185b995cba3493125e6dcb48",
+      "falsify_predictor.py": "11c06267de0c7efc571e835837eb302814229ce786a00a97eb9aa15d3e0e7429",
+      "falsify_reader.py": "f405a7badeea0e6511c386068791de49366db859673415f88c442d2b2fa4e85c",
+      "falsify_subset.py": "99ab6029e4d685d91a7866a2bf74156ad8888a8a276942b4126f85443048e73d",
+      "gen_final_report.py": "28f17b53689b5af1257900e6ac4c89035dbe6f8b931f9328de6b99e1fb821edc",
+      "predict_patchable.dart": "f4032e7d6675135908db4f0e03806d3e47ac5a4ec4c15870438b26956383a68c",
+      "read_inlining.py": "8e1a23b59fb5e7be435019bd1b0840f81057abee424b48b570b9745d7646ac13",
+      "release_contract.dart": "168fad415f8ac66e341b4ea4bbf293c55a80ae246cf1853ea1f8d29266a0bfb8",
+      "scan_dispatch_calls.py": "de7b72a986bf82b6aa28dda491fdb5bf54888ca36e984a69858a815b0c18a0b0",
+      "score_subset.py": "c2a832f0d7d1b54610dcdabbe919e7498568af227d03bdb500445541891ab1f8",
+      "weaken_predictor.py": "84c3350966108e1a438dbd816a35e7faba22bad2170dd4946706c5897badf5b4"
+    }
+  },
+  "declarations": [
+    {
+      "declaration_id": "71b8579b98f1fcbee60b66b22c02924ac4cb5b2a60e8219170b70d38d6d4a99f",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "class",
+      "name": "ApplyResult"
+    },
+    {
+      "declaration_id": "a34718ba9d3e6b5f7e5d65bb896e7a92343bb83b36a844ef8acab9b03459ce16",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "class",
+      "name": "Base"
+    },
+    {
+      "declaration_id": "141e5ef77f06b489810596792970954560e28a2108d3ebbf14ee1b78273f1d1d",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "class",
+      "name": "Other"
+    },
+    {
+      "declaration_id": "602ca6b198f2f44a718edf919c8c2df3937b43b838f572f80e62497d95ac0dbb",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "class",
+      "name": "_Container"
+    },
+    {
+      "declaration_id": "c20562ea8bfdfdfedbe69ea123f933693ed9b88d702de5f95c97cc5b605e28f2",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "class",
+      "name": "_Target"
+    },
+    {
+      "declaration_id": "12bf42ba58b08a5b48bdf15133b4da3e7456bf926b90fc05856e23d740212a98",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "_inlineHelper"
+    },
+    {
+      "declaration_id": "86cb111f9681435cac2d96b3be5d78d3eced50c541a00e4e242f7d0c9aed5df7",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "_parse"
+    },
+    {
+      "declaration_id": "4d7b01aa51c0fe8676f73f4af6f37a728cbc41e12846cc1f1584f525d28bcfdd",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "_state"
+    },
+    {
+      "declaration_id": "dbcb9971475a4d212e95035ad5e2edb7fd28456250b0380391882116705d4799",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "alpha"
+    },
+    {
+      "declaration_id": "289a350eb5c1f00309711cd8b4030503fcfb11b0596eed48b9a215ee5c92022b",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "applyPatchContainer"
+    },
+    {
+      "declaration_id": "488f3e933dabdfedc66715c305623f16233855acb9ce36d20a8e5dc4d3221da1",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "beta"
+    },
+    {
+      "declaration_id": "5c8ac9ebd528b6b6e191bb1c54757dc5708ed8e805abeed537bc4c7d3064d404",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "callsSmall"
+    },
+    {
+      "declaration_id": "839905da7983ae4b906dec6fb09d7a152f077eb7a8f6144237fc9eb9b1bcf6ee",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "callsViaTearOff"
+    },
+    {
+      "declaration_id": "dadde4337a7f91a29e5ac819cf1a8ecbbbcd246fc16468b06d38290564c7f9ef",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "jsonDecodeMap"
+    },
+    {
+      "declaration_id": "51fc9d48f2c77d02a650e388fef2fc356ea52307a9826f07d498b86fadcfcd3f",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "main"
+    },
+    {
+      "declaration_id": "edef8824034f7bb39e487dcda88f2a0c5a0376d476a9e15ab41b58f71f731d86",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "revertAll"
+    },
+    {
+      "declaration_id": "bff08abe1a4b769035bcb6842e341d84aaf49f557eec8068960c57a455444ad0",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "smallTarget"
+    },
+    {
+      "declaration_id": "b6a0c33f10c0cf408403c6d5b12946f8c3f42cbc02000b355b253212ccea3b00",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "tearOffTarget"
+    },
+    {
+      "declaration_id": "8b331e8a5be8e9f2750cd2db25f2fe293f7507293f3f3b57e469fdf6ad41ac92",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "viaDirect"
+    },
+    {
+      "declaration_id": "13d233e037ed9052f104114fa025ff8a4813cd8898b9a8164f8279419b89ddbc",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "viaInlined"
+    },
+    {
+      "declaration_id": "fb4f6b61d429fdea8be0a1349a87243a616ccdb418a16ed6b10163c8e513df4e",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "viaVirtual"
+    },
+    {
+      "declaration_id": "d718c1197dbb24167bce8769d07934d166441cfa392ec73cedaa06b173de2f17",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "ApplyResult",
+      "kind": "constructor",
+      "name": ""
+    },
+    {
+      "declaration_id": "5fbdf04f33c72dda60c59c7ee10647ba1659451b8527f3d9295599e2eac2b357",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "ApplyResult",
+      "kind": "field",
+      "name": "attached"
+    },
+    {
+      "declaration_id": "00f77c1f1fb38fe29313a74cc34d4d22b98b570bb162554659029cc332480d90",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "ApplyResult",
+      "kind": "field",
+      "name": "message"
+    },
+    {
+      "declaration_id": "da26919539dc727a6af89fd8f3dbdbb5b057cd8058b71180c5d06e0d60c9d61e",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "ApplyResult",
+      "kind": "field",
+      "name": "ok"
+    },
+    {
+      "declaration_id": "adf13cb379bd264ca14a894448b22ebdc474cb9473eaf9ece96fa5e8e50e0cec",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "Base",
+      "kind": "constructor",
+      "name": ""
+    },
+    {
+      "declaration_id": "0d9096c2ad9a4f444e5ae3e6ad508fa01b72ac8c39689ee4e5ccc1fe12adefa6",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "Base",
+      "kind": "method",
+      "name": "work"
+    },
+    {
+      "declaration_id": "3b5b1a7524b933aa50d794154feb3b4fc92f91cbe3c7d7b23588f8108683497c",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "Other",
+      "kind": "constructor",
+      "name": ""
+    },
+    {
+      "declaration_id": "1e57f7c73e05f24ee07d6194bd19639ffa6c32e0ad537f340f18703445d22f2c",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "Other",
+      "kind": "method",
+      "name": "work"
+    },
+    {
+      "declaration_id": "97a408283b06e70fba25f4199a59f936e6f3bbe9683e5c1600b01dfb5d81acbb",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "_Container",
+      "kind": "constructor",
+      "name": ""
+    },
+    {
+      "declaration_id": "caf4f7b9f2aa7af3f3c6b8302e8d70873344284cfdffafe4b03f2fbaef898323",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "_Container",
+      "kind": "field",
+      "name": "buildId"
+    },
+    {
+      "declaration_id": "ba0354f6ccfc98bbaa78fb07fcd3dd1424704aee50f45142b91b9f35047a6d4e",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "_Container",
+      "kind": "field",
+      "name": "targets"
+    },
+    {
+      "declaration_id": "8ffc8acd5d2f166a3bb42bcf3da2f32411c55bc455432ef8120b3266ea3e6caf",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "_Target",
+      "kind": "constructor",
+      "name": ""
+    },
+    {
+      "declaration_id": "c82bd7b24c5be2c602ae16caf2570c63b109d1a47173ca602639e998afb57c72",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "_Target",
+      "kind": "field",
+      "name": "bytecode"
+    },
+    {
+      "declaration_id": "8110831ced10400bc2addee1e7dabc117a46b749ec64a5da7414a8747173b262",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "_Target",
+      "kind": "field",
+      "name": "library"
+    },
+    {
+      "declaration_id": "30b3173c0f686cf95401552d886a498a802caee779689689a819f0411c7d2503",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "_Target",
+      "kind": "field",
+      "name": "selector"
+    }
+  ],
+  "digest": "42047b91414f59a413d83558b74bfa97effe994c2dc203259d88dcb9f68da6a2"
+}

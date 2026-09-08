@@ -1,0 +1,135 @@
+SM1-G6 -- map schema, identity, versioning and release binding
+generated 2026-09-08T22:10:56Z by run_g6.sh
+
+WHAT IS BOUND
+
+    schema_version
+    release_id
+    release_kernel_hash
+    release_aot_identity              sha256 is the identity; the GNU build id
+                                      is recorded but never trusted, because
+                                      SM1-G5 measured that it hashes only four
+                                      snapshot segments and two different AOTs
+                                      can share one
+    flutter_dart_compiler_identities  dart revision, frozen tree, gen_snapshot
+    generator_identity                the generator and its tool digests
+    digest                            over the canonicalized map, excluding
+                                      itself
+
+CATEGORIES (SEMANTIC-LINKER-1 vocabulary)
+
+    HOST_IDENTITY      the map does not belong to this release
+    MODULE_INTEGRITY   the map itself cannot be trusted
+
+Refusals are decided on STRUCTURED FIELD COMPARISON. SL1 found corrupt bytecode
+reporting as "Unable to find class ° in Library:'dart:core'" -- an
+import-resolution message for an integrity cause -- so no classification here
+reads message text.
+
+############ 1. THREE RELEASES, AND THEIR OWN FACTS ############
+  probe           kernel=a93b4be09e7efa06 aot=7010c68d7ba14ac9
+  probe_rebuild   kernel=a93b4be09e7efa06 aot=a7a123e471aa18e7
+  localsend       kernel=592616b1a0b2408e aot=4133a0ff6cf111aa
+
+############ 2. BOUND MAPS ############
+  probe: schema_version=1 declarations=36
+    release_id  5a39848592e0c3faa40bcf528a3baf98eda2d2745fdbd50392655db35f1ce033
+    kernel      a93b4be09e7efa06279f42860e64208d86d7b7a0ab7e71156960f50bf2bfd888
+    aot sha256  7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34
+    build id    97c212a37be47fbff1e700f874190707
+    digest      42047b91414f59a413d83558b74bfa97effe994c2dc203259d88dcb9f68da6a2
+  localsend: schema_version=1 declarations=35139
+    release_id  61ef560ecad943046ec31f6d424ef2c094bee197d5f3f210264f702609eb8d1c
+    kernel      592616b1a0b2408ef61b7a886a1d63f038f681056cc4a4a6dd5517ee468f5f7e
+    aot sha256  4133a0ff6cf111aad1d7974e8868a8148877ea3c21515a37cd11cc635c8c2bf5
+    build id    97c212a3a596656bf1e700f8d6609b06
+    digest      ca9a781bc78b25c410187e733e0dd15342f6f8824cab379c76700c84bd74646f
+
+############ 3. EACH MAP AGAINST ITS OWN RELEASE ############
+  verdict BOUND
+  verdict BOUND
+
+############ 4. EVERY BINDING FIELD, SWAPPED INDEPENDENTLY ############
+  probe_rebuild: schema_version=1 declarations=36
+    release_id  15fe2b4d50a0fbadfa03327139012ffc3950650cb4a5801b5325e2d4b4756757
+    kernel      a93b4be09e7efa06279f42860e64208d86d7b7a0ab7e71156960f50bf2bfd888
+    aot sha256  a7a123e471aa18e7235f0f741cc5c8ce28c2d2adcc9d28c5737004eada21d759
+    build id    97c212a37be47fbff1e700f874190707
+    digest      5587f5da7bb2752094f0a98e5bdd1ec899348a3bb8a199c160583c6cdd3b616f
+  rebuild declarations identical to A: True (36 declarations)
+arm                                                            result detail
+--------------------------------------------------------------------------------------------------------------------
+BASELINE map A against release A                               pass   BOUND
+BASELINE map B against release B                               pass   BOUND
+map A presented against release B                              pass   sides differ, REFUSED, RELEASE_ID_MISMATCH, RELEASE_KERNEL_MISMATCH
+release_id swapped                                             pass   sides differ, REFUSED, RELEASE_ID_MISMATCH
+release_kernel_hash swapped                                    pass   sides differ, REFUSED, RELEASE_KERNEL_MISMATCH
+release_aot_identity.sha256 swapped                            pass   sides differ, REFUSED, RELEASE_AOT_MISMATCH
+flutter_dart_compiler_identities.dart_revision swapped         pass   sides differ, REFUSED, COMPILER_REVISION_MISMATCH
+flutter_dart_compiler_identities.frozen_effective_tree swapped pass   sides differ, REFUSED, COMPILER_TREE_MISMATCH
+flutter_dart_compiler_identities.gen_snapshot_sha256 swapped   pass   sides differ, REFUSED, COMPILER_SNAPSHOT_MISMATCH
+generator_identity.generator_sha256 swapped                    pass   sides differ, REFUSED, GENERATOR_MISMATCH
+build id matches but the AOT digest does not                   pass   sides differ, REFUSED, RELEASE_AOT_MISMATCH
+map A against a REBUILD of the same source (identical declarations) pass   sides differ, REFUSED, RELEASE_ID_MISMATCH, RELEASE_AOT_MISMATCH
+  (that rebuild has identical declarations)                    pass   declarations_identical=True
+schema_version unknown to this verifier                        pass   REFUSED, SCHEMA_VERSION_UNSUPPORTED
+schema_version absent                                          pass   REFUSED, SCHEMA_VERSION_MISSING
+map content tampered WITHOUT re-digesting                      pass   REFUSED, DIGEST_MISMATCH
+digest absent                                                  pass   REFUSED, DIGEST_MISSING
+map bytes truncated                                            pass   REFUSED, MAP_UNPARSEABLE
+map is not JSON at all                                         pass   REFUSED, MAP_UNPARSEABLE
+--------------------------------------------------------------------------------------------------------------------
+arms=19 passed=19 failed=0
+SM1_G6_BINDING_FALSIFICATION: EVERY_SWAP_REFUSED
+exit=0  (asserted: 0)
+
+############ 5. THE ARMS MUST BE LOAD-BEARING ############
+  A suite of refusals proves nothing unless it can fail. Each control removes
+  ONE check from a copy of the verifier, so each proves the check it names:
+
+    bind removed    -- the release-binding comparisons go, so any map binds to
+                       any release. Every identity swap must flip.
+    digest removed  -- the digest comparison goes, so a tampered map binds. The
+                       tamper-without-re-digest arm must flip, and only it.
+
+  --- control: bind ---
+  weakened verifier written: bind
+    --------------------------------------------------------------------------------------------------------------------
+    arms=19 passed=9 failed=10
+    SM1_G6_BINDING_FALSIFICATION: DEFECTS_PRESENT
+  --- control: digest ---
+  weakened verifier written: digest
+    --------------------------------------------------------------------------------------------------------------------
+    arms=19 passed=18 failed=1
+    SM1_G6_BINDING_FALSIFICATION: DEFECTS_PRESENT
+
+############ 6. LIMITS ############
+  Binding detects a map presented against the WRONG RELEASE, and a map whose
+  own bytes are corrupt or tampered. It does NOT detect a map that was
+  deliberately rewritten AND re-digested -- that is forgery, and defeating it
+  needs a signature over the map, which is a signing change and outside this
+  lane's boundary.
+
+  Stated because the falsification makes the distinction visible: arms that
+  tamper without re-digesting refuse as MODULE_INTEGRITY, while arms that swap
+  a field and re-digest refuse as HOST_IDENTITY -- and a swap that re-digests
+  AND matches the release would bind. Nothing here claims otherwise.
+
+ASSERTIONS (15 checked)
+  pass  no producer failed
+  pass  map A binds to release A
+  pass  map B binds to release B
+  pass  map A refuses release B
+  pass  that refusal is HOST_IDENTITY
+  pass  every binding field swap refuses
+  pass  the transcript records EVERY_SWAP_REFUSED
+  pass  the two releases genuinely differ in kernel hash
+  pass  the rebuild really has identical declarations
+  pass  the rebuild differs in AOT digest but not in kernel
+  pass  removing the binding checks fails the identity arms
+  pass  and fails exactly the ten identity arms
+  pass  removing the digest check fails the integrity arm
+  pass  and fails exactly that one arm
+  pass  the weakener refuses a missing anchor
+
+SM1_G6: BINDING_ENFORCED
