@@ -56,6 +56,30 @@ shipped app.aot with llvm-objdump.
   APPLY ok: 1 target(s)
   after  alpha=OLD-a beta=OLD-b virtual=OLD-w direct=OLD-w inlined=OLD-w other=OTHER-w small=41 callsSmall=42
 
+
+############ 5. THE COMPARISON: non-inlined vs inlined, ONE release, ONE container ############
+
+  A single .sbrb carries TWO targets, applied atomically to the same release, so
+  the only thing separating them is whether the optimizer copied the body:
+
+    alpha        NOT inlined -- vm:never-inline, and the caller reaches it through
+                 the object-pool indirection --patchable_static_calls emits
+                 (ldr x0,[x27,#..] / blr x30). A real call site exists.
+
+    smallTarget  INLINED -- its body sits in callsSmall and in _state, and no
+                 'bl <smallTarget>' exists anywhere in the artifact.
+
+  before alpha=OLD-a beta=OLD-b virtual=OLD-w direct=OLD-w inlined=OLD-w other=OTHER-w small=41 callsSmall=42
+  APPLY ok: 2 target(s)
+  after  alpha=PATCHED-a beta=OLD-b virtual=OLD-w direct=OLD-w inlined=OLD-w other=OTHER-w small=41 callsSmall=42
+
+  alpha moved OLD-a -> PATCHED-a. smallTarget did not move: small=41,
+  callsSmall=42. beta was untargeted and stayed OLD-b.
+
+  APPLY reported ok for BOTH targets. The difference is not the patch, the
+  container, the release, or the apply path -- those are shared. It is that one
+  target had a call site to redirect and the other had only copies.
+
 ############ WHAT THIS ESTABLISHES ############
   smallTarget was patched 41 -> 141. The container verified the release,
   attached the replacement and reported APPLY ok. Both observers still read
@@ -70,7 +94,9 @@ shipped app.aot with llvm-objdump.
 
   It fails OPEN, like the two retention classes SM1-G4 measured and like a
   release built without --patchable_static_calls: success reported, nothing
-  done.
+  done. And arm 5 shows the contrast is attributable to inlining alone: in the
+  SAME release and the SAME container, the non-inlined target patched and the
+  inlined one did not.
 
   NOT CLASSIFIED. Whether an inlined target can be mechanically identified
   and conservatively excluded per declaration -- REDUCE_SCOPE -- or whether

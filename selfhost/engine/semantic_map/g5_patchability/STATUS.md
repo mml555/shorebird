@@ -300,6 +300,21 @@ stale inlined copy and the replacement is unreachable. It fails **open** — the
 same shape as G4's two retention classes and as a release built without
 `--patchable_static_calls`: success reported, nothing done.
 
+### The comparison: non-inlined vs inlined, one release, one container
+
+A single `.sbrb` carries **two** targets applied atomically to the same release,
+so the only thing separating them is whether the optimizer copied the body:
+
+| target | machine-code state | after |
+|---|---|---|
+| `alpha` | not inlined; caller reaches it through the pool indirection | **`PATCHED-a`** |
+| `smallTarget` | inlined; no `bl <smallTarget>` anywhere | `small=41`, `callsSmall=42` |
+| `beta` | untargeted control | `OLD-b` |
+
+`APPLY ok: 2 target(s)` for both. The patch, container, release and apply path
+are shared, so the difference is attributable to inlining alone: one target had
+a call site to redirect, the other had only copies.
+
 Evidence: [`evidence/inlined_target.txt`](evidence/inlined_target.txt).
 
 ### A release-identity finding, carried to G6
