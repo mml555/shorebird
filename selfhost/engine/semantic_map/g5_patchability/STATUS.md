@@ -319,7 +319,16 @@ string literal a patch author controls.
 | `schema_version=9` | `UNPROVEN_MARKER_UNKNOWN_SCHEMA` |
 | name kept, `sh_type` forged to PROGBITS | `UNPROVEN_MARKER_MALFORMED` |
 | owner forged to `Imposter!` | `UNPROVEN_MARKER_MALFORMED` |
+| owner forged to `ShorebirdX` (prefix attack) | `UNPROVEN_MARKER_MALFORMED` |
+| note type forged to `2` | `UNPROVEN_MARKER_MALFORMED` |
 | two sections claiming the name | `UNPROVEN_MARKER_AMBIGUOUS` |
+
+The owner check was a **prefix** comparison and `ShorebirdX` returned `PROVEN` —
+a forged owner passing as a compiler-emitted marker. It is now exact: the
+declared owner must be `name_size == 10` and byte-equal to `Shorebird\0`, the
+`sizeof` the producer writes. Every field of the marker's identity — section
+name, `sh_type`, owner, note type, uniqueness, schema version and payload value
+— is now falsified by an arm.
 
 Every arm banks its **full AOT sha256** beside the result.
 

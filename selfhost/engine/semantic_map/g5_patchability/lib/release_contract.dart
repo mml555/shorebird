@@ -188,13 +188,26 @@ bool _looksLikePayload(List<int> b, int off, int len) {
         evidence: 'capability note type=$noteType, expected $wantType',
       );
     }
-    if (nameSize < wantOwner.length ||
+    // EXACT OWNER, NOT A PREFIX.
+    //
+    // Comparing only the first `wantOwner.length` bytes accepted any owner
+    // BEGINNING with the name -- `ShorebirdX` returned PROVEN, so a forged
+    // owner passed as a compiler-emitted marker. The producer writes
+    // sizeof(kShorebirdNoteOwner), which includes the terminating NUL, so the
+    // declared owner must be exactly that many bytes and exactly that value.
+    const declaredOwner = '$wantOwner\u0000';
+    if (nameSize != declaredOwner.length ||
         off + 12 + nameSize > b.length ||
-        String.fromCharCodes(b.sublist(off + 12, off + 12 + wantOwner.length)) !=
-            wantOwner) {
+        String.fromCharCodes(b.sublist(off + 12, off + 12 + nameSize)) !=
+            declaredOwner) {
+      final got = off + 12 + nameSize <= b.length
+          ? String.fromCharCodes(b.sublist(off + 12, off + 12 + nameSize))
+              .replaceAll('\u0000', r'\0')
+          : '<runs past the artifact>';
       return (
         state: 'UNPROVEN_MARKER_MALFORMED',
-        evidence: 'capability note owner is not "$wantOwner"',
+        evidence: 'capability note owner is "$got" (name_size=$nameSize), '
+            'expected "$wantOwner\\0" (10)',
       );
     }
     // TWO POSSIBLE LAYOUTS, and this reader must not assume one.
