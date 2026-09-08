@@ -63,6 +63,27 @@ def payload_bounds(d):
     raise SystemExit('harness: cannot find the note description')
 
 
+def records(d):
+    """Yield [(offset, length)] * 20 for each record in the note payload."""
+    st, dsz = payload_bounds(d)
+    i = d.index(b'records=', st, st + dsz)
+    i = d.index(b'\n', i) + 1
+    end = st + dsz
+    while i < end:
+        row = []
+        for _ in range(20):
+            c = d.index(b':', i)
+            n = int(d[i:c])
+            row.append((c + 1, n))
+            i = c + 1 + n
+        yield row
+
+
+def field(d, row, k):
+    o, n = row[k]
+    return bytes(d[o:o + n])
+
+
 def body_start(d):
     """Offset of the first length-prefixed record field."""
     st, dsz = payload_bounds(d)
@@ -71,7 +92,8 @@ def body_start(d):
 
 
 # --------------------------------------------------------------------- driver
-def run(path, rows, label, expect_absent=None, note_intact=False):
+def run(path, rows, label, expect_code=None, expect_absent=None,
+        note_intact=False):
     # Delete the output FIRST. Without this a run that crashed before writing
     # leaves the previous arm's JSON in place, and a crash masquerades as a
     # correctly-caught mutation.
@@ -102,12 +124,24 @@ def run(path, rows, label, expect_absent=None, note_intact=False):
         st = {s['declaration_id']: s['state'] for s in d['states']}
         if st.get(expect_absent) == 'INLINED':
             bad.append(f'the target declaration is still INLINED')
-    reason = (d.get('note_error') or '')[:96]
+    # The code must be the one this arm set out to provoke.
+    observed = {u.get('code') for u in d['unprojected_records']}
+    if d.get('note_error_code'):
+        observed.add(d['note_error_code'])
+    observed.discard(None)
+    if not expect_code:
+        bad.append('the arm named no expected code')
+    elif expect_code not in observed:
+        bad.append(f'expected code {expect_code}, observed {sorted(observed)}')
+
+    reason = f"{d.get('note_error_code') or sorted(observed)} "
+    reason += (d.get('note_error') or '')[:70]
     results.append((label, 'FAIL' if bad else 'pass',
                     '; '.join(bad) if bad else f'{hist} <- {reason}'))
 
 
-def mutate(label, fn, expect_absent=None):
+def mutate(label, fn, expect_code=None, expect_absent=None,
+           note_intact=False):
     d = bytearray(open(BASE, 'rb').read())
     try:
         fn(d)
@@ -118,15 +152,15 @@ def mutate(label, fn, expect_absent=None):
         return
     p = os.path.join(W, 'fx.aot')
     open(p, 'wb').write(d)
-    run(p, ROWS, label, expect_absent)
+    run(p, ROWS, label, expect_code, expect_absent, note_intact)
 
 
-def mutate_rows(label, fn, expect_absent=None):
+def mutate_rows(label, fn, expect_code=None, expect_absent=None):
     j = json.load(open(ROWS))
     fn(j)
     p = os.path.join(W, 'fx_rows.json')
     json.dump(j, open(p, 'w'))
-    run(BASE, p, label, expect_absent, note_intact=True)
+    run(BASE, p, label, expect_code, expect_absent, note_intact=True)
 
 
 # ------------------------------------------------------------------- baseline
@@ -152,7 +186,8 @@ INLINED = [s for s in b0['states'] if s['state'] == 'INLINED']
 
 # ------------------------------------------------------------- note identity
 mutate('owner forged, same length (Shorebirx)',
-       lambda d: d.__setitem__(sec(d)[1] + 12 + 8, ord('X')))
+       lambda d: d.__setitem__(sec(d)[1] + 12 + 8, ord('X')),
+       'NOTE_OWNER_MISMATCH')
 
 
 def f_owner_gnu(d):
@@ -162,11 +197,14 @@ def f_owner_gnu(d):
     d[off + 12:off + 12 + 10] = b'GNU\0\0\0\0\0\0\0'
 
 
-mutate('owner replaced with an ordinary GNU owner', f_owner_gnu)
+mutate('owner replaced with an ordinary GNU owner', f_owner_gnu,
+       'NOTE_OWNER_MISMATCH')
 mutate('note n_type 2 -> 9',
-       lambda d: struct.pack_into('<I', d, sec(d)[1] + 8, 9))
+       lambda d: struct.pack_into('<I', d, sec(d)[1] + 8, 9),
+       'NOTE_TYPE_MISMATCH')
 mutate('sh_type SHT_NOTE -> PROGBITS',
-       lambda d: struct.pack_into('<I', d, sec(d)[0] + 0x04, 1))
+       lambda d: struct.pack_into('<I', d, sec(d)[0] + 0x04, 1),
+       'NOTE_SECTION_NOT_SHT_NOTE')
 
 
 def f_dup_section(d):
@@ -182,7 +220,8 @@ def f_dup_section(d):
     raise RuntimeError('no second SHT_NOTE section to rename')
 
 
-mutate('two sections claiming the note name', f_dup_section)
+mutate('two sections claiming the note name', f_dup_section,
+       'DUPLICATE_NOTE_SECTION')
 
 
 def f_trailing(d):
@@ -192,7 +231,8 @@ def f_trailing(d):
     assert dsz > 96
 
 
-mutate('live bytes trail the note inside its own section', f_trailing)
+mutate('live bytes trail the note inside its own section', f_trailing,
+       'DUPLICATE_AUTHORITATIVE_NOTE')
 
 
 def f_second_note(d):
@@ -207,20 +247,27 @@ def f_second_note(d):
     d[p + 12:p + 22] = b'Shorebird\0'
 
 
-mutate('a second Shorebird note in the same section', f_second_note)
+mutate('a second Shorebird note in the same section', f_second_note,
+       'DUPLICATE_AUTHORITATIVE_NOTE')
 mutate('note section renamed (note absent)',
-       lambda d: d.__setitem__(sec(d)[3] + struct.unpack_from('<I', d, sec(d)[0])[0], ord('X')))
+       lambda d: d.__setitem__(
+           sec(d)[3] + struct.unpack_from('<I', d, sec(d)[0])[0], ord('X')),
+       'NOTE_SECTION_ABSENT')
 
 # --------------------------------------------- section table / name integrity
 mutate('e_shoff out of bounds',
-       lambda d: struct.pack_into('<Q', d, 0x28, len(d) * 4))
+       lambda d: struct.pack_into('<Q', d, 0x28, len(d) * 4),
+       'MALFORMED_ELF_SECTION_TABLE')
 mutate('e_shstrndx >= e_shnum',
        lambda d: struct.pack_into('<H', d, 0x3e,
-                                  struct.unpack_from('<H', d, 0x3c)[0] + 7))
+                                  struct.unpack_from('<H', d, 0x3c)[0] + 7),
+       'MALFORMED_ELF_SECTION_TABLE')
 mutate('e_shentsize too small for ELF64',
-       lambda d: struct.pack_into('<H', d, 0x3a, 8))
+       lambda d: struct.pack_into('<H', d, 0x3a, 8),
+       'MALFORMED_ELF_SECTION_TABLE')
 mutate('sh_name index past the string table',
-       lambda d: struct.pack_into('<I', d, sec(d)[0], 0xFFFFFF00))
+       lambda d: struct.pack_into('<I', d, sec(d)[0], 0xFFFFFF00),
+       'SECTION_NAME_OUT_OF_BOUNDS')
 
 
 def f_unterminated(d):
@@ -228,7 +275,8 @@ def f_unterminated(d):
     d[o:o + n] = bytes(0x41 if c == 0 else c for c in d[o:o + n])
 
 
-mutate('section names unterminated (no NUL in shstrtab)', f_unterminated)
+mutate('section names unterminated (no NUL in shstrtab)', f_unterminated,
+       'NOTE_SECTION_ABSENT')
 
 
 def f_name_utf8(d):
@@ -236,15 +284,21 @@ def f_name_utf8(d):
     d[so + struct.unpack_from('<I', d, h)[0] + 6] = 0xFF
 
 
-mutate('section name is not valid UTF-8', f_name_utf8)
+mutate('section name is not valid UTF-8', f_name_utf8,
+       'SECTION_NAME_NOT_UTF8')
 mutate('note sh_offset past EOF',
-       lambda d: struct.pack_into('<Q', d, sec(d)[0] + 0x18, len(d) - 4))
+       lambda d: struct.pack_into('<Q', d, sec(d)[0] + 0x18, len(d) - 4),
+       'NOTE_EXTENT_OUT_OF_BOUNDS')
 mutate('note sh_size past EOF',
-       lambda d: struct.pack_into('<Q', d, sec(d)[0] + 0x20, len(d) * 2))
+       lambda d: struct.pack_into('<Q', d, sec(d)[0] + 0x20, len(d) * 2),
+       'NOTE_EXTENT_OUT_OF_BOUNDS')
 
 # ---------------------------------------------------------- schema and framing
 mutate('schema_version 6 -> 9',
-       lambda d: d.__setitem__(d.index(b'schema_version=6', *payload_bounds(d)[:1]) + 15, ord('9')))
+       lambda d: d.__setitem__(
+           d.index(b'schema_version=6', *payload_bounds(d)[:1]) + 15,
+           ord('9')),
+       'SCHEMA_VERSION_MISMATCH')
 
 
 def f_fields(d):
@@ -253,7 +307,8 @@ def f_fields(d):
     d[i + 18:i + 20] = b'99'
 
 
-mutate('fields_per_record 20 -> 99', f_fields)
+mutate('fields_per_record 20 -> 99', f_fields,
+       'FIELDS_PER_RECORD_MISMATCH')
 
 
 def f_count(d):
@@ -266,7 +321,8 @@ def f_count(d):
     assert len(d) == n + 1
 
 
-mutate('declared record count disagrees with the payload', f_count)
+mutate('declared record count disagrees with the payload', f_count,
+       'RECORD_COUNT_MISMATCH')
 
 
 def f_len_inflated(d):
@@ -275,7 +331,8 @@ def f_len_inflated(d):
     d[i:k] = b'9' * (k - i)
 
 
-mutate('first field length inflated', f_len_inflated)
+mutate('first field length inflated', f_len_inflated,
+       'FIELD_LENGTH_INVALID')
 
 
 def f_len_nonnumeric(d):
@@ -284,7 +341,8 @@ def f_len_nonnumeric(d):
     d[i:k] = b'x' * (k - i)
 
 
-mutate('field length is not an integer', f_len_nonnumeric)
+mutate('field length is not an integer', f_len_nonnumeric,
+       'FIELD_LENGTH_INVALID')
 
 
 def f_field_utf8(d):
@@ -293,10 +351,39 @@ def f_field_utf8(d):
     d[k + 1] = 0xFF
 
 
-mutate('record field is not valid UTF-8', f_field_utf8)
-mutate('not an ELF file', lambda d: d.__setitem__(slice(0, 4), b'XXXX'))
+mutate('record field is not valid UTF-8', f_field_utf8,
+       'RECORD_FIELD_NOT_UTF8')
+
+
+def f_private_key(d):
+    """Break the declaring-library key an in-scope private name carries.
+
+    Length-preserving: one digit of the key inside the NAME is changed, so the
+    name no longer carries the key the producer emitted for that library. The
+    reader must refuse rather than strip a key by pattern.
+    """
+    for row in records(d):
+        name = field(d, row, 3)
+        if b'@' in name and field(d, row, 0).startswith(b'package:dynamic_modules'):
+            o, n = row[3]
+            at = name.index(b'@')
+            for j in range(at + 1, n):
+                if chr(d[o + j]).isdigit():
+                    d[o + j] = ord('9') if d[o + j] != ord('9') else ord('8')
+                    return
+    raise RuntimeError('no in-scope record carries a private VM name')
+
+
+# note_intact=True: changing a RECORD'S CONTENTS leaves the note validly
+# framed -- schema, owner, counts and lengths all still check out. The failure
+# is a projection failure, and asserting a False here would mean the arm had
+# tested framing rather than identity.
+mutate("an in-scope private name no longer carries its library's key",
+       f_private_key, 'PRIVATE_KEY_MISMATCH', note_intact=True)
+mutate('not an ELF file', lambda d: d.__setitem__(slice(0, 4), b'XXXX'),
+       'NOT_ELF')
 mutate('ELF32, which this reader does not model',
-       lambda d: d.__setitem__(4, 1))
+       lambda d: d.__setitem__(4, 1), 'ELF32_UNSUPPORTED')
 
 # ------------------------------------------------------------- mapper identity
 if INLINED:
@@ -319,7 +406,8 @@ if INLINED:
             raise SystemExit(f'harness: no G1 row named {decl!r} in {lib}')
 
     mutate_rows(f'vmName/loweredName diverge from canonical name ({decl})',
-                f_vmname, expect_absent=key)
+                f_vmname, 'NO_AUTHORITATIVE_G1_PROJECTION',
+                expect_absent=key)
 
     def f_owner(j):
         """An ordinary owner that disagrees with the record's own owner."""
@@ -328,7 +416,7 @@ if INLINED:
                 r['owner'], r['ownerKind'] = 'NotTheOwner', 'class'
 
     mutate_rows(f'G1 owner disagrees with the record owner ({decl})',
-                f_owner, expect_absent=key)
+                f_owner, 'OWNER_MISMATCH', expect_absent=key)
 
     def f_kind(j):
         """Kind outside the set the record's VM kind projects onto."""
@@ -337,7 +425,28 @@ if INLINED:
                 r['kind'] = 'field'
 
     mutate_rows(f'G1 kind moved outside the projected set ({decl})',
-                f_kind, expect_absent=key)
+                f_kind, 'NO_AUTHORITATIVE_G1_PROJECTION',
+                expect_absent=key)
+
+    def f_ambiguous(j):
+        """Two G1 rows the same record projects onto equally well.
+
+        Ambiguity must refuse, never be resolved by preference or by taking the
+        first match -- picking one would put the relation on a declaration that
+        may not own it, and make the other falsely appear NOT_INLINED.
+        """
+        dup = None
+        for r in j['rows']:
+            if r['library'] == lib and r.get('name') == decl:
+                dup = dict(r)
+                break
+        if dup is None:
+            raise SystemExit(f'harness: no G1 row named {decl!r} in {lib}')
+        dup['declaration_id'] = 'dup_' + dup['declaration_id'][4:]
+        j['rows'].append(dup)
+
+    mutate_rows(f'two G1 rows project from the same record ({decl})',
+                f_ambiguous, 'AMBIGUOUS_G1_PROJECTION', expect_absent=key)
 else:
     results.append(('mapper arm', 'FAIL',
                     'baseline produced no INLINED declaration to falsify'))

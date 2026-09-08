@@ -1,11 +1,11 @@
 SM1-G5 route 2 -- recorder completeness, re-derived from source
-generated 2026-09-08T18:39:55Z by run_route2.sh
+generated 2026-09-08T18:59:29Z by run_route2.sh
 The enumeration in evidence/recorder_completeness.md is not transcribed;
 this run re-derives every count and gate from the tree.
 
 PROVENANCE
   2c265c17c83cced5e717c1ebababa30d71f5115fa31f925959765ab2a1fe8ecd  lib/verify_completeness.sh
-  a47bf4c473cd43c0a5f50e11ec229b770c877f5b7417598dcc65e1cc0e4a9355  evidence/recorder_completeness.md
+  f79dbfd9af0c5949f4acec07bc8cd5c0bf7149a6d144e67744d996f7c2c2ad17  evidence/recorder_completeness.md
   effective Dart tree 7b04b01bdc10ec990143257f0d28580571c2122f
   revision            9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
 

@@ -486,7 +486,7 @@ extension owner.
 
 ### 3. Full adversarial falsification — done
 
-28 arms, [`evidence/reader_falsification.txt`](evidence/reader_falsification.txt):
+30 arms, [`evidence/reader_falsification.txt`](evidence/reader_falsification.txt):
 note identity (forged owner, an ordinary `GNU` owner, wrong `n_type`, wrong
 `sh_type`, two sections claiming the name, live bytes trailing the note inside
 its own section, a genuine second Shorebird note in that section, the section
@@ -498,16 +498,35 @@ count, a declared count that disagrees with the payload, an inflated field
 length, a non-numeric field length, a record field that is not valid UTF-8, not
 an ELF file, ELF32), and mapper identity (`vmName`/`loweredName` diverging from
 a still-matching canonical `name`, a disagreeing owner, a kind moved out of the
-projected set).
+projected set, an ambiguous two-row projection, and a private name that no
+longer carries its declaring library's key).
 
-Every arm asserts the reader **produced output** — a parser exception must
-resolve to a modeled `UNKNOWN`, never a crash, because a crash writes no rows
-and an absent row must never be read as a safe row — and that **no candidate is
-reported `NOT_INLINED`**.
+Every arm asserts three things: the reader **produced output** — a parser
+exception must resolve to a modeled `UNKNOWN`, never a crash, because a crash
+writes no rows and an absent row must never be read as a safe row; that **no
+candidate is reported `NOT_INLINED`**; and that **the refusal carries the arm's
+own code**. The last of those closes a real hole: asserting only "something was
+refused" is satisfied by a reader that collapses every problem into one generic
+`UNKNOWN`, which would let one gate silently mask another. Refusal codes are
+now stable values in the reader's output (`note_error_code`, and a `code` on
+every state and unprojected record), and an arm that names no expected code
+fails.
 
-The harness is shown able to fail: against a reader whose completeness gate is
-removed, 27 of 28 arms flip to `FAIL` and name the `NOT_INLINED` rows they
-manufactured.
+Two positive controls, because one is not enough:
+
+* **A — a reader that trusts the note.** `complete = note_ok and not
+  unprojected` becomes `complete = True` and the `note_ok` interception is
+  removed. 29 of 30 arms flip to `FAIL`, naming the `NOT_INLINED` rows they
+  manufactured.
+* **B — a reader that refuses without saying why.** Every refusal code is
+  rewritten to `GENERIC_FAILURE`, prose untouched. 29 of 30 flip, each naming
+  the code it wanted. Control A cannot detect this failure mode at all.
+
+The first version of control B was itself wrong: its regex was `[A-Z_]+`, so
+codes carrying digits (`SECTION_NAME_NOT_UTF8`, `ELF32_UNSUPPORTED`,
+`..._G1_PROJECTION`) were never collapsed and six arms passed a control they
+should have failed. Fixed to `[A-Z0-9_]+`, with an assertion that no specific
+code survives the rewrite.
 
 An earlier run of this set is **withdrawn**. It read its output file without
 deleting it first, so a crashed run reported the previous arm's result and two
@@ -545,7 +564,20 @@ So the reader admits `NOT_INLINED` only for `method`, `getter`, `setter` and
 each naming the mechanism; `class` rows are reported as declaring no body; any
 unclassified kind fails closed. The reader asserts
 `len(states) + len(no_body_rows) == len(g1_rows)` and exits non-zero otherwise,
-so no G1 row can silently disappear.
+so no G1 row can silently disappear. The reconciliation is machine output, not
+prose:
+
+```text
+total_g1_rows          36
+INLINED                 2
+NOT_INLINED            15
+UNKNOWN                14
+NO_BODY                 5
+accounted              36
+```
+
+with `accounted == total_g1_rows` asserted in the reader, which exits non-zero
+otherwise.
 
 Two limits are stated rather than closed: front-end (CFE/`gen_kernel`) constant
 materialization happens before the VM compiler and cannot appear in this note,
@@ -555,9 +587,15 @@ and the completeness enumeration covers the AOT path only, not JIT.
 ### Current reader state
 
 `validated=True complete=True`, 0 in-scope unprojected, 3,010 out-of-scope,
-36 of 36 G1 rows accounted for, `{INLINED: 2, NOT_INLINED: 15, UNKNOWN: 14}`.
-Note content is deterministic across two runs on the same input kernel and the
-verdicts are identical, while the two whole-AOT hashes differ.
+and the accounting above. Note content is deterministic across two runs on the
+same input kernel and the verdicts are identical, while the two whole-AOT
+hashes differ — that is note/verdict determinism, **not** byte-reproducible
+executable output, and downstream gates must bind to one exact `app_s6r.aot`
+SHA rather than treating the second build as interchangeable.
+
+Every refusal names a code: `KIND_NOT_COVERED_BY_PROOF` for the 13 field and
+constructor rows, `ONLY_SYNTHETIC_CHILD_INLINEE` for `tearOffTarget`,
+`ABSENT_FROM_VALIDATED_NOTE` for the 15 that carry the safety fact.
 
 Still not authorized, and not done: predictor wiring, subset scoring, G5
 classification, and virtual/instance dispatch — the `Base.work` bypass remains a

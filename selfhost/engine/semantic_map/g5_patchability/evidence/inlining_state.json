@@ -5,6 +5,7 @@
   "aot": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/app_s6r.aot",
   "note_validated": true,
   "note_error": null,
+  "note_error_code": null,
   "note_complete_projection": true,
   "unprojected_records": [],
   "unprojected_count": 0,
@@ -21,6 +22,14 @@
     "INLINED": 2,
     "NOT_INLINED": 15,
     "UNKNOWN": 14
+  },
+  "accounting": {
+    "total_g1_rows": 36,
+    "INLINED": 2,
+    "NOT_INLINED": 15,
+    "UNKNOWN": 14,
+    "NO_BODY": 5,
+    "accounted": 36
   },
   "g1_rows": 36,
   "rows_accounted_for": 36,
@@ -69,6 +78,7 @@
       "kind": "method",
       "name": "_inlineHelper",
       "state": "INLINED",
+      "code": "INLINEE",
       "reason": "the declared function is an inlinee"
     },
     {
@@ -78,6 +88,7 @@
       "kind": "method",
       "name": "_parse",
       "state": "NOT_INLINED",
+      "code": "ABSENT_FROM_VALIDATED_NOTE",
       "reason": "absent from a fully validated note"
     },
     {
@@ -87,6 +98,7 @@
       "kind": "method",
       "name": "_state",
       "state": "NOT_INLINED",
+      "code": "ABSENT_FROM_VALIDATED_NOTE",
       "reason": "absent from a fully validated note"
     },
     {
@@ -96,6 +108,7 @@
       "kind": "method",
       "name": "alpha",
       "state": "NOT_INLINED",
+      "code": "ABSENT_FROM_VALIDATED_NOTE",
       "reason": "absent from a fully validated note"
     },
     {
@@ -105,6 +118,7 @@
       "kind": "method",
       "name": "applyPatchContainer",
       "state": "NOT_INLINED",
+      "code": "ABSENT_FROM_VALIDATED_NOTE",
       "reason": "absent from a fully validated note"
     },
     {
@@ -114,6 +128,7 @@
       "kind": "method",
       "name": "beta",
       "state": "NOT_INLINED",
+      "code": "ABSENT_FROM_VALIDATED_NOTE",
       "reason": "absent from a fully validated note"
     },
     {
@@ -123,6 +138,7 @@
       "kind": "method",
       "name": "callsSmall",
       "state": "NOT_INLINED",
+      "code": "ABSENT_FROM_VALIDATED_NOTE",
       "reason": "absent from a fully validated note"
     },
     {
@@ -132,6 +148,7 @@
       "kind": "method",
       "name": "callsViaTearOff",
       "state": "NOT_INLINED",
+      "code": "ABSENT_FROM_VALIDATED_NOTE",
       "reason": "absent from a fully validated note"
     },
     {
@@ -141,6 +158,7 @@
       "kind": "method",
       "name": "jsonDecodeMap",
       "state": "NOT_INLINED",
+      "code": "ABSENT_FROM_VALIDATED_NOTE",
       "reason": "absent from a fully validated note"
     },
     {
@@ -150,6 +168,7 @@
       "kind": "method",
       "name": "main",
       "state": "NOT_INLINED",
+      "code": "ABSENT_FROM_VALIDATED_NOTE",
       "reason": "absent from a fully validated note"
     },
     {
@@ -159,6 +178,7 @@
       "kind": "method",
       "name": "revertAll",
       "state": "NOT_INLINED",
+      "code": "ABSENT_FROM_VALIDATED_NOTE",
       "reason": "absent from a fully validated note"
     },
     {
@@ -168,6 +188,7 @@
       "kind": "method",
       "name": "smallTarget",
       "state": "INLINED",
+      "code": "INLINEE",
       "reason": "the declared function is an inlinee"
     },
     {
@@ -177,6 +198,7 @@
       "kind": "method",
       "name": "tearOffTarget",
       "state": "UNKNOWN",
+      "code": "ONLY_SYNTHETIC_CHILD_INLINEE",
       "reason": "only a synthetic child is an inlinee; the harmless case is established for one shape only"
     },
     {
@@ -186,6 +208,7 @@
       "kind": "method",
       "name": "viaDirect",
       "state": "NOT_INLINED",
+      "code": "ABSENT_FROM_VALIDATED_NOTE",
       "reason": "absent from a fully validated note"
     },
     {
@@ -195,6 +218,7 @@
       "kind": "method",
       "name": "viaInlined",
       "state": "NOT_INLINED",
+      "code": "ABSENT_FROM_VALIDATED_NOTE",
       "reason": "absent from a fully validated note"
     },
     {
@@ -204,6 +228,7 @@
       "kind": "method",
       "name": "viaVirtual",
       "state": "NOT_INLINED",
+      "code": "ABSENT_FROM_VALIDATED_NOTE",
       "reason": "absent from a fully validated note"
     },
     {
@@ -213,6 +238,7 @@
       "kind": "constructor",
       "name": "",
       "state": "UNKNOWN",
+      "code": "KIND_NOT_COVERED_BY_PROOF",
       "reason": "constructor body materialization is not covered by the recorder-completeness proof"
     },
     {
@@ -222,6 +248,7 @@
       "kind": "field",
       "name": "attached",
       "state": "UNKNOWN",
+      "code": "KIND_NOT_COVERED_BY_PROOF",
       "reason": "a field-backed implicit accessor can be materialized into a caller by CallSpecializer::TryInlineInstanceGetter/Setter and AotCallSpecializer::TryInlineFieldAccess, neither of which reaches FlowGraphInliner::NextInlineId, so the note cannot witness it"
     },
     {
@@ -231,6 +258,7 @@
       "kind": "field",
       "name": "message",
       "state": "UNKNOWN",
+      "code": "KIND_NOT_COVERED_BY_PROOF",
       "reason": "a field-backed implicit accessor can be materialized into a caller by CallSpecializer::TryInlineInstanceGetter/Setter and AotCallSpecializer::TryInlineFieldAccess, neither of which reaches FlowGraphInliner::NextInlineId, so the note cannot witness it"
     },
     {
@@ -240,6 +268,7 @@
       "kind": "field",
       "name": "ok",
       "state": "UNKNOWN",
+      "code": "KIND_NOT_COVERED_BY_PROOF",
       "reason": "a field-backed implicit accessor can be materialized into a caller by CallSpecializer::TryInlineInstanceGetter/Setter and AotCallSpecializer::TryInlineFieldAccess, neither of which reaches FlowGraphInliner::NextInlineId, so the note cannot witness it"
     },
     {
@@ -249,6 +278,7 @@
       "kind": "constructor",
       "name": "",
       "state": "UNKNOWN",
+      "code": "KIND_NOT_COVERED_BY_PROOF",
       "reason": "constructor body materialization is not covered by the recorder-completeness proof"
     },
     {
@@ -258,6 +288,7 @@
       "kind": "method",
       "name": "work",
       "state": "NOT_INLINED",
+      "code": "ABSENT_FROM_VALIDATED_NOTE",
       "reason": "absent from a fully validated note"
     },
     {
@@ -267,6 +298,7 @@
       "kind": "constructor",
       "name": "",
       "state": "UNKNOWN",
+      "code": "KIND_NOT_COVERED_BY_PROOF",
       "reason": "constructor body materialization is not covered by the recorder-completeness proof"
     },
     {
@@ -276,6 +308,7 @@
       "kind": "method",
       "name": "work",
       "state": "NOT_INLINED",
+      "code": "ABSENT_FROM_VALIDATED_NOTE",
       "reason": "absent from a fully validated note"
     },
     {
@@ -285,6 +318,7 @@
       "kind": "constructor",
       "name": "",
       "state": "UNKNOWN",
+      "code": "KIND_NOT_COVERED_BY_PROOF",
       "reason": "constructor body materialization is not covered by the recorder-completeness proof"
     },
     {
@@ -294,6 +328,7 @@
       "kind": "field",
       "name": "buildId",
       "state": "UNKNOWN",
+      "code": "KIND_NOT_COVERED_BY_PROOF",
       "reason": "a field-backed implicit accessor can be materialized into a caller by CallSpecializer::TryInlineInstanceGetter/Setter and AotCallSpecializer::TryInlineFieldAccess, neither of which reaches FlowGraphInliner::NextInlineId, so the note cannot witness it"
     },
     {
@@ -303,6 +338,7 @@
       "kind": "field",
       "name": "targets",
       "state": "UNKNOWN",
+      "code": "KIND_NOT_COVERED_BY_PROOF",
       "reason": "a field-backed implicit accessor can be materialized into a caller by CallSpecializer::TryInlineInstanceGetter/Setter and AotCallSpecializer::TryInlineFieldAccess, neither of which reaches FlowGraphInliner::NextInlineId, so the note cannot witness it"
     },
     {
@@ -312,6 +348,7 @@
       "kind": "constructor",
       "name": "",
       "state": "UNKNOWN",
+      "code": "KIND_NOT_COVERED_BY_PROOF",
       "reason": "constructor body materialization is not covered by the recorder-completeness proof"
     },
     {
@@ -321,6 +358,7 @@
       "kind": "field",
       "name": "bytecode",
       "state": "UNKNOWN",
+      "code": "KIND_NOT_COVERED_BY_PROOF",
       "reason": "a field-backed implicit accessor can be materialized into a caller by CallSpecializer::TryInlineInstanceGetter/Setter and AotCallSpecializer::TryInlineFieldAccess, neither of which reaches FlowGraphInliner::NextInlineId, so the note cannot witness it"
     },
     {
@@ -330,6 +368,7 @@
       "kind": "field",
       "name": "library",
       "state": "UNKNOWN",
+      "code": "KIND_NOT_COVERED_BY_PROOF",
       "reason": "a field-backed implicit accessor can be materialized into a caller by CallSpecializer::TryInlineInstanceGetter/Setter and AotCallSpecializer::TryInlineFieldAccess, neither of which reaches FlowGraphInliner::NextInlineId, so the note cannot witness it"
     },
     {
@@ -339,6 +378,7 @@
       "kind": "field",
       "name": "selector",
       "state": "UNKNOWN",
+      "code": "KIND_NOT_COVERED_BY_PROOF",
       "reason": "a field-backed implicit accessor can be materialized into a caller by CallSpecializer::TryInlineInstanceGetter/Setter and AotCallSpecializer::TryInlineFieldAccess, neither of which reaches FlowGraphInliner::NextInlineId, so the note cannot witness it"
     }
   ]

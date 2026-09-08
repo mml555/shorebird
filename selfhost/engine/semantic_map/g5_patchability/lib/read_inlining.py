@@ -35,7 +35,18 @@ SHT_NOTE = 7
 
 
 class NoteError(Exception):
-    """Validation failed. Every candidate becomes UNKNOWN."""
+    """Validation failed. Every candidate becomes UNKNOWN.
+
+    Carries a STABLE CODE as well as prose. The falsification suite asserts the
+    code, not just that something was refused: a reader that collapsed every
+    problem into one generic refusal would otherwise pass every arm, and one
+    gate could silently mask another.
+    """
+
+    def __init__(self, code, message):
+        super().__init__(f'{code}: {message}')
+        self.code = code
+        self.message = message
 
 
 def read_note(path):
@@ -50,21 +61,23 @@ def read_note(path):
     except OSError as ex:
         # Not a parser defect: the artifact is simply not readable. Modeled so
         # it does not arrive labeled as an unmodeled exception.
-        raise NoteError(f'cannot read {path}: {ex.strerror}')
+        raise NoteError('ARTIFACT_UNREADABLE',
+                        f'cannot read {path}: {ex.strerror}')
     diag = {'aot_sha256': hashlib.sha256(b).hexdigest()}
     if len(b) < 64 or b[:4] != b'\x7fELF':
-        raise NoteError('not an ELF file')
+        raise NoteError('NOT_ELF', 'not an ELF file')
     if b[4] != 2:
-        raise NoteError('not ELF64; this reader does not model ELF32')
+        raise NoteError('ELF32_UNSUPPORTED',
+                        'not ELF64; this reader does not model ELF32')
 
     # Every read is bounds-checked. A malformed offset must arrive as a modeled
     # refusal, not as a struct.error that kills the process before any state is
     # written -- a caller reading only the histogram would then see no rows at
     # all rather than UNKNOWN, which is the one outcome this reader must never
     # produce.
-    def need(o, n, what):
+    def need(o, n, what, code='MALFORMED_ELF_SECTION_TABLE'):
         if o < 0 or o + n > len(b):
-            raise NoteError(f'{what} wants bytes {o}..{o + n} of a '
+            raise NoteError(code, f'{what} wants bytes {o}..{o + n} of a '
                             f'{len(b)}-byte file')
 
     def u16(o, what='u16'): need(o, 2, what); return struct.unpack_from('<H', b, o)[0]
@@ -75,53 +88,66 @@ def read_note(path):
     shentsize, shnum, shstrndx = (u16(0x3a, 'e_shentsize'),
                                   u16(0x3c, 'e_shnum'), u16(0x3e, 'e_shstrndx'))
     if shoff == 0 or shnum == 0:
-        raise NoteError('no section table')
+        raise NoteError('MALFORMED_ELF_SECTION_TABLE', 'no section table')
     if shentsize < 64:
-        raise NoteError(f'e_shentsize={shentsize}, too small for an ELF64 '
+        raise NoteError('MALFORMED_ELF_SECTION_TABLE',
+                        f'e_shentsize={shentsize}, too small for an ELF64 '
                         f'section header')
     if shstrndx >= shnum:
-        raise NoteError(f'e_shstrndx={shstrndx} is not below e_shnum={shnum}')
+        raise NoteError('MALFORMED_ELF_SECTION_TABLE',
+                        f'e_shstrndx={shstrndx} is not below '
+                        f'e_shnum={shnum}')
     need(shoff, shnum * shentsize, 'section table')
     stroff = u64(shoff + shstrndx * shentsize + 0x18, 'shstrtab sh_offset')
 
     def name_at(idx):
         s = stroff + idx
         if s < 0 or s >= len(b):
-            raise NoteError(f'section name offset {s} lies outside the '
+            raise NoteError('SECTION_NAME_OUT_OF_BOUNDS',
+                            f'section name offset {s} lies outside the '
                             f'{len(b)}-byte file')
         e = b.find(b'\x00', s)
         if e < 0:
-            raise NoteError(f'section name at {s} is unterminated')
+            raise NoteError('SECTION_NAME_UNTERMINATED',
+                            f'section name at {s} is unterminated')
         try:
             return b[s:e].decode('utf-8')
         except UnicodeDecodeError as ex:
             # Refusing the whole file because an unrelated section carries a
             # junk name is deliberate: this reader cannot tell which section it
             # failed to name, so it cannot claim the note it wants is unique.
-            raise NoteError(f'section name at {s} is not valid UTF-8: {ex}')
+            raise NoteError('SECTION_NAME_NOT_UTF8',
+                            f'section name at {s} is not valid '
+                            f'UTF-8: {ex}')
 
     hits = [shoff + i * shentsize for i in range(shnum)
             if name_at(u32(shoff + i * shentsize)) == NOTE]
     if not hits:
-        raise NoteError(f'no {NOTE} section')
+        raise NoteError('NOTE_SECTION_ABSENT', f'no {NOTE} section')
     if len(hits) > 1:
-        raise NoteError(f'{len(hits)} sections named {NOTE}; a duplicate or '
+        raise NoteError('DUPLICATE_NOTE_SECTION',
+                        f'{len(hits)} sections named {NOTE}; a duplicate or '
                         f'conflicting note cannot establish anything')
     hdr = hits[0]
     if u32(hdr + 0x04) != SHT_NOTE:
-        raise NoteError(f'sh_type={u32(hdr + 0x04)}, expected SHT_NOTE')
+        raise NoteError('NOTE_SECTION_NOT_SHT_NOTE',
+                        f'sh_type={u32(hdr + 0x04)}, expected SHT_NOTE')
     off, size = u64(hdr + 0x18, 'note sh_offset'), u64(hdr + 0x20, 'note sh_size')
-    need(off, size, 'note section extent')
+    need(off, size, 'note section extent', 'NOTE_EXTENT_OUT_OF_BOUNDS')
     diag['note_section_sha256'] = hashlib.sha256(b[off:off + size]).hexdigest()
     if size < 12:
-        raise NoteError(f'note section is {size} bytes, too short for a header')
+        raise NoteError('NOTE_TOO_SHORT',
+                        f'note section is {size} bytes, too short for a '
+                        f'header')
     nsz, dsz, ntype = (u32(off, 'n_namesz'), u32(off + 4, 'n_descsz'),
                        u32(off + 8, 'n_type'))
     if ntype != NOTE_TYPE:
-        raise NoteError(f'note type={ntype}, expected {NOTE_TYPE}')
+        raise NoteError('NOTE_TYPE_MISMATCH',
+                        f'note type={ntype}, expected {NOTE_TYPE}')
     if nsz != len(OWNER) or b[off + 12:off + 12 + nsz] != OWNER:
         got = b[off + 12:off + 12 + nsz]
-        raise NoteError(f'owner is {got!r} (name_size={nsz}), expected '
+        raise NoteError('NOTE_OWNER_MISMATCH',
+                        f'owner is {got!r} (name_size={nsz}), expected '
                         f'{OWNER!r} ({len(OWNER)})')
     # The producer writes name and description contiguously, as GenerateBuildId
     # does; the padded offset is tried only as a fallback.
@@ -131,7 +157,9 @@ def read_note(path):
             payload, start = b[cand:cand + dsz].rstrip(b'\x00'), cand
             break
     if payload is None:
-        raise NoteError('note description does not begin with schema_version=')
+        raise NoteError('NOTE_DESCRIPTION_MALFORMED',
+                        'note description does not begin with '
+                        'schema_version=')
 
     # THE NOTE MUST CONSUME ITS SECTION. A note section is a sequence, so
     # checking one header leaves room for a second, conflicting Shorebird note
@@ -139,30 +167,35 @@ def read_note(path):
     # the first as authoritative. Uniqueness across sections is not uniqueness
     # within one.
     if start + dsz > off + size:
-        raise NoteError(f'note description ends at {start + dsz}, past the '
+        raise NoteError('NOTE_EXTENT_OUT_OF_BOUNDS',
+                        f'note description ends at {start + dsz}, past the '
                         f'end of its {size}-byte section at {off}')
     tail = b[start + dsz:off + size]
     if tail.strip(b'\x00'):
-        raise NoteError(f'{len(tail)} bytes follow the note inside its own '
+        raise NoteError('DUPLICATE_AUTHORITATIVE_NOTE',
+                        f'{len(tail)} bytes follow the note inside its own '
                         f'section; a duplicate or conflicting note cannot '
                         f'establish anything')
 
     head, _, rest = payload.partition(b'records=')
     if not rest:
-        raise NoteError('no records= header')
+        raise NoteError('NOTE_DESCRIPTION_MALFORMED', 'no records= header')
     fields = dict(
         l.split(b'=', 1) for l in head.splitlines() if b'=' in l)
     if fields.get(b'schema_version') != str(SCHEMA).encode():
-        raise NoteError(f'schema_version={fields.get(b"schema_version")}, '
+        raise NoteError('SCHEMA_VERSION_MISMATCH',
+                        f'schema_version={fields.get(b"schema_version")}, '
                         f'this reader understands {SCHEMA}')
     if fields.get(b'fields_per_record') != str(FIELDS).encode():
-        raise NoteError(f'fields_per_record='
+        raise NoteError('FIELDS_PER_RECORD_MISMATCH',
+                        f'fields_per_record='
                         f'{fields.get(b"fields_per_record")}, expected {FIELDS}')
     count_b, _, body = rest.partition(b'\n')
     try:
         declared = int(count_b)
     except ValueError:
-        raise NoteError(f'records={count_b!r} is not an integer')
+        raise NoteError('RECORD_COUNT_NOT_INTEGER',
+                        f'records={count_b!r} is not an integer')
 
     recs, i = [], 0
     while i < len(body):
@@ -170,23 +203,29 @@ def read_note(path):
         for _ in range(FIELDS):
             c = body.find(b':', i)
             if c < 0:
-                raise NoteError('truncated record: no length terminator')
+                raise NoteError('RECORD_TRUNCATED',
+                                'truncated record: no length terminator')
             try:
                 n = int(body[i:c])
             except ValueError:
-                raise NoteError(f'bad field length {body[i:c]!r}')
+                raise NoteError('FIELD_LENGTH_INVALID',
+                                f'bad field length {body[i:c]!r}')
             i = c + 1
             if n < 0 or i + n > len(body):
-                raise NoteError('field length runs past the payload')
+                raise NoteError('FIELD_LENGTH_OUT_OF_RANGE',
+                                'field length runs past the payload')
             try:
                 row.append(body[i:i + n].decode('utf-8'))
             except UnicodeDecodeError as ex:
-                raise NoteError(f'record field at offset {i} is not valid '
+                raise NoteError('RECORD_FIELD_NOT_UTF8',
+                                f'record field at offset {i} is not valid '
                                 f'UTF-8: {ex}')
             i += n
         recs.append(row)
     if len(recs) != declared:
-        raise NoteError(f'parsed {len(recs)} records but the header declares '
+        raise NoteError('RECORD_COUNT_MISMATCH',
+                        f'parsed {len(recs)} records but the header '
+                        f'declares '
                         f'{declared}')
     diag['records'] = len(recs)
     return recs, diag
@@ -253,11 +292,13 @@ DIRECT_KIND = {
 def project(lib, owner, kind, name, g1_index, libkey):
     """Project VM coordinates onto exactly one G1 declaration, or explain why not.
 
-    Returns (row, reason). `row` is None when the projection is not unique.
+    Returns (row, code, detail). `row` is None when the projection is not
+    unique, and the code says WHICH failure it was -- an owner disagreement is
+    not the same fact as no candidate at all.
     """
     kinds = DIRECT_KIND.get(kind)
     if kinds is None:
-        return None, f'unsupported VM kind {kind}'
+        return None, 'UNSUPPORTED_VM_KIND', f'unsupported VM kind {kind}'
 
     # A private VM name carries its declaring library's key, e.g.
     # `_state@17145467`. Only that library's EXACT key is removed; a regex over
@@ -268,8 +309,9 @@ def project(lib, owner, kind, name, g1_index, libkey):
         # The key comes from the PRODUCER (Library::private_key()), never from
         # the name being validated. Schema 6 carries it per side.
         if not libkey or libkey == '<unknown>':
-            return None, f'private VM name {name!r} but the producer supplied ' \
-                         f'no private key for {lib}'
+            return None, 'PRIVATE_KEY_MISSING', (
+                f'private VM name {name!r} but the producer supplied no '
+                f'private key for {lib}')
         # A constructor arrives as `_Class@key.` or `_Class@key.named`: the key
         # sits on the class part, not at the end of the string.
         if name.endswith(libkey):
@@ -277,8 +319,9 @@ def project(lib, owner, kind, name, g1_index, libkey):
         elif libkey + '.' in name:
             vm_name = name.replace(libkey + '.', '.', 1)
         else:
-            return None, f'private VM name {name!r} does not carry the ' \
-                         f'declaring library key {libkey!r}'
+            return None, 'PRIVATE_KEY_MISMATCH', (
+                f'private VM name {name!r} does not carry the declaring '
+                f'library key {libkey!r}')
 
     # THE VM'S UNNAMED-CONSTRUCTOR FORM. The VM writes a generative
     # constructor as "Class." or "Class.named"; G1 records owner=Class with
@@ -292,7 +335,8 @@ def project(lib, owner, kind, name, g1_index, libkey):
                 owner = prefix
                 vm_name = tail
         else:
-            return None, f'constructor VM name {vm_name!r} has no Class. prefix'
+            return None, 'CONSTRUCTOR_NAME_MALFORMED', (
+                f'constructor VM name {vm_name!r} has no Class. prefix')
 
     # MATCH ONLY ON G1'S VM-FACING NAMES. The canonical `name` was previously
     # accepted as a fallback; it is removed. G1's `name` is the declared name and
@@ -319,16 +363,18 @@ def project(lib, owner, kind, name, g1_index, libkey):
     rejected = [r for r in cands if not owner_ok(r)]
     cands = [r for r in cands if owner_ok(r)]
     if rejected and not cands:
-        return None, (f'owner mismatch for {lib} {kind} {vm_name!r}: VM says '
-                      f'{owner!r}, G1 says '
-                      f'{[r.get("owner") for r in rejected]!r} with ownerKind '
-                      f'{[r.get("ownerKind") for r in rejected]!r}')
+        return None, 'OWNER_MISMATCH', (
+            f'owner mismatch for {lib} {kind} {vm_name!r}: VM says {owner!r}, '
+            f'G1 says {[r.get("owner") for r in rejected]!r} with ownerKind '
+            f'{[r.get("ownerKind") for r in rejected]!r}')
     if not cands:
-        return None, f'no G1 candidate for {lib} {kind} {vm_name!r}'
+        return None, 'NO_AUTHORITATIVE_G1_PROJECTION', (
+            f'no G1 candidate for {lib} {kind} {vm_name!r}')
     if len(cands) > 1:
-        return None, (f'{len(cands)} G1 candidates for {lib} {kind} '
-                      f'{vm_name!r}; ambiguity is not resolved by preference')
-    return cands[0], 'unique'
+        return None, 'AMBIGUOUS_G1_PROJECTION', (
+            f'{len(cands)} G1 candidates for {lib} {kind} {vm_name!r}; '
+            f'ambiguity is not resolved by preference')
+    return cands[0], 'UNIQUE', 'unique'
 
 
 def main():
@@ -346,17 +392,18 @@ def main():
     for r in g2['rows']:
         g1_index.setdefault(r['library'], []).append(r)
 
-    note_ok, note_error, recs, diag = True, None, [], {}
+    note_ok, note_error, note_code, recs, diag = True, None, None, [], {}
     try:
         recs, diag = read_note(aot)
     except NoteError as ex:
-        note_ok, note_error = False, str(ex)
+        note_ok, note_error, note_code = False, ex.message, ex.code
     except Exception as ex:
         # BACKSTOP. A parser exception must resolve to a modeled UNKNOWN, never
         # merely crash: crashing writes no output, and an absent row must never
         # be read as a safe row. Anything arriving here is a reader defect --
         # it is labeled unmodeled rather than dressed up as a known cause.
         note_ok = False
+        note_code = 'UNMODELED_PARSER_EXCEPTION'
         note_error = f'unmodeled parser exception: {type(ex).__name__}: {ex}'
 
     # Which declarations appear as an INLINEE, and which only via a synthetic
@@ -380,19 +427,23 @@ def main():
             continue
         if kind == 'ImplicitClosureFunction':
             if not pkind or pkind == '<unknown>':
-                unprojected.append({'record': r[:8],
-                                    'reason': 'implicit closure with an '
-                                              'unresolved synthetic parent'})
+                unprojected.append({
+                    'record': r[:8],
+                    'code': 'IMPLICIT_CLOSURE_PARENT_UNRESOLVED',
+                    'reason': 'implicit closure with an unresolved synthetic '
+                              'parent'})
                 continue
-            row, why = project(plib, powner, pkind, pname, g1_index, in_plibkey)
+            row, code, why = project(plib, powner, pkind, pname, g1_index,
+                                     in_plibkey)
             if row is None:
-                unprojected.append({'record': r[:8], 'reason': why})
+                unprojected.append({'record': r[:8], 'code': code,
+                                    'reason': why})
             else:
                 via_child.add(row['declaration_id'])
             continue
-        row, why = project(lib, owner, kind, name, g1_index, in_libkey)
+        row, code, why = project(lib, owner, kind, name, g1_index, in_libkey)
         if row is None:
-            unprojected.append({'record': r[:8], 'reason': why})
+            unprojected.append({'record': r[:8], 'code': code, 'reason': why})
         else:
             inlined.add(row['declaration_id'])
 
@@ -411,40 +462,59 @@ def main():
                                       'it can exist'})
             continue
         if r['kind'] in REFUSED_KINDS:
-            st, why = 'UNKNOWN', REFUSED_KINDS[r['kind']]
+            st, code, why = ('UNKNOWN', 'KIND_NOT_COVERED_BY_PROOF',
+                             REFUSED_KINDS[r['kind']])
         elif r['kind'] not in CANDIDATE_KINDS:
             # Fail closed on a kind nobody has classified.
-            st, why = 'UNKNOWN', (f"kind {r['kind']!r} is not classified by "
-                                  f"the recorder-completeness proof")
+            st, code, why = ('UNKNOWN', 'KIND_UNCLASSIFIED',
+                             f"kind {r['kind']!r} is not classified by the "
+                             f"recorder-completeness proof")
         elif did in inlined:
-            st, why = 'INLINED', 'the declared function is an inlinee'
+            st, code, why = ('INLINED', 'INLINEE',
+                             'the declared function is an inlinee')
         elif not note_ok:
-            st, why = 'UNKNOWN', f'note not validated: {note_error}'
+            st, code, why = ('UNKNOWN', 'NOTE_NOT_VALIDATED',
+                             f'note not validated: {note_error}')
         elif not complete:
-            st, why = 'UNKNOWN', (f'{len(unprojected)} record(s) could not be '
-                                  f'projected onto G1, so absence proves nothing')
+            st, code, why = ('UNKNOWN', 'PROJECTION_INCOMPLETE',
+                             f'{len(unprojected)} record(s) could not be '
+                             f'projected onto G1, so absence proves nothing')
         elif did in via_child:
             # SM1-G5's tear-off arm showed behaviour still moved for a
             # top-level function torn off in its own library and called
             # immediately. That is ONE shape, so anything else stays UNKNOWN.
-            st, why = 'UNKNOWN', ('only a synthetic child is an inlinee; the '
-                                  'harmless case is established for one shape '
-                                  'only')
+            st, code, why = ('UNKNOWN', 'ONLY_SYNTHETIC_CHILD_INLINEE',
+                             'only a synthetic child is an inlinee; the '
+                             'harmless case is established for one shape only')
         else:
-            st, why = 'NOT_INLINED', 'absent from a fully validated note'
+            st, code, why = ('NOT_INLINED', 'ABSENT_FROM_VALIDATED_NOTE',
+                             'absent from a fully validated note')
         states.append({'declaration_id': did, 'library': r['library'],
                        'owner': r['owner'], 'kind': r['kind'],
-                       'name': r['name'], 'state': st, 'reason': why})
+                       'name': r['name'], 'state': st, 'code': code,
+                       'reason': why})
         hist[st] = hist.get(st, 0) + 1
 
     # EVERY G1 ROW IS ACCOUNTED FOR. A row that is neither a candidate nor
     # explicitly body-less would otherwise vanish, and a caller asking for a
     # declaration's state would get silence -- which is exactly the reading
     # this gate refuses ("no missing row interpreted as safe").
-    accounted = len(states) + len(no_body)
-    if accounted != len(g2['rows']):
-        raise SystemExit(f'inventory mismatch: {accounted} rows accounted for '
-                         f"but G1 declares {len(g2['rows'])}")
+    # The reconciliation is MACHINE OUTPUT, not prose: one line per state plus
+    # the body-less rows, summing to the G1 inventory, asserted here rather
+    # than left for a reader of the report to add up.
+    accounting = {
+        'total_g1_rows': len(g2['rows']),
+        'INLINED': hist.get('INLINED', 0),
+        'NOT_INLINED': hist.get('NOT_INLINED', 0),
+        'UNKNOWN': hist.get('UNKNOWN', 0),
+        'NO_BODY': len(no_body),
+    }
+    accounting['accounted'] = (accounting['INLINED'] + accounting['NOT_INLINED']
+                               + accounting['UNKNOWN'] + accounting['NO_BODY'])
+    if accounting['accounted'] != accounting['total_g1_rows']:
+        raise SystemExit(f'inventory mismatch: accounted='
+                         f"{accounting['accounted']} but total_g1_rows="
+                         f"{accounting['total_g1_rows']}")
 
     json.dump({
         'schema': 'semantic-map-1/g5-inlining-state/2',
@@ -452,6 +522,7 @@ def main():
         'aot': aot,
         'note_validated': note_ok,
         'note_error': note_error,
+        'note_error_code': note_code,
         'note_complete_projection': complete,
         'unprojected_records': unprojected[:20],
         'unprojected_count': len(unprojected),
@@ -459,15 +530,16 @@ def main():
         'in_scope_libraries': sorted(in_scope),
         'diagnostics': diag,
         'state_histogram': hist,
+        'accounting': accounting,
         'g1_rows': len(g2['rows']),
-        'rows_accounted_for': accounted,
+        'rows_accounted_for': accounting['accounted'],
         'no_body_rows': no_body,
         'states': states,
     }, open(out_path, 'w'), indent=2)
-    print(f'  candidates={len(states)} no-body={len(no_body)} '
-          f'of {len(g2["rows"])} G1 rows | {hist} -> {out_path}')
+    print('  ' + ' '.join(f'{k}={v}' for k, v in accounting.items())
+          + f' -> {out_path}')
     if not note_ok:
-        print(f'  NOTE NOT VALIDATED: {note_error}')
+        print(f'  NOTE NOT VALIDATED [{note_code}]: {note_error}')
     return 0
 
 

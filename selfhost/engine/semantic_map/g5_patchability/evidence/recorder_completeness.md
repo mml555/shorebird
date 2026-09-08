@@ -122,8 +122,15 @@ implicit, field-backed accessor escapes.
   of it can exist and the reader makes no claim.
 * any other kind — `UNKNOWN`, fail-closed.
 
-The reader asserts `len(states) + len(no_body_rows) == len(g1_rows)` and exits
-non-zero otherwise, so no G1 row can silently disappear from the inventory.
+The reader emits the reconciliation as machine output — `total_g1_rows`,
+`INLINED`, `NOT_INLINED`, `UNKNOWN`, `NO_BODY`, `accounted` — and exits non-zero
+unless `accounted == total_g1_rows`, so no G1 row can silently disappear from
+the inventory and no reader of the report has to add it up.
+
+Each state also carries a stable `code` (`ABSENT_FROM_VALIDATED_NOTE`,
+`KIND_NOT_COVERED_BY_PROOF`, `ONLY_SYNTHETIC_CHILD_INLINEE`, …) so the
+falsification suite can assert which gate refused, not merely that something
+did.
 
 ## Limits that remain
 

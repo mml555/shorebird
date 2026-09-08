@@ -1,5 +1,5 @@
 SM1-G5 route 2 -- strict reader state over the schema-6 note
-generated 2026-09-08T18:39:51Z by run_route2.sh
+generated 2026-09-08T18:59:24Z by run_route2.sh
 
 PRODUCER AND SUBJECT
   c0a982fab70900aff92bc03602a3a9447f75fe26a27d853c8bc5b6176a5dac3a  0001-g5-aot-capability-note.patch
@@ -39,54 +39,69 @@ NOTE DETERMINISM (same input kernel, two runs of the same producer)
 
 READER STATE
   note_validated            True
+  note_error_code           None
   note_complete_projection  True
   in-scope unprojected      0
   out-of-scope records      3010
-  G1 rows                   36
-  rows accounted for        36  (31 candidates + 5 body-less)
-  histogram                 {'INLINED': 2, 'NOT_INLINED': 15, 'UNKNOWN': 14}
+
+  ACCOUNTING (asserted by the reader, which exits non-zero if it fails)
+    total_g1_rows      36
+    INLINED             2
+    NOT_INLINED        15
+    UNKNOWN            14
+    NO_BODY             5
+    accounted          36
+    identity         accounted == total_g1_rows == INLINED+NOT_INLINED+UNKNOWN+NO_BODY
 
   INLINED
-    method _inlineHelper
-    method smallTarget
+    method _inlineHelper               INLINEE
+    method smallTarget                 INLINEE
 
   NOT_INLINED
-    method Base.work
-    method Other.work
-    method _parse
-    method _state
-    method alpha
-    method applyPatchContainer
-    method beta
-    method callsSmall
-    method callsViaTearOff
-    method jsonDecodeMap
-    method main
-    method revertAll
-    method viaDirect
-    method viaInlined
-    method viaVirtual
+    method Base.work                   ABSENT_FROM_VALIDATED_NOTE
+    method Other.work                  ABSENT_FROM_VALIDATED_NOTE
+    method _parse                      ABSENT_FROM_VALIDATED_NOTE
+    method _state                      ABSENT_FROM_VALIDATED_NOTE
+    method alpha                       ABSENT_FROM_VALIDATED_NOTE
+    method applyPatchContainer         ABSENT_FROM_VALIDATED_NOTE
+    method beta                        ABSENT_FROM_VALIDATED_NOTE
+    method callsSmall                  ABSENT_FROM_VALIDATED_NOTE
+    method callsViaTearOff             ABSENT_FROM_VALIDATED_NOTE
+    method jsonDecodeMap               ABSENT_FROM_VALIDATED_NOTE
+    method main                        ABSENT_FROM_VALIDATED_NOTE
+    method revertAll                   ABSENT_FROM_VALIDATED_NOTE
+    method viaDirect                   ABSENT_FROM_VALIDATED_NOTE
+    method viaInlined                  ABSENT_FROM_VALIDATED_NOTE
+    method viaVirtual                  ABSENT_FROM_VALIDATED_NOTE
 
   UNKNOWN
-    constructor ApplyResult.
-    constructor Base.
-    constructor Other.
-    constructor _Container.
-    constructor _Target.
-    field ApplyResult.attached
-    field ApplyResult.message
-    field ApplyResult.ok
-    field _Container.buildId
-    field _Container.targets
-    field _Target.bytecode
-    field _Target.library
-    field _Target.selector
-    method tearOffTarget
+    constructor ApplyResult.           KIND_NOT_COVERED_BY_PROOF
+    constructor Base.                  KIND_NOT_COVERED_BY_PROOF
+    constructor Other.                 KIND_NOT_COVERED_BY_PROOF
+    constructor _Container.            KIND_NOT_COVERED_BY_PROOF
+    constructor _Target.               KIND_NOT_COVERED_BY_PROOF
+    field ApplyResult.attached         KIND_NOT_COVERED_BY_PROOF
+    field ApplyResult.message          KIND_NOT_COVERED_BY_PROOF
+    field ApplyResult.ok               KIND_NOT_COVERED_BY_PROOF
+    field _Container.buildId           KIND_NOT_COVERED_BY_PROOF
+    field _Container.targets           KIND_NOT_COVERED_BY_PROOF
+    field _Target.bytecode             KIND_NOT_COVERED_BY_PROOF
+    field _Target.library              KIND_NOT_COVERED_BY_PROOF
+    field _Target.selector             KIND_NOT_COVERED_BY_PROOF
+    method tearOffTarget               ONLY_SYNTHETIC_CHILD_INLINEE
 
-  reasons given for refusal:
-    - a field-backed implicit accessor can be materialized into a caller by CallSpecializer::TryInlineInstanceGetter/Setter and AotCallSpecializer::TryInlineFieldAccess, neither of which reaches FlowGraphInliner::NextInlineId, so the note cannot witness it
-    - constructor body materialization is not covered by the recorder-completeness proof
-    - only a synthetic child is an inlinee; the harmless case is established for one shape only
+  NO_BODY
+    class ApplyResult                    declares no body, so no inline copy of it can exist
+    class Base                           declares no body, so no inline copy of it can exist
+    class Other                          declares no body, so no inline copy of it can exist
+    class _Container                     declares no body, so no inline copy of it can exist
+    class _Target                        declares no body, so no inline copy of it can exist
+
+  codes given for refusal:
+    KIND_NOT_COVERED_BY_PROOF
+      constructor body materialization is not covered by the recorder-completeness proof
+    ONLY_SYNTHETIC_CHILD_INLINEE
+      only a synthetic child is an inlinee; the harmless case is established for one shape only
 
 WHY NOT_INLINED IS AVAILABLE ONLY TO SOME KINDS
   See evidence/recorder_completeness.md and .txt. Every copy of a body's IL

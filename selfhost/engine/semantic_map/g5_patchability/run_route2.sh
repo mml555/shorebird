@@ -95,26 +95,42 @@ PY
 import collections, json, sys
 d = json.load(open(sys.argv[1]))
 print(f"  note_validated            {d['note_validated']}")
+print(f"  note_error_code           {d['note_error_code']}")
 print(f"  note_complete_projection  {d['note_complete_projection']}")
 print(f"  in-scope unprojected      {d['unprojected_count']}")
 print(f"  out-of-scope records      {d['out_of_scope_records']}")
-print(f"  G1 rows                   {d['g1_rows']}")
-print(f"  rows accounted for        {d['rows_accounted_for']}  "
-      f"({len(d['states'])} candidates + {len(d['no_body_rows'])} body-less)")
-print(f"  histogram                 {d['state_histogram']}")
+print()
+print("  ACCOUNTING (asserted by the reader, which exits non-zero if it fails)")
+a = d['accounting']
+for k in ('total_g1_rows', 'INLINED', 'NOT_INLINED', 'UNKNOWN', 'NO_BODY',
+          'accounted'):
+    print(f"    {k:16} {a[k]:>4}")
+assert a['accounted'] == a['total_g1_rows']
+print(f"    identity         accounted == total_g1_rows == "
+      f"INLINED+NOT_INLINED+UNKNOWN+NO_BODY")
 print()
 by = collections.defaultdict(list)
 for s in d['states']:
     by[s['state']].append(
-        f"{s['kind']} {s['owner'] + '.' if s['owner'] else ''}{s['name']}")
+        (f"{s['kind']} {s['owner'] + '.' if s['owner'] else ''}{s['name']}",
+         s['code']))
 for st in ('INLINED', 'NOT_INLINED', 'UNKNOWN'):
     print(f"  {st}")
-    for n in sorted(by[st]):
-        print(f"    {n}")
+    for n, c in sorted(by[st]):
+        print(f"    {n:34} {c}")
     print()
-print("  reasons given for refusal:")
-for r in sorted({s['reason'] for s in d['states'] if s['state'] == 'UNKNOWN'}):
-    print(f"    - {r}")
+print("  NO_BODY")
+for r in sorted(d['no_body_rows'], key=lambda r: r['name'] or ''):
+    print(f"    {r['kind']} {r['name']:30} {r['reason']}")
+print()
+print("  codes given for refusal:")
+seen = {}
+for s in d['states']:
+    if s['state'] == 'UNKNOWN':
+        seen.setdefault(s['code'], s['reason'])
+for c, r in sorted(seen.items()):
+    print(f"    {c}")
+    print(f"      {r}")
 PY
   echo
   echo "WHY NOT_INLINED IS AVAILABLE ONLY TO SOME KINDS"
@@ -133,14 +149,30 @@ TXT
 } > "$G/evidence/reader_state.txt" 2>&1
 
 # ------------------------------------------------------- 4. falsification set
-python3 - "$G/lib/read_inlining.py" "$W/weak_reader.py" <<'PY'
-import pathlib, sys
+python3 - "$G/lib/read_inlining.py" "$W/weak_reader.py" "$W/generic_reader.py" <<'PY'
+import pathlib, re, sys
 s = pathlib.Path(sys.argv[1]).read_text()
+
+# Control A: a reader that trusts an unvalidated note.
 a = s.replace('    complete = note_ok and not unprojected',
               '    complete = True  # WEAKENED: trust the note unconditionally')
 b = a.replace("        elif not note_ok:", "        elif False:  # WEAKENED")
 assert b != a != s, 'weakening anchors not found in the reader'
 pathlib.Path(sys.argv[2]).write_text(b)
+
+# Control B: a reader that refuses correctly but collapses every refusal into
+# one generic code. [A-Z0-9_]+ matters: codes carry digits (UTF8, ELF32, G1),
+# and a first version of this control used [A-Z_]+ and silently left six codes
+# specific, which made six arms pass a control they should have failed.
+g = re.sub(r"raise NoteError\('[A-Z0-9_]+',", "raise NoteError('GENERIC_FAILURE',", s)
+g = re.sub(r"return None, '[A-Z0-9_]+',", "return None, 'GENERIC_FAILURE',", g)
+g = g.replace("raise NoteError(code, f'{what} wants",
+              "raise NoteError('GENERIC_FAILURE', f'{what} wants")
+g = g.replace("note_code = 'UNMODELED_PARSER_EXCEPTION'",
+              "note_code = 'GENERIC_FAILURE'")
+left = re.findall(r"(?:raise NoteError|return None,) '(?!GENERIC_FAILURE)[A-Z0-9_]+'", g)
+assert not left, f'codes left specific: {left}'
+pathlib.Path(sys.argv[3]).write_text(g)
 PY
 {
   echo "SM1-G5 route 2 -- adversarial falsification of the strict reader"
@@ -162,6 +194,10 @@ PY
      note itself is still validly framed -- a False there would mean the arm
      tested something other than what it claims.
   3. the projection is reported incomplete.
+  3b. THE REFUSAL CARRIES THE ARM'S OWN CODE. Asserting only "something was
+     refused" would be passed by a reader that collapsed every problem into a
+     single generic UNKNOWN, and would let one gate silently mask another.
+     Every arm names the code it expects; an arm that names none fails.
   4. NO candidate is reported NOT_INLINED. NOT_INLINED is the safety fact this
      gate wants to use, so no mutation may be able to manufacture one.
   Arms that name a declaration additionally assert it is not INLINED.
@@ -171,7 +207,7 @@ TXT
   python3 "$G/lib/falsify_reader.py" "$W/app_s6r.aot" "$W/g2_r.json" "$W"
   echo "exit=$?"
   echo
-  echo "=================== POSITIVE CONTROL: the harness can fail ================"
+  echo "============= POSITIVE CONTROL A: a reader that trusts the note ==========="
   cat <<'TXT'
 A falsification set that cannot fail certifies nothing. The same arms are
 re-run against a copy of the shipped reader with exactly two edits --
@@ -179,11 +215,24 @@ re-run against a copy of the shipped reader with exactly two edits --
     complete = note_ok and not unprojected   ->   complete = True
     elif not note_ok:                        ->   elif False:
 
--- i.e. a reader that trusts an unvalidated note. Every arm must flip to FAIL
+-- i.e. a reader that trusts an unvalidated note. The arms must flip to FAIL
 and say so by naming the manufactured NOT_INLINED rows.
 TXT
   echo
   SM1_READER="$W/weak_reader.py" python3 "$G/lib/falsify_reader.py" \
+      "$W/app_s6r.aot" "$W/g2_r.json" "$W"
+  echo "exit=$?"
+  echo
+  echo "======== POSITIVE CONTROL B: a reader that refuses without saying why ====="
+  cat <<'TXT'
+Control A cannot detect the OTHER way this suite could be vacuous: a reader
+that refuses everything correctly but reports one generic cause, so that one
+gate masks another and no arm proves the gate it aimed at. The same arms run
+against a copy whose refusal CODES are all rewritten to GENERIC_FAILURE, prose
+untouched. Every arm except the baseline must flip, naming the code it wanted.
+TXT
+  echo
+  SM1_READER="$W/generic_reader.py" python3 "$G/lib/falsify_reader.py" \
       "$W/app_s6r.aot" "$W/g2_r.json" "$W"
   echo "exit=$?"
   echo
