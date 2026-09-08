@@ -1,0 +1,76 @@
+SM1-G5 route 2 — the strict reader, and why NOT_INLINED is not yet reachable
+date : 2026-09-08T17:47:43Z
+
+  The reader validates the note and assigns every G2 candidate exactly one
+  state. Nothing missing is treated as safe.
+
+  VALIDATION, all of it before any record is read: ELF64, section name,
+  exactly one such section, sh_type == SHT_NOTE, note type 2, owner byte-equal
+  to "Shorebird\0" with name_size 10, schema_version 5, fields_per_record 16,
+  every field length in range, and the parsed record count equal to the
+  declared count.
+
+  PROJECTION, per the decided policy:
+    * RegularFunction is disambiguated against G1's own inventory restricted to
+      kind in {method, operator}. Operator symbols are NEVER parsed.
+    * GetterFunction/SetterFunction project to getter/setter; the VM's
+      Constructor is split at the source into generative and factory.
+    * The VM's unnamed-constructor form "Class." projects to owner=Class,
+      name='' -- a documented shape, and only when the prefix agrees with the
+      owner the VM itself reported.
+    * Owner is used only to NARROW an otherwise ambiguous match, never to
+      require agreement: an extension member is lowered to a synthetic
+      top-level owner while G1 recovers the extension owner.
+    * exactly one candidate -> mapped; zero or more than one -> UNKNOWN.
+      Ambiguity is never resolved by preference.
+    * A private VM name is normalized ONLY by removing the declaring library's
+      exact key. No regex over trailing digits, and not ScrubName, which also
+      rewrites get:/set: and so does not equal G1's vmName contract.
+
+  SCOPE. A record whose libraries all lie outside G2's inventory cannot BE any
+  candidate in it, so it is counted out-of-scope rather than as a projection
+  failure. An IN-SCOPE record that will not project still forces UNKNOWN --
+  which is where the fail-closed property has to live.
+
+  ON THIS RELEASE:
+
+    note validated                True
+    records                       3353
+    out-of-scope records          3340
+    in-scope unprojected          4
+    complete projection           False
+
+    candidates                    18
+    INLINED                       1     smallTarget
+    UNKNOWN                       17
+    NOT_INLINED                   0
+
+  WHY NOT_INLINED IS ZERO, AND WHY THAT IS CORRECT. Four in-scope records will
+  not project, all for the same reason:
+
+    private VM name '_inlineHelper@17145467' but no private key known for
+    package:dynamic_modules/callsite_target.dart
+    private VM name '_Container@17145467.' ...
+    private VM name '_Target@17145467.' ...
+
+  While any in-scope record is unplaced, absence from the relation proves
+  nothing, so every candidate that is not positively INLINED is UNKNOWN. That
+  is the required behaviour, not a defect in the reader.
+
+  INLINED does not depend on completeness -- it is a positive assertion from a
+  record that did project -- which is why smallTarget is classified while
+  everything else waits.
+
+  THE CLEAN FIX, and it is deliberately not a regex. The four names share the
+  key @17145467 for one library, and inferring the key from the names would be
+  the forbidden approach wearing a different hat. The compiler knows each
+  library's private key, so the producer should emit it -- a library-to-key
+  table in the note header, or the key alongside each side -- and the reader
+  should strip only that exact key. Until then these records stay UNKNOWN.
+
+  NOT DONE: the falsification set (malformed length and count, wrong
+  section/sh_type/owner/type/schema, duplicate or conflicting note, a deleted
+  smallTarget pair, wrong URI, wrong kind, ambiguous projection, private-key
+  mismatch, unresolved synthetic parent). Predictor wiring remains
+  unauthorized. Virtual/instance dispatch is still a separate unresolved
+  mechanism. No classification.

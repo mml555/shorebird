@@ -44,7 +44,7 @@
     "note_schema_version": 5,
     "fields_per_record": 16,
     "records": 3353,
-    "encoding": "header lines, then records=N, then N records of 16 length-prefixed \"<len>:<bytes>\" fields: per side the full G1 identity (library URI, owner, kind, declared name) followed by the full G1 identity of the synthetic parent when that side is an implicit closure. Schema 4 carried only parent kind+name, which would have forced the reader to assume child and parent share library and owner -- unstated and unproven, so both are now emitted.",
+    "encoding": "header lines, then records=N, then N records of 16 length-prefixed \"<len>:<bytes>\" fields: per side the full VM-SIDE COORDINATES FOR G1 PROJECTION (library URI, owner, VM kind, declared name) followed by the same four for the synthetic parent when that side is an implicit closure. Schema 4 carried only parent kind+name, which would have forced the reader to assume child and parent share library and owner -- unstated and unproven, so both are now emitted.",
     "sealed_after_emission": true,
     "note_sha256_covers": "the full note SECTION bytes (header + owner + payload)",
     "determinism": {
@@ -61,7 +61,8 @@
       "note_sha256_equal": true,
       "aot_sha256_equal": false,
       "note": "what is demonstrated is deterministic NOTE CONTENT, not byte-reproducible whole-AOT output; the two AOT hashes differ."
-    }
+    },
+    "not_g1_identity": "These are VM coordinates, NOT G1 identity. RegularFunction is VM vocabulary where G1 distinguishes method from operator; a private name still carries its library key (_state@17145467) rather than G1's declared name; and an extension member can appear with a synthetic top-level owner while G1 recovers the extension owner. Projection onto G1 is the reader's job, against G1's retained vmName/loweredName, and anything not uniquely projectable is UNKNOWN."
   },
   "replay": {
     "order": [

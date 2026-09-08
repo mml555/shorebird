@@ -308,8 +308,17 @@ date : 2026-09-08T05:13:05Z
   schema 5 emits the parent's OWN library and owner too:
 
     schema_version=5, fields_per_record=16
-    per side: library URI, owner, kind, declared name,
+    per side: library URI, owner, VM kind, declared name,
               then the same four for the synthetic parent
+
+  THESE ARE VM COORDINATES, NOT G1 IDENTITY, and the note now says so.
+  RegularFunction is VM vocabulary where G1 distinguishes method from operator;
+  a private name still carries its library key (_state@17145467) rather than
+  G1's declared name; an extension member can appear with a synthetic top-level
+  owner while G1 recovers the extension owner. What schema 5 provides is the
+  full set of coordinates needed to PROJECT onto G1, against G1's retained
+  vmName/loweredName. The projection is the reader's job, and anything not
+  uniquely projectable is UNKNOWN.
 
   Measured rather than assumed -- and on this corpus they do agree, which is a
   result rather than a premise.

@@ -1,0 +1,241 @@
+{
+  "schema": "semantic-map-1/g5-inlining-state/1",
+  "gate": "SM1-G5",
+  "issue": 54,
+  "aot": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/app_r.aot",
+  "note_validated": true,
+  "note_error": null,
+  "note_complete_projection": false,
+  "unprojected_records": [
+    {
+      "record": [
+        "package:dynamic_modules/callsite_target.dart",
+        "",
+        "RegularFunction",
+        "_inlineHelper@17145467",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "reason": "private VM name '_inlineHelper@17145467' but no private key known for package:dynamic_modules/callsite_target.dart"
+    },
+    {
+      "record": [
+        "package:dynamic_modules/callsite_target.dart",
+        "",
+        "RegularFunction",
+        "_inlineHelper@17145467",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "reason": "private VM name '_inlineHelper@17145467' but no private key known for package:dynamic_modules/callsite_target.dart"
+    },
+    {
+      "record": [
+        "package:dynamic_modules/callsite_target.dart",
+        "_Container",
+        "Constructor:generative",
+        "_Container@17145467.",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "reason": "private VM name '_Container@17145467.' but no private key known for package:dynamic_modules/callsite_target.dart"
+    },
+    {
+      "record": [
+        "package:dynamic_modules/callsite_target.dart",
+        "_Target",
+        "Constructor:generative",
+        "_Target@17145467.",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "reason": "private VM name '_Target@17145467.' but no private key known for package:dynamic_modules/callsite_target.dart"
+    }
+  ],
+  "unprojected_count": 4,
+  "out_of_scope_records": 3340,
+  "in_scope_libraries": [
+    "package:dynamic_modules/callsite_target.dart"
+  ],
+  "diagnostics": {
+    "aot_sha256": "c3a8daa058ffce6308cd3ae9fe7e5b14724ff7fa9479df6013e6c01ad39a00ec",
+    "note_section_sha256": "127fe69331eccf5a980c388d07c4ec2d37ac853dc3edead095f55e668aa1667b",
+    "records": 3353
+  },
+  "state_histogram": {
+    "UNKNOWN": 17,
+    "INLINED": 1
+  },
+  "states": [
+    {
+      "declaration_id": "12bf42ba58b08a5b48bdf15133b4da3e7456bf926b90fc05856e23d740212a98",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "_inlineHelper",
+      "state": "UNKNOWN",
+      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+    },
+    {
+      "declaration_id": "86cb111f9681435cac2d96b3be5d78d3eced50c541a00e4e242f7d0c9aed5df7",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "_parse",
+      "state": "UNKNOWN",
+      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+    },
+    {
+      "declaration_id": "4d7b01aa51c0fe8676f73f4af6f37a728cbc41e12846cc1f1584f525d28bcfdd",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "_state",
+      "state": "UNKNOWN",
+      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+    },
+    {
+      "declaration_id": "dbcb9971475a4d212e95035ad5e2edb7fd28456250b0380391882116705d4799",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "alpha",
+      "state": "UNKNOWN",
+      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+    },
+    {
+      "declaration_id": "289a350eb5c1f00309711cd8b4030503fcfb11b0596eed48b9a215ee5c92022b",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "applyPatchContainer",
+      "state": "UNKNOWN",
+      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+    },
+    {
+      "declaration_id": "488f3e933dabdfedc66715c305623f16233855acb9ce36d20a8e5dc4d3221da1",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "beta",
+      "state": "UNKNOWN",
+      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+    },
+    {
+      "declaration_id": "5c8ac9ebd528b6b6e191bb1c54757dc5708ed8e805abeed537bc4c7d3064d404",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "callsSmall",
+      "state": "UNKNOWN",
+      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+    },
+    {
+      "declaration_id": "839905da7983ae4b906dec6fb09d7a152f077eb7a8f6144237fc9eb9b1bcf6ee",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "callsViaTearOff",
+      "state": "UNKNOWN",
+      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+    },
+    {
+      "declaration_id": "dadde4337a7f91a29e5ac819cf1a8ecbbbcd246fc16468b06d38290564c7f9ef",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "jsonDecodeMap",
+      "state": "UNKNOWN",
+      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+    },
+    {
+      "declaration_id": "51fc9d48f2c77d02a650e388fef2fc356ea52307a9826f07d498b86fadcfcd3f",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "main",
+      "state": "UNKNOWN",
+      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+    },
+    {
+      "declaration_id": "edef8824034f7bb39e487dcda88f2a0c5a0376d476a9e15ab41b58f71f731d86",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "revertAll",
+      "state": "UNKNOWN",
+      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+    },
+    {
+      "declaration_id": "bff08abe1a4b769035bcb6842e341d84aaf49f557eec8068960c57a455444ad0",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "smallTarget",
+      "state": "INLINED",
+      "reason": "the declared function is an inlinee"
+    },
+    {
+      "declaration_id": "b6a0c33f10c0cf408403c6d5b12946f8c3f42cbc02000b355b253212ccea3b00",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "tearOffTarget",
+      "state": "UNKNOWN",
+      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+    },
+    {
+      "declaration_id": "8b331e8a5be8e9f2750cd2db25f2fe293f7507293f3f3b57e469fdf6ad41ac92",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "viaDirect",
+      "state": "UNKNOWN",
+      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+    },
+    {
+      "declaration_id": "13d233e037ed9052f104114fa025ff8a4813cd8898b9a8164f8279419b89ddbc",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "viaInlined",
+      "state": "UNKNOWN",
+      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+    },
+    {
+      "declaration_id": "fb4f6b61d429fdea8be0a1349a87243a616ccdb418a16ed6b10163c8e513df4e",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "viaVirtual",
+      "state": "UNKNOWN",
+      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+    },
+    {
+      "declaration_id": "0d9096c2ad9a4f444e5ae3e6ad508fa01b72ac8c39689ee4e5ccc1fe12adefa6",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "Base",
+      "kind": "method",
+      "name": "work",
+      "state": "UNKNOWN",
+      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+    },
+    {
+      "declaration_id": "1e57f7c73e05f24ee07d6194bd19639ffa6c32e0ad537f340f18703445d22f2c",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "Other",
+      "kind": "method",
+      "name": "work",
+      "state": "UNKNOWN",
+      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+    }
+  ]
+}
