@@ -1,0 +1,585 @@
+{
+  "schema": "semantic-map-1/g5-predictions/2",
+  "gate": "SM1-G5",
+  "issue": 54,
+  "count": 36,
+  "predicted_patchable": 0,
+  "coverage_diagnostic_only": "0.0%",
+  "refusal_reason_vocabulary": [
+    "INLINED_BODY",
+    "CALL_SITE_SHAPE_UNPROVEN",
+    "ABI_SHAPE_UNSUPPORTED",
+    "OWNER_ABI_SHAPE_UNSUPPORTED",
+    "MISSING_CAN_BE_OVERRIDDEN",
+    "PRIVATE_WRITE",
+    "PRIVATE_TYPE_REFERENCE",
+    "GENERATED_CODE",
+    "RETENTION_UNPROVEN",
+    "BODY_ENCODING_REFUSED",
+    "BODY_REFERENCES_UNPROVEN",
+    "NOT_RETAINED",
+    "PRIVATE_REFERENCE_UNGRANTED",
+    "PRIVATE_REFERENCE_UNRESOLVED",
+    "RELEASE_IDENTITY_AMBIGUOUS",
+    "RELEASE_PATCHABILITY_UNPROVEN",
+    "RELEASE_NOT_PATCHABLE_BUILD",
+    "NON_STATIC_DISPATCH_UNPROVEN",
+    "STATIC_METADATA_UNUSABLE",
+    "FRONTEND_MATERIALIZATION_UNPROVEN",
+    "INLINING_STATE_UNKNOWN",
+    "INLINING_EVIDENCE_MISSING",
+    "INLINING_EVIDENCE_UNVALIDATED",
+    "INLINING_EVIDENCE_RELEASE_MISMATCH"
+  ],
+  "release_patch_capability": "PROVEN",
+  "release_patch_capability_evidence": "note: schema_version=1;patchable_static_calls=true",
+  "refusal_histogram": {
+    "ABI_SHAPE_UNSUPPORTED": 18,
+    "BODY_REFERENCES_UNPROVEN": 18,
+    "CALL_SITE_SHAPE_UNPROVEN": 18,
+    "FRONTEND_MATERIALIZATION_UNPROVEN": 18,
+    "INLINED_BODY": 2,
+    "RETENTION_UNPROVEN": 18,
+    "BODY_ENCODING_REFUSED": 6,
+    "INLINING_STATE_UNKNOWN": 1,
+    "NON_STATIC_DISPATCH_UNPROVEN": 2
+  },
+  "unproven_facts": [
+    "call-site shape (devirtualized / inlined) is not yet decidable here, so every replaceable declaration is refused"
+  ],
+  "rows": [
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##class#ApplyResult",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "class",
+      "name": "ApplyResult",
+      "declaration_id": "71b8579b98f1fcbee60b66b22c02924ac4cb5b2a60e8219170b70d38d6d4a99f",
+      "static": false,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "ABI_SHAPE_UNSUPPORTED"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##class#Base",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "class",
+      "name": "Base",
+      "declaration_id": "a34718ba9d3e6b5f7e5d65bb896e7a92343bb83b36a844ef8acab9b03459ce16",
+      "static": false,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "ABI_SHAPE_UNSUPPORTED"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##class#Other",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "class",
+      "name": "Other",
+      "declaration_id": "141e5ef77f06b489810596792970954560e28a2108d3ebbf14ee1b78273f1d1d",
+      "static": false,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "ABI_SHAPE_UNSUPPORTED"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##class#_Container",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "class",
+      "name": "_Container",
+      "declaration_id": "602ca6b198f2f44a718edf919c8c2df3937b43b838f572f80e62497d95ac0dbb",
+      "static": false,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "ABI_SHAPE_UNSUPPORTED"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##class#_Target",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "class",
+      "name": "_Target",
+      "declaration_id": "c20562ea8bfdfdfedbe69ea123f933693ed9b88d702de5f95c97cc5b605e28f2",
+      "static": false,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "ABI_SHAPE_UNSUPPORTED"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#_inlineHelper",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "_inlineHelper",
+      "declaration_id": "12bf42ba58b08a5b48bdf15133b4da3e7456bf926b90fc05856e23d740212a98",
+      "static": true,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "BODY_REFERENCES_UNPROVEN",
+        "CALL_SITE_SHAPE_UNPROVEN",
+        "FRONTEND_MATERIALIZATION_UNPROVEN",
+        "INLINED_BODY",
+        "RETENTION_UNPROVEN"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#_parse",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "_parse",
+      "declaration_id": "86cb111f9681435cac2d96b3be5d78d3eced50c541a00e4e242f7d0c9aed5df7",
+      "static": true,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "BODY_ENCODING_REFUSED",
+        "BODY_REFERENCES_UNPROVEN",
+        "CALL_SITE_SHAPE_UNPROVEN",
+        "FRONTEND_MATERIALIZATION_UNPROVEN",
+        "RETENTION_UNPROVEN"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#_state",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "_state",
+      "declaration_id": "4d7b01aa51c0fe8676f73f4af6f37a728cbc41e12846cc1f1584f525d28bcfdd",
+      "static": true,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "BODY_REFERENCES_UNPROVEN",
+        "CALL_SITE_SHAPE_UNPROVEN",
+        "FRONTEND_MATERIALIZATION_UNPROVEN",
+        "RETENTION_UNPROVEN"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#alpha",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "alpha",
+      "declaration_id": "dbcb9971475a4d212e95035ad5e2edb7fd28456250b0380391882116705d4799",
+      "static": true,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "BODY_REFERENCES_UNPROVEN",
+        "CALL_SITE_SHAPE_UNPROVEN",
+        "FRONTEND_MATERIALIZATION_UNPROVEN",
+        "RETENTION_UNPROVEN"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#applyPatchContainer",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "applyPatchContainer",
+      "declaration_id": "289a350eb5c1f00309711cd8b4030503fcfb11b0596eed48b9a215ee5c92022b",
+      "static": true,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "BODY_ENCODING_REFUSED",
+        "BODY_REFERENCES_UNPROVEN",
+        "CALL_SITE_SHAPE_UNPROVEN",
+        "FRONTEND_MATERIALIZATION_UNPROVEN",
+        "RETENTION_UNPROVEN"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#beta",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "beta",
+      "declaration_id": "488f3e933dabdfedc66715c305623f16233855acb9ce36d20a8e5dc4d3221da1",
+      "static": true,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "BODY_REFERENCES_UNPROVEN",
+        "CALL_SITE_SHAPE_UNPROVEN",
+        "FRONTEND_MATERIALIZATION_UNPROVEN",
+        "RETENTION_UNPROVEN"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#callsSmall",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "callsSmall",
+      "declaration_id": "5c8ac9ebd528b6b6e191bb1c54757dc5708ed8e805abeed537bc4c7d3064d404",
+      "static": true,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "BODY_REFERENCES_UNPROVEN",
+        "CALL_SITE_SHAPE_UNPROVEN",
+        "FRONTEND_MATERIALIZATION_UNPROVEN",
+        "RETENTION_UNPROVEN"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#callsViaTearOff",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "callsViaTearOff",
+      "declaration_id": "839905da7983ae4b906dec6fb09d7a152f077eb7a8f6144237fc9eb9b1bcf6ee",
+      "static": true,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "BODY_ENCODING_REFUSED",
+        "BODY_REFERENCES_UNPROVEN",
+        "CALL_SITE_SHAPE_UNPROVEN",
+        "FRONTEND_MATERIALIZATION_UNPROVEN",
+        "RETENTION_UNPROVEN"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#jsonDecodeMap",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "jsonDecodeMap",
+      "declaration_id": "dadde4337a7f91a29e5ac819cf1a8ecbbbcd246fc16468b06d38290564c7f9ef",
+      "static": true,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "BODY_ENCODING_REFUSED",
+        "BODY_REFERENCES_UNPROVEN",
+        "CALL_SITE_SHAPE_UNPROVEN",
+        "FRONTEND_MATERIALIZATION_UNPROVEN",
+        "RETENTION_UNPROVEN"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#main",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "main",
+      "declaration_id": "51fc9d48f2c77d02a650e388fef2fc356ea52307a9826f07d498b86fadcfcd3f",
+      "static": true,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "BODY_ENCODING_REFUSED",
+        "BODY_REFERENCES_UNPROVEN",
+        "CALL_SITE_SHAPE_UNPROVEN",
+        "FRONTEND_MATERIALIZATION_UNPROVEN",
+        "RETENTION_UNPROVEN"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#revertAll",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "revertAll",
+      "declaration_id": "edef8824034f7bb39e487dcda88f2a0c5a0376d476a9e15ab41b58f71f731d86",
+      "static": true,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "BODY_ENCODING_REFUSED",
+        "BODY_REFERENCES_UNPROVEN",
+        "CALL_SITE_SHAPE_UNPROVEN",
+        "FRONTEND_MATERIALIZATION_UNPROVEN",
+        "RETENTION_UNPROVEN"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#smallTarget",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "smallTarget",
+      "declaration_id": "bff08abe1a4b769035bcb6842e341d84aaf49f557eec8068960c57a455444ad0",
+      "static": true,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "BODY_REFERENCES_UNPROVEN",
+        "CALL_SITE_SHAPE_UNPROVEN",
+        "FRONTEND_MATERIALIZATION_UNPROVEN",
+        "INLINED_BODY",
+        "RETENTION_UNPROVEN"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#tearOffTarget",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "tearOffTarget",
+      "declaration_id": "b6a0c33f10c0cf408403c6d5b12946f8c3f42cbc02000b355b253212ccea3b00",
+      "static": true,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "BODY_REFERENCES_UNPROVEN",
+        "CALL_SITE_SHAPE_UNPROVEN",
+        "FRONTEND_MATERIALIZATION_UNPROVEN",
+        "INLINING_STATE_UNKNOWN",
+        "RETENTION_UNPROVEN"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#viaDirect",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "viaDirect",
+      "declaration_id": "8b331e8a5be8e9f2750cd2db25f2fe293f7507293f3f3b57e469fdf6ad41ac92",
+      "static": true,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "BODY_REFERENCES_UNPROVEN",
+        "CALL_SITE_SHAPE_UNPROVEN",
+        "FRONTEND_MATERIALIZATION_UNPROVEN",
+        "RETENTION_UNPROVEN"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#viaInlined",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "viaInlined",
+      "declaration_id": "13d233e037ed9052f104114fa025ff8a4813cd8898b9a8164f8279419b89ddbc",
+      "static": true,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "BODY_REFERENCES_UNPROVEN",
+        "CALL_SITE_SHAPE_UNPROVEN",
+        "FRONTEND_MATERIALIZATION_UNPROVEN",
+        "RETENTION_UNPROVEN"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#viaVirtual",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": null,
+      "kind": "method",
+      "name": "viaVirtual",
+      "declaration_id": "fb4f6b61d429fdea8be0a1349a87243a616ccdb418a16ed6b10163c8e513df4e",
+      "static": true,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "BODY_REFERENCES_UNPROVEN",
+        "CALL_SITE_SHAPE_UNPROVEN",
+        "FRONTEND_MATERIALIZATION_UNPROVEN",
+        "RETENTION_UNPROVEN"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart#ApplyResult#constructor#",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "ApplyResult",
+      "kind": "constructor",
+      "name": "",
+      "declaration_id": "d718c1197dbb24167bce8769d07934d166441cfa392ec73cedaa06b173de2f17",
+      "static": false,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "ABI_SHAPE_UNSUPPORTED"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart#ApplyResult#field#attached",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "ApplyResult",
+      "kind": "field",
+      "name": "attached",
+      "declaration_id": "5fbdf04f33c72dda60c59c7ee10647ba1659451b8527f3d9295599e2eac2b357",
+      "static": false,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "ABI_SHAPE_UNSUPPORTED"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart#ApplyResult#field#message",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "ApplyResult",
+      "kind": "field",
+      "name": "message",
+      "declaration_id": "00f77c1f1fb38fe29313a74cc34d4d22b98b570bb162554659029cc332480d90",
+      "static": false,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "ABI_SHAPE_UNSUPPORTED"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart#ApplyResult#field#ok",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "ApplyResult",
+      "kind": "field",
+      "name": "ok",
+      "declaration_id": "da26919539dc727a6af89fd8f3dbdbb5b057cd8058b71180c5d06e0d60c9d61e",
+      "static": false,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "ABI_SHAPE_UNSUPPORTED"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart#Base#constructor#",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "Base",
+      "kind": "constructor",
+      "name": "",
+      "declaration_id": "adf13cb379bd264ca14a894448b22ebdc474cb9473eaf9ece96fa5e8e50e0cec",
+      "static": false,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "ABI_SHAPE_UNSUPPORTED"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart#Base#method#work",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "Base",
+      "kind": "method",
+      "name": "work",
+      "declaration_id": "0d9096c2ad9a4f444e5ae3e6ad508fa01b72ac8c39689ee4e5ccc1fe12adefa6",
+      "static": false,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "BODY_REFERENCES_UNPROVEN",
+        "CALL_SITE_SHAPE_UNPROVEN",
+        "FRONTEND_MATERIALIZATION_UNPROVEN",
+        "NON_STATIC_DISPATCH_UNPROVEN",
+        "RETENTION_UNPROVEN"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart#Other#constructor#",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "Other",
+      "kind": "constructor",
+      "name": "",
+      "declaration_id": "3b5b1a7524b933aa50d794154feb3b4fc92f91cbe3c7d7b23588f8108683497c",
+      "static": false,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "ABI_SHAPE_UNSUPPORTED"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart#Other#method#work",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "Other",
+      "kind": "method",
+      "name": "work",
+      "declaration_id": "1e57f7c73e05f24ee07d6194bd19639ffa6c32e0ad537f340f18703445d22f2c",
+      "static": false,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "BODY_REFERENCES_UNPROVEN",
+        "CALL_SITE_SHAPE_UNPROVEN",
+        "FRONTEND_MATERIALIZATION_UNPROVEN",
+        "NON_STATIC_DISPATCH_UNPROVEN",
+        "RETENTION_UNPROVEN"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart#_Container#constructor#",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "_Container",
+      "kind": "constructor",
+      "name": "",
+      "declaration_id": "97a408283b06e70fba25f4199a59f936e6f3bbe9683e5c1600b01dfb5d81acbb",
+      "static": false,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "ABI_SHAPE_UNSUPPORTED"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart#_Container#field#buildId",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "_Container",
+      "kind": "field",
+      "name": "buildId",
+      "declaration_id": "caf4f7b9f2aa7af3f3c6b8302e8d70873344284cfdffafe4b03f2fbaef898323",
+      "static": false,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "ABI_SHAPE_UNSUPPORTED"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart#_Container#field#targets",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "_Container",
+      "kind": "field",
+      "name": "targets",
+      "declaration_id": "ba0354f6ccfc98bbaa78fb07fcd3dd1424704aee50f45142b91b9f35047a6d4e",
+      "static": false,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "ABI_SHAPE_UNSUPPORTED"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart#_Target#constructor#",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "_Target",
+      "kind": "constructor",
+      "name": "",
+      "declaration_id": "8ffc8acd5d2f166a3bb42bcf3da2f32411c55bc455432ef8120b3266ea3e6caf",
+      "static": false,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "ABI_SHAPE_UNSUPPORTED"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart#_Target#field#bytecode",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "_Target",
+      "kind": "field",
+      "name": "bytecode",
+      "declaration_id": "c82bd7b24c5be2c602ae16caf2570c63b109d1a47173ca602639e998afb57c72",
+      "static": false,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "ABI_SHAPE_UNSUPPORTED"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart#_Target#field#library",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "_Target",
+      "kind": "field",
+      "name": "library",
+      "declaration_id": "8110831ced10400bc2addee1e7dabc117a46b749ec64a5da7414a8747173b262",
+      "static": false,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "ABI_SHAPE_UNSUPPORTED"
+      ]
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart#_Target#field#selector",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "_Target",
+      "kind": "field",
+      "name": "selector",
+      "declaration_id": "30b3173c0f686cf95401552d886a498a802caee779689689a819f0411c7d2503",
+      "static": false,
+      "predicted_patchable": false,
+      "refusal_reasons": [
+        "ABI_SHAPE_UNSUPPORTED"
+      ]
+    }
+  ]
+}

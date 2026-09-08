@@ -1,0 +1,107 @@
+SM1-G5 Phase D -- predicted patchable SUBSET-OF demonstrated patchable
+generated 2026-09-08T20:46:42Z by run_subset.sh
+
+SUBJECT (the canonical release, taken not rebuilt)
+  7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34  app_release.aot
+  b9b29d23f37e5e11a5ab181f7f9674c5a482f52b5bcd0483272e6f57c0f90550  evidence/g1_projection.json
+  4c2d33d109c040ea7f8e43ebf25e62b90eda4a87016b0b6d59a1bf621e048239  evidence/inlining_state.json
+
+############ 1. RELEASE CONTRACT, FROM THE RELEASE ITSELF ############
+  release declarations=167 ambiguous=0 -> /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/release_contract.json
+  capability        PROVEN
+  evidence          note: schema_version=1;patchable_static_calls=true
+  release_aot_sha256 7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34
+  contract rows     167
+
+############ 2. PREDICTION -- RELEASE EVIDENCE ONLY ############
+  G3 privacy rows, G4 retention rows and body-reference rows DO NOT EXIST for
+  this corpus -- no checked-in producer emits them for
+  package:dynamic_modules/*. They are supplied as empty, which is not a
+  convenience: the predictor treats a missing row as unproven and refuses. The
+  run below is therefore a real end-to-end prediction whose refusals include
+  "this evidence was never produced".
+
+  predictions=36 patchable=0 refused=36 -> /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/predictions.json
+  declarations        36
+  predicted patchable 0
+  refusal histogram:
+     18  ABI_SHAPE_UNSUPPORTED
+     18  BODY_REFERENCES_UNPROVEN
+     18  CALL_SITE_SHAPE_UNPROVEN
+     18  FRONTEND_MATERIALIZATION_UNPROVEN
+     18  RETENTION_UNPROVEN
+      6  BODY_ENCODING_REFUSED
+      2  INLINED_BODY
+      2  NON_STATIC_DISPATCH_UNPROVEN
+      1  INLINING_STATE_UNKNOWN
+
+############ 3. DEMONSTRATION -- THE SHIPPING PATH ############
+  alpha            demonstrated     moved=['alpha'] stale=[] (invoke=PATCHED-a)
+  Base.work        NOT demonstrated moved=['direct'] stale=['virtual', 'inlined'] (invoke=PATCHED-w)
+  smallTarget      NOT demonstrated moved=[] stale=['small', 'callsSmall'] (invoke=141)
+  tearOffTarget    demonstrated     moved=['tearOff'] stale=[] (invoke=171)
+
+  A declaration counts demonstrated only when EVERY observed ordinary call site
+  moved. Container parsing, attach success, a direct C++ invoke, predictor
+  agreement and the absence of a bad machine-code shape are recorded for
+  context and ignored by the scorer. The call-site map is parsed out of the
+  probe's own _state(), and a printed field that no target maps and nothing
+  excludes is a hard failure -- an unmapped call site is how a stale site would
+  go unobserved.
+
+############ 4. THE SUBSET CHECK ############
+  declarations          36
+  predicted patchable   0
+  refused               36
+  coverage (diagnostic) 0/36 = 0.0%
+SM1_G5_SUBSET: SUBSET_HOLDS
+
+############ 5. THE SCORER MUST BE ABLE TO FAIL ############
+  The subset property is trivially satisfied while nothing is predicted
+  patchable, so the verdict alone carries no information. What carries
+  information is that the scorer fails on an injected over-claim and stays PASS
+  under merely reduced coverage.
+
+arm                                                        result detail
+--------------------------------------------------------------------------------------------------------
+BASELINE the banked pair                                   pass   SUBSET_HOLDS
+over-claim: a declaration with a stale ordinary call site  pass   FAIL_OPEN
+over-claim: a declaration whose every call site is stale   pass   FAIL_OPEN
+over-claim: a declaration with no demonstration row at all pass   FAIL_OPEN
+a demonstrated declaration may be predicted                pass   SUBSET_HOLDS
+reduced coverage is safe (nothing predicted)               pass   SUBSET_HOLDS
+attach and direct invoke alone do not demonstrate          pass   FAIL_OPEN
+under-observation: stale sites deleted from the demonstration pass   FAIL_OPEN
+under-observation: stale sites deleted AND the count lowered pass   FAIL_OPEN
+the call-site map no longer accounts for every printed field pass   FAIL_OPEN
+the demonstration declares itself predictor-derived        pass   FAIL_OPEN
+the demonstration carries no completeness metadata         pass   FAIL_OPEN
+--------------------------------------------------------------------------------------------------------
+arms=12 passed=12 failed=0
+SM1_G5_SUBSET_FALSIFICATION: SCORER_IS_SENSITIVE
+exit=0  (asserted: 0)
+
+############ 6. CORPORA STILL OUTSTANDING ############
+  Phase D requires the adversarial corpus, Wonderous and LocalSend. Only the
+  adversarial corpus is run here.
+
+  Wonderous and LocalSend checkouts exist under /Volumes/build/route-b, but the
+  subset check needs, per corpus: a G1 projection, G3 privacy rows, G4
+  retention rows and body-reference rows. NO CHECKED-IN SCRIPT PRODUCES ANY OF
+  THEM -- not even for this 36-row probe, whose g2_r.json was a work-directory
+  artifact now banked as evidence/g1_projection.json precisely because it could
+  not be regenerated.
+
+  So the blocker is a missing producer chain, not compute. Running the two app
+  corpora is not attempted and is NOT reported as passing.
+
+ASSERTIONS (7 checked)
+  pass  no producer in this run failed
+  pass  the release contract binds to the canonical subject
+  pass  route 2 evidence is bound to the same artifact
+  pass  the subset property holds
+  pass  route 2 actually reached the predictor
+  pass  the scorer fails on an injected over-claim and passes otherwise
+  pass  the falsification records SCORER_IS_SENSITIVE
+
+SM1_G5_SUBSET_BANK: ADVERSARIAL_CORPUS_ONLY

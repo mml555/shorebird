@@ -1,0 +1,137 @@
+{
+  "schema": "semantic-map-1/g5-demonstration/1",
+  "aot": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/app_release.aot",
+  "runtime": "/Volumes/build/g5_marker/src/out/host_release_arm64/dartaotruntime",
+  "derived_from_predictor": false,
+  "call_site_map": {
+    "alpha": [
+      "alpha"
+    ],
+    "beta": [
+      "beta"
+    ],
+    "Base.work": [
+      "virtual",
+      "direct",
+      "inlined"
+    ],
+    "smallTarget": [
+      "small",
+      "callsSmall"
+    ],
+    "tearOffTarget": [
+      "tearOff"
+    ]
+  },
+  "call_site_map_source": "/Users/mendell/shorebird/selfhost/engine/semantic_map/g5_patchability/probe/callsite_target.dart",
+  "printed_fields": [
+    "alpha",
+    "beta",
+    "callsSmall",
+    "direct",
+    "inlined",
+    "other",
+    "small",
+    "tearOff",
+    "virtual"
+  ],
+  "excluded_printed_fields": {
+    "other": "Other.work -- a DIFFERENT declaration, the untargeted control"
+  },
+  "how": "each patch applied with dartaotruntime; moved/stale read from the program's own before/after output",
+  "rows": [
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#alpha",
+      "declaration_id": "dbcb9971475a4d212e95035ad5e2edb7fd28456250b0380391882116705d4799",
+      "target": "alpha",
+      "patch": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/patch_alpha.sbrb",
+      "call_sites": [
+        {
+          "name": "alpha",
+          "ordinary": true,
+          "before": "OLD-a",
+          "after": "PATCHED-a",
+          "moved": true
+        }
+      ],
+      "sites_expected": 1,
+      "attach_ok": true,
+      "direct_invoke": "PATCHED-a"
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart#Base#method#work",
+      "declaration_id": "0d9096c2ad9a4f444e5ae3e6ad508fa01b72ac8c39689ee4e5ccc1fe12adefa6",
+      "target": "Base.work",
+      "patch": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/patch_basework.sbrb",
+      "call_sites": [
+        {
+          "name": "virtual",
+          "ordinary": true,
+          "before": "OLD-w",
+          "after": "OLD-w",
+          "moved": false
+        },
+        {
+          "name": "direct",
+          "ordinary": true,
+          "before": "OLD-w",
+          "after": "PATCHED-w",
+          "moved": true
+        },
+        {
+          "name": "inlined",
+          "ordinary": true,
+          "before": "OLD-w",
+          "after": "OLD-w",
+          "moved": false
+        }
+      ],
+      "sites_expected": 3,
+      "attach_ok": true,
+      "direct_invoke": "PATCHED-w"
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#smallTarget",
+      "declaration_id": "bff08abe1a4b769035bcb6842e341d84aaf49f557eec8068960c57a455444ad0",
+      "target": "smallTarget",
+      "patch": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/patch_smallTarget.sbrb",
+      "call_sites": [
+        {
+          "name": "small",
+          "ordinary": true,
+          "before": "41",
+          "after": "41",
+          "moved": false
+        },
+        {
+          "name": "callsSmall",
+          "ordinary": true,
+          "before": "42",
+          "after": "42",
+          "moved": false
+        }
+      ],
+      "sites_expected": 2,
+      "attach_ok": true,
+      "direct_invoke": "141"
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#tearOffTarget",
+      "declaration_id": "b6a0c33f10c0cf408403c6d5b12946f8c3f42cbc02000b355b253212ccea3b00",
+      "target": "tearOffTarget",
+      "patch": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/patch_tearOffTarget.sbrb",
+      "call_sites": [
+        {
+          "name": "tearOff",
+          "ordinary": true,
+          "before": "72",
+          "after": "172",
+          "moved": true
+        }
+      ],
+      "sites_expected": 1,
+      "attach_ok": true,
+      "direct_invoke": "171"
+    }
+  ]
+}

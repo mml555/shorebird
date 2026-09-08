@@ -1,0 +1,60 @@
+{
+  "schema": "semantic-map-1/g5-subset/1",
+  "gate": "SM1-G5",
+  "issue": 54,
+  "predictions": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/predictions.json",
+  "demonstration": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/demonstrated.json",
+  "independence_problems": [],
+  "declarations": 36,
+  "predicted_patchable": 0,
+  "refused": 36,
+  "coverage_diagnostic_only": "0/36 = 0.0%",
+  "violations": [],
+  "demonstration_detail": {
+    "dbcb9971475a4d212e95035ad5e2edb7fd28456250b0380391882116705d4799": {
+      "key": "package:dynamic_modules/callsite_target.dart##method#alpha",
+      "ordinary_call_sites": 1,
+      "moved": [
+        "alpha"
+      ],
+      "stale": [],
+      "attach_ok": true,
+      "direct_invoke": "PATCHED-a"
+    },
+    "0d9096c2ad9a4f444e5ae3e6ad508fa01b72ac8c39689ee4e5ccc1fe12adefa6": {
+      "key": "package:dynamic_modules/callsite_target.dart#Base#method#work",
+      "ordinary_call_sites": 3,
+      "moved": [
+        "direct"
+      ],
+      "stale": [
+        "virtual",
+        "inlined"
+      ],
+      "attach_ok": true,
+      "direct_invoke": "PATCHED-w"
+    },
+    "bff08abe1a4b769035bcb6842e341d84aaf49f557eec8068960c57a455444ad0": {
+      "key": "package:dynamic_modules/callsite_target.dart##method#smallTarget",
+      "ordinary_call_sites": 2,
+      "moved": [],
+      "stale": [
+        "small",
+        "callsSmall"
+      ],
+      "attach_ok": true,
+      "direct_invoke": "141"
+    },
+    "b6a0c33f10c0cf408403c6d5b12946f8c3f42cbc02000b355b253212ccea3b00": {
+      "key": "package:dynamic_modules/callsite_target.dart##method#tearOffTarget",
+      "ordinary_call_sites": 1,
+      "moved": [
+        "tearOff"
+      ],
+      "stale": [],
+      "attach_ok": true,
+      "direct_invoke": "171"
+    }
+  },
+  "verdict": "SUBSET_HOLDS"
+}
