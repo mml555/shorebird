@@ -1,0 +1,102 @@
+SM1-G7 -- cost at release scale
+generated 2026-09-08T22:33:49Z by run_g7.sh
+corpus: LocalSend, a real application (35,139 declarations in scope)
+reps per order: 3   orders: base-first and map-first
+
+METHOD
+
+  Arms are INTERLEAVED within a repetition, and the whole schedule is then run
+  with the arm order REVERSED. SEMANTIC-LINKER-1 reported an apparent 2x that
+  turned out to be machine drift, and RSS deltas that looked like a per-mode
+  property until the order was reversed -- so order-dependence is tested here
+  rather than assumed.
+
+  Every sample is appended raw to evidence/samples.jsonl. The summaries below
+  are derived from that file; no ratio is reported without the samples behind
+  it.
+
+  gen_snapshot runs with --deterministic for the SIZE families, because G5
+  measured that whole-AOT output is otherwise not byte-reproducible and sizes
+  would carry build-to-build noise.
+
+  NO THRESHOLD IS IMPOSED. Costs are reported as orders of magnitude; whether
+  one is acceptable is a product decision against a real application profile.
+
+WHAT THE "ORDER" AXIS ACTUALLY VARIES -- stated because the label would
+otherwise imply more than was done. The map arm consumes the base arm's kernel
+and AOT, so base still runs first WITHIN a repetition; a true A-then-B /
+B-then-A reversal is not possible without measuring a different thing. What
+reverses is the position of each arm in the overall SCHEDULE -- whether the map
+work runs early on a cooler machine or late on a warmer one. That is enough to
+expose drift of the kind SL1 hit, and it is not a claim of full arm-order
+independence.
+
+############ TIMED SCHEDULE ############
+  order=base_first rep=1
+  order=base_first rep=2
+  order=base_first rep=3
+  order=map_first rep=1
+  order=map_first rep=2
+  order=map_first rep=3
+
+############ FAMILY 1 -- MAP SIZE ############
+  map                     9,467,041 bytes
+  release AOT            49,662,560 bytes
+  map / AOT                  19.063 %
+  the map is JSON here; no compact encoding is claimed
+
+############ FAMILY 2 -- GENERATION TIME (per stage, ms) ############
+  stage                    n       min    median       max     stdev
+  base_gen_kernel          6   17781.5   18857.1   21830.2    1435.0
+  base_gen_snapshot        6   14329.1   15108.7   15942.9     698.2
+  map_bound                6     619.8     645.1     696.1      25.8
+  map_contract             6    1862.5    1921.4    2137.9     103.2
+  map_g1                   6    3810.1    3922.8    4739.1     355.6
+  map_g3                   6    3161.6    3576.1    4330.3     413.1
+  map_g4                   6    1612.7    1711.1    1815.9      76.7
+  map_reader               6    1580.1    1649.5    1709.0      49.7
+  map_refs                 6    1475.7    1593.4    2119.7     234.2
+
+############ FAMILY 3 -- RELEASE BUILD IMPACT ############
+  base_first  base total median    34970.8 ms   map total median    15361.7 ms
+  map_first   base total median    32654.3 ms   map total median    14675.7 ms
+  map work as a share of the base build: 43.8 % (median)
+
+############ FAMILY 4 -- RETENTION COST AT SCALE ############
+  AOT without retention     49,662,560 bytes
+  AOT with retention        53,992,680 bytes
+  measured delta             4,330,120 bytes (+8.72 %)
+  G4 projection              2,922,310 bytes (+5.88 %)
+  measured / projected           1.482 x
+  G4 curve consumed     40912 byte floor + ~82 bytes/member
+
+############ FAMILY 5 -- AOT SIZE IMPACT OF THE CONTRACT ############
+  kernel without retention     64,775,640 bytes
+  kernel with retention        67,535,616 bytes
+  dynamic interface             3,273,230 bytes
+
+############ ORDER DEPENDENCE, TESTED ############
+  stage                   base_first   map_first   ratio  >10%?
+  base_gen_kernel            19168.5     18139.2   0.946  no
+  base_gen_snapshot          15627.0     14515.1   0.929  no
+  map_bound                    656.4       635.6   0.968  no
+  map_contract                2037.5      1906.6   0.936  no
+  map_g1                      4137.9      3815.5   0.922  no
+  map_g3                      3682.6      3511.3   0.953  no
+  map_g4                      1746.1      1624.3   0.930  no
+  map_reader                  1669.0      1601.8   0.960  no
+  map_refs                    1609.0      1528.3   0.950  no
+
+  order-dependent beyond 10%: none
+  failed samples: 0
+
+ASSERTIONS (7 checked)
+  pass  no timed sample failed
+  pass  samples were retained raw
+  pass  every family is reported
+  pass  both orders were run
+  pass  the retention projection was checked against a measurement
+  pass  order dependence was tested, not assumed
+  pass  no threshold is imposed
+
+SM1_G7: COST_REPORTED
