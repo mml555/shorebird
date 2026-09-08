@@ -1,5 +1,5 @@
 SM1-G5 Phase D -- predicted patchable SUBSET-OF demonstrated patchable
-generated 2026-09-08T20:52:52Z by run_subset.sh
+generated 2026-09-08T20:59:43Z by run_subset.sh
 
 SUBJECT (the canonical release, taken not rebuilt)
   7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34  app_release.aot
@@ -60,6 +60,38 @@ wrote g1_regen.json  rows=36
   excludes is a hard failure -- an unmapped call site is how a stale site would
   go unobserved.
 
+############ 4b. THE SAME SET, DERIVED WITHOUT A CALL-SITE MAP ############
+  The map above is parsed from the probe's _state(). A real application has no
+  _state(), so that method does not generalise. This derives the same set from a
+  SINGLE-TARGET DIFF instead: each container carries one target, so any change
+  in the program's observable state is attributable to it.
+
+      moved = fields whose value changed
+      stale = fields still showing a value the patch moved elsewhere
+      demonstrated = moved non-empty AND stale empty
+
+  No field is named in advance, and the scorer RECOMPUTES the derivation from
+  the recorded before/after state rather than trusting the row -- so deleting a
+  stale site, with or without lowering the declared count, is refused.
+
+  If an unrelated declaration coincidentally shares a moved-from value, its
+  field is misread as a stale site of this target. That OVER-reports staleness,
+  which withdraws a demonstration rather than manufacturing one. Only call
+  sites exercised during the run are observed; that limit is reported, not
+  implied.
+
+  alpha            demonstrated     moved=['alpha'] stale=[] observed=9
+  work             NOT demonstrated moved=['direct'] stale=['inlined', 'virtual'] observed=9
+  smallTarget      NOT demonstrated moved=[] stale=[] observed=9
+  tearOffTarget    demonstrated     moved=['tearOff'] stale=[] observed=9
+
+  the two methods must agree, declaration by declaration:
+  0d9096c2ad9a4f44  mapped=False derived=False agree
+  b6a0c33f10c0cf40  mapped=True  derived=True  agree
+  bff08abe1a4b7690  mapped=False derived=False agree
+  dbcb9971475a4d21  mapped=True  derived=True  agree
+  ALL AGREE
+
 ############ 5. THE SUBSET CHECK ############
   declarations          36
   predicted patchable   0
@@ -84,7 +116,7 @@ reduced coverage is safe (nothing predicted)               pass   SUBSET_HOLDS
 attach and direct invoke alone do not demonstrate          pass   FAIL_OPEN
 under-observation: stale sites deleted from the demonstration pass   FAIL_OPEN
 under-observation: stale sites deleted AND the count lowered pass   FAIL_OPEN
-the call-site map no longer accounts for every printed field pass   FAIL_OPEN
+the recorded call sites no longer account for the observed state pass   FAIL_OPEN
 the demonstration declares itself predictor-derived        pass   FAIL_OPEN
 the demonstration carries no completeness metadata         pass   FAIL_OPEN
 --------------------------------------------------------------------------------------------------------
@@ -96,19 +128,21 @@ exit=0  (asserted: 0)
   Phase D requires the adversarial corpus, Wonderous and LocalSend. Only the
   adversarial corpus is run here.
 
-  The producer chain is NOT the blocker -- section 2 corrects that. What each
-  app corpus additionally needs is its own release built through this exact
-  toolchain: a kernel compiled WITH --dynamic-interface, an AOT from the
-  instrumented gen_snapshot, a generated dynamic interface, patch containers
-  for chosen targets, and a probe-equivalent call-site map so a demonstration
-  can say which printed behaviour belongs to which declaration. The last item
-  is the hard one: this corpus has _state(), and a real app has no equivalent,
-  so "every observed ordinary call site moved" has no mechanical reading yet
-  for Wonderous or LocalSend.
+  The producer chain is NOT the blocker -- section 2 corrects that. Nor is the
+  call-site map, any more: section 4b derives the same verdicts without one, so
+  the method now generalises to a corpus that has no _state().
+
+  What each app corpus still needs is its own release built through this exact
+  toolchain -- a kernel compiled WITH --dynamic-interface, an AOT from the
+  instrumented gen_snapshot, a generated dynamic interface, and patch
+  containers for chosen targets -- plus some observable state to diff, and an
+  exercise that actually reaches the targets. The observable state is the open
+  design question for a GUI app: this probe prints a line, and Wonderous does
+  not.
 
   Running them is not attempted and is NOT reported as passing.
 
-ASSERTIONS (11 checked)
+ASSERTIONS (14 checked)
   pass  no producer in this run failed
   pass  the release contract binds to the canonical subject
   pass  route 2 evidence is bound to the same artifact
@@ -120,5 +154,8 @@ ASSERTIONS (11 checked)
   pass  route 2 actually reached the predictor
   pass  the scorer fails on an injected over-claim and passes otherwise
   pass  the falsification records SCORER_IS_SENSITIVE
+  pass  the map-free derivation agrees with the mapped one
+  pass  the subset holds on the derived demonstration too
+  pass  the scorer is sensitive on the derived demonstration too
 
 SM1_G5_SUBSET_BANK: ADVERSARIAL_CORPUS_ONLY

@@ -130,6 +130,53 @@ cat <<'TXT'
   go unobserved.
 TXT
 echo
+echo "############ 4b. THE SAME SET, DERIVED WITHOUT A CALL-SITE MAP ############"
+cat <<'TXT'
+  The map above is parsed from the probe's _state(). A real application has no
+  _state(), so that method does not generalise. This derives the same set from a
+  SINGLE-TARGET DIFF instead: each container carries one target, so any change
+  in the program's observable state is attributable to it.
+
+      moved = fields whose value changed
+      stale = fields still showing a value the patch moved elsewhere
+      demonstrated = moved non-empty AND stale empty
+
+  No field is named in advance, and the scorer RECOMPUTES the derivation from
+  the recorded before/after state rather than trusting the row -- so deleting a
+  stale site, with or without lowering the declared count, is refused.
+
+  If an unrelated declaration coincidentally shares a moved-from value, its
+  field is misread as a stale site of this target. That OVER-reports staleness,
+  which withdraws a demonstration rather than manufacturing one. Only call
+  sites exercised during the run are observed; that limit is reported, not
+  implied.
+TXT
+echo
+L="package:dynamic_modules/callsite_target.dart"
+must derived-demonstration python3 "$G/lib/derive_demonstration.py" \
+    "$S/dartaotruntime" "$SUBJ" "$W/g1_regen.json" "$W/derived.json" \
+    "$L##method#alpha=$W/patch_alpha.sbrb" \
+    "$L#Base#method#work=$W/patch_basework.sbrb" \
+    "$L##method#smallTarget=$W/patch_smallTarget.sbrb" \
+    "$L##method#tearOffTarget=$W/patch_tearOffTarget.sbrb"
+echo
+echo "  the two methods must agree, declaration by declaration:"
+python3 - "$W/demonstrated.json" "$W/derived.json" <<'PY' | sed 's/^/  /'
+import json, sys
+h, d = (json.load(open(p)) for p in sys.argv[1:3])
+def verdict(doc):
+    out = {}
+    for r in doc['rows']:
+        sites = [s for s in r['call_sites'] if s.get('ordinary', True)]
+        out[r['declaration_id']] = bool(sites) and all(s['moved'] for s in sites)
+    return out
+vh, vd = verdict(h), verdict(d)
+for did in sorted(set(vh) | set(vd)):
+    tag = 'agree' if vh.get(did) == vd.get(did) else 'DISAGREE'
+    print(f"{did[:16]}  mapped={str(vh.get(did)):5} derived={str(vd.get(did)):5} {tag}")
+print('ALL AGREE' if vh == vd else 'MISMATCH')
+PY
+echo
 echo "############ 5. THE SUBSET CHECK ############"
 must scorer python3 "$G/lib/score_subset.py" "$W/predictions.json" \
     "$W/demonstrated.json" "$W/subset.json"
@@ -150,15 +197,17 @@ cat <<'TXT'
   Phase D requires the adversarial corpus, Wonderous and LocalSend. Only the
   adversarial corpus is run here.
 
-  The producer chain is NOT the blocker -- section 2 corrects that. What each
-  app corpus additionally needs is its own release built through this exact
-  toolchain: a kernel compiled WITH --dynamic-interface, an AOT from the
-  instrumented gen_snapshot, a generated dynamic interface, patch containers
-  for chosen targets, and a probe-equivalent call-site map so a demonstration
-  can say which printed behaviour belongs to which declaration. The last item
-  is the hard one: this corpus has _state(), and a real app has no equivalent,
-  so "every observed ordinary call site moved" has no mechanical reading yet
-  for Wonderous or LocalSend.
+  The producer chain is NOT the blocker -- section 2 corrects that. Nor is the
+  call-site map, any more: section 4b derives the same verdicts without one, so
+  the method now generalises to a corpus that has no _state().
+
+  What each app corpus still needs is its own release built through this exact
+  toolchain -- a kernel compiled WITH --dynamic-interface, an AOT from the
+  instrumented gen_snapshot, a generated dynamic interface, and patch
+  containers for chosen targets -- plus some observable state to diff, and an
+  exercise that actually reaches the targets. The observable state is the open
+  design question for a GUI app: this probe prints a line, and Wonderous does
+  not.
 
   Running them is not attempted and is NOT reported as passing.
 TXT
@@ -187,6 +236,13 @@ python3 "$G/lib/falsify_subset.py" "$W/predictions.json" "$W/demonstrated.json" 
 want 'the scorer fails on an injected over-claim and passes otherwise' 0 "$?"
 want 'the falsification records SCORER_IS_SENSITIVE' 1 \
      "$(grep -c 'SM1_G5_SUBSET_FALSIFICATION: SCORER_IS_SENSITIVE' "$T")"
+want 'the map-free derivation agrees with the mapped one' 1 \
+     "$(grep -c '^  ALL AGREE' "$T")"
+python3 "$G/lib/score_subset.py" "$W/predictions.json" "$W/derived.json" \
+    "$W/subset_derived.json" >/dev/null 2>&1
+want 'the subset holds on the derived demonstration too' 0 "$?"
+python3 "$G/lib/falsify_subset.py" "$W/predictions.json" "$W/derived.json" "$W" >/dev/null 2>&1
+want 'the scorer is sensitive on the derived demonstration too' 0 "$?"
 cp "$W/subset.json" "$G/evidence/subset.json"
 cp "$W/demonstrated.json" "$G/evidence/demonstrated.json"
 cp "$W/predictions.json" "$G/evidence/predictions.json"

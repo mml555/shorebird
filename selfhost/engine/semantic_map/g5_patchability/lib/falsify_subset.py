@@ -24,8 +24,10 @@ results = []
 
 
 def did_of(demo, target):
+    """Match either schema's target: a bare name, or a full G1 key."""
     for r in demo['rows']:
-        if r['target'] == target:
+        t = r.get('target', '')
+        if t == target or t.endswith('#' + target.split('.')[-1]):
             return r['declaration_id']
     raise SystemExit(f'falsify_subset: no demonstration row for {target}')
 
@@ -59,6 +61,7 @@ def predict(pred, did, value=True):
     return q
 
 
+DERIVED = str(BD.get('schema', '')).endswith('/2')
 BASE_W = did_of(BD, 'Base.work')
 ALPHA = did_of(BD, 'alpha')
 SMALL = did_of(BD, 'smallTarget')
@@ -111,27 +114,54 @@ def hide_stale(demo, did, also_lower=False):
 
 run('under-observation: stale sites deleted from the demonstration',
     predict(BP, BASE_W), hide_stale(BD, BASE_W), 'FAIL_OPEN', 'under-observed')
+# The two schemas refuse this for different reasons, and each arm asserts its
+# own: schema 1 by cross-checking the declared count against the map, schema 2
+# by RECOMPUTING the derivation from the recorded state, which is stronger --
+# lowering the count cannot make the row self-consistent any more.
 run('under-observation: stale sites deleted AND the count lowered',
     predict(BP, BASE_W), hide_stale(BD, BASE_W, also_lower=True), 'FAIL_OPEN',
-    'disagrees with the call-site map')
+    'disagree with the recorded state' if DERIVED
+    else 'disagrees with the call-site map')
 
 
 def break_map(demo):
     q = copy.deepcopy(demo)
-    q['call_site_map'] = {k: v for k, v in q['call_site_map'].items()
-                          if k != 'Base.work'}
+    if str(q.get('schema', '')).endswith('/2'):
+        # Derived form: drop a stale site from a row. Its completeness rule is
+        # per-row, so the omission must be caught there instead.
+        for r in q['rows']:
+            keep = [s for s in r['call_sites'] if s['moved']]
+            if len(keep) != len(r['call_sites']):
+                r['call_sites'] = keep
+                break
+    else:
+        q['call_site_map'] = {k: v for k, v in q['call_site_map'].items()
+                              if not k.endswith('work')}
     return q
 
 
-run('the call-site map no longer accounts for every printed field',
-    BP, break_map(BD), 'FAIL_OPEN', 'does not account for every printed field')
+run('the recorded call sites no longer account for the observed state',
+    predict(BP, BASE_W), break_map(BD), 'FAIL_OPEN')
 run('the demonstration declares itself predictor-derived',
     BP, {**copy.deepcopy(BD), 'derived_from_predictor': True}, 'FAIL_OPEN',
     'predictor-derived')
+def strip_meta(demo):
+    """Remove whatever makes completeness checkable, per schema."""
+    q = copy.deepcopy(demo)
+    for k in ('call_site_map', 'printed_fields'):
+        q.pop(k, None)
+    for r in q.get('rows', []):
+        r.pop('observed_fields', None)
+        if DERIVED:
+            # For the derived form the recorded state IS the completeness
+            # metadata: without it the derivation cannot be recomputed.
+            r.pop('state_before', None)
+            r.pop('state_after', None)
+    return q
+
+
 run('the demonstration carries no completeness metadata',
-    BP, {k: v for k, v in BD.items()
-         if k not in ('call_site_map', 'printed_fields')},
-    'FAIL_OPEN', 'completeness cannot be checked')
+    BP, strip_meta(BD), 'FAIL_OPEN')
 
 print(f'{"arm":58} {"result":6} detail')
 print('-' * 104)

@@ -47,10 +47,43 @@ if demo.get('source') == PRED:
 # fewer call sites than the program actually has: lowering a row's
 # sites_expected also requires shrinking the map, which then no longer covers
 # the printed fields.
+schema = demo.get('schema', '')
+DERIVED = schema.endswith('/2')
 cmap = demo.get('call_site_map') or {}
 printed = set(demo.get('printed_fields') or [])
 excluded = set(demo.get('excluded_printed_fields') or {})
-if not cmap or not printed:
+
+if DERIVED:
+    # SCHEMA 2 -- derived by single-target diff, with no call-site map. The
+    # completeness guarantee is different and is checkable from each row: the
+    # stale set must contain EVERY observed field that still shows a value the
+    # patch moved elsewhere. If one were omitted, an undemonstrated
+    # declaration would look demonstrated.
+    for r in demo.get('rows', []):
+        sb = r.get('state_before') or {}
+        sa = r.get('state_after') or {}
+        if not sb or not sa:
+            problems.append(f'{r.get("key")}: no recorded before/after state, '
+                            f'so the derivation cannot be recomputed')
+            continue
+        # RECOMPUTE, DO NOT TRUST. The row's own claim about which sites moved
+        # and which stayed stale is re-derived from the recorded state, so
+        # deleting a stale site -- with or without lowering the expected count
+        # -- disagrees with the state and is refused.
+        obs = sorted(set(sb) & set(sa))
+        rm = [f for f in obs if sb[f] != sa[f]]
+        v_old = {sb[f] for f in rm}
+        rs = [f for f in obs if f not in rm and sa[f] in v_old]
+        want = {f: True for f in rm}
+        want.update({f: False for f in rs})
+        got = {s['name']: bool(s['moved']) for s in (r.get('call_sites') or [])}
+        if got != want:
+            problems.append(
+                f'{r.get("key")}: recorded call sites disagree with the '
+                f'recorded state. missing={sorted(set(want) - set(got))} '
+                f'extra={sorted(set(got) - set(want))} '
+                f'flipped={sorted(f for f in set(got) & set(want) if got[f] != want[f])}')
+elif not cmap or not printed:
     problems.append('the demonstration does not carry its call-site map and '
                     'printed-field list, so its completeness cannot be checked')
 else:
@@ -75,6 +108,8 @@ for r in demo.get('rows', []):
     # rather than scored.
     expected = r.get('sites_expected')
     mapped = cmap.get(r.get('target'))
+    if DERIVED:
+        mapped = [s['name'] for s in (r.get('call_sites') or [])]
     if mapped is not None and expected is not None and len(mapped) != expected:
         problems.append(f'{r.get("key")}: sites_expected={expected} disagrees '
                         f'with the call-site map ({len(mapped)} fields)')
