@@ -1,79 +1,66 @@
 {
-  "schema": "semantic-map-1/g5-inlining-state/1",
+  "schema": "semantic-map-1/g5-inlining-state/2",
   "gate": "SM1-G5",
   "issue": 54,
-  "aot": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/app_r.aot",
+  "aot": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/app_s6r.aot",
   "note_validated": true,
   "note_error": null,
-  "note_complete_projection": false,
-  "unprojected_records": [
-    {
-      "record": [
-        "package:dynamic_modules/callsite_target.dart",
-        "",
-        "RegularFunction",
-        "_inlineHelper@17145467",
-        "",
-        "",
-        "",
-        ""
-      ],
-      "reason": "private VM name '_inlineHelper@17145467' but no private key known for package:dynamic_modules/callsite_target.dart"
-    },
-    {
-      "record": [
-        "package:dynamic_modules/callsite_target.dart",
-        "",
-        "RegularFunction",
-        "_inlineHelper@17145467",
-        "",
-        "",
-        "",
-        ""
-      ],
-      "reason": "private VM name '_inlineHelper@17145467' but no private key known for package:dynamic_modules/callsite_target.dart"
-    },
-    {
-      "record": [
-        "package:dynamic_modules/callsite_target.dart",
-        "_Container",
-        "Constructor:generative",
-        "_Container@17145467.",
-        "",
-        "",
-        "",
-        ""
-      ],
-      "reason": "private VM name '_Container@17145467.' but no private key known for package:dynamic_modules/callsite_target.dart"
-    },
-    {
-      "record": [
-        "package:dynamic_modules/callsite_target.dart",
-        "_Target",
-        "Constructor:generative",
-        "_Target@17145467.",
-        "",
-        "",
-        "",
-        ""
-      ],
-      "reason": "private VM name '_Target@17145467.' but no private key known for package:dynamic_modules/callsite_target.dart"
-    }
-  ],
-  "unprojected_count": 4,
-  "out_of_scope_records": 3340,
+  "note_complete_projection": true,
+  "unprojected_records": [],
+  "unprojected_count": 0,
+  "out_of_scope_records": 3010,
   "in_scope_libraries": [
     "package:dynamic_modules/callsite_target.dart"
   ],
   "diagnostics": {
-    "aot_sha256": "c3a8daa058ffce6308cd3ae9fe7e5b14724ff7fa9479df6013e6c01ad39a00ec",
-    "note_section_sha256": "127fe69331eccf5a980c388d07c4ec2d37ac853dc3edead095f55e668aa1667b",
-    "records": 3353
+    "aot_sha256": "8592e54d1c31e7e963bd338a315b3180726fea12ac83d1e6424d005ba150fc30",
+    "note_section_sha256": "7af6093bb22379b816c78a6cd4c2f5b780dcdd4b451c0698b6f460344ff5fe7b",
+    "records": 3021
   },
   "state_histogram": {
-    "UNKNOWN": 17,
-    "INLINED": 1
+    "INLINED": 2,
+    "NOT_INLINED": 15,
+    "UNKNOWN": 14
   },
+  "g1_rows": 36,
+  "rows_accounted_for": 36,
+  "no_body_rows": [
+    {
+      "declaration_id": "71b8579b98f1fcbee60b66b22c02924ac4cb5b2a60e8219170b70d38d6d4a99f",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "name": "ApplyResult",
+      "kind": "class",
+      "reason": "declares no body, so no inline copy of it can exist"
+    },
+    {
+      "declaration_id": "a34718ba9d3e6b5f7e5d65bb896e7a92343bb83b36a844ef8acab9b03459ce16",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "name": "Base",
+      "kind": "class",
+      "reason": "declares no body, so no inline copy of it can exist"
+    },
+    {
+      "declaration_id": "141e5ef77f06b489810596792970954560e28a2108d3ebbf14ee1b78273f1d1d",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "name": "Other",
+      "kind": "class",
+      "reason": "declares no body, so no inline copy of it can exist"
+    },
+    {
+      "declaration_id": "602ca6b198f2f44a718edf919c8c2df3937b43b838f572f80e62497d95ac0dbb",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "name": "_Container",
+      "kind": "class",
+      "reason": "declares no body, so no inline copy of it can exist"
+    },
+    {
+      "declaration_id": "c20562ea8bfdfdfedbe69ea123f933693ed9b88d702de5f95c97cc5b605e28f2",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "name": "_Target",
+      "kind": "class",
+      "reason": "declares no body, so no inline copy of it can exist"
+    }
+  ],
   "states": [
     {
       "declaration_id": "12bf42ba58b08a5b48bdf15133b4da3e7456bf926b90fc05856e23d740212a98",
@@ -81,8 +68,8 @@
       "owner": null,
       "kind": "method",
       "name": "_inlineHelper",
-      "state": "UNKNOWN",
-      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+      "state": "INLINED",
+      "reason": "the declared function is an inlinee"
     },
     {
       "declaration_id": "86cb111f9681435cac2d96b3be5d78d3eced50c541a00e4e242f7d0c9aed5df7",
@@ -90,8 +77,8 @@
       "owner": null,
       "kind": "method",
       "name": "_parse",
-      "state": "UNKNOWN",
-      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+      "state": "NOT_INLINED",
+      "reason": "absent from a fully validated note"
     },
     {
       "declaration_id": "4d7b01aa51c0fe8676f73f4af6f37a728cbc41e12846cc1f1584f525d28bcfdd",
@@ -99,8 +86,8 @@
       "owner": null,
       "kind": "method",
       "name": "_state",
-      "state": "UNKNOWN",
-      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+      "state": "NOT_INLINED",
+      "reason": "absent from a fully validated note"
     },
     {
       "declaration_id": "dbcb9971475a4d212e95035ad5e2edb7fd28456250b0380391882116705d4799",
@@ -108,8 +95,8 @@
       "owner": null,
       "kind": "method",
       "name": "alpha",
-      "state": "UNKNOWN",
-      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+      "state": "NOT_INLINED",
+      "reason": "absent from a fully validated note"
     },
     {
       "declaration_id": "289a350eb5c1f00309711cd8b4030503fcfb11b0596eed48b9a215ee5c92022b",
@@ -117,8 +104,8 @@
       "owner": null,
       "kind": "method",
       "name": "applyPatchContainer",
-      "state": "UNKNOWN",
-      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+      "state": "NOT_INLINED",
+      "reason": "absent from a fully validated note"
     },
     {
       "declaration_id": "488f3e933dabdfedc66715c305623f16233855acb9ce36d20a8e5dc4d3221da1",
@@ -126,8 +113,8 @@
       "owner": null,
       "kind": "method",
       "name": "beta",
-      "state": "UNKNOWN",
-      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+      "state": "NOT_INLINED",
+      "reason": "absent from a fully validated note"
     },
     {
       "declaration_id": "5c8ac9ebd528b6b6e191bb1c54757dc5708ed8e805abeed537bc4c7d3064d404",
@@ -135,8 +122,8 @@
       "owner": null,
       "kind": "method",
       "name": "callsSmall",
-      "state": "UNKNOWN",
-      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+      "state": "NOT_INLINED",
+      "reason": "absent from a fully validated note"
     },
     {
       "declaration_id": "839905da7983ae4b906dec6fb09d7a152f077eb7a8f6144237fc9eb9b1bcf6ee",
@@ -144,8 +131,8 @@
       "owner": null,
       "kind": "method",
       "name": "callsViaTearOff",
-      "state": "UNKNOWN",
-      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+      "state": "NOT_INLINED",
+      "reason": "absent from a fully validated note"
     },
     {
       "declaration_id": "dadde4337a7f91a29e5ac819cf1a8ecbbbcd246fc16468b06d38290564c7f9ef",
@@ -153,8 +140,8 @@
       "owner": null,
       "kind": "method",
       "name": "jsonDecodeMap",
-      "state": "UNKNOWN",
-      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+      "state": "NOT_INLINED",
+      "reason": "absent from a fully validated note"
     },
     {
       "declaration_id": "51fc9d48f2c77d02a650e388fef2fc356ea52307a9826f07d498b86fadcfcd3f",
@@ -162,8 +149,8 @@
       "owner": null,
       "kind": "method",
       "name": "main",
-      "state": "UNKNOWN",
-      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+      "state": "NOT_INLINED",
+      "reason": "absent from a fully validated note"
     },
     {
       "declaration_id": "edef8824034f7bb39e487dcda88f2a0c5a0376d476a9e15ab41b58f71f731d86",
@@ -171,8 +158,8 @@
       "owner": null,
       "kind": "method",
       "name": "revertAll",
-      "state": "UNKNOWN",
-      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+      "state": "NOT_INLINED",
+      "reason": "absent from a fully validated note"
     },
     {
       "declaration_id": "bff08abe1a4b769035bcb6842e341d84aaf49f557eec8068960c57a455444ad0",
@@ -190,7 +177,7 @@
       "kind": "method",
       "name": "tearOffTarget",
       "state": "UNKNOWN",
-      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+      "reason": "only a synthetic child is an inlinee; the harmless case is established for one shape only"
     },
     {
       "declaration_id": "8b331e8a5be8e9f2750cd2db25f2fe293f7507293f3f3b57e469fdf6ad41ac92",
@@ -198,8 +185,8 @@
       "owner": null,
       "kind": "method",
       "name": "viaDirect",
-      "state": "UNKNOWN",
-      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+      "state": "NOT_INLINED",
+      "reason": "absent from a fully validated note"
     },
     {
       "declaration_id": "13d233e037ed9052f104114fa025ff8a4813cd8898b9a8164f8279419b89ddbc",
@@ -207,8 +194,8 @@
       "owner": null,
       "kind": "method",
       "name": "viaInlined",
-      "state": "UNKNOWN",
-      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+      "state": "NOT_INLINED",
+      "reason": "absent from a fully validated note"
     },
     {
       "declaration_id": "fb4f6b61d429fdea8be0a1349a87243a616ccdb418a16ed6b10163c8e513df4e",
@@ -216,8 +203,53 @@
       "owner": null,
       "kind": "method",
       "name": "viaVirtual",
+      "state": "NOT_INLINED",
+      "reason": "absent from a fully validated note"
+    },
+    {
+      "declaration_id": "d718c1197dbb24167bce8769d07934d166441cfa392ec73cedaa06b173de2f17",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "ApplyResult",
+      "kind": "constructor",
+      "name": "",
       "state": "UNKNOWN",
-      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+      "reason": "constructor body materialization is not covered by the recorder-completeness proof"
+    },
+    {
+      "declaration_id": "5fbdf04f33c72dda60c59c7ee10647ba1659451b8527f3d9295599e2eac2b357",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "ApplyResult",
+      "kind": "field",
+      "name": "attached",
+      "state": "UNKNOWN",
+      "reason": "a field-backed implicit accessor can be materialized into a caller by CallSpecializer::TryInlineInstanceGetter/Setter and AotCallSpecializer::TryInlineFieldAccess, neither of which reaches FlowGraphInliner::NextInlineId, so the note cannot witness it"
+    },
+    {
+      "declaration_id": "00f77c1f1fb38fe29313a74cc34d4d22b98b570bb162554659029cc332480d90",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "ApplyResult",
+      "kind": "field",
+      "name": "message",
+      "state": "UNKNOWN",
+      "reason": "a field-backed implicit accessor can be materialized into a caller by CallSpecializer::TryInlineInstanceGetter/Setter and AotCallSpecializer::TryInlineFieldAccess, neither of which reaches FlowGraphInliner::NextInlineId, so the note cannot witness it"
+    },
+    {
+      "declaration_id": "da26919539dc727a6af89fd8f3dbdbb5b057cd8058b71180c5d06e0d60c9d61e",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "ApplyResult",
+      "kind": "field",
+      "name": "ok",
+      "state": "UNKNOWN",
+      "reason": "a field-backed implicit accessor can be materialized into a caller by CallSpecializer::TryInlineInstanceGetter/Setter and AotCallSpecializer::TryInlineFieldAccess, neither of which reaches FlowGraphInliner::NextInlineId, so the note cannot witness it"
+    },
+    {
+      "declaration_id": "adf13cb379bd264ca14a894448b22ebdc474cb9473eaf9ece96fa5e8e50e0cec",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "Base",
+      "kind": "constructor",
+      "name": "",
+      "state": "UNKNOWN",
+      "reason": "constructor body materialization is not covered by the recorder-completeness proof"
     },
     {
       "declaration_id": "0d9096c2ad9a4f444e5ae3e6ad508fa01b72ac8c39689ee4e5ccc1fe12adefa6",
@@ -225,8 +257,17 @@
       "owner": "Base",
       "kind": "method",
       "name": "work",
+      "state": "NOT_INLINED",
+      "reason": "absent from a fully validated note"
+    },
+    {
+      "declaration_id": "3b5b1a7524b933aa50d794154feb3b4fc92f91cbe3c7d7b23588f8108683497c",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "Other",
+      "kind": "constructor",
+      "name": "",
       "state": "UNKNOWN",
-      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+      "reason": "constructor body materialization is not covered by the recorder-completeness proof"
     },
     {
       "declaration_id": "1e57f7c73e05f24ee07d6194bd19639ffa6c32e0ad537f340f18703445d22f2c",
@@ -234,8 +275,71 @@
       "owner": "Other",
       "kind": "method",
       "name": "work",
+      "state": "NOT_INLINED",
+      "reason": "absent from a fully validated note"
+    },
+    {
+      "declaration_id": "97a408283b06e70fba25f4199a59f936e6f3bbe9683e5c1600b01dfb5d81acbb",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "_Container",
+      "kind": "constructor",
+      "name": "",
       "state": "UNKNOWN",
-      "reason": "4 record(s) could not be projected onto G1, so absence proves nothing"
+      "reason": "constructor body materialization is not covered by the recorder-completeness proof"
+    },
+    {
+      "declaration_id": "caf4f7b9f2aa7af3f3c6b8302e8d70873344284cfdffafe4b03f2fbaef898323",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "_Container",
+      "kind": "field",
+      "name": "buildId",
+      "state": "UNKNOWN",
+      "reason": "a field-backed implicit accessor can be materialized into a caller by CallSpecializer::TryInlineInstanceGetter/Setter and AotCallSpecializer::TryInlineFieldAccess, neither of which reaches FlowGraphInliner::NextInlineId, so the note cannot witness it"
+    },
+    {
+      "declaration_id": "ba0354f6ccfc98bbaa78fb07fcd3dd1424704aee50f45142b91b9f35047a6d4e",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "_Container",
+      "kind": "field",
+      "name": "targets",
+      "state": "UNKNOWN",
+      "reason": "a field-backed implicit accessor can be materialized into a caller by CallSpecializer::TryInlineInstanceGetter/Setter and AotCallSpecializer::TryInlineFieldAccess, neither of which reaches FlowGraphInliner::NextInlineId, so the note cannot witness it"
+    },
+    {
+      "declaration_id": "8ffc8acd5d2f166a3bb42bcf3da2f32411c55bc455432ef8120b3266ea3e6caf",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "_Target",
+      "kind": "constructor",
+      "name": "",
+      "state": "UNKNOWN",
+      "reason": "constructor body materialization is not covered by the recorder-completeness proof"
+    },
+    {
+      "declaration_id": "c82bd7b24c5be2c602ae16caf2570c63b109d1a47173ca602639e998afb57c72",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "_Target",
+      "kind": "field",
+      "name": "bytecode",
+      "state": "UNKNOWN",
+      "reason": "a field-backed implicit accessor can be materialized into a caller by CallSpecializer::TryInlineInstanceGetter/Setter and AotCallSpecializer::TryInlineFieldAccess, neither of which reaches FlowGraphInliner::NextInlineId, so the note cannot witness it"
+    },
+    {
+      "declaration_id": "8110831ced10400bc2addee1e7dabc117a46b749ec64a5da7414a8747173b262",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "_Target",
+      "kind": "field",
+      "name": "library",
+      "state": "UNKNOWN",
+      "reason": "a field-backed implicit accessor can be materialized into a caller by CallSpecializer::TryInlineInstanceGetter/Setter and AotCallSpecializer::TryInlineFieldAccess, neither of which reaches FlowGraphInliner::NextInlineId, so the note cannot witness it"
+    },
+    {
+      "declaration_id": "30b3173c0f686cf95401552d886a498a802caee779689689a819f0411c7d2503",
+      "library": "package:dynamic_modules/callsite_target.dart",
+      "owner": "_Target",
+      "kind": "field",
+      "name": "selector",
+      "state": "UNKNOWN",
+      "reason": "a field-backed implicit accessor can be materialized into a caller by CallSpecializer::TryInlineInstanceGetter/Setter and AotCallSpecializer::TryInlineFieldAccess, neither of which reaches FlowGraphInliner::NextInlineId, so the note cannot witness it"
     }
   ]
 }

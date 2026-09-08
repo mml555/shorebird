@@ -1,76 +1,101 @@
-SM1-G5 route 2 — the strict reader, and why NOT_INLINED is not yet reachable
-date : 2026-09-08T17:47:43Z
+SM1-G5 route 2 -- strict reader state over the schema-6 note
+generated 2026-09-08T18:39:51Z by run_route2.sh
 
-  The reader validates the note and assigns every G2 candidate exactly one
-  state. Nothing missing is treated as safe.
+PRODUCER AND SUBJECT
+  c0a982fab70900aff92bc03602a3a9447f75fe26a27d853c8bc5b6176a5dac3a  0001-g5-aot-capability-note.patch
+  078d9d4d497f3ae13c5cc72ac009ffcaf34d5f14ea66bc91799903eae8a26286  0002-g5-inlining-relation.patch
+  b307906fe7dc9ef254231023e0862c89da23840e7fef3911cfd10308abc4a81a  gen_snapshot (frozen + 0001 + 0002)
+  79dfb9e20ce9d971388f1bc73a74fa94ea2465ef4aab5e45ecf195da212b6cee  prepass3.dill (input kernel)
+  8592e54d1c31e7e963bd338a315b3180726fea12ac83d1e6424d005ba150fc30  app_s6r.aot
+  recipe: gen_snapshot --snapshot_kind=app-aot-elf --patchable_static_calls \
+            --elf=app_s6r.aot prepass3.dill
 
-  VALIDATION, all of it before any record is read: ELF64, section name,
-  exactly one such section, sh_type == SHT_NOTE, note type 2, owner byte-equal
-  to "Shorebird\0" with name_size 10, schema_version 5, fields_per_record 16,
-  every field length in range, and the parsed record count equal to the
-  declared count.
+REPLAY: frozen (recovered by git) + 0001 + 0002 vs the built clone
+  runtime/vm/elf.h                                     equal
+    replayed 67b24ba39bd97cdb4e6ae38aa17d8c0df3c9c79eb3eacf1ad7781ea907ba1ee3
+    built    67b24ba39bd97cdb4e6ae38aa17d8c0df3c9c79eb3eacf1ad7781ea907ba1ee3
+  runtime/vm/elf.cc                                    equal
+    replayed 2c14752121704bb89a73728427a576e2f09497d144ec41a2df40e8f82cc912c8
+    built    2c14752121704bb89a73728427a576e2f09497d144ec41a2df40e8f82cc912c8
+  runtime/vm/compiler/backend/flow_graph_compiler.cc   equal
+    replayed 1165ccfe9a4e30eb839d9ccb935ef901ddcf61b1764747d0789cb066116939eb
+    built    1165ccfe9a4e30eb839d9ccb935ef901ddcf61b1764747d0789cb066116939eb
+  all_files_equal=true
 
-  PROJECTION, per the decided policy:
-    * RegularFunction is disambiguated against G1's own inventory restricted to
-      kind in {method, operator}. Operator symbols are NEVER parsed.
-    * GetterFunction/SetterFunction project to getter/setter; the VM's
-      Constructor is split at the source into generative and factory.
-    * The VM's unnamed-constructor form "Class." projects to owner=Class,
-      name='' -- a documented shape, and only when the prefix agrees with the
-      owner the VM itself reported.
-    * Owner is used only to NARROW an otherwise ambiguous match, never to
-      require agreement: an extension member is lowered to a synthetic
-      top-level owner while G1 recovers the extension owner.
-    * exactly one candidate -> mapped; zero or more than one -> UNKNOWN.
-      Ambiguity is never resolved by preference.
-    * A private VM name is normalized ONLY by removing the declaring library's
-      exact key. No regex over trailing digits, and not ScrubName, which also
-      rewrites get:/set: and so does not equal G1's vmName contract.
+NOTE DETERMINISM (same input kernel, two runs of the same producer)
+  records              equal
+    A 3021
+    B 3021
+  note_section_sha256  equal
+    A 7af6093bb22379b816c78a6cd4c2f5b780dcdd4b451c0698b6f460344ff5fe7b
+    B 7af6093bb22379b816c78a6cd4c2f5b780dcdd4b451c0698b6f460344ff5fe7b
+  aot_sha256           DIFFER
+    A 8592e54d1c31e7e963bd338a315b3180726fea12ac83d1e6424d005ba150fc30
+    B bc071486b1970d89cbd38dc298062c74f55063f43c0aeb33db7ad9363e553825
+  states identical     True
 
-  SCOPE. A record whose libraries all lie outside G2's inventory cannot BE any
-  candidate in it, so it is counted out-of-scope rather than as a projection
-  failure. An IN-SCOPE record that will not project still forces UNKNOWN --
-  which is where the fail-closed property has to live.
+  Deterministic NOTE CONTENT and identical verdicts -- not
+  byte-reproducible whole-AOT output: the two AOT hashes differ.
 
-  ON THIS RELEASE:
+READER STATE
+  note_validated            True
+  note_complete_projection  True
+  in-scope unprojected      0
+  out-of-scope records      3010
+  G1 rows                   36
+  rows accounted for        36  (31 candidates + 5 body-less)
+  histogram                 {'INLINED': 2, 'NOT_INLINED': 15, 'UNKNOWN': 14}
 
-    note validated                True
-    records                       3353
-    out-of-scope records          3340
-    in-scope unprojected          4
-    complete projection           False
+  INLINED
+    method _inlineHelper
+    method smallTarget
 
-    candidates                    18
-    INLINED                       1     smallTarget
-    UNKNOWN                       17
-    NOT_INLINED                   0
+  NOT_INLINED
+    method Base.work
+    method Other.work
+    method _parse
+    method _state
+    method alpha
+    method applyPatchContainer
+    method beta
+    method callsSmall
+    method callsViaTearOff
+    method jsonDecodeMap
+    method main
+    method revertAll
+    method viaDirect
+    method viaInlined
+    method viaVirtual
 
-  WHY NOT_INLINED IS ZERO, AND WHY THAT IS CORRECT. Four in-scope records will
-  not project, all for the same reason:
+  UNKNOWN
+    constructor ApplyResult.
+    constructor Base.
+    constructor Other.
+    constructor _Container.
+    constructor _Target.
+    field ApplyResult.attached
+    field ApplyResult.message
+    field ApplyResult.ok
+    field _Container.buildId
+    field _Container.targets
+    field _Target.bytecode
+    field _Target.library
+    field _Target.selector
+    method tearOffTarget
 
-    private VM name '_inlineHelper@17145467' but no private key known for
-    package:dynamic_modules/callsite_target.dart
-    private VM name '_Container@17145467.' ...
-    private VM name '_Target@17145467.' ...
+  reasons given for refusal:
+    - a field-backed implicit accessor can be materialized into a caller by CallSpecializer::TryInlineInstanceGetter/Setter and AotCallSpecializer::TryInlineFieldAccess, neither of which reaches FlowGraphInliner::NextInlineId, so the note cannot witness it
+    - constructor body materialization is not covered by the recorder-completeness proof
+    - only a synthetic child is an inlinee; the harmless case is established for one shape only
 
-  While any in-scope record is unplaced, absence from the relation proves
-  nothing, so every candidate that is not positively INLINED is UNKNOWN. That
-  is the required behaviour, not a defect in the reader.
-
-  INLINED does not depend on completeness -- it is a positive assertion from a
-  record that did project -- which is why smallTarget is classified while
-  everything else waits.
-
-  THE CLEAN FIX, and it is deliberately not a regex. The four names share the
-  key @17145467 for one library, and inferring the key from the names would be
-  the forbidden approach wearing a different hat. The compiler knows each
-  library's private key, so the producer should emit it -- a library-to-key
-  table in the note header, or the key alongside each side -- and the reader
-  should strip only that exact key. Until then these records stay UNKNOWN.
-
-  NOT DONE: the falsification set (malformed length and count, wrong
-  section/sh_type/owner/type/schema, duplicate or conflicting note, a deleted
-  smallTarget pair, wrong URI, wrong kind, ambiguous projection, private-key
-  mismatch, unresolved synthetic parent). Predictor wiring remains
-  unauthorized. Virtual/instance dispatch is still a separate unresolved
-  mechanism. No classification.
+WHY NOT_INLINED IS AVAILABLE ONLY TO SOME KINDS
+  See evidence/recorder_completeness.md and .txt. Every copy of a body's IL
+  into another function is registered through exactly one function with exactly
+  one caller, and the recorder reads that registry in the one AOT
+  code-generation path. A second family of operations -- the CallSpecializer
+  replacements -- materializes a callee's semantics without registering
+  anything; its gates close for recognized methods and for operators on
+  application classes, but NOT for a field's VM-synthesized implicit accessors.
+  So field, constructor and factory rows are candidates that refuse, class rows
+  are reported as declaring no body, and only method/getter/setter/operator can
+  carry NOT_INLINED.

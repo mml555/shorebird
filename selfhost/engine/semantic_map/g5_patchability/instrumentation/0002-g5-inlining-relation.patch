@@ -1,26 +1,38 @@
---- a/runtime/vm/elf.h	2026-09-08 02:12:58
-+++ b/runtime/vm/elf.h	2026-09-08 02:10:30
-@@ -18,6 +18,36 @@
+--- a/runtime/vm/elf.h
++++ b/runtime/vm/elf.h
+@@ -18,6 +18,50 @@
  
  namespace dart {
  
 +// SM1-G5 route 2: recorded by FlowGraphCompiler as the inliner's own decisions,
 +// emitted by ElfWriter::GenerateInliningRelation into the shipped artifact.
-+// Structured identity, joinable to SM1-G1's declaration identity
++// Structured VM coordinates, projectable onto SM1-G1's declaration identity
 +// (library URI + owner + kind + declared name). The VM's
 +// ToLibNamePrefixedQualifiedCString() is NOT usable for this: it selects
 +// library.name(), while G1 keys on the library URI, so the canonical URI is
 +// simply absent from that string.
-+// Twelve fields: for each side, library URI, owner, VM kind, declared name --
-+// plus, for the inlinee only, the PARENT it is synthesised from when it is an
-+// implicit closure. G5's mapper needs that link: an ImplicitClosureFunction is
-+// a tear-off wrapper, not a competing identity for the declaration, but its
-+// participation in optimization may still bear on the parent's patch
-+// semantics. Empty parent fields mean "not a synthetic child".
-+// Sixteen fields: for each side, the FULL G1 identity -- library URI, owner,
-+// kind, declared name -- and then the full G1 identity of the synthetic parent
-+// when the side is an implicit closure.
++// Twenty fields. For each side this carries the FULL VM-SIDE COORDINATES
++// needed to PROJECT toward SM1-G1 identity -- library URI, owner, VM kind,
++// declared name -- and then the same four for the synthetic parent when that
++// side is an implicit closure.
 +//
++// DELIBERATELY NOT CALLED "G1 IDENTITY". These are VM coordinates, not G1
++// identity: RegularFunction is VM vocabulary where G1 distinguishes method from
++// operator; a private name still carries its library key (_state@17145467)
++// rather than G1's declared name; and an extension member can appear here with
++// a synthetic top-level owner while G1 deliberately recovers the extension
++// owner. Projecting these onto G1 is the reader's job, against G1's retained
++// vmName/loweredName, and anything not uniquely projectable is UNKNOWN.
++//
++// Empty parent fields mean "not a synthetic child".
++//
++// SCHEMA 6 adds each side's DECLARING LIBRARY PRIVATE KEY, taken from
++// Library::private_key(). A private VM name carries that key as a suffix
++// (_state@17145467), and G5's reader must remove only the exact key -- a regex
++// over trailing digits could strip a legitimate name, and inferring the key
++// from the names it is supposed to validate would be circular. The compiler
++// knows it, so the compiler emits it. The wire contract changed, so the schema
++// version did too.
 +// Schema 4 carried only parent kind and name, which would have forced the
 +// reader to assume a child and its parent always share library and owner. That
 +// invariant is unstated and unproven, so the parent's library and owner are
@@ -32,12 +44,14 @@
 +                            const char* ca_lib, const char* ca_owner,
 +                            const char* ca_kind, const char* ca_name,
 +                            const char* ca_plib, const char* ca_powner,
-+                            const char* ca_pkind, const char* ca_pname);
++                            const char* ca_pkind, const char* ca_pname,
++                            const char* in_libkey, const char* in_plibkey,
++                            const char* ca_libkey, const char* ca_plibkey);
 +
  // The max page size on all supported architectures. Used to determine
  // the alignment of load segments, so that they are guaranteed page-aligned,
  // and no shared object section or segment should have a larger alignment.
-@@ -90,6 +120,10 @@
+@@ -90,6 +134,10 @@
    // capabilities this snapshot was actually compiled with.
    static constexpr const char kCapabilitiesNoteName[] =
        ".note.shorebird.capabilities";
@@ -48,7 +62,7 @@
    static constexpr const char kTextName[] = ".text";
    static constexpr const char kDataName[] = ".rodata";
    static constexpr const char kBssName[] = ".bss";
-@@ -98,6 +132,7 @@
+@@ -98,6 +146,7 @@
    void CreateBSS();
    void GenerateBuildId();
    void GenerateCapabilities();
@@ -56,8 +70,8 @@
    void InitializeSymbolTables();
    void FinalizeDwarfSections();
    void FinalizeEhFrame();
---- a/runtime/vm/elf.cc	2026-09-08 02:12:58
-+++ b/runtime/vm/elf.cc	2026-09-08 02:10:30
+--- a/runtime/vm/elf.cc
++++ b/runtime/vm/elf.cc
 @@ -1566,6 +1566,7 @@
    // Generate the build ID now that we have all user-provided sections.
    GenerateBuildId();
@@ -66,7 +80,7 @@
  
    // We add a BSS section in all cases, even to the separate debugging
    // information, to ensure that relocated addresses are consistent between ELF
-@@ -1742,7 +1743,89 @@
+@@ -1742,7 +1743,95 @@
  DECLARE_FLAG(bool, patchable_static_calls);
  
  static constexpr char kShorebirdNoteOwner[] = "Shorebird";
@@ -110,7 +124,7 @@
 +// dropped: silently losing it is what would make absence-from-the-note stop
 +// meaning not-inlined.
 +static bool shorebird_sealed = false;
-+
+ 
 +void ShorebirdRecordInlined(const char* in_lib, const char* in_owner,
 +                            const char* in_kind, const char* in_name,
 +                            const char* in_plib, const char* in_powner,
@@ -118,7 +132,9 @@
 +                            const char* ca_lib, const char* ca_owner,
 +                            const char* ca_kind, const char* ca_name,
 +                            const char* ca_plib, const char* ca_powner,
-+                            const char* ca_pkind, const char* ca_pname) {
++                            const char* ca_pkind, const char* ca_pname,
++                            const char* in_libkey, const char* in_plibkey,
++                            const char* ca_libkey, const char* ca_plibkey) {
 +  MutexLocker ml(shorebird_mutex());
 +  if (shorebird_sealed) {
 +    FATAL(
@@ -146,9 +162,13 @@
 +  shorebird_field(&rec, ca_powner);
 +  shorebird_field(&rec, ca_pkind);
 +  shorebird_field(&rec, ca_pname);
++  shorebird_field(&rec, in_libkey);
++  shorebird_field(&rec, in_plibkey);
++  shorebird_field(&rec, ca_libkey);
++  shorebird_field(&rec, ca_plibkey);
 +  shorebird_inlining->Add(Utils::StrDup(rec.buffer()));
 +}
- 
++
 +static int shorebird_cmp(const char* const* a, const char* const* b) {
 +  return strcmp(*a, *b);
 +}
@@ -156,7 +176,7 @@
  void ElfWriter::GenerateCapabilities() {
    ASSERT(section_table_->Find(kCapabilitiesNoteName) == nullptr);
    const char* const payload =
-@@ -1756,14 +1839,63 @@
+@@ -1756,14 +1845,64 @@
    stream.WriteFixed<decltype(elf::Note::name_size)>(
        sizeof(kShorebirdNoteOwner));
    stream.WriteFixed<decltype(elf::Note::description_size)>(description_length);
@@ -178,9 +198,10 @@
 +  ASSERT(section_table_->Find(kInliningNoteName) == nullptr);
 +  TextBuffer buf(1024);
 +  MutexLocker ml(shorebird_mutex());
-+  // schema 3: header, then a record count, then that many records of EIGHT
-+  // length-prefixed fields each (inlinee lib/owner/kind/name, then caller's).
-+  // No separators, so no field content can be read as structure.
++  // schema 6: header, then a record count, then that many records of TWENTY
++  // length-prefixed fields each -- per side the VM coordinates
++  // (lib/owner/kind/name) followed by the synthetic parent's. No separators, so
++  // no field content can be read as structure.
 +  intptr_t unique = 0;
 +  if (shorebird_inlining != nullptr) {
 +    shorebird_inlining->Sort(shorebird_cmp);
@@ -192,7 +213,7 @@
 +      previous = rec;
 +    }
 +  }
-+  buf.Printf("schema_version=5\nfields_per_record=16\nrecords=%" Pd "\n", unique);
++  buf.Printf("schema_version=6\nfields_per_record=20\nrecords=%" Pd "\n", unique);
 +  if (shorebird_inlining != nullptr) {
 +    const char* previous = nullptr;
 +    for (intptr_t i = 0; i < shorebird_inlining->length(); i++) {
@@ -222,8 +243,8 @@
  }
  
  void ElfWriter::GenerateBuildId() {
---- a/runtime/vm/compiler/backend/flow_graph_compiler.cc	2026-09-08 02:12:58
-+++ b/runtime/vm/compiler/backend/flow_graph_compiler.cc	2026-09-08 02:10:30
+--- a/runtime/vm/compiler/backend/flow_graph_compiler.cc
++++ b/runtime/vm/compiler/backend/flow_graph_compiler.cc
 @@ -3,6 +3,7 @@
  // BSD-style license that can be found in the LICENSE file.
  
@@ -232,7 +253,7 @@
  #include "vm/globals.h"  // Needed here to get TARGET_ARCH_XXX.
  
  #include "platform/utils.h"
-@@ -209,6 +210,107 @@
+@@ -209,6 +210,119 @@
  #else
    const bool stack_traces_only = false;
  #endif
@@ -255,7 +276,8 @@
 +                         const char** owner, const char** kind,
 +                         const char** name, const char** parent_lib,
 +                         const char** parent_owner, const char** parent_kind,
-+                         const char** parent_name) {
++                         const char** parent_name, const char** libkey,
++                         const char** parent_libkey) {
 +        *kind = Function::KindToCString(fn.kind());
 +        *name = fn.name() == String::null()
 +                    ? "<null>"
@@ -274,6 +296,7 @@
 +        *parent_owner = "";
 +        *parent_kind = "";
 +        *parent_name = "";
++        *parent_libkey = "";
 +        if (fn.IsImplicitClosureFunction()) {
 +          const Function& parent = Function::Handle(fn.parent_function());
 +          if (!parent.IsNull()) {
@@ -294,6 +317,9 @@
 +              *parent_lib = pl.IsNull() || pl.url() == String::null()
 +                                ? "<unknown>"
 +                                : String::Handle(pl.url()).ToCString();
++              *parent_libkey = pl.IsNull() || pl.private_key() == String::null()
++                                   ? "<unknown>"
++                                   : String::Handle(pl.private_key()).ToCString();
 +              *parent_owner = pc.IsTopLevel() ? "" : pc.ScrubbedNameCString();
 +            } else {
 +              *parent_lib = "<unknown>";
@@ -308,6 +334,7 @@
 +            *parent_name = "<unknown>";
 +          }
 +        }
++        *libkey = "";
 +        const Object& raw_owner = Object::Handle(fn.RawOwner());
 +        if (raw_owner.IsClass()) {
 +          const Class& cls = Class::Cast(raw_owner);
@@ -315,6 +342,11 @@
 +          *lib = l.IsNull() || l.url() == String::null()
 +                     ? "<unknown>"
 +                     : String::Handle(l.url()).ToCString();
++          // The declaring library's own private key, so the reader strips
++          // exactly this and nothing else.
++          *libkey = l.IsNull() || l.private_key() == String::null()
++                        ? "<unknown>"
++                        : String::Handle(l.private_key()).ToCString();
 +          // A top-level member's owner class is the library's synthetic
 +          // toplevel class; G1 records no owner for those.
 +          *owner = cls.IsTopLevel() ? "" : cls.ScrubbedNameCString();
@@ -325,15 +357,16 @@
 +          *owner = "<unknown>";
 +        }
 +      };
-+      const char *cl, *co, *ck, *cn, *cpl, *cpo, *cpk, *cpn;
++      const char *cl, *co, *ck, *cn, *cpl, *cpo, *cpk, *cpn, *clk, *cplk;
 +      describe(*info.inline_id_to_function[0], &cl, &co, &ck, &cn, &cpl, &cpo,
-+               &cpk, &cpn);
++               &cpk, &cpn, &clk, &cplk);
 +      for (intptr_t i = 1; i < info.inline_id_to_function.length(); i++) {
-+        const char *il, *io, *ik, *in_, *ipl, *ipo, *ipk, *ipn;
++        const char *il, *io, *ik, *in_, *ipl, *ipo, *ipk, *ipn, *ilk, *iplk;
 +        describe(*info.inline_id_to_function[i], &il, &io, &ik, &in_, &ipl,
-+                 &ipo, &ipk, &ipn);
++                 &ipo, &ipk, &ipn, &ilk, &iplk);
 +        dart::ShorebirdRecordInlined(il, io, ik, in_, ipl, ipo, ipk, ipn, cl,
-+                                     co, ck, cn, cpl, cpo, cpk, cpn);
++                                     co, ck, cn, cpl, cpo, cpk, cpn, ilk, iplk,
++                                     clk, cplk);
 +      }
 +    }
 +  }

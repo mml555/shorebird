@@ -450,3 +450,116 @@ Whether the call-site distinction implies `REDUCE_SCOPE` (detectable and
 conservatively excludable) or `MODIFY_MAP_DESIGN` (required for soundness but
 not representable per declaration) is deliberately NOT classified from the
 direct-attach nulls.
+
+---
+
+## Route 2 closeout: the four items required before `NOT_INLINED` is a safety fact
+
+Regenerated end to end by [`run_route2.sh`](run_route2.sh), which re-derives the
+patch, re-verifies the replay, rebuilds both AOTs, re-runs the reader, and
+re-runs both falsification sets with their positive controls. It exits non-zero
+if any of that fails, so the transcripts below cannot drift from the tree.
+
+### 1. Schema-6 exact private-key carrier — done
+
+The producer emits each side's declaring-library key from
+`Library::private_key()`, so the reader removes that **exact** key or refuses.
+No regex over `@<digits>`, and never `String::ScrubName`, which also rewrites
+`get:`/`set:`. Twenty fields per record, versioned, and provenance regenerated:
+`0002` re-derived as a true incremental patch against the git-recovered frozen
+base, replay verified byte-for-byte across all three files, producer and AOT
+digests recomputed.
+
+The subject changed. `app_s6.aot` is withdrawn as a provenance carrier because
+its input kernel could no longer be identified in the work directory, so its
+note was not reproducible from a recorded recipe. `app_s6r.aot` is built by a
+recorded recipe from a named kernel. Per-declaration verdicts are identical
+between the two, so nothing was traded away for the reproducibility.
+
+### 2. Mapper tightened — done
+
+Matching is on `vmName`/`loweredName` only; the canonical `name` fallback is
+gone. Owner must agree, with one exception made explicit from G1's own lowering
+metadata (`ownerKind in {extension, extension_type}`), because extension
+lowering gives the VM a synthetic top-level owner while G1 recovers the
+extension owner.
+
+### 3. Full adversarial falsification — done
+
+28 arms, [`evidence/reader_falsification.txt`](evidence/reader_falsification.txt):
+note identity (forged owner, an ordinary `GNU` owner, wrong `n_type`, wrong
+`sh_type`, two sections claiming the name, live bytes trailing the note inside
+its own section, a genuine second Shorebird note in that section, the section
+renamed away), section-table and name integrity (`e_shoff` out of bounds,
+`e_shstrndx >= e_shnum`, undersized `e_shentsize`, `sh_name` past the string
+table, unterminated section names, a section name that is not valid UTF-8,
+`sh_offset`/`sh_size` past EOF), schema and framing (wrong schema, wrong field
+count, a declared count that disagrees with the payload, an inflated field
+length, a non-numeric field length, a record field that is not valid UTF-8, not
+an ELF file, ELF32), and mapper identity (`vmName`/`loweredName` diverging from
+a still-matching canonical `name`, a disagreeing owner, a kind moved out of the
+projected set).
+
+Every arm asserts the reader **produced output** — a parser exception must
+resolve to a modeled `UNKNOWN`, never a crash, because a crash writes no rows
+and an absent row must never be read as a safe row — and that **no candidate is
+reported `NOT_INLINED`**.
+
+The harness is shown able to fail: against a reader whose completeness gate is
+removed, 27 of 28 arms flip to `FAIL` and name the `NOT_INLINED` rows they
+manufactured.
+
+An earlier run of this set is **withdrawn**. It read its output file without
+deleting it first, so a crashed run reported the previous arm's result and two
+arms were recorded as caught when the reader had in fact crashed. Fixing the
+harness exposed three real reader defects: an out-of-bounds `e_shoff` raised
+`struct.error`; an unterminated section name raised `ValueError`; and the reader
+checked that only one *section* carried the note name but never that the note
+consumed its section, so a second Shorebird note appended inside the same
+section would have been silently ignored.
+
+### 4. Recorder completeness — done, and it bounds the claim
+
+[`evidence/recorder_completeness.md`](evidence/recorder_completeness.md) is the
+argument; [`lib/verify_completeness.sh`](lib/verify_completeness.sh) re-derives
+every count and gate from the tree and exits non-zero on drift. It caught an
+error in the document while that document was being written.
+
+* Every copy of a Dart body's IL into another function is registered by
+  `FlowGraphInliner::NextInlineId`, which has **exactly one caller** in the
+  tree; the recorder reads that registry in the `FlowGraphCompiler` constructor,
+  and AOT has **exactly one** `FlowGraphCompiler` construction site.
+* The recorder runs before code is finalized, so a discarded recompilation
+  **over**-records. Over-recording withdraws a safety claim; it cannot
+  manufacture one.
+* A second family — the `CallSpecializer` replacements — materializes a callee's
+  semantics with no inline id. Its gates close for recognized methods
+  (`recognized_kind` is assigned in one place, from a closed macro list naming
+  built-in VM libraries; the `vm:recognized` pragma is a `DEBUG` check, not an
+  assignment) and for operators on application classes (every branch requires
+  operand class ids from a fixed VM-primitive set). They do **not** close for a
+  field's VM-synthesized implicit accessors.
+
+So the reader admits `NOT_INLINED` only for `method`, `getter`, `setter` and
+`operator`. `field`, `constructor` and `factory` are candidates that **refuse**,
+each naming the mechanism; `class` rows are reported as declaring no body; any
+unclassified kind fails closed. The reader asserts
+`len(states) + len(no_body_rows) == len(g1_rows)` and exits non-zero otherwise,
+so no G1 row can silently disappear.
+
+Two limits are stated rather than closed: front-end (CFE/`gen_kernel`) constant
+materialization happens before the VM compiler and cannot appear in this note,
+which is why `field` refuses rather than resting on the registry argument alone;
+and the completeness enumeration covers the AOT path only, not JIT.
+
+### Current reader state
+
+`validated=True complete=True`, 0 in-scope unprojected, 3,010 out-of-scope,
+36 of 36 G1 rows accounted for, `{INLINED: 2, NOT_INLINED: 15, UNKNOWN: 14}`.
+Note content is deterministic across two runs on the same input kernel and the
+verdicts are identical, while the two whole-AOT hashes differ.
+
+Still not authorized, and not done: predictor wiring, subset scoring, G5
+classification, and virtual/instance dispatch — the `Base.work` bypass remains a
+separate unresolved mechanism. #47 remains open, independent, and off this
+critical path.

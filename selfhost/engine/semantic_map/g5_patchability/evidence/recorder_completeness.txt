@@ -1,0 +1,83 @@
+SM1-G5 route 2 -- recorder completeness, re-derived from source
+generated 2026-09-08T18:39:55Z by run_route2.sh
+The enumeration in evidence/recorder_completeness.md is not transcribed;
+this run re-derives every count and gate from the tree.
+
+PROVENANCE
+  2c265c17c83cced5e717c1ebababa30d71f5115fa31f925959765ab2a1fe8ecd  lib/verify_completeness.sh
+  a47bf4c473cd43c0a5f50e11ec229b770c877f5b7417598dcc65e1cc0e4a9355  evidence/recorder_completeness.md
+  effective Dart tree 7b04b01bdc10ec990143257f0d28580571c2122f
+  revision            9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
+
+================= RUN: the tree the evidence was built from ================
+recorder completeness, re-derived from /Volumes/build/g5_marker/src/flutter/third_party/dart/runtime
+  pass  FlowGraphCompiler construction sites                       3
+  pass  of which in aot/precompiler.cc                             1
+  pass  of which in jit/compiler.cc                                1
+  pass  of which in test helpers                                   1
+  pass  appends to inline_id_to_function                           3
+  pass  NextInlineId call sites (excluding decl/defn)              1
+  pass  NextInlineId call site is in inliner.cc                    1
+  pass  TryInlineInstanceGetter gated on kImplicitGetter           1
+  pass  TryInlineInstanceSetter gated on kImplicitSetter           1
+  pass  TryInlineRecognizedMethod switches on recognized_kind      1
+  pass  set_recognized_kind assignments (non-default)              1
+  pass  that assignment is in method_recognizer.cc                 1
+  pass  vm:recognized is a DEBUG check, not an assignment          1
+  pass  recognized library set unchanged                           AsyncLibrary CompactHashLibrary ConvertLibrary CoreLibrary DeveloperLibrary FfiLibrary InternalLibrary IsolateLibrary MathLibrary NativeWrappersLibrary TypedDataLibrary VMLibrary
+
+SM1_G5_RECORDER_COMPLETENESS: ENUMERATION_HOLDS
+exit=0
+
+===================== POSITIVE CONTROL: it can fail =======================
+An enumeration that cannot come out wrong proves nothing. The same checks run
+against a clone of the tree with one planted addition -- a second function that
+calls FlowGraphInliner::NextInlineId, i.e. exactly the shape of a new
+registration site the completeness argument would have to account for. Both
+NextInlineId checks must flip.
+
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+  File "/opt/homebrew/Cellar/python@3.13/3.13.11/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 546, in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.11/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_abc.py", line 632, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.11/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/sm1_g5_in/route2_ctl/runtime/vm/compiler/backend/inliner.cc'
+recorder completeness, re-derived from /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/route2_ctl/runtime
+  pass  FlowGraphCompiler construction sites                       3
+  pass  of which in aot/precompiler.cc                             1
+  pass  of which in jit/compiler.cc                                1
+  pass  of which in test helpers                                   1
+  pass  appends to inline_id_to_function                           3
+  pass  NextInlineId call sites (excluding decl/defn)              1
+  pass  NextInlineId call site is in inliner.cc                    1
+awk: can't open file /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/route2_ctl/runtime/vm/compiler/call_specializer.cc
+ source line number 1
+  FAIL  TryInlineInstanceGetter gated on kImplicitGetter           got 0, expected 1
+awk: can't open file /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/route2_ctl/runtime/vm/compiler/call_specializer.cc
+ source line number 1
+  FAIL  TryInlineInstanceSetter gated on kImplicitSetter           got 0, expected 1
+awk: can't open file /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/route2_ctl/runtime/vm/compiler/call_specializer.cc
+ source line number 1
+  FAIL  TryInlineRecognizedMethod switches on recognized_kind      got 0, expected 1
+  pass  set_recognized_kind assignments (non-default)              1
+  pass  that assignment is in method_recognizer.cc                 1
+awk: can't open file /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/route2_ctl/runtime/vm/object.cc
+ source line number 1
+  FAIL  vm:recognized is a DEBUG check, not an assignment          got 0, expected 1
+grep: /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/route2_ctl/runtime/vm/compiler/recognized_methods_list.h: No such file or directory
+  FAIL  recognized library set unchanged                           got , expected AsyncLibrary CompactHashLibrary ConvertLibrary CoreLibrary DeveloperLibrary FfiLibrary InternalLibrary IsolateLibrary MathLibrary NativeWrappersLibrary TypedDataLibrary VMLibrary
+
+SM1_G5_RECORDER_COMPLETENESS: ENUMERATION_DRIFTED
+exit=1
+
+NOTE
+This verifier found an error in the document it checks: recorder_completeness.md
+had transcribed the last recognized library as `M` rather than `VM`, because the
+list had been extracted with a `tr -d` that stripped the leading V. The document
+was corrected; the run above is against the corrected text.

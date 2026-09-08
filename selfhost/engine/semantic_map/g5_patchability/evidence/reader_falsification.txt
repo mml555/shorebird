@@ -1,0 +1,127 @@
+SM1-G5 route 2 -- adversarial falsification of the strict reader
+generated 2026-09-08T18:39:51Z by run_route2.sh
+
+PROVENANCE
+  8a70d419592c609fb56d50f55aefab2b3cdf095be11294efda4b5a659ab8616e  lib/read_inlining.py
+  1f4c3d99eab00a11cd378340b8c7e48023a046fa5e6068e45ea73707afaaeb78  lib/falsify_reader.py
+  8592e54d1c31e7e963bd338a315b3180726fea12ac83d1e6424d005ba150fc30  app_s6r.aot (subject)
+  b9b29d23f37e5e11a5ab181f7f9674c5a482f52b5bcd0483272e6f57c0f90550  g2_r.json (G1 projection)
+
+WHAT EACH ARM ASSERTS
+  1. the reader produced output -- a parser exception must resolve to a modeled
+     UNKNOWN, never a crash. A crash writes no rows, and an absent row must
+     never be read as a safe row.
+  2. note_validated equals the value the arm expects. ELF/framing arms expect
+     False; arms that mutate only the G1 projection expect True, because the
+     note itself is still validly framed -- a False there would mean the arm
+     tested something other than what it claims.
+  3. the projection is reported incomplete.
+  4. NO candidate is reported NOT_INLINED. NOT_INLINED is the safety fact this
+     gate wants to use, so no mutation may be able to manufacture one.
+  Arms that name a declaration additionally assert it is not INLINED.
+
+=========================== RUN: shipped reader ===========================
+arm                                                        result detail
+----------------------------------------------------------------------------------------------------
+BASELINE unmodified                                        pass   validated=True complete=True {'INLINED': 2, 'NOT_INLINED': 15, 'UNKNOWN': 14}
+owner forged, same length (Shorebirx)                      pass   {'UNKNOWN': 31} <- owner is b'ShorebirX\x00' (name_size=10), expected b'Shorebird\x00' (10)
+owner replaced with an ordinary GNU owner                  pass   {'UNKNOWN': 31} <- owner is b'GNU\x00' (name_size=4), expected b'Shorebird\x00' (10)
+note n_type 2 -> 9                                         pass   {'UNKNOWN': 31} <- note type=9, expected 2
+sh_type SHT_NOTE -> PROGBITS                               pass   {'UNKNOWN': 31} <- sh_type=1, expected SHT_NOTE
+two sections claiming the note name                        pass   {'UNKNOWN': 31} <- 2 sections named .note.shorebird.inlining; a duplicate or conflicting note cannot establish anyt
+live bytes trail the note inside its own section           pass   {'UNKNOWN': 31} <- 576594 bytes follow the note inside its own section; a duplicate or conflicting note cannot esta
+a second Shorebird note in the same section                pass   {'UNKNOWN': 31} <- 576594 bytes follow the note inside its own section; a duplicate or conflicting note cannot esta
+note section renamed (note absent)                         pass   {'UNKNOWN': 31} <- no .note.shorebird.inlining section
+e_shoff out of bounds                                      pass   {'UNKNOWN': 31} <- section table wants bytes 6082400..6083552 of a 1520600-byte file
+e_shstrndx >= e_shnum                                      pass   {'UNKNOWN': 31} <- e_shstrndx=25 is not below e_shnum=18
+e_shentsize too small for ELF64                            pass   {'UNKNOWN': 31} <- e_shentsize=8, too small for an ELF64 section header
+sh_name index past the string table                        pass   {'UNKNOWN': 31} <- section name offset 4296261488 lies outside the 1520600-byte file
+section names unterminated (no NUL in shstrtab)            pass   {'UNKNOWN': 31} <- no .note.shorebird.inlining section
+section name is not valid UTF-8                            pass   {'UNKNOWN': 31} <- section name at 1294521 is not valid UTF-8: 'utf-8' codec can't decode byte 0xff in position 6: 
+note sh_offset past EOF                                    pass   {'UNKNOWN': 31} <- note section extent wants bytes 1520596..2097276 of a 1520600-byte file
+note sh_size past EOF                                      pass   {'UNKNOWN': 31} <- note section extent wants bytes 556..3041756 of a 1520600-byte file
+schema_version 6 -> 9                                      pass   {'UNKNOWN': 31} <- schema_version=b'9', this reader understands 6
+fields_per_record 20 -> 99                                 pass   {'UNKNOWN': 31} <- fields_per_record=b'99', expected 20
+declared record count disagrees with the payload           pass   {'UNKNOWN': 31} <- parsed 3021 records but the header declares 9999
+first field length inflated                                pass   {'UNKNOWN': 31} <- bad field length b'ureFunction11'
+field length is not an integer                             pass   {'UNKNOWN': 31} <- bad field length b'xx'
+record field is not valid UTF-8                            pass   {'UNKNOWN': 31} <- record field at offset 3 is not valid UTF-8: 'utf-8' codec can't decode byte 0xff in position 0:
+not an ELF file                                            pass   {'UNKNOWN': 31} <- not an ELF file
+ELF32, which this reader does not model                    pass   {'UNKNOWN': 31} <- not ELF64; this reader does not model ELF32
+vmName/loweredName diverge from canonical name (_inlineHelper) pass   {'UNKNOWN': 30, 'INLINED': 1} <- 
+G1 owner disagrees with the record owner (_inlineHelper)   pass   {'UNKNOWN': 30, 'INLINED': 1} <- 
+G1 kind moved outside the projected set (_inlineHelper)    pass   {'UNKNOWN': 30, 'INLINED': 1} <- 
+----------------------------------------------------------------------------------------------------
+arms=28 passed=28 failed=0
+SM1_G5_READER_FALSIFICATION: ALL_ARMS_REFUSED
+exit=0
+
+=================== POSITIVE CONTROL: the harness can fail ================
+A falsification set that cannot fail certifies nothing. The same arms are
+re-run against a copy of the shipped reader with exactly two edits --
+
+    complete = note_ok and not unprojected   ->   complete = True
+    elif not note_ok:                        ->   elif False:
+
+-- i.e. a reader that trusts an unvalidated note. Every arm must flip to FAIL
+and say so by naming the manufactured NOT_INLINED rows.
+
+arm                                                        result detail
+----------------------------------------------------------------------------------------------------
+BASELINE unmodified                                        pass   validated=True complete=True {'INLINED': 2, 'NOT_INLINED': 15, 'UNKNOWN': 14}
+owner forged, same length (Shorebirx)                      FAIL   projection reported complete; manufactured 18 NOT_INLINED
+owner replaced with an ordinary GNU owner                  FAIL   projection reported complete; manufactured 18 NOT_INLINED
+note n_type 2 -> 9                                         FAIL   projection reported complete; manufactured 18 NOT_INLINED
+sh_type SHT_NOTE -> PROGBITS                               FAIL   projection reported complete; manufactured 18 NOT_INLINED
+two sections claiming the note name                        FAIL   projection reported complete; manufactured 18 NOT_INLINED
+live bytes trail the note inside its own section           FAIL   projection reported complete; manufactured 18 NOT_INLINED
+a second Shorebird note in the same section                FAIL   projection reported complete; manufactured 18 NOT_INLINED
+note section renamed (note absent)                         FAIL   projection reported complete; manufactured 18 NOT_INLINED
+e_shoff out of bounds                                      FAIL   projection reported complete; manufactured 18 NOT_INLINED
+e_shstrndx >= e_shnum                                      FAIL   projection reported complete; manufactured 18 NOT_INLINED
+e_shentsize too small for ELF64                            FAIL   projection reported complete; manufactured 18 NOT_INLINED
+sh_name index past the string table                        FAIL   projection reported complete; manufactured 18 NOT_INLINED
+section names unterminated (no NUL in shstrtab)            FAIL   projection reported complete; manufactured 18 NOT_INLINED
+section name is not valid UTF-8                            FAIL   projection reported complete; manufactured 18 NOT_INLINED
+note sh_offset past EOF                                    FAIL   projection reported complete; manufactured 18 NOT_INLINED
+note sh_size past EOF                                      FAIL   projection reported complete; manufactured 18 NOT_INLINED
+schema_version 6 -> 9                                      FAIL   projection reported complete; manufactured 18 NOT_INLINED
+fields_per_record 20 -> 99                                 FAIL   projection reported complete; manufactured 18 NOT_INLINED
+declared record count disagrees with the payload           FAIL   projection reported complete; manufactured 18 NOT_INLINED
+first field length inflated                                FAIL   projection reported complete; manufactured 18 NOT_INLINED
+field length is not an integer                             FAIL   projection reported complete; manufactured 18 NOT_INLINED
+record field is not valid UTF-8                            FAIL   projection reported complete; manufactured 18 NOT_INLINED
+not an ELF file                                            FAIL   projection reported complete; manufactured 18 NOT_INLINED
+ELF32, which this reader does not model                    FAIL   projection reported complete; manufactured 18 NOT_INLINED
+vmName/loweredName diverge from canonical name (_inlineHelper) FAIL   projection reported complete; manufactured 16 NOT_INLINED
+G1 owner disagrees with the record owner (_inlineHelper)   FAIL   projection reported complete; manufactured 16 NOT_INLINED
+G1 kind moved outside the projected set (_inlineHelper)    FAIL   projection reported complete; manufactured 15 NOT_INLINED
+----------------------------------------------------------------------------------------------------
+arms=28 passed=1 failed=27
+SM1_G5_READER_FALSIFICATION: DEFECTS_PRESENT
+exit=1
+
+WITHDRAWN EARLIER RUN, AND THE THREE DEFECTS IT WAS HIDING
+An earlier version of this harness read its output file without deleting it
+first. A run that crashed before writing therefore reported the PREVIOUS arm's
+result, so two arms were recorded as correctly caught when the reader had in
+fact crashed. That run is withdrawn, not annotated. Deleting the output first
+exposed three real reader defects:
+
+  1. an out-of-bounds e_shoff raised struct.error, killing the process instead
+     of resolving to UNKNOWN;
+  2. an unterminated section name raised ValueError, likewise;
+  3. found while writing the new arms -- the reader checked that only one
+     SECTION carried the note name, but never that the note consumed its
+     section, so a second Shorebird note appended inside the same section
+     would have been silently ignored.
+
+All three are fixed and each now has its own arm above. Every read is
+bounds-checked, every decode is modeled, an unreadable file is modeled, and a
+backstop turns any remaining parser exception into a labeled UNKNOWN rather
+than a crash.
+
+SUBJECT CHANGED. Earlier runs used app_s6.aot, whose input kernel could no
+longer be identified in the work directory, so its note was not reproducible
+from a recorded recipe. This run uses app_s6r.aot, built by the recipe in
+reader_state.txt. Per-declaration verdicts are identical between the two.
