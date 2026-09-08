@@ -161,3 +161,71 @@ date : 2026-09-08T04:10:34Z
   release-derived per-declaration inlining fact IS obtainable from the compiler
   and agrees with observed behaviour -- which is evidence about feasibility, not
   a classification.
+
+############ ROUTE 2, HARDENED — three blockers closed ############
+date : 2026-09-08T04:37:20Z
+
+  1. THE RECORDER COULD SILENTLY LOSE ENTRIES, which made every FALSE
+     untrustworthy. The mutex was created lazily OUTSIDE any synchronization,
+     so two compiler threads could each construct their own and then mutate the
+     shared registry under different locks. A dropped record reads as "not
+     inlined" -- the false-safe condition this gate exists to prevent.
+
+     The mutex is now a function-local static, whose initialization C++11
+     guarantees thread-safe and which lives for the process. All registry
+     access is under it.
+
+     DETERMINISM, since scheduling must not change the artifact: entries are
+     sorted and de-duplicated at emission. Verified by building the same
+     release twice --
+
+       note schema_version=2, 3348 lines
+       sorted: True    deduplicated: True
+       identical across two builds: True
+
+     (The pre-dedup count was 4785; the difference is repeated pairs, not lost
+     ones.)
+
+  2. THE NAME STRING WAS NOT JOINABLE. ToLibNamePrefixedQualifiedCString()
+     selects library.name(), while SM1-G1 keys on the library URI -- so the
+     canonical URI was simply absent, and no reverse parser could recover it.
+     Identity is now emitted STRUCTURED, from the compiler's own handles:
+
+       library URI # owner # kind # declared name
+
+     e.g. the subject and its two call sites:
+
+       package:dynamic_modules/callsite_target.dart##RegularFunction#smallTarget
+           INTO  package:dynamic_modules/callsite_target.dart##RegularFunction#callsSmall
+       package:dynamic_modules/callsite_target.dart##RegularFunction#smallTarget
+           INTO  package:dynamic_modules/callsite_target.dart##RegularFunction#_state@17145467
+
+     Owner is empty for a top-level member, matching G1, which records no owner
+     for those. A function whose owner is not a Class is emitted as
+     "<unknown>#<unknown>" rather than guessed -- the consumer must treat those
+     as UNKNOWN, never as not-inlined.
+
+     STILL UNRESOLVED, and deliberately not papered over: the kind vocabulary is
+     the VM's (RegularFunction, GetterFunction, Constructor,
+     ImplicitClosureFunction), not G1's (method, getter, constructor); private
+     names carry a library-hash suffix (_state@17145467); and the same declared
+     name appears under more than one kind (RegularFunction and
+     ImplicitClosureFunction for smallTarget). Mapping these to G1 identity, with
+     anything not uniquely mappable refusing as UNKNOWN, is the next task and is
+     NOT done.
+
+  3. THE REPLAY RECIPE WAS AMBIGUOUS. 0002 was generated against the frozen base
+     and so re-contained 0001's changes, leaving it unclear whether it was
+     cumulative or incremental. 0002 is now a TRUE INCREMENTAL patch against
+     frozen+0001, and the stack is verified:
+
+       frozen + 0001 + 0002  ==  the built clone, byte for byte, all three files
+
+  BOUND TO THE ARTIFACT: full AOT sha256 in instrumentation/MANIFEST.json under
+  route2_witness.
+
+  NOT DONE, and not authorized yet: an explicit INLINED / NOT_INLINED / UNKNOWN
+  state for every G2 candidate; note validation and its corruption, duplicate,
+  schema, type and owner falsifications; proof that absence is COMPLETE rather
+  than merely not-observed; predictor consumption. The virtual/instance dispatch
+  hazard remains its own separate mechanism. No classification is made.
