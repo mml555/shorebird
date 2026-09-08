@@ -17,6 +17,9 @@ W="${2:?usage: run_subset.sh <clone-src> <workdir>}"
 G="$(cd "$(dirname "$0")" && pwd)"
 S="$SRC/out/host_release_arm64"
 DT="$SRC/flutter/third_party/dart"
+SM="$(cd "$G/.." && pwd)"
+PKG="--packages=$DT/.dart_tool/package_config.json"
+INC="package:dynamic_modules/callsite_target.dart"
 SUBJ="$W/app_release.aot"
 rc=0
 ASSERTIONS=()
@@ -33,8 +36,8 @@ PRODUCER_FAILED=""
 
 [ -f "$SUBJ" ] || { echo "MISSING $SUBJ -- run run_route2.sh first"; exit 2; }
 rm -f "$W/release_contract.json" "$W/predictions.json" "$W/demonstrated.json" \
-      "$W/subset.json" "$W/empty_rows.json"
-python3 -c "import json,sys;json.dump({'rows':[]},open(sys.argv[1],'w'))" "$W/empty_rows.json"
+      "$W/subset.json" "$W/g1_regen.json" "$W/g3_rows.json" "$W/g4_rows.json" \
+      "$W/refs_rows.json"
 
 {
 echo "SM1-G5 Phase D -- predicted patchable SUBSET-OF demonstrated patchable"
@@ -58,20 +61,44 @@ print(f"  release_aot_sha256 {d['release_aot_sha256']}")
 print(f"  contract rows     {len(d['rows'])}")
 PY
 echo
-echo "############ 2. PREDICTION -- RELEASE EVIDENCE ONLY ############"
+echo "############ 2. THE EVIDENCE CHAIN, REGENERATED ############"
 cat <<'TXT'
-  G3 privacy rows, G4 retention rows and body-reference rows DO NOT EXIST for
-  this corpus -- no checked-in producer emits them for
-  package:dynamic_modules/*. They are supplied as empty, which is not a
-  convenience: the predictor treats a missing row as unproven and refuses. The
-  run below is therefore a real end-to-end prediction whose refusals include
-  "this evidence was never produced".
+  CORRECTION. An earlier version of this transcript said no checked-in script
+  produces the G1 projection, privacy rows, retention rows or body-reference
+  rows for this corpus. That was WRONG. All four producers are checked in and
+  run; they had simply never been pointed at this library. They are regenerated
+  here, so the prediction rests on produced evidence rather than on empty
+  inputs standing in for missing ones.
 TXT
 echo
+( cd "$W" && "$S/dart" $PKG "$SM/g2_fingerprints/lib/gen_map_rows.dart" \
+    --dill release3.dill --pre-dill pre_r.dill --include "$INC" \
+    --out g1_regen.json ) || { PRODUCER_FAILED="${PRODUCER_FAILED}g1; "; rc=1; }
+( cd "$W" && "$S/dart" $PKG "$SM/g3_privacy/lib/gen_privacy_rows.dart" \
+    --dill release3.dill --pre-dill pre_r.dill --include "$INC" \
+    --out g3_rows.json ) || { PRODUCER_FAILED="${PRODUCER_FAILED}g3; "; rc=1; }
+( cd "$W" && "$S/dart" $PKG "$SM/g4_retention/lib/gen_retention_rows.dart" \
+    --dill release3.dill --enforcement "$SM/g4_retention/evidence/arms.json" \
+    --include "$INC" --out g4_rows.json ) \
+  || { PRODUCER_FAILED="${PRODUCER_FAILED}g4; "; rc=1; }
+( cd "$W" && "$S/dart" $PKG "$G/lib/body_references.dart" \
+    --dill release3.dill --include "$INC" --out refs_rows.json ) \
+  || { PRODUCER_FAILED="${PRODUCER_FAILED}refs; "; rc=1; }
+echo
+echo "  the regenerated G1 projection must equal the banked copy BYTE FOR BYTE:"
+if cmp -s "$W/g1_regen.json" "$G/evidence/g1_projection.json"; then
+  echo "    equal  $(sha "$W/g1_regen.json")"
+else
+  echo "    DIFFERS"
+  echo "      regenerated $(sha "$W/g1_regen.json")"
+  echo "      banked      $(sha "$G/evidence/g1_projection.json")"
+  rc=1
+fi
+echo
+echo "############ 3. PREDICTION -- RELEASE EVIDENCE ONLY ############"
 must predictor "$S/dart" "$G/lib/predict_patchable.dart" \
-    --g2 "$G/evidence/g1_projection.json" \
-    --g3 "$W/empty_rows.json" --g4 "$W/empty_rows.json" \
-    --refs "$W/empty_rows.json" \
+    --g2 "$W/g1_regen.json" --g3 "$W/g3_rows.json" --g4 "$W/g4_rows.json" \
+    --refs "$W/refs_rows.json" \
     --release-contract "$W/release_contract.json" \
     --inlining-state "$G/evidence/inlining_state.json" \
     --out "$W/predictions.json"
@@ -85,7 +112,7 @@ for k, v in sorted(d['refusal_histogram'].items(), key=lambda x: (-x[1], x[0])):
     print(f"    {v:3}  {k}")
 PY
 echo
-echo "############ 3. DEMONSTRATION -- THE SHIPPING PATH ############"
+echo "############ 4. DEMONSTRATION -- THE SHIPPING PATH ############"
 must demonstration python3 "$G/lib/collect_demonstration.py" \
     "$S/dartaotruntime" "$SUBJ" "$G/evidence/g1_projection.json" \
     "$G/probe/callsite_target.dart" "$W/demonstrated.json" \
@@ -103,11 +130,11 @@ cat <<'TXT'
   go unobserved.
 TXT
 echo
-echo "############ 4. THE SUBSET CHECK ############"
+echo "############ 5. THE SUBSET CHECK ############"
 must scorer python3 "$G/lib/score_subset.py" "$W/predictions.json" \
     "$W/demonstrated.json" "$W/subset.json"
 echo
-echo "############ 5. THE SCORER MUST BE ABLE TO FAIL ############"
+echo "############ 6. THE SCORER MUST BE ABLE TO FAIL ############"
 cat <<'TXT'
   The subset property is trivially satisfied while nothing is predicted
   patchable, so the verdict alone carries no information. What carries
@@ -118,20 +145,22 @@ echo
 python3 "$G/lib/falsify_subset.py" "$W/predictions.json" "$W/demonstrated.json" "$W"
 echo "exit=$?  (asserted: 0)"
 echo
-echo "############ 6. CORPORA STILL OUTSTANDING ############"
+echo "############ 7. CORPORA STILL OUTSTANDING ############"
 cat <<'TXT'
   Phase D requires the adversarial corpus, Wonderous and LocalSend. Only the
   adversarial corpus is run here.
 
-  Wonderous and LocalSend checkouts exist under /Volumes/build/route-b, but the
-  subset check needs, per corpus: a G1 projection, G3 privacy rows, G4
-  retention rows and body-reference rows. NO CHECKED-IN SCRIPT PRODUCES ANY OF
-  THEM -- not even for this 36-row probe, whose g2_r.json was a work-directory
-  artifact now banked as evidence/g1_projection.json precisely because it could
-  not be regenerated.
+  The producer chain is NOT the blocker -- section 2 corrects that. What each
+  app corpus additionally needs is its own release built through this exact
+  toolchain: a kernel compiled WITH --dynamic-interface, an AOT from the
+  instrumented gen_snapshot, a generated dynamic interface, patch containers
+  for chosen targets, and a probe-equivalent call-site map so a demonstration
+  can say which printed behaviour belongs to which declaration. The last item
+  is the hard one: this corpus has _state(), and a real app has no equivalent,
+  so "every observed ordinary call site moved" has no mechanical reading yet
+  for Wonderous or LocalSend.
 
-  So the blocker is a missing producer chain, not compute. Running the two app
-  corpora is not attempted and is NOT reported as passing.
+  Running them is not attempted and is NOT reported as passing.
 TXT
 } > "$G/evidence/subset_check.txt" 2>&1
 
@@ -144,6 +173,14 @@ want 'route 2 evidence is bound to the same artifact' \
      "$(python3 -c "import json;print(json.load(open('$G/evidence/inlining_state.json'))['diagnostics']['aot_sha256'])")"
 want 'the subset property holds' SUBSET_HOLDS \
      "$(python3 -c "import json;print(json.load(open('$W/subset.json'))['verdict'])" 2>/dev/null)"
+want 'the G1 projection regenerates byte-identically' '' \
+     "$(cmp -s "$W/g1_regen.json" "$G/evidence/g1_projection.json" || echo differs)"
+want 'real privacy evidence reached the predictor' True \
+     "$(python3 -c "import json;h=json.load(open('$W/predictions.json'))['refusal_histogram'];print(h.get('PRIVATE_TYPE_REFERENCE',0)>0)" 2>/dev/null)"
+want 'real retention evidence reached the predictor' True \
+     "$(python3 -c "import json;h=json.load(open('$W/predictions.json'))['refusal_histogram'];print(h.get('MISSING_CAN_BE_OVERRIDDEN',0)>0)" 2>/dev/null)"
+want 'body-reference evidence was produced, not stubbed' 0 \
+     "$(python3 -c "import json;h=json.load(open('$W/predictions.json'))['refusal_histogram'];print(h.get('BODY_REFERENCES_UNPROVEN',0))" 2>/dev/null)"
 want 'route 2 actually reached the predictor' 2 \
      "$(python3 -c "import json;print(json.load(open('$W/predictions.json'))['refusal_histogram'].get('INLINED_BODY',0))" 2>/dev/null)"
 python3 "$G/lib/falsify_subset.py" "$W/predictions.json" "$W/demonstrated.json" "$W" >/dev/null 2>&1

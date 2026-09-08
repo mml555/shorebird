@@ -1,5 +1,5 @@
 SM1-G5 Phase D -- predicted patchable SUBSET-OF demonstrated patchable
-generated 2026-09-08T20:46:42Z by run_subset.sh
+generated 2026-09-08T20:52:52Z by run_subset.sh
 
 SUBJECT (the canonical release, taken not rebuilt)
   7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34  app_release.aot
@@ -13,29 +13,40 @@ SUBJECT (the canonical release, taken not rebuilt)
   release_aot_sha256 7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34
   contract rows     167
 
-############ 2. PREDICTION -- RELEASE EVIDENCE ONLY ############
-  G3 privacy rows, G4 retention rows and body-reference rows DO NOT EXIST for
-  this corpus -- no checked-in producer emits them for
-  package:dynamic_modules/*. They are supplied as empty, which is not a
-  convenience: the predictor treats a missing row as unproven and refuses. The
-  run below is therefore a real end-to-end prediction whose refusals include
-  "this evidence was never produced".
+############ 2. THE EVIDENCE CHAIN, REGENERATED ############
+  CORRECTION. An earlier version of this transcript said no checked-in script
+  produces the G1 projection, privacy rows, retention rows or body-reference
+  rows for this corpus. That was WRONG. All four producers are checked in and
+  run; they had simply never been pointed at this library. They are regenerated
+  here, so the prediction rests on produced evidence rather than on empty
+  inputs standing in for missing ones.
 
+wrote g1_regen.json  rows=36
+  rows=36 private=12 write-collapsed=0 -> g3_rows.json
+  retention rows=36 -> g4_rows.json
+  bodies=31 private-type-refs=4 private-writes=0 traversal-refused=0 -> refs_rows.json
+
+  the regenerated G1 projection must equal the banked copy BYTE FOR BYTE:
+    equal  b9b29d23f37e5e11a5ab181f7f9674c5a482f52b5bcd0483272e6f57c0f90550
+
+############ 3. PREDICTION -- RELEASE EVIDENCE ONLY ############
   predictions=36 patchable=0 refused=36 -> /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/predictions.json
   declarations        36
   predicted patchable 0
   refusal histogram:
+     20  RETENTION_UNPROVEN
      18  ABI_SHAPE_UNSUPPORTED
-     18  BODY_REFERENCES_UNPROVEN
      18  CALL_SITE_SHAPE_UNPROVEN
      18  FRONTEND_MATERIALIZATION_UNPROVEN
-     18  RETENTION_UNPROVEN
       6  BODY_ENCODING_REFUSED
+      4  PRIVATE_TYPE_REFERENCE
+      3  PRIVATE_REFERENCE_UNRESOLVED
       2  INLINED_BODY
+      2  MISSING_CAN_BE_OVERRIDDEN
       2  NON_STATIC_DISPATCH_UNPROVEN
       1  INLINING_STATE_UNKNOWN
 
-############ 3. DEMONSTRATION -- THE SHIPPING PATH ############
+############ 4. DEMONSTRATION -- THE SHIPPING PATH ############
   alpha            demonstrated     moved=['alpha'] stale=[] (invoke=PATCHED-a)
   Base.work        NOT demonstrated moved=['direct'] stale=['virtual', 'inlined'] (invoke=PATCHED-w)
   smallTarget      NOT demonstrated moved=[] stale=['small', 'callsSmall'] (invoke=141)
@@ -49,14 +60,14 @@ SUBJECT (the canonical release, taken not rebuilt)
   excludes is a hard failure -- an unmapped call site is how a stale site would
   go unobserved.
 
-############ 4. THE SUBSET CHECK ############
+############ 5. THE SUBSET CHECK ############
   declarations          36
   predicted patchable   0
   refused               36
   coverage (diagnostic) 0/36 = 0.0%
 SM1_G5_SUBSET: SUBSET_HOLDS
 
-############ 5. THE SCORER MUST BE ABLE TO FAIL ############
+############ 6. THE SCORER MUST BE ABLE TO FAIL ############
   The subset property is trivially satisfied while nothing is predicted
   patchable, so the verdict alone carries no information. What carries
   information is that the scorer fails on an injected over-claim and stays PASS
@@ -81,25 +92,31 @@ arms=12 passed=12 failed=0
 SM1_G5_SUBSET_FALSIFICATION: SCORER_IS_SENSITIVE
 exit=0  (asserted: 0)
 
-############ 6. CORPORA STILL OUTSTANDING ############
+############ 7. CORPORA STILL OUTSTANDING ############
   Phase D requires the adversarial corpus, Wonderous and LocalSend. Only the
   adversarial corpus is run here.
 
-  Wonderous and LocalSend checkouts exist under /Volumes/build/route-b, but the
-  subset check needs, per corpus: a G1 projection, G3 privacy rows, G4
-  retention rows and body-reference rows. NO CHECKED-IN SCRIPT PRODUCES ANY OF
-  THEM -- not even for this 36-row probe, whose g2_r.json was a work-directory
-  artifact now banked as evidence/g1_projection.json precisely because it could
-  not be regenerated.
+  The producer chain is NOT the blocker -- section 2 corrects that. What each
+  app corpus additionally needs is its own release built through this exact
+  toolchain: a kernel compiled WITH --dynamic-interface, an AOT from the
+  instrumented gen_snapshot, a generated dynamic interface, patch containers
+  for chosen targets, and a probe-equivalent call-site map so a demonstration
+  can say which printed behaviour belongs to which declaration. The last item
+  is the hard one: this corpus has _state(), and a real app has no equivalent,
+  so "every observed ordinary call site moved" has no mechanical reading yet
+  for Wonderous or LocalSend.
 
-  So the blocker is a missing producer chain, not compute. Running the two app
-  corpora is not attempted and is NOT reported as passing.
+  Running them is not attempted and is NOT reported as passing.
 
-ASSERTIONS (7 checked)
+ASSERTIONS (11 checked)
   pass  no producer in this run failed
   pass  the release contract binds to the canonical subject
   pass  route 2 evidence is bound to the same artifact
   pass  the subset property holds
+  pass  the G1 projection regenerates byte-identically
+  pass  real privacy evidence reached the predictor
+  pass  real retention evidence reached the predictor
+  pass  body-reference evidence was produced, not stubbed
   pass  route 2 actually reached the predictor
   pass  the scorer fails on an injected over-claim and passes otherwise
   pass  the falsification records SCORER_IS_SENSITIVE

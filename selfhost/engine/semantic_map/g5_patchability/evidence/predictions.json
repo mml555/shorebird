@@ -35,13 +35,15 @@
   "release_patch_capability_evidence": "note: schema_version=1;patchable_static_calls=true",
   "refusal_histogram": {
     "ABI_SHAPE_UNSUPPORTED": 18,
-    "BODY_REFERENCES_UNPROVEN": 18,
+    "RETENTION_UNPROVEN": 20,
     "CALL_SITE_SHAPE_UNPROVEN": 18,
     "FRONTEND_MATERIALIZATION_UNPROVEN": 18,
     "INLINED_BODY": 2,
-    "RETENTION_UNPROVEN": 18,
     "BODY_ENCODING_REFUSED": 6,
+    "PRIVATE_REFERENCE_UNRESOLVED": 3,
+    "PRIVATE_TYPE_REFERENCE": 4,
     "INLINING_STATE_UNKNOWN": 1,
+    "MISSING_CAN_BE_OVERRIDDEN": 2,
     "NON_STATIC_DISPATCH_UNPROVEN": 2
   },
   "unproven_facts": [
@@ -58,7 +60,8 @@
       "static": false,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "ABI_SHAPE_UNSUPPORTED"
+        "ABI_SHAPE_UNSUPPORTED",
+        "RETENTION_UNPROVEN"
       ]
     },
     {
@@ -71,7 +74,8 @@
       "static": false,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "ABI_SHAPE_UNSUPPORTED"
+        "ABI_SHAPE_UNSUPPORTED",
+        "RETENTION_UNPROVEN"
       ]
     },
     {
@@ -84,7 +88,8 @@
       "static": false,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "ABI_SHAPE_UNSUPPORTED"
+        "ABI_SHAPE_UNSUPPORTED",
+        "RETENTION_UNPROVEN"
       ]
     },
     {
@@ -97,7 +102,8 @@
       "static": false,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "ABI_SHAPE_UNSUPPORTED"
+        "ABI_SHAPE_UNSUPPORTED",
+        "RETENTION_UNPROVEN"
       ]
     },
     {
@@ -110,7 +116,8 @@
       "static": false,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "ABI_SHAPE_UNSUPPORTED"
+        "ABI_SHAPE_UNSUPPORTED",
+        "RETENTION_UNPROVEN"
       ]
     },
     {
@@ -123,11 +130,9 @@
       "static": true,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "BODY_REFERENCES_UNPROVEN",
         "CALL_SITE_SHAPE_UNPROVEN",
         "FRONTEND_MATERIALIZATION_UNPROVEN",
-        "INLINED_BODY",
-        "RETENTION_UNPROVEN"
+        "INLINED_BODY"
       ]
     },
     {
@@ -141,10 +146,10 @@
       "predicted_patchable": false,
       "refusal_reasons": [
         "BODY_ENCODING_REFUSED",
-        "BODY_REFERENCES_UNPROVEN",
         "CALL_SITE_SHAPE_UNPROVEN",
         "FRONTEND_MATERIALIZATION_UNPROVEN",
-        "RETENTION_UNPROVEN"
+        "PRIVATE_REFERENCE_UNRESOLVED",
+        "PRIVATE_TYPE_REFERENCE"
       ]
     },
     {
@@ -157,10 +162,8 @@
       "static": true,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "BODY_REFERENCES_UNPROVEN",
         "CALL_SITE_SHAPE_UNPROVEN",
-        "FRONTEND_MATERIALIZATION_UNPROVEN",
-        "RETENTION_UNPROVEN"
+        "FRONTEND_MATERIALIZATION_UNPROVEN"
       ]
     },
     {
@@ -173,10 +176,8 @@
       "static": true,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "BODY_REFERENCES_UNPROVEN",
         "CALL_SITE_SHAPE_UNPROVEN",
-        "FRONTEND_MATERIALIZATION_UNPROVEN",
-        "RETENTION_UNPROVEN"
+        "FRONTEND_MATERIALIZATION_UNPROVEN"
       ]
     },
     {
@@ -190,10 +191,10 @@
       "predicted_patchable": false,
       "refusal_reasons": [
         "BODY_ENCODING_REFUSED",
-        "BODY_REFERENCES_UNPROVEN",
         "CALL_SITE_SHAPE_UNPROVEN",
         "FRONTEND_MATERIALIZATION_UNPROVEN",
-        "RETENTION_UNPROVEN"
+        "PRIVATE_REFERENCE_UNRESOLVED",
+        "PRIVATE_TYPE_REFERENCE"
       ]
     },
     {
@@ -206,10 +207,8 @@
       "static": true,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "BODY_REFERENCES_UNPROVEN",
         "CALL_SITE_SHAPE_UNPROVEN",
-        "FRONTEND_MATERIALIZATION_UNPROVEN",
-        "RETENTION_UNPROVEN"
+        "FRONTEND_MATERIALIZATION_UNPROVEN"
       ]
     },
     {
@@ -222,10 +221,8 @@
       "static": true,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "BODY_REFERENCES_UNPROVEN",
         "CALL_SITE_SHAPE_UNPROVEN",
-        "FRONTEND_MATERIALIZATION_UNPROVEN",
-        "RETENTION_UNPROVEN"
+        "FRONTEND_MATERIALIZATION_UNPROVEN"
       ]
     },
     {
@@ -239,10 +236,8 @@
       "predicted_patchable": false,
       "refusal_reasons": [
         "BODY_ENCODING_REFUSED",
-        "BODY_REFERENCES_UNPROVEN",
         "CALL_SITE_SHAPE_UNPROVEN",
-        "FRONTEND_MATERIALIZATION_UNPROVEN",
-        "RETENTION_UNPROVEN"
+        "FRONTEND_MATERIALIZATION_UNPROVEN"
       ]
     },
     {
@@ -256,10 +251,9 @@
       "predicted_patchable": false,
       "refusal_reasons": [
         "BODY_ENCODING_REFUSED",
-        "BODY_REFERENCES_UNPROVEN",
         "CALL_SITE_SHAPE_UNPROVEN",
         "FRONTEND_MATERIALIZATION_UNPROVEN",
-        "RETENTION_UNPROVEN"
+        "PRIVATE_REFERENCE_UNRESOLVED"
       ]
     },
     {
@@ -273,10 +267,8 @@
       "predicted_patchable": false,
       "refusal_reasons": [
         "BODY_ENCODING_REFUSED",
-        "BODY_REFERENCES_UNPROVEN",
         "CALL_SITE_SHAPE_UNPROVEN",
-        "FRONTEND_MATERIALIZATION_UNPROVEN",
-        "RETENTION_UNPROVEN"
+        "FRONTEND_MATERIALIZATION_UNPROVEN"
       ]
     },
     {
@@ -290,10 +282,8 @@
       "predicted_patchable": false,
       "refusal_reasons": [
         "BODY_ENCODING_REFUSED",
-        "BODY_REFERENCES_UNPROVEN",
         "CALL_SITE_SHAPE_UNPROVEN",
-        "FRONTEND_MATERIALIZATION_UNPROVEN",
-        "RETENTION_UNPROVEN"
+        "FRONTEND_MATERIALIZATION_UNPROVEN"
       ]
     },
     {
@@ -306,11 +296,9 @@
       "static": true,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "BODY_REFERENCES_UNPROVEN",
         "CALL_SITE_SHAPE_UNPROVEN",
         "FRONTEND_MATERIALIZATION_UNPROVEN",
-        "INLINED_BODY",
-        "RETENTION_UNPROVEN"
+        "INLINED_BODY"
       ]
     },
     {
@@ -323,11 +311,9 @@
       "static": true,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "BODY_REFERENCES_UNPROVEN",
         "CALL_SITE_SHAPE_UNPROVEN",
         "FRONTEND_MATERIALIZATION_UNPROVEN",
-        "INLINING_STATE_UNKNOWN",
-        "RETENTION_UNPROVEN"
+        "INLINING_STATE_UNKNOWN"
       ]
     },
     {
@@ -340,10 +326,8 @@
       "static": true,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "BODY_REFERENCES_UNPROVEN",
         "CALL_SITE_SHAPE_UNPROVEN",
-        "FRONTEND_MATERIALIZATION_UNPROVEN",
-        "RETENTION_UNPROVEN"
+        "FRONTEND_MATERIALIZATION_UNPROVEN"
       ]
     },
     {
@@ -356,10 +340,8 @@
       "static": true,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "BODY_REFERENCES_UNPROVEN",
         "CALL_SITE_SHAPE_UNPROVEN",
-        "FRONTEND_MATERIALIZATION_UNPROVEN",
-        "RETENTION_UNPROVEN"
+        "FRONTEND_MATERIALIZATION_UNPROVEN"
       ]
     },
     {
@@ -372,10 +354,8 @@
       "static": true,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "BODY_REFERENCES_UNPROVEN",
         "CALL_SITE_SHAPE_UNPROVEN",
-        "FRONTEND_MATERIALIZATION_UNPROVEN",
-        "RETENTION_UNPROVEN"
+        "FRONTEND_MATERIALIZATION_UNPROVEN"
       ]
     },
     {
@@ -388,7 +368,8 @@
       "static": false,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "ABI_SHAPE_UNSUPPORTED"
+        "ABI_SHAPE_UNSUPPORTED",
+        "RETENTION_UNPROVEN"
       ]
     },
     {
@@ -401,7 +382,8 @@
       "static": false,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "ABI_SHAPE_UNSUPPORTED"
+        "ABI_SHAPE_UNSUPPORTED",
+        "RETENTION_UNPROVEN"
       ]
     },
     {
@@ -414,7 +396,8 @@
       "static": false,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "ABI_SHAPE_UNSUPPORTED"
+        "ABI_SHAPE_UNSUPPORTED",
+        "RETENTION_UNPROVEN"
       ]
     },
     {
@@ -427,7 +410,8 @@
       "static": false,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "ABI_SHAPE_UNSUPPORTED"
+        "ABI_SHAPE_UNSUPPORTED",
+        "RETENTION_UNPROVEN"
       ]
     },
     {
@@ -440,7 +424,8 @@
       "static": false,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "ABI_SHAPE_UNSUPPORTED"
+        "ABI_SHAPE_UNSUPPORTED",
+        "RETENTION_UNPROVEN"
       ]
     },
     {
@@ -453,9 +438,9 @@
       "static": false,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "BODY_REFERENCES_UNPROVEN",
         "CALL_SITE_SHAPE_UNPROVEN",
         "FRONTEND_MATERIALIZATION_UNPROVEN",
+        "MISSING_CAN_BE_OVERRIDDEN",
         "NON_STATIC_DISPATCH_UNPROVEN",
         "RETENTION_UNPROVEN"
       ]
@@ -470,7 +455,8 @@
       "static": false,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "ABI_SHAPE_UNSUPPORTED"
+        "ABI_SHAPE_UNSUPPORTED",
+        "RETENTION_UNPROVEN"
       ]
     },
     {
@@ -483,9 +469,9 @@
       "static": false,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "BODY_REFERENCES_UNPROVEN",
         "CALL_SITE_SHAPE_UNPROVEN",
         "FRONTEND_MATERIALIZATION_UNPROVEN",
+        "MISSING_CAN_BE_OVERRIDDEN",
         "NON_STATIC_DISPATCH_UNPROVEN",
         "RETENTION_UNPROVEN"
       ]
@@ -500,7 +486,9 @@
       "static": false,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "ABI_SHAPE_UNSUPPORTED"
+        "ABI_SHAPE_UNSUPPORTED",
+        "PRIVATE_TYPE_REFERENCE",
+        "RETENTION_UNPROVEN"
       ]
     },
     {
@@ -513,7 +501,8 @@
       "static": false,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "ABI_SHAPE_UNSUPPORTED"
+        "ABI_SHAPE_UNSUPPORTED",
+        "RETENTION_UNPROVEN"
       ]
     },
     {
@@ -526,7 +515,9 @@
       "static": false,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "ABI_SHAPE_UNSUPPORTED"
+        "ABI_SHAPE_UNSUPPORTED",
+        "PRIVATE_TYPE_REFERENCE",
+        "RETENTION_UNPROVEN"
       ]
     },
     {
@@ -539,7 +530,8 @@
       "static": false,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "ABI_SHAPE_UNSUPPORTED"
+        "ABI_SHAPE_UNSUPPORTED",
+        "RETENTION_UNPROVEN"
       ]
     },
     {
@@ -552,7 +544,8 @@
       "static": false,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "ABI_SHAPE_UNSUPPORTED"
+        "ABI_SHAPE_UNSUPPORTED",
+        "RETENTION_UNPROVEN"
       ]
     },
     {
@@ -565,7 +558,8 @@
       "static": false,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "ABI_SHAPE_UNSUPPORTED"
+        "ABI_SHAPE_UNSUPPORTED",
+        "RETENTION_UNPROVEN"
       ]
     },
     {
@@ -578,7 +572,8 @@
       "static": false,
       "predicted_patchable": false,
       "refusal_reasons": [
-        "ABI_SHAPE_UNSUPPORTED"
+        "ABI_SHAPE_UNSUPPORTED",
+        "RETENTION_UNPROVEN"
       ]
     }
   ]
