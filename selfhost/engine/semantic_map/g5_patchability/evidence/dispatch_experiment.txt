@@ -1,5 +1,5 @@
 SM1-G5 -- Base.work virtual/instance dispatch
-generated 2026-09-08T20:28:41Z by run_dispatch_experiment.sh
+generated 2026-09-08T21:04:56Z by run_dispatch_experiment.sh
 
 THE QUESTION
   Can the exact release mechanically determine that a non-inlined declaration
@@ -259,17 +259,17 @@ release: /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/app_release
 
   arm                                              result reasons / defect
   ------------------------------------------------------------------------------------------------------------
-  instance method (the Base.work shape)            pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, NON_STATI
-  instance getter                                  pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, NON_STATI
-  instance setter                                  pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, NON_STATI
-  instance operator                                pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, NON_STATI
-  static metadata absent                           pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, RELEASE_P
-  static metadata null                             pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, RELEASE_P
-  static metadata is the STRING "true", not a bool pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, RELEASE_P
-  static metadata is the integer 1                 pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, RELEASE_P
-  top-level static function                        pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, RELEASE_P
-  static target still refuses front-end materialization pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, RELEASE_P
-  instance target refuses both dispatch and materialization pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, NON_STATI
+  instance method (the Base.work shape)            pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, INLINING_
+  instance getter                                  pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, INLINING_
+  instance setter                                  pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, INLINING_
+  instance operator                                pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, INLINING_
+  static metadata absent                           pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, INLINING_
+  static metadata null                             pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, INLINING_
+  static metadata is the STRING "true", not a bool pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, INLINING_
+  static metadata is the integer 1                 pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, INLINING_
+  top-level static function                        pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, INLINING_
+  static target still refuses front-end materialization pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, INLINING_
+  instance target refuses both dispatch and materialization pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, INLINING_
   a field, which is not a replaceable callable     pass   ABI_SHAPE_UNSUPPORTED
   ------------------------------------------------------------------------------------------------------------
   arms=12 passed=12 failed=0
@@ -300,8 +300,8 @@ release: /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/app_release
   static metadata null                             FAIL   missing ['STATIC_METADATA_UNUSABLE']
   static metadata is the STRING "true", not a bool FAIL   missing ['STATIC_METADATA_UNUSABLE']
   static metadata is the integer 1                 FAIL   missing ['STATIC_METADATA_UNUSABLE']
-  top-level static function                        pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, RELEASE_P
-  static target still refuses front-end materialization pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, RELEASE_P
+  top-level static function                        pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, INLINING_
+  static target still refuses front-end materialization pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, FRONTEND_MATERIALIZATION_UNPROVEN, INLINING_
   instance target refuses both dispatch and materialization FAIL   missing ['NON_STATIC_DISPATCH_UNPROVEN']
   a field, which is not a replaceable callable     pass   ABI_SHAPE_UNSUPPORTED
   ------------------------------------------------------------------------------------------------------------
@@ -312,15 +312,15 @@ release: /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/app_release
   --- gate removed: frontend ---
   arm                                              result reasons / defect
   ------------------------------------------------------------------------------------------------------------
-  instance method (the Base.work shape)            pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, NON_STATIC_DISPATCH_UNPROVEN, RELEASE_PATCHA
-  instance getter                                  pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, NON_STATIC_DISPATCH_UNPROVEN, RELEASE_PATCHA
-  instance setter                                  pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, NON_STATIC_DISPATCH_UNPROVEN, RELEASE_PATCHA
-  instance operator                                pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, NON_STATIC_DISPATCH_UNPROVEN, RELEASE_PATCHA
-  static metadata absent                           pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
-  static metadata null                             pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
-  static metadata is the STRING "true", not a bool pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
-  static metadata is the integer 1                 pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
-  top-level static function                        pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
+  instance method (the Base.work shape)            pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, INLINING_EVIDENCE_MISSING, NON_STATIC_DISPAT
+  instance getter                                  pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, INLINING_EVIDENCE_MISSING, NON_STATIC_DISPAT
+  instance setter                                  pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, INLINING_EVIDENCE_MISSING, NON_STATIC_DISPAT
+  instance operator                                pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, INLINING_EVIDENCE_MISSING, NON_STATIC_DISPAT
+  static metadata absent                           pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, INLINING_EVIDENCE_MISSING, RELEASE_PATCHABIL
+  static metadata null                             pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, INLINING_EVIDENCE_MISSING, RELEASE_PATCHABIL
+  static metadata is the STRING "true", not a bool pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, INLINING_EVIDENCE_MISSING, RELEASE_PATCHABIL
+  static metadata is the integer 1                 pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, INLINING_EVIDENCE_MISSING, RELEASE_PATCHABIL
+  top-level static function                        pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, INLINING_EVIDENCE_MISSING, RELEASE_PATCHABIL
   static target still refuses front-end materialization FAIL   missing ['FRONTEND_MATERIALIZATION_UNPROVEN']
   instance target refuses both dispatch and materialization FAIL   missing ['FRONTEND_MATERIALIZATION_UNPROVEN']
   a field, which is not a replaceable callable     pass   ABI_SHAPE_UNSUPPORTED
