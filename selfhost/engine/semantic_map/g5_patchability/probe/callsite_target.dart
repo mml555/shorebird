@@ -63,9 +63,27 @@ String _inlineHelper(Base b) => b.work();
 @pragma('vm:never-inline')
 String viaInlined(Base b) => _inlineHelper(b);
 
+
+/// SM1-G5 ITEM 2: A GENUINELY INLINEABLE PATCH TARGET.
+///
+/// The earlier "inlined" arm was not one. `Base.work` carries vm:never-inline
+/// and only the HELPER was prefer-inline, so it could not show a patched target
+/// BODY being copied into a caller and going stale.
+///
+/// This target has no never-inline pragma and is deliberately small, so the
+/// optimizer may inline it into `callsSmall`. Whether it actually did is proved
+/// from the shipped machine code, not from the pragma: a pragma is a request.
+@pragma('vm:prefer-inline')
+int smallTarget() => DateTime.now().millisecondsSinceEpoch >= 0 ? 41 : 0;
+
+/// never-inline so the caller keeps its own symbol to disassemble.
+@pragma('vm:never-inline')
+int callsSmall() => smallTarget() + 1;
+
 void _state(String when) => print('$when alpha=${alpha()} beta=${beta()}'
     ' virtual=${viaVirtual(Base())} direct=${viaDirect()}'
-    ' inlined=${viaInlined(Base())} other=${viaVirtual(Other())}');
+    ' inlined=${viaInlined(Base())} other=${viaVirtual(Other())}'
+    ' small=${smallTarget()} callsSmall=${callsSmall()}');
 
 void main(List<String> args) {
   // Route B's release identity, read from the running snapshot's GNU build ID.

@@ -265,8 +265,42 @@ takes the patch and the dispatched ones do not, consistent with
 `--patchable_static_calls` making direct calls patchable while an instance
 dispatch still reaches the original AOT code object.
 
+The `inlined` arm in that table is **withdrawn**: `Base.work` carries
+`vm:never-inline` and only the helper was `prefer-inline`, so it could not show a
+patched target *body* going stale. Item 2 below replaces it.
+
 **Not classified.** Whether this is `REDUCE_SCOPE` or `MODIFY_MAP_DESIGN` is not
 decided here. Evidence: [`evidence/callsite_arms.txt`](evidence/callsite_arms.txt).
+
+## Item 2 — a genuinely inlined target body, proved from machine code
+
+    @pragma('vm:prefer-inline')
+    int smallTarget() => DateTime.now().millisecondsSinceEpoch >= 0 ? 41 : 0;
+
+    @pragma('vm:never-inline')
+    int callsSmall() => smallTarget() + 1;
+
+A pragma is a request, so the inlining is read out of the shipped `app.aot` with
+`llvm-objdump`:
+
+* `callsSmall` contains the target's **own** body — the `DateTime` call and the
+  `999`/`1000` arithmetic — not a call to it;
+* **no `bl <smallTarget>` exists anywhere** in the artifact;
+* `_state` carries the same arithmetic twice;
+* the standalone `smallTarget` symbol is still present, so the patch had
+  something to bind to.
+
+Patching it 41 → 141:
+
+    APPLY ok: 1 target(s)
+    small=41  callsSmall=42        (both unchanged)
+
+**The patch replaced a function that nothing calls.** Every call site holds a
+stale inlined copy and the replacement is unreachable. It fails **open** — the
+same shape as G4's two retention classes and as a release built without
+`--patchable_static_calls`: success reported, nothing done.
+
+Evidence: [`evidence/inlined_target.txt`](evidence/inlined_target.txt).
 
 ### A release-identity finding, carried to G6
 

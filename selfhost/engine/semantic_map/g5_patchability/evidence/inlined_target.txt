@@ -1,0 +1,78 @@
+SM1-G5 item 2 — A GENUINELY INLINED TARGET BODY, proved from machine code
+date : 2026-09-08T01:00:34Z
+
+WHY THE EARLIER ARM DID NOT COUNT. It named Base.work, which carries
+vm:never-inline; only the HELPER was prefer-inline. That arrangement cannot
+show a patched target BODY being copied into a caller and going stale, so
+it was withdrawn rather than reinterpreted.
+
+THE TARGET HERE has no never-inline pragma and is small:
+
+    @pragma('vm:prefer-inline')
+    int smallTarget() => DateTime.now().millisecondsSinceEpoch >= 0 ? 41 : 0;
+
+    @pragma('vm:never-inline')          // keeps its own symbol to disassemble
+    int callsSmall() => smallTarget() + 1;
+
+A PRAGMA IS A REQUEST, NOT EVIDENCE. What follows is read out of the
+shipped app.aot with llvm-objdump.
+
+############ 1. callsSmall CONTAINS the target's body ############
+  00000000000bc2a0 <callsSmall>:
+     bc2a0:      	stp	x29, x30, [x15, #-0x10]!
+     bc2a4:      	mov	x29, x15
+     bc2a8:      	ldr	x16, [x26, #0x48]
+     bc2ac:      	cmp	x15, x16
+     bc2b0:      	b.ls	 <L6>
+  <L0>:
+     bc2b4:      	ldr	x4, [x27, #0x190]
+     bc2b8:      	ldr	x0, [x27, #0x1bc8]
+     bc2bc:      	ldur	x30, [x0, #0x7]
+     bc2c0:      	blr	x30
+     bc2c4:      	asr	x1, x0, #1
+     bc2c8:      	tbz	w0, #0x0,  <L1>
+     bc2cc:      	ldur	x1, [x0, #0x7]
+  <L1>:
+     bc2d0:      	tbz	x1, #0x3f,  <L2>
+     bc2d4:      	mov	x3, #0x3e7              // =999
+     bc2d8:      	b	 <L3>
+  <L2>:
+     bc2dc:      	mov	x3, #0x0                // =0
+
+  The 999/1000 arithmetic and the DateTime call are smallTarget's OWN body,
+  inlined. There is no call to smallTarget here.
+
+############ 2. nothing in the release calls smallTarget ############
+  no 'bl <smallTarget>' anywhere in the artifact
+  _state also carries the body: 2 occurrence(s) of its arithmetic
+
+############ 3. the standalone symbol still exists — and is what got patched ############
+  00000000000bc350 <smallTarget>:
+     bc350:      	stp	x29, x30, [x15, #-0x10]!
+     bc354:      	mov	x29, x15
+
+############ 4. the observed result ############
+  before alpha=OLD-a beta=OLD-b virtual=OLD-w direct=OLD-w inlined=OLD-w other=OTHER-w small=41 callsSmall=42
+  APPLY ok: 1 target(s)
+  after  alpha=OLD-a beta=OLD-b virtual=OLD-w direct=OLD-w inlined=OLD-w other=OTHER-w small=41 callsSmall=42
+
+############ WHAT THIS ESTABLISHES ############
+  smallTarget was patched 41 -> 141. The container verified the release,
+  attached the replacement and reported APPLY ok. Both observers still read
+  the old values: small=41, callsSmall=42.
+
+  The patch replaced a function THAT NOTHING CALLS. Every call site holds a
+  stale inlined copy of the old body, and the replacement is unreachable.
+  This is proved from the machine code, not inferred from a pragma:
+    * callsSmall and _state contain the target's own arithmetic;
+    * no 'bl <smallTarget>' exists anywhere in the artifact;
+    * the standalone symbol is present, so the patch had something to bind.
+
+  It fails OPEN, like the two retention classes SM1-G4 measured and like a
+  release built without --patchable_static_calls: success reported, nothing
+  done.
+
+  NOT CLASSIFIED. Whether an inlined target can be mechanically identified
+  and conservatively excluded per declaration -- REDUCE_SCOPE -- or whether
+  the fact is not representable in a per-declaration map --
+  MODIFY_MAP_DESIGN -- is not decided here.
