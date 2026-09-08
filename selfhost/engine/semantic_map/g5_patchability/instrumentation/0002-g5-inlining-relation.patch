@@ -1,4 +1,4 @@
---- a/runtime/vm/elf.h	2026-09-08 00:36:15
+--- a/runtime/vm/elf.h	2026-09-08 01:12:25
 +++ b/runtime/vm/elf.h	2026-09-08 00:32:49
 @@ -18,6 +18,18 @@
  
@@ -38,8 +38,8 @@
    void InitializeSymbolTables();
    void FinalizeDwarfSections();
    void FinalizeEhFrame();
---- a/runtime/vm/elf.cc	2026-09-08 00:36:15
-+++ b/runtime/vm/elf.cc	2026-09-08 00:34:31
+--- a/runtime/vm/elf.cc	2026-09-08 01:12:25
++++ b/runtime/vm/elf.cc	2026-09-08 01:10:31
 @@ -1566,6 +1566,7 @@
    // Generate the build ID now that we have all user-provided sections.
    GenerateBuildId();
@@ -48,10 +48,11 @@
  
    // We add a BSS section in all cases, even to the separate debugging
    // information, to ensure that relocated addresses are consistent between ELF
-@@ -1743,6 +1744,54 @@
+@@ -1742,7 +1743,77 @@
+ DECLARE_FLAG(bool, patchable_static_calls);
  
  static constexpr char kShorebirdNoteOwner[] = "Shorebird";
- 
++
 +// SM1-G5 route 2 registry.
 +//
 +// THREE THINGS THIS HAS TO GET RIGHT, because ABSENCE from the relation is what
@@ -77,25 +78,47 @@
 +}
 +static MallocGrowableArray<const char*>* shorebird_inlining = nullptr;
 +
-+static const char* shorebird_key(const char* lib, const char* owner,
-+                                 const char* kind, const char* name) {
-+  return OS::SCreate(nullptr, "%s#%s#%s#%s", lib, owner, kind, name);
++// LENGTH-PREFIXED, because '#' is not a safe separator: VM and extension
++// naming can itself contain '#', so a delimiter format is ambiguous exactly
++// where identity matters most. Each field is written "<len>:<bytes>" with no
++// separators, and the reader knows how many fields a record has -- so no byte
++// sequence inside a field can be mistaken for structure.
++static void shorebird_field(TextBuffer* buf, const char* v) {
++  buf->Printf("%" Pd ":%s", static_cast<intptr_t>(strlen(v)), v);
 +}
++
++// Set when the note has been serialized. Any append after that point would be
++// a decision the artifact does not describe, so it is FATAL rather than
++// dropped: silently losing it is what would make absence-from-the-note stop
++// meaning not-inlined.
++static bool shorebird_sealed = false;
 +
 +void ShorebirdRecordInlined(const char* inlinee_lib, const char* inlinee_owner,
 +                            const char* inlinee_kind, const char* inlinee_name,
 +                            const char* caller_lib, const char* caller_owner,
 +                            const char* caller_kind, const char* caller_name) {
 +  MutexLocker ml(shorebird_mutex());
++  if (shorebird_sealed) {
++    FATAL(
++        "SM1-G5: an inlining pair was recorded AFTER the note was written. "
++        "Absence from the note would no longer prove not-inlined, so this is "
++        "fatal rather than dropped.");
++  }
 +  if (shorebird_inlining == nullptr) {
 +    shorebird_inlining = new MallocGrowableArray<const char*>();
 +  }
-+  shorebird_inlining->Add(OS::SCreate(
-+      nullptr, "%s\t%s",
-+      shorebird_key(inlinee_lib, inlinee_owner, inlinee_kind, inlinee_name),
-+      shorebird_key(caller_lib, caller_owner, caller_kind, caller_name)));
++  TextBuffer rec(256);
++  shorebird_field(&rec, inlinee_lib);
++  shorebird_field(&rec, inlinee_owner);
++  shorebird_field(&rec, inlinee_kind);
++  shorebird_field(&rec, inlinee_name);
++  shorebird_field(&rec, caller_lib);
++  shorebird_field(&rec, caller_owner);
++  shorebird_field(&rec, caller_kind);
++  shorebird_field(&rec, caller_name);
++  shorebird_inlining->Add(Utils::StrDup(rec.buffer()));
 +}
-+
+ 
 +static int shorebird_cmp(const char* const* a, const char* const* b) {
 +  return strcmp(*a, *b);
 +}
@@ -103,7 +126,7 @@
  void ElfWriter::GenerateCapabilities() {
    ASSERT(section_table_->Find(kCapabilitiesNoteName) == nullptr);
    const char* const payload =
-@@ -1756,8 +1805,7 @@
+@@ -1756,14 +1827,63 @@
    stream.WriteFixed<decltype(elf::Note::name_size)>(
        sizeof(kShorebirdNoteOwner));
    stream.WriteFixed<decltype(elf::Note::description_size)>(description_length);
@@ -113,30 +136,44 @@
    stream.WriteBytes(kShorebirdNoteOwner, sizeof(kShorebirdNoteOwner));
    stream.WriteBytes(reinterpret_cast<const uint8_t*>(payload),
                      description_length);
-@@ -1766,6 +1814,43 @@
+   auto* const container = new (zone_) NoteSection();
+   container->AddPortion(stream.buffer(), stream.bytes_written());
    section_table_->Add(container, kCapabilitiesNoteName);
- }
- 
++}
++
 +// One line per inlining decision: "inlinee<TAB>caller". A declaration that
 +// appears in the FIRST column has at least one copy of its body somewhere else
 +// in this release, so a patch to it cannot reach that copy.
 +void ElfWriter::GenerateInliningRelation() {
 +  ASSERT(section_table_->Find(kInliningNoteName) == nullptr);
 +  TextBuffer buf(1024);
-+  // schema 2: structured identity, sorted and de-duplicated. Each line is
-+  //   inlineeLib#inlineeOwner#inlineeKind#inlineeName<TAB>callerLib#...
-+  buf.AddString("schema_version=2\n");
 +  MutexLocker ml(shorebird_mutex());
++  // schema 3: header, then a record count, then that many records of EIGHT
++  // length-prefixed fields each (inlinee lib/owner/kind/name, then caller's).
++  // No separators, so no field content can be read as structure.
++  intptr_t unique = 0;
 +  if (shorebird_inlining != nullptr) {
 +    shorebird_inlining->Sort(shorebird_cmp);
 +    const char* previous = nullptr;
 +    for (intptr_t i = 0; i < shorebird_inlining->length(); i++) {
-+      const char* line = (*shorebird_inlining)[i];
-+      if (previous != nullptr && strcmp(previous, line) == 0) continue;
-+      buf.Printf("%s\n", line);
-+      previous = line;
++      const char* rec = (*shorebird_inlining)[i];
++      if (previous != nullptr && strcmp(previous, rec) == 0) continue;
++      unique++;
++      previous = rec;
 +    }
 +  }
++  buf.Printf("schema_version=3\nfields_per_record=8\nrecords=%" Pd "\n", unique);
++  if (shorebird_inlining != nullptr) {
++    const char* previous = nullptr;
++    for (intptr_t i = 0; i < shorebird_inlining->length(); i++) {
++      const char* rec = (*shorebird_inlining)[i];
++      if (previous != nullptr && strcmp(previous, rec) == 0) continue;
++      buf.AddString(rec);
++      previous = rec;
++    }
++  }
++  // Sealed only after the bytes are built, so a racing append is caught.
++  shorebird_sealed = true;
 +  const char* payload = buf.buffer();
 +  const intptr_t description_length = strlen(payload) + 1;
 +  ZoneWriteStream stream(
@@ -152,12 +189,10 @@
 +  auto* const container = new (zone_) NoteSection();
 +  container->AddPortion(stream.buffer(), stream.bytes_written());
 +  section_table_->Add(container, kInliningNoteName);
-+}
-+
+ }
+ 
  void ElfWriter::GenerateBuildId() {
-   // Not idempotent.
-   ASSERT(section_table_->Find(kBuildIdNoteName) == nullptr);
---- a/runtime/vm/compiler/backend/flow_graph_compiler.cc	2026-09-08 00:36:15
+--- a/runtime/vm/compiler/backend/flow_graph_compiler.cc	2026-09-08 01:12:25
 +++ b/runtime/vm/compiler/backend/flow_graph_compiler.cc	2026-09-08 00:32:49
 @@ -3,6 +3,7 @@
  // BSD-style license that can be found in the LICENSE file.

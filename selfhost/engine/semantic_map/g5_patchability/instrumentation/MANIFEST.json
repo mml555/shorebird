@@ -25,11 +25,11 @@
     "instrumented_gen_snapshot_sha256": "fe1f523a43dd03429532e31e929d235bdea54c529aea6900929c06343ad81eda",
     "frozen_gen_snapshot_sha256": "4310aebd39be52ec9fd30adf801e698b599cfb7c2eba69e26d2af1b08e39812b",
     "build_shim": "vpython3 -> python3; depot_tools wrapper fails on Python 3.13",
-    "instrumented_gen_snapshot_sha256_with_delta_2": "c44be82256e85ffd08ceba7844b6edf067d558055c19262a279c568ac0f9bcb0"
+    "instrumented_gen_snapshot_sha256_with_delta_2": "6fc4d1a0198d062d1ccd3d4784765fcab26c243ce5454ea91c01913dd20c545d"
   },
   "delta_2": {
     "path": "instrumentation/0002-g5-inlining-relation.patch",
-    "sha256": "091d19eb9b28926a9eaf84417258e5950330e131402c6458fcac7ec9fe4d3f82",
+    "sha256": "f7826262d5a8559c9e0f5e5ae2acef3fb1e4e70b1b24a6959d1f8335333d274d",
     "files": [
       "runtime/vm/elf.h",
       "runtime/vm/elf.cc",
@@ -40,14 +40,26 @@
     "semantics": "incremental, applies after 0001"
   },
   "route2_witness": {
-    "aot": "app_s2.aot",
-    "aot_sha256": "77e09a1553c4d69732aa8b6fac72d88b2464cb207dd2ee9877bd11e0732f6dbb",
     "note": ".note.shorebird.inlining",
-    "note_schema_version": 2,
-    "lines": 3348,
-    "sorted": true,
-    "deduplicated": true,
-    "deterministic_across_two_builds": true
+    "note_schema_version": 3,
+    "encoding": "header lines, then `records=N`, then N records of 8 length-prefixed \"<len>:<bytes>\" fields; no separators, because VM and extension names can contain the \"#\" the old schema used",
+    "records": 3348,
+    "fields_per_record": 8,
+    "sealed_after_emission": true,
+    "determinism": {
+      "build_a": {
+        "aot": "app_s3.aot",
+        "aot_sha256": "8b0a7ea93b88950d40faf2c9944ee8b978e0e4de5717923d58b978d7928193b6",
+        "note_sha256": "2e53596e2f88d782fcc0e49e91003c10a23f891fd274bd303a23a447475676e0"
+      },
+      "build_b": {
+        "aot": "app_s3b.aot",
+        "aot_sha256": "e6b0d56144f861a650f176e583dc1db7530f9a26720f849b8f04d4151858f3e1",
+        "note_sha256": "2e53596e2f88d782fcc0e49e91003c10a23f891fd274bd303a23a447475676e0"
+      },
+      "note_sha256_equal": true
+    },
+    "note_sha256_covers": "the FULL note section bytes as they appear in the ELF (note header + owner + payload), not the stripped payload. An earlier transcript line hashed the stripped payload and so shows a different value for the same artifact; both were equal across the two builds."
   },
   "replay": {
     "order": [
@@ -55,6 +67,24 @@
       "instrumentation/0002-g5-inlining-relation.patch"
     ],
     "semantics": "INCREMENTAL, applied in order with patch -p1 from the frozen base. 0001 is a patch against the frozen files; 0002 is a patch against frozen+0001, NOT a cumulative patch. The first version of 0002 was cumulative and therefore ambiguous about which recipe reproduced the binary.",
-    "verified": "frozen + 0001 + 0002 reproduces the built clone byte for byte across all three files."
+    "verified": "frozen + 0001 + 0002 reproduces the built clone byte for byte across all three files.",
+    "per_file": {
+      "runtime/vm/elf.h": {
+        "replayed_sha256": "084463131386c44cdccac47341449f9622363679af49ca7e48f82326861f1d20",
+        "built_sha256": "084463131386c44cdccac47341449f9622363679af49ca7e48f82326861f1d20",
+        "equal": true
+      },
+      "runtime/vm/elf.cc": {
+        "replayed_sha256": "a110572c445390e27bf726fd6fcc3b4b57856882bc5e7c7a73b81630c9486fe0",
+        "built_sha256": "a110572c445390e27bf726fd6fcc3b4b57856882bc5e7c7a73b81630c9486fe0",
+        "equal": true
+      },
+      "runtime/vm/compiler/backend/flow_graph_compiler.cc": {
+        "replayed_sha256": "5c29a17aa3e8c9c8ae296c7b9409e8454ed6efcbaa03094337d007e2bce6c510",
+        "built_sha256": "5c29a17aa3e8c9c8ae296c7b9409e8454ed6efcbaa03094337d007e2bce6c510",
+        "equal": true
+      }
+    },
+    "all_files_equal": true
   }
 }

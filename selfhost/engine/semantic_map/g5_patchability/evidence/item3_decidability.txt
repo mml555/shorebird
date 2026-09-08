@@ -229,3 +229,68 @@ date : 2026-09-08T04:37:20Z
   schema, type and owner falsifications; proof that absence is COMPLETE rather
   than merely not-observed; predictor consumption. The virtual/instance dispatch
   hazard remains its own separate mechanism. No classification is made.
+
+############ ROUTE 2, SCHEMA 3 — unambiguous encoding, and a seal ############
+date : 2026-09-08T05:13:05Z
+
+  1. '#' WAS NOT A SAFE SEPARATOR. VM and extension naming can contain '#', so
+     the schema-2 record "library#owner#kind#name" was ambiguous exactly where
+     identity matters. Schema 3 is LENGTH-PREFIXED and separator-free:
+
+       schema_version=3
+       fields_per_record=8
+       records=3348
+       <then 3348 records of eight "<len>:<bytes>" fields>
+
+     No byte sequence inside a field can be read as structure, and the declared
+     record count is an independent cross-check on the parse. Verified: 3348
+     records parsed, matching the header exactly.
+
+  2. A SEAL, so absence can mean something. The registry is sealed once the note
+     bytes are built; any pair recorded after that point is FATAL rather than
+     dropped:
+
+       "an inlining pair was recorded AFTER the note was written. Absence from
+        the note would no longer prove not-inlined, so this is fatal rather
+        than dropped."
+
+     The build completed with no FATAL, which establishes for THIS artifact that
+     no inlining decision was made after emission. It is a per-build guarantee
+     enforced by the producer, not an argument about compiler phase order.
+
+  3. DETERMINISM AND REPLAY, banked as hashes rather than asserted:
+
+       note sha256, build A == build B      True
+       frozen + 0001 + 0002 == built clone  True, per file
+       full AOT sha256                      recorded
+
+     All in instrumentation/MANIFEST.json. The manifest also records that the
+     note hash covers the FULL note section bytes, not the stripped payload, so
+     the two different values that appear in transcripts for one artifact are
+     not a contradiction.
+
+  THE SUBJECT, in schema 3:
+
+    INLINEE lib=package:dynamic_modules/callsite_target.dart owner='' kind=RegularFunction name=smallTarget
+      INTO  lib=package:dynamic_modules/callsite_target.dart owner='' kind=RegularFunction name=callsSmall
+      INTO  lib=package:dynamic_modules/callsite_target.dart owner='' kind=RegularFunction name=_state@17145467
+      INTO  lib=package:dynamic_modules/callsite_target.dart owner='' kind=ImplicitClosureFunction name=smallTarget
+
+############ STILL NOT DONE — the reader and mapper ############
+
+  Authorized but unbuilt, and no NOT_INLINED negative is trusted until they are:
+
+    * strict note validation: section name, SHT_NOTE, exact "Shorebird\0"
+      owner, note type 2, schema version, uniqueness;
+    * exactly one state per G2 candidate -- INLINED / NOT_INLINED / UNKNOWN;
+    * no cross-kind fallback and no private-name guessing; any ambiguity is
+      UNKNOWN. The open cases remain the VM kind vocabulary
+      (RegularFunction/GetterFunction/ImplicitClosureFunction vs G1's
+      method/getter), the library-hash suffix on private names
+      (_state@17145467), and one declared name appearing under several kinds;
+    * falsifications: delete a known smallTarget pair, wrong URI, wrong kind,
+      ambiguous mapping, malformed record, missing / duplicate / conflicting
+      note, wrong owner, wrong type, wrong schema.
+
+  Predictor consumption stays unauthorized. Virtual/instance dispatch remains a
+  separate unresolved mechanism. No classification is made.
