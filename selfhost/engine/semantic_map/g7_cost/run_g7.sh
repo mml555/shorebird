@@ -37,6 +37,11 @@ want() {
 }
 SAMPLES="$G/evidence/samples.jsonl"
 : > "$SAMPLES"
+# DELETE THE DERIVED SUMMARY FIRST. If the families script fails, a stale
+# families.json would otherwise remain and every assertion below would read the
+# PREVIOUS run's numbers -- which is exactly how a superseded 48.2% figure got
+# reported once already.
+rm -f "$G/evidence/families.json"
 
 # ms <label> <order> <rep> <cmd...>  -- one timed sample, appended raw
 ms() {
@@ -124,6 +129,46 @@ expose drift of the kind SL1 hit, and it is not a claim of full arm-order
 independence.
 TXT
 echo
+echo "############ RETENTION PAIR, BUILT HERE ############"
+cat <<'TXT'
+  The retention family compares an AOT built WITH the dynamic-interface
+  contract against one built WITHOUT it. Both are produced here, from the
+  application worktree, rather than read from a work directory -- an inherited
+  size pair cannot be reproduced from empty state, and a cost family that
+  cannot be rebuilt is a number without provenance.
+TXT
+echo
+RET="$W/ret"; mkdir -p "$RET"
+# 1. the no-retention kernel and its AOT
+ms ret_kernel_noret schedule 0 $GK --platform "$PLAT" --target flutter --aot \
+    --packages "$L/.dart_tool/package_config.json" \
+    -o "$RET/noret.dill" "$L/$ENTRY"
+# 2. a non-AOT kernel, which is what the interface generator reads
+ms ret_kernel_pre schedule 0 $GK --platform "$PLAT" --target flutter \
+    --packages "$L/.dart_tool/package_config.json" \
+    -o "$RET/pre.dill" "$L/$ENTRY"
+# 3. the dynamic interface over the app's own libraries
+ms ret_interface schedule 0 "$S/dart" $PKG "$RB/gen_dynamic_interface.dart" \
+    --dill "$RET/pre.dill" --include "$INC" --out "$RET/di.yaml"
+# 4. the retention kernel
+ms ret_kernel_ret schedule 0 $GK --platform "$PLAT" --target flutter --aot \
+    --packages "$L/.dart_tool/package_config.json" \
+    --dynamic-interface "$RET/di.yaml" -o "$RET/ret.dill" "$L/$ENTRY"
+# 5. both AOTs, --deterministic so the sizes carry no build-to-build noise
+ms ret_aot_noret schedule 0 "$S/gen_snapshot" --deterministic \
+    --snapshot_kind=app-aot-elf --patchable_static_calls \
+    --elf="$RET/noret.aot" "$RET/noret.dill"
+ms ret_aot_ret schedule 0 "$S/gen_snapshot" --deterministic \
+    --snapshot_kind=app-aot-elf --patchable_static_calls \
+    --elf="$RET/ret.aot" "$RET/ret.dill"
+for f in noret.dill pre.dill di.yaml ret.dill noret.aot ret.aot; do
+  if [ -s "$RET/$f" ]; then
+    printf '  %14s  %12s bytes\n' "$f" "$(wc -c < "$RET/$f" | tr -d ' ')"
+  else
+    echo "  MISSING $f -- the retention family cannot be rebuilt"; rc=1
+  fi
+done
+echo
 echo "############ TIMED SCHEDULE ############"
 for rep in $(seq 1 "$REPS"); do
   echo "  order=base_first rep=$rep"
@@ -142,15 +187,20 @@ echo
 } > "$G/evidence/g7_cost.txt" 2>&1
 
 # ---- families, derived from the raw samples ------------------------------
-python3 - "$SAMPLES" "$C" "$G/evidence/families.json" "$G5" >> "$G/evidence/g7_cost.txt" 2>&1 <<'PY'
+python3 - "$SAMPLES" "$W/ret" "$G/evidence/families.json" "$G5" "$C" >> "$G/evidence/g7_cost.txt" 2>&1 <<'PY'
 import json, os, statistics, sys
 
-SAMPLES, C, OUT, G5 = sys.argv[1:5]
+SAMPLES, RET, OUT, G5, C = sys.argv[1:6]
 rows = [json.loads(l) for l in open(SAMPLES)]
 bad = [r for r in rows if r['exit'] != 0]
 
 def stats(vals):
     vals = sorted(vals)
+    if not vals:
+        # The retention-pair stages run once, outside the two timed orders, so
+        # asking for their per-order statistics is legitimate and empty.
+        return {'n': 0, 'min_ms': None, 'median_ms': None, 'max_ms': None,
+                'mean_ms': None, 'stdev_ms': None}
     return {'n': len(vals), 'min_ms': round(vals[0], 1),
             'median_ms': round(statistics.median(vals), 1),
             'max_ms': round(vals[-1], 1),
@@ -181,9 +231,16 @@ base_tot = {o: total_per_rep(['base_'], o) for o in ('base_first', 'map_first')}
 map_tot = {o: total_per_rep(['map_'], o) for o in ('base_first', 'map_first')}
 
 size = lambda p: os.path.getsize(p)
-aot_noret = size(f'{C}/ls_noret.aot')
-aot_ret = size(f'{C}/ls_ret.aot')
-g1 = json.load(open(f'{C}/localsend_g1.json'))
+# THE PAIR THIS RUN BUILT, not one inherited from a work directory.
+aot_noret = size(f'{RET}/noret.aot')
+aot_ret = size(f'{RET}/ret.aot')
+# N comes from a G1 projection over the kernel this run built, for the same
+# reason -- an inherited row count would not describe these artifacts.
+g1_files = sorted(glob_g1 := __import__('glob').glob(
+    os.environ.get('TMPDIR', '/tmp') + '/sm1_g7/m_*_g1.json'))
+if not g1_files:
+    raise SystemExit('no G1 projection was produced by this run')
+g1 = json.load(open(g1_files[0]))
 N = len(g1['rows'])
 # G4 handed G7 a curve: a 40,912-byte floor plus ~82 bytes per member.
 G4_FLOOR, G4_PER_MEMBER = 40912, 82
@@ -200,6 +257,7 @@ fam = {
     'schema': 'semantic-map-1/g7-cost/1',
     'gate': 'SM1-G7', 'issue': 56,
     'corpus': 'localsend',
+    'retention_pair_built_by_this_run': True,
     'declarations_in_scope': N,
     'samples': len(rows),
     'failed_samples': len(bad),
@@ -233,9 +291,9 @@ fam = {
             'g4_curve': f'{G4_FLOOR} byte floor + ~{G4_PER_MEMBER} bytes/member',
         },
         'aot_size_impact': {
-            'kernel_without_retention_bytes': size(f'{C}/localsend_aot.dill'),
-            'kernel_with_retention_bytes': size(f'{C}/ls_ret.dill'),
-            'dynamic_interface_bytes': size(f'{C}/ls_di.yaml'),
+            'kernel_without_retention_bytes': size(f'{RET}/noret.dill'),
+            'kernel_with_retention_bytes': size(f'{RET}/ret.dill'),
+            'dynamic_interface_bytes': size(f'{RET}/di.yaml'),
         },
     },
 }
@@ -250,17 +308,44 @@ order_effects = {}
 for l in labels:
     a = by_label_order[l]['base_first']
     z = by_label_order[l]['map_first']
+    # Only labels sampled in BOTH timed orders can show an order effect. The
+    # retention-pair stages are built once and are excluded rather than
+    # silently counted as unaffected.
     if a['n'] and z['n']:
         ratio = z['median_ms'] / a['median_ms'] if a['median_ms'] else None
+        # A RATIO ALONE IS NOT AN ORDER EFFECT. At small n the medians of a
+        # noisy stage differ by more than 10% from run to run, so a bare ratio
+        # test flags different stages each time -- observed directly here: one
+        # run flagged five stages, the next zero, the next four, on identical
+        # code. That is the drift SL1 warned about, reappearing in the
+        # DETECTOR rather than the measurement.
+        #
+        # So a stage counts as order-dependent only when the gap between the
+        # two order-medians also exceeds the run-to-run spread within those
+        # orders. Below that floor the difference is indistinguishable from
+        # noise and is reported as such.
+        gap = abs((z['median_ms'] or 0) - (a['median_ms'] or 0))
+        noise = max(a['stdev_ms'] or 0, z['stdev_ms'] or 0)
         order_effects[l] = {
             'base_first_median_ms': a['median_ms'],
             'map_first_median_ms': z['median_ms'],
             'ratio': round(ratio, 3) if ratio else None,
-            'order_dependent_beyond_10pct': bool(ratio and abs(ratio - 1) > 0.10),
+            'gap_ms': round(gap, 1),
+            'within_order_spread_ms': round(noise, 1),
+            'exceeds_10pct': bool(ratio and abs(ratio - 1) > 0.10),
+            'exceeds_noise_floor': bool(gap > noise),
+            'order_dependent': bool(ratio and abs(ratio - 1) > 0.10
+                                    and gap > noise),
         }
 fam['order_dependence'] = order_effects
+fam['order_dependence_scope'] = (
+    'labels sampled in both timed orders; the retention-pair stages run once '
+    'and are excluded rather than counted as unaffected')
 fam['order_dependent_labels'] = sorted(
-    l for l, v in order_effects.items() if v['order_dependent_beyond_10pct'])
+    l for l, v in order_effects.items() if v['order_dependent'])
+fam['exceeds_10pct_but_within_noise'] = sorted(
+    l for l, v in order_effects.items()
+    if v['exceeds_10pct'] and not v['exceeds_noise_floor'])
 json.dump(fam, open(OUT, 'w'), indent=2)
 
 f = fam['families']
@@ -275,6 +360,8 @@ print('############ FAMILY 2 -- GENERATION TIME (per stage, ms) ############')
 print(f"  {'stage':22} {'n':>3} {'min':>9} {'median':>9} {'max':>9} {'stdev':>9}")
 for l in labels:
     s = by_label[l]
+    if not s['n']:
+        continue
     print(f"  {l:22} {s['n']:>3} {s['min_ms']:>9.1f} {s['median_ms']:>9.1f} "
           f"{s['max_ms']:>9.1f} {s['stdev_ms']:>9.1f}")
 print()
@@ -304,13 +391,23 @@ print(f"  kernel with retention    {a['kernel_with_retention_bytes']:>14,} bytes
 print(f"  dynamic interface        {a['dynamic_interface_bytes']:>14,} bytes")
 print()
 print('############ ORDER DEPENDENCE, TESTED ############')
-print(f"  {'stage':22} {'base_first':>11} {'map_first':>11} {'ratio':>7}  >10%?")
+print(f"  {'stage':22} {'base_first':>11} {'map_first':>11} {'ratio':>7} "
+      f"{'gap':>8} {'noise':>8}  verdict")
 for l, v in fam['order_dependence'].items():
+    if v['order_dependent']:
+        verdict = 'ORDER-DEPENDENT'
+    elif v['exceeds_10pct']:
+        verdict = '>10% but within noise'
+    else:
+        verdict = 'no'
     print(f"  {l:22} {v['base_first_median_ms']:>11.1f} "
-          f"{v['map_first_median_ms']:>11.1f} {v['ratio']:>7.3f}  "
-          f"{'YES' if v['order_dependent_beyond_10pct'] else 'no'}")
+          f"{v['map_first_median_ms']:>11.1f} {v['ratio']:>7.3f} "
+          f"{v['gap_ms']:>8.1f} {v['within_order_spread_ms']:>8.1f}  {verdict}")
 print()
-print(f"  order-dependent beyond 10%: {fam['order_dependent_labels'] or 'none'}")
+print(f"  order-dependent (>10% AND beyond noise): "
+      f"{fam['order_dependent_labels'] or 'none'}")
+print(f"  >10% but inside the noise floor: "
+      f"{fam['exceeds_10pct_but_within_noise'] or 'none'}")
 print(f"  failed samples: {len(bad)}")
 PY
 
@@ -321,11 +418,18 @@ want 'no timed sample failed' 0 "$(j "d['failed_samples']")"
 want 'samples were retained raw' True \
      "$(python3 -c "import os;print(os.path.getsize('$SAMPLES') > 0)")"
 want 'every family is reported' 5 "$(j "len(d['families'])")"
-want 'both orders were run' 2 \
+want 'both timed orders were run' 'base_first,map_first' \
      "$(python3 -c "
 import json
 o={json.loads(l)['order'] for l in open('$SAMPLES')}
-print(len(o))")"
+print(','.join(sorted(x for x in o if x != 'schedule')))")"
+want 'the derived summary is from THIS run' True \
+     "$(python3 -c "
+import json
+try:
+    print(json.load(open('$G/evidence/families.json')).get('retention_pair_built_by_this_run') is True)
+except Exception:
+    print(False)")"
 want 'the retention projection was checked against a measurement' True \
      "$(j "d['families']['retention_cost_at_scale']['measured_delta_bytes'] > 0 and d['families']['retention_cost_at_scale']['g4_projection_bytes'] > 0")"
 want 'order dependence was tested, not assumed' True \
