@@ -1,5 +1,5 @@
 SM1-G5 -- Base.work virtual/instance dispatch
-generated 2026-09-08T20:17:35Z by run_dispatch_experiment.sh
+generated 2026-09-08T20:21:24Z by run_dispatch_experiment.sh
 
 THE QUESTION
   Can the exact release mechanically determine that a non-inlined declaration
@@ -180,20 +180,61 @@ release: /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/app_release
   3. THE DEVIRTUALIZABLE SITE IS REDIRECTED. viaDirect constructs its receiver
      in place, calls through the object pool, and reads PATCHED-w.
 
-  4. BUT POOL-INDIRECT IS NOT SUFFICIENT FOR REDIRECTABILITY. viaInlined
-     contains NO dispatch-table call -- only a pool-indirect one -- and is
-     still stale. The two pool-indirect sites differ in which entry point they
-     read (monomorphic vs normal). That is a HYPOTHESIS for the difference, not
-     a demonstrated cause; nothing here proves the entry kind is what decides.
+  4. POOL-INDIRECT IS NOT SUFFICIENT FOR REDIRECTABILITY -- and the reason is
+     in the compiler source, not in this arm.
+
+     OBSERVED: viaInlined contains no dispatch-table call, only a pool-indirect
+     one, and is still stale.
+
+     WITHDRAWN: an earlier version of this transcript offered the differing
+     entry-point offsets (#0x7 vs #0xf) as the hypothesis for that. The
+     mechanism behind viaInlined's staleness is NOT established here -- the
+     pool is not decoded, so which function that slot even holds is unknown,
+     and _inlineHelper has no symbol of its own to inspect. The observation
+     stands; the explanation is withdrawn.
+
+     WHAT IS ESTABLISHED, from source: under --patchable_static_calls,
+     FlowGraphCompiler::GenerateStaticDartCall returns early and emits
+
+         LoadObject(FUNCTION_REG, target)
+         Call(FieldAddress(FUNCTION_REG, Function::entry_point_offset(kind)))
+
+     i.e. it dispatches through the callee's FUNCTION, which is what
+     Function::AttachBytecode redirects (it calls
+     SetInstructions(StubCode::InterpretCall())). The same source comment names
+     the two forms that do NOT consult the Function -- a PC-relative branch that
+     bakes the callee address, and a pool slot holding the callee's CODE, bound
+     by ProgramVisitor::BindStaticCalls -- and states that AttachBytecode
+     cannot redirect either.
+
+     AND THE TWO ARE INDISTINGUISHABLE IN THE SHIPPED TEXT. The entry-point
+     offsets ALIAS between the two object layouts:
+
+         tagged #0x7 -> UntaggedFunction::entry_point_   (offset 8)
+                     -> UntaggedCode::entry_point_       (offset 8)
+         tagged #0xf -> UntaggedFunction::unchecked_entry_point_  (16)
+                     -> UntaggedCode::monomorphic_entry_point_    (16)
+
+     (raw_object.h: UntaggedFunction 1548-1549, UntaggedCode 2014-2050.)
+
+     So `ldr xN,[x27,#imm]; ldur x30,[xN,#off]; blr x30` is the SAME shape
+     whether the pool slot holds a redirectable Function or a non-redirectable
+     Code. Distinguishing them requires decoding the object pool to learn the
+     class of the slot -- which this release does not expose and which this
+     tool does not attempt. That is why a pool-indirect shape licenses no
+     conclusion, and it is a stronger reason than the withdrawn one.
 
   SO THE ANSWER IS ASYMMETRIC:
 
      presence of staleness   MECHANICALLY DETECTABLE. A dispatch-table call
                              site is never redirected by attaching a body, and
                              this release has 491 of them across 198 functions.
-     absence of staleness    NOT DETERMINABLE from call-site shape as
-                             characterised here, because arm 4 shows a
-                             pool-indirect site that stayed stale.
+     absence of staleness    NOT DETERMINABLE from call-site shape. Arm 4
+                             shows a pool-indirect site that stayed stale, and
+                             the source shows why no shape could settle it: the
+                             redirectable and non-redirectable pool forms are
+                             byte-identical, differing only in the CLASS of the
+                             object the pool slot holds.
 
   Attributing a dispatch-table site to the DECLARATIONS it can reach needs the
   precompiler's selector map (dispatch_table_generator.cc assigns the selector
