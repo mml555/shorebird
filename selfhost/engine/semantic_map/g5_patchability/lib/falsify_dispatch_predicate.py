@@ -141,6 +141,9 @@ failed = [r for r in results if r[1] == 'FAIL']
 print('-' * 108)
 print(f'arms={len(results)} passed={len(results) - len(failed)} '
       f'failed={len(failed)}')
+# Machine-readable survivor list, so a caller can require EXACTLY which arms
+# survive a control rather than only how many.
+print('SURVIVORS: ' + ' | '.join(l for l, v, _ in results if v == 'pass'))
 print('SM1_G5_DISPATCH_PREDICATE: '
       + ('FAIL_CLOSED' if not failed else 'DEFECTS_PRESENT'))
 sys.exit(1 if failed else 0)

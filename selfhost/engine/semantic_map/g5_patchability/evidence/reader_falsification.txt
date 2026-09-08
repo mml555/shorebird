@@ -1,5 +1,5 @@
 SM1-G5 route 2 -- adversarial falsification of the strict reader
-generated 2026-09-08T19:54:42Z by run_route2.sh
+generated 2026-09-08T20:16:36Z by run_route2.sh
 
 PROVENANCE
   8e1a23b59fb5e7be435019bd1b0840f81057abee424b48b570b9745d7646ac13  lib/read_inlining.py
@@ -189,12 +189,18 @@ SUBJECT CHANGED. Earlier runs used app_s6.aot, whose input kernel could no
 longer be identified in the work directory, so its note was not reproducible
 from a recorded recipe.
 
-SUBJECT CORRECTED AGAIN. The run after that used app_release.aot, built from
-release3.dill -- the PRE-PASS kernel, compiled WITHOUT --dynamic-interface. That
-AOT runs and reports a build id, but a patch against it fails at attach because
-the dynamic-module retention the interface drives is absent, so it was never
-the patchable release and could not be the subject of a dispatch
-demonstration. This run uses app_release.aot, built from release3.dill, and
-hands that exact file to run_dispatch_experiment.sh. Per-declaration verdicts
-are identical across all three subjects, so no verdict was traded away by
-either correction.
+SUBJECT CORRECTED AGAIN. The run after that used app_s6r.aot, built from
+prepass3.dill. That kernel is the PRE-PASS one, compiled WITHOUT
+--dynamic-interface: the AOT runs and reports a build id, but a patch against it
+fails at attach with "Unable to find function DateTime.now", because the
+dynamic-module retention the interface drives is absent. It was therefore never
+the patchable release and could not carry a dispatch demonstration.
+
+THIS run uses app_release.aot, built from release3.dill -- the kernel compiled
+WITH the interface -- and hands that exact file to run_dispatch_experiment.sh.
+Per-declaration verdicts are identical across all three subjects, so no verdict
+was traded away by either correction.
+
+(An earlier edit of this paragraph was itself wrong: a blanket rename swept the
+HISTORICAL sentence too, leaving it claiming the pre-pass subject was
+app_release.aot from release3.dill -- which contradicted its own next sentence.)

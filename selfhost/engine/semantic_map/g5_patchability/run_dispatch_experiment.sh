@@ -32,7 +32,23 @@ sha() { shasum -a 256 "$1" | awk '{print $1}'; }
 # run's bytecode, container or reader state in place, and a later assertion
 # then consumes a stale artifact and passes. Same defect the reader
 # falsification harness had.
-rm -f "$W/basework.bytecode" "$W/patch_basework.sbrb" "$W/rel.json"
+rm -f "$W/basework.bytecode" "$W/patch_basework.sbrb" "$W/rel.json" \
+      "$W/weak_predictor.dart" "$W/patched_run.txt" "$W/shapes.txt"
+
+# EVERY PRODUCER'S EXIT STATUS IS LOAD-BEARING. Checking only that an output
+# file is non-empty accepts a producer that failed after writing a partial
+# file, and accepts a stale file from a previous run. Each step below is run
+# through `must`, which records the failure and marks the run failed.
+must() { # must <what> <cmd...>
+  local what="$1"; shift
+  if ! "$@"; then
+    echo "  PRODUCER FAILED: $what"
+    PRODUCER_FAILED="${PRODUCER_FAILED}$what; "
+    rc=1
+    return 1
+  fi
+}
+PRODUCER_FAILED=""
 ASSERTIONS=()
 want() {
   if [ "$2" = "$3" ]; then ASSERTIONS+=("  pass  $1")
@@ -83,8 +99,8 @@ echo
 
 # --------------------------------------------------- the reader, on THAT AOT
 echo "############ 2. THE READER, ON THAT EXACT AOT ############"
-python3 "$G/lib/read_inlining.py" "$SUBJ" "$W/g2_r.json" - \
-    "$W/rel.json" | sed 's/^/  /'
+must reader python3 "$G/lib/read_inlining.py" "$SUBJ" "$W/g2_r.json" - \
+    "$W/rel.json"
 python3 - "$W/rel.json" "$AOT_SHA" <<'PY' | sed 's/^/  /'
 import json, sys
 d = json.load(open(sys.argv[1]))
@@ -100,19 +116,27 @@ echo
 
 # ------------------------------------------------------------- the patch
 echo "############ 3. THE PATCH, AND AN INDEPENDENT ATTACH PROOF ############"
-"$S/dartaotruntime" "$S/gen/dart2bytecode.dart.snapshot" \
+must dart2bytecode "$S/dartaotruntime" "$S/gen/dart2bytecode.dart.snapshot" \
     --platform "$S/vm_platform.dill" \
     --packages "$W/.dart_tool/package_config.json" \
     --import-dill "$W/import.dill" \
-    -o "$W/basework.bytecode" "$G/probe/repl_basework.dart" 2>&1 | sed 's/^/  /'
-[ -s "$W/basework.bytecode" ] || { echo "  dart2bytecode produced nothing"; rc=1; }
-ID=$("$S/dartaotruntime" "$SUBJ" | awk '/BUILD_ID/{print $2}')
-"$S/dart" "$G/../../route_b/packaging/pack_patch.dart" \
+    -o "$W/basework.bytecode" "$G/probe/repl_basework.dart"
+[ -s "$W/basework.bytecode" ] \
+  || { echo "  dart2bytecode wrote no bytecode"; rc=1; }
+
+# The build-id read is a producer too: an empty id would silently pack a
+# container that can never match the release.
+if ! ID=$("$S/dartaotruntime" "$SUBJ" | awk '/BUILD_ID/{print $2}'); then
+  echo "  PRODUCER FAILED: release build-id read"
+  PRODUCER_FAILED="${PRODUCER_FAILED}build-id read; "; rc=1
+fi
+case "$ID" in
+  '' | '<none>') echo "  the release reported no usable build id"; rc=1 ;;
+esac
+must pack_patch "$S/dart" "$G/../../route_b/packaging/pack_patch.dart" \
     --release-build-id "$ID" --out "$W/patch_basework.sbrb" \
-    --target "package:dynamic_modules/callsite_target.dart#Base.work=$W/basework.bytecode" \
-    2>&1 | sed 's/^/  /'
-[ -s "$W/patch_basework.sbrb" ] || { echo "  pack_patch produced nothing"; rc=1; }
-[ -n "$ID" ] || { echo "  the release reported no build id"; rc=1; }
+    --target "package:dynamic_modules/callsite_target.dart#Base.work=$W/basework.bytecode"
+[ -s "$W/patch_basework.sbrb" ] || { echo "  pack_patch wrote no container"; rc=1; }
 echo "  running build id  $ID"
 echo "  bytecode          $(sha "$W/basework.bytecode")"
 echo "  container         $(sha "$W/patch_basework.sbrb")"
@@ -125,7 +149,14 @@ cat <<'TXT'
   ask for it.
 TXT
 echo
-RUN=$("$S/dartaotruntime" "$SUBJ" "$W/patch_basework.sbrb" 2>&1)
+# The patched run must SUCCEED. It previously only had its output captured, so
+# a runtime abort would have been read as "the arm reported OLD".
+if "$S/dartaotruntime" "$SUBJ" "$W/patch_basework.sbrb" > "$W/patched_run.txt" 2>&1
+then :; else
+  echo "  PRODUCER FAILED: patched dartaotruntime run"
+  PRODUCER_FAILED="${PRODUCER_FAILED}patched run; "; rc=1
+fi
+RUN=$(cat "$W/patched_run.txt")
 echo "$RUN" | sed 's/^/  /'
 echo
 cat <<'TXT'
@@ -158,8 +189,8 @@ TXT
 echo
 
 echo "############ 5. MECHANICAL CLASSIFICATION OF EVERY CALL SITE ############"
-python3 "$G/lib/scan_dispatch_calls.py" "$SUBJ" \
-  --symbol viaVirtual --symbol viaDirect --symbol viaInlined | sed 's/^/  /'
+must shape-scanner python3 "$G/lib/scan_dispatch_calls.py" "$SUBJ" \
+  --symbol viaVirtual --symbol viaDirect --symbol viaInlined
 cat <<'TXT'
 
   Pool offsets are RELATIVE TO THE CALLING CODE'S OWN POOL and are NOT
@@ -245,13 +276,8 @@ cat <<'TXT'
   a replaceable callable -- must keep passing.
 TXT
 echo
-python3 - "$G/lib/predict_patchable.dart" "$W/weak_predictor.dart" <<'PY'
-import pathlib, sys
-src = pathlib.Path(sys.argv[1]).read_text()
-start = src.index('    if (replaceable) {\n      final staticFlag')
-end = src.index('\n    }\n', start) + len('\n    }\n')
-pathlib.Path(sys.argv[2]).write_text(src[:start] + src[end:])
-PY
+must weaken-predictor python3 "$G/lib/weaken_predictor.py" \
+    "$G/lib/predict_patchable.dart" "$W/weak_predictor.dart"
 SM1_PREDICTOR="$W/weak_predictor.dart" python3 \
     "$G/lib/falsify_dispatch_predicate.py" "$S/dart" "$W" 2>&1 | sed 's/^/  /'
 echo "  exit=$?  (asserted: non-zero)"
@@ -295,11 +321,22 @@ want 'viaDirect carries no dispatch-table call site' 0 \
 want 'viaInlined carries NO dispatch-table call site, yet stayed stale' 0 \
      "$(python3 "$G/lib/scan_dispatch_calls.py" "$SUBJ" --symbol viaInlined \
         | grep -c 'viaInlined.*DISPATCH_TABLE')"
-python3 "$G/lib/falsify_dispatch_predicate.py" "$S/dart" "$W" >/dev/null 2>&1
+BASE_OUT=$(python3 "$G/lib/falsify_dispatch_predicate.py" "$S/dart" "$W" 2>&1)
 want 'the dispatch predicate is fail-closed on every arm' 0 "$?"
-SM1_PREDICTOR="$W/weak_predictor.dart" python3 \
-    "$G/lib/falsify_dispatch_predicate.py" "$S/dart" "$W" >/dev/null 2>&1
+want 'predicate baseline is exactly 10/10' 'arms=10 passed=10 failed=0' \
+     "$(echo "$BASE_OUT" | grep -o 'arms=10 passed=10 failed=0')"
+
+# THE CONTROL'S OUTCOME IS EXACT, NOT MERELY NON-ZERO. A weakened predictor
+# that failed only one arm would otherwise satisfy "the control failed".
+CTL_OUT=$(SM1_READER= SM1_PREDICTOR="$W/weak_predictor.dart" python3 \
+    "$G/lib/falsify_dispatch_predicate.py" "$S/dart" "$W" 2>&1)
 want 'deleting the predicate makes those arms fail' 1 "$?"
+want 'weakened predicate is exactly 2 pass / 8 fail' 'arms=10 passed=2 failed=8' \
+     "$(echo "$CTL_OUT" | grep -o 'arms=10 passed=2 failed=8')"
+want 'the two survivors are exactly the arms that must not depend on it' \
+     'top-level static function | a field, which is not a replaceable callable' \
+     "$(echo "$CTL_OUT" | sed -n 's/^SURVIVORS: //p')"
+want 'no producer in this run failed' '' "$PRODUCER_FAILED"
 want 'the predicate transcript records FAIL_CLOSED' 1 \
      "$(grep -c 'SM1_G5_DISPATCH_PREDICATE: FAIL_CLOSED' "$T")"
 want 'the reader bank and this demonstration used one artifact' "$AOT_SHA" \

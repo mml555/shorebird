@@ -1,5 +1,5 @@
 SM1-G5 -- Base.work virtual/instance dispatch
-generated 2026-09-08T19:58:55Z by run_dispatch_experiment.sh
+generated 2026-09-08T20:17:35Z by run_dispatch_experiment.sh
 
 THE QUESTION
   Can the exact release mechanically determine that a non-inlined declaration
@@ -27,7 +27,7 @@ THE QUESTION
   patchable release, so the whole experiment moves onto it -- reader included.
 
 ############ 2. THE READER, ON THAT EXACT AOT ############
-    total_g1_rows=36 INLINED=2 NOT_INLINED=15 UNKNOWN=14 NO_BODY=5 accounted=36 -> /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/rel.json
+  total_g1_rows=36 INLINED=2 NOT_INLINED=15 UNKNOWN=14 NO_BODY=5 accounted=36 -> /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/rel.json
   subject sha256 7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34
   validated=True complete=True
     viaDirect      NOT_INLINED  ABSENT_FROM_VALIDATED_NOTE
@@ -37,9 +37,9 @@ THE QUESTION
     Other.work     NOT_INLINED  ABSENT_FROM_VALIDATED_NOTE
 
 ############ 3. THE PATCH, AND AN INDEPENDENT ATTACH PROOF ############
-  wrote /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/patch_basework.sbrb (856 bytes)
-    release build id: 97c212a37be47fbff1e700f874190707
-    package:dynamic_modules/callsite_target.dart#Base.work  570 bytes
+wrote /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/patch_basework.sbrb (856 bytes)
+  release build id: 97c212a37be47fbff1e700f874190707
+  package:dynamic_modules/callsite_target.dart#Base.work  570 bytes
   running build id  97c212a37be47fbff1e700f874190707
   bytecode          24d621ab59449777bb6627a7780dcef6e447acf0bb43904e73d55ebc5c5082ed
   container         5a81c4f9cbe63b0f0873046c18155ccd024e725b9aba1ce43c68195b985fcd93
@@ -140,18 +140,18 @@ THE QUESTION
   MONOMORPHIC entry.
 
 ############ 5. MECHANICAL CLASSIFICATION OF EVERY CALL SITE ############
-  release: /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/app_release.aot
-    recognized POOL_INDIRECT  shapes: 2425   (redirectability UNKNOWN)
-    recognized DISPATCH_TABLE shapes: 491   (never redirected by attaching a body)
-    these are counts of MATCHED SHAPES, not a complete call-site census
-    functions containing at least one dispatch-table call: 198
-  
-    per requested symbol:
-      viaVirtual       154834  DISPATCH_TABLE  selector_offset=0
-      viaVirtual       15c7d0  POOL_INDIRECT   pool_offset=0x1d50
-      viaDirect        156a78  POOL_INDIRECT   pool_offset=0x1db0
-      viaDirect        156ab0  POOL_INDIRECT   pool_offset=0x1d60
-      viaInlined       154878  POOL_INDIRECT   pool_offset=0x1d70
+release: /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/app_release.aot
+  recognized POOL_INDIRECT  shapes: 2425   (redirectability UNKNOWN)
+  recognized DISPATCH_TABLE shapes: 491   (never redirected by attaching a body)
+  these are counts of MATCHED SHAPES, not a complete call-site census
+  functions containing at least one dispatch-table call: 198
+
+  per requested symbol:
+    viaVirtual       154834  DISPATCH_TABLE  selector_offset=0
+    viaVirtual       15c7d0  POOL_INDIRECT   pool_offset=0x1d50
+    viaDirect        156a78  POOL_INDIRECT   pool_offset=0x1db0
+    viaDirect        156ab0  POOL_INDIRECT   pool_offset=0x1d60
+    viaInlined       154878  POOL_INDIRECT   pool_offset=0x1d70
 
   Pool offsets are RELATIVE TO THE CALLING CODE'S OWN POOL and are NOT
   comparable across functions: the same offset appears in _state and inside
@@ -230,6 +230,7 @@ THE QUESTION
   a field, which is not a replaceable callable     pass   ABI_SHAPE_UNSUPPORTED
   ------------------------------------------------------------------------------------------------------------
   arms=10 passed=10 failed=0
+  SURVIVORS: instance method (the Base.work shape) | instance getter | instance setter | instance operator | static metadata absent | static metadata null | static metadata is the STRING "true", not a bool | static metadata is the integer 1 | top-level static function | a field, which is not a replaceable callable
   SM1_G5_DISPATCH_PREDICATE: FAIL_CLOSED
   exit=0  (asserted: 0)
 
@@ -238,6 +239,7 @@ THE QUESTION
   that must NOT depend on it -- a static declaration, and a field, which is not
   a replaceable callable -- must keep passing.
 
+  weakened predictor written: predicate block of 323 chars removed
   arm                                              result reasons / defect
   ------------------------------------------------------------------------------------------------------------
   instance method (the Base.work shape)            FAIL   missing ['NON_STATIC_DISPATCH_UNPROVEN']
@@ -252,10 +254,11 @@ THE QUESTION
   a field, which is not a replaceable callable     pass   ABI_SHAPE_UNSUPPORTED
   ------------------------------------------------------------------------------------------------------------
   arms=10 passed=2 failed=8
+  SURVIVORS: top-level static function | a field, which is not a replaceable callable
   SM1_G5_DISPATCH_PREDICATE: DEFECTS_PRESENT
   exit=1  (asserted: non-zero)
 
-ASSERTIONS (17 checked)
+ASSERTIONS (21 checked)
   pass  reader read the same artifact the demo ran
   pass  reader validated the note on the release AOT
   pass  reader reports Base.work NOT_INLINED there
@@ -270,7 +273,11 @@ ASSERTIONS (17 checked)
   pass  viaDirect carries no dispatch-table call site
   pass  viaInlined carries NO dispatch-table call site, yet stayed stale
   pass  the dispatch predicate is fail-closed on every arm
+  pass  predicate baseline is exactly 10/10
   pass  deleting the predicate makes those arms fail
+  pass  weakened predicate is exactly 2 pass / 8 fail
+  pass  the two survivors are exactly the arms that must not depend on it
+  pass  no producer in this run failed
   pass  the predicate transcript records FAIL_CLOSED
   pass  the reader bank and this demonstration used one artifact
 

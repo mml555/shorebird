@@ -74,13 +74,24 @@
     },
     "not_g1_identity": "These are VM coordinates, NOT G1 identity. RegularFunction is VM vocabulary where G1 distinguishes method from operator; a private name still carries its library key (_state@17145467) rather than G1's declared name; and an extension member can appear with a synthetic top-level owner while G1 recovers the extension owner. Projection onto G1 is the reader's job, against G1's retained vmName/loweredName, and anything not uniquely projectable is UNKNOWN.",
     "subject": {
-      "aot": "app_s6r.aot",
+      "aot": "app_release.aot",
       "aot_sha256": "7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34",
-      "input_kernel": "prepass3.dill",
+      "input_kernel": "release3.dill",
       "input_kernel_sha256": "a93b4be09e7efa06279f42860e64208d86d7b7a0ab7e71156960f50bf2bfd888",
-      "recipe": "gen_snapshot --snapshot_kind=app-aot-elf --patchable_static_calls --elf=app_s6r.aot prepass3.dill",
-      "note": "The earlier schema-6 subject, app_s6.aot, is withdrawn as a provenance carrier: its input kernel could not be identified in the work directory, so its note was not reproducible from a recorded recipe. Per-declaration verdicts are identical between the two."
-    }
+      "recipe": "gen_snapshot --snapshot_kind=app-aot-elf --patchable_static_calls --elf=app_release.aot release3.dill",
+      "why_this_kernel": "release3.dill is compiled WITH --dynamic-interface and is therefore the PATCHABLE release. The same file is handed unchanged to run_dispatch_experiment.sh."
+    },
+    "withdrawn_subjects": [
+      {
+        "aot": "app_s6.aot",
+        "why": "its input kernel could not be identified in the work directory, so its note was not reproducible from a recorded recipe"
+      },
+      {
+        "aot": "app_s6r.aot",
+        "input_kernel": "prepass3.dill",
+        "why": "reproducible from a recorded recipe, but prepass3.dill is the PRE-PASS kernel, compiled WITHOUT --dynamic-interface. Its AOT runs and reports a build id, yet a patch against it fails at attach with \"Unable to find function DateTime.now\" because the dynamic-module retention the interface drives is absent. It was never the patchable release and could not carry a dispatch demonstration."
+      }
+    ]
   },
   "replay": {
     "order": [
@@ -133,9 +144,21 @@
   "reader_falsification": {
     "harness": "lib/falsify_reader.py",
     "transcript": "evidence/reader_falsification.txt",
-    "arms": 28,
+    "arms": 34,
+    "shipped_failed": 0,
     "result": "ALL_ARMS_REFUSED",
-    "positive_control": "the same arms run against a reader whose completeness gate is removed; 27 of 28 flip to FAIL by naming the NOT_INLINED rows they manufactured."
+    "controls": [
+      {
+        "name": "A: trusts an unvalidated note",
+        "passed": 1,
+        "failed": 33
+      },
+      {
+        "name": "B: collapses every refusal into one generic code",
+        "passed": 1,
+        "failed": 33
+      }
+    ]
   },
   "regenerated_by": "run_route2.sh"
 }

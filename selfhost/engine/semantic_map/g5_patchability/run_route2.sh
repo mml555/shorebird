@@ -299,15 +299,21 @@ SUBJECT CHANGED. Earlier runs used app_s6.aot, whose input kernel could no
 longer be identified in the work directory, so its note was not reproducible
 from a recorded recipe.
 
-SUBJECT CORRECTED AGAIN. The run after that used app_release.aot, built from
-release3.dill -- the PRE-PASS kernel, compiled WITHOUT --dynamic-interface. That
-AOT runs and reports a build id, but a patch against it fails at attach because
-the dynamic-module retention the interface drives is absent, so it was never
-the patchable release and could not be the subject of a dispatch
-demonstration. This run uses app_release.aot, built from release3.dill, and
-hands that exact file to run_dispatch_experiment.sh. Per-declaration verdicts
-are identical across all three subjects, so no verdict was traded away by
-either correction.
+SUBJECT CORRECTED AGAIN. The run after that used app_s6r.aot, built from
+prepass3.dill. That kernel is the PRE-PASS one, compiled WITHOUT
+--dynamic-interface: the AOT runs and reports a build id, but a patch against it
+fails at attach with "Unable to find function DateTime.now", because the
+dynamic-module retention the interface drives is absent. It was therefore never
+the patchable release and could not carry a dispatch demonstration.
+
+THIS run uses app_release.aot, built from release3.dill -- the kernel compiled
+WITH the interface -- and hands that exact file to run_dispatch_experiment.sh.
+Per-declaration verdicts are identical across all three subjects, so no verdict
+was traded away by either correction.
+
+(An earlier edit of this paragraph was itself wrong: a blanket rename swept the
+HISTORICAL sentence too, leaving it claiming the pre-pass subject was
+app_release.aot from release3.dill -- which contradicted its own next sentence.)
 TXT
 } > "$G/evidence/reader_falsification.txt" 2>&1
 # The three runs are asserted independently: the shipped reader must refuse
@@ -388,7 +394,7 @@ want 'completeness control transcript records VALID_AND_SENSITIVE' 1 \
 
 # ------------------------------------------------------------- 6. manifest
 python3 - "$G" "$D" "$GS" "$W" "$V" <<'PY'
-import hashlib, json, os, pathlib, subprocess, sys
+import hashlib, json, os, pathlib, re, subprocess, sys
 G, D, GS, W, V = sys.argv[1:6]
 sha = lambda p: hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()
 T = '7b04b01bdc10ec990143257f0d28580571c2122f'
@@ -403,13 +409,59 @@ m['built']['instrumented_gen_snapshot_sha256_schema6'] = sha(GS)
 m['delta_2']['sha256'] = sha(f'{G}/instrumentation/0002-g5-inlining-relation.patch')
 st = json.load(open(f'{W}/app_release.json'))
 m['route2_witness']['records'] = st['diagnostics']['records']
-m['route2_witness']['subject'].update({
+
+# THE SUBJECT IS AUTHORED, NOT PATCHED. The previous writer only .update()d the
+# digests, so a new AOT SHA was written onto the withdrawn subject's filename,
+# kernel, kernel SHA and recipe -- a manifest that was internally
+# contradictory while every digest in it was individually correct. Every
+# semantic field is set here from the artifact actually produced.
+m['route2_witness']['subject'] = {
+    'aot': 'app_release.aot',
     'aot_sha256': sha(f'{W}/app_release.aot'),
-    'input_kernel_sha256': sha(f'{W}/release3.dill')})
+    'input_kernel': 'release3.dill',
+    'input_kernel_sha256': sha(f'{W}/release3.dill'),
+    'recipe': 'gen_snapshot --snapshot_kind=app-aot-elf '
+              '--patchable_static_calls --elf=app_release.aot release3.dill',
+    'why_this_kernel': 'release3.dill is compiled WITH --dynamic-interface and '
+                       'is therefore the PATCHABLE release. The same file is '
+                       'handed unchanged to run_dispatch_experiment.sh.',
+}
+m['route2_witness']['withdrawn_subjects'] = [
+    {'aot': 'app_s6.aot',
+     'why': 'its input kernel could not be identified in the work directory, '
+            'so its note was not reproducible from a recorded recipe'},
+    {'aot': 'app_s6r.aot', 'input_kernel': 'prepass3.dill',
+     'why': 'reproducible from a recorded recipe, but prepass3.dill is the '
+            'PRE-PASS kernel, compiled WITHOUT --dynamic-interface. Its AOT '
+            'runs and reports a build id, yet a patch against it fails at '
+            'attach with "Unable to find function DateTime.now" because the '
+            'dynamic-module retention the interface drives is absent. It was '
+            'never the patchable release and could not carry a dispatch '
+            'demonstration.'},
+]
 m['route2_witness']['determinism'].update({
     'build_a': {'aot': 'app_release.aot', 'aot_sha256': sha(f'{W}/app_release.aot')},
     'build_b': {'aot': 'app_release_b.aot', 'aot_sha256': sha(f'{W}/app_release_b.aot')},
     'note_section_sha256': st['diagnostics']['note_section_sha256']})
+
+# FALSIFICATION METADATA IS DERIVED FROM THE TRANSCRIPT, never transcribed: the
+# manifest said 28 arms and "27 of 28" long after the suite reached 34.
+fals = pathlib.Path(f'{G}/evidence/reader_falsification.txt').read_text()
+counts = re.findall(r'arms=(\d+) passed=(\d+) failed=(\d+)', fals)
+m['reader_falsification'] = {
+    'harness': 'lib/falsify_reader.py',
+    'transcript': 'evidence/reader_falsification.txt',
+    'arms': int(counts[0][0]),
+    'shipped_failed': int(counts[0][2]),
+    'result': ('ALL_ARMS_REFUSED' if 'ALL_ARMS_REFUSED' in fals
+               else 'DEFECTS_PRESENT'),
+    'controls': [
+        {'name': 'A: trusts an unvalidated note',
+         'passed': int(counts[1][1]), 'failed': int(counts[1][2])},
+        {'name': 'B: collapses every refusal into one generic code',
+         'passed': int(counts[2][1]), 'failed': int(counts[2][2])},
+    ],
+}
 m['replay']['per_file'] = {
     f: {'replayed_sha256': sha(os.path.join(V, f)),
         'built_sha256': sha(os.path.join(D, f)),
@@ -423,6 +475,18 @@ PY
 want 'the manifest step succeeded' 0 "$?"
 want 'banked manifest digests match the live artifacts' ok \
      "$(python3 "$G/lib/_check_manifest.py" "$G" "$D" "$GS" "$W" | tail -1)"
+# A manifest whose hashes are all correct can still be internally
+# contradictory. This control mutates a COPY per arm -- right hash, wrong
+# filename / kernel / recipe -- and requires the checker to refuse each one.
+MSEM=$(python3 "$G/lib/falsify_manifest.py" "$G" "$D" "$GS" "$W" 2>&1)
+want 'the manifest checker refuses every semantic swap' 0 "$?"
+want 'the semantic-swap control ran every arm' 'failed=0' \
+     "$(echo "$MSEM" | grep -o 'failed=0')"
+{
+  echo
+  echo "=========== MANIFEST SEMANTIC IDENTITY, AND ITS CONTROL ==========="
+  echo "$MSEM"
+} >> "$G/evidence/reader_state.txt"
 
 echo
 echo "ASSERTIONS (${#ASSERTIONS[@]} checked)"

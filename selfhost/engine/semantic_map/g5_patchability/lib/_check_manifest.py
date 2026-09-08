@@ -4,6 +4,13 @@
 Writing the manifest is not the same as writing a CORRECT manifest: a step that
 succeeds can still record a digest that no longer matches the artifact it names.
 
+It also checks the SEMANTIC IDENTITY of the canonical subject, not only its
+digests. A manifest whose every hash is individually correct can still be
+internally contradictory -- that is exactly how a new AOT SHA came to be
+written onto the withdrawn subject's filename, kernel and recipe -- so the
+filename, kernel filename, recipe, determinism build names and falsification
+metadata are all required to describe the artifact actually produced.
+
 SCOPE. This checks a LOAD-BEARING SUBSET, not every digest in the file:
 
   * delta_2.sha256                                  the incremental patch
@@ -24,6 +31,9 @@ import pathlib
 import sys
 
 G, D, GS, W = sys.argv[1:5]
+# A control can point this at a mutated COPY, so the banked manifest is never
+# edited in place to test the checker.
+MANIFEST = sys.argv[5] if len(sys.argv) > 5 else f'{G}/instrumentation/MANIFEST.json'
 
 
 def sha(p):
@@ -31,7 +41,7 @@ def sha(p):
 
 
 try:
-    m = json.load(open(f'{G}/instrumentation/MANIFEST.json'))
+    m = json.load(open(MANIFEST))
 except Exception as ex:                                  # noqa: BLE001
     print(f'manifest does not parse: {ex}')
     sys.exit(1)
@@ -51,6 +61,56 @@ checks = [
 for name, recorded, live in checks:
     if recorded != live:
         bad.append(f'{name}: recorded {recorded}, live {live}')
+
+# ---- SEMANTIC IDENTITY OF THE CANONICAL SUBJECT -------------------------
+subj = m['route2_witness'].get('subject', {})
+EXPECT = {
+    'aot': 'app_release.aot',
+    'input_kernel': 'release3.dill',
+    'recipe': 'gen_snapshot --snapshot_kind=app-aot-elf '
+              '--patchable_static_calls --elf=app_release.aot release3.dill',
+}
+for field, want in EXPECT.items():
+    if subj.get(field) != want:
+        bad.append(f'subject.{field}: recorded {subj.get(field)!r}, '
+                   f'expected {want!r}')
+# The recipe must name the same two files the identity fields do -- a recipe
+# left describing a withdrawn lane is the defect this exists to catch.
+recipe = subj.get('recipe') or ''
+for field in ('aot', 'input_kernel'):
+    nm = subj.get(field)
+    if nm and nm not in recipe:
+        bad.append(f'subject.recipe does not name subject.{field} ({nm})')
+for wd in ('app_s6.aot', 'app_s6r.aot', 'prepass3.dill'):
+    if wd in json.dumps({k: v for k, v in m['route2_witness'].items()
+                         if k != 'withdrawn_subjects'}):
+        bad.append(f'withdrawn artifact {wd} still appears outside '
+                   f'withdrawn_subjects')
+if len(m['route2_witness'].get('withdrawn_subjects', [])) < 2:
+    bad.append('both withdrawn subjects must stay recorded as historical')
+
+det = m['route2_witness'].get('determinism', {})
+for half, want in (('build_a', 'app_release.aot'),
+                   ('build_b', 'app_release_b.aot')):
+    if det.get(half, {}).get('aot') != want:
+        bad.append(f'determinism.{half}.aot: recorded '
+                   f'{det.get(half, {}).get("aot")!r}, expected {want!r}')
+if det.get('aot_sha256_equal') is not False:
+    bad.append('determinism must not claim the two AOTs are byte-equal')
+
+# ---- FALSIFICATION METADATA MATCHES THE TRANSCRIPT ---------------------
+import re
+fals = pathlib.Path(f'{G}/evidence/reader_falsification.txt').read_text()
+counts = re.findall(r'arms=(\d+) passed=(\d+) failed=(\d+)', fals)
+rf = m.get('reader_falsification', {})
+if not counts:
+    bad.append('reader falsification transcript records no arm counts')
+else:
+    if rf.get('arms') != int(counts[0][0]):
+        bad.append(f'reader_falsification.arms: recorded {rf.get("arms")}, '
+                   f'transcript says {counts[0][0]}')
+    if len(counts) >= 3 and len(rf.get('controls', [])) != 2:
+        bad.append('reader_falsification must record both controls')
 
 for f, v in m['replay']['per_file'].items():
     live = sha(f'{D}/{f}')

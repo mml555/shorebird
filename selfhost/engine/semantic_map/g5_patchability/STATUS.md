@@ -490,7 +490,9 @@ digests recomputed.
 The subject changed. `app_s6.aot` is withdrawn as a provenance carrier because
 its input kernel could no longer be identified in the work directory, so its
 note was not reproducible from a recorded recipe. `app_s6r.aot` is built by a
-recorded recipe from a named kernel. Per-declaration verdicts are identical
+recorded recipe from a named kernel. (Superseded: `app_s6r.aot` was itself
+withdrawn later, because `prepass3.dill` turned out to be the pre-pass kernel
+rather than the patchable release. See the dispatch section below.) Per-declaration verdicts are identical
 between the two, so nothing was traded away for the reproducibility.
 
 ### 2. Mapper tightened — done
@@ -640,8 +642,10 @@ and the completeness enumeration covers the AOT path only, not JIT.
 and the accounting above. Note content is deterministic across two runs on the
 same input kernel and the verdicts are identical, while the two whole-AOT
 hashes differ — that is note/verdict determinism, **not** byte-reproducible
-executable output, and downstream gates must bind to one exact `app_s6r.aot`
-SHA rather than treating the second build as interchangeable.
+executable output, and downstream gates must bind to one exact canonical AOT
+SHA rather than treating the second build as interchangeable. That canonical
+subject is now `app_release.aot`; `app_s6r.aot` named it at the time this
+paragraph was written and is withdrawn.
 
 Every refusal names a code: `KIND_NOT_COVERED_BY_PROOF` for the 13 field and
 constructor rows, `ONLY_SYNTHETIC_CHILD_INLINEE` for `tearOffTarget`,
