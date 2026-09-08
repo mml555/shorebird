@@ -281,14 +281,15 @@ decided here. Evidence: [`evidence/callsite_arms.txt`](evidence/callsite_arms.tx
     int callsSmall() => smallTarget() + 1;
 
 A pragma is a request, so the inlining is read out of the shipped `app.aot` with
-`llvm-objdump`:
+`llvm-objdump`. `smallTarget` has exactly two source-level call sites — inside
+`callsSmall` and directly in `_state` — and **both carry its computation rather
+than a call to it**: the `DateTime` call and the `999`/`1000` arithmetic are its
+own body.
 
-* `callsSmall` contains the target's **own** body — the `DateTime` call and the
-  `999`/`1000` arithmetic — not a call to it;
-* **no `bl <smallTarget>` exists anywhere** in the artifact;
-* `_state` carries the same arithmetic twice;
-* the standalone `smallTarget` symbol is still present, so the patch had
-  something to bind to.
+The claim is *not* argued from symbol absence. `--patchable_static_calls` turns
+ordinary static calls into indirect `blr` calls, so "no `bl <smallTarget>`" is
+not sufficient on its own; the evidence is the copied computation appearing in
+the callers.
 
 Patching it 41 → 141:
 
@@ -307,13 +308,27 @@ so the only thing separating them is whether the optimizer copied the body:
 
 | target | machine-code state | after |
 |---|---|---|
-| `alpha` | not inlined; caller reaches it through the pool indirection | **`PATCHED-a`** |
+| `alpha` | not inlined; its computation is absent from `_state` | **`PATCHED-a`** |
 | `smallTarget` | inlined; no `bl <smallTarget>` anywhere | `small=41`, `callsSmall=42` |
 | `beta` | untargeted control | `OLD-b` |
 
-`APPLY ok: 2 target(s)` for both. The patch, container, release and apply path
-are shared, so the difference is attributable to inlining alone: one target had
-a call site to redirect, the other had only copies.
+`APPLY ok: 2 target(s)` for both — and, decisively, the container's own direct
+invoke of each attached replacement in the same run:
+
+    ATTACH: C++ invoke of target returned: PATCHED-a
+    ATTACH: C++ invoke of target returned: 141
+
+So the intended `smallTarget` replacement really attached and really computes
+**141**, while the ordinary source call still reads **41**. Without that, the
+stale reading would have been equally consistent with the wrong or unchanged
+bytecode being packed — `APPLY ok` is not evidence of replacement semantics, as
+this gate established earlier.
+
+The patch, container, release and apply path are shared between the two targets,
+so the bypass is attributable to inlining alone: one had a call site to redirect,
+the other had only copies. Full provenance — release AOT, `.sbrb`, both KBC
+hashes, the container target list, and the banked replacement sources — is in the
+evidence file.
 
 Evidence: [`evidence/inlined_target.txt`](evidence/inlined_target.txt).
 

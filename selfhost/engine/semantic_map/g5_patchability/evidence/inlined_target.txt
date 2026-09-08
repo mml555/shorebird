@@ -1,104 +1,115 @@
-SM1-G5 item 2 — A GENUINELY INLINED TARGET BODY, proved from machine code
-date : 2026-09-08T01:00:34Z
+SM1-G5 item 2 — A GENUINELY INLINED TARGET BODY, and what still patches
+date : 2026-09-08T01:12:38Z
 
 WHY THE EARLIER ARM DID NOT COUNT. It named Base.work, which carries
-vm:never-inline; only the HELPER was prefer-inline. That arrangement cannot
-show a patched target BODY being copied into a caller and going stale, so
-it was withdrawn rather than reinterpreted.
+vm:never-inline; only the HELPER was prefer-inline. That cannot show a
+patched target BODY copied into a caller and going stale, so it was
+withdrawn rather than reinterpreted.
 
-THE TARGET HERE has no never-inline pragma and is small:
+############ PROVENANCE — every input to the run below ############
+  release app.aot          663947b6c3fc11efce0160dcd802e0bb749d5f5654839074d1781f637d4e547b
+  release build id         97c212a365e89606f1e700f8f2f7fac5
+  patch_both.sbrb          a9d27b16c2ca22732073302214b93362eb2fd6e05c000bd2ba57a0c0fbbdc295
+  alpha replacement KBC    124b8dc58774adcb5abb9cc5831d65f28d7b1ae54afa672380f4208a9f140b0c
+  smallTarget repl. KBC    e985dec39dbc301e1187cdc82ce736da9df10cb2f460a4a9e4a6ee74c3a7ca54
+  container target list:
+    wrote /tmp/verify.sbrb (1504 bytes)
+      release build id: 97c212a365e89606f1e700f8f2f7fac5
+      package:dynamic_modules/callsite_target.dart#alpha  528 bytes
+      package:dynamic_modules/callsite_target.dart#smallTarget  508 bytes
+  replacement sources are banked at probe/repl_alpha.dart and
+  probe/repl_smallTarget.dart; smallTarget's returns 141, alpha's PATCHED-a.
 
-    @pragma('vm:prefer-inline')
-    int smallTarget() => DateTime.now().millisecondsSinceEpoch >= 0 ? 41 : 0;
+############ 1. the target's BODY is copied into its callers ############
+  smallTarget's source-level call sites are exactly two: inside callsSmall()
+  and directly in _state. Both carry its computation rather than a call.
 
-    @pragma('vm:never-inline')          // keeps its own symbol to disassemble
-    int callsSmall() => smallTarget() + 1;
+  callsSmall:
+    00000000000bc2a0 <callsSmall>:
+       bc2a0:      	stp	x29, x30, [x15, #-0x10]!
+       bc2a4:      	mov	x29, x15
+       bc2a8:      	ldr	x16, [x26, #0x48]
+       bc2ac:      	cmp	x15, x16
+       bc2b0:      	b.ls	 <L6>
+    <L0>:
+       bc2b4:      	ldr	x4, [x27, #0x190]
+       bc2b8:      	ldr	x0, [x27, #0x1bc8]
+       bc2bc:      	ldur	x30, [x0, #0x7]
+       bc2c0:      	blr	x30
+       bc2c4:      	asr	x1, x0, #1
+       bc2c8:      	tbz	w0, #0x0,  <L1>
+       bc2cc:      	ldur	x1, [x0, #0x7]
+    <L1>:
+       bc2d0:      	tbz	x1, #0x3f,  <L2>
+       bc2d4:      	mov	x3, #0x3e7              // =999
+       bc2d8:      	b	 <L3>
 
-A PRAGMA IS A REQUEST, NOT EVIDENCE. What follows is read out of the
-shipped app.aot with llvm-objdump.
+  The DateTime call and the 999/1000 arithmetic are smallTarget's own body.
+  _state carries the same arithmetic 2 time(s).
 
-############ 1. callsSmall CONTAINS the target's body ############
-  00000000000bc2a0 <callsSmall>:
-     bc2a0:      	stp	x29, x30, [x15, #-0x10]!
-     bc2a4:      	mov	x29, x15
-     bc2a8:      	ldr	x16, [x26, #0x48]
-     bc2ac:      	cmp	x15, x16
-     bc2b0:      	b.ls	 <L6>
-  <L0>:
-     bc2b4:      	ldr	x4, [x27, #0x190]
-     bc2b8:      	ldr	x0, [x27, #0x1bc8]
-     bc2bc:      	ldur	x30, [x0, #0x7]
-     bc2c0:      	blr	x30
-     bc2c4:      	asr	x1, x0, #1
-     bc2c8:      	tbz	w0, #0x0,  <L1>
-     bc2cc:      	ldur	x1, [x0, #0x7]
-  <L1>:
-     bc2d0:      	tbz	x1, #0x3f,  <L2>
-     bc2d4:      	mov	x3, #0x3e7              // =999
-     bc2d8:      	b	 <L3>
-  <L2>:
-     bc2dc:      	mov	x3, #0x0                // =0
+  NOT ARGUED FROM SYMBOL ABSENCE. --patchable_static_calls turns ordinary
+  static calls into indirect blr calls, so 'no bl <smallTarget>' is not
+  sufficient on its own. The claim rests on the copied computation being
+  present in the callers.
 
-  The 999/1000 arithmetic and the DateTime call are smallTarget's OWN body,
-  inlined. There is no call to smallTarget here.
+############ 2. alpha, the ordinary patch-sensitive control ############
 
-############ 2. nothing in the release calls smallTarget ############
-  no 'bl <smallTarget>' anywhere in the artifact
-  _state also carries the body: 2 occurrence(s) of its arithmetic
+  alpha is declared vm:never-inline and, unlike smallTarget, its computation
+  does NOT appear copied into _state: _state contains smallTarget's 999/1000
+  arithmetic but not alpha's string handling.
 
-############ 3. the standalone symbol still exists — and is what got patched ############
-  00000000000bc350 <smallTarget>:
-     bc350:      	stp	x29, x30, [x15, #-0x10]!
-     bc354:      	mov	x29, x15
+  DELIBERATELY NARROW CLAIM. _state does contain pool-indirect calls of the
+  shape --patchable_static_calls emits --
 
-############ 4. the observed result ############
+    bbfb4:   ldr  x16, [x27, #0x1d28]
+    bbfc0:   ldr  x0,  [x27, #0x1d30]
+    bbfc8:   blr  x30
+
+  -- but this excerpt does not by itself establish WHICH of them is the call to
+  alpha, and an indirect call carries no symbol name to read. So alpha is
+  described here as the ordinary patch-sensitive non-inlined control, evidenced
+  by its BEHAVIOUR in arm 3 (OLD-a -> PATCHED-a in the same process), rather
+  than as machine-proven pool indirection. The inlining claim in arm 1 does not
+  depend on this: it rests on smallTarget's own computation being present in its
+  callers.
+
+############ 3. ONE release, ONE container, TWO targets, nothing filtered ############
+  BUILD_ID 97c212a365e89606f1e700f8f2f7fac5
   before alpha=OLD-a beta=OLD-b virtual=OLD-w direct=OLD-w inlined=OLD-w other=OTHER-w small=41 callsSmall=42
-  APPLY ok: 1 target(s)
-  after  alpha=OLD-a beta=OLD-b virtual=OLD-w direct=OLD-w inlined=OLD-w other=OTHER-w small=41 callsSmall=42
-
-
-############ 5. THE COMPARISON: non-inlined vs inlined, ONE release, ONE container ############
-
-  A single .sbrb carries TWO targets, applied atomically to the same release, so
-  the only thing separating them is whether the optimizer copied the body:
-
-    alpha        NOT inlined -- vm:never-inline, and the caller reaches it through
-                 the object-pool indirection --patchable_static_calls emits
-                 (ldr x0,[x27,#..] / blr x30). A real call site exists.
-
-    smallTarget  INLINED -- its body sits in callsSmall and in _state, and no
-                 'bl <smallTarget>' exists anywhere in the artifact.
-
-  before alpha=OLD-a beta=OLD-b virtual=OLD-w direct=OLD-w inlined=OLD-w other=OTHER-w small=41 callsSmall=42
+  ATTACH: before -> IsInterpreted=0 HasBytecode=0
+  ATTACH: after  -> IsInterpreted=1 HasBytecode=1
+  ATTACH: pool len=2664, rewrote 0 slot(s) (other Code slots=121)
+  ATTACH: C++ invoke of target returned: PATCHED-a
+  ATTACH: before -> IsInterpreted=0 HasBytecode=0
+  ATTACH: after  -> IsInterpreted=1 HasBytecode=1
+  ATTACH: pool len=2664, rewrote 0 slot(s) (other Code slots=121)
+  ATTACH: C++ invoke of target returned: 141
   APPLY ok: 2 target(s)
   after  alpha=PATCHED-a beta=OLD-b virtual=OLD-w direct=OLD-w inlined=OLD-w other=OTHER-w small=41 callsSmall=42
 
-  alpha moved OLD-a -> PATCHED-a. smallTarget did not move: small=41,
-  callsSmall=42. beta was untargeted and stayed OLD-b.
-
-  APPLY reported ok for BOTH targets. The difference is not the patch, the
-  container, the release, or the apply path -- those are shared. It is that one
-  target had a call site to redirect and the other had only copies.
-
 ############ WHAT THIS ESTABLISHES ############
-  smallTarget was patched 41 -> 141. The container verified the release,
-  attached the replacement and reported APPLY ok. Both observers still read
-  the old values: small=41, callsSmall=42.
+  Three facts in a single run:
 
-  The patch replaced a function THAT NOTHING CALLS. Every call site holds a
-  stale inlined copy of the old body, and the replacement is unreachable.
-  This is proved from the machine code, not inferred from a pragma:
-    * callsSmall and _state contain the target's own arithmetic;
-    * no 'bl <smallTarget>' exists anywhere in the artifact;
-    * the standalone symbol is present, so the patch had something to bind.
+  1. THE REPLACEMENT REALLY ATTACHED AND IS CORRECT. The container's own
+     direct invoke of the attached smallTarget returns 141 -- the value the
+     banked replacement source computes. So the right bytecode was packed
+     and it executes.
+  2. A PATCH-SENSITIVE PATH EXISTS IN THE SAME PROCESS. alpha moved
+     OLD-a -> PATCHED-a, and untargeted beta stayed OLD-b.
+  3. THE INLINED COPIES STILL RUN THE OLD BODY. small=41 and callsSmall=42,
+     unchanged, while the replacement that returns 141 sits attached.
 
-  It fails OPEN, like the two retention classes SM1-G4 measured and like a
-  release built without --patchable_static_calls: success reported, nothing
-  done. And arm 5 shows the contrast is attributable to inlining alone: in the
-  SAME release and the SAME container, the non-inlined target patched and the
-  inlined one did not.
+  Without fact 1 the stale reading would also be consistent with the wrong
+  or unchanged bytecode having been packed. It is not: the attached
+  replacement demonstrably computes 141, and the ordinary source call still
+  reads 41.
 
-  NOT CLASSIFIED. Whether an inlined target can be mechanically identified
-  and conservatively excluded per declaration -- REDUCE_SCOPE -- or whether
-  the fact is not representable in a per-declaration map --
-  MODIFY_MAP_DESIGN -- is not decided here.
+  So the bypass is attributable to inlining. The patch, container, release
+  and apply path are shared between alpha and smallTarget; the difference is
+  that one had a call site to redirect and the other had only copies.
+
+  It fails OPEN -- APPLY ok for both targets -- which is the third such
+  shape in this lane, alongside G4's two retention classes and a release
+  built without --patchable_static_calls.
+
+  NOT CLASSIFIED. REDUCE_SCOPE versus MODIFY_MAP_DESIGN is item 3.
