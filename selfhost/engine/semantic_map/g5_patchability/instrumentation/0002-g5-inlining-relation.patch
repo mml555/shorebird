@@ -1,6 +1,6 @@
---- a/runtime/vm/elf.h	2026-09-08 01:12:25
-+++ b/runtime/vm/elf.h	2026-09-08 00:32:49
-@@ -18,6 +18,18 @@
+--- a/runtime/vm/elf.h	2026-09-08 01:51:54
++++ b/runtime/vm/elf.h	2026-09-08 01:48:31
+@@ -18,6 +18,28 @@
  
  namespace dart {
  
@@ -11,15 +11,25 @@
 +// ToLibNamePrefixedQualifiedCString() is NOT usable for this: it selects
 +// library.name(), while G1 keys on the library URI, so the canonical URI is
 +// simply absent from that string.
++// Twelve fields: for each side, library URI, owner, VM kind, declared name --
++// plus, for the inlinee only, the PARENT it is synthesised from when it is an
++// implicit closure. G5's mapper needs that link: an ImplicitClosureFunction is
++// a tear-off wrapper, not a competing identity for the declaration, but its
++// participation in optimization may still bear on the parent's patch
++// semantics. Empty parent fields mean "not a synthetic child".
 +void ShorebirdRecordInlined(const char* inlinee_lib, const char* inlinee_owner,
 +                            const char* inlinee_kind, const char* inlinee_name,
++                            const char* inlinee_parent_kind,
++                            const char* inlinee_parent_name,
 +                            const char* caller_lib, const char* caller_owner,
-+                            const char* caller_kind, const char* caller_name);
++                            const char* caller_kind, const char* caller_name,
++                            const char* caller_parent_kind,
++                            const char* caller_parent_name);
 +
  // The max page size on all supported architectures. Used to determine
  // the alignment of load segments, so that they are guaranteed page-aligned,
  // and no shared object section or segment should have a larger alignment.
-@@ -90,6 +102,10 @@
+@@ -90,6 +112,10 @@
    // capabilities this snapshot was actually compiled with.
    static constexpr const char kCapabilitiesNoteName[] =
        ".note.shorebird.capabilities";
@@ -30,7 +40,7 @@
    static constexpr const char kTextName[] = ".text";
    static constexpr const char kDataName[] = ".rodata";
    static constexpr const char kBssName[] = ".bss";
-@@ -98,6 +114,7 @@
+@@ -98,6 +124,7 @@
    void CreateBSS();
    void GenerateBuildId();
    void GenerateCapabilities();
@@ -38,8 +48,8 @@
    void InitializeSymbolTables();
    void FinalizeDwarfSections();
    void FinalizeEhFrame();
---- a/runtime/vm/elf.cc	2026-09-08 01:12:25
-+++ b/runtime/vm/elf.cc	2026-09-08 01:10:31
+--- a/runtime/vm/elf.cc	2026-09-08 01:51:54
++++ b/runtime/vm/elf.cc	2026-09-08 01:48:31
 @@ -1566,6 +1566,7 @@
    // Generate the build ID now that we have all user-provided sections.
    GenerateBuildId();
@@ -48,7 +58,7 @@
  
    // We add a BSS section in all cases, even to the separate debugging
    // information, to ensure that relocated addresses are consistent between ELF
-@@ -1742,7 +1743,77 @@
+@@ -1742,7 +1743,85 @@
  DECLARE_FLAG(bool, patchable_static_calls);
  
  static constexpr char kShorebirdNoteOwner[] = "Shorebird";
@@ -95,8 +105,12 @@
 +
 +void ShorebirdRecordInlined(const char* inlinee_lib, const char* inlinee_owner,
 +                            const char* inlinee_kind, const char* inlinee_name,
++                            const char* inlinee_parent_kind,
++                            const char* inlinee_parent_name,
 +                            const char* caller_lib, const char* caller_owner,
-+                            const char* caller_kind, const char* caller_name) {
++                            const char* caller_kind, const char* caller_name,
++                            const char* caller_parent_kind,
++                            const char* caller_parent_name) {
 +  MutexLocker ml(shorebird_mutex());
 +  if (shorebird_sealed) {
 +    FATAL(
@@ -112,10 +126,14 @@
 +  shorebird_field(&rec, inlinee_owner);
 +  shorebird_field(&rec, inlinee_kind);
 +  shorebird_field(&rec, inlinee_name);
++  shorebird_field(&rec, inlinee_parent_kind);
++  shorebird_field(&rec, inlinee_parent_name);
 +  shorebird_field(&rec, caller_lib);
 +  shorebird_field(&rec, caller_owner);
 +  shorebird_field(&rec, caller_kind);
 +  shorebird_field(&rec, caller_name);
++  shorebird_field(&rec, caller_parent_kind);
++  shorebird_field(&rec, caller_parent_name);
 +  shorebird_inlining->Add(Utils::StrDup(rec.buffer()));
 +}
  
@@ -126,7 +144,7 @@
  void ElfWriter::GenerateCapabilities() {
    ASSERT(section_table_->Find(kCapabilitiesNoteName) == nullptr);
    const char* const payload =
-@@ -1756,14 +1827,63 @@
+@@ -1756,14 +1835,63 @@
    stream.WriteFixed<decltype(elf::Note::name_size)>(
        sizeof(kShorebirdNoteOwner));
    stream.WriteFixed<decltype(elf::Note::description_size)>(description_length);
@@ -162,7 +180,7 @@
 +      previous = rec;
 +    }
 +  }
-+  buf.Printf("schema_version=3\nfields_per_record=8\nrecords=%" Pd "\n", unique);
++  buf.Printf("schema_version=4\nfields_per_record=12\nrecords=%" Pd "\n", unique);
 +  if (shorebird_inlining != nullptr) {
 +    const char* previous = nullptr;
 +    for (intptr_t i = 0; i < shorebird_inlining->length(); i++) {
@@ -192,8 +210,8 @@
  }
  
  void ElfWriter::GenerateBuildId() {
---- a/runtime/vm/compiler/backend/flow_graph_compiler.cc	2026-09-08 01:12:25
-+++ b/runtime/vm/compiler/backend/flow_graph_compiler.cc	2026-09-08 00:32:49
+--- a/runtime/vm/compiler/backend/flow_graph_compiler.cc	2026-09-08 01:51:53
++++ b/runtime/vm/compiler/backend/flow_graph_compiler.cc	2026-09-08 01:48:31
 @@ -3,6 +3,7 @@
  // BSD-style license that can be found in the LICENSE file.
  
@@ -202,10 +220,11 @@
  #include "vm/globals.h"  // Needed here to get TARGET_ARCH_XXX.
  
  #include "platform/utils.h"
-@@ -210,6 +211,54 @@
+@@ -209,6 +210,83 @@
+ #else
    const bool stack_traces_only = false;
  #endif
- 
++
 +  // SM1-G5 EVIDENCE INSTRUMENTATION (route 2).
 +  //
 +  // inline_id_to_function[0] is the function being compiled; every entry after
@@ -222,11 +241,38 @@
 +    if (info.inline_id_to_function.length() > 1) {
 +      auto describe = [](const Function& fn, const char** lib,
 +                         const char** owner, const char** kind,
-+                         const char** name) {
++                         const char** name, const char** parent_kind,
++                         const char** parent_name) {
 +        *kind = Function::KindToCString(fn.kind());
 +        *name = fn.name() == String::null()
 +                    ? "<null>"
 +                    : String::Handle(fn.name()).ToCString();
++        // A generative constructor and a factory share the VM Constructor
++        // kind and are told apart by staticness, so the distinction is
++        // recorded rather than left for the reader to infer.
++        if (fn.IsConstructor()) {
++          *kind = fn.IsFactory() ? "Constructor:factory"
++                                 : "Constructor:generative";
++        }
++        // The parent an implicit closure was synthesised from. G5 treats such
++        // a closure as a tear-off wrapper rather than a second identity for
++        // the declaration, so the link has to travel with the record.
++        *parent_kind = "";
++        *parent_name = "";
++        if (fn.IsImplicitClosureFunction()) {
++          const Function& parent = Function::Handle(fn.parent_function());
++          if (!parent.IsNull()) {
++            *parent_kind = Function::KindToCString(parent.kind());
++            *parent_name = parent.name() == String::null()
++                               ? "<null>"
++                               : String::Handle(parent.name()).ToCString();
++          } else {
++            // Unresolved synthetic parent: emitted as such so the mapper can
++            // refuse rather than assume the wrapper is unrelated.
++            *parent_kind = "<unknown>";
++            *parent_name = "<unknown>";
++          }
++        }
 +        const Object& raw_owner = Object::Handle(fn.RawOwner());
 +        if (raw_owner.IsClass()) {
 +          const Class& cls = Class::Cast(raw_owner);
@@ -244,16 +290,17 @@
 +          *owner = "<unknown>";
 +        }
 +      };
-+      const char *cl, *co, *ck, *cn;
-+      describe(*info.inline_id_to_function[0], &cl, &co, &ck, &cn);
++      const char *cl, *co, *ck, *cn, *cpk, *cpn;
++      describe(*info.inline_id_to_function[0], &cl, &co, &ck, &cn, &cpk, &cpn);
 +      for (intptr_t i = 1; i < info.inline_id_to_function.length(); i++) {
-+        const char *il, *io, *ik, *in_;
-+        describe(*info.inline_id_to_function[i], &il, &io, &ik, &in_);
-+        dart::ShorebirdRecordInlined(il, io, ik, in_, cl, co, ck, cn);
++        const char *il, *io, *ik, *in_, *ipk, *ipn;
++        describe(*info.inline_id_to_function[i], &il, &io, &ik, &in_, &ipk,
++                 &ipn);
++        dart::ShorebirdRecordInlined(il, io, ik, in_, ipk, ipn, cl, co, ck, cn,
++                                     cpk, cpn);
 +      }
 +    }
 +  }
-+
+ 
    const auto& inlining_info = flow_graph->inlining_info();
    // Make sure that the function is at the position for inline_id 0.
-   ASSERT(inlining_info.inline_id_to_function.length() >= 1);

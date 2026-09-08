@@ -80,10 +80,30 @@ int smallTarget() => DateTime.now().millisecondsSinceEpoch >= 0 ? 41 : 0;
 @pragma('vm:never-inline')
 int callsSmall() => smallTarget() + 1;
 
+
+/// SM1-G5 IMPLICIT-CLOSURE ARM.
+///
+/// `tearOffTarget` is reached ONLY through a tear-off, so the VM synthesises an
+/// ImplicitClosureFunction for it. The question the arm decides: if that
+/// synthetic wrapper participates in optimization while the declared regular
+/// function is not itself recorded as an inlinee, does patching the DECLARED
+/// function still move behaviour?
+///
+/// If it does, the synthetic-parent relation is harmless. If it does not, a row
+/// whose only inlining involvement is via its implicit closure must be UNKNOWN.
+int tearOffTarget() => DateTime.now().millisecondsSinceEpoch >= 0 ? 71 : 0;
+
+@pragma('vm:never-inline')
+int callsViaTearOff() {
+  final f = tearOffTarget;      // tear-off, not a direct call
+  return f() + 1;
+}
+
 void _state(String when) => print('$when alpha=${alpha()} beta=${beta()}'
     ' virtual=${viaVirtual(Base())} direct=${viaDirect()}'
     ' inlined=${viaInlined(Base())} other=${viaVirtual(Other())}'
-    ' small=${smallTarget()} callsSmall=${callsSmall()}');
+    ' small=${smallTarget()} callsSmall=${callsSmall()}'
+    ' tearOff=${callsViaTearOff()}');
 
 void main(List<String> args) {
   // Route B's release identity, read from the running snapshot's GNU build ID.

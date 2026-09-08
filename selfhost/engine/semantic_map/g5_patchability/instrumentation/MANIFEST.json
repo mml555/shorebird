@@ -41,10 +41,10 @@
   },
   "route2_witness": {
     "note": ".note.shorebird.inlining",
-    "note_schema_version": 3,
-    "encoding": "header lines, then `records=N`, then N records of 8 length-prefixed \"<len>:<bytes>\" fields; no separators, because VM and extension names can contain the \"#\" the old schema used",
+    "note_schema_version": 4,
+    "encoding": "header lines, then records=N, then N records of 12 length-prefixed \"<len>:<bytes>\" fields: per side library URI, owner, VM kind, declared name, parent kind, parent name. No separators.",
     "records": 3348,
-    "fields_per_record": 8,
+    "fields_per_record": 12,
     "sealed_after_emission": true,
     "determinism": {
       "build_a": {
@@ -86,5 +86,14 @@
       }
     },
     "all_files_equal": true
+  },
+  "implicit_closure_arm": {
+    "aot": "app_to.aot",
+    "aot_sha256": "a9942e8473711df5ecd9d252fc574f561a88b9e125501419f78b8aca61f57fa3",
+    "patch_sbrb_sha256": "0f5a386040475f8e9b9eec0eecb7a3a37f570e448e9644d65716825bc8ad0bd5",
+    "replacement_kbc_sha256": "51be8d1481e4f2998242d583fe71a5287f9a8c34ecda8a7470dec52c6a8362da",
+    "records": 3353,
+    "observed": "tearOff 72 -> 172; direct invoke of the attached replacement returned 171",
+    "verdict": "synthetic-parent relation harmless FOR THIS SHAPE; not generalised"
   }
 }

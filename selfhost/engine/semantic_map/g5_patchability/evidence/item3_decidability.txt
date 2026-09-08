@@ -294,3 +294,59 @@ date : 2026-09-08T05:13:05Z
 
   Predictor consumption stays unauthorized. Virtual/instance dispatch remains a
   separate unresolved mechanism. No classification is made.
+
+############ SCHEMA 4 — parent linkage, and the implicit-closure verdict ############
+date : 2026-09-08T05:51:53Z
+
+  THE POLICY CORRECTION ACCEPTED. "Same declared name under two VM kinds =>
+  UNKNOWN" was too coarse. An ImplicitClosureFunction is a tear-off wrapper, not
+  a competing identity for the declaration; only the RegularFunction is an
+  eligible DIRECT mapping. So the emitter now carries the link the policy needs:
+
+    schema_version=4, fields_per_record=12
+    per side: library URI, owner, VM kind, declared name, parent kind, parent name
+
+  The parent fields are empty for an ordinary function and populated for an
+  implicit closure. An unresolved synthetic parent is emitted "<unknown>" so the
+  mapper can refuse rather than assume the wrapper is unrelated.
+
+  Constructor kinds are disambiguated at the source, since the VM's Constructor
+  covers both: "Constructor:generative" vs "Constructor:factory", decided by
+  staticness rather than left to the reader.
+
+############ THE ADVERSARIAL ARM, exactly as specified ############
+
+  tearOffTarget is reached ONLY through a tear-off, so the VM synthesises an
+  implicit closure for it. The note records precisely the ambiguous shape:
+
+    INLINEE ImplicitClosureFunction  tearOffTarget   parent=('RegularFunction','tearOffTarget')
+      INTO  RegularFunction          callsViaTearOff parent=('','')
+
+  and the declared RegularFunction tearOffTarget appears ONLY in the caller
+  column -- it is not itself an inlinee.
+
+  Patching the DECLARED function, 71 -> 171:
+
+    before  tearOff=72
+    ATTACH: C++ invoke of target returned: 171
+    APPLY ok: 1 target(s)
+    after   tearOff=172
+
+  VERDICT: the synthetic-parent relation is HARMLESS for this shape. Behaviour
+  moved, so a declaration whose only inlining involvement is through its
+  implicit closure does NOT require UNKNOWN on that account. The tear-off
+  wrapper evidently dispatches to the target rather than embedding its body.
+
+  THE LIMIT OF THAT CLAIM. This is one shape: a top-level function torn off
+  within its own library and called immediately. It does not establish the same
+  for an instance-method tear-off, a tear-off stored and called later, or one
+  crossing a library boundary. The finding reduces required conservatism, so it
+  is stated narrowly on purpose -- it is the direction of error that matters
+  here, and over-generalising it would silently authorise patches.
+
+  Contrast with the smallTarget arm, where the DECLARED function was itself the
+  inlinee and behaviour did NOT move. The two together separate the cases:
+
+    declared function is an inlinee            -> patch does not reach the copies
+    only its implicit closure is an inlinee    -> patch still reaches behaviour
+                                                  (this shape)
