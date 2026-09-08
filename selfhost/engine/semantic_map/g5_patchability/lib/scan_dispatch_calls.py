@@ -1,17 +1,9 @@
 #!/usr/bin/env python3
-"""Classify every Dart-to-Dart call site in a release AOT by REDIRECTABILITY.
+"""DETECT recognized indirect-call SHAPES in a release AOT.
 
-SM1-G5 asks whether the exact release can mechanically determine that a
-NON-INLINED declaration nevertheless has stale AOT call sites. It can, at the
-level of call-site shape, because the two shapes are distinguishable in the
-shipped text and only one of them is redirected when a replacement body is
-attached to a function:
-
-  POOL_INDIRECT   ldr  x0,  [x27, #imm]     ; x27 = PP, the object pool
-                  ldur x30, [x0, #off]      ; entry point out of that Code
-                  blr  x30
-      The callee's Code object is reached through the object pool, which is
-      what --patchable_static_calls arranges. Attaching a body redirects it.
+This is SHAPE DETECTION, not a redirectability classifier and not a complete
+call-site census. It reports counts of the two shapes it knows how to match,
+and nothing else follows from a site being absent from those counts.
 
   DISPATCH_TABLE  ldur xN, [recv, #-1]      ; header word
                   ubfx xN, xN, #12, #20     ; class id
@@ -20,7 +12,29 @@ attached to a function:
                   blr  x30
       The entry point is read out of the dispatch table, indexed by the
       RECEIVER'S CLASS ID. It never consults the callee's pool entry, so
-      attaching a body to the target function does not redirect it.
+      attaching a body to the target function cannot redirect it. This shape
+      is therefore SUFFICIENT to conclude a site is not redirected.
+
+  POOL_INDIRECT   ldr  x0,  [x27, #imm]     ; x27 = PP, the object pool
+                  ldur x30, [x0, #off]      ; entry point out of that Code
+                  blr  x30
+      The callee's Code object is reached through the object pool. This shape
+      is NOT sufficient to conclude the site IS redirected. SM1-G5's dispatch
+      experiment settles that: `viaInlined` contains only a pool-indirect call,
+      carries no dispatch-table call at all, and still read OLD-w after a
+      verified attach. An earlier version of this file called pool-indirect
+      "redirected", which that arm disproves.
+
+WHAT MAY BE CONCLUDED
+
+  a dispatch-table site   is not redirected by attaching a body.
+  a pool-indirect site    unknown. It may or may not be redirected.
+  a site matching neither unknown, and not counted here at all.
+
+Pool offsets are relative to the CALLING code's own pool and are not comparable
+across functions -- the same offset appears in two functions where it cannot be
+the same object -- so they are reported as shape evidence only. This tool
+decodes no pools and identifies no call targets.
 
 Register roles are not inferred from the disassembly: constants_arm64.h:144-145
 defines PP = R27 and DISPATCH_TABLE_REG = R21, and
@@ -132,10 +146,12 @@ def main():
             totals[kind] += 1
 
     print(f'release: {aot}')
-    print(f'  POOL_INDIRECT  call sites: {totals["POOL_INDIRECT"]}'
-          '   (redirected when a body is attached)')
-    print(f'  DISPATCH_TABLE call sites: {totals["DISPATCH_TABLE"]}'
-          '   (NOT redirected: indexed by receiver class id)')
+    print(f'  recognized POOL_INDIRECT  shapes: {totals["POOL_INDIRECT"]}'
+          '   (redirectability UNKNOWN)')
+    print(f'  recognized DISPATCH_TABLE shapes: {totals["DISPATCH_TABLE"]}'
+          '   (never redirected by attaching a body)')
+    print('  these are counts of MATCHED SHAPES, not a complete call-site '
+          'census')
     syms_with_dispatch = [s for s, v in per_sym.items() if v['DISPATCH_TABLE']]
     print(f'  functions containing at least one dispatch-table call: '
           f'{len(syms_with_dispatch)}')

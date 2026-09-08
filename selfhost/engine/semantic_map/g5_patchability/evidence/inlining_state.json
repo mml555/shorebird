@@ -2,21 +2,21 @@
   "schema": "semantic-map-1/g5-inlining-state/2",
   "gate": "SM1-G5",
   "issue": 54,
-  "aot": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/app_s6r.aot",
+  "aot": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/app_release.aot",
   "note_validated": true,
   "note_error": null,
   "note_error_code": null,
   "note_complete_projection": true,
   "unprojected_records": [],
   "unprojected_count": 0,
-  "out_of_scope_records": 3010,
+  "out_of_scope_records": 3340,
   "in_scope_libraries": [
     "package:dynamic_modules/callsite_target.dart"
   ],
   "diagnostics": {
-    "aot_sha256": "8592e54d1c31e7e963bd338a315b3180726fea12ac83d1e6424d005ba150fc30",
-    "note_section_sha256": "7af6093bb22379b816c78a6cd4c2f5b780dcdd4b451c0698b6f460344ff5fe7b",
-    "records": 3021
+    "aot_sha256": "7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34",
+    "note_section_sha256": "3b0339a417e38433abdcfa6908fcba5f135a5e977afd2bd74b8ca2bdd5737af6",
+    "records": 3353
   },
   "state_histogram": {
     "INLINED": 2,

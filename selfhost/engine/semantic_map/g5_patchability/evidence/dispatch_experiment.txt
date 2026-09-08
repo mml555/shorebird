@@ -1,5 +1,5 @@
 SM1-G5 -- Base.work virtual/instance dispatch
-generated 2026-09-08T19:43:11Z by run_dispatch_experiment.sh
+generated 2026-09-08T19:58:55Z by run_dispatch_experiment.sh
 
 THE QUESTION
   Can the exact release mechanically determine that a non-inlined declaration
@@ -10,10 +10,12 @@ THE QUESTION
   It is NOT a claim that every call site observes an attached patch. This run
   puts both statements on ONE artifact so they cannot be argued past each other.
 
-############ 1. ONE RELEASE, BUILT FROM THE RELEASE KERNEL ############
-  gen_snapshot   b307906fe7dc9ef254231023e0862c89da23840e7fef3911cfd10308abc4a81a
-  release3.dill  a93b4be09e7efa06279f42860e64208d86d7b7a0ab7e71156960f50bf2bfd888
-  app_s6rel.aot  dac44d45263dd4887ef906af0c791dd44f63deba5f3f63f0464fff611370c163
+############ 1. THE CANONICAL RELEASE, TAKEN NOT REBUILT ############
+  gen_snapshot     b307906fe7dc9ef254231023e0862c89da23840e7fef3911cfd10308abc4a81a
+  release3.dill    a93b4be09e7efa06279f42860e64208d86d7b7a0ab7e71156960f50bf2bfd888
+  app_release.aot  7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34
+  banked reader state was produced from this same file:
+                   7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34
 
   WHY release3.dill AND NOT prepass3.dill. The route-2 reader was banked
   against an AOT built from prepass3.dill. That artifact runs and reports a
@@ -26,7 +28,7 @@ THE QUESTION
 
 ############ 2. THE READER, ON THAT EXACT AOT ############
     total_g1_rows=36 INLINED=2 NOT_INLINED=15 UNKNOWN=14 NO_BODY=5 accounted=36 -> /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/rel.json
-  subject sha256 dac44d45263dd4887ef906af0c791dd44f63deba5f3f63f0464fff611370c163
+  subject sha256 7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34
   validated=True complete=True
     viaDirect      NOT_INLINED  ABSENT_FROM_VALIDATED_NOTE
     viaInlined     NOT_INLINED  ABSENT_FROM_VALIDATED_NOTE
@@ -138,9 +140,10 @@ THE QUESTION
   MONOMORPHIC entry.
 
 ############ 5. MECHANICAL CLASSIFICATION OF EVERY CALL SITE ############
-  release: /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/app_s6rel.aot
-    POOL_INDIRECT  call sites: 2425   (redirected when a body is attached)
-    DISPATCH_TABLE call sites: 491   (NOT redirected: indexed by receiver class id)
+  release: /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/app_release.aot
+    recognized POOL_INDIRECT  shapes: 2425   (redirectability UNKNOWN)
+    recognized DISPATCH_TABLE shapes: 491   (never redirected by attaching a body)
+    these are counts of MATCHED SHAPES, not a complete call-site census
     functions containing at least one dispatch-table call: 198
   
     per requested symbol:
@@ -197,8 +200,62 @@ THE QUESTION
   ids that EmitDispatchTableCall folds into its offset). That map is not in the
   ELF, so per-declaration attribution is not available from the release today.
   Recovering it would be new instrumentation, and is NOT proposed here.
+############ 7. THE POLICY CONSEQUENCE, AND ITS FALSIFICATION ############
+  #54 permits REDUCE_SCOPE when an unsafe declaration class can be mechanically
+  excluded. G1 already retains `static` as authoritative declaration metadata,
+  so the predicate the finding licenses is:
 
-ASSERTIONS (12 checked)
+      replaceable callable AND static is not exactly true  =>  refuse
+
+  "Cannot tell" is kept as its OWN refusal rather than folded into "not
+  static": absent, null, or non-boolean metadata is an unusable fact, not a
+  permission, and merging the two would let a missing input read as a
+  measurement.
+
+  THE CONVERSE IS NOT ASSERTED. static == true only avoids THIS refusal; the
+  inbound call mechanism for static declarations is not closed, and every arm
+  below still carries CALL_SITE_SHAPE_UNPROVEN.
+
+  arm                                              result reasons / defect
+  ------------------------------------------------------------------------------------------------------------
+  instance method (the Base.work shape)            pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, NON_STATIC_DISPATCH_UNPROVEN, RELEASE_PATCHA
+  instance getter                                  pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, NON_STATIC_DISPATCH_UNPROVEN, RELEASE_PATCHA
+  instance setter                                  pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, NON_STATIC_DISPATCH_UNPROVEN, RELEASE_PATCHA
+  instance operator                                pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, NON_STATIC_DISPATCH_UNPROVEN, RELEASE_PATCHA
+  static metadata absent                           pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
+  static metadata null                             pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
+  static metadata is the STRING "true", not a bool pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
+  static metadata is the integer 1                 pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
+  top-level static function                        pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
+  a field, which is not a replaceable callable     pass   ABI_SHAPE_UNSUPPORTED
+  ------------------------------------------------------------------------------------------------------------
+  arms=10 passed=10 failed=0
+  SM1_G5_DISPATCH_PREDICATE: FAIL_CLOSED
+  exit=0  (asserted: 0)
+
+  POSITIVE CONTROL. The same arms run against a copy of the predictor with the
+  predicate block deleted. The eight arms that depend on it must flip; the two
+  that must NOT depend on it -- a static declaration, and a field, which is not
+  a replaceable callable -- must keep passing.
+
+  arm                                              result reasons / defect
+  ------------------------------------------------------------------------------------------------------------
+  instance method (the Base.work shape)            FAIL   missing ['NON_STATIC_DISPATCH_UNPROVEN']
+  instance getter                                  FAIL   missing ['NON_STATIC_DISPATCH_UNPROVEN']
+  instance setter                                  FAIL   missing ['NON_STATIC_DISPATCH_UNPROVEN']
+  instance operator                                FAIL   missing ['NON_STATIC_DISPATCH_UNPROVEN']
+  static metadata absent                           FAIL   missing ['STATIC_METADATA_UNUSABLE']
+  static metadata null                             FAIL   missing ['STATIC_METADATA_UNUSABLE']
+  static metadata is the STRING "true", not a bool FAIL   missing ['STATIC_METADATA_UNUSABLE']
+  static metadata is the integer 1                 FAIL   missing ['STATIC_METADATA_UNUSABLE']
+  top-level static function                        pass   BODY_REFERENCES_UNPROVEN, CALL_SITE_SHAPE_UNPROVEN, RELEASE_PATCHABILITY_UNPROVEN, RETENTION_UNP
+  a field, which is not a replaceable callable     pass   ABI_SHAPE_UNSUPPORTED
+  ------------------------------------------------------------------------------------------------------------
+  arms=10 passed=2 failed=8
+  SM1_G5_DISPATCH_PREDICATE: DEFECTS_PRESENT
+  exit=1  (asserted: non-zero)
+
+ASSERTIONS (17 checked)
   pass  reader read the same artifact the demo ran
   pass  reader validated the note on the release AOT
   pass  reader reports Base.work NOT_INLINED there
@@ -211,5 +268,10 @@ ASSERTIONS (12 checked)
   pass  the untargeted control is unchanged
   pass  viaVirtual carries a dispatch-table call site
   pass  viaDirect carries no dispatch-table call site
+  pass  viaInlined carries NO dispatch-table call site, yet stayed stale
+  pass  the dispatch predicate is fail-closed on every arm
+  pass  deleting the predicate makes those arms fail
+  pass  the predicate transcript records FAIL_CLOSED
+  pass  the reader bank and this demonstration used one artifact
 
 SM1_G5_DISPATCH_EXPERIMENT: COMPLETE

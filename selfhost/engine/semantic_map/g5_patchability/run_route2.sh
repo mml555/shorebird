@@ -9,7 +9,17 @@
 #
 # usage: run_route2.sh <clone-src> <workdir>
 #   clone-src: the engine checkout carrying the instrumentation
-#   workdir:   holds prepass3.dill and g2_r.json
+#   workdir:   holds release3.dill and g2_r.json
+#
+# THE CANONICAL SUBJECT. app_release.aot is built here from release3.dill --
+# the kernel compiled WITH --dynamic-interface, i.e. the PATCHABLE release --
+# and that exact file is what the reader is banked against and what
+# run_dispatch_experiment.sh consumes UNCHANGED. Whole-AOT output is not
+# byte-reproducible, so the subject is built once and passed along, never
+# rebuilt per consumer.
+#
+# app_release_b.aot is a second build from the same kernel, used only to show
+# the note bytes and the verdicts are deterministic. It is never a subject.
 set -uo pipefail
 SRC="${1:?usage: run_route2.sh <clone-src> <workdir>}"
 W="${2:?usage: run_route2.sh <clone-src> <workdir>}"
@@ -60,16 +70,18 @@ for f in "${FILES[@]}"; do
 done
 
 # --------------------------------------------------------------- 2. two AOTs
-for n in r rb; do
-  rm -f "$W/app_s6$n.aot"
+for n in app_release app_release_b; do
+  rm -f "$W/$n.aot" "$W/$n.json"
   "$GS" --snapshot_kind=app-aot-elf --patchable_static_calls \
-        --elf="$W/app_s6$n.aot" "$W/prepass3.dill" >/dev/null 2>&1 || rc=1
-  python3 "$G/lib/read_inlining.py" "$W/app_s6$n.aot" "$W/g2_r.json" - "$W/s6$n.json" >/dev/null || rc=1
+        --elf="$W/$n.aot" "$W/release3.dill" >/dev/null 2>&1 \
+    || { echo "  gen_snapshot failed for $n"; rc=1; }
+  python3 "$G/lib/read_inlining.py" "$W/$n.aot" "$W/g2_r.json" - \
+      "$W/$n.json" >/dev/null || rc=1
 done
-cp "$W/s6r.json" "$G/evidence/inlining_state.json" || rc=1
+cp "$W/app_release.json" "$G/evidence/inlining_state.json" || rc=1
 
 # Determinism and replay are ASSERTED here; the transcript merely shows them.
-det=$(python3 "$G/lib/_det.py" "$W/s6r.json" "$W/s6rb.json")
+det=$(python3 "$G/lib/_det.py" "$W/app_release.json" "$W/app_release_b.json")
 want 'note section bytes identical across the two builds' note "$(echo "$det" | cut -d' ' -f1)"
 want 'record count identical across the two builds' recs "$(echo "$det" | cut -d' ' -f2)"
 want 'reader verdicts identical across the two builds' states "$(echo "$det" | cut -d' ' -f3)"
@@ -87,10 +99,10 @@ done
   echo "  $(sha "$G/instrumentation/0001-g5-aot-capability-note.patch")  0001-g5-aot-capability-note.patch"
   echo "  $(sha "$G/instrumentation/0002-g5-inlining-relation.patch")  0002-g5-inlining-relation.patch"
   echo "  $(sha "$GS")  gen_snapshot (frozen + 0001 + 0002)"
-  echo "  $(sha "$W/prepass3.dill")  prepass3.dill (input kernel)"
-  echo "  $(sha "$W/app_s6r.aot")  app_s6r.aot"
+  echo "  $(sha "$W/release3.dill")  release3.dill (the patchable release kernel)"
+  echo "  $(sha "$W/app_release.aot")  app_release.aot"
   echo "  recipe: gen_snapshot --snapshot_kind=app-aot-elf --patchable_static_calls \\"
-  echo "            --elf=app_s6r.aot prepass3.dill"
+  echo "            --elf=app_release.aot release3.dill"
   echo
   echo "REPLAY: frozen (recovered by git) + 0001 + 0002 vs the built clone"
   for f in "${FILES[@]}"; do
@@ -102,7 +114,7 @@ done
   echo "  all_files_equal=$([ "$replay_ok" = 1 ] && echo true || echo false)"
   echo
   echo "NOTE DETERMINISM (same input kernel, two runs of the same producer)"
-  python3 - "$W/s6r.json" "$W/s6rb.json" <<'PY'
+  python3 - "$W/app_release.json" "$W/app_release_b.json" <<'PY'
 import json, sys
 a, b = (json.load(open(p)) for p in sys.argv[1:3])
 da, db = a['diagnostics'], b['diagnostics']
@@ -207,7 +219,7 @@ PY
   echo "PROVENANCE"
   echo "  $(sha "$G/lib/read_inlining.py")  lib/read_inlining.py"
   echo "  $(sha "$G/lib/falsify_reader.py")  lib/falsify_reader.py"
-  echo "  $(sha "$W/app_s6r.aot")  app_s6r.aot (subject)"
+  echo "  $(sha "$W/app_release.aot")  app_release.aot (THE canonical subject)"
   echo "  $(sha "$W/g2_r.json")  g2_r.json (G1 projection)"
   echo
   echo "WHAT EACH ARM ASSERTS"
@@ -230,7 +242,7 @@ PY
 TXT
   echo
   echo "=========================== RUN: shipped reader ==========================="
-  python3 "$G/lib/falsify_reader.py" "$W/app_s6r.aot" "$W/g2_r.json" "$W"
+  python3 "$G/lib/falsify_reader.py" "$W/app_release.aot" "$W/g2_r.json" "$W"
   echo "exit=$?  (asserted: 0)"
   echo
   echo "============= POSITIVE CONTROL A: a reader that trusts the note ==========="
@@ -246,7 +258,7 @@ and say so by naming the manufactured NOT_INLINED rows.
 TXT
   echo
   SM1_READER="$W/weak_reader.py" python3 "$G/lib/falsify_reader.py" \
-      "$W/app_s6r.aot" "$W/g2_r.json" "$W"
+      "$W/app_release.aot" "$W/g2_r.json" "$W"
   echo "exit=$?  (asserted: non-zero)"
   echo
   echo "======== POSITIVE CONTROL B: a reader that refuses without saying why ====="
@@ -259,7 +271,7 @@ untouched. Every arm except the baseline must flip, naming the code it wanted.
 TXT
   echo
   SM1_READER="$W/generic_reader.py" python3 "$G/lib/falsify_reader.py" \
-      "$W/app_s6r.aot" "$W/g2_r.json" "$W"
+      "$W/app_release.aot" "$W/g2_r.json" "$W"
   echo "exit=$?  (asserted: non-zero)"
   echo
   echo "WITHDRAWN EARLIER RUN, AND THE THREE DEFECTS IT WAS HIDING"
@@ -285,20 +297,29 @@ than a crash.
 
 SUBJECT CHANGED. Earlier runs used app_s6.aot, whose input kernel could no
 longer be identified in the work directory, so its note was not reproducible
-from a recorded recipe. This run uses app_s6r.aot, built by the recipe in
-reader_state.txt. Per-declaration verdicts are identical between the two.
+from a recorded recipe.
+
+SUBJECT CORRECTED AGAIN. The run after that used app_release.aot, built from
+release3.dill -- the PRE-PASS kernel, compiled WITHOUT --dynamic-interface. That
+AOT runs and reports a build id, but a patch against it fails at attach because
+the dynamic-module retention the interface drives is absent, so it was never
+the patchable release and could not be the subject of a dispatch
+demonstration. This run uses app_release.aot, built from release3.dill, and
+hands that exact file to run_dispatch_experiment.sh. Per-declaration verdicts
+are identical across all three subjects, so no verdict was traded away by
+either correction.
 TXT
 } > "$G/evidence/reader_falsification.txt" 2>&1
 # The three runs are asserted independently: the shipped reader must refuse
 # every arm, and BOTH controls must fail. A control that quietly starts passing
 # would otherwise leave this script green.
-python3 "$G/lib/falsify_reader.py" "$W/app_s6r.aot" "$W/g2_r.json" "$W" >/dev/null 2>&1
+python3 "$G/lib/falsify_reader.py" "$W/app_release.aot" "$W/g2_r.json" "$W" >/dev/null 2>&1
 want 'shipped reader refuses every arm' 0 "$?"
 SM1_READER="$W/weak_reader.py" python3 "$G/lib/falsify_reader.py" \
-    "$W/app_s6r.aot" "$W/g2_r.json" "$W" >/dev/null 2>&1
+    "$W/app_release.aot" "$W/g2_r.json" "$W" >/dev/null 2>&1
 want 'control A (trusts the note) fails the arms' 1 "$?"
 SM1_READER="$W/generic_reader.py" python3 "$G/lib/falsify_reader.py" \
-    "$W/app_s6r.aot" "$W/g2_r.json" "$W" >/dev/null 2>&1
+    "$W/app_release.aot" "$W/g2_r.json" "$W" >/dev/null 2>&1
 want 'control B (one generic code) fails the arms' 1 "$?"
 want 'falsification transcript records ALL_ARMS_REFUSED' 1 \
      "$(grep -c 'SM1_G5_READER_FALSIFICATION: ALL_ARMS_REFUSED' \
@@ -380,14 +401,14 @@ m['base']['frozen_file_sha256'] = {
     for f in FILES}
 m['built']['instrumented_gen_snapshot_sha256_schema6'] = sha(GS)
 m['delta_2']['sha256'] = sha(f'{G}/instrumentation/0002-g5-inlining-relation.patch')
-st = json.load(open(f'{W}/s6r.json'))
+st = json.load(open(f'{W}/app_release.json'))
 m['route2_witness']['records'] = st['diagnostics']['records']
 m['route2_witness']['subject'].update({
-    'aot_sha256': sha(f'{W}/app_s6r.aot'),
-    'input_kernel_sha256': sha(f'{W}/prepass3.dill')})
+    'aot_sha256': sha(f'{W}/app_release.aot'),
+    'input_kernel_sha256': sha(f'{W}/release3.dill')})
 m['route2_witness']['determinism'].update({
-    'build_a': {'aot': 'app_s6r.aot', 'aot_sha256': sha(f'{W}/app_s6r.aot')},
-    'build_b': {'aot': 'app_s6rb.aot', 'aot_sha256': sha(f'{W}/app_s6rb.aot')},
+    'build_a': {'aot': 'app_release.aot', 'aot_sha256': sha(f'{W}/app_release.aot')},
+    'build_b': {'aot': 'app_release_b.aot', 'aot_sha256': sha(f'{W}/app_release_b.aot')},
     'note_section_sha256': st['diagnostics']['note_section_sha256']})
 m['replay']['per_file'] = {
     f: {'replayed_sha256': sha(os.path.join(V, f)),

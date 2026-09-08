@@ -1,14 +1,14 @@
 SM1-G5 route 2 -- strict reader state over the schema-6 note
-generated 2026-09-08T19:30:25Z by run_route2.sh
+generated 2026-09-08T19:54:41Z by run_route2.sh
 
 PRODUCER AND SUBJECT
   c0a982fab70900aff92bc03602a3a9447f75fe26a27d853c8bc5b6176a5dac3a  0001-g5-aot-capability-note.patch
   078d9d4d497f3ae13c5cc72ac009ffcaf34d5f14ea66bc91799903eae8a26286  0002-g5-inlining-relation.patch
   b307906fe7dc9ef254231023e0862c89da23840e7fef3911cfd10308abc4a81a  gen_snapshot (frozen + 0001 + 0002)
-  79dfb9e20ce9d971388f1bc73a74fa94ea2465ef4aab5e45ecf195da212b6cee  prepass3.dill (input kernel)
-  8592e54d1c31e7e963bd338a315b3180726fea12ac83d1e6424d005ba150fc30  app_s6r.aot
+  a93b4be09e7efa06279f42860e64208d86d7b7a0ab7e71156960f50bf2bfd888  release3.dill (the patchable release kernel)
+  7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34  app_release.aot
   recipe: gen_snapshot --snapshot_kind=app-aot-elf --patchable_static_calls \
-            --elf=app_s6r.aot prepass3.dill
+            --elf=app_release.aot release3.dill
 
 REPLAY: frozen (recovered by git) + 0001 + 0002 vs the built clone
   runtime/vm/elf.h                                     equal
@@ -24,14 +24,14 @@ REPLAY: frozen (recovered by git) + 0001 + 0002 vs the built clone
 
 NOTE DETERMINISM (same input kernel, two runs of the same producer)
   records              equal
-    A 3021
-    B 3021
+    A 3353
+    B 3353
   note_section_sha256  equal
-    A 7af6093bb22379b816c78a6cd4c2f5b780dcdd4b451c0698b6f460344ff5fe7b
-    B 7af6093bb22379b816c78a6cd4c2f5b780dcdd4b451c0698b6f460344ff5fe7b
+    A 3b0339a417e38433abdcfa6908fcba5f135a5e977afd2bd74b8ca2bdd5737af6
+    B 3b0339a417e38433abdcfa6908fcba5f135a5e977afd2bd74b8ca2bdd5737af6
   aot_sha256           DIFFER
-    A 8592e54d1c31e7e963bd338a315b3180726fea12ac83d1e6424d005ba150fc30
-    B bc071486b1970d89cbd38dc298062c74f55063f43c0aeb33db7ad9363e553825
+    A 7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34
+    B a7a123e471aa18e7235f0f741cc5c8ce28c2d2adcc9d28c5737004eada21d759
   states identical     True
 
   Deterministic NOTE CONTENT and identical verdicts -- not
@@ -42,7 +42,7 @@ READER STATE
   note_error_code           None
   note_complete_projection  True
   in-scope unprojected      0
-  out-of-scope records      3010
+  out-of-scope records      3340
 
   ACCOUNTING (asserted by the reader, which exits non-zero if it fails)
     total_g1_rows      36

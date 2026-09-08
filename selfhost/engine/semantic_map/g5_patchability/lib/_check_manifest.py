@@ -3,8 +3,20 @@
 
 Writing the manifest is not the same as writing a CORRECT manifest: a step that
 succeeds can still record a digest that no longer matches the artifact it names.
-This re-reads the banked manifest and compares each recorded digest against the
-live file. Prints 'ok', or one line per mismatch, and exits non-zero.
+
+SCOPE. This checks a LOAD-BEARING SUBSET, not every digest in the file:
+
+  * delta_2.sha256                                  the incremental patch
+  * built.instrumented_gen_snapshot_sha256_schema6  the producer binary
+  * route2_witness.subject.aot_sha256               the canonical subject
+  * route2_witness.subject.input_kernel_sha256      its input kernel
+  * replay.per_file[*].built_sha256 and .equal      the replay claim
+  * evidence/inlining_state.json                    is the run just performed,
+                                                    and its accounting reconciles
+
+Digests recorded for withdrawn or historical artifacts are deliberately not
+checked: they name files this run no longer produces. Prints 'ok', or one line
+per mismatch, and exits non-zero.
 """
 import hashlib
 import json
@@ -31,10 +43,10 @@ checks = [
     ('built.instrumented_gen_snapshot_sha256_schema6',
      m['built']['instrumented_gen_snapshot_sha256_schema6'], sha(GS)),
     ('route2_witness.subject.aot_sha256',
-     m['route2_witness']['subject']['aot_sha256'], sha(f'{W}/app_s6r.aot')),
+     m['route2_witness']['subject']['aot_sha256'], sha(f'{W}/app_release.aot')),
     ('route2_witness.subject.input_kernel_sha256',
      m['route2_witness']['subject']['input_kernel_sha256'],
-     sha(f'{W}/prepass3.dill')),
+     sha(f'{W}/release3.dill')),
 ]
 for name, recorded, live in checks:
     if recorded != live:
@@ -53,7 +65,7 @@ if not m['replay']['all_files_equal']:
 # The banked reader state must be the run just performed, not a stale copy.
 try:
     banked = json.load(open(f'{G}/evidence/inlining_state.json'))
-    fresh = json.load(open(f'{W}/s6r.json'))
+    fresh = json.load(open(f'{W}/app_release.json'))
 except Exception as ex:                                  # noqa: BLE001
     bad.append(f'reader state unreadable: {ex}')
 else:

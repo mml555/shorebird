@@ -60,6 +60,12 @@ const refusalReasons = <String>[
   // turn a missing input into a positive claim about the artifact.
   'RELEASE_PATCHABILITY_UNPROVEN',
   'RELEASE_NOT_PATCHABLE_BUILD',
+  // SM1-G5 DISPATCH. Two reasons, not one, for the same reason the release
+  // pair above is two: "this declaration is reached by instance dispatch" and
+  // "we cannot tell whether it is" are different facts, and merging them would
+  // let a missing input read as a measurement.
+  'NON_STATIC_DISPATCH_UNPROVEN',
+  'STATIC_METADATA_UNUSABLE',
 ];
 
 /// The dynamic-interface entry a required retention class lowers to, as it
@@ -217,6 +223,36 @@ void main(List<String> args) {
     final replaceable =
         const {'method', 'getter', 'setter', 'operator'}.contains(kind);
     if (!replaceable) reasons.add('ABI_SHAPE_UNSUPPORTED');
+
+    // ---- INSTANCE DISPATCH -----------------------------------------------
+    //
+    // SM1-G5's dispatch experiment settled this on one release AOT: Base.work
+    // is reported NOT_INLINED by the route-2 reader, its replacement attaches
+    // and returns the patched value when invoked directly, and an ordinary
+    // call site STILL read the old value. The mechanism is in the shipped
+    // machine code -- a dispatch-table call reads its entry point out of the
+    // table indexed by the RECEIVER'S CLASS ID and never consults the callee's
+    // pool entry, so attaching a body cannot redirect it.
+    //
+    // That mechanism is available to every declaration reached by instance
+    // dispatch, and this gate cannot yet attribute a dispatch-table site to
+    // the declarations it can reach -- that needs the precompiler's selector
+    // map, which is not in the release. So a replaceable declaration that is
+    // not PROVEN static refuses.
+    //
+    // THE CONVERSE IS NOT ASSERTED. `static == true` is not treated as safe:
+    // it only avoids THIS refusal. The inbound call mechanism for static
+    // declarations has not been closed, and CALL_SITE_SHAPE_UNPROVEN below
+    // still applies to them.
+    if (replaceable) {
+      final staticFlag = r['static'];
+      if (staticFlag is! bool) {
+        // Absent, null, or not a boolean. An unusable fact is not a permission.
+        reasons.add('STATIC_METADATA_UNUSABLE');
+      } else if (!staticFlag) {
+        reasons.add('NON_STATIC_DISPATCH_UNPROVEN');
+      }
+    }
 
     // ---- ABI, the declaration's own and its OWNER's ----------------------
     if ((r['abi_shape'] as String? ?? 'unknown') != 'supported') {

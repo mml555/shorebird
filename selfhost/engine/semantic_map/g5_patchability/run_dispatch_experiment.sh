@@ -11,6 +11,12 @@
 #   * a compiler-devirtualizable receiver shape is compared against a
 #     runtime-polymorphic, dispatch-preserving one.
 #
+# THE SUBJECT IS NOT BUILT HERE. run_route2.sh builds app_release.aot from
+# release3.dill and banks the reader against it; this script consumes that exact
+# file unchanged. Whole-AOT output is not byte-reproducible, so rebuilding here
+# would silently give the demonstration a different artifact from the one the
+# reader was banked against -- which is the entire discipline being enforced.
+#
 # usage: run_dispatch_experiment.sh <clone-src> <workdir>
 set -uo pipefail
 SRC="${1:?usage: run_dispatch_experiment.sh <clone-src> <workdir>}"
@@ -19,7 +25,14 @@ G="$(cd "$(dirname "$0")" && pwd)"
 S="$SRC/out/host_release_arm64"
 OD=/opt/homebrew/opt/llvm/bin/llvm-objdump
 rc=0
+SUBJ="$W/app_release.aot"
 sha() { shasum -a 256 "$1" | awk '{print $1}'; }
+
+# DELETE EVERY DERIVED OUTPUT FIRST. A producer that fails leaves the previous
+# run's bytecode, container or reader state in place, and a later assertion
+# then consumes a stale artifact and passes. Same defect the reader
+# falsification harness had.
+rm -f "$W/basework.bytecode" "$W/patch_basework.sbrb" "$W/rel.json"
 ASSERTIONS=()
 want() {
   if [ "$2" = "$3" ]; then ASSERTIONS+=("  pass  $1")
@@ -43,13 +56,18 @@ TXT
 echo
 
 # ---------------------------------------------------------------- the release
-echo "############ 1. ONE RELEASE, BUILT FROM THE RELEASE KERNEL ############"
-"$S/gen_snapshot" --snapshot_kind=app-aot-elf --patchable_static_calls \
-    --elf="$W/app_s6rel.aot" "$W/release3.dill" 2>&1 | sed 's/^/  /'
-AOT_SHA=$(sha "$W/app_s6rel.aot")
-echo "  gen_snapshot   $(sha "$S/gen_snapshot")"
-echo "  release3.dill  $(sha "$W/release3.dill")"
-echo "  app_s6rel.aot  $AOT_SHA"
+echo "############ 1. THE CANONICAL RELEASE, TAKEN NOT REBUILT ############"
+if [ ! -f "$SUBJ" ]; then
+  echo "  MISSING $SUBJ -- run run_route2.sh first; this script does not"
+  echo "  build the subject, because a rebuild would not be the same bytes."
+  exit 2
+fi
+AOT_SHA=$(sha "$SUBJ")
+echo "  gen_snapshot     $(sha "$S/gen_snapshot")"
+echo "  release3.dill    $(sha "$W/release3.dill")"
+echo "  app_release.aot  $AOT_SHA"
+echo "  banked reader state was produced from this same file:"
+echo "                   $(python3 -c "import json;print(json.load(open('$G/evidence/inlining_state.json'))['diagnostics']['aot_sha256'])")"
 cat <<'TXT'
 
   WHY release3.dill AND NOT prepass3.dill. The route-2 reader was banked
@@ -65,7 +83,7 @@ echo
 
 # --------------------------------------------------- the reader, on THAT AOT
 echo "############ 2. THE READER, ON THAT EXACT AOT ############"
-python3 "$G/lib/read_inlining.py" "$W/app_s6rel.aot" "$W/g2_r.json" - \
+python3 "$G/lib/read_inlining.py" "$SUBJ" "$W/g2_r.json" - \
     "$W/rel.json" | sed 's/^/  /'
 python3 - "$W/rel.json" "$AOT_SHA" <<'PY' | sed 's/^/  /'
 import json, sys
@@ -87,11 +105,14 @@ echo "############ 3. THE PATCH, AND AN INDEPENDENT ATTACH PROOF ############"
     --packages "$W/.dart_tool/package_config.json" \
     --import-dill "$W/import.dill" \
     -o "$W/basework.bytecode" "$G/probe/repl_basework.dart" 2>&1 | sed 's/^/  /'
-ID=$("$S/dartaotruntime" "$W/app_s6rel.aot" | awk '/BUILD_ID/{print $2}')
+[ -s "$W/basework.bytecode" ] || { echo "  dart2bytecode produced nothing"; rc=1; }
+ID=$("$S/dartaotruntime" "$SUBJ" | awk '/BUILD_ID/{print $2}')
 "$S/dart" "$G/../../route_b/packaging/pack_patch.dart" \
     --release-build-id "$ID" --out "$W/patch_basework.sbrb" \
     --target "package:dynamic_modules/callsite_target.dart#Base.work=$W/basework.bytecode" \
     2>&1 | sed 's/^/  /'
+[ -s "$W/patch_basework.sbrb" ] || { echo "  pack_patch produced nothing"; rc=1; }
+[ -n "$ID" ] || { echo "  the release reported no build id"; rc=1; }
 echo "  running build id  $ID"
 echo "  bytecode          $(sha "$W/basework.bytecode")"
 echo "  container         $(sha "$W/patch_basework.sbrb")"
@@ -104,7 +125,7 @@ cat <<'TXT'
   ask for it.
 TXT
 echo
-RUN=$("$S/dartaotruntime" "$W/app_s6rel.aot" "$W/patch_basework.sbrb" 2>&1)
+RUN=$("$S/dartaotruntime" "$SUBJ" "$W/patch_basework.sbrb" 2>&1)
 echo "$RUN" | sed 's/^/  /'
 echo
 cat <<'TXT'
@@ -120,7 +141,7 @@ echo
 echo "############ 4. THE SHIPPED MACHINE CODE AT EACH CALL SITE ############"
 for s in viaDirect viaVirtual viaInlined; do
   echo "  --- $s ---"
-  "$OD" -d --disassemble-symbols=$s --no-show-raw-insn "$W/app_s6rel.aot" \
+  "$OD" -d --disassemble-symbols=$s --no-show-raw-insn "$SUBJ" \
     2>/dev/null | sed -n '6,26p' | sed 's/^/  /'
 done
 cat <<'TXT'
@@ -137,7 +158,7 @@ TXT
 echo
 
 echo "############ 5. MECHANICAL CLASSIFICATION OF EVERY CALL SITE ############"
-python3 "$G/lib/scan_dispatch_calls.py" "$W/app_s6rel.aot" \
+python3 "$G/lib/scan_dispatch_calls.py" "$SUBJ" \
   --symbol viaVirtual --symbol viaDirect --symbol viaInlined | sed 's/^/  /'
 cat <<'TXT'
 
@@ -196,10 +217,48 @@ cat <<'TXT'
   ELF, so per-declaration attribution is not available from the release today.
   Recovering it would be new instrumentation, and is NOT proposed here.
 TXT
+echo "############ 7. THE POLICY CONSEQUENCE, AND ITS FALSIFICATION ############"
+cat <<'TXT'
+  #54 permits REDUCE_SCOPE when an unsafe declaration class can be mechanically
+  excluded. G1 already retains `static` as authoritative declaration metadata,
+  so the predicate the finding licenses is:
+
+      replaceable callable AND static is not exactly true  =>  refuse
+
+  "Cannot tell" is kept as its OWN refusal rather than folded into "not
+  static": absent, null, or non-boolean metadata is an unusable fact, not a
+  permission, and merging the two would let a missing input read as a
+  measurement.
+
+  THE CONVERSE IS NOT ASSERTED. static == true only avoids THIS refusal; the
+  inbound call mechanism for static declarations is not closed, and every arm
+  below still carries CALL_SITE_SHAPE_UNPROVEN.
+TXT
+echo
+python3 "$G/lib/falsify_dispatch_predicate.py" "$S/dart" "$W" 2>&1 | sed 's/^/  /'
+echo "  exit=$?  (asserted: 0)"
+echo
+cat <<'TXT'
+  POSITIVE CONTROL. The same arms run against a copy of the predictor with the
+  predicate block deleted. The eight arms that depend on it must flip; the two
+  that must NOT depend on it -- a static declaration, and a field, which is not
+  a replaceable callable -- must keep passing.
+TXT
+echo
+python3 - "$G/lib/predict_patchable.dart" "$W/weak_predictor.dart" <<'PY'
+import pathlib, sys
+src = pathlib.Path(sys.argv[1]).read_text()
+start = src.index('    if (replaceable) {\n      final staticFlag')
+end = src.index('\n    }\n', start) + len('\n    }\n')
+pathlib.Path(sys.argv[2]).write_text(src[:start] + src[end:])
+PY
+SM1_PREDICTOR="$W/weak_predictor.dart" python3 \
+    "$G/lib/falsify_dispatch_predicate.py" "$S/dart" "$W" 2>&1 | sed 's/^/  /'
+echo "  exit=$?  (asserted: non-zero)"
 } > "$G/evidence/dispatch_experiment.txt" 2>&1
 
 # ------------------------------------------------------------- assertions
-AOT_SHA=$(sha "$W/app_s6rel.aot")
+AOT_SHA=$(sha "$SUBJ")
 want 'reader read the same artifact the demo ran' "$AOT_SHA" \
      "$(python3 -c "import json;print(json.load(open('$W/rel.json'))['diagnostics']['aot_sha256'])")"
 want 'reader validated the note on the release AOT' True \
@@ -225,11 +284,26 @@ want 'polymorphic site did NOT observe the patch' virtual=OLD-w "$(field virtual
 want 'inlined-helper site did NOT observe the patch' inlined=OLD-w "$(field inlined)"
 want 'the untargeted control is unchanged' other=OTHER-w "$(field other)"
 want 'viaVirtual carries a dispatch-table call site' 1 \
-     "$(python3 "$G/lib/scan_dispatch_calls.py" "$W/app_s6rel.aot" --symbol viaVirtual \
+     "$(python3 "$G/lib/scan_dispatch_calls.py" "$SUBJ" --symbol viaVirtual \
         | grep -c 'viaVirtual.*DISPATCH_TABLE')"
 want 'viaDirect carries no dispatch-table call site' 0 \
-     "$(python3 "$G/lib/scan_dispatch_calls.py" "$W/app_s6rel.aot" --symbol viaDirect \
+     "$(python3 "$G/lib/scan_dispatch_calls.py" "$SUBJ" --symbol viaDirect \
         | grep -c 'viaDirect.*DISPATCH_TABLE')"
+# LOAD-BEARING. The claim is that absence of a dispatch-table shape does NOT
+# imply the site is redirectable; viaInlined is the witness, so its dispatch
+# count must be asserted to be zero rather than assumed.
+want 'viaInlined carries NO dispatch-table call site, yet stayed stale' 0 \
+     "$(python3 "$G/lib/scan_dispatch_calls.py" "$SUBJ" --symbol viaInlined \
+        | grep -c 'viaInlined.*DISPATCH_TABLE')"
+python3 "$G/lib/falsify_dispatch_predicate.py" "$S/dart" "$W" >/dev/null 2>&1
+want 'the dispatch predicate is fail-closed on every arm' 0 "$?"
+SM1_PREDICTOR="$W/weak_predictor.dart" python3 \
+    "$G/lib/falsify_dispatch_predicate.py" "$S/dart" "$W" >/dev/null 2>&1
+want 'deleting the predicate makes those arms fail' 1 "$?"
+want 'the predicate transcript records FAIL_CLOSED' 1 \
+     "$(grep -c 'SM1_G5_DISPATCH_PREDICATE: FAIL_CLOSED' "$T")"
+want 'the reader bank and this demonstration used one artifact' "$AOT_SHA" \
+     "$(python3 -c "import json;print(json.load(open('$G/evidence/inlining_state.json'))['diagnostics']['aot_sha256'])")"
 
 {
   echo

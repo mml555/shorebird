@@ -52,21 +52,21 @@
     "note": ".note.shorebird.inlining",
     "note_schema_version": 6,
     "fields_per_record": 20,
-    "records": 3021,
+    "records": 3353,
     "encoding": "header lines, then records=N, then N records of 20 length-prefixed \"<len>:<bytes>\" fields: per side the VM coordinates for G1 projection (library URI, owner, VM kind, declared name), the same four for the synthetic parent when that side is an implicit closure, and each side's exact declaring-library private key.",
     "sealed_after_emission": true,
     "note_sha256_covers": "the full note SECTION bytes (header + owner + payload)",
     "determinism": {
       "build_a": {
-        "aot": "app_s6r.aot",
-        "aot_sha256": "8592e54d1c31e7e963bd338a315b3180726fea12ac83d1e6424d005ba150fc30"
+        "aot": "app_release.aot",
+        "aot_sha256": "7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34"
       },
       "build_b": {
-        "aot": "app_s6rb.aot",
-        "aot_sha256": "bc071486b1970d89cbd38dc298062c74f55063f43c0aeb33db7ad9363e553825"
+        "aot": "app_release_b.aot",
+        "aot_sha256": "a7a123e471aa18e7235f0f741cc5c8ce28c2d2adcc9d28c5737004eada21d759"
       },
       "same_input_kernel": true,
-      "note_section_sha256": "7af6093bb22379b816c78a6cd4c2f5b780dcdd4b451c0698b6f460344ff5fe7b",
+      "note_section_sha256": "3b0339a417e38433abdcfa6908fcba5f135a5e977afd2bd74b8ca2bdd5737af6",
       "note_sha256_equal": true,
       "aot_sha256_equal": false,
       "reader_states_identical": true,
@@ -75,9 +75,9 @@
     "not_g1_identity": "These are VM coordinates, NOT G1 identity. RegularFunction is VM vocabulary where G1 distinguishes method from operator; a private name still carries its library key (_state@17145467) rather than G1's declared name; and an extension member can appear with a synthetic top-level owner while G1 recovers the extension owner. Projection onto G1 is the reader's job, against G1's retained vmName/loweredName, and anything not uniquely projectable is UNKNOWN.",
     "subject": {
       "aot": "app_s6r.aot",
-      "aot_sha256": "8592e54d1c31e7e963bd338a315b3180726fea12ac83d1e6424d005ba150fc30",
+      "aot_sha256": "7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34",
       "input_kernel": "prepass3.dill",
-      "input_kernel_sha256": "79dfb9e20ce9d971388f1bc73a74fa94ea2465ef4aab5e45ecf195da212b6cee",
+      "input_kernel_sha256": "a93b4be09e7efa06279f42860e64208d86d7b7a0ab7e71156960f50bf2bfd888",
       "recipe": "gen_snapshot --snapshot_kind=app-aot-elf --patchable_static_calls --elf=app_s6r.aot prepass3.dill",
       "note": "The earlier schema-6 subject, app_s6.aot, is withdrawn as a provenance carrier: its input kernel could not be identified in the work directory, so its note was not reproducible from a recorded recipe. Per-declaration verdicts are identical between the two."
     }

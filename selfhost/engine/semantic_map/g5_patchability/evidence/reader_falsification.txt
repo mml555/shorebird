@@ -1,10 +1,10 @@
 SM1-G5 route 2 -- adversarial falsification of the strict reader
-generated 2026-09-08T19:30:25Z by run_route2.sh
+generated 2026-09-08T19:54:42Z by run_route2.sh
 
 PROVENANCE
   8e1a23b59fb5e7be435019bd1b0840f81057abee424b48b570b9745d7646ac13  lib/read_inlining.py
   f405a7badeea0e6511c386068791de49366db859673415f88c442d2b2fa4e85c  lib/falsify_reader.py
-  8592e54d1c31e7e963bd338a315b3180726fea12ac83d1e6424d005ba150fc30  app_s6r.aot (subject)
+  7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34  app_release.aot (THE canonical subject)
   b9b29d23f37e5e11a5ab181f7f9674c5a482f52b5bcd0483272e6f57c0f90550  g2_r.json (G1 projection)
 
 WHAT EACH ARM ASSERTS
@@ -33,28 +33,28 @@ owner replaced with an ordinary GNU owner                  pass   {'UNKNOWN': 31
 note n_type 2 -> 9                                         pass   {'UNKNOWN': 31} <- NOTE_TYPE_MISMATCH note type=9, expected 2
 sh_type SHT_NOTE -> PROGBITS                               pass   {'UNKNOWN': 31} <- NOTE_SECTION_NOT_SHT_NOTE sh_type=1, expected SHT_NOTE
 two sections claiming the note name                        pass   {'UNKNOWN': 31} <- DUPLICATE_NOTE_SECTION 2 sections named .note.shorebird.inlining; a duplicate or conflicting 
-live bytes trail the note inside its own section           pass   {'UNKNOWN': 31} <- DUPLICATE_AUTHORITATIVE_NOTE 576594 bytes follow the note inside its own section; a duplicate or co
-a second Shorebird note in the same section                pass   {'UNKNOWN': 31} <- DUPLICATE_AUTHORITATIVE_NOTE 576594 bytes follow the note inside its own section; a duplicate or co
+live bytes trail the note inside its own section           pass   {'UNKNOWN': 31} <- DUPLICATE_AUTHORITATIVE_NOTE 646655 bytes follow the note inside its own section; a duplicate or co
+a second Shorebird note in the same section                pass   {'UNKNOWN': 31} <- DUPLICATE_AUTHORITATIVE_NOTE 646655 bytes follow the note inside its own section; a duplicate or co
 note section renamed (note absent)                         pass   {'UNKNOWN': 31} <- NOTE_SECTION_ABSENT no .note.shorebird.inlining section
-e_shoff out of bounds                                      pass   {'UNKNOWN': 31} <- MALFORMED_ELF_SECTION_TABLE section table wants bytes 6082400..6083552 of a 1520600-byte file
+e_shoff out of bounds                                      pass   {'UNKNOWN': 31} <- MALFORMED_ELF_SECTION_TABLE section table wants bytes 6833408..6834560 of a 1708352-byte file
 e_shstrndx >= e_shnum                                      pass   {'UNKNOWN': 31} <- MALFORMED_ELF_SECTION_TABLE e_shstrndx=25 is not below e_shnum=18
 e_shentsize too small for ELF64                            pass   {'UNKNOWN': 31} <- MALFORMED_ELF_SECTION_TABLE e_shentsize=8, too small for an ELF64 section header
 sh_name index past the string table                        pass   {'UNKNOWN': 31} <- SECTION_NAME_OUT_OF_BOUNDS sh_name=4294967040 is not below the 198-byte section-name table
 no NUL before the end of shstrtab                          pass   {'UNKNOWN': 31} <- SECTION_NAME_UNTERMINATED section name at 0 has no terminator before the end of the 198-byte nam
 sh_name outside shstrtab but inside the ELF                pass   {'UNKNOWN': 31} <- SECTION_NAME_OUT_OF_BOUNDS sh_name=214 is not below the 198-byte section-name table
 shstrtab truncated so the note name lies outside it        pass   {'UNKNOWN': 31} <- SECTION_NAME_OUT_OF_BOUNDS sh_name=73 is not below the 73-byte section-name table
-shstrtab extent past EOF                                   pass   {'UNKNOWN': 31} <- MALFORMED_ELF_SECTION_TABLE shstrtab extent wants bytes 1294448..4335648 of a 1520600-byte file
+shstrtab extent past EOF                                   pass   {'UNKNOWN': 31} <- MALFORMED_ELF_SECTION_TABLE shstrtab extent wants bytes 1458288..4874992 of a 1708352-byte file
 big-endian EI_DATA, which this reader does not decode      pass   {'UNKNOWN': 31} <- ELF_ENDIANNESS_UNSUPPORTED EI_DATA=2, not little-endian; this reader decodes little-endian only
-section name is not valid UTF-8                            pass   {'UNKNOWN': 31} <- SECTION_NAME_NOT_UTF8 section name at 1294521 is not valid UTF-8: 'utf-8' codec can't decode
-note sh_offset past EOF                                    pass   {'UNKNOWN': 31} <- NOTE_EXTENT_OUT_OF_BOUNDS note section extent wants bytes 1520596..2097276 of a 1520600-byte fil
-note sh_size past EOF                                      pass   {'UNKNOWN': 31} <- NOTE_EXTENT_OUT_OF_BOUNDS note section extent wants bytes 556..3041756 of a 1520600-byte file
+section name is not valid UTF-8                            pass   {'UNKNOWN': 31} <- SECTION_NAME_NOT_UTF8 section name at 1458361 is not valid UTF-8: 'utf-8' codec can't decode
+note sh_offset past EOF                                    pass   {'UNKNOWN': 31} <- NOTE_EXTENT_OUT_OF_BOUNDS note section extent wants bytes 1708348..2355089 of a 1708352-byte fil
+note sh_size past EOF                                      pass   {'UNKNOWN': 31} <- NOTE_EXTENT_OUT_OF_BOUNDS note section extent wants bytes 556..3417260 of a 1708352-byte file
 schema_version 6 -> 9                                      pass   {'UNKNOWN': 31} <- SCHEMA_VERSION_MISMATCH schema_version=b'9', this reader understands 6
 fields_per_record 20 -> 99                                 pass   {'UNKNOWN': 31} <- FIELDS_PER_RECORD_MISMATCH fields_per_record=b'99', expected 20
-declared record count disagrees with the payload           pass   {'UNKNOWN': 31} <- RECORD_COUNT_MISMATCH parsed 3021 records but the header declares 9999
+declared record count disagrees with the payload           pass   {'UNKNOWN': 31} <- RECORD_COUNT_MISMATCH parsed 3353 records but the header declares 9999
 first field length inflated                                pass   {'UNKNOWN': 31} <- FIELD_LENGTH_INVALID bad field length b'ureFunction11'
 field length is not an integer                             pass   {'UNKNOWN': 31} <- FIELD_LENGTH_INVALID bad field length b'xx'
 record field is not valid UTF-8                            pass   {'UNKNOWN': 31} <- RECORD_FIELD_NOT_UTF8 record field at offset 3 is not valid UTF-8: 'utf-8' codec can't decod
-an in-scope private name no longer carries its library's key pass   {'UNKNOWN': 30, 'INLINED': 1} <- ['PRIVATE_KEY_MISMATCH'] 
+an in-scope private name no longer carries its library's key pass   {'INLINED': 2, 'UNKNOWN': 29} <- ['PRIVATE_KEY_MISMATCH'] 
 not an ELF file                                            pass   {'UNKNOWN': 31} <- NOT_ELF not an ELF file
 ELF32, which this reader does not model                    pass   {'UNKNOWN': 31} <- ELF32_UNSUPPORTED not ELF64; this reader does not model ELF32
 vmName/loweredName diverge from canonical name (_inlineHelper) pass   {'UNKNOWN': 30, 'INLINED': 1} <- ['NO_AUTHORITATIVE_G1_PROJECTION'] 
@@ -105,7 +105,7 @@ declared record count disagrees with the payload           FAIL   projection rep
 first field length inflated                                FAIL   projection reported complete; manufactured 18 NOT_INLINED
 field length is not an integer                             FAIL   projection reported complete; manufactured 18 NOT_INLINED
 record field is not valid UTF-8                            FAIL   projection reported complete; manufactured 18 NOT_INLINED
-an in-scope private name no longer carries its library's key FAIL   projection reported complete; manufactured 16 NOT_INLINED
+an in-scope private name no longer carries its library's key FAIL   projection reported complete; manufactured 15 NOT_INLINED
 not an ELF file                                            FAIL   projection reported complete; manufactured 18 NOT_INLINED
 ELF32, which this reader does not model                    FAIL   projection reported complete; manufactured 18 NOT_INLINED
 vmName/loweredName diverge from canonical name (_inlineHelper) FAIL   projection reported complete; manufactured 16 NOT_INLINED
@@ -187,5 +187,14 @@ than a crash.
 
 SUBJECT CHANGED. Earlier runs used app_s6.aot, whose input kernel could no
 longer be identified in the work directory, so its note was not reproducible
-from a recorded recipe. This run uses app_s6r.aot, built by the recipe in
-reader_state.txt. Per-declaration verdicts are identical between the two.
+from a recorded recipe.
+
+SUBJECT CORRECTED AGAIN. The run after that used app_release.aot, built from
+release3.dill -- the PRE-PASS kernel, compiled WITHOUT --dynamic-interface. That
+AOT runs and reports a build id, but a patch against it fails at attach because
+the dynamic-module retention the interface drives is absent, so it was never
+the patchable release and could not be the subject of a dispatch
+demonstration. This run uses app_release.aot, built from release3.dill, and
+hands that exact file to run_dispatch_experiment.sh. Per-declaration verdicts
+are identical across all three subjects, so no verdict was traded away by
+either correction.
