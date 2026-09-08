@@ -29,6 +29,45 @@ GATES = {
     'frontend': ("    if (replaceable) reasons.add('FRONTEND_MATERIALIZATION_UNPROVEN');",
                  '\n', ('FRONTEND_MATERIALIZATION_UNPROVEN',)),
 }
+# A REASON-TARGETED WEAKENING, used by falsify_predictor.py. It removes the
+# code from the DECISION path only -- every occurrence after the vocabulary
+# block is renamed -- so the arm asserting that code must fail while the
+# vocabulary entry survives. This makes each arm prove the gate it names.
+# THE GENERIC-COLLAPSE CONTROL. A predictor that still refuses everything but
+# reports one undifferentiated code must satisfy NO reason-specific arm; this
+# builds that predictor by renaming every vocabulary code in the decision path
+# to a single value. It is the counterpart of the reader's control B.
+if GATE == 'generic':
+    cut = src.index('];', src.index('const refusalReasons'))
+    head, body = src[:cut], src[cut:]
+    import re as _re
+    vb = src[src.index('const refusalReasons'):cut]
+    codes = sorted(set(_re.findall(r"'([A-Z_]+)'", vb)), key=len, reverse=True)
+    for c in codes:
+        body = body.replace(f"'{c}'", "'GENERIC_REFUSAL'")
+    weak = head + body
+    if weak == src:
+        sys.exit('weaken_predictor: output is identical to the input')
+    pathlib.Path(OUT).write_text(weak)
+    print(f'  weakened predictor written: {len(codes)} codes collapsed to one')
+    sys.exit(0)
+
+if GATE.startswith('reason:'):
+    code = GATE.split(':', 1)[1]
+    cut = src.index('];', src.index('const refusalReasons'))
+    head, body = src[:cut], src[cut:]
+    n_body = body.count(f"'{code}'")
+    if n_body == 0:
+        sys.exit(f'weaken_predictor: {code} never appears in the decision '
+                 f'path, so it cannot be the gate for any arm')
+    weak = head + body.replace(f"'{code}'", "'GATE_REMOVED_FOR_CONTROL'")
+    if weak == src:
+        sys.exit('weaken_predictor: output is identical to the input')
+    pathlib.Path(OUT).write_text(weak)
+    print(f'  weakened predictor written: gate for {code} removed '
+          f'({n_body} decision-path occurrence(s))')
+    sys.exit(0)
+
 if GATE not in GATES:
     sys.exit(f'weaken_predictor: unknown gate {GATE!r}; '
              f'expected one of {sorted(GATES)}')

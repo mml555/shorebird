@@ -26,7 +26,12 @@
 //     dangerous write is one the patched BODY performs on another declaration;
 //   * DEVIRTUALIZED_CALL_SITE and INLINED_BODY existed only as strings, with no
 //     code able to emit them -- so two of #54's named arms silently defaulted
-//     every declaration to patchable.
+//     every declaration to patchable. INLINED_BODY is now emitted from Route 2
+//     evidence; DEVIRTUALIZED_CALL_SITE was still unreachable at Phase C and
+//     has been REMOVED rather than left in the vocabulary, because a declared
+//     refusal nobody can emit is indistinguishable from a gate that does not
+//     exist. lib/falsify_predictor.py now fails the run if any vocabulary
+//     entry has no arm, so this cannot recur silently.
 //
 // ignore_for_file: avoid_print, implementation_imports
 import 'dart:convert';
@@ -38,7 +43,6 @@ Never _die(String m) {
 }
 
 const refusalReasons = <String>[
-  'DEVIRTUALIZED_CALL_SITE',
   'INLINED_BODY',
   'CALL_SITE_SHAPE_UNPROVEN',
   'ABI_SHAPE_UNSUPPORTED',
@@ -70,6 +74,16 @@ const refusalReasons = <String>[
   // front-end transform can make a body stale without any call site being at
   // fault, and Route 2 cannot be shown to witness it.
   'FRONTEND_MATERIALIZATION_UNPROVEN',
+  // ROUTE 2, consumed as RELEASE EVIDENCE. Four reasons, because four
+  // different things can be wrong and only one of them is a measurement:
+  // the declaration was inlined; its state could not be decided; the evidence
+  // is absent; or the evidence describes a DIFFERENT release than the one the
+  // contract was read from. Collapsing any of these into the others would let
+  // a missing or mismatched input read as a safety fact.
+  'INLINING_STATE_UNKNOWN',
+  'INLINING_EVIDENCE_MISSING',
+  'INLINING_EVIDENCE_UNVALIDATED',
+  'INLINING_EVIDENCE_RELEASE_MISMATCH',
 ];
 
 /// The dynamic-interface entry a required retention class lowers to, as it
@@ -83,7 +97,7 @@ const pragmaForClass = <String, String>{
 };
 
 void main(List<String> args) {
-  String? g2Path, g3Path, g4Path, refsPath, releasePath, genPath;
+  String? g2Path, g3Path, g4Path, refsPath, releasePath, genPath, inliningPath;
   var outPath = 'predictions.json';
   for (var i = 0; i < args.length; i++) {
     final a = args[i];
@@ -103,6 +117,8 @@ void main(List<String> args) {
         refsPath = next();
       case '--release-contract':
         releasePath = next();
+      case '--inlining-state':
+        inliningPath = next();
       case '--generated':
         genPath = next();
       case '--out':
@@ -135,6 +151,41 @@ void main(List<String> args) {
   final g4 = load(g4Path);
   final refs = load(refsPath);
   final release = load(releasePath);
+
+  // ---- ROUTE 2 INLINING EVIDENCE ---------------------------------------
+  //
+  // Read as EVIDENCE ABOUT THE RELEASE, never as a demonstration result: this
+  // is the strict reader's output over the release artifact, not the outcome of
+  // applying a patch. Prediction must never consume the demonstrator.
+  //
+  // The evidence is bound to the release by AOT identity. Reader output for a
+  // sibling AOT is not evidence about this one -- whole-AOT output is not
+  // byte-reproducible, so two builds of the same kernel are different
+  // artifacts and must not be substituted for each other.
+  Map<String, Object?>? inlining;
+  String? inliningReason;
+  final inlinedBy = <String, String>{};
+  if (inliningPath == null) {
+    inliningReason = 'INLINING_EVIDENCE_MISSING';
+  } else {
+    inlining = load(inliningPath);
+    final evidenceAot = inlining['diagnostics'] is Map
+        ? (inlining['diagnostics']! as Map)['aot_sha256'] as String?
+        : null;
+    final releaseAot = release['release_aot_sha256'] as String?;
+    if (inlining['note_validated'] != true ||
+        inlining['note_complete_projection'] != true) {
+      inliningReason = 'INLINING_EVIDENCE_UNVALIDATED';
+    } else if (releaseAot == null || evidenceAot == null ||
+        releaseAot != evidenceAot) {
+      inliningReason = 'INLINING_EVIDENCE_RELEASE_MISMATCH';
+    } else {
+      for (final st in (inlining['states'] as List)
+          .cast<Map<String, Object?>>()) {
+        inlinedBy[st['declaration_id'] as String] = st['state'] as String;
+      }
+    }
+  }
 
   final generated = <String>{};
   if (genPath != null) {
@@ -227,6 +278,36 @@ void main(List<String> args) {
     final replaceable =
         const {'method', 'getter', 'setter', 'operator'}.contains(kind);
     if (!replaceable) reasons.add('ABI_SHAPE_UNSUPPORTED');
+
+    // ---- ROUTE 2 STATE, INTERPRETED CONSERVATIVELY -----------------------
+    //
+    // INLINED     => refuse. A copied body does not observe a patch.
+    // UNKNOWN     => refuse.
+    // NOT_INLINED => clears only THIS refusal. It is not a permission, and
+    //                every other gate still applies -- the Base.work arm
+    //                showed a NOT_INLINED declaration with a stale call site.
+    // absent      => refuse. A declaration with no row is not a safe
+    //                declaration; that is the whole "no missing row is safe"
+    //                rule, applied on the consuming side too.
+    if (replaceable) {
+      if (inliningReason != null) {
+        reasons.add(inliningReason);
+      } else {
+        final state = inlinedBy[r['declaration_id']];
+        switch (state) {
+          case 'INLINED':
+            reasons.add('INLINED_BODY');
+          case 'NOT_INLINED':
+            break; // clears this refusal and nothing else
+          case 'UNKNOWN':
+            reasons.add('INLINING_STATE_UNKNOWN');
+          case null:
+            reasons.add('INLINING_EVIDENCE_MISSING');
+          default:
+            reasons.add('INLINING_STATE_UNKNOWN');
+        }
+      }
+    }
 
     // ---- FRONT-END MATERIALIZATION ---------------------------------------
     //

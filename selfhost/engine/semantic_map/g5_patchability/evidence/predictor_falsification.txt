@@ -1,0 +1,109 @@
+SM1-G5 Phase C -- predictor refusal bank
+generated 2026-09-08T20:37:44Z by run_predictor_bank.sh
+
+PROVENANCE
+  f4032e7d6675135908db4f0e03806d3e47ac5a4ec4c15870438b26956383a68c  lib/predict_patchable.dart
+  11c06267de0c7efc571e835837eb302814229ce786a00a97eb9aa15d3e0e7429  lib/falsify_predictor.py
+  84c3350966108e1a438dbd816a35e7faba22bad2170dd4946706c5897badf5b4  lib/weaken_predictor.py
+
+WHAT EACH ARM ASSERTS
+
+  1. the real predictor runs on real input schemas;
+  2. the arm's intended STABLE refusal code is present;
+  3. predicted_patchable is false;
+  4. the arm's own control -- the predictor with the gate for THAT code
+     removed from the decision path -- fails the arm. So an arm proves the
+     gate it names, not merely that something refused.
+
+  Prediction consumes only RELEASE EVIDENCE. Route 2's reader output is read
+  as evidence about the release artifact and is bound to it by AOT identity;
+  the demonstrator's verdicts are never an input.
+
+ROUTE 2 IS INTERPRETED CONSERVATIVELY
+
+  INLINED     -> refuse
+  UNKNOWN     -> refuse
+  absent row  -> refuse (no missing row is safe, on the consuming side too)
+  unvalidated -> refuse
+  wrong AOT   -> refuse (a sibling build is not evidence about this artifact)
+  NOT_INLINED -> clears ONLY the inlining refusal, and never implies patchable
+
+======================= RUN: the shipped predictor =======================
+arm                                                  code                                 result detail
+------------------------------------------------------------------------------------------------------------------------------------
+abi shape unsupported                                ABI_SHAPE_UNSUPPORTED                pass   control flipped (missing ABI_SHAPE_UNSUPPORTED)
+owner class ABI unsupported                          OWNER_ABI_SHAPE_UNSUPPORTED          pass   control flipped (missing OWNER_ABI_SHAPE_UNSUPPORTED)
+body encoding refused                                BODY_ENCODING_REFUSED                pass   control flipped (missing BODY_ENCODING_REFUSED)
+body references unproven (no refs row)               BODY_REFERENCES_UNPROVEN             pass   control flipped (missing BODY_REFERENCES_UNPROVEN)
+body references a private type                       PRIVATE_TYPE_REFERENCE               pass   control flipped (missing PRIVATE_TYPE_REFERENCE)
+private reference unresolved                         PRIVATE_REFERENCE_UNRESOLVED         pass   control flipped (missing PRIVATE_REFERENCE_UNRESOLVED)
+private reference not granted                        PRIVATE_REFERENCE_UNGRANTED          pass   control flipped (missing PRIVATE_REFERENCE_UNGRANTED)
+private write whose key does not identify the mode   PRIVATE_WRITE                        pass   control flipped (missing PRIVATE_WRITE)
+private target not retained in the release           NOT_RETAINED                         pass   control flipped (missing NOT_RETAINED)
+retention unproven (no g4 row)                       RETENTION_UNPROVEN                   pass   control flipped (missing RETENTION_UNPROVEN)
+required can-be-overridden absent from the release   MISSING_CAN_BE_OVERRIDDEN            pass   control flipped (missing MISSING_CAN_BE_OVERRIDDEN)
+release identity ambiguous                           RELEASE_IDENTITY_AMBIGUOUS           pass   control flipped (missing RELEASE_IDENTITY_AMBIGUOUS)
+generated code                                       GENERATED_CODE                       pass   control flipped (missing GENERATED_CODE)
+release patch capability unproven                    RELEASE_PATCHABILITY_UNPROVEN        pass   control flipped (missing RELEASE_PATCHABILITY_UNPROVEN)
+release built without patchable static calls         RELEASE_NOT_PATCHABLE_BUILD          pass   control flipped (missing RELEASE_NOT_PATCHABLE_BUILD)
+non-static instance dispatch                         NON_STATIC_DISPATCH_UNPROVEN         pass   control flipped (missing NON_STATIC_DISPATCH_UNPROVEN)
+static metadata unusable                             STATIC_METADATA_UNUSABLE             pass   control flipped (missing STATIC_METADATA_UNUSABLE)
+front-end materialization unproven                   FRONTEND_MATERIALIZATION_UNPROVEN    pass   control flipped (missing FRONTEND_MATERIALIZATION_UNPROVEN)
+call-site shape unproven                             CALL_SITE_SHAPE_UNPROVEN             pass   control flipped (missing CALL_SITE_SHAPE_UNPROVEN)
+route 2 says the body was inlined                    INLINED_BODY                         pass   control flipped (missing INLINED_BODY)
+route 2 could not decide                             INLINING_STATE_UNKNOWN               pass   control flipped (missing INLINING_STATE_UNKNOWN)
+route 2 evidence absent entirely                     INLINING_EVIDENCE_MISSING            pass   control flipped (missing INLINING_EVIDENCE_MISSING)
+route 2 has no row for this declaration              INLINING_EVIDENCE_MISSING            pass   control flipped (missing INLINING_EVIDENCE_MISSING)
+route 2 note did not validate                        INLINING_EVIDENCE_UNVALIDATED        pass   control flipped (missing INLINING_EVIDENCE_UNVALIDATED)
+route 2 evidence describes a different release       INLINING_EVIDENCE_RELEASE_MISMATCH   pass   control flipped (missing INLINING_EVIDENCE_RELEASE_MISMATCH)
+------------------------------------------------------------------------------------------------------------------------------------
+arms=25 passed=25 failed=0 unarmed=0
+SM1_G5_PREDICTOR_FALSIFICATION: EVERY_REASON_ARMED_AND_SENSITIVE
+exit=0  (asserted: 0)
+
+============ CONTROL: every refusal collapsed to one code ===========
+A predictor that still refuses everything, but reports one undifferentiated
+code, must satisfy NO reason-specific arm. Otherwise the bank would be proving
+"something refused" rather than "this gate refused".
+
+  weakened predictor written: 24 codes collapsed to one
+arm                                                  code                                 result detail
+------------------------------------------------------------------------------------------------------------------------------------
+abi shape unsupported                                ABI_SHAPE_UNSUPPORTED                FAIL   missing ABI_SHAPE_UNSUPPORTED
+owner class ABI unsupported                          OWNER_ABI_SHAPE_UNSUPPORTED          FAIL   missing OWNER_ABI_SHAPE_UNSUPPORTED
+body encoding refused                                BODY_ENCODING_REFUSED                FAIL   missing BODY_ENCODING_REFUSED
+body references unproven (no refs row)               BODY_REFERENCES_UNPROVEN             FAIL   missing BODY_REFERENCES_UNPROVEN
+body references a private type                       PRIVATE_TYPE_REFERENCE               FAIL   missing PRIVATE_TYPE_REFERENCE
+private reference unresolved                         PRIVATE_REFERENCE_UNRESOLVED         FAIL   missing PRIVATE_REFERENCE_UNRESOLVED
+private reference not granted                        PRIVATE_REFERENCE_UNGRANTED          FAIL   missing PRIVATE_REFERENCE_UNGRANTED
+private write whose key does not identify the mode   PRIVATE_WRITE                        FAIL   missing PRIVATE_WRITE
+private target not retained in the release           NOT_RETAINED                         FAIL   missing NOT_RETAINED
+retention unproven (no g4 row)                       RETENTION_UNPROVEN                   FAIL   missing RETENTION_UNPROVEN
+required can-be-overridden absent from the release   MISSING_CAN_BE_OVERRIDDEN            FAIL   missing MISSING_CAN_BE_OVERRIDDEN
+release identity ambiguous                           RELEASE_IDENTITY_AMBIGUOUS           FAIL   missing RELEASE_IDENTITY_AMBIGUOUS
+generated code                                       GENERATED_CODE                       FAIL   missing GENERATED_CODE
+release patch capability unproven                    RELEASE_PATCHABILITY_UNPROVEN        FAIL   missing RELEASE_PATCHABILITY_UNPROVEN
+release built without patchable static calls         RELEASE_NOT_PATCHABLE_BUILD          FAIL   missing RELEASE_NOT_PATCHABLE_BUILD
+non-static instance dispatch                         NON_STATIC_DISPATCH_UNPROVEN         FAIL   missing NON_STATIC_DISPATCH_UNPROVEN
+static metadata unusable                             STATIC_METADATA_UNUSABLE             FAIL   missing STATIC_METADATA_UNUSABLE
+front-end materialization unproven                   FRONTEND_MATERIALIZATION_UNPROVEN    FAIL   missing FRONTEND_MATERIALIZATION_UNPROVEN
+call-site shape unproven                             CALL_SITE_SHAPE_UNPROVEN             FAIL   missing CALL_SITE_SHAPE_UNPROVEN
+route 2 says the body was inlined                    INLINED_BODY                         FAIL   missing INLINED_BODY
+route 2 could not decide                             INLINING_STATE_UNKNOWN               FAIL   missing INLINING_STATE_UNKNOWN
+route 2 evidence absent entirely                     INLINING_EVIDENCE_MISSING            FAIL   missing INLINING_EVIDENCE_MISSING
+route 2 has no row for this declaration              INLINING_EVIDENCE_MISSING            FAIL   missing INLINING_EVIDENCE_MISSING
+route 2 note did not validate                        INLINING_EVIDENCE_UNVALIDATED        FAIL   missing INLINING_EVIDENCE_UNVALIDATED
+route 2 evidence describes a different release       INLINING_EVIDENCE_RELEASE_MISMATCH   FAIL   missing INLINING_EVIDENCE_RELEASE_MISMATCH
+------------------------------------------------------------------------------------------------------------------------------------
+arms=25 passed=0 failed=25 unarmed=0
+SM1_G5_PREDICTOR_FALSIFICATION: DEFECTS_PRESENT
+exit=1  (asserted: non-zero, with every arm failed)
+
+ASSERTIONS (5 checked)
+  pass  every reason is armed and every gate is sensitive
+  pass  the bank records EVERY_REASON_ARMED_AND_SENSITIVE
+  pass  no vocabulary reason is unarmed
+  pass  a one-code predictor satisfies no arm
+  pass  the generic control failed every arm
+
+SM1_G5_PREDICTOR_BANK: COMPLETE
