@@ -292,12 +292,41 @@ artifact:
     NOT_PATCHABLE   -> RELEASE_NOT_PATCHABLE_BUILD
     anything else   -> RELEASE_PATCHABILITY_UNPROVEN
 
-The frozen corpus release currently reports
-`UNPROVEN_NO_ARTIFACT_MARKER`, so every replaceable declaration additionally
-refuses `RELEASE_PATCHABILITY_UNPROVEN`. Deriving `PROVEN` needs a mechanically
-checkable artifact fact; a build transcript saying `--patchable_static_calls` is
-not one, and inferring capability from the flag's *effect* would be circular.
-That is the remaining work before any subset calculation.
+### The witness: a compiler-emitted AOT capability marker
+
+`gen_snapshot` now writes an ELF note beside the build-id note, populated from
+the compiler's own parsed `FLAG_patchable_static_calls`:
+
+    .note.shorebird.capabilities
+    owner    Shorebird
+    payload  schema_version=1;patchable_static_calls=true|false
+
+Not command-line text, not a build transcript, not Dart source, and not a
+behavioural patch test. The reader **parses the section table**; scanning for the
+string would match the same text anywhere in the artifact, including in a Dart
+string literal a patch author controls.
+
+| artifact | result |
+|---|---|
+| built with `--patchable_static_calls` | `PROVEN` |
+| built without it | `NOT_PATCHABLE` |
+| frozen uninstrumented toolchain | `UNPROVEN_MARKER_ABSENT` |
+| payload key corrupted | `UNPROVEN_MARKER_UNKNOWN_SCHEMA` |
+| `schema_version=9` | `UNPROVEN_MARKER_UNKNOWN_SCHEMA` |
+
+Absence is never `NOT_PATCHABLE`: an older toolchain does not say, and silence
+must not become a claim about the artifact. The exact AOT sha256 is recorded
+beside every result.
+
+The marker agrees with observed behaviour: the `PROVEN` release patches
+(`direct=PATCHED-w`), the `NOT_PATCHABLE` one does not (`direct=OLD-w`).
+
+**Instrumentation provenance.** Built in an APFS clone at
+`/Volumes/build/g5_marker`, never in the frozen lineage — G0–G4 verify effective
+tree `7b04b01b`, and modifying it would invalidate every earlier gate. The
+frozen `gen_snapshot` is byte-unchanged.
+
+Evidence: [`evidence/capability_marker.txt`](evidence/capability_marker.txt).
 
 
 

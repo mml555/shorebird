@@ -1,0 +1,58 @@
+SM1-G5 — compiler-emitted AOT capability marker
+date : 2026-09-08T00:04:58Z
+
+The marker is emitted by gen_snapshot from the compiler's own parsed
+FLAG_patchable_static_calls, written as an ELF note beside the build-id
+note. It is NOT command-line text, a build transcript, Dart source, or a
+behavioural patch test -- each of those records something other than what
+the compiler did.
+
+  .note.shorebird.capabilities
+  owner    Shorebird
+  payload  schema_version=1;patchable_static_calls=true|false
+
+The reader PARSES the section table; it does not scan for the string. A
+scan would match the same text anywhere in the artifact, including in a
+Dart string literal a patch author controls.
+
+INSTRUMENTATION PROVENANCE. Built in an APFS clone at /Volumes/build/g5_marker,
+never in the frozen lineage: G0-G4 verify effective tree 7b04b01b and
+modifying it would invalidate every earlier gate.
+  frozen  4310aebd39be52ec  gen_snapshot (unmodified)
+  clone   fe1f523a43dd0342  gen_snapshot (instrumented)
+
+############ 1. built WITH --patchable_static_calls ############
+    PROVEN                           note: schema_version=1;patchable_static_calls=true
+
+############ 2. built WITHOUT it ############
+    NOT_PATCHABLE                    note: schema_version=1;patchable_static_calls=false
+
+############ 3. marker ABSENT — the frozen, uninstrumented toolchain ############
+   Absence must be UNKNOWN, never 'false'. An older toolchain does not say.
+    UNPROVEN_MARKER_ABSENT           no .note.shorebird.capabilities section; an older or unknown toolchain
+
+############ 4. marker MALFORMED ############
+    corrupted the payload key in place
+    UNPROVEN_MARKER_UNKNOWN_SCHEMA   capability note schema_version=<missing>, this reader understands 1
+
+############ 5. marker UNKNOWN SCHEMA VERSION ############
+    rewrote schema_version=1 as schema_version=9
+    UNPROVEN_MARKER_UNKNOWN_SCHEMA   capability note schema_version=9, this reader understands 1
+
+############ 6. the marker agrees with OBSERVED behaviour ############
+  app_marked:
+      after  alpha=OLD-a beta=OLD-b virtual=OLD-w direct=PATCHED-w inlined=OLD-w other=OTHER-w
+  app_marked_off:
+      after  alpha=OLD-a beta=OLD-b virtual=OLD-w direct=OLD-w inlined=OLD-w other=OTHER-w
+
+  PROVEN -> direct=PATCHED-w ; NOT_PATCHABLE -> direct=OLD-w.
+  The marker states the compiler setting; the run shows the consequence.
+
+############ A NOTE ON ARM 4'S LABEL ############
+  Corrupting the payload KEY produced UNPROVEN_MARKER_UNKNOWN_SCHEMA rather than
+  UNPROVEN_MARKER_MALFORMED, because destroying `schema_version=` leaves the
+  field missing and that routes to the unknown-schema branch. Both are UNPROVEN
+  and both fail closed, so the safety property holds -- but the arm is recorded
+  as producing the label it actually produced, not the one it was aimed at.
+  MALFORMED remains reachable for a truncated or non-ELF artifact, which the
+  reader checks before the section walk.

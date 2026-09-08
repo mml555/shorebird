@@ -75,6 +75,136 @@ List<String> _pragmaNames(List<Expression> annotations) {
   return out;
 }
 
+/// Reads the compiler-emitted capability note out of an AOT ELF.
+///
+/// PARSED, NOT GREPPED. Scanning the file for the payload text would match a
+/// string anywhere in the artifact -- including one a patch author could put in
+/// a Dart string literal. The section table is walked so the bytes are read
+/// from the note section the compiler actually wrote.
+///
+/// FOUR OUTCOMES, and only one of them is a positive claim:
+///
+///   present, true          -> PROVEN
+///   present, false         -> NOT_PATCHABLE
+///   absent                 -> UNPROVEN_MARKER_ABSENT
+///   malformed / unknown    -> UNPROVEN_MARKER_MALFORMED / _UNKNOWN_SCHEMA
+///
+/// Absence is never NOT_PATCHABLE: an older or unknown toolchain simply does not
+/// say, and turning silence into a claim about the artifact is the failure this
+/// gate exists to prevent.
+/// Whether the bytes at [off] begin the versioned payload this reader expects.
+/// Used only to choose between the padded and unpadded note layouts.
+bool _looksLikePayload(List<int> b, int off, int len) {
+  const want = 'schema_version=';
+  if (off < 0 || off + want.length > b.length) return false;
+  for (var i = 0; i < want.length; i++) {
+    if (b[off + i] != want.codeUnitAt(i)) return false;
+  }
+  return true;
+}
+
+({String state, String evidence}) _readCapabilityNote(List<int> b) {
+  const noteName = '.note.shorebird.capabilities';
+  int u16(int o) => b[o] | (b[o + 1] << 8);
+  int u32(int o) => b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24);
+  int u64(int o) => u32(o) | (u32(o + 4) << 32);
+
+  if (b.length < 64 || b[0] != 0x7f || b[1] != 0x45 || b[2] != 0x4c ||
+      b[3] != 0x46) {
+    return (state: 'UNPROVEN_MARKER_MALFORMED', evidence: 'not an ELF file');
+  }
+  if (b[4] != 2) {
+    return (
+      state: 'UNPROVEN_MARKER_MALFORMED',
+      evidence: 'not ELF64; this reader does not model ELF32',
+    );
+  }
+  final shoff = u64(0x28);
+  final shentsize = u16(0x3a);
+  final shnum = u16(0x3c);
+  final shstrndx = u16(0x3e);
+  if (shoff == 0 || shnum == 0) {
+    return (
+      state: 'UNPROVEN_MARKER_ABSENT',
+      evidence: 'no section table',
+    );
+  }
+  final strHdr = shoff + shstrndx * shentsize;
+  final strOff = u64(strHdr + 0x18);
+  String nameAt(int nameIdx) {
+    final start = strOff + nameIdx;
+    var end = start;
+    while (end < b.length && b[end] != 0) {
+      end++;
+    }
+    return String.fromCharCodes(b.sublist(start, end));
+  }
+
+  for (var i = 0; i < shnum; i++) {
+    final hdr = shoff + i * shentsize;
+    if (nameAt(u32(hdr)) != noteName) continue;
+    final off = u64(hdr + 0x18);
+    final size = u64(hdr + 0x20);
+    if (size < 12) {
+      return (
+        state: 'UNPROVEN_MARKER_MALFORMED',
+        evidence: 'capability note is $size bytes, too short for a header',
+      );
+    }
+    final nameSize = u32(off);
+    final descSize = u32(off + 4);
+    // TWO POSSIBLE LAYOUTS, and this reader must not assume one.
+    //
+    // ELF pads a note's name to 4 bytes, but the Dart ELF writer lays the name
+    // and description CONTIGUOUSLY -- GenerateBuildId does the same. Assuming
+    // the padded offset silently sliced two characters off the payload and the
+    // schema check then reported UNKNOWN_SCHEMA for a note that was perfectly
+    // well formed. Both offsets are tried and the one that parses is used; if
+    // neither does, the note is malformed rather than absent.
+    final unpadded = off + 12 + nameSize;
+    final padded = off + 12 + ((nameSize + 3) & ~3);
+    final descOff = _looksLikePayload(b, unpadded, descSize) ? unpadded : padded;
+    if (descOff + descSize > b.length || descSize == 0) {
+      return (
+        state: 'UNPROVEN_MARKER_MALFORMED',
+        evidence: 'capability note description runs past the artifact',
+      );
+    }
+    var end = descOff + descSize;
+    while (end > descOff && b[end - 1] == 0) {
+      end--;
+    }
+    final payload = String.fromCharCodes(b.sublist(descOff, end));
+    final fields = <String, String>{};
+    for (final part in payload.split(';')) {
+      final eq = part.indexOf('=');
+      if (eq > 0) fields[part.substring(0, eq)] = part.substring(eq + 1);
+    }
+    final version = fields['schema_version'];
+    if (version != '1') {
+      return (
+        state: 'UNPROVEN_MARKER_UNKNOWN_SCHEMA',
+        evidence: 'capability note schema_version=${version ?? "<missing>"}, '
+            'this reader understands 1',
+      );
+    }
+    final psc = fields['patchable_static_calls'];
+    return switch (psc) {
+      'true' => (state: 'PROVEN', evidence: 'note: $payload'),
+      'false' => (state: 'NOT_PATCHABLE', evidence: 'note: $payload'),
+      _ => (
+        state: 'UNPROVEN_MARKER_MALFORMED',
+        evidence: 'patchable_static_calls=${psc ?? "<missing>"}',
+      ),
+    };
+  }
+  return (
+    state: 'UNPROVEN_MARKER_ABSENT',
+    evidence: 'no $noteName section; an older or unknown toolchain does not '
+        'say, which is not the same as saying false',
+  );
+}
+
 void main(List<String> args) {
   String? dillPath;
   String? aotPath;
@@ -176,21 +306,20 @@ void main(List<String> args) {
   // claim about the artifact.
   var capability = 'UNPROVEN';
   String? capabilityEvidence;
-  if (aotPath != null) {
+  String? aotSha;
+  if (aotPath == null) {
+    capabilityEvidence = 'no --aot supplied';
+  } else {
     final f = File(aotPath);
     if (!f.existsSync()) {
       capabilityEvidence = 'no artifact at $aotPath';
     } else {
-      // The flag leaves a mark the runtime itself reads: patchable static calls
-      // are emitted as an indirection through the object pool. Absent a
-      // documented artifact-level marker this is recorded as UNPROVEN rather
-      // than inferred, because a wrong inference here authorises patches.
-      capabilityEvidence = 'artifact present, sha256 '
-          '${sha256.convert(f.readAsBytesSync()).toString().substring(0, 16)}';
-      capability = 'UNPROVEN_NO_ARTIFACT_MARKER';
+      final bytes = f.readAsBytesSync();
+      aotSha = sha256.convert(bytes).toString();
+      final note = _readCapabilityNote(bytes);
+      capabilityEvidence = note.evidence;
+      capability = note.state;
     }
-  } else {
-    capabilityEvidence = 'no --aot supplied';
   }
 
   File(outPath).writeAsStringSync(
@@ -198,6 +327,9 @@ void main(List<String> args) {
       'schema': 'semantic-map-1/g5-release-contract/2',
       'release_patch_capability': capability,
       'release_patch_capability_evidence': capabilityEvidence,
+      // Recorded beside the result whatever the result is, so an UNPROVEN can
+      // be tied to the exact artifact that produced it.
+      'release_aot_sha256': aotSha,
       'gate': 'SM1-G5',
       'issue': 54,
       'dill': dillPath,
