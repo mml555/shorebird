@@ -1,0 +1,29 @@
+{
+  "schema": "semantic-map-1/g5-instrumentation/1",
+  "gate": "SM1-G5",
+  "issue": 54,
+  "why": "The capability marker is only credible if the PRODUCER can be rebuilt. This banks the exact source delta, the base it applies to, and the binary it produced, so the causal claim -- the compiler emitted the value from its own parsed flag -- is checkable rather than asserted.",
+  "base": {
+    "dart_revision": "9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c",
+    "dart_head_tree": "aa55ff960f07682fd098195e4884f2cbcb4f5f27",
+    "frozen_effective_tree": "7b04b01bdc10ec990143257f0d28580571c2122f",
+    "note": "The frozen lineage is NEVER modified. G0-G4 verify the effective tree, so instrumenting it in place would invalidate every earlier gate.",
+    "elf_cc_sha256": "3fe477c978320f43884d459589df86762d82ab4f34ba63dc55445d0de59a2378"
+  },
+  "delta": {
+    "path": "instrumentation/0001-g5-aot-capability-note.patch",
+    "sha256": "c0a982fab70900aff92bc03602a3a9447f75fe26a27d853c8bc5b6176a5dac3a",
+    "files": [
+      "runtime/vm/elf.h",
+      "runtime/vm/elf.cc"
+    ],
+    "applies_to": "flutter/third_party/dart within the engine checkout"
+  },
+  "built": {
+    "worktree": "/Volumes/build/g5_marker/src (APFS clone, local-disk only)",
+    "target": "ninja gen_snapshot",
+    "instrumented_gen_snapshot_sha256": "fe1f523a43dd03429532e31e929d235bdea54c529aea6900929c06343ad81eda",
+    "frozen_gen_snapshot_sha256": "4310aebd39be52ec9fd30adf801e698b599cfb7c2eba69e26d2af1b08e39812b",
+    "build_shim": "vpython3 -> python3; depot_tools wrapper fails on Python 3.13"
+  }
+}

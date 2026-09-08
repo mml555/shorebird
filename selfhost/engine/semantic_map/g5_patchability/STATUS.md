@@ -306,6 +306,10 @@ behavioural patch test. The reader **parses the section table**; scanning for th
 string would match the same text anywhere in the artifact, including in a Dart
 string literal a patch author controls.
 
+**Identity is the whole section header, not the name.** The reader checks
+`sh_type == SHT_NOTE`, `owner == "Shorebird"`, note type `1`, and that exactly
+**one** such section exists. A section name is not a signature.
+
 | artifact | result |
 |---|---|
 | built with `--patchable_static_calls` | `PROVEN` |
@@ -313,6 +317,17 @@ string literal a patch author controls.
 | frozen uninstrumented toolchain | `UNPROVEN_MARKER_ABSENT` |
 | payload key corrupted | `UNPROVEN_MARKER_UNKNOWN_SCHEMA` |
 | `schema_version=9` | `UNPROVEN_MARKER_UNKNOWN_SCHEMA` |
+| name kept, `sh_type` forged to PROGBITS | `UNPROVEN_MARKER_MALFORMED` |
+| owner forged to `Imposter!` | `UNPROVEN_MARKER_MALFORMED` |
+| two sections claiming the name | `UNPROVEN_MARKER_AMBIGUOUS` |
+
+Every arm banks its **full AOT sha256** beside the result.
+
+**Producer provenance** is banked in `instrumentation/` — the base Dart revision
+and frozen effective tree, the exact source delta and its sha256, and both
+`gen_snapshot` hashes (instrumented and frozen-unmodified) — so the causal claim
+that the compiler emitted the value from its own parsed flag can be rebuilt
+rather than believed.
 
 Absence is never `NOT_PATCHABLE`: an older toolchain does not say, and silence
 must not become a claim about the artifact. The exact AOT sha256 is recorded

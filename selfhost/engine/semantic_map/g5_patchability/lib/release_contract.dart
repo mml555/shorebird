@@ -140,9 +140,33 @@ bool _looksLikePayload(List<int> b, int off, int len) {
     return String.fromCharCodes(b.sublist(start, end));
   }
 
+  // IDENTITY IS THE WHOLE SECTION HEADER, NOT THE NAME.
+  //
+  // Finding the note by name alone and reading the first hit would let any
+  // same-named section -- or a second, conflicting one -- answer for the
+  // compiler. A section name is not a signature.
+  final candidates = <int>[];
   for (var i = 0; i < shnum; i++) {
     final hdr = shoff + i * shentsize;
-    if (nameAt(u32(hdr)) != noteName) continue;
+    if (nameAt(u32(hdr)) == noteName) candidates.add(hdr);
+  }
+  if (candidates.length > 1) {
+    return (
+      state: 'UNPROVEN_MARKER_AMBIGUOUS',
+      evidence: '${candidates.length} sections named $noteName; a duplicate or '
+          'conflicting note cannot establish anything',
+    );
+  }
+  for (final hdr in candidates) {
+    // sh_type must be SHT_NOTE (7). A same-named PROGBITS section is not a note.
+    const shtNote = 7;
+    final shType = u32(hdr + 0x04);
+    if (shType != shtNote) {
+      return (
+        state: 'UNPROVEN_MARKER_MALFORMED',
+        evidence: 'section $noteName has sh_type=$shType, expected SHT_NOTE',
+      );
+    }
     final off = u64(hdr + 0x18);
     final size = u64(hdr + 0x20);
     if (size < 12) {
@@ -153,6 +177,26 @@ bool _looksLikePayload(List<int> b, int off, int len) {
     }
     final nameSize = u32(off);
     final descSize = u32(off + 4);
+    final noteType = u32(off + 8);
+    // The owner and the note type are part of the marker's identity: they say
+    // WHO wrote the note and which record it is.
+    const wantOwner = 'Shorebird';
+    const wantType = 1;
+    if (noteType != wantType) {
+      return (
+        state: 'UNPROVEN_MARKER_MALFORMED',
+        evidence: 'capability note type=$noteType, expected $wantType',
+      );
+    }
+    if (nameSize < wantOwner.length ||
+        off + 12 + nameSize > b.length ||
+        String.fromCharCodes(b.sublist(off + 12, off + 12 + wantOwner.length)) !=
+            wantOwner) {
+      return (
+        state: 'UNPROVEN_MARKER_MALFORMED',
+        evidence: 'capability note owner is not "$wantOwner"',
+      );
+    }
     // TWO POSSIBLE LAYOUTS, and this reader must not assume one.
     //
     // ELF pads a note's name to 4 bytes, but the Dart ELF writer lays the name
