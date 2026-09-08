@@ -20,6 +20,22 @@ T=7b04b01bdc10ec990143257f0d28580571c2122f
 FILES=(runtime/vm/elf.h runtime/vm/elf.cc runtime/vm/compiler/backend/flow_graph_compiler.cc)
 rc=0
 sha() { shasum -a 256 "$1" | awk '{print $1}'; }
+# The number of falsification arms, asserted rather than assumed: an arm that
+# silently stops running would otherwise shrink the suite unnoticed.
+ARMS_EXPECTED=34
+
+# EVERY OUTCOME BELOW IS ASSERTED, NOT PRINTED. Printing an exit code lets a
+# control that unexpectedly passes leave the overall run green -- the same
+# class of defect as a probe that cannot fail.
+ASSERTIONS=()
+want() { # want <description> <expected> <actual>
+  if [ "$2" = "$3" ]; then
+    ASSERTIONS+=("  pass  $1")
+  else
+    ASSERTIONS+=("  FAIL  $1 -- got '$3', expected '$2'")
+    rc=1
+  fi
+}
 
 # ---------------------------------------------------------------- 1. producer
 R="$W/route2_replay"; rm -rf "$R"; mkdir -p "$R"
@@ -51,6 +67,16 @@ for n in r rb; do
   python3 "$G/lib/read_inlining.py" "$W/app_s6$n.aot" "$W/g2_r.json" - "$W/s6$n.json" >/dev/null || rc=1
 done
 cp "$W/s6r.json" "$G/evidence/inlining_state.json"
+
+# Determinism and replay are ASSERTED here; the transcript merely shows them.
+det=$(python3 "$G/lib/_det.py" "$W/s6r.json" "$W/s6rb.json")
+want 'note section bytes identical across the two builds' note "$(echo "$det" | cut -d' ' -f1)"
+want 'record count identical across the two builds' recs "$(echo "$det" | cut -d' ' -f2)"
+want 'reader verdicts identical across the two builds' states "$(echo "$det" | cut -d' ' -f3)"
+want 'whole-AOT hashes differ (byte reproducibility NOT claimed)' aotdiff "$(echo "$det" | cut -d' ' -f4)"
+for f in "${FILES[@]}"; do
+  want "replay reproduces $f" "$(sha "$D/$f")" "$(sha "$V/$f")"
+done
 
 # --------------------------------------------------- 3. reader state transcript
 {
@@ -205,7 +231,7 @@ TXT
   echo
   echo "=========================== RUN: shipped reader ==========================="
   python3 "$G/lib/falsify_reader.py" "$W/app_s6r.aot" "$W/g2_r.json" "$W"
-  echo "exit=$?"
+  echo "exit=$?  (asserted: 0)"
   echo
   echo "============= POSITIVE CONTROL A: a reader that trusts the note ==========="
   cat <<'TXT'
@@ -221,7 +247,7 @@ TXT
   echo
   SM1_READER="$W/weak_reader.py" python3 "$G/lib/falsify_reader.py" \
       "$W/app_s6r.aot" "$W/g2_r.json" "$W"
-  echo "exit=$?"
+  echo "exit=$?  (asserted: non-zero)"
   echo
   echo "======== POSITIVE CONTROL B: a reader that refuses without saying why ====="
   cat <<'TXT'
@@ -234,7 +260,7 @@ TXT
   echo
   SM1_READER="$W/generic_reader.py" python3 "$G/lib/falsify_reader.py" \
       "$W/app_s6r.aot" "$W/g2_r.json" "$W"
-  echo "exit=$?"
+  echo "exit=$?  (asserted: non-zero)"
   echo
   echo "WITHDRAWN EARLIER RUN, AND THE THREE DEFECTS IT WAS HIDING"
   cat <<'TXT'
@@ -263,7 +289,28 @@ from a recorded recipe. This run uses app_s6r.aot, built by the recipe in
 reader_state.txt. Per-declaration verdicts are identical between the two.
 TXT
 } > "$G/evidence/reader_falsification.txt" 2>&1
-grep -q 'ALL_ARMS_REFUSED' "$G/evidence/reader_falsification.txt" || rc=1
+# The three runs are asserted independently: the shipped reader must refuse
+# every arm, and BOTH controls must fail. A control that quietly starts passing
+# would otherwise leave this script green.
+python3 "$G/lib/falsify_reader.py" "$W/app_s6r.aot" "$W/g2_r.json" "$W" >/dev/null 2>&1
+want 'shipped reader refuses every arm' 0 "$?"
+SM1_READER="$W/weak_reader.py" python3 "$G/lib/falsify_reader.py" \
+    "$W/app_s6r.aot" "$W/g2_r.json" "$W" >/dev/null 2>&1
+want 'control A (trusts the note) fails the arms' 1 "$?"
+SM1_READER="$W/generic_reader.py" python3 "$G/lib/falsify_reader.py" \
+    "$W/app_s6r.aot" "$W/g2_r.json" "$W" >/dev/null 2>&1
+want 'control B (one generic code) fails the arms' 1 "$?"
+want 'falsification transcript records ALL_ARMS_REFUSED' 1 \
+     "$(grep -c 'SM1_G5_READER_FALSIFICATION: ALL_ARMS_REFUSED' \
+          "$G/evidence/reader_falsification.txt")"
+
+# Arm counts are asserted too, so an arm that stops running -- or a control
+# that only fails a couple of arms -- cannot pass as "the controls failed".
+arms=$(grep -m1 -o 'arms=[0-9]*' "$G/evidence/reader_falsification.txt" | cut -d= -f2)
+want 'the suite still runs every arm' "$ARMS_EXPECTED" "$arms"
+fails=$(grep -o 'failed=[0-9]*' "$G/evidence/reader_falsification.txt" | cut -d= -f2 | tr '\n' ' ')
+want 'shipped 0 failures, then both controls failing all but the baseline' \
+     "0 $((ARMS_EXPECTED - 1)) $((ARMS_EXPECTED - 1)) " "$fails"
 
 # ---------------------------------------------------- 5. completeness enumeration
 {
@@ -274,48 +321,49 @@ grep -q 'ALL_ARMS_REFUSED' "$G/evidence/reader_falsification.txt" || rc=1
   echo
   echo "PROVENANCE"
   echo "  $(sha "$G/lib/verify_completeness.sh")  lib/verify_completeness.sh"
+  echo "  $(sha "$G/lib/falsify_completeness.sh")  lib/falsify_completeness.sh"
   echo "  $(sha "$G/evidence/recorder_completeness.md")  evidence/recorder_completeness.md"
   echo "  effective Dart tree 7b04b01bdc10ec990143257f0d28580571c2122f"
   echo "  revision            9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c"
   echo
-  echo "================= RUN: the tree the evidence was built from ================"
-  "$G/lib/verify_completeness.sh" "$D"; echo "exit=$?"
+  echo "falsify_completeness.sh runs BOTH halves -- the baseline enumeration"
+  echo "over the built tree and the planted control -- and asserts each. It is"
+  echo "the only thing invoked here, so this transcript carries exactly one"
+  echo "ENUMERATION_HOLDS (baseline) and one ENUMERATION_DRIFTED (control)."
   echo
-  echo "===================== POSITIVE CONTROL: it can fail ======================="
+  "$G/lib/falsify_completeness.sh" "$D" "$W/route2_ctl"
+  echo "exit=$?  (asserted: 0 -- baseline holds, control tree proven complete,"
+  echo "the plant proven observable, and EXACTLY the two NextInlineId checks"
+  echo "flipped)"
+  echo
+  echo "NOTE ON A WITHDRAWN CONTROL"
   cat <<'TXT'
-An enumeration that cannot come out wrong proves nothing. The same checks run
-against a clone of the tree with one planted addition -- a second function that
-calls FlowGraphInliner::NextInlineId, i.e. exactly the shape of a new
-registration site the completeness argument would have to account for. Both
-NextInlineId checks must flip.
-TXT
-  echo
-  CTL="$W/route2_ctl"
-  rm -rf "$CTL"; mkdir -p "$CTL/runtime"
-  cp -c -R "$D/runtime/vm" "$CTL/runtime/vm" 2>/dev/null || cp -R "$D/runtime/vm" "$CTL/runtime/vm"
-  python3 - "$CTL/runtime/vm/compiler/backend/inliner.cc" <<'PY'
-import pathlib, sys
-p = pathlib.Path(sys.argv[1]); s = p.read_text()
-anchor = "intptr_t FlowGraphInliner::NextInlineId(const Function& function,"
-assert anchor in s
-p.write_text(s.replace(anchor,
-  "void ShorebirdControlSecondSite(FlowGraphInliner* i, const Function& f,\n"
-  "                                const InstructionSource& src) {\n"
-  "  i->NextInlineId(f, src);  // PLANTED: a second registration site\n"
-  "}\n\n" + anchor, 1))
-PY
-  "$G/lib/verify_completeness.sh" "$CTL"; echo "exit=$?"
-  rm -rf "$CTL"
-  echo
-  echo "NOTE"
-  cat <<'TXT'
-This verifier found an error in the document it checks: recorder_completeness.md
-had transcribed the last recognized library as `M` rather than `VM`, because the
-list had been extracted with a `tr -d` that stripped the leading V. The document
-was corrected; the run above is against the corrected text.
+The first version of this control was INVALID and its transcript is withdrawn.
+It built the control tree with `cp -c -R src dst`, which fails across volumes;
+the `|| cp -R` fallback then ran with the destination already partly created
+and nested the tree at vm/vm/..., so `grep -r` still found content while every
+direct path was missing. The result: the enumeration reported DRIFTED because
+files were absent, while the two NextInlineId checks it was supposed to flip
+actually PASSED. A missing file had been allowed to masquerade as a flipped
+check.
+
+falsify_completeness.sh now refuses to run unless twelve named files are
+present in the control tree, proves the planted call site is observable
+(NextInlineId mentions in inliner.cc go from 2 to 3), and requires the flipped
+set to be EXACTLY the two NextInlineId checks -- every other check must still
+pass.
 TXT
 } > "$G/evidence/recorder_completeness.txt" 2>&1
-grep -q 'ENUMERATION_HOLDS' "$G/evidence/recorder_completeness.txt" || rc=1
+"$G/lib/verify_completeness.sh" "$D" >/dev/null 2>&1
+want 'completeness enumeration holds on the built tree' 0 "$?"
+"$G/lib/falsify_completeness.sh" "$D" "$W/route2_ctl" >/dev/null 2>&1
+want 'completeness control is valid and sensitive' 0 "$?"
+want 'completeness transcript records ENUMERATION_HOLDS' 1 \
+     "$(grep -c 'SM1_G5_RECORDER_COMPLETENESS: ENUMERATION_HOLDS' \
+          "$G/evidence/recorder_completeness.txt")"
+want 'completeness control transcript records VALID_AND_SENSITIVE' 1 \
+     "$(grep -c 'SM1_G5_COMPLETENESS_CONTROL: VALID_AND_SENSITIVE' \
+          "$G/evidence/recorder_completeness.txt")"
 
 # ------------------------------------------------------------- 6. manifest
 python3 - "$G" "$D" "$GS" "$W" "$V" <<'PY'
@@ -352,6 +400,9 @@ json.dump(m, open(f'{G}/instrumentation/MANIFEST.json', 'w'), indent=2)
 print('  manifest digests recomputed')
 PY
 
+echo
+echo "ASSERTIONS"
+printf '%s\n' "${ASSERTIONS[@]}"
 echo
 echo "replay_reproduces_clone=$([ "$replay_ok" = 1 ] && echo true || echo false)"
 echo "SM1_G5_ROUTE2_REGENERATION: $([ "$rc" = 0 ] && echo COMPLETE || echo FAILED)"

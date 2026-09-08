@@ -69,6 +69,13 @@ def read_note(path):
     if b[4] != 2:
         raise NoteError('ELF32_UNSUPPORTED',
                         'not ELF64; this reader does not model ELF32')
+    # Every unpack below hard-codes '<'. A big-endian ELF would be decoded with
+    # the wrong byte order and could produce plausible-looking offsets, so the
+    # encoding is checked rather than assumed.
+    if b[5] != 1:
+        raise NoteError('ELF_ENDIANNESS_UNSUPPORTED',
+                        f'EI_DATA={b[5]}, not little-endian; this reader '
+                        f'decodes little-endian only')
 
     # Every read is bounds-checked. A malformed offset must arrive as a modeled
     # refusal, not as a struct.error that kills the process before any state is
@@ -98,18 +105,30 @@ def read_note(path):
                         f'e_shstrndx={shstrndx} is not below '
                         f'e_shnum={shnum}')
     need(shoff, shnum * shentsize, 'section table')
-    stroff = u64(shoff + shstrndx * shentsize + 0x18, 'shstrtab sh_offset')
+    strhdr = shoff + shstrndx * shentsize
+    stroff = u64(strhdr + 0x18, 'shstrtab sh_offset')
+    strsz = u64(strhdr + 0x20, 'shstrtab sh_size')
+    need(stroff, strsz, 'shstrtab extent')
+    if strsz == 0:
+        raise NoteError('MALFORMED_ELF_SECTION_TABLE',
+                        'the section-name table is empty')
 
     def name_at(idx):
-        s = stroff + idx
-        if s < 0 or s >= len(b):
+        # BOUND TO .shstrtab, NOT TO THE FILE. Validating only "inside the ELF"
+        # is not enough: a sh_name pointing past the declared name table still
+        # lands on bytes that are not section-name data, and searching to EOF
+        # for a terminator lets a SHRUNKEN shstrtab go on resolving names that
+        # its own declared extent no longer contains.
+        if idx >= strsz:
             raise NoteError('SECTION_NAME_OUT_OF_BOUNDS',
-                            f'section name offset {s} lies outside the '
-                            f'{len(b)}-byte file')
-        e = b.find(b'\x00', s)
+                            f'sh_name={idx} is not below the {strsz}-byte '
+                            f'section-name table')
+        s = stroff + idx
+        e = b.find(b'\x00', s, stroff + strsz)
         if e < 0:
             raise NoteError('SECTION_NAME_UNTERMINATED',
-                            f'section name at {s} is unterminated')
+                            f'section name at {idx} has no terminator before '
+                            f'the end of the {strsz}-byte name table')
         try:
             return b[s:e].decode('utf-8')
         except UnicodeDecodeError as ex:

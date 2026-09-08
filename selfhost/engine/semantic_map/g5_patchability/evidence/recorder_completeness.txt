@@ -1,15 +1,21 @@
 SM1-G5 route 2 -- recorder completeness, re-derived from source
-generated 2026-09-08T18:59:29Z by run_route2.sh
+generated 2026-09-08T19:15:10Z by run_route2.sh
 The enumeration in evidence/recorder_completeness.md is not transcribed;
 this run re-derives every count and gate from the tree.
 
 PROVENANCE
   2c265c17c83cced5e717c1ebababa30d71f5115fa31f925959765ab2a1fe8ecd  lib/verify_completeness.sh
-  f79dbfd9af0c5949f4acec07bc8cd5c0bf7149a6d144e67744d996f7c2c2ad17  evidence/recorder_completeness.md
+  c20b5364867fb47a9f033f7ebb0362d1f54bb2fde97469992064d32c410a6065  lib/falsify_completeness.sh
+  c29d51bb62da09b9d64553eefefb112e76c87b206ee3a9d2f4340bc3a2fcd715  evidence/recorder_completeness.md
   effective Dart tree 7b04b01bdc10ec990143257f0d28580571c2122f
   revision            9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
 
-================= RUN: the tree the evidence was built from ================
+falsify_completeness.sh runs BOTH halves -- the baseline enumeration
+over the built tree and the planted control -- and asserts each. It is
+the only thing invoked here, so this transcript carries exactly one
+ENUMERATION_HOLDS (baseline) and one ENUMERATION_DRIFTED (control).
+
+=== baseline: every check must pass ===
 recorder completeness, re-derived from /Volumes/build/g5_marker/src/flutter/third_party/dart/runtime
   pass  FlowGraphCompiler construction sites                       3
   pass  of which in aot/precompiler.cc                             1
@@ -29,55 +35,51 @@ recorder completeness, re-derived from /Volumes/build/g5_marker/src/flutter/thir
 SM1_G5_RECORDER_COMPLETENESS: ENUMERATION_HOLDS
 exit=0
 
-===================== POSITIVE CONTROL: it can fail =======================
-An enumeration that cannot come out wrong proves nothing. The same checks run
-against a clone of the tree with one planted addition -- a second function that
-calls FlowGraphInliner::NextInlineId, i.e. exactly the shape of a new
-registration site the completeness argument would have to account for. Both
-NextInlineId checks must flip.
+=== building the control tree ===
+  control tree complete: 12 required files present
 
-Traceback (most recent call last):
-  File "<stdin>", line 2, in <module>
-  File "/opt/homebrew/Cellar/python@3.13/3.13.11/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 546, in read_text
-    return PathBase.read_text(self, encoding, errors, newline)
-           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/homebrew/Cellar/python@3.13/3.13.11/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_abc.py", line 632, in read_text
-    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
-         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/homebrew/Cellar/python@3.13/3.13.11/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
-    return io.open(self, mode, buffering, encoding, errors, newline)
-           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-FileNotFoundError: [Errno 2] No such file or directory: '/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/sm1_g5_in/route2_ctl/runtime/vm/compiler/backend/inliner.cc'
+=== planting one second NextInlineId call site ===
+  planted symbol occurrences: 1
+  NextInlineId mentions in inliner.cc: baseline=2 control=3
+
+=== control: EXACTLY the NextInlineId checks may flip ===
 recorder completeness, re-derived from /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/route2_ctl/runtime
   pass  FlowGraphCompiler construction sites                       3
   pass  of which in aot/precompiler.cc                             1
   pass  of which in jit/compiler.cc                                1
   pass  of which in test helpers                                   1
   pass  appends to inline_id_to_function                           3
-  pass  NextInlineId call sites (excluding decl/defn)              1
-  pass  NextInlineId call site is in inliner.cc                    1
-awk: can't open file /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/route2_ctl/runtime/vm/compiler/call_specializer.cc
- source line number 1
-  FAIL  TryInlineInstanceGetter gated on kImplicitGetter           got 0, expected 1
-awk: can't open file /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/route2_ctl/runtime/vm/compiler/call_specializer.cc
- source line number 1
-  FAIL  TryInlineInstanceSetter gated on kImplicitSetter           got 0, expected 1
-awk: can't open file /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/route2_ctl/runtime/vm/compiler/call_specializer.cc
- source line number 1
-  FAIL  TryInlineRecognizedMethod switches on recognized_kind      got 0, expected 1
+  FAIL  NextInlineId call sites (excluding decl/defn)              got 2, expected 1
+  FAIL  NextInlineId call site is in inliner.cc                    got 2, expected 1
+  pass  TryInlineInstanceGetter gated on kImplicitGetter           1
+  pass  TryInlineInstanceSetter gated on kImplicitSetter           1
+  pass  TryInlineRecognizedMethod switches on recognized_kind      1
   pass  set_recognized_kind assignments (non-default)              1
   pass  that assignment is in method_recognizer.cc                 1
-awk: can't open file /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/route2_ctl/runtime/vm/object.cc
- source line number 1
-  FAIL  vm:recognized is a DEBUG check, not an assignment          got 0, expected 1
-grep: /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/route2_ctl/runtime/vm/compiler/recognized_methods_list.h: No such file or directory
-  FAIL  recognized library set unchanged                           got , expected AsyncLibrary CompactHashLibrary ConvertLibrary CoreLibrary DeveloperLibrary FfiLibrary InternalLibrary IsolateLibrary MathLibrary NativeWrappersLibrary TypedDataLibrary VMLibrary
+  pass  vm:recognized is a DEBUG check, not an assignment          1
+  pass  recognized library set unchanged                           AsyncLibrary CompactHashLibrary ConvertLibrary CoreLibrary DeveloperLibrary FfiLibrary InternalLibrary IsolateLibrary MathLibrary NativeWrappersLibrary TypedDataLibrary VMLibrary
 
 SM1_G5_RECORDER_COMPLETENESS: ENUMERATION_DRIFTED
 exit=1
+  the flipped set is exactly the NextInlineId checks
 
-NOTE
-This verifier found an error in the document it checks: recorder_completeness.md
-had transcribed the last recognized library as `M` rather than `VM`, because the
-list had been extracted with a `tr -d` that stripped the leading V. The document
-was corrected; the run above is against the corrected text.
+SM1_G5_COMPLETENESS_CONTROL: VALID_AND_SENSITIVE
+exit=0  (asserted: 0 -- baseline holds, control tree proven complete,
+the plant proven observable, and EXACTLY the two NextInlineId checks
+flipped)
+
+NOTE ON A WITHDRAWN CONTROL
+The first version of this control was INVALID and its transcript is withdrawn.
+It built the control tree with `cp -c -R src dst`, which fails across volumes;
+the `|| cp -R` fallback then ran with the destination already partly created
+and nested the tree at vm/vm/..., so `grep -r` still found content while every
+direct path was missing. The result: the enumeration reported DRIFTED because
+files were absent, while the two NextInlineId checks it was supposed to flip
+actually PASSED. A missing file had been allowed to masquerade as a flipped
+check.
+
+falsify_completeness.sh now refuses to run unless twelve named files are
+present in the control tree, proves the planted call site is observable
+(NextInlineId mentions in inliner.cc go from 2 to 3), and requires the flipped
+set to be EXACTLY the two NextInlineId checks -- every other check must still
+pass.

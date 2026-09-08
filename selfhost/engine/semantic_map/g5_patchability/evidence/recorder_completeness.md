@@ -148,3 +148,9 @@ did.
    non-zero if the tree disagrees. It found one error while being written --
    this document had transcribed the last recognized library as `M` rather
    than `VM` -- which is the reason it exists.
+
+   `lib/falsify_completeness.sh` is its positive control: it plants one second
+   `NextInlineId` caller and requires EXACTLY the two `NextInlineId` checks to
+   flip. It refuses to run unless twelve named source files are present in the
+   control tree, because an earlier control silently copied a broken tree and
+   reported drift for missing files while the checks it meant to flip passed.

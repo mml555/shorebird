@@ -275,8 +275,48 @@ def f_unterminated(d):
     d[o:o + n] = bytes(0x41 if c == 0 else c for c in d[o:o + n])
 
 
-mutate('section names unterminated (no NUL in shstrtab)', f_unterminated,
-       'NOTE_SECTION_ABSENT')
+# Before names were bounded to .shstrtab this arm returned NOTE_SECTION_ABSENT:
+# the reader found a NUL somewhere later in the FILE, decoded a run of garbage
+# as a name, and merely failed to match. The name table's own extent now bounds
+# the search, so the defect names itself.
+mutate('no NUL before the end of shstrtab', f_unterminated,
+       'SECTION_NAME_UNTERMINATED')
+
+
+def f_name_outside_strtab(d):
+    """sh_name past the name table but still comfortably inside the ELF."""
+    off, size = strtab(d)
+    assert off + size + 64 < len(d), 'no room after shstrtab for this arm'
+    struct.pack_into('<I', d, sec(d)[0], size + 16)
+
+
+mutate('sh_name outside shstrtab but inside the ELF', f_name_outside_strtab,
+       'SECTION_NAME_OUT_OF_BOUNDS')
+
+
+def f_strtab_truncated(d):
+    """Shrink shstrtab so the note's own name falls outside its extent."""
+    h = sec(d)[0]
+    nameidx = struct.unpack_from('<I', d, h)[0]
+    shoff = struct.unpack_from('<Q', d, 0x28)[0]
+    se, _, sx = struct.unpack_from('<HHH', d, 0x3a)
+    struct.pack_into('<Q', d, shoff + sx * se + 0x20, nameidx)
+
+
+mutate('shstrtab truncated so the note name lies outside it',
+       f_strtab_truncated, 'SECTION_NAME_OUT_OF_BOUNDS')
+
+
+def f_strtab_past_eof(d):
+    shoff = struct.unpack_from('<Q', d, 0x28)[0]
+    se, _, sx = struct.unpack_from('<HHH', d, 0x3a)
+    struct.pack_into('<Q', d, shoff + sx * se + 0x20, len(d) * 2)
+
+
+mutate('shstrtab extent past EOF', f_strtab_past_eof,
+       'MALFORMED_ELF_SECTION_TABLE')
+mutate('big-endian EI_DATA, which this reader does not decode',
+       lambda d: d.__setitem__(5, 2), 'ELF_ENDIANNESS_UNSUPPORTED')
 
 
 def f_name_utf8(d):

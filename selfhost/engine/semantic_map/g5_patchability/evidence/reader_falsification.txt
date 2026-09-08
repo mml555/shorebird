@@ -1,9 +1,9 @@
 SM1-G5 route 2 -- adversarial falsification of the strict reader
-generated 2026-09-08T18:59:24Z by run_route2.sh
+generated 2026-09-08T19:15:01Z by run_route2.sh
 
 PROVENANCE
-  d8e41be0449f81dea8d3002b94f01b3d5a9cc0aac147f7dae1ace3792ff55048  lib/read_inlining.py
-  3c18ecf667cf3447f8d5074e727ab621fc49f7f3f701ae583bfc0c1dc73769dd  lib/falsify_reader.py
+  8e1a23b59fb5e7be435019bd1b0840f81057abee424b48b570b9745d7646ac13  lib/read_inlining.py
+  f405a7badeea0e6511c386068791de49366db859673415f88c442d2b2fa4e85c  lib/falsify_reader.py
   8592e54d1c31e7e963bd338a315b3180726fea12ac83d1e6424d005ba150fc30  app_s6r.aot (subject)
   b9b29d23f37e5e11a5ab181f7f9674c5a482f52b5bcd0483272e6f57c0f90550  g2_r.json (G1 projection)
 
@@ -39,8 +39,12 @@ note section renamed (note absent)                         pass   {'UNKNOWN': 31
 e_shoff out of bounds                                      pass   {'UNKNOWN': 31} <- MALFORMED_ELF_SECTION_TABLE section table wants bytes 6082400..6083552 of a 1520600-byte file
 e_shstrndx >= e_shnum                                      pass   {'UNKNOWN': 31} <- MALFORMED_ELF_SECTION_TABLE e_shstrndx=25 is not below e_shnum=18
 e_shentsize too small for ELF64                            pass   {'UNKNOWN': 31} <- MALFORMED_ELF_SECTION_TABLE e_shentsize=8, too small for an ELF64 section header
-sh_name index past the string table                        pass   {'UNKNOWN': 31} <- SECTION_NAME_OUT_OF_BOUNDS section name offset 4296261488 lies outside the 1520600-byte file
-section names unterminated (no NUL in shstrtab)            pass   {'UNKNOWN': 31} <- NOTE_SECTION_ABSENT no .note.shorebird.inlining section
+sh_name index past the string table                        pass   {'UNKNOWN': 31} <- SECTION_NAME_OUT_OF_BOUNDS sh_name=4294967040 is not below the 198-byte section-name table
+no NUL before the end of shstrtab                          pass   {'UNKNOWN': 31} <- SECTION_NAME_UNTERMINATED section name at 0 has no terminator before the end of the 198-byte nam
+sh_name outside shstrtab but inside the ELF                pass   {'UNKNOWN': 31} <- SECTION_NAME_OUT_OF_BOUNDS sh_name=214 is not below the 198-byte section-name table
+shstrtab truncated so the note name lies outside it        pass   {'UNKNOWN': 31} <- SECTION_NAME_OUT_OF_BOUNDS sh_name=73 is not below the 73-byte section-name table
+shstrtab extent past EOF                                   pass   {'UNKNOWN': 31} <- MALFORMED_ELF_SECTION_TABLE shstrtab extent wants bytes 1294448..4335648 of a 1520600-byte file
+big-endian EI_DATA, which this reader does not decode      pass   {'UNKNOWN': 31} <- ELF_ENDIANNESS_UNSUPPORTED EI_DATA=2, not little-endian; this reader decodes little-endian only
 section name is not valid UTF-8                            pass   {'UNKNOWN': 31} <- SECTION_NAME_NOT_UTF8 section name at 1294521 is not valid UTF-8: 'utf-8' codec can't decode
 note sh_offset past EOF                                    pass   {'UNKNOWN': 31} <- NOTE_EXTENT_OUT_OF_BOUNDS note section extent wants bytes 1520596..2097276 of a 1520600-byte fil
 note sh_size past EOF                                      pass   {'UNKNOWN': 31} <- NOTE_EXTENT_OUT_OF_BOUNDS note section extent wants bytes 556..3041756 of a 1520600-byte file
@@ -58,9 +62,9 @@ G1 owner disagrees with the record owner (_inlineHelper)   pass   {'UNKNOWN': 30
 G1 kind moved outside the projected set (_inlineHelper)    pass   {'UNKNOWN': 30, 'INLINED': 1} <- ['NO_AUTHORITATIVE_G1_PROJECTION'] 
 two G1 rows project from the same record (_inlineHelper)   pass   {'UNKNOWN': 31, 'INLINED': 1} <- ['AMBIGUOUS_G1_PROJECTION'] 
 ----------------------------------------------------------------------------------------------------
-arms=30 passed=30 failed=0
+arms=34 passed=34 failed=0
 SM1_G5_READER_FALSIFICATION: ALL_ARMS_REFUSED
-exit=0
+exit=0  (asserted: 0)
 
 ============= POSITIVE CONTROL A: a reader that trusts the note ===========
 A falsification set that cannot fail certifies nothing. The same arms are
@@ -87,7 +91,11 @@ e_shoff out of bounds                                      FAIL   projection rep
 e_shstrndx >= e_shnum                                      FAIL   projection reported complete; manufactured 18 NOT_INLINED
 e_shentsize too small for ELF64                            FAIL   projection reported complete; manufactured 18 NOT_INLINED
 sh_name index past the string table                        FAIL   projection reported complete; manufactured 18 NOT_INLINED
-section names unterminated (no NUL in shstrtab)            FAIL   projection reported complete; manufactured 18 NOT_INLINED
+no NUL before the end of shstrtab                          FAIL   projection reported complete; manufactured 18 NOT_INLINED
+sh_name outside shstrtab but inside the ELF                FAIL   projection reported complete; manufactured 18 NOT_INLINED
+shstrtab truncated so the note name lies outside it        FAIL   projection reported complete; manufactured 18 NOT_INLINED
+shstrtab extent past EOF                                   FAIL   projection reported complete; manufactured 18 NOT_INLINED
+big-endian EI_DATA, which this reader does not decode      FAIL   projection reported complete; manufactured 18 NOT_INLINED
 section name is not valid UTF-8                            FAIL   projection reported complete; manufactured 18 NOT_INLINED
 note sh_offset past EOF                                    FAIL   projection reported complete; manufactured 18 NOT_INLINED
 note sh_size past EOF                                      FAIL   projection reported complete; manufactured 18 NOT_INLINED
@@ -105,9 +113,9 @@ G1 owner disagrees with the record owner (_inlineHelper)   FAIL   projection rep
 G1 kind moved outside the projected set (_inlineHelper)    FAIL   projection reported complete; manufactured 15 NOT_INLINED
 two G1 rows project from the same record (_inlineHelper)   FAIL   projection reported complete; manufactured 17 NOT_INLINED
 ----------------------------------------------------------------------------------------------------
-arms=30 passed=1 failed=29
+arms=34 passed=1 failed=33
 SM1_G5_READER_FALSIFICATION: DEFECTS_PRESENT
-exit=1
+exit=1  (asserted: non-zero)
 
 ======== POSITIVE CONTROL B: a reader that refuses without saying why =====
 Control A cannot detect the OTHER way this suite could be vacuous: a reader
@@ -131,7 +139,11 @@ e_shoff out of bounds                                      FAIL   expected code 
 e_shstrndx >= e_shnum                                      FAIL   expected code MALFORMED_ELF_SECTION_TABLE, observed ['GENERIC_FAILURE']
 e_shentsize too small for ELF64                            FAIL   expected code MALFORMED_ELF_SECTION_TABLE, observed ['GENERIC_FAILURE']
 sh_name index past the string table                        FAIL   expected code SECTION_NAME_OUT_OF_BOUNDS, observed ['GENERIC_FAILURE']
-section names unterminated (no NUL in shstrtab)            FAIL   expected code NOTE_SECTION_ABSENT, observed ['GENERIC_FAILURE']
+no NUL before the end of shstrtab                          FAIL   expected code SECTION_NAME_UNTERMINATED, observed ['GENERIC_FAILURE']
+sh_name outside shstrtab but inside the ELF                FAIL   expected code SECTION_NAME_OUT_OF_BOUNDS, observed ['GENERIC_FAILURE']
+shstrtab truncated so the note name lies outside it        FAIL   expected code SECTION_NAME_OUT_OF_BOUNDS, observed ['GENERIC_FAILURE']
+shstrtab extent past EOF                                   FAIL   expected code MALFORMED_ELF_SECTION_TABLE, observed ['GENERIC_FAILURE']
+big-endian EI_DATA, which this reader does not decode      FAIL   expected code ELF_ENDIANNESS_UNSUPPORTED, observed ['GENERIC_FAILURE']
 section name is not valid UTF-8                            FAIL   expected code SECTION_NAME_NOT_UTF8, observed ['GENERIC_FAILURE']
 note sh_offset past EOF                                    FAIL   expected code NOTE_EXTENT_OUT_OF_BOUNDS, observed ['GENERIC_FAILURE']
 note sh_size past EOF                                      FAIL   expected code NOTE_EXTENT_OUT_OF_BOUNDS, observed ['GENERIC_FAILURE']
@@ -149,9 +161,9 @@ G1 owner disagrees with the record owner (_inlineHelper)   FAIL   expected code 
 G1 kind moved outside the projected set (_inlineHelper)    FAIL   expected code NO_AUTHORITATIVE_G1_PROJECTION, observed ['GENERIC_FAILURE']
 two G1 rows project from the same record (_inlineHelper)   FAIL   expected code AMBIGUOUS_G1_PROJECTION, observed ['GENERIC_FAILURE']
 ----------------------------------------------------------------------------------------------------
-arms=30 passed=1 failed=29
+arms=34 passed=1 failed=33
 SM1_G5_READER_FALSIFICATION: DEFECTS_PRESENT
-exit=1
+exit=1  (asserted: non-zero)
 
 WITHDRAWN EARLIER RUN, AND THE THREE DEFECTS IT WAS HIDING
 An earlier version of this harness read its output file without deleting it

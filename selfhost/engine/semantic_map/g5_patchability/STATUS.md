@@ -457,8 +457,18 @@ direct-attach nulls.
 
 Regenerated end to end by [`run_route2.sh`](run_route2.sh), which re-derives the
 patch, re-verifies the replay, rebuilds both AOTs, re-runs the reader, and
-re-runs both falsification sets with their positive controls. It exits non-zero
-if any of that fails, so the transcripts below cannot drift from the tree.
+re-runs both falsification sets with their positive controls.
+
+Every outcome is **asserted, not printed** — 16 assertions covering note-hash
+and verdict equality across the two builds, that the whole-AOT hashes still
+differ (so the weaker claim cannot be quietly upgraded), per-file replay
+equality, the arm count, the shipped reader refusing every arm, both reader
+controls failing all but the baseline, and the completeness control being valid
+and sensitive. Printing an exit code would let a control that unexpectedly
+starts passing leave the run green, which is the same defect as a probe that
+cannot fail. The assertion set has already earned its keep: it caught a
+duplicated `ENUMERATION_HOLDS` marker the moment the completeness control began
+running its own baseline.
 
 ### 1. Schema-6 exact private-key carrier — done
 
@@ -486,14 +496,17 @@ extension owner.
 
 ### 3. Full adversarial falsification — done
 
-30 arms, [`evidence/reader_falsification.txt`](evidence/reader_falsification.txt):
+34 arms, [`evidence/reader_falsification.txt`](evidence/reader_falsification.txt):
 note identity (forged owner, an ordinary `GNU` owner, wrong `n_type`, wrong
 `sh_type`, two sections claiming the name, live bytes trailing the note inside
 its own section, a genuine second Shorebird note in that section, the section
 renamed away), section-table and name integrity (`e_shoff` out of bounds,
 `e_shstrndx >= e_shnum`, undersized `e_shentsize`, `sh_name` past the string
-table, unterminated section names, a section name that is not valid UTF-8,
-`sh_offset`/`sh_size` past EOF), schema and framing (wrong schema, wrong field
+table, a section name that is not valid UTF-8, `sh_offset`/`sh_size` past
+EOF), **the section-name table's own extent** (a `sh_name` past the name table
+but still inside the ELF, a `.shstrtab` shrunk so the note's name falls outside
+it, a `.shstrtab` extent past EOF, no terminator before the name table's end,
+and a big-endian `EI_DATA`), schema and framing (wrong schema, wrong field
 count, a declared count that disagrees with the payload, an inflated field
 length, a non-numeric field length, a record field that is not valid UTF-8, not
 an ELF file, ELF32), and mapper identity (`vmName`/`loweredName` diverging from
@@ -528,6 +541,20 @@ codes carrying digits (`SECTION_NAME_NOT_UTF8`, `ELF32_UNSUPPORTED`,
 should have failed. Fixed to `[A-Z0-9_]+`, with an assertion that no specific
 code survives the rewrite.
 
+**Section names are now bounded to `.shstrtab`, not to the file.** The reader
+read the string table's `sh_offset` but never its `sh_size`, so `name_at()`
+validated only "inside the ELF" and searched for a terminator all the way to
+EOF. A `sh_name` pointing past the declared name table — or a `.shstrtab`
+shrunk so the note's name fell outside its own extent — could still resolve.
+The reader now reads `sh_offset` **and** `sh_size`, requires
+`sh_name < shstrtab_size`, and bounds the terminator search to the table's end.
+It also checks `EI_DATA`, because every unpack hard-codes little-endian.
+
+The old "unterminated section name" arm was the evidence of that gap: it
+returned `NOTE_SECTION_ABSENT` rather than `SECTION_NAME_UNTERMINATED`, because
+the reader found a later NUL outside the table, decoded a run of garbage as a
+name, and merely failed to match. It now names the defect it provokes.
+
 An earlier run of this set is **withdrawn**. It read its output file without
 deleting it first, so a crashed run reported the previous arm's result and two
 arms were recorded as caught when the reader had in fact crashed. Fixing the
@@ -543,6 +570,22 @@ section would have been silently ignored.
 argument; [`lib/verify_completeness.sh`](lib/verify_completeness.sh) re-derives
 every count and gate from the tree and exits non-zero on drift. It caught an
 error in the document while that document was being written.
+
+**The first positive control for it was invalid and its transcript is
+withdrawn.** It built the control tree with `cp -c -R src dst`, which fails
+across volumes; the `|| cp -R` fallback then ran with the destination already
+partly created and nested the tree at `vm/vm/…`, so `grep -r` still found
+content while every direct path was missing. The enumeration therefore reported
+`ENUMERATION_DRIFTED` **because files were absent**, while the two
+`NextInlineId` checks it was supposed to flip actually *passed*. A missing file
+had been allowed to masquerade as a flipped check.
+
+[`lib/falsify_completeness.sh`](lib/falsify_completeness.sh) replaces it and
+asserts, rather than prints: the baseline must hold; twelve named files must be
+present or it refuses to run at all; the planted call site must be
+*observable* (`NextInlineId` mentions in `inliner.cc` go from 2 to 3); and the
+flipped set must be **exactly** the two `NextInlineId` checks, with every other
+check still passing.
 
 * Every copy of a Dart body's IL into another function is registered by
   `FlowGraphInliner::NextInlineId`, which has **exactly one caller** in the
