@@ -104,9 +104,14 @@ withdrawn rather than reinterpreted.
   replacement demonstrably computes 141, and the ordinary source call still
   reads 41.
 
-  So the bypass is attributable to inlining. The patch, container, release
-  and apply path are shared between alpha and smallTarget; the difference is
-  that one had a call site to redirect and the other had only copies.
+  So the bypass is attributable to inlining, and the argument is same-target:
+  the SAME smallTarget has an attached replacement that demonstrably computes
+  141 and ordinary call sites that still read 41, in one process. alpha's role
+  is narrower -- it shows the release, container and apply path are working in
+  that same run, so "nothing was patched at all" is excluded. No claim is made
+  that alpha and smallTarget differ ONLY by inlining; they are different
+  functions and the exact machine instruction reaching alpha was never
+  identified.
 
   It fails OPEN -- APPLY ok for both targets -- which is the third such
   shape in this lane, alongside G4's two retention classes and a release

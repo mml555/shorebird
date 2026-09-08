@@ -303,8 +303,10 @@ same shape as G4's two retention classes and as a release built without
 
 ### The comparison: non-inlined vs inlined, one release, one container
 
-A single `.sbrb` carries **two** targets applied atomically to the same release,
-so the only thing separating them is whether the optimizer copied the body:
+A single `.sbrb` carries **two** targets applied atomically to the same release.
+They are *different functions*, not a controlled same-target pair, so this table
+is not the proof — it shows the release, container and apply path working in the
+same process while the inlined observations stay old:
 
 | target | machine-code state | after |
 |---|---|---|
@@ -324,11 +326,16 @@ stale reading would have been equally consistent with the wrong or unchanged
 bytecode being packed — `APPLY ok` is not evidence of replacement semantics, as
 this gate established earlier.
 
-The patch, container, release and apply path are shared between the two targets,
-so the bypass is attributable to inlining alone: one had a call site to redirect,
-the other had only copies. Full provenance — release AOT, `.sbrb`, both KBC
-hashes, the container target list, and the banked replacement sources — is in the
-evidence file.
+**The finding is same-target.** The *same* `smallTarget` has an attached
+replacement that demonstrably computes 141 and ordinary call sites that still
+read 41, in one process. `alpha`'s role is narrower: it excludes "nothing was
+patched at all" by showing the machinery works in that same run. No claim is made
+that `alpha` and `smallTarget` differ *only* by inlining — they are different
+functions, and the exact machine instruction reaching `alpha` was never
+identified.
+
+Full provenance — release AOT, `.sbrb`, both KBC hashes, the container target
+list, and the banked replacement sources — is in the evidence file.
 
 Evidence: [`evidence/inlined_target.txt`](evidence/inlined_target.txt).
 
