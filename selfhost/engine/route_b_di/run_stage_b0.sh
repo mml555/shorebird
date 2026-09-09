@@ -100,27 +100,42 @@ cat <<'TXT'
   "validates the release's own patch" are different claims.
 TXT
 echo
-python3 "$HERE/lib/find_candidates.py" "$REPO" > "$W/candidates.txt"
+python3 "$HERE/lib/consumer_universe.py" "$REPO" \
+    "$REPO/selfhost/engine/route_b/SUPPORTED_STATE.yaml" "$W/universe.json"
+UNIVERSE_RC=$?
+python3 "$HERE/lib/discover_policies.py" "$REPO" "$W/universe.json" \
+    "$W/policies.json"
+DISCOVER_RC=$?
+cp "$W/universe.json" "$EVID/b0_universe.json" 2>/dev/null
+cp "$W/policies.json" "$EVID/b0_policies.json" 2>/dev/null
+echo
+# Validate against every committed policy carrying all four sections, whoever
+# references it. "Has the sections" and "validates the release's own patch"
+# are different claims and only the second matters here.
 ATTEMPTS='{}'
-if [[ -s "$W/candidates.txt" ]]; then
+CANDS=$(python3 -c "
+import json
+d=json.load(open('$W/policies.json'))
+print('\n'.join(d['committed_carrying_all_four_sections']))")
+if [[ -n "$CANDS" ]]; then
   while read -r cand; do
     [[ -n "$cand" ]] || continue
-    echo "  validating against release-consumed candidate: $cand"
     "$DART" "$D2B" --platform "$OUT/vm_platform.dill" \
       --import-dill "$W/import.dill" --validate "$REPO/$cand" \
       -o "$W/cand.bytecode" "$W/m_ok.dart" > "$W/cand.log" 2>&1
     P=false; [[ -s "$W/cand.bytecode" ]] && P=true
-    echo "    produced=$P"
+    echo "  four-section candidate validated: $cand -> produced=$P"
     ATTEMPTS=$(python3 "$HERE/lib/_merge_attempt.py" "$ATTEMPTS" "$cand" "$P")
     rm -f "$W/cand.bytecode"
-  done < "$W/candidates.txt"
+  done <<< "$CANDS"
 else
-  echo "  no release-consumed candidate policy carries the permission keys."
+  echo "  no committed policy carries all four sections."
 fi
 printf '%s' "$ATTEMPTS" > "$W/extra_attempts.json"
 echo
-python3 "$HERE/lib/collect_sources.py" "$REPO" "$W/di_generated.yaml" \
-    "$W/attempt.log" "$W/extra_attempts.json" "$W/sources.json"
+python3 "$HERE/lib/collect_sources.py" "$REPO" "$W/policies.json" \
+    "$W/di_generated.yaml" "$W/attempt.log" "$W/extra_attempts.json" \
+    "$W/sources.json"
 COLLECT_RC=$?
 cp "$W/sources.json" "$EVID/b0_sources.json" 2>/dev/null
 echo
@@ -160,11 +175,40 @@ want 'a specification was generated' True \
      "$(j "bool(d['provenance_available'].get('specification_digests'))")"
 want 'the B0 record was written' 0 "$([[ -s "$RAW" ]] && echo 0 || echo 1)"
 want 'the four required sections are named' 4 "$(j "len(d['sections_required'])")"
+want 'the universe was built' 0 "${UNIVERSE_RC:-1}"
+want 'policy discovery ran' 0 "${DISCOVER_RC:-1}"
 want 'the sources were collected' 0 "${COLLECT_RC:-1}"
 want 'the module itself is permanently ineligible' ineligible \
      "$(j "d['source_roles']['the_module_itself']['role']")"
-want 'the retention generator is PARTIAL, not usable' partial \
-     "$(j "d['source_roles']['route_b_generator']['role']")"
+want 'the production release interface is PARTIAL, not usable' partial \
+     "$(j "d['source_roles']['release_supplement_interface']['role']")"
+want 'the production consumer was discovered' True \
+     "$(j "d['source_roles']['release_supplement_interface']['release_consumed']")"
+want 'the universe was derived, not globbed' True \
+     "$(python3 -c "
+import json
+try: print(json.load(open('$EVID/b0_universe.json'))['total'] > 500)
+except Exception: print(False)")"
+want 'every universe tier is populated' True \
+     "$(python3 -c "
+import json
+try:
+    c=json.load(open('$EVID/b0_universe.json'))['counts']
+    print(all(c.get(t,0)>0 for t in ('named','reachable','surface')))
+except Exception: print(False)")"
+# The negative existential is about RELEASE-BOUND completeness. Two SL1 probe
+# fixtures do carry all four sections and are referenced by universe members,
+# so a raw count of "complete and consumed" is not the claim -- what matters is
+# that every one of them is accounted for as NOT release-bound, and that no
+# producer emits all four.
+want 'every complete consumed policy is accounted for as not release-bound' \
+     True "$(python3 "$HERE/lib/_check_negative.py" \
+     "$EVID/b0_policies.json" "$RAW")"
+want 'no producer emits all four sections' 0 \
+     "$(python3 -c "
+import json
+try: print(len(json.load(open('$EVID/b0_policies.json'))['negative_existential']['emitting_all_four']))
+except Exception: print(99)")"
 want 'the semantic map is not a source without a converter' unusable \
      "$(j "d['source_roles']['semantic_map_admitted_set']['role']")"
 want 'no complete source exists' 0 "$(j "len(d['complete_sources'])")"
@@ -178,12 +222,8 @@ want 'the Dart identity is recorded' True \
      "$(j "bool(d['provenance_available'].get('dart_effective_tree'))")"
 want 'the finding is about the input, not the mechanism' True \
      "$(j "'not the mechanism' in d['does_not_claim']")"
-want 'no candidate policy is consumed by a release build' 0 \
-     "$(python3 "$HERE/lib/_check_discovery.py" "$EVID/b0_sources.json" consumed)"
-want 'the fixture exclusion is not vacuous' True \
-     "$(python3 "$HERE/lib/_check_discovery.py" "$EVID/b0_sources.json" nonvacuous)"
-want 'no excluded file is counted as a usable source' True \
-     "$(python3 "$HERE/lib/_check_discovery.py" "$EVID/b0_sources.json" clean)"
+want 'static committed policies are not release-bound' True \
+     "$(j "all(v['release_bound'] is False for k,v in d['source_roles'].items() if k.startswith('committed_policy:'))")"
 want 'the B0 classifier is falsified' 0 "${B0NEG_RC:-1}"
 {
   printf '%s\n' "${A[@]}"

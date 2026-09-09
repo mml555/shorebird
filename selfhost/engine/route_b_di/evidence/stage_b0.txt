@@ -1,5 +1,5 @@
 ROUTE-B-DI-1 / Stage B0 -- the production validation input
-generated 2026-09-09T20:48:06Z by run_stage_b0.sh
+generated 2026-09-09T21:29:55Z by run_stage_b0.sh
 generator /Users/mendell/shorebird/selfhost/engine/route_b/gen_dynamic_interface.dart
 
 ############ 1. THE RELEASE'S OWN SPECIFICATION, GENERATED ############
@@ -48,22 +48,194 @@ generator /Users/mendell/shorebird/selfhost/engine/route_b/gen_dynamic_interface
   validator with the positive module, because "has the sections" and
   "validates the release's own patch" are different claims.
 
-  no release-consumed candidate policy carries the permission keys.
+  universe: 1129 members (named=19, reachable=540, surface=570)
+  vendored excluded: 14426
+  closure rounds: 4
+  universe members read      : 1129
+  text files scanned         : 5074
+  committed policies found   : 28 (3 consumed, 25 not)
+  carrying all four sections : ['selfhost/engine/route_b_di/probe/di_full.yaml', 'selfhost/engine/route_b_di/probe/di_no_callable.yaml', 'selfhost/engine/semantic_linker/runtime_feasibility/g2_execution/probe/di.yaml', 'selfhost/engine/semantic_linker/runtime_feasibility/g3_types_gc/probe/di.yaml', 'selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_fenced.yaml', 'selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_fenced.yaml', 'selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_fenced.yaml', 'selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_full.yaml', 'selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_callable.yaml', 'selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_bench.yaml', 'selfhost/engine/semantic_map/g4_retention/probe/di_full.yaml', 'selfhost/engine/semantic_map/g4_retention/probe/di_no_callable_work.yaml']
+  producers EMITTING keys    : ['selfhost/engine/route_b/probes/p1_dead_allocatability.sh']
+  --validate/--dynamic-interface argument sites: 38
+      named     packages/shorebird_cli/lib/src/commands/patch/patch_command.dart -> ${retentionInterface.path}
+      reachable packages/shorebird_cli/lib/src/commands/release/ios_releaser.dart -> ${interface.path}
+      reachable selfhost/engine/route_b/identity/probe_retention_lookup.sh -> di.yaml
+      reachable selfhost/engine/route_b/measure_retention.sh -> <yaml>]
+      surface   selfhost/engine/route_b/packaging/verify_container.sh -> di.yaml
+      surface   selfhost/engine/route_b/packaging/verify_patch_flow.sh -> di.yaml
+      surface   selfhost/engine/route_b/probes/c_receiver.sh -> di.yaml
+      surface   selfhost/engine/route_b/probes/cli_private_member.sh -> di.yaml
+  complete AND consumed      : ['selfhost/engine/semantic_linker/runtime_feasibility/g2_execution/probe/di.yaml', 'selfhost/engine/semantic_linker/runtime_feasibility/g3_types_gc/probe/di.yaml']
+  emitting all four          : none
 
-  route_b_generator
-    sections=['callable'] consumed=True validated=False
-  unconsumed_policy:selfhost/engine/dynmod/di.yaml
-    sections=['callable', 'can-be-overridden', 'extendable'] consumed=False validated=False
+  four-section candidate validated: selfhost/engine/route_b_di/probe/di_full.yaml -> produced=false
+  four-section candidate validated: selfhost/engine/route_b_di/probe/di_no_callable.yaml -> produced=false
+  four-section candidate validated: selfhost/engine/semantic_linker/runtime_feasibility/g2_execution/probe/di.yaml -> produced=false
+  four-section candidate validated: selfhost/engine/semantic_linker/runtime_feasibility/g3_types_gc/probe/di.yaml -> produced=false
+  four-section candidate validated: selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_fenced.yaml -> produced=false
+  four-section candidate validated: selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_fenced.yaml -> produced=false
+  four-section candidate validated: selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_fenced.yaml -> produced=false
+  four-section candidate validated: selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_full.yaml -> produced=false
+  four-section candidate validated: selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_callable.yaml -> produced=false
+  four-section candidate validated: selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_bench.yaml -> produced=false
+  four-section candidate validated: selfhost/engine/semantic_map/g4_retention/probe/di_full.yaml -> produced=false
+  four-section candidate validated: selfhost/engine/semantic_map/g4_retention/probe/di_no_callable_work.yaml -> produced=false
+
+  release_supplement_interface
+    sections=['callable'] bound=True consumed=True validated=False
+  committed_policy:selfhost/engine/dynmod/di.yaml
+    sections=['callable', 'can-be-overridden', 'extendable'] bound=False consumed=True validated=False
+  committed_policy:selfhost/engine/route_b_di/evidence/stage_a.txt
+    sections=none bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/route_b_di/probe/di_full.yaml
+    sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/route_b_di/probe/di_no_callable.yaml
+    sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/route_b_di/probe/di_no_extendable.yaml
+    sections=['callable', 'can-be-overridden', 'can-be-used-as-type'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/route_b_di/probe/di_no_overridable.yaml
+    sections=['callable', 'can-be-used-as-type', 'extendable'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/route_b_di/probe/di_no_type.yaml
+    sections=['callable', 'can-be-overridden', 'extendable'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g2_execution/probe/di.yaml
+    sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] bound=False consumed=True validated=False
+  committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g3_types_gc/probe/di.yaml
+    sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] bound=False consumed=True validated=False
+  committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_fenced.yaml
+    sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_fenced.yaml
+    sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_unfenced.yaml
+    sections=['callable', 'can-be-used-as-type', 'extendable'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_fenced.yaml
+    sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_unfenced.yaml
+    sections=['callable', 'can-be-used-as-type', 'extendable'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_unfenced.yaml
+    sections=['callable', 'can-be-used-as-type', 'extendable'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_full.yaml
+    sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_callable.yaml
+    sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_extendable.yaml
+    sections=['callable', 'can-be-overridden', 'can-be-used-as-type'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_overridable.yaml
+    sections=['callable', 'can-be-used-as-type', 'extendable'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_type.yaml
+    sections=['callable', 'can-be-overridden', 'extendable'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_alloc.yaml
+    sections=['callable', 'can-be-used-as-type'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_bench.yaml
+    sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_full.yaml
+    sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_callable.yaml
+    sections=['can-be-overridden', 'can-be-used-as-type', 'extendable'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_callable_work.yaml
+    sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_can_be_overridden.yaml
+    sections=['callable', 'can-be-used-as-type', 'extendable'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_can_be_used_as_type.yaml
+    sections=['callable', 'can-be-overridden', 'extendable'] bound=False consumed=False validated=False
+  committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_extendable.yaml
+    sections=['callable', 'can-be-overridden', 'can-be-used-as-type'] bound=False consumed=False validated=False
+  emitted_policy:selfhost/engine/route_b/probes/p1_dead_allocatability.sh
+    sections=['can-be-used-as-type'] bound=False consumed=True validated=False
   semantic_map_admitted_set
-    sections=none consumed=False validated=False
+    sections=none bound=True consumed=False validated=False
   the_module_itself
-    sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] consumed=False validated=True
-  discovered release-consumed policies: none
-  excluded fixtures: 27
+    sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] bound=False consumed=False validated=True
 
 ############ 3a. IS A COMPLETE SPECIFICATION DERIVABLE? ############
   SOURCE ROLES (the verdict is a function of these)
-    partial    route_b_generator
+    unusable   committed_policy:selfhost/engine/dynmod/di.yaml
+               sections=['callable', 'can-be-overridden', 'extendable'] release_consumed=True validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/route_b_di/evidence/stage_a.txt
+               sections=none release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/route_b_di/probe/di_full.yaml
+               sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/route_b_di/probe/di_no_callable.yaml
+               sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/route_b_di/probe/di_no_extendable.yaml
+               sections=['callable', 'can-be-overridden', 'can-be-used-as-type'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/route_b_di/probe/di_no_overridable.yaml
+               sections=['callable', 'can-be-used-as-type', 'extendable'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/route_b_di/probe/di_no_type.yaml
+               sections=['callable', 'can-be-overridden', 'extendable'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g2_execution/probe/di.yaml
+               sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] release_consumed=True validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g3_types_gc/probe/di.yaml
+               sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] release_consumed=True validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_fenced.yaml
+               sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_fenced.yaml
+               sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_unfenced.yaml
+               sections=['callable', 'can-be-used-as-type', 'extendable'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_fenced.yaml
+               sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_unfenced.yaml
+               sections=['callable', 'can-be-used-as-type', 'extendable'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_unfenced.yaml
+               sections=['callable', 'can-be-used-as-type', 'extendable'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_full.yaml
+               sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_callable.yaml
+               sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_extendable.yaml
+               sections=['callable', 'can-be-overridden', 'can-be-used-as-type'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_overridable.yaml
+               sections=['callable', 'can-be-used-as-type', 'extendable'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_type.yaml
+               sections=['callable', 'can-be-overridden', 'extendable'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_alloc.yaml
+               sections=['callable', 'can-be-used-as-type'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_bench.yaml
+               sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_full.yaml
+               sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_callable.yaml
+               sections=['can-be-overridden', 'can-be-used-as-type', 'extendable'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_callable_work.yaml
+               sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_can_be_overridden.yaml
+               sections=['callable', 'can-be-used-as-type', 'extendable'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_can_be_used_as_type.yaml
+               sections=['callable', 'can-be-overridden', 'extendable'] release_consumed=False validated=False
+               not release-bound
+    unusable   committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_extendable.yaml
+               sections=['callable', 'can-be-overridden', 'can-be-used-as-type'] release_consumed=False validated=False
+               not release-bound
+    unusable   emitted_policy:selfhost/engine/route_b/probes/p1_dead_allocatability.sh
+               sections=['can-be-used-as-type'] release_consumed=True validated=False
+               not release-bound
+    partial    release_supplement_interface
                sections=['callable'] release_consumed=True validated=False
                supplies ['callable'], missing ['extendable', 'can-be-overridden', 'can-be-used-as-type']
     unusable   semantic_map_admitted_set
@@ -72,12 +244,9 @@ generator /Users/mendell/shorebird/selfhost/engine/route_b/gen_dynamic_interface
     ineligible the_module_itself
                sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] release_consumed=False validated=True
                reading permissions off the module being validated would permit whatever it does, so validation would refuse nothing
-    unusable   unconsumed_policy:selfhost/engine/dynmod/di.yaml
-               sections=['callable', 'can-be-overridden', 'extendable'] release_consumed=False validated=False
-               not release-bound
 
   complete=none
-  partial=['route_b_generator']
+  partial=['release_supplement_interface']
   ineligible=['the_module_itself']
   sections no release-bound source supplies: ['extendable', 'can-be-overridden', 'can-be-used-as-type']
 
@@ -90,10 +259,10 @@ B0: VALIDATION_INPUT_UNDERIVED
   directions get negatives.
 
 ROUTE-B-DI-1 / B0 -- classifier falsification, both directions
-  8 arms.
+  10 arms.
 
   baseline: VALIDATION_INPUT_UNDERIVED
-  roles: route_b_generator=partial, semantic_map_admitted_set=unusable, the_module_itself=ineligible, unconsumed_policy:selfhost/engine/dynmod/di.yaml=unusable
+  roles: committed_policy:selfhost/engine/dynmod/di.yaml=unusable, committed_policy:selfhost/engine/route_b_di/evidence/stage_a.txt=unusable, committed_policy:selfhost/engine/route_b_di/probe/di_full.yaml=unusable, committed_policy:selfhost/engine/route_b_di/probe/di_no_callable.yaml=unusable, committed_policy:selfhost/engine/route_b_di/probe/di_no_extendable.yaml=unusable, committed_policy:selfhost/engine/route_b_di/probe/di_no_overridable.yaml=unusable, committed_policy:selfhost/engine/route_b_di/probe/di_no_type.yaml=unusable, committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g2_execution/probe/di.yaml=unusable, committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g3_types_gc/probe/di.yaml=unusable, committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_fenced.yaml=unusable, committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_fenced.yaml=unusable, committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_unfenced.yaml=unusable, committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_fenced.yaml=unusable, committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_unfenced.yaml=unusable, committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_unfenced.yaml=unusable, committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_full.yaml=unusable, committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_callable.yaml=unusable, committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_extendable.yaml=unusable, committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_overridable.yaml=unusable, committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_type.yaml=unusable, committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_alloc.yaml=unusable, committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_bench.yaml=unusable, committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_full.yaml=unusable, committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_callable.yaml=unusable, committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_callable_work.yaml=unusable, committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_can_be_overridden.yaml=unusable, committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_can_be_used_as_type.yaml=unusable, committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_extendable.yaml=unusable, emitted_policy:selfhost/engine/route_b/probes/p1_dead_allocatability.sh=unusable, release_supplement_interface=partial, semantic_map_admitted_set=unusable, the_module_itself=ineligible
 
   pass  separate-complete-source-while-generator-stays-partial -> COMPLETE_SPECIFICATION_DERIVABLE
         THE decisive arm. The retention generator is left callable-only and an independent complete release-consumed policy appears. The verdict must move -- the previous version would have said UNDERIVED regardless.
@@ -109,18 +278,22 @@ ROUTE-B-DI-1 / B0 -- classifier falsification, both directions
         Every property flipped in its favour and it must STILL be ineligible: reading permissions off the patch would refuse nothing, and no evidence promotes that.
   pass  semantic-map-nonzero-is-not-a-conversion             -> VALIDATION_INPUT_UNDERIVED
         A nonzero admitted count is not a specification. Without a converter whose output validates, the map is not a source however much it admits.
+  pass  complete-source-behind-a-publish-consumer            -> COMPLETE_SPECIFICATION_DERIVABLE
+        The ruling required this: a complete source consumed through a production path outside build_* must be found and must move the verdict. The old three-glob universe could not have seen a publish_ consumer at all.
+  pass  remove-the-publish-consumer-source-and-underived-returns -> VALIDATION_INPUT_UNDERIVED
+        And removing it must restore UNDERIVED, so the previous arm is not a classifier that says DERIVABLE whenever any extra source appears.
   pass  sources-record-unreadable                            -> B0_EVIDENCE_MISSING
         No sources to inspect is not the same as no complete source existing, and must not be reported as the latter.
 
   CONTROLS -- a classifier pinned either way must fail the arms that
   expect the other answer. One direction alone cannot catch a verdict
   pinned the opposite way, which is how the original defect survived.
-    hard-coded UNDERIVED: satisfies 2 arm(s)
+    hard-coded UNDERIVED: satisfies 3 arm(s)
       pass  only arms whose own expectation is that verdict
     hard-coded DERIVABLE: satisfies 0 arm(s)
       pass  only arms whose own expectation is that verdict
 
-  arms=8 failed=0
+  arms=10 failed=0
 B0_FALSIFICATION: EVERY_ARM_DISCRIMINATES
 
 ############ 4. ASSERTIONS ############
@@ -128,9 +301,16 @@ B0_FALSIFICATION: EVERY_ARM_DISCRIMINATES
   pass  a specification was generated
   pass  the B0 record was written
   pass  the four required sections are named
+  pass  the universe was built
+  pass  policy discovery ran
   pass  the sources were collected
   pass  the module itself is permanently ineligible
-  pass  the retention generator is PARTIAL, not usable
+  pass  the production release interface is PARTIAL, not usable
+  pass  the production consumer was discovered
+  pass  the universe was derived, not globbed
+  pass  every universe tier is populated
+  pass  every complete consumed policy is accounted for as not release-bound
+  pass  no producer emits all four sections
   pass  the semantic map is not a source without a converter
   pass  no complete source exists
   pass  the verdict is a function of the roles
@@ -138,11 +318,9 @@ B0_FALSIFICATION: EVERY_ARM_DISCRIMINATES
   pass  the derivation identity is digested
   pass  the Dart identity is recorded
   pass  the finding is about the input, not the mechanism
-  pass  no candidate policy is consumed by a release build
-  pass  the fixture exclusion is not vacuous
-  pass  no excluded file is counted as a usable source
+  pass  static committed policies are not release-bound
   pass  the B0 classifier is falsified
 
-ASSERTIONS (18 checked: 18 pass, 0 fail)
+ASSERTIONS (23 checked: 23 pass, 0 fail)
 
 STAGE_B0: VALIDATION_INPUT_UNDERIVED

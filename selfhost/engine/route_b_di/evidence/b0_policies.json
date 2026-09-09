@@ -1,0 +1,778 @@
+{
+  "schema": "route-b-di-1/policy-discovery/2",
+  "universe_total": 1129,
+  "universe_counts": {
+    "named": 19,
+    "reachable": 540,
+    "surface": 570
+  },
+  "text_files_scanned": 5074,
+  "suffixes_scanned": [
+    "",
+    ".cfg",
+    ".conf",
+    ".di",
+    ".interface",
+    ".json",
+    ".policy",
+    ".txt",
+    ".yaml",
+    ".yml"
+  ],
+  "patterns": {
+    "committed": "^\\s*(extendable|can-be-overridden|can-be-used-as-type)\\s*:",
+    "emitted": "(?:^\\s*|[\"\\'])(extendable|can-be-overridden|can-be-used-as-type)\\s*:",
+    "argument_sites": "--(?:validate|dynamic-interface)[=\\s]+([^\\s;)\"\\']+)"
+  },
+  "committed_policies": [
+    {
+      "path": "selfhost/engine/dynmod/di.yaml",
+      "sha256": "a08f8415a64ee01c9a4c2ab6c140450ca0cf4d4093508f639b6707e9f14bacc9",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": true,
+        "can-be-used-as-type": false
+      },
+      "referenced_by": [
+        "selfhost/engine/route_b/coverage/compat_study.py",
+        "selfhost/engine/route_b/gen_dynamic_interface.dart",
+        "selfhost/engine/route_b/identity/probe_retention_lookup.sh",
+        "selfhost/engine/route_b/packaging/verify_container.sh",
+        "selfhost/engine/route_b/packaging/verify_patch_flow.sh",
+        "selfhost/engine/route_b/probes/a0_core_binding.sh",
+        "selfhost/engine/route_b/probes/c_receiver.sh",
+        "selfhost/engine/route_b/probes/cli_private_member.sh",
+        "selfhost/engine/route_b/probes/d_private.sh",
+        "selfhost/engine/route_b/probes/dead_body.sh",
+        "selfhost/engine/route_b/probes/g37_param_abi.sh",
+        "selfhost/engine/route_b/probes/g43_obfuscation_semantics.sh",
+        "selfhost/engine/route_b/probes/lowered_forms.sh",
+        "selfhost/engine/route_b/probes/lowering_matrix.sh",
+        "selfhost/engine/route_b/probes/p1_bind_private_receiver.sh",
+        "selfhost/engine/route_b/probes/p1_generator_capability_gate.sh",
+        "selfhost/engine/route_b/probes/p2_private_receiver_with_args.sh",
+        "selfhost/engine/route_b/probes/p3_usability.sh",
+        "selfhost/engine/route_b/probes/p41_producer_end_to_end.sh",
+        "selfhost/engine/route_b/probes/p41_profile_cost.sh",
+        "selfhost/engine/route_b/probes/p41_release_probe_gate.sh",
+        "selfhost/engine/route_b/probes/p41_release_shape_equivalence.sh",
+        "selfhost/engine/route_b/probes/p41_specimen_ground_truth.sh",
+        "selfhost/engine/route_b/probes/p5_build_identity_matrix.sh",
+        "selfhost/engine/route_b/probes/p5_target_exploit.sh",
+        "selfhost/engine/route_b/probes/private_receiver.sh",
+        "selfhost/engine/route_b/qualify_dual_kernel_cell.sh",
+        "selfhost/engine/route_b/super0/s1a/run_1a.sh",
+        "selfhost/engine/route_b/super0/s1b/run_1b.sh",
+        "selfhost/engine/route_b/super0/s2a2/run_2a2.sh",
+        "selfhost/engine/route_b/super0/s2b1/run_2b1.sh",
+        "selfhost/engine/route_b/super0/s2b1c/run_2b1c.sh",
+        "selfhost/engine/route_b/super0/s2b1d/run_2b1d.sh",
+        "selfhost/engine/route_b/super0/s2b1e/run_2b1e.sh",
+        "selfhost/engine/route_b/super0/s2b1f/run_2b1f.sh",
+        "selfhost/engine/route_b/super0/s2b1g/run_import_control.sh",
+        "selfhost/engine/route_b/super0/s2b1site/run_collide.sh",
+        "selfhost/engine/route_b/super0/s2b2/run_2b2.sh",
+        "selfhost/engine/route_b/verify_binding.sh"
+      ],
+      "consumer_tiers": [
+        "reachable",
+        "surface"
+      ],
+      "release_consumed": true
+    },
+    {
+      "path": "selfhost/engine/route_b_di/evidence/stage_a.txt",
+      "sha256": "2eaca2e006a50fad4629757c153e72b92a807794fd16ae6efa582523c630d941",
+      "sections": {
+        "callable": false,
+        "extendable": false,
+        "can-be-overridden": false,
+        "can-be-used-as-type": false
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/route_b_di/probe/di_full.yaml",
+      "sha256": "e61e3f8f9ace6cfe24b3adfc2dd07f242a82e413c43f835e037493eaeef47607",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": true,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/route_b_di/probe/di_no_callable.yaml",
+      "sha256": "93866fdf59b3512955ee72f92a3c2bfaf6e2a68bc90f987b6fb6ca09242c264e",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": true,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/route_b_di/probe/di_no_extendable.yaml",
+      "sha256": "9dc2b19ce7c3e9b17839c843008eaf3d2987cb1bee3cfc7ebb41cfd5bfc9fae3",
+      "sections": {
+        "callable": true,
+        "extendable": false,
+        "can-be-overridden": true,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/route_b_di/probe/di_no_overridable.yaml",
+      "sha256": "8c524bf32d608787a1e0dc50af5f837b3dcfaf33dac2de75ad6292ce028a3bcf",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": false,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/route_b_di/probe/di_no_type.yaml",
+      "sha256": "852cfeb9ac98d369631e0ae65bd9bd8d9110075c9db94fb53f83dee1e685a54b",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": true,
+        "can-be-used-as-type": false
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/semantic_linker/runtime_feasibility/g2_execution/probe/di.yaml",
+      "sha256": "34e8aff651643a4a8c0f2b1584dcfac7177eecc744b939694768ca3fd3cd2421",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": true,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [
+        "selfhost/engine/route_b/coverage/compat_study.py",
+        "selfhost/engine/route_b/gen_dynamic_interface.dart",
+        "selfhost/engine/route_b/identity/probe_retention_lookup.sh",
+        "selfhost/engine/route_b/packaging/verify_container.sh",
+        "selfhost/engine/route_b/packaging/verify_patch_flow.sh",
+        "selfhost/engine/route_b/probes/a0_core_binding.sh",
+        "selfhost/engine/route_b/probes/c_receiver.sh",
+        "selfhost/engine/route_b/probes/cli_private_member.sh",
+        "selfhost/engine/route_b/probes/d_private.sh",
+        "selfhost/engine/route_b/probes/dead_body.sh",
+        "selfhost/engine/route_b/probes/g37_param_abi.sh",
+        "selfhost/engine/route_b/probes/g43_obfuscation_semantics.sh",
+        "selfhost/engine/route_b/probes/lowered_forms.sh",
+        "selfhost/engine/route_b/probes/lowering_matrix.sh",
+        "selfhost/engine/route_b/probes/p1_bind_private_receiver.sh",
+        "selfhost/engine/route_b/probes/p1_generator_capability_gate.sh",
+        "selfhost/engine/route_b/probes/p2_private_receiver_with_args.sh",
+        "selfhost/engine/route_b/probes/p3_usability.sh",
+        "selfhost/engine/route_b/probes/p41_producer_end_to_end.sh",
+        "selfhost/engine/route_b/probes/p41_profile_cost.sh",
+        "selfhost/engine/route_b/probes/p41_release_probe_gate.sh",
+        "selfhost/engine/route_b/probes/p41_release_shape_equivalence.sh",
+        "selfhost/engine/route_b/probes/p41_specimen_ground_truth.sh",
+        "selfhost/engine/route_b/probes/p5_build_identity_matrix.sh",
+        "selfhost/engine/route_b/probes/p5_target_exploit.sh",
+        "selfhost/engine/route_b/probes/private_receiver.sh",
+        "selfhost/engine/route_b/qualify_dual_kernel_cell.sh",
+        "selfhost/engine/route_b/super0/s1a/run_1a.sh",
+        "selfhost/engine/route_b/super0/s1b/run_1b.sh",
+        "selfhost/engine/route_b/super0/s2a2/run_2a2.sh",
+        "selfhost/engine/route_b/super0/s2b1/run_2b1.sh",
+        "selfhost/engine/route_b/super0/s2b1c/run_2b1c.sh",
+        "selfhost/engine/route_b/super0/s2b1d/run_2b1d.sh",
+        "selfhost/engine/route_b/super0/s2b1e/run_2b1e.sh",
+        "selfhost/engine/route_b/super0/s2b1f/run_2b1f.sh",
+        "selfhost/engine/route_b/super0/s2b1g/run_import_control.sh",
+        "selfhost/engine/route_b/super0/s2b1site/run_collide.sh",
+        "selfhost/engine/route_b/super0/s2b2/run_2b2.sh",
+        "selfhost/engine/route_b/verify_binding.sh"
+      ],
+      "consumer_tiers": [
+        "reachable",
+        "surface"
+      ],
+      "release_consumed": true
+    },
+    {
+      "path": "selfhost/engine/semantic_linker/runtime_feasibility/g3_types_gc/probe/di.yaml",
+      "sha256": "a0e1ce86591ca83177f490956d248b78da96221a9373b5667c1a316c24e7b4eb",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": true,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [
+        "selfhost/engine/route_b/coverage/compat_study.py",
+        "selfhost/engine/route_b/gen_dynamic_interface.dart",
+        "selfhost/engine/route_b/identity/probe_retention_lookup.sh",
+        "selfhost/engine/route_b/packaging/verify_container.sh",
+        "selfhost/engine/route_b/packaging/verify_patch_flow.sh",
+        "selfhost/engine/route_b/probes/a0_core_binding.sh",
+        "selfhost/engine/route_b/probes/c_receiver.sh",
+        "selfhost/engine/route_b/probes/cli_private_member.sh",
+        "selfhost/engine/route_b/probes/d_private.sh",
+        "selfhost/engine/route_b/probes/dead_body.sh",
+        "selfhost/engine/route_b/probes/g37_param_abi.sh",
+        "selfhost/engine/route_b/probes/g43_obfuscation_semantics.sh",
+        "selfhost/engine/route_b/probes/lowered_forms.sh",
+        "selfhost/engine/route_b/probes/lowering_matrix.sh",
+        "selfhost/engine/route_b/probes/p1_bind_private_receiver.sh",
+        "selfhost/engine/route_b/probes/p1_generator_capability_gate.sh",
+        "selfhost/engine/route_b/probes/p2_private_receiver_with_args.sh",
+        "selfhost/engine/route_b/probes/p3_usability.sh",
+        "selfhost/engine/route_b/probes/p41_producer_end_to_end.sh",
+        "selfhost/engine/route_b/probes/p41_profile_cost.sh",
+        "selfhost/engine/route_b/probes/p41_release_probe_gate.sh",
+        "selfhost/engine/route_b/probes/p41_release_shape_equivalence.sh",
+        "selfhost/engine/route_b/probes/p41_specimen_ground_truth.sh",
+        "selfhost/engine/route_b/probes/p5_build_identity_matrix.sh",
+        "selfhost/engine/route_b/probes/p5_target_exploit.sh",
+        "selfhost/engine/route_b/probes/private_receiver.sh",
+        "selfhost/engine/route_b/qualify_dual_kernel_cell.sh",
+        "selfhost/engine/route_b/super0/s1a/run_1a.sh",
+        "selfhost/engine/route_b/super0/s1b/run_1b.sh",
+        "selfhost/engine/route_b/super0/s2a2/run_2a2.sh",
+        "selfhost/engine/route_b/super0/s2b1/run_2b1.sh",
+        "selfhost/engine/route_b/super0/s2b1c/run_2b1c.sh",
+        "selfhost/engine/route_b/super0/s2b1d/run_2b1d.sh",
+        "selfhost/engine/route_b/super0/s2b1e/run_2b1e.sh",
+        "selfhost/engine/route_b/super0/s2b1f/run_2b1f.sh",
+        "selfhost/engine/route_b/super0/s2b1g/run_import_control.sh",
+        "selfhost/engine/route_b/super0/s2b1site/run_collide.sh",
+        "selfhost/engine/route_b/super0/s2b2/run_2b2.sh",
+        "selfhost/engine/route_b/verify_binding.sh"
+      ],
+      "consumer_tiers": [
+        "reachable",
+        "surface"
+      ],
+      "release_consumed": true
+    },
+    {
+      "path": "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_fenced.yaml",
+      "sha256": "594ae744bc1a8bfd0078cbc241beaa921e2a8b977e09531943a45e7370d9f825",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": true,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_fenced.yaml",
+      "sha256": "a7558f133bf41799dc4ba8f4d759ccb36d47f3ec3efc54b513fdff4c74e07910",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": true,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_unfenced.yaml",
+      "sha256": "199214638c40f55a4bb54199de969578909ccdfd5225470b9ffff96890100433",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": false,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_fenced.yaml",
+      "sha256": "76d3e5dabc046af8112c4e62a5413f3dd912b1e6eb1159658ac2888925fd683e",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": true,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_unfenced.yaml",
+      "sha256": "6434e7f5ec7b5f49c2a51278381d5bc366d487e5bbedc877e867ea8fead17790",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": false,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_unfenced.yaml",
+      "sha256": "d8056103b4f90a9578ea8370d1f4ed9a0d8fc5667a5bc79661c6d5c30f39006f",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": false,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_full.yaml",
+      "sha256": "e61e3f8f9ace6cfe24b3adfc2dd07f242a82e413c43f835e037493eaeef47607",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": true,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_callable.yaml",
+      "sha256": "93866fdf59b3512955ee72f92a3c2bfaf6e2a68bc90f987b6fb6ca09242c264e",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": true,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_extendable.yaml",
+      "sha256": "9dc2b19ce7c3e9b17839c843008eaf3d2987cb1bee3cfc7ebb41cfd5bfc9fae3",
+      "sections": {
+        "callable": true,
+        "extendable": false,
+        "can-be-overridden": true,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_overridable.yaml",
+      "sha256": "8c524bf32d608787a1e0dc50af5f837b3dcfaf33dac2de75ad6292ce028a3bcf",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": false,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_type.yaml",
+      "sha256": "852cfeb9ac98d369631e0ae65bd9bd8d9110075c9db94fb53f83dee1e685a54b",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": true,
+        "can-be-used-as-type": false
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_alloc.yaml",
+      "sha256": "e7eec35d1e65bcedb6bcb50a693e1a9eeb99c305d8d5eb074b7c2df8d8b94147",
+      "sections": {
+        "callable": true,
+        "extendable": false,
+        "can-be-overridden": false,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_bench.yaml",
+      "sha256": "30f7bfac59ab9114821fff7dcb8018eeccee9c89a045c87960dbe67335aaca7e",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": true,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/semantic_map/g4_retention/probe/di_full.yaml",
+      "sha256": "4d6586dece3716c7abf67073c3f565baedd63771ef129fa830883eb024fae7d5",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": true,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/semantic_map/g4_retention/probe/di_no_callable.yaml",
+      "sha256": "6ae1b2af02a87a9b8b1592f7d8357f4dfb5c2610d1f31a5545d9acdc391a60a6",
+      "sections": {
+        "callable": false,
+        "extendable": true,
+        "can-be-overridden": true,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/semantic_map/g4_retention/probe/di_no_callable_work.yaml",
+      "sha256": "098726b64ab311649ff4a063dadf9bc3d8305dc51990709e873d4068b5f0c381",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": true,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/semantic_map/g4_retention/probe/di_no_can_be_overridden.yaml",
+      "sha256": "d4a4c6696b59abb8949fd6a9890590edf90870cae264a21bac3863f4a0b8ba9d",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": false,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/semantic_map/g4_retention/probe/di_no_can_be_used_as_type.yaml",
+      "sha256": "db0b730d98e0399fec94d2e70f32f48e86ebc85099a02c307cbe46f9b72c3d94",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": true,
+        "can-be-used-as-type": false
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    },
+    {
+      "path": "selfhost/engine/semantic_map/g4_retention/probe/di_no_extendable.yaml",
+      "sha256": "338bb2abe49f8df7cf202c036f6c13f0020c7e65dce39572f104076f28a3d6af",
+      "sections": {
+        "callable": true,
+        "extendable": false,
+        "can-be-overridden": true,
+        "can-be-used-as-type": true
+      },
+      "referenced_by": [],
+      "consumer_tiers": [],
+      "release_consumed": false
+    }
+  ],
+  "committed_consumed": [
+    "selfhost/engine/dynmod/di.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g2_execution/probe/di.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g3_types_gc/probe/di.yaml"
+  ],
+  "committed_unconsumed": [
+    "selfhost/engine/route_b_di/evidence/stage_a.txt",
+    "selfhost/engine/route_b_di/probe/di_full.yaml",
+    "selfhost/engine/route_b_di/probe/di_no_callable.yaml",
+    "selfhost/engine/route_b_di/probe/di_no_extendable.yaml",
+    "selfhost/engine/route_b_di/probe/di_no_overridable.yaml",
+    "selfhost/engine/route_b_di/probe/di_no_type.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_fenced.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_fenced.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_unfenced.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_fenced.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_unfenced.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_unfenced.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_full.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_callable.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_extendable.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_overridable.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_type.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_alloc.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_bench.yaml",
+    "selfhost/engine/semantic_map/g4_retention/probe/di_full.yaml",
+    "selfhost/engine/semantic_map/g4_retention/probe/di_no_callable.yaml",
+    "selfhost/engine/semantic_map/g4_retention/probe/di_no_callable_work.yaml",
+    "selfhost/engine/semantic_map/g4_retention/probe/di_no_can_be_overridden.yaml",
+    "selfhost/engine/semantic_map/g4_retention/probe/di_no_can_be_used_as_type.yaml",
+    "selfhost/engine/semantic_map/g4_retention/probe/di_no_extendable.yaml"
+  ],
+  "committed_carrying_all_four_sections": [
+    "selfhost/engine/route_b_di/probe/di_full.yaml",
+    "selfhost/engine/route_b_di/probe/di_no_callable.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g2_execution/probe/di.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g3_types_gc/probe/di.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_fenced.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_fenced.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_fenced.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_full.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_callable.yaml",
+    "selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_bench.yaml",
+    "selfhost/engine/semantic_map/g4_retention/probe/di_full.yaml",
+    "selfhost/engine/semantic_map/g4_retention/probe/di_no_callable_work.yaml"
+  ],
+  "emitted_policies": [
+    {
+      "consumer": "selfhost/engine/route_b/probes/p1_dead_allocatability.sh",
+      "tier": "reachable",
+      "permission_keys_emitted": [
+        "can-be-used-as-type"
+      ],
+      "all_four": false
+    }
+  ],
+  "argument_sites": [
+    {
+      "consumer": "packages/shorebird_cli/lib/src/commands/patch/patch_command.dart",
+      "tier": "named",
+      "argument": "${retentionInterface.path}"
+    },
+    {
+      "consumer": "packages/shorebird_cli/lib/src/commands/release/ios_releaser.dart",
+      "tier": "reachable",
+      "argument": "${interface.path}"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/identity/probe_retention_lookup.sh",
+      "tier": "reachable",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/measure_retention.sh",
+      "tier": "reachable",
+      "argument": "<yaml>]"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/packaging/verify_container.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/packaging/verify_patch_flow.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/probes/c_receiver.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/probes/cli_private_member.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/probes/cli_private_member.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/probes/d_private.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/probes/dead_body.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/probes/g37_param_abi.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/probes/g43_obfuscation_semantics.sh",
+      "tier": "reachable",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/probes/g43_obfuscation_semantics.sh",
+      "tier": "reachable",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/probes/lowered_forms.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/probes/lowered_forms.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/probes/p1_bind_private_receiver.sh",
+      "tier": "reachable",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/probes/p2_private_receiver_with_args.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/probes/p3_usability.sh",
+      "tier": "reachable",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/probes/p41_release_probe_gate.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/probes/p41_release_shape_equivalence.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/probes/p41_specimen_ground_truth.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/probes/private_receiver.sh",
+      "tier": "reachable",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/probes/private_receiver.sh",
+      "tier": "reachable",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/qualify_dual_kernel_cell.sh",
+      "tier": "reachable",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/super0/s1a/run_1a.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/super0/s1b/run_1b.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/super0/s2a2/run_2a2.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/super0/s2b1/run_2b1.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/super0/s2b1c/run_2b1c.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/super0/s2b1d/run_2b1d.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/super0/s2b1e/run_2b1e.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/super0/s2b1f/run_2b1f.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/super0/s2b1g/run_import_control.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/super0/s2b1site/run_collide.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/super0/s2b2/run_2b2.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/super0/s2b2/run_2b2.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    },
+    {
+      "consumer": "selfhost/engine/route_b/verify_binding.sh",
+      "tier": "surface",
+      "argument": "di.yaml"
+    }
+  ],
+  "negative_existential": {
+    "claim": "no committed policy carrying all four sections is consumed by any member of the universe, and no universe member emits all four",
+    "committed_complete_and_consumed": [
+      "selfhost/engine/semantic_linker/runtime_feasibility/g2_execution/probe/di.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g3_types_gc/probe/di.yaml"
+    ],
+    "emitting_all_four": []
+  }
+}

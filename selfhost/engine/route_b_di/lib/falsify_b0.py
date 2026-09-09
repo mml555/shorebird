@@ -73,10 +73,11 @@ COMPLETE_POLICY = {
 
 
 def generator_is_callable_only(srcs):
-    """The state the real run is in: one section of four."""
-    srcs['route_b_generator']['sections'] = {
+    """The state the real run is in: the production release-supplement
+    interface supplies one section of four."""
+    srcs['release_supplement_interface']['sections'] = {
         s: (s == 'callable') for s in SECTIONS}
-    srcs['route_b_generator']['validated_positive'] = False
+    srcs['release_supplement_interface']['validated_positive'] = False
 
 
 ARMS = [
@@ -86,7 +87,7 @@ ARMS = [
              s.__setitem__('declared_policy:synthetic', dict(COMPLETE_POLICY))),
   lambda d: (d['b0_result'] == 'COMPLETE_SPECIFICATION_DERIVABLE'
              and d['complete_sources'] == ['declared_policy:synthetic']
-             and d['source_roles']['route_b_generator']['role'] == 'partial'),
+             and d['source_roles']['release_supplement_interface']['role'] == 'partial'),
   'THE decisive arm. The retention generator is left callable-only and an '
   'independent complete release-consumed policy appears. The verdict must '
   'move -- the previous version would have said UNDERIVED regardless.'),
@@ -100,11 +101,12 @@ ARMS = [
 
  # ---- partial must not be mistaken for complete ------------------------
  ('generator-completed-but-not-validated',
-  lambda s: (s['route_b_generator'].__setitem__(
+  lambda s: (s['release_supplement_interface'].__setitem__(
                  'sections', {x: True for x in SECTIONS}),
-             s['route_b_generator'].__setitem__('validated_positive', False)),
+             s['release_supplement_interface'].__setitem__(
+                 'validated_positive', False)),
   lambda d: (d['b0_result'] == 'VALIDATION_INPUT_UNDERIVED'
-             and d['source_roles']['route_b_generator']['role'] == 'unusable'),
+             and d['source_roles']['release_supplement_interface']['role'] == 'unusable'),
   'All four sections present is not enough: a specification that does not '
   'validate the release patch is not a usable validation input.'),
 
@@ -145,6 +147,29 @@ ARMS = [
              and d['b0_result'] == 'VALIDATION_INPUT_UNDERIVED'),
   'A nonzero admitted count is not a specification. Without a converter whose '
   'output validates, the map is not a source however much it admits.'),
+
+ # ---- discovery reach: a source behind a non-build_* consumer ----------
+ ('complete-source-behind-a-publish-consumer',
+  lambda s: (generator_is_callable_only(s),
+             s.__setitem__('declared_policy:via_publish', {
+                 **COMPLETE_POLICY,
+                 'what': 'a complete policy reached through '
+                         'publish_4b_patch.sh, a production consumer that no '
+                         'build_* glob would have found',
+                 'consumers': ['selfhost/engine/route_b/publish_4b_patch.sh'],
+                 'consumer_tiers': ['reachable']})),
+  lambda d: (d['b0_result'] == 'COMPLETE_SPECIFICATION_DERIVABLE'
+             and 'declared_policy:via_publish' in d['complete_sources']),
+  'The ruling required this: a complete source consumed through a production '
+  'path outside build_* must be found and must move the verdict. The old '
+  'three-glob universe could not have seen a publish_ consumer at all.'),
+
+ ('remove-the-publish-consumer-source-and-underived-returns',
+  lambda s: generator_is_callable_only(s),
+  lambda d: (d['b0_result'] == 'VALIDATION_INPUT_UNDERIVED'
+             and d['complete_sources'] == []),
+  'And removing it must restore UNDERIVED, so the previous arm is not a '
+  'classifier that says DERIVABLE whenever any extra source appears.'),
 
  # ---- evidence integrity ----------------------------------------------
  ('sources-record-unreadable',

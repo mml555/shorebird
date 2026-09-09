@@ -2,7 +2,7 @@
   "schema": "route-b-di-1/stage-b0/2",
   "issue": 61,
   "stage": "B0",
-  "generated": "2026-09-09T20:48:20Z",
+  "generated": "2026-09-09T21:31:18Z",
   "question": "Does a COMPLETE, release-bound module-validation source exist?",
   "verdict_rule": "COMPLETE_SPECIFICATION_DERIVABLE if and only if at least one source holds the role `complete`: release-bound, consumed by a release build, supplying all four sections, and demonstrated to validate the positive module. The verdict is a function of the ROLES, so a complete source discovered anywhere moves it -- the current retention generator staying callable-only does not pin the answer. Patch-derived permissions are permanently ineligible and no other evidence promotes them.",
   "b0_result": "VALIDATION_INPUT_UNDERIVED",
@@ -13,7 +13,7 @@
     "can-be-used-as-type"
   ],
   "source_roles": {
-    "route_b_generator": {
+    "release_supplement_interface": {
       "role": "partial",
       "why": "supplies ['callable'], missing ['extendable', 'can-be-overridden', 'can-be-used-as-type']",
       "sections_supplied": [
@@ -22,9 +22,85 @@
       "release_bound": true,
       "release_consumed": true,
       "validated_positive": false,
-      "spec_sha256": "0204f0f6eca57608ce060bbd6f3b7e0d3e81ba44b7ab28934d1deaf2b27d0c37"
+      "spec_sha256": "901d041f0763c7ebf3d26ebe4a11447e4155b16568b121e5124e98e8d443ed1d"
     },
-    "unconsumed_policy:selfhost/engine/dynmod/di.yaml": {
+    "committed_policy:selfhost/engine/dynmod/di.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-overridden",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": true,
+      "validated_positive": false,
+      "spec_sha256": "a08f8415a64ee01c9a4c2ab6c140450ca0cf4d4093508f639b6707e9f14bacc9"
+    },
+    "committed_policy:selfhost/engine/route_b_di/evidence/stage_a.txt": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "2eaca2e006a50fad4629757c153e72b92a807794fd16ae6efa582523c630d941"
+    },
+    "committed_policy:selfhost/engine/route_b_di/probe/di_full.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "e61e3f8f9ace6cfe24b3adfc2dd07f242a82e413c43f835e037493eaeef47607"
+    },
+    "committed_policy:selfhost/engine/route_b_di/probe/di_no_callable.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "93866fdf59b3512955ee72f92a3c2bfaf6e2a68bc90f987b6fb6ca09242c264e"
+    },
+    "committed_policy:selfhost/engine/route_b_di/probe/di_no_extendable.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "9dc2b19ce7c3e9b17839c843008eaf3d2987cb1bee3cfc7ebb41cfd5bfc9fae3"
+    },
+    "committed_policy:selfhost/engine/route_b_di/probe/di_no_overridable.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "8c524bf32d608787a1e0dc50af5f837b3dcfaf33dac2de75ad6292ce028a3bcf"
+    },
+    "committed_policy:selfhost/engine/route_b_di/probe/di_no_type.yaml": {
       "role": "unusable",
       "why": "not release-bound",
       "sections_supplied": [
@@ -35,7 +111,300 @@
       "release_bound": false,
       "release_consumed": false,
       "validated_positive": false,
-      "spec_sha256": "a08f8415a64ee01c9a4c2ab6c140450ca0cf4d4093508f639b6707e9f14bacc9"
+      "spec_sha256": "852cfeb9ac98d369631e0ae65bd9bd8d9110075c9db94fb53f83dee1e685a54b"
+    },
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g2_execution/probe/di.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": true,
+      "validated_positive": false,
+      "spec_sha256": "34e8aff651643a4a8c0f2b1584dcfac7177eecc744b939694768ca3fd3cd2421"
+    },
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g3_types_gc/probe/di.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": true,
+      "validated_positive": false,
+      "spec_sha256": "a0e1ce86591ca83177f490956d248b78da96221a9373b5667c1a316c24e7b4eb"
+    },
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_fenced.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "594ae744bc1a8bfd0078cbc241beaa921e2a8b977e09531943a45e7370d9f825"
+    },
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_fenced.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "a7558f133bf41799dc4ba8f4d759ccb36d47f3ec3efc54b513fdff4c74e07910"
+    },
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_unfenced.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "199214638c40f55a4bb54199de969578909ccdfd5225470b9ffff96890100433"
+    },
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_fenced.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "76d3e5dabc046af8112c4e62a5413f3dd912b1e6eb1159658ac2888925fd683e"
+    },
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_unfenced.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "6434e7f5ec7b5f49c2a51278381d5bc366d487e5bbedc877e867ea8fead17790"
+    },
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_unfenced.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "d8056103b4f90a9578ea8370d1f4ed9a0d8fc5667a5bc79661c6d5c30f39006f"
+    },
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_full.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "e61e3f8f9ace6cfe24b3adfc2dd07f242a82e413c43f835e037493eaeef47607"
+    },
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_callable.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "93866fdf59b3512955ee72f92a3c2bfaf6e2a68bc90f987b6fb6ca09242c264e"
+    },
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_extendable.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "9dc2b19ce7c3e9b17839c843008eaf3d2987cb1bee3cfc7ebb41cfd5bfc9fae3"
+    },
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_overridable.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "8c524bf32d608787a1e0dc50af5f837b3dcfaf33dac2de75ad6292ce028a3bcf"
+    },
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_type.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-overridden",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "852cfeb9ac98d369631e0ae65bd9bd8d9110075c9db94fb53f83dee1e685a54b"
+    },
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_alloc.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-used-as-type"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "e7eec35d1e65bcedb6bcb50a693e1a9eeb99c305d8d5eb074b7c2df8d8b94147"
+    },
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_bench.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "30f7bfac59ab9114821fff7dcb8018eeccee9c89a045c87960dbe67335aaca7e"
+    },
+    "committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_full.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "4d6586dece3716c7abf67073c3f565baedd63771ef129fa830883eb024fae7d5"
+    },
+    "committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_callable.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "can-be-overridden",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "6ae1b2af02a87a9b8b1592f7d8357f4dfb5c2610d1f31a5545d9acdc391a60a6"
+    },
+    "committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_callable_work.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "098726b64ab311649ff4a063dadf9bc3d8305dc51990709e873d4068b5f0c381"
+    },
+    "committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_can_be_overridden.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "d4a4c6696b59abb8949fd6a9890590edf90870cae264a21bac3863f4a0b8ba9d"
+    },
+    "committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_can_be_used_as_type.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-overridden",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "db0b730d98e0399fec94d2e70f32f48e86ebc85099a02c307cbe46f9b72c3d94"
+    },
+    "committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_extendable.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "338bb2abe49f8df7cf202c036f6c13f0020c7e65dce39572f104076f28a3d6af"
+    },
+    "emitted_policy:selfhost/engine/route_b/probes/p1_dead_allocatability.sh": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "can-be-used-as-type"
+      ],
+      "release_bound": false,
+      "release_consumed": true,
+      "validated_positive": false,
+      "spec_sha256": null
     },
     "semantic_map_admitted_set": {
       "role": "unusable",
@@ -63,14 +432,42 @@
   },
   "complete_sources": [],
   "partial_sources": [
-    "route_b_generator"
+    "release_supplement_interface"
   ],
   "ineligible_sources": [
     "the_module_itself"
   ],
   "unusable_sources": [
-    "semantic_map_admitted_set",
-    "unconsumed_policy:selfhost/engine/dynmod/di.yaml"
+    "committed_policy:selfhost/engine/dynmod/di.yaml",
+    "committed_policy:selfhost/engine/route_b_di/evidence/stage_a.txt",
+    "committed_policy:selfhost/engine/route_b_di/probe/di_full.yaml",
+    "committed_policy:selfhost/engine/route_b_di/probe/di_no_callable.yaml",
+    "committed_policy:selfhost/engine/route_b_di/probe/di_no_extendable.yaml",
+    "committed_policy:selfhost/engine/route_b_di/probe/di_no_overridable.yaml",
+    "committed_policy:selfhost/engine/route_b_di/probe/di_no_type.yaml",
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g2_execution/probe/di.yaml",
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g3_types_gc/probe/di.yaml",
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_fenced.yaml",
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_fenced.yaml",
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_unfenced.yaml",
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_fenced.yaml",
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_unfenced.yaml",
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_unfenced.yaml",
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_full.yaml",
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_callable.yaml",
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_extendable.yaml",
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_overridable.yaml",
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_type.yaml",
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_alloc.yaml",
+    "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_bench.yaml",
+    "committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_full.yaml",
+    "committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_callable.yaml",
+    "committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_callable_work.yaml",
+    "committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_can_be_overridden.yaml",
+    "committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_can_be_used_as_type.yaml",
+    "committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_extendable.yaml",
+    "emitted_policy:selfhost/engine/route_b/probes/p1_dead_allocatability.sh",
+    "semantic_map_admitted_set"
   ],
   "sections_with_no_release_bound_source": [
     "extendable",
@@ -88,8 +485,35 @@
       "sha256": "c4a0d2a73d835448cec5837935e698f1f2085c342aada95b879293c0a7ce3c17"
     },
     "specification_digests": {
-      "route_b_generator": "0204f0f6eca57608ce060bbd6f3b7e0d3e81ba44b7ab28934d1deaf2b27d0c37",
-      "unconsumed_policy:selfhost/engine/dynmod/di.yaml": "a08f8415a64ee01c9a4c2ab6c140450ca0cf4d4093508f639b6707e9f14bacc9"
+      "release_supplement_interface": "901d041f0763c7ebf3d26ebe4a11447e4155b16568b121e5124e98e8d443ed1d",
+      "committed_policy:selfhost/engine/dynmod/di.yaml": "a08f8415a64ee01c9a4c2ab6c140450ca0cf4d4093508f639b6707e9f14bacc9",
+      "committed_policy:selfhost/engine/route_b_di/evidence/stage_a.txt": "2eaca2e006a50fad4629757c153e72b92a807794fd16ae6efa582523c630d941",
+      "committed_policy:selfhost/engine/route_b_di/probe/di_full.yaml": "e61e3f8f9ace6cfe24b3adfc2dd07f242a82e413c43f835e037493eaeef47607",
+      "committed_policy:selfhost/engine/route_b_di/probe/di_no_callable.yaml": "93866fdf59b3512955ee72f92a3c2bfaf6e2a68bc90f987b6fb6ca09242c264e",
+      "committed_policy:selfhost/engine/route_b_di/probe/di_no_extendable.yaml": "9dc2b19ce7c3e9b17839c843008eaf3d2987cb1bee3cfc7ebb41cfd5bfc9fae3",
+      "committed_policy:selfhost/engine/route_b_di/probe/di_no_overridable.yaml": "8c524bf32d608787a1e0dc50af5f837b3dcfaf33dac2de75ad6292ce028a3bcf",
+      "committed_policy:selfhost/engine/route_b_di/probe/di_no_type.yaml": "852cfeb9ac98d369631e0ae65bd9bd8d9110075c9db94fb53f83dee1e685a54b",
+      "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g2_execution/probe/di.yaml": "34e8aff651643a4a8c0f2b1584dcfac7177eecc744b939694768ca3fd3cd2421",
+      "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g3_types_gc/probe/di.yaml": "a0e1ce86591ca83177f490956d248b78da96221a9373b5667c1a316c24e7b4eb",
+      "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_fenced.yaml": "594ae744bc1a8bfd0078cbc241beaa921e2a8b977e09531943a45e7370d9f825",
+      "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_fenced.yaml": "a7558f133bf41799dc4ba8f4d759ccb36d47f3ec3efc54b513fdff4c74e07910",
+      "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_unfenced.yaml": "199214638c40f55a4bb54199de969578909ccdfd5225470b9ffff96890100433",
+      "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_fenced.yaml": "76d3e5dabc046af8112c4e62a5413f3dd912b1e6eb1159658ac2888925fd683e",
+      "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_unfenced.yaml": "6434e7f5ec7b5f49c2a51278381d5bc366d487e5bbedc877e867ea8fead17790",
+      "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_unfenced.yaml": "d8056103b4f90a9578ea8370d1f4ed9a0d8fc5667a5bc79661c6d5c30f39006f",
+      "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_full.yaml": "e61e3f8f9ace6cfe24b3adfc2dd07f242a82e413c43f835e037493eaeef47607",
+      "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_callable.yaml": "93866fdf59b3512955ee72f92a3c2bfaf6e2a68bc90f987b6fb6ca09242c264e",
+      "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_extendable.yaml": "9dc2b19ce7c3e9b17839c843008eaf3d2987cb1bee3cfc7ebb41cfd5bfc9fae3",
+      "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_overridable.yaml": "8c524bf32d608787a1e0dc50af5f837b3dcfaf33dac2de75ad6292ce028a3bcf",
+      "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_type.yaml": "852cfeb9ac98d369631e0ae65bd9bd8d9110075c9db94fb53f83dee1e685a54b",
+      "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_alloc.yaml": "e7eec35d1e65bcedb6bcb50a693e1a9eeb99c305d8d5eb074b7c2df8d8b94147",
+      "committed_policy:selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_bench.yaml": "30f7bfac59ab9114821fff7dcb8018eeccee9c89a045c87960dbe67335aaca7e",
+      "committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_full.yaml": "4d6586dece3716c7abf67073c3f565baedd63771ef129fa830883eb024fae7d5",
+      "committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_callable.yaml": "6ae1b2af02a87a9b8b1592f7d8357f4dfb5c2610d1f31a5545d9acdc391a60a6",
+      "committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_callable_work.yaml": "098726b64ab311649ff4a063dadf9bc3d8305dc51990709e873d4068b5f0c381",
+      "committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_can_be_overridden.yaml": "d4a4c6696b59abb8949fd6a9890590edf90870cae264a21bac3863f4a0b8ba9d",
+      "committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_can_be_used_as_type.yaml": "db0b730d98e0399fec94d2e70f32f48e86ebc85099a02c307cbe46f9b72c3d94",
+      "committed_policy:selfhost/engine/semantic_map/g4_retention/probe/di_no_extendable.yaml": "338bb2abe49f8df7cf202c036f6c13f0020c7e65dce39572f104076f28a3d6af"
     },
     "release_aot_identity": "obtainable -- G6 binds a map to the full AOT SHA-256 and the same binding applies. Recorded as available rather than collected: there is no complete specification to bind while complete_sources is empty.",
     "relationship_to_host_policy": "the retention specification IS the host policy -- the same file feeds gen_kernel --dynamic-interface. A validation specification would have to be that file plus the three permission sections, and the annotator annotates all four, so widening the host half is not free: whole-library dart:core retention measured +310%. Member-scoped dart:core entries do validate, so the obstacle is the absence of the sections, not their cost."
