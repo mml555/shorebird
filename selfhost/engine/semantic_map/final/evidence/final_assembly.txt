@@ -1,0 +1,195 @@
+SM1-FINAL -- evidence matrix, computed verdict, provenance
+generated 2026-09-09T06:03:27Z by run_final.sh
+source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
+
+############ 1. THE MATRIX, EXTRACTED FROM EVIDENCE ############
+  Every row is derived at run time from a named file and field or marker. A row
+  whose evidence cannot be resolved reads NOT_ESTABLISHED and is never filled
+  from a remembered conclusion. SEMANTIC-LINKER-1's assembler returned
+  ABANDON_OR_REDESIGN on its first run because two rows pointed at the wrong
+  transcript; the fix was the pointer, not the check. That happened again here:
+  PRIVACY_CROSS_DOMAIN_REFUSAL first read NOT_ESTABLISHED because it was bound
+  to G5/G6's marker convention, which G3 predates.
+
+  20 rows extracted from 14 evidence files
+
+  DECLARATION_ID_STABILITY           ESTABLISHED
+  DECLARATION_ID_COLLISIONS          ESTABLISHED
+  ABI_FINGERPRINT                    ESTABLISHED
+  BODY_FINGERPRINT                   ESTABLISHED
+  CLASSIFICATION_UNCHANGED           ESTABLISHED
+  CLASSIFICATION_CHANGED_BODY        ESTABLISHED
+  CLASSIFICATION_ABI_BREAK           ESTABLISHED
+  PRIVACY_DOMAIN_DERIVATION          ESTABLISHED
+  PRIVACY_CROSS_DOMAIN_REFUSAL       ESTABLISHED
+  RETENTION_CONTRACT                 ESTABLISHED_WITH_LIMITS
+  RETENTION_WITHHELD_FAILS_CLOSED    ESTABLISHED_NEGATIVE
+  PATCHABILITY_SUBSET_PROPERTY       VACUOUS
+  OVER_CLAIM                         REFUSAL_ENFORCED
+  MAP_RELEASE_BINDING                ESTABLISHED
+  MAP_SCHEMA_VERSIONING              ESTABLISHED
+  MAP_SIZE                           MEASURED_DETERMINISTIC
+  GENERATION_TIME                    MEASURED_CURRENT_RUN_ONLY
+  RETENTION_COST_AT_SCALE            MEASURED_DETERMINISTIC_PROJECTION_LOW
+  REPRODUCIBILITY                    ESTABLISHED
+  KNOWN_GAPS                         ENUMERATED
+
+  NOT_ESTABLISHED: none
+  KNOWN_GAPS entries: 14
+  evidence files unreadable: none
+
+############ 2. THE VERDICT, COMPUTED FROM THE MATRIX ############
+  No verdict is seeded. Every predicate below is evaluated against row
+  CATEGORIES and generated gap data, and all of them are published -- not only
+  the one that selected -- so the decision surface is visible. If no predicate
+  holds the verdict is NOT_ESTABLISHED: #58 forbids a generic FAIL, and
+  inventing one of the five to fill the hole would be worse than saying the
+  matrix does not classify.
+
+  PREDICATES (all published, not only the selecting one)
+    False  EVERY_REQUIRED_ROW_POSITIVE
+           rows not in a positive category: ['RETENTION_CONTRACT', 'RETENTION_WITHHELD_FAILS_CLOSED', 'PATCHABILITY_SUBSET_PROPERTY']
+    False  PATCHABILITY_POSITIVELY_ESTABLISHED
+           PATCHABILITY_SUBSET_PROPERTY=VACUOUS, admitted=0 of 36
+    True   SUBSET_PROPERTY_VACUOUS
+           the subset property holds only because the admitted set is empty; zero admitted is not positive patchability evidence
+    True   UNSAFE_CLASS_MECHANICALLY_ACCOUNTED
+           reader accounting 36 of 36 declarations; every declaration reaches a named state, so an empty admitted set is a decision rather than a coverage hole
+    True   REFUSAL_PATH_ENFORCED
+           OVER_CLAIM=REFUSAL_ENFORCED
+    True   BLOCKING_PREREQUISITES_UNRESOLVED
+           unresolved BLOCKING_FOR_PRODUCTION prerequisites: ['NON_STATIC_DISPATCH_PATCHABILITY', 'POST_HOC_REDIRECTABILITY_UNDECIDABLE', 'INLINING_EVIDENCE_MUST_COME_FROM_THE_SHIPPED_RELEASE']
+    False  ANALYZER_DEFECT_ATTRIBUTED_BY_EVIDENCE
+           gap entries attributing a shortfall to a tool or analyzer defect: none
+    True   MODEL_ROWS_ALL_ESTABLISHED
+           DECLARATION_ID_STABILITY=ESTABLISHED; DECLARATION_ID_COLLISIONS=ESTABLISHED; ABI_FINGERPRINT=ESTABLISHED; BODY_FINGERPRINT=ESTABLISHED; CLASSIFICATION_UNCHANGED=ESTABLISHED; CLASSIFICATION_CHANGED_BODY=ESTABLISHED; CLASSIFICATION_ABI_BREAK=ESTABLISHED
+    True   RETENTION_WITHHELD_MEASURED_NOT_FAILING_CLOSED
+           RETENTION_WITHHELD_FAILS_CLOSED=ESTABLISHED_NEGATIVE
+    True   DISTINCTION_NOT_REPRESENTABLE
+           SUBSET_PROPERTY_VACUOUS and UNSAFE_CLASS_MECHANICALLY_ACCOUNTED and BLOCKING_PREREQUISITES_UNRESOLVED
+    False  DECIDABLE_EXCLUSION_YIELDS_NONEMPTY
+           a non-empty admitted set after exclusion: admitted=0
+    False  UNSAFE_CLASS_NOT_IDENTIFIABLE
+           the negation of UNSAFE_CLASS_MECHANICALLY_ACCOUNTED
+    False  PROCEED_CONDITIONS_MET
+           every required row positive, patchability positively established, refusals enforced, no blocking prerequisite open
+
+  LADDER, in #58 precedence order
+    False  PROCEED                via PROCEED_CONDITIONS_MET
+    False  MODIFY_ANALYZER        via ANALYZER_DEFECT_ATTRIBUTED_BY_EVIDENCE
+    True   MODIFY_MAP_DESIGN      via DISTINCTION_NOT_REPRESENTABLE <== SELECTED
+    False  REDUCE_SCOPE           via DECIDABLE_EXCLUSION_YIELDS_NONEMPTY
+    False  ABANDON_OR_REDESIGN    via UNSAFE_CLASS_NOT_IDENTIFIABLE
+
+  VERDICT: MODIFY_MAP_DESIGN
+  selected by: DISTINCTION_NOT_REPRESENTABLE
+
+  NEXT LANE
+    - The map cannot decide patchability by inference from a finished AOT, so patchability has to become a BUILD-TIME guarantee rather than a post-hoc classification. #59 (Mutable AOT Dart) is the accepted direction for that and may be named here; no implementation begins in #58.
+    - AOT-ASSUMPTIONS-1 owns the optimizer-contract half and is still un-instrumented; it was deliberately not started here.
+    - RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE: withholding some retention classes does not fail closed at load. That is independent of the patchability question and needs its own lane before any map is relied on.
+    - Generation-time figures are current-run observations. Any schedule or budget derived from them needs a repeated measurement at the scale being shipped, not this sample.
+
+############ 3. PROVENANCE ############
+  The input set comes from the extractor's access log -- the files it actually
+  opened, digested at read time -- cross-checked against the registry. A file a
+  row names but the extractor never opened, or vice versa, is a finding. This
+  manifest does not digest itself, RESULT.md, the matrix or the verdict: they
+  are outputs of this assembly. G5 once produced a manifest that included its
+  own output, and a second run never reproduced the first.
+
+  consumed evidence files : 14
+  declared by rows        : 14
+  sets equal              : True
+  producing scripts       : 47
+  assembler components    : 7
+  findings                : none
+  inputs without a digest : none
+
+############ 4. RESULT.md, GENERATED FROM THOSE ARTIFACTS ############
+  RESULT.md generated: 157 lines, 20 rows, verdict MODIFY_MAP_DESIGN
+
+############ 5. SENSITIVITY CONTROLS ############
+  The published verdict is only worth something if a DIFFERENT verdict was
+  reachable. Family B drives the computation to each of the five allowed
+  verdicts in turn, and to NOT_ESTABLISHED, from a described state of the
+  evidence. Family A removes and corrupts every row's evidence in turn.
+  Family C proves the arms discriminate, by showing a weakened assembler that
+  hard-codes the baseline satisfies exactly one family-B arm -- the baseline's
+  own -- and no other. Family D runs this orchestrator against damaged
+  evidence and checks what RESULT.md then says.
+
+SM1-FINAL -- sensitivity controls
+
+  baseline verdict: MODIFY_MAP_DESIGN
+  baseline NOT_ESTABLISHED rows: none
+
+  A. PER-ROW EVIDENCE SENSITIVITY (derived: every row x every file it names)
+     Removing or corrupting a row's evidence must make THAT row read
+     NOT_ESTABLISHED. A row that survived losing its own evidence would
+     be answering from somewhere other than the evidence.
+     26 (row, file) pairs x 2 mutations = 52 arms
+     arms=52 failed=0
+
+  B. VERDICT REACHABILITY -- every allowed verdict must be reachable
+     If only one verdict could ever come out, publishing it proves
+     nothing about the evidence.
+     pass  PROCEED                <- a non-empty admitted set, retention failing closed, and no blocking prerequisite
+     pass  MODIFY_ANALYZER        <- a shortfall ATTRIBUTED to an analyzer defect while the model rows all hold
+     pass  MODIFY_MAP_DESIGN      <- the evidence as it stands: empty admitted set, full accounting, blocking prerequisites open
+     pass  REDUCE_SCOPE           <- a non-empty admitted set while retention still does not fail closed
+     pass  ABANDON_OR_REDESIGN    <- the refusal accounting no longer covers every declaration, so the unsafe class is not mechanically identifiable
+     pass  NOT_ESTABLISHED        <- no predicate holds -- prerequisites resolved but the admitted set still empty; the ladder must not default
+     arms=6 failed=0
+
+  C. WEAKENED ASSEMBLER -- one that hard-codes the baseline verdict
+     must FAIL family B. Without this, family B proves the assembler
+     reacts to input, not that it reacts correctly.
+     family-B arms the weakened assembler still satisfies: 1
+     pass  it satisfies only MODIFY_MAP_DESIGN, which IS the baseline
+
+  D. STALE OUTPUTS -- a previous RESULT.md and manifest must not read as
+     current output after an assembly that failed. This runs the REAL
+     orchestrator against corrupted evidence. The first version of this
+     control deleted the stale files ITSELF and then asserted they were
+     gone, which could not fail -- it was checking its own cleanup, not
+     run_final.sh's contract.
+     pass  degraded: orchestrator exits non-zero
+     pass  degraded: the stale RESULT.md did not survive
+     pass  degraded: RESULT.md leads with an INCOMPLETE banner
+     pass  degraded: the verdict is marked PROVISIONAL
+     pass  degraded: RESULT.md names the unresolved row
+     pass  degraded: the stale manifest did not survive
+     pass  crashed: orchestrator exits non-zero
+     pass  crashed: the stale RESULT.md did not survive
+     pass  crashed: RESULT.md says ASSEMBLY FAILED
+     pass  crashed: RESULT.md does not claim a verdict
+
+  TOTAL arms=74 failed=0
+SM1_FINAL_SENSITIVITY: EVERY_CONTROL_DISCRIMINATES
+
+ASSERTIONS (22 checked)
+  pass  the matrix extracted
+  pass  every declared row is present
+  pass  no row is NOT_ESTABLISHED
+  pass  every evidence file was readable
+  pass  the verdict computed
+  pass  the verdict is one of the five allowed
+  pass  the verdict was selected by a named predicate
+  pass  exactly one ladder rung selected
+  pass  every predicate is published
+  pass  the provenance manifest built
+  pass  every consumed input carries a digest
+  pass  the input set equals the declared set
+  pass  the manifest reports no findings
+  pass  the manifest does not digest its own outputs
+  pass  RESULT.md generated
+  pass  RESULT.md is machine-generated, not authored
+  pass  RESULT.md carries the computed verdict
+  pass  RESULT.md enumerates the non-proven claims
+  pass  the sensitivity controls discriminate
+  pass  this run is not a control-free nested invocation
+  pass  RESULT.md is a report, not a failure notice
+  pass  the published matrix is complete, so no PROVISIONAL verdict
+
+SM1_FINAL: MODIFY_MAP_DESIGN

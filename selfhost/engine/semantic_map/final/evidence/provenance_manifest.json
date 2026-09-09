@@ -1,0 +1,210 @@
+{
+  "schema": "semantic-map-1/final-provenance/1",
+  "gate": "SM1-FINAL",
+  "issue": 58,
+  "tracker": 48,
+  "generated": "2026-09-09T06:03:27Z",
+  "input_set_derived_from": "the extractor access log, cross-checked against the registry",
+  "self_hashing": "none: this manifest, RESULT.md, the matrix and the verdict are OUTPUTS of this assembly and are listed by name only. A manifest that digested itself would never converge -- G5 hit exactly that and a second run never reproduced the first.",
+  "outputs_not_digested": [
+    "RESULT.md",
+    "evidence/final_assembly.txt",
+    "evidence/final_matrix.json",
+    "evidence/final_verdict.json",
+    "evidence/provenance_manifest.json"
+  ],
+  "verdict": "MODIFY_MAP_DESIGN",
+  "matrix_rows": 20,
+  "consumed_evidence": {
+    "g1_identity/evidence/g1_identity.json": {
+      "sha256": "8ffe2d18c684b15ff476257881b481ff406800092c18b704411f86f2ec917841",
+      "bytes": 11061,
+      "read": true,
+      "rows": [
+        "DECLARATION_ID_COLLISIONS",
+        "DECLARATION_ID_STABILITY"
+      ]
+    },
+    "g2_fingerprints/evidence/g2_fingerprints.json": {
+      "sha256": "e8e479a0c5cc9c6f5e5aada79bf0f23722db4660985119e3fb8bd6cf69811405",
+      "bytes": 19229,
+      "read": true,
+      "rows": [
+        "ABI_FINGERPRINT",
+        "BODY_FINGERPRINT",
+        "CLASSIFICATION_ABI_BREAK",
+        "CLASSIFICATION_CHANGED_BODY",
+        "CLASSIFICATION_UNCHANGED",
+        "DECLARATION_ID_STABILITY"
+      ]
+    },
+    "g3_privacy/evidence/g3_privacy.json": {
+      "sha256": "870fc92b8e664fd78d2cc86398907e4b8f6eeedcd2792aa4f490c054909f0732",
+      "bytes": 5184,
+      "read": true,
+      "rows": [
+        "PRIVACY_CROSS_DOMAIN_REFUSAL",
+        "PRIVACY_DOMAIN_DERIVATION"
+      ]
+    },
+    "g3_privacy/evidence/falsification.txt": {
+      "sha256": "01fef376ea1139de817c02ac01855ba1b9dcef6b241b8d8794c8980983245dca",
+      "bytes": 5411,
+      "read": true,
+      "rows": [
+        "PRIVACY_CROSS_DOMAIN_REFUSAL"
+      ]
+    },
+    "g4_retention/evidence/g4_retention.json": {
+      "sha256": "dd9863b89fe33ed688d409ad9beacd0a5e7dd7f4f839b89013b1787bdbf4520d",
+      "bytes": 3212,
+      "read": true,
+      "rows": [
+        "RETENTION_CONTRACT",
+        "RETENTION_WITHHELD_FAILS_CLOSED"
+      ]
+    },
+    "g5_patchability/evidence/subset.json": {
+      "sha256": "21b644dcd142f3e9c61de36805dd7b9194cf1d8c0d3419c0b4c3e33cde3dec7c",
+      "bytes": 1897,
+      "read": true,
+      "rows": [
+        "PATCHABILITY_SUBSET_PROPERTY"
+      ]
+    },
+    "g5_patchability/evidence/inlining_state.json": {
+      "sha256": "8e97a2d235486e855be0dfebd5d532744354c1e1ed4fede9408fe413ca48501a",
+      "bytes": 15843,
+      "read": true,
+      "rows": [
+        "PATCHABILITY_SUBSET_PROPERTY"
+      ]
+    },
+    "g5_patchability/evidence/subset_check.txt": {
+      "sha256": "c33c332441828b6838916926d39541c835d5f18e42069df81c638dd65bc12012",
+      "bytes": 8593,
+      "read": true,
+      "rows": [
+        "OVER_CLAIM"
+      ]
+    },
+    "g5_patchability/evidence/corpora.txt": {
+      "sha256": "e866a73f53a7d1605bc02c8887b2563eb076630c50e55eff94f0afca5164c605",
+      "bytes": 8524,
+      "read": true,
+      "rows": [
+        "OVER_CLAIM"
+      ]
+    },
+    "g6_binding/evidence/verify_probe.json": {
+      "sha256": "9404d39d1a6200f547290245dc8a2713dd02614855f60b89c612fccfda5509e8",
+      "bytes": 327,
+      "read": true,
+      "rows": [
+        "MAP_RELEASE_BINDING"
+      ]
+    },
+    "g6_binding/evidence/map_probe.json": {
+      "sha256": "53b1357b605ace0a685b75862a4e511796c356c30a5faeacd3fc3f8aaaeb4fdf",
+      "bytes": 11543,
+      "read": true,
+      "rows": [
+        "MAP_RELEASE_BINDING",
+        "MAP_SCHEMA_VERSIONING"
+      ]
+    },
+    "g6_binding/evidence/g6_binding.txt": {
+      "sha256": "ed0aeaf37bbb6aefaf09915d780d650bb0f7e7c95449f2fc77564d748c9e83f5",
+      "bytes": 9196,
+      "read": true,
+      "rows": [
+        "MAP_RELEASE_BINDING",
+        "MAP_SCHEMA_VERSIONING"
+      ]
+    },
+    "g7_cost/evidence/families.json": {
+      "sha256": "b948bd1f896e824af1daf2fc4409a5e7f8422abe616019e045603f84679eda7f",
+      "bytes": 15231,
+      "read": true,
+      "rows": [
+        "GENERATION_TIME",
+        "MAP_SIZE",
+        "RETENTION_COST_AT_SCALE"
+      ]
+    },
+    "g8_reproduction/evidence/g8_result.json": {
+      "sha256": "6cc01362b2175504e2e5b8ce61cfbf748fedb513a47b9a4b00802861b71ae8c2",
+      "bytes": 11359,
+      "read": true,
+      "rows": [
+        "KNOWN_GAPS",
+        "REPRODUCIBILITY"
+      ]
+    }
+  },
+  "consumed_count": 14,
+  "producing_scripts": {
+    "g1_identity/run_g1.sh": "4b0c825fecab3329cccdbf440fefc747bcef8270c0d71275352f01ef85862f24",
+    "g1_identity/lib/score_g1.py": "cfeee461b04b6d04d83ade39ca3edb6e668fd5ad6db4e772e4a9b78ef45c9a33",
+    "g2_fingerprints/run_g2.sh": "0f389c35f2ccc9cc639e890ebd95280a3a6044b78cbf2deda8e18d4d1b832ef1",
+    "g2_fingerprints/lib/score_g2.py": "464ed9a4dad949100864b50faa98e50b7b3459d0f3ef04407fda17356563d01e",
+    "g3_privacy/run_g3.sh": "3b9a23aaff5bf74a5ab0a8f81cfa8f4da5d16bddda6a2afca2a338150d3c168e",
+    "g3_privacy/lib/score_g3.py": "a5f7ebeb0095d7eedf2192c2707c4163e58edd0aea0815d1a19fcbba54386a1c",
+    "g4_retention/run_g4.sh": "55b814b72a72e7ab4fa2e7f870f5cf9b1f33455e1077296a0bad99bc07b7968e",
+    "g4_retention/lib/gen_scale_host.py": "c4b92da2e91da58c8b53a4f20dc8e2ea0fc0046f23b7f80a38ba713f0489314e",
+    "g4_retention/lib/score_g4.py": "e98f04148637f76d3609936fc0ca9edcdad5f25b40b403e3ec4c5b84111d3f54",
+    "g5_patchability/build_probe_corpus.sh": "8d409422fc028145e649034f1be887dcad099505feb64344974c17f7bbd601f2",
+    "g5_patchability/run_corpora.sh": "30978d90ee5da578c62ff61726dec92d90f328620a34c83a7515665ebb9c0296",
+    "g5_patchability/run_dispatch_experiment.sh": "efb155296aea5d3f4bf34a988747dda9408bd8c782a4f4cadcc1adb91d31a9ef",
+    "g5_patchability/run_predictor_bank.sh": "c54db55274d7ae212b70f512c22c09eff11bc69e134603fbbdd8ceb96c457d42",
+    "g5_patchability/run_route2.sh": "adb9a491a2ad1137d91f13d9d8d27efd1b83a9fce7acf3aa1fa5515606b3f2e4",
+    "g5_patchability/run_subset.sh": "8c17838f073b44afa5b279cd4ac28b28a11c681082a245a9cd768fb65098c821",
+    "g5_patchability/lib/_check_manifest.py": "c6414739f17b2b75ca97261e18022def4346a0bfb6490c67caddc505e6f06c9b",
+    "g5_patchability/lib/_det.py": "711b1663bdcedd6e2c36fe678c63850a3ffed299dfc07bbce23f57290d930f28",
+    "g5_patchability/lib/collect_demonstration.py": "010f33b287e81b5b2f6cf9337d1bb9e028d5cee7b2577b4cb61703208248e077",
+    "g5_patchability/lib/derive_demonstration.py": "5bf1f79f7d650d4db31c18565cbcd161b5414c0490cba0e462a89309eed422c4",
+    "g5_patchability/lib/falsify_dispatch_predicate.py": "546fefd12c495b73c0f6418387a1cc983e1ca39ecd12e0d6d0c97c957a6d20f8",
+    "g5_patchability/lib/falsify_manifest.py": "48da84dad5d9f6ea820ace0eb8a5819f214e8804185b995cba3493125e6dcb48",
+    "g5_patchability/lib/falsify_predictor.py": "11c06267de0c7efc571e835837eb302814229ce786a00a97eb9aa15d3e0e7429",
+    "g5_patchability/lib/falsify_reader.py": "f405a7badeea0e6511c386068791de49366db859673415f88c442d2b2fa4e85c",
+    "g5_patchability/lib/falsify_subset.py": "99ab6029e4d685d91a7866a2bf74156ad8888a8a276942b4126f85443048e73d",
+    "g5_patchability/lib/gen_final_report.py": "28f17b53689b5af1257900e6ac4c89035dbe6f8b931f9328de6b99e1fb821edc",
+    "g5_patchability/lib/read_inlining.py": "8e1a23b59fb5e7be435019bd1b0840f81057abee424b48b570b9745d7646ac13",
+    "g5_patchability/lib/scan_dispatch_calls.py": "de7b72a986bf82b6aa28dda491fdb5bf54888ca36e984a69858a815b0c18a0b0",
+    "g5_patchability/lib/score_subset.py": "c2a832f0d7d1b54610dcdabbe919e7498568af227d03bdb500445541891ab1f8",
+    "g5_patchability/lib/weaken_predictor.py": "84c3350966108e1a438dbd816a35e7faba22bad2170dd4946706c5897badf5b4",
+    "g6_binding/run_g6.sh": "12eb9d66d2cc231781aec230420d79c95b9a374a4a5ce53a5b39204608b54f0d",
+    "g6_binding/lib/falsify_binding.py": "cb492735f7ef2c40904b83fa97511b151f5a90b4806478b90388fa2da2eff8b6",
+    "g6_binding/lib/gen_bound_map.py": "d75f48f55379f8cef3376ca500f6d39dd60b41d9eac9eee69439eb613cdba76a",
+    "g6_binding/lib/verify_binding.py": "dd67a4ed30a28660c1c8e7acc77c9c0d8284bfad8cafd18c174d12e9540ed618",
+    "g6_binding/lib/weaken_verifier.py": "83d0ce393a394d6527063bb5c935dbb0c0bf8eb9f55f0915b134d9ce34e28d43",
+    "g7_cost/run_g7.sh": "c60a74bb1a4e9d8c85d390cd8698914e840f2663fa51e2725cc8114a173efc4d",
+    "g7_cost/lib/classify_order.py": "e303dd69ed9720b4b3dabd2d192535e97a6127765f23269dd5a75ade436d4192",
+    "g8_reproduction/run_g8.sh": "d43f2d321208a3e28fd3500eb3c35182d853b31952819341895b81e917d9f27d",
+    "g8_reproduction/lib/_check_arm_pairs.py": "d1af47e414debb3991283b3d20a00c71b8398f87e404851516c8ae3dff813f74",
+    "g8_reproduction/lib/_check_partitions.py": "43b5332c8d462e86c40c3150f9355cfa833bccc15e94ba3b47c610dec43a1f8d",
+    "g8_reproduction/lib/_check_substantive.py": "9a1d8a5d08163aa4a7515c5eed08e9613f0bddfd6ad24419de32aa51acdf37e5",
+    "g8_reproduction/lib/_check_surface.py": "b8171dcaa4379d1c85f4a9cb610ea19f157b5eab68a67014a11316f586c92db1",
+    "g8_reproduction/lib/_derived_arms.py": "30e6150bb4447b12b49ed1e3816c3002e6828aa32cff0a83878bb1d6f6633e61",
+    "g8_reproduction/lib/check_inventory.py": "2a1a5580fe453d8f69b8611bd94ec9c0b21c68b3771c5a3873a2c9fad63ecc48",
+    "g8_reproduction/lib/emit_result.py": "fd9051ad3cadd4f291f41e925d6f85e4594268069eda70cd74de5ed3dcea8122",
+    "g8_reproduction/lib/falsify_reproduction.py": "10104b4d21aa7ac58479e56e520583c00deb2e88126310d6759390c3248b726e",
+    "g8_reproduction/lib/falsify_result.py": "7ba76948d458a5b8cfcbfaefb4b943e30b4074dd6be07b50759d5a9abd099cb8",
+    "g8_reproduction/lib/snapshot_digests.py": "a5495c6f2024182231bb4e72cdcbadca2d04c9a2cf671a2da297b6d9cef48858"
+  },
+  "assembler": {
+    "final/evidence_registry.json": "2dd12dc6303a30119ee6703b02c570c757b2a5ac8d235a187224110f6279472e",
+    "final/lib/build_manifest.py": "7720515406df2ce8cb914d31a5c9985c1ba9002ccdafa1342d2235c8fca02611",
+    "final/lib/compute_verdict.py": "408f0764829ecfcf1253952e9aa8cbcfe2d353e89b31120f95a308227319d05c",
+    "final/lib/extract_matrix.py": "4beef356a9f081c0ef37cb60009e3512094655e7d6892600b085320e691fd105",
+    "final/lib/falsify_final.py": "4c8e4f4c0617021e6a0ef3bd1df84365d889cec1b09de30b47cb15308fdab388",
+    "final/lib/gen_result.py": "b3e8fcfd0999351d714bb36f309503149100422da3393d0348f41e50277705c6",
+    "final/run_final.sh": "7c596a122a679e693ffb4439329a296f0795299ea26dc81b0a33cb5aff5ba83b"
+  },
+  "coverage": {
+    "declared_by_rows": 14,
+    "opened_by_extractor": 14,
+    "equal": true
+  },
+  "findings": []
+}

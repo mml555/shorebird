@@ -1,0 +1,631 @@
+{
+  "schema": "semantic-map-1/final-matrix/1",
+  "gate": "SM1-FINAL",
+  "issue": 58,
+  "tracker": 48,
+  "generated": "2026-09-09T06:03:27Z",
+  "registry": {
+    "path": "final/evidence_registry.json",
+    "sha256": "2dd12dc6303a30119ee6703b02c570c757b2a5ac8d235a187224110f6279472e",
+    "rows_declared": 19
+  },
+  "category_vocabulary": {
+    "ESTABLISHED": "positively demonstrated by the named evidence",
+    "ESTABLISHED_WITH_LIMITS": "demonstrated in part; the limit is recorded",
+    "ESTABLISHED_NEGATIVE": "measured, and the property does NOT hold -- a result, not a gap",
+    "VACUOUS": "satisfied only because the set it quantifies over is empty",
+    "REFUSAL_ENFORCED": "the refusal path is demonstrated reachable and load-bearing",
+    "MEASURED_DETERMINISTIC": "artifact-derived; identical across runs",
+    "MEASURED_DETERMINISTIC_PROJECTION_LOW": "artifact-derived, and the prior projection understates it",
+    "MEASURED_CURRENT_RUN_ONLY": "timing family; a current-run observation, not reproducible",
+    "ENUMERATED": "generated list, not a judgement",
+    "NOT_ESTABLISHED": "evidence missing, unreadable, ambiguous or unclassifiable"
+  },
+  "matrix": {
+    "DECLARATION_ID_STABILITY": {
+      "category": "ESTABLISHED",
+      "question": "Does a declaration id survive a body change, a reorder, a recompilation and obfuscation?",
+      "note": "The index-derived control must be FALSE: an identity that also survived reordering when derived from position would mean the reorder arm was not discriminating.",
+      "rule_matched": 0,
+      "probe_values": {
+        "checks_failed": 0,
+        "canonical_stable": true,
+        "index_derived_stable": false,
+        "recompilation_identical": true,
+        "obfuscation_ids_unchanged": true,
+        "g2_all_ids_stable": true
+      },
+      "evidence_pointers": {
+        "checks_failed": "g1_identity/evidence/g1_identity.json:checks_failed = 0",
+        "canonical_stable": "g1_identity/evidence/g1_identity.json:harness_control.canonical_stable_under_reorder = True",
+        "index_derived_stable": "g1_identity/evidence/g1_identity.json:harness_control.index_derived_stable_under_reorder = False",
+        "recompilation_identical": "g1_identity/evidence/g1_identity.json:extra_arms.recompilation.identical_sets = True",
+        "obfuscation_ids_unchanged": "g1_identity/evidence/g1_identity.json:extra_arms.obfuscation.declaration_ids_unchanged = True",
+        "g2_all_ids_stable": "all 23 rows have declaration_id_stable is True"
+      },
+      "evidence_files": [
+        "g1_identity/evidence/g1_identity.json",
+        "g2_fingerprints/evidence/g2_fingerprints.json"
+      ]
+    },
+    "DECLARATION_ID_COLLISIONS": {
+      "category": "ESTABLISHED",
+      "question": "Do two distinct declarations ever share an id?",
+      "note": "Zero collisions over a non-empty declaration set, with the same-name-different-owner extension case distinguished by owner.",
+      "rule_matched": 0,
+      "probe_values": {
+        "collisions": 0,
+        "extension_distinct": true,
+        "extension_by_owner": true,
+        "declarations": 23
+      },
+      "evidence_pointers": {
+        "collisions": "g1_identity/evidence/g1_identity.json:collisions = 0",
+        "extension_distinct": "g1_identity/evidence/g1_identity.json:extra_arms.extension_distinctness.distinct_ids = True",
+        "extension_by_owner": "g1_identity/evidence/g1_identity.json:extra_arms.extension_distinctness.differ_by_owner = True",
+        "declarations": "g1_identity/evidence/g1_identity.json:base_declaration_count = 23"
+      },
+      "evidence_files": [
+        "g1_identity/evidence/g1_identity.json"
+      ]
+    },
+    "ABI_FINGERPRINT": {
+      "category": "ESTABLISHED",
+      "question": "Is the ABI fingerprint independent of the body, and is its refusal boundary reachable?",
+      "note": "Four signature-moved/body-identical cases plus a reachable type-parameter refusal. A refusal that is representable but never reached would not prove the boundary is enforced.",
+      "rule_matched": 0,
+      "probe_values": {
+        "checks_failed": 0,
+        "abi_not_body_derived": true,
+        "signature_moved_cases": 4,
+        "abi_refusals": 1
+      },
+      "evidence_pointers": {
+        "checks_failed": "g2_fingerprints/evidence/g2_fingerprints.json:checks_failed = 0",
+        "abi_not_body_derived": "g2_fingerprints/evidence/g2_fingerprints.json:arms.independence.abi_not_body_derived = True",
+        "signature_moved_cases": "len(g2_fingerprints/evidence/g2_fingerprints.json:arms.independence.signature_moved_body_identical) = 4",
+        "abi_refusals": "g2_fingerprints/evidence/g2_fingerprints.json:arms.abi_shape_counts.refused:type_parameters = 1"
+      },
+      "evidence_files": [
+        "g2_fingerprints/evidence/g2_fingerprints.json"
+      ]
+    },
+    "BODY_FINGERPRINT": {
+      "category": "ESTABLISHED",
+      "question": "Is the body fingerprint independent of the signature, and does an unencodable body refuse rather than compare equal?",
+      "note": "Two unsupported-body refusals, one on each side of the comparison: an unencodable BASELINE is as disqualifying as an unencodable variant, or \"equal\" means \"equal in the parts I looked at\".",
+      "rule_matched": 0,
+      "probe_values": {
+        "body_not_abi_derived": true,
+        "body_moved_cases": 1,
+        "unsupported_refusals": 2,
+        "all_outcomes_ok": true
+      },
+      "evidence_pointers": {
+        "body_not_abi_derived": "g2_fingerprints/evidence/g2_fingerprints.json:arms.independence.body_not_abi_derived = True",
+        "body_moved_cases": "len(g2_fingerprints/evidence/g2_fingerprints.json:arms.independence.body_moved_signature_identical) = 1",
+        "unsupported_refusals": "2 of 23 rows with classification='refused:unsupported_body'",
+        "all_outcomes_ok": "all 23 rows have outcome='OK'"
+      },
+      "evidence_files": [
+        "g2_fingerprints/evidence/g2_fingerprints.json"
+      ]
+    },
+    "CLASSIFICATION_UNCHANGED": {
+      "category": "ESTABLISHED",
+      "question": "Does the classifier produce candidate_unchanged exactly where expected?",
+      "note": "a declaration whose ABI and body both hold still is a reuse candidate",
+      "rule_matched": 0,
+      "probe_values": {
+        "count": 9,
+        "matches_expected": true,
+        "checks_failed": 0
+      },
+      "evidence_pointers": {
+        "count": "9 of 23 rows with classification='candidate_unchanged'",
+        "matches_expected": "all 23 rows have classification == expected_classification",
+        "checks_failed": "g2_fingerprints/evidence/g2_fingerprints.json:checks_failed = 0"
+      },
+      "evidence_files": [
+        "g2_fingerprints/evidence/g2_fingerprints.json"
+      ]
+    },
+    "CLASSIFICATION_CHANGED_BODY": {
+      "category": "ESTABLISHED",
+      "question": "Does the classifier produce changed_existing_declaration exactly where expected?",
+      "note": "a body change keeps the declaration id and moves the body fingerprint",
+      "rule_matched": 0,
+      "probe_values": {
+        "count": 5,
+        "matches_expected": true,
+        "checks_failed": 0
+      },
+      "evidence_pointers": {
+        "count": "5 of 23 rows with classification='changed_existing_declaration'",
+        "matches_expected": "all 23 rows have classification == expected_classification",
+        "checks_failed": "g2_fingerprints/evidence/g2_fingerprints.json:checks_failed = 0"
+      },
+      "evidence_files": [
+        "g2_fingerprints/evidence/g2_fingerprints.json"
+      ]
+    },
+    "CLASSIFICATION_ABI_BREAK": {
+      "category": "ESTABLISHED",
+      "question": "Does the classifier produce not_reusable_under_old_abi exactly where expected?",
+      "note": "an ABI move refuses reuse, including when only the OWNER moved",
+      "rule_matched": 0,
+      "probe_values": {
+        "count": 7,
+        "matches_expected": true,
+        "checks_failed": 0
+      },
+      "evidence_pointers": {
+        "count": "7 of 23 rows with classification='not_reusable_under_old_abi'",
+        "matches_expected": "all 23 rows have classification == expected_classification",
+        "checks_failed": "g2_fingerprints/evidence/g2_fingerprints.json:checks_failed = 0"
+      },
+      "evidence_files": [
+        "g2_fingerprints/evidence/g2_fingerprints.json"
+      ]
+    },
+    "PRIVACY_DOMAIN_DERIVATION": {
+      "category": "ESTABLISHED",
+      "question": "Is every declaration assigned a privacy domain, with none underivable?",
+      "note": "More than one domain, so the derivation distinguishes rather than assigning everything to one bucket.",
+      "rule_matched": 0,
+      "probe_values": {
+        "checks_failed": 0,
+        "underivable": 0,
+        "domains": 3
+      },
+      "evidence_pointers": {
+        "checks_failed": "g3_privacy/evidence/g3_privacy.json:checks_failed = 0",
+        "underivable": "g3_privacy/evidence/g3_privacy.json:arms.underivable = 0",
+        "domains": "len(g3_privacy/evidence/g3_privacy.json:arms.domains) = 3"
+      },
+      "evidence_files": [
+        "g3_privacy/evidence/g3_privacy.json"
+      ]
+    },
+    "PRIVACY_CROSS_DOMAIN_REFUSAL": {
+      "category": "ESTABLISHED",
+      "question": "Is a cross-domain private reference refused, and is the platform domain refused separately?",
+      "note": "Every category in the policy return surface is EXERCISED, so no refusal is merely declared -- an unexercised category may be unreachable. The platform refusal is shown load-bearing: dropping it from the policy makes PLATFORM_DOMAIN_PRIVATE unreachable, and the weakened policies fail their arms, so the suite is not vacuous.",
+      "rule_matched": 0,
+      "probe_values": {
+        "cross_domain": true,
+        "platform_domain": true,
+        "surface_size": 8,
+        "exercised_size": 8,
+        "checks_failed": 0,
+        "cross_domain_refused": 1,
+        "platform_refusal_load_bearing": 1,
+        "weakened_policies_fail": 24,
+        "verified": 1
+      },
+      "evidence_pointers": {
+        "cross_domain": "'CROSS_DOMAIN_PRIVATE' in g3_privacy/evidence/g3_privacy.json:arms.policy_return_surface (8 entries)",
+        "platform_domain": "'PLATFORM_DOMAIN_PRIVATE' in g3_privacy/evidence/g3_privacy.json:arms.policy_return_surface (8 entries)",
+        "surface_size": "len(g3_privacy/evidence/g3_privacy.json:arms.policy_return_surface) = 8",
+        "exercised_size": "len(g3_privacy/evidence/g3_privacy.json:arms.categories_exercised) = 8",
+        "checks_failed": "g3_privacy/evidence/g3_privacy.json:checks_failed = 0",
+        "cross_domain_refused": "1 match(es) of /ok\\s+cross_library_private\\s+read\\s+refuses\\s+CROSS_DOMAIN_PRIVATE/ in g3_privacy/evidence/falsification.txt",
+        "platform_refusal_load_bearing": "1 match(es) of /never exercised: \\['PLATFORM_DOMAIN_PRIVATE'\\]/ in g3_privacy/evidence/falsification.txt",
+        "weakened_policies_fail": "24 match(es) of /^\\s+FAILED\\s/ in g3_privacy/evidence/falsification.txt",
+        "verified": "1 match(es) of /G3 PRIVACY VERIFIED/ in g3_privacy/evidence/falsification.txt"
+      },
+      "evidence_files": [
+        "g3_privacy/evidence/falsification.txt",
+        "g3_privacy/evidence/g3_privacy.json"
+      ]
+    },
+    "RETENTION_CONTRACT": {
+      "category": "ESTABLISHED_WITH_LIMITS",
+      "question": "Was the retention contract measured, and is it enforced in full?",
+      "note": "The measurement is verified, but enforcement is PARTIAL: G4 carried that limitation forward rather than closing it.",
+      "rule_matched": 1,
+      "probe_values": {
+        "measurement": "VERIFIED",
+        "enforcement": "PARTIAL",
+        "rows_measured": 23
+      },
+      "evidence_pointers": {
+        "measurement": "g4_retention/evidence/g4_retention.json:measurement = 'VERIFIED'",
+        "enforcement": "g4_retention/evidence/g4_retention.json:retention_enforcement = 'PARTIAL'",
+        "rows_measured": "g4_retention/evidence/g4_retention.json:arms.retention_row_count = 23"
+      },
+      "evidence_files": [
+        "g4_retention/evidence/g4_retention.json"
+      ]
+    },
+    "RETENTION_WITHHELD_FAILS_CLOSED": {
+      "category": "ESTABLISHED_NEGATIVE",
+      "question": "When a retention class is withheld, does load fail closed?",
+      "note": "MEASURED AND DOES NOT HOLD. Withholding some classes does not fail closed at load. This is a reproduced negative result, not a gap in the evidence, and it is a direct input to routing.",
+      "rule_matched": 1,
+      "probe_values": {
+        "acceptance": "NOT_MET",
+        "fail_open": 2,
+        "fails_closed": 1,
+        "no_effect": 1
+      },
+      "evidence_pointers": {
+        "acceptance": "g4_retention/evidence/g4_retention.json:acceptance = 'NOT_MET'",
+        "fail_open": "len(g4_retention/evidence/g4_retention.json:fail_open_classes) = 2",
+        "fails_closed": "len(g4_retention/evidence/g4_retention.json:fails_closed_classes) = 1",
+        "no_effect": "len(g4_retention/evidence/g4_retention.json:no_effect_classes) = 1"
+      },
+      "evidence_files": [
+        "g4_retention/evidence/g4_retention.json"
+      ]
+    },
+    "PATCHABILITY_SUBSET_PROPERTY": {
+      "category": "VACUOUS",
+      "question": "Is every declaration the map admits as patchable actually demonstrated patchable?",
+      "note": "The subset property is satisfied because the admitted set is EMPTY. Zero admitted is not positive patchability evidence: no declaration was mechanically established safely patchable. NOT_INLINED and pool-indirect observations remain non-safety facts.",
+      "rule_matched": 1,
+      "probe_values": {
+        "verdict": "SUBSET_HOLDS_VACUOUSLY",
+        "admitted": 0,
+        "declarations": 36,
+        "accounted": 36,
+        "total_rows": 36
+      },
+      "evidence_pointers": {
+        "verdict": "g5_patchability/evidence/subset.json:verdict = 'SUBSET_HOLDS_VACUOUSLY'",
+        "admitted": "g5_patchability/evidence/subset.json:predicted_patchable = 0",
+        "declarations": "g5_patchability/evidence/subset.json:declarations = 36",
+        "accounted": "g5_patchability/evidence/inlining_state.json:accounting.accounted = 36",
+        "total_rows": "g5_patchability/evidence/inlining_state.json:accounting.total_g1_rows = 36"
+      },
+      "evidence_files": [
+        "g5_patchability/evidence/inlining_state.json",
+        "g5_patchability/evidence/subset.json"
+      ]
+    },
+    "OVER_CLAIM": {
+      "category": "REFUSAL_ENFORCED",
+      "question": "Is an over-claimed patchable declaration refused, on fixtures and on real corpora?",
+      "note": "Three scorer arms (partly stale, wholly stale, no demonstration row) and an injected admitted row refused on each real corpus. These are reproduced FAIL_OPEN findings, never a green result.",
+      "rule_matched": 0,
+      "probe_values": {
+        "scorer_arms": 3,
+        "corpora_markers": 2
+      },
+      "evidence_pointers": {
+        "scorer_arms": "3 match(es) of /over-claim:.*\\bFAIL_OPEN\\b/ in g5_patchability/evidence/subset_check.txt",
+        "corpora_markers": "2 match(es) of /SM1_G5_SUBSET: FAIL_OPEN/ in g5_patchability/evidence/corpora.txt"
+      },
+      "evidence_files": [
+        "g5_patchability/evidence/corpora.txt",
+        "g5_patchability/evidence/subset_check.txt"
+      ]
+    },
+    "MAP_RELEASE_BINDING": {
+      "category": "ESTABLISHED",
+      "question": "Can a map be applied only to the release it was generated against?",
+      "note": "The full AOT SHA-256 is the AUTHORITATIVE release identity. The GNU build ID is recorded as a DIAGNOSTIC only: build ids hash four snapshot segments and collide across different AOTs, so a build-id match is not a release match.",
+      "rule_matched": 0,
+      "probe_values": {
+        "verdict": "BOUND",
+        "findings": 0,
+        "aot_sha256": "7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34",
+        "build_id": "97c212a37be47fbff1e700f874190707",
+        "enforced": 1,
+        "swaps_refused": 1,
+        "weakened_fails": 2
+      },
+      "evidence_pointers": {
+        "verdict": "g6_binding/evidence/verify_probe.json:verdict = 'BOUND'",
+        "findings": "len(g6_binding/evidence/verify_probe.json:findings) = 0",
+        "aot_sha256": "g6_binding/evidence/map_probe.json:release_aot_identity.sha256 = '7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34'",
+        "build_id": "g6_binding/evidence/map_probe.json:release_aot_identity.gnu_build_id = '97c212a37be47fbff1e700f874190707'",
+        "enforced": "1 match(es) of /SM1_G6: BINDING_ENFORCED/ in g6_binding/evidence/g6_binding.txt",
+        "swaps_refused": "1 match(es) of /SM1_G6_BINDING_FALSIFICATION: EVERY_SWAP_REFUSED/ in g6_binding/evidence/g6_binding.txt",
+        "weakened_fails": "2 match(es) of /SM1_G6_BINDING_FALSIFICATION: DEFECTS_PRESENT/ in g6_binding/evidence/g6_binding.txt"
+      },
+      "evidence_files": [
+        "g6_binding/evidence/g6_binding.txt",
+        "g6_binding/evidence/map_probe.json",
+        "g6_binding/evidence/verify_probe.json"
+      ]
+    },
+    "MAP_SCHEMA_VERSIONING": {
+      "category": "ESTABLISHED",
+      "question": "Does the map carry a schema version, and is a version swap refused?",
+      "note": "The map names its schema version, its own digest, and the generator that produced it; every falsifier swap is refused.",
+      "rule_matched": 0,
+      "probe_values": {
+        "schema": "semantic-map-1/bound-map/1",
+        "schema_version": 1,
+        "digest": "94dce22a61a50daea95cae470dd9cc124cc67e539a3b76d89a40b069264b8c2a",
+        "generator": "g6_binding/lib/gen_bound_map.py",
+        "swaps_refused": 1
+      },
+      "evidence_pointers": {
+        "schema": "g6_binding/evidence/map_probe.json:schema = 'semantic-map-1/bound-map/1'",
+        "schema_version": "g6_binding/evidence/map_probe.json:schema_version = 1",
+        "digest": "g6_binding/evidence/map_probe.json:digest = '94dce22a61a50daea95cae470dd9cc124cc67e539a3b76d89a40b069264b8c2a'",
+        "generator": "g6_binding/evidence/map_probe.json:generator_identity.generator = 'g6_binding/lib/gen_bound_map.py'",
+        "swaps_refused": "1 match(es) of /SM1_G6_BINDING_FALSIFICATION: EVERY_SWAP_REFUSED/ in g6_binding/evidence/g6_binding.txt"
+      },
+      "evidence_files": [
+        "g6_binding/evidence/g6_binding.txt",
+        "g6_binding/evidence/map_probe.json"
+      ]
+    },
+    "MAP_SIZE": {
+      "category": "MEASURED_DETERMINISTIC",
+      "question": "How large is the map relative to the release AOT?",
+      "note": "Artifact-derived byte counts, identical across runs. No compact encoding is claimed: the map is JSON here.",
+      "rule_matched": 0,
+      "probe_values": {
+        "map_bytes": 9467041,
+        "aot_bytes": 49662560,
+        "pct": 19.063,
+        "declarations": 35139
+      },
+      "evidence_pointers": {
+        "map_bytes": "g7_cost/evidence/families.json:families.map_size.map_bytes = 9467041",
+        "aot_bytes": "g7_cost/evidence/families.json:families.map_size.release_aot_bytes = 49662560",
+        "pct": "g7_cost/evidence/families.json:families.map_size.map_over_aot_pct = 19.063",
+        "declarations": "g7_cost/evidence/families.json:declarations_in_scope = 35139"
+      },
+      "evidence_files": [
+        "g7_cost/evidence/families.json"
+      ]
+    },
+    "GENERATION_TIME": {
+      "category": "MEASURED_CURRENT_RUN_ONLY",
+      "question": "What does generating the map cost in wall time?",
+      "note": "TIMING FAMILY, deliberately kept separate from the deterministic figures. These values are current-run observations and are not reproducible across runs. The order-dependence label set moves between identical runs even with the noise gate, so the max(stdev) classifier is a COST DIAGNOSTIC only -- never a safety or causality claim.",
+      "rule_matched": 0,
+      "probe_values": {
+        "stages": 15,
+        "samples": 60,
+        "failed_samples": 0,
+        "order_dependent": 0,
+        "order_scope": "labels sampled in both timed orders; the retention-pair stages run once and are excluded rather than counted as unaffected"
+      },
+      "evidence_pointers": {
+        "stages": "len(g7_cost/evidence/families.json:families.generation_time.per_stage) = 15",
+        "samples": "g7_cost/evidence/families.json:samples = 60",
+        "failed_samples": "g7_cost/evidence/families.json:failed_samples = 0",
+        "order_dependent": "len(g7_cost/evidence/families.json:order_dependent_labels) = 0",
+        "order_scope": "g7_cost/evidence/families.json:order_dependence_scope = 'labels sampled in both timed orders; the retention-pair stages run once and are excluded rather than counted as unaffected'"
+      },
+      "evidence_files": [
+        "g7_cost/evidence/families.json"
+      ]
+    },
+    "RETENTION_COST_AT_SCALE": {
+      "category": "MEASURED_DETERMINISTIC_PROJECTION_LOW",
+      "question": "What does retention cost in AOT bytes at real-app scale, and does G4's projection hold?",
+      "note": "Artifact-derived and reproducible. G4's retention curve UNDERSTATES the measured cost, so the projection may not be substituted for a measurement at the scale being shipped.",
+      "rule_matched": 0,
+      "probe_values": {
+        "measured_delta": 4330120,
+        "measured_pct": 8.719,
+        "projection": 2922310,
+        "ratio": 1.482,
+        "pair_built_here": true
+      },
+      "evidence_pointers": {
+        "measured_delta": "g7_cost/evidence/families.json:families.retention_cost_at_scale.measured_delta_bytes = 4330120",
+        "measured_pct": "g7_cost/evidence/families.json:families.retention_cost_at_scale.measured_delta_pct = 8.719",
+        "projection": "g7_cost/evidence/families.json:families.retention_cost_at_scale.g4_projection_bytes = 2922310",
+        "ratio": "g7_cost/evidence/families.json:families.retention_cost_at_scale.measured_over_projected = 1.482",
+        "pair_built_here": "g7_cost/evidence/families.json:retention_pair_built_by_this_run = True"
+      },
+      "evidence_files": [
+        "g7_cost/evidence/families.json"
+      ]
+    },
+    "REPRODUCIBILITY": {
+      "category": "ESTABLISHED",
+      "question": "Does the whole evidence set rebuild from clean state, with its refusals intact?",
+      "note": "REPRODUCTION: PASS means the evidence AND its refusals reproduce. It is not a statement of production readiness -- PRODUCTION_PREREQUISITES is a separate partition and is carried separately into KNOWN_GAPS and routing.",
+      "rule_matched": 0,
+      "probe_values": {
+        "reproduction": "PASS",
+        "feasibility": "REPRODUCED",
+        "fail_open": "REPRODUCED",
+        "prerequisites": "UNRESOLVED",
+        "blockers": 0
+      },
+      "evidence_pointers": {
+        "reproduction": "g8_reproduction/evidence/g8_result.json:result.REPRODUCTION = 'PASS'",
+        "feasibility": "g8_reproduction/evidence/g8_result.json:result.FEASIBILITY_EVIDENCE = 'REPRODUCED'",
+        "fail_open": "g8_reproduction/evidence/g8_result.json:result.KNOWN_FAIL_OPEN_FINDINGS = 'REPRODUCED'",
+        "prerequisites": "g8_reproduction/evidence/g8_result.json:result.PRODUCTION_PREREQUISITES = 'UNRESOLVED'",
+        "blockers": "len(g8_reproduction/evidence/g8_result.json:reproduction.blockers) = 0"
+      },
+      "evidence_files": [
+        "g8_reproduction/evidence/g8_result.json"
+      ]
+    },
+    "KNOWN_GAPS": {
+      "category": "ENUMERATED",
+      "question": "What was not established, measured negatively, or left unresolved?",
+      "note": "Generated from the matrix categories, G8 production prerequisites and G8 reproduced FAIL_OPEN findings. UNKNOWN, VACUOUS, NOT_ESTABLISHED and unresolved prerequisites appear verbatim and are not softened.",
+      "count": 14,
+      "entries": [
+        {
+          "source": "matrix",
+          "id": "RETENTION_CONTRACT",
+          "category": "ESTABLISHED_WITH_LIMITS",
+          "detail": "The measurement is verified, but enforcement is PARTIAL: G4 carried that limitation forward rather than closing it."
+        },
+        {
+          "source": "matrix",
+          "id": "RETENTION_WITHHELD_FAILS_CLOSED",
+          "category": "ESTABLISHED_NEGATIVE",
+          "detail": "MEASURED AND DOES NOT HOLD. Withholding some classes does not fail closed at load. This is a reproduced negative result, not a gap in the evidence, and it is a direct input to routing."
+        },
+        {
+          "source": "matrix",
+          "id": "PATCHABILITY_SUBSET_PROPERTY",
+          "category": "VACUOUS",
+          "detail": "The subset property is satisfied because the admitted set is EMPTY. Zero admitted is not positive patchability evidence: no declaration was mechanically established safely patchable. NOT_INLINED and pool-indirect observations remain non-safety facts."
+        },
+        {
+          "source": "matrix",
+          "id": "GENERATION_TIME",
+          "category": "MEASURED_CURRENT_RUN_ONLY",
+          "detail": "TIMING FAMILY, deliberately kept separate from the deterministic figures. These values are current-run observations and are not reproducible across runs. The order-dependence label set moves between identical runs even with the noise gate, so the max(stdev) classifier is a COST DIAGNOSTIC only -- never a safety or causality claim."
+        },
+        {
+          "source": "matrix",
+          "id": "RETENTION_COST_AT_SCALE",
+          "category": "MEASURED_DETERMINISTIC_PROJECTION_LOW",
+          "detail": "Artifact-derived and reproducible. G4's retention curve UNDERSTATES the measured cost, so the projection may not be substituted for a measurement at the scale being shipped."
+        },
+        {
+          "source": "g8_prerequisite",
+          "id": "NON_STATIC_DISPATCH_PATCHABILITY",
+          "category": "UNRESOLVED",
+          "severity": "BLOCKING_FOR_PRODUCTION",
+          "detail": "A patch must be observable at every call site that reaches the patched member, including virtual and instance dispatch.",
+          "evidence": "g5_patchability/evidence/dispatch_experiment.txt"
+        },
+        {
+          "source": "g8_prerequisite",
+          "id": "POST_HOC_REDIRECTABILITY_UNDECIDABLE",
+          "category": "UNRESOLVED",
+          "severity": "BLOCKING_FOR_PRODUCTION",
+          "detail": "Deciding whether a compiled call site is redirectable must not depend on reading tagged entry-point offsets back out of a finished snapshot.",
+          "evidence": "g5_patchability/evidence/dispatch_experiment.txt"
+        },
+        {
+          "source": "g8_prerequisite",
+          "id": "INLINING_EVIDENCE_MUST_COME_FROM_THE_SHIPPED_RELEASE",
+          "category": "UNRESOLVED",
+          "severity": "BLOCKING_FOR_PRODUCTION",
+          "detail": "The Route-2 inlining note a release consumes must have been produced by that exact release, proven by digest, not by build recipe.",
+          "evidence": "g5_patchability/evidence/predictor_falsification.txt"
+        },
+        {
+          "source": "g8_prerequisite",
+          "id": "COST_FIGURES_DO_NOT_EXTRAPOLATE",
+          "category": "CARRY_FORWARD",
+          "severity": "DESIGN_CONSTRAINT",
+          "detail": "No cost decision may be made from a projection or from fixture-scale measurement; the figure must come from the scale being shipped.",
+          "evidence": "g7_cost/evidence/families.json"
+        },
+        {
+          "source": "g8_prerequisite",
+          "id": "ORDER_DEPENDENCE_IS_A_COST_DIAGNOSTIC_ONLY",
+          "category": "CARRY_FORWARD",
+          "severity": "DESIGN_CONSTRAINT",
+          "detail": "The max(stdev(A), stdev(B)) order-dependence rule may inform cost diagnosis and must not be cited as a safety or causality claim.",
+          "evidence": "g7_cost/evidence/families.json"
+        },
+        {
+          "source": "g8_prerequisite",
+          "id": "MUTABLE_AOT_GATED_ON_SEMANTIC_MAP_FINAL",
+          "category": "CARRY_FORWARD",
+          "severity": "PROCESS_CONSTRAINT",
+          "detail": "No Mutable-AOT implementation work may begin before SEMANTIC-MAP FINAL.",
+          "evidence": "g5_patchability/evidence/subset.json"
+        },
+        {
+          "source": "g8_fail_open",
+          "id": "subset-over-claim-arms",
+          "category": "REPRODUCED",
+          "detail": "the scorer refuses a predicted-patchable declaration that is not demonstrated: one partly stale, one wholly stale, one with no demonstration row",
+          "evidence": "g5_patchability/evidence/subset_check.txt"
+        },
+        {
+          "source": "g8_fail_open",
+          "id": "corpora-over-claim-marker",
+          "category": "REPRODUCED",
+          "detail": "an injected admitted row is refused on each real corpus",
+          "evidence": "g5_patchability/evidence/corpora.txt"
+        },
+        {
+          "source": "g8_fail_open",
+          "id": "reader-control-defects",
+          "category": "REPRODUCED",
+          "detail": "both weakened readers fail the arms, so the suite is not vacuous",
+          "evidence": "g5_patchability/evidence/reader_falsification.txt"
+        }
+      ],
+      "evidence_files": [
+        "g8_reproduction/evidence/g8_result.json"
+      ]
+    }
+  },
+  "not_established": [],
+  "access_log": {
+    "g1_identity/evidence/g1_identity.json": {
+      "sha256": "8ffe2d18c684b15ff476257881b481ff406800092c18b704411f86f2ec917841",
+      "bytes": 11061,
+      "read": true
+    },
+    "g2_fingerprints/evidence/g2_fingerprints.json": {
+      "sha256": "e8e479a0c5cc9c6f5e5aada79bf0f23722db4660985119e3fb8bd6cf69811405",
+      "bytes": 19229,
+      "read": true
+    },
+    "g3_privacy/evidence/g3_privacy.json": {
+      "sha256": "870fc92b8e664fd78d2cc86398907e4b8f6eeedcd2792aa4f490c054909f0732",
+      "bytes": 5184,
+      "read": true
+    },
+    "g3_privacy/evidence/falsification.txt": {
+      "sha256": "01fef376ea1139de817c02ac01855ba1b9dcef6b241b8d8794c8980983245dca",
+      "bytes": 5411,
+      "read": true
+    },
+    "g4_retention/evidence/g4_retention.json": {
+      "sha256": "dd9863b89fe33ed688d409ad9beacd0a5e7dd7f4f839b89013b1787bdbf4520d",
+      "bytes": 3212,
+      "read": true
+    },
+    "g5_patchability/evidence/subset.json": {
+      "sha256": "21b644dcd142f3e9c61de36805dd7b9194cf1d8c0d3419c0b4c3e33cde3dec7c",
+      "bytes": 1897,
+      "read": true
+    },
+    "g5_patchability/evidence/inlining_state.json": {
+      "sha256": "8e97a2d235486e855be0dfebd5d532744354c1e1ed4fede9408fe413ca48501a",
+      "bytes": 15843,
+      "read": true
+    },
+    "g5_patchability/evidence/subset_check.txt": {
+      "sha256": "c33c332441828b6838916926d39541c835d5f18e42069df81c638dd65bc12012",
+      "bytes": 8593,
+      "read": true
+    },
+    "g5_patchability/evidence/corpora.txt": {
+      "sha256": "e866a73f53a7d1605bc02c8887b2563eb076630c50e55eff94f0afca5164c605",
+      "bytes": 8524,
+      "read": true
+    },
+    "g6_binding/evidence/verify_probe.json": {
+      "sha256": "9404d39d1a6200f547290245dc8a2713dd02614855f60b89c612fccfda5509e8",
+      "bytes": 327,
+      "read": true
+    },
+    "g6_binding/evidence/map_probe.json": {
+      "sha256": "53b1357b605ace0a685b75862a4e511796c356c30a5faeacd3fc3f8aaaeb4fdf",
+      "bytes": 11543,
+      "read": true
+    },
+    "g6_binding/evidence/g6_binding.txt": {
+      "sha256": "ed0aeaf37bbb6aefaf09915d780d650bb0f7e7c95449f2fc77564d748c9e83f5",
+      "bytes": 9196,
+      "read": true
+    },
+    "g7_cost/evidence/families.json": {
+      "sha256": "b948bd1f896e824af1daf2fc4409a5e7f8422abe616019e045603f84679eda7f",
+      "bytes": 15231,
+      "read": true
+    },
+    "g8_reproduction/evidence/g8_result.json": {
+      "sha256": "6cc01362b2175504e2e5b8ce61cfbf748fedb513a47b9a4b00802861b71ae8c2",
+      "bytes": 11359,
+      "read": true
+    }
+  }
+}

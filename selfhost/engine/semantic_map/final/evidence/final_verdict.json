@@ -1,0 +1,129 @@
+{
+  "schema": "semantic-map-1/final-verdict/1",
+  "gate": "SM1-FINAL",
+  "issue": 58,
+  "tracker": 48,
+  "generated": "2026-09-09T06:03:27Z",
+  "allowed_verdicts": [
+    "PROCEED",
+    "MODIFY_ANALYZER",
+    "MODIFY_MAP_DESIGN",
+    "REDUCE_SCOPE",
+    "ABANDON_OR_REDESIGN"
+  ],
+  "verdict": "MODIFY_MAP_DESIGN",
+  "selected_by_predicate": "DISTINCTION_NOT_REPRESENTABLE",
+  "precedence_applied": "#58's literal order: PROCEED, MODIFY_ANALYZER, MODIFY_MAP_DESIGN, REDUCE_SCOPE, ABANDON_OR_REDESIGN\"",
+  "ladder_trace": [
+    {
+      "verdict": "PROCEED",
+      "predicate": "PROCEED_CONDITIONS_MET",
+      "value": false,
+      "selected": false
+    },
+    {
+      "verdict": "MODIFY_ANALYZER",
+      "predicate": "ANALYZER_DEFECT_ATTRIBUTED_BY_EVIDENCE",
+      "value": false,
+      "selected": false
+    },
+    {
+      "verdict": "MODIFY_MAP_DESIGN",
+      "predicate": "DISTINCTION_NOT_REPRESENTABLE",
+      "value": true,
+      "selected": true
+    },
+    {
+      "verdict": "REDUCE_SCOPE",
+      "predicate": "DECIDABLE_EXCLUSION_YIELDS_NONEMPTY",
+      "value": false,
+      "selected": false
+    },
+    {
+      "verdict": "ABANDON_OR_REDESIGN",
+      "predicate": "UNSAFE_CLASS_NOT_IDENTIFIABLE",
+      "value": false,
+      "selected": false
+    }
+  ],
+  "predicates": {
+    "EVERY_REQUIRED_ROW_POSITIVE": {
+      "value": false,
+      "from": "rows not in a positive category: ['RETENTION_CONTRACT', 'RETENTION_WITHHELD_FAILS_CLOSED', 'PATCHABILITY_SUBSET_PROPERTY']"
+    },
+    "PATCHABILITY_POSITIVELY_ESTABLISHED": {
+      "value": false,
+      "from": "PATCHABILITY_SUBSET_PROPERTY=VACUOUS, admitted=0 of 36"
+    },
+    "SUBSET_PROPERTY_VACUOUS": {
+      "value": true,
+      "from": "the subset property holds only because the admitted set is empty; zero admitted is not positive patchability evidence"
+    },
+    "UNSAFE_CLASS_MECHANICALLY_ACCOUNTED": {
+      "value": true,
+      "from": "reader accounting 36 of 36 declarations; every declaration reaches a named state, so an empty admitted set is a decision rather than a coverage hole"
+    },
+    "REFUSAL_PATH_ENFORCED": {
+      "value": true,
+      "from": "OVER_CLAIM=REFUSAL_ENFORCED"
+    },
+    "BLOCKING_PREREQUISITES_UNRESOLVED": {
+      "value": true,
+      "from": "unresolved BLOCKING_FOR_PRODUCTION prerequisites: ['NON_STATIC_DISPATCH_PATCHABILITY', 'POST_HOC_REDIRECTABILITY_UNDECIDABLE', 'INLINING_EVIDENCE_MUST_COME_FROM_THE_SHIPPED_RELEASE']"
+    },
+    "ANALYZER_DEFECT_ATTRIBUTED_BY_EVIDENCE": {
+      "value": false,
+      "from": "gap entries attributing a shortfall to a tool or analyzer defect: none"
+    },
+    "MODEL_ROWS_ALL_ESTABLISHED": {
+      "value": true,
+      "from": "DECLARATION_ID_STABILITY=ESTABLISHED; DECLARATION_ID_COLLISIONS=ESTABLISHED; ABI_FINGERPRINT=ESTABLISHED; BODY_FINGERPRINT=ESTABLISHED; CLASSIFICATION_UNCHANGED=ESTABLISHED; CLASSIFICATION_CHANGED_BODY=ESTABLISHED; CLASSIFICATION_ABI_BREAK=ESTABLISHED"
+    },
+    "RETENTION_WITHHELD_MEASURED_NOT_FAILING_CLOSED": {
+      "value": true,
+      "from": "RETENTION_WITHHELD_FAILS_CLOSED=ESTABLISHED_NEGATIVE"
+    },
+    "DISTINCTION_NOT_REPRESENTABLE": {
+      "value": true,
+      "from": "SUBSET_PROPERTY_VACUOUS and UNSAFE_CLASS_MECHANICALLY_ACCOUNTED and BLOCKING_PREREQUISITES_UNRESOLVED"
+    },
+    "DECIDABLE_EXCLUSION_YIELDS_NONEMPTY": {
+      "value": false,
+      "from": "a non-empty admitted set after exclusion: admitted=0"
+    },
+    "UNSAFE_CLASS_NOT_IDENTIFIABLE": {
+      "value": false,
+      "from": "the negation of UNSAFE_CLASS_MECHANICALLY_ACCOUNTED"
+    },
+    "PROCEED_CONDITIONS_MET": {
+      "value": false,
+      "from": "every required row positive, patchability positively established, refusals enforced, no blocking prerequisite open"
+    }
+  },
+  "rows_not_established": [],
+  "rows_not_positive": [
+    "RETENTION_CONTRACT",
+    "RETENTION_WITHHELD_FAILS_CLOSED",
+    "PATCHABILITY_SUBSET_PROPERTY"
+  ],
+  "blocking_prerequisites": [
+    "NON_STATIC_DISPATCH_PATCHABILITY",
+    "POST_HOC_REDIRECTABILITY_UNDECIDABLE",
+    "INLINING_EVIDENCE_MUST_COME_FROM_THE_SHIPPED_RELEASE"
+  ],
+  "next_lane": [
+    "The map cannot decide patchability by inference from a finished AOT, so patchability has to become a BUILD-TIME guarantee rather than a post-hoc classification. #59 (Mutable AOT Dart) is the accepted direction for that and may be named here; no implementation begins in #58.",
+    "AOT-ASSUMPTIONS-1 owns the optimizer-contract half and is still un-instrumented; it was deliberately not started here.",
+    "RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE: withholding some retention classes does not fail closed at load. That is independent of the patchability question and needs its own lane before any map is relied on.",
+    "Generation-time figures are current-run observations. Any schedule or budget derived from them needs a repeated measurement at the scale being shipped, not this sample."
+  ],
+  "non_proven_claims": [
+    "No declaration was mechanically established safely patchable. The subset property is VACUOUS with 0 of 36 admitted.",
+    "NOT_INLINED means no covered body-copy mechanism was witnessed. It does not mean every call site observes a patch: the isolated experiment attached a patch whose direct call read PATCHED-w while the virtual call still read OLD-w.",
+    "Pool-indirect and entry-point observations are non-safety facts. Tagged offsets alias between the Function and Code layouts, so redirectability is not decidable from a finished snapshot.",
+    "REPRODUCTION: PASS states that the evidence and its refusals rebuild. It is not a statement of production readiness; PRODUCTION_PREREQUISITES is a separate partition and remains UNRESOLVED.",
+    "The full AOT SHA-256 is the authoritative release identity. The GNU build ID is diagnostic only -- build ids hash four snapshot segments and collide across different AOTs.",
+    "Timing figures and the order-dependence label set are current-run observations. The max(stdev) classifier is a cost diagnostic, not causality or safety evidence.",
+    "G4's retention curve understates measured cost at scale, so the projection may not be substituted for a measurement."
+  ]
+}
