@@ -3,7 +3,7 @@
   "gate": "SM1-FINAL",
   "issue": 58,
   "tracker": 48,
-  "generated": "2026-09-09T07:21:55Z",
+  "generated": "2026-09-09T07:25:52Z",
   "input_set_derived_from": "the extractor access log, cross-checked against the registry",
   "self_hashing": "none: this manifest, RESULT.md, the matrix and the verdict are OUTPUTS of this assembly and are listed by name only. A manifest that digested itself would never converge -- G5 hit exactly that and a second run never reproduced the first.",
   "outputs_not_digested": [
@@ -232,10 +232,10 @@
     "g8_reproduction/lib/snapshot_digests.py": "a5495c6f2024182231bb4e72cdcbadca2d04c9a2cf671a2da297b6d9cef48858"
   },
   "assembler": {
-    "final/evidence_registry.json": "f0e2c3ceab6a597711c8b873541b1c07f7b8b316cb0e3c39bf4f230f3c22d2d9",
+    "final/evidence_registry.json": "0d7180671970e009ae74eba6c845bd1ed3721a579f70546cb28b8cebdcfb0c95",
     "final/lib/_check_predicates.py": "a6f52b568f443e3eb6e15bfa42b716aef27eda6d721a99fe739b9e9525bf110f",
     "final/lib/build_manifest.py": "2bfd1e6b7aaa29676cd575abcfa8e913a2753d37edcf2702dce6a913dba71946",
-    "final/lib/compute_verdict.py": "aba1d970703cbded300165a4c2fe8cbd7e159fe22fc68b1a6684f6f0b954cd9b",
+    "final/lib/compute_verdict.py": "834126bfa438fee527211c5dd48b1a90b35cca21dae2992925c8723656e5d2d4",
     "final/lib/extract_matrix.py": "ead3d2b55ca6147f8e8d0bffe3c00af8deeed3d4e2bc4d07c81b3a6c559cab77",
     "final/lib/falsify_final.py": "330fd43948dc153a2582172c4f56d36d6522bf4135fc0bd5bd2fdd5ea0c93d4c",
     "final/lib/gen_result.py": "b3e8fcfd0999351d714bb36f309503149100422da3393d0348f41e50277705c6",

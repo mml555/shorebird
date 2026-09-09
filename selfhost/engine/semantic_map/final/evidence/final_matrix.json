@@ -3,10 +3,10 @@
   "gate": "SM1-FINAL",
   "issue": 58,
   "tracker": 48,
-  "generated": "2026-09-09T07:21:55Z",
+  "generated": "2026-09-09T07:25:52Z",
   "registry": {
     "path": "final/evidence_registry.json",
-    "sha256": "f0e2c3ceab6a597711c8b873541b1c07f7b8b316cb0e3c39bf4f230f3c22d2d9",
+    "sha256": "0d7180671970e009ae74eba6c845bd1ed3721a579f70546cb28b8cebdcfb0c95",
     "rows_declared": 22
   },
   "category_vocabulary": {
@@ -278,7 +278,7 @@
     "RETENTION_FAIL_OPEN_ROOT_CAUSE": {
       "category": "RECONCILED_TO_CARRIED_CONSTRAINT",
       "question": "Is the retention fail-open an independent SEMANTIC-MAP-1 finding, or the same defect SEMANTIC-LINKER-1 already diagnosed and carried forward?",
-      "note": "Not an independent finding. Every retention class that fails open at load has cause DYNAMIC_INTERFACE_POLICY, and the one that fails CLOSED (callable) has a different cause (IMPORT_RESOLUTION) -- so the split follows the mechanism, not the class. SL1-G6A recorded the matching negatives under the same category, SL1-G6C named the root cause as MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION and left it BLOCKING_FOR_PRODUCTION, and SL1-FINAL carried it into this lane as a mandatory constraint. The mechanism: KernelTarget.validateDynamicModule runs only when the CFE is given dynamicInterfaceSpecificationUri while compiling the MODULE; dart2bytecode has no such option, and gen_kernel consumes --dynamic-interface on the HOST compile, where it annotates rather than validates. Routing must name that constraint, not open a new lane.",
+      "note": "Not an independent finding. Every retention class that fails open at load has cause DYNAMIC_INTERFACE_POLICY, and the one that fails CLOSED (callable) has a different cause (IMPORT_RESOLUTION) -- so the split follows the mechanism, not the class. SL1-G6A recorded the matching negatives under the same category, SL1-G6C named the root cause MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION and left it BLOCKING_FOR_PRODUCTION, and SL1-FINAL carried it into this lane as a mandatory constraint. MECHANISM CORRECTED AGAINST THE FROZEN SOURCE: SL1-G6C states that \"dart2bytecode has no such option\". It does. `--validate <dynamic_interface.yaml>` is registered at pkg/dart2bytecode/lib/dart2bytecode.dart:131 and assigns dynamicInterfaceSpecificationUri at :291, in the frozen effective tree 7b04b01b AND in the DEPS-pinned upstream base d684a576 -- upstream since c409e77d1e6 (2024-10-24). What is true is that KernelTarget.validateDynamicModule (kernel_target.dart:1815) early-returns unless that URI is set, and Route B's own pipeline never passes the flag (build_4a_payload.sh:34, build_4b_artifact.sh:96). So SL1's CONCLUSION stands -- validation does not run -- while its premise does not. The consequence for routing is large: the fix is passing an existing upstream flag in our own build scripts, not adding a compiler option. WHETHER PASSING IT ACTUALLY CLOSES THE THREE NEGATIVES IS UNTESTED and is the next experiment, not a claim made here.",
       "rule_matched": 0,
       "probe_values": {
         "g4_fail_open_classes": 2,

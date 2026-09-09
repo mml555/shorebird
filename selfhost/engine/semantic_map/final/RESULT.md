@@ -6,7 +6,7 @@
      file creates a second copy of the numbers, free to drift from the
      evidence -- which already happened in this programme once. -->
 
-Generated 2026-09-09T07:21:55Z · issue #58 · tracker #48
+Generated 2026-09-09T07:25:52Z · issue #58 · tracker #48
 
 ## Verdict
 
@@ -125,7 +125,7 @@ Deterministic and timing families are kept separate. The deterministic figures a
 
 - The map cannot decide patchability by inference from a finished AOT, so patchability has to become a BUILD-TIME guarantee rather than a post-hoc classification. #59 (Mutable AOT Dart) is the accepted direction for that and may be named here; no implementation begins in #58.
 - AOT-ASSUMPTIONS-1 owns the optimizer-contract half and is still un-instrumented; it was deliberately not started here.
-- RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE, and it is NOT a new finding: every class that fails open has cause DYNAMIC_INTERFACE_POLICY, while the one that fails closed (callable) has a different cause. SL1-G6C named the root cause MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION and left it BLOCKING_FOR_PRODUCTION; SL1-FINAL carried "module-side dynamic-interface validation must become fail-closed" into this lane as a mandatory constraint. The next lane is that named fix -- give the CFE dynamicInterfaceSpecificationUri when compiling the MODULE -- not a new investigation. It is independent of the patchability question and must close before any map is relied on.
+- RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE, and it is NOT a new finding: every class that fails open has cause DYNAMIC_INTERFACE_POLICY, while the one that fails closed (callable) has a different cause. SL1-G6C named the root cause MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION and left it BLOCKING_FOR_PRODUCTION; SL1-FINAL carried "module-side dynamic-interface validation must become fail-closed" into this lane as a mandatory constraint. SL1's premise that "dart2bytecode has no such option" does not hold against the frozen source: --validate <dynamic_interface.yaml> is registered at pkg/dart2bytecode/lib/dart2bytecode.dart:131 and assigns dynamicInterfaceSpecificationUri at :291, upstream since 2024-10-24 and present in the DEPS-pinned base. Its CONCLUSION stands: KernelTarget.validateDynamicModule (kernel_target.dart:1815) early-returns unless that URI is set, and Route B's pipeline never passes the flag (build_4a_payload.sh:34, build_4b_artifact.sh:96). The next lane is therefore a change to our own build scripts, not a compiler option -- but whether passing it closes the three negatives is UNTESTED and is that lane's first experiment. Independent of the patchability question; must close before any map is relied on.
 - Generation-time figures are current-run observations. Any schedule or budget derived from them needs a repeated measurement at the scale being shipped, not this sample.
 
 ## Provenance

@@ -320,10 +320,20 @@ if P['RETENTION_WITHHELD_MEASURED_NOT_FAILING_CLOSED']['value']:
             'MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION and left it '
             'BLOCKING_FOR_PRODUCTION; SL1-FINAL carried "module-side '
             'dynamic-interface validation must become fail-closed" into this '
-            'lane as a mandatory constraint. The next lane is that named fix '
-            '-- give the CFE dynamicInterfaceSpecificationUri when compiling '
-            'the MODULE -- not a new investigation. It is independent of the '
-            'patchability question and must close before any map is relied '
+            'lane as a mandatory constraint. SL1\'s premise that '
+            '"dart2bytecode has no such option" does not hold against the '
+            'frozen source: --validate <dynamic_interface.yaml> is registered '
+            'at pkg/dart2bytecode/lib/dart2bytecode.dart:131 and assigns '
+            'dynamicInterfaceSpecificationUri at :291, upstream since '
+            '2024-10-24 and present in the DEPS-pinned base. Its CONCLUSION '
+            'stands: KernelTarget.validateDynamicModule '
+            '(kernel_target.dart:1815) early-returns unless that URI is set, '
+            "and Route B's pipeline never passes the flag "
+            '(build_4a_payload.sh:34, build_4b_artifact.sh:96). The next lane '
+            'is therefore a change to our own build scripts, not a compiler '
+            'option -- but whether passing it closes the three negatives is '
+            'UNTESTED and is that lane\'s first experiment. Independent of '
+            'the patchability question; must close before any map is relied '
             'on.')
     else:
         routing.append(
