@@ -19,122 +19,122 @@
       "per_stage": {
         "base_gen_kernel": {
           "n": 6,
-          "min_ms": 15646.0,
-          "median_ms": 16371.5,
-          "max_ms": 18077.3,
-          "mean_ms": 16680.4,
-          "stdev_ms": 1075.8
+          "min_ms": 15447.0,
+          "median_ms": 15638.4,
+          "max_ms": 15683.0,
+          "mean_ms": 15613.7,
+          "stdev_ms": 87.4
         },
         "base_gen_snapshot": {
           "n": 6,
-          "min_ms": 13371.3,
-          "median_ms": 13906.4,
-          "max_ms": 18086.3,
-          "mean_ms": 14521.5,
-          "stdev_ms": 1790.3
+          "min_ms": 13171.7,
+          "median_ms": 13265.6,
+          "max_ms": 13432.4,
+          "mean_ms": 13277.9,
+          "stdev_ms": 86.7
         },
         "map_bound": {
           "n": 6,
-          "min_ms": 558.4,
-          "median_ms": 590.6,
-          "max_ms": 804.9,
-          "mean_ms": 626.3,
-          "stdev_ms": 90.2
+          "min_ms": 556.5,
+          "median_ms": 560.7,
+          "max_ms": 574.6,
+          "mean_ms": 562.2,
+          "stdev_ms": 6.4
         },
         "map_contract": {
           "n": 6,
-          "min_ms": 1738.3,
-          "median_ms": 1776.0,
-          "max_ms": 2169.5,
-          "mean_ms": 1851.5,
-          "stdev_ms": 166.1
+          "min_ms": 1732.8,
+          "median_ms": 1749.3,
+          "max_ms": 1821.6,
+          "mean_ms": 1759.3,
+          "stdev_ms": 31.9
         },
         "map_g1": {
           "n": 6,
-          "min_ms": 3127.8,
-          "median_ms": 3670.3,
-          "max_ms": 3842.0,
-          "mean_ms": 3547.8,
-          "stdev_ms": 313.4
+          "min_ms": 3089.1,
+          "median_ms": 3135.7,
+          "max_ms": 3214.8,
+          "mean_ms": 3140.8,
+          "stdev_ms": 43.3
         },
         "map_g3": {
           "n": 6,
-          "min_ms": 2878.9,
-          "median_ms": 2988.2,
-          "max_ms": 3386.4,
-          "mean_ms": 3069.7,
-          "stdev_ms": 204.4
+          "min_ms": 2789.5,
+          "median_ms": 2826.4,
+          "max_ms": 2894.9,
+          "mean_ms": 2829.2,
+          "stdev_ms": 36.7
         },
         "map_g4": {
           "n": 6,
-          "min_ms": 1559.8,
-          "median_ms": 1611.7,
-          "max_ms": 2186.3,
-          "mean_ms": 1720.4,
-          "stdev_ms": 243.6
+          "min_ms": 1517.1,
+          "median_ms": 1553.0,
+          "max_ms": 1556.1,
+          "mean_ms": 1546.2,
+          "stdev_ms": 14.8
         },
         "map_reader": {
           "n": 6,
-          "min_ms": 1511.7,
-          "median_ms": 1566.2,
-          "max_ms": 1987.6,
-          "mean_ms": 1627.8,
-          "stdev_ms": 178.9
+          "min_ms": 1481.6,
+          "median_ms": 1504.8,
+          "max_ms": 1534.2,
+          "mean_ms": 1505.4,
+          "stdev_ms": 19.8
         },
         "map_refs": {
           "n": 6,
-          "min_ms": 1401.7,
-          "median_ms": 1416.1,
-          "max_ms": 1518.7,
-          "mean_ms": 1444.6,
-          "stdev_ms": 54.2
+          "min_ms": 1370.4,
+          "median_ms": 1393.6,
+          "max_ms": 1407.8,
+          "mean_ms": 1392.4,
+          "stdev_ms": 13.1
         },
         "ret_aot_noret": {
           "n": 1,
-          "min_ms": 14586.8,
-          "median_ms": 14586.8,
-          "max_ms": 14586.8,
-          "mean_ms": 14586.8,
+          "min_ms": 13477.9,
+          "median_ms": 13477.9,
+          "max_ms": 13477.9,
+          "mean_ms": 13477.9,
           "stdev_ms": 0.0
         },
         "ret_aot_ret": {
           "n": 1,
-          "min_ms": 15220.5,
-          "median_ms": 15220.5,
-          "max_ms": 15220.5,
-          "mean_ms": 15220.5,
+          "min_ms": 14866.4,
+          "median_ms": 14866.4,
+          "max_ms": 14866.4,
+          "mean_ms": 14866.4,
           "stdev_ms": 0.0
         },
         "ret_interface": {
           "n": 1,
-          "min_ms": 2059.1,
-          "median_ms": 2059.1,
-          "max_ms": 2059.1,
-          "mean_ms": 2059.1,
+          "min_ms": 1269.5,
+          "median_ms": 1269.5,
+          "max_ms": 1269.5,
+          "mean_ms": 1269.5,
           "stdev_ms": 0.0
         },
         "ret_kernel_noret": {
           "n": 1,
-          "min_ms": 17674.1,
-          "median_ms": 17674.1,
-          "max_ms": 17674.1,
-          "mean_ms": 17674.1,
+          "min_ms": 15643.7,
+          "median_ms": 15643.7,
+          "max_ms": 15643.7,
+          "mean_ms": 15643.7,
           "stdev_ms": 0.0
         },
         "ret_kernel_pre": {
           "n": 1,
-          "min_ms": 10218.8,
-          "median_ms": 10218.8,
-          "max_ms": 10218.8,
-          "mean_ms": 10218.8,
+          "min_ms": 8803.3,
+          "median_ms": 8803.3,
+          "max_ms": 8803.3,
+          "mean_ms": 8803.3,
           "stdev_ms": 0.0
         },
         "ret_kernel_ret": {
           "n": 1,
-          "min_ms": 22333.4,
-          "median_ms": 22333.4,
-          "max_ms": 22333.4,
-          "mean_ms": 22333.4,
+          "min_ms": 16489.3,
+          "median_ms": 16489.3,
+          "max_ms": 16489.3,
+          "mean_ms": 16489.3,
           "stdev_ms": 0.0
         }
       },
@@ -142,163 +142,163 @@
         "base_gen_kernel": {
           "base_first": {
             "n": 3,
-            "min_ms": 15762.8,
-            "median_ms": 15948.9,
-            "max_ms": 16794.2,
-            "mean_ms": 16168.6,
-            "stdev_ms": 549.7
+            "min_ms": 15599.8,
+            "median_ms": 15625.0,
+            "max_ms": 15651.8,
+            "mean_ms": 15625.5,
+            "stdev_ms": 26.0
           },
           "map_first": {
             "n": 3,
-            "min_ms": 15646.0,
-            "median_ms": 17853.2,
-            "max_ms": 18077.3,
-            "mean_ms": 17192.2,
-            "stdev_ms": 1343.7
+            "min_ms": 15447.0,
+            "median_ms": 15675.6,
+            "max_ms": 15683.0,
+            "mean_ms": 15601.9,
+            "stdev_ms": 134.2
           }
         },
         "base_gen_snapshot": {
           "base_first": {
             "n": 3,
-            "min_ms": 13516.5,
-            "median_ms": 13593.0,
-            "max_ms": 14219.8,
-            "mean_ms": 13776.4,
-            "stdev_ms": 385.9
+            "min_ms": 13171.7,
+            "median_ms": 13238.0,
+            "max_ms": 13432.4,
+            "mean_ms": 13280.7,
+            "stdev_ms": 135.5
           },
           "map_first": {
             "n": 3,
-            "min_ms": 13371.3,
-            "median_ms": 14341.8,
-            "max_ms": 18086.3,
-            "mean_ms": 15266.5,
-            "stdev_ms": 2489.8
+            "min_ms": 13252.8,
+            "median_ms": 13278.4,
+            "max_ms": 13293.8,
+            "mean_ms": 13275.0,
+            "stdev_ms": 20.7
           }
         },
         "map_bound": {
           "base_first": {
             "n": 3,
-            "min_ms": 558.4,
-            "median_ms": 587.9,
-            "max_ms": 593.4,
-            "mean_ms": 579.9,
-            "stdev_ms": 18.8
+            "min_ms": 556.5,
+            "median_ms": 561.2,
+            "max_ms": 574.6,
+            "mean_ms": 564.1,
+            "stdev_ms": 9.4
           },
           "map_first": {
             "n": 3,
-            "min_ms": 586.2,
-            "median_ms": 627.2,
-            "max_ms": 804.9,
-            "mean_ms": 672.8,
-            "stdev_ms": 116.2
+            "min_ms": 558.3,
+            "median_ms": 560.1,
+            "max_ms": 562.7,
+            "mean_ms": 560.4,
+            "stdev_ms": 2.2
           }
         },
         "map_contract": {
           "base_first": {
             "n": 3,
-            "min_ms": 1738.3,
-            "median_ms": 1761.4,
-            "max_ms": 1790.5,
-            "mean_ms": 1763.4,
-            "stdev_ms": 26.2
+            "min_ms": 1732.8,
+            "median_ms": 1747.5,
+            "max_ms": 1760.9,
+            "mean_ms": 1747.1,
+            "stdev_ms": 14.0
           },
           "map_first": {
             "n": 3,
-            "min_ms": 1751.5,
-            "median_ms": 1897.8,
-            "max_ms": 2169.5,
-            "mean_ms": 1939.6,
-            "stdev_ms": 212.1
+            "min_ms": 1741.8,
+            "median_ms": 1751.1,
+            "max_ms": 1821.6,
+            "mean_ms": 1771.5,
+            "stdev_ms": 43.6
           }
         },
         "map_g1": {
           "base_first": {
             "n": 3,
-            "min_ms": 3185.6,
-            "median_ms": 3607.2,
-            "max_ms": 3733.4,
-            "mean_ms": 3508.7,
-            "stdev_ms": 286.9
+            "min_ms": 3089.1,
+            "median_ms": 3140.7,
+            "max_ms": 3157.8,
+            "mean_ms": 3129.2,
+            "stdev_ms": 35.7
           },
           "map_first": {
             "n": 3,
-            "min_ms": 3127.8,
-            "median_ms": 3790.6,
-            "max_ms": 3842.0,
-            "mean_ms": 3586.8,
-            "stdev_ms": 398.3
+            "min_ms": 3112.0,
+            "median_ms": 3130.6,
+            "max_ms": 3214.8,
+            "mean_ms": 3152.5,
+            "stdev_ms": 54.8
           }
         },
         "map_g3": {
           "base_first": {
             "n": 3,
-            "min_ms": 2878.9,
-            "median_ms": 2927.5,
-            "max_ms": 3045.8,
-            "mean_ms": 2950.7,
-            "stdev_ms": 85.8
+            "min_ms": 2789.5,
+            "median_ms": 2836.5,
+            "max_ms": 2894.9,
+            "mean_ms": 2840.3,
+            "stdev_ms": 52.8
           },
           "map_first": {
             "n": 3,
-            "min_ms": 2930.6,
-            "median_ms": 3248.9,
-            "max_ms": 3386.4,
-            "mean_ms": 3188.6,
-            "stdev_ms": 233.8
+            "min_ms": 2801.4,
+            "median_ms": 2823.6,
+            "max_ms": 2829.2,
+            "mean_ms": 2818.1,
+            "stdev_ms": 14.7
           }
         },
         "map_g4": {
           "base_first": {
             "n": 3,
-            "min_ms": 1559.8,
-            "median_ms": 1563.9,
-            "max_ms": 1589.7,
-            "mean_ms": 1571.1,
-            "stdev_ms": 16.2
+            "min_ms": 1517.1,
+            "median_ms": 1553.3,
+            "max_ms": 1554.0,
+            "mean_ms": 1541.5,
+            "stdev_ms": 21.1
           },
           "map_first": {
             "n": 3,
-            "min_ms": 1633.6,
-            "median_ms": 1789.4,
-            "max_ms": 2186.3,
-            "mean_ms": 1869.8,
-            "stdev_ms": 285.0
+            "min_ms": 1544.1,
+            "median_ms": 1552.7,
+            "max_ms": 1556.1,
+            "mean_ms": 1551.0,
+            "stdev_ms": 6.2
           }
         },
         "map_reader": {
           "base_first": {
             "n": 3,
-            "min_ms": 1511.7,
-            "median_ms": 1542.2,
-            "max_ms": 1544.6,
-            "mean_ms": 1532.8,
-            "stdev_ms": 18.4
+            "min_ms": 1487.2,
+            "median_ms": 1508.3,
+            "max_ms": 1519.6,
+            "mean_ms": 1505.0,
+            "stdev_ms": 16.4
           },
           "map_first": {
             "n": 3,
-            "min_ms": 1587.8,
-            "median_ms": 1593.1,
-            "max_ms": 1987.6,
-            "mean_ms": 1722.8,
-            "stdev_ms": 229.3
+            "min_ms": 1481.6,
+            "median_ms": 1501.4,
+            "max_ms": 1534.2,
+            "mean_ms": 1505.7,
+            "stdev_ms": 26.6
           }
         },
         "map_refs": {
           "base_first": {
             "n": 3,
-            "min_ms": 1405.7,
-            "median_ms": 1415.6,
-            "max_ms": 1416.6,
-            "mean_ms": 1412.6,
-            "stdev_ms": 6.0
+            "min_ms": 1370.4,
+            "median_ms": 1392.3,
+            "max_ms": 1407.8,
+            "mean_ms": 1390.2,
+            "stdev_ms": 18.8
           },
           "map_first": {
             "n": 3,
-            "min_ms": 1401.7,
-            "median_ms": 1509.4,
-            "max_ms": 1518.7,
-            "mean_ms": 1476.6,
-            "stdev_ms": 65.0
+            "min_ms": 1386.6,
+            "median_ms": 1394.8,
+            "max_ms": 1402.2,
+            "mean_ms": 1394.5,
+            "stdev_ms": 7.8
           }
         },
         "ret_aot_noret": {
@@ -413,19 +413,19 @@
       "map_total_ms": {
         "base_first": {
           "n": 3,
-          "min_ms": 12960.0,
-          "median_ms": 13341.6,
-          "max_ms": 13656.3,
-          "mean_ms": 13319.3,
-          "stdev_ms": 348.6
+          "min_ms": 12547.5,
+          "median_ms": 12764.6,
+          "max_ms": 12840.2,
+          "mean_ms": 12717.4,
+          "stdev_ms": 151.9
         },
         "map_first": {
           "n": 3,
-          "min_ms": 13175.1,
-          "median_ms": 14309.8,
-          "max_ms": 15886.0,
-          "mean_ms": 14457.0,
-          "stdev_ms": 1361.4
+          "min_ms": 12653.4,
+          "median_ms": 12770.6,
+          "max_ms": 12836.9,
+          "mean_ms": 12753.6,
+          "stdev_ms": 93.0
         }
       }
     },
@@ -433,40 +433,40 @@
       "base_total_ms": {
         "base_first": {
           "n": 3,
-          "min_ms": 29279.2,
-          "median_ms": 30168.7,
-          "max_ms": 30387.2,
-          "mean_ms": 29945.0,
-          "stdev_ms": 586.9
+          "min_ms": 28771.5,
+          "median_ms": 28889.8,
+          "max_ms": 29057.4,
+          "mean_ms": 28906.2,
+          "stdev_ms": 143.6
         },
         "map_first": {
           "n": 3,
-          "min_ms": 29017.3,
-          "median_ms": 32419.1,
-          "max_ms": 35939.5,
-          "mean_ms": 32458.6,
-          "stdev_ms": 3461.3
+          "min_ms": 28725.4,
+          "median_ms": 28928.4,
+          "max_ms": 28976.8,
+          "mean_ms": 28876.9,
+          "stdev_ms": 133.4
         }
       },
       "map_total_ms": {
         "base_first": {
           "n": 3,
-          "min_ms": 12960.0,
-          "median_ms": 13341.6,
-          "max_ms": 13656.3,
-          "mean_ms": 13319.3,
-          "stdev_ms": 348.6
+          "min_ms": 12547.5,
+          "median_ms": 12764.6,
+          "max_ms": 12840.2,
+          "mean_ms": 12717.4,
+          "stdev_ms": 151.9
         },
         "map_first": {
           "n": 3,
-          "min_ms": 13175.1,
-          "median_ms": 14309.8,
-          "max_ms": 15886.0,
-          "mean_ms": 14457.0,
-          "stdev_ms": 1361.4
+          "min_ms": 12653.4,
+          "median_ms": 12770.6,
+          "max_ms": 12836.9,
+          "mean_ms": 12753.6,
+          "stdev_ms": 93.0
         }
       },
-      "added_pct_median": 44.6
+      "added_pct_median": 44.2
     },
     "retention_cost_at_scale": {
       "aot_without_retention_bytes": 49662560,
@@ -487,110 +487,105 @@
   "order_dependence": {
     "base_gen_kernel": {
       "decidable": true,
-      "base_first_median_ms": 15948.9,
-      "map_first_median_ms": 17853.2,
-      "ratio": 1.119,
-      "gap_ms": 1904.3,
-      "within_order_spread_ms": 1343.7,
-      "exceeds_10pct": true,
-      "exceeds_noise_floor": true,
-      "order_dependent": true
+      "base_first_median_ms": 15625.0,
+      "map_first_median_ms": 15675.6,
+      "ratio": 1.003,
+      "gap_ms": 50.6,
+      "within_order_spread_ms": 134.2,
+      "exceeds_10pct": false,
+      "exceeds_noise_floor": false,
+      "order_dependent": false
     },
     "base_gen_snapshot": {
       "decidable": true,
-      "base_first_median_ms": 13593.0,
-      "map_first_median_ms": 14341.8,
-      "ratio": 1.055,
-      "gap_ms": 748.8,
-      "within_order_spread_ms": 2489.8,
+      "base_first_median_ms": 13238.0,
+      "map_first_median_ms": 13278.4,
+      "ratio": 1.003,
+      "gap_ms": 40.4,
+      "within_order_spread_ms": 135.5,
       "exceeds_10pct": false,
       "exceeds_noise_floor": false,
       "order_dependent": false
     },
     "map_bound": {
       "decidable": true,
-      "base_first_median_ms": 587.9,
-      "map_first_median_ms": 627.2,
-      "ratio": 1.067,
-      "gap_ms": 39.3,
-      "within_order_spread_ms": 116.2,
+      "base_first_median_ms": 561.2,
+      "map_first_median_ms": 560.1,
+      "ratio": 0.998,
+      "gap_ms": 1.1,
+      "within_order_spread_ms": 9.4,
       "exceeds_10pct": false,
       "exceeds_noise_floor": false,
       "order_dependent": false
     },
     "map_contract": {
       "decidable": true,
-      "base_first_median_ms": 1761.4,
-      "map_first_median_ms": 1897.8,
-      "ratio": 1.077,
-      "gap_ms": 136.4,
-      "within_order_spread_ms": 212.1,
+      "base_first_median_ms": 1747.5,
+      "map_first_median_ms": 1751.1,
+      "ratio": 1.002,
+      "gap_ms": 3.6,
+      "within_order_spread_ms": 43.6,
       "exceeds_10pct": false,
       "exceeds_noise_floor": false,
       "order_dependent": false
     },
     "map_g1": {
       "decidable": true,
-      "base_first_median_ms": 3607.2,
-      "map_first_median_ms": 3790.6,
-      "ratio": 1.051,
-      "gap_ms": 183.4,
-      "within_order_spread_ms": 398.3,
+      "base_first_median_ms": 3140.7,
+      "map_first_median_ms": 3130.6,
+      "ratio": 0.997,
+      "gap_ms": 10.1,
+      "within_order_spread_ms": 54.8,
       "exceeds_10pct": false,
       "exceeds_noise_floor": false,
       "order_dependent": false
     },
     "map_g3": {
       "decidable": true,
-      "base_first_median_ms": 2927.5,
-      "map_first_median_ms": 3248.9,
-      "ratio": 1.11,
-      "gap_ms": 321.4,
-      "within_order_spread_ms": 233.8,
-      "exceeds_10pct": true,
-      "exceeds_noise_floor": true,
-      "order_dependent": true
+      "base_first_median_ms": 2836.5,
+      "map_first_median_ms": 2823.6,
+      "ratio": 0.995,
+      "gap_ms": 12.9,
+      "within_order_spread_ms": 52.8,
+      "exceeds_10pct": false,
+      "exceeds_noise_floor": false,
+      "order_dependent": false
     },
     "map_g4": {
       "decidable": true,
-      "base_first_median_ms": 1563.9,
-      "map_first_median_ms": 1789.4,
-      "ratio": 1.144,
-      "gap_ms": 225.5,
-      "within_order_spread_ms": 285.0,
-      "exceeds_10pct": true,
+      "base_first_median_ms": 1553.3,
+      "map_first_median_ms": 1552.7,
+      "ratio": 1.0,
+      "gap_ms": 0.6,
+      "within_order_spread_ms": 21.1,
+      "exceeds_10pct": false,
       "exceeds_noise_floor": false,
       "order_dependent": false
     },
     "map_reader": {
       "decidable": true,
-      "base_first_median_ms": 1542.2,
-      "map_first_median_ms": 1593.1,
-      "ratio": 1.033,
-      "gap_ms": 50.9,
-      "within_order_spread_ms": 229.3,
+      "base_first_median_ms": 1508.3,
+      "map_first_median_ms": 1501.4,
+      "ratio": 0.995,
+      "gap_ms": 6.9,
+      "within_order_spread_ms": 26.6,
       "exceeds_10pct": false,
       "exceeds_noise_floor": false,
       "order_dependent": false
     },
     "map_refs": {
       "decidable": true,
-      "base_first_median_ms": 1415.6,
-      "map_first_median_ms": 1509.4,
-      "ratio": 1.066,
-      "gap_ms": 93.8,
-      "within_order_spread_ms": 65.0,
+      "base_first_median_ms": 1392.3,
+      "map_first_median_ms": 1394.8,
+      "ratio": 1.002,
+      "gap_ms": 2.5,
+      "within_order_spread_ms": 18.8,
       "exceeds_10pct": false,
-      "exceeds_noise_floor": true,
+      "exceeds_noise_floor": false,
       "order_dependent": false
     }
   },
   "order_dependence_scope": "labels sampled in both timed orders; the retention-pair stages run once and are excluded rather than counted as unaffected",
-  "order_dependent_labels": [
-    "base_gen_kernel",
-    "map_g3"
-  ],
-  "exceeds_10pct_but_within_noise": [
-    "map_g4"
-  ]
+  "order_dependent_labels": [],
+  "exceeds_10pct_but_within_noise": []
 }

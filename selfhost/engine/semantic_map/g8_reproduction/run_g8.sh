@@ -149,6 +149,37 @@ for d in $PROD; do
   else echo "  CHANGED    $h  $d"; rc=1; fi
 done >> "$G/evidence/g8_reproduction.txt"
 
+# ---- 7. THE TOP-LEVEL RESULT, IN THE FOUR-PARTITION SHAPE ----------------
+# Emitted last and appended, because it DERIVES from the finished transcript
+# (the product-surface CHANGED lines are written just above) as well as from
+# the structured evidence. #57 requires this shape rather than a pass count:
+# "CLEAN_REPRODUCTION" is readable as "the patchability model is clean", and it
+# is not -- G5 is REDUCE_SCOPE with zero admitted declarations.
+echo >> "$G/evidence/g8_reproduction.txt"
+python3 "$G/lib/emit_result.py" "$SM" "$G/inventory.json" \
+    "$G/evidence/g8_result.json" \
+    "$G/evidence/inventory_check.json" \
+    "$G/evidence/negative_outcomes.json" \
+    "$G/evidence/artifact_digests.json" \
+    "$GATE_STATUS" \
+    "$G/evidence/g8_reproduction.txt" \
+    >> "$G/evidence/g8_reproduction.txt" 2>&1
+RESULT_RC=$?
+
+# ---- 8. THE REPORTING PATH, FALSIFIED IN REPORT-ONLY MODE ---------------
+# The four partitions are this gate's public answer, so they need their own
+# negatives: an emitter that rendered REPRODUCTION: PASS regardless of input
+# would be the most expensive vacuous check in the programme -- it would
+# certify the whole lane. Report-only, per the g6c_harness precedent: each arm
+# mutates one structured input in a scratch COPY and asserts the named
+# partition moves to the named value. No gate is re-run and nothing under
+# evidence/ is touched, so an arm cannot corrupt the bank it reports on.
+{
+echo
+python3 "$G/lib/falsify_result.py" "$SM" "$G" "$W/report_neg"
+} >> "$G/evidence/g8_reproduction.txt" 2>&1
+REPORTNEG_RC=$?
+
 T="$G/evidence/g8_reproduction.txt"
 want 'the probe corpus rebuilds from source' 0 "${PROBE_RC:-1}"
 want 'the rebuilt canonical AOT is the banked one' 1 "$(grep -c '    IDENTICAL' "$T")"
@@ -188,8 +219,60 @@ want 'zero declarations remain admitted' 0 \
 
 # G8's OWN outputs, asserted after the run rather than through the inventory:
 # a checker cannot validate its own transcript while writing it.
+PART=$(python3 -c "
+import json
+d=json.load(open('$G/evidence/g8_result.json'))['result']
+print(' '.join(f'{k}={v}' for k,v in d.items()))" 2>/dev/null || echo unreadable)
+want 'the emitted result carries all four partitions' \
+     'REPRODUCTION FEASIBILITY_EVIDENCE KNOWN_FAIL_OPEN_FINDINGS PRODUCTION_PREREQUISITES' \
+     "$(python3 -c "
+import json
+try: print(' '.join(json.load(open('$G/evidence/g8_result.json'))['result']))
+except Exception: print('unreadable')" )"
+# Checked against the emitted JSON, not by counting a rendered pattern: the
+# KNOWN_FAIL_OPEN_FINDINGS section header carries a count suffix and matched
+# the same regex as the summary line, so the count was 5 for 4 partitions.
+want 'the four partitions are rendered, with the values the JSON holds' True \
+     "$(python3 "$G/lib/_check_partitions.py" "$G/evidence/g8_result.json" "$T")"
+want 'REPRODUCTION derives to PASS' PASS \
+     "$(python3 -c "
+import json
+try: print(json.load(open('$G/evidence/g8_result.json'))['result']['REPRODUCTION'])
+except Exception: print('unreadable')" )"
+want 'known FAIL_OPEN findings reproduce AS FINDINGS' REPRODUCED \
+     "$(python3 -c "
+import json
+try: print(json.load(open('$G/evidence/g8_result.json'))['result']['KNOWN_FAIL_OPEN_FINDINGS'])
+except Exception: print('unreadable')" )"
+# NOT asserted as RESOLVED. Three prerequisites are genuinely unresolved, and a
+# gate that demanded RESOLVED here would be demanding the evidence say
+# something it does not.
+want 'PRODUCTION_PREREQUISITES is derived, not defaulted' UNRESOLVED \
+     "$(python3 -c "
+import json
+try: print(json.load(open('$G/evidence/g8_result.json'))['result']['PRODUCTION_PREREQUISITES'])
+except Exception: print('unreadable')" )"
+want 'every prerequisite binding resolved against real evidence' 0 \
+     "$(python3 -c "
+import json
+try: print(len(json.load(open('$G/evidence/g8_result.json'))['production_prerequisites']['evidence_missing']))
+except Exception: print(99)" )"
+want 'the emitter exited clean' 0 "${RESULT_RC:-1}"
+want 'the reporting path is itself falsified' 0 "${REPORTNEG_RC:-1}"
+want 'every reporting partition discriminates' 1 \
+     "$(grep -c 'SM1_G8_REPORT_FALSIFICATION: EVERY_PARTITION_DISCRIMINATES' "$T")"
+# Asserted as DATA from the suite's own accounting line, so a suite that
+# silently shrank cannot pass by having fewer arms to fail.
+want 'the reporting suite did not shrink' True \
+     "$(python3 -c "
+import re,sys
+m = re.search(r'arms=(\d+) failed=(\d+) control_survivors=(\d+)',
+              open('$T').read())
+print(bool(m) and int(m.group(1)) >= 30 and m.group(2) == '0'
+      and m.group(3) == '0')" )"
+
 for f in evidence/g8_reproduction.txt evidence/inventory_check.json \
-         evidence/negative_outcomes.json; do
+         evidence/negative_outcomes.json evidence/g8_result.json; do
   want "g8 produced $f" True \
        "$([ -s "$G/$f" ] && echo True || echo False)"
 done

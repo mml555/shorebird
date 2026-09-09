@@ -1,5 +1,5 @@
 SM1-G8 -- clean reproduction and centralized negative inventory
-generated 2026-09-09T04:38:28Z by run_g8.sh
+generated 2026-09-09T05:22:03Z by run_g8.sh
 
 ############ 1. PRODUCT SURFACE, BEFORE ############
   17e2fc927925bb49aa1683d38c09584fe3749cc811cb004a757926f2da7c8cff  packages
@@ -209,7 +209,140 @@ SM1_G8_INVENTORY: INVENTORY_CONSISTENT
   unchanged  dad67449fb475e1fc28eb347f280878d62e51fc7e7cf900d6af763e9af990c8e  selfhost/compatibility.yaml
   unchanged  a30cd01ca5be0701ee0915a3ce697d0f1d45b41411b7e645b0ae36b9caa4c909  scripts
 
-ASSERTIONS (17 checked)
+############ RESULT -- FOUR PARTITIONS, NOT "ALL TESTS PASS" ############
+  CLEAN_REPRODUCTION describes the REPRODUCTION. It does not say the
+  patchability model is clean -- G5 is REDUCE_SCOPE with zero admitted
+  declarations, and the fail-open mechanisms below reproduced as findings.
+  Every field is derived; none is transcribed.
+
+  REPRODUCTION               PASS
+  FEASIBILITY_EVIDENCE       REPRODUCED
+  KNOWN_FAIL_OPEN_FINDINGS   REPRODUCED
+  PRODUCTION_PREREQUISITES   UNRESOLVED
+
+  REPRODUCTION
+    gates            7/7 reported, 0 non-zero
+    stable-id equality 56==56==56  literal=True
+    artifacts        21/21 digest-checked, 21 snapshotted
+    negatives        tested=56 caught=56 mutations=53 restored=53 controls=3 bank_intact=True
+    product surface  unchanged
+
+  FEASIBILITY_EVIDENCE
+    reader accounting  {'total_g1_rows': 36, 'INLINED': 2, 'NOT_INLINED': 15, 'UNKNOWN': 14, 'NO_BODY': 5, 'accounted': 36}  balances=True
+    subset             SUBSET_HOLDS_VACUOUSLY  admitted 0/36
+    canonical AOT      reproduced=True
+    G1 projection      reproduced=True
+    retention cost     measured/projected=1.482
+
+  KNOWN_FAIL_OPEN_FINDINGS  3/3 reproduced as findings
+    REPRODUCED         subset-over-claim-arms  (3 vs min 3)
+                       the scorer refuses a predicted-patchable declaration that is not demonstrated: one partly stale, one wholly stale, one with no demonstration row
+    REPRODUCED         corpora-over-claim-marker  (2 vs min 2)
+                       an injected admitted row is refused on each real corpus
+    REPRODUCED         reader-control-defects  (2 vs min 2)
+                       both weakened readers fail the arms, so the suite is not vacuous
+
+  PRODUCTION_PREREQUISITES
+    UNRESOLVED       BLOCKING_FOR_PRODUCTION  NON_STATIC_DISPATCH_PATCHABILITY
+                     A patch must be observable at every call site that reaches the patched member, including virtual and instance dispatch.
+                     binding: g5_patchability/evidence/dispatch_experiment.txt -- 1 match(es)
+    UNRESOLVED       BLOCKING_FOR_PRODUCTION  POST_HOC_REDIRECTABILITY_UNDECIDABLE
+                     Deciding whether a compiled call site is redirectable must not depend on reading tagged entry-point offsets back out of a finished snapshot.
+                     binding: g5_patchability/evidence/dispatch_experiment.txt -- 1 match(es)
+    UNRESOLVED       BLOCKING_FOR_PRODUCTION  INLINING_EVIDENCE_MUST_COME_FROM_THE_SHIPPED_RELEASE
+                     The Route-2 inlining note a release consumes must have been produced by that exact release, proven by digest, not by build recipe.
+                     binding: g5_patchability/evidence/predictor_falsification.txt -- 1 match(es)
+    CARRY_FORWARD    DESIGN_CONSTRAINT        COST_FIGURES_DO_NOT_EXTRAPOLATE
+                     No cost decision may be made from a projection or from fixture-scale measurement; the figure must come from the scale being shipped.
+                     binding: g7_cost/evidence/families.json -- value 1.482
+    CARRY_FORWARD    DESIGN_CONSTRAINT        ORDER_DEPENDENCE_IS_A_COST_DIAGNOSTIC_ONLY
+                     The max(stdev(A), stdev(B)) order-dependence rule may inform cost diagnosis and must not be cited as a safety or causality claim.
+                     binding: g7_cost/evidence/families.json -- value 'labels sampled in both timed orders; the retention-pair stages run once and are excluded rather than counted as unaffected'
+    RESOLVED         BLOCKING_FOR_PRODUCTION  HOST_AND_MODULE_IDENTITY_BOUND_AT_APPLY
+                     A map may only be applied to the host it was generated against, and a module may only be accepted if its integrity holds.
+                     binding: g6_binding/evidence/g6_binding.txt -- 1 match(es)
+    CARRY_FORWARD    PROCESS_CONSTRAINT       MUTABLE_AOT_GATED_ON_SEMANTIC_MAP_FINAL
+                     No Mutable-AOT implementation work may begin before SEMANTIC-MAP FINAL.
+                     binding: g5_patchability/evidence/subset.json -- value 0
+
+    blocking=3 carry_forward=3 evidence_missing=0
+
+SM1-G8 -- the REPORTING PATH, falsified in report-only mode
+  30 arms. Each mutates one structured input and asserts the
+  named partition moves to the named value. No gate is re-run.
+
+  baseline  {'REPRODUCTION': 'PASS', 'FEASIBILITY_EVIDENCE': 'REPRODUCED', 'KNOWN_FAIL_OPEN_FINDINGS': 'REPRODUCED', 'PRODUCTION_PREREQUISITES': 'UNRESOLVED'}
+
+  gate-exit-nonzero                              pass   REPRODUCTION=FAIL (want FAIL)
+                                                        a gate that exited non-zero cannot be reported as reproduced
+  gate-status-dropped                            pass   REPRODUCTION=FAIL (want FAIL)
+                                                        a gate that reported NO status must not pass by absence
+  gate-exit-nonzero-feasibility                  pass   FEASIBILITY_EVIDENCE=NOT_REPRODUCED (want NOT_REPRODUCED)
+                                                        the substantive partition must move too, not only REPRODUCTION
+  equality-not-literal                           pass   REPRODUCTION=FAIL (want FAIL)
+                                                        inventory == tested == caught broken by one dropped id
+  equality-same-length-different-ids             pass   REPRODUCTION=FAIL (want FAIL)
+                                                        equal COUNTS with different ids must still fail -- the equality is literal
+  inventory-findings-present                     pass   REPRODUCTION=FAIL (want FAIL)
+                                                        the checker reported a finding; the report may not smooth it over
+  digest-coverage-short                          pass   REPRODUCTION=FAIL (want FAIL)
+                                                        fewer artifacts digest-checked than the inventory declares
+  digest-snapshot-short                          pass   REPRODUCTION=FAIL (want FAIL)
+                                                        an artifact absent from the digest snapshot
+  negative-unrestored                            pass   REPRODUCTION=FAIL (want FAIL)
+                                                        a mutation that was never restored
+  negative-uncaught                              pass   REPRODUCTION=FAIL (want FAIL)
+                                                        a tested arm that was not caught
+  negative-arm-dropped-but-totals-consistent     pass   REPRODUCTION=FAIL (want FAIL)
+                                                        mutations+controls no longer equals the tested set, so an arm vanished
+  bank-not-intact                                pass   REPRODUCTION=FAIL (want FAIL)
+                                                        the bank did not survive the mutations
+  canonical-aot-not-reproduced                   pass   FEASIBILITY_EVIDENCE=NOT_REPRODUCED (want NOT_REPRODUCED)
+                                                        the rebuilt AOT no longer matches the banked one
+  g1-projection-not-reproduced                   pass   FEASIBILITY_EVIDENCE=NOT_REPRODUCED (want NOT_REPRODUCED)
+                                                        the G1 projection no longer matches the banked copy
+  product-surface-changed                        pass   REPRODUCTION=FAIL (want FAIL)
+                                                        the product surface moved during the run
+  reader-accounting-unbalanced                   pass   FEASIBILITY_EVIDENCE=NOT_REPRODUCED (want NOT_REPRODUCED)
+                                                        the reader accounted for fewer rows than it read
+  fail-open-finding-erased                       pass   KNOWN_FAIL_OPEN_FINDINGS=ABSENT (want ABSENT)
+                                                        a declared FAIL_OPEN finding stopped reproducing -- the worst reason to pass
+  fail-open-finding-below-min                    pass   KNOWN_FAIL_OPEN_FINDINGS=ABSENT (want ABSENT)
+                                                        the finding is present but on fewer corpora than declared
+  fail-open-erased-forces-reproduction-fail      pass   REPRODUCTION=FAIL (want FAIL)
+                                                        ABSENT findings must ALSO fail REPRODUCTION, not sit in a side field
+  fail-open-evidence-unreadable                  pass   KNOWN_FAIL_OPEN_FINDINGS=ABSENT (want ABSENT)
+                                                        the evidence file is gone; absence is not reproduction
+  gate-status-file-absent                        pass   REPRODUCTION=FAIL (want FAIL)
+                                                        no gate statuses at all -- absence is not reproduction
+  inventory-check-unparseable                    pass   REPRODUCTION=FAIL (want FAIL)
+                                                        a truncated inventory_check.json must refuse, not crash and not pass
+  digest-snapshot-unparseable                    pass   REPRODUCTION=FAIL (want FAIL)
+                                                        a truncated digest snapshot must refuse
+  outcomes-unparseable                           pass   REPRODUCTION=FAIL (want FAIL)
+                                                        a truncated negative_outcomes.json must refuse
+  transcript-absent                              pass   FEASIBILITY_EVIDENCE=NOT_REPRODUCED (want NOT_REPRODUCED)
+                                                        without the transcript the reproduced identities cannot be witnessed
+  prerequisite-evidence-deleted                  pass   PRODUCTION_PREREQUISITES=UNDERIVABLE (want UNDERIVABLE)
+                                                        a prerequisite whose binding cannot resolve is not a prerequisite met
+  prerequisite-promoted-to-resolved              pass   PRODUCTION_PREREQUISITES=UNDERIVABLE (want UNDERIVABLE)
+                                                        editing the inventory to claim RESOLVED must contradict the evidence
+  prerequisite-binding-expectation-removed       pass   PRODUCTION_PREREQUISITES=UNDERIVABLE (want UNDERIVABLE)
+                                                        a binding that declares no implied status cannot derive one
+  prerequisite-cost-evidence-flipped             pass   PRODUCTION_PREREQUISITES=UNDERIVABLE (want UNDERIVABLE)
+                                                        the numeric binding stops holding when the projection is no longer low
+  prerequisite-marker-forged-elsewhere           pass   PRODUCTION_PREREQUISITES=UNDERIVABLE (want UNDERIVABLE)
+                                                        the release-mismatch arm must be PASSING; a FAIL line is the control correctly failing, not evidence the refusal is enforced
+
+  CONTROL -- an emitter that hard-codes the happy partitions must FAIL
+  every arm above. Otherwise the arms prove only that the emitter reads
+  its input, not that it reads it correctly.
+    arms the weakened emitter still satisfies: 0
+
+  arms=30 failed=0 control_survivors=0
+SM1_G8_REPORT_FALSIFICATION: EVERY_PARTITION_DISCRIMINATES
+
+ASSERTIONS (28 checked)
   pass  the probe corpus rebuilds from source
   pass  the rebuilt canonical AOT is the banked one
   pass  the G1 projection matches the banked copy
@@ -224,8 +357,19 @@ ASSERTIONS (17 checked)
   pass  the product surface covers what #57 requires
   pass  the reader accounting is preserved
   pass  zero declarations remain admitted
+  pass  the emitted result carries all four partitions
+  pass  the four partitions are rendered, with the values the JSON holds
+  pass  REPRODUCTION derives to PASS
+  pass  known FAIL_OPEN findings reproduce AS FINDINGS
+  pass  PRODUCTION_PREREQUISITES is derived, not defaulted
+  pass  every prerequisite binding resolved against real evidence
+  pass  the emitter exited clean
+  pass  the reporting path is itself falsified
+  pass  every reporting partition discriminates
+  pass  the reporting suite did not shrink
   pass  g8 produced evidence/g8_reproduction.txt
   pass  g8 produced evidence/inventory_check.json
   pass  g8 produced evidence/negative_outcomes.json
+  pass  g8 produced evidence/g8_result.json
 
 SM1_G8: CLEAN_REPRODUCTION

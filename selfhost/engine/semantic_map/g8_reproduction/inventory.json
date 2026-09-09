@@ -326,11 +326,12 @@
     ]
   },
   "self_coverage": {
-    "why": "G8 is deliberately NOT in its own artifact inventory. The checker reads each gate's transcripts, and G8's transcript is mid-write while the checker runs inside it -- a self-entry would validate a partial file, which is the stale/absent-input class this gate exists to detect. Instead run_g8.sh asserts its own outputs after the run completes, which is a real check without the circularity.",
+    "why": "G8 is deliberately NOT in its own artifact inventory. The checker reads each gate's transcripts, and G8's transcript is mid-write while the checker runs inside it -- a self-entry would validate a partial file, which is the stale/absent-input class this gate exists to detect. Instead run_g8.sh asserts its own outputs after the run completes, which is a real check without the circularity. evidence/g8_result.json joins that list rather than the artifact inventory for the same reason: it is derived from the transcript while the transcript is still open, so a self-entry would digest a partial file. Its own negatives live in lib/falsify_result.py, which falsifies the reporting path in report-only mode -- a stronger check for a derived artifact than a delete/corrupt pair, because it proves each partition discriminates rather than merely that the file is present.",
     "asserted_after_run": [
       "evidence/g8_reproduction.txt",
       "evidence/inventory_check.json",
-      "evidence/negative_outcomes.json"
+      "evidence/negative_outcomes.json",
+      "evidence/g8_result.json"
     ]
   },
   "reproducibility_expectations": {
@@ -345,6 +346,144 @@
       "timing samples and every summary derived from them",
       "the order-dependent label set -- observed moving from [map_refs] to none between two runs even WITH the noise gate, so the gate narrows the instability without removing it at n=3",
       "generated-at timestamps"
+    ]
+  },
+  "production_prerequisites": {
+    "why": "#57's reporting contract requires a generated PRODUCTION_PREREQUISITES partition, and CLEAN_REPRODUCTION must not be readable as 'the patchability model is clean'. Each entry therefore carries a BINDING to evidence that already exists: emit_result.py resolves the binding and refuses when it does not hold. An entry whose evidence cannot be found does NOT become resolved -- it becomes EVIDENCE_MISSING and takes the whole partition to UNDERIVABLE, because a prerequisite that cannot be checked is not a prerequisite that has been met. Statuses are never derived from prose in this file; the prose explains a status the binding proves. The binding also declares implies_status: the emitter DERIVES each status from the evidence and treats a declared status that contradicts it as STATUS_CONTRADICTS_EVIDENCE, so editing this file cannot promote a prerequisite to RESOLVED.",
+    "status_vocabulary": {
+      "UNRESOLVED": "blocks production; the named consequence was observed",
+      "CARRY_FORWARD": "not a blocker but constrains any later design",
+      "RESOLVED": "the gate demonstrated the requirement is met",
+      "EVIDENCE_MISSING": "derived, never declared: the binding did not resolve"
+    },
+    "entries": [
+      {
+        "id": "NON_STATIC_DISPATCH_PATCHABILITY",
+        "status": "UNRESOLVED",
+        "severity": "BLOCKING_FOR_PRODUCTION",
+        "statement": "A patch must be observable at every call site that reaches the patched member, including virtual and instance dispatch.",
+        "why": "G5's isolated experiment attached a patch to Base.work and the C++ invoke of the target returned PATCHED-w, yet viaVirtual still read OLD-w. So a call site reading OLD-w is not a failed attachment -- the attachment succeeded and the site does not observe it.",
+        "observed_consequence": "NOT_INLINED cannot be read as patchable. The banked contract is narrower: no covered body-copy mechanism was witnessed.",
+        "binding": {
+          "kind": "text",
+          "gate": "g5_patchability",
+          "where": "evidence/dispatch_experiment.txt",
+          "pattern": "after\\s+.*virtual=OLD-w.*direct=PATCHED-w",
+          "min_count": 1,
+          "implies_status": "UNRESOLVED"
+        },
+        "consumed_by": 60
+      },
+      {
+        "id": "POST_HOC_REDIRECTABILITY_UNDECIDABLE",
+        "status": "UNRESOLVED",
+        "severity": "BLOCKING_FOR_PRODUCTION",
+        "statement": "Deciding whether a compiled call site is redirectable must not depend on reading tagged entry-point offsets back out of a finished snapshot.",
+        "why": "UntaggedFunction::entry_point_@8 / unchecked_entry_point_@16 alias UntaggedCode::entry_point_@8 / monomorphic_entry_point_@16, so tagged #0x7 and #0xf are ambiguous between the two layouts. Only GenerateStaticDartCall's early return through FUNCTION_REG is redirectable; PC-relative branch and Code-pool slot forms are not.",
+        "observed_consequence": "The dispatch predicate fails closed rather than classifying, which is why the predictor admits zero declarations.",
+        "binding": {
+          "kind": "text",
+          "gate": "g5_patchability",
+          "where": "evidence/dispatch_experiment.txt",
+          "pattern": "SM1_G5_DISPATCH_PREDICATE: FAIL_CLOSED",
+          "min_count": 1,
+          "implies_status": "UNRESOLVED"
+        },
+        "consumed_by": 60
+      },
+      {
+        "id": "INLINING_EVIDENCE_MUST_COME_FROM_THE_SHIPPED_RELEASE",
+        "status": "UNRESOLVED",
+        "severity": "BLOCKING_FOR_PRODUCTION",
+        "statement": "The Route-2 inlining note a release consumes must have been produced by that exact release, proven by digest, not by build recipe.",
+        "why": "The reader treats a note from any other build as unusable rather than approximate. A note that merely looks right is the one input that could turn UNKNOWN into a false patchable.",
+        "observed_consequence": "INLINING_EVIDENCE_RELEASE_MISMATCH is a live refusal code with a passing falsification arm, and the weakened predictor fails that same arm -- so the refusal is enforced, not decorative.",
+        "binding": {
+          "kind": "text",
+          "gate": "g5_patchability",
+          "where": "evidence/predictor_falsification.txt",
+          "pattern": "INLINING_EVIDENCE_RELEASE_MISMATCH\\s+pass\\b",
+          "min_count": 1,
+          "implies_status": "UNRESOLVED"
+        },
+        "consumed_by": 58
+      },
+      {
+        "id": "COST_FIGURES_DO_NOT_EXTRAPOLATE",
+        "status": "CARRY_FORWARD",
+        "severity": "DESIGN_CONSTRAINT",
+        "statement": "No cost decision may be made from a projection or from fixture-scale measurement; the figure must come from the scale being shipped.",
+        "why": "G4's own retention curve (40912 byte floor + ~82 bytes/member) projects 2,922,310 bytes where measurement found 4,330,120 -- low by 1.482x. Independently, the reader projection that was complete at 36 rows is incomplete at 35,139.",
+        "observed_consequence": "G7 reports cost rather than certifying affordability, and G5 classified REDUCE_SCOPE instead of extrapolating.",
+        "binding": {
+          "kind": "json",
+          "gate": "g7_cost",
+          "where": "evidence/families.json",
+          "path": [
+            "families",
+            "retention_cost_at_scale",
+            "measured_over_projected"
+          ],
+          "expect_gt": 1.0,
+          "implies_status": "CARRY_FORWARD"
+        },
+        "consumed_by": 56
+      },
+      {
+        "id": "ORDER_DEPENDENCE_IS_A_COST_DIAGNOSTIC_ONLY",
+        "status": "CARRY_FORWARD",
+        "severity": "DESIGN_CONSTRAINT",
+        "statement": "The max(stdev(A), stdev(B)) order-dependence rule may inform cost diagnosis and must not be cited as a safety or causality claim.",
+        "why": "PM ruling on G7. At n=3 the labelled set still moves between identical runs; the noise floor narrows the instability without removing it, so the label is a hint about measurement, not a statement about the compiler.",
+        "observed_consequence": "reproducibility_expectations records the label set as may_move_across_runs, so a future difference is read correctly instead of investigated.",
+        "binding": {
+          "kind": "json",
+          "gate": "g7_cost",
+          "where": "evidence/families.json",
+          "path": [
+            "order_dependence_scope"
+          ],
+          "expect_present": true,
+          "implies_status": "CARRY_FORWARD"
+        },
+        "consumed_by": 56
+      },
+      {
+        "id": "HOST_AND_MODULE_IDENTITY_BOUND_AT_APPLY",
+        "status": "RESOLVED",
+        "severity": "BLOCKING_FOR_PRODUCTION",
+        "statement": "A map may only be applied to the host it was generated against, and a module may only be accepted if its integrity holds.",
+        "why": "G6 enforces HOST_IDENTITY and MODULE_INTEGRITY structurally, and 29 falsification arms plus a weakened verifier show the enforcement is not vacuous.",
+        "observed_consequence": "Every swap the falsifier attempts is refused; the weakened verifier fails the arms it should fail.",
+        "binding": {
+          "kind": "text",
+          "gate": "g6_binding",
+          "where": "evidence/g6_binding.txt",
+          "pattern": "SM1_G6: BINDING_ENFORCED",
+          "min_count": 1,
+          "implies_status": "RESOLVED"
+        },
+        "consumed_by": 55
+      },
+      {
+        "id": "MUTABLE_AOT_GATED_ON_SEMANTIC_MAP_FINAL",
+        "status": "CARRY_FORWARD",
+        "severity": "PROCESS_CONSTRAINT",
+        "statement": "No Mutable-AOT implementation work may begin before SEMANTIC-MAP FINAL.",
+        "why": "PM ruling closing #59. The direction was accepted; the implementation was not authorized, because the map is what would decide which declarations such a runtime may reuse.",
+        "observed_consequence": "Recorded so a CLEAN_REPRODUCTION here cannot be cited as a green light for that lane.",
+        "binding": {
+          "kind": "json",
+          "gate": "g5_patchability",
+          "where": "evidence/subset.json",
+          "path": [
+            "predicted_patchable"
+          ],
+          "expect_eq": 0,
+          "implies_status": "CARRY_FORWARD"
+        },
+        "consumed_by": 59
+      }
     ]
   }
 }
