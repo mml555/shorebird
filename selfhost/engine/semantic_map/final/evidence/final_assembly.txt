@@ -1,6 +1,34 @@
 SM1-FINAL -- evidence matrix, computed verdict, provenance
-generated 2026-09-09T07:25:52Z by run_final.sh
+generated 2026-09-09T08:00:52Z by run_final.sh
 source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
+
+############ 0. SOURCE EVIDENCE FOR THE ROUTING MECHANISM ############
+  FINAL published five source-level routing facts as hard-coded prose. The
+  facts were correct, which is beside the point: a material routing conclusion
+  outside the digested evidence graph cannot be falsified by Family A, is not
+  in the provenance manifest, and does not degrade when its evidence goes
+  away. They are produced here instead, read from the FROZEN tree via
+  `git show <effective_tree>:<path>` rather than the working copy, each with
+  its git blob id.
+
+  holds      D2B_REGISTERS_VALIDATE_OPTION
+             effective_tree:pkg/dart2bytecode/lib/dart2bytecode.dart:131  (1 match(es), expect_present=True)
+  holds      D2B_ASSIGNS_DYNAMIC_INTERFACE_URI
+             effective_tree:pkg/dart2bytecode/lib/dart2bytecode.dart:291  (1 match(es), expect_present=True)
+  holds      VALIDATION_IS_CONDITIONAL_ON_URI
+             effective_tree:pkg/front_end/lib/src/kernel/kernel_target.dart:1815  (1 match(es), expect_present=True)
+  holds      OPTION_PREDATES_THE_FORK
+             deps_pinned_base:pkg/dart2bytecode/lib/dart2bytecode.dart:121  (1 match(es), expect_present=True)
+  holds      ROUTE_B_4A_OMITS_VALIDATE
+             worktree:selfhost/engine/route_b/build_4a_payload.sh  (0 match(es), expect_present=False)
+  holds      ROUTE_B_4B_OMITS_VALIDATE
+             worktree:selfhost/engine/route_b/build_4b_artifact.sh  (0 match(es), expect_present=False)
+  holds      ROUTE_B_4A_INVOKES_DART2BYTECODE
+             worktree:selfhost/engine/route_b/build_4a_payload.sh:34  (1 match(es), expect_present=True)
+  holds      ROUTE_B_4B_INVOKES_DART2BYTECODE
+             worktree:selfhost/engine/route_b/build_4b_artifact.sh:96  (1 match(es), expect_present=True)
+
+  resolved=8 refuted=0 unresolved=0
 
 ############ 1. THE MATRIX, EXTRACTED FROM EVIDENCE ############
   Every row is derived at run time from a named file and field or marker. A row
@@ -11,7 +39,7 @@ source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
   PRIVACY_CROSS_DOMAIN_REFUSAL first read NOT_ESTABLISHED because it was bound
   to G5/G6's marker convention, which G3 predates.
 
-  23 rows extracted from 18 evidence files
+  24 rows extracted from 20 evidence files
 
   DECLARATION_ID_STABILITY           ESTABLISHED
   DECLARATION_ID_COLLISIONS          ESTABLISHED
@@ -25,6 +53,7 @@ source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
   RETENTION_CONTRACT                 ESTABLISHED_WITH_LIMITS
   RETENTION_WITHHELD_FAILS_CLOSED    ESTABLISHED_NEGATIVE
   RETENTION_FAIL_OPEN_ROOT_CAUSE     RECONCILED_TO_CARRIED_CONSTRAINT
+  DYNAMIC_INTERFACE_VALIDATION_MECHANISM OPTION_PRESENT_BUT_NOT_PASSED
   PATCHABILITY_SUBSET_PROPERTY       VACUOUS
   PATCHABILITY_DISTINCTION_REPRESENTABLE NOT_REPRESENTABLE
   DECIDABLE_EXCLUSIONS               NAMED_AND_FAIL_CLOSED
@@ -104,7 +133,7 @@ source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
   NEXT LANE
     - The map cannot decide patchability by inference from a finished AOT, so patchability has to become a BUILD-TIME guarantee rather than a post-hoc classification. #59 (Mutable AOT Dart) is the accepted direction for that and may be named here; no implementation begins in #58.
     - AOT-ASSUMPTIONS-1 owns the optimizer-contract half and is still un-instrumented; it was deliberately not started here.
-    - RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE, and it is NOT a new finding: every class that fails open has cause DYNAMIC_INTERFACE_POLICY, while the one that fails closed (callable) has a different cause. SL1-G6C named the root cause MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION and left it BLOCKING_FOR_PRODUCTION; SL1-FINAL carried "module-side dynamic-interface validation must become fail-closed" into this lane as a mandatory constraint. SL1's premise that "dart2bytecode has no such option" does not hold against the frozen source: --validate <dynamic_interface.yaml> is registered at pkg/dart2bytecode/lib/dart2bytecode.dart:131 and assigns dynamicInterfaceSpecificationUri at :291, upstream since 2024-10-24 and present in the DEPS-pinned base. Its CONCLUSION stands: KernelTarget.validateDynamicModule (kernel_target.dart:1815) early-returns unless that URI is set, and Route B's pipeline never passes the flag (build_4a_payload.sh:34, build_4b_artifact.sh:96). The next lane is therefore a change to our own build scripts, not a compiler option -- but whether passing it closes the three negatives is UNTESTED and is that lane's first experiment. Independent of the patchability question; must close before any map is relied on.
+    - RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE, and NOT a new finding: every class that fails open has cause DYNAMIC_INTERFACE_POLICY, while the one that fails closed (callable) has a different cause. SL1-G6C named the root cause MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION as BLOCKING_FOR_PRODUCTION and SL1-FINAL carried it into this lane. SL1's PREMISE does not hold against the frozen source: dart2bytecode registers --validate (dart2bytecode.dart:131) and assigns dynamicInterfaceSpecificationUri (:291), upstream and predating this fork. Its CONCLUSION does hold: validateDynamicModule is conditional on that URI (kernel_target.dart:1815) and Route B omits the flag (build_4a_payload.sh:34, build_4b_artifact.sh:96). So the next lane is a change to our own build scripts, not a compiler option -- and whether passing the flag makes the negatives fail closed is UNTESTED, being that lane's first experiment. Independent of patchability; must close before any map is relied on.
     - Generation-time figures are current-run observations. Any schedule or budget derived from them needs a repeated measurement at the scale being shipped, not this sample.
 
 ############ 3. PROVENANCE ############
@@ -115,16 +144,16 @@ source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
   are outputs of this assembly. G5 once produced a manifest that included its
   own output, and a second run never reproduced the first.
 
-  consumed evidence files : 18
-  declared by rows        : 18
+  consumed evidence files : 20
+  declared by rows        : 20
   sets equal              : True
-  producing scripts       : 51
-  assembler components    : 8
+  producing scripts       : 60
+  assembler components    : 9
   findings                : none
   inputs without a digest : none
 
 ############ 4. RESULT.md, GENERATED FROM THOSE ARTIFACTS ############
-  RESULT.md generated: 164 lines, 23 rows, verdict MODIFY_MAP_DESIGN
+  RESULT.md generated: 167 lines, 24 rows, verdict MODIFY_MAP_DESIGN
 
 ############ 5. SENSITIVITY CONTROLS ############
   The published verdict is only worth something if a DIFFERENT verdict was
@@ -145,8 +174,8 @@ SM1-FINAL -- sensitivity controls
      Removing or corrupting a row's evidence must make THAT row read
      NOT_ESTABLISHED. A row that survived losing its own evidence would
      be answering from somewhere other than the evidence.
-     33 (row, file) pairs x 2 mutations = 66 arms
-     arms=66 failed=0
+     35 (row, file) pairs x 2 mutations = 70 arms
+     arms=70 failed=0
 
   B. VERDICT REACHABILITY -- every allowed verdict must be reachable
      If only one verdict could ever come out, publishing it proves
@@ -207,16 +236,19 @@ SM1-FINAL -- sensitivity controls
      pass  crashed: RESULT.md says ASSEMBLY FAILED
      pass  crashed: RESULT.md does not claim a verdict
 
-  TOTAL arms=104 failed=0
+  TOTAL arms=108 failed=0
 SM1_FINAL_SENSITIVITY: EVERY_CONTROL_DISCRIMINATES
 
-ASSERTIONS (29 checked)
+ASSERTIONS (32 checked: 32 pass, 0 fail, 0 note)
   pass  the matrix extracted
   pass  every declared row is present
   pass  no row is NOT_ESTABLISHED
   pass  no positive row is also listed as a known gap
   pass  the positive set came from the registry
   pass  every positive category is in the declared vocabulary
+  pass  the source record was produced
+  pass  the source record is about the frozen tree
+  pass  the routing mechanism is derived, not asserted
   pass  every evidence file was readable
   pass  the verdict computed
   pass  the verdict is one of the five allowed

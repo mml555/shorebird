@@ -310,36 +310,59 @@ if P['RETENTION_WITHHELD_MEASURED_NOT_FAILING_CLOSED']['value']:
     # without checking what had already been measured. The reconciliation row
     # traces the fail-open to a constraint SEMANTIC-LINKER-1 already carried
     # forward, so the routing names that constraint instead.
-    if cat('RETENTION_FAIL_OPEN_ROOT_CAUSE') \
-            == 'RECONCILED_TO_CARRIED_CONSTRAINT':
+    # DERIVED, not written. The source-level half of this routing was
+    # hard-coded prose in an earlier version; it is now read from the
+    # DYNAMIC_INTERFACE_VALIDATION_MECHANISM row, whose evidence is a
+    # generated record over the FROZEN tree. Line citations come from that
+    # row's probe values, so they cannot drift from the source they cite, and
+    # if the record is missing the row degrades to NOT_ESTABLISHED and the
+    # routing says the mechanism is untraced instead of asserting one.
+    mech = cat('DYNAMIC_INTERFACE_VALIDATION_MECHANISM')
+    reconciled = (cat('RETENTION_FAIL_OPEN_ROOT_CAUSE')
+                  == 'RECONCILED_TO_CARRIED_CONSTRAINT')
+    lines = {k: probe('DYNAMIC_INTERFACE_VALIDATION_MECHANISM', k)
+             for k in ('option_line', 'assign_line', 'gate_line',
+                       'rb4a_line', 'rb4b_line')}
+    if reconciled and mech == 'OPTION_PRESENT_BUT_NOT_PASSED':
         routing.append(
-            'RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE, and it '
-            'is NOT a new finding: every class that fails open has cause '
+            'RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE, and NOT '
+            'a new finding: every class that fails open has cause '
             'DYNAMIC_INTERFACE_POLICY, while the one that fails closed '
             '(callable) has a different cause. SL1-G6C named the root cause '
-            'MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION and left it '
-            'BLOCKING_FOR_PRODUCTION; SL1-FINAL carried "module-side '
-            'dynamic-interface validation must become fail-closed" into this '
-            'lane as a mandatory constraint. SL1\'s premise that '
-            '"dart2bytecode has no such option" does not hold against the '
-            'frozen source: --validate <dynamic_interface.yaml> is registered '
-            'at pkg/dart2bytecode/lib/dart2bytecode.dart:131 and assigns '
-            'dynamicInterfaceSpecificationUri at :291, upstream since '
-            '2024-10-24 and present in the DEPS-pinned base. Its CONCLUSION '
-            'stands: KernelTarget.validateDynamicModule '
-            '(kernel_target.dart:1815) early-returns unless that URI is set, '
-            "and Route B's pipeline never passes the flag "
-            '(build_4a_payload.sh:34, build_4b_artifact.sh:96). The next lane '
-            'is therefore a change to our own build scripts, not a compiler '
-            'option -- but whether passing it closes the three negatives is '
-            'UNTESTED and is that lane\'s first experiment. Independent of '
-            'the patchability question; must close before any map is relied '
-            'on.')
+            'MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION as '
+            'BLOCKING_FOR_PRODUCTION and SL1-FINAL carried it into this lane. '
+            "SL1's PREMISE does not hold against the frozen source: "
+            'dart2bytecode registers --validate '
+            f'(dart2bytecode.dart:{lines["option_line"]}) and assigns '
+            f'dynamicInterfaceSpecificationUri (:{lines["assign_line"]}), '
+            'upstream and predating this fork. Its CONCLUSION does hold: '
+            'validateDynamicModule is conditional on that URI '
+            f'(kernel_target.dart:{lines["gate_line"]}) and Route B omits the '
+            f'flag (build_4a_payload.sh:{lines["rb4a_line"]}, '
+            f'build_4b_artifact.sh:{lines["rb4b_line"]}). So the next lane is '
+            'a change to our own build scripts, not a compiler option -- and '
+            'whether passing the flag makes the negatives fail closed is '
+            'UNTESTED, being that lane\'s first experiment. Independent of '
+            'patchability; must close before any map is relied on.')
+    elif reconciled and mech == 'OPTION_ABSENT_COMPILER_CHANGE_NEEDED':
+        routing.append(
+            'RETENTION_WITHHELD_FAILS_CLOSED traces to '
+            'MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION, and the source record '
+            'shows the compiler does NOT expose the specification, so the fix '
+            'is a compiler change as the carried constraint originally read.')
+    elif reconciled:
+        routing.append(
+            'RETENTION_WITHHELD_FAILS_CLOSED traces to the carried constraint '
+            'MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION, but the source '
+            f'mechanism is {mech}: the record that would settle whether this '
+            'is a compiler change or a pipeline change did not resolve. Do '
+            'not choose between them from memory -- regenerate '
+            'evidence/source_facts.json first.')
     else:
         routing.append(
-            'RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE and the '
-            'reconciliation row did not resolve, so its root cause is '
-            'UNTRACED here. Trace it before opening any lane against it.')
+            'RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE whose '
+            'root cause is UNTRACED here. Trace it before opening any lane '
+            'against it.')
 if cat('GENERATION_TIME') == 'MEASURED_CURRENT_RUN_ONLY':
     routing.append(
         'Generation-time figures are current-run observations. Any schedule '

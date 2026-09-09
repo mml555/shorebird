@@ -20,7 +20,9 @@
     "NAMED_AND_FAIL_CLOSED": "a decidable feature class is named as excluded and its refusal is demonstrated reachable",
     "NONE_NAMED": "no feature class is excluded",
     "RECONCILED_TO_CARRIED_CONSTRAINT": "traced to a constraint an earlier lane already carried forward; not an independent finding",
-    "NO_FAIL_OPEN_TO_RECONCILE": "nothing fails open, so there is nothing to trace"
+    "NO_FAIL_OPEN_TO_RECONCILE": "nothing fails open, so there is nothing to trace",
+    "OPTION_PRESENT_BUT_NOT_PASSED": "the compiler exposes the mechanism; our pipeline does not use it",
+    "OPTION_ABSENT_COMPILER_CHANGE_NEEDED": "the compiler does not expose the mechanism"
   },
   "rows": [
     {
@@ -960,6 +962,265 @@
       ]
     },
     {
+      "row": "DYNAMIC_INTERFACE_VALIDATION_MECHANISM",
+      "question": "Is the module-side dynamic-interface validation missing because the compiler lacks the option, or because our own pipeline does not pass it?",
+      "why_this_row_exists": "FINAL published this answer as hard-coded note and routing PROSE. The facts were correct and that is beside the point: a material routing conclusion outside the extracted, digested evidence graph cannot be falsified by Family A, is not digested by the provenance manifest, and does not degrade to NOT_ESTABLISHED when its evidence disappears. The facts are now produced by lib/probe_source_facts.py into evidence/source_facts.json and consumed here like any other evidence. They are read from the FROZEN tree via git show, not the working copy, and the row refuses unless the record says it read that exact tree.",
+      "probes": {
+        "option_registered": {
+          "kind": "json_field",
+          "file": "final/evidence/source_facts.json",
+          "path": [
+            "facts",
+            "D2B_REGISTERS_VALIDATE_OPTION",
+            "value"
+          ]
+        },
+        "uri_assigned": {
+          "kind": "json_field",
+          "file": "final/evidence/source_facts.json",
+          "path": [
+            "facts",
+            "D2B_ASSIGNS_DYNAMIC_INTERFACE_URI",
+            "value"
+          ]
+        },
+        "validation_conditional": {
+          "kind": "json_field",
+          "file": "final/evidence/source_facts.json",
+          "path": [
+            "facts",
+            "VALIDATION_IS_CONDITIONAL_ON_URI",
+            "value"
+          ]
+        },
+        "option_upstream": {
+          "kind": "json_field",
+          "file": "final/evidence/source_facts.json",
+          "path": [
+            "facts",
+            "OPTION_PREDATES_THE_FORK",
+            "value"
+          ]
+        },
+        "rb4a_omits": {
+          "kind": "json_field",
+          "file": "final/evidence/source_facts.json",
+          "path": [
+            "facts",
+            "ROUTE_B_4A_OMITS_VALIDATE",
+            "value"
+          ]
+        },
+        "rb4b_omits": {
+          "kind": "json_field",
+          "file": "final/evidence/source_facts.json",
+          "path": [
+            "facts",
+            "ROUTE_B_4B_OMITS_VALIDATE",
+            "value"
+          ]
+        },
+        "rb4a_invokes": {
+          "kind": "json_field",
+          "file": "final/evidence/source_facts.json",
+          "path": [
+            "facts",
+            "ROUTE_B_4A_INVOKES_DART2BYTECODE",
+            "value"
+          ]
+        },
+        "rb4b_invokes": {
+          "kind": "json_field",
+          "file": "final/evidence/source_facts.json",
+          "path": [
+            "facts",
+            "ROUTE_B_4B_INVOKES_DART2BYTECODE",
+            "value"
+          ]
+        },
+        "unresolved_facts": {
+          "kind": "json_len",
+          "file": "final/evidence/source_facts.json",
+          "path": [
+            "summary",
+            "unresolved"
+          ]
+        },
+        "refuted_facts": {
+          "kind": "json_len",
+          "file": "final/evidence/source_facts.json",
+          "path": [
+            "summary",
+            "refuted"
+          ]
+        },
+        "reads_frozen_tree": {
+          "kind": "json_field",
+          "file": "final/evidence/source_facts.json",
+          "path": [
+            "reads_frozen_tree_not_worktree"
+          ]
+        },
+        "facts_effective_tree": {
+          "kind": "json_field",
+          "file": "final/evidence/source_facts.json",
+          "path": [
+            "source_identity",
+            "effective_tree"
+          ]
+        },
+        "frozen_effective_tree": {
+          "kind": "json_field",
+          "root": "engine",
+          "file": "semantic_linker/runtime_feasibility/g0_freeze/freeze_manifest.json",
+          "path": [
+            "producing_source",
+            "dart",
+            "effective_tree"
+          ]
+        },
+        "option_line": {
+          "kind": "json_field",
+          "file": "final/evidence/source_facts.json",
+          "path": [
+            "facts",
+            "D2B_REGISTERS_VALIDATE_OPTION",
+            "first_line"
+          ]
+        },
+        "assign_line": {
+          "kind": "json_field",
+          "file": "final/evidence/source_facts.json",
+          "path": [
+            "facts",
+            "D2B_ASSIGNS_DYNAMIC_INTERFACE_URI",
+            "first_line"
+          ]
+        },
+        "gate_line": {
+          "kind": "json_field",
+          "file": "final/evidence/source_facts.json",
+          "path": [
+            "facts",
+            "VALIDATION_IS_CONDITIONAL_ON_URI",
+            "first_line"
+          ]
+        },
+        "rb4a_line": {
+          "kind": "json_field",
+          "file": "final/evidence/source_facts.json",
+          "path": [
+            "facts",
+            "ROUTE_B_4A_INVOKES_DART2BYTECODE",
+            "first_line"
+          ]
+        },
+        "rb4b_line": {
+          "kind": "json_field",
+          "file": "final/evidence/source_facts.json",
+          "path": [
+            "facts",
+            "ROUTE_B_4B_INVOKES_DART2BYTECODE",
+            "first_line"
+          ]
+        }
+      },
+      "rules": [
+        {
+          "conditions": [
+            [
+              "option_registered",
+              "eq",
+              true
+            ],
+            [
+              "uri_assigned",
+              "eq",
+              true
+            ],
+            [
+              "validation_conditional",
+              "eq",
+              true
+            ],
+            [
+              "option_upstream",
+              "eq",
+              true
+            ],
+            [
+              "rb4a_omits",
+              "eq",
+              true
+            ],
+            [
+              "rb4b_omits",
+              "eq",
+              true
+            ],
+            [
+              "rb4a_invokes",
+              "eq",
+              true
+            ],
+            [
+              "rb4b_invokes",
+              "eq",
+              true
+            ],
+            [
+              "unresolved_facts",
+              "eq",
+              0
+            ],
+            [
+              "refuted_facts",
+              "eq",
+              0
+            ],
+            [
+              "reads_frozen_tree",
+              "eq",
+              true
+            ],
+            [
+              "facts_effective_tree",
+              "eq_probe",
+              "frozen_effective_tree"
+            ]
+          ],
+          "category": "OPTION_PRESENT_BUT_NOT_PASSED",
+          "note": "The compiler already has the option and it is upstream, predating this fork. Validation is genuinely skipped, but because our own two build scripts omit the flag -- and the omission checks are paired with existence checks, so a zero match cannot pass by the call site being absent. So the first experiment is a change to our build scripts, not a compiler option. It remains UNTESTED whether passing the flag makes the DYNAMIC_INTERFACE_POLICY negatives fail closed: every fact here is about source text, none is a behavioural result."
+        },
+        {
+          "conditions": [
+            [
+              "option_registered",
+              "eq",
+              false
+            ],
+            [
+              "unresolved_facts",
+              "eq",
+              0
+            ],
+            [
+              "reads_frozen_tree",
+              "eq",
+              true
+            ],
+            [
+              "facts_effective_tree",
+              "eq_probe",
+              "frozen_effective_tree"
+            ]
+          ],
+          "category": "OPTION_ABSENT_COMPILER_CHANGE_NEEDED",
+          "note": "The compiler does not expose the specification, so the fix is a compiler change -- which is how the carried constraint was originally written."
+        }
+      ]
+    },
+    {
       "row": "PATCHABILITY_SUBSET_PROPERTY",
       "question": "Is every declaration the map admits as patchable actually demonstrated patchable?",
       "probes": {
@@ -1769,7 +2030,9 @@
       "ENUMERATED",
       "REPRESENTABLE",
       "NAMED_AND_FAIL_CLOSED",
-      "RECONCILED_TO_CARRIED_CONSTRAINT"
+      "RECONCILED_TO_CARRIED_CONSTRAINT",
+      "OPTION_PRESENT_BUT_NOT_PASSED",
+      "OPTION_ABSENT_COMPILER_CHANGE_NEEDED"
     ]
   }
 }

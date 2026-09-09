@@ -6,7 +6,7 @@
      file creates a second copy of the numbers, free to drift from the
      evidence -- which already happened in this programme once. -->
 
-Generated 2026-09-09T07:25:52Z · issue #58 · tracker #48
+Generated 2026-09-09T08:00:52Z · issue #58 · tracker #48
 
 ## Verdict
 
@@ -42,6 +42,7 @@ Every row is extracted at run time from a named file and field or marker. A row 
 | `RETENTION_CONTRACT` | `ESTABLISHED_WITH_LIMITS` | `g4_retention/evidence/g4_retention.json` |
 | `RETENTION_WITHHELD_FAILS_CLOSED` | `ESTABLISHED_NEGATIVE` | `g4_retention/evidence/g4_retention.json` |
 | `RETENTION_FAIL_OPEN_ROOT_CAUSE` | `RECONCILED_TO_CARRIED_CONSTRAINT` | `engine/semantic_linker/runtime_feasibility/final/RESULT.md`, `engine/semantic_linker/runtime_feasibility/g6a_negatives/evidence/negatives.json`, `engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduction.json`, `g4_retention/evidence/g4_retention.json` |
+| `DYNAMIC_INTERFACE_VALIDATION_MECHANISM` | `OPTION_PRESENT_BUT_NOT_PASSED` | `engine/semantic_linker/runtime_feasibility/g0_freeze/freeze_manifest.json`, `final/evidence/source_facts.json` |
 | `PATCHABILITY_SUBSET_PROPERTY` | `VACUOUS` | `g5_patchability/evidence/inlining_state.json`, `g5_patchability/evidence/subset.json` |
 | `PATCHABILITY_DISTINCTION_REPRESENTABLE` | `NOT_REPRESENTABLE` | `g5_patchability/evidence/dispatch_experiment.txt` |
 | `DECIDABLE_EXCLUSIONS` | `NAMED_AND_FAIL_CLOSED` | `g2_fingerprints/evidence/g2_fingerprints.json`, `g3_privacy/evidence/g3_privacy.json` |
@@ -125,14 +126,14 @@ Deterministic and timing families are kept separate. The deterministic figures a
 
 - The map cannot decide patchability by inference from a finished AOT, so patchability has to become a BUILD-TIME guarantee rather than a post-hoc classification. #59 (Mutable AOT Dart) is the accepted direction for that and may be named here; no implementation begins in #58.
 - AOT-ASSUMPTIONS-1 owns the optimizer-contract half and is still un-instrumented; it was deliberately not started here.
-- RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE, and it is NOT a new finding: every class that fails open has cause DYNAMIC_INTERFACE_POLICY, while the one that fails closed (callable) has a different cause. SL1-G6C named the root cause MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION and left it BLOCKING_FOR_PRODUCTION; SL1-FINAL carried "module-side dynamic-interface validation must become fail-closed" into this lane as a mandatory constraint. SL1's premise that "dart2bytecode has no such option" does not hold against the frozen source: --validate <dynamic_interface.yaml> is registered at pkg/dart2bytecode/lib/dart2bytecode.dart:131 and assigns dynamicInterfaceSpecificationUri at :291, upstream since 2024-10-24 and present in the DEPS-pinned base. Its CONCLUSION stands: KernelTarget.validateDynamicModule (kernel_target.dart:1815) early-returns unless that URI is set, and Route B's pipeline never passes the flag (build_4a_payload.sh:34, build_4b_artifact.sh:96). The next lane is therefore a change to our own build scripts, not a compiler option -- but whether passing it closes the three negatives is UNTESTED and is that lane's first experiment. Independent of the patchability question; must close before any map is relied on.
+- RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE, and NOT a new finding: every class that fails open has cause DYNAMIC_INTERFACE_POLICY, while the one that fails closed (callable) has a different cause. SL1-G6C named the root cause MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION as BLOCKING_FOR_PRODUCTION and SL1-FINAL carried it into this lane. SL1's PREMISE does not hold against the frozen source: dart2bytecode registers --validate (dart2bytecode.dart:131) and assigns dynamicInterfaceSpecificationUri (:291), upstream and predating this fork. Its CONCLUSION does hold: validateDynamicModule is conditional on that URI (kernel_target.dart:1815) and Route B omits the flag (build_4a_payload.sh:34, build_4b_artifact.sh:96). So the next lane is a change to our own build scripts, not a compiler option -- and whether passing the flag makes the negatives fail closed is UNTESTED, being that lane's first experiment. Independent of patchability; must close before any map is relied on.
 - Generation-time figures are current-run observations. Any schedule or budget derived from them needs a repeated measurement at the scale being shipped, not this sample.
 
 ## Provenance
 
-18 evidence files consumed, each digested at read time; 51 producing scripts and 8 assembler components digested.
+20 evidence files consumed, each digested at read time; 60 producing scripts and 9 assembler components digested.
 
-Input set derived from the extractor access log, cross-checked against the registry. Declared by rows: 18; opened by the extractor: 18; sets equal: True.
+Input set derived from the extractor access log, cross-checked against the registry. Declared by rows: 20; opened by the extractor: 20; sets equal: True.
 
 Self-hashing: none: this manifest, RESULT.md, the matrix and the verdict are OUTPUTS of this assembly and are listed by name only. A manifest that digested itself would never converge -- G5 hit exactly that and a second run never reproduced the first.
 
@@ -148,6 +149,8 @@ Manifest findings: none.
 | `engine/semantic_linker/runtime_feasibility/g6a_negatives/evidence/negatives.json` | `98ba926de674724d…` | 1 |
 | `engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduction.json` | `b750b2ad11b09a8c…` | 1 |
 | `engine/semantic_linker/runtime_feasibility/final/RESULT.md` | `8c9faf34c1d527a4…` | 1 |
+| `final/evidence/source_facts.json` | `dc666455aabf48a7…` | 1 |
+| `engine/semantic_linker/runtime_feasibility/g0_freeze/freeze_manifest.json` | `e72e0fb306da1794…` | 1 |
 | `g5_patchability/evidence/subset.json` | `21b644dcd142f3e9…` | 1 |
 | `g5_patchability/evidence/inlining_state.json` | `8e97a2d235486e85…` | 1 |
 | `g5_patchability/evidence/dispatch_experiment.txt` | `550908425469c359…` | 1 |
