@@ -1,5 +1,5 @@
 SM1-G6 -- map schema, identity, versioning and release binding
-generated 2026-09-08T22:20:11Z by run_g6.sh
+generated 2026-09-09T00:08:16Z by run_g6.sh
 
 WHAT IS BOUND
 

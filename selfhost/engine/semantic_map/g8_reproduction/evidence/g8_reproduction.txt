@@ -1,0 +1,125 @@
+SM1-G8 -- clean reproduction and centralized negative inventory
+generated 2026-09-09T00:07:52Z by run_g8.sh
+
+############ 1. PRODUCT DIRECTORIES, BEFORE ############
+  17e2fc927925bb49aa1683d38c09584fe3749cc811cb004a757926f2da7c8cff  packages
+  ea537360119c7ce3306cc4d0ea6bc2eafc59e90dbb5343b068105dec4da253b9  bin
+  a30cd01ca5be0701ee0915a3ce697d0f1d45b41411b7e645b0ae36b9caa4c909  scripts
+
+############ 2. CAN THE PROBE CORPUS BE REBUILT FROM SOURCE? ############
+  The G5 probe banks consume a work directory: release3.dill, pre_r.dill,
+  import.dill, di3.yaml, g2_r.json and four .sbrb containers. #57 requires
+  rebuilding rather than inheriting, so this attempts the chain from the
+  checked-in probe source and compares.
+
+  invocation                            bytes  entries  distinct libs
+  --include probe library only           1904       11              2   differs
+  no --include (all non-SDK)             4888       45              8   differs
+  BANKED di3.yaml                        9528       95             13   <- target
+  artifact                      rebuilt          banked
+  di.yaml vs di3.yaml              1904            9528
+  release.dill vs release3.dill        4626080         4786816
+
+  THE CHAIN RUNS, BUT DOES NOT REPRODUCE THE BANKED CORPUS. Two plausible
+  invocations were tried and neither matches: scoping to the probe library
+  gives far too little, and taking every non-SDK library still yields fewer
+  capability entries and no dart:core members. The banked interface therefore
+  used further flags -- SDK member/library selection, or private-class options
+  -- and that invocation was never recorded. Its own header records the source
+  dill and the retention POLICY, but not the command.
+
+  This is reported as a STOP CONDITION, not worked around. The G5 probe banks
+  are reproducible from their WORK DIRECTORY, whose inputs are digest-recorded
+  below, but not yet from checked-in sources alone.
+
+  inherited probe inputs, by digest:
+    a93b4be09e7efa06279f42860e64208d86d7b7a0ab7e71156960f50bf2bfd888  release3.dill
+    79d08a6a23229c097ff48b56f95ca9c1ae09def6c3ec216117d1824993a78687  pre_r.dill
+    79dfb9e20ce9d971388f1bc73a74fa94ea2465ef4aab5e45ecf195da212b6cee  prepass3.dill
+    72bf63ecb5c897beba40dadd2168835e49c57821e6f6c445b30b3f914ecb2bea  import.dill
+    733d5895396b5776971da7049649655c533e8db97658896f576dd7d0268b98d3  di3.yaml
+    b9b29d23f37e5e11a5ab181f7f9674c5a482f52b5bcd0483272e6f57c0f90550  g2_r.json
+    f7ce6a11cbaff2914fa8d73e8e9698b77bfd7ce04f70f7891332a470aa4784d2  patch_alpha.sbrb
+    5a81c4f9cbe63b0f0873046c18155ccd024e725b9aba1ce43c68195b985fcd93  patch_basework.sbrb
+    8964309de1939220d2c2f33d42f964cd20a78dbd1a5264e07c516bd8ea67998e  patch_smallTarget.sbrb
+    0e224c4ee64437656bb59433335475c5a382b0ad7172057bbb168ad6f5e55ce8  patch_tearOffTarget.sbrb
+
+############ 3. REBUILT FROM SOURCE: G6 AND G7 ############
+  These two are self-sufficient: G6 builds its maps from artifacts it names,
+  and G7 now builds its own retention pair. Both are re-run here into a fresh
+  work state rather than trusted.
+
+      pass  and fails exactly the three integrity arms
+      pass  the weakener refuses a missing anchor
+    SM1_G6: BINDING_ENFORCED
+      pass  order dependence was tested, not assumed
+      pass  no threshold is imposed
+    SM1_G7: COST_REPORTED
+
+############ 4. INVENTORY == TESTED == CAUGHT ############
+  g5_patchability
+    declared  17   tested  17   caught   5   declared==tested: True
+  g6_binding
+    declared   3   tested   3   caught   1   declared==tested: True
+  g7_cost
+    declared   1   tested   1   caught   0   declared==tested: True
+  known FAIL_OPEN findings, re-derived as findings:
+    subset-over-claim-arms             3 occurrence(s)
+    corpora-over-claim-marker          2 occurrence(s)
+    reader-control-defects             2 occurrence(s)
+SM1_G8_INVENTORY: INVENTORY_CONSISTENT
+  exit=0
+
+############ 5. NEGATIVES, WITH BYTE-FOR-BYTE RESTORATION ############
+arm                                                        result detail
+----------------------------------------------------------------------------------------------------------------
+an inventoried artifact is missing                         pass   ARTIFACT_MISSING_OR_EMPTY
+  restored g5_patchability/evidence/inlining_state.json    pass   byte-for-byte
+an inventoried transcript is missing                       pass   ARTIFACT_MISSING_OR_EMPTY
+  restored g6_binding/evidence/g6_binding.txt              pass   byte-for-byte
+an inventoried artifact is emptied                         pass   ARTIFACT_MISSING_OR_EMPTY
+  restored g7_cost/evidence/samples.jsonl                  pass   byte-for-byte
+a transcript loses a declared positive verdict             pass   DECLARED_POSITIVE_NOT_TESTED
+  restored g6_binding/evidence/g6_binding.txt              pass   byte-for-byte
+a control stops recording its failure verdict              pass   DECLARED_CONTROL_NEVER_FAILED
+  restored g6_binding/evidence/g6_binding.txt              pass   byte-for-byte
+a known FAIL_OPEN finding stops being produced             pass   FAIL_OPEN_FINDING_NOT_REPRODUCED
+  restored g5_patchability/evidence/corpora.txt            pass   byte-for-byte
+a deterministic binding drifts                             pass   DETERMINISTIC_BINDING_CHANGED
+  restored g7_cost/evidence/families.json                  pass   byte-for-byte
+a required timing stage disappears                         pass   TIMING_STAGE_MISSING
+  restored g7_cost/evidence/samples.jsonl                  pass   byte-for-byte
+one schedule side disappears                               pass   TIMING_ORDER_MISSING
+  restored g7_cost/evidence/samples.jsonl                  pass   byte-for-byte
+a timing producer is recorded as failed                    pass   TIMING_PRODUCER_FAILED
+  restored g7_cost/evidence/samples.jsonl                  pass   byte-for-byte
+the summary no longer matches the retained samples         pass   SUMMARY_NOT_FROM_SAMPLES
+  restored g7_cost/evidence/families.json                  pass   byte-for-byte
+classifier: >10% AND beyond noise flags ORDER_DEPENDENT    pass   ratio 1.30, gap 30 > noise 1: order_dependent=True
+classifier: >10% but INSIDE noise does not flag            pass   ratio 1.30, gap 30 < noise 50: order_dependent=False
+classifier: a missing schedule side is UNDECIDABLE, not unaffected pass   decidable=False order_dependent=None
+the bank is consistent again after every mutation          pass   INVENTORY_CONSISTENT
+----------------------------------------------------------------------------------------------------------------
+arms=26 passed=26 failed=0
+SM1_G8_NEGATIVES: ALL_DETECTED_AND_RESTORED
+  exit=0
+
+############ 6. PRODUCT DIRECTORIES, AFTER ############
+  unchanged  17e2fc927925bb49aa1683d38c09584fe3749cc811cb004a757926f2da7c8cff  packages
+  unchanged  ea537360119c7ce3306cc4d0ea6bc2eafc59e90dbb5343b068105dec4da253b9  bin
+  unchanged  a30cd01ca5be0701ee0915a3ce697d0f1d45b41411b7e645b0ae36b9caa4c909  scripts
+
+ASSERTIONS (8 checked)
+  pass  G6 reproduces green
+  pass  G7 reproduces green
+  pass  inventory == tested == caught
+  pass  every negative is detected and restored
+  pass  the negatives transcript records ALL_DETECTED_AND_RESTORED
+  pass  product directories are unchanged
+  pass  the stale-summary negative is present
+  pass  all three classifier controls ran
+
+STOP CONDITION: probe corpus: di3.yaml recipe unrecorded, so the G5 probe banks cannot be rebuilt from checked-in sources
+  Everything else below reproduces; this one input chain does not,
+  and #57 requires stopping rather than silently carrying it.
+SM1_G8: REPRODUCTION_INCOMPLETE

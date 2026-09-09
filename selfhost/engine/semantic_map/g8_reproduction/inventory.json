@@ -1,0 +1,178 @@
+{
+  "schema": "semantic-map-1/g8-inventory/1",
+  "gate": "SM1-G8",
+  "issue": 57,
+  "why": "ONE mandatory inventory. Each gate owns its adversarial arms; this declares which must exist, and the checker proves declared == tested == caught. An arm that is declared but never run, run but never caught failing, or caught without being declared, is a finding.",
+  "dimensions": {
+    "artifacts": "evidence a clean reproduction must produce",
+    "positive": "the verdict a healthy run must record",
+    "negative": "the verdict its CONTROL must record -- proof the arm can fail"
+  },
+  "gates": {
+    "g5_patchability": {
+      "scripts": [
+        "run_route2.sh",
+        "run_dispatch_experiment.sh",
+        "run_predictor_bank.sh",
+        "run_subset.sh",
+        "run_corpora.sh"
+      ],
+      "artifacts": [
+        "evidence/reader_state.txt",
+        "evidence/reader_falsification.txt",
+        "evidence/recorder_completeness.txt",
+        "evidence/recorder_completeness.md",
+        "evidence/dispatch_experiment.txt",
+        "evidence/predictor_falsification.txt",
+        "evidence/subset_check.txt",
+        "evidence/corpora.txt",
+        "evidence/inlining_state.json",
+        "evidence/g1_projection.json",
+        "evidence/corpus_localsend.json",
+        "evidence/corpus_wonderous.json",
+        "evidence/final_manifest.json",
+        "instrumentation/MANIFEST.json",
+        "RESULT.md"
+      ],
+      "positive": [
+        "SM1_G5_COMPLETENESS_CONTROL: VALID_AND_SENSITIVE",
+        "SM1_G5_CORPORA: ALL_EMPTY_AND_FAIL_CLOSED",
+        "SM1_G5_DISPATCH_EXPERIMENT: COMPLETE",
+        "SM1_G5_DISPATCH_PREDICATE: FAIL_CLOSED",
+        "SM1_G5_MANIFEST_SEMANTICS: ALL_SWAPS_REFUSED",
+        "SM1_G5_PREDICTOR_BANK: COMPLETE",
+        "SM1_G5_PREDICTOR_FALSIFICATION: EVERY_REASON_ARMED_AND_SENSITIVE",
+        "SM1_G5_READER_FALSIFICATION: ALL_ARMS_REFUSED",
+        "SM1_G5_RECORDER_COMPLETENESS: ENUMERATION_HOLDS",
+        "SM1_G5_SUBSET: SUBSET_HOLDS_VACUOUSLY",
+        "SM1_G5_SUBSET_BANK: ADVERSARIAL_CORPUS_ONLY",
+        "SM1_G5_SUBSET_FALSIFICATION: SCORER_IS_SENSITIVE"
+      ],
+      "negative": [
+        "SM1_G5_READER_FALSIFICATION: DEFECTS_PRESENT",
+        "SM1_G5_RECORDER_COMPLETENESS: ENUMERATION_DRIFTED",
+        "SM1_G5_PREDICTOR_FALSIFICATION: DEFECTS_PRESENT",
+        "SM1_G5_DISPATCH_PREDICATE: DEFECTS_PRESENT",
+        "SM1_G5_SUBSET: FAIL_OPEN"
+      ]
+    },
+    "g6_binding": {
+      "scripts": [
+        "run_g6.sh"
+      ],
+      "artifacts": [
+        "evidence/g6_binding.txt",
+        "evidence/map_probe.json",
+        "evidence/verify_probe.json"
+      ],
+      "positive": [
+        "SM1_G6: BINDING_ENFORCED",
+        "SM1_G6_BINDING_FALSIFICATION: EVERY_SWAP_REFUSED"
+      ],
+      "negative": [
+        "SM1_G6_BINDING_FALSIFICATION: DEFECTS_PRESENT"
+      ]
+    },
+    "g7_cost": {
+      "scripts": [
+        "run_g7.sh"
+      ],
+      "artifacts": [
+        "evidence/g7_cost.txt",
+        "evidence/families.json",
+        "evidence/samples.jsonl"
+      ],
+      "positive": [
+        "SM1_G7: COST_REPORTED"
+      ],
+      "negative": []
+    }
+  },
+  "known_fail_open_findings": {
+    "why": "#57 requires the reproduction to re-derive known FAIL_OPEN findings AS FINDINGS. These are refusals the programme depends on; if a clean rebuild stopped producing them the gate would be passing for the wrong reason. Each names the EXACT form its evidence takes -- a marker line in one place, an arm outcome in another -- because assuming a single form made this check look failed when the finding was present in a different shape.",
+    "findings": [
+      {
+        "id": "subset-over-claim-arms",
+        "gate": "g5_patchability",
+        "where": "evidence/subset_check.txt",
+        "pattern": "over-claim:.*\\bFAIL_OPEN\\b",
+        "min_count": 3,
+        "means": "the scorer refuses a predicted-patchable declaration that is not demonstrated: one partly stale, one wholly stale, one with no demonstration row"
+      },
+      {
+        "id": "corpora-over-claim-marker",
+        "gate": "g5_patchability",
+        "where": "evidence/corpora.txt",
+        "pattern": "SM1_G5_SUBSET: FAIL_OPEN",
+        "min_count": 2,
+        "means": "an injected admitted row is refused on each real corpus"
+      },
+      {
+        "id": "reader-control-defects",
+        "gate": "g5_patchability",
+        "where": "evidence/reader_falsification.txt",
+        "pattern": "SM1_G5_READER_FALSIFICATION: DEFECTS_PRESENT",
+        "min_count": 2,
+        "means": "both weakened readers fail the arms, so the suite is not vacuous"
+      }
+    ]
+  },
+  "deterministic_bindings": {
+    "why": "#57 binds these EXACTLY. They are artifact-derived and reproduced byte-for-byte across rebuilds; the timing families are machine state and are bound structurally instead.",
+    "g7_cost": {
+      "retention_measured_delta_bytes": 4330120,
+      "retention_measured_delta_pct": 8.719,
+      "g4_projection_bytes": 2922310,
+      "g4_projection_pct": 5.884,
+      "measured_over_projected": 1.482,
+      "map_bytes": 9467041,
+      "map_over_aot_pct": 19.063
+    }
+  },
+  "structural_bindings": {
+    "why": "Timing is machine state. Presence, shape and provenance are required; no wall-clock value or resulting classification is.",
+    "g7_cost": {
+      "required_stages": [
+        "base_gen_kernel",
+        "base_gen_snapshot",
+        "map_g1",
+        "map_g3",
+        "map_g4",
+        "map_refs",
+        "map_contract",
+        "map_reader",
+        "map_bound"
+      ],
+      "required_orders": [
+        "base_first",
+        "map_first"
+      ],
+      "min_reps_per_order": 3,
+      "required_sample_fields": [
+        "label",
+        "order",
+        "rep",
+        "ms",
+        "exit"
+      ],
+      "required_classifier_inputs": [
+        "ratio",
+        "gap_ms",
+        "within_order_spread_ms",
+        "exceeds_10pct",
+        "exceeds_noise_floor",
+        "order_dependent"
+      ],
+      "zero_producer_failures": true,
+      "no_required_wall_clock_value": true
+    }
+  },
+  "product_directories": {
+    "why": "#57 requires proof the product is untouched. This lane writes only under selfhost/engine/semantic_map/.",
+    "paths": [
+      "packages",
+      "bin",
+      "scripts"
+    ]
+  }
+}

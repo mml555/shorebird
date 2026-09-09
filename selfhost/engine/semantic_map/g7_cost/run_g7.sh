@@ -312,7 +312,6 @@ for l in labels:
     # retention-pair stages are built once and are excluded rather than
     # silently counted as unaffected.
     if a['n'] and z['n']:
-        ratio = z['median_ms'] / a['median_ms'] if a['median_ms'] else None
         # A RATIO ALONE IS NOT AN ORDER EFFECT. At small n the medians of a
         # noisy stage differ by more than 10% from run to run, so a bare ratio
         # test flags different stages each time -- observed directly here: one
@@ -324,19 +323,15 @@ for l in labels:
         # two order-medians also exceeds the run-to-run spread within those
         # orders. Below that floor the difference is indistinguishable from
         # noise and is reported as such.
-        gap = abs((z['median_ms'] or 0) - (a['median_ms'] or 0))
-        noise = max(a['stdev_ms'] or 0, z['stdev_ms'] or 0)
-        order_effects[l] = {
-            'base_first_median_ms': a['median_ms'],
-            'map_first_median_ms': z['median_ms'],
-            'ratio': round(ratio, 3) if ratio else None,
-            'gap_ms': round(gap, 1),
-            'within_order_spread_ms': round(noise, 1),
-            'exceeds_10pct': bool(ratio and abs(ratio - 1) > 0.10),
-            'exceeds_noise_floor': bool(gap > noise),
-            'order_dependent': bool(ratio and abs(ratio - 1) > 0.10
-                                    and gap > noise),
-        }
+        # The rule lives in lib/classify_order.py so #57's three sensitivity
+        # controls can exercise it without running a seven-minute measurement.
+        sys.path.insert(0, os.path.join(G5, '..', 'g7_cost', 'lib'))
+        from classify_order import classify
+        v = classify(a, z)
+        v['base_first_median_ms'] = a['median_ms']
+        v['map_first_median_ms'] = z['median_ms']
+        order_effects[l] = v
+
 fam['order_dependence'] = order_effects
 fam['order_dependence_scope'] = (
     'labels sampled in both timed orders; the retention-pair stages run once '
