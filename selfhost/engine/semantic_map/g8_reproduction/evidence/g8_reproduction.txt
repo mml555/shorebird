@@ -1,5 +1,5 @@
 SM1-G8 -- clean reproduction and centralized negative inventory
-generated 2026-09-09T02:03:13Z by run_g8.sh
+generated 2026-09-09T04:38:28Z by run_g8.sh
 
 ############ 1. PRODUCT SURFACE, BEFORE ############
   17e2fc927925bb49aa1683d38c09584fe3749cc811cb004a757926f2da7c8cff  packages
@@ -46,33 +46,73 @@ generated 2026-09-09T02:03:13Z by run_g8.sh
   run_g6.sh                     OK   15 assertions
   run_g7.sh                     OK   8 assertions
 
+  recorded exit status per gate (the data the assertion reads):
+    run_route2.sh 0
+    run_dispatch_experiment.sh 0
+    run_predictor_bank.sh 0
+    run_subset.sh 0
+    run_corpora.sh 0
+    run_g6.sh 0
+    run_g7.sh 0
+
   the substantive results a re-bank must preserve:
     reader accounting  {'total_g1_rows': 36, 'INLINED': 2, 'NOT_INLINED': 15, 'UNKNOWN': 14, 'NO_BODY': 5, 'accounted': 36}
     subset verdict     SUBSET_HOLDS_VACUOUSLY  admitted 0/36
 
+############ 3b. DIGEST SNAPSHOT OF EVERY MANDATORY ARTIFACT ############
+  Taken AFTER the gates regenerate, because these transcripts carry
+  generated-at timestamps -- a committed digest would fail on every legitimate
+  rebuild. It is this run's provenance, and it is what makes a
+  present-but-corrupted artifact detectable at all: before it existed, a byte
+  flipped in most artifacts changed nothing the checker looked at, so a derived
+  corruption arm had nothing to catch it.
+
+  21 mandatory artifacts digested
+
 ############ 4. NEGATIVES, DRIVEN BY THE INVENTORY ############
-  MUTATIONS (32) -- 21 derived, one per mandatory artifact; 11 semantic
+  MUTATIONS (53) -- 42 derived, one per mandatory artifact; 11 semantic
     auto-g5_patchability-reader_state.txt-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-reader_state.txt-corrupted pass   ARTIFACT_CORRUPTED
     auto-g5_patchability-reader_falsification.txt-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-reader_falsification.txt-corrupted pass   ARTIFACT_CORRUPTED
     auto-g5_patchability-recorder_completeness.txt-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-recorder_completeness.txt-corrupted pass   ARTIFACT_CORRUPTED
     auto-g5_patchability-recorder_completeness.md-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-recorder_completeness.md-corrupted pass   ARTIFACT_CORRUPTED
     auto-g5_patchability-dispatch_experiment.txt-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-dispatch_experiment.txt-corrupted pass   ARTIFACT_CORRUPTED
     auto-g5_patchability-predictor_falsification.txt-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-predictor_falsification.txt-corrupted pass   ARTIFACT_CORRUPTED
     auto-g5_patchability-subset_check.txt-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-subset_check.txt-corrupted pass   ARTIFACT_CORRUPTED
     auto-g5_patchability-corpora.txt-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-corpora.txt-corrupted pass   ARTIFACT_CORRUPTED
     auto-g5_patchability-inlining_state.json-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-inlining_state.json-corrupted pass   ARTIFACT_CORRUPTED
     auto-g5_patchability-g1_projection.json-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-g1_projection.json-corrupted pass   ARTIFACT_CORRUPTED
     auto-g5_patchability-corpus_localsend.json-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-corpus_localsend.json-corrupted pass   ARTIFACT_CORRUPTED
     auto-g5_patchability-corpus_wonderous.json-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-corpus_wonderous.json-corrupted pass   ARTIFACT_CORRUPTED
     auto-g5_patchability-final_manifest.json-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-final_manifest.json-corrupted pass   ARTIFACT_CORRUPTED
     auto-g5_patchability-MANIFEST.json-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-MANIFEST.json-corrupted pass   ARTIFACT_CORRUPTED
     auto-g5_patchability-RESULT.md-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-RESULT.md-corrupted pass   ARTIFACT_CORRUPTED
     auto-g6_binding-g6_binding.txt-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g6_binding-g6_binding.txt-corrupted pass   ARTIFACT_CORRUPTED
     auto-g6_binding-map_probe.json-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g6_binding-map_probe.json-corrupted pass   ARTIFACT_CORRUPTED
     auto-g6_binding-verify_probe.json-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g6_binding-verify_probe.json-corrupted pass   ARTIFACT_CORRUPTED
     auto-g7_cost-g7_cost.txt-deleted       pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g7_cost-g7_cost.txt-corrupted     pass   ARTIFACT_CORRUPTED
     auto-g7_cost-families.json-deleted     pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g7_cost-families.json-corrupted   pass   ARTIFACT_CORRUPTED
     auto-g7_cost-samples.jsonl-deleted     pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g7_cost-samples.jsonl-corrupted   pass   ARTIFACT_CORRUPTED
     g7-samples-emptied                     pass   ARTIFACT_MISSING_OR_EMPTY
     g6-positive-verdict-lost               pass   DECLARED_POSITIVE_NOT_TESTED
     g6-control-stops-failing               pass   DECLARED_CONTROL_NEVER_FAILED
@@ -84,28 +124,49 @@ generated 2026-09-09T02:03:13Z by run_g8.sh
     g7-schedule-side-vanishes              pass   TIMING_ORDER_MISSING
     g7-producer-recorded-failed            pass   TIMING_PRODUCER_FAILED
     g7-stale-summary                       pass   SUMMARY_NOT_FROM_SAMPLES
-  RESTORATIONS (32) -- byte-for-byte, verified
+  RESTORATIONS (53) -- byte-for-byte, verified
     auto-g5_patchability-reader_state.txt-deleted pass   byte-for-byte
+    auto-g5_patchability-reader_state.txt-corrupted pass   byte-for-byte
     auto-g5_patchability-reader_falsification.txt-deleted pass   byte-for-byte
+    auto-g5_patchability-reader_falsification.txt-corrupted pass   byte-for-byte
     auto-g5_patchability-recorder_completeness.txt-deleted pass   byte-for-byte
+    auto-g5_patchability-recorder_completeness.txt-corrupted pass   byte-for-byte
     auto-g5_patchability-recorder_completeness.md-deleted pass   byte-for-byte
+    auto-g5_patchability-recorder_completeness.md-corrupted pass   byte-for-byte
     auto-g5_patchability-dispatch_experiment.txt-deleted pass   byte-for-byte
+    auto-g5_patchability-dispatch_experiment.txt-corrupted pass   byte-for-byte
     auto-g5_patchability-predictor_falsification.txt-deleted pass   byte-for-byte
+    auto-g5_patchability-predictor_falsification.txt-corrupted pass   byte-for-byte
     auto-g5_patchability-subset_check.txt-deleted pass   byte-for-byte
+    auto-g5_patchability-subset_check.txt-corrupted pass   byte-for-byte
     auto-g5_patchability-corpora.txt-deleted pass   byte-for-byte
+    auto-g5_patchability-corpora.txt-corrupted pass   byte-for-byte
     auto-g5_patchability-inlining_state.json-deleted pass   byte-for-byte
+    auto-g5_patchability-inlining_state.json-corrupted pass   byte-for-byte
     auto-g5_patchability-g1_projection.json-deleted pass   byte-for-byte
+    auto-g5_patchability-g1_projection.json-corrupted pass   byte-for-byte
     auto-g5_patchability-corpus_localsend.json-deleted pass   byte-for-byte
+    auto-g5_patchability-corpus_localsend.json-corrupted pass   byte-for-byte
     auto-g5_patchability-corpus_wonderous.json-deleted pass   byte-for-byte
+    auto-g5_patchability-corpus_wonderous.json-corrupted pass   byte-for-byte
     auto-g5_patchability-final_manifest.json-deleted pass   byte-for-byte
+    auto-g5_patchability-final_manifest.json-corrupted pass   byte-for-byte
     auto-g5_patchability-MANIFEST.json-deleted pass   byte-for-byte
+    auto-g5_patchability-MANIFEST.json-corrupted pass   byte-for-byte
     auto-g5_patchability-RESULT.md-deleted pass   byte-for-byte
+    auto-g5_patchability-RESULT.md-corrupted pass   byte-for-byte
     auto-g6_binding-g6_binding.txt-deleted pass   byte-for-byte
+    auto-g6_binding-g6_binding.txt-corrupted pass   byte-for-byte
     auto-g6_binding-map_probe.json-deleted pass   byte-for-byte
+    auto-g6_binding-map_probe.json-corrupted pass   byte-for-byte
     auto-g6_binding-verify_probe.json-deleted pass   byte-for-byte
+    auto-g6_binding-verify_probe.json-corrupted pass   byte-for-byte
     auto-g7_cost-g7_cost.txt-deleted       pass   byte-for-byte
+    auto-g7_cost-g7_cost.txt-corrupted     pass   byte-for-byte
     auto-g7_cost-families.json-deleted     pass   byte-for-byte
+    auto-g7_cost-families.json-corrupted   pass   byte-for-byte
     auto-g7_cost-samples.jsonl-deleted     pass   byte-for-byte
+    auto-g7_cost-samples.jsonl-corrupted   pass   byte-for-byte
     g7-samples-emptied                     pass   byte-for-byte
     g6-positive-verdict-lost               pass   byte-for-byte
     g6-control-stops-failing               pass   byte-for-byte
@@ -122,7 +183,7 @@ generated 2026-09-09T02:03:13Z by run_g8.sh
     clf-inside-noise-does-not-flag         pass   ratio 1.30 but gap 30 under noise 50: order_dependent=Fa
     clf-missing-side-undecidable           pass   absence of a comparison is not absence of an effect: ord
   BANK INTACT AFTER ALL MUTATIONS: pass (INVENTORY_CONSISTENT)
-  mutations=32 restorations=32 classifier_controls=3 failed=0
+  mutations=53 restorations=53 classifier_controls=3 failed=0
 SM1_G8_NEGATIVES: ALL_DETECTED_AND_RESTORED
   exit=0
 
@@ -137,7 +198,7 @@ SM1_G8_NEGATIVES: ALL_DETECTED_AND_RESTORED
     subset-over-claim-arms             3 occurrence(s)
     corpora-over-claim-marker          2 occurrence(s)
     reader-control-defects             2 occurrence(s)
-  declared==35 tested==35 caught==35  literal equality: True
+  declared==56 tested==56 caught==56  literal equality: True
 SM1_G8_INVENTORY: INVENTORY_CONSISTENT
   exit=0
 
@@ -148,12 +209,15 @@ SM1_G8_INVENTORY: INVENTORY_CONSISTENT
   unchanged  dad67449fb475e1fc28eb347f280878d62e51fc7e7cf900d6af763e9af990c8e  selfhost/compatibility.yaml
   unchanged  a30cd01ca5be0701ee0915a3ce697d0f1d45b41411b7e645b0ae36b9caa4c909  scripts
 
-ASSERTIONS (14 checked)
+ASSERTIONS (17 checked)
   pass  the probe corpus rebuilds from source
   pass  the rebuilt canonical AOT is the banked one
   pass  the G1 projection matches the banked copy
   pass  every gate re-ran green on the rebuilt corpus
+  pass  every expected gate reported a status
   pass  negatives all detected and restored
+  pass  every mandatory artifact is digest-checked
+  pass  both a deleted and a corrupted arm exist per artifact
   pass  inventory == tested == caught
   pass  the equality is literal over stable ids
   pass  product surface unchanged

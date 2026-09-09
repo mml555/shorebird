@@ -18,6 +18,10 @@ W="${TMPDIR:-/tmp}/sm1_g8"; rm -rf "$W"; mkdir -p "$W"
 PROBE="$W/probe"
 rc=0
 STOP=""
+GATE_STATUS="${TMPDIR:-/tmp}/sm1_g8_gates.txt"; : > "$GATE_STATUS"
+gate() { # gate <name> <exit-status>
+  printf '%s %s\n' "$1" "$2" >> "$GATE_STATUS"
+}
 ASSERTIONS=()
 want() {
   if [ "$2" = "$3" ]; then ASSERTIONS+=("  pass  $1")
@@ -71,24 +75,35 @@ echo
 echo "############ 3. EVERY GATE, RE-RUN ON THE REBUILT CORPUS ############"
 for s in run_route2.sh run_dispatch_experiment.sh run_predictor_bank.sh run_subset.sh; do
   printf '  %-30s' "$s"
-  if "$G5/$s" "$SRC" "$PROBE" >"$W/${s%.sh}.log" 2>&1; then
+  "$G5/$s" "$SRC" "$PROBE" >"$W/${s%.sh}.log" 2>&1; st=$?
+  gate "$s" "$st"
+  if [ "$st" = 0 ]; then
     echo "OK   $(grep -c '  pass  ' "$W/${s%.sh}.log") assertions"
   else
-    echo "FAILED"; grep -m3 '  FAIL  ' "$W/${s%.sh}.log" | sed 's/^/     /'; rc=1
+    echo "FAILED ($st)"; grep -m3 '  FAIL  ' "$W/${s%.sh}.log" | sed 's/^/     /'; rc=1
   fi
 done
 printf '  %-30s' run_corpora.sh
-if "$G5/run_corpora.sh" "$SRC" "$CORP" >"$W/corpora.log" 2>&1; then
+"$G5/run_corpora.sh" "$SRC" "$CORP" >"$W/corpora.log" 2>&1; st=$?
+gate run_corpora.sh "$st"
+if [ "$st" = 0 ]; then
   echo "OK   $(grep -c '  pass  ' "$W/corpora.log") assertions"
-else echo "FAILED"; rc=1; fi
+else echo "FAILED ($st)"; grep -m3 '  FAIL  ' "$W/corpora.log" | sed 's/^/     /'; rc=1; fi
 printf '  %-30s' run_g6.sh
-if "$SM/g6_binding/run_g6.sh" "$SRC" "$PROBE" "$CORP" >"$W/g6.log" 2>&1; then
+"$SM/g6_binding/run_g6.sh" "$SRC" "$PROBE" "$CORP" >"$W/g6.log" 2>&1; st=$?
+gate run_g6.sh "$st"
+if [ "$st" = 0 ]; then
   echo "OK   $(grep -c '  pass  ' "$W/g6.log") assertions"
-else echo "FAILED"; rc=1; fi
+else echo "FAILED ($st)"; grep -m3 '  FAIL  ' "$W/g6.log" | sed 's/^/     /'; rc=1; fi
 printf '  %-30s' run_g7.sh
-if "$SM/g7_cost/run_g7.sh" "$SRC" "$CORP" 3 >"$W/g7.log" 2>&1; then
+"$SM/g7_cost/run_g7.sh" "$SRC" "$CORP" 3 >"$W/g7.log" 2>&1; st=$?
+gate run_g7.sh "$st"
+if [ "$st" = 0 ]; then
   echo "OK   $(grep -c '  pass  ' "$W/g7.log") assertions"
-else echo "FAILED"; rc=1; fi
+else echo "FAILED ($st)"; grep -m3 '  FAIL  ' "$W/g7.log" | sed 's/^/     /'; rc=1; fi
+echo
+echo "  recorded exit status per gate (the data the assertion reads):"
+sed 's/^/    /' "$GATE_STATUS"
 echo
 echo "  the substantive results a re-bank must preserve:"
 python3 - "$G5/evidence/inlining_state.json" "$G5/evidence/subset.json" <<'PY' | sed 's/^/    /'
@@ -99,15 +114,29 @@ print(f"subset verdict     {sub['verdict']}  admitted "
       f"{sub['predicted_patchable']}/{sub['declarations']}")
 PY
 echo
+echo "############ 3b. DIGEST SNAPSHOT OF EVERY MANDATORY ARTIFACT ############"
+cat <<'TXT'
+  Taken AFTER the gates regenerate, because these transcripts carry
+  generated-at timestamps -- a committed digest would fail on every legitimate
+  rebuild. It is this run's provenance, and it is what makes a
+  present-but-corrupted artifact detectable at all: before it existed, a byte
+  flipped in most artifacts changed nothing the checker looked at, so a derived
+  corruption arm had nothing to catch it.
+TXT
+echo
+python3 "$G/lib/snapshot_digests.py" "$SM" "$G/inventory.json" \
+    "$G/evidence/artifact_digests.json"
+echo
 echo "############ 4. NEGATIVES, DRIVEN BY THE INVENTORY ############"
 python3 "$G/lib/falsify_reproduction.py" "$SM" "$G/inventory.json" "$W/neg" \
-    "$G/evidence/negative_outcomes.json"
+    "$G/evidence/negative_outcomes.json" "$G/evidence/artifact_digests.json"
 NEG_RC=$?
 echo "  exit=$NEG_RC"
 echo
 echo "############ 5. INVENTORY == TESTED == CAUGHT ############"
 python3 "$G/lib/check_inventory.py" "$SM" "$G/inventory.json" \
-    "$G/evidence/inventory_check.json" "$G/evidence/negative_outcomes.json"
+    "$G/evidence/inventory_check.json" "$G/evidence/negative_outcomes.json" \
+    "$G/evidence/artifact_digests.json"
 INV_RC=$?
 echo "  exit=$INV_RC"
 echo
@@ -126,8 +155,20 @@ want 'the rebuilt canonical AOT is the banked one' 1 "$(grep -c '    IDENTICAL' 
 want 'the G1 projection matches the banked copy' 1 \
      "$(grep -c 'G1 projection IDENTICAL' "$T")"
 want 'every gate re-ran green on the rebuilt corpus' 0 \
-     "$(grep -c '^  FAILED' "$T")"
+     "$(awk '$2!=0' "$GATE_STATUS" | wc -l | tr -d ' ')"
+want 'every expected gate reported a status' 7 \
+     "$(wc -l < "$GATE_STATUS" | tr -d ' ')"
 want 'negatives all detected and restored' 0 "${NEG_RC:-1}"
+want 'every mandatory artifact is digest-checked' \
+     "$(python3 -c "
+import json,sys
+d=json.load(open('$G/inventory.json'))
+print(sum(len(g['artifacts']) for g in d['gates'].values()))")" \
+     "$(python3 -c "
+import json
+print(json.load(open('$G/evidence/inventory_check.json')).get('artifacts_digest_checked',0))")"
+want 'both a deleted and a corrupted arm exist per artifact' True \
+     "$(python3 "$G/lib/_check_arm_pairs.py" "$G/inventory.json" "$G/evidence/negative_outcomes.json")"
 want 'inventory == tested == caught' 0 "${INV_RC:-1}"
 want 'the equality is literal over stable ids' True \
      "$(python3 -c "

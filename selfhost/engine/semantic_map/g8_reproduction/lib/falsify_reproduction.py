@@ -36,35 +36,36 @@ W.mkdir(parents=True, exist_ok=True)
 mutations, restorations, controls = [], [], []
 
 
-def derived_entries():
-    """One delete arm per MANDATORY artifact, derived from the gates.
+sys.path.insert(0, str(pathlib.Path(__file__).parent))
+from _derived_arms import derived_arms                       # noqa: E402
 
-    #57 requires every mandatory item to refuse when missing or corrupted. A
-    curated list cannot establish that: the equality was previously over 15
-    chosen mutations while 21 artifacts were declared mandatory, so six had no
-    negative at all. Deriving means adding a mandatory artifact automatically
-    adds its negative, and coverage cannot fall behind the inventory.
-    """
-    out = []
-    for gate, spec in inv['gates'].items():
-        for rel in spec['artifacts']:
-            out.append({
-                'id': f"auto-{gate}-{pathlib.Path(rel).name}-deleted",
-                'target': f'{gate}/{rel}',
-                'mutation': 'delete',
-                'expect_code': 'ARTIFACT_MISSING_OR_EMPTY',
-                'derived': True,
-            })
-    return out
+
+def derived_entries():
+    """Delegates to _derived_arms -- see that module for why it is shared."""
+    return derived_arms(inv)
 
 
 ENTRIES = derived_entries() + inv['falsifiable']['entries']
 
 
+DIGESTS = sys.argv[5] if len(sys.argv) > 5 else None
+
+
 def run_check():
-    p = subprocess.run([sys.executable, str(CHECK), str(SM), INV,
-                        str(W / 'chk.json'), '--no-outcomes'],
-                       capture_output=True, text=True)
+    # DELETE THE RESULT FIRST. When the checker crashed on a corrupted
+    # artifact it wrote nothing, and this function returned the PREVIOUS arm's
+    # findings -- so a crash was reported as a wrong-code failure and the real
+    # defect stayed hidden. Same stale-output class as the reader harness and
+    # run_corpora.sh; third occurrence, so it is now the first thing here.
+    try:
+        (W / 'chk.json').unlink()
+    except FileNotFoundError:
+        pass
+    cmd = [sys.executable, str(CHECK), str(SM), INV, str(W / 'chk.json'),
+           '--no-outcomes']
+    if DIGESTS:
+        cmd.append(DIGESTS)
+    p = subprocess.run(cmd, capture_output=True, text=True)
     try:
         return p.returncode, json.load(open(W / 'chk.json'))
     except Exception:                                     # noqa: BLE001
@@ -82,6 +83,15 @@ def apply_mutation(entry, target, original):
         target.write_bytes(original.replace(
             entry['from'].encode(), entry['to'].encode(),
             *( [n] if n and n > 0 else [] )))
+    elif kind == 'flip_middle_byte':
+        # Present, same length, one bit different in the middle of the content.
+        # Not a truncation or a trailing byte: the file still parses as the
+        # right shape, which is what makes it the dangerous case.
+        if not original:
+            raise SystemExit(f"{entry['id']}: cannot corrupt an empty file")
+        i = len(original) // 2
+        target.write_bytes(original[:i] + bytes([original[i] ^ 0x01])
+                           + original[i + 1:])
     elif kind == 'drop_lines_containing':
         tok = entry['token'].encode()
         target.write_bytes(b'\n'.join(

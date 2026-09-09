@@ -1,0 +1,28 @@
+{
+  "schema": "semantic-map-1/g8-artifact-digests/1",
+  "why": "this run's provenance; see the module docstring",
+  "artifacts": {
+    "g5_patchability/evidence/reader_state.txt": "137ae0824ff399cf46e4a9d444f9ada31e6298417521540a3d43c40b053ad2c6",
+    "g5_patchability/evidence/reader_falsification.txt": "f062657e156e07ef11f945a508f30e52df577dbee1a4c8c029b72150884291b1",
+    "g5_patchability/evidence/recorder_completeness.txt": "7f4ee0629e65235b34899d0dc36cc2654b85f0d1f65664308fbfeea4cec73888",
+    "g5_patchability/evidence/recorder_completeness.md": "c29d51bb62da09b9d64553eefefb112e76c87b206ee3a9d2f4340bc3a2fcd715",
+    "g5_patchability/evidence/dispatch_experiment.txt": "a838faca406525f1b639d6dda50a10485dc6d7a234ab65c8a5e245a2153154df",
+    "g5_patchability/evidence/predictor_falsification.txt": "262b7384a32d26e873b60ae7f18c44e451119e72a86139de8b3563b79bb988d9",
+    "g5_patchability/evidence/subset_check.txt": "b189251b048fddcc20edbf8f8da8f99b02a34674442bc53e1837dd527a03ddfc",
+    "g5_patchability/evidence/corpora.txt": "950dc8f7f2d3ff70395af261d469bd397a507df6dc84ad565d532fb3d1888d9c",
+    "g5_patchability/evidence/inlining_state.json": "8e97a2d235486e855be0dfebd5d532744354c1e1ed4fede9408fe413ca48501a",
+    "g5_patchability/evidence/g1_projection.json": "b9b29d23f37e5e11a5ab181f7f9674c5a482f52b5bcd0483272e6f57c0f90550",
+    "g5_patchability/evidence/corpus_localsend.json": "b6f36d272e4e6aee098a5b7c6557a2f821fb7cad0afced6685660709c6f007b2",
+    "g5_patchability/evidence/corpus_wonderous.json": "b73265b454f93df709cb36ff616acec738de119dff0e21a342dbc9ff82f692dd",
+    "g5_patchability/evidence/final_manifest.json": "814e1377dfd91bb80fcf8f034d00fbba70be0e2ed4915532d22245143fbc6b49",
+    "g5_patchability/instrumentation/MANIFEST.json": "b783f1d8b773ee37da78ba3c158b44792ba31593be1521bbee33a96a858d0eb8",
+    "g5_patchability/RESULT.md": "784c263a3316c66145bbc33e48c7fef7db27ef7ae464724dedf31316d56d52d4",
+    "g6_binding/evidence/g6_binding.txt": "af99faa5100b8ee69777259f58acaefa06d27336cf31d8466cd5fc55021ecf38",
+    "g6_binding/evidence/map_probe.json": "53b1357b605ace0a685b75862a4e511796c356c30a5faeacd3fc3f8aaaeb4fdf",
+    "g6_binding/evidence/verify_probe.json": "9404d39d1a6200f547290245dc8a2713dd02614855f60b89c612fccfda5509e8",
+    "g7_cost/evidence/g7_cost.txt": "c08fb68a7b157ab12a043bd4daa72fc8397f8ac03f6fffdac916a765dd9fc0f7",
+    "g7_cost/evidence/families.json": "1b71dbdeb40c77787d22360d515e7ae4e2fb3926704386014b5627c7f707d8b4",
+    "g7_cost/evidence/samples.jsonl": "430751a971989b87d154b11c42bda911703dc56628fc89b33f412fc408f021a6"
+  },
+  "missing": []
+}

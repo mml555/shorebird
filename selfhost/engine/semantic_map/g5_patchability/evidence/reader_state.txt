@@ -1,5 +1,5 @@
 SM1-G5 route 2 -- strict reader state over the schema-6 note
-generated 2026-09-09T02:03:20Z by run_route2.sh
+generated 2026-09-09T04:38:35Z by run_route2.sh
 
 PRODUCER AND SUBJECT
   c0a982fab70900aff92bc03602a3a9447f75fe26a27d853c8bc5b6176a5dac3a  0001-g5-aot-capability-note.patch

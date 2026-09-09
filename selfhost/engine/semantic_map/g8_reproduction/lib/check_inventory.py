@@ -22,6 +22,7 @@ timing summaries come from the retained samples rather than from prose.
 
 usage: check_inventory.py <semantic-map-dir> <inventory.json> <out.json>
 """
+import hashlib
 import json
 import pathlib
 import re
@@ -33,8 +34,37 @@ SM, INV, OUT = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3]
 # reported as a failure of the bank under test.
 NO_OUTCOMES = '--no-outcomes' in sys.argv
 OUTCOMES = None if NO_OUTCOMES else (sys.argv[4] if len(sys.argv) > 4 else None)
+# A digest snapshot of every mandatory artifact, taken by run_g8.sh AFTER the
+# gates regenerate. It is per-run provenance, not a frozen expectation: these
+# transcripts carry generated-at timestamps, so a committed digest would fail
+# on every legitimate regeneration. Without it there is no generic integrity
+# check at all -- a byte flipped in, say, recorder_completeness.md changed
+# nothing the checker looked at, which is why derived corruption arms could not
+# be caught.
+DIGESTS = None
+for a in sys.argv[5:]:
+    if a != '--no-outcomes':
+        DIGESTS = a
 inv = json.load(open(INV))
 findings = []
+
+
+def load_json(path, code, what):
+    """Read JSON, or record a finding. NEVER raise.
+
+    A corrupted mandatory artifact made this checker exit with a
+    JSONDecodeError and write no output at all -- so the corruption arm that
+    was supposed to catch it got no verdict, and (because the falsifier reused
+    a stale result file) appeared to fail for an unrelated reason. A checker
+    that dies on the input it is checking cannot report on it.
+    """
+    try:
+        return json.load(open(path))
+    except FileNotFoundError:
+        finding(code, f'{what}: file is absent')
+    except Exception as ex:                               # noqa: BLE001
+        finding(code, f'{what}: unreadable -- {type(ex).__name__}')
+    return None
 
 
 def finding(code, detail):
@@ -45,6 +75,29 @@ def finding(code, detail):
 # verdict is printed through `sed 's/^/  /'` when it runs inside another
 # script, so an anchored pattern silently misses exactly the CONTROL
 # markers -- the ones whose absence this checker is meant to report.
+# ---- generic integrity: every mandatory artifact matches the snapshot ----
+snapshot = {}
+if DIGESTS and pathlib.Path(DIGESTS).exists():
+    snapshot = json.load(open(DIGESTS)).get('artifacts', {})
+    for gate, spec in inv['gates'].items():
+        for rel in spec['artifacts']:
+            key = f'{gate}/{rel}'
+            want = snapshot.get(key)
+            path = SM / key
+            if want is None:
+                finding('ARTIFACT_NOT_IN_SNAPSHOT',
+                        f'{key} is mandatory but carries no recorded digest, '
+                        f'so corruption of it could not be detected')
+            elif not path.exists():
+                pass                    # already reported as missing above
+            else:
+                got = hashlib.sha256(path.read_bytes()).hexdigest()
+                if got != want:
+                    finding('ARTIFACT_CORRUPTED',
+                            f'{key}: digest {got[:12]}... does not match the '
+                            f'{want[:12]}... recorded for this run')
+
+
 MARKER = re.compile(r'^[ \t]*(SM1_G[0-9A-Z_]*: [A-Z_]+)[ \t]*$', re.M)
 
 tested, caught, missing_artifacts = {}, {}, []
@@ -102,7 +155,9 @@ det = inv['deterministic_bindings']['g7_cost']
 if not fam_path.exists():
     finding('DETERMINISTIC_EVIDENCE_MISSING', str(fam_path))
 else:
-    fam = json.load(open(fam_path))
+    fam = load_json(fam_path, 'DETERMINISTIC_EVIDENCE_UNREADABLE',
+                    'g7_cost/evidence/families.json')
+if fam_path.exists() and fam is not None:
     r = fam['families']['retention_cost_at_scale']
     m = fam['families']['map_size']
     got = {
@@ -125,7 +180,13 @@ st = inv['structural_bindings']['g7_cost']
 if not sam_path.exists():
     finding('TIMING_SAMPLES_MISSING', str(sam_path))
 else:
-    rows = [json.loads(l) for l in sam_path.read_text().splitlines() if l.strip()]
+    try:
+        rows = [json.loads(l) for l in sam_path.read_text().splitlines()
+                if l.strip()]
+    except Exception as ex:                               # noqa: BLE001
+        finding('TIMING_SAMPLES_UNREADABLE',
+                f'samples.jsonl: {type(ex).__name__}')
+        rows = []
     for row in rows[:1]:
         for f in st['required_sample_fields']:
             if f not in row:
@@ -145,8 +206,7 @@ else:
         finding('TIMING_PRODUCER_FAILED',
                 f'{sum(1 for r in rows if r["exit"] != 0)} samples exited non-zero')
     # The summaries must come from THESE samples, not from prose.
-    if fam_path.exists():
-        fam = json.load(open(fam_path))
+    if fam_path.exists() and fam is not None:
         if fam.get('samples') != len(rows):
             finding('SUMMARY_NOT_FROM_SAMPLES',
                     f"families.json reports {fam.get('samples')} samples, "
@@ -164,9 +224,11 @@ else:
 # The declared set includes the DERIVED per-artifact arms, computed by the same
 # rule the falsifier uses, so "every mandatory artifact has a negative" is part
 # of the equality rather than a separate hope.
-derived = [f"auto-{gate}-{pathlib.Path(rel).name}-deleted"
-           for gate, spec in inv['gates'].items()
-           for rel in spec['artifacts']]
+# From _derived_arms, the single definition the falsifier also uses. When this
+# was a local re-listing it silently declared only the -deleted half.
+sys.path.insert(0, str(pathlib.Path(__file__).parent))
+from _derived_arms import derived_ids                       # noqa: E402
+derived = derived_ids(inv)
 declared_ids = sorted(derived
                       + [e['id'] for e in inv['falsifiable']['entries']]
                       + [c['id'] for c in inv['classifier_controls']['entries']])
@@ -205,6 +267,7 @@ summary = {
     'missing_artifacts': missing_artifacts,
     'known_fail_open_findings_reproduced': reproduced_findings,
     'equality': equality,
+    'artifacts_digest_checked': len(snapshot),
     'findings': findings,
     'verdict': 'INVENTORY_CONSISTENT' if not findings else 'INVENTORY_DEFECTS',
 }
