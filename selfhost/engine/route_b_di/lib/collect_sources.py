@@ -21,6 +21,18 @@ release supplement's interface is release-bound because the release generates
 it from its own prepass kernel; a probe fixture is not, however many sections
 it carries and however many scripts name it.
 
+RECORDED LIMITATION OF THAT RULE, from the #61 closeout ruling and accepted as
+non-blocking. Being static does not by itself make a policy non-release-bound.
+If a policy's exact DIGEST were mechanically bound into a release identity --
+the way G6 binds a map to the full AOT SHA-256 -- it would be release-bound
+despite identical bytes across releases, because that release could then be
+shown to have used that exact file. The rule here treats static-and-committed
+as not bound, which is sound for the evidence as it stands: none of the
+existing complete committed policies has such a production binding, and each is
+recorded so the claim can be rechecked. A future lane that introduces a
+digest-bound static policy must refine this rule rather than inherit it, or it
+will misclassify a genuine source as unusable.
+
 usage: collect_sources.py <repo-root> <discovery.json> <generated-spec>
                           <generated-attempt-log> <extra-attempts.json> <out>
 """
