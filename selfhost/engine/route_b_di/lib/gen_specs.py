@@ -74,9 +74,14 @@ REMOVALS = {
  'di_mf_no_type.yaml': (
    "  - library: 'package:dynamic_modules/n_host.dart'\n    class: 'Base'\n"
    "can-be-overridden:", 'can-be-overridden:',
-   'can-be-used-as-type: n_host.Base -- the module is handed back as a Base '
-   'and dispatched through it. The dart:core type entries are left in place, '
-   'so exactly one entry differs.'),
+   'can-be-used-as-type: n_host.Base. The dart:core type entries are left in '
+   'place, so exactly one entry differs. NOTE, established by Stage A: '
+   'm_ok.dart does NOT name Base in a type position -- it only EXTENDS it, '
+   'which the validator governs under `extendable`, and it returns Object?. '
+   'The host is what dispatches through Base. So this withdrawal removes a '
+   'permission the module never exercises and the arm is VACUOUS against '
+   'm_ok. It is kept unchanged because it is the historical arm; m_type.dart '
+   'is what exercises the rule.'),
  'di_mf_no_overridable.yaml': (
    "can-be-overridden:\n  - library: 'package:dynamic_modules/n_host.dart'\n"
    "    class: 'Base'\n    member: 'execute'\n", 'can-be-overridden: []\n',

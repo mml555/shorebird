@@ -1,0 +1,112 @@
+ROUTE-B-DI-1 / Stage B0 -- the production validation input
+generated 2026-09-09T20:00:02Z by run_stage_b0.sh
+generator /Users/mendell/shorebird/selfhost/engine/route_b/gen_dynamic_interface.dart
+
+############ 1. THE RELEASE'S OWN SPECIFICATION, GENERATED ############
+  Route B does not hand-write its dynamic interface. It generates one from the
+  release's own kernel with gen_dynamic_interface.dart under a named --policy,
+  which is exactly the deterministic release-bound source B0 asks for. So the
+  question is not whether a specification can be derived -- it is whether the
+  derived one is COMPLETE as a MODULE-VALIDATION specification.
+
+  release kernel:     2832 bytes
+    app libraries        : 1
+    private top-level    : 0
+    private-class members: 0 public (was a bare class item, which also granted construction)
+    private class members: 0
+    constructors granted : 0  withheld: 0
+    unresolvable (skipped): 0
+    sdk members          : 1
+    sdk libraries        : 0
+  generator exit=0
+
+  what it emitted (comments stripped):
+    callable:
+      - library: 'package:dynamic_modules/n_host.dart'
+      # Named SDK members a patch is allowed to call.
+      - library: 'dart:core'
+        member: 'print'
+
+############ 2. THAT SPECIFICATION, HANDED TO THE VALIDATOR ############
+  The same valid module Stage A used, compiled with --validate pointed at the
+  release's OWN generated specification. If the release's specification cannot
+  validate the release's own intended patch, it is not a validation input.
+
+  module compile exit=254  produced=no
+
+    m_ok.dart:5:7: Error: Cannot extend, implement or mix-in class 'Base' in a dynamic module.
+    m_ok.dart:7:10: Error: Cannot override member 'Base.execute' in a dynamic module.
+    m_ok.dart:6:4: Error: Cannot invoke member 'override' from a dynamic module.
+    m_ok.dart:7:17: Error: Cannot use class 'String' as a type in a dynamic module.
+    m_ok.dart:10:2: Error: Cannot invoke member 'pragma.' from a dynamic module.
+    m_ok.dart:11:14: Error: Cannot use class 'Object' as a type in a dynamic module.
+
+############ 3. IS A COMPLETE SPECIFICATION DERIVABLE? ############
+  SECTIONS a module-validation specification needs, and who supplies them
+    emitted  callable               refusals when absent: 2
+    MISSING  extendable             refusals when absent: 1
+    MISSING  can-be-overridden      refusals when absent: 1
+    MISSING  can-be-used-as-type    refusals when absent: 2
+
+  the release generator emitted a module: False
+
+  CANDIDATE RELEASE-SIDE SOURCES
+    usable  route_b_generator
+    no      declared_release_policy
+    no      semantic_map_admitted_set
+            the map admits none, so it cannot name a permitted surface. FINAL classified MODIFY_MAP_DESIGN for that reason.
+    no      the_module_itself
+            it would permit whatever the patch does, so validation would refuse nothing. Not a conservative approximation -- the vacuous case, which would make this prerequisite appear closed while enforcing nothing.
+
+  provenance fields available: ['dart_effective_tree', 'dart_revision', 'derivation_identity', 'relationship_to_host_policy', 'release_aot_identity', 'specification_sha256']
+
+B0: VALIDATION_INPUT_UNDERIVED
+
+############ 3b. THE B0 CLASSIFIER, FALSIFIED ############
+  VALIDATION_INPUT_UNDERIVED stops this issue. A classifier that reported it
+  regardless of input would stop #61 for no reason, and one that reported
+  DERIVABLE regardless would send B1 at Route B on no evidence. Both
+  directions get negatives.
+
+ROUTE-B-DI-1 / B0 -- classifier falsification
+  6 arms.
+
+  baseline: VALIDATION_INPUT_UNDERIVED  missing=['extendable', 'can-be-overridden', 'can-be-used-as-type']
+
+  pass  complete-spec-and-module-produced      -> COMPLETE_SPECIFICATION_DERIVABLE
+        All four sections present AND the release specification validated the release patch. B0 must say derivable, or it stops #61 for no reason.
+  pass  complete-spec-but-module-still-refused -> VALIDATION_INPUT_UNDERIVED
+        Sections present is not enough: if the specification still refuses the release patch it is not a usable validation input.
+  pass  one-section-missing                    -> VALIDATION_INPUT_UNDERIVED
+        A single missing section must be named, not absorbed.
+  pass  spec-unreadable                        -> B0_EVIDENCE_MISSING
+        No specification to inspect is not the same as no specification being derivable, and must not be reported as the latter.
+  pass  attempt-log-unreadable                 -> B0_EVIDENCE_MISSING
+        Without the validation attempt there is no measurement, so the verdict is unknown rather than underived.
+  pass  the-module-is-never-a-source           -> COMPLETE_SPECIFICATION_DERIVABLE
+        Even when everything else succeeds, reading permissions off the patch must never count as a source: it would permit whatever the patch does.
+
+  CONTROL -- a classifier hard-coding the baseline must fail the arms
+    arms the weakened classifier still satisfies: 2 ['complete-spec-but-module-still-refused', 'the-module-is-never-a-source']
+    pass  it satisfies only arms whose expectation IS the baseline
+
+  arms=6 failed=0
+B0_FALSIFICATION: EVERY_ARM_DISCRIMINATES
+
+############ 4. ASSERTIONS ############
+  pass  the release generator ran
+  pass  a specification was generated
+  pass  the B0 record was written
+  pass  the four required sections are named
+  pass  the module itself is rejected as a source
+  pass  the semantic map cannot supply the surface
+  pass  no release-side permission policy is declared
+  pass  the derivation identity is digested
+  pass  the Dart identity is recorded
+  pass  the finding is about the input, not the mechanism
+  pass  experiment fixtures are not counted as release policy
+  pass  the B0 classifier is falsified
+
+ASSERTIONS (12 checked: 12 pass, 0 fail)
+
+STAGE_B0: VALIDATION_INPUT_UNDERIVED
