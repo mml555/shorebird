@@ -46,10 +46,12 @@ class Access:
     def __init__(self):
         self.log = collections.OrderedDict()
 
-    def note(self, rel):
-        if rel in self.log:
-            return self.log[rel]
-        p = SM / rel
+    def note(self, rel, root='semantic_map'):
+        key = rel if root == 'semantic_map' else f'{root}/{rel}'
+        if key in self.log:
+            return self.log[key]
+        p = (SM / rel) if root == 'semantic_map' else (SM.parent / rel)
+        rel = key
         try:
             raw = p.read_bytes()
             rec = {'sha256': hashlib.sha256(raw).hexdigest(),
@@ -66,24 +68,30 @@ _json_cache = {}
 _text_cache = {}
 
 
-def load_json(rel):
-    if rel not in _json_cache:
-        access.note(rel)
-        try:
-            _json_cache[rel] = json.loads((SM / rel).read_bytes())
-        except Exception:                                    # noqa: BLE001
-            _json_cache[rel] = UNRESOLVED
-    return _json_cache[rel]
+def base(root):
+    return SM if root == 'semantic_map' else SM.parent
 
 
-def load_text(rel):
-    if rel not in _text_cache:
-        access.note(rel)
+def load_json(rel, root='semantic_map'):
+    key = (rel, root)
+    if key not in _json_cache:
+        access.note(rel, root)
         try:
-            _text_cache[rel] = (SM / rel).read_text(errors='replace')
+            _json_cache[key] = json.loads((base(root) / rel).read_bytes())
         except Exception:                                    # noqa: BLE001
-            _text_cache[rel] = UNRESOLVED
-    return _text_cache[rel]
+            _json_cache[key] = UNRESOLVED
+    return _json_cache[key]
+
+
+def load_text(rel, root='semantic_map'):
+    key = (rel, root)
+    if key not in _text_cache:
+        access.note(rel, root)
+        try:
+            _text_cache[key] = (base(root) / rel).read_text(errors='replace')
+        except Exception:                                    # noqa: BLE001
+            _text_cache[key] = UNRESOLVED
+    return _text_cache[key]
 
 
 def dig(doc, path):
@@ -103,8 +111,9 @@ def probe(spec):
     """Resolve one probe to a value, or UNRESOLVED with a reason."""
     kind = spec['kind']
     rel = spec['file']
+    root = spec.get('root', 'semantic_map')
     if kind == 'text_count':
-        body = load_text(rel)
+        body = load_text(rel, root)
         if body is UNRESOLVED:
             return UNRESOLVED, f'{rel}: unreadable'
         # re.MULTILINE, because every one of these files is line-oriented and
@@ -120,7 +129,7 @@ def probe(spec):
         except re.error as ex:
             return UNRESOLVED, f'{rel}: bad pattern -- {ex}'
         return n, f'{n} match(es) of /{spec["pattern"]}/ in {rel}'
-    doc = load_json(rel)
+    doc = load_json(rel, root)
     if doc is UNRESOLVED:
         return UNRESOLVED, f'{rel}: absent or not JSON'
     node = dig(doc, spec['path'])
@@ -227,7 +236,10 @@ for row in reg['rows']:
         ('probe_values', values),
         ('evidence_pointers', collections.OrderedDict(
             (n, details[n]) for n in row['probes'])),
-        ('evidence_files', sorted({s['file'] for s in row['probes'].values()})),
+        ('evidence_files', sorted({
+            s['file'] if s.get('root', 'semantic_map') == 'semantic_map'
+            else f"{s['root']}/{s['file']}"
+            for s in row['probes'].values()})),
     ])
 
 # ---- KNOWN_GAPS: generated, never softened ------------------------------

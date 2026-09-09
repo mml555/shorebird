@@ -1,5 +1,5 @@
 SM1-FINAL -- evidence matrix, computed verdict, provenance
-generated 2026-09-09T07:15:54Z by run_final.sh
+generated 2026-09-09T07:21:55Z by run_final.sh
 source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
 
 ############ 1. THE MATRIX, EXTRACTED FROM EVIDENCE ############
@@ -11,7 +11,7 @@ source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
   PRIVACY_CROSS_DOMAIN_REFUSAL first read NOT_ESTABLISHED because it was bound
   to G5/G6's marker convention, which G3 predates.
 
-  22 rows extracted from 15 evidence files
+  23 rows extracted from 18 evidence files
 
   DECLARATION_ID_STABILITY           ESTABLISHED
   DECLARATION_ID_COLLISIONS          ESTABLISHED
@@ -24,6 +24,7 @@ source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
   PRIVACY_CROSS_DOMAIN_REFUSAL       ESTABLISHED
   RETENTION_CONTRACT                 ESTABLISHED_WITH_LIMITS
   RETENTION_WITHHELD_FAILS_CLOSED    ESTABLISHED_NEGATIVE
+  RETENTION_FAIL_OPEN_ROOT_CAUSE     RECONCILED_TO_CARRIED_CONSTRAINT
   PATCHABILITY_SUBSET_PROPERTY       VACUOUS
   PATCHABILITY_DISTINCTION_REPRESENTABLE NOT_REPRESENTABLE
   DECIDABLE_EXCLUSIONS               NAMED_AND_FAIL_CLOSED
@@ -103,7 +104,7 @@ source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
   NEXT LANE
     - The map cannot decide patchability by inference from a finished AOT, so patchability has to become a BUILD-TIME guarantee rather than a post-hoc classification. #59 (Mutable AOT Dart) is the accepted direction for that and may be named here; no implementation begins in #58.
     - AOT-ASSUMPTIONS-1 owns the optimizer-contract half and is still un-instrumented; it was deliberately not started here.
-    - RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE: withholding some retention classes does not fail closed at load. That is independent of the patchability question and needs its own lane before any map is relied on.
+    - RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE, and it is NOT a new finding: every class that fails open has cause DYNAMIC_INTERFACE_POLICY, while the one that fails closed (callable) has a different cause. SL1-G6C named the root cause MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION and left it BLOCKING_FOR_PRODUCTION; SL1-FINAL carried "module-side dynamic-interface validation must become fail-closed" into this lane as a mandatory constraint. The next lane is that named fix -- give the CFE dynamicInterfaceSpecificationUri when compiling the MODULE -- not a new investigation. It is independent of the patchability question and must close before any map is relied on.
     - Generation-time figures are current-run observations. Any schedule or budget derived from them needs a repeated measurement at the scale being shipped, not this sample.
 
 ############ 3. PROVENANCE ############
@@ -114,16 +115,16 @@ source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
   are outputs of this assembly. G5 once produced a manifest that included its
   own output, and a second run never reproduced the first.
 
-  consumed evidence files : 15
-  declared by rows        : 15
+  consumed evidence files : 18
+  declared by rows        : 18
   sets equal              : True
-  producing scripts       : 47
+  producing scripts       : 51
   assembler components    : 8
   findings                : none
   inputs without a digest : none
 
 ############ 4. RESULT.md, GENERATED FROM THOSE ARTIFACTS ############
-  RESULT.md generated: 160 lines, 22 rows, verdict MODIFY_MAP_DESIGN
+  RESULT.md generated: 164 lines, 23 rows, verdict MODIFY_MAP_DESIGN
 
 ############ 5. SENSITIVITY CONTROLS ############
   The published verdict is only worth something if a DIFFERENT verdict was
@@ -144,8 +145,8 @@ SM1-FINAL -- sensitivity controls
      Removing or corrupting a row's evidence must make THAT row read
      NOT_ESTABLISHED. A row that survived losing its own evidence would
      be answering from somewhere other than the evidence.
-     29 (row, file) pairs x 2 mutations = 58 arms
-     arms=58 failed=0
+     33 (row, file) pairs x 2 mutations = 66 arms
+     arms=66 failed=0
 
   B. VERDICT REACHABILITY -- every allowed verdict must be reachable
      If only one verdict could ever come out, publishing it proves
@@ -206,7 +207,7 @@ SM1-FINAL -- sensitivity controls
      pass  crashed: RESULT.md says ASSEMBLY FAILED
      pass  crashed: RESULT.md does not claim a verdict
 
-  TOTAL arms=96 failed=0
+  TOTAL arms=104 failed=0
 SM1_FINAL_SENSITIVITY: EVERY_CONTROL_DISCRIMINATES
 
 ASSERTIONS (29 checked)

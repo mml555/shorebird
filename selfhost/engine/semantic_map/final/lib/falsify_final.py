@@ -43,11 +43,31 @@ REG = FINAL / 'evidence_registry.json'
 GARBAGE = b'\x00\x01not evidence\xff\xfe'
 
 
+def cross_root_files():
+    """Files a row reads from the sibling lane, as declared in the registry."""
+    reg_doc = json.loads(REG.read_bytes())
+    return sorted({sp['file'] for row in reg_doc['rows']
+                   for sp in row['probes'].values()
+                   if sp.get('root') == 'engine'})
+
+
+CROSS = cross_root_files()
+
+
 def fresh():
     if W.exists():
         shutil.rmtree(W)
     W.mkdir(parents=True)
     shutil.copytree(SM, W / 'sm', symlinks=True)
+    # The extractor resolves root='engine' against the PARENT of the tree it
+    # is given, so the sibling-lane files have to exist at W/<path> for the
+    # scratch copy to be complete. Copying only the declared files keeps this
+    # cheap -- the whole sibling lane carries banked source patches, and it
+    # would be copied once per arm.
+    for rel in CROSS:
+        dst = W / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(SM.parent / rel, dst)
     shutil.copy(REG, W / 'registry.json')
 
 
@@ -71,6 +91,9 @@ def assemble(verdict_tool=None):
 
 
 def ev(rel):
+    """Resolve an evidence key, cross-lane keys included."""
+    if rel.startswith('engine/'):
+        return W / rel[len('engine/'):]
     return W / 'sm' / rel
 
 
@@ -107,7 +130,10 @@ say('     NOT_ESTABLISHED. A row that survived losing its own evidence would')
 say('     be answering from somewhere other than the evidence.')
 pairs = []
 for row in rows:
-    for f in sorted({s['file'] for s in row['probes'].values()}):
+    keys = {(sp['file'] if sp.get('root', 'semantic_map') == 'semantic_map'
+             else f"engine/{sp['file']}")
+            for sp in row['probes'].values()}
+    for f in sorted(keys):
         pairs.append((row['row'], f))
 say(f'     {len(pairs)} (row, file) pairs x 2 mutations = {len(pairs) * 2} arms')
 a_fail = []

@@ -18,7 +18,9 @@
     "NOT_REPRESENTABLE": "the model cannot represent the distinction -- demonstrated, not inferred",
     "REPRESENTABLE": "the model can represent the distinction",
     "NAMED_AND_FAIL_CLOSED": "a decidable feature class is named as excluded and its refusal is demonstrated reachable",
-    "NONE_NAMED": "no feature class is excluded"
+    "NONE_NAMED": "no feature class is excluded",
+    "RECONCILED_TO_CARRIED_CONSTRAINT": "traced to a constraint an earlier lane already carried forward; not an independent finding",
+    "NO_FAIL_OPEN_TO_RECONCILE": "nothing fails open, so there is nothing to trace"
   },
   "rows": [
     {
@@ -784,6 +786,176 @@
           ],
           "category": "ESTABLISHED_NEGATIVE",
           "note": "MEASURED AND DOES NOT HOLD. Withholding some classes does not fail closed at load. This is a reproduced negative result, not a gap in the evidence, and it is a direct input to routing."
+        }
+      ]
+    },
+    {
+      "row": "RETENTION_FAIL_OPEN_ROOT_CAUSE",
+      "question": "Is the retention fail-open an independent SEMANTIC-MAP-1 finding, or the same defect SEMANTIC-LINKER-1 already diagnosed and carried forward?",
+      "why_this_row_exists": "FINAL's first routing output recommended a NEW lane for RETENTION_WITHHELD_FAILS_CLOSED. That was wrong, and wrong in a specific way worth naming: it proposed work without checking what had already been measured. SL1-FINAL routed PROCEED -> SEMANTIC-MAP-1 and carried \"module-side dynamic-interface validation must become fail-closed\" forward as a MANDATORY constraint, with the mechanism already diagnosed. G4 then measured exactly that. This row reconciles the two records so the routing names the existing constraint instead of inventing a lane -- and it reads SL1's evidence rather than trusting the recollection.",
+      "probes": {
+        "g4_fail_open_classes": {
+          "kind": "json_len",
+          "file": "g4_retention/evidence/g4_retention.json",
+          "path": [
+            "fail_open_classes"
+          ]
+        },
+        "g4_extendable_cause": {
+          "kind": "json_field",
+          "file": "g4_retention/evidence/g4_retention.json",
+          "path": [
+            "arms",
+            "cause_at_load",
+            "extendable"
+          ]
+        },
+        "g4_overridable_cause": {
+          "kind": "json_field",
+          "file": "g4_retention/evidence/g4_retention.json",
+          "path": [
+            "arms",
+            "cause_at_load",
+            "can-be-overridden"
+          ]
+        },
+        "g4_type_cause": {
+          "kind": "json_field",
+          "file": "g4_retention/evidence/g4_retention.json",
+          "path": [
+            "arms",
+            "cause_at_load",
+            "can-be-used-as-type"
+          ]
+        },
+        "g4_callable_cause": {
+          "kind": "json_field",
+          "file": "g4_retention/evidence/g4_retention.json",
+          "path": [
+            "arms",
+            "cause_at_load",
+            "callable"
+          ]
+        },
+        "g4_extendable_enforced": {
+          "kind": "json_field",
+          "file": "g4_retention/evidence/g4_retention.json",
+          "path": [
+            "arms",
+            "enforced_at_load",
+            "extendable"
+          ]
+        },
+        "g4_callable_enforced": {
+          "kind": "json_field",
+          "file": "g4_retention/evidence/g4_retention.json",
+          "path": [
+            "arms",
+            "enforced_at_load",
+            "callable"
+          ]
+        },
+        "sl1_policy_fail_open": {
+          "kind": "json_count_where",
+          "root": "engine",
+          "file": "semantic_linker/runtime_feasibility/g6a_negatives/evidence/negatives.json",
+          "path": [
+            "negatives"
+          ],
+          "field": "expected",
+          "equals": "DYNAMIC_INTERFACE_POLICY"
+        },
+        "sl1_prerequisite_open": {
+          "kind": "text_count",
+          "root": "engine",
+          "file": "semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduction.json",
+          "pattern": "\"id\": \"MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION\""
+        },
+        "sl1_prerequisite_blocking": {
+          "kind": "text_count",
+          "root": "engine",
+          "file": "semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduction.json",
+          "pattern": "\"severity\": \"BLOCKING_FOR_PRODUCTION\""
+        },
+        "sl1_carried_constraint": {
+          "kind": "text_count",
+          "root": "engine",
+          "file": "semantic_linker/runtime_feasibility/final/RESULT.md",
+          "pattern": "module-side dynamic-interface validation must become"
+        }
+      },
+      "rules": [
+        {
+          "conditions": [
+            [
+              "g4_fail_open_classes",
+              "gte",
+              1
+            ],
+            [
+              "g4_extendable_cause",
+              "eq",
+              "DYNAMIC_INTERFACE_POLICY"
+            ],
+            [
+              "g4_overridable_cause",
+              "eq",
+              "DYNAMIC_INTERFACE_POLICY"
+            ],
+            [
+              "g4_type_cause",
+              "eq",
+              "DYNAMIC_INTERFACE_POLICY"
+            ],
+            [
+              "g4_callable_cause",
+              "eq",
+              "IMPORT_RESOLUTION"
+            ],
+            [
+              "g4_extendable_enforced",
+              "eq",
+              "FAILS_OPEN"
+            ],
+            [
+              "g4_callable_enforced",
+              "eq",
+              "FAILS_CLOSED"
+            ],
+            [
+              "sl1_policy_fail_open",
+              "gte",
+              3
+            ],
+            [
+              "sl1_prerequisite_open",
+              "gte",
+              1
+            ],
+            [
+              "sl1_prerequisite_blocking",
+              "gte",
+              1
+            ],
+            [
+              "sl1_carried_constraint",
+              "gte",
+              1
+            ]
+          ],
+          "category": "RECONCILED_TO_CARRIED_CONSTRAINT",
+          "note": "Not an independent finding. Every retention class that fails open at load has cause DYNAMIC_INTERFACE_POLICY, and the one that fails CLOSED (callable) has a different cause (IMPORT_RESOLUTION) -- so the split follows the mechanism, not the class. SL1-G6A recorded the matching negatives under the same category, SL1-G6C named the root cause as MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION and left it BLOCKING_FOR_PRODUCTION, and SL1-FINAL carried it into this lane as a mandatory constraint. The mechanism: KernelTarget.validateDynamicModule runs only when the CFE is given dynamicInterfaceSpecificationUri while compiling the MODULE; dart2bytecode has no such option, and gen_kernel consumes --dynamic-interface on the HOST compile, where it annotates rather than validates. Routing must name that constraint, not open a new lane."
+        },
+        {
+          "conditions": [
+            [
+              "g4_fail_open_classes",
+              "eq",
+              0
+            ]
+          ],
+          "category": "NO_FAIL_OPEN_TO_RECONCILE",
+          "note": "no retention class fails open, so there is nothing to trace"
         }
       ]
     },
@@ -1596,7 +1768,8 @@
       "MEASURED_DETERMINISTIC_PROJECTION_LOW",
       "ENUMERATED",
       "REPRESENTABLE",
-      "NAMED_AND_FAIL_CLOSED"
+      "NAMED_AND_FAIL_CLOSED",
+      "RECONCILED_TO_CARRIED_CONSTRAINT"
     ]
   }
 }

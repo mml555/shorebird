@@ -306,11 +306,30 @@ ROUTES = {
 routing = list(ROUTES[verdict])
 # Additional routing is derived from independent rows so it cannot be forgotten.
 if P['RETENTION_WITHHELD_MEASURED_NOT_FAILING_CLOSED']['value']:
-    routing.append(
-        'RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE: withholding '
-        'some retention classes does not fail closed at load. That is '
-        'independent of the patchability question and needs its own lane '
-        'before any map is relied on.')
+    # CORRECTED. This first read "needs its own lane", which proposed work
+    # without checking what had already been measured. The reconciliation row
+    # traces the fail-open to a constraint SEMANTIC-LINKER-1 already carried
+    # forward, so the routing names that constraint instead.
+    if cat('RETENTION_FAIL_OPEN_ROOT_CAUSE') \
+            == 'RECONCILED_TO_CARRIED_CONSTRAINT':
+        routing.append(
+            'RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE, and it '
+            'is NOT a new finding: every class that fails open has cause '
+            'DYNAMIC_INTERFACE_POLICY, while the one that fails closed '
+            '(callable) has a different cause. SL1-G6C named the root cause '
+            'MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION and left it '
+            'BLOCKING_FOR_PRODUCTION; SL1-FINAL carried "module-side '
+            'dynamic-interface validation must become fail-closed" into this '
+            'lane as a mandatory constraint. The next lane is that named fix '
+            '-- give the CFE dynamicInterfaceSpecificationUri when compiling '
+            'the MODULE -- not a new investigation. It is independent of the '
+            'patchability question and must close before any map is relied '
+            'on.')
+    else:
+        routing.append(
+            'RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE and the '
+            'reconciliation row did not resolve, so its root cause is '
+            'UNTRACED here. Trace it before opening any lane against it.')
 if cat('GENERATION_TIME') == 'MEASURED_CURRENT_RUN_ONLY':
     routing.append(
         'Generation-time figures are current-run observations. Any schedule '

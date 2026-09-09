@@ -3,7 +3,7 @@
   "gate": "SM1-FINAL",
   "issue": 58,
   "tracker": 48,
-  "generated": "2026-09-09T07:15:54Z",
+  "generated": "2026-09-09T07:21:55Z",
   "allowed_verdicts": [
     "MODIFY_ANALYZER",
     "MODIFY_MAP_DESIGN",
@@ -147,7 +147,7 @@
   "next_lane": [
     "The map cannot decide patchability by inference from a finished AOT, so patchability has to become a BUILD-TIME guarantee rather than a post-hoc classification. #59 (Mutable AOT Dart) is the accepted direction for that and may be named here; no implementation begins in #58.",
     "AOT-ASSUMPTIONS-1 owns the optimizer-contract half and is still un-instrumented; it was deliberately not started here.",
-    "RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE: withholding some retention classes does not fail closed at load. That is independent of the patchability question and needs its own lane before any map is relied on.",
+    "RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE, and it is NOT a new finding: every class that fails open has cause DYNAMIC_INTERFACE_POLICY, while the one that fails closed (callable) has a different cause. SL1-G6C named the root cause MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION and left it BLOCKING_FOR_PRODUCTION; SL1-FINAL carried \"module-side dynamic-interface validation must become fail-closed\" into this lane as a mandatory constraint. The next lane is that named fix -- give the CFE dynamicInterfaceSpecificationUri when compiling the MODULE -- not a new investigation. It is independent of the patchability question and must close before any map is relied on.",
     "Generation-time figures are current-run observations. Any schedule or budget derived from them needs a repeated measurement at the scale being shipped, not this sample."
   ],
   "non_proven_claims": [

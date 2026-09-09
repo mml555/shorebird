@@ -3,7 +3,7 @@
   "gate": "SM1-FINAL",
   "issue": 58,
   "tracker": 48,
-  "generated": "2026-09-09T07:15:54Z",
+  "generated": "2026-09-09T07:21:55Z",
   "input_set_derived_from": "the extractor access log, cross-checked against the registry",
   "self_hashing": "none: this manifest, RESULT.md, the matrix and the verdict are OUTPUTS of this assembly and are listed by name only. A manifest that digested itself would never converge -- G5 hit exactly that and a second run never reproduced the first.",
   "outputs_not_digested": [
@@ -14,7 +14,7 @@
     "evidence/provenance_manifest.json"
   ],
   "verdict": "MODIFY_MAP_DESIGN",
-  "matrix_rows": 22,
+  "matrix_rows": 23,
   "consumed_evidence": {
     "g1_identity/evidence/g1_identity.json": {
       "sha256": "8ffe2d18c684b15ff476257881b481ff406800092c18b704411f86f2ec917841",
@@ -63,7 +63,32 @@
       "read": true,
       "rows": [
         "RETENTION_CONTRACT",
+        "RETENTION_FAIL_OPEN_ROOT_CAUSE",
         "RETENTION_WITHHELD_FAILS_CLOSED"
+      ]
+    },
+    "engine/semantic_linker/runtime_feasibility/g6a_negatives/evidence/negatives.json": {
+      "sha256": "98ba926de674724d466144630056ac819609c3ce84c08a368b69c49fa2fc03f3",
+      "bytes": 4109,
+      "read": true,
+      "rows": [
+        "RETENTION_FAIL_OPEN_ROOT_CAUSE"
+      ]
+    },
+    "engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduction.json": {
+      "sha256": "b750b2ad11b09a8c849cc1e1302918896191fb387c163842a6cb3320af1befe2",
+      "bytes": 12977,
+      "read": true,
+      "rows": [
+        "RETENTION_FAIL_OPEN_ROOT_CAUSE"
+      ]
+    },
+    "engine/semantic_linker/runtime_feasibility/final/RESULT.md": {
+      "sha256": "8c9faf34c1d527a42f54f3e586322a7906e0355c3aa6d8cf6ab0dc32a19616c3",
+      "bytes": 8627,
+      "read": true,
+      "rows": [
+        "RETENTION_FAIL_OPEN_ROOT_CAUSE"
       ]
     },
     "g5_patchability/evidence/subset.json": {
@@ -152,8 +177,12 @@
       ]
     }
   },
-  "consumed_count": 15,
+  "consumed_count": 18,
   "producing_scripts": {
+    "engine/semantic_linker/runtime_feasibility/final/assemble_verdict.sh": "d9408afeeec0307f2fdd30832ff8ae279112841cca4a72ad6e80c217ec902a78",
+    "engine/semantic_linker/runtime_feasibility/g6a_negatives/run_negatives.sh": "0f4aedf164ae319a863688dc6fd77042ab73c738eb6a11a157ef97920e28607b",
+    "engine/semantic_linker/runtime_feasibility/g6c_harness/falsify.sh": "a9b23fe9de8bd3736fd89703cf7afeea015a7b3ab44ab672323a0da0006c0050",
+    "engine/semantic_linker/runtime_feasibility/g6c_harness/reproduce.sh": "03470c697ef3950c579fd370d4618f1d22cd4701ea53859a0643582eedc8dacb",
     "g1_identity/run_g1.sh": "4b0c825fecab3329cccdbf440fefc747bcef8270c0d71275352f01ef85862f24",
     "g1_identity/lib/score_g1.py": "cfeee461b04b6d04d83ade39ca3edb6e668fd5ad6db4e772e4a9b78ef45c9a33",
     "g2_fingerprints/run_g2.sh": "0f389c35f2ccc9cc639e890ebd95280a3a6044b78cbf2deda8e18d4d1b832ef1",
@@ -203,18 +232,18 @@
     "g8_reproduction/lib/snapshot_digests.py": "a5495c6f2024182231bb4e72cdcbadca2d04c9a2cf671a2da297b6d9cef48858"
   },
   "assembler": {
-    "final/evidence_registry.json": "a05ea5b648a39f63624b0590cff5a7603742977f98ec739a349d7e92df7e01b2",
+    "final/evidence_registry.json": "f0e2c3ceab6a597711c8b873541b1c07f7b8b316cb0e3c39bf4f230f3c22d2d9",
     "final/lib/_check_predicates.py": "a6f52b568f443e3eb6e15bfa42b716aef27eda6d721a99fe739b9e9525bf110f",
-    "final/lib/build_manifest.py": "7720515406df2ce8cb914d31a5c9985c1ba9002ccdafa1342d2235c8fca02611",
-    "final/lib/compute_verdict.py": "1d4bac6c6bcd0ec1e41721ed56052784a23d46d6e6dde943ff3b4ec84eb9b800",
-    "final/lib/extract_matrix.py": "617f402d6db39e2e2ea01760e08f9da79764fbf8e33ec7ef40f2eaaa1320dab7",
-    "final/lib/falsify_final.py": "985484967d9845b5ac918e82a98cfa45fb3b3378fffb2b22378c1e27869d8091",
+    "final/lib/build_manifest.py": "2bfd1e6b7aaa29676cd575abcfa8e913a2753d37edcf2702dce6a913dba71946",
+    "final/lib/compute_verdict.py": "aba1d970703cbded300165a4c2fe8cbd7e159fe22fc68b1a6684f6f0b954cd9b",
+    "final/lib/extract_matrix.py": "ead3d2b55ca6147f8e8d0bffe3c00af8deeed3d4e2bc4d07c81b3a6c559cab77",
+    "final/lib/falsify_final.py": "330fd43948dc153a2582172c4f56d36d6522bf4135fc0bd5bd2fdd5ea0c93d4c",
     "final/lib/gen_result.py": "b3e8fcfd0999351d714bb36f309503149100422da3393d0348f41e50277705c6",
     "final/run_final.sh": "1371508a15d03c031dfe1ba718696827cc494d264aff77c288419f321cb709c9"
   },
   "coverage": {
-    "declared_by_rows": 15,
-    "opened_by_extractor": 15,
+    "declared_by_rows": 18,
+    "opened_by_extractor": 18,
     "equal": true
   },
   "findings": []

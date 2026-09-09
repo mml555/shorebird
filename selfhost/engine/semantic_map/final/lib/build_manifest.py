@@ -55,7 +55,15 @@ for rel, rec in matrix['access_log'].items():
                         if rel in r.get('evidence_files', []))),
     ])
 
-declared = sorted({s['file'] for row in reg['rows']
+# SAME KEY SHAPE as the access log, or the cross-check reports every
+# cross-lane input as "declared but never opened" -- a finding about the
+# comparison rather than about the evidence.
+def declared_key(spec):
+    root = spec.get('root', 'semantic_map')
+    return spec['file'] if root == 'semantic_map' else f"{root}/{spec['file']}"
+
+
+declared = sorted({declared_key(s) for row in reg['rows']
                    for s in row['probes'].values()})
 opened = sorted(consumed)
 findings = []
@@ -74,13 +82,32 @@ for f, rec in consumed.items():
 # ---- the tools that produced the evidence and the assembly -------------
 # Derived: the gate directory comes from each consumed path, so a new gate
 # contributes its scripts without this list being edited.
-gates = sorted({rel.split('/', 1)[0] for rel in consumed})
+# A consumed path may live in a sibling lane, recorded with an `engine/`
+# prefix by the extractor. Resolve each to its real directory so the producing
+# scripts of a cross-lane input are digested too, instead of the prefix being
+# mistaken for a gate directory under semantic_map.
+def resolve(rel):
+    if rel.startswith('engine/'):
+        return SM.parent, rel[len('engine/'):], 'engine/'
+    return SM, rel, ''
+
+
+lanes = {}
+for rel in consumed:
+    root, path, prefix = resolve(rel)
+    parts = path.split('/')
+    # The lane is the directory holding the gate: one level for semantic_map
+    # gates, two for the semantic_linker sub-lanes.
+    depth = 1 if not prefix else 3
+    lane = '/'.join(parts[:depth])
+    lanes[prefix + lane] = root / lane
 producers = collections.OrderedDict()
-for g in gates:
-    for script in sorted((SM / g).glob('*.sh')):
-        producers[f'{g}/{script.name}'] = sha(script)
-    for script in sorted((SM / g / 'lib').glob('*.py')) if (SM / g / 'lib').is_dir() else []:
-        producers[f'{g}/lib/{script.name}'] = sha(script)
+for key, d in sorted(lanes.items()):
+    for script in sorted(d.glob('*.sh')):
+        producers[f'{key}/{script.name}'] = sha(script)
+    if (d / 'lib').is_dir():
+        for script in sorted((d / 'lib').glob('*.py')):
+            producers[f'{key}/lib/{script.name}'] = sha(script)
 
 assembler = collections.OrderedDict()
 assembler['final/evidence_registry.json'] = sha(REGISTRY)

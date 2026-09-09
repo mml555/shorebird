@@ -6,7 +6,7 @@
      file creates a second copy of the numbers, free to drift from the
      evidence -- which already happened in this programme once. -->
 
-Generated 2026-09-09T07:15:54Z · issue #58 · tracker #48
+Generated 2026-09-09T07:21:55Z · issue #58 · tracker #48
 
 ## Verdict
 
@@ -41,6 +41,7 @@ Every row is extracted at run time from a named file and field or marker. A row 
 | `PRIVACY_CROSS_DOMAIN_REFUSAL` | `ESTABLISHED` | `g3_privacy/evidence/falsification.txt`, `g3_privacy/evidence/g3_privacy.json` |
 | `RETENTION_CONTRACT` | `ESTABLISHED_WITH_LIMITS` | `g4_retention/evidence/g4_retention.json` |
 | `RETENTION_WITHHELD_FAILS_CLOSED` | `ESTABLISHED_NEGATIVE` | `g4_retention/evidence/g4_retention.json` |
+| `RETENTION_FAIL_OPEN_ROOT_CAUSE` | `RECONCILED_TO_CARRIED_CONSTRAINT` | `engine/semantic_linker/runtime_feasibility/final/RESULT.md`, `engine/semantic_linker/runtime_feasibility/g6a_negatives/evidence/negatives.json`, `engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduction.json`, `g4_retention/evidence/g4_retention.json` |
 | `PATCHABILITY_SUBSET_PROPERTY` | `VACUOUS` | `g5_patchability/evidence/inlining_state.json`, `g5_patchability/evidence/subset.json` |
 | `PATCHABILITY_DISTINCTION_REPRESENTABLE` | `NOT_REPRESENTABLE` | `g5_patchability/evidence/dispatch_experiment.txt` |
 | `DECIDABLE_EXCLUSIONS` | `NAMED_AND_FAIL_CLOSED` | `g2_fingerprints/evidence/g2_fingerprints.json`, `g3_privacy/evidence/g3_privacy.json` |
@@ -124,14 +125,14 @@ Deterministic and timing families are kept separate. The deterministic figures a
 
 - The map cannot decide patchability by inference from a finished AOT, so patchability has to become a BUILD-TIME guarantee rather than a post-hoc classification. #59 (Mutable AOT Dart) is the accepted direction for that and may be named here; no implementation begins in #58.
 - AOT-ASSUMPTIONS-1 owns the optimizer-contract half and is still un-instrumented; it was deliberately not started here.
-- RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE: withholding some retention classes does not fail closed at load. That is independent of the patchability question and needs its own lane before any map is relied on.
+- RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE, and it is NOT a new finding: every class that fails open has cause DYNAMIC_INTERFACE_POLICY, while the one that fails closed (callable) has a different cause. SL1-G6C named the root cause MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION and left it BLOCKING_FOR_PRODUCTION; SL1-FINAL carried "module-side dynamic-interface validation must become fail-closed" into this lane as a mandatory constraint. The next lane is that named fix -- give the CFE dynamicInterfaceSpecificationUri when compiling the MODULE -- not a new investigation. It is independent of the patchability question and must close before any map is relied on.
 - Generation-time figures are current-run observations. Any schedule or budget derived from them needs a repeated measurement at the scale being shipped, not this sample.
 
 ## Provenance
 
-15 evidence files consumed, each digested at read time; 47 producing scripts and 8 assembler components digested.
+18 evidence files consumed, each digested at read time; 51 producing scripts and 8 assembler components digested.
 
-Input set derived from the extractor access log, cross-checked against the registry. Declared by rows: 15; opened by the extractor: 15; sets equal: True.
+Input set derived from the extractor access log, cross-checked against the registry. Declared by rows: 18; opened by the extractor: 18; sets equal: True.
 
 Self-hashing: none: this manifest, RESULT.md, the matrix and the verdict are OUTPUTS of this assembly and are listed by name only. A manifest that digested itself would never converge -- G5 hit exactly that and a second run never reproduced the first.
 
@@ -143,7 +144,10 @@ Manifest findings: none.
 | `g2_fingerprints/evidence/g2_fingerprints.json` | `e8e479a0c5cc9c6f…` | 7 |
 | `g3_privacy/evidence/g3_privacy.json` | `870fc92b8e664fd7…` | 3 |
 | `g3_privacy/evidence/falsification.txt` | `01fef376ea1139de…` | 1 |
-| `g4_retention/evidence/g4_retention.json` | `dd9863b89fe33ed6…` | 2 |
+| `g4_retention/evidence/g4_retention.json` | `dd9863b89fe33ed6…` | 3 |
+| `engine/semantic_linker/runtime_feasibility/g6a_negatives/evidence/negatives.json` | `98ba926de674724d…` | 1 |
+| `engine/semantic_linker/runtime_feasibility/g6c_harness/evidence/reproduction.json` | `b750b2ad11b09a8c…` | 1 |
+| `engine/semantic_linker/runtime_feasibility/final/RESULT.md` | `8c9faf34c1d527a4…` | 1 |
 | `g5_patchability/evidence/subset.json` | `21b644dcd142f3e9…` | 1 |
 | `g5_patchability/evidence/inlining_state.json` | `8e97a2d235486e85…` | 1 |
 | `g5_patchability/evidence/dispatch_experiment.txt` | `550908425469c359…` | 1 |
