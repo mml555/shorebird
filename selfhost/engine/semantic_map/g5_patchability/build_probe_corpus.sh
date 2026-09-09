@@ -54,10 +54,25 @@ G="$(cd "$(dirname "$0")" && pwd)"
 RB="$(cd "$G/../../route_b" && pwd)"
 S="$SRC/out/host_release_arm64"
 DT="$SRC/flutter/third_party/dart"
-PKGS=/Volumes/build/route-b/flutter/engine/src/flutter/third_party/dart/third_party/pkg/core/pkgs
+# EVERY SOURCE INPUT COMES FROM THE DECLARED TREE. crypto and typed_data used
+# to be taken from a hard-coded second checkout under /Volumes/build/route-b,
+# which was neither an explicit input nor identity-bound -- so two repeatable
+# runs on one machine did not establish reproduction from the declared inputs,
+# they established reproduction from that machine. Their content also DIFFERS
+# between the two checkouts, so this is not a cosmetic change.
+PKGS="$SRC/flutter/third_party/dart/third_party/pkg/core/pkgs"
+for dep in crypto typed_data; do
+  [ -d "$PKGS/$dep/lib" ] || {
+    echo "  MISSING dependency $dep under the declared tree: $PKGS/$dep"
+    echo "  Refusing to fall back to another checkout: an unrecorded source"
+    echo "  input is exactly what made the previous corpus unreproducible."
+    exit 2
+  }
+done
 GK="$S/dartaotruntime $S/gen/gen_kernel_aot.dart.snapshot"
 PKG="--packages=$DT/.dart_tool/package_config.json"
 rc=0
+sha() { shasum -a 256 "$1" | awk '{print $1}'; }
 must() { local w="$1"; shift; "$@" || { echo "  FAILED: $w"; rc=1; return 1; }; }
 
 rm -rf "$W"; mkdir -p "$W/lib" "$W/.dart_tool"
@@ -72,6 +87,17 @@ CFG="$W/.dart_tool/package_config.json"
 ENTRY="$W/lib/callsite_target.dart"
 SDK_MEMBERS='dart:core#print,dart:core#DateTime.now,dart:core#DateTime.get:millisecondsSinceEpoch'
 
+echo "  0. source inputs, digest-bound"
+depdigest() { # content digest of a package's lib/, order-stable
+  find "$1/lib" -name '*.dart' -type f | LC_ALL=C sort \
+    | xargs shasum -a 256 | shasum -a 256 | awk '{print $1}'
+}
+printf '  %-14s %s\n' 'probe source' "$(sha "$G/probe/callsite_target.dart")"
+for dep in crypto typed_data; do
+  printf '  %-14s %s  (%s)\n' "$dep" "$(depdigest "$PKGS/$dep")" \
+    "$PKGS/$dep"
+done
+echo
 echo "  1. pre-AOT kernel (full private surface, and the ABI source)"
 must pre $GK --platform "$S/vm_platform.dill" --packages "$CFG" \
     -o "$W/pre_r.dill" "$ENTRY"

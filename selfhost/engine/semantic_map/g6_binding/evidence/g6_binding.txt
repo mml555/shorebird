@@ -1,5 +1,5 @@
 SM1-G6 -- map schema, identity, versioning and release binding
-generated 2026-09-09T01:43:22Z by run_g6.sh
+generated 2026-09-09T02:06:14Z by run_g6.sh
 
 WHAT IS BOUND
 
@@ -27,17 +27,17 @@ import-resolution message for an integrity cause -- so no classification here
 reads message text.
 
 ############ 1. THREE RELEASES, AND THEIR OWN FACTS ############
-  probe           kernel=1555b6c28ecf5a15 aot=7010c68d7ba14ac9
-  probe_rebuild   kernel=1555b6c28ecf5a15 aot=a7a123e471aa18e7
+  probe           kernel=564571cf8fe19db2 aot=7010c68d7ba14ac9
+  probe_rebuild   kernel=564571cf8fe19db2 aot=a7a123e471aa18e7
   localsend       kernel=592616b1a0b2408e aot=4133a0ff6cf111aa
 
 ############ 2. BOUND MAPS ############
   probe: schema_version=1 declarations=36
-    release_id  92658fbde346530eef4fd625780d33f12293b2ccc7f51e91e56edbba4a87aa00
-    kernel      1555b6c28ecf5a153406aa04cf30f9462385633621f7a8ec660b2c763c7385e5
+    release_id  d66f531df4a9534cb2804302396f66114a88f2791bc9f5afa936e906046952f2
+    kernel      564571cf8fe19db2dff795f86a0d3c2c579e48b24d275173d11e50f7238819a1
     aot sha256  7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34
     build id    97c212a37be47fbff1e700f874190707
-    digest      4a5a42cdc1e5f58d99fb242191e49962fc2eab88444a9f5e5a25ae21a82a91c9
+    digest      94dce22a61a50daea95cae470dd9cc124cc67e539a3b76d89a40b069264b8c2a
   localsend: schema_version=1 declarations=35139
     release_id  61ef560ecad943046ec31f6d424ef2c094bee197d5f3f210264f702609eb8d1c
     kernel      592616b1a0b2408ef61b7a886a1d63f038f681056cc4a4a6dd5517ee468f5f7e
@@ -51,11 +51,11 @@ reads message text.
 
 ############ 4. EVERY BINDING FIELD, SWAPPED INDEPENDENTLY ############
   probe_rebuild: schema_version=1 declarations=36
-    release_id  1d68913db23ba23d62c968a62b81a1f6768a61131dd0794b5af15ae940a049ca
-    kernel      1555b6c28ecf5a153406aa04cf30f9462385633621f7a8ec660b2c763c7385e5
+    release_id  e3d8e71f9a607bee783b5ba168036c532d5c98cecbf023bb83a37ae4fb66dc33
+    kernel      564571cf8fe19db2dff795f86a0d3c2c579e48b24d275173d11e50f7238819a1
     aot sha256  a7a123e471aa18e7235f0f741cc5c8ce28c2d2adcc9d28c5737004eada21d759
     build id    97c212a37be47fbff1e700f874190707
-    digest      9cfdb386eb91b0671c276bdcc25e585e90fb7a40f20faf3e6b88a32268bb4eaa
+    digest      975f39e42630033b3843750197013f8fffda8395b734f21db0002df0555d65a1
   rebuild declarations identical to A: True (36 declarations)
 arm                                                            result detail
 --------------------------------------------------------------------------------------------------------------------

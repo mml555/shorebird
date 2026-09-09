@@ -77,7 +77,7 @@
       "aot": "app_release.aot",
       "aot_sha256": "7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34",
       "input_kernel": "release3.dill",
-      "input_kernel_sha256": "1555b6c28ecf5a153406aa04cf30f9462385633621f7a8ec660b2c763c7385e5",
+      "input_kernel_sha256": "564571cf8fe19db2dff795f86a0d3c2c579e48b24d275173d11e50f7238819a1",
       "recipe": "gen_snapshot --snapshot_kind=app-aot-elf --patchable_static_calls --elf=app_release.aot release3.dill",
       "why_this_kernel": "release3.dill is compiled WITH --dynamic-interface and is therefore the PATCHABLE release. The same file is handed unchanged to run_dispatch_experiment.sh."
     },

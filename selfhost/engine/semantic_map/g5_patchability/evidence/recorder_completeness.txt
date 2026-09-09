@@ -1,5 +1,5 @@
 SM1-G5 route 2 -- recorder completeness, re-derived from source
-generated 2026-09-09T01:40:44Z by run_route2.sh
+generated 2026-09-09T02:03:29Z by run_route2.sh
 The enumeration in evidence/recorder_completeness.md is not transcribed;
 this run re-derives every count and gate from the tree.
 

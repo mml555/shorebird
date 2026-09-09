@@ -1,5 +1,5 @@
 SM1-G8 -- clean reproduction and centralized negative inventory
-generated 2026-09-09T01:40:28Z by run_g8.sh
+generated 2026-09-09T02:03:13Z by run_g8.sh
 
 ############ 1. PRODUCT SURFACE, BEFORE ############
   17e2fc927925bb49aa1683d38c09584fe3749cc811cb004a757926f2da7c8cff  packages
@@ -17,11 +17,11 @@ generated 2026-09-09T01:40:28Z by run_g8.sh
   each choice justified against what the probe actually exercises.
 
     build id: 97c212a37be47fbff1e700f874190707
-    pre_r.dill                  8323840 bytes  3f6de12dc7ea5989
-    prepass3.dill               4466488 bytes  96cc9792f7cc6ed6
+    pre_r.dill                  8323680 bytes  dfe74f1f216e7f21
+    prepass3.dill               4466408 bytes  181ea72d6b8bfad8
     di3.yaml                       9591 bytes  bb071b936081231d
-    release3.dill               4786824 bytes  1555b6c28ecf5a15
-    import.dill                 8323840 bytes  3f6de12dc7ea5989
+    release3.dill               4786672 bytes  564571cf8fe19db2
+    import.dill                 8323680 bytes  dfe74f1f216e7f21
     app_release.aot             1708352 bytes  7010c68d7ba14ac9
     app_release_b.aot           1708352 bytes  a7a123e471aa18e7
     g2_r.json                     44634 bytes  b9b29d23f37e5e11
@@ -51,12 +51,29 @@ generated 2026-09-09T01:40:28Z by run_g8.sh
     subset verdict     SUBSET_HOLDS_VACUOUSLY  admitted 0/36
 
 ############ 4. NEGATIVES, DRIVEN BY THE INVENTORY ############
-  MUTATIONS (15) -- each from the inventory
-    g5-inlining-state-deleted              pass   ARTIFACT_MISSING_OR_EMPTY
-    g6-transcript-deleted                  pass   ARTIFACT_MISSING_OR_EMPTY
+  MUTATIONS (32) -- 21 derived, one per mandatory artifact; 11 semantic
+    auto-g5_patchability-reader_state.txt-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-reader_falsification.txt-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-recorder_completeness.txt-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-recorder_completeness.md-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-dispatch_experiment.txt-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-predictor_falsification.txt-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-subset_check.txt-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-corpora.txt-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-inlining_state.json-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-g1_projection.json-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-corpus_localsend.json-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-corpus_wonderous.json-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-final_manifest.json-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-MANIFEST.json-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g5_patchability-RESULT.md-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g6_binding-g6_binding.txt-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g6_binding-map_probe.json-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g6_binding-verify_probe.json-deleted pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g7_cost-g7_cost.txt-deleted       pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g7_cost-families.json-deleted     pass   ARTIFACT_MISSING_OR_EMPTY
+    auto-g7_cost-samples.jsonl-deleted     pass   ARTIFACT_MISSING_OR_EMPTY
     g7-samples-emptied                     pass   ARTIFACT_MISSING_OR_EMPTY
-    g5-final-manifest-deleted              pass   ARTIFACT_MISSING_OR_EMPTY
-    g5-g1-projection-deleted               pass   ARTIFACT_MISSING_OR_EMPTY
     g6-positive-verdict-lost               pass   DECLARED_POSITIVE_NOT_TESTED
     g6-control-stops-failing               pass   DECLARED_CONTROL_NEVER_FAILED
     g5-reader-control-stops-failing        pass   DECLARED_CONTROL_NEVER_FAILED
@@ -67,12 +84,29 @@ generated 2026-09-09T01:40:28Z by run_g8.sh
     g7-schedule-side-vanishes              pass   TIMING_ORDER_MISSING
     g7-producer-recorded-failed            pass   TIMING_PRODUCER_FAILED
     g7-stale-summary                       pass   SUMMARY_NOT_FROM_SAMPLES
-  RESTORATIONS (15) -- byte-for-byte, verified
-    g5-inlining-state-deleted              pass   byte-for-byte
-    g6-transcript-deleted                  pass   byte-for-byte
+  RESTORATIONS (32) -- byte-for-byte, verified
+    auto-g5_patchability-reader_state.txt-deleted pass   byte-for-byte
+    auto-g5_patchability-reader_falsification.txt-deleted pass   byte-for-byte
+    auto-g5_patchability-recorder_completeness.txt-deleted pass   byte-for-byte
+    auto-g5_patchability-recorder_completeness.md-deleted pass   byte-for-byte
+    auto-g5_patchability-dispatch_experiment.txt-deleted pass   byte-for-byte
+    auto-g5_patchability-predictor_falsification.txt-deleted pass   byte-for-byte
+    auto-g5_patchability-subset_check.txt-deleted pass   byte-for-byte
+    auto-g5_patchability-corpora.txt-deleted pass   byte-for-byte
+    auto-g5_patchability-inlining_state.json-deleted pass   byte-for-byte
+    auto-g5_patchability-g1_projection.json-deleted pass   byte-for-byte
+    auto-g5_patchability-corpus_localsend.json-deleted pass   byte-for-byte
+    auto-g5_patchability-corpus_wonderous.json-deleted pass   byte-for-byte
+    auto-g5_patchability-final_manifest.json-deleted pass   byte-for-byte
+    auto-g5_patchability-MANIFEST.json-deleted pass   byte-for-byte
+    auto-g5_patchability-RESULT.md-deleted pass   byte-for-byte
+    auto-g6_binding-g6_binding.txt-deleted pass   byte-for-byte
+    auto-g6_binding-map_probe.json-deleted pass   byte-for-byte
+    auto-g6_binding-verify_probe.json-deleted pass   byte-for-byte
+    auto-g7_cost-g7_cost.txt-deleted       pass   byte-for-byte
+    auto-g7_cost-families.json-deleted     pass   byte-for-byte
+    auto-g7_cost-samples.jsonl-deleted     pass   byte-for-byte
     g7-samples-emptied                     pass   byte-for-byte
-    g5-final-manifest-deleted              pass   byte-for-byte
-    g5-g1-projection-deleted               pass   byte-for-byte
     g6-positive-verdict-lost               pass   byte-for-byte
     g6-control-stops-failing               pass   byte-for-byte
     g5-reader-control-stops-failing        pass   byte-for-byte
@@ -88,7 +122,7 @@ generated 2026-09-09T01:40:28Z by run_g8.sh
     clf-inside-noise-does-not-flag         pass   ratio 1.30 but gap 30 under noise 50: order_dependent=Fa
     clf-missing-side-undecidable           pass   absence of a comparison is not absence of an effect: ord
   BANK INTACT AFTER ALL MUTATIONS: pass (INVENTORY_CONSISTENT)
-  mutations=15 restorations=15 classifier_controls=3 failed=0
+  mutations=32 restorations=32 classifier_controls=3 failed=0
 SM1_G8_NEGATIVES: ALL_DETECTED_AND_RESTORED
   exit=0
 
@@ -103,7 +137,7 @@ SM1_G8_NEGATIVES: ALL_DETECTED_AND_RESTORED
     subset-over-claim-arms             3 occurrence(s)
     corpora-over-claim-marker          2 occurrence(s)
     reader-control-defects             2 occurrence(s)
-  declared==18 tested==18 caught==18  literal equality: True
+  declared==35 tested==35 caught==35  literal equality: True
 SM1_G8_INVENTORY: INVENTORY_CONSISTENT
   exit=0
 

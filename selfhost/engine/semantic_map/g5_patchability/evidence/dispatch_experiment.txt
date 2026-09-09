@@ -1,5 +1,5 @@
 SM1-G5 -- Base.work virtual/instance dispatch
-generated 2026-09-09T01:41:02Z by run_dispatch_experiment.sh
+generated 2026-09-09T02:03:48Z by run_dispatch_experiment.sh
 
 THE QUESTION
   Can the exact release mechanically determine that a non-inlined declaration
@@ -12,7 +12,7 @@ THE QUESTION
 
 ############ 1. THE CANONICAL RELEASE, TAKEN NOT REBUILT ############
   gen_snapshot     b307906fe7dc9ef254231023e0862c89da23840e7fef3911cfd10308abc4a81a
-  release3.dill    1555b6c28ecf5a153406aa04cf30f9462385633621f7a8ec660b2c763c7385e5
+  release3.dill    564571cf8fe19db2dff795f86a0d3c2c579e48b24d275173d11e50f7238819a1
   app_release.aot  7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34
   banked reader state was produced from this same file:
                    7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34

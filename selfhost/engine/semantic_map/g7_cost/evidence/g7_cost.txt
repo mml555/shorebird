@@ -1,5 +1,5 @@
 SM1-G7 -- cost at release scale
-generated 2026-09-09T01:43:30Z by run_g7.sh
+generated 2026-09-09T02:06:23Z by run_g7.sh
 corpus: LocalSend, a real application (35,139 declarations in scope)
 reps per order: 3   orders: base-first and map-first
 
@@ -61,26 +61,26 @@ independence.
 
 ############ FAMILY 2 -- GENERATION TIME (per stage, ms) ############
   stage                    n       min    median       max     stdev
-  base_gen_kernel          6   16323.2   16548.5   17462.0     420.3
-  base_gen_snapshot        6   13743.4   14203.8   14456.9     283.4
-  map_bound                6     575.6     605.7     636.8      20.0
-  map_contract             6    1777.7    1799.4    1906.4      49.5
-  map_g1                   6    3203.5    3346.0    3857.1     235.3
-  map_g3                   6    2948.7    3085.3    3258.2     132.2
-  map_g4                   6    1538.9    1589.6    1700.1      55.5
-  map_reader               6    1538.5    1561.4    1611.6      31.1
-  map_refs                 6    1406.4    1437.4    1624.9      85.1
-  ret_aot_noret            1   14531.4   14531.4   14531.4       0.0
-  ret_aot_ret              1   15758.8   15758.8   15758.8       0.0
-  ret_interface            1    1589.5    1589.5    1589.5       0.0
-  ret_kernel_noret         1   16405.5   16405.5   16405.5       0.0
-  ret_kernel_pre           1    9612.8    9612.8    9612.8       0.0
-  ret_kernel_ret           1   17369.7   17369.7   17369.7       0.0
+  base_gen_kernel          6   16981.1   18649.1   20001.0     994.3
+  base_gen_snapshot        6   14506.9   14700.3   15300.6     319.5
+  map_bound                6     626.6     682.3     829.1      73.0
+  map_contract             6    1975.9    2025.3    2512.9     205.1
+  map_g1                   6    3775.2    4046.0    5412.0     604.2
+  map_g3                   6    3159.3    3393.6    3709.8     254.8
+  map_g4                   6    1667.1    1747.6    1882.6      99.8
+  map_reader               6    1625.2    1632.9    1754.8      53.6
+  map_refs                 6    1505.0    1646.0    2273.7     282.3
+  ret_aot_noret            1   14724.1   14724.1   14724.1       0.0
+  ret_aot_ret              1   16053.3   16053.3   16053.3       0.0
+  ret_interface            1    1745.0    1745.0    1745.0       0.0
+  ret_kernel_noret         1   19532.9   19532.9   19532.9       0.0
+  ret_kernel_pre           1   10295.9   10295.9   10295.9       0.0
+  ret_kernel_ret           1   17936.3   17936.3   17936.3       0.0
 
 ############ FAMILY 3 -- RELEASE BUILD IMPACT ############
-  base_first  base total median    30597.1 ms   map total median    14123.7 ms
-  map_first   base total median    30610.4 ms   map total median    13190.6 ms
-  map work as a share of the base build: 43.9 % (median)
+  base_first  base total median    32938.6 ms   map total median    15283.2 ms
+  map_first   base total median    33273.6 ms   map total median    15866.0 ms
+  map work as a share of the base build: 46.9 % (median)
 
 ############ FAMILY 4 -- RETENTION COST AT SCALE ############
   AOT without retention     49,662,560 bytes
@@ -97,17 +97,17 @@ independence.
 
 ############ ORDER DEPENDENCE, TESTED ############
   stage                   base_first   map_first   ratio      gap    noise  verdict
-  base_gen_kernel            16365.7     16626.2   1.016    260.5    533.1  no
-  base_gen_snapshot          14273.9     14139.7   0.991    134.2    370.6  no
-  map_bound                    605.8       605.7   1.000      0.1     30.6  no
-  map_contract                1855.0      1794.0   0.967     61.0     58.2  no
-  map_g1                      3439.4      3259.8   0.948    179.6    286.3  no
-  map_g3                      3158.4      3012.2   0.954    146.2    158.0  no
-  map_g4                      1590.7      1588.4   0.999      2.3     82.3  no
-  map_reader                  1606.6      1552.5   0.966     54.1     40.8  no
-  map_refs                    1450.8      1424.0   0.982     26.8    115.5  no
+  base_gen_kernel            18177.4     18766.7   1.032    589.3   1010.6  no
+  base_gen_snapshot          14761.1     14631.0   0.991    130.1    351.9  no
+  map_bound                    669.7       711.3   1.062     41.6    101.7  no
+  map_contract                2031.8      2018.7   0.994     13.1    292.5  no
+  map_g1                      3885.8      4177.8   1.075    292.0    914.8  no
+  map_g3                      3220.6      3665.8   1.138    445.2    305.9  ORDER-DEPENDENT
+  map_g4                      1685.4      1808.0   1.073    122.6    119.5  no
+  map_reader                  1630.3      1701.0   1.043     70.7     65.2  no
+  map_refs                    1609.6      1719.3   1.068    109.7    382.1  no
 
-  order-dependent (>10% AND beyond noise): none
+  order-dependent (>10% AND beyond noise): ['map_g3']
   >10% but inside the noise floor: none
   failed samples: 0
 

@@ -1,5 +1,5 @@
 SM1-G5 route 2 -- adversarial falsification of the strict reader
-generated 2026-09-09T01:40:36Z by run_route2.sh
+generated 2026-09-09T02:03:20Z by run_route2.sh
 
 PROVENANCE
   8e1a23b59fb5e7be435019bd1b0840f81057abee424b48b570b9745d7646ac13  lib/read_inlining.py

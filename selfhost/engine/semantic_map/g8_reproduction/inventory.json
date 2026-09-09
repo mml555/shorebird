@@ -178,7 +178,7 @@
     ]
   },
   "falsifiable": {
-    "why": "One inventory drives the negatives. Previously the falsifier hard-coded its own targets, so \"26 arms\" described neither the inventory nor a count of mutations -- it mixed 11 mutations, 11 restoration rows, 3 classifier controls and 1 consistency check. Each entry here is one mutation with one expected structured failure and a required byte-for-byte restoration.",
+    "why": "One inventory drives the negatives, and its COVERAGE is derived rather than curated. #57 requires every mandatory item to refuse when missing or corrupted; a hand-picked subset cannot establish that, and the literal equality was previously over 15 chosen mutations while 21 artifacts were declared mandatory. The falsifier now DERIVES one delete arm per mandatory artifact from the gates' artifact lists, and the entries below are the additional SEMANTIC corruptions -- a lost verdict, a control that stops failing, a drifted binding -- which cannot be derived because they depend on what each file means.",
     "mutations": {
       "delete": "remove the artifact",
       "empty": "truncate it to zero bytes",
@@ -187,33 +187,9 @@
     },
     "entries": [
       {
-        "id": "g5-inlining-state-deleted",
-        "target": "g5_patchability/evidence/inlining_state.json",
-        "mutation": "delete",
-        "expect_code": "ARTIFACT_MISSING_OR_EMPTY"
-      },
-      {
-        "id": "g6-transcript-deleted",
-        "target": "g6_binding/evidence/g6_binding.txt",
-        "mutation": "delete",
-        "expect_code": "ARTIFACT_MISSING_OR_EMPTY"
-      },
-      {
         "id": "g7-samples-emptied",
         "target": "g7_cost/evidence/samples.jsonl",
         "mutation": "empty",
-        "expect_code": "ARTIFACT_MISSING_OR_EMPTY"
-      },
-      {
-        "id": "g5-final-manifest-deleted",
-        "target": "g5_patchability/evidence/final_manifest.json",
-        "mutation": "delete",
-        "expect_code": "ARTIFACT_MISSING_OR_EMPTY"
-      },
-      {
-        "id": "g5-g1-projection-deleted",
-        "target": "g5_patchability/evidence/g1_projection.json",
-        "mutation": "delete",
         "expect_code": "ARTIFACT_MISSING_OR_EMPTY"
       },
       {
@@ -295,7 +271,11 @@
         "count": 1,
         "expect_code": "SUMMARY_NOT_FROM_SAMPLES"
       }
-    ]
+    ],
+    "derived_coverage": {
+      "rule": "one delete arm per artifact in gates[*].artifacts, id auto-<gate>-<artifact basename>-deleted, expecting ARTIFACT_MISSING_OR_EMPTY",
+      "why": "so adding a mandatory artifact automatically adds its negative; coverage cannot silently fall behind the inventory"
+    }
   },
   "classifier_controls": {
     "why": "#57 required three deterministic sensitivity controls on the timing classifier. They are declared here so they are inventory driven like every other negative, and exercised through g7_cost/lib/classify_order.py rather than by running a seven-minute measurement.",

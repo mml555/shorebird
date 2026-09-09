@@ -161,7 +161,14 @@ else:
                     finding('CLASSIFIER_INPUT_MISSING', f)
 
 # ---- inventory == tested == caught, LITERALLY over stable ids -----------
-declared_ids = sorted([e['id'] for e in inv['falsifiable']['entries']]
+# The declared set includes the DERIVED per-artifact arms, computed by the same
+# rule the falsifier uses, so "every mandatory artifact has a negative" is part
+# of the equality rather than a separate hope.
+derived = [f"auto-{gate}-{pathlib.Path(rel).name}-deleted"
+           for gate, spec in inv['gates'].items()
+           for rel in spec['artifacts']]
+declared_ids = sorted(derived
+                      + [e['id'] for e in inv['falsifiable']['entries']]
                       + [c['id'] for c in inv['classifier_controls']['entries']])
 equality = {'declared_ids': declared_ids}
 if OUTCOMES and pathlib.Path(OUTCOMES).exists():

@@ -36,6 +36,31 @@ W.mkdir(parents=True, exist_ok=True)
 mutations, restorations, controls = [], [], []
 
 
+def derived_entries():
+    """One delete arm per MANDATORY artifact, derived from the gates.
+
+    #57 requires every mandatory item to refuse when missing or corrupted. A
+    curated list cannot establish that: the equality was previously over 15
+    chosen mutations while 21 artifacts were declared mandatory, so six had no
+    negative at all. Deriving means adding a mandatory artifact automatically
+    adds its negative, and coverage cannot fall behind the inventory.
+    """
+    out = []
+    for gate, spec in inv['gates'].items():
+        for rel in spec['artifacts']:
+            out.append({
+                'id': f"auto-{gate}-{pathlib.Path(rel).name}-deleted",
+                'target': f'{gate}/{rel}',
+                'mutation': 'delete',
+                'expect_code': 'ARTIFACT_MISSING_OR_EMPTY',
+                'derived': True,
+            })
+    return out
+
+
+ENTRIES = derived_entries() + inv['falsifiable']['entries']
+
+
 def run_check():
     p = subprocess.run([sys.executable, str(CHECK), str(SM), INV,
                         str(W / 'chk.json'), '--no-outcomes'],
@@ -65,7 +90,7 @@ def apply_mutation(entry, target, original):
         raise SystemExit(f"unknown mutation {kind!r} for {entry['id']}")
 
 
-for entry in inv['falsifiable']['entries']:
+for entry in ENTRIES:
     eid = entry['id']
     target = SM / entry['target']
     if not target.exists():
@@ -114,13 +139,18 @@ intact = ('pass' if rc_final == 0 else 'FAIL',
 
 tested_ids = sorted([m[0] for m in mutations] + [c[0] for c in controls])
 caught_ids = sorted(
-    [e['id'] for e in inv['falsifiable']['entries'] if e.get('_caught')]
+    [e['id'] for e in ENTRIES if e.get('_caught')]
     + [c['id'] for c in inv['classifier_controls']['entries'] if c.get('_caught')])
 
 if OUTCOMES:
     json.dump({'schema': 'semantic-map-1/g8-outcomes/1',
                'tested_ids': tested_ids, 'caught_ids': caught_ids,
                'mutations': len(mutations), 'restorations': len(restorations),
+               'derived_mutations': sum(1 for e in ENTRIES if e.get('derived')),
+               'semantic_mutations': sum(1 for e in ENTRIES
+                                         if not e.get('derived')),
+               'mandatory_artifacts_covered': sum(
+                   len(g['artifacts']) for g in inv['gates'].values()),
                'classifier_controls': len(controls),
                'bank_intact_after': rc_final == 0},
               open(OUTCOMES, 'w'), indent=2)
@@ -130,7 +160,9 @@ def show(title, rows):
     for i, v, d in rows:
         print(f'    {i:38} {v:6} {d[:56]}')
 
-show(f'MUTATIONS ({len(mutations)}) -- each from the inventory', mutations)
+nd = sum(1 for e in ENTRIES if e.get('derived'))
+show(f'MUTATIONS ({len(mutations)}) -- {nd} derived, one per mandatory '
+     f'artifact; {len(mutations) - nd} semantic', mutations)
 show(f'RESTORATIONS ({len(restorations)}) -- byte-for-byte, verified', restorations)
 show(f'CLASSIFIER CONTROLS ({len(controls)})', controls)
 print(f'  BANK INTACT AFTER ALL MUTATIONS: {intact[0]} ({intact[1]})')
