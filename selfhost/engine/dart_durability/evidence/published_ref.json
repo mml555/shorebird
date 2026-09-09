@@ -1,0 +1,13 @@
+{
+  "remote": "https://github.com/mml555/dart-sdk-shorebird-lineage.git",
+  "visibility": "public",
+  "provenance_branch": "provenance/route-b-selfhost-v1.1.1",
+  "canonical_tag": "route-b-producing-source-selfhost-v1.1.1",
+  "published_commit": "5f37e75fbe0891fcaf5442481348ce7f61cb5616",
+  "published_commit_tree": "7b04b01bdc10ec990143257f0d28580571c2122f",
+  "tag_object": "9947f90f153386589632dba52cead360ebf1c68d",
+  "tag_target": "5f37e75fbe0891fcaf5442481348ce7f61cb5616",
+  "deterministic_rederivation": "3bcdeb3ef6c38a9ebce0a239247cac927ecf700c",
+  "why_they_differ": "The first --execute run built the provenance commit with commit-tree under the ambient identity and clock, so its hash was a function of when it ran. publish_lineage.sh now pins the author, committer and date to values the frozen record already fixes ($REV's committer date), which makes the commit re-derivable as 3bcdeb3e on any machine. The already-published ref was NOT rewritten to match: replacing it needs a force-push onto a branch whose whole purpose is to refuse one. The identity #47 turns on is the TREE, and both commits carry the same tree, so the published ref satisfies the requirement while the determinism fix applies to any future publication.",
+  "identity_that_matters": "tree 7b04b01bdc10ec990143257f0d28580571c2122f"
+}
