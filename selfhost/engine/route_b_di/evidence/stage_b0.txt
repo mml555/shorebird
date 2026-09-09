@@ -1,5 +1,5 @@
 ROUTE-B-DI-1 / Stage B0 -- the production validation input
-generated 2026-09-09T20:00:02Z by run_stage_b0.sh
+generated 2026-09-09T20:48:06Z by run_stage_b0.sh
 generator /Users/mendell/shorebird/selfhost/engine/route_b/gen_dynamic_interface.dart
 
 ############ 1. THE RELEASE'S OWN SPECIFICATION, GENERATED ############
@@ -41,24 +41,45 @@ generator /Users/mendell/shorebird/selfhost/engine/route_b/gen_dynamic_interface
     m_ok.dart:10:2: Error: Cannot invoke member 'pragma.' from a dynamic module.
     m_ok.dart:11:14: Error: Cannot use class 'Object' as a type in a dynamic module.
 
-############ 3. IS A COMPLETE SPECIFICATION DERIVABLE? ############
-  SECTIONS a module-validation specification needs, and who supplies them
-    emitted  callable               refusals when absent: 2
-    MISSING  extendable             refusals when absent: 1
-    MISSING  can-be-overridden      refusals when absent: 1
-    MISSING  can-be-used-as-type    refusals when absent: 2
+############ 3. EVERY CANDIDATE SOURCE, AND ITS PROPERTIES ############
+  Discovery is not pattern matching. A YAML carrying the permission keys is
+  not a release policy: it counts only if a release or build script actually
+  references it. Any release-consumed candidate is then handed to the REAL
+  validator with the positive module, because "has the sections" and
+  "validates the release's own patch" are different claims.
 
-  the release generator emitted a module: False
+  no release-consumed candidate policy carries the permission keys.
 
-  CANDIDATE RELEASE-SIDE SOURCES
-    usable  route_b_generator
-    no      declared_release_policy
-    no      semantic_map_admitted_set
-            the map admits none, so it cannot name a permitted surface. FINAL classified MODIFY_MAP_DESIGN for that reason.
-    no      the_module_itself
-            it would permit whatever the patch does, so validation would refuse nothing. Not a conservative approximation -- the vacuous case, which would make this prerequisite appear closed while enforcing nothing.
+  route_b_generator
+    sections=['callable'] consumed=True validated=False
+  unconsumed_policy:selfhost/engine/dynmod/di.yaml
+    sections=['callable', 'can-be-overridden', 'extendable'] consumed=False validated=False
+  semantic_map_admitted_set
+    sections=none consumed=False validated=False
+  the_module_itself
+    sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] consumed=False validated=True
+  discovered release-consumed policies: none
+  excluded fixtures: 27
 
-  provenance fields available: ['dart_effective_tree', 'dart_revision', 'derivation_identity', 'relationship_to_host_policy', 'release_aot_identity', 'specification_sha256']
+############ 3a. IS A COMPLETE SPECIFICATION DERIVABLE? ############
+  SOURCE ROLES (the verdict is a function of these)
+    partial    route_b_generator
+               sections=['callable'] release_consumed=True validated=False
+               supplies ['callable'], missing ['extendable', 'can-be-overridden', 'can-be-used-as-type']
+    unusable   semantic_map_admitted_set
+               sections=none release_consumed=False validated=False
+               admits 0 declarations and no converter to a validation specification exists. Even a nonzero count would not make it a source without a converter whose output is demonstrated to validate.
+    ineligible the_module_itself
+               sections=['callable', 'can-be-overridden', 'can-be-used-as-type', 'extendable'] release_consumed=False validated=True
+               reading permissions off the module being validated would permit whatever it does, so validation would refuse nothing
+    unusable   unconsumed_policy:selfhost/engine/dynmod/di.yaml
+               sections=['callable', 'can-be-overridden', 'extendable'] release_consumed=False validated=False
+               not release-bound
+
+  complete=none
+  partial=['route_b_generator']
+  ineligible=['the_module_itself']
+  sections no release-bound source supplies: ['extendable', 'can-be-overridden', 'can-be-used-as-type']
 
 B0: VALIDATION_INPUT_UNDERIVED
 
@@ -68,29 +89,38 @@ B0: VALIDATION_INPUT_UNDERIVED
   DERIVABLE regardless would send B1 at Route B on no evidence. Both
   directions get negatives.
 
-ROUTE-B-DI-1 / B0 -- classifier falsification
-  6 arms.
+ROUTE-B-DI-1 / B0 -- classifier falsification, both directions
+  8 arms.
 
-  baseline: VALIDATION_INPUT_UNDERIVED  missing=['extendable', 'can-be-overridden', 'can-be-used-as-type']
+  baseline: VALIDATION_INPUT_UNDERIVED
+  roles: route_b_generator=partial, semantic_map_admitted_set=unusable, the_module_itself=ineligible, unconsumed_policy:selfhost/engine/dynmod/di.yaml=unusable
 
-  pass  complete-spec-and-module-produced      -> COMPLETE_SPECIFICATION_DERIVABLE
-        All four sections present AND the release specification validated the release patch. B0 must say derivable, or it stops #61 for no reason.
-  pass  complete-spec-but-module-still-refused -> VALIDATION_INPUT_UNDERIVED
-        Sections present is not enough: if the specification still refuses the release patch it is not a usable validation input.
-  pass  one-section-missing                    -> VALIDATION_INPUT_UNDERIVED
-        A single missing section must be named, not absorbed.
-  pass  spec-unreadable                        -> B0_EVIDENCE_MISSING
-        No specification to inspect is not the same as no specification being derivable, and must not be reported as the latter.
-  pass  attempt-log-unreadable                 -> B0_EVIDENCE_MISSING
-        Without the validation attempt there is no measurement, so the verdict is unknown rather than underived.
-  pass  the-module-is-never-a-source           -> COMPLETE_SPECIFICATION_DERIVABLE
-        Even when everything else succeeds, reading permissions off the patch must never count as a source: it would permit whatever the patch does.
+  pass  separate-complete-source-while-generator-stays-partial -> COMPLETE_SPECIFICATION_DERIVABLE
+        THE decisive arm. The retention generator is left callable-only and an independent complete release-consumed policy appears. The verdict must move -- the previous version would have said UNDERIVED regardless.
+  pass  remove-that-source-and-underived-returns             -> VALIDATION_INPUT_UNDERIVED
+        With the synthetic source gone the answer must return to UNDERIVED, so the previous arm is not simply a classifier that always says DERIVABLE.
+  pass  generator-completed-but-not-validated                -> VALIDATION_INPUT_UNDERIVED
+        All four sections present is not enough: a specification that does not validate the release patch is not a usable validation input.
+  pass  complete-source-not-release-consumed                 -> VALIDATION_INPUT_UNDERIVED
+        A complete specification no release build consumes is not a production input -- this is the experiment-fixture case, at the role level.
+  pass  complete-source-not-release-bound                    -> VALIDATION_INPUT_UNDERIVED
+        Not release-bound means the same release could get a different specification, which is what "deterministic, release-bound" excludes.
+  pass  module-derived-permissions-stay-ineligible           -> VALIDATION_INPUT_UNDERIVED
+        Every property flipped in its favour and it must STILL be ineligible: reading permissions off the patch would refuse nothing, and no evidence promotes that.
+  pass  semantic-map-nonzero-is-not-a-conversion             -> VALIDATION_INPUT_UNDERIVED
+        A nonzero admitted count is not a specification. Without a converter whose output validates, the map is not a source however much it admits.
+  pass  sources-record-unreadable                            -> B0_EVIDENCE_MISSING
+        No sources to inspect is not the same as no complete source existing, and must not be reported as the latter.
 
-  CONTROL -- a classifier hard-coding the baseline must fail the arms
-    arms the weakened classifier still satisfies: 2 ['complete-spec-but-module-still-refused', 'the-module-is-never-a-source']
-    pass  it satisfies only arms whose expectation IS the baseline
+  CONTROLS -- a classifier pinned either way must fail the arms that
+  expect the other answer. One direction alone cannot catch a verdict
+  pinned the opposite way, which is how the original defect survived.
+    hard-coded UNDERIVED: satisfies 2 arm(s)
+      pass  only arms whose own expectation is that verdict
+    hard-coded DERIVABLE: satisfies 0 arm(s)
+      pass  only arms whose own expectation is that verdict
 
-  arms=6 failed=0
+  arms=8 failed=0
 B0_FALSIFICATION: EVERY_ARM_DISCRIMINATES
 
 ############ 4. ASSERTIONS ############
@@ -98,15 +128,21 @@ B0_FALSIFICATION: EVERY_ARM_DISCRIMINATES
   pass  a specification was generated
   pass  the B0 record was written
   pass  the four required sections are named
-  pass  the module itself is rejected as a source
-  pass  the semantic map cannot supply the surface
-  pass  no release-side permission policy is declared
+  pass  the sources were collected
+  pass  the module itself is permanently ineligible
+  pass  the retention generator is PARTIAL, not usable
+  pass  the semantic map is not a source without a converter
+  pass  no complete source exists
+  pass  the verdict is a function of the roles
+  pass  three sections have no release-bound source
   pass  the derivation identity is digested
   pass  the Dart identity is recorded
   pass  the finding is about the input, not the mechanism
-  pass  experiment fixtures are not counted as release policy
+  pass  no candidate policy is consumed by a release build
+  pass  the fixture exclusion is not vacuous
+  pass  no excluded file is counted as a usable source
   pass  the B0 classifier is falsified
 
-ASSERTIONS (12 checked: 12 pass, 0 fail)
+ASSERTIONS (18 checked: 18 pass, 0 fail)
 
 STAGE_B0: VALIDATION_INPUT_UNDERIVED

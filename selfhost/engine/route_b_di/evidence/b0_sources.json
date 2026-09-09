@@ -1,0 +1,154 @@
+{
+  "schema": "route-b-di-1/b0-sources/1",
+  "sources": {
+    "route_b_generator": {
+      "what": "selfhost/engine/route_b/gen_dynamic_interface.dart, run on the release's own kernel under a named --policy",
+      "release_bound": true,
+      "release_consumed": true,
+      "why_release_bound": "reads the release kernel (--dill); the same release and policy give the same specification",
+      "spec_path": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.7RM02rby8H/di_generated.yaml",
+      "spec_sha256": "0204f0f6eca57608ce060bbd6f3b7e0d3e81ba44b7ab28934d1deaf2b27d0c37",
+      "sections": {
+        "callable": true,
+        "extendable": false,
+        "can-be-overridden": false,
+        "can-be-used-as-type": false
+      },
+      "validated_positive": false,
+      "refusal_kinds": {
+        "extendable": 1,
+        "can-be-overridden": 1,
+        "can-be-used-as-type": 2,
+        "callable": 2
+      }
+    },
+    "unconsumed_policy:selfhost/engine/dynmod/di.yaml": {
+      "what": "selfhost/engine/dynmod/di.yaml, a hand-written policy outside any probe directory",
+      "release_bound": false,
+      "release_consumed": false,
+      "spec_path": "selfhost/engine/dynmod/di.yaml",
+      "spec_sha256": "a08f8415a64ee01c9a4c2ab6c140450ca0cf4d4093508f639b6707e9f14bacc9",
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": true,
+        "can-be-used-as-type": false
+      },
+      "validated_positive": false,
+      "why_unusable": "neither release-bound nor release-consumed: a static hand-written file naming a harness app, which no release or build script references. It does show a permission surface can be WRITTEN by hand -- what does not exist is anything that DERIVES one from a release."
+    },
+    "semantic_map_admitted_set": {
+      "what": "SEMANTIC-MAP-1's set of declarations established safely patchable",
+      "release_bound": true,
+      "release_consumed": false,
+      "sections": {
+        "callable": false,
+        "extendable": false,
+        "can-be-overridden": false,
+        "can-be-used-as-type": false
+      },
+      "validated_positive": false,
+      "admitted": 0,
+      "map_verdict": "SUBSET_HOLDS_VACUOUSLY",
+      "why_unusable": "admits 0 declarations and no converter to a validation specification exists. Even a nonzero count would not make it a source without a converter whose output is demonstrated to validate."
+    },
+    "the_module_itself": {
+      "what": "reading the required permissions off the patch being validated",
+      "release_bound": false,
+      "release_consumed": false,
+      "permanently_ineligible": true,
+      "sections": {
+        "callable": true,
+        "extendable": true,
+        "can-be-overridden": true,
+        "can-be-used-as-type": true
+      },
+      "validated_positive": true,
+      "why_unusable": "it would permit whatever the patch does, so validation would refuse nothing. Recorded with every property SATISFIED on purpose: if the role rule can be talked into promoting it, that is a defect the record should expose rather than hide."
+    }
+  },
+  "discovery": {
+    "permission_key_pattern": "^\\s*(extendable|can-be-overridden|can-be-used-as-type)\\s*:",
+    "release_scripts_searched": [
+      "scripts/apple_e2e.sh",
+      "scripts/bootstrap.sh",
+      "scripts/generate_combined_coverage.sh",
+      "scripts/patch_e2e.sh",
+      "scripts/upgrade_all.sh",
+      "selfhost/engine/route_b/build_4a_payload.sh",
+      "selfhost/engine/route_b/build_4b_artifact.sh",
+      "selfhost/engine/route_b/build_dart2bytecode.sh",
+      "selfhost/engine/route_b/build_host.sh",
+      "selfhost/engine/route_b/build_host_nodm_debug.sh",
+      "selfhost/engine/route_b/build_ios.sh",
+      "selfhost/engine/route_b/build_ios_debug_profile.sh",
+      "selfhost/engine/route_b/build_route_b_analyzer.sh",
+      "selfhost/engine/route_b/build_route_b_gen_dynamic_interface.sh",
+      "selfhost/engine/route_b/build_route_b_gen_kernel.sh",
+      "selfhost/engine/route_b/build_route_b_release_probe.sh",
+      "selfhost/engine/route_b/build_route_b_sdk_packages.sh"
+    ],
+    "referenced_by_a_release_build": [],
+    "excluded_as_experiment_fixtures": [
+      "selfhost/engine/dynmod/di.yaml",
+      "selfhost/engine/route_b_di/probe/di_full.yaml",
+      "selfhost/engine/route_b_di/probe/di_no_callable.yaml",
+      "selfhost/engine/route_b_di/probe/di_no_extendable.yaml",
+      "selfhost/engine/route_b_di/probe/di_no_overridable.yaml",
+      "selfhost/engine/route_b_di/probe/di_no_type.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g2_execution/probe/di.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g3_types_gc/probe/di.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_fenced.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_fenced.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_unfenced.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_fenced.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_unfenced.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_unfenced.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_full.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_callable.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_extendable.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_overridable.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_type.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_alloc.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_bench.yaml",
+      "selfhost/engine/semantic_map/g4_retention/probe/di_full.yaml",
+      "selfhost/engine/semantic_map/g4_retention/probe/di_no_callable.yaml",
+      "selfhost/engine/semantic_map/g4_retention/probe/di_no_callable_work.yaml",
+      "selfhost/engine/semantic_map/g4_retention/probe/di_no_can_be_overridden.yaml",
+      "selfhost/engine/semantic_map/g4_retention/probe/di_no_can_be_used_as_type.yaml",
+      "selfhost/engine/semantic_map/g4_retention/probe/di_no_extendable.yaml"
+    ],
+    "excluded_under_a_probe_or_evidence_path": [
+      "selfhost/engine/route_b_di/probe/di_full.yaml",
+      "selfhost/engine/route_b_di/probe/di_no_callable.yaml",
+      "selfhost/engine/route_b_di/probe/di_no_extendable.yaml",
+      "selfhost/engine/route_b_di/probe/di_no_overridable.yaml",
+      "selfhost/engine/route_b_di/probe/di_no_type.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g2_execution/probe/di.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g3_types_gc/probe/di.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_fenced.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_fenced.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_solo_unfenced.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_fenced.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_soloinl_unfenced.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g4_optimizer/probe/di_unfenced.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_full.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_callable.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_extendable.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_overridable.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_no_type.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_alloc.yaml",
+      "selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_bench.yaml",
+      "selfhost/engine/semantic_map/g4_retention/probe/di_full.yaml",
+      "selfhost/engine/semantic_map/g4_retention/probe/di_no_callable.yaml",
+      "selfhost/engine/semantic_map/g4_retention/probe/di_no_callable_work.yaml",
+      "selfhost/engine/semantic_map/g4_retention/probe/di_no_can_be_overridden.yaml",
+      "selfhost/engine/semantic_map/g4_retention/probe/di_no_can_be_used_as_type.yaml",
+      "selfhost/engine/semantic_map/g4_retention/probe/di_no_extendable.yaml"
+    ],
+    "excluded_elsewhere_named_as_sources": [
+      "selfhost/engine/dynmod/di.yaml"
+    ],
+    "why_excluded": "they carry the permission keys but no release or build script references them, so counting them would let a test input pass as production policy"
+  }
+}

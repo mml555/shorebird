@@ -91,9 +91,42 @@ echo "  module compile exit=$ATTEMPT_RC  produced=$([[ -s "$W/m.bytecode" ]] && 
 echo
 grep 'Error:' "$W/attempt.log" | sed "s|^.*/m_ok.dart|    m_ok.dart|" | head -10
 echo
-echo "############ 3. IS A COMPLETE SPECIFICATION DERIVABLE? ############"
-python3 "$HERE/lib/derive_validation_input.py" "$W/di_generated.yaml" \
-    "$W/attempt.log" "$REPO" "$FREEZE" "$RAW"
+echo "############ 3. EVERY CANDIDATE SOURCE, AND ITS PROPERTIES ############"
+cat <<'TXT'
+  Discovery is not pattern matching. A YAML carrying the permission keys is
+  not a release policy: it counts only if a release or build script actually
+  references it. Any release-consumed candidate is then handed to the REAL
+  validator with the positive module, because "has the sections" and
+  "validates the release's own patch" are different claims.
+TXT
+echo
+python3 "$HERE/lib/find_candidates.py" "$REPO" > "$W/candidates.txt"
+ATTEMPTS='{}'
+if [[ -s "$W/candidates.txt" ]]; then
+  while read -r cand; do
+    [[ -n "$cand" ]] || continue
+    echo "  validating against release-consumed candidate: $cand"
+    "$DART" "$D2B" --platform "$OUT/vm_platform.dill" \
+      --import-dill "$W/import.dill" --validate "$REPO/$cand" \
+      -o "$W/cand.bytecode" "$W/m_ok.dart" > "$W/cand.log" 2>&1
+    P=false; [[ -s "$W/cand.bytecode" ]] && P=true
+    echo "    produced=$P"
+    ATTEMPTS=$(python3 "$HERE/lib/_merge_attempt.py" "$ATTEMPTS" "$cand" "$P")
+    rm -f "$W/cand.bytecode"
+  done < "$W/candidates.txt"
+else
+  echo "  no release-consumed candidate policy carries the permission keys."
+fi
+printf '%s' "$ATTEMPTS" > "$W/extra_attempts.json"
+echo
+python3 "$HERE/lib/collect_sources.py" "$REPO" "$W/di_generated.yaml" \
+    "$W/attempt.log" "$W/extra_attempts.json" "$W/sources.json"
+COLLECT_RC=$?
+cp "$W/sources.json" "$EVID/b0_sources.json" 2>/dev/null
+echo
+echo "############ 3a. IS A COMPLETE SPECIFICATION DERIVABLE? ############"
+python3 "$HERE/lib/derive_validation_input.py" "$W/sources.json" \
+    "$REPO" "$FREEZE" "$RAW"
 B0_RC=$?
 echo
 echo "############ 3b. THE B0 CLASSIFIER, FALSIFIED ############"
@@ -105,7 +138,7 @@ cat <<'TXT'
 TXT
 echo
 python3 "$HERE/lib/falsify_b0.py" "$HERE/lib/derive_validation_input.py" \
-    "$REPO" "$FREEZE" "$W/b0neg"
+    "$W/sources.json" "$REPO" "$FREEZE" "$W/b0neg"
 B0NEG_RC=$?
 echo
 echo "############ 4. ASSERTIONS ############"
@@ -123,23 +156,34 @@ try: print(eval(sys.argv[1], {'d': json.load(open('$RAW'))}))
 except Exception: print('unreadable')" "$1"; }
 
 want 'the release generator ran' 0 "${GEN_RC:-1}"
-want 'a specification was generated' True "$(j "bool(d['provenance_available'].get('specification_sha256'))")"
+want 'a specification was generated' True \
+     "$(j "bool(d['provenance_available'].get('specification_digests'))")"
 want 'the B0 record was written' 0 "$([[ -s "$RAW" ]] && echo 0 || echo 1)"
 want 'the four required sections are named' 4 "$(j "len(d['sections_required'])")"
-want 'the module itself is rejected as a source' False \
-     "$(j "d['candidate_sources']['the_module_itself']['usable']")"
-want 'the semantic map cannot supply the surface' 0 \
-     "$(j "d['candidate_sources']['semantic_map_admitted_set']['admitted']")"
-want 'no release-side permission policy is declared' False \
-     "$(j "d['candidate_sources']['declared_release_policy']['exists']")"
+want 'the sources were collected' 0 "${COLLECT_RC:-1}"
+want 'the module itself is permanently ineligible' ineligible \
+     "$(j "d['source_roles']['the_module_itself']['role']")"
+want 'the retention generator is PARTIAL, not usable' partial \
+     "$(j "d['source_roles']['route_b_generator']['role']")"
+want 'the semantic map is not a source without a converter' unusable \
+     "$(j "d['source_roles']['semantic_map_admitted_set']['role']")"
+want 'no complete source exists' 0 "$(j "len(d['complete_sources'])")"
+want 'the verdict is a function of the roles' True \
+     "$(j "'function of the ROLES' in d['verdict_rule']")"
+want 'three sections have no release-bound source' 3 \
+     "$(j "len(d['sections_with_no_release_bound_source'])")"
 want 'the derivation identity is digested' True \
      "$(j "bool(d['provenance_available'].get('derivation_identity'))")"
 want 'the Dart identity is recorded' True \
      "$(j "bool(d['provenance_available'].get('dart_effective_tree'))")"
 want 'the finding is about the input, not the mechanism' True \
      "$(j "'not the mechanism' in d['does_not_claim']")"
-want 'experiment fixtures are not counted as release policy' 4 \
-     "$(j "len(d['candidate_sources']['declared_release_policy']['excluded_as_experiment_fixtures'])")"
+want 'no candidate policy is consumed by a release build' 0 \
+     "$(python3 "$HERE/lib/_check_discovery.py" "$EVID/b0_sources.json" consumed)"
+want 'the fixture exclusion is not vacuous' True \
+     "$(python3 "$HERE/lib/_check_discovery.py" "$EVID/b0_sources.json" nonvacuous)"
+want 'no excluded file is counted as a usable source' True \
+     "$(python3 "$HERE/lib/_check_discovery.py" "$EVID/b0_sources.json" clean)"
 want 'the B0 classifier is falsified' 0 "${B0NEG_RC:-1}"
 {
   printf '%s\n' "${A[@]}"

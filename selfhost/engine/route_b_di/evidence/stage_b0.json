@@ -1,9 +1,10 @@
 {
-  "schema": "route-b-di-1/stage-b0/1",
+  "schema": "route-b-di-1/stage-b0/2",
   "issue": 61,
   "stage": "B0",
-  "generated": "2026-09-09T20:00:16Z",
-  "question": "Is there a deterministic, release-bound source for a COMPLETE module-validation specification?",
+  "generated": "2026-09-09T20:48:20Z",
+  "question": "Does a COMPLETE, release-bound module-validation source exist?",
+  "verdict_rule": "COMPLETE_SPECIFICATION_DERIVABLE if and only if at least one source holds the role `complete`: release-bound, consumed by a release build, supplying all four sections, and demonstrated to validate the positive module. The verdict is a function of the ROLES, so a complete source discovered anywhere moves it -- the current retention generator staying callable-only does not pin the answer. Patch-derived permissions are permanently ineligible and no other evidence promotes them.",
   "b0_result": "VALIDATION_INPUT_UNDERIVED",
   "sections_required": [
     "callable",
@@ -11,105 +12,88 @@
     "can-be-overridden",
     "can-be-used-as-type"
   ],
-  "sections_emitted_by_release_generator": {
-    "callable": true,
-    "extendable": false,
-    "can-be-overridden": false,
-    "can-be-used-as-type": false
+  "source_roles": {
+    "route_b_generator": {
+      "role": "partial",
+      "why": "supplies ['callable'], missing ['extendable', 'can-be-overridden', 'can-be-used-as-type']",
+      "sections_supplied": [
+        "callable"
+      ],
+      "release_bound": true,
+      "release_consumed": true,
+      "validated_positive": false,
+      "spec_sha256": "0204f0f6eca57608ce060bbd6f3b7e0d3e81ba44b7ab28934d1deaf2b27d0c37"
+    },
+    "unconsumed_policy:selfhost/engine/dynmod/di.yaml": {
+      "role": "unusable",
+      "why": "not release-bound",
+      "sections_supplied": [
+        "callable",
+        "can-be-overridden",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": "a08f8415a64ee01c9a4c2ab6c140450ca0cf4d4093508f639b6707e9f14bacc9"
+    },
+    "semantic_map_admitted_set": {
+      "role": "unusable",
+      "why": "admits 0 declarations and no converter to a validation specification exists. Even a nonzero count would not make it a source without a converter whose output is demonstrated to validate.",
+      "sections_supplied": [],
+      "release_bound": true,
+      "release_consumed": false,
+      "validated_positive": false,
+      "spec_sha256": null
+    },
+    "the_module_itself": {
+      "role": "ineligible",
+      "why": "reading permissions off the module being validated would permit whatever it does, so validation would refuse nothing",
+      "sections_supplied": [
+        "callable",
+        "can-be-overridden",
+        "can-be-used-as-type",
+        "extendable"
+      ],
+      "release_bound": false,
+      "release_consumed": false,
+      "validated_positive": true,
+      "spec_sha256": null
+    }
   },
-  "sections_missing": [
+  "complete_sources": [],
+  "partial_sources": [
+    "route_b_generator"
+  ],
+  "ineligible_sources": [
+    "the_module_itself"
+  ],
+  "unusable_sources": [
+    "semantic_map_admitted_set",
+    "unconsumed_policy:selfhost/engine/dynmod/di.yaml"
+  ],
+  "sections_with_no_release_bound_source": [
     "extendable",
     "can-be-overridden",
     "can-be-used-as-type"
   ],
-  "validator_refusal_kinds_against_generated_spec": {
-    "extendable": 1,
-    "can-be-overridden": 1,
-    "can-be-used-as-type": 2,
-    "callable": 2
-  },
-  "generated_spec_produced_a_module": false,
-  "candidate_sources": {
-    "route_b_generator": {
-      "what": "selfhost/engine/route_b/gen_dynamic_interface.dart",
-      "release_bound": true,
-      "why_release_bound": "reads the release kernel (--dill) under a named --policy, so the same release and policy give the same specification",
-      "sections_it_supplies": [
-        "callable"
-      ],
-      "sections_it_does_not_supply": [
-        "extendable",
-        "can-be-overridden",
-        "can-be-used-as-type"
-      ]
-    },
-    "declared_release_policy": {
-      "what": "a release-side declaration of what a patch may extend, override or use as a type, CONSUMED by a release build",
-      "release_bound": true,
-      "files_containing_the_keys": [
-        "selfhost/engine/route_b_di/probe/di_full.yaml",
-        "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_full.yaml",
-        "selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_alloc.yaml",
-        "selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_bench.yaml"
-      ],
-      "referenced_by_a_release_build": [],
-      "excluded_as_experiment_fixtures": [
-        "selfhost/engine/route_b_di/probe/di_full.yaml",
-        "selfhost/engine/semantic_linker/runtime_feasibility/g6a_negatives/probe/di_full.yaml",
-        "selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_alloc.yaml",
-        "selfhost/engine/semantic_linker/runtime_feasibility/g6b_cost/probe/di_bench.yaml"
-      ],
-      "why_excluded": "these contain the permission keys but no release or build script references them: they are experiment fixtures, and counting them would let a test input pass as production policy",
-      "release_scripts_searched": [
-        "scripts/apple_e2e.sh",
-        "scripts/bootstrap.sh",
-        "scripts/generate_combined_coverage.sh",
-        "scripts/patch_e2e.sh",
-        "scripts/upgrade_all.sh",
-        "selfhost/engine/route_b/build_4a_payload.sh",
-        "selfhost/engine/route_b/build_4b_artifact.sh",
-        "selfhost/engine/route_b/build_dart2bytecode.sh",
-        "selfhost/engine/route_b/build_host.sh",
-        "selfhost/engine/route_b/build_host_nodm_debug.sh",
-        "selfhost/engine/route_b/build_ios.sh",
-        "selfhost/engine/route_b/build_ios_debug_profile.sh",
-        "selfhost/engine/route_b/build_route_b_analyzer.sh",
-        "selfhost/engine/route_b/build_route_b_gen_dynamic_interface.sh",
-        "selfhost/engine/route_b/build_route_b_gen_kernel.sh",
-        "selfhost/engine/route_b/build_route_b_release_probe.sh",
-        "selfhost/engine/route_b/build_route_b_sdk_packages.sh"
-      ],
-      "exists": false
-    },
-    "semantic_map_admitted_set": {
-      "what": "SEMANTIC-MAP-1's set of declarations established safely patchable",
-      "release_bound": true,
-      "admitted": 0,
-      "verdict": "SUBSET_HOLDS_VACUOUSLY",
-      "usable": false,
-      "why_not": "the map admits none, so it cannot name a permitted surface. FINAL classified MODIFY_MAP_DESIGN for that reason."
-    },
-    "the_module_itself": {
-      "what": "reading the required permissions off the patch being validated",
-      "release_bound": false,
-      "usable": false,
-      "why_not": "it would permit whatever the patch does, so validation would refuse nothing. Not a conservative approximation -- the vacuous case, which would make this prerequisite appear closed while enforcing nothing."
-    }
-  },
-  "usable_sources": [
-    "route_b_generator"
+  "permanently_ineligible": [
+    "the_module_itself"
   ],
   "provenance_available": {
-    "specification_sha256": "a09ffe53b7c0f0be4a7469f8b307215f23c247682143d48363ff5738f86a2bcb",
     "dart_revision": "9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c",
     "dart_effective_tree": "7b04b01bdc10ec990143257f0d28580571c2122f",
     "derivation_identity": {
       "generator": "selfhost/engine/route_b/gen_dynamic_interface.dart",
       "sha256": "c4a0d2a73d835448cec5837935e698f1f2085c342aada95b879293c0a7ce3c17"
     },
-    "release_aot_identity": "obtainable -- G6 already binds a map to the full AOT SHA-256, and the same binding applies here. Recorded as available rather than collected, because there is no complete specification to bind yet.",
-    "relationship_to_host_policy": "the generated specification IS the host policy: the same file is passed to gen_kernel --dynamic-interface for retention. A validation specification would have to be that file plus the three permission sections, and widening the host half is not free -- the annotator annotates all four sections, and whole-library dart:core retention was measured at +310%."
+    "specification_digests": {
+      "route_b_generator": "0204f0f6eca57608ce060bbd6f3b7e0d3e81ba44b7ab28934d1deaf2b27d0c37",
+      "unconsumed_policy:selfhost/engine/dynmod/di.yaml": "a08f8415a64ee01c9a4c2ab6c140450ca0cf4d4093508f639b6707e9f14bacc9"
+    },
+    "release_aot_identity": "obtainable -- G6 binds a map to the full AOT SHA-256 and the same binding applies. Recorded as available rather than collected: there is no complete specification to bind while complete_sources is empty.",
+    "relationship_to_host_policy": "the retention specification IS the host policy -- the same file feeds gen_kernel --dynamic-interface. A validation specification would have to be that file plus the three permission sections, and the annotator annotates all four, so widening the host half is not free: whole-library dart:core retention measured +310%. Member-scoped dart:core entries do validate, so the obstacle is the absence of the sections, not their cost."
   },
   "notes": [],
-  "does_not_claim": "That the validator is insufficient. Stage A showed it refuses real violations and accepts a complete specification, including with MEMBER-scoped dart:core entries rather than whole-library ones. The gap measured here is the INPUT, not the mechanism."
+  "does_not_claim": "That the validator is insufficient. Stage A showed it refuses real violations and accepts a complete specification, including with member-scoped dart:core entries. The gap measured here is the INPUT, not the mechanism."
 }
