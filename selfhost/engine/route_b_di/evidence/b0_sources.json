@@ -15,8 +15,8 @@
         "reachable"
       ],
       "passed_as": "--dynamic-interface (retention/annotation), never --validate",
-      "spec_path": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.1zcrAnD2MJ/di_generated.yaml",
-      "spec_sha256": "fa1c0b80fedb165083221d18ab5d8ff928f9943981687ba228603f7570c28ae7",
+      "spec_path": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.L0aknI0DO4/di_generated.yaml",
+      "spec_sha256": "27f31a9a59b15473150a43511e36d5994eed17719ddf6725c1c439d3afc16417",
       "sections": {
         "callable": true,
         "extendable": false,

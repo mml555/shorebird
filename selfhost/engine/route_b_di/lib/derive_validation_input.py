@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""B0: does a COMPLETE, release-bound module-validation source exist?
+"""B0: does the fork AS IT STANDS make a COMPLETE, release-bound
+module-validation source mechanically available?
+
+SCOPE, stated here and not only in the record this writes: the answer is about
+the sources present in this tree at this revision, reached over the derived
+consumer universe. It is not a claim that no such source can exist -- a future
+derivation algorithm or a designed permission policy could supply one, and the
+falsification arms show the verdict would then move.
 
 THE DEFECT THIS REPLACES. The first version computed candidate sources and a
 `usable_sources` list, and then the verdict ignored both. It was effectively:

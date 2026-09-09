@@ -8,7 +8,8 @@ and, worse, `scripts/*.sh` matched 5 files at the repo root while the 58
 producer scripts actually live under selfhost/scripts/. Every mint_, publish_,
 package_, stage_ and qualify_ path was outside the universe -- including
 qualify_dual_kernel_cell.sh, which does pass --dynamic-interface. A negative
-existential ("no complete release-bound validation source exists") cannot be
+existential ("no complete release-bound validation source is present in
+the current inventory") cannot be
 proven over a universe drawn by naming convention.
 
 HOW THE UNIVERSE IS DRAWN NOW, in three recorded tiers:

@@ -1,5 +1,5 @@
 ROUTE-B-DI-1 / Stage B0 -- the production validation input
-generated 2026-09-09T23:08:26Z by run_stage_b0.sh
+generated 2026-09-09T23:37:08Z by run_stage_b0.sh
 generator /Users/mendell/shorebird/selfhost/engine/route_b/gen_dynamic_interface.dart
 
 ############ 1. THE RELEASE'S OWN SPECIFICATION, GENERATED ############
@@ -312,7 +312,7 @@ B0_FALSIFICATION: EVERY_ARM_DISCRIMINATES
   pass  every complete consumed policy is accounted for as not release-bound
   pass  no producer emits all four sections
   pass  the semantic map is not a source without a converter
-  pass  no complete source exists
+  pass  no complete source in the current inventory
   pass  the verdict is a function of the roles
   pass  three sections have no release-bound source
   pass  the derivation identity is digested

@@ -53,7 +53,7 @@ release-side source in this tree supplies them:
 No forced conflict with retention cost: validation accepts **member-scoped**
 `dart:core` entries, not only whole-library ones. Whole-library `dart:core`
 retention is +310%, so a wholesale widening would be unaffordable — but that is
-not the obstacle. The sections simply do not exist.
+not the obstacle. No source in this tree supplies the sections.
 
 ## The decision that closed it
 

@@ -2,7 +2,7 @@
   "schema": "route-b-di-1/stage-b0/2",
   "issue": 61,
   "stage": "B0",
-  "generated": "2026-09-09T23:10:40Z",
+  "generated": "2026-09-09T23:38:34Z",
   "question": "Does the fork AS IT STANDS make a COMPLETE, release-bound module-validation source mechanically available?",
   "scope_of_the_answer": "A statement about the sources present in this tree at this revision, reached over the derived consumer universe. It is NOT a statement that no such source can exist: a future derivation algorithm, or a deliberately designed permission policy, could supply one. The falsification arms demonstrate exactly that -- a complete source introduced anywhere in the universe moves the verdict -- so this result is contingent on the evidence, not a claim about what is possible.",
   "verdict_rule": "COMPLETE_SPECIFICATION_DERIVABLE if and only if at least one source holds the role `complete`: release-bound, consumed by a release build, supplying all four sections, and demonstrated to validate the positive module. The verdict is a function of the ROLES, so a complete source discovered anywhere moves it -- the current retention generator staying callable-only does not pin the answer. Patch-derived permissions are permanently ineligible and no other evidence promotes them.",
@@ -23,7 +23,7 @@
       "release_bound": true,
       "release_consumed": true,
       "validated_positive": false,
-      "spec_sha256": "fa1c0b80fedb165083221d18ab5d8ff928f9943981687ba228603f7570c28ae7"
+      "spec_sha256": "27f31a9a59b15473150a43511e36d5994eed17719ddf6725c1c439d3afc16417"
     },
     "committed_policy:selfhost/engine/dynmod/di.yaml": {
       "role": "unusable",
@@ -486,7 +486,7 @@
       "sha256": "c4a0d2a73d835448cec5837935e698f1f2085c342aada95b879293c0a7ce3c17"
     },
     "specification_digests": {
-      "release_supplement_interface": "fa1c0b80fedb165083221d18ab5d8ff928f9943981687ba228603f7570c28ae7",
+      "release_supplement_interface": "27f31a9a59b15473150a43511e36d5994eed17719ddf6725c1c439d3afc16417",
       "committed_policy:selfhost/engine/dynmod/di.yaml": "a08f8415a64ee01c9a4c2ab6c140450ca0cf4d4093508f639b6707e9f14bacc9",
       "committed_policy:selfhost/engine/route_b_di/evidence/stage_a.txt": "2eaca2e006a50fad4629757c153e72b92a807794fd16ae6efa582523c630d941",
       "committed_policy:selfhost/engine/route_b_di/probe/di_full.yaml": "e61e3f8f9ace6cfe24b3adfc2dd07f242a82e413c43f835e037493eaeef47607",

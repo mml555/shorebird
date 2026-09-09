@@ -211,7 +211,7 @@ try: print(len(json.load(open('$EVID/b0_policies.json'))['negative_existential']
 except Exception: print(99)")"
 want 'the semantic map is not a source without a converter' unusable \
      "$(j "d['source_roles']['semantic_map_admitted_set']['role']")"
-want 'no complete source exists' 0 "$(j "len(d['complete_sources'])")"
+want 'no complete source in the current inventory' 0 "$(j "len(d['complete_sources'])")"
 want 'the verdict is a function of the roles' True \
      "$(j "'function of the ROLES' in d['verdict_rule']")"
 want 'three sections have no release-bound source' 3 \

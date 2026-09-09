@@ -3,7 +3,9 @@
 release-bound.
 
 The negative existential B0 claims is "no complete RELEASE-BOUND validation
-source exists". Two SL1 probe fixtures do carry all four sections and are
+source is present in the CURRENT source inventory" -- a statement about this
+tree at this revision, not about what could ever exist. Two SL1 probe fixtures
+do carry all four sections and are
 referenced by universe members, so a raw count of complete-and-consumed is not
 the claim -- and asserting that count is zero would have been false while the
 claim stayed true. What must hold is that each such policy appears in the
