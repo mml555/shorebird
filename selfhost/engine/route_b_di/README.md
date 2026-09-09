@@ -31,7 +31,7 @@ Attribution is structural, never a message match: the classifier decides from
 overrides, an irrelevant spec addition still compiles, and the same restricted
 spec with the flag *dropped* still compiles.
 
-**Stage B0 — the input does not exist.** The production path is real and was
+**Stage B0 — no complete input is mechanically available in this fork.** The production path is real and was
 found by deriving the consumer universe from the producer/release graph:
 `ios_releaser.dart` generates `dynamic_interface.yaml` from the release's own
 prepass kernel and captures it into the release supplement;
@@ -40,7 +40,7 @@ release-bound and release-consumed — and supplies `callable` only, because it
 is a **retention** interface. Role: `partial`.
 
 The three permission sections say what a patch may *do to the host*, and no
-release-side source supplies them:
+release-side source in this tree supplies them:
 
 - **the module itself** — permanently ineligible. Reading permissions off the
   patch would permit whatever it does, so validation would refuse nothing.
@@ -78,6 +78,17 @@ release-consumed, supplies all four sections, and is demonstrated to validate
 the positive module. A complete source appearing anywhere — including behind a
 `publish_*` consumer no filename glob would have found — moves the verdict, and
 removing it restores `UNDERIVED`. Both are arms.
+
+## Scope of the result
+
+B0 is a statement about the sources present in this tree at this revision,
+reached over the derived consumer universe. It is **not** a statement that no
+complete validation source can exist. A future derivation algorithm, or a
+deliberately designed permission policy, could supply one — and the classifier
+would then say so, which the falsification arms demonstrate directly: a
+complete source introduced anywhere in the universe moves the verdict, and
+removing it restores `UNDERIVED`. The result is contingent on the evidence, not
+a claim about what is possible.
 
 ## Recorded limitation
 

@@ -160,8 +160,17 @@ doc = {
     'issue': 61, 'stage': 'B0',
     'generated': datetime.datetime.now(datetime.timezone.utc)
                  .strftime('%Y-%m-%dT%H:%M:%SZ'),
-    'question': 'Does a COMPLETE, release-bound module-validation source '
-                'exist?',
+    'question': 'Does the fork AS IT STANDS make a COMPLETE, release-bound '
+                'module-validation source mechanically available?',
+    'scope_of_the_answer':
+        'A statement about the sources present in this tree at this revision, '
+        'reached over the derived consumer universe. It is NOT a statement '
+        'that no such source can exist: a future derivation algorithm, or a '
+        'deliberately designed permission policy, could supply one. The '
+        'falsification arms demonstrate exactly that -- a complete source '
+        'introduced anywhere in the universe moves the verdict -- so this '
+        'result is contingent on the evidence, not a claim about what is '
+        'possible.',
     'verdict_rule':
         'COMPLETE_SPECIFICATION_DERIVABLE if and only if at least one source '
         'holds the role `complete`: release-bound, consumed by a release '
@@ -182,11 +191,16 @@ doc = {
     'permanently_ineligible': sorted(PERMANENTLY_INELIGIBLE),
     'provenance_available': prov,
     'notes': notes,
-    'does_not_claim':
+    'does_not_claim': [
         'That the validator is insufficient. Stage A showed it refuses real '
         'violations and accepts a complete specification, including with '
         'member-scoped dart:core entries. The gap measured here is the INPUT, '
         'not the mechanism.',
+        'That no complete validation source CAN exist. Only that none is '
+        'mechanically available in this tree at this revision. A future '
+        'derivation algorithm or a designed permission policy could supply '
+        'one, and the classifier would then say so.',
+    ],
 }
 json.dump(doc, open(OUT, 'w'), indent=2)
 

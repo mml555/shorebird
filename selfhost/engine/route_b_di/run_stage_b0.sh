@@ -221,7 +221,9 @@ want 'the derivation identity is digested' True \
 want 'the Dart identity is recorded' True \
      "$(j "bool(d['provenance_available'].get('dart_effective_tree'))")"
 want 'the finding is about the input, not the mechanism' True \
-     "$(j "'not the mechanism' in d['does_not_claim']")"
+     "$(j "any('not the mechanism' in c for c in d['does_not_claim'])")"
+want 'the result is scoped to this tree, not to what is possible' True \
+     "$(j "any('CAN exist' in c for c in d['does_not_claim']) and bool(d.get('scope_of_the_answer'))")"
 # `notes` collected unreadable-input reports that NOTHING read -- a finding
 # that changes no verdict, which is the defect class this lane keeps hitting.
 # An empty notes list is now required, so a degraded input cannot pass quietly.
