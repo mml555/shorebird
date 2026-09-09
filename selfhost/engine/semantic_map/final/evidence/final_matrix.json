@@ -3,11 +3,11 @@
   "gate": "SM1-FINAL",
   "issue": 58,
   "tracker": 48,
-  "generated": "2026-09-09T06:03:27Z",
+  "generated": "2026-09-09T06:39:19Z",
   "registry": {
     "path": "final/evidence_registry.json",
-    "sha256": "2dd12dc6303a30119ee6703b02c570c757b2a5ac8d235a187224110f6279472e",
-    "rows_declared": 19
+    "sha256": "484a39668bca80357e12126af5ed8c9386bf421cd1c85e42dcede5643f0889ad",
+    "rows_declared": 20
   },
   "category_vocabulary": {
     "ESTABLISHED": "positively demonstrated by the named evidence",
@@ -19,7 +19,9 @@
     "MEASURED_DETERMINISTIC_PROJECTION_LOW": "artifact-derived, and the prior projection understates it",
     "MEASURED_CURRENT_RUN_ONLY": "timing family; a current-run observation, not reproducible",
     "ENUMERATED": "generated list, not a judgement",
-    "NOT_ESTABLISHED": "evidence missing, unreadable, ambiguous or unclassifiable"
+    "NOT_ESTABLISHED": "evidence missing, unreadable, ambiguous or unclassifiable",
+    "NOT_REPRESENTABLE": "the model cannot represent the distinction -- demonstrated, not inferred",
+    "REPRESENTABLE": "the model can represent the distinction"
   },
   "matrix": {
     "DECLARATION_ID_STABILITY": {
@@ -283,6 +285,27 @@
         "g5_patchability/evidence/subset.json"
       ]
     },
+    "PATCHABILITY_DISTINCTION_REPRESENTABLE": {
+      "category": "NOT_REPRESENTABLE",
+      "question": "Can the map represent \"patchable\" as a property OF A DECLARATION at all?",
+      "note": "The patch ATTACHED -- the C++ invoke of the target returned PATCHED-w -- and in the same run the direct call read PATCHED-w while the virtual call still read OLD-w. One declaration is therefore patched and not-observed simultaneously, depending on the call site, so \"patchable\" is not a property the map can carry per declaration. The dispatch predicate fails closed rather than classifying, which is the model declining to represent a distinction it cannot make.",
+      "rule_matched": 0,
+      "probe_values": {
+        "experiment_complete": 1,
+        "patch_attached": 1,
+        "divergent_observation": 1,
+        "predicate_fail_closed": 1
+      },
+      "evidence_pointers": {
+        "experiment_complete": "1 match(es) of /SM1_G5_DISPATCH_EXPERIMENT: COMPLETE/ in g5_patchability/evidence/dispatch_experiment.txt",
+        "patch_attached": "1 match(es) of /ATTACH: C\\+\\+ invoke of target returned: PATCHED-w/ in g5_patchability/evidence/dispatch_experiment.txt",
+        "divergent_observation": "1 match(es) of /^\\s+after\\s+.*virtual=OLD-w.*direct=PATCHED-w/ in g5_patchability/evidence/dispatch_experiment.txt",
+        "predicate_fail_closed": "1 match(es) of /SM1_G5_DISPATCH_PREDICATE: FAIL_CLOSED/ in g5_patchability/evidence/dispatch_experiment.txt"
+      },
+      "evidence_files": [
+        "g5_patchability/evidence/dispatch_experiment.txt"
+      ]
+    },
     "OVER_CLAIM": {
       "category": "REFUSAL_ENFORCED",
       "question": "Is an over-claimed patchable declaration refused, on fixtures and on real corpora?",
@@ -448,7 +471,7 @@
       "category": "ENUMERATED",
       "question": "What was not established, measured negatively, or left unresolved?",
       "note": "Generated from the matrix categories, G8 production prerequisites and G8 reproduced FAIL_OPEN findings. UNKNOWN, VACUOUS, NOT_ESTABLISHED and unresolved prerequisites appear verbatim and are not softened.",
-      "count": 14,
+      "count": 15,
       "entries": [
         {
           "source": "matrix",
@@ -467,6 +490,12 @@
           "id": "PATCHABILITY_SUBSET_PROPERTY",
           "category": "VACUOUS",
           "detail": "The subset property is satisfied because the admitted set is EMPTY. Zero admitted is not positive patchability evidence: no declaration was mechanically established safely patchable. NOT_INLINED and pool-indirect observations remain non-safety facts."
+        },
+        {
+          "source": "matrix",
+          "id": "PATCHABILITY_DISTINCTION_REPRESENTABLE",
+          "category": "NOT_REPRESENTABLE",
+          "detail": "The patch ATTACHED -- the C++ invoke of the target returned PATCHED-w -- and in the same run the direct call read PATCHED-w while the virtual call still read OLD-w. One declaration is therefore patched and not-observed simultaneously, depending on the call site, so \"patchable\" is not a property the map can carry per declaration. The dispatch predicate fails closed rather than classifying, which is the model declining to represent a distinction it cannot make."
         },
         {
           "source": "matrix",
@@ -590,6 +619,11 @@
     "g5_patchability/evidence/inlining_state.json": {
       "sha256": "8e97a2d235486e855be0dfebd5d532744354c1e1ed4fede9408fe413ca48501a",
       "bytes": 15843,
+      "read": true
+    },
+    "g5_patchability/evidence/dispatch_experiment.txt": {
+      "sha256": "550908425469c3596f49504b600f3ef492ce92999462ebd186ea7826de98fd2d",
+      "bytes": 22492,
       "read": true
     },
     "g5_patchability/evidence/subset_check.txt": {

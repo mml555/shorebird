@@ -3,27 +3,21 @@
   "gate": "SM1-FINAL",
   "issue": 58,
   "tracker": 48,
-  "generated": "2026-09-09T06:03:27Z",
+  "generated": "2026-09-09T06:39:19Z",
   "allowed_verdicts": [
-    "PROCEED",
     "MODIFY_ANALYZER",
     "MODIFY_MAP_DESIGN",
     "REDUCE_SCOPE",
-    "ABANDON_OR_REDESIGN"
+    "ABANDON_OR_REDESIGN",
+    "PROCEED"
   ],
   "verdict": "MODIFY_MAP_DESIGN",
   "selected_by_predicate": "DISTINCTION_NOT_REPRESENTABLE",
-  "precedence_applied": "#58's literal order: PROCEED, MODIFY_ANALYZER, MODIFY_MAP_DESIGN, REDUCE_SCOPE, ABANDON_OR_REDESIGN\"",
+  "precedence_applied": "#58's order: MODIFY_ANALYZER (valid-model analyzer bug), MODIFY_MAP_DESIGN (model cannot represent), REDUCE_SCOPE (decidable exclusion works), ABANDON_OR_REDESIGN (unsafe class unidentifiable). PROCEED is the fall-through, not the first rung: an otherwise-green state that also carries a valid-model analyzer defect must select MODIFY_ANALYZER.",
   "ladder_trace": [
     {
-      "verdict": "PROCEED",
-      "predicate": "PROCEED_CONDITIONS_MET",
-      "value": false,
-      "selected": false
-    },
-    {
       "verdict": "MODIFY_ANALYZER",
-      "predicate": "ANALYZER_DEFECT_ATTRIBUTED_BY_EVIDENCE",
+      "predicate": "ANALYZER_DEFECT_UNDER_VALID_MODEL",
       "value": false,
       "selected": false
     },
@@ -42,6 +36,12 @@
     {
       "verdict": "ABANDON_OR_REDESIGN",
       "predicate": "UNSAFE_CLASS_NOT_IDENTIFIABLE",
+      "value": false,
+      "selected": false
+    },
+    {
+      "verdict": "PROCEED",
+      "predicate": "PROCEED_CONDITIONS_MET",
       "value": false,
       "selected": false
     }
@@ -83,17 +83,29 @@
       "value": true,
       "from": "RETENTION_WITHHELD_FAILS_CLOSED=ESTABLISHED_NEGATIVE"
     },
+    "REPRESENTABILITY_EVIDENCE_SAYS_NOT_REPRESENTABLE": {
+      "value": true,
+      "from": "PATCHABILITY_DISTINCTION_REPRESENTABLE=NOT_REPRESENTABLE"
+    },
     "DISTINCTION_NOT_REPRESENTABLE": {
       "value": true,
-      "from": "SUBSET_PROPERTY_VACUOUS and UNSAFE_CLASS_MECHANICALLY_ACCOUNTED and BLOCKING_PREREQUISITES_UNRESOLVED"
+      "from": "REPRESENTABILITY_EVIDENCE_SAYS_NOT_REPRESENTABLE and SUBSET_PROPERTY_VACUOUS and UNSAFE_CLASS_MECHANICALLY_ACCOUNTED. The unresolved-blocker count is deliberately NOT an input: an unrelated production prerequisite must not manufacture a map-design verdict."
+    },
+    "EXCLUSION_REQUIRED": {
+      "value": true,
+      "from": "required rows not in a positive category, i.e. capability that has to be excluded or accepted as limited: ['RETENTION_CONTRACT', 'RETENTION_WITHHELD_FAILS_CLOSED', 'PATCHABILITY_SUBSET_PROPERTY']"
     },
     "DECIDABLE_EXCLUSION_YIELDS_NONEMPTY": {
       "value": false,
-      "from": "a non-empty admitted set after exclusion: admitted=0"
+      "from": "a non-empty admitted set (admitted=0) AND something excluded. Both halves: \"works AFTER EXCLUDING\" is not the same claim as \"works\"."
     },
     "UNSAFE_CLASS_NOT_IDENTIFIABLE": {
       "value": false,
       "from": "the negation of UNSAFE_CLASS_MECHANICALLY_ACCOUNTED"
+    },
+    "ANALYZER_DEFECT_UNDER_VALID_MODEL": {
+      "value": false,
+      "from": "ANALYZER_DEFECT_ATTRIBUTED_BY_EVIDENCE and MODEL_ROWS_ALL_ESTABLISHED -- both, so an attribution against an invalid model falls through rather than selecting or resetting"
     },
     "PROCEED_CONDITIONS_MET": {
       "value": false,

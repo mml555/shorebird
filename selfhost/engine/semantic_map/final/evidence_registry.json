@@ -14,7 +14,9 @@
     "MEASURED_DETERMINISTIC_PROJECTION_LOW": "artifact-derived, and the prior projection understates it",
     "MEASURED_CURRENT_RUN_ONLY": "timing family; a current-run observation, not reproducible",
     "ENUMERATED": "generated list, not a judgement",
-    "NOT_ESTABLISHED": "evidence missing, unreadable, ambiguous or unclassifiable"
+    "NOT_ESTABLISHED": "evidence missing, unreadable, ambiguous or unclassifiable",
+    "NOT_REPRESENTABLE": "the model cannot represent the distinction -- demonstrated, not inferred",
+    "REPRESENTABLE": "the model can represent the distinction"
   },
   "rows": [
     {
@@ -867,6 +869,82 @@
           ],
           "category": "VACUOUS",
           "note": "The subset property is satisfied because the admitted set is EMPTY. Zero admitted is not positive patchability evidence: no declaration was mechanically established safely patchable. NOT_INLINED and pool-indirect observations remain non-safety facts."
+        }
+      ]
+    },
+    {
+      "row": "PATCHABILITY_DISTINCTION_REPRESENTABLE",
+      "question": "Can the map represent \"patchable\" as a property OF A DECLARATION at all?",
+      "why_this_row_exists": "The verdict predicate for MODIFY_MAP_DESIGN was previously satisfied by a vacuous subset plus ANY unresolved production blocker, so an unrelated prerequisite -- a provenance requirement on where the inlining note comes from, say -- could manufacture a map-design verdict. #48/#58 require evidence that the MODEL cannot represent the distinction. That evidence exists in the bank and is extracted here as its own row, so the predicate reads representability directly instead of inferring it from a blocker count.",
+      "probes": {
+        "experiment_complete": {
+          "kind": "text_count",
+          "file": "g5_patchability/evidence/dispatch_experiment.txt",
+          "pattern": "SM1_G5_DISPATCH_EXPERIMENT: COMPLETE"
+        },
+        "patch_attached": {
+          "kind": "text_count",
+          "file": "g5_patchability/evidence/dispatch_experiment.txt",
+          "pattern": "ATTACH: C\\+\\+ invoke of target returned: PATCHED-w"
+        },
+        "divergent_observation": {
+          "kind": "text_count",
+          "file": "g5_patchability/evidence/dispatch_experiment.txt",
+          "pattern": "^\\s+after\\s+.*virtual=OLD-w.*direct=PATCHED-w"
+        },
+        "predicate_fail_closed": {
+          "kind": "text_count",
+          "file": "g5_patchability/evidence/dispatch_experiment.txt",
+          "pattern": "SM1_G5_DISPATCH_PREDICATE: FAIL_CLOSED"
+        }
+      },
+      "rules": [
+        {
+          "conditions": [
+            [
+              "experiment_complete",
+              "gte",
+              1
+            ],
+            [
+              "patch_attached",
+              "gte",
+              1
+            ],
+            [
+              "divergent_observation",
+              "gte",
+              1
+            ],
+            [
+              "predicate_fail_closed",
+              "gte",
+              1
+            ]
+          ],
+          "category": "NOT_REPRESENTABLE",
+          "note": "The patch ATTACHED -- the C++ invoke of the target returned PATCHED-w -- and in the same run the direct call read PATCHED-w while the virtual call still read OLD-w. One declaration is therefore patched and not-observed simultaneously, depending on the call site, so \"patchable\" is not a property the map can carry per declaration. The dispatch predicate fails closed rather than classifying, which is the model declining to represent a distinction it cannot make."
+        },
+        {
+          "conditions": [
+            [
+              "experiment_complete",
+              "gte",
+              1
+            ],
+            [
+              "divergent_observation",
+              "eq",
+              0
+            ],
+            [
+              "predicate_fail_closed",
+              "eq",
+              0
+            ]
+          ],
+          "category": "REPRESENTABLE",
+          "note": "The experiment ran, no call site diverged from the attached patch, and the dispatch predicate classified rather than failing closed."
         }
       ]
     },

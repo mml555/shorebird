@@ -139,30 +139,66 @@ P['RETENTION_WITHHELD_MEASURED_NOT_FAILING_CLOSED'] = {
             f'{cat("RETENTION_WITHHELD_FAILS_CLOSED")}',
 }
 
-# The distinction the map exists to represent is patchability. It is NOT
-# representable when: the admitted set is empty, that emptiness is a decision
-# rather than a coverage hole (every declaration accounted for), and a blocking
-# prerequisite still stands. Derived from categories and gap data -- no
-# prerequisite is matched by name, so this predicate does not encode a
-# conclusion about which prerequisite matters.
-P['DISTINCTION_NOT_REPRESENTABLE'] = {
-    'value': (P['SUBSET_PROPERTY_VACUOUS']['value']
-              and P['UNSAFE_CLASS_MECHANICALLY_ACCOUNTED']['value']
-              and P['BLOCKING_PREREQUISITES_UNRESOLVED']['value']),
-    'from': 'SUBSET_PROPERTY_VACUOUS and '
-            'UNSAFE_CLASS_MECHANICALLY_ACCOUNTED and '
-            'BLOCKING_PREREQUISITES_UNRESOLVED',
+# DEFECT FIXED: this predicate used to accept
+#   vacuous subset + full accounting + ANY unresolved production blocker.
+# An unrelated prerequisite -- a provenance requirement on where the inlining
+# note comes from -- could therefore manufacture a map-design verdict, which is
+# not what #48/#58 mean by "the model cannot represent the distinction". It now
+# reads the PATCHABILITY_DISTINCTION_REPRESENTABLE row, which extracts that
+# evidence directly, and the blocker count is no longer an input.
+P['REPRESENTABILITY_EVIDENCE_SAYS_NOT_REPRESENTABLE'] = {
+    'value': cat('PATCHABILITY_DISTINCTION_REPRESENTABLE')
+    == 'NOT_REPRESENTABLE',
+    'from': f'PATCHABILITY_DISTINCTION_REPRESENTABLE='
+            f'{cat("PATCHABILITY_DISTINCTION_REPRESENTABLE")}',
 }
-# "Model works after excluding a decidable feature class" requires the reduced
-# model to WORK -- to admit something. A reduction that admits nothing has not
-# produced a working model, it has produced an empty one.
+P['DISTINCTION_NOT_REPRESENTABLE'] = {
+    'value': (P['REPRESENTABILITY_EVIDENCE_SAYS_NOT_REPRESENTABLE']['value']
+              and P['SUBSET_PROPERTY_VACUOUS']['value']
+              and P['UNSAFE_CLASS_MECHANICALLY_ACCOUNTED']['value']),
+    'from': 'REPRESENTABILITY_EVIDENCE_SAYS_NOT_REPRESENTABLE and '
+            'SUBSET_PROPERTY_VACUOUS and '
+            'UNSAFE_CLASS_MECHANICALLY_ACCOUNTED. The unresolved-blocker '
+            'count is deliberately NOT an input: an unrelated production '
+            'prerequisite must not manufacture a map-design verdict.',
+}
+# "Model works after excluding a decidable feature class" requires TWO things:
+# the reduced model must WORK -- admit something, since a reduction that admits
+# nothing is an empty model rather than a working one -- and something must
+# actually be EXCLUDED. Without the second half this predicate was just
+# "admitted > 0", which is also true of a fully green state; with PROCEED
+# correctly demoted to the fall-through rung, that made PROCEED unreachable,
+# because every state good enough to proceed would first satisfy REDUCE_SCOPE.
+# The two are now mutually exclusive by construction.
+P['EXCLUSION_REQUIRED'] = {
+    'value': bool(non_positive),
+    'from': f'required rows not in a positive category, i.e. capability that '
+            f'has to be excluded or accepted as limited: '
+            f'{non_positive or "none"}',
+}
 P['DECIDABLE_EXCLUSION_YIELDS_NONEMPTY'] = {
-    'value': P['PATCHABILITY_POSITIVELY_ESTABLISHED']['value'],
-    'from': f'a non-empty admitted set after exclusion: admitted={admitted}',
+    'value': (P['PATCHABILITY_POSITIVELY_ESTABLISHED']['value']
+              and P['EXCLUSION_REQUIRED']['value']),
+    'from': f'a non-empty admitted set (admitted={admitted}) AND something '
+            f'excluded. Both halves: "works AFTER EXCLUDING" is not the same '
+            f'claim as "works".',
 }
 P['UNSAFE_CLASS_NOT_IDENTIFIABLE'] = {
     'value': not P['UNSAFE_CLASS_MECHANICALLY_ACCOUNTED']['value'],
     'from': 'the negation of UNSAFE_CLASS_MECHANICALLY_ACCOUNTED',
+}
+# DEFECT FIXED: model validity is now part of the RUNG, not a post-selection
+# reset. #58 says "analyzer bug UNDER A VALID MODEL", so an attribution
+# against an invalid model simply does not satisfy this rung and the ladder
+# CONTINUES -- previously it selected MODIFY_ANALYZER, then discovered the
+# model was invalid, and reset the whole verdict to NOT_ESTABLISHED instead of
+# falling through to the next rung.
+P['ANALYZER_DEFECT_UNDER_VALID_MODEL'] = {
+    'value': (P['ANALYZER_DEFECT_ATTRIBUTED_BY_EVIDENCE']['value']
+              and P['MODEL_ROWS_ALL_ESTABLISHED']['value']),
+    'from': 'ANALYZER_DEFECT_ATTRIBUTED_BY_EVIDENCE and '
+            'MODEL_ROWS_ALL_ESTABLISHED -- both, so an attribution against an '
+            'invalid model falls through rather than selecting or resetting',
 }
 P['PROCEED_CONDITIONS_MET'] = {
     'value': (P['EVERY_REQUIRED_ROW_POSITIVE']['value']
@@ -174,12 +210,17 @@ P['PROCEED_CONDITIONS_MET'] = {
 }
 
 # ---- precedence, in #58's literal order --------------------------------
+# DEFECT FIXED: PROCEED was FIRST. #58's precedence begins with
+# MODIFY_ANALYZER, so an otherwise-green state that ALSO carries a valid-model
+# analyzer defect would have selected PROCEED and shipped over a known bug.
+# PROCEED is now the fall-through, reached only when none of the four
+# classifications applies -- which is what "precedence" means here.
 LADDER = [
-    ('PROCEED', 'PROCEED_CONDITIONS_MET'),
-    ('MODIFY_ANALYZER', 'ANALYZER_DEFECT_ATTRIBUTED_BY_EVIDENCE'),
+    ('MODIFY_ANALYZER', 'ANALYZER_DEFECT_UNDER_VALID_MODEL'),
     ('MODIFY_MAP_DESIGN', 'DISTINCTION_NOT_REPRESENTABLE'),
     ('REDUCE_SCOPE', 'DECIDABLE_EXCLUSION_YIELDS_NONEMPTY'),
     ('ABANDON_OR_REDESIGN', 'UNSAFE_CLASS_NOT_IDENTIFIABLE'),
+    ('PROCEED', 'PROCEED_CONDITIONS_MET'),
 ]
 verdict, selected_by, trace = 'NOT_ESTABLISHED', None, []
 for name, pred in LADDER:
@@ -188,12 +229,6 @@ for name, pred in LADDER:
                   'selected': hit and verdict == 'NOT_ESTABLISHED'})
     if hit and verdict == 'NOT_ESTABLISHED':
         verdict, selected_by = name, pred
-
-# MODIFY_ANALYZER additionally requires the model to be valid -- #58 says
-# "analyzer bug UNDER A VALID MODEL". Checked after selection so the ladder
-# stays literal and the extra condition is visible rather than folded in.
-if verdict == 'MODIFY_ANALYZER' and not P['MODEL_ROWS_ALL_ESTABLISHED']['value']:
-    verdict, selected_by = 'NOT_ESTABLISHED', None
 
 # ---- routing: an OUTPUT of the verdict, not a parallel opinion ----------
 ROUTES = {
@@ -234,8 +269,13 @@ doc = collections.OrderedDict([
     ('allowed_verdicts', [v for v, _ in LADDER]),
     ('verdict', verdict),
     ('selected_by_predicate', selected_by),
-    ('precedence_applied', "#58's literal order: PROCEED, MODIFY_ANALYZER, "
-     'MODIFY_MAP_DESIGN, REDUCE_SCOPE, ABANDON_OR_REDESIGN"'),
+    ('precedence_applied',
+     "#58's order: MODIFY_ANALYZER (valid-model analyzer bug), "
+     'MODIFY_MAP_DESIGN (model cannot represent), REDUCE_SCOPE (decidable '
+     'exclusion works), ABANDON_OR_REDESIGN (unsafe class unidentifiable). '
+     'PROCEED is the fall-through, not the first rung: an otherwise-green '
+     'state that also carries a valid-model analyzer defect must select '
+     'MODIFY_ANALYZER.'),
     ('ladder_trace', trace),
     ('predicates', P),
     ('rows_not_established', not_established),

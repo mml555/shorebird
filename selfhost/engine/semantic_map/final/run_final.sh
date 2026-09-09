@@ -158,6 +158,26 @@ want 'the verdict was selected by a named predicate' True \
      "$(j "$VERDICT" "d['selected_by_predicate'] is not None")"
 want 'exactly one ladder rung selected' 1 \
      "$(j "$VERDICT" "sum(1 for t in d['ladder_trace'] if t['selected'])")"
+# The ORDER is asserted, not just the outcome. #58's precedence begins with
+# MODIFY_ANALYZER and PROCEED is the fall-through; an earlier version put
+# PROCEED first, which would ship over a known analyzer bug.
+want "the ladder follows #58's precedence order" \
+     'MODIFY_ANALYZER MODIFY_MAP_DESIGN REDUCE_SCOPE ABANDON_OR_REDESIGN PROCEED' \
+     "$(j "$VERDICT" "' '.join(t['verdict'] for t in d['ladder_trace'])")"
+want 'the selected rung is the FIRST true one' True \
+     "$(python3 -c "
+import json
+t=json.load(open('$VERDICT'))['ladder_trace']
+first=next((i for i,x in enumerate(t) if x['value']), None)
+sel=next((i for i,x in enumerate(t) if x['selected']), None)
+print(first == sel)")"
+want 'the analyzer rung carries model validity itself' True \
+     "$(j "$VERDICT" "'MODEL_ROWS_ALL_ESTABLISHED' in d['predicates']['ANALYZER_DEFECT_UNDER_VALID_MODEL']['from']")"
+want 'the map-design predicate does not read the blocker count' True \
+     "$(python3 -c "
+import json
+f=json.load(open('$VERDICT'))['predicates']['DISTINCTION_NOT_REPRESENTABLE']['from']
+print('BLOCKING_PREREQUISITES_UNRESOLVED' not in f.split('.')[0])")"
 want 'every predicate is published' True \
      "$(j "$VERDICT" "len(d['predicates']) >= len(d['ladder_trace'])")"
 want 'the provenance manifest built' 0 "${MANIFEST_RC:-1}"

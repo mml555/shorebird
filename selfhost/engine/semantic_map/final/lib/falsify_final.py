@@ -171,17 +171,45 @@ def break_accounting():
     set_json(G5I, lambda d: d['accounting'].update(accounted=30))
 
 
+G5D = 'g5_patchability/evidence/dispatch_experiment.txt'
+G2 = 'g2_fingerprints/evidence/g2_fingerprints.json'
+
+
+def make_representable():
+    """Flip the representability EVIDENCE, so the row reads REPRESENTABLE."""
+    p = ev(G5D)
+    body = p.read_text()
+    body = body.replace('virtual=OLD-w direct=PATCHED-w',
+                        'virtual=PATCHED-w direct=PATCHED-w')
+    body = body.replace('SM1_G5_DISPATCH_PREDICATE: FAIL_CLOSED',
+                        'SM1_G5_DISPATCH_PREDICATE: CLASSIFIED')
+    p.write_text(body)
+
+
+def invalidate_model():
+    """Make a MODEL row non-ESTABLISHED without touching representability."""
+    set_json(G2, lambda d: d.update(checks_failed=1))
+
+
 def attribute_tool_defect():
     def fn(d):
-        d['production_prerequisites']['entries'][0]['severity'] = \
-            'ANALYZER_DEFECT'
+        e = d['production_prerequisites']['entries'][0]
+        e['severity'] = 'ANALYZER_DEFECT'
+        # Must stay OPEN: KNOWN_GAPS only carries prerequisites that are not
+        # RESOLVED, so an attribution on a resolved entry is invisible to the
+        # predicate. ANALYZER_DEFECT is not BLOCKING_FOR_PRODUCTION, so this
+        # does not itself block PROCEED -- which is what makes the overlap
+        # state constructible.
+        e['status'] = 'UNRESOLVED'
     set_json(G8R, fn)
 
 
 B_ARMS = [
- ('PROCEED', 'a non-empty admitted set, retention failing closed, and no '
-             'blocking prerequisite',
-  lambda: (make_admitted(), retention_met(), resolve_prereqs())),
+ ('PROCEED', 'a non-empty admitted set, retention failing closed, no '
+             'blocking prerequisite, and the distinction representable -- so '
+             'nothing has to be excluded',
+  lambda: (make_admitted(), retention_met(), resolve_prereqs(),
+           make_representable())),
  ('MODIFY_ANALYZER', 'a shortfall ATTRIBUTED to an analyzer defect while the '
                      'model rows all hold',
   attribute_tool_defect),
@@ -195,9 +223,11 @@ B_ARMS = [
                          'declaration, so the unsafe class is not '
                          'mechanically identifiable',
   break_accounting),
- ('NOT_ESTABLISHED', 'no predicate holds -- prerequisites resolved but the '
-                     'admitted set still empty; the ladder must not default',
-  resolve_prereqs),
+ ('NOT_ESTABLISHED', 'no predicate holds -- the distinction is representable '
+                     'but the admitted set is still empty, so neither '
+                     'map-design nor reduce-scope nor proceed applies; the '
+                     'ladder must not default',
+  make_representable),
 ]
 b_fail = []
 for want, why, mutate in B_ARMS:
@@ -211,6 +241,79 @@ for want, why, mutate in B_ARMS:
     say(f'     {"pass" if ok else "FAIL"}  {want:22} <- {why}')
 say(f'     arms={len(B_ARMS)} failed={len(b_fail)}')
 failed += b_fail
+say()
+
+# ---- B2. PRECEDENCE OVERLAP -- the rungs must be ORDERED, not merely --
+# ----      reachable ---------------------------------------------------
+say('  B2. PRECEDENCE OVERLAP')
+say('     Reaching every label once proves the labels exist. It does NOT')
+say('     prove precedence. These arms construct states where TWO rungs')
+say('     could fire and require the earlier one to win, and states that')
+say('     distinguish a representability blocker from an unrelated one.')
+
+
+def pred(v, name):
+    if not v:
+        return None
+    return (v.get('predicates') or {}).get(name, {}).get('value')
+
+
+OVERLAP = []
+
+
+def overlap(label, mutate, check, why):
+    OVERLAP.append((label, mutate, check, why))
+
+
+overlap('proceed-state + valid analyzer defect -> MODIFY_ANALYZER',
+        lambda: (make_admitted(), retention_met(), resolve_prereqs(),
+                 make_representable(), attribute_tool_defect()),
+        lambda m, v: v and v['verdict'] == 'MODIFY_ANALYZER',
+        'PROCEED conditions hold AND a valid-model analyzer defect is '
+        'attributed. With PROCEED first -- as it was -- this shipped over a '
+        'known bug.')
+
+overlap('analyzer attribution + invalid model -> falls through to '
+        'MODIFY_MAP_DESIGN',
+        lambda: (attribute_tool_defect(), invalidate_model()),
+        lambda m, v: v and v['verdict'] == 'MODIFY_MAP_DESIGN'
+        and pred(v, 'ANALYZER_DEFECT_ATTRIBUTED_BY_EVIDENCE') is True
+        and pred(v, 'ANALYZER_DEFECT_UNDER_VALID_MODEL') is False,
+        'An attribution against an INVALID model must not select '
+        'MODIFY_ANALYZER, and must not reset the verdict either -- the ladder '
+        'continues to the next rung.')
+
+overlap('representability blocker alone -> map-design predicate TRUE',
+        lambda: resolve_prereqs(),
+        lambda m, v: v and pred(v, 'DISTINCTION_NOT_REPRESENTABLE') is True
+        and v['verdict'] == 'MODIFY_MAP_DESIGN'
+        and pred(v, 'BLOCKING_PREREQUISITES_UNRESOLVED') is False,
+        'Every production prerequisite resolved, representability evidence '
+        'kept. The predicate must still hold: the blocker count is not an '
+        'input to it.')
+
+overlap('representability resolved, unrelated blocker remains -> map-design '
+        'predicate FALSE',
+        lambda: make_representable(),
+        lambda m, v: v and pred(v, 'DISTINCTION_NOT_REPRESENTABLE') is False
+        and pred(v, 'BLOCKING_PREREQUISITES_UNRESOLVED') is True
+        and v['verdict'] != 'MODIFY_MAP_DESIGN',
+        'Blocking prerequisites still open, representability evidence '
+        'flipped. An unrelated prerequisite must NOT manufacture a map-design '
+        'verdict -- this is the defect that made the old predicate too broad.')
+
+b2_fail = []
+for label, mutate, check, why in OVERLAP:
+    fresh()
+    mutate()
+    m, v = assemble()
+    ok = bool(check(m, v))
+    if not ok:
+        b2_fail.append(f'{label} (verdict {v["verdict"] if v else "NONE"})')
+    say(f'     {"pass" if ok else "FAIL"}  {label}')
+    say(f'           {why}')
+say(f'     arms={len(OVERLAP)} failed={len(b2_fail)}')
+failed += b2_fail
 say()
 
 # ---- C. weakened assembler ---------------------------------------------
@@ -231,6 +334,24 @@ for want, _why, mutate in B_ARMS:
     _, v = assemble(verdict_tool=weak)
     if v and v['verdict'] == want:
         survivors.append(want)
+# The overlap arms too: a hard-coded verdict must fail every one of them,
+# including the two that expect MODIFY_MAP_DESIGN -- because those also assert
+# PREDICATE values, which a hard-coded verdict does not produce.
+overlap_survivors = []
+for label, mutate, check, _why in OVERLAP:
+    fresh()
+    mutate()
+    m, v = assemble(verdict_tool=weak)
+    if check(m, v):
+        overlap_survivors.append(label)
+say(f'     overlap arms the weakened assembler still satisfies: '
+    f'{len(overlap_survivors)}')
+if overlap_survivors:
+    failed.append(f'weakened assembler satisfied overlap arms: '
+                  f'{overlap_survivors}')
+    say(f'     FAIL  {overlap_survivors}')
+else:
+    say('     pass  it satisfies no overlap arm')
 say(f'     family-B arms the weakened assembler still satisfies: '
     f'{len(survivors)}')
 if len(survivors) != 1:
@@ -310,7 +431,7 @@ for label, ok in d_checks.items():
         failed.append(f'stale-output control: {label}')
 say()
 
-say(f'  TOTAL arms={len(pairs) * 2 + len(B_ARMS) + len(B_ARMS) + len(d_checks)} '
+say(f'  TOTAL arms={len(pairs) * 2 + len(B_ARMS) * 2 + len(OVERLAP) * 2 + len(d_checks)} '
     f'failed={len(failed)}')
 if failed:
     say(f'  FAILURES: {failed}')
