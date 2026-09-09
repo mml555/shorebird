@@ -1,5 +1,5 @@
 SM1-G5 -- Base.work virtual/instance dispatch
-generated 2026-09-09T00:53:30Z by run_dispatch_experiment.sh
+generated 2026-09-09T01:41:02Z by run_dispatch_experiment.sh
 
 THE QUESTION
   Can the exact release mechanically determine that a non-inlined declaration

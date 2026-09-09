@@ -1,5 +1,5 @@
 SM1-G8 -- clean reproduction and centralized negative inventory
-generated 2026-09-09T00:52:55Z by run_g8.sh
+generated 2026-09-09T01:40:28Z by run_g8.sh
 
 ############ 1. PRODUCT SURFACE, BEFORE ############
   17e2fc927925bb49aa1683d38c09584fe3749cc811cb004a757926f2da7c8cff  packages
@@ -114,7 +114,7 @@ SM1_G8_INVENTORY: INVENTORY_CONSISTENT
   unchanged  dad67449fb475e1fc28eb347f280878d62e51fc7e7cf900d6af763e9af990c8e  selfhost/compatibility.yaml
   unchanged  a30cd01ca5be0701ee0915a3ce697d0f1d45b41411b7e645b0ae36b9caa4c909  scripts
 
-ASSERTIONS (11 checked)
+ASSERTIONS (14 checked)
   pass  the probe corpus rebuilds from source
   pass  the rebuilt canonical AOT is the banked one
   pass  the G1 projection matches the banked copy
@@ -126,5 +126,8 @@ ASSERTIONS (11 checked)
   pass  the product surface covers what #57 requires
   pass  the reader accounting is preserved
   pass  zero declarations remain admitted
+  pass  g8 produced evidence/g8_reproduction.txt
+  pass  g8 produced evidence/inventory_check.json
+  pass  g8 produced evidence/negative_outcomes.json
 
 SM1_G8: CLEAN_REPRODUCTION

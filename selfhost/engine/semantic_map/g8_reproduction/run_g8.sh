@@ -145,6 +145,14 @@ want 'the reader accounting is preserved' True \
 want 'zero declarations remain admitted' 0 \
      "$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['predicted_patchable'])" "$G5/evidence/subset.json")"
 
+# G8's OWN outputs, asserted after the run rather than through the inventory:
+# a checker cannot validate its own transcript while writing it.
+for f in evidence/g8_reproduction.txt evidence/inventory_check.json \
+         evidence/negative_outcomes.json; do
+  want "g8 produced $f" True \
+       "$([ -s "$G/$f" ] && echo True || echo False)"
+done
+
 VERDICT=REPRODUCTION_INCOMPLETE
 [ "$rc" = 0 ] && [ -z "$STOP" ] && VERDICT=CLEAN_REPRODUCTION
 {

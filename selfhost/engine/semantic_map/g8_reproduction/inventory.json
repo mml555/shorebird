@@ -344,5 +344,27 @@
         "means": "absence of a comparison is not absence of an effect"
       }
     ]
+  },
+  "self_coverage": {
+    "why": "G8 is deliberately NOT in its own artifact inventory. The checker reads each gate's transcripts, and G8's transcript is mid-write while the checker runs inside it -- a self-entry would validate a partial file, which is the stale/absent-input class this gate exists to detect. Instead run_g8.sh asserts its own outputs after the run completes, which is a real check without the circularity.",
+    "asserted_after_run": [
+      "evidence/g8_reproduction.txt",
+      "evidence/inventory_check.json",
+      "evidence/negative_outcomes.json"
+    ]
+  },
+  "reproducibility_expectations": {
+    "why": "Two consecutive full G8 runs were compared. What must be identical, and what may legitimately move, is recorded here so a future difference is read correctly instead of investigated as a regression.",
+    "identical_across_runs": [
+      "every deterministic binding in g7_cost/evidence/families.json",
+      "the falsifier outcome ids and their counts",
+      "the rebuilt probe identities, including the canonical AOT",
+      "the G5 reader accounting and subset verdict"
+    ],
+    "may_move_across_runs": [
+      "timing samples and every summary derived from them",
+      "the order-dependent label set -- observed moving from [map_refs] to none between two runs even WITH the noise gate, so the gate narrows the instability without removing it at n=3",
+      "generated-at timestamps"
+    ]
   }
 }
