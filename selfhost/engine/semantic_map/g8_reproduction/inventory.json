@@ -168,11 +168,181 @@
     }
   },
   "product_directories": {
-    "why": "#57 requires proof the product is untouched. This lane writes only under selfhost/engine/semantic_map/.",
+    "why": "#57 requires proof the product is untouched. packages/, bin/ and route_b/ plus compatibility.yaml are the minimum; scripts/ is additional coverage. This lane writes only under selfhost/engine/semantic_map/.",
     "paths": [
       "packages",
       "bin",
+      "selfhost/engine/route_b",
+      "selfhost/compatibility.yaml",
       "scripts"
+    ]
+  },
+  "falsifiable": {
+    "why": "One inventory drives the negatives. Previously the falsifier hard-coded its own targets, so \"26 arms\" described neither the inventory nor a count of mutations -- it mixed 11 mutations, 11 restoration rows, 3 classifier controls and 1 consistency check. Each entry here is one mutation with one expected structured failure and a required byte-for-byte restoration.",
+    "mutations": {
+      "delete": "remove the artifact",
+      "empty": "truncate it to zero bytes",
+      "sub": "byte substitution: from -> to",
+      "drop_lines_containing": "remove every line containing a token"
+    },
+    "entries": [
+      {
+        "id": "g5-inlining-state-deleted",
+        "target": "g5_patchability/evidence/inlining_state.json",
+        "mutation": "delete",
+        "expect_code": "ARTIFACT_MISSING_OR_EMPTY"
+      },
+      {
+        "id": "g6-transcript-deleted",
+        "target": "g6_binding/evidence/g6_binding.txt",
+        "mutation": "delete",
+        "expect_code": "ARTIFACT_MISSING_OR_EMPTY"
+      },
+      {
+        "id": "g7-samples-emptied",
+        "target": "g7_cost/evidence/samples.jsonl",
+        "mutation": "empty",
+        "expect_code": "ARTIFACT_MISSING_OR_EMPTY"
+      },
+      {
+        "id": "g5-final-manifest-deleted",
+        "target": "g5_patchability/evidence/final_manifest.json",
+        "mutation": "delete",
+        "expect_code": "ARTIFACT_MISSING_OR_EMPTY"
+      },
+      {
+        "id": "g5-g1-projection-deleted",
+        "target": "g5_patchability/evidence/g1_projection.json",
+        "mutation": "delete",
+        "expect_code": "ARTIFACT_MISSING_OR_EMPTY"
+      },
+      {
+        "id": "g6-positive-verdict-lost",
+        "target": "g6_binding/evidence/g6_binding.txt",
+        "mutation": "sub",
+        "from": "SM1_G6: BINDING_ENFORCED",
+        "to": "SM1_G6: SOMETHING_ELSE",
+        "expect_code": "DECLARED_POSITIVE_NOT_TESTED"
+      },
+      {
+        "id": "g6-control-stops-failing",
+        "target": "g6_binding/evidence/g6_binding.txt",
+        "mutation": "sub",
+        "from": "SM1_G6_BINDING_FALSIFICATION: DEFECTS_PRESENT",
+        "to": "SM1_G6_BINDING_FALSIFICATION: EVERY_SWAP_REFUSED",
+        "expect_code": "DECLARED_CONTROL_NEVER_FAILED"
+      },
+      {
+        "id": "g5-reader-control-stops-failing",
+        "target": "g5_patchability/evidence/reader_falsification.txt",
+        "mutation": "sub",
+        "from": "SM1_G5_READER_FALSIFICATION: DEFECTS_PRESENT",
+        "to": "SM1_G5_READER_FALSIFICATION: ALL_ARMS_REFUSED",
+        "expect_code": "DECLARED_CONTROL_NEVER_FAILED"
+      },
+      {
+        "id": "g5-fail-open-finding-lost",
+        "target": "g5_patchability/evidence/corpora.txt",
+        "mutation": "sub",
+        "from": "SM1_G5_SUBSET: FAIL_OPEN",
+        "to": "SM1_G5_SUBSET: OK",
+        "expect_code": "FAIL_OPEN_FINDING_NOT_REPRODUCED"
+      },
+      {
+        "id": "g5-subset-overclaim-arms-lost",
+        "target": "g5_patchability/evidence/subset_check.txt",
+        "mutation": "drop_lines_containing",
+        "token": "over-claim:",
+        "expect_code": "FAIL_OPEN_FINDING_NOT_REPRODUCED"
+      },
+      {
+        "id": "g7-deterministic-binding-drifts",
+        "target": "g7_cost/evidence/families.json",
+        "mutation": "sub",
+        "from": "4330120",
+        "to": "4330121",
+        "expect_code": "DETERMINISTIC_BINDING_CHANGED"
+      },
+      {
+        "id": "g7-timing-stage-vanishes",
+        "target": "g7_cost/evidence/samples.jsonl",
+        "mutation": "drop_lines_containing",
+        "token": "\"map_reader\"",
+        "expect_code": "TIMING_STAGE_MISSING"
+      },
+      {
+        "id": "g7-schedule-side-vanishes",
+        "target": "g7_cost/evidence/samples.jsonl",
+        "mutation": "drop_lines_containing",
+        "token": "\"map_first\"",
+        "expect_code": "TIMING_ORDER_MISSING"
+      },
+      {
+        "id": "g7-producer-recorded-failed",
+        "target": "g7_cost/evidence/samples.jsonl",
+        "mutation": "sub",
+        "from": "\"exit\": 0",
+        "to": "\"exit\": 1",
+        "count": 1,
+        "expect_code": "TIMING_PRODUCER_FAILED"
+      },
+      {
+        "id": "g7-stale-summary",
+        "target": "g7_cost/evidence/families.json",
+        "mutation": "sub",
+        "from": "\"samples\":",
+        "to": "\"samples\": 999,\"_\":",
+        "count": 1,
+        "expect_code": "SUMMARY_NOT_FROM_SAMPLES"
+      }
+    ]
+  },
+  "classifier_controls": {
+    "why": "#57 required three deterministic sensitivity controls on the timing classifier. They are declared here so they are inventory driven like every other negative, and exercised through g7_cost/lib/classify_order.py rather than by running a seven-minute measurement.",
+    "entries": [
+      {
+        "id": "clf-beyond-noise-flags",
+        "a": {
+          "n": 3,
+          "median_ms": 100.0,
+          "stdev_ms": 1.0
+        },
+        "z": {
+          "n": 3,
+          "median_ms": 130.0,
+          "stdev_ms": 1.0
+        },
+        "expect_order_dependent": true,
+        "means": "ratio 1.30 with gap 30 over noise 1"
+      },
+      {
+        "id": "clf-inside-noise-does-not-flag",
+        "a": {
+          "n": 3,
+          "median_ms": 100.0,
+          "stdev_ms": 50.0
+        },
+        "z": {
+          "n": 3,
+          "median_ms": 130.0,
+          "stdev_ms": 50.0
+        },
+        "expect_order_dependent": false,
+        "means": "ratio 1.30 but gap 30 under noise 50"
+      },
+      {
+        "id": "clf-missing-side-undecidable",
+        "a": {
+          "n": 3,
+          "median_ms": 100.0,
+          "stdev_ms": 1.0
+        },
+        "z": {
+          "n": 0
+        },
+        "expect_order_dependent": null,
+        "means": "absence of a comparison is not absence of an effect"
+      }
     ]
   }
 }

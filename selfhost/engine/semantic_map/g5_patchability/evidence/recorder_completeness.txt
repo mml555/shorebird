@@ -1,5 +1,5 @@
 SM1-G5 route 2 -- recorder completeness, re-derived from source
-generated 2026-09-08T21:59:24Z by run_route2.sh
+generated 2026-09-09T00:53:12Z by run_route2.sh
 The enumeration in evidence/recorder_completeness.md is not transcribed;
 this run re-derives every count and gate from the tree.
 
@@ -43,7 +43,7 @@ exit=0
   NextInlineId mentions in inliner.cc: baseline=2 control=3
 
 === control: EXACTLY the NextInlineId checks may flip ===
-recorder completeness, re-derived from /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/route2_ctl/runtime
+recorder completeness, re-derived from /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g8/probe/route2_ctl/runtime
   pass  FlowGraphCompiler construction sites                       3
   pass  of which in aot/precompiler.cc                             1
   pass  of which in jit/compiler.cc                                1

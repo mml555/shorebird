@@ -2,7 +2,7 @@
   "schema": "semantic-map-1/g5-inlining-state/2",
   "gate": "SM1-G5",
   "issue": 54,
-  "aot": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/app_release.aot",
+  "aot": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g8/probe/app_release.aot",
   "note_validated": true,
   "note_error": null,
   "note_error_code": null,

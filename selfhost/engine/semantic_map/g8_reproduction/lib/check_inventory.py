@@ -28,6 +28,11 @@ import re
 import sys
 
 SM, INV, OUT = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+# The falsifier re-enters this checker per mutation; on those runs the outcome
+# file does not exist yet, so the equality check is skipped rather than
+# reported as a failure of the bank under test.
+NO_OUTCOMES = '--no-outcomes' in sys.argv
+OUTCOMES = None if NO_OUTCOMES else (sys.argv[4] if len(sys.argv) > 4 else None)
 inv = json.load(open(INV))
 findings = []
 
@@ -155,6 +160,34 @@ else:
                 if f not in any_stage:
                     finding('CLASSIFIER_INPUT_MISSING', f)
 
+# ---- inventory == tested == caught, LITERALLY over stable ids -----------
+declared_ids = sorted([e['id'] for e in inv['falsifiable']['entries']]
+                      + [c['id'] for c in inv['classifier_controls']['entries']])
+equality = {'declared_ids': declared_ids}
+if OUTCOMES and pathlib.Path(OUTCOMES).exists():
+    oc = json.load(open(OUTCOMES))
+    equality['tested_ids'] = oc['tested_ids']
+    equality['caught_ids'] = oc['caught_ids']
+    if declared_ids != oc['tested_ids']:
+        finding('DECLARED_NOT_TESTED',
+                f"declared but not exercised: "
+                f"{sorted(set(declared_ids) - set(oc['tested_ids']))}; "
+                f"exercised but not declared: "
+                f"{sorted(set(oc['tested_ids']) - set(declared_ids))}")
+    if declared_ids != oc['caught_ids']:
+        finding('DECLARED_NOT_CAUGHT',
+                f"declared but not caught: "
+                f"{sorted(set(declared_ids) - set(oc['caught_ids']))} -- an "
+                f"entry whose mutation the checker did not detect")
+    if not oc.get('bank_intact_after'):
+        finding('BANK_NOT_RESTORED', 'the bank was not consistent after the '
+                                     'negatives ran')
+elif not NO_OUTCOMES:
+    finding('OUTCOMES_MISSING',
+            'no falsifier outcomes supplied, so inventory == tested == caught '
+            'cannot be asserted -- it is not enough that the transcripts '
+            'happen to contain the right markers')
+
 summary = {
     'schema': 'semantic-map-1/g8-inventory-check/1',
     'gate': 'SM1-G8', 'issue': 57,
@@ -164,6 +197,7 @@ summary = {
     'caught': caught,
     'missing_artifacts': missing_artifacts,
     'known_fail_open_findings_reproduced': reproduced_findings,
+    'equality': equality,
     'findings': findings,
     'verdict': 'INVENTORY_CONSISTENT' if not findings else 'INVENTORY_DEFECTS',
 }
@@ -181,5 +215,9 @@ for k, n in reproduced_findings.items():
     print(f'    {k:34} {n} occurrence(s)')
 for f in findings:
     print(f'    {f["code"]:34} {f["detail"][:76]}')
+if 'tested_ids' in equality:
+    print(f"  declared=={len(declared_ids)} tested=={len(equality['tested_ids'])} "
+          f"caught=={len(equality['caught_ids'])}  literal equality: "
+          f"{declared_ids == equality['tested_ids'] == equality['caught_ids']}")
 print(f'SM1_G8_INVENTORY: {summary["verdict"]}')
 sys.exit(1 if findings else 0)

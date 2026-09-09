@@ -1,13 +1,13 @@
 SM1-G5 Phase D -- predicted patchable SUBSET-OF demonstrated patchable
-generated 2026-09-08T22:00:41Z by run_subset.sh
+generated 2026-09-09T00:54:08Z by run_subset.sh
 
 SUBJECT (the canonical release, taken not rebuilt)
   7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34  app_release.aot
   b9b29d23f37e5e11a5ab181f7f9674c5a482f52b5bcd0483272e6f57c0f90550  evidence/g1_projection.json
-  4c2d33d109c040ea7f8e43ebf25e62b90eda4a87016b0b6d59a1bf621e048239  evidence/inlining_state.json
+  8e97a2d235486e855be0dfebd5d532744354c1e1ed4fede9408fe413ca48501a  evidence/inlining_state.json
 
 ############ 1. RELEASE CONTRACT, FROM THE RELEASE ITSELF ############
-  release declarations=167 ambiguous=0 -> /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/release_contract.json
+  release declarations=167 ambiguous=0 -> /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g8/probe/release_contract.json
   capability        PROVEN
   evidence          note: schema_version=1;patchable_static_calls=true
   release_aot_sha256 7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34
@@ -30,7 +30,7 @@ wrote g1_regen.json  rows=36
     equal  b9b29d23f37e5e11a5ab181f7f9674c5a482f52b5bcd0483272e6f57c0f90550
 
 ############ 3. PREDICTION -- RELEASE EVIDENCE ONLY ############
-  predictions=36 patchable=0 refused=36 -> /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/predictions.json
+  predictions=36 patchable=0 refused=36 -> /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g8/probe/predictions.json
   declarations        36
   predicted patchable 0
   refusal histogram:
