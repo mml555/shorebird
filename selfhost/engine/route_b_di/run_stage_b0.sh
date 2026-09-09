@@ -222,6 +222,15 @@ want 'the Dart identity is recorded' True \
      "$(j "bool(d['provenance_available'].get('dart_effective_tree'))")"
 want 'the finding is about the input, not the mechanism' True \
      "$(j "'not the mechanism' in d['does_not_claim']")"
+# `notes` collected unreadable-input reports that NOTHING read -- a finding
+# that changes no verdict, which is the defect class this lane keeps hitting.
+# An empty notes list is now required, so a degraded input cannot pass quietly.
+want 'no input was recorded as unreadable' 0 "$(j "len(d['notes'])")"
+# The permanently-ineligible set can be NARROWED safely -- the role assertion
+# above would fail. WIDENING it is the danger: adding a legitimate source name
+# would suppress it silently. Pin the set.
+want 'the permanently-ineligible set is exactly the declared one' \
+     "['the_module_itself']" "$(j "d['permanently_ineligible']")"
 want 'static committed policies are not release-bound' True \
      "$(j "all(v['release_bound'] is False for k,v in d['source_roles'].items() if k.startswith('committed_policy:'))")"
 want 'the B0 classifier is falsified' 0 "${B0NEG_RC:-1}"

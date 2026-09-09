@@ -1,5 +1,5 @@
 ROUTE-B-DI-1 / Stage B0 -- the production validation input
-generated 2026-09-09T21:29:55Z by run_stage_b0.sh
+generated 2026-09-09T21:52:21Z by run_stage_b0.sh
 generator /Users/mendell/shorebird/selfhost/engine/route_b/gen_dynamic_interface.dart
 
 ############ 1. THE RELEASE'S OWN SPECIFICATION, GENERATED ############
@@ -318,9 +318,11 @@ B0_FALSIFICATION: EVERY_ARM_DISCRIMINATES
   pass  the derivation identity is digested
   pass  the Dart identity is recorded
   pass  the finding is about the input, not the mechanism
+  pass  no input was recorded as unreadable
+  pass  the permanently-ineligible set is exactly the declared one
   pass  static committed policies are not release-bound
   pass  the B0 classifier is falsified
 
-ASSERTIONS (23 checked: 23 pass, 0 fail)
+ASSERTIONS (25 checked: 25 pass, 0 fail)
 
 STAGE_B0: VALIDATION_INPUT_UNDERIVED
