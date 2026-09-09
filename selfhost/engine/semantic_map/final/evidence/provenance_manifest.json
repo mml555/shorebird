@@ -3,7 +3,7 @@
   "gate": "SM1-FINAL",
   "issue": 58,
   "tracker": 48,
-  "generated": "2026-09-09T06:39:19Z",
+  "generated": "2026-09-09T07:10:30Z",
   "input_set_derived_from": "the extractor access log, cross-checked against the registry",
   "self_hashing": "none: this manifest, RESULT.md, the matrix and the verdict are OUTPUTS of this assembly and are listed by name only. A manifest that digested itself would never converge -- G5 hit exactly that and a second run never reproduced the first.",
   "outputs_not_digested": [
@@ -14,7 +14,7 @@
     "evidence/provenance_manifest.json"
   ],
   "verdict": "MODIFY_MAP_DESIGN",
-  "matrix_rows": 21,
+  "matrix_rows": 22,
   "consumed_evidence": {
     "g1_identity/evidence/g1_identity.json": {
       "sha256": "8ffe2d18c684b15ff476257881b481ff406800092c18b704411f86f2ec917841",
@@ -35,6 +35,7 @@
         "CLASSIFICATION_ABI_BREAK",
         "CLASSIFICATION_CHANGED_BODY",
         "CLASSIFICATION_UNCHANGED",
+        "DECIDABLE_EXCLUSIONS",
         "DECLARATION_ID_STABILITY"
       ]
     },
@@ -43,6 +44,7 @@
       "bytes": 5184,
       "read": true,
       "rows": [
+        "DECIDABLE_EXCLUSIONS",
         "PRIVACY_CROSS_DOMAIN_REFUSAL",
         "PRIVACY_DOMAIN_DERIVATION"
       ]
@@ -201,13 +203,13 @@
     "g8_reproduction/lib/snapshot_digests.py": "a5495c6f2024182231bb4e72cdcbadca2d04c9a2cf671a2da297b6d9cef48858"
   },
   "assembler": {
-    "final/evidence_registry.json": "484a39668bca80357e12126af5ed8c9386bf421cd1c85e42dcede5643f0889ad",
+    "final/evidence_registry.json": "42b34e1d38fb8ce9ae7fd5d02a8fe6545bbb5ce894178f45014cd54334e8a8d2",
     "final/lib/build_manifest.py": "7720515406df2ce8cb914d31a5c9985c1ba9002ccdafa1342d2235c8fca02611",
-    "final/lib/compute_verdict.py": "fa51e1f5813ac192f4232994fe08a4415a4f69a915e64f5d126c9f667ee65fd2",
+    "final/lib/compute_verdict.py": "faba1e0d3f63d4414591fda9034b92e552d60dc68d97a8d09c6d23bf56e0415a",
     "final/lib/extract_matrix.py": "4beef356a9f081c0ef37cb60009e3512094655e7d6892600b085320e691fd105",
-    "final/lib/falsify_final.py": "16e1c6e3c455e6e37392f148eb614c407f795a899785a95d4c29afe4cdd642cf",
+    "final/lib/falsify_final.py": "985484967d9845b5ac918e82a98cfa45fb3b3378fffb2b22378c1e27869d8091",
     "final/lib/gen_result.py": "b3e8fcfd0999351d714bb36f309503149100422da3393d0348f41e50277705c6",
-    "final/run_final.sh": "818bcd47642a9cbb206e9d19d302cd490c6e68b9105f3f605144c2a126907f95"
+    "final/run_final.sh": "9c23d1434028203846cfa114583b26ed2429ec757376c700b84e06c12c6d76e8"
   },
   "coverage": {
     "declared_by_rows": 15,

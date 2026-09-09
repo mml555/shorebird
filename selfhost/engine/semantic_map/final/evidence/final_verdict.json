@@ -3,7 +3,7 @@
   "gate": "SM1-FINAL",
   "issue": 58,
   "tracker": 48,
-  "generated": "2026-09-09T06:39:19Z",
+  "generated": "2026-09-09T07:10:30Z",
   "allowed_verdicts": [
     "MODIFY_ANALYZER",
     "MODIFY_MAP_DESIGN",
@@ -49,7 +49,7 @@
   "predicates": {
     "EVERY_REQUIRED_ROW_POSITIVE": {
       "value": false,
-      "from": "rows not in a positive category: ['RETENTION_CONTRACT', 'RETENTION_WITHHELD_FAILS_CLOSED', 'PATCHABILITY_SUBSET_PROPERTY']"
+      "from": "rows not in a positive category: ['RETENTION_CONTRACT', 'RETENTION_WITHHELD_FAILS_CLOSED', 'PATCHABILITY_SUBSET_PROPERTY', 'PATCHABILITY_DISTINCTION_REPRESENTABLE']"
     },
     "PATCHABILITY_POSITIVELY_ESTABLISHED": {
       "value": false,
@@ -89,15 +89,31 @@
     },
     "DISTINCTION_NOT_REPRESENTABLE": {
       "value": true,
-      "from": "REPRESENTABILITY_EVIDENCE_SAYS_NOT_REPRESENTABLE and SUBSET_PROPERTY_VACUOUS and UNSAFE_CLASS_MECHANICALLY_ACCOUNTED. The unresolved-blocker count is deliberately NOT an input: an unrelated production prerequisite must not manufacture a map-design verdict."
+      "from": "REPRESENTABILITY_EVIDENCE_SAYS_NOT_REPRESENTABLE alone. Neither the blocker count nor the size of the admitted set is an input: an unrelated prerequisite must not manufacture this verdict, and a non-empty admitted set must not suppress it.",
+      "corroborated_by": {
+        "SUBSET_PROPERTY_VACUOUS": true,
+        "UNSAFE_CLASS_MECHANICALLY_ACCOUNTED": true
+      }
     },
-    "EXCLUSION_REQUIRED": {
+    "NAMED_DECIDABLE_EXCLUSION_PRESENT": {
       "value": true,
-      "from": "required rows not in a positive category, i.e. capability that has to be excluded or accepted as limited: ['RETENTION_CONTRACT', 'RETENTION_WITHHELD_FAILS_CLOSED', 'PATCHABILITY_SUBSET_PROPERTY']"
+      "from": "DECIDABLE_EXCLUSIONS=NAMED_AND_FAIL_CLOSED -- the class is named in the map contract AND its refusal is reached, not merely representable"
+    },
+    "REPRESENTABILITY_DEFECT_ABSENT": {
+      "value": false,
+      "from": "PATCHABILITY_DISTINCTION_REPRESENTABLE=NOT_REPRESENTABLE. A scope reduction cannot repair a representability defect: if the model cannot represent the distinction, a smaller input set does not make it able to."
+    },
+    "ADMITTED_SET_IS_SOUND": {
+      "value": false,
+      "from": "non-empty, every declaration accounted for, and the over-claim refusal demonstrated -- a non-empty set that over-claims is not a reduced scope, it is an unsound one"
+    },
+    "ADMITTED_SET_IS_PROPER_SUBSET": {
+      "value": false,
+      "from": "admitted=0 of 36: strictly between empty and total, which is what \"after EXCLUDING a class\" means. A total admitted set excluded nothing and belongs to PROCEED."
     },
     "DECIDABLE_EXCLUSION_YIELDS_NONEMPTY": {
       "value": false,
-      "from": "a non-empty admitted set (admitted=0) AND something excluded. Both halves: \"works AFTER EXCLUDING\" is not the same claim as \"works\"."
+      "from": "NAMED_DECIDABLE_EXCLUSION_PRESENT and REPRESENTABILITY_DEFECT_ABSENT and ADMITTED_SET_IS_SOUND and ADMITTED_SET_IS_PROPER_SUBSET -- all four, per the FINAL ruling"
     },
     "UNSAFE_CLASS_NOT_IDENTIFIABLE": {
       "value": false,
@@ -107,16 +123,21 @@
       "value": false,
       "from": "ANALYZER_DEFECT_ATTRIBUTED_BY_EVIDENCE and MODEL_ROWS_ALL_ESTABLISHED -- both, so an attribution against an invalid model falls through rather than selecting or resetting"
     },
+    "ADMITTED_SET_IS_TOTAL": {
+      "value": false,
+      "from": "admitted=0 of 36: the whole declared surface, so no feature class had to be excluded"
+    },
     "PROCEED_CONDITIONS_MET": {
       "value": false,
-      "from": "every required row positive, patchability positively established, refusals enforced, no blocking prerequisite open"
+      "from": "every required row positive, patchability positively established, refusals enforced, the admitted set TOTAL (nothing excluded -- a proper subset belongs to REDUCE_SCOPE), and no blocking prerequisite open"
     }
   },
   "rows_not_established": [],
   "rows_not_positive": [
     "RETENTION_CONTRACT",
     "RETENTION_WITHHELD_FAILS_CLOSED",
-    "PATCHABILITY_SUBSET_PROPERTY"
+    "PATCHABILITY_SUBSET_PROPERTY",
+    "PATCHABILITY_DISTINCTION_REPRESENTABLE"
   ],
   "blocking_prerequisites": [
     "NON_STATIC_DISPATCH_PATCHABILITY",

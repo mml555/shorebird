@@ -178,6 +178,32 @@ want 'the map-design predicate does not read the blocker count' True \
 import json
 f=json.load(open('$VERDICT'))['predicates']['DISTINCTION_NOT_REPRESENTABLE']['from']
 print('BLOCKING_PREREQUISITES_UNRESOLVED' not in f.split('.')[0])")"
+# The map-design rung must be armed by DIRECT representability evidence alone.
+# It previously also required a vacuous subset, so a non-empty admitted set
+# disarmed the higher-priority rung even while the evidence still said the
+# model cannot represent the distinction.
+want 'the map-design rung is armed by direct evidence alone' True \
+     "$(python3 -c "
+import json
+p=json.load(open('$VERDICT'))['predicates']['DISTINCTION_NOT_REPRESENTABLE']
+print(p['value'] == p and False or
+      p['from'].startswith('REPRESENTABILITY_EVIDENCE_SAYS_NOT_REPRESENTABLE alone'))")"
+want 'REDUCE_SCOPE requires all four conditions' 4 \
+     "$(python3 -c "
+import json
+f=json.load(open('$VERDICT'))['predicates']['DECIDABLE_EXCLUSION_YIELDS_NONEMPTY']['from']
+print(sum(k in f for k in ('NAMED_DECIDABLE_EXCLUSION_PRESENT',
+                           'REPRESENTABILITY_DEFECT_ABSENT',
+                           'ADMITTED_SET_IS_SOUND',
+                           'ADMITTED_SET_IS_PROPER_SUBSET')))")"
+want 'the named exclusion is extracted, not assumed' NAMED_AND_FAIL_CLOSED \
+     "$(j "$MATRIX" "d['matrix']['DECIDABLE_EXCLUSIONS']['category']")"
+want 'PROCEED and REDUCE_SCOPE are mutually exclusive by construction' True \
+     "$(python3 -c "
+import json
+P=json.load(open('$VERDICT'))['predicates']
+print(not (P['ADMITTED_SET_IS_PROPER_SUBSET']['value']
+           and P['ADMITTED_SET_IS_TOTAL']['value']))")"
 want 'every predicate is published' True \
      "$(j "$VERDICT" "len(d['predicates']) >= len(d['ladder_trace'])")"
 want 'the provenance manifest built' 0 "${MANIFEST_RC:-1}"

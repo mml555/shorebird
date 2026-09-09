@@ -6,7 +6,7 @@
      file creates a second copy of the numbers, free to drift from the
      evidence -- which already happened in this programme once. -->
 
-Generated 2026-09-09T06:39:19Z · issue #58 · tracker #48
+Generated 2026-09-09T07:10:30Z · issue #58 · tracker #48
 
 ## Verdict
 
@@ -43,6 +43,7 @@ Every row is extracted at run time from a named file and field or marker. A row 
 | `RETENTION_WITHHELD_FAILS_CLOSED` | `ESTABLISHED_NEGATIVE` | `g4_retention/evidence/g4_retention.json` |
 | `PATCHABILITY_SUBSET_PROPERTY` | `VACUOUS` | `g5_patchability/evidence/inlining_state.json`, `g5_patchability/evidence/subset.json` |
 | `PATCHABILITY_DISTINCTION_REPRESENTABLE` | `NOT_REPRESENTABLE` | `g5_patchability/evidence/dispatch_experiment.txt` |
+| `DECIDABLE_EXCLUSIONS` | `NAMED_AND_FAIL_CLOSED` | `g2_fingerprints/evidence/g2_fingerprints.json`, `g3_privacy/evidence/g3_privacy.json` |
 | `OVER_CLAIM` | `REFUSAL_ENFORCED` | `g5_patchability/evidence/corpora.txt`, `g5_patchability/evidence/subset_check.txt` |
 | `MAP_RELEASE_BINDING` | `ESTABLISHED` | `g6_binding/evidence/g6_binding.txt`, `g6_binding/evidence/map_probe.json`, `g6_binding/evidence/verify_probe.json` |
 | `MAP_SCHEMA_VERSIONING` | `ESTABLISHED` | `g6_binding/evidence/g6_binding.txt`, `g6_binding/evidence/map_probe.json` |
@@ -90,7 +91,7 @@ Deterministic and timing families are kept separate. The deterministic figures a
 
 ## Known gaps
 
-15 entries, generated from the matrix categories, the G8 production prerequisites and the G8 reproduced FAIL_OPEN findings. `UNKNOWN`, `VACUOUS`, `NOT_ESTABLISHED` and unresolved prerequisites appear verbatim.
+16 entries, generated from the matrix categories, the G8 production prerequisites and the G8 reproduced FAIL_OPEN findings. `UNKNOWN`, `VACUOUS`, `NOT_ESTABLISHED` and unresolved prerequisites appear verbatim.
 
 | source | id | category | detail |
 | --- | --- | --- | --- |
@@ -98,6 +99,7 @@ Deterministic and timing families are kept separate. The deterministic figures a
 | matrix | `RETENTION_WITHHELD_FAILS_CLOSED` | `ESTABLISHED_NEGATIVE` | MEASURED AND DOES NOT HOLD. Withholding some classes does not fail closed at load. This is a reproduced negative result, not a gap in the evidence, and it is a direct input to routing. |
 | matrix | `PATCHABILITY_SUBSET_PROPERTY` | `VACUOUS` | The subset property is satisfied because the admitted set is EMPTY. Zero admitted is not positive patchability evidence: no declaration was mechanically established safely patchable. NOT_INLINED and pool-indirect observations remain non-safety facts. |
 | matrix | `PATCHABILITY_DISTINCTION_REPRESENTABLE` | `NOT_REPRESENTABLE` | The patch ATTACHED -- the C++ invoke of the target returned PATCHED-w -- and in the same run the direct call read PATCHED-w while the virtual call still read OLD-w. One declaration is therefore patched and not-observed simultaneously, depending on the call site, so "patchable" is not a property the map can carry per declaration. The dispatch predicate fails closed rather than classifying, which is the model declining to represent a distinction it cannot make. |
+| matrix | `DECIDABLE_EXCLUSIONS` | `NAMED_AND_FAIL_CLOSED` | Each excluded class is NAMED in the map contract and its refusal is REACHED, not merely representable: the type-parameter shape is refused, an unsupported body refuses on either side of the comparison, and every privacy refusal category in the return surface is exercised. A refusal that exists in the code but is never reached would leave the exclusion undecidable in practice. |
 | matrix | `GENERATION_TIME` | `MEASURED_CURRENT_RUN_ONLY` | TIMING FAMILY, deliberately kept separate from the deterministic figures. These values are current-run observations and are not reproducible across runs. The order-dependence label set moves between identical runs even with the noise gate, so the max(stdev) classifier is a COST DIAGNOSTIC only -- never a safety or causality claim. |
 | matrix | `RETENTION_COST_AT_SCALE` | `MEASURED_DETERMINISTIC_PROJECTION_LOW` | Artifact-derived and reproducible. G4's retention curve UNDERSTATES the measured cost, so the projection may not be substituted for a measurement at the scale being shipped. |
 | g8_prerequisite | `NON_STATIC_DISPATCH_PATCHABILITY` | `UNRESOLVED` | A patch must be observable at every call site that reaches the patched member, including virtual and instance dispatch. |
@@ -140,8 +142,8 @@ Manifest findings: none.
 | evidence | sha256 | rows |
 | --- | --- | --- |
 | `g1_identity/evidence/g1_identity.json` | `8ffe2d18c684b15f…` | 2 |
-| `g2_fingerprints/evidence/g2_fingerprints.json` | `e8e479a0c5cc9c6f…` | 6 |
-| `g3_privacy/evidence/g3_privacy.json` | `870fc92b8e664fd7…` | 2 |
+| `g2_fingerprints/evidence/g2_fingerprints.json` | `e8e479a0c5cc9c6f…` | 7 |
+| `g3_privacy/evidence/g3_privacy.json` | `870fc92b8e664fd7…` | 3 |
 | `g3_privacy/evidence/falsification.txt` | `01fef376ea1139de…` | 1 |
 | `g4_retention/evidence/g4_retention.json` | `dd9863b89fe33ed6…` | 2 |
 | `g5_patchability/evidence/subset.json` | `21b644dcd142f3e9…` | 1 |

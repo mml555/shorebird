@@ -3,11 +3,11 @@
   "gate": "SM1-FINAL",
   "issue": 58,
   "tracker": 48,
-  "generated": "2026-09-09T06:39:19Z",
+  "generated": "2026-09-09T07:10:30Z",
   "registry": {
     "path": "final/evidence_registry.json",
-    "sha256": "484a39668bca80357e12126af5ed8c9386bf421cd1c85e42dcede5643f0889ad",
-    "rows_declared": 20
+    "sha256": "42b34e1d38fb8ce9ae7fd5d02a8fe6545bbb5ce894178f45014cd54334e8a8d2",
+    "rows_declared": 21
   },
   "category_vocabulary": {
     "ESTABLISHED": "positively demonstrated by the named evidence",
@@ -21,7 +21,9 @@
     "ENUMERATED": "generated list, not a judgement",
     "NOT_ESTABLISHED": "evidence missing, unreadable, ambiguous or unclassifiable",
     "NOT_REPRESENTABLE": "the model cannot represent the distinction -- demonstrated, not inferred",
-    "REPRESENTABLE": "the model can represent the distinction"
+    "REPRESENTABLE": "the model can represent the distinction",
+    "NAMED_AND_FAIL_CLOSED": "a decidable feature class is named as excluded and its refusal is demonstrated reachable",
+    "NONE_NAMED": "no feature class is excluded"
   },
   "matrix": {
     "DECLARATION_ID_STABILITY": {
@@ -306,6 +308,36 @@
         "g5_patchability/evidence/dispatch_experiment.txt"
       ]
     },
+    "DECIDABLE_EXCLUSIONS": {
+      "category": "NAMED_AND_FAIL_CLOSED",
+      "question": "Does the map name a decidable feature class it EXCLUDES, and is that exclusion proven to fail closed rather than merely declared?",
+      "note": "Each excluded class is NAMED in the map contract and its refusal is REACHED, not merely representable: the type-parameter shape is refused, an unsupported body refuses on either side of the comparison, and every privacy refusal category in the return surface is exercised. A refusal that exists in the code but is never reached would leave the exclusion undecidable in practice.",
+      "rule_matched": 0,
+      "probe_values": {
+        "abi_refused_type_parameters": 1,
+        "abi_boundary_stated_in_map": "States the ROADMAP P2 refusal boundary in the map itself: named, optional-positional and type arguments are refused before publication, so the map says so rather than classifying them reusable.",
+        "abi_exclusions_named": 1,
+        "body_refused_unsupported": 2,
+        "body_exclusions_named": 2,
+        "privacy_surface": 8,
+        "privacy_exercised": 8,
+        "all_outcomes_ok": true
+      },
+      "evidence_pointers": {
+        "abi_refused_type_parameters": "g2_fingerprints/evidence/g2_fingerprints.json:arms.abi_shape_counts.refused:type_parameters = 1",
+        "abi_boundary_stated_in_map": "g2_fingerprints/evidence/g2_fingerprints.json:contract.abi_shape = 'States the ROADMAP P2 refusal boundary in the map itself: named, optional-positional and type arguments are refused before publication, so the map says so rather than classifying them reusable.'",
+        "abi_exclusions_named": "len(g2_fingerprints/evidence/g2_fingerprints.json:contract.abi_exclusions) = 1",
+        "body_refused_unsupported": "2 of 23 rows with classification='refused:unsupported_body'",
+        "body_exclusions_named": "len(g2_fingerprints/evidence/g2_fingerprints.json:contract.body_exclusions) = 2",
+        "privacy_surface": "len(g3_privacy/evidence/g3_privacy.json:arms.policy_return_surface) = 8",
+        "privacy_exercised": "len(g3_privacy/evidence/g3_privacy.json:arms.categories_exercised) = 8",
+        "all_outcomes_ok": "all 23 rows have outcome='OK'"
+      },
+      "evidence_files": [
+        "g2_fingerprints/evidence/g2_fingerprints.json",
+        "g3_privacy/evidence/g3_privacy.json"
+      ]
+    },
     "OVER_CLAIM": {
       "category": "REFUSAL_ENFORCED",
       "question": "Is an over-claimed patchable declaration refused, on fixtures and on real corpora?",
@@ -471,7 +503,7 @@
       "category": "ENUMERATED",
       "question": "What was not established, measured negatively, or left unresolved?",
       "note": "Generated from the matrix categories, G8 production prerequisites and G8 reproduced FAIL_OPEN findings. UNKNOWN, VACUOUS, NOT_ESTABLISHED and unresolved prerequisites appear verbatim and are not softened.",
-      "count": 15,
+      "count": 16,
       "entries": [
         {
           "source": "matrix",
@@ -496,6 +528,12 @@
           "id": "PATCHABILITY_DISTINCTION_REPRESENTABLE",
           "category": "NOT_REPRESENTABLE",
           "detail": "The patch ATTACHED -- the C++ invoke of the target returned PATCHED-w -- and in the same run the direct call read PATCHED-w while the virtual call still read OLD-w. One declaration is therefore patched and not-observed simultaneously, depending on the call site, so \"patchable\" is not a property the map can carry per declaration. The dispatch predicate fails closed rather than classifying, which is the model declining to represent a distinction it cannot make."
+        },
+        {
+          "source": "matrix",
+          "id": "DECIDABLE_EXCLUSIONS",
+          "category": "NAMED_AND_FAIL_CLOSED",
+          "detail": "Each excluded class is NAMED in the map contract and its refusal is REACHED, not merely representable: the type-parameter shape is refused, an unsupported body refuses on either side of the comparison, and every privacy refusal category in the return surface is exercised. A refusal that exists in the code but is never reached would leave the exclusion undecidable in practice."
         },
         {
           "source": "matrix",

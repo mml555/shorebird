@@ -16,7 +16,9 @@
     "ENUMERATED": "generated list, not a judgement",
     "NOT_ESTABLISHED": "evidence missing, unreadable, ambiguous or unclassifiable",
     "NOT_REPRESENTABLE": "the model cannot represent the distinction -- demonstrated, not inferred",
-    "REPRESENTABLE": "the model can represent the distinction"
+    "REPRESENTABLE": "the model can represent the distinction",
+    "NAMED_AND_FAIL_CLOSED": "a decidable feature class is named as excluded and its refusal is demonstrated reachable",
+    "NONE_NAMED": "no feature class is excluded"
   },
   "rows": [
     {
@@ -945,6 +947,140 @@
           ],
           "category": "REPRESENTABLE",
           "note": "The experiment ran, no call site diverged from the attached patch, and the dispatch predicate classified rather than failing closed."
+        }
+      ]
+    },
+    {
+      "row": "DECIDABLE_EXCLUSIONS",
+      "question": "Does the map name a decidable feature class it EXCLUDES, and is that exclusion proven to fail closed rather than merely declared?",
+      "why_this_row_exists": "REDUCE_SCOPE means \"the model works after excluding a decidable feature class\". The classifier previously approximated that with \"some required row is non-positive\", which is satisfied by a retention limitation or by the vacuous patchability result -- neither of which is an exclusion. The exclusion has to be NAMED and its refusal has to be REACHABLE, so it is extracted here from the boundaries the gates actually enforce. This row is deliberately NOT required for PROCEED: proceeding means no exclusion was needed, so its absence is not a defect.",
+      "named_classes": "ABI: named, optional-positional and type arguments (ROADMAP P2), refused before publication. BODY: Kernel nodes outside the supported encoding (ForStatement in the corpus). PRIVACY: cross-domain and platform-domain private references.",
+      "probes": {
+        "abi_refused_type_parameters": {
+          "kind": "json_field",
+          "file": "g2_fingerprints/evidence/g2_fingerprints.json",
+          "path": [
+            "arms",
+            "abi_shape_counts",
+            "refused:type_parameters"
+          ]
+        },
+        "abi_boundary_stated_in_map": {
+          "kind": "json_field",
+          "file": "g2_fingerprints/evidence/g2_fingerprints.json",
+          "path": [
+            "contract",
+            "abi_shape"
+          ]
+        },
+        "abi_exclusions_named": {
+          "kind": "json_len",
+          "file": "g2_fingerprints/evidence/g2_fingerprints.json",
+          "path": [
+            "contract",
+            "abi_exclusions"
+          ]
+        },
+        "body_refused_unsupported": {
+          "kind": "json_count_where",
+          "file": "g2_fingerprints/evidence/g2_fingerprints.json",
+          "path": [
+            "results"
+          ],
+          "field": "classification",
+          "equals": "refused:unsupported_body"
+        },
+        "body_exclusions_named": {
+          "kind": "json_len",
+          "file": "g2_fingerprints/evidence/g2_fingerprints.json",
+          "path": [
+            "contract",
+            "body_exclusions"
+          ]
+        },
+        "privacy_surface": {
+          "kind": "json_len",
+          "file": "g3_privacy/evidence/g3_privacy.json",
+          "path": [
+            "arms",
+            "policy_return_surface"
+          ]
+        },
+        "privacy_exercised": {
+          "kind": "json_len",
+          "file": "g3_privacy/evidence/g3_privacy.json",
+          "path": [
+            "arms",
+            "categories_exercised"
+          ]
+        },
+        "all_outcomes_ok": {
+          "kind": "json_all_eq_value",
+          "file": "g2_fingerprints/evidence/g2_fingerprints.json",
+          "path": [
+            "results"
+          ],
+          "field": "outcome",
+          "value": "OK"
+        }
+      },
+      "rules": [
+        {
+          "conditions": [
+            [
+              "abi_refused_type_parameters",
+              "gte",
+              1
+            ],
+            [
+              "abi_boundary_stated_in_map",
+              "len_gte",
+              1
+            ],
+            [
+              "abi_exclusions_named",
+              "gte",
+              1
+            ],
+            [
+              "body_refused_unsupported",
+              "gte",
+              1
+            ],
+            [
+              "body_exclusions_named",
+              "gte",
+              1
+            ],
+            [
+              "privacy_exercised",
+              "eq_probe",
+              "privacy_surface"
+            ],
+            [
+              "all_outcomes_ok",
+              "eq",
+              true
+            ]
+          ],
+          "category": "NAMED_AND_FAIL_CLOSED",
+          "note": "Each excluded class is NAMED in the map contract and its refusal is REACHED, not merely representable: the type-parameter shape is refused, an unsupported body refuses on either side of the comparison, and every privacy refusal category in the return surface is exercised. A refusal that exists in the code but is never reached would leave the exclusion undecidable in practice."
+        },
+        {
+          "conditions": [
+            [
+              "abi_refused_type_parameters",
+              "eq",
+              0
+            ],
+            [
+              "body_refused_unsupported",
+              "eq",
+              0
+            ]
+          ],
+          "category": "NONE_NAMED",
+          "note": "no feature class is excluded, so there is nothing to reduce to"
         }
       ]
     },

@@ -150,8 +150,16 @@ G8R = 'g8_reproduction/evidence/g8_result.json'
 
 
 def make_admitted():
+    """A PROPER SUBSET: 7 of 36. This is what "after excluding" looks like."""
     set_json(G5S, lambda d: d.update(verdict='SUBSET_HOLDS',
                                      predicted_patchable=7))
+
+
+def make_admitted_total():
+    """The WHOLE declared surface: nothing was excluded, so PROCEED, not
+    REDUCE_SCOPE."""
+    set_json(G5S, lambda d: d.update(verdict='SUBSET_HOLDS',
+                                     predicted_patchable=d['declarations']))
 
 
 def resolve_prereqs():
@@ -205,10 +213,11 @@ def attribute_tool_defect():
 
 
 B_ARMS = [
- ('PROCEED', 'a non-empty admitted set, retention failing closed, no '
-             'blocking prerequisite, and the distinction representable -- so '
-             'nothing has to be excluded',
-  lambda: (make_admitted(), retention_met(), resolve_prereqs(),
+ ('PROCEED', 'the WHOLE declared surface admitted, retention failing '
+             'closed, no blocking prerequisite, and the distinction '
+             'representable -- nothing was excluded, so this is not a '
+             'reduced scope',
+  lambda: (make_admitted_total(), retention_met(), resolve_prereqs(),
            make_representable())),
  ('MODIFY_ANALYZER', 'a shortfall ATTRIBUTED to an analyzer defect while the '
                      'model rows all hold',
@@ -216,13 +225,17 @@ B_ARMS = [
  ('MODIFY_MAP_DESIGN', 'the evidence as it stands: empty admitted set, full '
                        'accounting, blocking prerequisites open',
   lambda: None),
- ('REDUCE_SCOPE', 'a non-empty admitted set while retention still does not '
-                  'fail closed',
-  make_admitted),
+ ('REDUCE_SCOPE', 'the representability defect repaired, a real named '
+                  'decidable exclusion still in force, and a PROPER SUBSET '
+                  'admitted while retention still does not fail closed',
+  lambda: (make_representable(), make_admitted())),
  ('ABANDON_OR_REDESIGN', 'the refusal accounting no longer covers every '
                          'declaration, so the unsafe class is not '
-                         'mechanically identifiable',
-  break_accounting),
+                         'mechanically identifiable -- with representability '
+                         'repaired, because otherwise the higher-priority '
+                         'map-design rung correctly wins and this label is '
+                         'unreachable for the right reason',
+  lambda: (make_representable(), break_accounting())),
  ('NOT_ESTABLISHED', 'no predicate holds -- the distinction is representable '
                      'but the admitted set is still empty, so neither '
                      'map-design nor reduce-scope nor proceed applies; the '
@@ -301,6 +314,49 @@ overlap('representability resolved, unrelated blocker remains -> map-design '
         'Blocking prerequisites still open, representability evidence '
         'flipped. An unrelated prerequisite must NOT manufacture a map-design '
         'verdict -- this is the defect that made the old predicate too broad.')
+
+overlap('NOT_REPRESENTABLE + admitted>0 -> still MODIFY_MAP_DESIGN',
+        lambda: make_admitted(),
+        lambda m, v: v and v['verdict'] == 'MODIFY_MAP_DESIGN'
+        and pred(v, 'DISTINCTION_NOT_REPRESENTABLE') is True
+        and pred(v, 'SUBSET_PROPERTY_VACUOUS') is False,
+        'A synthetic non-empty admitted set cannot repair a representability '
+        'defect. The old predicate also required the subset to stay VACUOUS, '
+        'so this state DISARMED the higher-priority rung -- an invalid '
+        'decision surface.')
+
+overlap('retention failure alone cannot manufacture REDUCE_SCOPE',
+        lambda: None,
+        lambda m, v: v
+        and pred(v, 'DECIDABLE_EXCLUSION_YIELDS_NONEMPTY') is False
+        and v['verdict'] != 'REDUCE_SCOPE',
+        'The baseline already has a measured retention negative and a '
+        'vacuous patchability result. Neither is an EXCLUSION, and the old '
+        'predicate accepted either as one.')
+
+overlap('a real named decidable exclusion CAN produce REDUCE_SCOPE',
+        lambda: (make_representable(), make_admitted()),
+        lambda m, v: v and v['verdict'] == 'REDUCE_SCOPE'
+        and pred(v, 'NAMED_DECIDABLE_EXCLUSION_PRESENT') is True
+        and pred(v, 'ADMITTED_SET_IS_PROPER_SUBSET') is True
+        and pred(v, 'ADMITTED_SET_IS_SOUND') is True
+        and m['matrix']['DECIDABLE_EXCLUSIONS']['category']
+        == 'NAMED_AND_FAIL_CLOSED',
+        "The exclusion is the bank's own -- G2's ROADMAP P2 ABI boundary, the "
+        'unsupported-body refusal and G3\'s exercised privacy refusals. '
+        'Nothing was invented to make this label reachable; the counterfactual '
+        'is the repaired representability and the proper-subset admitted set.')
+
+overlap('fully green + TOTAL admitted + nothing excluded -> PROCEED',
+        lambda: (make_representable(), make_admitted_total(), retention_met(),
+                 resolve_prereqs()),
+        lambda m, v: v and v['verdict'] == 'PROCEED'
+        and pred(v, 'ADMITTED_SET_IS_TOTAL') is True
+        and pred(v, 'ADMITTED_SET_IS_PROPER_SUBSET') is False
+        and pred(v, 'DECIDABLE_EXCLUSION_YIELDS_NONEMPTY') is False,
+        'The whole declared surface is admitted, so no class was excluded and '
+        'REDUCE_SCOPE must not fire ahead of PROCEED. Proper-subset versus '
+        'total is what separates the two rungs.')
 
 b2_fail = []
 for label, mutate, check, why in OVERLAP:

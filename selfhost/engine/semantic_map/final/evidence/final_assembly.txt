@@ -1,5 +1,5 @@
 SM1-FINAL -- evidence matrix, computed verdict, provenance
-generated 2026-09-09T06:39:19Z by run_final.sh
+generated 2026-09-09T07:10:30Z by run_final.sh
 source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
 
 ############ 1. THE MATRIX, EXTRACTED FROM EVIDENCE ############
@@ -11,7 +11,7 @@ source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
   PRIVACY_CROSS_DOMAIN_REFUSAL first read NOT_ESTABLISHED because it was bound
   to G5/G6's marker convention, which G3 predates.
 
-  21 rows extracted from 15 evidence files
+  22 rows extracted from 15 evidence files
 
   DECLARATION_ID_STABILITY           ESTABLISHED
   DECLARATION_ID_COLLISIONS          ESTABLISHED
@@ -26,6 +26,7 @@ source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
   RETENTION_WITHHELD_FAILS_CLOSED    ESTABLISHED_NEGATIVE
   PATCHABILITY_SUBSET_PROPERTY       VACUOUS
   PATCHABILITY_DISTINCTION_REPRESENTABLE NOT_REPRESENTABLE
+  DECIDABLE_EXCLUSIONS               NAMED_AND_FAIL_CLOSED
   OVER_CLAIM                         REFUSAL_ENFORCED
   MAP_RELEASE_BINDING                ESTABLISHED
   MAP_SCHEMA_VERSIONING              ESTABLISHED
@@ -36,7 +37,7 @@ source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
   KNOWN_GAPS                         ENUMERATED
 
   NOT_ESTABLISHED: none
-  KNOWN_GAPS entries: 15
+  KNOWN_GAPS entries: 16
   evidence files unreadable: none
 
 ############ 2. THE VERDICT, COMPUTED FROM THE MATRIX ############
@@ -49,7 +50,7 @@ source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
 
   PREDICATES (all published, not only the selecting one)
     False  EVERY_REQUIRED_ROW_POSITIVE
-           rows not in a positive category: ['RETENTION_CONTRACT', 'RETENTION_WITHHELD_FAILS_CLOSED', 'PATCHABILITY_SUBSET_PROPERTY']
+           rows not in a positive category: ['RETENTION_CONTRACT', 'RETENTION_WITHHELD_FAILS_CLOSED', 'PATCHABILITY_SUBSET_PROPERTY', 'PATCHABILITY_DISTINCTION_REPRESENTABLE']
     False  PATCHABILITY_POSITIVELY_ESTABLISHED
            PATCHABILITY_SUBSET_PROPERTY=VACUOUS, admitted=0 of 36
     True   SUBSET_PROPERTY_VACUOUS
@@ -69,17 +70,25 @@ source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
     True   REPRESENTABILITY_EVIDENCE_SAYS_NOT_REPRESENTABLE
            PATCHABILITY_DISTINCTION_REPRESENTABLE=NOT_REPRESENTABLE
     True   DISTINCTION_NOT_REPRESENTABLE
-           REPRESENTABILITY_EVIDENCE_SAYS_NOT_REPRESENTABLE and SUBSET_PROPERTY_VACUOUS and UNSAFE_CLASS_MECHANICALLY_ACCOUNTED. The unresolved-blocker count is deliberately NOT an input: an unrelated production prerequisite must not manufacture a map-design verdict.
-    True   EXCLUSION_REQUIRED
-           required rows not in a positive category, i.e. capability that has to be excluded or accepted as limited: ['RETENTION_CONTRACT', 'RETENTION_WITHHELD_FAILS_CLOSED', 'PATCHABILITY_SUBSET_PROPERTY']
+           REPRESENTABILITY_EVIDENCE_SAYS_NOT_REPRESENTABLE alone. Neither the blocker count nor the size of the admitted set is an input: an unrelated prerequisite must not manufacture this verdict, and a non-empty admitted set must not suppress it.
+    True   NAMED_DECIDABLE_EXCLUSION_PRESENT
+           DECIDABLE_EXCLUSIONS=NAMED_AND_FAIL_CLOSED -- the class is named in the map contract AND its refusal is reached, not merely representable
+    False  REPRESENTABILITY_DEFECT_ABSENT
+           PATCHABILITY_DISTINCTION_REPRESENTABLE=NOT_REPRESENTABLE. A scope reduction cannot repair a representability defect: if the model cannot represent the distinction, a smaller input set does not make it able to.
+    False  ADMITTED_SET_IS_SOUND
+           non-empty, every declaration accounted for, and the over-claim refusal demonstrated -- a non-empty set that over-claims is not a reduced scope, it is an unsound one
+    False  ADMITTED_SET_IS_PROPER_SUBSET
+           admitted=0 of 36: strictly between empty and total, which is what "after EXCLUDING a class" means. A total admitted set excluded nothing and belongs to PROCEED.
     False  DECIDABLE_EXCLUSION_YIELDS_NONEMPTY
-           a non-empty admitted set (admitted=0) AND something excluded. Both halves: "works AFTER EXCLUDING" is not the same claim as "works".
+           NAMED_DECIDABLE_EXCLUSION_PRESENT and REPRESENTABILITY_DEFECT_ABSENT and ADMITTED_SET_IS_SOUND and ADMITTED_SET_IS_PROPER_SUBSET -- all four, per the FINAL ruling
     False  UNSAFE_CLASS_NOT_IDENTIFIABLE
            the negation of UNSAFE_CLASS_MECHANICALLY_ACCOUNTED
     False  ANALYZER_DEFECT_UNDER_VALID_MODEL
            ANALYZER_DEFECT_ATTRIBUTED_BY_EVIDENCE and MODEL_ROWS_ALL_ESTABLISHED -- both, so an attribution against an invalid model falls through rather than selecting or resetting
+    False  ADMITTED_SET_IS_TOTAL
+           admitted=0 of 36: the whole declared surface, so no feature class had to be excluded
     False  PROCEED_CONDITIONS_MET
-           every required row positive, patchability positively established, refusals enforced, no blocking prerequisite open
+           every required row positive, patchability positively established, refusals enforced, the admitted set TOTAL (nothing excluded -- a proper subset belongs to REDUCE_SCOPE), and no blocking prerequisite open
 
   LADDER, in #58 precedence order
     False  MODIFY_ANALYZER        via ANALYZER_DEFECT_UNDER_VALID_MODEL
@@ -114,7 +123,7 @@ source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
   inputs without a digest : none
 
 ############ 4. RESULT.md, GENERATED FROM THOSE ARTIFACTS ############
-  RESULT.md generated: 160 lines, 21 rows, verdict MODIFY_MAP_DESIGN
+  RESULT.md generated: 162 lines, 22 rows, verdict MODIFY_MAP_DESIGN
 
 ############ 5. SENSITIVITY CONTROLS ############
   The published verdict is only worth something if a DIFFERENT verdict was
@@ -135,17 +144,17 @@ SM1-FINAL -- sensitivity controls
      Removing or corrupting a row's evidence must make THAT row read
      NOT_ESTABLISHED. A row that survived losing its own evidence would
      be answering from somewhere other than the evidence.
-     27 (row, file) pairs x 2 mutations = 54 arms
-     arms=54 failed=0
+     29 (row, file) pairs x 2 mutations = 58 arms
+     arms=58 failed=0
 
   B. VERDICT REACHABILITY -- every allowed verdict must be reachable
      If only one verdict could ever come out, publishing it proves
      nothing about the evidence.
-     pass  PROCEED                <- a non-empty admitted set, retention failing closed, no blocking prerequisite, and the distinction representable -- so nothing has to be excluded
+     pass  PROCEED                <- the WHOLE declared surface admitted, retention failing closed, no blocking prerequisite, and the distinction representable -- nothing was excluded, so this is not a reduced scope
      pass  MODIFY_ANALYZER        <- a shortfall ATTRIBUTED to an analyzer defect while the model rows all hold
      pass  MODIFY_MAP_DESIGN      <- the evidence as it stands: empty admitted set, full accounting, blocking prerequisites open
-     pass  REDUCE_SCOPE           <- a non-empty admitted set while retention still does not fail closed
-     pass  ABANDON_OR_REDESIGN    <- the refusal accounting no longer covers every declaration, so the unsafe class is not mechanically identifiable
+     pass  REDUCE_SCOPE           <- the representability defect repaired, a real named decidable exclusion still in force, and a PROPER SUBSET admitted while retention still does not fail closed
+     pass  ABANDON_OR_REDESIGN    <- the refusal accounting no longer covers every declaration, so the unsafe class is not mechanically identifiable -- with representability repaired, because otherwise the higher-priority map-design rung correctly wins and this label is unreachable for the right reason
      pass  NOT_ESTABLISHED        <- no predicate holds -- the distinction is representable but the admitted set is still empty, so neither map-design nor reduce-scope nor proceed applies; the ladder must not default
      arms=6 failed=0
 
@@ -162,7 +171,15 @@ SM1-FINAL -- sensitivity controls
            Every production prerequisite resolved, representability evidence kept. The predicate must still hold: the blocker count is not an input to it.
      pass  representability resolved, unrelated blocker remains -> map-design predicate FALSE
            Blocking prerequisites still open, representability evidence flipped. An unrelated prerequisite must NOT manufacture a map-design verdict -- this is the defect that made the old predicate too broad.
-     arms=4 failed=0
+     pass  NOT_REPRESENTABLE + admitted>0 -> still MODIFY_MAP_DESIGN
+           A synthetic non-empty admitted set cannot repair a representability defect. The old predicate also required the subset to stay VACUOUS, so this state DISARMED the higher-priority rung -- an invalid decision surface.
+     pass  retention failure alone cannot manufacture REDUCE_SCOPE
+           The baseline already has a measured retention negative and a vacuous patchability result. Neither is an EXCLUSION, and the old predicate accepted either as one.
+     pass  a real named decidable exclusion CAN produce REDUCE_SCOPE
+           The exclusion is the bank's own -- G2's ROADMAP P2 ABI boundary, the unsupported-body refusal and G3's exercised privacy refusals. Nothing was invented to make this label reachable; the counterfactual is the repaired representability and the proper-subset admitted set.
+     pass  fully green + TOTAL admitted + nothing excluded -> PROCEED
+           The whole declared surface is admitted, so no class was excluded and REDUCE_SCOPE must not fire ahead of PROCEED. Proper-subset versus total is what separates the two rungs.
+     arms=8 failed=0
 
   C. WEAKENED ASSEMBLER -- one that hard-codes the baseline verdict
      must FAIL family B. Without this, family B proves the assembler
@@ -189,10 +206,10 @@ SM1-FINAL -- sensitivity controls
      pass  crashed: RESULT.md says ASSEMBLY FAILED
      pass  crashed: RESULT.md does not claim a verdict
 
-  TOTAL arms=84 failed=0
+  TOTAL arms=96 failed=0
 SM1_FINAL_SENSITIVITY: EVERY_CONTROL_DISCRIMINATES
 
-ASSERTIONS (26 checked)
+ASSERTIONS (30 checked)
   pass  the matrix extracted
   pass  every declared row is present
   pass  no row is NOT_ESTABLISHED
@@ -205,6 +222,10 @@ ASSERTIONS (26 checked)
   pass  the selected rung is the FIRST true one
   pass  the analyzer rung carries model validity itself
   pass  the map-design predicate does not read the blocker count
+  pass  the map-design rung is armed by direct evidence alone
+  pass  REDUCE_SCOPE requires all four conditions
+  pass  the named exclusion is extracted, not assumed
+  pass  PROCEED and REDUCE_SCOPE are mutually exclusive by construction
   pass  every predicate is published
   pass  the provenance manifest built
   pass  every consumed input carries a digest

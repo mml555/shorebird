@@ -36,7 +36,8 @@ M = matrix_doc['matrix']
 OUT = sys.argv[2]
 
 POSITIVE = {'ESTABLISHED', 'REFUSAL_ENFORCED', 'MEASURED_DETERMINISTIC',
-            'MEASURED_DETERMINISTIC_PROJECTION_LOW', 'ENUMERATED'}
+            'MEASURED_DETERMINISTIC_PROJECTION_LOW', 'ENUMERATED',
+            'REPRESENTABLE', 'NAMED_AND_FAIL_CLOSED'}
 
 # Rows whose category must be positive before PROCEED is even considered.
 # GENERATION_TIME is excluded on purpose: it is a timing family and a
@@ -48,10 +49,16 @@ REQUIRED_FOR_PROCEED = [
     'CLASSIFICATION_CHANGED_BODY', 'CLASSIFICATION_ABI_BREAK',
     'PRIVACY_DOMAIN_DERIVATION', 'PRIVACY_CROSS_DOMAIN_REFUSAL',
     'RETENTION_CONTRACT', 'RETENTION_WITHHELD_FAILS_CLOSED',
-    'PATCHABILITY_SUBSET_PROPERTY', 'OVER_CLAIM', 'MAP_RELEASE_BINDING',
+    'PATCHABILITY_SUBSET_PROPERTY', 'PATCHABILITY_DISTINCTION_REPRESENTABLE',
+    'OVER_CLAIM', 'MAP_RELEASE_BINDING',
     'MAP_SCHEMA_VERSIONING', 'MAP_SIZE', 'RETENTION_COST_AT_SCALE',
     'REPRODUCIBILITY',
 ]
+# DECIDABLE_EXCLUSIONS is NOT required for PROCEED: proceeding means no
+# exclusion was needed, so its absence is not a defect. GENERATION_TIME is
+# excluded for a different reason -- it is a timing family, and requiring it
+# to be "positive" would turn a stopwatch reading into a reproducibility
+# claim.
 
 # Rows that describe whether the MODEL can represent what it must. If these
 # hold, a shortfall elsewhere is not a modelling failure of identity/ABI/body.
@@ -152,15 +159,24 @@ P['REPRESENTABILITY_EVIDENCE_SAYS_NOT_REPRESENTABLE'] = {
     'from': f'PATCHABILITY_DISTINCTION_REPRESENTABLE='
             f'{cat("PATCHABILITY_DISTINCTION_REPRESENTABLE")}',
 }
+# DEFECT FIXED: this also required the subset to stay VACUOUS, so making the
+# admitted set non-empty DISARMED the map-design rung even while the direct
+# evidence still said the model cannot represent the distinction. That decision
+# surface was invalid -- a synthetic admitted set cannot repair a
+# representability defect. The rung is now armed by the DIRECT evidence alone;
+# the vacuous subset and the complete accounting remain published as
+# corroboration, but they are no longer conditions.
 P['DISTINCTION_NOT_REPRESENTABLE'] = {
-    'value': (P['REPRESENTABILITY_EVIDENCE_SAYS_NOT_REPRESENTABLE']['value']
-              and P['SUBSET_PROPERTY_VACUOUS']['value']
-              and P['UNSAFE_CLASS_MECHANICALLY_ACCOUNTED']['value']),
-    'from': 'REPRESENTABILITY_EVIDENCE_SAYS_NOT_REPRESENTABLE and '
-            'SUBSET_PROPERTY_VACUOUS and '
-            'UNSAFE_CLASS_MECHANICALLY_ACCOUNTED. The unresolved-blocker '
-            'count is deliberately NOT an input: an unrelated production '
-            'prerequisite must not manufacture a map-design verdict.',
+    'value': P['REPRESENTABILITY_EVIDENCE_SAYS_NOT_REPRESENTABLE']['value'],
+    'from': 'REPRESENTABILITY_EVIDENCE_SAYS_NOT_REPRESENTABLE alone. Neither '
+            'the blocker count nor the size of the admitted set is an input: '
+            'an unrelated prerequisite must not manufacture this verdict, and '
+            'a non-empty admitted set must not suppress it.',
+    'corroborated_by': {
+        'SUBSET_PROPERTY_VACUOUS': P['SUBSET_PROPERTY_VACUOUS']['value'],
+        'UNSAFE_CLASS_MECHANICALLY_ACCOUNTED':
+            P['UNSAFE_CLASS_MECHANICALLY_ACCOUNTED']['value'],
+    },
 }
 # "Model works after excluding a decidable feature class" requires TWO things:
 # the reduced model must WORK -- admit something, since a reduction that admits
@@ -170,18 +186,49 @@ P['DISTINCTION_NOT_REPRESENTABLE'] = {
 # correctly demoted to the fall-through rung, that made PROCEED unreachable,
 # because every state good enough to proceed would first satisfy REDUCE_SCOPE.
 # The two are now mutually exclusive by construction.
-P['EXCLUSION_REQUIRED'] = {
-    'value': bool(non_positive),
-    'from': f'required rows not in a positive category, i.e. capability that '
-            f'has to be excluded or accepted as limited: '
-            f'{non_positive or "none"}',
+# DEFECT FIXED: this rung used to be "a non-empty admitted set AND some
+# required row is non-positive". A retention limitation or the vacuous
+# patchability result satisfied the second half, so a retention failure alone
+# could manufacture REDUCE_SCOPE -- and neither is an exclusion. #48/#58 mean
+# a NAMED decidable feature class, excluded, with the exclusion itself proven
+# to fail closed. All four conditions are now explicit.
+P['NAMED_DECIDABLE_EXCLUSION_PRESENT'] = {
+    'value': cat('DECIDABLE_EXCLUSIONS') == 'NAMED_AND_FAIL_CLOSED',
+    'from': f'DECIDABLE_EXCLUSIONS={cat("DECIDABLE_EXCLUSIONS")} -- the class '
+            f'is named in the map contract AND its refusal is reached, not '
+            f'merely representable',
+}
+P['REPRESENTABILITY_DEFECT_ABSENT'] = {
+    'value': cat('PATCHABILITY_DISTINCTION_REPRESENTABLE') == 'REPRESENTABLE',
+    'from': f'PATCHABILITY_DISTINCTION_REPRESENTABLE='
+            f'{cat("PATCHABILITY_DISTINCTION_REPRESENTABLE")}. A scope '
+            f'reduction cannot repair a representability defect: if the model '
+            f'cannot represent the distinction, a smaller input set does not '
+            f'make it able to.',
+}
+P['ADMITTED_SET_IS_SOUND'] = {
+    'value': (P['PATCHABILITY_POSITIVELY_ESTABLISHED']['value']
+              and P['UNSAFE_CLASS_MECHANICALLY_ACCOUNTED']['value']
+              and P['REFUSAL_PATH_ENFORCED']['value']),
+    'from': 'non-empty, every declaration accounted for, and the over-claim '
+            'refusal demonstrated -- a non-empty set that over-claims is not '
+            'a reduced scope, it is an unsound one',
+}
+P['ADMITTED_SET_IS_PROPER_SUBSET'] = {
+    'value': (isinstance(admitted, int) and isinstance(declarations, int)
+              and 0 < admitted < declarations),
+    'from': f'admitted={admitted} of {declarations}: strictly between empty '
+            f'and total, which is what "after EXCLUDING a class" means. A '
+            f'total admitted set excluded nothing and belongs to PROCEED.',
 }
 P['DECIDABLE_EXCLUSION_YIELDS_NONEMPTY'] = {
-    'value': (P['PATCHABILITY_POSITIVELY_ESTABLISHED']['value']
-              and P['EXCLUSION_REQUIRED']['value']),
-    'from': f'a non-empty admitted set (admitted={admitted}) AND something '
-            f'excluded. Both halves: "works AFTER EXCLUDING" is not the same '
-            f'claim as "works".',
+    'value': (P['NAMED_DECIDABLE_EXCLUSION_PRESENT']['value']
+              and P['REPRESENTABILITY_DEFECT_ABSENT']['value']
+              and P['ADMITTED_SET_IS_SOUND']['value']
+              and P['ADMITTED_SET_IS_PROPER_SUBSET']['value']),
+    'from': 'NAMED_DECIDABLE_EXCLUSION_PRESENT and '
+            'REPRESENTABILITY_DEFECT_ABSENT and ADMITTED_SET_IS_SOUND and '
+            'ADMITTED_SET_IS_PROPER_SUBSET -- all four, per the FINAL ruling',
 }
 P['UNSAFE_CLASS_NOT_IDENTIFIABLE'] = {
     'value': not P['UNSAFE_CLASS_MECHANICALLY_ACCOUNTED']['value'],
@@ -200,13 +247,22 @@ P['ANALYZER_DEFECT_UNDER_VALID_MODEL'] = {
             'MODEL_ROWS_ALL_ESTABLISHED -- both, so an attribution against an '
             'invalid model falls through rather than selecting or resetting',
 }
+P['ADMITTED_SET_IS_TOTAL'] = {
+    'value': (isinstance(admitted, int) and isinstance(declarations, int)
+              and admitted == declarations > 0),
+    'from': f'admitted={admitted} of {declarations}: the whole declared '
+            f'surface, so no feature class had to be excluded',
+}
 P['PROCEED_CONDITIONS_MET'] = {
     'value': (P['EVERY_REQUIRED_ROW_POSITIVE']['value']
               and P['PATCHABILITY_POSITIVELY_ESTABLISHED']['value']
               and P['REFUSAL_PATH_ENFORCED']['value']
+              and P['ADMITTED_SET_IS_TOTAL']['value']
               and not P['BLOCKING_PREREQUISITES_UNRESOLVED']['value']),
     'from': 'every required row positive, patchability positively '
-            'established, refusals enforced, no blocking prerequisite open',
+            'established, refusals enforced, the admitted set TOTAL (nothing '
+            'excluded -- a proper subset belongs to REDUCE_SCOPE), and no '
+            'blocking prerequisite open',
 }
 
 # ---- precedence, in #58's literal order --------------------------------
