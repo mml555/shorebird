@@ -171,33 +171,13 @@ t=json.load(open('$VERDICT'))['ladder_trace']
 first=next((i for i,x in enumerate(t) if x['value']), None)
 sel=next((i for i,x in enumerate(t) if x['selected']), None)
 print(first == sel)")"
-want 'the analyzer rung carries model validity itself' True \
-     "$(j "$VERDICT" "'MODEL_ROWS_ALL_ESTABLISHED' in d['predicates']['ANALYZER_DEFECT_UNDER_VALID_MODEL']['from']")"
-want 'the map-design predicate does not read the blocker count' True \
-     "$(python3 -c "
-import json
-f=json.load(open('$VERDICT'))['predicates']['DISTINCTION_NOT_REPRESENTABLE']['from']
-print('BLOCKING_PREREQUISITES_UNRESOLVED' not in f.split('.')[0])")"
-# The map-design rung must be armed by DIRECT representability evidence alone.
-# It previously also required a vacuous subset, so a non-empty admitted set
-# disarmed the higher-priority rung even while the evidence still said the
-# model cannot represent the distinction.
-want 'the map-design rung is armed by direct evidence alone' True \
-     "$(python3 -c "
-import json
-p=json.load(open('$VERDICT'))['predicates']['DISTINCTION_NOT_REPRESENTABLE']
-print(p['value'] == p and False or
-      p['from'].startswith('REPRESENTABILITY_EVIDENCE_SAYS_NOT_REPRESENTABLE alone'))")"
-want 'REDUCE_SCOPE requires all four conditions' 4 \
-     "$(python3 -c "
-import json
-f=json.load(open('$VERDICT'))['predicates']['DECIDABLE_EXCLUSION_YIELDS_NONEMPTY']['from']
-print(sum(k in f for k in ('NAMED_DECIDABLE_EXCLUSION_PRESENT',
-                           'REPRESENTABILITY_DEFECT_ABSENT',
-                           'ADMITTED_SET_IS_SOUND',
-                           'ADMITTED_SET_IS_PROPER_SUBSET')))")"
-want 'the named exclusion is extracted, not assumed' NAMED_AND_FAIL_CLOSED \
-     "$(j "$MATRIX" "d['matrix']['DECIDABLE_EXCLUSIONS']['category']")"
+# STRUCTURAL, NOT TEXTUAL. The first version of these four asserted that a
+# predicate's prose mentioned the right names -- `'NAMED_...' in p['from']` --
+# which would pass unchanged if the predicate itself were rewritten and only
+# the comment left behind. Each now compares published VALUES, so a predicate
+# that stopped being the conjunction it claims to be fails here.
+want 'each rung predicate is the conjunction it claims' 'True True True' \
+     "$(python3 "$G/lib/_check_predicates.py" "$VERDICT")"
 want 'PROCEED and REDUCE_SCOPE are mutually exclusive by construction' True \
      "$(python3 -c "
 import json

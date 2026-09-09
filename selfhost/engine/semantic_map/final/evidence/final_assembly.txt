@@ -1,5 +1,5 @@
 SM1-FINAL -- evidence matrix, computed verdict, provenance
-generated 2026-09-09T07:10:30Z by run_final.sh
+generated 2026-09-09T07:12:51Z by run_final.sh
 source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
 
 ############ 1. THE MATRIX, EXTRACTED FROM EVIDENCE ############
@@ -118,7 +118,7 @@ source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
   declared by rows        : 15
   sets equal              : True
   producing scripts       : 47
-  assembler components    : 7
+  assembler components    : 8
   findings                : none
   inputs without a digest : none
 
@@ -209,7 +209,7 @@ SM1-FINAL -- sensitivity controls
   TOTAL arms=96 failed=0
 SM1_FINAL_SENSITIVITY: EVERY_CONTROL_DISCRIMINATES
 
-ASSERTIONS (30 checked)
+ASSERTIONS (26 checked)
   pass  the matrix extracted
   pass  every declared row is present
   pass  no row is NOT_ESTABLISHED
@@ -220,11 +220,7 @@ ASSERTIONS (30 checked)
   pass  exactly one ladder rung selected
   pass  the ladder follows #58's precedence order
   pass  the selected rung is the FIRST true one
-  pass  the analyzer rung carries model validity itself
-  pass  the map-design predicate does not read the blocker count
-  pass  the map-design rung is armed by direct evidence alone
-  pass  REDUCE_SCOPE requires all four conditions
-  pass  the named exclusion is extracted, not assumed
+  pass  each rung predicate is the conjunction it claims
   pass  PROCEED and REDUCE_SCOPE are mutually exclusive by construction
   pass  every predicate is published
   pass  the provenance manifest built

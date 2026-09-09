@@ -6,7 +6,7 @@
      file creates a second copy of the numbers, free to drift from the
      evidence -- which already happened in this programme once. -->
 
-Generated 2026-09-09T07:10:30Z · issue #58 · tracker #48
+Generated 2026-09-09T07:12:51Z · issue #58 · tracker #48
 
 ## Verdict
 
@@ -131,7 +131,7 @@ Deterministic and timing families are kept separate. The deterministic figures a
 
 ## Provenance
 
-15 evidence files consumed, each digested at read time; 47 producing scripts and 7 assembler components digested.
+15 evidence files consumed, each digested at read time; 47 producing scripts and 8 assembler components digested.
 
 Input set derived from the extractor access log, cross-checked against the registry. Declared by rows: 15; opened by the extractor: 15; sets equal: True.
 
