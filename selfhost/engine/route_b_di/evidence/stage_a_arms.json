@@ -1,0 +1,366 @@
+{
+  "schema": "route-b-di-1/stage-a/1",
+  "issue": 61,
+  "stage": "A",
+  "generated": "2026-09-09T19:26:25Z",
+  "decides_from": "validate_flag_passed, bytecode_produced, module_compile_exit, load_exit. NOT the diagnostic text.",
+  "stage_a_result": "VALIDATOR_CLOSES_ALL_EXERCISED_ONE_ARM_VACUOUS",
+  "attribution_preconditions": {
+    "HARNESS_POSITIVE_HEALTHY": {
+      "value": true,
+      "from": "positive_full=COMPILED_AND_LOADED, dispatch=PATCH-CHILD (PATCH-CHILD proves the module really ran and overrode the host)"
+    },
+    "VALIDATOR_IGNORES_IRRELEVANT_SPEC_DELTA": {
+      "value": true,
+      "from": "positive_full_plus=COMPILED_AND_LOADED -- an entry the module never uses was added and it still compiled and ran"
+    },
+    "REFUSAL_IS_CAUSED_BY_THE_FLAG": {
+      "value": true,
+      "from": "control_no_validate=COMPILED_AND_LOADED -- the same restricted specification with --validate dropped still produced a module, so a refusal with the flag is attributable to the flag"
+    }
+  },
+  "attribution_established": true,
+  "arm_states": {
+    "positive_full": "COMPILED_AND_LOADED",
+    "positive_full_plus": "COMPILED_AND_LOADED",
+    "policy_no_extendable": "REFUSED_AT_COMPILE",
+    "policy_no_type": "COMPILED_AND_LOADED",
+    "policy_no_overridable": "REFUSED_AT_COMPILE",
+    "adjacent_no_callable": "REFUSED_AT_COMPILE",
+    "host_spec_as_module_spec": "REFUSED_AT_COMPILE",
+    "input_empty": "REFUSED_AT_COMPILE",
+    "input_unparseable": "REFUSED_AT_COMPILE",
+    "input_missing": "REFUSED_AT_COMPILE",
+    "rule_type_positive": "COMPILED_AND_LOADED",
+    "rule_type_withdrawn": "REFUSED_AT_COMPILE",
+    "control_no_validate": "COMPILED_AND_LOADED"
+  },
+  "owned_policy_arms": {
+    "policy_no_extendable": {
+      "state": "REFUSED_AT_COMPILE",
+      "closed_by_validator": true,
+      "validate_flag_passed": true,
+      "spec": "di_mf_no_extendable.yaml",
+      "spec_sha256": "6d7415318eb9a096020f8d55d4ebcb052c5521c647286a6fa9732ffd5b7dc8ad",
+      "module_compile_exit": 254,
+      "bytecode_produced": false,
+      "load_exit": null,
+      "dispatch": null,
+      "diagnostic_first_line": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:5:7: Error: Cannot extend, implement or mix-in class 'Base' in a dynamic module."
+    },
+    "policy_no_type": {
+      "state": "COMPILED_AND_LOADED",
+      "closed_by_validator": false,
+      "validate_flag_passed": true,
+      "spec": "di_mf_no_type.yaml",
+      "spec_sha256": "82086c5fbaed6be8988e1d7450d85ee08bae34518b3fdc173bffd7f34dd9030f",
+      "module_compile_exit": 0,
+      "bytecode_produced": true,
+      "load_exit": 0,
+      "dispatch": "PATCH-CHILD",
+      "diagnostic_first_line": "",
+      "vacuous_arm": true
+    },
+    "policy_no_overridable": {
+      "state": "REFUSED_AT_COMPILE",
+      "closed_by_validator": true,
+      "validate_flag_passed": true,
+      "spec": "di_mf_no_overridable.yaml",
+      "spec_sha256": "02d69a184ce4f4fd4bdf466e9465895405aadbaa6a75cdbf0e0e22e575029d27",
+      "module_compile_exit": 254,
+      "bytecode_produced": false,
+      "load_exit": null,
+      "dispatch": null,
+      "diagnostic_first_line": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:7:10: Error: Cannot override member 'Base.execute' in a dynamic module."
+    }
+  },
+  "policy_closed": [
+    "policy_no_extendable",
+    "policy_no_overridable"
+  ],
+  "policy_still_open": [],
+  "policy_vacuous_arms": {
+    "policy_no_type": {
+      "why": "m_ok.dart never uses n_host.Base as a type, so withdrawing can-be-used-as-type withdraws a permission the module does not exercise. The historical FAIL_OPEN measured nothing.",
+      "rule_enforced_on_a_module_that_does_exercise_it": true,
+      "evidence": {
+        "rule_type_positive": "COMPILED_AND_LOADED",
+        "rule_type_withdrawn": "REFUSED_AT_COMPILE",
+        "module": "m_type.dart = m_ok.dart + one Base type annotation"
+      }
+    }
+  },
+  "type_rule_enforced_on_exercising_module": true,
+  "silent_bypass_survives": false,
+  "specification_input_arms": {
+    "input_empty": {
+      "state": "REFUSED_AT_COMPILE",
+      "refused": true
+    },
+    "input_unparseable": {
+      "state": "REFUSED_AT_COMPILE",
+      "refused": true
+    },
+    "input_missing": {
+      "state": "REFUSED_AT_COMPILE",
+      "refused": true
+    }
+  },
+  "specification_input_all_refused": true,
+  "adjacent_import_resolution_arm": {
+    "state": "REFUSED_AT_COMPILE",
+    "note": "Recorded and NOT counted toward the policy result. G6A closed this at load as IMPORT_RESOLUTION; converting it into a dynamic-interface policy pass merely to make this lane green is what #61 forbids.",
+    "load_exit": null,
+    "bytecode_produced": false
+  },
+  "host_specification_completeness": {
+    "arm": "host_spec_as_module_spec",
+    "state": "REFUSED_AT_COMPILE",
+    "refused_the_positive_module": true,
+    "note": "G6A's di_full.yaml was written for gen_kernel --dynamic-interface, which annotates rather than validates. If it refuses the POSITIVE module here, the host specification is not by itself a module-validation specification -- which is a direct input to Stage B, because Route B would have to obtain a COMPLETE specification and not merely the one the host build already uses."
+  },
+  "out_of_scope": {
+    "HOST_IDENTITY": [
+      "wrong_platform_dill",
+      "wrong_runtime_build"
+    ],
+    "why": "#61 explicitly does not own these and they are neither counted as success nor as failure here."
+  },
+  "findings": [],
+  "arms": {
+    "positive_full": {
+      "id": "positive_full",
+      "spec": "di_module_full.yaml",
+      "spec_path": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/specs/di_module_full.yaml",
+      "spec_sha256": "0af5e3628196179065fd22e3af2f317cbc0670ce46055c6c53f7a1ab9de1fb41",
+      "expectation": "compile_and_load",
+      "module_source": "m_ok.dart",
+      "validate_flag_passed": true,
+      "host_kernel_exit": 0,
+      "host_snapshot_exit": 0,
+      "module_compile_exit": 0,
+      "bytecode_produced": true,
+      "load_exit": 0,
+      "dispatch": "PATCH-CHILD",
+      "module_compile_message": "",
+      "host_build_message": "",
+      "load_output": "LOADED: Instance of 'PatchChild'\nDISPATCH: PATCH-CHILD"
+    },
+    "positive_full_plus": {
+      "id": "positive_full_plus",
+      "spec": "di_mf_plus.yaml",
+      "spec_path": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/specs/di_mf_plus.yaml",
+      "spec_sha256": "2956a5c32cb6d5eb8a057729efb167744ce50e93acccbe223795d271d821646e",
+      "expectation": "compile_and_load",
+      "module_source": "m_ok.dart",
+      "validate_flag_passed": true,
+      "host_kernel_exit": 0,
+      "host_snapshot_exit": 0,
+      "module_compile_exit": 0,
+      "bytecode_produced": true,
+      "load_exit": 0,
+      "dispatch": "PATCH-CHILD",
+      "module_compile_message": "",
+      "host_build_message": "",
+      "load_output": "LOADED: Instance of 'PatchChild'\nDISPATCH: PATCH-CHILD"
+    },
+    "policy_no_extendable": {
+      "id": "policy_no_extendable",
+      "spec": "di_mf_no_extendable.yaml",
+      "spec_path": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/specs/di_mf_no_extendable.yaml",
+      "spec_sha256": "6d7415318eb9a096020f8d55d4ebcb052c5521c647286a6fa9732ffd5b7dc8ad",
+      "expectation": "refuse_at_compile",
+      "module_source": "m_ok.dart",
+      "validate_flag_passed": true,
+      "host_kernel_exit": 0,
+      "host_snapshot_exit": 0,
+      "module_compile_exit": 254,
+      "bytecode_produced": false,
+      "load_exit": null,
+      "dispatch": null,
+      "module_compile_message": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:5:7: Error: Cannot extend, implement or mix-in class 'Base' in a dynamic module.\nTry removing the reference to class 'Base' or update the dynamic interface to list class 'Base' as extendable.\nclass PatchChild extends Base {\n      ^\n",
+      "host_build_message": "",
+      "load_output": ""
+    },
+    "policy_no_type": {
+      "id": "policy_no_type",
+      "spec": "di_mf_no_type.yaml",
+      "spec_path": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/specs/di_mf_no_type.yaml",
+      "spec_sha256": "82086c5fbaed6be8988e1d7450d85ee08bae34518b3fdc173bffd7f34dd9030f",
+      "expectation": "refuse_at_compile",
+      "module_source": "m_ok.dart",
+      "validate_flag_passed": true,
+      "host_kernel_exit": 0,
+      "host_snapshot_exit": 0,
+      "module_compile_exit": 0,
+      "bytecode_produced": true,
+      "load_exit": 0,
+      "dispatch": "PATCH-CHILD",
+      "module_compile_message": "",
+      "host_build_message": "",
+      "load_output": "LOADED: Instance of 'PatchChild'\nDISPATCH: PATCH-CHILD"
+    },
+    "policy_no_overridable": {
+      "id": "policy_no_overridable",
+      "spec": "di_mf_no_overridable.yaml",
+      "spec_path": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/specs/di_mf_no_overridable.yaml",
+      "spec_sha256": "02d69a184ce4f4fd4bdf466e9465895405aadbaa6a75cdbf0e0e22e575029d27",
+      "expectation": "refuse_at_compile",
+      "module_source": "m_ok.dart",
+      "validate_flag_passed": true,
+      "host_kernel_exit": 0,
+      "host_snapshot_exit": 0,
+      "module_compile_exit": 254,
+      "bytecode_produced": false,
+      "load_exit": null,
+      "dispatch": null,
+      "module_compile_message": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:7:10: Error: Cannot override member 'Base.execute' in a dynamic module.\nTry removing the override or update the dynamic interface to list member 'Base.execute' as can-be-overridden.\n  String execute() => 'PATCH-CHILD';\n         ^\n",
+      "host_build_message": "",
+      "load_output": ""
+    },
+    "adjacent_no_callable": {
+      "id": "adjacent_no_callable",
+      "spec": "di_no_callable.yaml",
+      "spec_path": "/Users/mendell/shorebird/selfhost/engine/route_b_di/probe/di_no_callable.yaml",
+      "spec_sha256": "93866fdf59b3512955ee72f92a3c2bfaf6e2a68bc90f987b6fb6ca09242c264e",
+      "expectation": "classify_only",
+      "module_source": "m_ok.dart",
+      "validate_flag_passed": true,
+      "host_kernel_exit": 0,
+      "host_snapshot_exit": 0,
+      "module_compile_exit": 254,
+      "bytecode_produced": false,
+      "load_exit": null,
+      "dispatch": null,
+      "module_compile_message": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:6:4: Error: Cannot invoke member 'override' from a dynamic module.\nTry removing the call or update the dynamic interface to list member 'override' as callable.\n  @override\n   ^\n/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:7:17: Error: Cannot use class 'String' as a type in a dynamic module.\nTry removing the reference to class 'String' or update the dynamic interface to list class 'String' as can-be-used-as-type.\n  String execute() => 'PATCH-CHILD';\n                ^\n/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:10:2: Error: Cannot invoke member 'pragma.' from a dynamic module.\nTry removing the call or update the dynamic interface to list member 'pragma.' as callable.\n@pragma('dyn-module:entry-point')\n ^\n/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:11:14: Error: Cannot use class 'Object' as a type in a dynamic module.\nTry removing the reference to class 'Object' or update the dynamic interface to list class 'Object' as can-be-used-as-type.\nObject? entry() {\n             ^\n/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:12:3: Error: Cannot invoke member 'retained' from a dynamic module.\nTry removing the call or update the dynamic interface to list member 'retained' as callable.\n  retained();\n  ^\n",
+      "host_build_message": "",
+      "load_output": ""
+    },
+    "host_spec_as_module_spec": {
+      "id": "host_spec_as_module_spec",
+      "spec": "di_full.yaml",
+      "spec_path": "/Users/mendell/shorebird/selfhost/engine/route_b_di/probe/di_full.yaml",
+      "spec_sha256": "e61e3f8f9ace6cfe24b3adfc2dd07f242a82e413c43f835e037493eaeef47607",
+      "expectation": "classify_only",
+      "module_source": "m_ok.dart",
+      "validate_flag_passed": true,
+      "host_kernel_exit": 0,
+      "host_snapshot_exit": 0,
+      "module_compile_exit": 254,
+      "bytecode_produced": false,
+      "load_exit": null,
+      "dispatch": null,
+      "module_compile_message": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:6:4: Error: Cannot invoke member 'override' from a dynamic module.\nTry removing the call or update the dynamic interface to list member 'override' as callable.\n  @override\n   ^\n/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:7:17: Error: Cannot use class 'String' as a type in a dynamic module.\nTry removing the reference to class 'String' or update the dynamic interface to list class 'String' as can-be-used-as-type.\n  String execute() => 'PATCH-CHILD';\n                ^\n/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:10:2: Error: Cannot invoke member 'pragma.' from a dynamic module.\nTry removing the call or update the dynamic interface to list member 'pragma.' as callable.\n@pragma('dyn-module:entry-point')\n ^\n/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:11:14: Error: Cannot use class 'Object' as a type in a dynamic module.\nTry removing the reference to class 'Object' or update the dynamic interface to list class 'Object' as can-be-used-as-type.\nObject? entry() {\n             ^\n",
+      "host_build_message": "",
+      "load_output": ""
+    },
+    "input_empty": {
+      "id": "input_empty",
+      "spec": "di_empty.yaml",
+      "spec_path": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/specs/di_empty.yaml",
+      "spec_sha256": "f134172e516763fe915182d498bdeaaf7104c23cf746bd1b70413484fe3f6f4e",
+      "expectation": "refuse_at_compile",
+      "module_source": "m_ok.dart",
+      "validate_flag_passed": true,
+      "host_kernel_exit": 0,
+      "host_snapshot_exit": 0,
+      "module_compile_exit": 254,
+      "bytecode_produced": false,
+      "load_exit": null,
+      "dispatch": null,
+      "module_compile_message": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:5:7: Error: Cannot extend, implement or mix-in class 'Base' in a dynamic module.\nTry removing the reference to class 'Base' or update the dynamic interface to list class 'Base' as extendable.\nclass PatchChild extends Base {\n      ^\n/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:7:10: Error: Cannot override member 'Base.execute' in a dynamic module.\nTry removing the override or update the dynamic interface to list member 'Base.execute' as can-be-overridden.\n  String execute() => 'PATCH-CHILD';\n         ^\n/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart: Error: Cannot invoke constructor 'Base' from a dynamic module.\nTry removing the call or update the dynamic interface to list constructor 'Base' as callable.\n/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:6:4: Error: Cannot invoke member 'override' from a dynamic module.\nTry removing the call or update the dynamic interface to list member 'override' as callable.\n  @override\n   ^\n/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:7:17: Error: Cannot use class 'String' as a type in a dynamic module.\nTry removing the reference to class 'String' or update the dynamic interface to list class 'String' as can-be-used-as-type.\n  String execute() => 'PATCH-CHILD';\n                ^\n/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:10:2: Error: Cannot invoke member 'pragma.' from a dynamic module.\nTry removing the call or update the dynamic interface to list member 'pragma.' as callable.\n@pragma('dyn-module:entry-point')\n ^\n/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:11:14: Error: Cannot use class 'Object' as a type in a dynamic module.\nTry removing the reference to class 'Object' or update the dynamic interface to list class 'Object' as can-be-used-as-type.\nObject? entry() {\n             ^\n/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:12:3: Error: Cannot invoke member 'retained' from a dynamic module.\nTry removing the call or update the dynamic interface to list member 'retained' as callable.\n  retained();\n  ^\n",
+      "host_build_message": "",
+      "load_output": ""
+    },
+    "input_unparseable": {
+      "id": "input_unparseable",
+      "spec": "di_broken.yaml",
+      "spec_path": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/specs/di_broken.yaml",
+      "spec_sha256": "14769da4a5ad7ff30ff1e5e17def4d5b48cac69d461cca4be3743cce99179571",
+      "expectation": "refuse_at_compile",
+      "module_source": "m_ok.dart",
+      "validate_flag_passed": true,
+      "host_kernel_exit": 255,
+      "host_snapshot_exit": 1,
+      "module_compile_exit": 255,
+      "bytecode_produced": false,
+      "load_exit": null,
+      "dispatch": null,
+      "module_compile_message": "Unhandled exception:\nCrash when compiling:\nError on line 5, column 1: Unexpected end of file.\n  \u2577\n5 \u2502 \n  \u2502 ^\n  \u2575\n\n#0      Scanner._scanFlowScalar (package:yaml/src/scanner.dart:1260:9)\n#1      Scanner._fetchFlowScalar (package:yaml/src/scanner.dart:766:17)\n#2      Scanner._fetchNextToken (package:yaml/src/scanner.dart:402:9)\n#3      Scanner._fetchMoreTokens (package:yaml/src/scanner.dart:333:7)\n#4      Scanner.peek (package:yaml/src/scanner.dart:311:27)\n#5      Scanner.advance (package:yaml/src/scanner.dart:305:12)\n#6      Parser._parseBlockMappingValue (package:yaml/src/parser.dart:477:22)\n#7      Parser._stateMachine (package:yaml/src/parser.dart:102:16)\n#8      Parser.parse (package:yaml/src/parser.dart:61:19)\n#9      Loader._loadMapping (package:yaml/src/loader.dart:163:37)\n#10     Loader._loadNode (package:yaml/src/loader.dart:88:35)\n#11     Loader._loadSequence (package:yaml/src/loader.dart:140:20)\n#12     Loader._loadNode (package:yaml/src/loader.dart:87:11)\n#13     Loader._loadMapping (package:yaml/src/loader.dart:163:19)\n#14     Loader._loadNode (package:yaml/src/loader.dart:88:35)\n#15     Loader._loadDocument (package:yaml/src/loader.dart:68:20)\n#16     Loader.load (package:yaml/src/loader.dart:60:20)\n#17     loadYamlDocument (package:yaml/yaml.dart:69:25)\n#18     loadYamlNode (package:yaml/yaml.dart:54:5)\n#19     new DynamicInterfaceYamlFile (package:front_end/src/kernel/dynamic_module_validator.dart:66:55)\n#20     new DynamicInterfaceSpecification (package:front_end/src/kernel/dynamic_module_validator.dart:116:9)\n#21     validateDynamicModule (package:front_end/src/kernel/dynamic_module_validator.dart:32:50)\n#22     KernelTarget.validateDynamicModule (package:front_end/src/kernel/kernel_target.dart:1822:34)\n<asynchronous suspension>\n#23     KernelTarget.buildComponent.<anonymous closure> (package:front_end/src/kernel/kernel_target.dart:778:7)\n<asynchronous suspension>\n#24     withCrashReporting (package:front_end/src/base/crash.dart:146:12)\n<asynchronous suspension>\n#25     KernelTarget.buildComponent (package:front_end/src/kernel/kernel_target.dart:715:12)\n<asynchronous suspension>\n#26     _buildInternal (package:front_end/src/kernel_generator_impl.dart:242:19)\n<asynchronous suspension>\n#27     withCrashReporting (package:front_end/src/base/crash.dart:146:12)\n<asynchronous suspension>\n#28     generateKernel.<anonymous closure> (package:front_end/src/kernel_generator_impl.dart:48:12)\n<asynchronous suspension>\n#29     CompilerContext.clear (package:front_end/src/base/compiler_context.dart:92:3)\n<asynchronous suspension>\n#30     generateKernel (package:front_end/src/kernel_generator_impl.dart:45:10)\n<asynchronous suspension>\n#31     kernelForModule (package:front_end/src/api_prototype/kernel_generator.dart:121:11)\n<asynchronous suspension>\n#32     compileToKernel.<anonymous closure> (package:vm/kernel_front_end.dart:688:13)\n<asynchronous suspension>\n#33     CompilerContext.clear (package:front_end/src/base/compiler_context.dart:92:3)\n<asynchronous suspension>\n#34     compileToKernel (package:vm/kernel_front_end.dart:679:22)\n<asynchronous suspension>\n#35     runCompilerWithOptions (package:dart2bytecode/dart2bytecode.dart:321:19)\n<asynchronous suspension>\n#36     runCompilerWithCommandLineArguments (package:dart2bytecode/dart2bytecode.dart:205:10)\n<asynchronous suspension>\n#37     main (package:dart2bytecode/dart2bytecode.dart:160:17)\n<asynchronous suspension>\n#38     main (file:///Volumes/build/semantic-linker/sl1/flutter/engine/src/flutter/third_party/dart/pkg/dart2bytecode/bin/dart2bytecode.dart:8:3)\n<asynchronous suspension>\n",
+      "host_build_message": "Unhandled exception:\nError on line 5, column 1: Unexpected end of file.\n  \u2577\n5 \u2502 \n  \u2502 ^\n  \u2575\n#0      Scanner._scanFlowScalar (package:yaml/src/scanner.dart:1260:9)\n#1      Scanner._fetchFlowScalar (package:yaml/src/scanner.dart:766:17)\n#2      Scanner._fetchNextToken (package:yaml/src/scanner.dart:402:9)\n#3      Scanner._fetchMoreTokens (package:yaml/src/scanner.dart:333:7)\n#4      Scanner.peek (package:yaml/src/scanner.dart:311:27)\n#5      Scanner.advance (package:yaml/src/scanner.dart:305:12)\n#6      Parser._parseBlockMappingValue (package:yaml/src/parser.dart:477:22)\n#7      Parser._stateMachine (package:yaml/src/parser.dart:102:16)\n#8      Parser.parse (package:yaml/src/parser.dart:61:19)\n#9      Loader._loadMapping (package:yaml/src/loader.dart:163:37)\n#10     Loader._loadNode (package:yaml/src/loader.dart:88:35)\n#11     Loader._loadSequence (package:yaml/src/loader.dart:140:20)\n#12     Loader._loadNode (package:yaml/src/loader.dart:87:11)\n#13     Loader._loadMapping (package:yaml/src/loader.dart:163:19)\n#14     Loader._loadNode (package:yaml/src/loader.dart:88:35)\n#15     Loader._loadDocument (package:yaml/src/loader.dart:68:20)\n#16     Loader.load (package:yaml/src/loader.dart:60:20)\n#17     loadYamlDocument (package:yaml/yaml.dart:69:25)\n#18     loadYamlNode (package:yaml/yaml.dart:54:5)\n#19     new DynamicInterfaceYamlFile (package:front_end/src/kernel/dynamic_module_validator.dart:66:55)\n#20     compileToKernel (package:vm/kernel_front_end.dart:659:38)\n<asynchronous suspension>\n#21     runCompiler (package:vm/kernel_front_end.dart:447:19)\n<asynchronous suspension>\n#22     main (file:///Volumes/build/semantic-linker/sl1/flutter/engine/src/flutter/third_party/dart/pkg/vm/bin/gen_kernel.dart:35:19)\n<asynchronous suspension>\n",
+      "load_output": ""
+    },
+    "input_missing": {
+      "id": "input_missing",
+      "spec": "di_absent.yaml",
+      "spec_path": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/specs/di_absent.yaml",
+      "spec_sha256": "absent",
+      "expectation": "refuse_at_compile",
+      "module_source": "m_ok.dart",
+      "validate_flag_passed": true,
+      "host_kernel_exit": 1,
+      "host_snapshot_exit": 1,
+      "module_compile_exit": 254,
+      "bytecode_produced": false,
+      "load_exit": null,
+      "dispatch": null,
+      "module_compile_message": "Error: Error when reading '/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/specs/di_absent.yaml': No such file or directory\n",
+      "host_build_message": "specification absent: /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/specs/di_absent.yaml\n",
+      "load_output": ""
+    },
+    "rule_type_positive": {
+      "id": "rule_type_positive",
+      "spec": "di_module_full.yaml",
+      "spec_path": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/specs/di_module_full.yaml",
+      "spec_sha256": "0af5e3628196179065fd22e3af2f317cbc0670ce46055c6c53f7a1ab9de1fb41",
+      "expectation": "compile_and_load",
+      "module_source": "m_type.dart",
+      "validate_flag_passed": true,
+      "host_kernel_exit": 0,
+      "host_snapshot_exit": 0,
+      "module_compile_exit": 0,
+      "bytecode_produced": true,
+      "load_exit": 0,
+      "dispatch": "PATCH-CHILD",
+      "module_compile_message": "",
+      "host_build_message": "",
+      "load_output": "LOADED: Instance of 'PatchChild'\nDISPATCH: PATCH-CHILD"
+    },
+    "rule_type_withdrawn": {
+      "id": "rule_type_withdrawn",
+      "spec": "di_mf_no_type.yaml",
+      "spec_path": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/specs/di_mf_no_type.yaml",
+      "spec_sha256": "82086c5fbaed6be8988e1d7450d85ee08bae34518b3fdc173bffd7f34dd9030f",
+      "expectation": "refuse_at_compile",
+      "module_source": "m_type.dart",
+      "validate_flag_passed": true,
+      "host_kernel_exit": 0,
+      "host_snapshot_exit": 0,
+      "module_compile_exit": 254,
+      "bytecode_produced": false,
+      "load_exit": null,
+      "dispatch": null,
+      "module_compile_message": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/specs/m_type.dart:15:14: Error: Cannot use class 'Base' as a type in a dynamic module.\nTry removing the reference to class 'Base' or update the dynamic interface to list class 'Base' as can-be-used-as-type.\n  final Base b = PatchChild();\n             ^\n",
+      "host_build_message": "",
+      "load_output": ""
+    },
+    "control_no_validate": {
+      "id": "control_no_validate",
+      "spec": "di_mf_no_extendable.yaml",
+      "spec_path": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/specs/di_mf_no_extendable.yaml",
+      "spec_sha256": "6d7415318eb9a096020f8d55d4ebcb052c5521c647286a6fa9732ffd5b7dc8ad",
+      "expectation": "compile_unvalidated",
+      "module_source": "m_ok.dart",
+      "validate_flag_passed": false,
+      "host_kernel_exit": 0,
+      "host_snapshot_exit": 0,
+      "module_compile_exit": 0,
+      "bytecode_produced": true,
+      "load_exit": 0,
+      "dispatch": null,
+      "module_compile_message": "",
+      "host_build_message": "",
+      "load_output": "LOADED: Instance of 'PatchChild'"
+    }
+  }
+}

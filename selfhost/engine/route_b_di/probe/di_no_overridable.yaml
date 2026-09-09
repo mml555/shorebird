@@ -1,0 +1,16 @@
+# G6A negative: no_overridable. Derived from di_full.yaml with exactly one entry removed.
+extendable:
+- library: package:dynamic_modules/n_host.dart
+  class: Base
+can-be-used-as-type:
+- library: package:dynamic_modules/n_host.dart
+  class: Base
+callable:
+- library: package:dynamic_modules/n_host.dart
+  class: Base
+  member: ''
+- library: package:dynamic_modules/n_host.dart
+  class: Base
+  member: execute
+- library: package:dynamic_modules/n_host.dart
+  member: retained
