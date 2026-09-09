@@ -1586,5 +1586,17 @@
         }
       ]
     }
-  ]
+  ],
+  "positive_categories": {
+    "why": "The set of categories that count as POSITIVE evidence lived in TWO places -- the extractor used it to build KNOWN_GAPS, the classifier used it for EVERY_REQUIRED_ROW_POSITIVE -- and they drifted the moment two categories were added: DECIDABLE_EXCLUSIONS = NAMED_AND_FAIL_CLOSED was counted as a positive finding by the classifier and simultaneously listed as a known GAP by the extractor. Same failure as the derived-arm rule in G8. One definition, and it is data.",
+    "categories": [
+      "ESTABLISHED",
+      "REFUSAL_ENFORCED",
+      "MEASURED_DETERMINISTIC",
+      "MEASURED_DETERMINISTIC_PROJECTION_LOW",
+      "ENUMERATED",
+      "REPRESENTABLE",
+      "NAMED_AND_FAIL_CLOSED"
+    ]
+  }
 }

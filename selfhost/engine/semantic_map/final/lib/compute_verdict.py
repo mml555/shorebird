@@ -35,9 +35,9 @@ matrix_doc = json.load(open(sys.argv[1]))
 M = matrix_doc['matrix']
 OUT = sys.argv[2]
 
-POSITIVE = {'ESTABLISHED', 'REFUSAL_ENFORCED', 'MEASURED_DETERMINISTIC',
-            'MEASURED_DETERMINISTIC_PROJECTION_LOW', 'ENUMERATED',
-            'REPRESENTABLE', 'NAMED_AND_FAIL_CLOSED'}
+# From the registry -- the single definition. Two copies of this set
+# drifted once and made a positive finding show up as a known gap.
+POSITIVE = set(matrix_doc['positive_categories'])
 
 # Rows whose category must be positive before PROCEED is even considered.
 # GENERATION_TIME is excluded on purpose: it is a timing family and a

@@ -213,6 +213,9 @@ def evaluate(row):
 
 
 reg = json.loads(REGISTRY.read_bytes())
+# From the registry -- the single definition. Two copies of this set
+# drifted once and made a positive finding show up as a known gap.
+POSITIVE = set(reg['positive_categories']['categories'])
 matrix = collections.OrderedDict()
 for row in reg['rows']:
     cat, values, details, note, rule_idx = evaluate(row)
@@ -231,8 +234,6 @@ for row in reg['rows']:
 # Assembled from three independent sources so nothing depends on one of them
 # being remembered: rows that are not positive evidence, G8's unresolved
 # production prerequisites, and G8's reproduced FAIL_OPEN findings.
-POSITIVE = {'ESTABLISHED', 'REFUSAL_ENFORCED', 'MEASURED_DETERMINISTIC',
-            'ENUMERATED'}
 gaps = []
 for name, r in matrix.items():
     if r['category'] not in POSITIVE:
@@ -285,6 +286,7 @@ doc = collections.OrderedDict([
         ('rows_declared', len(reg['rows'])),
     ])),
     ('category_vocabulary', reg['category_vocabulary']),
+    ('positive_categories', sorted(POSITIVE)),
     ('matrix', matrix),
     ('not_established',
      sorted(k for k, v in matrix.items()

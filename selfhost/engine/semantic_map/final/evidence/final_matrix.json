@@ -3,10 +3,10 @@
   "gate": "SM1-FINAL",
   "issue": 58,
   "tracker": 48,
-  "generated": "2026-09-09T07:12:51Z",
+  "generated": "2026-09-09T07:15:54Z",
   "registry": {
     "path": "final/evidence_registry.json",
-    "sha256": "42b34e1d38fb8ce9ae7fd5d02a8fe6545bbb5ce894178f45014cd54334e8a8d2",
+    "sha256": "a05ea5b648a39f63624b0590cff5a7603742977f98ec739a349d7e92df7e01b2",
     "rows_declared": 21
   },
   "category_vocabulary": {
@@ -25,6 +25,15 @@
     "NAMED_AND_FAIL_CLOSED": "a decidable feature class is named as excluded and its refusal is demonstrated reachable",
     "NONE_NAMED": "no feature class is excluded"
   },
+  "positive_categories": [
+    "ENUMERATED",
+    "ESTABLISHED",
+    "MEASURED_DETERMINISTIC",
+    "MEASURED_DETERMINISTIC_PROJECTION_LOW",
+    "NAMED_AND_FAIL_CLOSED",
+    "REFUSAL_ENFORCED",
+    "REPRESENTABLE"
+  ],
   "matrix": {
     "DECLARATION_ID_STABILITY": {
       "category": "ESTABLISHED",
@@ -503,7 +512,7 @@
       "category": "ENUMERATED",
       "question": "What was not established, measured negatively, or left unresolved?",
       "note": "Generated from the matrix categories, G8 production prerequisites and G8 reproduced FAIL_OPEN findings. UNKNOWN, VACUOUS, NOT_ESTABLISHED and unresolved prerequisites appear verbatim and are not softened.",
-      "count": 16,
+      "count": 14,
       "entries": [
         {
           "source": "matrix",
@@ -531,21 +540,9 @@
         },
         {
           "source": "matrix",
-          "id": "DECIDABLE_EXCLUSIONS",
-          "category": "NAMED_AND_FAIL_CLOSED",
-          "detail": "Each excluded class is NAMED in the map contract and its refusal is REACHED, not merely representable: the type-parameter shape is refused, an unsupported body refuses on either side of the comparison, and every privacy refusal category in the return surface is exercised. A refusal that exists in the code but is never reached would leave the exclusion undecidable in practice."
-        },
-        {
-          "source": "matrix",
           "id": "GENERATION_TIME",
           "category": "MEASURED_CURRENT_RUN_ONLY",
           "detail": "TIMING FAMILY, deliberately kept separate from the deterministic figures. These values are current-run observations and are not reproducible across runs. The order-dependence label set moves between identical runs even with the noise gate, so the max(stdev) classifier is a COST DIAGNOSTIC only -- never a safety or causality claim."
-        },
-        {
-          "source": "matrix",
-          "id": "RETENTION_COST_AT_SCALE",
-          "category": "MEASURED_DETERMINISTIC_PROJECTION_LOW",
-          "detail": "Artifact-derived and reproducible. G4's retention curve UNDERSTATES the measured cost, so the projection may not be substituted for a measurement at the scale being shipped."
         },
         {
           "source": "g8_prerequisite",

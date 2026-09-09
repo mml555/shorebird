@@ -1,5 +1,5 @@
 SM1-FINAL -- evidence matrix, computed verdict, provenance
-generated 2026-09-09T07:12:51Z by run_final.sh
+generated 2026-09-09T07:15:54Z by run_final.sh
 source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
 
 ############ 1. THE MATRIX, EXTRACTED FROM EVIDENCE ############
@@ -37,7 +37,7 @@ source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
   KNOWN_GAPS                         ENUMERATED
 
   NOT_ESTABLISHED: none
-  KNOWN_GAPS entries: 16
+  KNOWN_GAPS entries: 14
   evidence files unreadable: none
 
 ############ 2. THE VERDICT, COMPUTED FROM THE MATRIX ############
@@ -123,7 +123,7 @@ source tree /Users/mendell/shorebird/selfhost/engine/semantic_map
   inputs without a digest : none
 
 ############ 4. RESULT.md, GENERATED FROM THOSE ARTIFACTS ############
-  RESULT.md generated: 162 lines, 22 rows, verdict MODIFY_MAP_DESIGN
+  RESULT.md generated: 160 lines, 22 rows, verdict MODIFY_MAP_DESIGN
 
 ############ 5. SENSITIVITY CONTROLS ############
   The published verdict is only worth something if a DIFFERENT verdict was
@@ -209,10 +209,13 @@ SM1-FINAL -- sensitivity controls
   TOTAL arms=96 failed=0
 SM1_FINAL_SENSITIVITY: EVERY_CONTROL_DISCRIMINATES
 
-ASSERTIONS (26 checked)
+ASSERTIONS (29 checked)
   pass  the matrix extracted
   pass  every declared row is present
   pass  no row is NOT_ESTABLISHED
+  pass  no positive row is also listed as a known gap
+  pass  the positive set came from the registry
+  pass  every positive category is in the declared vocabulary
   pass  every evidence file was readable
   pass  the verdict computed
   pass  the verdict is one of the five allowed

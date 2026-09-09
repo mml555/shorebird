@@ -149,6 +149,32 @@ want 'every declared row is present' \
 import json;print(len(json.load(open('$G/evidence_registry.json'))['rows']) + 1)")" \
      "$(j "$MATRIX" "len(d['matrix'])")"
 want 'no row is NOT_ESTABLISHED' 0 "$(j "$MATRIX" "len(d['not_established'])")"
+# The positive-category set lived in two places and drifted, so a positive
+# finding (DECIDABLE_EXCLUSIONS = NAMED_AND_FAIL_CLOSED) was simultaneously
+# counted as positive by the classifier and listed as a known GAP by the
+# extractor. Both now read one definition in the registry; this asserts the
+# consequence directly rather than trusting the wiring.
+want 'no positive row is also listed as a known gap' 0 \
+     "$(python3 -c "
+import json
+d=json.load(open('$MATRIX'))
+pos=set(d['positive_categories'])
+gaps={e['id'] for e in d['matrix']['KNOWN_GAPS']['entries']
+      if e['source']=='matrix'}
+print(len([r for r,v in d['matrix'].items()
+           if v['category'] in pos and r in gaps]))")"
+want 'the positive set came from the registry' True \
+     "$(python3 -c "
+import json
+reg=json.load(open('$G/evidence_registry.json'))['positive_categories']['categories']
+got=json.load(open('$MATRIX'))['positive_categories']
+print(sorted(reg)==sorted(got))")"
+want 'every positive category is in the declared vocabulary' 0 \
+     "$(python3 -c "
+import json
+reg=json.load(open('$G/evidence_registry.json'))
+print(len([c for c in reg['positive_categories']['categories']
+           if c not in reg['category_vocabulary']]))")"
 want 'every evidence file was readable' 0 \
      "$(j "$MATRIX" "len([k for k,v in d['access_log'].items() if not v['read']])")"
 want 'the verdict computed' 0 "${VERDICT_RC:-1}"
