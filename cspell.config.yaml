@@ -845,3 +845,18 @@ words:
   - overclaim # naming the recurring semantic failure mode
   - reachab # the stem the wording controls grep for
   - remediations
+  # MUTABLE-AOT (#62) program vocabulary. Global rather than inline because it
+  # spans the matrix, the contract, the frozen universes, the gate and the
+  # evidence -- and every later issue (#64-#77) adds more files using the same
+  # terms. The Dart/VM identifiers below are EXTRACTED MECHANICALLY from
+  # pkg/kernel and runtime/vm, so they reappear on every universe re-derivation
+  # and cannot be reworded.
+  - MAOT # the program's issue prefix, and its directory name
+  - unmodeled # a matrix axis state: nothing has been designed for it yet
+  - representability # the axis asking whether a program shape CAN exist
+  - underived # #61's outcome, cited by the program README
+  - Annotatable # kernel AST: the interface for annotated declarations
+  - Megamorphic # Dart VM: MegamorphicCache, a dispatch specialization state
+  - Smiable # Dart VM: MonomorphicSmiableCall
+  - Dirtifying # kernel AST: DirtifyingList
+  - vtable # standard term for a virtual dispatch table

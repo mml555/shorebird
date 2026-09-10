@@ -1,0 +1,968 @@
+{
+  "schema": "maot0.universe/1",
+  "universe": "vm_runtime",
+  "provenance": {
+    "dart_tree_head": "9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c",
+    "dart_tree_head_is_full_sha": true,
+    "extracted_paths_dirty": false,
+    "extracted_paths_dirty_detail": "",
+    "source_digests": {
+      "pkg/kernel/lib/src/ast/components.dart": "8014b430f3d47706c0cc50fbc7dcd12b5e464cb36f2e522b500c89fab522d8d6",
+      "pkg/kernel/lib/src/ast/constants.dart": "b058919a74d887f3818dddee751299022df87172b1195f95bac6de437691b0b6",
+      "pkg/kernel/lib/src/ast/declarations.dart": "7aa229aeb0347474248a4528e9765090b764602317d31bcad371ad888ced32cf",
+      "pkg/kernel/lib/src/ast/dummies.dart": "6a2124e16374265d7228e64c015f08f74cf15aad75e7bb0e29d647eb03899cce",
+      "pkg/kernel/lib/src/ast/expressions.dart": "e8158d4b813308d22626484565c68d341946f0fa8bf7a1c6579b20868b5fe646",
+      "pkg/kernel/lib/src/ast/functions.dart": "49cd60a941bfe203c3a610a162d5ca42ca8bda1b57ad7e2650e3b60ad475299c",
+      "pkg/kernel/lib/src/ast/helpers.dart": "c2b5896c213b4a41bb1523d7d29a43619925c9e39751a73cf046525fa51f066a",
+      "pkg/kernel/lib/src/ast/initializers.dart": "b03254f8d6072424e5010a2dd653a70e55e828e728fa39b462e3951088a8c552",
+      "pkg/kernel/lib/src/ast/libraries.dart": "04e1342fe218f33500e2e18f1bc099f2bf87ea207e91e9cc68a2fa1e2689a3f3",
+      "pkg/kernel/lib/src/ast/members.dart": "cc83cbc49272f6be9bb63a356110475597c695251a6b128f5bc6fb4d23e65f2f",
+      "pkg/kernel/lib/src/ast/misc.dart": "bf3b0c9018f00ce9f135c72f840555b55590cf1ca31217161b8829fac9b6fec1",
+      "pkg/kernel/lib/src/ast/names.dart": "e06a7f1c5eb3f0b75c3ff3edf591198dd0857827622547a53dabb1180f4e76a3",
+      "pkg/kernel/lib/src/ast/patterns.dart": "33d17446d3e2167df65b5157e2b43029c5950410a93c1d4bd07635072d908736",
+      "pkg/kernel/lib/src/ast/statements.dart": "4e7e0b4172d880e1bdfa33c77aa37094160c34d16f1ad950f4730e14c317abe9",
+      "pkg/kernel/lib/src/ast/typedefs.dart": "57fdc6d323042b5f089ac0f7ff59c40860f72b87ff8cff069752b38033142783",
+      "pkg/kernel/lib/src/ast/types.dart": "db20dfa98562f844deaabf4c35780b4179e5d70c67fb0f8a2f1362b4f8955a40",
+      "pkg/kernel/lib/src/ast/variables.dart": "103c6f1434b7894883cb480909ffd4675da00ee74d6f20c783eb090498ea61f2",
+      "runtime/vm/object.h": "df5027855cff43ce58d575d54a761ab19b7e9ad6f5a7a8004f0c629c0d22dcf3"
+    },
+    "extractor_sha256": "5029a13e95a93e1419693d694e1c3a29acd72cf391f937c52260271a59cc708c",
+    "kernel_ast_files_seen": [
+      "components.dart",
+      "constants.dart",
+      "declarations.dart",
+      "dummies.dart",
+      "expressions.dart",
+      "functions.dart",
+      "helpers.dart",
+      "initializers.dart",
+      "libraries.dart",
+      "members.dart",
+      "misc.dart",
+      "names.dart",
+      "patterns.dart",
+      "statements.dart",
+      "typedefs.dart",
+      "types.dart",
+      "variables.dart"
+    ],
+    "kernel_ast_files_expected_absent": [],
+    "tier_assignment": {
+      "components.dart": "program_structure",
+      "constants.dart": "constant",
+      "declarations.dart": "declaration",
+      "dummies.dart": "infrastructure",
+      "expressions.dart": "body_content",
+      "functions.dart": "declaration",
+      "helpers.dart": "infrastructure",
+      "initializers.dart": "body_content",
+      "libraries.dart": "declaration",
+      "members.dart": "declaration",
+      "misc.dart": "structural_base",
+      "names.dart": "identity",
+      "patterns.dart": "body_content",
+      "statements.dart": "body_content",
+      "typedefs.dart": "declaration",
+      "types.dart": "type",
+      "variables.dart": "declaration"
+    },
+    "note": "The tree path is deliberately NOT part of identity: it is a checkout location, not provenance. The head SHA and the per-file digests are. A re-derivation on any machine with the same tree must reproduce these digests exactly."
+  },
+  "duplicate_ids": [],
+  "tier_counts": {
+    "runtime_state": 89
+  },
+  "total": 89,
+  "entries": [
+    {
+      "id": "V:object.h:AbstractType",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "AbstractType",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 9377
+    },
+    {
+      "id": "V:object.h:ApiError",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "ApiError",
+      "tier": "runtime_state",
+      "base": "Error",
+      "source": "runtime/vm/object.h",
+      "line": 8396
+    },
+    {
+      "id": "V:object.h:Array",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Array",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 11125
+    },
+    {
+      "id": "V:object.h:Bool",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Bool",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 11099
+    },
+    {
+      "id": "V:object.h:Bytecode",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Bytecode",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 7581
+    },
+    {
+      "id": "V:object.h:CallSiteData",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "CallSiteData",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 2402
+    },
+    {
+      "id": "V:object.h:Capability",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Capability",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 12745
+    },
+    {
+      "id": "V:object.h:Class",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Class",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 1207
+    },
+    {
+      "id": "V:object.h:Closure",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Closure",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 12638
+    },
+    {
+      "id": "V:object.h:ClosureData",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "ClosureData",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 4398
+    },
+    {
+      "id": "V:object.h:Code",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Code",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 6924
+    },
+    {
+      "id": "V:object.h:CodeSourceMap",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "CodeSourceMap",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 6382
+    },
+    {
+      "id": "V:object.h:CompressedStackMaps",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "CompressedStackMaps",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 6430
+    },
+    {
+      "id": "V:object.h:Context",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Context",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 7712
+    },
+    {
+      "id": "V:object.h:ContextScope",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "ContextScope",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 7790
+    },
+    {
+      "id": "V:object.h:Double",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Double",
+      "tier": "runtime_state",
+      "base": "Number",
+      "source": "runtime/vm/object.h",
+      "line": 10417
+    },
+    {
+      "id": "V:object.h:DynamicLibrary",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "DynamicLibrary",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 12250
+    },
+    {
+      "id": "V:object.h:Error",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Error",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 8388
+    },
+    {
+      "id": "V:object.h:ExceptionHandlers",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "ExceptionHandlers",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 6735
+    },
+    {
+      "id": "V:object.h:ExternalTypedData",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "ExternalTypedData",
+      "tier": "runtime_state",
+      "base": "TypedDataBase",
+      "source": "runtime/vm/object.h",
+      "line": 12060
+    },
+    {
+      "id": "V:object.h:FfiTrampolineData",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "FfiTrampolineData",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 4455
+    },
+    {
+      "id": "V:object.h:Field",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Field",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 4488
+    },
+    {
+      "id": "V:object.h:Finalizer",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Finalizer",
+      "tier": "runtime_state",
+      "base": "FinalizerBase",
+      "source": "runtime/vm/object.h",
+      "line": 13292
+    },
+    {
+      "id": "V:object.h:FinalizerBase",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "FinalizerBase",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 13257
+    },
+    {
+      "id": "V:object.h:FinalizerEntry",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "FinalizerEntry",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 13190
+    },
+    {
+      "id": "V:object.h:Float32x4",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Float32x4",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 11502
+    },
+    {
+      "id": "V:object.h:Float64x2",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Float64x2",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 11577
+    },
+    {
+      "id": "V:object.h:Function",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Function",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 3036
+    },
+    {
+      "id": "V:object.h:FunctionType",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "FunctionType",
+      "tier": "runtime_state",
+      "base": "AbstractType",
+      "source": "runtime/vm/object.h",
+      "line": 9848
+    },
+    {
+      "id": "V:object.h:FutureOr",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "FutureOr",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 13417
+    },
+    {
+      "id": "V:object.h:GrowableObjectArray",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "GrowableObjectArray",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 11397
+    },
+    {
+      "id": "V:object.h:ICData",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "ICData",
+      "tier": "runtime_state",
+      "base": "CallSiteData",
+      "source": "runtime/vm/object.h",
+      "line": 2488
+    },
+    {
+      "id": "V:object.h:Instance",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Instance",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 8539
+    },
+    {
+      "id": "V:object.h:Instructions",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Instructions",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 5850
+    },
+    {
+      "id": "V:object.h:InstructionsSection",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "InstructionsSection",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 6088
+    },
+    {
+      "id": "V:object.h:InstructionsTable",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "InstructionsTable",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 6128
+    },
+    {
+      "id": "V:object.h:Int32x4",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Int32x4",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 11541
+    },
+    {
+      "id": "V:object.h:Integer",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Integer",
+      "tier": "runtime_state",
+      "base": "Number",
+      "source": "runtime/vm/object.h",
+      "line": 10244
+    },
+    {
+      "id": "V:object.h:KernelProgramInfo",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "KernelProgramInfo",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 5598
+    },
+    {
+      "id": "V:object.h:LanguageError",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "LanguageError",
+      "tier": "runtime_state",
+      "base": "Error",
+      "source": "runtime/vm/object.h",
+      "line": 8417
+    },
+    {
+      "id": "V:object.h:Library",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Library",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 5224
+    },
+    {
+      "id": "V:object.h:LibraryPrefix",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "LibraryPrefix",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 8780
+    },
+    {
+      "id": "V:object.h:LinkedHashBase",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "LinkedHashBase",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 12300
+    },
+    {
+      "id": "V:object.h:LoadingUnit",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "LoadingUnit",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 8304
+    },
+    {
+      "id": "V:object.h:LocalVarDescriptors",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "LocalVarDescriptors",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 6200
+    },
+    {
+      "id": "V:object.h:Map",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Map",
+      "tier": "runtime_state",
+      "base": "LinkedHashBase",
+      "source": "runtime/vm/object.h",
+      "line": 12439
+    },
+    {
+      "id": "V:object.h:MegamorphicCache",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "MegamorphicCache",
+      "tier": "runtime_state",
+      "base": "CallSiteData",
+      "source": "runtime/vm/object.h",
+      "line": 7902
+    },
+    {
+      "id": "V:object.h:Mint",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Mint",
+      "tier": "runtime_state",
+      "base": "Integer",
+      "source": "runtime/vm/object.h",
+      "line": 10373
+    },
+    {
+      "id": "V:object.h:MirrorReference",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "MirrorReference",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 13340
+    },
+    {
+      "id": "V:object.h:MonomorphicSmiableCall",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "MonomorphicSmiableCall",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 2378
+    },
+    {
+      "id": "V:object.h:Namespace",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Namespace",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 5570
+    },
+    {
+      "id": "V:object.h:NativeFinalizer",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "NativeFinalizer",
+      "tier": "runtime_state",
+      "base": "FinalizerBase",
+      "source": "runtime/vm/object.h",
+      "line": 13314
+    },
+    {
+      "id": "V:object.h:Number",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Number",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 10233
+    },
+    {
+      "id": "V:object.h:ObjectPool",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "ObjectPool",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 5674
+    },
+    {
+      "id": "V:object.h:PassiveObject",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "PassiveObject",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 1145
+    },
+    {
+      "id": "V:object.h:PatchClass",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "PatchClass",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 2304
+    },
+    {
+      "id": "V:object.h:PcDescriptors",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "PcDescriptors",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 6242
+    },
+    {
+      "id": "V:object.h:Pointer",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Pointer",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 12213
+    },
+    {
+      "id": "V:object.h:PointerBase",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "PointerBase",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 11833
+    },
+    {
+      "id": "V:object.h:ReceivePort",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "ReceivePort",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 12760
+    },
+    {
+      "id": "V:object.h:Record",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Record",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 11753
+    },
+    {
+      "id": "V:object.h:RecordType",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "RecordType",
+      "tier": "runtime_state",
+      "base": "AbstractType",
+      "source": "runtime/vm/object.h",
+      "line": 11679
+    },
+    {
+      "id": "V:object.h:RegExp",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "RegExp",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 13033
+    },
+    {
+      "id": "V:object.h:Script",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Script",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 5030
+    },
+    {
+      "id": "V:object.h:SendPort",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "SendPort",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 12817
+    },
+    {
+      "id": "V:object.h:Sentinel",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Sentinel",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 7888
+    },
+    {
+      "id": "V:object.h:Set",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Set",
+      "tier": "runtime_state",
+      "base": "LinkedHashBase",
+      "source": "runtime/vm/object.h",
+      "line": 12542
+    },
+    {
+      "id": "V:object.h:SingleTargetCache",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "SingleTargetCache",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 2345
+    },
+    {
+      "id": "V:object.h:Smi",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Smi",
+      "tier": "runtime_state",
+      "base": "Integer",
+      "source": "runtime/vm/object.h",
+      "line": 10302
+    },
+    {
+      "id": "V:object.h:StackTrace",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "StackTrace",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 12885
+    },
+    {
+      "id": "V:object.h:String",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "String",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 10462
+    },
+    {
+      "id": "V:object.h:SubtypeTestCache",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "SubtypeTestCache",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 7979
+    },
+    {
+      "id": "V:object.h:SuspendState",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "SuspendState",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 12943
+    },
+    {
+      "id": "V:object.h:TransferableTypedData",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "TransferableTypedData",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 12869
+    },
+    {
+      "id": "V:object.h:Type",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "Type",
+      "tier": "runtime_state",
+      "base": "AbstractType",
+      "source": "runtime/vm/object.h",
+      "line": 9703
+    },
+    {
+      "id": "V:object.h:TypeArguments",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "TypeArguments",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 8906
+    },
+    {
+      "id": "V:object.h:TypeParameter",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "TypeParameter",
+      "tier": "runtime_state",
+      "base": "AbstractType",
+      "source": "runtime/vm/object.h",
+      "line": 10142
+    },
+    {
+      "id": "V:object.h:TypeParameters",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "TypeParameters",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 8820
+    },
+    {
+      "id": "V:object.h:TypedData",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "TypedData",
+      "tier": "runtime_state",
+      "base": "TypedDataBase",
+      "source": "runtime/vm/object.h",
+      "line": 11964
+    },
+    {
+      "id": "V:object.h:TypedDataBase",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "TypedDataBase",
+      "tier": "runtime_state",
+      "base": "PointerBase",
+      "source": "runtime/vm/object.h",
+      "line": 11840
+    },
+    {
+      "id": "V:object.h:TypedDataView",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "TypedDataView",
+      "tier": "runtime_state",
+      "base": "TypedDataBase",
+      "source": "runtime/vm/object.h",
+      "line": 12113
+    },
+    {
+      "id": "V:object.h:UnhandledException",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "UnhandledException",
+      "tier": "runtime_state",
+      "base": "Error",
+      "source": "runtime/vm/object.h",
+      "line": 8483
+    },
+    {
+      "id": "V:object.h:UnlinkedCall",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "UnlinkedCall",
+      "tier": "runtime_state",
+      "base": "CallSiteData",
+      "source": "runtime/vm/object.h",
+      "line": 2435
+    },
+    {
+      "id": "V:object.h:UnwindError",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "UnwindError",
+      "tier": "runtime_state",
+      "base": "Error",
+      "source": "runtime/vm/object.h",
+      "line": 8514
+    },
+    {
+      "id": "V:object.h:UserTag",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "UserTag",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 13374
+    },
+    {
+      "id": "V:object.h:WeakArray",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "WeakArray",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 6858
+    },
+    {
+      "id": "V:object.h:WeakProperty",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "WeakProperty",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 13140
+    },
+    {
+      "id": "V:object.h:WeakReference",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "WeakReference",
+      "tier": "runtime_state",
+      "base": "Instance",
+      "source": "runtime/vm/object.h",
+      "line": 13164
+    },
+    {
+      "id": "V:object.h:WeakSerializationReference",
+      "universe": "vm_runtime",
+      "kind": "heap_class",
+      "name": "WeakSerializationReference",
+      "tier": "runtime_state",
+      "base": "Object",
+      "source": "runtime/vm/object.h",
+      "line": 6823
+    }
+  ]
+}

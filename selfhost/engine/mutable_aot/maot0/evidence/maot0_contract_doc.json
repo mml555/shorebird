@@ -1,0 +1,21 @@
+{
+  "schema": "maot0.contract_doc/1",
+  "derived_claims": {
+    "row count": "104",
+    "rows proven": "0 of 104 rows",
+    "aggregate verdict": "NOT_PROVEN",
+    "kernel universe total": "330",
+    "vm universe total": "89",
+    "universe total": "419",
+    "dart tree sha": "9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c",
+    "per-row entries": "216",
+    "per-row named": "170",
+    "per-row excluded": "46",
+    "boundary count": "7",
+    "arm count": "22",
+    "n02 percentage": "99.04"
+  },
+  "missing_from_contract_md": [],
+  "rule": "Every figure CONTRACT.md quotes is derived from the record and required to appear verbatim. A matrix change that does not reach the prose fails here.",
+  "result": "pass"
+}

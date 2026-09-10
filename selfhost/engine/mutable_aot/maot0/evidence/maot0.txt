@@ -1,0 +1,169 @@
+MAOT-0 (#63) -- the universal Dart patchability contract and matrix
+generated 2026-09-10T17:02:49Z by run_maot0.sh
+repo /Users/mendell/shorebird at cc451b7a32cc45360361e9eb103c19794eb679bc
+
+############ 1. WHAT THIS ISSUE OWNS, AND WHAT IT DOES NOT ############
+  #63 is a specification and gating issue. It defines what counts as
+  supported, what needs an explicit developer migration, and what is outside
+  the fixed-native-binary promise. It implements no CFE, compiler, VM, Route
+  B, CLI, patch-format, migration or Flutter change -- and the commit is
+  checked against that boundary rather than asserted to respect it.
+
+  Every implementation axis in the matrix is UNMODELED. That is the correct
+  state: nothing has been built, so nothing is claimed. What is delivered is
+  the enumeration, the four-axis separation, the boundary, and a gate that
+  refuses a 100% claim.
+
+############ 2. THE CONSTRUCT UNIVERSES ARE NOT AUTHORED HERE ############
+  A coverage check whose required-row list is the matrix itself cannot fail.
+  So the required list is derived from the compiler and runtime this program
+  intends to fork:
+
+    U1  every node class and node-kind enum value in package:kernel's AST
+    U2  every heap class in the Dart VM's object.h that reaches Object
+
+  Both are frozen with the Dart tree's full SHA and per-file digests. The
+  gate reads the freeze, so it runs off this machine; when a tree is present
+  the freeze is re-derived and compared.
+
+  re-derivation: identical
+  re-derived from /Volumes/build/route-b/flutter/engine/src/flutter/third_party/dart, byte-identical to the freeze
+
+  kernel_declarations.json
+    entries 330  dart tree 9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
+    dirty under extracted paths: False
+      body_content         186
+      constant             23
+      declaration          70
+      identity             3
+      infrastructure       5
+      program_structure    4
+      structural_base      8
+      type                 31
+  vm_runtime_state.json
+    entries 89  dart tree 9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
+    dirty under extracted paths: False
+      runtime_state        89
+
+############ 3. THE GATE ############
+  rows              104
+  in scope          104
+  universe entries  419
+  covered by row    171
+  by exclusion      46
+  uncovered         0
+  lock              clean
+  blocking findings 0
+
+  row states        {'UNMODELED': 104, 'DESIGNED': 0, 'IMPLEMENTED': 0, 'PROVEN': 0}
+  VERDICT           universal_dart_patchability = NOT_PROVEN
+  rows not proven   104
+
+  universal_dart_patchability == PROVEN iff there is at least one in-scope row AND every in-scope row derives PROVEN from its applicable axes AND carries a gate_id and a digested evidence reference AND no blocking structural finding was raised.
+
+############ 4. THE FOUR SEMANTICS, KEPT APART ############
+  code_representability
+    Can the patched program shape/code exist and execute in the running process under the fixed native binary?
+    {'UNMODELED': 104}
+  dispatch_correctness
+    Does every supported invocation path observe the current implementation after installation? (#62 I2, no bypass.)
+    {'NOT_APPLICABLE': 3, 'UNMODELED': 101}
+  live_state_compatibility
+    What happens to state that already exists -- frames, heap objects, closures, continuations, caches, canonical constants?
+    {'NOT_APPLICABLE': 19, 'UNMODELED': 85}
+  semantic_migration
+    When the transformation of existing state is not uniquely determined by the code change, what explicit developer-authored migration is required, and how is it executed?
+    {'NOT_APPLICABLE': 48, 'UNMODELED': 56}
+
+############ 5. THE FIXED-NATIVE-BINARY BOUNDARY ############
+  NB-1  in_scope=False  Native platform source (iOS/Android/macOS/Windows/Linux)
+  NB-2  in_scope=False  Flutter engine and Dart VM C/C++ changes after release
+  NB-3  in_scope=False  Native plugin ABI changes
+  NB-4  in_scope=False  New native symbols
+  NB-5  in_scope=False  Asset and shader transport
+  NB-6  in_scope=False  Store distribution policy
+  NB-7  in_scope=False  Backend rollout, targeting and delivery service
+
+############ 6. THE GATE, FALSIFIED IN BOTH DIRECTIONS ############
+  pass  P0  the real matrix with its real lock raises NO blocking finding -- without this control every negative arm below would also be satisfied by a validator that always complains
+  pass  P1  a matrix whose every in-scope row is PROVEN with real evidence and a matching lock reaches aggregate PROVEN -- the gate is capable of green, so its red is informative
+  pass  N01  one in-scope row demoted to IMPLEMENTED in an otherwise fully proven matrix flips the aggregate; no threshold rescues it
+  pass  N02  99.04% of in-scope rows proven is still NOT_PROVEN -- the aggregate is a conjunction, not a threshold
+  pass  N03  deleting a row from a fully proven matrix raises uncovered universe entries and refuses the aggregate
+  pass  N04  a PROVEN row with no evidence reference is refused
+  pass  N05  a PROVEN row whose evidence file does not exist is refused
+  pass  N06  a PROVEN row whose evidence exists but does not match its recorded digest is refused -- a stamp is not the bytes
+  pass  N07  an IMPLEMENTED row with no gate id is refused
+  pass  N08  promoting a row without advancing the lock is caught as drift
+  pass  N09  promoting a row AND regenerating the lock to match still fails, because the promotion has no evidence behind it
+  pass  N10  a locked row deleted from the matrix is caught; a required row cannot be retired by deletion
+  pass  N11  a row covering a construct no frozen universe contains is refused, so coverage cannot be faked by inventing ids
+  pass  N12  an exclusion using an undeclared class is refused, so a hard construct cannot be excluded by inventing a reason
+  pass  N13  declaring an axis NOT_APPLICABLE with no justification is refused -- the cheapest way to make a hard row look finished
+  pass  N14  an axis omitted entirely is refused; an absent axis must never read as a satisfied one
+  pass  N15  a row moved out of scope with no boundary reference is refused, so scope cannot be shrunk silently
+  pass  N16  a row citing an undeclared boundary is refused
+  pass  N17  claiming blanket coverage of a per-row tier is refused, so the declaration space cannot be waved through in one line
+  pass  N18  two rows sharing one gate id is refused; one of them would never be independently proven
+  pass  N19  a row with every axis NOT_APPLICABLE derives UNMODELED, not PROVEN -- four justifications are not a proof
+  pass  N20  a universe frozen from a dirty tree, or recording anything short of a full 40-hex SHA, is refused -- a branch or a dirty checkout is not provenance
+
+  22/22 falsification arms pass
+
+############ 7. THE PROSE IS TIED TO THE RECORD ############
+  CONTRACT.md quotes counts and identities. Every one of them is derived from
+  the record and required to appear verbatim, because a contract whose stated
+  coverage no longer matches its actual coverage is worse than one that states
+  nothing -- a reader trusts the sentence, not the JSON.
+
+  pass  CONTRACT.md states the row count: 104
+  pass  CONTRACT.md states the rows proven: 0 of 104 rows
+  pass  CONTRACT.md states the aggregate verdict: NOT_PROVEN
+  pass  CONTRACT.md states the kernel universe total: 330
+  pass  CONTRACT.md states the vm universe total: 89
+  pass  CONTRACT.md states the universe total: 419
+  pass  CONTRACT.md states the dart tree sha: 9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
+  pass  CONTRACT.md states the per-row entries: 216
+  pass  CONTRACT.md states the per-row named: 170
+  pass  CONTRACT.md states the per-row excluded: 46
+  pass  CONTRACT.md states the boundary count: 7
+  pass  CONTRACT.md states the arm count: 22
+  pass  CONTRACT.md states the n02 percentage: 99.04
+
+############ 8. ASSERTIONS ############
+  pass  the gate ran
+  pass  the record was written
+  pass  no blocking finding stands
+  pass  every universe entry is covered, blanketed or excluded
+  pass  the universes were extracted from a full-SHA tree
+  pass  the frozen universes are digested
+  pass  the universe re-derives byte-identically from the tree
+  pass  coverage is not mostly blanket: the declaration space is named row by row
+  pass  all four axes are reported separately
+  pass  code representability is its own axis
+  pass  live state compatibility is its own axis
+  pass  semantic migration is its own axis
+  pass  ambiguous transformations are migration rows, not unsupported code
+  pass  the fixed-native-binary boundary is declared
+  pass  every declared boundary is out of scope
+  pass  every exclusion class carries a rationale
+  pass  the aggregate refuses
+  pass  the verdict rule is a conjunction, not a threshold
+  pass  counts are labelled diagnostic
+  pass  no row is PROVEN at MAOT-0
+  pass  every computed value names its consumer
+  pass  the lock is present and clean
+  pass  the lock covers every row
+  pass  every falsification arm passes
+  pass  the arms include a positive control on the real matrix
+  pass  the arms prove the aggregate CAN reach PROVEN
+  pass  a 99%-proven matrix still refuses
+  pass  a deleted row cannot buy a 100% claim
+  pass  a promotion with a regenerated lock is still refused
+  pass  every figure CONTRACT.md quotes is derived and present
+  pass  the doc check derives its claims rather than reading them
+  pass  no implementation subsystem is modified in the working tree
+
+ASSERTIONS (32 checked: 32 pass, 0 fail)
+
+MAOT0: CONTRACT_ESTABLISHED / universal_dart_patchability=NOT_PROVEN

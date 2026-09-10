@@ -1,0 +1,402 @@
+{
+  "schema": "maot0.falsification/1",
+  "arms_total": 22,
+  "arms_passed": 22,
+  "arms_failed": 0,
+  "directions": "Both. P0 and P1 are positive controls -- P0 proves the validator is quiet on a correct matrix, P1 proves the aggregate can reach PROVEN. Without them the N arms would be satisfied by a gate that always refuses, which measures nothing.",
+  "arms": [
+    {
+      "id": "P0",
+      "description": "the real matrix with its real lock raises NO blocking finding -- without this control every negative arm below would also be satisfied by a validator that always complains",
+      "expected_codes": [],
+      "expected_absent_codes": [],
+      "expected_no_blocking": true,
+      "expected_aggregate": "NOT_PROVEN",
+      "observed_codes": [],
+      "observed_blocking_codes": [],
+      "observed_aggregate": "NOT_PROVEN",
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "P1",
+      "description": "a matrix whose every in-scope row is PROVEN with real evidence and a matching lock reaches aggregate PROVEN -- the gate is capable of green, so its red is informative",
+      "expected_codes": [],
+      "expected_absent_codes": [
+        "EVIDENCE_DIGEST_MISMATCH",
+        "EVIDENCE_FILE_MISSING",
+        "LOCK_ROW_STATE_DRIFT",
+        "PROVEN_ROW_WITHOUT_EVIDENCE",
+        "UNIVERSE_ENTRY_UNCOVERED"
+      ],
+      "expected_no_blocking": false,
+      "expected_aggregate": "PROVEN",
+      "observed_codes": [],
+      "observed_blocking_codes": [],
+      "observed_aggregate": "PROVEN",
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "N01",
+      "description": "one in-scope row demoted to IMPLEMENTED in an otherwise fully proven matrix flips the aggregate; no threshold rescues it",
+      "expected_codes": [],
+      "expected_absent_codes": [],
+      "expected_no_blocking": false,
+      "expected_aggregate": "NOT_PROVEN",
+      "observed_codes": [],
+      "observed_blocking_codes": [],
+      "observed_aggregate": "NOT_PROVEN",
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "N02",
+      "description": "99.04% of in-scope rows proven is still NOT_PROVEN -- the aggregate is a conjunction, not a threshold",
+      "expected_aggregate": "NOT_PROVEN",
+      "observed_aggregate": "NOT_PROVEN",
+      "observed_percentage_diagnostic": 99.04,
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "N03",
+      "description": "deleting a row from a fully proven matrix raises uncovered universe entries and refuses the aggregate",
+      "expected_codes": [
+        "UNIVERSE_ENTRY_UNCOVERED"
+      ],
+      "expected_absent_codes": [],
+      "expected_no_blocking": false,
+      "expected_aggregate": "NOT_PROVEN",
+      "observed_codes": [
+        "UNIVERSE_ENTRY_UNCOVERED"
+      ],
+      "observed_blocking_codes": [
+        "UNIVERSE_ENTRY_UNCOVERED"
+      ],
+      "observed_aggregate": "NOT_PROVEN",
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "N04",
+      "description": "a PROVEN row with no evidence reference is refused",
+      "expected_codes": [
+        "PROVEN_ROW_WITHOUT_EVIDENCE"
+      ],
+      "expected_absent_codes": [],
+      "expected_no_blocking": false,
+      "expected_aggregate": "NOT_PROVEN",
+      "observed_codes": [
+        "PROVEN_ROW_WITHOUT_EVIDENCE"
+      ],
+      "observed_blocking_codes": [
+        "PROVEN_ROW_WITHOUT_EVIDENCE"
+      ],
+      "observed_aggregate": "NOT_PROVEN",
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "N05",
+      "description": "a PROVEN row whose evidence file does not exist is refused",
+      "expected_codes": [
+        "EVIDENCE_FILE_MISSING"
+      ],
+      "expected_absent_codes": [],
+      "expected_no_blocking": false,
+      "expected_aggregate": "NOT_PROVEN",
+      "observed_codes": [
+        "EVIDENCE_FILE_MISSING"
+      ],
+      "observed_blocking_codes": [
+        "EVIDENCE_FILE_MISSING"
+      ],
+      "observed_aggregate": "NOT_PROVEN",
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "N06",
+      "description": "a PROVEN row whose evidence exists but does not match its recorded digest is refused -- a stamp is not the bytes",
+      "expected_codes": [
+        "EVIDENCE_DIGEST_MISMATCH"
+      ],
+      "expected_absent_codes": [],
+      "expected_no_blocking": false,
+      "expected_aggregate": "NOT_PROVEN",
+      "observed_codes": [
+        "EVIDENCE_DIGEST_MISMATCH"
+      ],
+      "observed_blocking_codes": [
+        "EVIDENCE_DIGEST_MISMATCH"
+      ],
+      "observed_aggregate": "NOT_PROVEN",
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "N07",
+      "description": "an IMPLEMENTED row with no gate id is refused",
+      "expected_codes": [
+        "IMPLEMENTED_ROW_WITHOUT_GATE"
+      ],
+      "expected_absent_codes": [],
+      "expected_no_blocking": false,
+      "expected_aggregate": "NOT_PROVEN",
+      "observed_codes": [
+        "IMPLEMENTED_ROW_WITHOUT_GATE",
+        "ROW_SCHEMA_INVALID"
+      ],
+      "observed_blocking_codes": [
+        "IMPLEMENTED_ROW_WITHOUT_GATE",
+        "ROW_SCHEMA_INVALID"
+      ],
+      "observed_aggregate": "NOT_PROVEN",
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "N08",
+      "description": "promoting a row without advancing the lock is caught as drift",
+      "expected_codes": [
+        "LOCK_ROW_STATE_DRIFT"
+      ],
+      "expected_absent_codes": [],
+      "expected_no_blocking": false,
+      "expected_aggregate": "NOT_PROVEN",
+      "observed_codes": [
+        "LOCK_ROW_STATE_DRIFT",
+        "PROVEN_ROW_WITHOUT_EVIDENCE"
+      ],
+      "observed_blocking_codes": [
+        "LOCK_ROW_STATE_DRIFT",
+        "PROVEN_ROW_WITHOUT_EVIDENCE"
+      ],
+      "observed_aggregate": "NOT_PROVEN",
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "N09",
+      "description": "promoting a row AND regenerating the lock to match still fails, because the promotion has no evidence behind it",
+      "expected_codes": [
+        "PROVEN_ROW_WITHOUT_EVIDENCE"
+      ],
+      "expected_absent_codes": [
+        "LOCK_ROW_STATE_DRIFT"
+      ],
+      "expected_no_blocking": false,
+      "expected_aggregate": "NOT_PROVEN",
+      "observed_codes": [
+        "PROVEN_ROW_WITHOUT_EVIDENCE"
+      ],
+      "observed_blocking_codes": [
+        "PROVEN_ROW_WITHOUT_EVIDENCE"
+      ],
+      "observed_aggregate": "NOT_PROVEN",
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "N10",
+      "description": "a locked row deleted from the matrix is caught; a required row cannot be retired by deletion",
+      "expected_codes": [
+        "LOCK_ROW_REMOVED"
+      ],
+      "expected_absent_codes": [],
+      "expected_no_blocking": false,
+      "expected_aggregate": "NOT_PROVEN",
+      "observed_codes": [
+        "LOCK_ROW_REMOVED",
+        "UNIVERSE_ENTRY_UNCOVERED"
+      ],
+      "observed_blocking_codes": [
+        "LOCK_ROW_REMOVED",
+        "UNIVERSE_ENTRY_UNCOVERED"
+      ],
+      "observed_aggregate": "NOT_PROVEN",
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "N11",
+      "description": "a row covering a construct no frozen universe contains is refused, so coverage cannot be faked by inventing ids",
+      "expected_codes": [
+        "COVERS_UNKNOWN_UNIVERSE_ID"
+      ],
+      "expected_absent_codes": [],
+      "expected_no_blocking": false,
+      "expected_aggregate": null,
+      "observed_codes": [
+        "COVERS_UNKNOWN_UNIVERSE_ID"
+      ],
+      "observed_blocking_codes": [
+        "COVERS_UNKNOWN_UNIVERSE_ID"
+      ],
+      "observed_aggregate": "NOT_PROVEN",
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "N12",
+      "description": "an exclusion using an undeclared class is refused, so a hard construct cannot be excluded by inventing a reason",
+      "expected_codes": [
+        "EXCLUSION_CLASS_UNKNOWN"
+      ],
+      "expected_absent_codes": [],
+      "expected_no_blocking": false,
+      "expected_aggregate": null,
+      "observed_codes": [
+        "EXCLUSION_CLASS_UNKNOWN"
+      ],
+      "observed_blocking_codes": [
+        "EXCLUSION_CLASS_UNKNOWN"
+      ],
+      "observed_aggregate": "NOT_PROVEN",
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "N13",
+      "description": "declaring an axis NOT_APPLICABLE with no justification is refused -- the cheapest way to make a hard row look finished",
+      "expected_codes": [
+        "AXIS_NOT_APPLICABLE_UNJUSTIFIED"
+      ],
+      "expected_absent_codes": [],
+      "expected_no_blocking": false,
+      "expected_aggregate": null,
+      "observed_codes": [
+        "AXIS_NOT_APPLICABLE_UNJUSTIFIED"
+      ],
+      "observed_blocking_codes": [
+        "AXIS_NOT_APPLICABLE_UNJUSTIFIED"
+      ],
+      "observed_aggregate": "NOT_PROVEN",
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "N14",
+      "description": "an axis omitted entirely is refused; an absent axis must never read as a satisfied one",
+      "expected_codes": [
+        "AXIS_MISSING"
+      ],
+      "expected_absent_codes": [],
+      "expected_no_blocking": false,
+      "expected_aggregate": null,
+      "observed_codes": [
+        "AXIS_MISSING"
+      ],
+      "observed_blocking_codes": [
+        "AXIS_MISSING"
+      ],
+      "observed_aggregate": "NOT_PROVEN",
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "N15",
+      "description": "a row moved out of scope with no boundary reference is refused, so scope cannot be shrunk silently",
+      "expected_codes": [
+        "OUT_OF_SCOPE_ROW_WITHOUT_BOUNDARY"
+      ],
+      "expected_absent_codes": [],
+      "expected_no_blocking": false,
+      "expected_aggregate": null,
+      "observed_codes": [
+        "OUT_OF_SCOPE_ROW_WITHOUT_BOUNDARY"
+      ],
+      "observed_blocking_codes": [
+        "OUT_OF_SCOPE_ROW_WITHOUT_BOUNDARY"
+      ],
+      "observed_aggregate": "NOT_PROVEN",
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "N16",
+      "description": "a row citing an undeclared boundary is refused",
+      "expected_codes": [
+        "BOUNDARY_REF_UNKNOWN"
+      ],
+      "expected_absent_codes": [],
+      "expected_no_blocking": false,
+      "expected_aggregate": null,
+      "observed_codes": [
+        "BOUNDARY_REF_UNKNOWN"
+      ],
+      "observed_blocking_codes": [
+        "BOUNDARY_REF_UNKNOWN"
+      ],
+      "observed_aggregate": "NOT_PROVEN",
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "N17",
+      "description": "claiming blanket coverage of a per-row tier is refused, so the declaration space cannot be waved through in one line",
+      "expected_codes": [
+        "TIER_BLANKET_NOT_PERMITTED",
+        "TIER_BLANKET_UNDECLARED"
+      ],
+      "expected_absent_codes": [],
+      "expected_no_blocking": false,
+      "expected_aggregate": null,
+      "observed_codes": [
+        "TIER_BLANKET_NOT_PERMITTED",
+        "TIER_BLANKET_UNDECLARED",
+        "UNIVERSE_ENTRY_UNCOVERED"
+      ],
+      "observed_blocking_codes": [
+        "TIER_BLANKET_NOT_PERMITTED",
+        "TIER_BLANKET_UNDECLARED",
+        "UNIVERSE_ENTRY_UNCOVERED"
+      ],
+      "observed_aggregate": "NOT_PROVEN",
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "N18",
+      "description": "two rows sharing one gate id is refused; one of them would never be independently proven",
+      "expected_codes": [
+        "GATE_ID_DUPLICATE"
+      ],
+      "expected_absent_codes": [],
+      "expected_no_blocking": false,
+      "expected_aggregate": null,
+      "observed_codes": [
+        "GATE_ID_DUPLICATE"
+      ],
+      "observed_blocking_codes": [
+        "GATE_ID_DUPLICATE"
+      ],
+      "observed_aggregate": "NOT_PROVEN",
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "N19",
+      "description": "a row with every axis NOT_APPLICABLE derives UNMODELED, not PROVEN -- four justifications are not a proof",
+      "expected_row_state": "UNMODELED",
+      "observed_row_state": "UNMODELED",
+      "expected_aggregate": "NOT_PROVEN",
+      "observed_aggregate": "NOT_PROVEN",
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "N20",
+      "description": "a universe frozen from a dirty tree, or recording anything short of a full 40-hex SHA, is refused -- a branch or a dirty checkout is not provenance",
+      "expected_codes": [
+        "UNIVERSE_PROVENANCE_INVALID"
+      ],
+      "observed_codes": [
+        "UNIVERSE_PROVENANCE_INVALID"
+      ],
+      "result": "pass",
+      "problems": []
+    }
+  ]
+}
