@@ -246,6 +246,34 @@ def run(t0_dir, matrix, row_results):
            {'verdict': verdict, 'reasons': reasons},
            {'verdict': 'RESTART_DETECTED'})
 
+    # ------------------------------------------------------------- A11
+    # COMPOSITION. A01-A04, A08 and A09 each change a ROW's classification.
+    # That they thereby change the AGGREGATE is true by construction -- the
+    # aggregate is a conjunction -- but "true by construction" is an argument,
+    # not a demonstration. So compose them directly: take a matrix that does
+    # reach PROVEN, replace exactly one row's result with what a defective
+    # mock run actually produced, and show the verdict flips.
+    for defect, label in (('slot_unchanged', 'A01'),
+                          ('virtual_stale', 'A02'),
+                          ('tearoff_stale', 'A03'),
+                          ('hot_caller_stale', 'A04'),
+                          ('identity_swapped', 'A08'),
+                          ('restart', 'A09')):
+        (verdict, reasons), _ = classify_with(defect)
+        composed = copy.deepcopy(all_proven)
+        target = next(r for r in composed if r['row_id'] == CONTROL_ROW)
+        target['result'] = verdict
+        target['reasons'] = reasons
+        f = AGG.check_rows(matrix['rows'], composed)
+        a = AGG.derive(matrix['rows'], composed, f)
+        record(f'A11/{label}', 'composition: a row defect reaches the verdict',
+               f'the {label} defect, injected as one row of an otherwise '
+               'fully proven matrix, flips universal_dart_patchability',
+               a['universal_dart_patchability'] == 'NOT_PROVEN',
+               {'row_result': verdict,
+                'aggregate': a['universal_dart_patchability']},
+               {'aggregate': 'NOT_PROVEN'})
+
     # ------------------------------------------------------ #64 control 10
     # An analysis value computed but not consumed by the final verdict.
     produced = set(_aggregate_keys())

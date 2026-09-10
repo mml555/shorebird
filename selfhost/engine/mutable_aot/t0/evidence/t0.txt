@@ -1,6 +1,6 @@
 MAOT-T0 (#64) -- the universal patchability corpus and adversarial gate
-generated 2026-09-10T17:28:11Z by run_t0.sh
-repo revision e7fd43de6015267a426c02c2d7dc51257ab593f7
+generated 2026-09-10T17:30:36Z by run_t0.sh
+repo revision 466a1437d40ad25a1da798ff40f795577a56632e
 
 ############ 1. WHAT RUNS TODAY, AND WHAT DOES NOT ############
   The Mutable-AOT mechanism does not exist yet -- #65 through #70 build it.
@@ -25,7 +25,7 @@ executable         14
 placeholders       90
 
 ############ 3. THE RUN ############
-run_id             2026-09-10T17:28:11Z
+run_id             2026-09-10T17:30:36Z
 in-scope rows      104
 executable         14
 placeholders       90
@@ -57,9 +57,15 @@ VERDICT            universal_dart_patchability = NOT_PROVEN
   pass  A08   8. release and patch identities swapped
   pass  A09   9. a process restart would make the test appear to pass
   pass  A09b  9. the rebuilt-program baseline substituted for post
+  pass  A11/A01 composition: a row defect reaches the verdict
+  pass  A11/A02 composition: a row defect reaches the verdict
+  pass  A11/A03 composition: a row defect reaches the verdict
+  pass  A11/A04 composition: a row defect reaches the verdict
+  pass  A11/A08 composition: a row defect reaches the verdict
+  pass  A11/A09 composition: a row defect reaches the verdict
   pass  A10   10. a value is computed but consumed by no decision
 
-  15/15 adversarial controls pass
+  21/21 adversarial controls pass
 
 ############ 6. ASSERTIONS ############
   pass  the corpus check ran clean
@@ -93,8 +99,9 @@ VERDICT            universal_dart_patchability = NOT_PROVEN
   pass  a test double can never produce proof
   pass  a restart cannot make a run appear to pass
   pass  the rebuilt-program baseline cannot stand in for a patch
+  pass  every row-level defect demonstrably reaches the verdict
   pass  no implementation subsystem is modified in the working tree
 
-ASSERTIONS (32 checked: 32 pass, 0 fail)
+ASSERTIONS (33 checked: 33 pass, 0 fail)
 
 T0: HARNESS_ESTABLISHED / universal_dart_patchability=NOT_PROVEN

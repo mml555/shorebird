@@ -74,7 +74,7 @@ refuses any proof-valued result whose `mechanism` is not `none`. Control `P2`
 holds it: the *same* clean observations yield `PROVEN` for the real backend and
 `MOCK_ONLY` for the mock.
 
-## Controls — 15, in both directions
+## Controls — 21, in both directions
 
 | id | what it holds |
 |---|---|
@@ -91,6 +91,7 @@ holds it: the *same* clean observations yield `PROVEN` for the real backend and
 | `A08` | release/patch identities swapped |
 | `A09`/`A09b` | a process restart, and the rebuilt-program baseline substituted for post |
 | `A10` | every aggregate value names the decision that consumes it, both directions |
+| `A11/*` | **composition**: each row-level defect above, injected as one row of an otherwise fully proven matrix, flips the aggregate — shown rather than argued from the conjunction |
 
 ## Evidence is regenerated, never merged
 

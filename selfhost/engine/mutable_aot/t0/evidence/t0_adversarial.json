@@ -1,7 +1,7 @@
 {
   "schema": "maot.t0.adversarial/1",
-  "controls_total": 15,
-  "controls_passed": 15,
+  "controls_total": 21,
+  "controls_passed": 21,
   "controls_failed": 0,
   "note": "P0/P1/P2 are positive controls. Without them the A controls would be satisfied by a harness that refuses everything, which catches nothing because it decides nothing.",
   "controls": [
@@ -223,6 +223,84 @@
         "reasons": [
           "PROCESS_RESTARTED"
         ]
+      },
+      "result": "pass"
+    },
+    {
+      "id": "A11/A01",
+      "maps_to": "composition: a row defect reaches the verdict",
+      "description": "the A01 defect, injected as one row of an otherwise fully proven matrix, flips universal_dart_patchability",
+      "expected": {
+        "aggregate": "NOT_PROVEN"
+      },
+      "observed": {
+        "row_result": "FAIL_OPEN",
+        "aggregate": "NOT_PROVEN"
+      },
+      "result": "pass"
+    },
+    {
+      "id": "A11/A02",
+      "maps_to": "composition: a row defect reaches the verdict",
+      "description": "the A02 defect, injected as one row of an otherwise fully proven matrix, flips universal_dart_patchability",
+      "expected": {
+        "aggregate": "NOT_PROVEN"
+      },
+      "observed": {
+        "row_result": "WRONG_SEMANTICS",
+        "aggregate": "NOT_PROVEN"
+      },
+      "result": "pass"
+    },
+    {
+      "id": "A11/A03",
+      "maps_to": "composition: a row defect reaches the verdict",
+      "description": "the A03 defect, injected as one row of an otherwise fully proven matrix, flips universal_dart_patchability",
+      "expected": {
+        "aggregate": "NOT_PROVEN"
+      },
+      "observed": {
+        "row_result": "WRONG_SEMANTICS",
+        "aggregate": "NOT_PROVEN"
+      },
+      "result": "pass"
+    },
+    {
+      "id": "A11/A04",
+      "maps_to": "composition: a row defect reaches the verdict",
+      "description": "the A04 defect, injected as one row of an otherwise fully proven matrix, flips universal_dart_patchability",
+      "expected": {
+        "aggregate": "NOT_PROVEN"
+      },
+      "observed": {
+        "row_result": "WRONG_SEMANTICS",
+        "aggregate": "NOT_PROVEN"
+      },
+      "result": "pass"
+    },
+    {
+      "id": "A11/A08",
+      "maps_to": "composition: a row defect reaches the verdict",
+      "description": "the A08 defect, injected as one row of an otherwise fully proven matrix, flips universal_dart_patchability",
+      "expected": {
+        "aggregate": "NOT_PROVEN"
+      },
+      "observed": {
+        "row_result": "WRONG_SEMANTICS",
+        "aggregate": "NOT_PROVEN"
+      },
+      "result": "pass"
+    },
+    {
+      "id": "A11/A09",
+      "maps_to": "composition: a row defect reaches the verdict",
+      "description": "the A09 defect, injected as one row of an otherwise fully proven matrix, flips universal_dart_patchability",
+      "expected": {
+        "aggregate": "NOT_PROVEN"
+      },
+      "observed": {
+        "row_result": "RESTART_DETECTED",
+        "aggregate": "NOT_PROVEN"
       },
       "result": "pass"
     },

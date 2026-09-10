@@ -206,6 +206,12 @@ want 'a restart cannot make a run appear to pass' pass \
      "$(c "[x['result'] for x in d['controls'] if x['id']=='A09'][0]")"
 want 'the rebuilt-program baseline cannot stand in for a patch' pass \
      "$(c "[x['result'] for x in d['controls'] if x['id']=='A09b'][0]")"
+# Row-level defects reaching the AGGREGATE is true by construction, and
+# "true by construction" is an argument rather than a demonstration. A11
+# composes each one into an otherwise fully proven matrix and shows the
+# verdict flip.
+want 'every row-level defect demonstrably reaches the verdict' 6 \
+     "$(c "len([x for x in d['controls'] if x['id'].startswith('A11/') and x['result']=='pass'])")"
 
 # --- the stop boundary: T0 builds a harness, not the mechanism
 want 'no implementation subsystem is modified in the working tree' 0 \
