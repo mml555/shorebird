@@ -863,3 +863,4 @@ words:
   - devirtualize # standard AOT-optimizer term; MAOT-4/#68 turns on it
   - devirtualization
   - extype # the MAOT identity tag for an extension type (::extype:Id)
+  - binaryen # the WebAssembly toolchain vendored in the Dart SDK tree
