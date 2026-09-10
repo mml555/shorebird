@@ -90,6 +90,26 @@ complete source introduced anywhere in the universe moves the verdict, and
 removing it restores `UNDERIVED`. The result is contingent on the evidence, not
 a claim about what is possible.
 
+## Provenance constraint: the raw generated digest is path-dependent
+
+`gen_dynamic_interface` emits a `# Source dill: <path>` comment, and each run
+supplies a fresh temporary path, so the **raw SHA-256 of the generated
+interface changes between runs of identical inputs**. Measured directly: two
+runs differing only in that comment line produced different raw digests and an
+identical non-comment digest (`642be1cd…`).
+
+This does not affect the B0 result — digests are provenance, never inputs to a
+role or a verdict, and there are zero complete sources either way. It does mean
+a future lane **must not use the raw digest as reproducible release-identity
+evidence** until the emitted bytes are path-stable, or a mechanically defined
+semantic digest exists.
+
+`spec_sha256_noncomment` is recorded alongside the raw digest as an interim.
+Be precise about what it is: a byte digest over non-comment lines, which is a
+*defined* canonicalisation and not a semantic one. It would still move under
+entry reordering, a quoting change, or any YAML-equivalent rewrite. A real
+semantic digest would parse the document and canonicalise its structure.
+
 ## Recorded limitation
 
 Being static does not by itself make a policy non-release-bound. If a policy's

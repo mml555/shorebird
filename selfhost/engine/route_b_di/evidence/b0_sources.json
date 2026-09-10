@@ -15,8 +15,10 @@
         "reachable"
       ],
       "passed_as": "--dynamic-interface (retention/annotation), never --validate",
-      "spec_path": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.L0aknI0DO4/di_generated.yaml",
-      "spec_sha256": "27f31a9a59b15473150a43511e36d5994eed17719ddf6725c1c439d3afc16417",
+      "spec_path": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.ErkUu4qRZz/di_generated.yaml",
+      "spec_sha256": "3b9e6b537f0843a3d1897f67d8084f48f4e525a48c31229db57f74684725cbf0",
+      "spec_sha256_noncomment": "1e812a9fc5c515947a73e3cc747cfb478af52f9ccbd759fd527c8dd42bf4b4f2",
+      "digest_caveat": "spec_sha256 is NOT reproducible: the generator emits a \"# Source dill: <path>\" comment and each run supplies a fresh temporary path, so the raw digest changes between runs of identical inputs. spec_sha256_noncomment is stable across such runs, but it is a byte digest over non-comment lines -- a defined canonicalisation, not a semantic one. Neither is an input to any role or verdict. A future lane must not treat the raw digest as release identity evidence until the emitted bytes are path-stable or a mechanically defined semantic digest exists.",
       "sections": {
         "callable": true,
         "extendable": false,

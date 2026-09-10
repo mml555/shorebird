@@ -67,6 +67,38 @@ def sha(p):
         return None
 
 
+def sha_noncomment(p):
+    """Digest over the non-comment lines only.
+
+    THE RAW DIGEST IS NOT REPRODUCIBLE, and a future lane must not use it as
+    release identity evidence. gen_dynamic_interface emits
+
+        # Source dill: <path>
+
+    and B0 hands it a fresh mktemp path each run, so the raw SHA-256 changes
+    between runs of identical inputs. Measured: two runs differing only in that
+    comment line, raw digests different, non-comment digests identical
+    (642be1cd...).
+
+    WHAT THIS IS AND IS NOT. It is a byte digest over the lines that are not
+    comments, plus trailing-whitespace normalisation. That is a DEFINED
+    canonicalisation, not a semantic one: it would still move under a
+    reordering of entries, a quoting change, or a YAML-equivalent rewrite. A
+    real semantic digest would parse the document and canonicalise the
+    structure. This is recorded as an interim, clearly-scoped measure so the
+    constraint is actionable rather than only noted.
+
+    Neither digest is an input to any role or verdict. Both are provenance.
+    """
+    try:
+        body = p.read_text(errors='replace')
+    except Exception:                                        # noqa: BLE001
+        return None
+    lines = [ln.rstrip() for ln in body.splitlines()
+             if not ln.lstrip().startswith('#')]
+    return hashlib.sha256('\n'.join(lines).encode()).hexdigest()
+
+
 def sections_in(text):
     return {s: bool(re.search(rf'^{re.escape(s)}:', text, re.M))
             for s in SECTIONS}
@@ -105,6 +137,17 @@ sources['release_supplement_interface'] = {
     'passed_as': '--dynamic-interface (retention/annotation), never --validate',
     'spec_path': str(GEN_SPEC),
     'spec_sha256': sha(GEN_SPEC),
+    'spec_sha256_noncomment': sha_noncomment(GEN_SPEC),
+    'digest_caveat':
+        'spec_sha256 is NOT reproducible: the generator emits a "# Source '
+        'dill: <path>" comment and each run supplies a fresh temporary path, '
+        'so the raw digest changes between runs of identical inputs. '
+        'spec_sha256_noncomment is stable across such runs, but it is a byte '
+        'digest over non-comment lines -- a defined canonicalisation, not a '
+        'semantic one. Neither is an input to any role or verdict. A future '
+        'lane must not treat the raw digest as release identity evidence '
+        'until the emitted bytes are path-stable or a mechanically defined '
+        'semantic digest exists.',
     'sections': sections_in(gen_text) if gen_text is not None
     else {x: None for x in SECTIONS},
     'validated_positive': bool(
