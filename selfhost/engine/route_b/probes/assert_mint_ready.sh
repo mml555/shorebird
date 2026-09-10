@@ -9,7 +9,8 @@
 #   exit AND the expected Flutter framework artifact. Anything else -- including
 #   `unknown` -- means no mint.
 #
-# WHY THIS IS NOT JUST `echo $?`. `build_ios_release.sh` wraps its body in
+# WHY THIS IS NOT JUST `echo $?`. `build_ios.sh` (vendored 2026-09-10; the SSD
+# called the same script build_ios_release.sh) wraps its body in
 # `{ ... } >>"$LOG" 2>&1` and the last statement inside that block is an `echo`.
 # With `set -uo pipefail` and no `-e` it therefore exits 0 WHETHER OR NOT ninja
 # succeeded. A mint gated on that status would be cut from a stale or partial
@@ -30,7 +31,10 @@
 # exit 2  the build has not finished, or no status exists at all
 set -uo pipefail
 
-STATUS=${1:-/Volumes/build/route-b/logs/mint_build.status}
+# ROOT is honoured so this asks about the tree the build was actually driven
+# against; run_mint_build.sh exports the same variable and records root= in the
+# status file it writes.
+STATUS=${1:-${ROOT:-/Volumes/build/route-b}/logs/mint_build.status}
 
 say() { printf '%s\n' "$*"; }
 
@@ -81,7 +85,7 @@ if [ -n "$framework" ] && [ "$framework" != "<none>" ] && [ -f "$framework" ]; t
   # build wrote that file -- not about the artifact on disk now.
   #
   # The failure it prevents is not hypothetical and is the expensive kind: run
-  # build_ios_release.sh directly (the documented detached invocation does
+  # build_ios.sh directly (the documented detached invocation does
   # exactly that) and the status file is NOT rewritten. If that build fails, the
   # previous run's `state=finished, ninja_rc=0` is still sitting there, the
   # framework from the PREVIOUS build is still on disk, and this script would

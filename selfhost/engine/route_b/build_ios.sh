@@ -11,17 +11,27 @@
 # with "Unexpected tag 4 (Field)". Finding out is the point -- the dedicated
 # checkout exists so that failure cannot contaminate the shipping iOS tree.
 #
-# Run detached, NEVER as a harness background task:
-#   screen -dmS routebios bash -c 'caffeinate -is /Volumes/build/route-b/build_ios_release.sh'
+# THIS IS THE VENDORED COPY OF THE SSD'S build_ios_release.sh, under a
+# different name. The two were diffed on 2026-09-10 and are identical apart from
+# one header comment line (evidence/host/SSD_SCRIPT_VENDORING_2026-09-10.txt),
+# so every reference elsewhere to `build_ios_release.sh` -- notably
+# probes/assert_mint_ready.sh:12-17 on why its exit status must not be trusted
+# -- describes this file. Do not re-vendor it under the old name; that would
+# fork one script into two.
+#
+# Run detached, NEVER as a harness background task -- and prefer
+# run_mint_build.sh, which records the ninja exit this script swallows:
+#   screen -dmS routebios bash -c 'caffeinate -is selfhost/engine/route_b/run_mint_build.sh'
 set -uo pipefail
 
-ROOT=/Volumes/build/route-b
+ROOT=${ROOT:-/Volumes/build/route-b}
+TOOLS=${TOOLS:-/Volumes/build/ios-engine}   # depot_tools + gitconfig are shared: tools, not state
 SRC=$ROOT/flutter/engine/src
 OUT=ios_release
 LOG=$ROOT/logs/ios_release_$(date +%Y%m%d-%H%M%S).log
 mkdir -p "$(dirname "$LOG")"
-export PATH=/Volumes/build/ios-engine/depot_tools:$PATH
-export GIT_CONFIG_GLOBAL=/Volumes/build/ios-engine/gitconfig
+export PATH="$TOOLS/depot_tools:$PATH"
+export GIT_CONFIG_GLOBAL="$TOOLS/gitconfig"
 export DEPOT_TOOLS_UPDATE=0
 cd "$SRC" || exit 1
 

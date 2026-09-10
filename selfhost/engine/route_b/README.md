@@ -7,12 +7,33 @@
 # Route B — the dedicated build tree
 
 The plan lives in [`../../ROUTE_B.md`](../../ROUTE_B.md). This directory is only
-the two scripts that stand up the tree it is built in.
+the scripts that stand up the tree it is built in and build in it.
 
 ```bash
 selfhost/engine/route_b/create_checkout.sh   # ~90 s, ~0 bytes
 selfhost/engine/route_b/build_host.sh        # run under screen, see below
 ```
+
+### The other build drivers
+
+Six more drivers were vendored on 2026-09-10 from `/Volumes/build/route-b`,
+where each had been the only copy — see
+[`../../evidence/host/SSD_SCRIPT_VENDORING_2026-09-10.txt`](../../evidence/host/SSD_SCRIPT_VENDORING_2026-09-10.txt).
+
+| script | what it builds | notes |
+| --- | --- | --- |
+| `build_ios.sh` | `out/ios_release` — the device engine | this *is* the SSD's `build_ios_release.sh`; every reference to that name means this file |
+| `run_mint_build.sh` | nothing itself — drives `build_ios.sh` | the **only** writer of `logs/mint_build.status`, which `probes/assert_mint_ready.sh` gates the mint on. Use it, not `build_ios.sh` directly: that script exits 0 whether or not ninja did |
+| `build_ios_seam6.sh` | re-ninjas `out/ios_release` | fast path after a source edit, no `gn` step. Writes `ios_seam6_*.log`, so it does **not** update `mint_build.status` |
+| `build_host_release_nodm.sh` | `out/host_release_arm64_nodm` zips | G15 gate 3a — the platform dill an app build downloads, from the tree that owns the patches |
+| `build_host_zips.sh` | `out/host_release_arm64` zips | |
+| `build_flutter_platform.sh` | platform dill + `frontend_server` | so step 7 measures a real Flutter app |
+| `watch_ios.sh` | — | tails the newest `ios_release_*.log` for the binary outcome, and calls out a detached `/Volumes/build` rather than waiting on it forever |
+
+All of them take `ROOT=` (default `/Volumes/build/route-b`) and `TOOLS=`
+(default `/Volumes/build/ios-engine`, for `depot_tools` + `gitconfig`).
+`run_mint_build.sh` exports both, so the driver, the build it starts, the log it
+parses and the gate that reads the result all follow the one knob.
 
 ## Why Route B gets its own checkout
 
