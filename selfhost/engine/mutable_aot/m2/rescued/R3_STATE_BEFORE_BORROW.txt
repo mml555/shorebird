@@ -1,0 +1,19 @@
+R3 = /Volumes/build/route-b/flutter/engine/src/flutter/third_party/dart
+recorded 2026-09-10T22:07:58Z before MAOT-2 borrowed the rig
+
+branch   route-b
+HEAD     9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
+tree     aa55ff960f07682fd098195e4884f2cbcb4f5f27
+
+uncommitted, rescued to route-b-source-loader-private-scope-guard.patch and to
+branch maot/rescue-source-loader on the durable remote:
+ M pkg/front_end/lib/src/source/source_loader.dart
+?? third_party/binaryen/.DS_Store
+
+RESTORE: git checkout route-b && git apply <the patch>
+
+RESTORED 2026-09-10T22:16:38Z after the MAOT-2 baseline build.
+Verified: branch route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., the same
+two dirty entries, and the restored diff digest 6b358f715e491bd9 equals the
+rescued patch's. Route B's out/host_release_arm64_nodm was never written to --
+MAOT-2 built into out/maot_host, an APFS clone.
