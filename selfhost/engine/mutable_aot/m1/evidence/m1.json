@@ -1,0 +1,498 @@
+{
+  "schema": "maot.m1.evidence/1",
+  "issue": 65,
+  "generated_by": {
+    "run_id": "2026-09-10T18:36:59Z",
+    "repo_revision": "af349a598ca449e92c37a20eefd086cd1e506bd4",
+    "gate_sha256": "8ace37327ffeb2ad3b0672aaebaac2cd1eae764f9f650e1b4e8dc51b6e1ea74d",
+    "verdict_sha256": "9e16a5b58fd84abdcdf155adc0a85dc80b86a185a71153b5354429b1a49e4427"
+  },
+  "fork_identity": {
+    "commit": "bc3d67971e59b4a596c11b6299c737a73a83595a",
+    "tree": "2a721855e670b000b6b91e5732450a57ed214bb1",
+    "branch": "maot/identity",
+    "dirty": false,
+    "source_digests": {
+      "pkg/kernel/lib/maot_identity.dart": "8cd04db15da0473b46b2977bc848408af60f1e92800b0c91651a9745cd7f3d83",
+      "pkg/vm/bin/maot_identity_manifest.dart": "3d068a1a1878c43237872ec31fdde3abea28171b0746e92bdcbd866c4a4395a6"
+    },
+    "note": "branch is transport, not provenance. commit and tree are the identity; source_digests pin the two files that define the scheme so an edited working tree cannot pass as the committed one."
+  },
+  "manifests": {
+    "release_namespace": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+    "patch_namespace": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+    "release_entries": 35,
+    "patch_entries": 35,
+    "namespace_equal_under_body_edit": true,
+    "private_names_namespace": "f530f80f569e86134c9eca6447e9ec737efd413b8282db5ce6da017f62f6aba1"
+  },
+  "cases": [
+    {
+      "id": "T01",
+      "requirement": "1,5. same source, clean builds in different directories",
+      "description": "two compilations of identical sources, in two randomly named temporary directories, produce the same ids and the same namespace digest -- so no id and no digest carries a build path",
+      "expected": {
+        "ids_equal": true,
+        "namespace_equal": true
+      },
+      "observed": {
+        "ids_equal": true,
+        "namespace_equal": true,
+        "namespace": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+        "entries": 35
+      },
+      "result": "pass"
+    },
+    {
+      "id": "T02",
+      "requirement": "2. body-only edit -> surviving ids identical",
+      "description": "two function bodies changed and nothing else; every declaration id is unchanged",
+      "expected": {
+        "only_in_release": [],
+        "only_in_patch": []
+      },
+      "observed": {
+        "only_in_release": [],
+        "only_in_patch": []
+      },
+      "result": "pass"
+    },
+    {
+      "id": "T03",
+      "requirement": "3. reorder unrelated declarations -> identical ids",
+      "description": "every declaration in the library reversed in source order, including class members; no id moves, because no ordinal is an input",
+      "expected": {
+        "only_in_release": [],
+        "only_in_patch": []
+      },
+      "observed": {
+        "only_in_release": [],
+        "only_in_patch": []
+      },
+      "result": "pass"
+    },
+    {
+      "id": "T04",
+      "requirement": "4. add unrelated declarations -> existing ids unchanged",
+      "description": "a new top-level function and a new class appear; every pre-existing id survives unchanged and only the new ones are added",
+      "expected": {
+        "lost": [],
+        "added": "non-empty"
+      },
+      "observed": {
+        "lost": [],
+        "added": [
+          "lib:package:m1probe/a.dart::cls:AlsoNew",
+          "lib:package:m1probe/a.dart::cls:AlsoNew::ctor:",
+          "lib:package:m1probe/a.dart::fn:brandNew"
+        ]
+      },
+      "result": "pass"
+    },
+    {
+      "id": "T06",
+      "requirement": "6. rename -> new identity, exactly as the contract states",
+      "description": "the contract says a rename mints a new identity with no automatic alias; a rename that silently preserved identity would let a patch bind to a declaration the developer replaced",
+      "expected": {
+        "old_id_in_release": true,
+        "old_id_in_patch": false,
+        "new_id_in_patch": true
+      },
+      "observed": {
+        "old_id_in_release": true,
+        "old_id_in_patch": false,
+        "new_id_in_patch": true
+      },
+      "result": "pass"
+    },
+    {
+      "id": "T07",
+      "requirement": "7. same private spelling in two libraries never aliases",
+      "description": "two libraries each declare a member spelled _secret; each id is qualified by its defining library, so they are two declarations",
+      "expected": {
+        "a_present": true,
+        "b_present": true
+      },
+      "observed": {
+        "a_present": true,
+        "b_present": true,
+        "secret_ids": [
+          "lib:package:m1probe/a.dart::cls:Holder::method:_secret@package:m1probe/a.dart",
+          "lib:package:m1probe/b.dart::cls:Holder2::method:_secret@package:m1probe/b.dart"
+        ]
+      },
+      "result": "pass"
+    },
+    {
+      "id": "T08",
+      "requirement": "8. generic parameter identity survives a body edit",
+      "description": "MyClass<T>.method had its body changed; the type parameter id is unchanged, because it is derived from the name and not from a position or a body",
+      "expected": {
+        "in_release": true,
+        "in_patch": true
+      },
+      "observed": {
+        "in_release": true,
+        "in_patch": true
+      },
+      "result": "pass"
+    },
+    {
+      "id": "T09",
+      "requirement": "9. synthesized entities are role-identified or non-addressable",
+      "description": "every compiler-generated entity either has a defined semantic role derived from its logical declaration, or is explicitly marked non-addressable. None of them claims nominal stability",
+      "expected": {
+        "addressable_without_role": [],
+        "nominal_with_role": []
+      },
+      "observed": {
+        "generated": 7,
+        "roles": [
+          "anonymousMixinApplication",
+          "enumImplicitConstructor",
+          "enumToString",
+          "enumValues",
+          "extensionTearOff",
+          "implicitConstructor"
+        ],
+        "addressable_without_role": [],
+        "nominal_with_role": []
+      },
+      "result": "pass"
+    },
+    {
+      "id": "TX1",
+      "requirement": "extension / extension-type logical identity",
+      "description": "the id is owner declaration plus source-level name and kind; the lowered procedure name (Ext|get#twice) is recorded as an implementation alias and is never itself an identity",
+      "expected": {
+        "extension_id_present": true,
+        "extension_type_id_present": true,
+        "lowered_names_used_as_ids": []
+      },
+      "observed": {
+        "extension_id_present": true,
+        "extension_type_id_present": true,
+        "extension_alias": null,
+        "lowered_names_used_as_ids": []
+      },
+      "result": "pass"
+    },
+    {
+      "id": "TX2",
+      "requirement": "enum synthesized members vs source-declared elements",
+      "description": "the elements the developer wrote keep nominal identity, because matrix row DA-15 is about adding one; `values` and the injected `_enumToString` are identified by the enum plus a defined role, not by their generated names",
+      "expected": {
+        "element_stability": "nominal",
+        "values_role": "enumValues",
+        "enumToString_role": "enumToString"
+      },
+      "observed": {
+        "element_stability": "nominal",
+        "values_role": "enumValues",
+        "enumToString_role": "enumToString"
+      },
+      "result": "pass"
+    },
+    {
+      "id": "TX3",
+      "requirement": "getters, setters, operators, constructors, factories",
+      "description": "a getter and a setter share a source name and must not share an id; the unnamed and named constructors likewise",
+      "expected": {
+        "missing": {},
+        "distinct": 7
+      },
+      "observed": {
+        "missing": {},
+        "distinct": 7
+      },
+      "result": "pass"
+    },
+    {
+      "id": "TX4",
+      "requirement": "mixin declaration and synthetic application",
+      "description": "the mixin the developer wrote is nominal; any anonymous application class the front end generates is stamped with its role rather than passing as a source-declared class",
+      "expected": {
+        "mixin_declaration_present": true
+      },
+      "observed": {
+        "mixin_declaration_present": true,
+        "anonymous_applications": [
+          "lib:package:m1probe/a.dart::cls:_WithMixin&Object&M"
+        ]
+      },
+      "result": "pass"
+    },
+    {
+      "id": "TX5",
+      "requirement": "private names with an unlinked platform",
+      "description": "every compilation here runs --no-link-platform, so dart:core is not in the dill. The dart:core-private _enumToString still resolves, because the defining library is read from the reference rather than from an AST node that is absent",
+      "expected": {
+        "resolved": true,
+        "refusals": 0
+      },
+      "observed": {
+        "resolved": true,
+        "refusals": 0
+      },
+      "result": "pass"
+    },
+    {
+      "id": "TX6",
+      "requirement": "file: libraries are refused rather than path-named",
+      "description": "the scheme refuses to name a file: library it cannot make root-relative. The alternative -- falling back to the absolute path -- would produce an id reproducible only on the machine that minted it, and it would pass every test written there",
+      "expected": {
+        "package_uri_compilation_refusals": 0
+      },
+      "observed": {
+        "package_uri_compilation_refusals": 0,
+        "file_uri_refused": false,
+        "detail": []
+      },
+      "result": "pass"
+    },
+    {
+      "id": "TX7",
+      "requirement": "app-root mapping records the mapping, never the path",
+      "description": "supplying an app root lets a file: library be named app:<relative path>; the root's absolute location is recorded nowhere in the identity block, or the manifest would be machine-specific",
+      "expected": {
+        "app_root_supplied": true,
+        "absolute_root_leaked_into_identity": false
+      },
+      "observed": {
+        "app_root_supplied": true,
+        "mapped": [],
+        "absolute_root_leaked_into_identity": false
+      },
+      "result": "pass"
+    }
+  ],
+  "findings": [],
+  "falsification": [
+    {
+      "id": "P0",
+      "requirement": "positive control",
+      "description": "the real, unmodified manifest raises no blocking finding -- without this, every arm below would also be satisfied by a detector that flags everything",
+      "expected_code": null,
+      "observed_codes": [],
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "F01",
+      "requirement": "identity derived from a machine/runtime address",
+      "description": "an id carrying what looks like an address is refused; a logical identity that moves with the loader is not an identity",
+      "expected_code": "IDENTITY_ADDRESS_LIKE",
+      "observed_codes": [
+        "IDENTITY_ADDRESS_LIKE"
+      ],
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "F02",
+      "requirement": "absolute-path dependence",
+      "description": "an id containing a build path is refused. This is the arm that matters most: such an id passes every test written on the machine that minted it",
+      "expected_code": "IDENTITY_PATH_DEPENDENT",
+      "observed_codes": [
+        "IDENTITY_PATH_DEPENDENT"
+      ],
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "F04",
+      "requirement": "#65 test 10 / 4. forced collision -> fail closed",
+      "description": "two declarations sharing one identity means a patch binding to either binds to the wrong one, so a non-zero collision count is blocking rather than advisory",
+      "expected_code": "IDENTITY_COLLISION",
+      "observed_codes": [
+        "IDENTITY_COLLISION"
+      ],
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "F07",
+      "requirement": "lowered extension implementation used as logical identity",
+      "description": "naming the lowering would make identity a function of the name-mangling scheme: change the mangling and every extension member silently becomes a different declaration with no source edit",
+      "expected_code": "LOWERED_FORM_AS_IDENTITY",
+      "observed_codes": [
+        "LOWERED_FORM_AS_IDENTITY"
+      ],
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "F08",
+      "requirement": "synthesized member claiming persistent source identity",
+      "description": "a compiler-generated entity relabelled nominal is refused; its name being stable in todays compiler is not a contract",
+      "expected_code": "SYNTHETIC_CLAIMS_NOMINAL",
+      "observed_codes": [
+        "SYNTHETIC_CLAIMS_NOMINAL"
+      ],
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "F11",
+      "requirement": "manifest bound to a branch instead of a commit",
+      "description": "a branch is transport, not provenance -- it moves. The manifest must name a full commit sha",
+      "expected_code": "MANIFEST_UNBOUND",
+      "observed_codes": [
+        "MANIFEST_UNBOUND"
+      ],
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "F12",
+      "requirement": "a library that could not be named reproducibly",
+      "description": "a refusal is blocking: a manifest that silently describes less than the program would let a patch address a namespace nobody checked",
+      "expected_code": "IDENTITY_REFUSED",
+      "observed_codes": [
+        "IDENTITY_REFUSED"
+      ],
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "F13",
+      "requirement": "empty namespace",
+      "description": "an empty manifest cannot testify to anything and must not read as agreement",
+      "expected_code": "MANIFEST_EMPTY",
+      "observed_codes": [
+        "MANIFEST_EMPTY"
+      ],
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "F03",
+      "requirement": "wrong release namespace",
+      "description": "a patch manifest produced by a different compiler is refused before its ids are compared; agreement across two namespaces means nothing",
+      "expected_code": "NAMESPACE_MISMATCH",
+      "observed_codes": [
+        "NAMESPACE_MISMATCH"
+      ],
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "F05",
+      "requirement": "private-name alias across libraries",
+      "description": "two distinct private declarations given one id -- what a scheme without library qualification would produce -- is caught as a collision. Recorded honestly: a NATURAL collision could not be constructed in this Dart version, because owner paths already differ, so the qualification is defence in depth rather than the only thing preventing an alias",
+      "expected_code": "IDENTITY_COLLISION",
+      "observed_codes": [
+        "IDENTITY_COLLISION"
+      ],
+      "natural_collision_constructible": false,
+      "shapes_tried_without_natural_collision": [
+        "two classes in two libraries each declaring _secret",
+        "two mixins from two libraries applied to one class",
+        "a class declaring _x while mixing in another library's _x"
+      ],
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "F06",
+      "requirement": "a surviving declaration whose release/patch ids differ",
+      "description": "a single changed id between two compilations of the same declaration is a set difference, which case T02 compares directly and would report",
+      "expected_code": "set difference detected",
+      "observed_codes": [
+        "difference"
+      ],
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "F09",
+      "requirement": "empty test population",
+      "description": "a verdict derived from zero cases would be a statement about nothing, so an empty population is blocking",
+      "expected_code": "EMPTY_TEST_POPULATION",
+      "observed_codes": [
+        "EMPTY_TEST_POPULATION"
+      ],
+      "result": "pass",
+      "problems": []
+    },
+    {
+      "id": "F10",
+      "requirement": "a required test dropped from the run",
+      "description": "dropping the private-name case is caught by name; a shorter run must not read as a passing one",
+      "expected_code": "REQUIRED_TEST_ABSENT",
+      "observed_codes": [
+        "REQUIRED_TEST_ABSENT"
+      ],
+      "result": "pass",
+      "problems": []
+    }
+  ],
+  "verdict": {
+    "stable_identity": "ESTABLISHED",
+    "cases_run": 15,
+    "cases_failed": [],
+    "blocking_findings": [],
+    "required_tests": {
+      "1": "T01",
+      "2": "T02",
+      "3": "T03",
+      "4": "T04",
+      "5": "T01",
+      "6": "T06",
+      "7": "T07",
+      "8": "T08",
+      "9": "T09"
+    },
+    "required_tests_by_arm": {
+      "10": "F04"
+    },
+    "required_surfaces": {
+      "extensions": "TX1",
+      "extension_types": "TX1",
+      "enum_synthesized": "TX2",
+      "mixin_synthetic_application": "TX4",
+      "accessors_and_operators": "TX3",
+      "constructors_and_factories": "TX3",
+      "private_unlinked_platform": "TX5",
+      "file_uri_without_app_root": "TX6",
+      "file_uri_with_app_root": "TX7"
+    },
+    "fork_identity": {
+      "commit": "bc3d67971e59b4a596c11b6299c737a73a83595a",
+      "tree": "2a721855e670b000b6b91e5732450a57ed214bb1",
+      "branch": "maot/identity",
+      "dirty": false,
+      "source_digests": {
+        "pkg/kernel/lib/maot_identity.dart": "8cd04db15da0473b46b2977bc848408af60f1e92800b0c91651a9745cd7f3d83",
+        "pkg/vm/bin/maot_identity_manifest.dart": "3d068a1a1878c43237872ec31fdde3abea28171b0746e92bdcbd866c4a4395a6"
+      },
+      "note": "branch is transport, not provenance. commit and tree are the identity; source_digests pin the two files that define the scheme so an edited working tree cannot pass as the committed one."
+    },
+    "namespaces": {
+      "release_namespace": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+      "patch_namespace": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+      "release_entries": 35,
+      "patch_entries": 35,
+      "namespace_equal_under_body_edit": true,
+      "private_names_namespace": "f530f80f569e86134c9eca6447e9ec737efd413b8282db5ce6da017f62f6aba1"
+    },
+    "diagnostic_only": "cases_run is DIAGNOSTIC. The verdict is a conjunction over every case and every detector; no count or ratio is compared anywhere in this module.",
+    "verdict_rule": "stable_identity == ESTABLISHED iff at least one case ran AND every case passed AND every #65 required test and named surface has a case AND no blocking detector finding was raised."
+  },
+  "consumers": {
+    "map": {
+      "verdict": "the gate exit code, and whether #65 may be closed",
+      "cases": "verdict.cases_failed, and the per-requirement coverage check",
+      "findings": "verdict.blocking_findings and the gate exit code",
+      "fork_identity": "whether a result may be quoted at all -- a result from a different compiler is a different question",
+      "manifests": "the namespace binding check, and #66's starting namespace",
+      "falsification": "whether the detectors above are known to fire; an never-falsified detector is not known to work",
+      "schema": "readers and later issues consuming this record",
+      "issue": "readers and later issues consuming this record",
+      "generated_by": "reproducing this record",
+      "consumers": "this check itself, in both directions"
+    },
+    "unconsumed_or_undeclared": [],
+    "rule": "every computed value names the decision that reads it, and every declared consumer refers to a value produced. Checked in both directions."
+  }
+}

@@ -1,0 +1,90 @@
+MAOT-1 (#65) -- stable declaration and type identity
+generated 2026-09-10T18:36:50Z by run_m1.sh
+repo revision af349a598ca449e92c37a20eefd086cd1e506bd4
+
+############ 1. WHAT THIS ISSUE OWNS ############
+  #65 owns IDENTITY and nothing else. No runtime implementation slot, no
+  mutable call lowering, no optimizer change, no dispatch work, no patch
+  transaction, no class migration. Those are #66 onward, and the assertions
+  below check the boundary from the fork's own diff rather than asserting it.
+
+  Identity is computed in the front end from the program's name space. It may
+  not depend on machine-code or object addresses, pool offsets, transient
+  class ids, compilation or declaration order, source position, absolute paths
+  or build directories. The scheme REFUSES to name a file: library it cannot
+  make root-relative: falling back to the absolute path would mint an id
+  reproducible only on the machine that made it, and that id would pass every
+  test written there.
+
+############ 2. THE FORK UNDER TEST ############
+  worktree      /Volumes/build/maot/dart
+  branch        maot/identity
+  commit        bc3d67971e59b4a596c11b6299c737a73a83595a
+  tree          2a721855e670b000b6b91e5732450a57ed214bb1
+  dirty files   0
+
+  a branch is transport, not provenance. The commit and tree above are
+  the identity, and the record pins the digests of the two files that
+  define the scheme so an edited worktree cannot pass as the commit.
+
+############ 3. DURABILITY -- THE FORK IS FETCHABLE OFF THIS MACHINE ############
+  remote        https://github.com/mml555/dart-sdk-shorebird-lineage.git
+  ref           refs/heads/maot/identity
+  remote HEAD   bc3d67971e59b4a596c11b6299c737a73a83595a
+  local  HEAD   bc3d67971e59b4a596c11b6299c737a73a83595a
+  fetched TREE  2a721855e670b000b6b91e5732450a57ed214bb1
+  local   TREE  2a721855e670b000b6b91e5732450a57ed214bb1
+
+  The branch is FETCHED BACK independently, not trusted because a push
+  printed progress. A push that is still enumerating objects has not
+  made anything durable.
+
+############ 4. THE RUN ############
+fork commit        bc3d67971e59b4a596c11b6299c737a73a83595a
+fork tree          2a721855e670b000b6b91e5732450a57ed214bb1
+cases              15 (0 failed)
+falsification arms 14 (0 failed)
+release namespace  ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e
+blocking findings  0
+VERDICT            stable_identity = ESTABLISHED
+
+############ 5. ASSERTIONS ############
+  pass  the gate ran
+  pass  the record was written
+  pass  no blocking finding stands
+  pass  the fork commit is a full sha
+  pass  the fork tree is a full sha
+  pass  the fork worktree is clean
+  pass  the two scheme files are digested
+  pass  the durable branch exists on the remote
+  pass  the remote tip is the local commit
+  pass  the branch fetches back with the same tree
+  pass  every case passes
+  pass  the case population is non-empty
+  pass  every #65 required test has a case or an arm
+  pass  every named surface has a case
+  pass  ids are identical across two build directories
+  pass  a body-only edit moves no id
+  pass  reordering declarations moves no id
+  pass  a rename mints a new identity
+  pass  private names never alias
+  pass  extension members are identified by declaration, not by lowering
+  pass  synthesized entities carry a role or are non-addressable
+  pass  a file: library is refused rather than path-named
+  pass  the app root is never recorded as a path
+  pass  the release namespace is a digest
+  pass  a body edit does not move the namespace
+  pass  every falsification arm is demonstrated
+  pass  the arms include a positive control
+  pass  a forced collision fails closed
+  pass  a path-dependent id is refused
+  pass  a lowered form used as identity is refused
+  pass  an empty test population is refused
+  pass  every computed value names its consumer
+  pass  the fork delta since the baseline touches only identity files
+  pass  no runtime, optimizer or dispatch source was touched
+  pass  no Shorebird implementation subsystem is modified
+
+ASSERTIONS (35 checked: 35 pass, 0 fail)
+
+M1: IDENTITY_ESTABLISHED / stable_identity=ESTABLISHED

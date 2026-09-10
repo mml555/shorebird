@@ -33,9 +33,23 @@ backend for replacement code. It does not define the architecture.
 |---|---|---|
 | [`maot0/`](maot0) | **#63** | the authoritative compatibility matrix, the contract, the frozen construct universes, and the gate that refuses a 100% claim |
 | [`t0/`](t0) | **#64** | the fixture corpus, the run harness (optimizer/heat/dispatch modes), and the fifteen adversarial controls |
+| [`m1/`](m1) | **#65** | stable declaration and type identity: the cases, detectors and arms that gate the scheme living in the Dart fork |
 
 Later issues add their own directory and **consume `maot0/matrix.json`** rather
 than maintaining a second list of what must work.
+
+## The Dart fork
+
+From #65 onward the compiler changes live in a durable fork, not in this repo:
+
+    repository  mml555/dart-sdk-shorebird-lineage
+    branch      maot/identity          (transport, not provenance)
+    baseline    9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
+
+Branch names move; provenance is repository plus full commit and tree sha, and
+every lane records both. A push is not durable until the branch has been
+FETCHED BACK independently and its tree sha compared -- `run_m1.sh` does that
+on every run rather than trusting that a push printed progress.
 
 ## The rules that apply to every issue here
 
