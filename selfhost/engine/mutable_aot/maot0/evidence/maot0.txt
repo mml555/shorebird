@@ -1,6 +1,11 @@
 MAOT-0 (#63) -- the universal Dart patchability contract and matrix
-generated 2026-09-10T17:02:49Z by run_maot0.sh
-repo /Users/mendell/shorebird at cc451b7a32cc45360361e9eb103c19794eb679bc
+generated 2026-09-10T17:04:04Z by run_maot0.sh
+repo revision 2c8ef8a650aa53bf3bfc18e817f3052e722ad7a5
+  That revision is the tree the gate RAN AGAINST, so in a committed record it
+  necessarily names the PARENT of the commit carrying it. A record cannot name
+  the commit that contains it; re-running after a commit therefore rewrites
+  this line and the timestamp, and nothing else. Everything substantive in
+  evidence/maot0.json is byte-stable across runs.
 
 ############ 1. WHAT THIS ISSUE OWNS, AND WHAT IT DOES NOT ############
   #63 is a specification and gating issue. It defines what counts as

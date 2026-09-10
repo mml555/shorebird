@@ -28,7 +28,16 @@ rm -f "$LOG_FILE"
 {
 echo "MAOT-0 (#63) -- the universal Dart patchability contract and matrix"
 echo "generated $(date -u +%Y-%m-%dT%H:%M:%SZ) by run_maot0.sh"
-echo "repo $REPO at $(git -C "$REPO" rev-parse HEAD 2>/dev/null || echo unknown)"
+# The checkout PATH is not identity -- extract_universe.py refuses it as
+# provenance and this log must not reintroduce it. The revision is the identity.
+echo "repo revision $(git -C "$REPO" rev-parse HEAD 2>/dev/null || echo unknown)"
+cat <<'TXT'
+  That revision is the tree the gate RAN AGAINST, so in a committed record it
+  necessarily names the PARENT of the commit carrying it. A record cannot name
+  the commit that contains it; re-running after a commit therefore rewrites
+  this line and the timestamp, and nothing else. Everything substantive in
+  evidence/maot0.json is byte-stable across runs.
+TXT
 echo
 echo "############ 1. WHAT THIS ISSUE OWNS, AND WHAT IT DOES NOT ############"
 cat <<'TXT'
