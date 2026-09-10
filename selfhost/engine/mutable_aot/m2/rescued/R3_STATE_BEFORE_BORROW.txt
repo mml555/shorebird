@@ -18,7 +18,7 @@ two dirty entries, and the restored diff digest 6b358f715e491bd9 equals the
 rescued patch's. Route B's out/host_release_arm64_nodm was never written to --
 MAOT-2 built into out/maot_host, an APFS clone.
 
-SECOND BORROW/HANDBACK for the MAOT-2 implementation segment.
+SECOND BORROW / HAND-BACK for the MAOT-2 implementation segment.
 Returned to branch route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07...,
 the same two dirty entries, dirty digest 6b358f715e491bd9 -- identical to the
 first recording. Built only in out/maot_host; Route B's out dir untouched.
