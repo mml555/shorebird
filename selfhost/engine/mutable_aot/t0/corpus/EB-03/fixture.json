@@ -1,0 +1,29 @@
+{
+  "schema": "maot.t0.fixture/1",
+  "row_id": "EB-03",
+  "gate_id": "T0/EB-03",
+  "title": "instance method body",
+  "executable": true,
+  "placeholder_reason": null,
+  "dispatch_modes": [
+    "direct",
+    "virtual",
+    "interface",
+    "super",
+    "dynamic",
+    "tearoff_pre",
+    "tearoff_post"
+  ],
+  "optimizer_modes": [
+    "jit",
+    "aot"
+  ],
+  "heat_modes": [
+    "cold",
+    "hot"
+  ],
+  "expected_pre": "1",
+  "expected_post": "2",
+  "old_state_required": true,
+  "subject_note": "instance method body"
+}

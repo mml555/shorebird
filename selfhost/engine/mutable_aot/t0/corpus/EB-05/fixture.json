@@ -1,0 +1,26 @@
+{
+  "schema": "maot.t0.fixture/1",
+  "row_id": "EB-05",
+  "gate_id": "T0/EB-05",
+  "title": "setter body",
+  "executable": true,
+  "placeholder_reason": null,
+  "dispatch_modes": [
+    "direct",
+    "virtual",
+    "interface",
+    "dynamic"
+  ],
+  "optimizer_modes": [
+    "jit",
+    "aot"
+  ],
+  "heat_modes": [
+    "cold",
+    "hot"
+  ],
+  "expected_pre": "1",
+  "expected_post": "2",
+  "old_state_required": false,
+  "subject_note": "setter body"
+}

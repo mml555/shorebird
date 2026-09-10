@@ -1,0 +1,14 @@
+{
+  "schema": "maot.t0.fixture/1",
+  "row_id": "DA-13",
+  "gate_id": "T0/DA-13",
+  "title": "add or remove a mixin declaration",
+  "executable": false,
+  "placeholder_reason": "Scaffolded from the matrix and not yet given executable release/patch sources. The row reports UNMODELED with reason FIXTURE_MISSING until it does; it never reports a pass.",
+  "dispatch_modes": [],
+  "optimizer_modes": [],
+  "heat_modes": [],
+  "expected_pre": null,
+  "expected_post": null,
+  "old_state_required": false
+}

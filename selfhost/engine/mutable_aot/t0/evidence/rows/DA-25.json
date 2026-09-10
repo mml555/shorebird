@@ -1,0 +1,34 @@
+{
+  "schema": "maot.t0.row/1",
+  "row_id": "DA-25",
+  "gate_id": "T0/DA-25",
+  "executable": false,
+  "result": "UNMODELED",
+  "reasons": [
+    "FIXTURE_MISSING"
+  ],
+  "mechanism": "none",
+  "release_source_sha256": null,
+  "patch_source_sha256": null,
+  "toolchain": {
+    "sdk_revision": "d684a576a6aa954ae107a03b2b4e1d61c3bebe93",
+    "version_string": "Dart SDK version: 3.12.2 (stable) (Tue Jun 9 01:11:39 2026 -0700) on \"macos_arm64\""
+  },
+  "release_artifact": null,
+  "patch_artifact": null,
+  "pre_observation": null,
+  "install_result": {
+    "attempted": false,
+    "detail": "Scaffolded from the matrix and not yet given executable release/patch sources. The row reports UNMODELED with reason FIXTURE_MISSING until it does; it never reports a pass."
+  },
+  "post_observation": null,
+  "process_restarted": null,
+  "old_state_existed": false,
+  "expected_pre": null,
+  "expected_post": null,
+  "mode_results": [],
+  "path_evidence": null,
+  "generated_at": "2026-09-10T17:28:45Z",
+  "generator": "runner.py",
+  "run_id": "2026-09-10T17:28:45Z"
+}

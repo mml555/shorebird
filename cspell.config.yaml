@@ -860,3 +860,5 @@ words:
   - Smiable # Dart VM: MonomorphicSmiableCall
   - Dirtifying # kernel AST: DirtifyingList
   - vtable # standard term for a virtual dispatch table
+  - devirtualize # standard AOT-optimizer term; MAOT-4/#68 turns on it
+  - devirtualization

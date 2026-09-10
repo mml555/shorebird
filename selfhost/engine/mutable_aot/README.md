@@ -32,6 +32,7 @@ backend for replacement code. It does not define the architecture.
 | directory | issue | what it holds |
 |---|---|---|
 | [`maot0/`](maot0) | **#63** | the authoritative compatibility matrix, the contract, the frozen construct universes, and the gate that refuses a 100% claim |
+| [`t0/`](t0) | **#64** | the fixture corpus, the run harness (optimizer/heat/dispatch modes), and the fifteen adversarial controls |
 
 Later issues add their own directory and **consume `maot0/matrix.json`** rather
 than maintaining a second list of what must work.

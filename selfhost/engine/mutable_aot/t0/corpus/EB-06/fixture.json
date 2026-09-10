@@ -1,0 +1,25 @@
+{
+  "schema": "maot.t0.fixture/1",
+  "row_id": "EB-06",
+  "gate_id": "T0/EB-06",
+  "title": "operator body",
+  "executable": true,
+  "placeholder_reason": null,
+  "dispatch_modes": [
+    "direct",
+    "virtual",
+    "dynamic"
+  ],
+  "optimizer_modes": [
+    "jit",
+    "aot"
+  ],
+  "heat_modes": [
+    "cold",
+    "hot"
+  ],
+  "expected_pre": "1",
+  "expected_post": "2",
+  "old_state_required": false,
+  "subject_note": "operator body"
+}

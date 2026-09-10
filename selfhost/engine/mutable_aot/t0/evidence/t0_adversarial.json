@@ -1,0 +1,244 @@
+{
+  "schema": "maot.t0.adversarial/1",
+  "controls_total": 15,
+  "controls_passed": 15,
+  "controls_failed": 0,
+  "note": "P0/P1/P2 are positive controls. Without them the A controls would be satisfied by a harness that refuses everything, which catches nothing because it decides nothing.",
+  "controls": [
+    {
+      "id": "P0",
+      "maps_to": "control validity",
+      "description": "the mock, told to behave, really does move every mode to expected_post -- otherwise every A control below passes for the wrong reason",
+      "expected": [
+        "2"
+      ],
+      "observed": {
+        "post_values": [
+          "2"
+        ]
+      },
+      "result": "pass"
+    },
+    {
+      "id": "P1",
+      "maps_to": "verdict reachability",
+      "description": "the shared classifier returns PROVEN for clean observations from the real backend -- so its refusals are informative rather than constant",
+      "expected": {
+        "verdict": "PROVEN"
+      },
+      "observed": {
+        "verdict": "PROVEN",
+        "reasons": [
+          "OK"
+        ]
+      },
+      "result": "pass"
+    },
+    {
+      "id": "P2",
+      "maps_to": "a double can never prove",
+      "description": "the SAME clean observations attributed to the mock backend yield MOCK_ONLY, which is absent from RESULTS_COUNTING_AS_PROOF",
+      "expected": {
+        "verdict": "MOCK_ONLY"
+      },
+      "observed": {
+        "verdict": "MOCK_ONLY",
+        "reasons": [
+          "MOCK_BACKEND"
+        ]
+      },
+      "result": "pass"
+    },
+    {
+      "id": "A01",
+      "maps_to": "1. installer reports success but the slot is unchanged",
+      "description": "installation reports success while every mode still observes the old implementation",
+      "expected": {
+        "verdict": "FAIL_OPEN",
+        "reason": "SLOT_UNCHANGED"
+      },
+      "observed": {
+        "verdict": "FAIL_OPEN",
+        "reasons": [
+          "SLOT_UNCHANGED"
+        ]
+      },
+      "result": "pass"
+    },
+    {
+      "id": "A02",
+      "maps_to": "2. direct call changes but virtual dispatch stays old",
+      "description": "the defining bypass of #62 I2: one dispatch form follows the patch and another does not",
+      "expected": {
+        "verdict": "WRONG_SEMANTICS",
+        "reason": "DISPATCH_MODE_STALE"
+      },
+      "observed": {
+        "verdict": "WRONG_SEMANTICS",
+        "reasons": [
+          "DISPATCH_MODE_STALE",
+          "HOT_CALLER_STALE"
+        ]
+      },
+      "result": "pass"
+    },
+    {
+      "id": "A02b",
+      "maps_to": "2. interface dispatch stays old",
+      "description": "the same bypass through an interface-typed receiver",
+      "expected": {
+        "verdict": "WRONG_SEMANTICS",
+        "reason": "DISPATCH_MODE_STALE"
+      },
+      "observed": {
+        "verdict": "WRONG_SEMANTICS",
+        "reasons": [
+          "DISPATCH_MODE_STALE",
+          "HOT_CALLER_STALE"
+        ]
+      },
+      "result": "pass"
+    },
+    {
+      "id": "A03",
+      "maps_to": "3. only new tear-offs change; a pre-patch tear-off is old",
+      "description": "a tear-off captured before installation keeps reaching the old implementation while everything else moves",
+      "expected": {
+        "verdict": "WRONG_SEMANTICS",
+        "reason": "TEAROFF_STALE"
+      },
+      "observed": {
+        "verdict": "WRONG_SEMANTICS",
+        "reasons": [
+          "TEAROFF_STALE"
+        ]
+      },
+      "result": "pass"
+    },
+    {
+      "id": "A04",
+      "maps_to": "4. a hot/optimized caller remains old",
+      "description": "the cold path follows the patch and the hot, specialised one does not -- invisible to any cold-only harness",
+      "expected": {
+        "verdict": "WRONG_SEMANTICS",
+        "reason": "HOT_CALLER_STALE"
+      },
+      "observed": {
+        "verdict": "WRONG_SEMANTICS",
+        "reasons": [
+          "HOT_CALLER_STALE",
+          "TEAROFF_STALE"
+        ]
+      },
+      "result": "pass"
+    },
+    {
+      "id": "A05",
+      "maps_to": "5. stale prior evidence after a failed current run",
+      "description": "a row record that this run did not stamp is INCOMPLETE, not an answer carried over from last time",
+      "expected": {
+        "code": "ROW_RESULT_INCOMPLETE",
+        "aggregate": "NOT_PROVEN"
+      },
+      "observed": {
+        "codes": [
+          "ROW_RESULT_INCOMPLETE"
+        ],
+        "aggregate": "NOT_PROVEN"
+      },
+      "result": "pass"
+    },
+    {
+      "id": "A06",
+      "maps_to": "6. one matrix row deleted from the run",
+      "description": "not running a row is not a way to finish it",
+      "expected": {
+        "code": "ROW_RESULT_ABSENT",
+        "aggregate": "NOT_PROVEN"
+      },
+      "observed": {
+        "codes": [
+          "ROW_RESULT_ABSENT"
+        ],
+        "aggregate": "NOT_PROVEN"
+      },
+      "result": "pass"
+    },
+    {
+      "id": "A07",
+      "maps_to": "7. a high percentage with one in-scope row unproven",
+      "description": "99.04% of rows proven is still NOT_PROVEN, while the same shape with nothing short does reach PROVEN -- so the refusal is the conjunction, not an inability to pass",
+      "expected": {
+        "one_short": "NOT_PROVEN",
+        "nothing_short": "PROVEN"
+      },
+      "observed": {
+        "one_short": "NOT_PROVEN",
+        "percentage_diagnostic": 99.04,
+        "nothing_short": "PROVEN"
+      },
+      "result": "pass"
+    },
+    {
+      "id": "A08",
+      "maps_to": "8. release and patch identities swapped",
+      "description": "a patch not bound to the release it targets is refused even when every observed value looks right",
+      "expected": {
+        "verdict": "WRONG_SEMANTICS",
+        "reason": "IDENTITY_MISMATCH"
+      },
+      "observed": {
+        "verdict": "WRONG_SEMANTICS",
+        "reasons": [
+          "IDENTITY_MISMATCH"
+        ]
+      },
+      "result": "pass"
+    },
+    {
+      "id": "A09",
+      "maps_to": "9. a process restart would make the test appear to pass",
+      "description": "every observed value is exactly expected_post, and the run is still refused because the process identity changed",
+      "expected": {
+        "verdict": "RESTART_DETECTED",
+        "reason": "PROCESS_RESTARTED"
+      },
+      "observed": {
+        "verdict": "RESTART_DETECTED",
+        "reasons": [
+          "PROCESS_RESTARTED"
+        ]
+      },
+      "result": "pass"
+    },
+    {
+      "id": "A09b",
+      "maps_to": "9. the rebuilt-program baseline substituted for post",
+      "description": "patch_source_baseline is a NEW process; using it as the post observation is caught by the same nonce check",
+      "expected": {
+        "verdict": "RESTART_DETECTED"
+      },
+      "observed": {
+        "verdict": "RESTART_DETECTED",
+        "reasons": [
+          "PROCESS_RESTARTED"
+        ]
+      },
+      "result": "pass"
+    },
+    {
+      "id": "A10",
+      "maps_to": "10. a value is computed but consumed by no decision",
+      "description": "every field the aggregate produces names the decision that reads it, checked in both directions",
+      "expected": {
+        "unconsumed": [],
+        "declared_but_absent": []
+      },
+      "observed": {
+        "unconsumed": [],
+        "declared_but_absent": []
+      },
+      "result": "pass"
+    }
+  ]
+}

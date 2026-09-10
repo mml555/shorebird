@@ -1,0 +1,100 @@
+MAOT-T0 (#64) -- the universal patchability corpus and adversarial gate
+generated 2026-09-10T17:28:11Z by run_t0.sh
+repo revision e7fd43de6015267a426c02c2d7dc51257ab593f7
+
+############ 1. WHAT RUNS TODAY, AND WHAT DOES NOT ############
+  The Mutable-AOT mechanism does not exist yet -- #65 through #70 build it.
+  So the `none` backend refuses every installation and every row reports
+  UNMODELED. No row is PROVEN and none can be.
+
+  What DOES run is real and already useful. Every executable fixture is
+  compiled in both optimizer modes, executed cold and hot, and every dispatch
+  mode's observation is checked against the value the fixture declares for the
+  release program. That catches a fixture that does not compile, one that does
+  not behave as declared, and one whose pre and post expectations are equal --
+  which could never tell a patched program from an unpatched one.
+
+  The ten false-positive paths #64 names are exercised against a mock backend
+  through the SAME classifier the real run uses. A control that drove a
+  parallel code path would measure that other path.
+
+############ 2. THE CORPUS, AGAINST #63'S MATRIX ############
+in-scope rows      104
+fixtures present   104
+executable         14
+placeholders       90
+
+############ 3. THE RUN ############
+run_id             2026-09-10T17:28:11Z
+in-scope rows      104
+executable         14
+placeholders       90
+result counts      {'UNMODELED': 104}
+blocking findings  0
+VERDICT            universal_dart_patchability = NOT_PROVEN
+
+############ 4. EVIDENCE IS REGENERATED, NOT MERGED ############
+  Deleted and corrupted row records must not survive a run. evidence/rows/ is
+  cleared before every run and each record carries this run's id; a record
+  stamped with any other run is refused. Proven here by destroying evidence
+  and re-running, rather than by asserting the policy.
+
+  deleted EB-01.json and replaced EB-03.json with a forged PROVEN record
+  outcome: regenerated
+
+############ 5. THE TEN ADVERSARIAL CONTROLS ############
+  pass  P0    control validity
+  pass  P1    verdict reachability
+  pass  P2    a double can never prove
+  pass  A01   1. installer reports success but the slot is unchanged
+  pass  A02   2. direct call changes but virtual dispatch stays old
+  pass  A02b  2. interface dispatch stays old
+  pass  A03   3. only new tear-offs change; a pre-patch tear-off is old
+  pass  A04   4. a hot/optimized caller remains old
+  pass  A05   5. stale prior evidence after a failed current run
+  pass  A06   6. one matrix row deleted from the run
+  pass  A07   7. a high percentage with one in-scope row unproven
+  pass  A08   8. release and patch identities swapped
+  pass  A09   9. a process restart would make the test appear to pass
+  pass  A09b  9. the rebuilt-program baseline substituted for post
+  pass  A10   10. a value is computed but consumed by no decision
+
+  15/15 adversarial controls pass
+
+############ 6. ASSERTIONS ############
+  pass  the corpus check ran clean
+  pass  the gate ran
+  pass  the record was written
+  pass  no blocking finding stands
+  pass  the row set comes from the matrix
+  pass  every in-scope matrix row has a fixture
+  pass  every in-scope matrix row has a result
+  pass  the minimum fixture families are executable
+  pass  every placeholder is explicit, never an absence
+  pass  both optimizer modes are supported
+  pass  both heat modes are supported
+  pass  the hot mode is actually hot
+  pass  every dispatch form is a mode of one row, not a row of its own
+  pass  the executable rows really ran in all four mode combinations
+  pass  the toolchain is identified by revision
+  pass  the aggregate refuses
+  pass  no row is proven
+  pass  every row is UNMODELED for a named reason
+  pass  no row failed for infrastructure reasons
+  pass  the backend in use is the real one, and says why it refuses
+  pass  the verdict rule is a conjunction, not a threshold
+  pass  counts are labelled diagnostic
+  pass  evidence regenerates after deletion and corruption
+  pass  every row record belongs to this run
+  pass  every adversarial control passes
+  pass  all ten of #64 controls are present
+  pass  the mock double demonstrably works (else the controls are vacuous)
+  pass  the verdict PROVEN is reachable by the shared classifier
+  pass  a test double can never produce proof
+  pass  a restart cannot make a run appear to pass
+  pass  the rebuilt-program baseline cannot stand in for a patch
+  pass  no implementation subsystem is modified in the working tree
+
+ASSERTIONS (32 checked: 32 pass, 0 fail)
+
+T0: HARNESS_ESTABLISHED / universal_dart_patchability=NOT_PROVEN

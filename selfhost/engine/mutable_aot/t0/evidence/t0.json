@@ -1,0 +1,1321 @@
+{
+  "schema": "maot.t0.evidence/1",
+  "issue": 64,
+  "program": "MUTABLE-AOT (#62)",
+  "run_id": "2026-09-10T17:28:45Z",
+  "generated_by": {
+    "gate_sha256": "3425b7a115b17b1d0c53dc3c6386d0b6d46baca38c6b392095e47b493b4071a0",
+    "runner_sha256": "21d64bd9ddc65f98f43bd1cdb46fa1d106c35d534a22ca169b0eeef69c9e4593",
+    "mechanism_sha256": "1a5de3fa21a47eb9e14205bcc9a0f3615b1a87051dab6c0738c44ac784cfd3dd",
+    "repo_revision": "e7fd43de6015267a426c02c2d7dc51257ab593f7"
+  },
+  "matrix_identity": {
+    "matrix_sha256": "b28f8900a0ee02d20c6e1144553acfc595c5e13181ae80964bb2466889674641",
+    "in_scope_rows": 104,
+    "source": "maot0/matrix.json -- the harness keeps no second list"
+  },
+  "toolchain": {
+    "sdk_revision": "d684a576a6aa954ae107a03b2b4e1d61c3bebe93",
+    "version_string": "Dart SDK version: 3.12.2 (stable) (Tue Jun 9 01:11:39 2026 -0700) on \"macos_arm64\"",
+    "identity_note": "The SDK is identified by its revision, not by the path this machine keeps it at. A path is a location; the revision is the identity."
+  },
+  "corpus": {
+    "fixtures_present": 104,
+    "executable_fixtures": [
+      "EB-01",
+      "EB-02",
+      "EB-03",
+      "EB-04",
+      "EB-05",
+      "EB-06",
+      "EB-07",
+      "EB-08",
+      "EB-11",
+      "EB-12",
+      "EB-13",
+      "EB-14",
+      "EB-15",
+      "EB-19"
+    ],
+    "placeholder_fixtures": [
+      "BL-01",
+      "BL-02",
+      "BL-03",
+      "BL-04",
+      "DA-01",
+      "DA-02",
+      "DA-03",
+      "DA-04",
+      "DA-05",
+      "DA-06",
+      "DA-07",
+      "DA-08",
+      "DA-09",
+      "DA-10",
+      "DA-11",
+      "DA-12",
+      "DA-13",
+      "DA-14",
+      "DA-15",
+      "DA-16",
+      "DA-17",
+      "DA-18",
+      "DA-19",
+      "DA-20",
+      "DA-21",
+      "DA-22",
+      "DA-23",
+      "DA-24",
+      "DA-25",
+      "DA-26",
+      "EB-09",
+      "EB-10",
+      "EB-16",
+      "EB-17",
+      "EB-18",
+      "EB-20",
+      "EB-21",
+      "EB-22",
+      "EB-23",
+      "EB-24",
+      "EB-25",
+      "EB-26",
+      "FL-01",
+      "FL-02",
+      "FL-03",
+      "FL-04",
+      "FL-05",
+      "FL-06",
+      "FL-07",
+      "FL-08",
+      "FL-09",
+      "FL-10",
+      "FL-11",
+      "FL-12",
+      "ID-01",
+      "RS-01",
+      "RS-02",
+      "RS-03",
+      "RS-04",
+      "RS-05",
+      "RS-06",
+      "RS-07",
+      "RS-08",
+      "RS-09",
+      "RS-10",
+      "RS-11",
+      "RS-12",
+      "RS-13",
+      "RS-14",
+      "RS-15",
+      "TS-01",
+      "TS-02",
+      "TS-03",
+      "TS-04",
+      "TS-05",
+      "TS-06",
+      "TS-07",
+      "TS-08",
+      "TS-09",
+      "TS-10",
+      "TS-11",
+      "TS-12",
+      "TS-13",
+      "TS-14",
+      "TS-15",
+      "TS-16",
+      "TS-17",
+      "TS-18",
+      "TS-19",
+      "TS-20"
+    ],
+    "modes": {
+      "dispatch": [
+        "direct",
+        "virtual",
+        "interface",
+        "super",
+        "dynamic",
+        "tearoff_pre",
+        "tearoff_post"
+      ],
+      "optimizer": [
+        "jit",
+        "aot"
+      ],
+      "heat": [
+        "cold",
+        "hot"
+      ],
+      "heat_iterations": {
+        "cold": 1,
+        "hot": 20000
+      }
+    }
+  },
+  "mechanism_backend": {
+    "name": "none",
+    "why": "The Mutable-AOT declaration/implementation mechanism does not exist yet -- #65 through #70 build it. Until then every row reports UNMODELED and no row can be PROVEN. The mock backend exists only for the adversarial controls and its results can never count as proof."
+  },
+  "row_results": [
+    {
+      "row_id": "EB-01",
+      "result": "UNMODELED",
+      "reasons": [
+        "NO_MECHANISM"
+      ],
+      "executable": true,
+      "pre_observations": 16,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-02",
+      "result": "UNMODELED",
+      "reasons": [
+        "NO_MECHANISM"
+      ],
+      "executable": true,
+      "pre_observations": 16,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-03",
+      "result": "UNMODELED",
+      "reasons": [
+        "NO_MECHANISM"
+      ],
+      "executable": true,
+      "pre_observations": 28,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-04",
+      "result": "UNMODELED",
+      "reasons": [
+        "NO_MECHANISM"
+      ],
+      "executable": true,
+      "pre_observations": 16,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-05",
+      "result": "UNMODELED",
+      "reasons": [
+        "NO_MECHANISM"
+      ],
+      "executable": true,
+      "pre_observations": 16,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-06",
+      "result": "UNMODELED",
+      "reasons": [
+        "NO_MECHANISM"
+      ],
+      "executable": true,
+      "pre_observations": 12,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-07",
+      "result": "UNMODELED",
+      "reasons": [
+        "NO_MECHANISM"
+      ],
+      "executable": true,
+      "pre_observations": 8,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-08",
+      "result": "UNMODELED",
+      "reasons": [
+        "NO_MECHANISM"
+      ],
+      "executable": true,
+      "pre_observations": 4,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-09",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-10",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-11",
+      "result": "UNMODELED",
+      "reasons": [
+        "NO_MECHANISM"
+      ],
+      "executable": true,
+      "pre_observations": 12,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-12",
+      "result": "UNMODELED",
+      "reasons": [
+        "NO_MECHANISM"
+      ],
+      "executable": true,
+      "pre_observations": 8,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-13",
+      "result": "UNMODELED",
+      "reasons": [
+        "NO_MECHANISM"
+      ],
+      "executable": true,
+      "pre_observations": 8,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-14",
+      "result": "UNMODELED",
+      "reasons": [
+        "NO_MECHANISM"
+      ],
+      "executable": true,
+      "pre_observations": 8,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-15",
+      "result": "UNMODELED",
+      "reasons": [
+        "NO_MECHANISM"
+      ],
+      "executable": true,
+      "pre_observations": 12,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-16",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-17",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-18",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-19",
+      "result": "UNMODELED",
+      "reasons": [
+        "NO_MECHANISM"
+      ],
+      "executable": true,
+      "pre_observations": 16,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-20",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-21",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-22",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-23",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-24",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-25",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "EB-26",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-01",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-02",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-03",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-04",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-05",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-06",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-07",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-08",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-09",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-10",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-11",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-12",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-13",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-14",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-15",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-16",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-17",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-18",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-19",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-20",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-21",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-22",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-23",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-24",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-25",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "DA-26",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "TS-01",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "TS-02",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "TS-03",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "TS-04",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "TS-05",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "TS-06",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "TS-07",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "TS-08",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "TS-09",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "TS-10",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "TS-11",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "TS-12",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "TS-13",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "TS-14",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "TS-15",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "TS-16",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "TS-17",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "TS-18",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "TS-19",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "TS-20",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "RS-01",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "RS-02",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "RS-03",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "RS-04",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "RS-05",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "RS-06",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "RS-07",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "RS-08",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "RS-09",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "RS-10",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "RS-11",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "RS-12",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "RS-13",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "RS-14",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "RS-15",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "ID-01",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "FL-01",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "FL-02",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "FL-03",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "FL-04",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "FL-05",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "FL-06",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "FL-07",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "FL-08",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "FL-09",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "FL-10",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "FL-11",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "FL-12",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "BL-01",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "BL-02",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "BL-03",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    },
+    {
+      "row_id": "BL-04",
+      "result": "UNMODELED",
+      "reasons": [
+        "FIXTURE_MISSING"
+      ],
+      "executable": false,
+      "pre_observations": 0,
+      "process_restarted": null
+    }
+  ],
+  "findings": [],
+  "aggregate": {
+    "universal_dart_patchability": "NOT_PROVEN",
+    "in_scope_rows": 104,
+    "rows_proven": [],
+    "rows_not_proven": [
+      "EB-01",
+      "EB-02",
+      "EB-03",
+      "EB-04",
+      "EB-05",
+      "EB-06",
+      "EB-07",
+      "EB-08",
+      "EB-09",
+      "EB-10",
+      "EB-11",
+      "EB-12",
+      "EB-13",
+      "EB-14",
+      "EB-15",
+      "EB-16",
+      "EB-17",
+      "EB-18",
+      "EB-19",
+      "EB-20",
+      "EB-21",
+      "EB-22",
+      "EB-23",
+      "EB-24",
+      "EB-25",
+      "EB-26",
+      "DA-01",
+      "DA-02",
+      "DA-03",
+      "DA-04",
+      "DA-05",
+      "DA-06",
+      "DA-07",
+      "DA-08",
+      "DA-09",
+      "DA-10",
+      "DA-11",
+      "DA-12",
+      "DA-13",
+      "DA-14",
+      "DA-15",
+      "DA-16",
+      "DA-17",
+      "DA-18",
+      "DA-19",
+      "DA-20",
+      "DA-21",
+      "DA-22",
+      "DA-23",
+      "DA-24",
+      "DA-25",
+      "DA-26",
+      "TS-01",
+      "TS-02",
+      "TS-03",
+      "TS-04",
+      "TS-05",
+      "TS-06",
+      "TS-07",
+      "TS-08",
+      "TS-09",
+      "TS-10",
+      "TS-11",
+      "TS-12",
+      "TS-13",
+      "TS-14",
+      "TS-15",
+      "TS-16",
+      "TS-17",
+      "TS-18",
+      "TS-19",
+      "TS-20",
+      "RS-01",
+      "RS-02",
+      "RS-03",
+      "RS-04",
+      "RS-05",
+      "RS-06",
+      "RS-07",
+      "RS-08",
+      "RS-09",
+      "RS-10",
+      "RS-11",
+      "RS-12",
+      "RS-13",
+      "RS-14",
+      "RS-15",
+      "ID-01",
+      "FL-01",
+      "FL-02",
+      "FL-03",
+      "FL-04",
+      "FL-05",
+      "FL-06",
+      "FL-07",
+      "FL-08",
+      "FL-09",
+      "FL-10",
+      "FL-11",
+      "FL-12",
+      "BL-01",
+      "BL-02",
+      "BL-03",
+      "BL-04"
+    ],
+    "rows_infra_failed": [],
+    "result_counts": {
+      "UNMODELED": 104
+    },
+    "blocking_findings": [],
+    "diagnostic_only": "result_counts, and any percentage a reader computes from it, are DIAGNOSTIC. The verdict is a conjunction over every in-scope row and no threshold is compared anywhere in this module.",
+    "verdict_rule": "universal_dart_patchability == PROVEN iff there is at least one in-scope row AND every in-scope row has a complete result whose value counts as proof AND was produced by the real mechanism backend AND no blocking finding was raised."
+  }
+}

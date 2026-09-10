@@ -1,0 +1,24 @@
+{
+  "schema": "maot.t0.fixture/1",
+  "row_id": "EB-14",
+  "gate_id": "T0/EB-14",
+  "title": "closure and local function body, capture shape unchanged",
+  "executable": true,
+  "placeholder_reason": null,
+  "dispatch_modes": [
+    "direct",
+    "tearoff_pre"
+  ],
+  "optimizer_modes": [
+    "jit",
+    "aot"
+  ],
+  "heat_modes": [
+    "cold",
+    "hot"
+  ],
+  "expected_pre": "1",
+  "expected_post": "2",
+  "old_state_required": true,
+  "subject_note": "closure and local function body, capture shape unchanged"
+}

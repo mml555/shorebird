@@ -1,0 +1,195 @@
+{
+  "schema": "maot.t0.row/1",
+  "row_id": "EB-12",
+  "gate_id": "T0/EB-12",
+  "executable": true,
+  "result": "UNMODELED",
+  "reasons": [
+    "NO_MECHANISM"
+  ],
+  "mechanism": "none",
+  "release_source_sha256": "0ecc7738b36e197de1bbd786ab9717f038d95b9fa9385a142a9055a8365651b7",
+  "patch_source_sha256": "bf6d45d609d844b3ab65562ef38c7b6718b172391cf0e445de55dd89b61ef804",
+  "toolchain": {
+    "sdk_revision": "d684a576a6aa954ae107a03b2b4e1d61c3bebe93",
+    "version_string": "Dart SDK version: 3.12.2 (stable) (Tue Jun 9 01:11:39 2026 -0700) on \"macos_arm64\""
+  },
+  "release_artifact": null,
+  "patch_artifact": null,
+  "pre_observation": [
+    {
+      "phase": "pre",
+      "dispatch": "direct",
+      "value": "1",
+      "nonce": "2740fec393bb3cab4a6beb870e27fbda",
+      "heat": 1,
+      "optimizer_mode": "jit",
+      "heat_mode": "cold"
+    },
+    {
+      "phase": "pre",
+      "dispatch": "dynamic",
+      "value": "1",
+      "nonce": "2740fec393bb3cab4a6beb870e27fbda",
+      "heat": 1,
+      "optimizer_mode": "jit",
+      "heat_mode": "cold"
+    },
+    {
+      "phase": "pre",
+      "dispatch": "direct",
+      "value": "1",
+      "nonce": "a16ad127ad20b1e6577407a5d2834a74",
+      "heat": 20000,
+      "optimizer_mode": "jit",
+      "heat_mode": "hot"
+    },
+    {
+      "phase": "pre",
+      "dispatch": "dynamic",
+      "value": "1",
+      "nonce": "a16ad127ad20b1e6577407a5d2834a74",
+      "heat": 20000,
+      "optimizer_mode": "jit",
+      "heat_mode": "hot"
+    },
+    {
+      "phase": "pre",
+      "dispatch": "direct",
+      "value": "1",
+      "nonce": "a0043f9c668fa3d539c908801b8cefa3",
+      "heat": 1,
+      "optimizer_mode": "aot",
+      "heat_mode": "cold"
+    },
+    {
+      "phase": "pre",
+      "dispatch": "dynamic",
+      "value": "1",
+      "nonce": "a0043f9c668fa3d539c908801b8cefa3",
+      "heat": 1,
+      "optimizer_mode": "aot",
+      "heat_mode": "cold"
+    },
+    {
+      "phase": "pre",
+      "dispatch": "direct",
+      "value": "1",
+      "nonce": "5bc9bba696a06e23909241026c7ec8de",
+      "heat": 20000,
+      "optimizer_mode": "aot",
+      "heat_mode": "hot"
+    },
+    {
+      "phase": "pre",
+      "dispatch": "dynamic",
+      "value": "1",
+      "nonce": "5bc9bba696a06e23909241026c7ec8de",
+      "heat": 20000,
+      "optimizer_mode": "aot",
+      "heat_mode": "hot"
+    }
+  ],
+  "install_result": {
+    "attempted": true,
+    "installed": false,
+    "reported_success": false,
+    "reason": "NO_MECHANISM",
+    "identity_ok": null,
+    "detail": "The Mutable-AOT declaration/implementation mechanism does not exist yet. #65-#70 build it. Until then every row is UNMODELED and no row can be PROVEN."
+  },
+  "post_observation": null,
+  "process_restarted": null,
+  "old_state_existed": false,
+  "expected_pre": "1",
+  "expected_post": "2",
+  "mode_results": [
+    {
+      "dispatch": "direct",
+      "optimizer_mode": "jit",
+      "heat_mode": "cold",
+      "pre_value": "1",
+      "post_value": null
+    },
+    {
+      "dispatch": "dynamic",
+      "optimizer_mode": "jit",
+      "heat_mode": "cold",
+      "pre_value": "1",
+      "post_value": null
+    },
+    {
+      "dispatch": "direct",
+      "optimizer_mode": "jit",
+      "heat_mode": "hot",
+      "pre_value": "1",
+      "post_value": null
+    },
+    {
+      "dispatch": "dynamic",
+      "optimizer_mode": "jit",
+      "heat_mode": "hot",
+      "pre_value": "1",
+      "post_value": null
+    },
+    {
+      "dispatch": "direct",
+      "optimizer_mode": "aot",
+      "heat_mode": "cold",
+      "pre_value": "1",
+      "post_value": null
+    },
+    {
+      "dispatch": "dynamic",
+      "optimizer_mode": "aot",
+      "heat_mode": "cold",
+      "pre_value": "1",
+      "post_value": null
+    },
+    {
+      "dispatch": "direct",
+      "optimizer_mode": "aot",
+      "heat_mode": "hot",
+      "pre_value": "1",
+      "post_value": null
+    },
+    {
+      "dispatch": "dynamic",
+      "optimizer_mode": "aot",
+      "heat_mode": "hot",
+      "pre_value": "1",
+      "post_value": null
+    }
+  ],
+  "path_evidence": {
+    "available": false,
+    "why": "Answering \"did this invocation reach the mutable mechanism\" needs IR or runtime tracing from a mechanism that does not exist yet. The field is carried so #67 fills it rather than inventing a schema, and its absence is recorded rather than implied. Behavioural agreement alone is NOT path evidence."
+  },
+  "generated_at": "2026-09-10T17:28:45Z",
+  "generator": "runner.py",
+  "patch_source_baseline": {
+    "observations": [
+      {
+        "phase": "pre",
+        "dispatch": "direct",
+        "value": "2",
+        "nonce": "17b5416387549832673130d05ad41067",
+        "heat": 1,
+        "optimizer_mode": "jit",
+        "heat_mode": "cold"
+      },
+      {
+        "phase": "pre",
+        "dispatch": "dynamic",
+        "value": "2",
+        "nonce": "17b5416387549832673130d05ad41067",
+        "heat": 1,
+        "optimizer_mode": "jit",
+        "heat_mode": "cold"
+      }
+    ],
+    "error": null,
+    "is_not_a_post_observation": "A standalone run of patch.dart is a REBUILT PROGRAM in a NEW process. It shows the expectation is achievable; it says nothing about installing a patch into a running one. Substituting it for post_observation is #64 control 9, and A09 proves it is caught."
+  },
+  "run_id": "2026-09-10T17:28:45Z"
+}
