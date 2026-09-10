@@ -112,7 +112,11 @@ if sources is not None:
                        'release_bound': s.get('release_bound'),
                        'release_consumed': s.get('release_consumed'),
                        'validated_positive': s.get('validated_positive'),
-                       'spec_sha256': s.get('spec_sha256')}
+                       'spec_sha256': s.get('spec_sha256'),
+                       # Carried through so the caveat travels WITH the value.
+                       'spec_sha256_noncomment': s.get(
+                           'spec_sha256_noncomment'),
+                       'digest_caveat': s.get('digest_caveat')}
 
 complete_sources = sorted(k for k, v in roles.items()
                           if v['role'] == 'complete')
@@ -140,8 +144,28 @@ if gen.exists():
     prov['derivation_identity'] = {
         'generator': 'selfhost/engine/route_b/gen_dynamic_interface.dart',
         'sha256': hashlib.sha256(gen.read_bytes()).hexdigest()}
+# A DIGEST TRAVELS WITH ITS CAVEAT. This previously recorded the raw SHA alone,
+# so a lane reading the FINAL B0 record -- rather than the sources record where
+# the caveat was added -- could still take an unstable value as reproducible
+# identity evidence. Fixing the caveat at the source and not at the derived
+# record is a propagation failure, and the record a consumer actually reads is
+# the one that has to carry it.
 prov['specification_digests'] = {
-    k: v['spec_sha256'] for k, v in roles.items() if v.get('spec_sha256')}
+    k: {'sha256': v['spec_sha256'],
+        'sha256_noncomment': v.get('spec_sha256_noncomment'),
+        'caveat': v.get('digest_caveat')
+        or 'no caveat recorded for this source'}
+    for k, v in roles.items() if v.get('spec_sha256')}
+prov['digest_reproducibility'] = (
+    'sha256 is the RAW file digest and is not reproducible for generated '
+    'specifications: gen_dynamic_interface emits a "# Source dill: <path>" '
+    'comment and each run supplies a fresh temporary path. Measured across two '
+    'full runs: raw digests differed, non-comment digests matched. '
+    'sha256_noncomment is a byte digest over non-comment lines -- a DEFINED '
+    'canonicalisation, not a semantic one; it would still move under entry '
+    'reordering or a quoting change. Neither is an input to any role or '
+    'verdict. Do not use the raw digest as release-identity evidence until the '
+    'emitted bytes are path-stable or a semantic digest exists.')
 prov['release_aot_identity'] = (
     'obtainable -- G6 binds a map to the full AOT SHA-256 and the same binding '
     'applies. Recorded as available rather than collected: there is no '

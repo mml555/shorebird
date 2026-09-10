@@ -4,7 +4,7 @@
     "release_supplement_interface": {
       "what": "dynamic_interface.yaml, generated per release by ios_releaser.dart via the Route B generator and captured into the release supplement; patch_command.dart compiles the patch against the same file",
       "release_bound": true,
-      "why_release_bound": "generated from the release's own prepass kernel under a named --policy, so the same release reproduces it and a different release gets its own",
+      "why_release_bound": "generated from the release's own prepass kernel under a named --policy, so the same release reproduces its POLICY CONTENT -- and a different release gets its own. Content, not bytes: the emitted file carries a \"# Source dill: <path>\" comment naming a per-run temporary path, so the raw bytes differ between runs of identical inputs while the non-comment normalisation is stable. See digest_caveat.",
       "release_consumed": true,
       "consumers": [
         "packages/shorebird_cli/lib/src/commands/patch/patch_command.dart",
@@ -15,8 +15,8 @@
         "reachable"
       ],
       "passed_as": "--dynamic-interface (retention/annotation), never --validate",
-      "spec_path": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.ErkUu4qRZz/di_generated.yaml",
-      "spec_sha256": "3b9e6b537f0843a3d1897f67d8084f48f4e525a48c31229db57f74684725cbf0",
+      "spec_path": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.uoAJDZ0hfi/di_generated.yaml",
+      "spec_sha256": "599d6a0d4a79891e7071a97a3259c1c236227c0735ef4f167b8efc6354acaded",
       "spec_sha256_noncomment": "1e812a9fc5c515947a73e3cc747cfb478af52f9ccbd759fd527c8dd42bf4b4f2",
       "digest_caveat": "spec_sha256 is NOT reproducible: the generator emits a \"# Source dill: <path>\" comment and each run supplies a fresh temporary path, so the raw digest changes between runs of identical inputs. spec_sha256_noncomment is stable across such runs, but it is a byte digest over non-comment lines -- a defined canonicalisation, not a semantic one. Neither is an input to any role or verdict. A future lane must not treat the raw digest as release identity evidence until the emitted bytes are path-stable or a mechanically defined semantic digest exists.",
       "sections": {

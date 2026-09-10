@@ -1,5 +1,5 @@
 ROUTE-B-DI-1 / Stage B0 -- the production validation input
-generated 2026-09-10T02:44:35Z by run_stage_b0.sh
+generated 2026-09-10T03:47:54Z by run_stage_b0.sh
 generator /Users/mendell/shorebird/selfhost/engine/route_b/gen_dynamic_interface.dart
 
 ############ 1. THE RELEASE'S OWN SPECIFICATION, GENERATED ############
@@ -315,6 +315,9 @@ B0_FALSIFICATION: EVERY_ARM_DISCRIMINATES
   pass  no complete source in the current inventory
   pass  the verdict is a function of the roles
   pass  three sections have no release-bound source
+  pass  every recorded digest carries its caveat
+  pass  the record states the digest reproducibility constraint
+  pass  release-boundness is claimed for content, not bytes
   pass  the derivation identity is digested
   pass  the Dart identity is recorded
   pass  the finding is about the input, not the mechanism
@@ -324,6 +327,6 @@ B0_FALSIFICATION: EVERY_ARM_DISCRIMINATES
   pass  static committed policies are not release-bound
   pass  the B0 classifier is falsified
 
-ASSERTIONS (26 checked: 26 pass, 0 fail)
+ASSERTIONS (29 checked: 29 pass, 0 fail)
 
 STAGE_B0: VALIDATION_INPUT_UNDERIVED

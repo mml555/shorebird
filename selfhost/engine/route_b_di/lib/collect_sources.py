@@ -129,7 +129,13 @@ sources['release_supplement_interface'] = {
     'release_bound': True,
     'why_release_bound': "generated from the release's own prepass kernel "
                          'under a named --policy, so the same release '
-                         'reproduces it and a different release gets its own',
+                         'reproduces its POLICY CONTENT -- and a different '
+                         'release gets its own. Content, not bytes: the '
+                         'emitted file carries a "# Source dill: <path>" '
+                         'comment naming a per-run temporary path, so the raw '
+                         'bytes differ between runs of identical inputs while '
+                         'the non-comment normalisation is stable. See '
+                         'digest_caveat.',
     'release_consumed': bool(supplement_consumers),
     'consumers': supplement_consumers,
     'consumer_tiers': sorted({a['tier'] for a in arg_sites

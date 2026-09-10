@@ -216,6 +216,20 @@ want 'the verdict is a function of the roles' True \
      "$(j "'function of the ROLES' in d['verdict_rule']")"
 want 'three sections have no release-bound source' 3 \
      "$(j "len(d['sections_with_no_release_bound_source'])")"
+# The caveat must travel WITH the digest in the record a consumer reads. It was
+# added at the sources record and did not reach here, so the final B0 record
+# still exposed the unstable raw SHA alone.
+want 'every recorded digest carries its caveat' True \
+     "$(j "all(isinstance(v, dict) and v.get('caveat') and v.get('sha256') for v in d['provenance_available']['specification_digests'].values())")"
+want 'the record states the digest reproducibility constraint' True \
+     "$(j "'not reproducible' in d['provenance_available'].get('digest_reproducibility','')")"
+want 'release-boundness is claimed for content, not bytes' True \
+     "$(python3 -c "
+import json
+try:
+    w=json.load(open('$EVID/b0_sources.json'))['sources']['release_supplement_interface']['why_release_bound']
+    print('POLICY CONTENT' in w and 'not bytes' in w)
+except Exception: print(False)")"
 want 'the derivation identity is digested' True \
      "$(j "bool(d['provenance_available'].get('derivation_identity'))")"
 want 'the Dart identity is recorded' True \
