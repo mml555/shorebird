@@ -2,12 +2,12 @@
   "schema": "maot.t0.evidence/1",
   "issue": 64,
   "program": "MUTABLE-AOT (#62)",
-  "run_id": "2026-09-11T22:30:03Z",
+  "run_id": "2026-09-11T22:47:29Z",
   "generated_by": {
     "gate_sha256": "3425b7a115b17b1d0c53dc3c6386d0b6d46baca38c6b392095e47b493b4071a0",
     "runner_sha256": "21d64bd9ddc65f98f43bd1cdb46fa1d106c35d534a22ca169b0eeef69c9e4593",
     "mechanism_sha256": "1a5de3fa21a47eb9e14205bcc9a0f3615b1a87051dab6c0738c44ac784cfd3dd",
-    "repo_revision": "a35fb52445cc960d35732c4cd6527eab5fc01d9d"
+    "repo_revision": "d69ebbb149e81ad48bc4586943002ea4e1b9556e"
   },
   "matrix_identity": {
     "matrix_sha256": "b28f8900a0ee02d20c6e1144553acfc595c5e13181ae80964bb2466889674641",

@@ -21,7 +21,7 @@
       "phase": "pre",
       "dispatch": "direct",
       "value": "1",
-      "nonce": "9250b1c695d0b97934617cd5a3fd2198",
+      "nonce": "7c625610ed17b8e20cc1790fd7a84083",
       "heat": 1,
       "optimizer_mode": "jit",
       "heat_mode": "cold"
@@ -30,7 +30,7 @@
       "phase": "pre",
       "dispatch": "tearoff_pre",
       "value": "1",
-      "nonce": "9250b1c695d0b97934617cd5a3fd2198",
+      "nonce": "7c625610ed17b8e20cc1790fd7a84083",
       "heat": 1,
       "optimizer_mode": "jit",
       "heat_mode": "cold"
@@ -39,7 +39,7 @@
       "phase": "pre",
       "dispatch": "direct",
       "value": "1",
-      "nonce": "346662d8e2c6fe955d06179e21711e41",
+      "nonce": "5a35a660c29be9685b91fe596fc63dc0",
       "heat": 20000,
       "optimizer_mode": "jit",
       "heat_mode": "hot"
@@ -48,7 +48,7 @@
       "phase": "pre",
       "dispatch": "tearoff_pre",
       "value": "1",
-      "nonce": "346662d8e2c6fe955d06179e21711e41",
+      "nonce": "5a35a660c29be9685b91fe596fc63dc0",
       "heat": 20000,
       "optimizer_mode": "jit",
       "heat_mode": "hot"
@@ -57,7 +57,7 @@
       "phase": "pre",
       "dispatch": "direct",
       "value": "1",
-      "nonce": "6a4d35f63ef34d9888fef998609adbec",
+      "nonce": "a93fca848c39f918780f7ba3a32dd046",
       "heat": 1,
       "optimizer_mode": "aot",
       "heat_mode": "cold"
@@ -66,7 +66,7 @@
       "phase": "pre",
       "dispatch": "tearoff_pre",
       "value": "1",
-      "nonce": "6a4d35f63ef34d9888fef998609adbec",
+      "nonce": "a93fca848c39f918780f7ba3a32dd046",
       "heat": 1,
       "optimizer_mode": "aot",
       "heat_mode": "cold"
@@ -75,7 +75,7 @@
       "phase": "pre",
       "dispatch": "direct",
       "value": "1",
-      "nonce": "fd313facd39ed94fb9d1cf03dab897a4",
+      "nonce": "db6f8fdad77d54b4ef59e9bc5917137d",
       "heat": 20000,
       "optimizer_mode": "aot",
       "heat_mode": "hot"
@@ -84,7 +84,7 @@
       "phase": "pre",
       "dispatch": "tearoff_pre",
       "value": "1",
-      "nonce": "fd313facd39ed94fb9d1cf03dab897a4",
+      "nonce": "db6f8fdad77d54b4ef59e9bc5917137d",
       "heat": 20000,
       "optimizer_mode": "aot",
       "heat_mode": "hot"
@@ -165,7 +165,7 @@
     "available": false,
     "why": "Answering \"did this invocation reach the mutable mechanism\" needs IR or runtime tracing from a mechanism that does not exist yet. The field is carried so #67 fills it rather than inventing a schema, and its absence is recorded rather than implied. Behavioural agreement alone is NOT path evidence."
   },
-  "generated_at": "2026-09-11T22:30:03Z",
+  "generated_at": "2026-09-11T22:47:29Z",
   "generator": "runner.py",
   "patch_source_baseline": {
     "observations": [
@@ -173,7 +173,7 @@
         "phase": "pre",
         "dispatch": "direct",
         "value": "2",
-        "nonce": "2a3ce2157aeb526f39501130ef6c6591",
+        "nonce": "597d56e4ff0afaf42c629783d09c8de8",
         "heat": 1,
         "optimizer_mode": "jit",
         "heat_mode": "cold"
@@ -182,7 +182,7 @@
         "phase": "pre",
         "dispatch": "tearoff_pre",
         "value": "2",
-        "nonce": "2a3ce2157aeb526f39501130ef6c6591",
+        "nonce": "597d56e4ff0afaf42c629783d09c8de8",
         "heat": 1,
         "optimizer_mode": "jit",
         "heat_mode": "cold"
@@ -191,5 +191,5 @@
     "error": null,
     "is_not_a_post_observation": "A standalone run of patch.dart is a REBUILT PROGRAM in a NEW process. It shows the expectation is achievable; it says nothing about installing a patch into a running one. Substituting it for post_observation is #64 control 9, and A09 proves it is caught."
   },
-  "run_id": "2026-09-11T22:30:03Z"
+  "run_id": "2026-09-11T22:47:29Z"
 }

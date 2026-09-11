@@ -6,7 +6,7 @@
     "gate_sha256": "8548a01c6cf2316f7a8d5c71261222e114b68cb113a6682081b2552cb1ab18c7",
     "contract_sha256": "261f4335f2eacfb35f31c549796ba47e922dcaed48bcfa66262f4a6adad3a855",
     "validate_sha256": "97b1ac6e0d14cabe5fa77efc343a38c2c673d5945ed2c5017dd6c467b4ded729",
-    "repo_head": "a35fb52445cc960d35732c4cd6527eab5fc01d9d"
+    "repo_head": "d69ebbb149e81ad48bc4586943002ea4e1b9556e"
   },
   "matrix_identity": {
     "matrix_sha256": "b28f8900a0ee02d20c6e1144553acfc595c5e13181ae80964bb2466889674641",

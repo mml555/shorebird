@@ -179,7 +179,49 @@ The lowering is in `flow_graph_compiler_arm64.cc`. No other architecture has
 one. `target_arch=arm64` is in the record, in the verdict name, and in
 `not_claimed`.
 
-## Acceptance: one item not met, and it was mis-specified
+## The corrected acceptance criterion, and `issue_67_closure = READY`
+
+The criterion was corrected on review: #67 owns *exact linkage* of what it
+demonstrates, not whole-row promotion of EB-01 and EB-02. Full-row
+non-promotion is the correct result.
+
+The ledger is now **evaluated, not asserted** — seven items, each computed
+from a verdict condition. `G19` falsifies it: with the architecture claim
+perturbed, the linkage condition goes false and closure goes `NOT_READY`. An
+acceptance check that could only ever report MET would put closure back on
+prose, which is what the previous pass was held for.
+
+Building it surfaced a circularity worth recording. The ledger item
+"falsification arms discriminate" reads the falsification result, and `G19` is
+itself a falsification — so the first version had `G19` waiting on a ledger
+that was waiting on `G19`, and the run reported the item unmet for no reason
+but ordering. The arm now claims only what it is about (that a perturbation
+flips the linkage condition and closure), and the ledger is computed after
+every arm has run.
+
+### Hot is measured, not inferred
+
+The criterion names cold **and hot** observations. The benchmark loops run a
+call site two million times but never look at what it returns, so "hot" would
+have been inferred from an iteration count. `hotObserveTop` and
+`hotObserveStatic` run a million iterations and return what the last call saw:
+`NEW2` and `NEW2-STATIC`. A heavily-executed precompiled call site still
+reaches the descriptor.
+
+### What the linkage says
+
+| | |
+|---|---|
+| dispatch | `direct` |
+| compilation | `aot` |
+| heat | `cold` + `hot` |
+| target_arch | `arm64` |
+| EB-01, EB-02 | **UNMODELED**, not promoted |
+| not covered | `tearoff_pre`, `tearoff_post`, `dynamic`, `jit` |
+
+`G18` continues to refuse a whole-row promotion, unchanged.
+
+## Superseded: acceptance item not met, and it was mis-specified
 
 `#64` rows `EB-01` (top-level function body) and `EB-02` (static method body)
 remain `UNMODELED`, and the acceptance item as written was itself an overclaim.

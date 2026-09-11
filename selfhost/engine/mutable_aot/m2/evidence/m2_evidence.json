@@ -2,13 +2,13 @@
   "schema": "maot.m2.evidence/1",
   "issue": 66,
   "generated_by": {
-    "run_id": "2026-09-11T22:21:52Z",
+    "run_id": "2026-09-11T22:43:40Z",
     "gate_sha256": "c51b994d6f0990b556e4ce8d675ac02417b91b97e79ef896a60f2744c7f1c55c",
     "verdict_sha256": "2711b7c784e84925d695046890915f9c6c94855eb038e4dc15e6208d785b918d"
   },
   "identities": {
-    "shorebird_revision": "a35fb52445cc960d35732c4cd6527eab5fc01d9d",
-    "shorebird_tree": "06b3d47ac7e4947c8b9d9fb7d98be5ece344d787",
+    "shorebird_revision": "d69ebbb149e81ad48bc4586943002ea4e1b9556e",
+    "shorebird_tree": "b096c7982a857e4780cb2e4b56e0ccabac870120",
     "fork_commit": "c5dd52b96a1a1a7679e85ea5c7abfb9247d3b941",
     "fork_tree": "569de4f0cfbfffba6315cfa72e81dc8fbbd00917",
     "fork_branch": "maot/build",
@@ -251,8 +251,8 @@
       "aot_elf_bytes_with_maot": 858168,
       "aot_elf_bytes_control_no_pragmas": 840368,
       "aot_elf_delta_bytes": 17800,
-      "startup_ms_with_maot": 16.71,
-      "startup_ms_control": 16.59,
+      "startup_ms_with_maot": 17.6,
+      "startup_ms_control": 17.59,
       "control_note": "absent here means the control build failed, not that it was skipped",
       "note": "medians of 7 runs of the same program; the control is the identical source with every maot:mutable removed, so the delta includes keeping a dead selected declaration alive",
       "registry_entries": 25,
@@ -261,7 +261,7 @@
       "registry_registry_bytes_approx": 4000,
       "registry_bytes_per_entry_approx": 160,
       "registry_lookup_iterations": 10000,
-      "registry_lookup_total_micros": 201,
+      "registry_lookup_total_micros": 275,
       "registry_lookup_note": "linear scan over a GrowableObjectArray; correctness first, and the cost is recorded rather than optimised around",
       "registry_lookup_sink": 10000
     },
@@ -5159,7 +5159,7 @@
       "registry_bytes_approx": 4000,
       "bytes_per_entry_approx": 160,
       "lookup_iterations": 10000,
-      "lookup_total_micros": 201,
+      "lookup_total_micros": 275,
       "lookup_note": "linear scan over a GrowableObjectArray; correctness first, and the cost is recorded rather than optimised around",
       "lookup_sink": 10000
     }

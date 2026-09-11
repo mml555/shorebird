@@ -1,20 +1,18 @@
 === MAOT-3 (#67) direct/static replacement through the mutable slot ===
-run  2026-09-11T22:22:33Z
+run  2026-09-11T22:42:40Z
 fork c5dd52b96a1a1a7679e85ea5c7abfb9247d3b941
 
 fork          c5dd52b96a1a1a7679e85ea5c7abfb9247d3b941
 top-level     OLD -> NEW -> NEW2
 static        OLD-STATIC -> NEW-STATIC -> NEW2-STATIC
 version       AOT:v1 -> PATCH_CODE:v3
-one process   pid 36573 == 36573
-arms          14 (0 failed)
-blocking      1
-conditions    16 (0 failed)
-  ACCEPTANCE_ITEM_NOT_MET: #64 rows for these call forms move to PROVEN: EB-01 and EB-02 remain UNMODELED, as do all 104 T0 rows. mechani
-latency       direct 1.022 ns (control 0.959) | static 0.982 ns (control 0.947)
+one process   pid 39156 == 39156
+arms          15 (0 failed)
+blocking      0
+conditions    18 (0 failed)
+latency       direct 0.962 ns (control 0.93) | static 0.971 ns (control 0.933)
 provenance    bound | arch arm64
 SLICE         arm64_aot_direct_static_vertical_slice = ESTABLISHED
-CLOSURE       issue_67_closure = NOT_READY
-  unmet acceptance: #64 rows for these call forms move to PROVEN
+CLOSURE       issue_67_closure = READY
 
 gate exit 0

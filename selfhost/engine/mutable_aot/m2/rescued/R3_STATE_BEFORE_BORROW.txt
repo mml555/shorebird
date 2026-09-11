@@ -88,3 +88,8 @@ TWELFTH BORROW (#67 hold: harden the proof, not the mechanism).
 Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
 dirty entries, dirty digest 6b358f715e491bd9. Route B gen_snapshot untouched
 at 6875648 bytes, Sep 1 02:40. Built only in out/maot_host.
+
+THIRTEENTH BORROW (#67 evidence-only synchronization; no mechanism change).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. No fork source changed during
+this borrow -- evidence-only synchronization, no rebuild.

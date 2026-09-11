@@ -90,6 +90,31 @@ int benchStaticControl(int iters) {
   return _perCall(w, iters, n);
 }
 
+/// A HOT observation: the value a heavily-executed call site still sees.
+///
+/// The cold observations above are a handful of calls. These loops run the
+/// same precompiled call sites a million times, which is as warm as an AOT
+/// call site gets, and return what the last one observed. Without this, "hot"
+/// would be inferred from the benchmark's iteration count rather than
+/// measured -- and the benchmark never looks at what it calls.
+@pragma('vm:never-inline')
+String hotObserveTop(int iters) {
+  var last = 'unset';
+  for (var i = 0; i < iters; i++) {
+    last = work();
+  }
+  return last;
+}
+
+@pragma('vm:never-inline')
+String hotObserveStatic(int iters) {
+  var last = 'unset';
+  for (var i = 0; i < iters; i++) {
+    last = StaticTarget.work();
+  }
+  return last;
+}
+
 /// Total elapsed MICROSECONDS, not a per-call figure.
 ///
 /// Dividing here threw the measurement away: at two nanoseconds per call,
@@ -203,6 +228,11 @@ void main(List<String> args) {
   _emit('untouched.call.final', untouchedMutable());
   _emit('plain.call.final', notMutable());
   _emit('top.call.final', work());
+  // ---- hot-path observations, after installation ----
+  _emit('hot.iterations', 1000000);
+  _emit('hot.top.value', hotObserveTop(1000000));
+  _emit('hot.static.value', hotObserveStatic(1000000));
+
   // ---- microbenchmarks, after installation so the mutable arms are
   // running a replacement rather than their release body ----
   const iters = 2000000;

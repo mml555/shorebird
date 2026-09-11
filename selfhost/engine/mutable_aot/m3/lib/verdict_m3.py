@@ -108,6 +108,13 @@ CONDITIONS = {
         'MAOT source bytes the record names?',
     'target_architecture_recorded':
         'does the record say which architecture the lowering was proven on?',
+    'cold_and_hot_observed':
+        'does a heavily-executed call site observe the replacement too, '
+        'measured after a million iterations rather than inferred from the '
+        'benchmark running a lot?',
+    't0_linkage_exact_and_unpromoted':
+        'does the record link exactly the demonstrated modes -- direct, AOT, '
+        'cold+hot, arm64 -- while leaving both whole rows UNMODELED?',
 }
 
 BANK = {
@@ -136,6 +143,8 @@ BANK = {
                     'the record names'),
     'G18': ('live', 'a whole #64 row is promoted from evidence covering one of '
                     'its dispatch modes'),
+    'G19': ('live', 'the acceptance ledger cannot report an unmet item, so '
+                    'issue closure rests on prose rather than on a check'),
     'G12': ('historical', 'the dispatch cell is replaced at materialization, '
                           'stranding every call site already emitted'),
     'G13': ('historical', 'a scoped handle is handed to the object pool, which '
@@ -278,6 +287,39 @@ def evaluate(observations, findings):
         and bool((o.get('build_digest') or {}).get('fork_commit')))
     conditions['target_architecture_recorded'] = (
         o.get('target_arch') == TARGET_ARCH)
+
+    # Hot as a measurement, not an inference. The benchmark loops run a call
+    # site two million times but never look at what it returns; these loops
+    # return what the last of a million calls observed.
+    conditions['cold_and_hot_observed'] = (
+        calls.get('top.call.2') == 'NEW2'
+        and calls.get('static.call.2') == 'NEW2-STATIC'
+        and calls.get('hot.top.value') == 'NEW2'
+        and calls.get('hot.static.value') == 'NEW2-STATIC'
+        and (calls.get('hot.iterations') or 0) >= 100000)
+
+    # The corrected #67 criterion: exact linkage of what was demonstrated,
+    # with the whole rows left alone. Both halves are required -- linkage that
+    # claimed more than was shown would be the overclaim the criterion was
+    # corrected to avoid, and a row quietly promoted would be the same thing
+    # by another route.
+    demonstrated = {
+        'dispatch': ['direct'],
+        'compilation': ['aot'],
+        'heat': ['cold', 'hot'],
+        'target_arch': [TARGET_ARCH],
+    }
+    conditions['t0_linkage_exact_and_unpromoted'] = (
+        bool(T0_ROW_LINKAGE)
+        and all(x['covered_by_issue_67'] == demonstrated
+                and x['row_result_after_67'] == 'UNMODELED'
+                and x['not_covered']
+                for x in T0_ROW_LINKAGE.values())
+        and o.get('t0_rows_promoted') in (None, [])
+        # and the linkage may only claim modes the run actually produced
+        and conditions['cold_and_hot_observed']
+        and conditions['call_sites_traverse_the_mechanism']
+        and o.get('target_arch') == TARGET_ARCH)
 
     # ACCEPTANCE_ITEM_NOT_MET blocks CLOSURE, not the slice: it says the
     # milestone is incomplete, not that the mechanism failed to work.
