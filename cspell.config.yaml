@@ -467,6 +467,7 @@ words:
   - Azul
   - backboardd
   - BADUP
+  - backpressure
   - bdero
   - behaviour
   - bidiff
@@ -690,6 +691,7 @@ words:
   - preflighting
   - prereq
   - Prereqs
+  - precaching
   - previewable
   - println
   - PRNG
@@ -783,6 +785,7 @@ words:
   - transactionally
   - triggerable
   - trunc
+  - ttfb
   - udevadm # From .github/workflows/e2e.yaml
   - udid # Unique Device Identifier
   - ugrep
