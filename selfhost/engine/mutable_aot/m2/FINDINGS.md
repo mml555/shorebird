@@ -24,23 +24,55 @@ later offset shifts and `CheckOffsets` aborts `gen_snapshot`.
 convention is the raw reader offset (`procedure_offset + correction_offset_`),
 matching `ReadInferredType`.
 
+## Binding is CORRECT — and the earlier diagnosis is retracted
+
+The claim that app procedures bypass `LoadProcedure` was **wrong**, and the
+correction matters. `FinishTopLevelClassLoading` does loop top-level procedures
+into `LoadProcedure`; it is merely *deferred* for a normal registered library
+rather than called from `LoadLibrary`. The app's procedures were misses that a
+`head` truncation hid, not absences.
+
+The real cause was two constructors with two offset conventions that agree only
+on the eager path:
+
+| loader | `correction_offset_` | `library_kernel_offset_` | reader sees |
+|---|---|---|---|
+| eager (whole program) | library start | library start | whole component |
+| **deferred (per library)** | **0** | **library start** | **library slice** |
+
+Top-level procedures of a registered library take the deferred path, so
+`+ correction_offset_` yielded slice-relative offsets (71, 119, 182, 225, 261)
+matching no mapping — and once *collided* with a mapping belonging to another
+declaration, which is how a correct id came to be bound to
+`Function 'get:offsetInBytes'`. `ReadInferredType`, the working precedent in the
+same file, already used `+ library_kernel_offset_`.
+
+Measured (`rel`/`corr`/`libstart`/`abs` side by side, per the four-fact rule):
+
+    HIT rel=71  corr=0 libstart=19 abs=90  name=compute
+    HIT rel=182 corr=0 libstart=19 abs=201 name=mutableTopLevel
+
+All five procedures now pair with their own Function and carry the right
+selection flag. Evidence: `evidence/binding_four_facts.txt`.
+
 ## Two defects still open
 
-1. **Only 1 of 6 declarations registers, bound to the wrong `Function`.**
-   Measured at the source: `Register()` receives `…::fn:notMutable` paired with
-   `Function 'get:offsetInBytes'`. This is the F06 mismatch the gate must
-   refuse, currently occurring for real.
+1. **The registry pins pre-precompilation `Function` objects.** With the
+   binding fixed, `gen_snapshot` now refuses:
 
-2. **The Dart side is correct** — 6 mapped, 2 selected, 0 refusals, right ids
-   and flags. So the defect is entirely on the VM read side.
+       Unexpected object (Class with illegal cid, full-aot):
+         Library:'package:m2app/app.dart' Class: Widget
 
-### The decisive clue
+   Only statics were registered before, so this never surfaced; class-owned
+   Functions trip it. The association must still be established at load, but
+   materialising the final registry may have to wait until the precompiler has
+   settled which Functions survive. **Not fixed, and not guessed at** — this is
+   the retention question, arriving early.
 
-`mutableTopLevel`, `main`, `compute` and `untouched` appear as **neither hits
-nor misses** in the load trace. `KernelLoader::LoadProcedure` is never called
-for the app's own procedures in this AOT flow, so the hook sits in a seam the
-app's members do not pass through. The next step is a different join point, not
-a different offset formula.
+2. **The constructor is not registered.** The Dart side maps 6 declarations;
+   the VM registers 5. `::cls:Widget::ctor:` is created by `LoadClass`, not
+   `LoadProcedure`, so it needs its own join point. Recorded rather than
+   papered over: a selected constructor would silently have no slot.
 
 ## What is NOT yet claimed
 
