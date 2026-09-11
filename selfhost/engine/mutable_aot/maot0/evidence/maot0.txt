@@ -1,6 +1,6 @@
 MAOT-0 (#63) -- the universal Dart patchability contract and matrix
-generated 2026-09-11T19:22:18Z by run_maot0.sh
-repo revision f0651c891468810295a1725e52a3a673baf7908f
+generated 2026-09-11T20:47:10Z by run_maot0.sh
+repo revision cdbeb05f03a0c4bca2ebd71e672877efc6a2fd2d
   That revision is the tree the gate RAN AGAINST, so in a committed record it
   necessarily names the PARENT of the commit carrying it. A record cannot name
   the commit that contains it; re-running after a commit therefore rewrites
@@ -32,8 +32,8 @@ repo revision f0651c891468810295a1725e52a3a673baf7908f
   the freeze is re-derived and compared.
 
   re-derivation content: identical
-  re-derivation tree:    same
-  re-derived from /Volumes/build/route-b/flutter/engine/src/flutter/third_party/dart at the frozen commit; content identical -- kernel_declarations.json content:identical tree:same;vm_runtime_state.json content:identical tree:same;
+  re-derivation tree:    8b9c27237f1d9c2f10e3df0bbeb87c673061bdf8
+  re-derived from /Volumes/build/route-b/flutter/engine/src/flutter/third_party/dart, which is at 8b9c27237f1d9c2f10e3df0bbeb87c673061bdf8, NOT the commit the freeze names; content identical -- kernel_declarations.json content:identical tree:8b9c27237f1d9c2f10e3df0bbeb87c673061bdf8;vm_runtime_state.json content:identical tree:8b9c27237f1d9c2f10e3df0bbeb87c673061bdf8;
 
   kernel_declarations.json
     entries 330  dart tree 9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
@@ -175,7 +175,7 @@ repo revision f0651c891468810295a1725e52a3a673baf7908f
   pass  every figure CONTRACT.md quotes is derived and present
   pass  the doc check derives its claims rather than reading them
   pass  no implementation subsystem is modified in the working tree
-  note  the re-derivation ran on: same
+  note  the re-derivation ran on: 8b9c27237f1d9c2f10e3df0bbeb87c673061bdf8
 
 ASSERTIONS (38 checked: 38 pass, 0 fail)
 

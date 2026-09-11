@@ -875,6 +875,10 @@ words:
   - blib # the bounds field followed by a #65 library identity
   - bfn # the bounds field followed by a rendered function type
   - injectivity # the property a compatibility renderer must have
+  - HANDLESCOPE # the VM's scoped-handle macro
+  - dedups # what the object pool does to identical entries
+  - getpid # the libc call the #67 fixture uses to prove one process
+  - microbenchmark # a per-call timing harness, deferred to #68
   - undiscriminated # an ABI dimension no fixture pair separates
   - isect # the rendered form of a Kernel IntersectionType
   - futureor # the rendered form of a Kernel FutureOrType

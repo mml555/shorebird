@@ -1,8 +1,8 @@
 === MAOT-2 (#66) runtime implementation registry ===
-run  2026-09-11T19:16:17Z
-fork a6d5fe956214c480c29b0b6e6edfd92a3d1df124
+run  2026-09-11T20:46:01Z
+fork 8b9c27237f1d9c2f10e3df0bbeb87c673061bdf8
 
-fork            a6d5fe956214c480c29b0b6e6edfd92a3d1df124
+fork            8b9c27237f1d9c2f10e3df0bbeb87c673061bdf8
 selected        25
 registry        25
 arms            23 (0 failed)

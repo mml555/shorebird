@@ -77,3 +77,9 @@ TENTH BORROW (second hold: pristine F23 probes, injective type renderer).
 Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
 dirty entries, dirty digest 6b358f715e491bd9. Route B gen_snapshot untouched
 at 6875648 bytes, Sep 1 02:40. Built only in out/maot_host.
+
+ELEVENTH BORROW (#67 MAOT-3: direct/static replacement through the slot).
+Authorized 2026-09-11 after #66 was independently ACCEPTED and closed.
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Route B gen_snapshot untouched
+at 6875648 bytes, Sep 1 02:40. Built only in out/maot_host.

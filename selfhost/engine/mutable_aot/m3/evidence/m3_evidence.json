@@ -1,0 +1,1275 @@
+{
+  "schema": "maot.m3.evidence/1",
+  "issue": 67,
+  "generated_by": {
+    "run_id": "2026-09-11T20:50:53Z",
+    "gate_sha256": "e56fd8c581ae3adb6c69db2637e1a5ce704ab9dfa894d019d9de494fe4356ea8",
+    "verdict_sha256": "decd782c981a0578ebbf798adfb2e30d6d9f88b63c251580f9ea3652f613c8af",
+    "fixture_sha256": "03a7d04556a62ee0c59586e125d988c427f0dc85d7703b7921ed3367358d4a76"
+  },
+  "identities": {
+    "shorebird_revision": "cdbeb05f03a0c4bca2ebd71e672877efc6a2fd2d",
+    "shorebird_tree": "ff730b7f0ede7e78e0e7b8c977f7eea1545c33b2",
+    "fork_commit": "4e28b44ff29905aefaba4ebd34aed763b219a8fd",
+    "fork_tree": "6facde69da13032c9bb06d2b50415b56202902d8",
+    "fork_worktree_entries": [
+      "?? third_party/binaryen/.DS_Store"
+    ],
+    "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+    "depends_on": {
+      "issue_66": "RUNTIME_IMPLEMENTATION_REGISTRY_ESTABLISHED"
+    }
+  },
+  "observations": {
+    "expected_namespace": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+    "indirect_call_site_trace_lines": 14,
+    "snapshot_sha256_before": "adfb89b11959b0674c3b68a2f997702041d8a8c52d7fe73ff8955b193181e9c6",
+    "snapshot_sha256_after": "adfb89b11959b0674c3b68a2f997702041d8a8c52d7fe73ff8955b193181e9c6",
+    "calls": {
+      "process.pid": 11221,
+      "top.call.0": "OLD",
+      "static.call.0": "OLD-STATIC",
+      "untouched.call.0": "UNTOUCHED",
+      "plain.call.0": "PLAIN",
+      "top.version.0": "AOT:v1",
+      "static.version.0": "AOT:v1",
+      "refuse.unknown.id": -1,
+      "refuse.wrong.namespace": -3,
+      "refuse.abi.mismatch": -3,
+      "refuse.version.not.advancing": -3,
+      "top.call.after_refusals": "OLD",
+      "top.version.after_refusals": "AOT:v1",
+      "install.top.v2": 0,
+      "top.call.1": "NEW",
+      "top.call.1.repeat": "NEW",
+      "top.version.1": "PATCH_CODE:v2",
+      "static.call.after_top_install": "OLD-STATIC",
+      "untouched.call.after_top_install": "UNTOUCHED",
+      "install.top.v3": 0,
+      "top.call.2": "NEW2",
+      "top.version.2": "PATCH_CODE:v3",
+      "install.static.v2": 0,
+      "static.call.1": "NEW-STATIC",
+      "static.call.1.repeat": "NEW-STATIC",
+      "static.version.1": "PATCH_CODE:v2",
+      "install.static.v3": 0,
+      "static.call.2": "NEW2-STATIC",
+      "static.version.2": "PATCH_CODE:v3",
+      "untouched.call.final": "UNTOUCHED",
+      "plain.call.final": "PLAIN",
+      "top.call.final": "NEW2",
+      "process.pid.final": 11221
+    },
+    "runtime_stderr_tail": "",
+    "registry_before": {
+      "schema": "maot.registry/1",
+      "schema_version": 1,
+      "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+      "runtime_mode": "precompiled",
+      "entry_count": 8,
+      "diverged_implementations": 0,
+      "selected_seen_at_materialization": -1,
+      "retained_at_materialization": -1,
+      "dropped_at_materialization": -1,
+      "entries": [
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'work': static."
+          },
+          "indirect_call_sites_emitted": 5,
+          "release": {
+            "implementation_name_diagnostic": "Function 'work': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'work': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'work': static."
+          },
+          "indirect_call_sites_emitted": 6,
+          "release": {
+            "implementation_name_diagnostic": "Function 'work': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'work': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'workNew': static."
+          },
+          "indirect_call_sites_emitted": 0,
+          "release": {
+            "implementation_name_diagnostic": "Function 'workNew': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'workNew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'workNew2': static."
+          },
+          "indirect_call_sites_emitted": 0,
+          "release": {
+            "implementation_name_diagnostic": "Function 'workNew2': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'workNew2': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'staticNew': static."
+          },
+          "indirect_call_sites_emitted": 0,
+          "release": {
+            "implementation_name_diagnostic": "Function 'staticNew': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'staticNew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'staticNew2': static."
+          },
+          "indirect_call_sites_emitted": 0,
+          "release": {
+            "implementation_name_diagnostic": "Function 'staticNew2': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'staticNew2': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'untouchedMutable': static."
+          },
+          "indirect_call_sites_emitted": 3,
+          "release": {
+            "implementation_name_diagnostic": "Function 'untouchedMutable': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'untouchedMutable': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'wrongAbi': static."
+          },
+          "indirect_call_sites_emitted": 0,
+          "release": {
+            "implementation_name_diagnostic": "Function 'wrongAbi': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'wrongAbi': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p2/2;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed2;regs0;nofactory;argstt;rett",
+          "has_staged": false
+        }
+      ]
+    },
+    "registry_after": {
+      "schema": "maot.registry/1",
+      "schema_version": 1,
+      "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+      "runtime_mode": "precompiled",
+      "entry_count": 8,
+      "diverged_implementations": 0,
+      "selected_seen_at_materialization": -1,
+      "retained_at_materialization": -1,
+      "dropped_at_materialization": -1,
+      "entries": [
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "selected": true,
+          "current": {
+            "kind": "PATCH_CODE",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 3,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'staticNew2': static."
+          },
+          "indirect_call_sites_emitted": 5,
+          "release": {
+            "implementation_name_diagnostic": "Function 'work': static.",
+            "still_represented": true,
+            "is_current": false
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'staticNew2': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "selected": true,
+          "current": {
+            "kind": "PATCH_CODE",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 3,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'workNew2': static."
+          },
+          "indirect_call_sites_emitted": 6,
+          "release": {
+            "implementation_name_diagnostic": "Function 'work': static.",
+            "still_represented": true,
+            "is_current": false
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'workNew2': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'workNew': static."
+          },
+          "indirect_call_sites_emitted": 0,
+          "release": {
+            "implementation_name_diagnostic": "Function 'workNew': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'workNew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'workNew2': static."
+          },
+          "indirect_call_sites_emitted": 0,
+          "release": {
+            "implementation_name_diagnostic": "Function 'workNew2': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'workNew2': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'staticNew': static."
+          },
+          "indirect_call_sites_emitted": 0,
+          "release": {
+            "implementation_name_diagnostic": "Function 'staticNew': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'staticNew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'staticNew2': static."
+          },
+          "indirect_call_sites_emitted": 0,
+          "release": {
+            "implementation_name_diagnostic": "Function 'staticNew2': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'staticNew2': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'untouchedMutable': static."
+          },
+          "indirect_call_sites_emitted": 3,
+          "release": {
+            "implementation_name_diagnostic": "Function 'untouchedMutable': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'untouchedMutable': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'wrongAbi': static."
+          },
+          "indirect_call_sites_emitted": 0,
+          "release": {
+            "implementation_name_diagnostic": "Function 'wrongAbi': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'wrongAbi': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p2/2;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed2;regs0;nofactory;argstt;rett",
+          "has_staged": false
+        }
+      ]
+    },
+    "measurements": {
+      "aot_elf_bytes_with_maot": 859904,
+      "aot_elf_bytes_control_no_pragmas": 842920,
+      "aot_elf_delta_bytes": 16984,
+      "indirect_call_sites_total": 14,
+      "aot_elf_delta_bytes_note": "includes six replacement bodies the no-pragma control shakes away; not divisible by call sites",
+      "aot_elf_bytes_bypass_same_bodies": 859904,
+      "aot_elf_call_site_delta_bytes": 0,
+      "aot_elf_call_site_delta_bytes_per_site": 0.0,
+      "aot_elf_call_site_delta_note": "measured 0 at this fixture size, which does not mean free: the emission replaces one pc-relative branch with a pool load, a compressed load and an indirect branch -- about two extra instructions per site, or roughly 8 bytes x 14 sites -- and ELF section alignment absorbs that entirely. A per-site byte figure needs a fixture large enough to cross an alignment boundary.",
+      "indirect_call_site_instructions": 3,
+      "direct_call_site_instructions": 1,
+      "registry_bytes": 1088,
+      "registry_entries": 8,
+      "registry_slots_per_entry": 17,
+      "startup_ms_with_maot": 17.18,
+      "startup_ms_control": 16.87,
+      "direct_call_ns_with_indirection": "not separable from startup at this fixture size: the whole program runs in ~17 ms and makes 14 mutable calls, so a per-call figure would be reporting timer noise. The instruction counts above are the measurable cost; a real microbenchmark belongs with the optimizer work in #68, where the call shape is what is under test.",
+      "note": "diagnostic only; no threshold is compared anywhere"
+    },
+    "falsifications_failed": []
+  },
+  "registry_before": {
+    "schema": "maot.registry/1",
+    "schema_version": 1,
+    "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+    "runtime_mode": "precompiled",
+    "entry_count": 8,
+    "diverged_implementations": 0,
+    "selected_seen_at_materialization": -1,
+    "retained_at_materialization": -1,
+    "dropped_at_materialization": -1,
+    "entries": [
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'work': static."
+        },
+        "indirect_call_sites_emitted": 5,
+        "release": {
+          "implementation_name_diagnostic": "Function 'work': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'work': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'work': static."
+        },
+        "indirect_call_sites_emitted": 6,
+        "release": {
+          "implementation_name_diagnostic": "Function 'work': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'work': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'workNew': static."
+        },
+        "indirect_call_sites_emitted": 0,
+        "release": {
+          "implementation_name_diagnostic": "Function 'workNew': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'workNew': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'workNew2': static."
+        },
+        "indirect_call_sites_emitted": 0,
+        "release": {
+          "implementation_name_diagnostic": "Function 'workNew2': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'workNew2': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'staticNew': static."
+        },
+        "indirect_call_sites_emitted": 0,
+        "release": {
+          "implementation_name_diagnostic": "Function 'staticNew': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'staticNew': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'staticNew2': static."
+        },
+        "indirect_call_sites_emitted": 0,
+        "release": {
+          "implementation_name_diagnostic": "Function 'staticNew2': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'staticNew2': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'untouchedMutable': static."
+        },
+        "indirect_call_sites_emitted": 3,
+        "release": {
+          "implementation_name_diagnostic": "Function 'untouchedMutable': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'untouchedMutable': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'wrongAbi': static."
+        },
+        "indirect_call_sites_emitted": 0,
+        "release": {
+          "implementation_name_diagnostic": "Function 'wrongAbi': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'wrongAbi': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p2/2;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed2;regs0;nofactory;argstt;rett",
+        "has_staged": false
+      }
+    ]
+  },
+  "registry_after": {
+    "schema": "maot.registry/1",
+    "schema_version": 1,
+    "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+    "runtime_mode": "precompiled",
+    "entry_count": 8,
+    "diverged_implementations": 0,
+    "selected_seen_at_materialization": -1,
+    "retained_at_materialization": -1,
+    "dropped_at_materialization": -1,
+    "entries": [
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+        "selected": true,
+        "current": {
+          "kind": "PATCH_CODE",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 3,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'staticNew2': static."
+        },
+        "indirect_call_sites_emitted": 5,
+        "release": {
+          "implementation_name_diagnostic": "Function 'work': static.",
+          "still_represented": true,
+          "is_current": false
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'staticNew2': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "selected": true,
+        "current": {
+          "kind": "PATCH_CODE",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 3,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'workNew2': static."
+        },
+        "indirect_call_sites_emitted": 6,
+        "release": {
+          "implementation_name_diagnostic": "Function 'work': static.",
+          "still_represented": true,
+          "is_current": false
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'workNew2': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'workNew': static."
+        },
+        "indirect_call_sites_emitted": 0,
+        "release": {
+          "implementation_name_diagnostic": "Function 'workNew': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'workNew': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'workNew2': static."
+        },
+        "indirect_call_sites_emitted": 0,
+        "release": {
+          "implementation_name_diagnostic": "Function 'workNew2': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'workNew2': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'staticNew': static."
+        },
+        "indirect_call_sites_emitted": 0,
+        "release": {
+          "implementation_name_diagnostic": "Function 'staticNew': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'staticNew': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'staticNew2': static."
+        },
+        "indirect_call_sites_emitted": 0,
+        "release": {
+          "implementation_name_diagnostic": "Function 'staticNew2': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'staticNew2': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'untouchedMutable': static."
+        },
+        "indirect_call_sites_emitted": 3,
+        "release": {
+          "implementation_name_diagnostic": "Function 'untouchedMutable': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'untouchedMutable': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'wrongAbi': static."
+        },
+        "indirect_call_sites_emitted": 0,
+        "release": {
+          "implementation_name_diagnostic": "Function 'wrongAbi': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'wrongAbi': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p2/2;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed2;regs0;nofactory;argstt;rett",
+        "has_staged": false
+      }
+    ]
+  },
+  "falsification": [
+    {
+      "id": "G01",
+      "kind": "live",
+      "description": "the call site bypasses the dispatch cell and binds to the release implementation, while the descriptor still advances",
+      "why": "a call permanently bound to the release implementation is the failure this whole issue exists to rule out, and the descriptor still advances while it happens",
+      "result": "pass",
+      "observed": "without the indirection: top.call.1=OLD while the descriptor reports PATCH_CODE:v2",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "G11",
+      "kind": "live",
+      "description": "the expected strings match while no indirect call site was ever emitted",
+      "why": "output strings are not evidence of a path; a run with no emitted indirect call site must be refused on the path evidence alone",
+      "result": "pass",
+      "observed": "the bypass build emitted 0 indirect call sites for fn:work, and the condition reads False"
+    },
+    {
+      "id": "G02",
+      "kind": "live",
+      "description": "the result of a mutable call is constant-folded, so every caller keeps the release answer although the call is made",
+      "why": "the call is made, reaches the cell, and the caller still uses the release answer because the RESULT was folded",
+      "result": "pass",
+      "observed": "6 call sites emitted and the result observed is NEW; with the result folded back to OLD the verdict is NOT_ESTABLISHED",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "G03",
+      "kind": "live",
+      "description": "a selected declaration is inlined, so the caller never reaches the cell",
+      "why": "an inlined copy of a selected declaration is a caller that never reaches the cell",
+      "result": "pass",
+      "observed": "with every emitted call site removed the path condition reads False",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "G04",
+      "kind": "live",
+      "description": "the version advances with no implementation change",
+      "why": "a version bump with no implementation change is not a replacement",
+      "result": "pass",
+      "observed": "non-advancing version returned -3 (-3 = refused by StageReplacement)"
+    },
+    {
+      "id": "G05",
+      "kind": "live",
+      "description": "the implementation changes with no version advance",
+      "why": "an implementation change the version does not record leaves the evidence describing a program that is not running",
+      "result": "pass",
+      "observed": "version and body move together: PATCH_CODE:v2 with NEW",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "G06",
+      "kind": "live",
+      "description": "a patch names the wrong release namespace",
+      "why": "a patch built against another release must not bind here",
+      "result": "pass",
+      "observed": "wrong namespace returned -3 and the call still returns OLD"
+    },
+    {
+      "id": "G07",
+      "kind": "live",
+      "description": "a patch names a declaration that does not exist",
+      "why": "an unknown declaration must be refused, never created",
+      "result": "pass",
+      "observed": "unknown id returned -1 (-1 = not found)"
+    },
+    {
+      "id": "G08",
+      "kind": "live",
+      "description": "a patch whose ABI differs is installed",
+      "why": "an incompatible ABI must be refused before anything is visible",
+      "result": "pass",
+      "observed": "ABI mismatch returned -3 and the descriptor is still AOT:v1"
+    },
+    {
+      "id": "G09",
+      "kind": "live",
+      "description": "only one of the two call forms is proven and the other is assumed",
+      "why": "top-level and static are independent arms; proving one cannot prove the other",
+      "result": "pass",
+      "observed": "with the static arm left at its release answer the verdict is NOT_ESTABLISHED",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "G10",
+      "kind": "live",
+      "description": "the process restarted or the release was rebuilt between the OLD and NEW observations",
+      "why": "a rebuilt snapshot or a second process would make the whole observation meaningless",
+      "result": "pass",
+      "observed": "one pid (11221) and one snapshot (adfb89b11959...) across the whole run; a changed hash or a changed pid each fail the condition"
+    }
+  ],
+  "falsification_bank": {
+    "live": [
+      "G01",
+      "G02",
+      "G03",
+      "G04",
+      "G05",
+      "G06",
+      "G07",
+      "G08",
+      "G09",
+      "G10",
+      "G11"
+    ],
+    "historical": [
+      "G12",
+      "G13",
+      "G14",
+      "G15"
+    ],
+    "historical_note": "defects this implementation actually hit while being built. The code can no longer express them, and an arm that cannot be built is not the same as a defect that never happened."
+  },
+  "findings": [],
+  "consumers": {
+    "map": {
+      "verdict": "the gate exit code and whether #67 may be closed",
+      "observations": "every condition in the verdict",
+      "registry_before": "the release state the calls started from",
+      "registry_after": "the call-site, descriptor and release-representation conditions",
+      "falsification": "required_falsifications_detected",
+      "falsification_bank": "whether every live bank entry has an arm",
+      "findings": "verdict.blocking_findings and the gate exit code",
+      "identities": "whether any of this may be quoted",
+      "schema": "readers and later issues consuming this record",
+      "issue": "readers and later issues consuming this record",
+      "generated_by": "reproducing this record",
+      "consumers": "this check itself, in both directions"
+    },
+    "unconsumed_or_undeclared": []
+  },
+  "verdict": {
+    "direct_static_replacement": "ESTABLISHED",
+    "conditions": {
+      "top_level_replacement_observed": true,
+      "static_replacement_observed": true,
+      "arms_are_independent": true,
+      "no_restart_or_recompile": true,
+      "call_sites_traverse_the_mechanism": true,
+      "installation_is_descriptor_state": true,
+      "identity_visible_in_evidence": true,
+      "release_implementation_still_represented": true,
+      "unrelated_declarations_unchanged": true,
+      "refusals_before_visible_mutation": true,
+      "repeated_calls_stay_replaced": true,
+      "required_falsifications_detected": true,
+      "measurements_recorded": true
+    },
+    "conditions_failed": [],
+    "condition_meanings": {
+      "top_level_replacement_observed": "did a precompiled top-level direct call return OLD, then NEW after installation, then NEW2 after a second installation?",
+      "static_replacement_observed": "the same for a precompiled static method call, proven independently?",
+      "arms_are_independent": "did installing one arm leave the other arm at its release answer, in both directions? (one arm cannot stand in for the other)",
+      "no_restart_or_recompile": "was it one process throughout -- same pid, one snapshot, no rebuild between the OLD and NEW observations?",
+      "call_sites_traverse_the_mechanism": "did the compiler emit indirect call sites through the dispatch cell for every replaced declaration? (zero means no caller can reach it, whatever the program printed)",
+      "installation_is_descriptor_state": "did the #66 version and kind advance, and does the dispatch cell still agree with the descriptor?",
+      "identity_visible_in_evidence": "are the #65 DeclarationId, #66 version/kind and release namespace all present in the structured record?",
+      "release_implementation_still_represented": "after replacement, can the descriptor still name what the release shipped, for rollback and version history?",
+      "unrelated_declarations_unchanged": "did a selected-but-not-replaced declaration and a non-selected one both keep their release answers?",
+      "refusals_before_visible_mutation": "were unknown id, wrong release namespace, ABI mismatch and a non-advancing version each refused with the release answer intact?",
+      "repeated_calls_stay_replaced": "does calling again after installation still reach the replacement?",
+      "required_falsifications_detected": "did every required falsification actually fire?",
+      "measurements_recorded": "are the overhead and size measurements present? No threshold is compared; absence is the only failure."
+    },
+    "blocking_findings": [],
+    "verdict_rule": "direct_static_replacement == ESTABLISHED iff every condition above holds AND no blocking finding was raised. It is a conjunction; no count, ratio or threshold is compared anywhere in this module, and neither outcome string is reachable unconditionally.",
+    "not_claimed": [
+      "No virtual, interface or super dispatch. #69 owns those.",
+      "No universal no-bypass claim. The posture here is the blunt rule that a selected declaration is neither inlined nor constant-folded through; #68 owns the real optimizer contract.",
+      "The replacement implementation is another AOT-compiled Dart body present in the release image, selected by descriptor. Delivering an externally-built body is #72/#77.",
+      "No additions, no class-shape work, no transaction architecture beyond what #66 exposes, and no production CLI or package format."
+    ]
+  }
+}

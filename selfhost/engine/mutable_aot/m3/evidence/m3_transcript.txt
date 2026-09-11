@@ -1,0 +1,15 @@
+=== MAOT-3 (#67) direct/static replacement through the mutable slot ===
+run  2026-09-11T20:50:53Z
+fork 4e28b44ff29905aefaba4ebd34aed763b219a8fd
+
+fork          4e28b44ff29905aefaba4ebd34aed763b219a8fd
+top-level     OLD -> NEW -> NEW2
+static        OLD-STATIC -> NEW-STATIC -> NEW2-STATIC
+version       AOT:v1 -> PATCH_CODE:v3
+one process   pid 11221 == 11221
+arms          11 (0 failed)
+blocking      0
+conditions    13 (0 failed)
+VERDICT       direct_static_replacement = ESTABLISHED
+
+gate exit 0
