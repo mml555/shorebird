@@ -2,7 +2,16 @@
 
 # MAOT-2 (#66) — measured findings so far
 
-Fork `maot/build` = `38b31d7cd2e44ee188df324bd878dc736bccd1dd`.
+Fork `maot/build`, in the order the findings below were measured:
+
+| revision | what it carried |
+|---|---|
+| `38b31d7cd2e44ee188df324bd878dc736bccd1dd` | the first crossing of the compiler → runtime boundary |
+| `f74a637790b802e025c79a9715afc02be028d37d` | binding, retention and the executable-body invariant |
+| `c1a3f09af98df1d87bc52455a1a4b0750fd81964` | registry semantics, the self-test, and the two soundness fixes |
+
+Tree `17f8320b29f80aeae19eb8f2c91cd51790876046`. A branch is transport; the
+commit and tree are identity.
 
 ## The architectural boundary is crossed
 
@@ -244,9 +253,125 @@ drops the constant parameter. It argues that the ABI descriptor must be
 computed **late**, after transforms, which is where it is computed. Worth
 confirming explicitly when ABI gets its own falsification.
 
-## What is NOT yet claimed
+## Superseded: what was not yet claimed
+
+Superseded on 2026-09-11 by the sections below. The reasoning above stands as
+written; it was accurate when the registry existed but its semantics, its
+falsification bank and its verdict did not.
+
+## Two soundness defects, both found by the program that selects nothing
+
+The fixture had a `@pragma('maot:mutable')` on it from the first day, so every
+measurement until now was taken on a program that used the feature. The cost
+measurements needed a baseline, so the gate grew a **control**: the identical
+source with every pragma removed. The control did not build.
+
+```
+Unexpected object (Class with illegal cid, full-aot):
+  Library:'package:m2app/app.dart' Class: Widget
+```
+
+The discriminating test is short and worth stating, because "the fixture is
+odd" was the comfortable reading: **the stock, non-MAOT `gen_snapshot` from
+Route B compiled that exact kernel file, 840,184 bytes, exit 0.** The MAOT
+`gen_snapshot` aborted on it. The defect was mine, and a release that never
+adopted the pragma is the common case, not an edge case.
+
+### Defect 1 — `Clear()` released nothing
+
+```cc
+storage.SetLength(0);   // does not release anything
+```
+
+A `GrowableObjectArray` keeps its backing `Array` at full capacity, and every
+slot past the new length still holds the old pointer. **Both the GC and the
+snapshot serializer walk the backing array, not the logical length.** So a
+`Function` "cleared" this way stayed reachable from an `ObjectStore` root. The
+precompiler resurrected `Function`s whose owner `Class` `DropClasses()` had
+already removed from the class table, and serialization then found a class
+with an invalidated cid.
+
+`Clear()` now replaces the storage outright. It is the array that has to go,
+not its length.
+
+This also means the earlier shipped registries carried stale `Function`
+pointers in the tail of the backing store. `registry_array_slots` is now
+exactly `entries × slots_per_entry` (40 for 4), which is the mechanical way to
+see that there is no tail.
+
+### Defect 2 — materialization ran after the drop phase
+
+`MaterializeMutableAotRegistry()` was called after `DropLibraries()`, with
+this comment:
+
+> the final registry should describe the final AOT program, not influence
+> pruning by being reachable during it.
+
+The intent was right and the code did not achieve it. Kernel loading registers
+**every** declaration it sees, selected or not, so for the whole drop phase the
+registry was an `ObjectStore` root holding exactly the `Function`s the
+precompiler was removing. Those references do not make a `Function` *retained*
+— `DropFunctions()` rebuilds each class's function array from
+`functions_to_retain_` — but they keep the objects *reachable*, which is all
+the serializer needs.
+
+It now runs immediately after `TraceForRetainedFunctions()`. Every input is
+final there: selection came from the kernel metadata, retention is
+`functions_to_retain_`, and code attachment finished with the compilation loop
+above it. Afterwards the registry references only `Function`s that are being
+kept, which makes the original comment true rather than aspirational.
+
+Both fixes are required. Either alone leaves the crash: without the move the
+registry still roots everything during the drop, and without the `Clear()` fix
+the reduction releases nothing.
+
+## A gate defect, caught by a falsification arm rather than by a test
+
+`F10` failed in a run where the implementation was correct. The cause was not
+in the fork:
+
+```bash
+ninja -C out/maot_host gen_snapshot dartaotruntime 2>&1 | tail -5; echo "exit=$?"
+```
+
+`$?` is `tail`'s status. Ninja had failed (`vpython3: command not found`), the
+binary was seven minutes stale, and the gate measured a program that was not
+the one it named. Nothing in the lane would have noticed; the arm noticed.
+
+The gate now refuses to run against a binary older than a MAOT source that is
+**linked into that binary** — `precompiler.cc` is compiled into `gen_snapshot`
+only, and comparing it against `dartaotruntime` would report staleness that
+cannot exist. `F21` asserts the guard both ways: silent now, and firing on
+both binaries against a source dated one hour ahead.
+
+## MAOT-0 re-derivation: content and stamp are different facts
+
+Re-running the #63 gate reported `DIFFERS` — "the frozen universes no longer
+describe this tree". They do. Both universes' **entries are byte-identical**;
+the only difference in either file was one token:
+
+```
+provenance.dart_tree_head
+  now    f74a637790b802e025c79a9715afc02be028d37d   (R3 borrowed for MAOT-2)
+  freeze 9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
+```
+
+Whole-file byte equality conflated two different claims. A change in the
+**content** means the frozen matrix no longer describes the language surface,
+and it is blocking. A different **commit stamp** is an observation — and when
+the content matches it is a *wider* statement than the freeze made alone: the
+universe is unchanged across both commits.
+
+`lib/reverify_universe.py` now separates them, normalising only that one token
+and only when both ends are well-formed 40-hex, so a missing or malformed head
+cannot be normalised into agreement. The content assertion stays blocking; the
+tree is recorded as a note and kept out of the assertion count, so
+"N checked: P pass, F fail" remains an accounting of checks.
+
+## What is NOT claimed
 
 No body replacement, no call-site redirection, no execution of `PATCH_CODE`.
-The 14 required behaviours, the 12 falsification arms, the measurements and the
-derived verdict are not done. `RUNTIME_IMPLEMENTATION_REGISTRY_ESTABLISHED` is
-**not** claimed.
+A caller may hold an inlined copy of a selected body; proving it cannot bypass
+the slot is #68. Transactions are single-entry and test-only — #71 owns atomic
+multi-declaration transactions. The registry is read by no call site; #67 owns
+that.

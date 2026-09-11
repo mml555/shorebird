@@ -35,3 +35,25 @@ at 6875648 bytes. Built only in out/maot_host.
 FIFTH BORROW / HAND-BACK (executable-body invariant segment).
 Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
 dirty entries, dirty digest 6b358f715e491bd9. Route B out dir untouched.
+
+SIXTH BORROW / HAND-BACK (registry semantics, self-test and soundness fixes).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9 -- identical to every earlier
+recording. Route B gen_snapshot untouched at 6875648 bytes, Sep 1 02:40.
+Built only in out/maot_host.
+
+One READ-ONLY use of Route B's own gen_snapshot during this segment: it
+compiled a MAOT-2 fixture kernel file to an ELF written into a temp dir, to
+discriminate "the MAOT gen_snapshot aborts" from "this kernel file is odd".
+Nothing under out/host_release_arm64_nodm was written.
+
+SEVENTH BORROW / HAND-BACK (regenerate the record against the committed gate).
+Short: no source change, ninja relinked only, then one gate run. Needed
+because the evidence record embeds the gate's own sha256, and later edits to
+the gate would have left the record naming a script that no longer existed.
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Route B gen_snapshot untouched
+at 6875648 bytes, Sep 1 02:40. Built only in out/maot_host.
+
+The working change was verified BYTE-IDENTICAL to the rescued patch before it
+was discarded and re-applied, not merely equal in digest-of-a-digest.

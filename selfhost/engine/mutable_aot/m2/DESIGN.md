@@ -143,6 +143,36 @@ not "every declaration" — but the payload carries the flag per declaration, so
 widening the selection later is a policy change and not a representation
 change. The measurement section records what selecting everything would cost.
 
+## Where the registry is reduced, and why it is not a free choice
+
+Kernel loading registers every declaration it sees, selected or not — the
+metadata rides on all of them, and the seam is the loader, not a filter. So
+between loading and materialization the registry is an `ObjectStore` root
+holding a `Function` for every declaration in the program, including all the
+ones the precompiler is about to drop.
+
+Reduction therefore has to happen **before** the drop phase, and the earliest
+point where all three inputs are final is immediately after
+`TraceForRetainedFunctions()`:
+
+| input | final at that point because |
+|---|---|
+| selection | it came from the kernel metadata at load time |
+| retention | `functions_to_retain_` is what `DropFunctions()` will keep |
+| executability | code attachment finished with the compilation loop above |
+
+Running it later — the original choice, after `DropLibraries()` — leaves the
+registry rooting the whole program across `DropClasses()`. That is not a
+retention leak (`DropFunctions()` rebuilds each class's function array from
+`functions_to_retain_`, so a stray reference does not make anything retained)
+but it is a *reachability* leak, and reachability is all the serializer needs.
+See FINDINGS for the abort it produced.
+
+Reduction also has to actually release. `SetLength(0)` on a
+`GrowableObjectArray` leaves the backing `Array` at full capacity with every
+old pointer still in place, and both the GC and the serializer walk the
+backing array. The registry replaces its storage instead.
+
 ## ABI descriptor
 
 Dart source type equality does not define machine-call compatibility, so the

@@ -1,0 +1,514 @@
+{
+  "schema": "maot.m2.evidence/1",
+  "issue": 66,
+  "generated_by": {
+    "run_id": "2026-09-11T15:05:55Z",
+    "gate_sha256": "dca3dddd07c92fc291e05df2b3ece80fcefdc5604faa031db1b02c7e1a4563f2",
+    "verdict_sha256": "e28ffc7e59dd73e569bea274100939f671f13e0ae2034e763ad58663de6c258b"
+  },
+  "identities": {
+    "shorebird_revision": "da62963bd757862e1ba19148a16d32ed7b815bb6",
+    "shorebird_tree": "043db14f259297d8fcde9df73d1bfdf4a498e883",
+    "fork_commit": "c1a3f09af98df1d87bc52455a1a4b0750fd81964",
+    "fork_tree": "17f8320b29f80aeae19eb8f2c91cd51790876046",
+    "fork_branch": "maot/build",
+    "fork_worktree_entries": [
+      "?? third_party/binaryen/.DS_Store"
+    ],
+    "fork_source_dirty": false,
+    "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+    "note": "a branch is transport; the commit and tree are identity"
+  },
+  "observations": {
+    "expected_namespace": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+    "stale_binaries": [],
+    "build_digest": {
+      "files": {
+        "runtime/vm/maot_registry.cc": "e30e54459dc920be95372e6e374cbf4b521c1b477ddaa5a064fc9271445b81d1",
+        "runtime/vm/maot_registry.h": "146022e4d4dd3a4a4a0b4488a18926623cc1948f343d3c4d88d4150b67ec47f7",
+        "runtime/vm/kernel_loader.cc": "c0fb785312b23412c0d85ddb27efffacd2ec9b9d1ba182116ea1bad15553d5cd",
+        "runtime/vm/object_store.h": "8d6df2ea6ebec9b1878424d2c50cc3fa77a7e9097d8e0b2e454ef20b207d46da",
+        "runtime/vm/dart.cc": "d01d83139d07873cbb3c25a00632614f98e5048fef8efdc9be74e9be48044dec",
+        "runtime/vm/compiler/aot/precompiler.cc": "f05b7069f470c60b546c1e373f770aa557714634afcb32cd11cee76d0cb6f39b",
+        "runtime/vm/compiler/aot/precompiler.h": "9c6b996e1bf639c8f442d3b9330efaab930486fb8869d11be943929bed12b6f7",
+        "runtime/vm/compiler/frontend/kernel_translation_helper.cc": "3c7c2ac4cb9e8a04736c184ec1b2a02cea253f5186f45218351594e831f9d96f",
+        "runtime/vm/compiler/frontend/kernel_translation_helper.h": "d2726b4c489f025dfef242673006b79d5a21a9663aeae90281e28ffd7cbdb330"
+      },
+      "fork_commit": "c1a3f09af98df1d87bc52455a1a4b0750fd81964",
+      "fork_tree": "17f8320b29f80aeae19eb8f2c91cd51790876046",
+      "built_at": "2026-09-11T15:05:02Z"
+    },
+    "missing_maot_sources": [],
+    "selected_count": 4,
+    "selected_but_absent": [],
+    "materialized_count": 4,
+    "materialized_dropped": 0,
+    "registry_ids": [
+      "lib:package:m2app/app.dart::cls:Widget::ctor:",
+      "lib:package:m2app/app.dart::cls:Widget::method:compute",
+      "lib:package:m2app/app.dart::fn:mutableTopLevel",
+      "lib:package:m2app/app.dart::fn:neverCalled"
+    ],
+    "selected_minus_registry": [],
+    "registry_minus_selected": [],
+    "duplicate_ids": false,
+    "unselected_slots": 0,
+    "binding_pairs": [
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Widget::ctor:",
+        "expected_vm_name": "Widget.",
+        "observed": "Function 'Widget.': constructor.",
+        "match": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Widget::method:compute",
+        "expected_vm_name": "compute",
+        "observed": "Function 'compute':.",
+        "match": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "expected_vm_name": "mutableTopLevel",
+        "observed": "Function 'mutableTopLevel': static.",
+        "match": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:neverCalled",
+        "expected_vm_name": "neverCalled",
+        "observed": "Function 'neverCalled': static.",
+        "match": true
+      }
+    ],
+    "binding_pairs_correct": true,
+    "binding_mismatches": [],
+    "address_used_as_identity": false,
+    "control_build": {
+      "kernel_rc": 0,
+      "snapshot_rc": 0,
+      "snapshot_stderr_tail": "",
+      "elf_bytes": 840184,
+      "runtime_rc": 0,
+      "registry_entries": 0
+    },
+    "measurements": {
+      "aot_elf_bytes_with_maot": 840464,
+      "aot_elf_bytes_control_no_pragmas": 840184,
+      "aot_elf_delta_bytes": 280,
+      "startup_ms_with_maot": 17.33,
+      "startup_ms_control": 16.45,
+      "control_note": "absent here means the control build failed, not that it was skipped",
+      "note": "medians of 7 runs of the same program; the control is the identical source with every maot:mutable removed, so the delta includes keeping a dead selected declaration alive",
+      "registry_entries": 4,
+      "registry_array_slots": 40,
+      "registry_slots_per_entry": 10,
+      "registry_registry_bytes_approx": 320,
+      "registry_bytes_per_entry_approx": 80,
+      "registry_lookup_iterations": 10000,
+      "registry_lookup_total_micros": 242,
+      "registry_lookup_note": "linear scan over a GrowableObjectArray; correctness first, and the cost is recorded rather than optimised around",
+      "registry_lookup_sink": 10000
+    },
+    "falsifications_failed": []
+  },
+  "selftest": {
+    "schema": "maot.registry.selftest/1",
+    "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+    "entry_count": 4,
+    "found_same_abi_pair": true,
+    "found_different_abi_entry": true,
+    "arms": [
+      {
+        "id": "S01",
+        "expected": "current is AOT v1 with an implementation",
+        "observed": "AOT v1 present",
+        "result": "pass"
+      },
+      {
+        "id": "S02",
+        "expected": "stage PATCH_CODE v2; current still AOT v1",
+        "observed": "staged, current unchanged",
+        "result": "pass"
+      },
+      {
+        "id": "S03",
+        "expected": "HasStaged reports the pending replacement",
+        "observed": "true",
+        "result": "pass"
+      },
+      {
+        "id": "V01",
+        "expected": "staging at or below the current version is refused",
+        "observed": "refused",
+        "result": "pass"
+      },
+      {
+        "id": "A01",
+        "expected": "ABI mismatch refused, current untouched",
+        "observed": "refused",
+        "result": "pass"
+      },
+      {
+        "id": "N01",
+        "expected": "wrong release namespace refused",
+        "observed": "refused",
+        "result": "pass"
+      },
+      {
+        "id": "S04",
+        "expected": "commit promotes staged to current",
+        "observed": "current is PATCH_CODE v2",
+        "result": "pass"
+      },
+      {
+        "id": "V02",
+        "expected": "commit with nothing staged is refused",
+        "observed": "refused",
+        "result": "pass"
+      },
+      {
+        "id": "V03",
+        "expected": "version bump with the same implementation is refused",
+        "observed": "refused",
+        "result": "pass"
+      },
+      {
+        "id": "M01",
+        "expected": "lookup of an unknown id is refused",
+        "observed": "refused",
+        "result": "pass"
+      },
+      {
+        "id": "M02",
+        "expected": "staging an unknown id refuses and creates nothing",
+        "observed": "refused, not created",
+        "result": "pass"
+      },
+      {
+        "id": "D01",
+        "expected": "duplicate registration is refused",
+        "observed": "refused",
+        "result": "pass"
+      }
+    ],
+    "measurements": {
+      "entries": 4,
+      "array_slots": 40,
+      "slots_per_entry": 10,
+      "registry_bytes_approx": 320,
+      "bytes_per_entry_approx": 80,
+      "lookup_iterations": 10000,
+      "lookup_total_micros": 242,
+      "lookup_note": "linear scan over a GrowableObjectArray; correctness first, and the cost is recorded rather than optimised around",
+      "lookup_sink": 10000
+    }
+  },
+  "registry": {
+    "schema": "maot.registry/1",
+    "schema_version": 1,
+    "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+    "runtime_mode": "precompiled",
+    "entry_count": 4,
+    "selected_seen_at_materialization": -1,
+    "retained_at_materialization": -1,
+    "dropped_at_materialization": -1,
+    "entries": [
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Widget::ctor:",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 32,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'Widget.': constructor."
+        },
+        "abi": "k1;p1/1;n;r;t0;norecv;onogen",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Widget::method:compute",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 68,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'compute':."
+        },
+        "abi": "k2;p1/1;n;r;t0;recv;onogen",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 56,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'mutableTopLevel': static."
+        },
+        "abi": "k3;p1/1;n;r;t0;norecv;onogen",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:neverCalled",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 80,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'neverCalled': static."
+        },
+        "abi": "k3;p1/1;n;r;t0;norecv;onogen",
+        "has_staged": false
+      }
+    ]
+  },
+  "falsification": [
+    {
+      "id": "F08",
+      "kind": "live",
+      "description": "MAOT selection is disconnected from Precompiler::AddFunction",
+      "why": "retention must be a decision this code makes, not a GC side effect it inherits",
+      "result": "pass",
+      "observed": "without seeding: materialized 0 of 4 selected, 4 refused",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "F09",
+      "kind": "live",
+      "description": "a selected Function is dropped by the precompiler",
+      "why": "a selected Function the precompiler did not retain must be REFUSED, not shipped as an empty slot",
+      "result": "pass",
+      "observed": "all 4 selected declarations refused as unretained/non-executable; none became a slot"
+    },
+    {
+      "id": "F04",
+      "kind": "live",
+      "description": "the constructor binding hook is removed",
+      "why": "a missing binding seam must not read as \"basically complete\" because the other three are present",
+      "result": "pass",
+      "observed": "3 of 4 bound; missing ['lib:package:m2app/app.dart::cls:Widget::ctor:']",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "F10",
+      "kind": "live",
+      "description": "an unselected declaration appears in the final registry",
+      "why": "a slot is an authoritative promise of mutability; an unselected declaration must never hold one",
+      "result": "pass",
+      "observed": "filter removed: 5 entries, 1 of them unselected, 1 outside the selected set",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "F01",
+      "kind": "live",
+      "description": "maot:mutable parser arm exists but the VM target rejects the pragma, making it dead code",
+      "why": "a parser arm for a pragma the target rejects is dead code, and nothing else in the pipeline says so",
+      "result": "pass",
+      "observed": "VmTarget.isSupportedPragma accepts maot:mutable and 4 were selected"
+    },
+    {
+      "id": "F02",
+      "kind": "live",
+      "description": "a selected dead declaration is removed by the Dart tree shaker",
+      "why": "a selected declaration removed by tree shaking must be reported, not silently absent from the registry",
+      "result": "pass",
+      "observed": "selected=4 selectedButAbsent=[]; a non-empty absence list forces NOT_ESTABLISHED",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "F12",
+      "kind": "live",
+      "description": "a duplicate DeclarationId is registered",
+      "why": "two entities claiming one identity means a patch binds to the wrong one",
+      "result": "pass",
+      "observed": "D01=pass"
+    },
+    {
+      "id": "F13",
+      "kind": "live",
+      "description": "a patch carries the wrong release namespace",
+      "why": "a patch built against another release must not bind to a same-spelling declaration",
+      "result": "pass",
+      "observed": "N01=pass"
+    },
+    {
+      "id": "F14",
+      "kind": "live",
+      "description": "a staged descriptor is visible before commit",
+      "why": "a staged replacement must be invisible to the current lookup until an explicit commit",
+      "result": "pass",
+      "observed": "S01=pass, S02=pass, S03=pass, S04=pass"
+    },
+    {
+      "id": "F15",
+      "kind": "live",
+      "description": "a version changes with no implementation change",
+      "why": "a version bump with no implementation change is not a replacement",
+      "result": "pass",
+      "observed": "V03=pass"
+    },
+    {
+      "id": "F16",
+      "kind": "live",
+      "description": "an implementation changes with no version advance",
+      "why": "an implementation change must advance the version",
+      "result": "pass",
+      "observed": "V01=pass"
+    },
+    {
+      "id": "F17",
+      "kind": "live",
+      "description": "an incompatible ABI is accepted",
+      "why": "an incompatible ABI must be refused BEFORE any state changes",
+      "result": "pass",
+      "observed": "A01=pass"
+    },
+    {
+      "id": "F18",
+      "kind": "live",
+      "description": "selected-id cardinality matches while the exact sets differ",
+      "why": "counts agreeing while the sets differ must not pass; this is why no condition compares cardinality alone",
+      "result": "pass",
+      "observed": "4 ids vs 4 selected, one substituted; selected_set_exact = False",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "F19",
+      "kind": "live",
+      "description": "stale evidence is reused after the current run fails",
+      "why": "stale evidence must not survive a failed current run",
+      "result": "pass",
+      "observed": "with this run's registry and self-test empty the verdict is NOT_ESTABLISHED, regardless of what any previously written file says",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "F22",
+      "kind": "live",
+      "description": "a release containing NO selected declaration fails to build, or builds with a non-empty registry",
+      "why": "MAOT must be inert in a release that never used it; a pragma-free app is the common case, not an edge case",
+      "result": "pass",
+      "observed": "no-pragma build: kernel=0 snapshot=0 elf=840184B runtime=0 registry_entries=0"
+    },
+    {
+      "id": "F21",
+      "kind": "live",
+      "description": "a built binary is older than the MAOT source it must contain, so the run measures a different program than the one it names",
+      "why": "a run that measures a different program than the one it names is worse than a run that does not happen",
+      "result": "pass",
+      "observed": "the toolchain matches all 9 sources now; against one edited source the guard reports 1 mismatch (runtime/vm/maot_registry.cc)"
+    },
+    {
+      "id": "F20",
+      "kind": "live",
+      "description": "a computed finding is disconnected from the verdict",
+      "why": "a computed finding no decision reads is decoration; a named consumer with no value behind it is a dangling claim",
+      "result": "pass",
+      "observed": "12 produced keys, 12 declared consumers, 0 mismatches"
+    }
+  ],
+  "falsification_bank": {
+    "live": [
+      "F01",
+      "F02",
+      "F04",
+      "F08",
+      "F09",
+      "F10",
+      "F12",
+      "F13",
+      "F14",
+      "F15",
+      "F16",
+      "F17",
+      "F18",
+      "F19",
+      "F20",
+      "F21",
+      "F22"
+    ],
+    "historical": [
+      "F03",
+      "F05",
+      "F06",
+      "F07",
+      "F11"
+    ],
+    "historical_note": "defects this implementation actually hit. They are recorded with the reasoning that resolved them rather than as live arms, because the code can no longer express several of them -- an arm that cannot be built is not the same thing as a defect that never happened."
+  },
+  "findings": [],
+  "consumers": {
+    "map": {
+      "verdict": "the gate exit code and whether #66 may be closed",
+      "observations": "every condition in the verdict",
+      "selftest": "the staging, version, ABI, namespace, duplicate and missing conditions",
+      "registry": "the binding, executability, namespace and introspection conditions",
+      "falsification": "required_falsifications_detected",
+      "falsification_bank": "whether every live bank entry actually has an arm, and which defects are recorded as history instead",
+      "findings": "verdict.blocking_findings and the gate exit code",
+      "identities": "whether any of this may be quoted -- a result from another fork or repo revision is a different question",
+      "schema": "readers and later issues consuming this record",
+      "issue": "readers and later issues consuming this record",
+      "generated_by": "reproducing this record",
+      "consumers": "this check itself, in both directions"
+    },
+    "unconsumed_or_undeclared": []
+  },
+  "verdict": {
+    "runtime_implementation_registry": "ESTABLISHED",
+    "conditions": {
+      "identity_binding_correct": true,
+      "selected_set_exact": true,
+      "dart_retention_complete": true,
+      "vm_retention_complete": true,
+      "real_aot_implementation_present": true,
+      "snapshot_roundtrip_complete": true,
+      "runtime_namespace_bound": true,
+      "staging_semantics_valid": true,
+      "version_semantics_valid": true,
+      "abi_validation_valid": true,
+      "duplicate_missing_wrong_release_fail_closed": true,
+      "no_selection_builds_clean": true,
+      "introspection_valid": true,
+      "required_falsifications_detected": true,
+      "measurements_recorded": true
+    },
+    "conditions_failed": [],
+    "condition_meanings": {
+      "identity_binding_correct": "does every registry entry pair a #65 DeclarationId with the Function for that same declaration?",
+      "selected_set_exact": "are the selected id set and the final registry id set equal in BOTH directions, with no duplicates?",
+      "dart_retention_complete": "did every declaration selected before tree shaking still exist after it (selectedButAbsent empty)?",
+      "vm_retention_complete": "did the precompiler legally retain every selected declaration, with none dropped at materialization?",
+      "real_aot_implementation_present": "does every descriptor point at an executable body, judged by VM state rather than by an instruction-size report?",
+      "snapshot_roundtrip_complete": "did the registry survive gen_snapshot into dartaotruntime?",
+      "no_selection_builds_clean": "does a program with no maot:mutable at all still compile to AOT, and end up with an empty registry rather than a populated or broken one?",
+      "runtime_namespace_bound": "can the running program say which release it is, without an external sidecar?",
+      "staging_semantics_valid": "is a staged replacement invisible to the current lookup until an explicit commit?",
+      "version_semantics_valid": "are non-advancing versions, commits with nothing staged, and version bumps with no implementation change all refused?",
+      "abi_validation_valid": "is an incompatible ABI refused BEFORE any state changes?",
+      "duplicate_missing_wrong_release_fail_closed": "are duplicate ids, unknown ids and foreign-release patches refused?",
+      "introspection_valid": "is the runtime state readable as structured logical facts, with no address used as identity?",
+      "required_falsifications_detected": "did every required falsification actually fire?",
+      "measurements_recorded": "are the cost measurements present -- registry footprint, lookup cost, and snapshot/startup deltas against a no-pragma control? No threshold is compared; absence is the only failure."
+    },
+    "blocking_findings": [],
+    "verdict_rule": "runtime_implementation_registry == ESTABLISHED iff every condition above holds AND no blocking finding was raised. It is a conjunction; no count, ratio or threshold is compared anywhere in this module.",
+    "not_claimed": [
+      "No call site consults the registry. #67 owns that.",
+      "PATCH_CODE is a staged test descriptor and is never executed.",
+      "A caller may hold an inlined copy of a selected body; proving it cannot bypass the slot is #68 (OPTIMIZER_BYPASS_NOT_YET_PROVEN).",
+      "Transactions are single-entry and test-only. #71 owns atomic multi-declaration transactions."
+    ]
+  }
+}

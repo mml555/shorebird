@@ -1,6 +1,6 @@
 MAOT-0 (#63) -- the universal Dart patchability contract and matrix
-generated 2026-09-10T17:04:04Z by run_maot0.sh
-repo revision 2c8ef8a650aa53bf3bfc18e817f3052e722ad7a5
+generated 2026-09-11T07:48:37Z by run_maot0.sh
+repo revision da62963bd757862e1ba19148a16d32ed7b815bb6
   That revision is the tree the gate RAN AGAINST, so in a committed record it
   necessarily names the PARENT of the commit carrying it. A record cannot name
   the commit that contains it; re-running after a commit therefore rewrites
@@ -31,8 +31,9 @@ repo revision 2c8ef8a650aa53bf3bfc18e817f3052e722ad7a5
   gate reads the freeze, so it runs off this machine; when a tree is present
   the freeze is re-derived and compared.
 
-  re-derivation: identical
-  re-derived from /Volumes/build/route-b/flutter/engine/src/flutter/third_party/dart, byte-identical to the freeze
+  re-derivation content: identical
+  re-derivation tree:    same
+  re-derived from /Volumes/build/route-b/flutter/engine/src/flutter/third_party/dart at the frozen commit; content identical -- kernel_declarations.json content:identical tree:same;vm_runtime_state.json content:identical tree:same;
 
   kernel_declarations.json
     entries 330  dart tree 9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
@@ -142,7 +143,13 @@ repo revision 2c8ef8a650aa53bf3bfc18e817f3052e722ad7a5
   pass  every universe entry is covered, blanketed or excluded
   pass  the universes were extracted from a full-SHA tree
   pass  the frozen universes are digested
-  pass  the universe re-derives byte-identically from the tree
+  pass  the universe CONTENT re-derives byte-identically from the tree
+  pass  the content/stamp split still refuses a real content change
+  pass  untouched copy: content=identical rc=0 (want identical/0)
+  pass  stamp differs, content identical: content=identical rc=0 (want identical/0)
+  pass  one entry renamed, stamp identical: content=DIFFERS rc=1 (want DIFFERS/1)
+  pass  stamp malformed, content identical: content=DIFFERS rc=1 (want DIFFERS/1)
+  pass  stamp differs AND content differs: content=DIFFERS rc=1 (want DIFFERS/1)
   pass  coverage is not mostly blanket: the declaration space is named row by row
   pass  all four axes are reported separately
   pass  code representability is its own axis
@@ -168,7 +175,8 @@ repo revision 2c8ef8a650aa53bf3bfc18e817f3052e722ad7a5
   pass  every figure CONTRACT.md quotes is derived and present
   pass  the doc check derives its claims rather than reading them
   pass  no implementation subsystem is modified in the working tree
+  note  the re-derivation ran on: same
 
-ASSERTIONS (32 checked: 32 pass, 0 fail)
+ASSERTIONS (38 checked: 38 pass, 0 fail)
 
 MAOT0: CONTRACT_ESTABLISHED / universal_dart_patchability=NOT_PROVEN

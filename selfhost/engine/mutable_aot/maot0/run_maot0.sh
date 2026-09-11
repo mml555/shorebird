@@ -70,22 +70,35 @@ echo
 } > "$LOG_FILE" 2>&1
 
 # ---- universe re-derivation, when a tree is reachable ---------------------
+# Two separate facts, because whole-file byte equality conflates them:
+#   CONTENT -- did the declaration universe change? A change here means the
+#              frozen matrix no longer describes the language surface, and it
+#              is blocking.
+#   TREE    -- which commit was it read from? The freeze names one. Reading
+#              the same content from a different commit is an observation,
+#              and when the content matches it is a STRONGER statement than
+#              the freeze alone: the universe is unchanged across both.
+# Reporting the second as the first is how a borrowed build rig reads as a
+# language-surface change, which is what it did on 2026-09-11.
 REVERIFY=absent
+REVERIFY_TREE=unknown
 REVERIFY_DETAIL="no Dart tree at $DART_TREE"
 if [[ -d "$DART_TREE/pkg/kernel/lib/src/ast" ]]; then
   TMP_UNIVERSE=$(mktemp -d)
   if python3 "$HERE/lib/extract_universe.py" "$DART_TREE" "$TMP_UNIVERSE" \
        >"$TMP_UNIVERSE/extract.log" 2>&1; then
-    if diff -q "$TMP_UNIVERSE/kernel_declarations.json" \
-         "$HERE/universe/kernel_declarations.json" >/dev/null 2>&1 && \
-       diff -q "$TMP_UNIVERSE/vm_runtime_state.json" \
-         "$HERE/universe/vm_runtime_state.json" >/dev/null 2>&1; then
-      REVERIFY=identical
-      REVERIFY_DETAIL="re-derived from $DART_TREE, byte-identical to the freeze"
+    RV=$(python3 "$HERE/lib/reverify_universe.py" "$TMP_UNIVERSE" \
+           "$HERE/universe" kernel_declarations.json vm_runtime_state.json)
+    RV_RC=$?
+    if [[ $RV_RC -eq 0 ]]; then REVERIFY=identical; else REVERIFY=DIFFERS; fi
+    if grep -q 'tree:same' <<<"$RV" && ! grep -q 'tree:[^s]' <<<"$RV"; then
+      REVERIFY_TREE=same
+      REVERIFY_DETAIL="re-derived from $DART_TREE at the frozen commit; content $REVERIFY"
     else
-      REVERIFY=DIFFERS
-      REVERIFY_DETAIL="re-derivation DIFFERS from the freeze -- the frozen universes no longer describe this tree"
+      REVERIFY_TREE=$(sed -n '1s/.*tree://p' <<<"$RV")
+      REVERIFY_DETAIL="re-derived from $DART_TREE, which is at $REVERIFY_TREE, NOT the commit the freeze names; content $REVERIFY"
     fi
+    REVERIFY_DETAIL="$REVERIFY_DETAIL -- $(tr '\n' '; ' <<<"$RV")"
   else
     REVERIFY=extract_failed
     REVERIFY_DETAIL="$(tail -3 "$TMP_UNIVERSE/extract.log" | tr '\n' ' ')"
@@ -94,7 +107,8 @@ if [[ -d "$DART_TREE/pkg/kernel/lib/src/ast" ]]; then
 fi
 
 {
-echo "  re-derivation: $REVERIFY"
+echo "  re-derivation content: $REVERIFY"
+echo "  re-derivation tree:    $REVERIFY_TREE"
 echo "  $REVERIFY_DETAIL"
 echo
 python3 -c "
@@ -184,6 +198,7 @@ echo "############ 8. ASSERTIONS ############" >> "$LOG_FILE"
 
 rc=0
 A=()
+NOTES=()
 want() {
   if [[ "$2" == "$3" ]]; then A+=("  pass  $1")
   else A+=("  FAIL  $1 -- got '$3', expected '$2'"); rc=1; fi
@@ -209,7 +224,17 @@ want 'the universes were extracted from a full-SHA tree' True \
      "$(j "all(len(v['dart_tree_head'] or '')==40 for v in d['universe_identity'].values())")"
 want 'the frozen universes are digested' True \
      "$(j "all(v['frozen_file_sha256'] and v['source_digests'] for v in d['universe_identity'].values())")"
-want 'the universe re-derives byte-identically from the tree' identical "$REVERIFY"
+want 'the universe CONTENT re-derives byte-identically from the tree' identical "$REVERIFY"
+# The split above is only a correction rather than a loosening if the content
+# check still bites. Five arms, both directions.
+RV_FALSIFY="$(python3 "$HERE/lib/falsify_reverify.py" "$HERE" 2>&1)"
+want 'the content/stamp split still refuses a real content change' 0 "$?"
+while IFS= read -r line; do A+=("$line"); done <<<"$RV_FALSIFY"
+# Recorded, not asserted: identical content read from a different commit is a
+# wider claim than the freeze made, not a weaker one. It is kept out of the
+# assertion array so the "N checked: P pass, F fail" line stays an accounting
+# of checks rather than a mixture of checks and remarks.
+NOTES+=("  note  the re-derivation ran on: $REVERIFY_TREE")
 want 'coverage is not mostly blanket: the declaration space is named row by row' True \
      "$(python3 -c "
 import json
@@ -298,6 +323,7 @@ want 'no implementation subsystem is modified in the working tree' 0 \
 
 {
   printf '%s\n' "${A[@]}"
+  if [[ ${#NOTES[@]} -gt 0 ]]; then printf '%s\n' "${NOTES[@]}"; fi
   echo
   echo "ASSERTIONS (${#A[@]} checked: $(printf '%s\n' "${A[@]}" | grep -c '^  pass  ') pass, $(printf '%s\n' "${A[@]}" | grep -c '^  FAIL  ') fail)"
   echo
