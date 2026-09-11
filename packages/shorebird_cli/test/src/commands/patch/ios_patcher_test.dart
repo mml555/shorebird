@@ -659,7 +659,8 @@ This may indicate that the patch contains native changes, which cannot be applie
 
           verify(
             () => logger.err('''
-iOS patches are not supported with Flutter versions older than $minimumSupportedIosFlutterVersion.
+This release was built with Flutter $flutterVersionAndRevision, but iOS patches need Flutter $minimumSupportedIosFlutterVersion or newer.
+A release cannot change Flutter versions, so create a new release with ${lightCyan.wrap('shorebird release ios --flutter-version=<version>')} and patch that one.
 For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
           ).called(1);
         });
@@ -2628,11 +2629,13 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
 
               verify(
                 () => logger.err(
-                  any(
-                    that: startsWith(
-                      'Unable to find release artifact .app directory',
-                    ),
-                  ),
+                  'The release .xcarchive downloaded from Shorebird has no '
+                  'Products/Applications/*.app directory.',
+                ),
+              ).called(1);
+              verify(
+                () => logger.info(
+                  any(that: startsWith('Re-run to download it again.')),
                 ),
               ).called(1);
             });
@@ -3051,13 +3054,18 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
           when(() => artifactManager.getXcarchiveDirectory()).thenReturn(null);
         });
 
-        test('exit with code 70', () async {
+        test('names the expected archive path and exits 70', () async {
           await expectLater(
             () => runWithOverrides(
               () => patcher.extractReleaseVersionFromArtifact(File('')),
             ),
             exitsWithCode(ExitCode.software),
           );
+          verify(
+            () => logger.err(
+              '''No .xcarchive found in ${p.join(projectRoot.path, 'build', 'ios', 'archive')} after the build.''',
+            ),
+          ).called(1);
         });
       });
 
@@ -3123,6 +3131,11 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
           verify(
             () => logger.err(
               any(that: startsWith('Failed to determine release version')),
+            ),
+          ).called(1);
+          verify(
+            () => logger.info(
+              any(that: startsWith('Pass --release-version=<version>')),
             ),
           ).called(1);
         });
