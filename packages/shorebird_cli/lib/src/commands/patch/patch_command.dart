@@ -348,7 +348,7 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
       await patcher.assertPreconditions();
       await patcher.assertArgsAreValid();
     }
-    results.assertAbsentOrValidKeyPairOrCommands();
+    assertSigningArgsValid();
 
     // Parsed here rather than where it's used, so a bad value fails before any
     // build instead of after every platform has been compiled and linked.

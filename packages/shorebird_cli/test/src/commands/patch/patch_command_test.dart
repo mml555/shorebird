@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 
 import 'package:args/args.dart';
+import 'package:args/command_runner.dart';
 import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
 import 'package:mason_logger/mason_logger.dart';
@@ -409,7 +410,8 @@ void main() {
       ).thenAnswer((_) async => {});
 
       command = PatchCommand(resolvePatcher: (_) => patcher)
-        ..testArgResults = argResults;
+        ..testArgResults = argResults
+        ..testRunner = usageRunner();
     });
 
     test('has non-empty description', () {
@@ -688,7 +690,7 @@ void main() {
         group(
           'when given an existing private key and nonexistent public key',
           () {
-            test('logs error and exits with usage code', () async {
+            test('throws a usage exception naming the missing key', () async {
               when(
                 () => argResults.wasParsed(CommonArguments.privateKeyArg.name),
               ).thenReturn(true);
@@ -701,13 +703,15 @@ void main() {
 
               await expectLater(
                 runWithOverrides(() => command.createPatch([patcher])),
-                exitsWithCode(ExitCode.usage),
-              );
-              verify(
-                () => logger.err(
-                  'Both public and private keys must be provided.',
+                throwsA(
+                  isA<UsageException>().having(
+                    (e) => e.message,
+                    'message',
+                    '--public-key-path and --private-key-path must be passed '
+                        'together (missing --public-key-path).',
+                  ),
                 ),
-              ).called(1);
+              );
             });
           },
         );
@@ -715,7 +719,7 @@ void main() {
         group(
           'when given an existing public key and nonexistent private key',
           () {
-            test('fails and logs the err', () async {
+            test('throws a usage exception naming the missing key', () async {
               when(
                 () => argResults.wasParsed(CommonArguments.privateKeyArg.name),
               ).thenReturn(false);
@@ -728,13 +732,15 @@ void main() {
 
               await expectLater(
                 runWithOverrides(() => command.createPatch([patcher])),
-                exitsWithCode(ExitCode.usage),
-              );
-              verify(
-                () => logger.err(
-                  'Both public and private keys must be provided.',
+                throwsA(
+                  isA<UsageException>().having(
+                    (e) => e.message,
+                    'message',
+                    '--public-key-path and --private-key-path must be passed '
+                        'together (missing --private-key-path).',
+                  ),
                 ),
-              ).called(1);
+              );
             });
           },
         );
