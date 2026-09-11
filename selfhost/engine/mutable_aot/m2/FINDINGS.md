@@ -420,6 +420,117 @@ implementation was fine and the measurement was stale, which is the same class
 of mistake as the stale binary above: in both cases the lane was looking at
 something other than the thing it named.
 
+## Closure HOLD repair: the ABI claim was not mechanically complete
+
+Independent review put closure on hold. `A01` proved only that *two different
+canonical strings are refused*. It did not prove the canonical string captures
+every ABI-relevant distinction — and it did not, on three counts.
+
+### What the VM actually says
+
+Derived from the source rather than from this document's own earlier wish list.
+`compiler::ComputeCallingConvention` decides argument placement from exactly
+three things about the target: `argc`, each argument's `Representation`, and
+`MaxNumberOfParametersInRegisters()`. And the *caller* is what unboxes:
+
+```cpp
+// FlowGraphBuilder::PushExplicitParameters, kernel_to_il.cc
+if (!target.IsNull() && target.is_unboxed_parameter_at(i)) {
+  ...UnboxInstr::Create(to, Pop(), ...)
+}
+```
+
+So a replacement whose representation differs is handed unboxed int64 or
+double where the release expects tagged — a memory-safety break, not a type
+error. That settles that representation is ABI.
+
+It also cannot be recovered at run time: `unboxed_parameters_info_` is
+`#if !defined(DART_PRECOMPILED_RUNTIME)`, so in `dartaotruntime` the field
+does not exist and every accessor returns `false`. The calling convention has
+to be captured in `gen_snapshot` and shipped as data.
+
+### Type-parameter bounds
+
+`BuildTypeArgumentTypeChecks` emits the callee's bound checks only when
+`!AllDynamicBounds()`. Narrowing `<T extends num>` to `<T extends int>` leaves
+every caller compiled against the wider contract. Bounds are now in the Kernel
+descriptor, rendered through **#65 class identity** — `lib:dart:core::cls:num`,
+not `num`.
+
+### The invariant selection creates by accident
+
+Every selected declaration measures `regs0`, all-tagged parameters, tagged
+return. The chain is short and checkable:
+
+```
+pragma.dart          maot:mutable -> ParsedEntryPointPragma
+unboxing_info.dart   _cannotUnbox(): isMemberReferencedFromNativeCode(m)
+                     -> setFullyBoxed(): mustUseStackCallingConvention = true
+object.cc            MaxNumberOfParametersInRegisters(): 0 when that is set
+```
+
+Selection pins every selected declaration to the boxed stack convention. That
+is the calling-convention stability a patch system wants, arrived at
+accidentally — so it is now **checked on every run** rather than believed,
+with `F26` falsifying it.
+
+It also means no fixture pair can discriminate the representation dimension
+*within* the selected population, which is stated as such rather than papered
+over. The component is not decorative: the register/stack split does vary
+measurably — an unselected declaration measures `regs1` in the same run where
+all 19 selected ones measure `regs0`.
+
+### Proven by equivalence, not by example
+
+The self-test attempts a **real** `StageReplacement` for all 342 ordered pairs
+and records each outcome. The gate requires
+
+```
+accepted  <=>  (abi_equal AND call_convention_equal)
+```
+
+— 342 pairs, 0 violations, 58 accepted, so it is an equivalence and not a
+blanket refusal. Eight named dimensions each have a fixture pair differing in
+exactly that dimension; all eight are refused in both directions.
+
+### Closures
+
+Not an omission — an exclusion. Closures are not in the selected population at
+all: selection walks `library.members` and `cls.members`, a local function is
+not a `Member`, cannot carry the pragma, and never receives a DeclarationId.
+**#75 (MAOT-11)** owns them.
+
+## F23 was a positive control, not a falsification
+
+`L01` showed the correct resolver separates two same-named declarations. That
+is worth having, but it is not the defect firing.
+
+The VM now runs **both** resolvers over the real registry and reports what each
+one landed on: `IndexOf()` keyed on DeclarationId, and
+`LookupByFunctionNameForFalsification()` keyed on the Function name. The
+name-keyed one really does alias — 2 of 19 declarations, both spelled
+`compute` — and those measured probes are fed through the same acceptance logic,
+which returns `identity_not_name_keyed = false` and `NOT_ESTABLISHED`.
+Production lookup was not changed to achieve this.
+
+### L01 was measuring the test's own mutation
+
+`L01` first came back red. `S04` deliberately commits one entry's
+implementation onto another entry's slot, creating a genuine alias — and `L01`
+ran after it, so it measured that and reported a defect that was not there.
+Moved to run first.
+
+That is the **third** arm in this lane to have chosen its subject before the
+state moved, after the stale binary and `X02`. Each time the instinct was to
+doubt the implementation and each time the implementation was fine. The pattern
+is worth naming: an arm that reads state must say *when* it reads it.
+
+### And the selected set was maintained twice
+
+`SELECTED_EXPECTED` was a hand-written list beside the fixture. The fixture grew
+to 19 declarations and the list still had 5. It is now derived from the fixture
+source, which is the only copy.
+
 ## What is NOT claimed
 
 No body replacement, no call-site redirection, no execution of `PATCH_CODE`.

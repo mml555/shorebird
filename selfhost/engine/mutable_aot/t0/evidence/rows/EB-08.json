@@ -21,7 +21,7 @@
       "phase": "pre",
       "dispatch": "direct",
       "value": "1",
-      "nonce": "5437378c51499a53ac73c5361dbe952c",
+      "nonce": "a3181b2b254bd63c11ea58d4e0c1a14a",
       "heat": 1,
       "optimizer_mode": "jit",
       "heat_mode": "cold"
@@ -30,7 +30,7 @@
       "phase": "pre",
       "dispatch": "direct",
       "value": "1",
-      "nonce": "9cacfc76368c9f7f00aaecfe503deaf0",
+      "nonce": "f2513cde54512cd53d661f1c0956f407",
       "heat": 20000,
       "optimizer_mode": "jit",
       "heat_mode": "hot"
@@ -39,7 +39,7 @@
       "phase": "pre",
       "dispatch": "direct",
       "value": "1",
-      "nonce": "2bec8fe9ab5b5ec6f99ee44c2edfe523",
+      "nonce": "6d970fcd7eeb1c224fef9f8297f18613",
       "heat": 1,
       "optimizer_mode": "aot",
       "heat_mode": "cold"
@@ -48,7 +48,7 @@
       "phase": "pre",
       "dispatch": "direct",
       "value": "1",
-      "nonce": "d7707869b9659df8a0a2af3893e08a34",
+      "nonce": "fdf1e12446c9dc3de8b24afc5fbe60cd",
       "heat": 20000,
       "optimizer_mode": "aot",
       "heat_mode": "hot"
@@ -101,7 +101,7 @@
     "available": false,
     "why": "Answering \"did this invocation reach the mutable mechanism\" needs IR or runtime tracing from a mechanism that does not exist yet. The field is carried so #67 fills it rather than inventing a schema, and its absence is recorded rather than implied. Behavioural agreement alone is NOT path evidence."
   },
-  "generated_at": "2026-09-11T07:49:21Z",
+  "generated_at": "2026-09-11T18:24:54Z",
   "generator": "runner.py",
   "patch_source_baseline": {
     "observations": [
@@ -109,7 +109,7 @@
         "phase": "pre",
         "dispatch": "direct",
         "value": "2",
-        "nonce": "1371a4e8a3dc1919e77bd7f2c8d9648c",
+        "nonce": "a173104f72ce3db9d72c1d94230f561f",
         "heat": 1,
         "optimizer_mode": "jit",
         "heat_mode": "cold"
@@ -118,5 +118,5 @@
     "error": null,
     "is_not_a_post_observation": "A standalone run of patch.dart is a REBUILT PROGRAM in a NEW process. It shows the expectation is achievable; it says nothing about installing a patch into a running one. Substituting it for post_observation is #64 control 9, and A09 proves it is caught."
   },
-  "run_id": "2026-09-11T07:49:21Z"
+  "run_id": "2026-09-11T18:24:54Z"
 }

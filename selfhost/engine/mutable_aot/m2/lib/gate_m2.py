@@ -47,7 +47,7 @@ int notMutable(int seed) => seed + 2;
 @pragma('maot:mutable')
 String neverCalled(int seed) => 'release-$seed';
 
-// Deliberately shares its VM Function name with Widget.compute. A lookup that
+// Deliberately shares its VM Function name with Shapes.compute. A lookup that
 // resolved by name instead of by DeclarationId would confuse these two, and
 // without such a pair the arm that checks for it has nothing to run on.
 @pragma('maot:mutable')
@@ -56,23 +56,76 @@ int compute(int seed) => seed * 7;
 @pragma('maot:not-a-real-contract')
 int bogusPragma(int seed) => seed + 99;
 
-class Widget {
+// ---- ABI discrimination pairs -------------------------------------------
+// Each adjacent pair below differs in EXACTLY ONE dimension of the
+// compatibility model, so the pairwise matrix can show that dimension is
+// load-bearing. They are selected, so they reach the registry; they are never
+// replaced, because #66 does not execute replacements.
+
+@pragma('maot:mutable')
+int posOne(int a) => a + 1;
+@pragma('maot:mutable')
+int posTwo(int a, int b) => a + b;            // vs posOne: positional count
+
+@pragma('maot:mutable')
+int posOptional(int a, [int b = 0]) => a - b;  // vs posTwo: required count
+
+@pragma('maot:mutable')
+int namedX(int a, {int x = 0}) => a + x;
+@pragma('maot:mutable')
+int namedY(int a, {int y = 0}) => a + y;       // vs namedX: named set
+
+@pragma('maot:mutable')
+int namedRequiredX(int a, {required int x}) => a + x;  // vs namedX: requiredness
+
+@pragma('maot:mutable')
+Object? genericNone(Object? a) => a;
+@pragma('maot:mutable')
+T genericOne<T>(T a) => a;                     // vs genericNone: type params
+
+@pragma('maot:mutable')
+T boundNum<T extends num>(T a) => a;
+@pragma('maot:mutable')
+T boundInt<T extends int>(T a) => a;           // vs boundNum: BOUND only
+
+// vs Shapes.instanceOne: static vs instance, same shape.
+@pragma('maot:mutable')
+int staticOne(int a) => a + 5;
+
+// Representation pair: same arity, different parameter and return types, so
+// if the AOT unboxes either one the call-convention strings must differ.
+@pragma('maot:mutable')
+double doubleIdentity(double x) => x * 2.0;
+@pragma('maot:mutable')
+int intIdentity(int x) => x * 2;
+
+class Shapes {
   int n;
 
   @pragma('maot:mutable')
-  Widget(this.n);
+  Shapes(this.n);                              // vs instanceOne: ctor vs method
 
   @pragma('maot:mutable')
-  int compute(int seed) => 3 + n + seed;
+  int instanceOne(int a) => a + n;
+
+  @pragma('maot:mutable')
+  int compute(int seed) => 3 + n + seed;       // name clash with top-level
 
   int untouched(int seed) => 4 + seed;
 }
 
 void main(List<String> args) {
   final seed = Platform.environment.length + args.length;
-  final w = Widget(seed);
-  print(bogusPragma(seed) + mutableTopLevel(seed) + notMutable(seed) +
-      compute(seed) + w.compute(seed) + w.untouched(seed));
+  final s = Shapes(seed);
+  var acc = bogusPragma(seed) + mutableTopLevel(seed) + notMutable(seed) +
+      compute(seed) + s.compute(seed) + s.untouched(seed) +
+      posOne(seed) + posTwo(seed, 1) + posOptional(seed) +
+      namedX(seed, x: 1) + namedY(seed, y: 1) + namedRequiredX(seed, x: 1) +
+      genericOne<int>(seed) + boundNum<int>(seed) + boundInt<int>(seed) +
+      staticOne(seed) + s.instanceOne(seed) + intIdentity(seed);
+  acc += doubleIdentity(seed.toDouble()).toInt();
+  acc += genericNone(seed) == null ? 0 : 1;
+  print(acc);
 }
 '''
 
@@ -81,13 +134,143 @@ void main(List<String> args) {
 # costs, including the dead `neverCalled` that only selection keeps alive.
 FIXTURE_CONTROL = FIXTURE.replace("@pragma('maot:mutable')\n", '')
 
-SELECTED_EXPECTED = {
-    'lib:package:m2app/app.dart::fn:mutableTopLevel',
-    'lib:package:m2app/app.dart::fn:neverCalled',
-    'lib:package:m2app/app.dart::cls:Widget::ctor:',
-    'lib:package:m2app/app.dart::cls:Widget::method:compute',
-    'lib:package:m2app/app.dart::fn:compute',
+
+def _selected_from_fixture(src, lib='lib:package:m2app/app.dart'):
+    """The DeclarationIds the fixture's pragmas select, read off the source.
+
+    Maintaining this list by hand next to the fixture is maintaining the same
+    fact twice, and the copies drift -- which is how a stale five-element set
+    outlived a nineteen-declaration fixture.
+    """
+    ids, cls, pending = set(), None, False
+    for raw in src.splitlines():
+        line = raw.strip()
+        indented = raw.startswith('  ')
+        if line.startswith('class '):
+            cls = line.split()[1].split('{')[0].strip()
+            continue
+        if line == '}' and not indented:
+            cls = None
+        if line == "@pragma('maot:mutable')":
+            pending = True
+            continue
+        if not pending or not line:
+            continue
+        pending = False
+        sig = line.split('(')[0]
+        # Strip the type-parameter list FIRST. Splitting on '<' instead would
+        # leave `T boundNum<T extends num>` reading as the declaration `num>`,
+        # which is how two of these silently went missing.
+        out, depth = [], 0
+        for ch in sig:
+            if ch == '<':
+                depth += 1
+            elif ch == '>':
+                depth = max(0, depth - 1)
+            elif depth == 0:
+                out.append(ch)
+        sig = ''.join(out).strip()
+        name = sig.split()[-1] if ' ' in sig else sig
+        if cls is not None and name == cls:
+            ids.add(f'{lib}::cls:{cls}::ctor:')
+        elif cls is not None:
+            ids.add(f'{lib}::cls:{cls}::method:{name}')
+        else:
+            ids.add(f'{lib}::fn:{name}')
+    return ids
+
+# Each ABI dimension, named with the two fixture declarations that differ in
+# EXACTLY that dimension. The gate requires every one of them to be refused by
+# the pairwise matrix -- a dimension the descriptor does not represent shows up
+# here as an ACCEPTED pair.
+#
+# The pairs are stated as declaration-id leaves; the gate resolves them against
+# the real registry rather than assuming they are present.
+ABI_DIMENSIONS = {
+    'positional count': ('fn:posOne', 'fn:posTwo'),
+    'required positional count': ('fn:posTwo', 'fn:posOptional'),
+    'named parameter set': ('fn:namedX', 'fn:namedY'),
+    'required named set': ('fn:namedX', 'fn:namedRequiredX'),
+    'type parameter count': ('fn:genericNone', 'fn:genericOne'),
+    'type parameter bound': ('fn:boundNum', 'fn:boundInt'),
+    'instance vs static': ('fn:staticOne', 'cls:Shapes::method:instanceOne'),
+    'constructor vs method': ('cls:Shapes::ctor:',
+                              'cls:Shapes::method:instanceOne'),
 }
+
+# The fully-boxed, stack-based calling convention that EVERY selected
+# declaration must have, and the source chain that forces it.
+#
+# This is not a coincidence and not an assumption. `@pragma('maot:mutable')`
+# parses to a PragmaEntryPointType.Default, so TFA's NativeCodeOracle treats a
+# selected member as referenced from native code:
+#
+#   pragma.dart            maot:mutable -> ParsedEntryPointPragma
+#   unboxing_info.dart     _cannotUnbox(): isMemberReferencedFromNativeCode(m)
+#                          -> unboxingInfo.setFullyBoxed()
+#   metadata/unboxing_info.dart  setFullyBoxed(): argsInfo.length = 0,
+#                          returnInfo = kBoxed,
+#                          mustUseStackCallingConvention = true
+#   object.cc              MaxNumberOfParametersInRegisters(): returns 0 when
+#                          must_use_stack_calling_convention
+#
+# So selection itself pins every selected declaration to the boxed stack
+# convention -- which is the calling-convention stability a patch system wants,
+# arrived at by accident. An accident that load-bearing has to be CHECKED on
+# every run rather than believed, which is what the condition below does.
+CALLCONV_BOXED_STACK = {'regs': 'regs0', 'ret': 'rett'}
+
+
+def callconv_is_boxed_stack(cc):
+    """Whether a call-convention string is the fully boxed, stack-based form."""
+    if not cc or cc == '<absent>':
+        return False
+    parts = cc.split(';')
+    fields = {p[:4]: p for p in parts}
+    args = next((p[4:] for p in parts if p.startswith('args')), None)
+    ret = next((p[3:] for p in parts if p.startswith('ret')
+                and not p.startswith('rets')), None)
+    return (fields.get('regs') == CALLCONV_BOXED_STACK['regs']
+            and args is not None and set(args) <= {'t'}
+            and ret == 't')
+
+# Dimensions the compatibility model deliberately does NOT represent, with the
+# reason and the issue that owns them. Stated here so the gate can assert the
+# list is honest rather than leaving a silent omission.
+ABI_NOT_REPRESENTED = {
+    'parameter/return representation, as a fixture pair': (
+        'Represented in the call-convention string and compared on every '
+        'staging attempt, but it CANNOT VARY within the selected population: '
+        'selection forces the fully boxed stack convention through the chain '
+        'documented at CALLCONV_BOXED_STACK, so no two selected declarations '
+        'can differ in it. The component is not decorative -- the register/'
+        'stack split does vary (an unselected declaration measures regs1 while '
+        'every selected one measures regs0, same function, same run), and the '
+        'invariant itself is checked by '
+        'selected_calling_convention_is_boxed_stack with F26 as its '
+        'falsification.'),
+    'closure/context shape': (
+        'Closures are not in the MAOT-2 selected population at all. Selection '
+        'and indexing walk library.members and cls.members; a local function '
+        'is not a Member, cannot carry the pragma, and never receives a '
+        'DeclarationId. #75 (MAOT-11) owns closures, async/generators and '
+        'isolates.'),
+    'owner identity': (
+        'Already supplied by the DeclarationId, which is '
+        'lib:<importUri>::cls:<Name>::<kind>:<name>. Repeating the owner in '
+        'the descriptor would be a second spelling of the same fact, and two '
+        'spellings can disagree.'),
+    'factory index shift': (
+        'ComputeLocationsOfFixedParameters shifts the parameter index for a '
+        'factory, and that is represented twice on purpose: memberKind '
+        'separates a factory in the Kernel descriptor, and the call-convention '
+        'string carries factory/nofactory so it stands alone as a '
+        'fingerprint.'),
+}
+
+# Derived from the fixture rather than typed twice: a hand-maintained copy of
+# this list is a second source of truth, and the two can disagree.
+SELECTED_EXPECTED = _selected_from_fixture(FIXTURE)
 
 
 def sha256_file(path):
@@ -258,6 +441,10 @@ def _dart_selected(stdout):
                     absent = [] if body == '[]' else \
                         [x.strip() for x in body.strip('[]').split(',') if x.strip()]
     return selected, absent
+
+
+def registry_ids_list(registry):
+    return [e['declaration_id'] for e in registry.get('entries', [])]
 
 
 def _expected_vm_name(decl_id):
@@ -457,6 +644,7 @@ def main(argv):
         s4 = f4.snapshot(extra=['--maot_disable_constructor_seam',
                                 '--maot_trace_registration'])
         g4, seen4, d4 = _materialized(s4.stderr + s4.stdout)
+        ctors = sum(1 for i in SELECTED_EXPECTED if i.endswith('::ctor:'))
         r4 = os.path.join(work, 'f04_registry.json')
         f4.run_aot(dump=r4)
         ids4 = set()
@@ -471,10 +659,11 @@ def main(argv):
                        registry_minus_selected=sorted(ids4 - SELECTED_EXPECTED))
         arm('F04', 'a missing binding seam must not read as "basically '
                    'complete" because the other three are present',
-            g4 == len(SELECTED_EXPECTED) - 1 and (SELECTED_EXPECTED - ids4)
+            g4 == len(SELECTED_EXPECTED) - ctors and (SELECTED_EXPECTED - ids4)
             and v4['runtime_implementation_registry'] == 'NOT_ESTABLISHED',
-            f'{g4} of {len(SELECTED_EXPECTED)} bound; missing '
-            f'{sorted(SELECTED_EXPECTED - ids4)}',
+            f'{g4} of {len(SELECTED_EXPECTED)} bound with the constructor '
+            f'seam removed ({ctors} constructor(s) expected to vanish); '
+            f'missing {sorted(SELECTED_EXPECTED - ids4)}',
             v4['runtime_implementation_registry'])
 
         # F10 -- an unselected declaration reaching the final registry.
@@ -484,10 +673,27 @@ def main(argv):
         r10 = os.path.join(work, 'f10_registry.json')
         f10.run_aot(dump=r10)
         ids10, unselected10 = set(), 0
+        e10 = []
         if os.path.exists(r10):
             e10 = json.load(open(r10)).get('entries', [])
             ids10 = {e['declaration_id'] for e in e10}
             unselected10 = sum(1 for e in e10 if not e.get('selected'))
+        # The same run answers a second question: is the call-convention
+        # component a live measurement or a constant string? Unselected
+        # declarations are not entry points, so they are not pinned to the
+        # stack convention, and any difference here is the fingerprint
+        # discriminating inside one run of one compiler.
+        observations['callconv_unselected_probe'] = [
+            {'declaration_id': e['declaration_id'],
+             'selected': e.get('selected'),
+             'call_convention': e.get('call_convention')}
+            for e in e10 if not e.get('selected')]
+        selected_ccs = {e.get('call_convention')
+                        for e in e10 if e.get('selected')}
+        unselected_ccs = {e.get('call_convention')
+                          for e in e10 if not e.get('selected')}
+        observations['callconv_varies_across_selection'] = bool(
+            unselected_ccs - selected_ccs)
         reg10 = json.load(open(r10)) if os.path.exists(r10) else {}
         v10 = perturbed(reg=reg10, registry_ids=sorted(ids10),
                         unselected_slots=unselected10,
@@ -545,9 +751,6 @@ def main(argv):
                                   'version'),
                 ('F17', ('A01',), 'an incompatible ABI must be refused BEFORE '
                                   'any state changes'),
-                ('F23', ('L01',), 'a lookup that resolved by Function name '
-                                  'would bind a patch to the wrong one of two '
-                                  'same-named declarations'),
                 ('F24', ('X01', 'X02'),
                         'a replacement that rewrites Function::CurrentCode() '
                         'directly leaves the registry describing an '
@@ -671,6 +874,144 @@ def main(argv):
             f'against one edited source the guard reports '
             f'{len(hypothetical)} mismatch '
             f'({hypothetical[0].get("file") if hypothetical else "none"})')
+
+        # ---------------- ABI dimension discrimination ----------------
+        # The matrix is measured, not asserted: the self-test attempted a real
+        # StageReplacement for every ordered pair and recorded whether it was
+        # accepted. Here each named dimension is checked against it.
+        matrix = selftest.get('compatibility_matrix') or []
+        by_pair = {(m['onto'], m['from']): m for m in matrix}
+        full = {leaf: i for i in registry_ids_list(registry)
+                for leaf in [i.split('::', 1)[1] if '::' in i else i]}
+
+        dimension_rows, undiscriminated, missing_pairs = [], [], []
+        for name, (a, b) in ABI_DIMENSIONS.items():
+            ia, ib = full.get(a), full.get(b)
+            if ia is None or ib is None:
+                missing_pairs.append(f'{name}: {a if ia is None else b} '
+                                     f'is not in the registry')
+                continue
+            fwd, rev = by_pair.get((ia, ib)), by_pair.get((ib, ia))
+            if fwd is None or rev is None:
+                missing_pairs.append(f'{name}: the matrix has no entry for '
+                                     f'this pair')
+                continue
+            # Refused in BOTH directions, and the refusal must be because a
+            # component differs -- not because some unrelated guard fired.
+            differs = (not fwd['abi_equal']) or (not
+                                                 fwd['call_convention_equal'])
+            ok = differs and not fwd['accepted'] and not rev['accepted']
+            dimension_rows.append({
+                'dimension': name, 'a': ia, 'b': ib,
+                'abi_equal': fwd['abi_equal'],
+                'call_convention_equal': fwd['call_convention_equal'],
+                'accepted_a_from_b': fwd['accepted'],
+                'accepted_b_from_a': rev['accepted'],
+                'discriminated': ok,
+            })
+            if not ok:
+                undiscriminated.append(name)
+        observations['abi_dimensions'] = dimension_rows
+        observations['abi_dimensions_undiscriminated'] = undiscriminated
+        observations['abi_dimension_pairs_missing'] = missing_pairs
+        observations['abi_not_represented'] = ABI_NOT_REPRESENTED
+
+        # The matrix as a whole must be an equivalence, not an implication:
+        # every identical pair accepted, every differing pair refused. This is
+        # what catches a dimension nobody thought to name.
+        violations = [
+            {'onto': m['onto'], 'from': m['from'],
+             'abi_equal': m['abi_equal'],
+             'call_convention_equal': m['call_convention_equal'],
+             'accepted': m['accepted']}
+            for m in matrix
+            if m['accepted'] != (m['abi_equal'] and m['call_convention_equal'])
+        ]
+        observations['compatibility_matrix_size'] = len(matrix)
+        observations['compatibility_matrix_violations'] = violations
+        observations['compatibility_matrix_accepted'] = sum(
+            1 for m in matrix if m['accepted'])
+
+        arm('F25', 'a compatibility model missing a dimension accepts a '
+                   'replacement that differs in it',
+            not undiscriminated and not missing_pairs and not violations
+            and len(matrix) > 0,
+            f'{len(matrix)} ordered pairs attempted, '
+            f'{observations["compatibility_matrix_accepted"]} accepted; '
+            f'{len(dimension_rows)} named dimensions, '
+            f'{len(undiscriminated)} not discriminated'
+            + (f' ({", ".join(undiscriminated)})' if undiscriminated else '')
+            + (f'; {len(violations)} matrix violations' if violations else ''))
+
+        # ---------------- the boxed-stack calling-convention invariant ----
+        cc_rows = [{'declaration_id': e['declaration_id'],
+                    'call_convention': e.get('call_convention'),
+                    'boxed_stack': callconv_is_boxed_stack(
+                        e.get('call_convention'))}
+                   for e in registry.get('entries', [])]
+        observations['selected_call_conventions'] = cc_rows
+        observations['call_conventions_not_boxed_stack'] = [
+            r['declaration_id'] for r in cc_rows if not r['boxed_stack']]
+
+        # F26 -- a selected declaration whose convention is NOT the boxed stack
+        # form. Perturb one measured entry and require the gate to refuse: the
+        # invariant has to be enforced, not assumed, because everything that
+        # makes replacement safe here rests on it.
+        if registry.get('entries'):
+            broken = json.loads(json.dumps(registry))
+            victim_cc = broken['entries'][0].get('call_convention', '')
+            broken['entries'][0]['call_convention'] = victim_cc.replace(
+                ';argst', ';argsi').replace(';rett', ';reti')
+            v26 = perturbed(
+                reg=broken,
+                selected_call_conventions=[
+                    {'declaration_id': e['declaration_id'],
+                     'call_convention': e.get('call_convention'),
+                     'boxed_stack': callconv_is_boxed_stack(
+                         e.get('call_convention'))}
+                    for e in broken['entries']],
+                call_conventions_not_boxed_stack=[
+                    e['declaration_id'] for e in broken['entries']
+                    if not callconv_is_boxed_stack(e.get('call_convention'))])
+            arm('F26', 'a selected declaration escaping the boxed stack '
+                       'convention would let a replacement be handed unboxed '
+                       'values where the release expects tagged ones',
+                observations['call_conventions_not_boxed_stack'] == []
+                and not v26['conditions'][
+                    'selected_calling_convention_is_boxed_stack']
+                and v26['runtime_implementation_registry'] == 'NOT_ESTABLISHED',
+                f"all {len(cc_rows)} selected declarations measure the boxed "
+                f"stack form; with one entry's representation changed to "
+                f"unboxed int the condition is "
+                f"{v26['conditions']['selected_calling_convention_is_boxed_stack']}",
+                v26['runtime_implementation_registry'])
+
+        # ---------------- injected name-keyed resolver ----------------
+        probes = selftest.get('resolution_probes') or []
+        by_id = [p for p in probes if p['resolver'] == 'declaration_id']
+        by_name = [p for p in probes if p['resolver'] == 'function_name']
+        id_wrong = [p for p in by_id if p['resolved_to'] != p['declaration_id']]
+        name_aliased = [p for p in by_name
+                        if p['resolved_to'] != p['declaration_id']]
+        observations['resolution_probes'] = probes
+        observations['declaration_id_resolver_mismatches'] = id_wrong
+        observations['name_keyed_resolver_aliases'] = name_aliased
+
+        # The defect really happened in the VM, over the real registry. Feed
+        # THOSE numbers through the same acceptance logic and require refusal.
+        v23 = perturbed(st=dict(selftest, resolution_probes=[
+            dict(p, resolver='declaration_id') for p in by_name]))
+        arm('F23', 'a resolver keyed on the Function name aliases two '
+                   'declarations that share one, and binds a patch to the '
+                   'wrong body',
+            bool(name_aliased) and not id_wrong
+            and not v23['conditions']['identity_not_name_keyed']
+            and v23['runtime_implementation_registry'] == 'NOT_ESTABLISHED',
+            f'the name-keyed resolver aliased {len(name_aliased)} of '
+            f'{len(by_name)} declarations '
+            f'({", ".join(sorted({p["function_name"] for p in name_aliased}))}'
+            f'); the DeclarationId resolver aliased {len(id_wrong)}',
+            v23['runtime_implementation_registry'])
 
         # F20 is resolved after the record is assembled -- it is a claim
         # about the record's own shape, not about the pipeline.

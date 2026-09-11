@@ -48,6 +48,21 @@ CONDITIONS = {
         'do two declarations that share a VM Function name resolve to their '
         'own implementations rather than to each other? (requires such a pair '
         'to exist in the program, or the question is unanswered)',
+    'abi_model_discriminates_every_dimension':
+        'for every named ABI dimension, is a replacement differing only in '
+        'that dimension refused -- and is the pairwise matrix an equivalence '
+        '(identical pairs accepted, differing pairs refused) rather than a '
+        'blanket refusal?',
+    'abi_omissions_declared':
+        'is every compatibility dimension the model does NOT represent stated '
+        'with its reason and the issue that owns it?',
+    'selected_calling_convention_is_boxed_stack':
+        'is every selected declaration on the fully boxed, stack-based calling '
+        'convention that selection is supposed to pin it to?',
+    'call_convention_is_measured_not_constant':
+        'does the call-convention fingerprint actually differ between '
+        'declarations in one run, or is it a constant string that would agree '
+        'with anything?',
     'implementation_divergence_detectable':
         'if something rewrites Function::CurrentCode() underneath a '
         'descriptor, is that reported rather than silently described as the '
@@ -105,6 +120,10 @@ BANK = {
                     'that share a name alias one slot'),
     'F24': ('live', 'an implementation is swapped underneath a descriptor and '
                     'the registry keeps describing the old one'),
+    'F25': ('live', 'the compatibility model is missing a dimension, so a '
+                    'replacement that differs in it is accepted'),
+    'F26': ('live', 'a selected declaration escapes the boxed stack calling '
+                    'convention that selection is supposed to pin it to'),
 }
 
 
@@ -161,10 +180,47 @@ def evaluate(observations, findings, registry=None, selftest=None):
     conditions['abi_validation_valid'] = _passed(st, 'A01')
     conditions['duplicate_missing_wrong_release_fail_closed'] = _passed(
         st, 'D01', 'M01', 'M02', 'N01')
-    # Identity, not spelling: L01 needs two same-named declarations to exist
-    # before it can say anything, so the population check is part of it.
+    # Identity, not spelling. Computed from the resolution probes the VM
+    # actually ran, so the same logic judges the correct resolver and the
+    # injected name-keyed one. The population check is part of the condition:
+    # without two same-named declarations the question is unanswered, and
+    # unanswered is not the same as yes.
+    probes = st.get('resolution_probes') or []
     conditions['identity_not_name_keyed'] = (
-        st.get('found_name_clash_pair') is True and _passed(st, 'L01'))
+        st.get('found_name_clash_pair') is True
+        and _passed(st, 'L01')
+        and bool(probes)
+        and all(p.get('resolved_to') == p.get('declaration_id')
+                for p in probes if p.get('resolver') == 'declaration_id'))
+
+    # Every named ABI dimension must be refused by the pairwise matrix, and
+    # the matrix must be an equivalence rather than an implication: a model
+    # that refuses everything would pass a one-directional check while making
+    # replacement impossible.
+    conditions['abi_model_discriminates_every_dimension'] = (
+        bool(o.get('abi_dimensions'))
+        and o.get('abi_dimensions_undiscriminated') == []
+        and o.get('abi_dimension_pairs_missing') == []
+        and o.get('compatibility_matrix_violations') == []
+        and (o.get('compatibility_matrix_accepted') or 0) > 0)
+
+    # An omission has to be stated, with the issue that owns it.
+    conditions['abi_omissions_declared'] = bool(o.get('abi_not_represented'))
+
+    # Selection pins every selected declaration to the fully boxed, stack-based
+    # calling convention (see CALLCONV_BOXED_STACK for the source chain). That
+    # is what makes an unchanged-ABI replacement safe at the machine level, so
+    # it is checked on every run rather than believed.
+    conditions['selected_calling_convention_is_boxed_stack'] = (
+        bool(o.get('selected_call_conventions'))
+        and o.get('call_conventions_not_boxed_stack') == [])
+
+    # ... and the component must be a live measurement rather than a constant
+    # string. An unselected declaration is not an entry point, so it is not
+    # pinned, and the difference proves the fingerprint discriminates inside
+    # one run of one compiler.
+    conditions['call_convention_is_measured_not_constant'] = bool(
+        o.get('callconv_varies_across_selection'))
     # X01 is the control: without it X02 could pass on a check that reports
     # divergence unconditionally.
     conditions['implementation_divergence_detectable'] = _passed(

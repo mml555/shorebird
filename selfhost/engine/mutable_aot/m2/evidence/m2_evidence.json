@@ -2,15 +2,15 @@
   "schema": "maot.m2.evidence/1",
   "issue": 66,
   "generated_by": {
-    "run_id": "2026-09-11T15:31:13Z",
-    "gate_sha256": "54874275f831c76d478dbf17d914c5452b8b757ea50e8dabfbbd760df99ae398",
-    "verdict_sha256": "20b2d0969722e334461c7f3d9fc52bccde8615ae2c5e4d506f9fc05dbc12f872"
+    "run_id": "2026-09-11T18:20:40Z",
+    "gate_sha256": "505260ab154197838639b87b143a0df36ebafe7442be5b69b891dfb380de0dcb",
+    "verdict_sha256": "20a59e0673ce6a8445506c56f0155953d4a1d7dced80bc70d7d5d965bef5d380"
   },
   "identities": {
-    "shorebird_revision": "fb787226fb2f0cba17aabb6a6a3e5827ae807a75",
-    "shorebird_tree": "5709e2aee4fe0021dbf0a00d8c1909478a4d7073",
-    "fork_commit": "d267e5f9204d9fccc9ffdee9933938948f3bb398",
-    "fork_tree": "d13e92ab0166df8c560922d545cc4eacb214ce8c",
+    "shorebird_revision": "e543f2d66b7a50f96c8ee477f707decfd3b2304b",
+    "shorebird_tree": "313eb966d11cf0e6cbad1b1340214512995b83b3",
+    "fork_commit": "65f368329f18fb3394d8cdcce37b7c07b726919b",
+    "fork_tree": "1634db9995588227dccd8ebe14f98e3fdc856bc5",
     "fork_branch": "maot/build",
     "fork_worktree_entries": [
       "?? third_party/binaryen/.DS_Store"
@@ -24,31 +24,45 @@
     "stale_binaries": [],
     "build_digest": {
       "files": {
-        "runtime/vm/maot_registry.cc": "7f37decdae5e25147d1ed9018fdbc88ca934c5f281b6b54ea81431bd02ef79ed",
-        "runtime/vm/maot_registry.h": "7aa0c59da609d204d88ba2238b0dc7f48f9df789e9bff1acb9e61bcda5ecbd72",
-        "runtime/vm/kernel_loader.cc": "c0fb785312b23412c0d85ddb27efffacd2ec9b9d1ba182116ea1bad15553d5cd",
+        "runtime/vm/maot_registry.cc": "eb796fbfb8f01d7caa6b0aba922a22c3cb0760c3f031ea9ab1d32b407cca7c40",
+        "runtime/vm/maot_registry.h": "c5d32eb3e76f4fcdcda347d79d32605603ace7bf090cffecd8cfbcc71c9a1daa",
+        "runtime/vm/kernel_loader.cc": "6ded9b83769b2d64a3c63f9b72ab4237f351cd42193b70ccedd30517a166d9db",
         "runtime/vm/object_store.h": "8d6df2ea6ebec9b1878424d2c50cc3fa77a7e9097d8e0b2e454ef20b207d46da",
         "runtime/vm/dart.cc": "d01d83139d07873cbb3c25a00632614f98e5048fef8efdc9be74e9be48044dec",
-        "runtime/vm/compiler/aot/precompiler.cc": "bfac004cfd827f96e29b4846455a09fa17aac404a30a437c85e3deae75034664",
+        "runtime/vm/compiler/aot/precompiler.cc": "b9db5dcc90ef51afc98dd4b507d1fa8b679128959e9686c8d2e2be68a69243b5",
         "runtime/vm/compiler/aot/precompiler.h": "96a7e8255eccb81b3caec5c27784861c0be0bf5d48f9cb2bff5fe99c0523ba7d",
         "runtime/vm/compiler/frontend/kernel_translation_helper.cc": "3c7c2ac4cb9e8a04736c184ec1b2a02cea253f5186f45218351594e831f9d96f",
         "runtime/vm/compiler/frontend/kernel_translation_helper.h": "d2726b4c489f025dfef242673006b79d5a21a9663aeae90281e28ffd7cbdb330"
       },
-      "fork_commit": "d267e5f9204d9fccc9ffdee9933938948f3bb398",
-      "fork_tree": "d13e92ab0166df8c560922d545cc4eacb214ce8c",
-      "built_at": "2026-09-11T15:31:13Z"
+      "fork_commit": "65f368329f18fb3394d8cdcce37b7c07b726919b",
+      "fork_tree": "1634db9995588227dccd8ebe14f98e3fdc856bc5",
+      "built_at": "2026-09-11T18:20:40Z"
     },
     "missing_maot_sources": [],
-    "selected_count": 5,
+    "selected_count": 19,
     "selected_but_absent": [],
-    "materialized_count": 5,
+    "materialized_count": 19,
     "materialized_dropped": 0,
     "registry_ids": [
-      "lib:package:m2app/app.dart::cls:Widget::ctor:",
-      "lib:package:m2app/app.dart::cls:Widget::method:compute",
+      "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+      "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+      "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+      "lib:package:m2app/app.dart::fn:boundInt",
+      "lib:package:m2app/app.dart::fn:boundNum",
       "lib:package:m2app/app.dart::fn:compute",
+      "lib:package:m2app/app.dart::fn:doubleIdentity",
+      "lib:package:m2app/app.dart::fn:genericNone",
+      "lib:package:m2app/app.dart::fn:genericOne",
+      "lib:package:m2app/app.dart::fn:intIdentity",
       "lib:package:m2app/app.dart::fn:mutableTopLevel",
-      "lib:package:m2app/app.dart::fn:neverCalled"
+      "lib:package:m2app/app.dart::fn:namedRequiredX",
+      "lib:package:m2app/app.dart::fn:namedX",
+      "lib:package:m2app/app.dart::fn:namedY",
+      "lib:package:m2app/app.dart::fn:neverCalled",
+      "lib:package:m2app/app.dart::fn:posOne",
+      "lib:package:m2app/app.dart::fn:posOptional",
+      "lib:package:m2app/app.dart::fn:posTwo",
+      "lib:package:m2app/app.dart::fn:staticOne"
     ],
     "selected_minus_registry": [],
     "registry_minus_selected": [],
@@ -56,13 +70,19 @@
     "unselected_slots": 0,
     "binding_pairs": [
       {
-        "declaration_id": "lib:package:m2app/app.dart::cls:Widget::ctor:",
-        "expected_vm_name": "Widget.",
-        "observed": "Function 'Widget.': constructor.",
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "expected_vm_name": "Shapes.",
+        "observed": "Function 'Shapes.': constructor.",
         "match": true
       },
       {
-        "declaration_id": "lib:package:m2app/app.dart::cls:Widget::method:compute",
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "expected_vm_name": "instanceOne",
+        "observed": "Function 'instanceOne':.",
+        "match": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
         "expected_vm_name": "compute",
         "observed": "Function 'compute':.",
         "match": true
@@ -84,46 +104,574 @@
         "expected_vm_name": "compute",
         "observed": "Function 'compute': static.",
         "match": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posOne",
+        "expected_vm_name": "posOne",
+        "observed": "Function 'posOne': static.",
+        "match": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posTwo",
+        "expected_vm_name": "posTwo",
+        "observed": "Function 'posTwo': static.",
+        "match": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posOptional",
+        "expected_vm_name": "posOptional",
+        "observed": "Function 'posOptional': static.",
+        "match": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedX",
+        "expected_vm_name": "namedX",
+        "observed": "Function 'namedX': static.",
+        "match": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedY",
+        "expected_vm_name": "namedY",
+        "observed": "Function 'namedY': static.",
+        "match": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "expected_vm_name": "namedRequiredX",
+        "observed": "Function 'namedRequiredX': static.",
+        "match": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:genericNone",
+        "expected_vm_name": "genericNone",
+        "observed": "Function 'genericNone': static.",
+        "match": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:genericOne",
+        "expected_vm_name": "genericOne",
+        "observed": "Function 'genericOne': static.",
+        "match": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:boundNum",
+        "expected_vm_name": "boundNum",
+        "observed": "Function 'boundNum': static.",
+        "match": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:boundInt",
+        "expected_vm_name": "boundInt",
+        "observed": "Function 'boundInt': static.",
+        "match": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:staticOne",
+        "expected_vm_name": "staticOne",
+        "observed": "Function 'staticOne': static.",
+        "match": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "expected_vm_name": "doubleIdentity",
+        "observed": "Function 'doubleIdentity': static.",
+        "match": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:intIdentity",
+        "expected_vm_name": "intIdentity",
+        "observed": "Function 'intIdentity': static.",
+        "match": true
       }
     ],
     "binding_pairs_correct": true,
     "binding_mismatches": [],
     "address_used_as_identity": false,
+    "callconv_unselected_probe": [
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:main",
+        "selected": false,
+        "call_convention": "cc1;fixed1;regs1;nofactory;argst;rett"
+      }
+    ],
+    "callconv_varies_across_selection": true,
     "control_build": {
       "kernel_rc": 0,
       "snapshot_rc": 0,
       "snapshot_stderr_tail": "",
-      "elf_bytes": 840184,
+      "elf_bytes": 840232,
       "runtime_rc": 0,
       "registry_entries": 0
     },
     "measurements": {
-      "aot_elf_bytes_with_maot": 840544,
-      "aot_elf_bytes_control_no_pragmas": 840184,
-      "aot_elf_delta_bytes": 360,
-      "startup_ms_with_maot": 17.26,
-      "startup_ms_control": 16.83,
+      "aot_elf_bytes_with_maot": 841288,
+      "aot_elf_bytes_control_no_pragmas": 840232,
+      "aot_elf_delta_bytes": 1056,
+      "startup_ms_with_maot": 18.07,
+      "startup_ms_control": 17.7,
       "control_note": "absent here means the control build failed, not that it was skipped",
       "note": "medians of 7 runs of the same program; the control is the identical source with every maot:mutable removed, so the delta includes keeping a dead selected declaration alive",
-      "registry_entries": 5,
-      "registry_array_slots": 55,
-      "registry_slots_per_entry": 11,
-      "registry_registry_bytes_approx": 440,
-      "registry_bytes_per_entry_approx": 88,
+      "registry_entries": 19,
+      "registry_array_slots": 247,
+      "registry_slots_per_entry": 13,
+      "registry_registry_bytes_approx": 1976,
+      "registry_bytes_per_entry_approx": 104,
       "registry_lookup_iterations": 10000,
-      "registry_lookup_total_micros": 180,
+      "registry_lookup_total_micros": 148,
       "registry_lookup_note": "linear scan over a GrowableObjectArray; correctness first, and the cost is recorded rather than optimised around",
       "registry_lookup_sink": 10000
     },
+    "abi_dimensions": [
+      {
+        "dimension": "positional count",
+        "a": "lib:package:m2app/app.dart::fn:posOne",
+        "b": "lib:package:m2app/app.dart::fn:posTwo",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted_a_from_b": false,
+        "accepted_b_from_a": false,
+        "discriminated": true
+      },
+      {
+        "dimension": "required positional count",
+        "a": "lib:package:m2app/app.dart::fn:posTwo",
+        "b": "lib:package:m2app/app.dart::fn:posOptional",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted_a_from_b": false,
+        "accepted_b_from_a": false,
+        "discriminated": true
+      },
+      {
+        "dimension": "named parameter set",
+        "a": "lib:package:m2app/app.dart::fn:namedX",
+        "b": "lib:package:m2app/app.dart::fn:namedY",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted_a_from_b": false,
+        "accepted_b_from_a": false,
+        "discriminated": true
+      },
+      {
+        "dimension": "required named set",
+        "a": "lib:package:m2app/app.dart::fn:namedX",
+        "b": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted_a_from_b": false,
+        "accepted_b_from_a": false,
+        "discriminated": true
+      },
+      {
+        "dimension": "type parameter count",
+        "a": "lib:package:m2app/app.dart::fn:genericNone",
+        "b": "lib:package:m2app/app.dart::fn:genericOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted_a_from_b": false,
+        "accepted_b_from_a": false,
+        "discriminated": true
+      },
+      {
+        "dimension": "type parameter bound",
+        "a": "lib:package:m2app/app.dart::fn:boundNum",
+        "b": "lib:package:m2app/app.dart::fn:boundInt",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted_a_from_b": false,
+        "accepted_b_from_a": false,
+        "discriminated": true
+      },
+      {
+        "dimension": "instance vs static",
+        "a": "lib:package:m2app/app.dart::fn:staticOne",
+        "b": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted_a_from_b": false,
+        "accepted_b_from_a": false,
+        "discriminated": true
+      },
+      {
+        "dimension": "constructor vs method",
+        "a": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "b": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted_a_from_b": false,
+        "accepted_b_from_a": false,
+        "discriminated": true
+      }
+    ],
+    "abi_dimensions_undiscriminated": [],
+    "abi_dimension_pairs_missing": [],
+    "abi_not_represented": {
+      "parameter/return representation, as a fixture pair": "Represented in the call-convention string and compared on every staging attempt, but it CANNOT VARY within the selected population: selection forces the fully boxed stack convention through the chain documented at CALLCONV_BOXED_STACK, so no two selected declarations can differ in it. The component is not decorative -- the register/stack split does vary (an unselected declaration measures regs1 while every selected one measures regs0, same function, same run), and the invariant itself is checked by selected_calling_convention_is_boxed_stack with F26 as its falsification.",
+      "closure/context shape": "Closures are not in the MAOT-2 selected population at all. Selection and indexing walk library.members and cls.members; a local function is not a Member, cannot carry the pragma, and never receives a DeclarationId. #75 (MAOT-11) owns closures, async/generators and isolates.",
+      "owner identity": "Already supplied by the DeclarationId, which is lib:<importUri>::cls:<Name>::<kind>:<name>. Repeating the owner in the descriptor would be a second spelling of the same fact, and two spellings can disagree.",
+      "factory index shift": "ComputeLocationsOfFixedParameters shifts the parameter index for a factory, and that is represented twice on purpose: memberKind separates a factory in the Kernel descriptor, and the call-convention string carries factory/nofactory so it stands alone as a fingerprint."
+    },
+    "compatibility_matrix_size": 342,
+    "compatibility_matrix_violations": [],
+    "compatibility_matrix_accepted": 58,
+    "selected_call_conventions": [
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "call_convention": "cc1;fixed2;regs0;nofactory;argstt;rett",
+        "boxed_stack": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "call_convention": "cc1;fixed2;regs0;nofactory;argstt;rett",
+        "boxed_stack": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "call_convention": "cc1;fixed2;regs0;nofactory;argstt;rett",
+        "boxed_stack": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "boxed_stack": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:neverCalled",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "boxed_stack": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:compute",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "boxed_stack": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posOne",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "boxed_stack": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posTwo",
+        "call_convention": "cc1;fixed2;regs0;nofactory;argstt;rett",
+        "boxed_stack": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posOptional",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "boxed_stack": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedX",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "boxed_stack": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedY",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "boxed_stack": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "boxed_stack": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:genericNone",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "boxed_stack": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:genericOne",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "boxed_stack": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:boundNum",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "boxed_stack": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:boundInt",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "boxed_stack": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:staticOne",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "boxed_stack": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "boxed_stack": true
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:intIdentity",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "boxed_stack": true
+      }
+    ],
+    "call_conventions_not_boxed_stack": [],
+    "resolution_probes": [
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "function_name": "Shapes.",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::cls:Shapes::ctor:"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "function_name": "Shapes.",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::cls:Shapes::ctor:"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "function_name": "compute",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "function_name": "compute",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "function_name": "compute",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::cls:Shapes::method:compute"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "function_name": "compute",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "function_name": "mutableTopLevel",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:mutableTopLevel"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "function_name": "mutableTopLevel",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:mutableTopLevel"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:neverCalled",
+        "function_name": "neverCalled",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:neverCalled"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:neverCalled",
+        "function_name": "neverCalled",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:neverCalled"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:compute",
+        "function_name": "compute",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:compute"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:compute",
+        "function_name": "compute",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posOne",
+        "function_name": "posOne",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:posOne"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posOne",
+        "function_name": "posOne",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:posOne"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posTwo",
+        "function_name": "posTwo",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:posTwo"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posTwo",
+        "function_name": "posTwo",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:posTwo"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posOptional",
+        "function_name": "posOptional",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:posOptional"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posOptional",
+        "function_name": "posOptional",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:posOptional"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedX",
+        "function_name": "namedX",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:namedX"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedX",
+        "function_name": "namedX",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:namedX"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedY",
+        "function_name": "namedY",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:namedY"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedY",
+        "function_name": "namedY",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:namedY"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "function_name": "namedRequiredX",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:namedRequiredX"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "function_name": "namedRequiredX",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:namedRequiredX"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:genericNone",
+        "function_name": "genericNone",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:genericNone"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:genericNone",
+        "function_name": "genericNone",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:genericNone"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:genericOne",
+        "function_name": "genericOne",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:genericOne"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:genericOne",
+        "function_name": "genericOne",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:genericOne"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:boundNum",
+        "function_name": "boundNum",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:boundNum"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:boundNum",
+        "function_name": "boundNum",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:boundNum"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:boundInt",
+        "function_name": "boundInt",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:boundInt"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:boundInt",
+        "function_name": "boundInt",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:boundInt"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:staticOne",
+        "function_name": "staticOne",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:staticOne"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:staticOne",
+        "function_name": "staticOne",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:staticOne"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "function_name": "doubleIdentity",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:doubleIdentity"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "function_name": "doubleIdentity",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:doubleIdentity"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:intIdentity",
+        "function_name": "intIdentity",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:intIdentity"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:intIdentity",
+        "function_name": "intIdentity",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:intIdentity"
+      }
+    ],
+    "declaration_id_resolver_mismatches": [],
+    "name_keyed_resolver_aliases": [
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "function_name": "compute",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:compute",
+        "function_name": "compute",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne"
+      }
+    ],
     "falsifications_failed": []
   },
   "selftest": {
     "schema": "maot.registry.selftest/1",
     "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
-    "entry_count": 5,
+    "entry_count": 19,
     "found_same_abi_pair": true,
     "found_different_abi_entry": true,
     "arms": [
+      {
+        "id": "L01",
+        "expected": "two declarations sharing a Function name resolve to their own implementations, not to each other",
+        "observed": "both resolved to their own Function",
+        "result": "pass"
+      },
       {
         "id": "S01",
         "expected": "current is AOT v1 with an implementation",
@@ -197,12 +745,6 @@
         "result": "pass"
       },
       {
-        "id": "L01",
-        "expected": "two declarations sharing a Function name resolve to their own implementations, not to each other",
-        "observed": "both resolved to their own Function",
-        "result": "pass"
-      },
-      {
         "id": "X01",
         "expected": "no descriptor has diverged from its pinned implementation",
         "observed": "0 diverged",
@@ -216,14 +758,2640 @@
       }
     ],
     "found_name_clash_pair": true,
+    "compatibility_matrix": [
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "from": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "from": "lib:package:m2app/app.dart::fn:neverCalled",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "from": "lib:package:m2app/app.dart::fn:compute",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "from": "lib:package:m2app/app.dart::fn:posOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "from": "lib:package:m2app/app.dart::fn:posTwo",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "from": "lib:package:m2app/app.dart::fn:posOptional",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "from": "lib:package:m2app/app.dart::fn:namedX",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "from": "lib:package:m2app/app.dart::fn:namedY",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "from": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "from": "lib:package:m2app/app.dart::fn:genericNone",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "from": "lib:package:m2app/app.dart::fn:genericOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "from": "lib:package:m2app/app.dart::fn:boundNum",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "from": "lib:package:m2app/app.dart::fn:boundInt",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "from": "lib:package:m2app/app.dart::fn:staticOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "from": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "from": "lib:package:m2app/app.dart::fn:intIdentity",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "from": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "from": "lib:package:m2app/app.dart::fn:neverCalled",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "from": "lib:package:m2app/app.dart::fn:compute",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "from": "lib:package:m2app/app.dart::fn:posOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "from": "lib:package:m2app/app.dart::fn:posTwo",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "from": "lib:package:m2app/app.dart::fn:posOptional",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "from": "lib:package:m2app/app.dart::fn:namedX",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "from": "lib:package:m2app/app.dart::fn:namedY",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "from": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "from": "lib:package:m2app/app.dart::fn:genericNone",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "from": "lib:package:m2app/app.dart::fn:genericOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "from": "lib:package:m2app/app.dart::fn:boundNum",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "from": "lib:package:m2app/app.dart::fn:boundInt",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "from": "lib:package:m2app/app.dart::fn:staticOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "from": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "from": "lib:package:m2app/app.dart::fn:intIdentity",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "from": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "from": "lib:package:m2app/app.dart::fn:neverCalled",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "from": "lib:package:m2app/app.dart::fn:compute",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "from": "lib:package:m2app/app.dart::fn:posOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "from": "lib:package:m2app/app.dart::fn:posTwo",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "from": "lib:package:m2app/app.dart::fn:posOptional",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "from": "lib:package:m2app/app.dart::fn:namedX",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "from": "lib:package:m2app/app.dart::fn:namedY",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "from": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "from": "lib:package:m2app/app.dart::fn:genericNone",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "from": "lib:package:m2app/app.dart::fn:genericOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "from": "lib:package:m2app/app.dart::fn:boundNum",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "from": "lib:package:m2app/app.dart::fn:boundInt",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "from": "lib:package:m2app/app.dart::fn:staticOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "from": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "from": "lib:package:m2app/app.dart::fn:intIdentity",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "from": "lib:package:m2app/app.dart::fn:neverCalled",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "from": "lib:package:m2app/app.dart::fn:compute",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "from": "lib:package:m2app/app.dart::fn:posOne",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "from": "lib:package:m2app/app.dart::fn:posTwo",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "from": "lib:package:m2app/app.dart::fn:posOptional",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "from": "lib:package:m2app/app.dart::fn:namedX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "from": "lib:package:m2app/app.dart::fn:namedY",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "from": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "from": "lib:package:m2app/app.dart::fn:genericNone",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "from": "lib:package:m2app/app.dart::fn:genericOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "from": "lib:package:m2app/app.dart::fn:boundNum",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "from": "lib:package:m2app/app.dart::fn:boundInt",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "from": "lib:package:m2app/app.dart::fn:staticOne",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "from": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "from": "lib:package:m2app/app.dart::fn:intIdentity",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:neverCalled",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:neverCalled",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:neverCalled",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:neverCalled",
+        "from": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:neverCalled",
+        "from": "lib:package:m2app/app.dart::fn:compute",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:neverCalled",
+        "from": "lib:package:m2app/app.dart::fn:posOne",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:neverCalled",
+        "from": "lib:package:m2app/app.dart::fn:posTwo",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:neverCalled",
+        "from": "lib:package:m2app/app.dart::fn:posOptional",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:neverCalled",
+        "from": "lib:package:m2app/app.dart::fn:namedX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:neverCalled",
+        "from": "lib:package:m2app/app.dart::fn:namedY",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:neverCalled",
+        "from": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:neverCalled",
+        "from": "lib:package:m2app/app.dart::fn:genericNone",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:neverCalled",
+        "from": "lib:package:m2app/app.dart::fn:genericOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:neverCalled",
+        "from": "lib:package:m2app/app.dart::fn:boundNum",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:neverCalled",
+        "from": "lib:package:m2app/app.dart::fn:boundInt",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:neverCalled",
+        "from": "lib:package:m2app/app.dart::fn:staticOne",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:neverCalled",
+        "from": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:neverCalled",
+        "from": "lib:package:m2app/app.dart::fn:intIdentity",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:compute",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:compute",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:compute",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:compute",
+        "from": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:compute",
+        "from": "lib:package:m2app/app.dart::fn:neverCalled",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:compute",
+        "from": "lib:package:m2app/app.dart::fn:posOne",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:compute",
+        "from": "lib:package:m2app/app.dart::fn:posTwo",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:compute",
+        "from": "lib:package:m2app/app.dart::fn:posOptional",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:compute",
+        "from": "lib:package:m2app/app.dart::fn:namedX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:compute",
+        "from": "lib:package:m2app/app.dart::fn:namedY",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:compute",
+        "from": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:compute",
+        "from": "lib:package:m2app/app.dart::fn:genericNone",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:compute",
+        "from": "lib:package:m2app/app.dart::fn:genericOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:compute",
+        "from": "lib:package:m2app/app.dart::fn:boundNum",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:compute",
+        "from": "lib:package:m2app/app.dart::fn:boundInt",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:compute",
+        "from": "lib:package:m2app/app.dart::fn:staticOne",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:compute",
+        "from": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:compute",
+        "from": "lib:package:m2app/app.dart::fn:intIdentity",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOne",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOne",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOne",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOne",
+        "from": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOne",
+        "from": "lib:package:m2app/app.dart::fn:neverCalled",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOne",
+        "from": "lib:package:m2app/app.dart::fn:compute",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOne",
+        "from": "lib:package:m2app/app.dart::fn:posTwo",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOne",
+        "from": "lib:package:m2app/app.dart::fn:posOptional",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOne",
+        "from": "lib:package:m2app/app.dart::fn:namedX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOne",
+        "from": "lib:package:m2app/app.dart::fn:namedY",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOne",
+        "from": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOne",
+        "from": "lib:package:m2app/app.dart::fn:genericNone",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOne",
+        "from": "lib:package:m2app/app.dart::fn:genericOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOne",
+        "from": "lib:package:m2app/app.dart::fn:boundNum",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOne",
+        "from": "lib:package:m2app/app.dart::fn:boundInt",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOne",
+        "from": "lib:package:m2app/app.dart::fn:staticOne",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOne",
+        "from": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOne",
+        "from": "lib:package:m2app/app.dart::fn:intIdentity",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posTwo",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posTwo",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posTwo",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posTwo",
+        "from": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posTwo",
+        "from": "lib:package:m2app/app.dart::fn:neverCalled",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posTwo",
+        "from": "lib:package:m2app/app.dart::fn:compute",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posTwo",
+        "from": "lib:package:m2app/app.dart::fn:posOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posTwo",
+        "from": "lib:package:m2app/app.dart::fn:posOptional",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posTwo",
+        "from": "lib:package:m2app/app.dart::fn:namedX",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posTwo",
+        "from": "lib:package:m2app/app.dart::fn:namedY",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posTwo",
+        "from": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posTwo",
+        "from": "lib:package:m2app/app.dart::fn:genericNone",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posTwo",
+        "from": "lib:package:m2app/app.dart::fn:genericOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posTwo",
+        "from": "lib:package:m2app/app.dart::fn:boundNum",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posTwo",
+        "from": "lib:package:m2app/app.dart::fn:boundInt",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posTwo",
+        "from": "lib:package:m2app/app.dart::fn:staticOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posTwo",
+        "from": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posTwo",
+        "from": "lib:package:m2app/app.dart::fn:intIdentity",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOptional",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOptional",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOptional",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOptional",
+        "from": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOptional",
+        "from": "lib:package:m2app/app.dart::fn:neverCalled",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOptional",
+        "from": "lib:package:m2app/app.dart::fn:compute",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOptional",
+        "from": "lib:package:m2app/app.dart::fn:posOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOptional",
+        "from": "lib:package:m2app/app.dart::fn:posTwo",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOptional",
+        "from": "lib:package:m2app/app.dart::fn:namedX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOptional",
+        "from": "lib:package:m2app/app.dart::fn:namedY",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOptional",
+        "from": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOptional",
+        "from": "lib:package:m2app/app.dart::fn:genericNone",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOptional",
+        "from": "lib:package:m2app/app.dart::fn:genericOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOptional",
+        "from": "lib:package:m2app/app.dart::fn:boundNum",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOptional",
+        "from": "lib:package:m2app/app.dart::fn:boundInt",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOptional",
+        "from": "lib:package:m2app/app.dart::fn:staticOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOptional",
+        "from": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:posOptional",
+        "from": "lib:package:m2app/app.dart::fn:intIdentity",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedX",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedX",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedX",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedX",
+        "from": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedX",
+        "from": "lib:package:m2app/app.dart::fn:neverCalled",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedX",
+        "from": "lib:package:m2app/app.dart::fn:compute",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedX",
+        "from": "lib:package:m2app/app.dart::fn:posOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedX",
+        "from": "lib:package:m2app/app.dart::fn:posTwo",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedX",
+        "from": "lib:package:m2app/app.dart::fn:posOptional",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedX",
+        "from": "lib:package:m2app/app.dart::fn:namedY",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedX",
+        "from": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedX",
+        "from": "lib:package:m2app/app.dart::fn:genericNone",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedX",
+        "from": "lib:package:m2app/app.dart::fn:genericOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedX",
+        "from": "lib:package:m2app/app.dart::fn:boundNum",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedX",
+        "from": "lib:package:m2app/app.dart::fn:boundInt",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedX",
+        "from": "lib:package:m2app/app.dart::fn:staticOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedX",
+        "from": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedX",
+        "from": "lib:package:m2app/app.dart::fn:intIdentity",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedY",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedY",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedY",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedY",
+        "from": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedY",
+        "from": "lib:package:m2app/app.dart::fn:neverCalled",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedY",
+        "from": "lib:package:m2app/app.dart::fn:compute",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedY",
+        "from": "lib:package:m2app/app.dart::fn:posOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedY",
+        "from": "lib:package:m2app/app.dart::fn:posTwo",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedY",
+        "from": "lib:package:m2app/app.dart::fn:posOptional",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedY",
+        "from": "lib:package:m2app/app.dart::fn:namedX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedY",
+        "from": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedY",
+        "from": "lib:package:m2app/app.dart::fn:genericNone",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedY",
+        "from": "lib:package:m2app/app.dart::fn:genericOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedY",
+        "from": "lib:package:m2app/app.dart::fn:boundNum",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedY",
+        "from": "lib:package:m2app/app.dart::fn:boundInt",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedY",
+        "from": "lib:package:m2app/app.dart::fn:staticOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedY",
+        "from": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedY",
+        "from": "lib:package:m2app/app.dart::fn:intIdentity",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "from": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "from": "lib:package:m2app/app.dart::fn:neverCalled",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "from": "lib:package:m2app/app.dart::fn:compute",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "from": "lib:package:m2app/app.dart::fn:posOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "from": "lib:package:m2app/app.dart::fn:posTwo",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "from": "lib:package:m2app/app.dart::fn:posOptional",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "from": "lib:package:m2app/app.dart::fn:namedX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "from": "lib:package:m2app/app.dart::fn:namedY",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "from": "lib:package:m2app/app.dart::fn:genericNone",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "from": "lib:package:m2app/app.dart::fn:genericOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "from": "lib:package:m2app/app.dart::fn:boundNum",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "from": "lib:package:m2app/app.dart::fn:boundInt",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "from": "lib:package:m2app/app.dart::fn:staticOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "from": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "from": "lib:package:m2app/app.dart::fn:intIdentity",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericNone",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericNone",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericNone",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericNone",
+        "from": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericNone",
+        "from": "lib:package:m2app/app.dart::fn:neverCalled",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericNone",
+        "from": "lib:package:m2app/app.dart::fn:compute",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericNone",
+        "from": "lib:package:m2app/app.dart::fn:posOne",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericNone",
+        "from": "lib:package:m2app/app.dart::fn:posTwo",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericNone",
+        "from": "lib:package:m2app/app.dart::fn:posOptional",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericNone",
+        "from": "lib:package:m2app/app.dart::fn:namedX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericNone",
+        "from": "lib:package:m2app/app.dart::fn:namedY",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericNone",
+        "from": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericNone",
+        "from": "lib:package:m2app/app.dart::fn:genericOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericNone",
+        "from": "lib:package:m2app/app.dart::fn:boundNum",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericNone",
+        "from": "lib:package:m2app/app.dart::fn:boundInt",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericNone",
+        "from": "lib:package:m2app/app.dart::fn:staticOne",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericNone",
+        "from": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericNone",
+        "from": "lib:package:m2app/app.dart::fn:intIdentity",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericOne",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericOne",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericOne",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericOne",
+        "from": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericOne",
+        "from": "lib:package:m2app/app.dart::fn:neverCalled",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericOne",
+        "from": "lib:package:m2app/app.dart::fn:compute",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericOne",
+        "from": "lib:package:m2app/app.dart::fn:posOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericOne",
+        "from": "lib:package:m2app/app.dart::fn:posTwo",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericOne",
+        "from": "lib:package:m2app/app.dart::fn:posOptional",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericOne",
+        "from": "lib:package:m2app/app.dart::fn:namedX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericOne",
+        "from": "lib:package:m2app/app.dart::fn:namedY",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericOne",
+        "from": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericOne",
+        "from": "lib:package:m2app/app.dart::fn:genericNone",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericOne",
+        "from": "lib:package:m2app/app.dart::fn:boundNum",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericOne",
+        "from": "lib:package:m2app/app.dart::fn:boundInt",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericOne",
+        "from": "lib:package:m2app/app.dart::fn:staticOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericOne",
+        "from": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:genericOne",
+        "from": "lib:package:m2app/app.dart::fn:intIdentity",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundNum",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundNum",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundNum",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundNum",
+        "from": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundNum",
+        "from": "lib:package:m2app/app.dart::fn:neverCalled",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundNum",
+        "from": "lib:package:m2app/app.dart::fn:compute",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundNum",
+        "from": "lib:package:m2app/app.dart::fn:posOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundNum",
+        "from": "lib:package:m2app/app.dart::fn:posTwo",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundNum",
+        "from": "lib:package:m2app/app.dart::fn:posOptional",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundNum",
+        "from": "lib:package:m2app/app.dart::fn:namedX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundNum",
+        "from": "lib:package:m2app/app.dart::fn:namedY",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundNum",
+        "from": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundNum",
+        "from": "lib:package:m2app/app.dart::fn:genericNone",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundNum",
+        "from": "lib:package:m2app/app.dart::fn:genericOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundNum",
+        "from": "lib:package:m2app/app.dart::fn:boundInt",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundNum",
+        "from": "lib:package:m2app/app.dart::fn:staticOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundNum",
+        "from": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundNum",
+        "from": "lib:package:m2app/app.dart::fn:intIdentity",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundInt",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundInt",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundInt",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundInt",
+        "from": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundInt",
+        "from": "lib:package:m2app/app.dart::fn:neverCalled",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundInt",
+        "from": "lib:package:m2app/app.dart::fn:compute",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundInt",
+        "from": "lib:package:m2app/app.dart::fn:posOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundInt",
+        "from": "lib:package:m2app/app.dart::fn:posTwo",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundInt",
+        "from": "lib:package:m2app/app.dart::fn:posOptional",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundInt",
+        "from": "lib:package:m2app/app.dart::fn:namedX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundInt",
+        "from": "lib:package:m2app/app.dart::fn:namedY",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundInt",
+        "from": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundInt",
+        "from": "lib:package:m2app/app.dart::fn:genericNone",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundInt",
+        "from": "lib:package:m2app/app.dart::fn:genericOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundInt",
+        "from": "lib:package:m2app/app.dart::fn:boundNum",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundInt",
+        "from": "lib:package:m2app/app.dart::fn:staticOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundInt",
+        "from": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:boundInt",
+        "from": "lib:package:m2app/app.dart::fn:intIdentity",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:staticOne",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:staticOne",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:staticOne",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:staticOne",
+        "from": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:staticOne",
+        "from": "lib:package:m2app/app.dart::fn:neverCalled",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:staticOne",
+        "from": "lib:package:m2app/app.dart::fn:compute",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:staticOne",
+        "from": "lib:package:m2app/app.dart::fn:posOne",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:staticOne",
+        "from": "lib:package:m2app/app.dart::fn:posTwo",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:staticOne",
+        "from": "lib:package:m2app/app.dart::fn:posOptional",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:staticOne",
+        "from": "lib:package:m2app/app.dart::fn:namedX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:staticOne",
+        "from": "lib:package:m2app/app.dart::fn:namedY",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:staticOne",
+        "from": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:staticOne",
+        "from": "lib:package:m2app/app.dart::fn:genericNone",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:staticOne",
+        "from": "lib:package:m2app/app.dart::fn:genericOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:staticOne",
+        "from": "lib:package:m2app/app.dart::fn:boundNum",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:staticOne",
+        "from": "lib:package:m2app/app.dart::fn:boundInt",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:staticOne",
+        "from": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:staticOne",
+        "from": "lib:package:m2app/app.dart::fn:intIdentity",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "from": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "from": "lib:package:m2app/app.dart::fn:neverCalled",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "from": "lib:package:m2app/app.dart::fn:compute",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "from": "lib:package:m2app/app.dart::fn:posOne",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "from": "lib:package:m2app/app.dart::fn:posTwo",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "from": "lib:package:m2app/app.dart::fn:posOptional",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "from": "lib:package:m2app/app.dart::fn:namedX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "from": "lib:package:m2app/app.dart::fn:namedY",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "from": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "from": "lib:package:m2app/app.dart::fn:genericNone",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "from": "lib:package:m2app/app.dart::fn:genericOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "from": "lib:package:m2app/app.dart::fn:boundNum",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "from": "lib:package:m2app/app.dart::fn:boundInt",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "from": "lib:package:m2app/app.dart::fn:staticOne",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "from": "lib:package:m2app/app.dart::fn:intIdentity",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:intIdentity",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:intIdentity",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:intIdentity",
+        "from": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:intIdentity",
+        "from": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:intIdentity",
+        "from": "lib:package:m2app/app.dart::fn:neverCalled",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:intIdentity",
+        "from": "lib:package:m2app/app.dart::fn:compute",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:intIdentity",
+        "from": "lib:package:m2app/app.dart::fn:posOne",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:intIdentity",
+        "from": "lib:package:m2app/app.dart::fn:posTwo",
+        "abi_equal": false,
+        "call_convention_equal": false,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:intIdentity",
+        "from": "lib:package:m2app/app.dart::fn:posOptional",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:intIdentity",
+        "from": "lib:package:m2app/app.dart::fn:namedX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:intIdentity",
+        "from": "lib:package:m2app/app.dart::fn:namedY",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:intIdentity",
+        "from": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:intIdentity",
+        "from": "lib:package:m2app/app.dart::fn:genericNone",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:intIdentity",
+        "from": "lib:package:m2app/app.dart::fn:genericOne",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:intIdentity",
+        "from": "lib:package:m2app/app.dart::fn:boundNum",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:intIdentity",
+        "from": "lib:package:m2app/app.dart::fn:boundInt",
+        "abi_equal": false,
+        "call_convention_equal": true,
+        "accepted": false
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:intIdentity",
+        "from": "lib:package:m2app/app.dart::fn:staticOne",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      },
+      {
+        "onto": "lib:package:m2app/app.dart::fn:intIdentity",
+        "from": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "abi_equal": true,
+        "call_convention_equal": true,
+        "accepted": true
+      }
+    ],
+    "resolution_probes": [
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "function_name": "Shapes.",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::cls:Shapes::ctor:"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "function_name": "Shapes.",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::cls:Shapes::ctor:"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "function_name": "compute",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "function_name": "compute",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "function_name": "compute",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::cls:Shapes::method:compute"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "function_name": "compute",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "function_name": "mutableTopLevel",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:mutableTopLevel"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "function_name": "mutableTopLevel",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:mutableTopLevel"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:neverCalled",
+        "function_name": "neverCalled",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:neverCalled"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:neverCalled",
+        "function_name": "neverCalled",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:neverCalled"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:compute",
+        "function_name": "compute",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:compute"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:compute",
+        "function_name": "compute",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posOne",
+        "function_name": "posOne",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:posOne"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posOne",
+        "function_name": "posOne",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:posOne"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posTwo",
+        "function_name": "posTwo",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:posTwo"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posTwo",
+        "function_name": "posTwo",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:posTwo"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posOptional",
+        "function_name": "posOptional",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:posOptional"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posOptional",
+        "function_name": "posOptional",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:posOptional"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedX",
+        "function_name": "namedX",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:namedX"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedX",
+        "function_name": "namedX",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:namedX"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedY",
+        "function_name": "namedY",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:namedY"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedY",
+        "function_name": "namedY",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:namedY"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "function_name": "namedRequiredX",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:namedRequiredX"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "function_name": "namedRequiredX",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:namedRequiredX"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:genericNone",
+        "function_name": "genericNone",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:genericNone"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:genericNone",
+        "function_name": "genericNone",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:genericNone"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:genericOne",
+        "function_name": "genericOne",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:genericOne"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:genericOne",
+        "function_name": "genericOne",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:genericOne"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:boundNum",
+        "function_name": "boundNum",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:boundNum"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:boundNum",
+        "function_name": "boundNum",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:boundNum"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:boundInt",
+        "function_name": "boundInt",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:boundInt"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:boundInt",
+        "function_name": "boundInt",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:boundInt"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:staticOne",
+        "function_name": "staticOne",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:staticOne"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:staticOne",
+        "function_name": "staticOne",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:staticOne"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "function_name": "doubleIdentity",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:doubleIdentity"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "function_name": "doubleIdentity",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:doubleIdentity"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:intIdentity",
+        "function_name": "intIdentity",
+        "resolver": "declaration_id",
+        "resolved_to": "lib:package:m2app/app.dart::fn:intIdentity"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:intIdentity",
+        "function_name": "intIdentity",
+        "resolver": "function_name",
+        "resolved_to": "lib:package:m2app/app.dart::fn:intIdentity"
+      }
+    ],
     "measurements": {
-      "entries": 5,
-      "array_slots": 55,
-      "slots_per_entry": 11,
-      "registry_bytes_approx": 440,
-      "bytes_per_entry_approx": 88,
+      "entries": 19,
+      "array_slots": 247,
+      "slots_per_entry": 13,
+      "registry_bytes_approx": 1976,
+      "bytes_per_entry_approx": 104,
       "lookup_iterations": 10000,
-      "lookup_total_micros": 180,
+      "lookup_total_micros": 148,
       "lookup_note": "linear scan over a GrowableObjectArray; correctness first, and the cost is recorded rather than optimised around",
       "lookup_sink": 10000
     }
@@ -233,14 +3401,14 @@
     "schema_version": 1,
     "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
     "runtime_mode": "precompiled",
-    "entry_count": 5,
+    "entry_count": 19,
     "diverged_implementations": 0,
     "selected_seen_at_materialization": -1,
     "retained_at_materialization": -1,
     "dropped_at_materialization": -1,
     "entries": [
       {
-        "declaration_id": "lib:package:m2app/app.dart::cls:Widget::ctor:",
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
         "selected": true,
         "current": {
           "kind": "AOT",
@@ -252,13 +3420,33 @@
           "executable": true,
           "implementation_size": 32,
           "has_code": true,
-          "implementation_name_diagnostic": "Function 'Widget.': constructor."
+          "implementation_name_diagnostic": "Function 'Shapes.': constructor."
         },
-        "abi": "k1;p1/1;n;r;t0;norecv;onogen",
+        "abi": "k1;p1/1;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed2;regs0;nofactory;argstt;rett",
         "has_staged": false
       },
       {
-        "declaration_id": "lib:package:m2app/app.dart::cls:Widget::method:compute",
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 64,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 64,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'instanceOne':."
+        },
+        "abi": "k2;p1/1;n;r;t0;recv;onogen;b",
+        "call_convention": "cc1;fixed2;regs0;nofactory;argstt;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
         "selected": true,
         "current": {
           "kind": "AOT",
@@ -272,7 +3460,8 @@
           "has_code": true,
           "implementation_name_diagnostic": "Function 'compute':."
         },
-        "abi": "k2;p1/1;n;r;t0;recv;onogen",
+        "abi": "k2;p1/1;n;r;t0;recv;onogen;b",
+        "call_convention": "cc1;fixed2;regs0;nofactory;argstt;rett",
         "has_staged": false
       },
       {
@@ -290,7 +3479,8 @@
           "has_code": true,
           "implementation_name_diagnostic": "Function 'mutableTopLevel': static."
         },
-        "abi": "k3;p1/1;n;r;t0;norecv;onogen",
+        "abi": "k3;p1/1;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
         "has_staged": false
       },
       {
@@ -308,7 +3498,8 @@
           "has_code": true,
           "implementation_name_diagnostic": "Function 'neverCalled': static."
         },
-        "abi": "k3;p1/1;n;r;t0;norecv;onogen",
+        "abi": "k3;p1/1;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
         "has_staged": false
       },
       {
@@ -326,7 +3517,255 @@
           "has_code": true,
           "implementation_name_diagnostic": "Function 'compute': static."
         },
-        "abi": "k3;p1/1;n;r;t0;norecv;onogen",
+        "abi": "k3;p1/1;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posOne",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 56,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 56,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'posOne': static."
+        },
+        "abi": "k3;p1/1;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posTwo",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 72,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 72,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'posTwo': static."
+        },
+        "abi": "k3;p2/2;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed2;regs0;nofactory;argstt;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posOptional",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 104,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 104,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'posOptional': static."
+        },
+        "abi": "k3;p1/2;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedX",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 124,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 124,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'namedX': static."
+        },
+        "abi": "k3;p1/1;nx;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedY",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 124,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 124,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'namedY': static."
+        },
+        "abi": "k3;p1/1;ny;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 96,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 96,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'namedRequiredX': static."
+        },
+        "abi": "k3;p1/1;nx;rx;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:genericNone",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'genericNone': static."
+        },
+        "abi": "k3;p1/1;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:genericOne",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'genericOne': static."
+        },
+        "abi": "k3;p1/1;n;r;t1;norecv;onogen;blib:dart:core::cls:Object?",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:boundNum",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'boundNum': static."
+        },
+        "abi": "k3;p1/1;n;r;t1;norecv;onogen;blib:dart:core::cls:num",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:boundInt",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'boundInt': static."
+        },
+        "abi": "k3;p1/1;n;r;t1;norecv;onogen;blib:dart:core::cls:int",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:staticOne",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 56,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 56,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'staticOne': static."
+        },
+        "abi": "k3;p1/1;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 96,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 96,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'doubleIdentity': static."
+        },
+        "abi": "k3;p1/1;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:intIdentity",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 56,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 56,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'intIdentity': static."
+        },
+        "abi": "k3;p1/1;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
         "has_staged": false
       }
     ]
@@ -338,7 +3777,7 @@
       "description": "MAOT selection is disconnected from Precompiler::AddFunction",
       "why": "retention must be a decision this code makes, not a GC side effect it inherits",
       "result": "pass",
-      "observed": "without seeding: materialized 0 of 5 selected, 5 refused",
+      "observed": "without seeding: materialized 0 of 19 selected, 19 refused",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {
@@ -347,7 +3786,7 @@
       "description": "a selected Function is dropped by the precompiler",
       "why": "a selected Function the precompiler did not retain must be REFUSED, not shipped as an empty slot",
       "result": "pass",
-      "observed": "all 5 selected declarations refused as unretained/non-executable; none became a slot"
+      "observed": "all 19 selected declarations refused as unretained/non-executable; none became a slot"
     },
     {
       "id": "F04",
@@ -355,7 +3794,7 @@
       "description": "the constructor binding hook is removed",
       "why": "a missing binding seam must not read as \"basically complete\" because the other three are present",
       "result": "pass",
-      "observed": "4 of 5 bound; missing ['lib:package:m2app/app.dart::cls:Widget::ctor:']",
+      "observed": "18 of 19 bound with the constructor seam removed (1 constructor(s) expected to vanish); missing ['lib:package:m2app/app.dart::cls:Shapes::ctor:']",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {
@@ -364,7 +3803,7 @@
       "description": "an unselected declaration appears in the final registry",
       "why": "a slot is an authoritative promise of mutability; an unselected declaration must never hold one",
       "result": "pass",
-      "observed": "filter removed: 6 entries, 1 of them unselected, 1 outside the selected set",
+      "observed": "filter removed: 20 entries, 1 of them unselected, 1 outside the selected set",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {
@@ -373,7 +3812,7 @@
       "description": "maot:mutable parser arm exists but the VM target rejects the pragma, making it dead code",
       "why": "a parser arm for a pragma the target rejects is dead code, and nothing else in the pipeline says so",
       "result": "pass",
-      "observed": "VmTarget.isSupportedPragma accepts maot:mutable and 5 were selected"
+      "observed": "VmTarget.isSupportedPragma accepts maot:mutable and 19 were selected"
     },
     {
       "id": "F02",
@@ -381,7 +3820,7 @@
       "description": "a selected dead declaration is removed by the Dart tree shaker",
       "why": "a selected declaration removed by tree shaking must be reported, not silently absent from the registry",
       "result": "pass",
-      "observed": "selected=5 selectedButAbsent=[]; a non-empty absence list forces NOT_ESTABLISHED",
+      "observed": "selected=19 selectedButAbsent=[]; a non-empty absence list forces NOT_ESTABLISHED",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {
@@ -433,14 +3872,6 @@
       "observed": "A01=pass"
     },
     {
-      "id": "F23",
-      "kind": "live",
-      "description": "a lookup resolves by Function name, so two declarations that share a name alias one slot",
-      "why": "a lookup that resolved by Function name would bind a patch to the wrong one of two same-named declarations",
-      "result": "pass",
-      "observed": "L01=pass"
-    },
-    {
       "id": "F24",
       "kind": "live",
       "description": "an implementation is swapped underneath a descriptor and the registry keeps describing the old one",
@@ -454,7 +3885,7 @@
       "description": "selected-id cardinality matches while the exact sets differ",
       "why": "counts agreeing while the sets differ must not pass; this is why no condition compares cardinality alone",
       "result": "pass",
-      "observed": "5 ids vs 5 selected, one substituted; selected_set_exact = False",
+      "observed": "19 ids vs 19 selected, one substituted; selected_set_exact = False",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {
@@ -472,7 +3903,7 @@
       "description": "a release containing NO selected declaration fails to build, or builds with a non-empty registry",
       "why": "MAOT must be inert in a release that never used it; a pragma-free app is the common case, not an edge case",
       "result": "pass",
-      "observed": "no-pragma build: kernel=0 snapshot=0 elf=840184B runtime=0 registry_entries=0"
+      "observed": "no-pragma build: kernel=0 snapshot=0 elf=840232B runtime=0 registry_entries=0"
     },
     {
       "id": "F21",
@@ -481,6 +3912,32 @@
       "why": "a run that measures a different program than the one it names is worse than a run that does not happen",
       "result": "pass",
       "observed": "the toolchain matches all 9 sources now; against one edited source the guard reports 1 mismatch (runtime/vm/maot_registry.cc)"
+    },
+    {
+      "id": "F25",
+      "kind": "live",
+      "description": "the compatibility model is missing a dimension, so a replacement that differs in it is accepted",
+      "why": "a compatibility model missing a dimension accepts a replacement that differs in it",
+      "result": "pass",
+      "observed": "342 ordered pairs attempted, 58 accepted; 8 named dimensions, 0 not discriminated"
+    },
+    {
+      "id": "F26",
+      "kind": "live",
+      "description": "a selected declaration escapes the boxed stack calling convention that selection is supposed to pin it to",
+      "why": "a selected declaration escaping the boxed stack convention would let a replacement be handed unboxed values where the release expects tagged ones",
+      "result": "pass",
+      "observed": "all 19 selected declarations measure the boxed stack form; with one entry's representation changed to unboxed int the condition is False",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "F23",
+      "kind": "live",
+      "description": "a lookup resolves by Function name, so two declarations that share a name alias one slot",
+      "why": "a resolver keyed on the Function name aliases two declarations that share one, and binds a patch to the wrong body",
+      "result": "pass",
+      "observed": "the name-keyed resolver aliased 2 of 19 declarations (compute); the DeclarationId resolver aliased 0",
+      "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {
       "id": "F20",
@@ -511,7 +3968,9 @@
       "F21",
       "F22",
       "F23",
-      "F24"
+      "F24",
+      "F25",
+      "F26"
     ],
     "historical": [
       "F03",
@@ -555,6 +4014,10 @@
       "abi_validation_valid": true,
       "duplicate_missing_wrong_release_fail_closed": true,
       "identity_not_name_keyed": true,
+      "abi_model_discriminates_every_dimension": true,
+      "abi_omissions_declared": true,
+      "selected_calling_convention_is_boxed_stack": true,
+      "call_convention_is_measured_not_constant": true,
       "implementation_divergence_detectable": true,
       "no_selection_builds_clean": true,
       "introspection_valid": true,
@@ -576,6 +4039,10 @@
       "abi_validation_valid": "is an incompatible ABI refused BEFORE any state changes?",
       "duplicate_missing_wrong_release_fail_closed": "are duplicate ids, unknown ids and foreign-release patches refused?",
       "identity_not_name_keyed": "do two declarations that share a VM Function name resolve to their own implementations rather than to each other? (requires such a pair to exist in the program, or the question is unanswered)",
+      "abi_model_discriminates_every_dimension": "for every named ABI dimension, is a replacement differing only in that dimension refused -- and is the pairwise matrix an equivalence (identical pairs accepted, differing pairs refused) rather than a blanket refusal?",
+      "abi_omissions_declared": "is every compatibility dimension the model does NOT represent stated with its reason and the issue that owns it?",
+      "selected_calling_convention_is_boxed_stack": "is every selected declaration on the fully boxed, stack-based calling convention that selection is supposed to pin it to?",
+      "call_convention_is_measured_not_constant": "does the call-convention fingerprint actually differ between declarations in one run, or is it a constant string that would agree with anything?",
       "implementation_divergence_detectable": "if something rewrites Function::CurrentCode() underneath a descriptor, is that reported rather than silently described as the current implementation?",
       "introspection_valid": "is the runtime state readable as structured logical facts, with no address used as identity?",
       "required_falsifications_detected": "did every required falsification actually fire?",
