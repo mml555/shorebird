@@ -57,3 +57,12 @@ at 6875648 bytes, Sep 1 02:40. Built only in out/maot_host.
 
 The working change was verified BYTE-IDENTICAL to the rescued patch before it
 was discarded and re-applied, not merely equal in digest-of-a-digest.
+
+EIGHTH BORROW / HAND-BACK (pin the Code; L01/X01/X02 arms).
+Taken because the acceptance review found two required falsifications with no
+arm behind them: "lookup succeeds by function name while DeclarationIds
+differ" and "a replacement mutating a Function/Code object directly while
+registry state remains old". Neither could be shown without fork changes.
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Route B gen_snapshot untouched
+at 6875648 bytes, Sep 1 02:40. Built only in out/maot_host.

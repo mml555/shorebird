@@ -9,8 +9,9 @@ Fork `maot/build`, in the order the findings below were measured:
 | `38b31d7cd2e44ee188df324bd878dc736bccd1dd` | the first crossing of the compiler → runtime boundary |
 | `f74a637790b802e025c79a9715afc02be028d37d` | binding, retention and the executable-body invariant |
 | `c1a3f09af98df1d87bc52455a1a4b0750fd81964` | registry semantics, the self-test, and the two soundness fixes |
+| `d267e5f9204d9fccc9ffdee9933938948f3bb398` | the descriptor pins the Code, not just the Function |
 
-Tree `17f8320b29f80aeae19eb8f2c91cd51790876046`. A branch is transport; the
+Tree `d13e92ab0166df8c560922d545cc4eacb214ce8c`. A branch is transport; the
 commit and tree are identity.
 
 ## The architectural boundary is crossed
@@ -367,6 +368,57 @@ and only when both ends are well-formed 40-hex, so a missing or malformed head
 cannot be normalised into agreement. The content assertion stays blocking; the
 tree is recorded as a note and kept out of the assertion count, so
 "N checked: P pass, F fail" remains an accounting of checks.
+
+## A Function is not an implementation
+
+Reviewing #66's own acceptance list turned up two required falsifications with
+nothing behind them:
+
+> - lookup that accidentally succeeds by function name while declaration IDs
+>   differ;
+> - a replacement mutating a `Function`/`Code` object directly while registry
+>   state remains old.
+
+The first needed a fixture change, not a code change: the program had no two
+declarations sharing a VM `Function` name, so there was nothing a name-keyed
+lookup could have confused. `compute` now exists both as a top-level function
+and as `Widget.compute`, and `L01` refuses to pass when no such pair is
+present — an arm that could not run is not an arm that passed.
+
+The second was a design gap. The issue asks a descriptor to hold a
+"reference to executable implementation", and the descriptor held a
+`Function`. `Function::CurrentCode()` is a mutable field, so a descriptor
+holding only the `Function` follows whatever code is attached to it later, and
+"the registry still says AOT v1" is indistinguishable from correct state. Each
+entry now pins the `Code`, and `CountDivergedImplementations()` compares the
+pin against what the `Function` currently points at.
+
+Pinning had to move after dedup. Materialization runs before the drop phase,
+which is before `ProgramVisitor::Dedup`, so the pinned `Code` can be one dedup
+later merges away — and holding the pre-dedup object keeps two `Code`s with
+identical `Instructions` reachable, which the serializer refuses outright:
+
+```
+RELEASE_ASSERT(!FLAG_precompiled_mode)   // app_snapshot.cc:2787
+```
+
+`RepinMutableAotImplementations()` runs once after dedup. Not a way around
+the assertion: before dedup, the object the descriptor is supposed to name
+does not exist yet.
+
+### The arm that tested the wrong object
+
+`X02` first reported "divergence was not observed". The implementation was
+right; the arm was wrong. It chose its subject before the arms that mutate
+state ran, and by the time it swapped that `Function`'s code, `S04` had
+already promoted a staged replacement — the entry pointed somewhere else
+entirely, so the swap changed nothing any descriptor was watching. It now
+selects its subject at the moment it runs.
+
+The instinct on seeing a red arm is to doubt the implementation. Here the
+implementation was fine and the measurement was stale, which is the same class
+of mistake as the stale binary above: in both cases the lane was looking at
+something other than the thing it named.
 
 ## What is NOT claimed
 

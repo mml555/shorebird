@@ -44,6 +44,14 @@ CONDITIONS = {
         'is an incompatible ABI refused BEFORE any state changes?',
     'duplicate_missing_wrong_release_fail_closed':
         'are duplicate ids, unknown ids and foreign-release patches refused?',
+    'identity_not_name_keyed':
+        'do two declarations that share a VM Function name resolve to their '
+        'own implementations rather than to each other? (requires such a pair '
+        'to exist in the program, or the question is unanswered)',
+    'implementation_divergence_detectable':
+        'if something rewrites Function::CurrentCode() underneath a '
+        'descriptor, is that reported rather than silently described as the '
+        'current implementation?',
     'introspection_valid':
         'is the runtime state readable as structured logical facts, with no '
         'address used as identity?',
@@ -93,6 +101,10 @@ BANK = {
                     'the one it names'),
     'F22': ('live', 'a release containing NO selected declaration fails to '
                     'build, or builds with a non-empty registry'),
+    'F23': ('live', 'a lookup resolves by Function name, so two declarations '
+                    'that share a name alias one slot'),
+    'F24': ('live', 'an implementation is swapped underneath a descriptor and '
+                    'the registry keeps describing the old one'),
 }
 
 
@@ -149,6 +161,14 @@ def evaluate(observations, findings, registry=None, selftest=None):
     conditions['abi_validation_valid'] = _passed(st, 'A01')
     conditions['duplicate_missing_wrong_release_fail_closed'] = _passed(
         st, 'D01', 'M01', 'M02', 'N01')
+    # Identity, not spelling: L01 needs two same-named declarations to exist
+    # before it can say anything, so the population check is part of it.
+    conditions['identity_not_name_keyed'] = (
+        st.get('found_name_clash_pair') is True and _passed(st, 'L01'))
+    # X01 is the control: without it X02 could pass on a check that reports
+    # divergence unconditionally.
+    conditions['implementation_divergence_detectable'] = _passed(
+        st, 'X01', 'X02')
     # The pragma-free program is the common case, and MAOT must be inert in
     # it. This condition exists because it was not: the registry held every
     # loaded declaration as a strong root through the drop phase, so a class

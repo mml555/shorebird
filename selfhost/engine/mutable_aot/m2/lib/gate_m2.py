@@ -47,6 +47,12 @@ int notMutable(int seed) => seed + 2;
 @pragma('maot:mutable')
 String neverCalled(int seed) => 'release-$seed';
 
+// Deliberately shares its VM Function name with Widget.compute. A lookup that
+// resolved by name instead of by DeclarationId would confuse these two, and
+// without such a pair the arm that checks for it has nothing to run on.
+@pragma('maot:mutable')
+int compute(int seed) => seed * 7;
+
 @pragma('maot:not-a-real-contract')
 int bogusPragma(int seed) => seed + 99;
 
@@ -66,7 +72,7 @@ void main(List<String> args) {
   final seed = Platform.environment.length + args.length;
   final w = Widget(seed);
   print(bogusPragma(seed) + mutableTopLevel(seed) + notMutable(seed) +
-      w.compute(seed) + w.untouched(seed));
+      compute(seed) + w.compute(seed) + w.untouched(seed));
 }
 '''
 
@@ -80,6 +86,7 @@ SELECTED_EXPECTED = {
     'lib:package:m2app/app.dart::fn:neverCalled',
     'lib:package:m2app/app.dart::cls:Widget::ctor:',
     'lib:package:m2app/app.dart::cls:Widget::method:compute',
+    'lib:package:m2app/app.dart::fn:compute',
 }
 
 
@@ -464,7 +471,7 @@ def main(argv):
                        registry_minus_selected=sorted(ids4 - SELECTED_EXPECTED))
         arm('F04', 'a missing binding seam must not read as "basically '
                    'complete" because the other three are present',
-            g4 == 3 and (SELECTED_EXPECTED - ids4)
+            g4 == len(SELECTED_EXPECTED) - 1 and (SELECTED_EXPECTED - ids4)
             and v4['runtime_implementation_registry'] == 'NOT_ESTABLISHED',
             f'{g4} of {len(SELECTED_EXPECTED)} bound; missing '
             f'{sorted(SELECTED_EXPECTED - ids4)}',
@@ -504,9 +511,9 @@ def main(argv):
         gated = 'kMaotMutablePragmaName' in target_src
         arm('F01', 'a parser arm for a pragma the target rejects is dead code, '
                    'and nothing else in the pipeline says so',
-            gated and sel == 4,
-            'VmTarget.isSupportedPragma accepts maot:mutable and 4 were '
-            'selected' if gated else
+            gated and sel == len(SELECTED_EXPECTED),
+            f'VmTarget.isSupportedPragma accepts maot:mutable and {sel} were '
+            f'selected' if gated else
             'VmTarget does NOT accept it; the parser case is unreachable')
 
         # F02 -- a selected declaration eliminated before metadata attachment.
@@ -514,7 +521,7 @@ def main(argv):
                                             'fn:neverCalled'])
         arm('F02', 'a selected declaration removed by tree shaking must be '
                    'reported, not silently absent from the registry',
-            absent == [] and sel == 4
+            absent == [] and sel == len(SELECTED_EXPECTED)
             and v2['runtime_implementation_registry'] == 'NOT_ESTABLISHED',
             f'selected={sel} selectedButAbsent={absent}; a non-empty absence '
             f'list forces NOT_ESTABLISHED',
@@ -537,15 +544,22 @@ def main(argv):
                 ('F16', ('V01',), 'an implementation change must advance the '
                                   'version'),
                 ('F17', ('A01',), 'an incompatible ABI must be refused BEFORE '
-                                  'any state changes')):
+                                  'any state changes'),
+                ('F23', ('L01',), 'a lookup that resolved by Function name '
+                                  'would bind a patch to the wrong one of two '
+                                  'same-named declarations'),
+                ('F24', ('X01', 'X02'),
+                        'a replacement that rewrites Function::CurrentCode() '
+                        'directly leaves the registry describing an '
+                        'implementation that is no longer running')):
             ok = all(st_ok.get(s) for s in sids)
             arm(aid, why, ok,
                 ', '.join(f'{s}={"pass" if st_ok.get(s) else "FAIL/absent"}'
                           for s in sids))
 
         # F18 -- equal cardinality, different sets.
-        fake_ids = sorted(SELECTED_EXPECTED)[:3] + ['lib:package:m2app/'
-                                                    'app.dart::fn:notMutable']
+        fake_ids = (sorted(SELECTED_EXPECTED)[:len(SELECTED_EXPECTED) - 1]
+                    + ['lib:package:m2app/app.dart::fn:notMutable'])
         v18 = perturbed(registry_ids=fake_ids,
                         selected_minus_registry=sorted(SELECTED_EXPECTED -
                                                        set(fake_ids)),
