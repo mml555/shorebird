@@ -131,7 +131,56 @@ still appearing correctly retained and registered. The registry looked right
 and its AOT descriptors pointed at bodies the optimizer had dissolved. Values
 are now opaque to the compiler.
 
-## Remaining, and not forced
+## M2_RETENTION_BINDING_PROOF is met — and a retraction
+
+**The earlier "2 of 4 lack standalone code" claim was wrong**, and how it was
+wrong is the lesson: it came from `--print_instructions_sizes_to`, which is not
+authoritative about VM state. Instrumenting the real checkpoints shows all four
+selected declarations are queued — neither `AddFunction` early return fires —
+retained, and carry `Code`:
+
+```
+seed ::cls:Widget::ctor:          possibly_retained_before=0 seen_before=0 queued=1
+seed ::cls:Widget::method:compute possibly_retained_before=0 seen_before=0 queued=1
+seed ::fn:mutableTopLevel         possibly_retained_before=0 seen_before=0 queued=1
+seed ::fn:neverCalled             possibly_retained_before=0 seen_before=0 queued=1
+materialize <all four>            retained=1 hascode=1
+```
+
+In the precompiled runtime every descriptor is `AOT v1` with a real body:
+
+| declaration | size |
+|---|---|
+| `Widget` ctor | 32 B |
+| `Widget.compute` | 68 B |
+| `mutableTopLevel` | 56 B |
+| `neverCalled` | 80 B |
+
+Exact set equality both directions, 0 unselected slots, 0 dropped.
+
+### Executability is fail-closed
+
+Materialization now refuses a retained `Function` shell with no `Code`.
+`kind=AOT, version=1, Function present, nothing to replace` is false-safe
+state, and an AOT descriptor that cannot point at an executable release
+implementation is not a descriptor.
+
+`--maot_disable_seeding` is a permanent falsification control: it leaves
+binding and registration intact while disconnecting selection from
+`Precompiler::AddFunction`, and all four are then refused
+(`retained=0 executable=0`, **0 of 4 materialized**). That proves retention is
+a *consumed semantic decision* rather than an ObjectStore reachability side
+effect — registry existence alone is insufficient.
+
+Evidence: `evidence/retention_and_executability.txt`.
+
+## Inlining is #68's problem, deliberately
+
+Inlining is untouched. A caller may also hold an inlined copy; #66 only
+guarantees there is a canonical standalone body for the slot to reference.
+`OPTIMIZER_BYPASS_NOT_YET_PROVEN`, owned by **#68**.
+
+## Superseded: remaining, and not forced
 
 With non-foldable values, `neverCalled` (80 B) and `mutableTopLevel` (56 B)
 have standalone code; `Widget.compute` and the `Widget` constructor are still

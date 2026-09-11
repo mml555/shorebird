@@ -1,0 +1,20 @@
+MAOT-2 (#66) -- seeding and materialization state per selected declaration
+
+-- normal run: every selected declaration queued, retained, executable --
+[maot] seed ::cls:Widget::ctor: possibly_retained_before=0 seen_before=0 hascode_before=0 queued=1
+[maot] seed ::cls:Widget::method:compute possibly_retained_before=0 seen_before=0 hascode_before=0 queued=1
+[maot] seed ::fn:mutableTopLevel possibly_retained_before=0 seen_before=0 hascode_before=0 queued=1
+[maot] seed ::fn:neverCalled possibly_retained_before=0 seen_before=0 hascode_before=0 queued=1
+[maot] materialize ::cls:Widget::ctor: retained=1 hascode=1
+[maot] materialize ::cls:Widget::method:compute retained=1 hascode=1
+[maot] materialize ::fn:mutableTopLevel retained=1 hascode=1
+[maot] materialize ::fn:neverCalled retained=1 hascode=1
+[maot] materialized 4 of 4 selected (0 dropped)
+
+-- falsification: selection disconnected from Precompiler::AddFunction --
+[maot] SEEDING DISABLED (falsification control)
+[maot] selected declaration REFUSED: ::cls:Widget::ctor: retained=0 executable=0
+[maot] selected declaration REFUSED: ::cls:Widget::method:compute retained=0 executable=0
+[maot] selected declaration REFUSED: ::fn:mutableTopLevel retained=0 executable=0
+[maot] selected declaration REFUSED: ::fn:neverCalled retained=0 executable=0
+[maot] materialized 0 of 4 selected (4 dropped)
