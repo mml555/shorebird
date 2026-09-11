@@ -389,6 +389,19 @@ population at all. Selection and indexing walk `library.members` and
 and never receives a DeclarationId. **#75 (MAOT-11)** owns closures,
 async/generators and isolates. This is an explicit exclusion, not an omission.
 
+### Resolution probes are taken on pristine state
+
+The self-test stages and commits by design — `S04` deliberately puts one
+entry's implementation into another entry's slot. Any probe that reads
+`Function::name()` after that reports a Function the declaration no longer
+owns, so the resolution probes run in their **own `dartaotruntime`
+invocation**, behind `--maot_probe_resolvers`, which never mutates anything.
+
+The gate does not take that on trust: the registry reports
+`AnyEntryHasStagedOrAdvanced()` beside the probes, and every probe's Function
+name is cross-checked against the binding evidence in the registry dump before
+either resolver's result counts. A mismatch is a blocking finding.
+
 ### How it is proven
 
 Not by "two different strings are refused", which proves nothing about

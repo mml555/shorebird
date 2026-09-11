@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 import shutil
+import re
 import subprocess
 import sys
 import time
@@ -99,6 +100,39 @@ double doubleIdentity(double x) => x * 2.0;
 @pragma('maot:mutable')
 int intIdentity(int x) => x * 2;
 
+// ---- generic-scope collision pairs --------------------------------------
+// Each of these pairs renders IDENTICALLY under a type renderer that spells
+// scopes by name instead of by position, or that drops a nested function
+// type's own binder. Semantically they are different ABI shapes, so a renderer
+// that collides them certifies a replacement that changes the contract.
+
+class OwnerAB<A, B> {
+  // bound refers to the owner's type parameter at position 0
+  @pragma('maot:mutable')
+  T byPosition<T extends A>(T x) => x;
+}
+
+class OwnerBA<B, A> {
+  // the SAME source spelling `A`, but A is now at owner position 1
+  @pragma('maot:mutable')
+  T byPosition<T extends A>(T x) => x;
+}
+
+// Nested generic function type in the bound: the inner binder's own bound is
+// the only difference, and it is inside a FunctionType.
+@pragma('maot:mutable')
+T nestedBoundNum<T extends X Function<X extends num>(X)>(T x) => x;
+@pragma('maot:mutable')
+T nestedBoundInt<T extends X Function<X extends int>(X)>(T x) => x;
+
+// Positive control for the other direction: renaming a type parameter without
+// changing structure must stay EQUAL, or the renderer is merely strict rather
+// than injective.
+@pragma('maot:mutable')
+T renamedT<T extends num>(T x) => x;
+@pragma('maot:mutable')
+U renamedU<U extends num>(U x) => x;
+
 class Shapes {
   int n;
 
@@ -125,6 +159,18 @@ void main(List<String> args) {
       staticOne(seed) + s.instanceOne(seed) + intIdentity(seed);
   acc += doubleIdentity(seed.toDouble()).toInt();
   acc += genericNone(seed) == null ? 0 : 1;
+  // Explicit type arguments throughout: inference here would make the sum's
+  // static type num and the fixture would stop compiling for a reason that
+  // has nothing to do with what it is testing.
+  acc += OwnerAB<int, String>().byPosition<int>(seed);
+  acc += OwnerBA<String, int>().byPosition<int>(seed);
+  acc += renamedT<int>(seed);
+  acc += renamedU<int>(seed);
+  final numBounded = nestedBoundNum<X Function<X extends num>(X)>(
+      <X extends num>(X v) => v);
+  final intBounded = nestedBoundInt<X Function<X extends int>(X)>(
+      <X extends int>(X v) => v);
+  acc += numBounded<int>(2) + intBounded<int>(3);
   print(acc);
 }
 '''
@@ -142,12 +188,25 @@ def _selected_from_fixture(src, lib='lib:package:m2app/app.dart'):
     fact twice, and the copies drift -- which is how a stale five-element set
     outlived a nineteen-declaration fixture.
     """
+    def strip_type_params(text):
+        """Remove balanced <...> groups. Splitting on '<' instead leaves
+        `class OwnerAB<A, B>` reading as the class `OwnerAB<A,`."""
+        out, depth = [], 0
+        for ch in text:
+            if ch == '<':
+                depth += 1
+            elif ch == '>':
+                depth = max(0, depth - 1)
+            elif depth == 0:
+                out.append(ch)
+        return ''.join(out)
+
     ids, cls, pending = set(), None, False
     for raw in src.splitlines():
         line = raw.strip()
         indented = raw.startswith('  ')
         if line.startswith('class '):
-            cls = line.split()[1].split('{')[0].strip()
+            cls = strip_type_params(line[6:]).split('{')[0].strip()
             continue
         if line == '}' and not indented:
             cls = None
@@ -157,19 +216,10 @@ def _selected_from_fixture(src, lib='lib:package:m2app/app.dart'):
         if not pending or not line:
             continue
         pending = False
-        sig = line.split('(')[0]
         # Strip the type-parameter list FIRST. Splitting on '<' instead would
         # leave `T boundNum<T extends num>` reading as the declaration `num>`,
         # which is how two of these silently went missing.
-        out, depth = [], 0
-        for ch in sig:
-            if ch == '<':
-                depth += 1
-            elif ch == '>':
-                depth = max(0, depth - 1)
-            elif depth == 0:
-                out.append(ch)
-        sig = ''.join(out).strip()
+        sig = strip_type_params(line.split('(')[0]).strip()
         name = sig.split()[-1] if ' ' in sig else sig
         if cls is not None and name == cls:
             ids.add(f'{lib}::cls:{cls}::ctor:')
@@ -194,6 +244,9 @@ ABI_DIMENSIONS = {
     'type parameter count': ('fn:genericNone', 'fn:genericOne'),
     'type parameter bound': ('fn:boundNum', 'fn:boundInt'),
     'instance vs static': ('fn:staticOne', 'cls:Shapes::method:instanceOne'),
+    'owner type-parameter position': ('cls:OwnerAB::method:byPosition',
+                                      'cls:OwnerBA::method:byPosition'),
+    'nested function-type bound': ('fn:nestedBoundNum', 'fn:nestedBoundInt'),
     'constructor vs method': ('cls:Shapes::ctor:',
                               'cls:Shapes::method:instanceOne'),
 }
@@ -418,10 +471,12 @@ class Run:
                f'--maot_namespace={namespace}'] + list(extra) + [self.dill]
         return subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
 
-    def run_aot(self, dump=None, selftest=None):
+    def run_aot(self, dump=None, selftest=None, probes=None):
         cmd = [os.path.join(OUT, 'dartaotruntime')]
         if dump:
             cmd.append(f'--maot_dump_registry={dump}')
+        if probes:
+            cmd.append(f'--maot_probe_resolvers={probes}')
         if selftest:
             cmd.append(f'--maot_selftest={selftest}')
         cmd.append(self.aot)
@@ -557,13 +612,25 @@ def main(argv):
 
         reg_path = os.path.join(work, 'registry.json')
         st_path = os.path.join(work, 'selftest.json')
-        r = main_run.run_aot(dump=reg_path, selftest=st_path)
+        # SEPARATE PROCESS for the resolution probes. The self-test stages and
+        # commits by design, so a probe sharing its invocation reads a
+        # registry the test itself moved -- which is how the first version of
+        # this arm ended up reporting Shapes.instanceOne under the name
+        # "compute". Nothing in this process ever mutates the registry.
+        probe_path = os.path.join(work, 'probes.json')
+        pr = main_run.run_aot(dump=reg_path, probes=probe_path)
+        if pr.returncode != 0:
+            finding('PROBE_RUN_FAILED', (pr.stderr or pr.stdout)[-400:])
+        r = main_run.run_aot(selftest=st_path)
         if r.returncode != 0:
             finding('RUNTIME_FAILED', (r.stderr or r.stdout)[-800:])
         if os.path.exists(reg_path):
             registry = json.load(open(reg_path))
         if os.path.exists(st_path):
             selftest = json.load(open(st_path))
+        probes_doc = {}
+        if os.path.exists(probe_path):
+            probes_doc = json.load(open(probe_path))
 
         reg_ids = {e['declaration_id'] for e in registry.get('entries', [])}
         observations['registry_ids'] = sorted(reg_ids)
@@ -943,6 +1010,102 @@ def main(argv):
             + (f' ({", ".join(undiscriminated)})' if undiscriminated else '')
             + (f'; {len(violations)} matrix violations' if violations else ''))
 
+        # ---------------- generic-scope injectivity ----------------
+        # A renderer that spells scopes by NAME, or that drops a nested
+        # function type's own binder, collides these pairs. The projection
+        # below erases exactly the information the positional encoding adds --
+        # the scope index, and the nested binder's declaration -- and shows the
+        # pairs become indistinguishable under it while being distinct in
+        # reality. So the positional encoding is what separates them, rather
+        # than something else in the string happening to differ.
+        def erase_positional_scope(abi):
+            """The information a name-spelling, binder-dropping renderer kept.
+
+            `otp0`/`otp1` both came back as the source name, so they collapse
+            together; a nested `fn<N:bounds>` had no binder declaration at all,
+            so that prefix is removed.
+            """
+            # No \b anchors: the bounds field is introduced by a bare `b`,
+            # so `botp0` has no word boundary before `otp` and an anchored
+            # pattern silently matches nothing -- which would make this
+            # projection claim the pairs do not collide.
+            out = re.sub(r'(otp|mtp)\d+', r'\1', abi)
+            out = re.sub(r'ftp\d+\.\d+', 'ftp', out)
+            out = re.sub(r'fn<\d+(?::[^>]*)?>', 'fn<>', out)
+            return out
+
+        abi_of = {e['declaration_id']: e['abi']
+                  for e in registry.get('entries', [])}
+        collision_rows = []
+        for name in ('owner type-parameter position',
+                     'nested function-type bound'):
+            a, b = ABI_DIMENSIONS[name]
+            ia, ib = full.get(a), full.get(b)
+            if ia is None or ib is None:
+                continue
+            raw_a, raw_b = abi_of.get(ia, ''), abi_of.get(ib, '')
+            collision_rows.append({
+                'dimension': name,
+                'a': ia, 'b': ib,
+                'abi_a': raw_a, 'abi_b': raw_b,
+                'distinct_now': raw_a != raw_b,
+                'collides_without_positional_scope':
+                    erase_positional_scope(raw_a)
+                    == erase_positional_scope(raw_b),
+                'projected': erase_positional_scope(raw_a),
+            })
+        observations['generic_scope_collisions'] = collision_rows
+
+        # Under a colliding renderer the matrix would report these pairs as
+        # abi_equal and accept them. Feed that state through the same
+        # acceptance logic and require refusal.
+        collided_dims = []
+        for row in dimension_rows:
+            if row['dimension'] in ('owner type-parameter position',
+                                    'nested function-type bound'):
+                collided_dims.append(dict(row, abi_equal=True,
+                                          accepted_a_from_b=True,
+                                          accepted_b_from_a=True,
+                                          discriminated=False))
+            else:
+                collided_dims.append(row)
+        v27 = perturbed(
+            abi_dimensions=collided_dims,
+            abi_dimensions_undiscriminated=['owner type-parameter position',
+                                            'nested function-type bound'])
+        arm('F27', 'a type renderer that spells generic scopes by name, or '
+                   'drops a nested function type\'s own binder, canonicalizes '
+                   'two different ABI shapes to one string',
+            bool(collision_rows)
+            and all(r['distinct_now'] for r in collision_rows)
+            and all(r['collides_without_positional_scope']
+                    for r in collision_rows)
+            and not v27['conditions'][
+                'abi_model_discriminates_every_dimension']
+            and v27['runtime_implementation_registry'] == 'NOT_ESTABLISHED',
+            f'{len(collision_rows)} pairs are distinct with positional scopes '
+            f'and collide without them; under a colliding renderer the model '
+            f'discriminates '
+            f'{v27["conditions"]["abi_model_discriminates_every_dimension"]}',
+            v27['runtime_implementation_registry'])
+
+        # And the other direction: renaming a type parameter without changing
+        # structure must stay EQUAL, or the renderer is strict rather than
+        # injective and every replacement becomes impossible.
+        rt = full.get('fn:renamedT')
+        ru = full.get('fn:renamedU')
+        rename_equal = (rt is not None and ru is not None
+                        and abi_of.get(rt) == abi_of.get(ru))
+        rename_accepted = bool(by_pair.get((rt, ru), {}).get('accepted'))
+        observations['type_parameter_rename_is_invisible'] = rename_equal
+        observations['type_parameter_rename_accepted'] = rename_accepted
+        arm('F28', 'a renderer that encoded type-parameter NAMES would refuse '
+                   'a pure rename, making the model strict rather than '
+                   'injective and every replacement impossible',
+            rename_equal and rename_accepted,
+            f'renamedT and renamedU canonicalize equal={rename_equal} and the '
+            f'matrix accepts the pair={rename_accepted}')
+
         # ---------------- the boxed-stack calling-convention invariant ----
         cc_rows = [{'declaration_id': e['declaration_id'],
                     'call_convention': e.get('call_convention'),
@@ -987,7 +1150,38 @@ def main(argv):
                 v26['runtime_implementation_registry'])
 
         # ---------------- injected name-keyed resolver ----------------
-        probes = selftest.get('resolution_probes') or []
+        # The probes come from their own process, and they are not trusted on
+        # the strength of that alone: each probe's Function name must agree
+        # with the binding evidence in the registry dump before either
+        # resolver's result is allowed to mean anything. A contaminated probe
+        # is a blocking finding, not a quietly wrong number.
+        probes = probes_doc.get('resolution_probes') or []
+        diag_name = {}
+        for e in registry.get('entries', []):
+            d = e['current'].get('implementation_name_diagnostic', '')
+            # "Function 'name': qualifiers." -> name
+            if "'" in d:
+                diag_name[e['declaration_id']] = d.split("'")[1]
+        contaminated = [
+            {'declaration_id': p['declaration_id'],
+             'probe_function_name': p['function_name'],
+             'binding_function_name': diag_name.get(p['declaration_id'])}
+            for p in probes
+            if diag_name.get(p['declaration_id']) is not None
+            and p['function_name'] != diag_name[p['declaration_id']]
+            and not diag_name[p['declaration_id']].endswith('.')]
+        observations['probe_state_pristine'] = probes_doc.get('pristine')
+        observations['probes_contaminated'] = contaminated
+        if contaminated:
+            finding('PROBE_STATE_CONTAMINATED',
+                    f'{len(contaminated)} resolution probe(s) name a Function '
+                    f'the declaration does not own according to the binding '
+                    f'evidence; the probed state is not the release state')
+        if probes and probes_doc.get('pristine') is not True:
+            finding('PROBE_STATE_NOT_PRISTINE',
+                    'the runtime reported that the registry had already been '
+                    'staged or advanced when the probes were taken')
+
         by_id = [p for p in probes if p['resolver'] == 'declaration_id']
         by_name = [p for p in probes if p['resolver'] == 'function_name']
         id_wrong = [p for p in by_id if p['resolved_to'] != p['declaration_id']]
@@ -997,16 +1191,22 @@ def main(argv):
         observations['declaration_id_resolver_mismatches'] = id_wrong
         observations['name_keyed_resolver_aliases'] = name_aliased
 
-        # The defect really happened in the VM, over the real registry. Feed
-        # THOSE numbers through the same acceptance logic and require refusal.
-        v23 = perturbed(st=dict(selftest, resolution_probes=[
-            dict(p, resolver='declaration_id') for p in by_name]))
+        # The defect really happened in the VM, over the real pristine
+        # registry. Feed THOSE numbers through the same acceptance logic and
+        # require refusal.
+        v23 = perturbed(probe_state_pristine=probes_doc.get('pristine'),
+                        probes_contaminated=contaminated,
+                        resolution_probes=[dict(p, resolver='declaration_id')
+                                           for p in by_name])
         arm('F23', 'a resolver keyed on the Function name aliases two '
                    'declarations that share one, and binds a patch to the '
                    'wrong body',
             bool(name_aliased) and not id_wrong
             and not v23['conditions']['identity_not_name_keyed']
             and v23['runtime_implementation_registry'] == 'NOT_ESTABLISHED',
+            f'probes taken in a process that never mutated the registry '
+            f'(pristine={probes_doc.get("pristine")}, '
+            f'{len(contaminated)} contaminated against the binding evidence); '
             f'the name-keyed resolver aliased {len(name_aliased)} of '
             f'{len(by_name)} declarations '
             f'({", ".join(sorted({p["function_name"] for p in name_aliased}))}'

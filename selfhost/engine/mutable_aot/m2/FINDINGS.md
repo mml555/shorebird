@@ -531,6 +531,95 @@ is worth naming: an arm that reads state must say *when* it reads it.
 to 19 declarations and the list still had 5. It is now derived from the fixture
 source, which is the only copy.
 
+## Second hold: two defects the repair itself introduced or left
+
+### The F23 probes were reading state the test had moved
+
+Moving `L01` before `S04` fixed `L01` — and left the resolution probes where
+they were, at the end of `RunSelfTest`, *after* `S04` commits one entry's
+implementation onto another entry's slot. The evidence said so plainly:
+
+| | |
+|---|---|
+| binding record | `Shapes.instanceOne` → `Function 'instanceOne'` |
+| later probe, same declaration | `function_name = "compute"` |
+
+The name-keyed resolver then aliased onto `Shapes.instanceOne` for a reason
+that had nothing to do with the defect being probed, and the gate consumed
+that as the falsification.
+
+Reordering again would have been the third patch to the same class of mistake,
+so the fix is structural instead: the probes live in
+`WriteResolutionProbes()` behind `--maot_probe_resolvers`, and the gate takes
+them in a **separate `dartaotruntime` invocation** that never stages or
+commits. Nothing in that function can be re-ordered into a mutation.
+
+Two further guards, because a process asserting its own cleanliness is not
+evidence:
+
+* the registry reports `AnyEntryHasStagedOrAdvanced()` next to the probes;
+* the gate cross-checks every probe's `function_name` against the binding
+  evidence in the registry dump, and a mismatch is a blocking
+  `PROBE_STATE_CONTAMINATED` finding rather than a quietly wrong number.
+
+### The type renderer was not injective
+
+`renderType` spelled enclosing-class type parameters as `ownertp:<name>` and
+structural ones as `stp:<name>` — raw names — and a nested `FunctionType`
+rendered its arguments and return but not its **own** type parameters or their
+bounds. Kernel treats those bounds as semantic content:
+`FunctionType._computeHashCode` hashes `parameter.bound` for each one, so this
+was a divergence from the language's own notion of type identity.
+
+Two real collision classes:
+
+```dart
+class P1<A, B> { T m<T extends A>(T x); }
+class P2<B, A> { T m<T extends A>(T x); }   // A is a different slot
+
+T extends X Function<X extends num>(X)
+T extends X Function<X extends int>(X)      // nested bound dropped
+```
+
+Both canonicalized **equal**. For a compatibility gate that is the dangerous
+direction: semantically different ABI shapes certifying each other.
+
+Every generic scope is now positional:
+
+| scope | token |
+|---|---|
+| method type parameter | `mtp<i>` |
+| enclosing-class type parameter | `otp<i>` |
+| nested function-type parameter | `ftp<depth>.<i>`, innermost binder at depth 0 |
+
+and a `FunctionType` encodes its type-parameter count and each bound, rendered
+with its own binder pushed so an F-bounded parameter resolves to itself. A
+reference resolving to no binder in scope is `unrepresentable:`, not a name.
+
+Measured on the fixture:
+
+```
+cls:OwnerAB::method:byPosition   ...;botp0%
+cls:OwnerBA::method:byPosition   ...;botp1%
+fn:nestedBoundNum   ...;bfn<1:lib:dart:core::cls:num>(1/ftp0.0)->ftp0.0
+fn:nestedBoundInt   ...;bfn<1:lib:dart:core::cls:int>(1/ftp0.0)->ftp0.0
+fn:renamedT         ...;blib:dart:core::cls:num
+fn:renamedU         ...;blib:dart:core::cls:num     <- equal, as it must be
+```
+
+`F27` erases exactly the information the positional encoding adds — the scope
+index and the nested binder declaration — and shows both pairs collide under
+that projection while being distinct in reality. So the positional encoding is
+what separates them, rather than something else in the string happening to
+differ. `F28` holds the other direction: a pure rename stays equal and the
+matrix accepts it. A renderer that merely refused everything would pass a
+one-directional check while making replacement impossible.
+
+*(The projection's first version used `\b` anchors and silently matched
+nothing, because the bounds field is introduced by a bare `b` and `botp0` has
+no word boundary before `otp`. It would have reported "these do not collide" —
+the same false-negative shape as the arms above.)*
+
 ## What is NOT claimed
 
 No body replacement, no call-site redirection, no execution of `PATCH_CODE`.

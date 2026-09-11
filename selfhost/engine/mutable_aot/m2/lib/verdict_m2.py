@@ -46,8 +46,9 @@ CONDITIONS = {
         'are duplicate ids, unknown ids and foreign-release patches refused?',
     'identity_not_name_keyed':
         'do two declarations that share a VM Function name resolve to their '
-        'own implementations rather than to each other? (requires such a pair '
-        'to exist in the program, or the question is unanswered)',
+        'own implementations rather than to each other -- measured on PRISTINE '
+        'state, cross-checked against the binding evidence, and requiring such '
+        'a pair to exist or the question is unanswered?',
     'abi_model_discriminates_every_dimension':
         'for every named ABI dimension, is a replacement differing only in '
         'that dimension refused -- and is the pairwise matrix an equivalence '
@@ -56,6 +57,11 @@ CONDITIONS = {
     'abi_omissions_declared':
         'is every compatibility dimension the model does NOT represent stated '
         'with its reason and the issue that owns it?',
+    'type_renderer_injective_over_scope':
+        'are two generic shapes that differ only in scope POSITION rendered '
+        'differently, while a pure type-parameter rename is rendered '
+        'identically? (both directions: a colliding renderer is false-safe, a '
+        'name-encoding one refuses every legitimate replacement)',
     'selected_calling_convention_is_boxed_stack':
         'is every selected declaration on the fully boxed, stack-based calling '
         'convention that selection is supposed to pin it to?',
@@ -124,6 +130,11 @@ BANK = {
                     'replacement that differs in it is accepted'),
     'F26': ('live', 'a selected declaration escapes the boxed stack calling '
                     'convention that selection is supposed to pin it to'),
+    'F27': ('live', 'the type renderer spells generic scopes by name or drops '
+                    'a nested binder, so two different ABI shapes canonicalize '
+                    'to one string'),
+    'F28': ('live', 'the type renderer encodes type-parameter names, so a pure '
+                    'rename reads as an incompatible change'),
 }
 
 
@@ -185,11 +196,18 @@ def evaluate(observations, findings, registry=None, selftest=None):
     # injected name-keyed one. The population check is part of the condition:
     # without two same-named declarations the question is unanswered, and
     # unanswered is not the same as yes.
-    probes = st.get('resolution_probes') or []
+    # The probes come from a process that never staged or committed, and they
+    # are cross-checked against the binding evidence before they count. State
+    # that has moved cannot answer a question about resolution: the probe would
+    # report a Function the declaration no longer owns, and the answer would be
+    # about the test rather than about the resolver.
+    probes = o.get('resolution_probes') or []
     conditions['identity_not_name_keyed'] = (
         st.get('found_name_clash_pair') is True
         and _passed(st, 'L01')
         and bool(probes)
+        and o.get('probe_state_pristine') is True
+        and o.get('probes_contaminated') == []
         and all(p.get('resolved_to') == p.get('declaration_id')
                 for p in probes if p.get('resolver') == 'declaration_id'))
 
@@ -206,6 +224,17 @@ def evaluate(observations, findings, registry=None, selftest=None):
 
     # An omission has to be stated, with the issue that owns it.
     conditions['abi_omissions_declared'] = bool(o.get('abi_not_represented'))
+
+    # The type renderer must be injective over shape in BOTH directions:
+    # different shapes must not collide, and a pure rename must not separate.
+    # A renderer that is merely strict refuses every replacement, which passes
+    # a one-directional check while making the feature useless.
+    collisions = o.get('generic_scope_collisions') or []
+    conditions['type_renderer_injective_over_scope'] = (
+        bool(collisions)
+        and all(c.get('distinct_now') for c in collisions)
+        and o.get('type_parameter_rename_is_invisible') is True
+        and o.get('type_parameter_rename_accepted') is True)
 
     # Selection pins every selected declaration to the fully boxed, stack-based
     # calling convention (see CALLCONV_BOXED_STACK for the source chain). That
