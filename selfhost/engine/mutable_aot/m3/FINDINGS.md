@@ -105,10 +105,93 @@ Nothing in #67's own lane would have noticed: its fixture has no two bodies
 that dedup merges. The regression run is what caught it, which is what the
 regression run is for.
 
-## Acceptance: one item not met
+## The hold repair: hardening the proof, not the mechanism
+
+Independent review accepted the mechanism and held the milestone. Seven of the
+eight items were about the evidence disagreeing with itself.
+
+### The verdict was one claim doing two jobs
+
+`direct_static_replacement = ESTABLISHED` was simultaneously "the mechanism
+works" and "the issue may close" — while `FINDINGS.md` said an acceptance item
+was unmet and the record said `findings: []`. A record that disagrees with its
+own prose is worse than one that reports a failure.
+
+There are now two:
+
+| verdict | what it means |
+|---|---|
+| `arm64_aot_direct_static_vertical_slice` | the mechanism, on this architecture, for this call form |
+| `issue_67_closure` | that, **and** every acceptance item met |
+
+An unmet item is a blocking `ACCEPTANCE_ITEM_NOT_MET` finding. It blocks
+closure and deliberately does not sink the slice: the milestone is incomplete,
+the mechanism is not broken.
+
+### The performance condition was false-safe
+
+It tested that a field was non-null. The field held a *sentence* saying the
+measurement had not been taken, and there was no static-call figure at all.
+
+The fixture now runs real loops — two million calls per arm, three samples
+each, against non-selected controls marked `vm:never-inline`, because an
+inlined control is not a call and would make the indirection look arbitrarily
+expensive. `G16` falsifies it in both directions: a prose value fails, and so
+does dropping the static arm.
+
+Two measurement defects surfaced on the way:
+
+* the fixture divided microseconds by two million **in integers**, so every
+  arm rounded to 0 or 1 — a measurement destroyed by its own units;
+* a single sample at ~1 ns/call is dominated by scheduling noise. One arm
+  measured *faster than its own control*. That is a coin flip, not a speedup.
+
+So the honest statement is recorded as such: the indirection costs **two extra
+instructions per call**, and its cost is **not resolvable above noise** at this
+iteration count. `overhead_is_within_noise` is in the record. A resolvable
+figure needs a quieter harness, which belongs with #68.
+
+### Build provenance was weaker than #66's
+
+The m3 gate named the Dart commit but did not bind the binaries to those exact
+source bytes. It now uses the same content digest #66 learned it needed —
+mtimes are useless on a shared rig, where switching branches rewrites every one
+without changing a byte — and `G17` shows the guard firing against one edited
+source.
+
+Extending the digest to cover `flow_graph_compiler_arm64.cc` and `inliner.cc`
+immediately made **#66** fail: its own source list did not know about #67's
+lowering, which ships in the same binaries it measures. The guard was right and
+#66's list was incomplete.
+
+### Replacement identity was a spelling
+
+The descriptor named its current implementation with a Function-name
+diagnostic. #66 spent an arm proving two declarations can share one. The
+install path knows the replacement's #65 DeclarationId, so the descriptor
+records `current_implementation_id`, `release.implementation_id` and
+`current_implementation_is_the_declaration_itself` — and the identity
+condition reads those, not the diagnostic.
+
+### The result is architecture-scoped, and says so
+
+The lowering is in `flow_graph_compiler_arm64.cc`. No other architecture has
+one. `target_arch=arm64` is in the record, in the verdict name, and in
+`not_claimed`.
+
+## Acceptance: one item not met, and it was mis-specified
 
 `#64` rows `EB-01` (top-level function body) and `EB-02` (static method body)
-are the rows this milestone should move to `PROVEN`. They remain `UNMODELED`.
+remain `UNMODELED`, and the acceptance item as written was itself an overclaim.
+
+Those rows are not "direct top-level" and "static direct". Each requires the
+`direct`, `tearoff_pre`, `tearoff_post` and `dynamic` dispatch modes, across
+JIT and AOT and cold and hot. #67 exercises **one** of those cells, so
+promoting either row would overclaim by a wide margin.
+
+The record therefore carries a `t0_row_linkage` that states exactly what is
+covered — `direct`, AOT, cold and hot, on arm64 — what is not, and that each
+row still reports `UNMODELED`. `G18` refuses a whole-row promotion.
 
 This is not a matter of editing a row. All 104 T0 rows are `UNMODELED` because
 `mechanism.py` has two backends — `none`, which refuses everything, and

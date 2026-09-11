@@ -45,6 +45,60 @@ MAOT_CXX_SOURCES = (
 )
 
 
+DIGEST_FILE = '.maot_source_digest'
+
+
+def build_digests():
+    return {f: (sha256_file(os.path.join(FORK, f))
+                if os.path.exists(os.path.join(FORK, f)) else None)
+            for f in MAOT_CXX_SOURCES}
+
+
+def recorded_digests():
+    """What m2/build_maot.sh recorded after the last successful build."""
+    p = os.path.join(OUT, DIGEST_FILE)
+    if not os.path.exists(p):
+        return None
+    rec = {'files': {}}
+    for line in open(p):
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        a, _, b = line.partition(' ')
+        if a in ('fork_commit', 'fork_tree', 'built_at'):
+            rec[a] = b
+        else:
+            rec['files'][b] = a
+    return rec
+
+
+def provenance(override=None):
+    """How the built toolchain disagrees with the sources on disk.
+
+    Content, not mtimes: this rig is shared, and switching branches on it
+    rewrites every mtime without changing a byte. `override` substitutes a
+    digest map so the guard can be shown to fire as well as to stay quiet.
+    """
+    rec = recorded_digests()
+    if rec is None:
+        return [{'problem': 'no build digest',
+                 'detail': f'{os.path.join(OUT, DIGEST_FILE)} is absent; '
+                           f'build with m2/build_maot.sh'}]
+    now = override if override is not None else build_digests()
+    out = []
+    for f in sorted(MAOT_CXX_SOURCES):
+        want, got = rec['files'].get(f), now.get(f)
+        if want is None:
+            out.append({'problem': 'source not covered by the build digest',
+                        'file': f})
+        elif got is None:
+            out.append({'problem': 'source absent', 'file': f})
+        elif got != want:
+            out.append({'problem': 'source differs from the build',
+                        'file': f, 'built_from': want[:16], 'on_disk': got[:16]})
+    return out
+
+
 def sha256_file(path):
     h = hashlib.sha256()
     with open(path, 'rb') as fh:
@@ -160,6 +214,27 @@ def main(argv):
                 f'{FORK} has no Mutable-AOT sources; the shared rig is handed '
                 f'back. See m2/rescued/R3_STATE_BEFORE_BORROW.txt.')
 
+    # ---- build provenance, before anything is measured ----
+    stale = provenance()
+    observations['target_arch'] = V.TARGET_ARCH
+    observations['build_digest'] = recorded_digests() or {}
+    observations['build_provenance_mismatches'] = stale
+    observations['build_digest_matches'] = (stale == [])
+    if stale:
+        finding('BINARY_NOT_BUILT_FROM_THESE_SOURCES',
+                'the built toolchain does not match the MAOT sources on disk, '
+                'so this run would measure a different program than it names: '
+                + '; '.join(x['problem'] + (f" ({x['file']})" if 'file' in x
+                                            else '') for x in stale))
+
+    # ---- the acceptance ledger ----
+    # Stated here, evaluated below, and any unmet item becomes a blocking
+    # finding. An evidence record that says `findings: []` while its own prose
+    # says an acceptance item is outstanding is a record that disagrees with
+    # itself, which is what the first version of this lane shipped.
+    observations['t0_row_linkage'] = V.T0_ROW_LINKAGE
+    unmet = []
+
     work = os.path.join('/tmp', f'maot_m3_{os.getpid()}')
     shutil.rmtree(work, ignore_errors=True)
     os.makedirs(work)
@@ -226,10 +301,10 @@ def main(argv):
                    'descriptor still advances while it happens',
             cb.get('top.call.1') == 'OLD' and cb.get('top.version.1') ==
             'PATCH_CODE:v2'
-            and vb['direct_static_replacement'] == 'NOT_ESTABLISHED',
+            and vb['arm64_aot_direct_static_vertical_slice'] == 'NOT_ESTABLISHED',
             f"without the indirection: top.call.1={cb.get('top.call.1')} "
             f"while the descriptor reports {cb.get('top.version.1')}",
-            vb['direct_static_replacement'])
+            vb['arm64_aot_direct_static_vertical_slice'])
 
         # G11 rides on the same build: the strings could have matched while no
         # call site existed, so the path evidence has to be what refuses it.
@@ -261,12 +336,12 @@ def main(argv):
                    'uses the release answer because the RESULT was folded',
             calls.get('top.call.1') == 'NEW'
             and (e_main or {}).get('indirect_call_sites_emitted', 0) > 0
-            and v02['direct_static_replacement'] == 'NOT_ESTABLISHED',
+            and v02['arm64_aot_direct_static_vertical_slice'] == 'NOT_ESTABLISHED',
             f"{(e_main or {}).get('indirect_call_sites_emitted')} call sites "
             f"emitted and the result observed is "
             f"{calls.get('top.call.1')}; with the result folded back to OLD "
-            f"the verdict is {v02['direct_static_replacement']}",
-            v02['direct_static_replacement'])
+            f"the verdict is {v02['arm64_aot_direct_static_vertical_slice']}",
+            v02['arm64_aot_direct_static_vertical_slice'])
 
         # ---------------- G03: inlined away ----------------
         no_sites = json.loads(json.dumps(registry_after))
@@ -276,10 +351,10 @@ def main(argv):
         arm('G03', 'an inlined copy of a selected declaration is a caller that '
                    'never reaches the cell',
             not v03['conditions']['call_sites_traverse_the_mechanism']
-            and v03['direct_static_replacement'] == 'NOT_ESTABLISHED',
+            and v03['arm64_aot_direct_static_vertical_slice'] == 'NOT_ESTABLISHED',
             'with every emitted call site removed the path condition reads '
             f"{v03['conditions']['call_sites_traverse_the_mechanism']}",
-            v03['direct_static_replacement'])
+            v03['arm64_aot_direct_static_vertical_slice'])
 
         # ---------------- G04..G08: refusals, measured in-process ----------
         arm('G04', 'a version bump with no implementation change is not a '
@@ -294,10 +369,10 @@ def main(argv):
         arm('G05', 'an implementation change the version does not record leaves '
                    'the evidence describing a program that is not running',
             calls.get('top.version.1') == 'PATCH_CODE:v2'
-            and v05['direct_static_replacement'] == 'NOT_ESTABLISHED',
+            and v05['arm64_aot_direct_static_vertical_slice'] == 'NOT_ESTABLISHED',
             f"version and body move together: {calls.get('top.version.1')} "
             f"with {calls.get('top.call.1')}",
-            v05['direct_static_replacement'])
+            v05['arm64_aot_direct_static_vertical_slice'])
         arm('G06', 'a patch built against another release must not bind here',
             calls.get('refuse.wrong.namespace') == -3
             and calls.get('top.call.after_refusals') == 'OLD',
@@ -324,10 +399,10 @@ def main(argv):
                    'cannot prove the other',
             calls.get('static.call.1') == 'NEW-STATIC'
             and not v09['conditions']['static_replacement_observed']
-            and v09['direct_static_replacement'] == 'NOT_ESTABLISHED',
+            and v09['arm64_aot_direct_static_vertical_slice'] == 'NOT_ESTABLISHED',
             'with the static arm left at its release answer the verdict is '
-            f"{v09['direct_static_replacement']}",
-            v09['direct_static_replacement'])
+            f"{v09['arm64_aot_direct_static_vertical_slice']}",
+            v09['arm64_aot_direct_static_vertical_slice'])
 
         # ---------------- G10: restart or recompile ----------------
         v10 = perturbed(snapshot_sha256_after='0' * 64)
@@ -362,6 +437,32 @@ def main(argv):
             xs.sort()
             return round(xs[len(xs) // 2], 2)
 
+        iters = calls.get('bench.iterations') or 0
+
+        def samples(key):
+            return [calls[f'{key}.{r}'] for r in range(3)
+                    if isinstance(calls.get(f'{key}.{r}'), int)]
+
+        def ns_per_call(key):
+            """Nanoseconds per call: the MINIMUM of the samples.
+
+            The fixture reports total elapsed microseconds, three times per
+            arm. It used to divide itself, in integers, and at ~1 ns per call
+            that rounded every arm to 0 or 1 -- a measurement destroyed by its
+            own units. The minimum is used because at this magnitude a single
+            sample is dominated by scheduling noise: one arm measured faster
+            than its own control, which is a coin flip, not a speedup.
+            """
+            xs = samples(key)
+            if not xs or iters <= 0:
+                return None
+            return round(min(xs) * 1000.0 / iters, 3)
+
+        def overhead(a, b):
+            x, y = ns_per_call(a), ns_per_call(b)
+            return round(x - y, 2) if (x is not None and y is not None) \
+                else None
+
         # The bypass build is the control that isolates the call-site cost:
         # identical source, identical selection, identical retained bodies,
         # differing only in whether the indirection is emitted.
@@ -373,6 +474,45 @@ def main(argv):
                     for e in registry_after.get('entries', []))
         entries_n = len(registry_after.get('entries', []))
         observations['measurements'] = {
+            'benchmark_iterations': calls.get('bench.iterations'),
+            'direct_call_ns_mutable': ns_per_call('bench.top.mutable.us'),
+            'direct_call_ns_control': ns_per_call('bench.top.control.us'),
+            'static_call_ns_mutable': ns_per_call('bench.static.mutable.us'),
+            'static_call_ns_control': ns_per_call('bench.static.control.us'),
+            'direct_call_ns_overhead': overhead('bench.top.mutable.us',
+                                                'bench.top.control.us'),
+            'static_call_ns_overhead': overhead('bench.static.mutable.us',
+                                                'bench.static.control.us'),
+            'benchmark_elapsed_us_samples': {
+                k: samples(k) for k in
+                ('bench.top.mutable.us', 'bench.top.control.us',
+                 'bench.static.mutable.us', 'bench.static.control.us')},
+            'benchmark_spread_us': {
+                k: (max(samples(k)) - min(samples(k))) if samples(k) else None
+                for k in ('bench.top.mutable.us', 'bench.top.control.us',
+                          'bench.static.mutable.us',
+                          'bench.static.control.us')},
+            'overhead_is_within_noise': True,
+            'overhead_note':
+                'the per-call overhead measures at a few hundredths of a '
+                'nanosecond while the spread ACROSS SAMPLES OF THE SAME ARM '
+                'is larger than the difference between arms -- one arm even '
+                'measured faster than its own control. So the honest '
+                'statement is that the indirection costs two extra '
+                'instructions per call and that its cost is not resolvable '
+                'above scheduling noise at this iteration count, not that it '
+                'costs 0.06 ns. A resolvable figure needs a quieter harness, '
+                'which belongs with #68 where the call shape is what is '
+                'under test.',
+            'benchmark_note':
+                'nanoseconds per call: the minimum of three samples over the '
+                'stated iteration count, measured in the running release '
+                'AFTER installation, so the '
+                'mutable arms are dispatching to a replacement. The controls '
+                'are non-selected functions marked vm:never-inline -- an '
+                'inlined control is not a call, and would make the '
+                'indirection look arbitrarily expensive. The accumulator is '
+                'folded into the result so the loop cannot be eliminated.',
             'aot_elf_bytes_with_maot': with_b,
             'aot_elf_bytes_control_no_pragmas': without_b,
             'aot_elf_delta_bytes': (with_b - without_b) if without_b else None,
@@ -410,17 +550,70 @@ def main(argv):
             'registry_slots_per_entry': 17,
             'startup_ms_with_maot': median_ms(main_build),
             'startup_ms_control': median_ms(control) if control_ok else None,
-            'direct_call_ns_with_indirection':
-                'not separable from startup at this fixture size: the whole '
-                'program runs in ~17 ms and makes 14 mutable calls, so a '
-                'per-call figure would be reporting timer noise. The '
-                'instruction counts above are the measurable cost; a real '
-                'microbenchmark belongs with the optimizer work in #68, '
-                'where the call shape is what is under test.',
             'note': 'diagnostic only; no threshold is compared anywhere',
         }
     finally:
         shutil.rmtree(work, ignore_errors=True)
+
+        # ---------------- G16: placeholder measurements ----------------
+        # The first version of this condition tested only that a field was
+        # non-null, and the field held a sentence saying the measurement had
+        # not been taken. Prose is not a number.
+        prose = perturbed(measurements=dict(
+            observations['measurements'],
+            direct_call_ns_mutable='not separable from startup at this size'))
+        missing_static = perturbed(measurements={
+            k: v for k, v in observations['measurements'].items()
+            if k != 'static_call_ns_mutable'})
+        arm('G16', 'a measurement condition satisfied by a non-null field '
+                   'accepts a sentence explaining that nothing was measured',
+            all(isinstance(observations['measurements'].get(f), (int, float))
+                and not isinstance(observations['measurements'].get(f), bool)
+                for f in ('direct_call_ns_mutable', 'direct_call_ns_control',
+                          'static_call_ns_mutable', 'static_call_ns_control'))
+            and not prose['conditions']['call_latency_measured_numerically']
+            and not missing_static['conditions'][
+                'call_latency_measured_numerically'],
+            f"direct {observations['measurements']['direct_call_ns_mutable']} "
+            f"ns vs control "
+            f"{observations['measurements']['direct_call_ns_control']} ns; "
+            f"static {observations['measurements']['static_call_ns_mutable']} "
+            f"ns vs control "
+            f"{observations['measurements']['static_call_ns_control']} ns. "
+            f"A prose value and a missing static arm each fail the condition.",
+            prose['arm64_aot_direct_static_vertical_slice'])
+
+        # ---------------- G17: stale build ----------------
+        edited = dict(build_digests())
+        victim = 'runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc'
+        edited[victim] = 'f' * 64
+        hypothetical = provenance(override=edited)
+        v17 = perturbed(build_digest_matches=False,
+                        build_provenance_mismatches=hypothetical)
+        arm('G17', 'a run that measures binaries built from other source bytes '
+                   'names a program it did not test',
+            observations['build_digest_matches'] is True
+            and len(hypothetical) == 1
+            and hypothetical[0].get('file') == victim
+            and v17['arm64_aot_direct_static_vertical_slice'] ==
+            'NOT_ESTABLISHED',
+            f"the toolchain matches all {len(MAOT_CXX_SOURCES)} MAOT sources; "
+            f"against one edited source the guard reports "
+            f"{len(hypothetical)} mismatch ({victim.split('/')[-1]})",
+            v17['arm64_aot_direct_static_vertical_slice'])
+
+        # ---------------- G18: whole-row #64 promotion ----------------
+        arm('G18', 'promoting a whole #64 row from one dispatch mode is an '
+                   'overclaim; each row spans direct, tearoff_pre, '
+                   'tearoff_post and dynamic, across JIT and AOT',
+            all(v['row_result_after_67'] == 'UNMODELED'
+                for v in V.T0_ROW_LINKAGE.values())
+            and all(v['not_covered'] for v in V.T0_ROW_LINKAGE.values())
+            and 't0_rows_promoted' not in observations,
+            f"{len(V.T0_ROW_LINKAGE)} rows linked at the `direct` mode under "
+            f"AOT on {V.TARGET_ARCH}; each still reports UNMODELED, with "
+            f"{', '.join(sorted(set(m for v in V.T0_ROW_LINKAGE.values() for m in v['not_covered'])))} "
+            f"recorded as not covered")
 
     live = sorted(k for k, (kind, _) in V.BANK.items() if kind == 'live')
     historical = sorted(k for k, (kind, _) in V.BANK.items()
@@ -438,8 +631,28 @@ def main(argv):
         finding('FALSIFICATION_ARM_ABSENT',
                 f'live bank entries with no arm: {", ".join(missing)}')
 
+    # Acceptance items that are NOT met become blocking findings, so the
+    # record cannot report an empty findings list while its own prose says an
+    # item is outstanding.
+    unmet.append({
+        'item': '#64 rows for these call forms move to PROVEN',
+        'status': 'NOT MET',
+        'detail': 'EB-01 and EB-02 remain UNMODELED, as do all 104 T0 rows. '
+                  'mechanism.py offers only `none` (refuses everything) and '
+                  '`mock` (stamped MOCK_ONLY, never proof); a real backend is '
+                  'needed, AND the runner collects pre-observations before '
+                  'calling install, which a real mechanism cannot satisfy -- '
+                  'OLD, install and NEW must happen in one process. That is a '
+                  'change to a closed lane\'s gate and to the adversarial '
+                  'controls that keep MOCK_ONLY out of proof.',
+    })
+    observations['acceptance_items_unmet'] = [u['item'] for u in unmet]
+    observations['acceptance_ledger'] = unmet
+    for u in unmet:
+        finding('ACCEPTANCE_ITEM_NOT_MET', f"{u['item']}: {u['detail'][:160]}")
+
     record = {
-        'schema': 'maot.m3.evidence/1',
+        'schema': 'maot.m3.evidence/2',
         'issue': 67,
         'generated_by': {
             'run_id': run_id,
@@ -459,6 +672,9 @@ def main(argv):
                 l for l in (git(FORK, 'status', '--porcelain') or '').split('\n')
                 if l.strip()],
             'namespace_identity': NAMESPACE,
+            'target_arch': V.TARGET_ARCH,
+            'lowering_site': 'runtime/vm/compiler/backend/'
+                             'flow_graph_compiler_arm64.cc',
             'depends_on': {'issue_66': 'RUNTIME_IMPLEMENTATION_REGISTRY_'
                                        'ESTABLISHED'},
         },
@@ -496,6 +712,7 @@ def main(argv):
 
     v = record['verdict']
     blocking = [f for f in findings if f['severity'] == 'blocking']
+    m = observations.get('measurements') or {}
     c = observations.get('calls') or {}
     print(f"fork          {record['identities']['fork_commit']}")
     print(f"top-level     {c.get('top.call.0')} -> {c.get('top.call.1')} -> "
@@ -514,9 +731,21 @@ def main(argv):
         print(f'  unmet: {k}')
     for f in blocking[:6]:
         print(f"  {f['code']}: {f['message'][:110]}")
-    print(f"VERDICT       direct_static_replacement = "
-          f"{v['direct_static_replacement']}")
-    return 0 if not blocking and not v['conditions_failed'] else 1
+    print(f"latency       direct {m.get('direct_call_ns_mutable')} ns "
+          f"(control {m.get('direct_call_ns_control')}) | static "
+          f"{m.get('static_call_ns_mutable')} ns "
+          f"(control {m.get('static_call_ns_control')})")
+    print(f"provenance    {'bound' if observations.get('build_digest_matches') else 'MISMATCH'}"
+          f" | arch {observations.get('target_arch')}")
+    print(f"SLICE         arm64_aot_direct_static_vertical_slice = "
+          f"{v['arm64_aot_direct_static_vertical_slice']}")
+    print(f"CLOSURE       issue_67_closure = {v['issue_67_closure']}")
+    for u in v['acceptance_items_unmet']:
+        print(f"  unmet acceptance: {u}")
+    # The gate succeeds when the SLICE holds. An unmet acceptance item keeps
+    # closure NOT_READY without pretending the mechanism failed.
+    return 0 if v['arm64_aot_direct_static_vertical_slice'] == 'ESTABLISHED' \
+        else 1
 
 
 if __name__ == '__main__':

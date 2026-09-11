@@ -1,32 +1,109 @@
 {
-  "schema": "maot.m3.evidence/1",
+  "schema": "maot.m3.evidence/2",
   "issue": 67,
   "generated_by": {
-    "run_id": "2026-09-11T20:50:53Z",
-    "gate_sha256": "e56fd8c581ae3adb6c69db2637e1a5ce704ab9dfa894d019d9de494fe4356ea8",
-    "verdict_sha256": "decd782c981a0578ebbf798adfb2e30d6d9f88b63c251580f9ea3652f613c8af",
-    "fixture_sha256": "03a7d04556a62ee0c59586e125d988c427f0dc85d7703b7921ed3367358d4a76"
+    "run_id": "2026-09-11T22:22:33Z",
+    "gate_sha256": "f1113d23b3b16764933ca1e5541517613c42bc099ddc1069bf2140731c67570f",
+    "verdict_sha256": "ecebfa9231c88e2668b347bcec35520403166454a39338d119f065b993eb242b",
+    "fixture_sha256": "392270a6af2b38f9313985a4c525c369feeaa7e255f0a56ed71427ddb1d032e8"
   },
   "identities": {
-    "shorebird_revision": "cdbeb05f03a0c4bca2ebd71e672877efc6a2fd2d",
-    "shorebird_tree": "ff730b7f0ede7e78e0e7b8c977f7eea1545c33b2",
-    "fork_commit": "4e28b44ff29905aefaba4ebd34aed763b219a8fd",
-    "fork_tree": "6facde69da13032c9bb06d2b50415b56202902d8",
+    "shorebird_revision": "a35fb52445cc960d35732c4cd6527eab5fc01d9d",
+    "shorebird_tree": "06b3d47ac7e4947c8b9d9fb7d98be5ece344d787",
+    "fork_commit": "c5dd52b96a1a1a7679e85ea5c7abfb9247d3b941",
+    "fork_tree": "569de4f0cfbfffba6315cfa72e81dc8fbbd00917",
     "fork_worktree_entries": [
       "?? third_party/binaryen/.DS_Store"
     ],
     "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+    "target_arch": "arm64",
+    "lowering_site": "runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc",
     "depends_on": {
       "issue_66": "RUNTIME_IMPLEMENTATION_REGISTRY_ESTABLISHED"
     }
   },
   "observations": {
     "expected_namespace": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
-    "indirect_call_site_trace_lines": 14,
-    "snapshot_sha256_before": "adfb89b11959b0674c3b68a2f997702041d8a8c52d7fe73ff8955b193181e9c6",
-    "snapshot_sha256_after": "adfb89b11959b0674c3b68a2f997702041d8a8c52d7fe73ff8955b193181e9c6",
+    "target_arch": "arm64",
+    "build_digest": {
+      "files": {
+        "runtime/vm/maot_registry.cc": "c99ff26f37ae72714e739e450d27bee033d91e14b7cd9a8798e9685c39db3a0b",
+        "runtime/vm/maot_registry.h": "d29f33ea6e18183cf5ee380058a7b51eafa7dea99e314ad395a17ea0cc32bb41",
+        "runtime/vm/kernel_loader.cc": "6ded9b83769b2d64a3c63f9b72ab4237f351cd42193b70ccedd30517a166d9db",
+        "runtime/vm/object_store.h": "8d6df2ea6ebec9b1878424d2c50cc3fa77a7e9097d8e0b2e454ef20b207d46da",
+        "runtime/vm/dart.cc": "76221ab91bfe8a5d882288c7b535b1caa5ee33f263d6bb0b7240d948c5c365af",
+        "runtime/vm/compiler/aot/precompiler.cc": "78713f3c8aa9ff167e3c1ccaaa3e76cc1618bef3919c933b21558e691cf95e22",
+        "runtime/vm/compiler/aot/precompiler.h": "96a7e8255eccb81b3caec5c27784861c0be0bf5d48f9cb2bff5fe99c0523ba7d",
+        "runtime/vm/compiler/frontend/kernel_translation_helper.cc": "3c7c2ac4cb9e8a04736c184ec1b2a02cea253f5186f45218351594e831f9d96f",
+        "runtime/vm/compiler/frontend/kernel_translation_helper.h": "d2726b4c489f025dfef242673006b79d5a21a9663aeae90281e28ffd7cbdb330",
+        "runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc": "a8a606eb8f903f3091d4ae7f6961bf50b3da1ada053193274e618e0768457a0d",
+        "runtime/vm/compiler/backend/inliner.cc": "03ab6a0e748cd1c60b069bac04bb58b8ac96fd950734d11d2f12841e8f2d3395"
+      },
+      "fork_commit": "c5dd52b96a1a1a7679e85ea5c7abfb9247d3b941",
+      "fork_tree": "569de4f0cfbfffba6315cfa72e81dc8fbbd00917",
+      "built_at": "2026-09-11T22:21:07Z"
+    },
+    "build_provenance_mismatches": [],
+    "build_digest_matches": true,
+    "t0_row_linkage": {
+      "EB-01": {
+        "row_title": "top-level function body",
+        "covered_by_issue_67": {
+          "dispatch": [
+            "direct"
+          ],
+          "compilation": [
+            "aot"
+          ],
+          "heat": [
+            "cold",
+            "hot"
+          ],
+          "target_arch": [
+            "arm64"
+          ]
+        },
+        "not_covered": [
+          "tearoff_pre",
+          "tearoff_post",
+          "dynamic",
+          "jit"
+        ],
+        "row_result_after_67": "UNMODELED",
+        "why": "a row is proven when every mode it names is proven; #67 proves one dispatch mode on one architecture in one compilation mode. #69 and #70 own the rest."
+      },
+      "EB-02": {
+        "row_title": "static method body",
+        "covered_by_issue_67": {
+          "dispatch": [
+            "direct"
+          ],
+          "compilation": [
+            "aot"
+          ],
+          "heat": [
+            "cold",
+            "hot"
+          ],
+          "target_arch": [
+            "arm64"
+          ]
+        },
+        "not_covered": [
+          "tearoff_pre",
+          "tearoff_post",
+          "dynamic",
+          "jit"
+        ],
+        "row_result_after_67": "UNMODELED",
+        "why": "same; the static arm is proven for direct calls only."
+      }
+    },
+    "indirect_call_site_trace_lines": 16,
+    "snapshot_sha256_before": "34e026a398eb796938025fa4f3c23f08aba46dd5779f5686d4463e0fd055d661",
+    "snapshot_sha256_after": "34e026a398eb796938025fa4f3c23f08aba46dd5779f5686d4463e0fd055d661",
     "calls": {
-      "process.pid": 11221,
+      "process.pid": 36573,
       "top.call.0": "OLD",
       "static.call.0": "OLD-STATIC",
       "untouched.call.0": "UNTOUCHED",
@@ -58,7 +135,20 @@
       "untouched.call.final": "UNTOUCHED",
       "plain.call.final": "PLAIN",
       "top.call.final": "NEW2",
-      "process.pid.final": 11221
+      "bench.iterations": 2000000,
+      "bench.top.mutable.us.0": 2187,
+      "bench.top.control.us.0": 1995,
+      "bench.static.mutable.us.0": 2102,
+      "bench.static.control.us.0": 1964,
+      "bench.top.mutable.us.1": 3431,
+      "bench.top.control.us.1": 3578,
+      "bench.static.mutable.us.1": 2047,
+      "bench.static.control.us.1": 1957,
+      "bench.top.mutable.us.2": 2043,
+      "bench.top.control.us.2": 1917,
+      "bench.static.mutable.us.2": 1964,
+      "bench.static.control.us.2": 1894,
+      "process.pid.final": 36573
     },
     "runtime_stderr_tail": "",
     "registry_before": {
@@ -87,8 +177,11 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'work': static."
           },
-          "indirect_call_sites_emitted": 5,
+          "indirect_call_sites_emitted": 6,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "current_implementation_is_the_declaration_itself": true,
           "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
             "implementation_name_diagnostic": "Function 'work': static.",
             "still_represented": true,
             "is_current": true
@@ -117,8 +210,11 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'work': static."
           },
-          "indirect_call_sites_emitted": 6,
+          "indirect_call_sites_emitted": 7,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "current_implementation_is_the_declaration_itself": true,
           "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:work",
             "implementation_name_diagnostic": "Function 'work': static.",
             "still_represented": true,
             "is_current": true
@@ -148,7 +244,10 @@
             "implementation_name_diagnostic": "Function 'workNew': static."
           },
           "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
+          "current_implementation_is_the_declaration_itself": true,
           "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
             "implementation_name_diagnostic": "Function 'workNew': static.",
             "still_represented": true,
             "is_current": true
@@ -178,7 +277,10 @@
             "implementation_name_diagnostic": "Function 'workNew2': static."
           },
           "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+          "current_implementation_is_the_declaration_itself": true,
           "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
             "implementation_name_diagnostic": "Function 'workNew2': static.",
             "still_represented": true,
             "is_current": true
@@ -208,7 +310,10 @@
             "implementation_name_diagnostic": "Function 'staticNew': static."
           },
           "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
+          "current_implementation_is_the_declaration_itself": true,
           "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
             "implementation_name_diagnostic": "Function 'staticNew': static.",
             "still_represented": true,
             "is_current": true
@@ -238,7 +343,10 @@
             "implementation_name_diagnostic": "Function 'staticNew2': static."
           },
           "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+          "current_implementation_is_the_declaration_itself": true,
           "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
             "implementation_name_diagnostic": "Function 'staticNew2': static.",
             "still_represented": true,
             "is_current": true
@@ -268,7 +376,10 @@
             "implementation_name_diagnostic": "Function 'untouchedMutable': static."
           },
           "indirect_call_sites_emitted": 3,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+          "current_implementation_is_the_declaration_itself": true,
           "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
             "implementation_name_diagnostic": "Function 'untouchedMutable': static.",
             "still_represented": true,
             "is_current": true
@@ -298,7 +409,10 @@
             "implementation_name_diagnostic": "Function 'wrongAbi': static."
           },
           "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
+          "current_implementation_is_the_declaration_itself": true,
           "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
             "implementation_name_diagnostic": "Function 'wrongAbi': static.",
             "still_represented": true,
             "is_current": true
@@ -340,8 +454,11 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'staticNew2': static."
           },
-          "indirect_call_sites_emitted": 5,
+          "indirect_call_sites_emitted": 6,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+          "current_implementation_is_the_declaration_itself": false,
           "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
             "implementation_name_diagnostic": "Function 'work': static.",
             "still_represented": true,
             "is_current": false
@@ -370,8 +487,11 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'workNew2': static."
           },
-          "indirect_call_sites_emitted": 6,
+          "indirect_call_sites_emitted": 7,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+          "current_implementation_is_the_declaration_itself": false,
           "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:work",
             "implementation_name_diagnostic": "Function 'work': static.",
             "still_represented": true,
             "is_current": false
@@ -401,7 +521,10 @@
             "implementation_name_diagnostic": "Function 'workNew': static."
           },
           "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
+          "current_implementation_is_the_declaration_itself": true,
           "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
             "implementation_name_diagnostic": "Function 'workNew': static.",
             "still_represented": true,
             "is_current": true
@@ -431,7 +554,10 @@
             "implementation_name_diagnostic": "Function 'workNew2': static."
           },
           "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+          "current_implementation_is_the_declaration_itself": true,
           "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
             "implementation_name_diagnostic": "Function 'workNew2': static.",
             "still_represented": true,
             "is_current": true
@@ -461,7 +587,10 @@
             "implementation_name_diagnostic": "Function 'staticNew': static."
           },
           "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
+          "current_implementation_is_the_declaration_itself": true,
           "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
             "implementation_name_diagnostic": "Function 'staticNew': static.",
             "still_represented": true,
             "is_current": true
@@ -491,7 +620,10 @@
             "implementation_name_diagnostic": "Function 'staticNew2': static."
           },
           "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+          "current_implementation_is_the_declaration_itself": true,
           "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
             "implementation_name_diagnostic": "Function 'staticNew2': static.",
             "still_represented": true,
             "is_current": true
@@ -521,7 +653,10 @@
             "implementation_name_diagnostic": "Function 'untouchedMutable': static."
           },
           "indirect_call_sites_emitted": 3,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+          "current_implementation_is_the_declaration_itself": true,
           "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
             "implementation_name_diagnostic": "Function 'untouchedMutable': static.",
             "still_represented": true,
             "is_current": true
@@ -551,7 +686,10 @@
             "implementation_name_diagnostic": "Function 'wrongAbi': static."
           },
           "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
+          "current_implementation_is_the_declaration_itself": true,
           "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
             "implementation_name_diagnostic": "Function 'wrongAbi': static.",
             "still_represented": true,
             "is_current": true
@@ -568,26 +706,73 @@
       ]
     },
     "measurements": {
-      "aot_elf_bytes_with_maot": 859904,
-      "aot_elf_bytes_control_no_pragmas": 842920,
-      "aot_elf_delta_bytes": 16984,
-      "indirect_call_sites_total": 14,
+      "benchmark_iterations": 2000000,
+      "direct_call_ns_mutable": 1.022,
+      "direct_call_ns_control": 0.959,
+      "static_call_ns_mutable": 0.982,
+      "static_call_ns_control": 0.947,
+      "direct_call_ns_overhead": 0.06,
+      "static_call_ns_overhead": 0.04,
+      "benchmark_elapsed_us_samples": {
+        "bench.top.mutable.us": [
+          2187,
+          3431,
+          2043
+        ],
+        "bench.top.control.us": [
+          1995,
+          3578,
+          1917
+        ],
+        "bench.static.mutable.us": [
+          2102,
+          2047,
+          1964
+        ],
+        "bench.static.control.us": [
+          1964,
+          1957,
+          1894
+        ]
+      },
+      "benchmark_spread_us": {
+        "bench.top.mutable.us": 1388,
+        "bench.top.control.us": 1661,
+        "bench.static.mutable.us": 138,
+        "bench.static.control.us": 70
+      },
+      "overhead_is_within_noise": true,
+      "overhead_note": "the per-call overhead measures at a few hundredths of a nanosecond while the spread ACROSS SAMPLES OF THE SAME ARM is larger than the difference between arms -- one arm even measured faster than its own control. So the honest statement is that the indirection costs two extra instructions per call and that its cost is not resolvable above scheduling noise at this iteration count, not that it costs 0.06 ns. A resolvable figure needs a quieter harness, which belongs with #68 where the call shape is what is under test.",
+      "benchmark_note": "nanoseconds per call: the minimum of three samples over the stated iteration count, measured in the running release AFTER installation, so the mutable arms are dispatching to a replacement. The controls are non-selected functions marked vm:never-inline -- an inlined control is not a call, and would make the indirection look arbitrarily expensive. The accumulator is folded into the result so the loop cannot be eliminated.",
+      "aot_elf_bytes_with_maot": 861968,
+      "aot_elf_bytes_control_no_pragmas": 861360,
+      "aot_elf_delta_bytes": 608,
+      "indirect_call_sites_total": 16,
       "aot_elf_delta_bytes_note": "includes six replacement bodies the no-pragma control shakes away; not divisible by call sites",
-      "aot_elf_bytes_bypass_same_bodies": 859904,
+      "aot_elf_bytes_bypass_same_bodies": 861968,
       "aot_elf_call_site_delta_bytes": 0,
       "aot_elf_call_site_delta_bytes_per_site": 0.0,
-      "aot_elf_call_site_delta_note": "measured 0 at this fixture size, which does not mean free: the emission replaces one pc-relative branch with a pool load, a compressed load and an indirect branch -- about two extra instructions per site, or roughly 8 bytes x 14 sites -- and ELF section alignment absorbs that entirely. A per-site byte figure needs a fixture large enough to cross an alignment boundary.",
+      "aot_elf_call_site_delta_note": "measured 0 at this fixture size, which does not mean free: the emission replaces one pc-relative branch with a pool load, a compressed load and an indirect branch -- about two extra instructions per site, or roughly 8 bytes x 16 sites -- and ELF section alignment absorbs that entirely. A per-site byte figure needs a fixture large enough to cross an alignment boundary.",
       "indirect_call_site_instructions": 3,
       "direct_call_site_instructions": 1,
       "registry_bytes": 1088,
       "registry_entries": 8,
       "registry_slots_per_entry": 17,
-      "startup_ms_with_maot": 17.18,
-      "startup_ms_control": 16.87,
-      "direct_call_ns_with_indirection": "not separable from startup at this fixture size: the whole program runs in ~17 ms and makes 14 mutable calls, so a per-call figure would be reporting timer noise. The instruction counts above are the measurable cost; a real microbenchmark belongs with the optimizer work in #68, where the call shape is what is under test.",
+      "startup_ms_with_maot": 42.63,
+      "startup_ms_control": 39.16,
       "note": "diagnostic only; no threshold is compared anywhere"
     },
-    "falsifications_failed": []
+    "falsifications_failed": [],
+    "acceptance_items_unmet": [
+      "#64 rows for these call forms move to PROVEN"
+    ],
+    "acceptance_ledger": [
+      {
+        "item": "#64 rows for these call forms move to PROVEN",
+        "status": "NOT MET",
+        "detail": "EB-01 and EB-02 remain UNMODELED, as do all 104 T0 rows. mechanism.py offers only `none` (refuses everything) and `mock` (stamped MOCK_ONLY, never proof); a real backend is needed, AND the runner collects pre-observations before calling install, which a real mechanism cannot satisfy -- OLD, install and NEW must happen in one process. That is a change to a closed lane's gate and to the adversarial controls that keep MOCK_ONLY out of proof."
+      }
+    ]
   },
   "registry_before": {
     "schema": "maot.registry/1",
@@ -615,8 +800,11 @@
           "has_code": true,
           "implementation_name_diagnostic": "Function 'work': static."
         },
-        "indirect_call_sites_emitted": 5,
+        "indirect_call_sites_emitted": 6,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
           "implementation_name_diagnostic": "Function 'work': static.",
           "still_represented": true,
           "is_current": true
@@ -645,8 +833,11 @@
           "has_code": true,
           "implementation_name_diagnostic": "Function 'work': static."
         },
-        "indirect_call_sites_emitted": 6,
+        "indirect_call_sites_emitted": 7,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:work",
           "implementation_name_diagnostic": "Function 'work': static.",
           "still_represented": true,
           "is_current": true
@@ -676,7 +867,10 @@
           "implementation_name_diagnostic": "Function 'workNew': static."
         },
         "indirect_call_sites_emitted": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
           "implementation_name_diagnostic": "Function 'workNew': static.",
           "still_represented": true,
           "is_current": true
@@ -706,7 +900,10 @@
           "implementation_name_diagnostic": "Function 'workNew2': static."
         },
         "indirect_call_sites_emitted": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
           "implementation_name_diagnostic": "Function 'workNew2': static.",
           "still_represented": true,
           "is_current": true
@@ -736,7 +933,10 @@
           "implementation_name_diagnostic": "Function 'staticNew': static."
         },
         "indirect_call_sites_emitted": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
           "implementation_name_diagnostic": "Function 'staticNew': static.",
           "still_represented": true,
           "is_current": true
@@ -766,7 +966,10 @@
           "implementation_name_diagnostic": "Function 'staticNew2': static."
         },
         "indirect_call_sites_emitted": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
           "implementation_name_diagnostic": "Function 'staticNew2': static.",
           "still_represented": true,
           "is_current": true
@@ -796,7 +999,10 @@
           "implementation_name_diagnostic": "Function 'untouchedMutable': static."
         },
         "indirect_call_sites_emitted": 3,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
           "implementation_name_diagnostic": "Function 'untouchedMutable': static.",
           "still_represented": true,
           "is_current": true
@@ -826,7 +1032,10 @@
           "implementation_name_diagnostic": "Function 'wrongAbi': static."
         },
         "indirect_call_sites_emitted": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
           "implementation_name_diagnostic": "Function 'wrongAbi': static.",
           "still_represented": true,
           "is_current": true
@@ -868,8 +1077,11 @@
           "has_code": true,
           "implementation_name_diagnostic": "Function 'staticNew2': static."
         },
-        "indirect_call_sites_emitted": 5,
+        "indirect_call_sites_emitted": 6,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+        "current_implementation_is_the_declaration_itself": false,
         "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
           "implementation_name_diagnostic": "Function 'work': static.",
           "still_represented": true,
           "is_current": false
@@ -898,8 +1110,11 @@
           "has_code": true,
           "implementation_name_diagnostic": "Function 'workNew2': static."
         },
-        "indirect_call_sites_emitted": 6,
+        "indirect_call_sites_emitted": 7,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+        "current_implementation_is_the_declaration_itself": false,
         "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:work",
           "implementation_name_diagnostic": "Function 'work': static.",
           "still_represented": true,
           "is_current": false
@@ -929,7 +1144,10 @@
           "implementation_name_diagnostic": "Function 'workNew': static."
         },
         "indirect_call_sites_emitted": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
           "implementation_name_diagnostic": "Function 'workNew': static.",
           "still_represented": true,
           "is_current": true
@@ -959,7 +1177,10 @@
           "implementation_name_diagnostic": "Function 'workNew2': static."
         },
         "indirect_call_sites_emitted": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
           "implementation_name_diagnostic": "Function 'workNew2': static.",
           "still_represented": true,
           "is_current": true
@@ -989,7 +1210,10 @@
           "implementation_name_diagnostic": "Function 'staticNew': static."
         },
         "indirect_call_sites_emitted": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
           "implementation_name_diagnostic": "Function 'staticNew': static.",
           "still_represented": true,
           "is_current": true
@@ -1019,7 +1243,10 @@
           "implementation_name_diagnostic": "Function 'staticNew2': static."
         },
         "indirect_call_sites_emitted": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
           "implementation_name_diagnostic": "Function 'staticNew2': static.",
           "still_represented": true,
           "is_current": true
@@ -1049,7 +1276,10 @@
           "implementation_name_diagnostic": "Function 'untouchedMutable': static."
         },
         "indirect_call_sites_emitted": 3,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
           "implementation_name_diagnostic": "Function 'untouchedMutable': static.",
           "still_represented": true,
           "is_current": true
@@ -1079,7 +1309,10 @@
           "implementation_name_diagnostic": "Function 'wrongAbi': static."
         },
         "indirect_call_sites_emitted": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
           "implementation_name_diagnostic": "Function 'wrongAbi': static.",
           "still_represented": true,
           "is_current": true
@@ -1119,7 +1352,7 @@
       "description": "the result of a mutable call is constant-folded, so every caller keeps the release answer although the call is made",
       "why": "the call is made, reaches the cell, and the caller still uses the release answer because the RESULT was folded",
       "result": "pass",
-      "observed": "6 call sites emitted and the result observed is NEW; with the result folded back to OLD the verdict is NOT_ESTABLISHED",
+      "observed": "7 call sites emitted and the result observed is NEW; with the result folded back to OLD the verdict is NOT_ESTABLISHED",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {
@@ -1187,7 +1420,33 @@
       "description": "the process restarted or the release was rebuilt between the OLD and NEW observations",
       "why": "a rebuilt snapshot or a second process would make the whole observation meaningless",
       "result": "pass",
-      "observed": "one pid (11221) and one snapshot (adfb89b11959...) across the whole run; a changed hash or a changed pid each fail the condition"
+      "observed": "one pid (36573) and one snapshot (34e026a398eb...) across the whole run; a changed hash or a changed pid each fail the condition"
+    },
+    {
+      "id": "G16",
+      "kind": "live",
+      "description": "a measurement condition is satisfied by a non-numeric placeholder, or by only one of the two call forms",
+      "why": "a measurement condition satisfied by a non-null field accepts a sentence explaining that nothing was measured",
+      "result": "pass",
+      "observed": "direct 1.022 ns vs control 0.959 ns; static 0.982 ns vs control 0.947 ns. A prose value and a missing static arm each fail the condition.",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "G17",
+      "kind": "live",
+      "description": "the binaries were built from different source bytes than the record names",
+      "why": "a run that measures binaries built from other source bytes names a program it did not test",
+      "result": "pass",
+      "observed": "the toolchain matches all 11 MAOT sources; against one edited source the guard reports 1 mismatch (flow_graph_compiler_arm64.cc)",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "G18",
+      "kind": "live",
+      "description": "a whole #64 row is promoted from evidence covering one of its dispatch modes",
+      "why": "promoting a whole #64 row from one dispatch mode is an overclaim; each row spans direct, tearoff_pre, tearoff_post and dynamic, across JIT and AOT",
+      "result": "pass",
+      "observed": "2 rows linked at the `direct` mode under AOT on arm64; each still reports UNMODELED, with dynamic, jit, tearoff_post, tearoff_pre recorded as not covered"
     }
   ],
   "falsification_bank": {
@@ -1202,7 +1461,10 @@
       "G08",
       "G09",
       "G10",
-      "G11"
+      "G11",
+      "G16",
+      "G17",
+      "G18"
     ],
     "historical": [
       "G12",
@@ -1212,10 +1474,16 @@
     ],
     "historical_note": "defects this implementation actually hit while being built. The code can no longer express them, and an arm that cannot be built is not the same as a defect that never happened."
   },
-  "findings": [],
+  "findings": [
+    {
+      "code": "ACCEPTANCE_ITEM_NOT_MET",
+      "severity": "blocking",
+      "message": "#64 rows for these call forms move to PROVEN: EB-01 and EB-02 remain UNMODELED, as do all 104 T0 rows. mechanism.py offers only `none` (refuses everything) and `mock` (stamped MOCK_ONLY, never proof); a rea"
+    }
+  ],
   "consumers": {
     "map": {
-      "verdict": "the gate exit code and whether #67 may be closed",
+      "verdict": "the gate exit code, the slice claim, and separately whether #67 may be closed",
       "observations": "every condition in the verdict",
       "registry_before": "the release state the calls started from",
       "registry_after": "the call-site, descriptor and release-representation conditions",
@@ -1231,7 +1499,66 @@
     "unconsumed_or_undeclared": []
   },
   "verdict": {
-    "direct_static_replacement": "ESTABLISHED",
+    "arm64_aot_direct_static_vertical_slice": "ESTABLISHED",
+    "issue_67_closure": "NOT_READY",
+    "target_arch": "arm64",
+    "acceptance_items_unmet": [
+      "#64 rows for these call forms move to PROVEN"
+    ],
+    "t0_row_linkage": {
+      "EB-01": {
+        "row_title": "top-level function body",
+        "covered_by_issue_67": {
+          "dispatch": [
+            "direct"
+          ],
+          "compilation": [
+            "aot"
+          ],
+          "heat": [
+            "cold",
+            "hot"
+          ],
+          "target_arch": [
+            "arm64"
+          ]
+        },
+        "not_covered": [
+          "tearoff_pre",
+          "tearoff_post",
+          "dynamic",
+          "jit"
+        ],
+        "row_result_after_67": "UNMODELED",
+        "why": "a row is proven when every mode it names is proven; #67 proves one dispatch mode on one architecture in one compilation mode. #69 and #70 own the rest."
+      },
+      "EB-02": {
+        "row_title": "static method body",
+        "covered_by_issue_67": {
+          "dispatch": [
+            "direct"
+          ],
+          "compilation": [
+            "aot"
+          ],
+          "heat": [
+            "cold",
+            "hot"
+          ],
+          "target_arch": [
+            "arm64"
+          ]
+        },
+        "not_covered": [
+          "tearoff_pre",
+          "tearoff_post",
+          "dynamic",
+          "jit"
+        ],
+        "row_result_after_67": "UNMODELED",
+        "why": "same; the static arm is proven for direct calls only."
+      }
+    },
     "conditions": {
       "top_level_replacement_observed": true,
       "static_replacement_observed": true,
@@ -1245,7 +1572,10 @@
       "refusals_before_visible_mutation": true,
       "repeated_calls_stay_replaced": true,
       "required_falsifications_detected": true,
-      "measurements_recorded": true
+      "call_latency_measured_numerically": true,
+      "size_measurements_recorded": true,
+      "build_provenance_bound": true,
+      "target_architecture_recorded": true
     },
     "conditions_failed": [],
     "condition_meanings": {
@@ -1255,17 +1585,25 @@
       "no_restart_or_recompile": "was it one process throughout -- same pid, one snapshot, no rebuild between the OLD and NEW observations?",
       "call_sites_traverse_the_mechanism": "did the compiler emit indirect call sites through the dispatch cell for every replaced declaration? (zero means no caller can reach it, whatever the program printed)",
       "installation_is_descriptor_state": "did the #66 version and kind advance, and does the dispatch cell still agree with the descriptor?",
-      "identity_visible_in_evidence": "are the #65 DeclarationId, #66 version/kind and release namespace all present in the structured record?",
+      "identity_visible_in_evidence": "does the record carry, structurally, the target DeclarationId, the REPLACEMENT DeclarationId, the release namespace, the ABI, and kind+version before and after -- rather than a Function-name diagnostic?",
       "release_implementation_still_represented": "after replacement, can the descriptor still name what the release shipped, for rollback and version history?",
       "unrelated_declarations_unchanged": "did a selected-but-not-replaced declaration and a non-selected one both keep their release answers?",
       "refusals_before_visible_mutation": "were unknown id, wrong release namespace, ABI mismatch and a non-advancing version each refused with the release answer intact?",
       "repeated_calls_stay_replaced": "does calling again after installation still reach the replacement?",
       "required_falsifications_detected": "did every required falsification actually fire?",
-      "measurements_recorded": "are the overhead and size measurements present? No threshold is compared; absence is the only failure."
+      "call_latency_measured_numerically": "are direct AND static call latencies real numbers from a running program, each with a never-inlined non-mutable control? Prose saying a thing was not measured is not a measurement.",
+      "size_measurements_recorded": "are the code-size and registry measurements present? No threshold is compared; absence is the only failure.",
+      "build_provenance_bound": "were the binaries that produced this evidence built from the exact MAOT source bytes the record names?",
+      "target_architecture_recorded": "does the record say which architecture the lowering was proven on?"
     },
-    "blocking_findings": [],
-    "verdict_rule": "direct_static_replacement == ESTABLISHED iff every condition above holds AND no blocking finding was raised. It is a conjunction; no count, ratio or threshold is compared anywhere in this module, and neither outcome string is reachable unconditionally.",
+    "blocking_findings": [
+      "ACCEPTANCE_ITEM_NOT_MET"
+    ],
+    "slice_blocking_findings": [],
+    "verdict_rule": "arm64_aot_direct_static_vertical_slice == ESTABLISHED iff every condition above holds AND no blocking finding was raised. issue_67_closure == READY iff that AND no acceptance item is unmet. Both are conjunctions; no count, ratio or threshold is compared anywhere in this module, and no outcome string is reachable unconditionally. The two are separate because a true technical result must not be able to carry an untrue milestone claim.",
     "not_claimed": [
+      "Proven on arm64 only. The lowering is in flow_graph_compiler_arm64.cc and no other architecture has one.",
+      "No #64 row is promoted. #67 covers the `direct` dispatch mode of EB-01 and EB-02 under AOT; each row also requires tearoff_pre, tearoff_post and dynamic, across JIT and AOT. See t0_row_linkage.",
       "No virtual, interface or super dispatch. #69 owns those.",
       "No universal no-bypass claim. The posture here is the blunt rule that a selected declaration is neither inlined nor constant-folded through; #68 owns the real optimizer contract.",
       "The replacement implementation is another AOT-compiled Dart body present in the release image, selected by descriptor. Delivering an externally-built body is #72/#77.",

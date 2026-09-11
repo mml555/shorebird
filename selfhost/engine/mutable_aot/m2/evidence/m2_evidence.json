@@ -2,21 +2,20 @@
   "schema": "maot.m2.evidence/1",
   "issue": 66,
   "generated_by": {
-    "run_id": "2026-09-11T20:46:01Z",
-    "gate_sha256": "4b10809ed421760dd5690018028a7537ca7f76edd928b7a4c35a458daa47c715",
+    "run_id": "2026-09-11T22:21:52Z",
+    "gate_sha256": "c51b994d6f0990b556e4ce8d675ac02417b91b97e79ef896a60f2744c7f1c55c",
     "verdict_sha256": "2711b7c784e84925d695046890915f9c6c94855eb038e4dc15e6208d785b918d"
   },
   "identities": {
-    "shorebird_revision": "cdbeb05f03a0c4bca2ebd71e672877efc6a2fd2d",
-    "shorebird_tree": "ff730b7f0ede7e78e0e7b8c977f7eea1545c33b2",
-    "fork_commit": "8b9c27237f1d9c2f10e3df0bbeb87c673061bdf8",
-    "fork_tree": "b1f5586abe8e9f927e433beda33ca80377235dad",
+    "shorebird_revision": "a35fb52445cc960d35732c4cd6527eab5fc01d9d",
+    "shorebird_tree": "06b3d47ac7e4947c8b9d9fb7d98be5ece344d787",
+    "fork_commit": "c5dd52b96a1a1a7679e85ea5c7abfb9247d3b941",
+    "fork_tree": "569de4f0cfbfffba6315cfa72e81dc8fbbd00917",
     "fork_branch": "maot/build",
     "fork_worktree_entries": [
-      "M runtime/vm/maot_registry.cc",
       "?? third_party/binaryen/.DS_Store"
     ],
-    "fork_source_dirty": true,
+    "fork_source_dirty": false,
     "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
     "note": "a branch is transport; the commit and tree are identity"
   },
@@ -25,19 +24,21 @@
     "stale_binaries": [],
     "build_digest": {
       "files": {
-        "runtime/vm/maot_registry.cc": "7c261f51a2e8315fdf9ec5baa42210c3d32ac0298141afbd647ab41fc04b2eec",
-        "runtime/vm/maot_registry.h": "584114aa117394a2ddf2f9afb8fe0343ce666088c42e9eda9af96c38ce298d52",
+        "runtime/vm/maot_registry.cc": "c99ff26f37ae72714e739e450d27bee033d91e14b7cd9a8798e9685c39db3a0b",
+        "runtime/vm/maot_registry.h": "d29f33ea6e18183cf5ee380058a7b51eafa7dea99e314ad395a17ea0cc32bb41",
         "runtime/vm/kernel_loader.cc": "6ded9b83769b2d64a3c63f9b72ab4237f351cd42193b70ccedd30517a166d9db",
         "runtime/vm/object_store.h": "8d6df2ea6ebec9b1878424d2c50cc3fa77a7e9097d8e0b2e454ef20b207d46da",
         "runtime/vm/dart.cc": "76221ab91bfe8a5d882288c7b535b1caa5ee33f263d6bb0b7240d948c5c365af",
-        "runtime/vm/compiler/aot/precompiler.cc": "aa6641ad5e75d2281c5029b0893ba3534cff61f26c3a8f9072a6d2df89dd75b8",
+        "runtime/vm/compiler/aot/precompiler.cc": "78713f3c8aa9ff167e3c1ccaaa3e76cc1618bef3919c933b21558e691cf95e22",
         "runtime/vm/compiler/aot/precompiler.h": "96a7e8255eccb81b3caec5c27784861c0be0bf5d48f9cb2bff5fe99c0523ba7d",
         "runtime/vm/compiler/frontend/kernel_translation_helper.cc": "3c7c2ac4cb9e8a04736c184ec1b2a02cea253f5186f45218351594e831f9d96f",
-        "runtime/vm/compiler/frontend/kernel_translation_helper.h": "d2726b4c489f025dfef242673006b79d5a21a9663aeae90281e28ffd7cbdb330"
+        "runtime/vm/compiler/frontend/kernel_translation_helper.h": "d2726b4c489f025dfef242673006b79d5a21a9663aeae90281e28ffd7cbdb330",
+        "runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc": "a8a606eb8f903f3091d4ae7f6961bf50b3da1ada053193274e618e0768457a0d",
+        "runtime/vm/compiler/backend/inliner.cc": "03ab6a0e748cd1c60b069bac04bb58b8ac96fd950734d11d2f12841e8f2d3395"
       },
-      "fork_commit": "8b9c27237f1d9c2f10e3df0bbeb87c673061bdf8",
-      "fork_tree": "b1f5586abe8e9f927e433beda33ca80377235dad",
-      "built_at": "2026-09-11T20:45:53Z"
+      "fork_commit": "c5dd52b96a1a1a7679e85ea5c7abfb9247d3b941",
+      "fork_tree": "569de4f0cfbfffba6315cfa72e81dc8fbbd00917",
+      "built_at": "2026-09-11T22:21:07Z"
     },
     "missing_maot_sources": [],
     "selected_count": 25,
@@ -250,17 +251,17 @@
       "aot_elf_bytes_with_maot": 858168,
       "aot_elf_bytes_control_no_pragmas": 840368,
       "aot_elf_delta_bytes": 17800,
-      "startup_ms_with_maot": 16.99,
-      "startup_ms_control": 16.97,
+      "startup_ms_with_maot": 16.71,
+      "startup_ms_control": 16.59,
       "control_note": "absent here means the control build failed, not that it was skipped",
       "note": "medians of 7 runs of the same program; the control is the identical source with every maot:mutable removed, so the delta includes keeping a dead selected declaration alive",
       "registry_entries": 25,
-      "registry_array_slots": 425,
-      "registry_slots_per_entry": 17,
-      "registry_registry_bytes_approx": 3400,
-      "registry_bytes_per_entry_approx": 136,
+      "registry_array_slots": 500,
+      "registry_slots_per_entry": 20,
+      "registry_registry_bytes_approx": 4000,
+      "registry_bytes_per_entry_approx": 160,
       "registry_lookup_iterations": 10000,
-      "registry_lookup_total_micros": 211,
+      "registry_lookup_total_micros": 201,
       "registry_lookup_note": "linear scan over a GrowableObjectArray; correctness first, and the cost is recorded rather than optimised around",
       "registry_lookup_sink": 10000
     },
@@ -5153,12 +5154,12 @@
     ],
     "measurements": {
       "entries": 25,
-      "array_slots": 425,
-      "slots_per_entry": 17,
-      "registry_bytes_approx": 3400,
-      "bytes_per_entry_approx": 136,
+      "array_slots": 500,
+      "slots_per_entry": 20,
+      "registry_bytes_approx": 4000,
+      "bytes_per_entry_approx": 160,
       "lookup_iterations": 10000,
-      "lookup_total_micros": 211,
+      "lookup_total_micros": 201,
       "lookup_note": "linear scan over a GrowableObjectArray; correctness first, and the cost is recorded rather than optimised around",
       "lookup_sink": 10000
     }
@@ -5190,7 +5191,10 @@
           "implementation_name_diagnostic": "Function 'byPosition':."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
           "implementation_name_diagnostic": "Function 'byPosition':.",
           "still_represented": true,
           "is_current": true
@@ -5220,7 +5224,10 @@
           "implementation_name_diagnostic": "Function 'byPosition':."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
           "implementation_name_diagnostic": "Function 'byPosition':.",
           "still_represented": true,
           "is_current": true
@@ -5250,7 +5257,10 @@
           "implementation_name_diagnostic": "Function 'Shapes.': constructor."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
           "implementation_name_diagnostic": "Function 'Shapes.': constructor.",
           "still_represented": true,
           "is_current": true
@@ -5280,7 +5290,10 @@
           "implementation_name_diagnostic": "Function 'instanceOne':."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
           "implementation_name_diagnostic": "Function 'instanceOne':.",
           "still_represented": true,
           "is_current": true
@@ -5310,7 +5323,10 @@
           "implementation_name_diagnostic": "Function 'compute':."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
           "implementation_name_diagnostic": "Function 'compute':.",
           "still_represented": true,
           "is_current": true
@@ -5340,7 +5356,10 @@
           "implementation_name_diagnostic": "Function 'mutableTopLevel': static."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::fn:mutableTopLevel",
           "implementation_name_diagnostic": "Function 'mutableTopLevel': static.",
           "still_represented": true,
           "is_current": true
@@ -5370,7 +5389,10 @@
           "implementation_name_diagnostic": "Function 'neverCalled': static."
         },
         "indirect_call_sites_emitted": 0,
+        "current_implementation_id": "lib:package:m2app/app.dart::fn:neverCalled",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::fn:neverCalled",
           "implementation_name_diagnostic": "Function 'neverCalled': static.",
           "still_represented": true,
           "is_current": true
@@ -5400,7 +5422,10 @@
           "implementation_name_diagnostic": "Function 'compute': static."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::fn:compute",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::fn:compute",
           "implementation_name_diagnostic": "Function 'compute': static.",
           "still_represented": true,
           "is_current": true
@@ -5430,7 +5455,10 @@
           "implementation_name_diagnostic": "Function 'posOne': static."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::fn:posOne",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::fn:posOne",
           "implementation_name_diagnostic": "Function 'posOne': static.",
           "still_represented": true,
           "is_current": true
@@ -5460,7 +5488,10 @@
           "implementation_name_diagnostic": "Function 'posTwo': static."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::fn:posTwo",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::fn:posTwo",
           "implementation_name_diagnostic": "Function 'posTwo': static.",
           "still_represented": true,
           "is_current": true
@@ -5490,7 +5521,10 @@
           "implementation_name_diagnostic": "Function 'posOptional': static."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::fn:posOptional",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::fn:posOptional",
           "implementation_name_diagnostic": "Function 'posOptional': static.",
           "still_represented": true,
           "is_current": true
@@ -5520,7 +5554,10 @@
           "implementation_name_diagnostic": "Function 'namedX': static."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::fn:namedX",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::fn:namedX",
           "implementation_name_diagnostic": "Function 'namedX': static.",
           "still_represented": true,
           "is_current": true
@@ -5550,7 +5587,10 @@
           "implementation_name_diagnostic": "Function 'namedY': static."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::fn:namedY",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::fn:namedY",
           "implementation_name_diagnostic": "Function 'namedY': static.",
           "still_represented": true,
           "is_current": true
@@ -5580,7 +5620,10 @@
           "implementation_name_diagnostic": "Function 'namedRequiredX': static."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::fn:namedRequiredX",
           "implementation_name_diagnostic": "Function 'namedRequiredX': static.",
           "still_represented": true,
           "is_current": true
@@ -5610,7 +5653,10 @@
           "implementation_name_diagnostic": "Function 'genericNone': static."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::fn:genericNone",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::fn:genericNone",
           "implementation_name_diagnostic": "Function 'genericNone': static.",
           "still_represented": true,
           "is_current": true
@@ -5640,7 +5686,10 @@
           "implementation_name_diagnostic": "Function 'genericOne': static."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::fn:genericOne",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::fn:genericOne",
           "implementation_name_diagnostic": "Function 'genericOne': static.",
           "still_represented": true,
           "is_current": true
@@ -5670,7 +5719,10 @@
           "implementation_name_diagnostic": "Function 'boundNum': static."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::fn:boundNum",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::fn:boundNum",
           "implementation_name_diagnostic": "Function 'boundNum': static.",
           "still_represented": true,
           "is_current": true
@@ -5700,7 +5752,10 @@
           "implementation_name_diagnostic": "Function 'boundInt': static."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::fn:boundInt",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::fn:boundInt",
           "implementation_name_diagnostic": "Function 'boundInt': static.",
           "still_represented": true,
           "is_current": true
@@ -5730,7 +5785,10 @@
           "implementation_name_diagnostic": "Function 'staticOne': static."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::fn:staticOne",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::fn:staticOne",
           "implementation_name_diagnostic": "Function 'staticOne': static.",
           "still_represented": true,
           "is_current": true
@@ -5760,7 +5818,10 @@
           "implementation_name_diagnostic": "Function 'doubleIdentity': static."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::fn:doubleIdentity",
           "implementation_name_diagnostic": "Function 'doubleIdentity': static.",
           "still_represented": true,
           "is_current": true
@@ -5790,7 +5851,10 @@
           "implementation_name_diagnostic": "Function 'intIdentity': static."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::fn:intIdentity",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::fn:intIdentity",
           "implementation_name_diagnostic": "Function 'intIdentity': static.",
           "still_represented": true,
           "is_current": true
@@ -5820,7 +5884,10 @@
           "implementation_name_diagnostic": "Function 'nestedBoundNum': static."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::fn:nestedBoundNum",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::fn:nestedBoundNum",
           "implementation_name_diagnostic": "Function 'nestedBoundNum': static.",
           "still_represented": true,
           "is_current": true
@@ -5850,7 +5917,10 @@
           "implementation_name_diagnostic": "Function 'nestedBoundInt': static."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::fn:nestedBoundInt",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::fn:nestedBoundInt",
           "implementation_name_diagnostic": "Function 'nestedBoundInt': static.",
           "still_represented": true,
           "is_current": true
@@ -5880,7 +5950,10 @@
           "implementation_name_diagnostic": "Function 'renamedT': static."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::fn:renamedT",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::fn:renamedT",
           "implementation_name_diagnostic": "Function 'renamedT': static.",
           "still_represented": true,
           "is_current": true
@@ -5910,7 +5983,10 @@
           "implementation_name_diagnostic": "Function 'renamedU': static."
         },
         "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m2app/app.dart::fn:renamedU",
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
+          "implementation_id": "lib:package:m2app/app.dart::fn:renamedU",
           "implementation_name_diagnostic": "Function 'renamedU': static.",
           "still_represented": true,
           "is_current": true
@@ -6067,7 +6143,7 @@
       "description": "a built binary is older than the MAOT source it must contain, so the run measures a different program than the one it names",
       "why": "a run that measures a different program than the one it names is worse than a run that does not happen",
       "result": "pass",
-      "observed": "the toolchain matches all 9 sources now; against one edited source the guard reports 1 mismatch (runtime/vm/maot_registry.cc)"
+      "observed": "the toolchain matches all 11 sources now; against one edited source the guard reports 1 mismatch (runtime/vm/maot_registry.cc)"
     },
     {
       "id": "F25",

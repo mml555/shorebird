@@ -364,6 +364,12 @@ MAOT_CXX_SOURCES = (
     'runtime/vm/compiler/aot/precompiler.h',
     'runtime/vm/compiler/frontend/kernel_translation_helper.cc',
     'runtime/vm/compiler/frontend/kernel_translation_helper.h',
+    # #67's lowering ships in the same binaries this lane measures, so #66's
+    # provenance has to cover it. Leaving it out meant the digest file listed
+    # sources this gate did not know, which it correctly reported as a
+    # mismatch rather than ignoring.
+    'runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc',
+    'runtime/vm/compiler/backend/inliner.cc',
 )
 
 # Read by gen_kernel at run time from the tree, so they cannot go stale inside

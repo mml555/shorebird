@@ -878,7 +878,8 @@ words:
   - HANDLESCOPE # the VM's scoped-handle macro
   - dedups # what the object pool does to identical entries
   - getpid # the libc call the #67 fixture uses to prove one process
-  - microbenchmark # a per-call timing harness, deferred to #68
+  - microbenchmark # a per-call timing harness
+  - microbenchmarks # plural of the same
   - undiscriminated # an ABI dimension no fixture pair separates
   - isect # the rendered form of a Kernel IntersectionType
   - futureor # the rendered form of a Kernel FutureOrType

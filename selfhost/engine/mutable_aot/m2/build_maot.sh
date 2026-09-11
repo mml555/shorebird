@@ -28,6 +28,8 @@ SOURCES=(
   runtime/vm/compiler/aot/precompiler.h
   runtime/vm/compiler/frontend/kernel_translation_helper.cc
   runtime/vm/compiler/frontend/kernel_translation_helper.h
+  runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc
+  runtime/vm/compiler/backend/inliner.cc
 )
 
 for f in "${SOURCES[@]}"; do

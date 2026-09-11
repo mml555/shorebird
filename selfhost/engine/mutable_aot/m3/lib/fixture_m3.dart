@@ -32,6 +32,77 @@ String untouchedMutable() => 'UNTOUCHED';
 // Not selected at all: must be unaffected and must have no descriptor.
 String notMutable() => 'PLAIN';
 
+// ---- microbenchmark controls --------------------------------------------
+// Not selected, so they are called through an ordinary pc-relative direct
+// branch -- and marked never-inline, because a control the optimizer inlines
+// is not measuring a call at all and would make the indirection look
+// arbitrarily expensive.
+@pragma('vm:never-inline')
+String plainTop() => 'CTL';
+
+class PlainTarget {
+  @pragma('vm:never-inline')
+  static String plainStatic() => 'CTL-STATIC';
+}
+
+/// Nanoseconds per call, over `iters` direct calls to a top-level function.
+@pragma('vm:never-inline')
+int benchTopMutable(int iters) {
+  var n = 0;
+  final w = Stopwatch()..start();
+  for (var i = 0; i < iters; i++) {
+    n += work().length;
+  }
+  w.stop();
+  return _perCall(w, iters, n);
+}
+
+@pragma('vm:never-inline')
+int benchTopControl(int iters) {
+  var n = 0;
+  final w = Stopwatch()..start();
+  for (var i = 0; i < iters; i++) {
+    n += plainTop().length;
+  }
+  w.stop();
+  return _perCall(w, iters, n);
+}
+
+@pragma('vm:never-inline')
+int benchStaticMutable(int iters) {
+  var n = 0;
+  final w = Stopwatch()..start();
+  for (var i = 0; i < iters; i++) {
+    n += StaticTarget.work().length;
+  }
+  w.stop();
+  return _perCall(w, iters, n);
+}
+
+@pragma('vm:never-inline')
+int benchStaticControl(int iters) {
+  var n = 0;
+  final w = Stopwatch()..start();
+  for (var i = 0; i < iters; i++) {
+    n += PlainTarget.plainStatic().length;
+  }
+  w.stop();
+  return _perCall(w, iters, n);
+}
+
+/// Total elapsed MICROSECONDS, not a per-call figure.
+///
+/// Dividing here threw the measurement away: at two nanoseconds per call,
+/// integer division of microseconds by two million iterations rounds every
+/// arm to 0 or 1. The gate divides, in floating point, with the iteration
+/// count beside it.
+///
+/// The accumulator is folded into the result so the loop cannot be dropped as
+/// dead; without it a sufficiently clever optimizer could delete the thing
+/// being measured and report zero honestly.
+int _perCall(Stopwatch w, int iters, int sink) =>
+    w.elapsedMicroseconds + (sink < 0 ? 1 : 0);
+
 // A declaration whose ABI differs, for the refusal arm.
 @pragma('maot:mutable')
 String wrongAbi(int a, int b) => 'WRONG-ABI';
@@ -132,6 +203,29 @@ void main(List<String> args) {
   _emit('untouched.call.final', untouchedMutable());
   _emit('plain.call.final', notMutable());
   _emit('top.call.final', work());
+  // ---- microbenchmarks, after installation so the mutable arms are
+  // running a replacement rather than their release body ----
+  const iters = 2000000;
+  // One warm pass each, discarded: the first pass pays for lazy stub
+  // resolution and a cold instruction cache, which is not what is being
+  // compared.
+  benchTopMutable(iters ~/ 10);
+  benchTopControl(iters ~/ 10);
+  benchStaticMutable(iters ~/ 10);
+  benchStaticControl(iters ~/ 10);
+  _emit('bench.iterations', iters);
+  // Three samples per arm, all reported. A single sample at ~1 ns per call is
+  // dominated by scheduling noise -- enough that one arm measured FASTER than
+  // its own control, which is not a result, it is a coin flip. The gate takes
+  // the minimum, which is the least contaminated estimate, and keeps every
+  // sample so the spread is visible.
+  for (var rep = 0; rep < 3; rep++) {
+    _emit('bench.top.mutable.us.$rep', benchTopMutable(iters));
+    _emit('bench.top.control.us.$rep', benchTopControl(iters));
+    _emit('bench.static.mutable.us.$rep', benchStaticMutable(iters));
+    _emit('bench.static.control.us.$rep', benchStaticControl(iters));
+  }
+
   _emit('process.pid.final', pid);
   if (dumpDir.isNotEmpty) _dump(_c('$dumpDir/registry_after.json'));
 }
