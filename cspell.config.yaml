@@ -870,3 +870,4 @@ words:
   - recv # MAOT-2 ABI descriptor token: the declaration takes a receiver
   - worklist # the precompiler's pending-compilation queue
   - hascode # MAOT-2 trace field: whether the Function carries Code
+  - executability # the property that a Function carries an executable body
