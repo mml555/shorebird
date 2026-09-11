@@ -864,3 +864,4 @@ words:
   - devirtualization
   - extype # the MAOT identity tag for an extension type (::extype:Id)
   - binaryen # the WebAssembly toolchain vendored in the Dart SDK tree
+  - libstart # MAOT-2 trace field: the library's start offset in the component
