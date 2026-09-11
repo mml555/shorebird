@@ -868,3 +868,4 @@ words:
   - norecv # MAOT-2 ABI descriptor token: the declaration takes no receiver
   - onogen # MAOT-2 ABI descriptor token: the owner is not generic
   - recv # MAOT-2 ABI descriptor token: the declaration takes a receiver
+  - worklist # the precompiler's pending-compilation queue
