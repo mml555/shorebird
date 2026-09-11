@@ -26,3 +26,8 @@ first recording. Built only in out/maot_host; Route B's out dir untouched.
 THIRD BORROW / HAND-BACK (retention integration segment).
 Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
 dirty entries, dirty digest 6b358f715e491bd9. Built only in out/maot_host.
+
+FOURTH BORROW / HAND-BACK (target-pragma retention segment).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Route B gen_snapshot untouched
+at 6875648 bytes. Built only in out/maot_host.

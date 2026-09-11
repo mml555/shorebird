@@ -91,7 +91,57 @@ refuse.
 
 Evidence: `evidence/runtime_registry_precompiled.json`.
 
-## One selected declaration still does not survive
+## The retention blocker is CLOSED
+
+`ConstantPragmaAnnotationParser.parsePragma()` calls
+`target.isSupportedPragma(pragmaName)` **before** its switch, and `VmTarget`
+accepted only `vm:` and `dyn-module:` prefixes. So `case
+kMaotMutablePragmaName` was literally unreachable — the pragma looked fully
+implemented and did nothing. This is the general trap worth keeping: **a parser
+arm for an unsupported pragma name is dead code, and nothing says so.**
+
+`VmTarget` now accepts **exactly** `kMaotMutablePragmaName`, not a `maot:`
+prefix. We own one pragma, so one is accepted and anything else stays
+fail-closed; a misspelled or future `maot:` name must not silently acquire
+retention semantics. The constant is shared rather than duplicated — `pragma
+.dart` depends only on the abstract `Target`, so there is no cycle.
+
+### Measured through the whole chain
+
+| stage | result |
+|---|---|
+| selected pre-shake | 4 |
+| `selectedButAbsent` | `{}` — clean because retention worked |
+| bound at VM load | 4 |
+| seeded as retention roots | 4 |
+| materialized from `functions_to_retain_` | 4 of 4, 0 dropped |
+| runtime registry | 4, **exact set equality both directions** |
+| unselected slots / duplicates | 0 / 0 |
+
+`neverCalled` — selected, never called by the release — survives the Dart tree
+shaker and carries **real compiled AOT code**. Selection changes what the
+release considers live, which is the property #66 exists to establish.
+`@pragma('maot:not-a-real-contract')` acquires no selection and no slot.
+
+## A fixture defect that flattered the result
+
+The earlier fixture used literals throughout, so TFA constant-folded every
+selected declaration into `main`: three of four had **no standalone Code** while
+still appearing correctly retained and registered. The registry looked right
+and its AOT descriptors pointed at bodies the optimizer had dissolved. Values
+are now opaque to the compiler.
+
+## Remaining, and not forced
+
+With non-foldable values, `neverCalled` (80 B) and `mutableTopLevel` (56 B)
+have standalone code; `Widget.compute` and the `Widget` constructor are still
+inlined at their single call site and have none.
+
+**Retention is not the same as compilation to a replaceable standalone body.**
+Whether an inlined selected declaration is a #66 gap or the #68 optimizer-bypass
+concern is a real architectural question, and it is not decided here.
+
+## Superseded: one selected declaration did not survive
 
 `neverCalled` — selected but uncalled — is removed by the **Dart tree shaker**
 before metadata attachment: an earlier boundary than the VM precompiler.
