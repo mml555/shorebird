@@ -865,3 +865,6 @@ words:
   - extype # the MAOT identity tag for an extension type (::extype:Id)
   - binaryen # the WebAssembly toolchain vendored in the Dart SDK tree
   - libstart # MAOT-2 trace field: the library's start offset in the component
+  - norecv # MAOT-2 ABI descriptor token: the declaration takes no receiver
+  - onogen # MAOT-2 ABI descriptor token: the owner is not generic
+  - recv # MAOT-2 ABI descriptor token: the declaration takes a receiver

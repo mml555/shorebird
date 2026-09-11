@@ -55,9 +55,60 @@ Measured (`rel`/`corr`/`libstart`/`abs` side by side, per the four-fact rule):
 All five procedures now pair with their own Function and carry the right
 selection flag. Evidence: `evidence/binding_four_facts.txt`.
 
-## Two defects still open
+## Selection is now a retention reason
 
-1. **The registry pins pre-precompilation `Function` objects.** With the
+The illegal-CID failure is gone, and for the right reason. Selected
+declarations are fed into the **ordinary precompiler worklist** rather than
+pinned behind its back:
+
+* `SeedMutableAotRoots()` before `Iterate()` —
+  `AddFunction(fn, RetainReasons::kMutableAotDeclaration)` plus `AddTypesOf`,
+  which is what gives `Widget` a legal cid;
+* `MaterializeMutableAotRegistry()` after the drop phases — rebuild from
+  `functions_to_retain_`, keeping **only selected** declarations.
+
+The later seam is deliberate: the final registry should describe the final AOT
+program, not influence pruning by being reachable during it. *GC-reachable* and
+*legally retained by the precompiler* are different properties, and conflating
+them caused the earlier failure.
+
+`BindMaotDeclaration` is now the single seam, called from **both** authoritative
+creation paths. Constructors come from `FinishClassLoading`, not
+`LoadProcedure`, so wiring only the procedure path left a selected constructor
+with no slot — 5 of 6, exactly the "basically complete" failure the gate must
+refuse.
+
+### Measured end to end
+
+| | |
+|---|---|
+| selected bound, seeded, retained, materialized | 3 of 3, 0 dropped |
+| unselected in final registry | **0** |
+| duplicates | **0** |
+| `gen_snapshot` / `dartaotruntime` | exit 0 / exit 0 |
+| runtime mode | `precompiled`, namespace intact |
+| each entry | `kind: AOT`, `version: 1`, distinct ABI |
+
+Evidence: `evidence/runtime_registry_precompiled.json`.
+
+## One selected declaration still does not survive
+
+`neverCalled` — selected but uncalled — is removed by the **Dart tree shaker**
+before metadata attachment: an earlier boundary than the VM precompiler.
+Making `maot:mutable` parse as an entry-point pragma did **not** retain it, and
+a probe print proved why: `parsePragma` is never invoked with `maot:mutable` at
+all, so the switch case is unreachable. Located, not guessed.
+
+The discrepancy is no longer decorative. `recordSelectedAbsences` compares the
+pre-shaking selected set against what received metadata and reports
+`selectedButAbsent` for the gate to consume — a set holding the id of a deleted
+declaration must fail the release closed rather than ship a namespace that
+silently promises less than it claims.
+
+## Superseded defects
+
+1. ~~**The registry pins pre-precompilation `Function` objects.**~~ **FIXED**
+   by the retention integration above. With the
    binding fixed, `gen_snapshot` now refuses:
 
        Unexpected object (Class with illegal cid, full-aot):
@@ -69,10 +120,30 @@ selection flag. Evidence: `evidence/binding_four_facts.txt`.
    settled which Functions survive. **Not fixed, and not guessed at** — this is
    the retention question, arriving early.
 
-2. **The constructor is not registered.** The Dart side maps 6 declarations;
+2. ~~**The constructor is not registered.**~~ **FIXED** by
+   `BindMaotDeclaration` at the `FinishClassLoading` seam. The Dart side maps 6 declarations;
    the VM registers 5. `::cls:Widget::ctor:` is created by `LoadClass`, not
    `LoadProcedure`, so it needs its own join point. Recorded rather than
    papered over: a selected constructor would silently have no slot.
+
+## Checkpoint status against M2_RETENTION_BINDING_PROOF
+
+Met: constructor seam included; `AddFunction` consumed selection; owner class
+retained; survives `DropFunctions`; unselected slots 0; duplicates 0;
+`gen_snapshot` and `dartaotruntime` exit 0; `runtime_mode: precompiled`.
+
+**Not met:** one missing selected id (`neverCalled`). The checkpoint is
+therefore **not** reached, and the remaining #66 work — staging, ABI mismatch,
+wrong namespace, duplicate/missing injection, measurements, the falsification
+bank — stays gated behind it, as instructed.
+
+## An ABI observation worth keeping
+
+`Widget(this.n)` reports `p0/0` — zero positional parameters. That looks wrong
+but is likely correct: `main` only ever calls `Widget(0)`, so `SignatureShaker`
+drops the constant parameter. It argues that the ABI descriptor must be
+computed **late**, after transforms, which is where it is computed. Worth
+confirming explicitly when ABI gets its own falsification.
 
 ## What is NOT yet claimed
 
