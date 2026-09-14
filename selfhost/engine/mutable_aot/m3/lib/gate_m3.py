@@ -291,29 +291,39 @@ def main(argv):
         bypass.snapshot(extra=['--maot_disable_call_indirection'])
         rb = bypass.run()
         cb = parse_calls(rb.stdout)
-        vb = perturbed(calls=cb,
-                       registry_after=json.load(open(os.path.join(
-                           bypass.dumps, 'registry_after.json')))
-                       if os.path.exists(os.path.join(
-                           bypass.dumps, 'registry_after.json')) else {})
+        bypass_reg = os.path.join(bypass.dumps, 'registry_after.json')
+        bypass_registry = json.load(open(bypass_reg)) \
+            if os.path.exists(bypass_reg) else {}
+        bypass_sites_entry = leaf(bypass_registry, '::fn:work')
+        bypass_sites = bypass_sites_entry.get('indirect_call_sites_emitted') \
+            if bypass_sites_entry else None
+        vb = perturbed(calls=cb, registry_after=bypass_registry)
+        # #68 changed what this looks like, and for the better. When the
+        # indirection is not emitted the compiler now records an escape, and
+        # StageReplacement refuses while any escape stands -- so the
+        # descriptor no longer advances to v2 while the program runs OLD.
+        # The bypass is still caught; it is caught earlier, and the descriptor
+        # never claims something the program is not doing.
+        bypass_escapes = bypass_sites_entry.get('optimizer_escapes') \
+            if bypass_sites_entry else None
         arm('G01', 'a call permanently bound to the release implementation is '
-                   'the failure this whole issue exists to rule out, and the '
-                   'descriptor still advances while it happens',
-            cb.get('top.call.1') == 'OLD' and cb.get('top.version.1') ==
-            'PATCH_CODE:v2'
+                   'the failure this whole issue exists to rule out; it must '
+                   'never end with the descriptor claiming a replacement the '
+                   'program is not running',
+            cb.get('top.call.1') == 'OLD'
+            and cb.get('install.top.v2') == -3
+            and cb.get('top.version.1') == 'AOT:v1'
+            and (bypass_escapes or 0) > 0
             and vb['arm64_aot_direct_static_vertical_slice'] == 'NOT_ESTABLISHED',
-            f"without the indirection: top.call.1={cb.get('top.call.1')} "
-            f"while the descriptor reports {cb.get('top.version.1')}",
+            f"without the indirection: {bypass_escapes} optimizer escapes "
+            f"recorded, install refused ({cb.get('install.top.v2')}), the "
+            f"descriptor stays at {cb.get('top.version.1')}, and the call "
+            f"still returns {cb.get('top.call.1')} -- caught at the install "
+            f"boundary rather than left to diverge",
             vb['arm64_aot_direct_static_vertical_slice'])
 
         # G11 rides on the same build: the strings could have matched while no
         # call site existed, so the path evidence has to be what refuses it.
-        e_by = leaf(vb.get('conditions') and None, '') if False else None
-        bypass_reg = os.path.join(bypass.dumps, 'registry_after.json')
-        bypass_sites = None
-        if os.path.exists(bypass_reg):
-            e = leaf(json.load(open(bypass_reg)), '::fn:work')
-            bypass_sites = e and e.get('indirect_call_sites_emitted')
         arm('G11', 'output strings are not evidence of a path; a run with no '
                    'emitted indirect call site must be refused on the path '
                    'evidence alone',

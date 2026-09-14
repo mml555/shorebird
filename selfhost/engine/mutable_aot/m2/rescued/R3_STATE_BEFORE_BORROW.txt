@@ -98,3 +98,8 @@ FOURTEENTH BORROW (#67 G19 repair; evidence-only, no mechanism change).
 Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
 dirty entries, dirty digest 6b358f715e491bd9. No fork source changed and no
 rebuild -- evidence-only.
+
+FIFTEENTH BORROW (#68 MAOT-4 Phase A: optimizer invariants).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Route B gen_snapshot untouched
+at 6875648 bytes. Built only in out/maot_host.
