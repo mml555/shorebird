@@ -156,6 +156,54 @@ BANK = {
 }
 
 
+def build_ledger(conditions, live_arm_count=0):
+    """The #67 acceptance ledger: one calculation, one place.
+
+    Every item is COMPUTED from a verdict condition. It lives here, rather
+    than in the gate, because G19 has to exercise the same calculation the
+    gate uses -- an arm that reconstructs part of it proves something about
+    the reconstruction, which is exactly the defect this function exists to
+    close.
+
+    The #64 item is the corrected one: exact linkage of what #67 demonstrates,
+    with EB-01 and EB-02 left unpromoted. Full-row non-promotion is the right
+    result, not a failure.
+    """
+    return [
+        {'item': 'exact #64 linkage for the demonstrated modes, with EB-01 '
+                 'and EB-02 left unpromoted',
+         'met': conditions['t0_linkage_exact_and_unpromoted'],
+         'evidence': 't0_row_linkage records dispatch=direct, '
+                     'compilation=aot, heat=cold+hot, target_arch=arm64; both '
+                     'rows still report UNMODELED with their uncovered modes '
+                     'named. G18 refuses a whole-row promotion.'},
+        {'item': 'one release process performs OLD -> install -> NEW for a '
+                 'precompiled top-level direct call, and the same for a '
+                 'static method call',
+         'met': (conditions['top_level_replacement_observed']
+                 and conditions['static_replacement_observed']
+                 and conditions['no_restart_or_recompile']),
+         'evidence': 'same pid and byte-identical snapshot across the run'},
+        {'item': '#65 id and #66 version visible in structured evidence',
+         'met': conditions['identity_visible_in_evidence'],
+         'evidence': 'structural DeclarationIds for target and replacement'},
+        {'item': 'compiler/runtime path evidence proves the mechanism is '
+                 'traversed',
+         'met': conditions['call_sites_traverse_the_mechanism'],
+         'evidence': 'per-declaration emitted indirect call-site counts'},
+        {'item': 'wrong ID / release / ABI fails closed',
+         'met': conditions['refusals_before_visible_mutation'],
+         'evidence': 'refused in-process with the release answer intact'},
+        {'item': 'falsification arms discriminate',
+         'met': conditions['required_falsifications_detected'],
+         'evidence': f'{live_arm_count} live arms'},
+        {'item': 'direct and static call latency measured',
+         'met': conditions['call_latency_measured_numerically'],
+         'evidence': 'numeric ns/call for both forms against never-inlined '
+                     'controls, with the overhead flagged as within noise'},
+    ]
+
+
 def evaluate(observations, findings):
     o = observations
     calls = o.get('calls') or {}
@@ -329,9 +377,12 @@ def evaluate(observations, findings):
     slice_ok = all(conditions.values()) and not slice_blocking
 
     # Issue closure is a STRICTLY stronger claim: the slice, plus every
-    # acceptance item met. Unmet items arrive as blocking findings, so this
-    # cannot silently agree with the slice verdict.
-    unmet = sorted(o.get('acceptance_items_unmet') or [])
+    # acceptance item met. The ledger is COMPUTED here from the conditions
+    # above rather than read out of the observations the gate handed in --
+    # reading it back would make closure rest on whatever the caller chose to
+    # put there, and would leave nothing for an arm to falsify.
+    ledger = build_ledger(conditions, o.get('live_arm_count') or 0)
+    unmet = sorted(u['item'] for u in ledger if not u['met'])
     closure_ok = slice_ok and not unmet
 
     return {
@@ -341,6 +392,7 @@ def evaluate(observations, findings):
             'READY' if closure_ok else 'NOT_READY',
         'target_arch': TARGET_ARCH,
         'acceptance_items_unmet': unmet,
+        'acceptance_ledger': ledger,
         't0_row_linkage': T0_ROW_LINKAGE,
         'conditions': conditions,
         'conditions_failed': sorted(k for k, v in conditions.items() if not v),

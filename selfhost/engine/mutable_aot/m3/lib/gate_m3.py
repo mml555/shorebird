@@ -615,23 +615,68 @@ def main(argv):
             f"{', '.join(sorted(set(m for v in V.T0_ROW_LINKAGE.values() for m in v['not_covered'])))} "
             f"recorded as not covered")
 
-    # G19 -- the ledger must be able to refuse. An acceptance check that can
-    # only report MET moves no information, and closure would then rest on
-    # prose again.
-    # Deliberately does NOT read the ledger's own result: the ledger is
-    # computed from the final conditions, which include this arm, and an arm
-    # that waited for that would be waiting for itself.
-    broken_linkage = dict(observations)
-    broken_linkage['target_arch'] = 'not-arm64'
-    v19 = V.evaluate(broken_linkage, [])
+    # G19 -- the ledger must be able to report NOT MET.
+    #
+    # The first version of this arm was FALSE-SAFE, and the way it failed is
+    # worth keeping. It ran before the gate had set
+    # observations['falsifications_failed'], so
+    # required_falsifications_detected was already false, the slice was
+    # already NOT_ESTABLISHED and closure was already NOT_READY -- before any
+    # defect was injected. The assertion "architecture false -> closure
+    # NOT_READY" held for a reason that had nothing to do with the
+    # architecture. It also rebuilt part of the ledger itself, so a
+    # hard-coded "everything MET" ledger would have passed it.
+    #
+    # Both halves are fixed here: the baseline is established FIRST and must
+    # itself be READY, and the calculation under test is
+    # verdict_m3.build_ledger, reached through the same evaluate() the gate
+    # uses.
+    observations['falsifications_failed'] = [
+        a['id'] for a in arms if a['result'] != 'pass']
+    observations['live_arm_count'] = len(arms) + 1  # including G19 itself
+
+    baseline = V.evaluate(observations, [])
+    perturbed_arch = dict(observations, target_arch='not-arm64')
+    injected = V.evaluate(perturbed_arch, [])
+
+    linkage_item = 'exact #64 linkage for the demonstrated modes, with EB-01 ' \
+                   'and EB-02 left unpromoted'
+
+    def item(v, name):
+        return next((u for u in v['acceptance_ledger']
+                     if u['item'] == name), None)
+
+    baseline_clean = (
+        baseline['issue_67_closure'] == 'READY'
+        and baseline['acceptance_items_unmet'] == []
+        and item(baseline, linkage_item)['met'] is True)
+    # The injected defect must be the ONLY thing that moved. If the
+    # falsification condition were false in both, the flip would be
+    # confounded again -- which is precisely how the last version passed
+    # while proving nothing.
+    not_confounded = (
+        baseline['conditions']['required_falsifications_detected'] is True
+        and injected['conditions']['required_falsifications_detected'] is True)
+    flipped = (
+        injected['conditions']['t0_linkage_exact_and_unpromoted'] is False
+        and item(injected, linkage_item)['met'] is False
+        and linkage_item in injected['acceptance_items_unmet']
+        and injected['issue_67_closure'] == 'NOT_READY')
+
     arm('G19', 'an acceptance ledger that cannot report NOT MET makes closure '
-               'rest on prose again',
-        not v19['conditions']['t0_linkage_exact_and_unpromoted']
-        and v19['issue_67_closure'] == 'NOT_READY',
-        f'with the architecture claim falsified the linkage condition reads '
-        f"{v19['conditions']['t0_linkage_exact_and_unpromoted']} and closure "
-        f"reads {v19['issue_67_closure']}",
-        v19['issue_67_closure'])
+               'rest on prose again -- and an arm whose baseline was already '
+               'failing proves nothing about the injection',
+        baseline_clean and not_confounded and flipped,
+        f"baseline closure={baseline['issue_67_closure']} with "
+        f"{len(baseline['acceptance_items_unmet'])} unmet; injecting only a "
+        f"false architecture claim gives linkage="
+        f"{injected['conditions']['t0_linkage_exact_and_unpromoted']}, ledger "
+        f"item met={item(injected, linkage_item)['met']}, unmet="
+        f"{len(injected['acceptance_items_unmet'])}, closure="
+        f"{injected['issue_67_closure']}; "
+        f"required_falsifications_detected is True in BOTH, so the flip is "
+        f"not confounded",
+        injected['issue_67_closure'])
 
     live = sorted(k for k, (kind, _) in V.BANK.items() if kind == 'live')
     historical = sorted(k for k, (kind, _) in V.BANK.items()
@@ -649,57 +694,16 @@ def main(argv):
         finding('FALSIFICATION_ARM_ABSENT',
                 f'live bank entries with no arm: {", ".join(missing)}')
 
-    # The acceptance ledger. Each item is EVALUATED, not asserted: an item
-    # that could only ever report MET would be the vacuous check this program
-    # exists to avoid, and G19 shows the ledger refusing.
-    #
-    # The #64 item was corrected after review. It used to read "rows for these
-    # call forms move to PROVEN", which was itself an overclaim: EB-01 and
-    # EB-02 each span direct, tearoff_pre, tearoff_post and dynamic, across
-    # JIT and AOT and cold and hot, while #67 owns direct/static AOT
-    # replacement. The item now requires EXACT LINKAGE of what was
-    # demonstrated with the whole rows left unpromoted -- and full-row
-    # non-promotion is the correct result, not a failure.
+    # The ledger lives in verdict_m3.build_ledger and is computed inside
+    # evaluate(). The gate reads it back only to raise findings, so the record
+    # cannot report an empty findings list while an item is unmet.
     verdict_now = V.evaluate(observations, findings)
-    ledger = [
-        {'item': 'exact #64 linkage for the demonstrated modes, with EB-01 '
-                 'and EB-02 left unpromoted',
-         'met': verdict_now['conditions']['t0_linkage_exact_and_unpromoted'],
-         'evidence': 't0_row_linkage records dispatch=direct, '
-                     'compilation=aot, heat=cold+hot, target_arch=arm64; both '
-                     'rows still report UNMODELED with their uncovered modes '
-                     'named. G18 refuses a whole-row promotion.'},
-        {'item': 'one release process performs OLD -> install -> NEW for a '
-                 'precompiled top-level direct call, and the same for a '
-                 'static method call',
-         'met': (verdict_now['conditions']['top_level_replacement_observed']
-                 and verdict_now['conditions']['static_replacement_observed']
-                 and verdict_now['conditions']['no_restart_or_recompile']),
-         'evidence': 'same pid and byte-identical snapshot across the run'},
-        {'item': '#65 id and #66 version visible in structured evidence',
-         'met': verdict_now['conditions']['identity_visible_in_evidence'],
-         'evidence': 'structural DeclarationIds for target and replacement'},
-        {'item': 'compiler/runtime path evidence proves the mechanism is '
-                 'traversed',
-         'met': verdict_now['conditions'][
-             'call_sites_traverse_the_mechanism'],
-         'evidence': 'per-declaration emitted indirect call-site counts'},
-        {'item': 'wrong ID / release / ABI fails closed',
-         'met': verdict_now['conditions']['refusals_before_visible_mutation'],
-         'evidence': 'refused in-process with the release answer intact'},
-        {'item': 'falsification arms discriminate',
-         'met': verdict_now['conditions']['required_falsifications_detected'],
-         'evidence': f'{len(arms)} live arms'},
-        {'item': 'direct and static call latency measured',
-         'met': verdict_now['conditions']['call_latency_measured_numerically'],
-         'evidence': 'numeric ns/call for both forms against never-inlined '
-                     'controls, with the overhead flagged as within noise'},
-    ]
-    unmet = [u for u in ledger if not u['met']]
-    observations['acceptance_ledger'] = ledger
-    observations['acceptance_items_unmet'] = [u['item'] for u in unmet]
-    for u in unmet:
-        finding('ACCEPTANCE_ITEM_NOT_MET', f"{u['item']}: not met")
+    observations['acceptance_ledger'] = verdict_now['acceptance_ledger']
+    observations['acceptance_items_unmet'] = \
+        verdict_now['acceptance_items_unmet']
+    for u in verdict_now['acceptance_ledger']:
+        if not u['met']:
+            finding('ACCEPTANCE_ITEM_NOT_MET', f"{u['item']}: not met")
 
     record = {
         'schema': 'maot.m3.evidence/2',

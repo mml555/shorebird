@@ -199,6 +199,45 @@ but ordering. The arm now claims only what it is about (that a perturbation
 flips the linkage condition and closure), and the ledger is computed after
 every arm has run.
 
+### G19 was false-safe, and the way it failed is worth keeping
+
+The first `G19` claimed to prove the acceptance ledger can report NOT MET. It
+proved nothing, for two independent reasons:
+
+1. **The baseline was already failing.** It ran before the gate had set
+   `observations['falsifications_failed']`, so
+   `required_falsifications_detected` was already false,
+   the slice was already `NOT_ESTABLISHED` and closure was already
+   `NOT_READY` — *before any defect was injected*. Reproduced directly:
+
+   ```
+   G19 baseline (no defect injected):
+     required_falsifications_detected = False
+     slice   = NOT_ESTABLISHED
+     closure = NOT_READY
+   ```
+
+   The assertion "architecture false → closure NOT_READY" held for a reason
+   that had nothing to do with the architecture.
+
+2. **It rebuilt part of the ledger instead of calling it.** The real ledger
+   was constructed later, in the gate. A hard-coded "everything MET" ledger
+   would have passed the arm.
+
+Both halves are fixed. `build_ledger` now lives in `verdict_m3.py` and is
+computed *inside* `evaluate()`, so closure is derived from the conditions
+rather than read back out of whatever the caller put in the observations — and
+there is a single calculation for the gate and the arm to share. `G19`
+establishes the baseline first, requires it to be `READY` with zero unmet
+items, injects only a false architecture claim, and additionally asserts that
+`required_falsifications_detected` is **True in both**, so the flip cannot be
+confounded again.
+
+This is the fourth arm in this program to have measured something other than
+what it named. The pattern is consistent enough to state plainly: *an arm that
+reads state must pin down what that state was before the injection, and must
+call the calculation under test rather than a copy of it.*
+
 ### Hot is measured, not inferred
 
 The criterion names cold **and hot** observations. The benchmark loops run a

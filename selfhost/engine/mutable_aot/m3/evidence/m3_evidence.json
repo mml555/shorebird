@@ -2,14 +2,14 @@
   "schema": "maot.m3.evidence/2",
   "issue": 67,
   "generated_by": {
-    "run_id": "2026-09-11T22:42:40Z",
-    "gate_sha256": "3cc065bd012600fad85dfe0c259401995de7876306fd448c90f5593997ced7ac",
-    "verdict_sha256": "ff8d29fca3c07db53b2824dbb19e79457dc21425b72d978d4c918ff84b87c1f3",
+    "run_id": "2026-09-14T06:10:43Z",
+    "gate_sha256": "8727bd9e5d5a59dd1ac792f1e86072d2d537246f3b342ef0002344f9cc4c17f8",
+    "verdict_sha256": "5cb311d50fc734aa5afac2bfa12c6efb9e22275a9fac65c8f8167d1e29e5c5e3",
     "fixture_sha256": "83c5e003b3d5bcb712c59f1f963c5bf430708d78a753ee817f33f4ce460c608c"
   },
   "identities": {
-    "shorebird_revision": "d69ebbb149e81ad48bc4586943002ea4e1b9556e",
-    "shorebird_tree": "b096c7982a857e4780cb2e4b56e0ccabac870120",
+    "shorebird_revision": "b08eafe3f0385528a9681a4f57b85bf76ae3e807",
+    "shorebird_tree": "dc0c3a1b61db40348e221c2e14c7a3c92d7b11b3",
     "fork_commit": "c5dd52b96a1a1a7679e85ea5c7abfb9247d3b941",
     "fork_tree": "569de4f0cfbfffba6315cfa72e81dc8fbbd00917",
     "fork_worktree_entries": [
@@ -103,7 +103,7 @@
     "snapshot_sha256_before": "76e6745716528bceebb30c2381137a4fa8e45bffe9bf47a8ec6c4e5576ca09da",
     "snapshot_sha256_after": "76e6745716528bceebb30c2381137a4fa8e45bffe9bf47a8ec6c4e5576ca09da",
     "calls": {
-      "process.pid": 39156,
+      "process.pid": 40091,
       "top.call.0": "OLD",
       "static.call.0": "OLD-STATIC",
       "untouched.call.0": "UNTOUCHED",
@@ -139,19 +139,19 @@
       "hot.top.value": "NEW2",
       "hot.static.value": "NEW2-STATIC",
       "bench.iterations": 2000000,
-      "bench.top.mutable.us.0": 1924,
-      "bench.top.control.us.0": 1860,
-      "bench.static.mutable.us.0": 1941,
-      "bench.static.control.us.0": 1957,
-      "bench.top.mutable.us.1": 1990,
-      "bench.top.control.us.1": 2760,
-      "bench.static.mutable.us.1": 2305,
-      "bench.static.control.us.1": 1867,
-      "bench.top.mutable.us.2": 1995,
-      "bench.top.control.us.2": 1915,
-      "bench.static.mutable.us.2": 1987,
-      "bench.static.control.us.2": 1948,
-      "process.pid.final": 39156
+      "bench.top.mutable.us.0": 1951,
+      "bench.top.control.us.0": 2106,
+      "bench.static.mutable.us.0": 1939,
+      "bench.static.control.us.0": 1893,
+      "bench.top.mutable.us.1": 1973,
+      "bench.top.control.us.1": 1865,
+      "bench.static.mutable.us.1": 2694,
+      "bench.static.control.us.1": 1940,
+      "bench.top.mutable.us.2": 1980,
+      "bench.top.control.us.2": 1902,
+      "bench.static.mutable.us.2": 1932,
+      "bench.static.control.us.2": 1898,
+      "process.pid.final": 40091
     },
     "runtime_stderr_tail": "",
     "registry_before": {
@@ -710,39 +710,39 @@
     },
     "measurements": {
       "benchmark_iterations": 2000000,
-      "direct_call_ns_mutable": 0.962,
-      "direct_call_ns_control": 0.93,
-      "static_call_ns_mutable": 0.971,
-      "static_call_ns_control": 0.933,
-      "direct_call_ns_overhead": 0.03,
-      "static_call_ns_overhead": 0.04,
+      "direct_call_ns_mutable": 0.976,
+      "direct_call_ns_control": 0.932,
+      "static_call_ns_mutable": 0.966,
+      "static_call_ns_control": 0.947,
+      "direct_call_ns_overhead": 0.04,
+      "static_call_ns_overhead": 0.02,
       "benchmark_elapsed_us_samples": {
         "bench.top.mutable.us": [
-          1924,
-          1990,
-          1995
+          1951,
+          1973,
+          1980
         ],
         "bench.top.control.us": [
-          1860,
-          2760,
-          1915
+          2106,
+          1865,
+          1902
         ],
         "bench.static.mutable.us": [
-          1941,
-          2305,
-          1987
+          1939,
+          2694,
+          1932
         ],
         "bench.static.control.us": [
-          1957,
-          1867,
-          1948
+          1893,
+          1940,
+          1898
         ]
       },
       "benchmark_spread_us": {
-        "bench.top.mutable.us": 71,
-        "bench.top.control.us": 900,
-        "bench.static.mutable.us": 364,
-        "bench.static.control.us": 90
+        "bench.top.mutable.us": 29,
+        "bench.top.control.us": 241,
+        "bench.static.mutable.us": 762,
+        "bench.static.control.us": 47
       },
       "overhead_is_within_noise": true,
       "overhead_note": "the per-call overhead measures at a few hundredths of a nanosecond while the spread ACROSS SAMPLES OF THE SAME ARM is larger than the difference between arms -- one arm even measured faster than its own control. So the honest statement is that the indirection costs two extra instructions per call and that its cost is not resolvable above scheduling noise at this iteration count, not that it costs 0.06 ns. A resolvable figure needs a quieter harness, which belongs with #68 where the call shape is what is under test.",
@@ -761,11 +761,12 @@
       "registry_bytes": 1088,
       "registry_entries": 8,
       "registry_slots_per_entry": 17,
-      "startup_ms_with_maot": 43.71,
-      "startup_ms_control": 35.76,
+      "startup_ms_with_maot": 41.61,
+      "startup_ms_control": 36.87,
       "note": "diagnostic only; no threshold is compared anywhere"
     },
     "falsifications_failed": [],
+    "live_arm_count": 15,
     "acceptance_ledger": [
       {
         "item": "exact #64 linkage for the demonstrated modes, with EB-01 and EB-02 left unpromoted",
@@ -1451,7 +1452,7 @@
       "description": "the process restarted or the release was rebuilt between the OLD and NEW observations",
       "why": "a rebuilt snapshot or a second process would make the whole observation meaningless",
       "result": "pass",
-      "observed": "one pid (39156) and one snapshot (76e674571652...) across the whole run; a changed hash or a changed pid each fail the condition"
+      "observed": "one pid (40091) and one snapshot (76e674571652...) across the whole run; a changed hash or a changed pid each fail the condition"
     },
     {
       "id": "G16",
@@ -1459,7 +1460,7 @@
       "description": "a measurement condition is satisfied by a non-numeric placeholder, or by only one of the two call forms",
       "why": "a measurement condition satisfied by a non-null field accepts a sentence explaining that nothing was measured",
       "result": "pass",
-      "observed": "direct 0.962 ns vs control 0.93 ns; static 0.971 ns vs control 0.933 ns. A prose value and a missing static arm each fail the condition.",
+      "observed": "direct 0.976 ns vs control 0.932 ns; static 0.966 ns vs control 0.947 ns. A prose value and a missing static arm each fail the condition.",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {
@@ -1483,9 +1484,9 @@
       "id": "G19",
       "kind": "live",
       "description": "the acceptance ledger cannot report an unmet item, so issue closure rests on prose rather than on a check",
-      "why": "an acceptance ledger that cannot report NOT MET makes closure rest on prose again",
+      "why": "an acceptance ledger that cannot report NOT MET makes closure rest on prose again -- and an arm whose baseline was already failing proves nothing about the injection",
       "result": "pass",
-      "observed": "with the architecture claim falsified the linkage condition reads False and closure reads NOT_READY",
+      "observed": "baseline closure=READY with 0 unmet; injecting only a false architecture claim gives linkage=False, ledger item met=False, unmet=1, closure=NOT_READY; required_falsifications_detected is True in BOTH, so the flip is not confounded",
       "verdict_under_defect": "NOT_READY"
     }
   ],
@@ -1538,6 +1539,43 @@
     "issue_67_closure": "READY",
     "target_arch": "arm64",
     "acceptance_items_unmet": [],
+    "acceptance_ledger": [
+      {
+        "item": "exact #64 linkage for the demonstrated modes, with EB-01 and EB-02 left unpromoted",
+        "met": true,
+        "evidence": "t0_row_linkage records dispatch=direct, compilation=aot, heat=cold+hot, target_arch=arm64; both rows still report UNMODELED with their uncovered modes named. G18 refuses a whole-row promotion."
+      },
+      {
+        "item": "one release process performs OLD -> install -> NEW for a precompiled top-level direct call, and the same for a static method call",
+        "met": true,
+        "evidence": "same pid and byte-identical snapshot across the run"
+      },
+      {
+        "item": "#65 id and #66 version visible in structured evidence",
+        "met": true,
+        "evidence": "structural DeclarationIds for target and replacement"
+      },
+      {
+        "item": "compiler/runtime path evidence proves the mechanism is traversed",
+        "met": true,
+        "evidence": "per-declaration emitted indirect call-site counts"
+      },
+      {
+        "item": "wrong ID / release / ABI fails closed",
+        "met": true,
+        "evidence": "refused in-process with the release answer intact"
+      },
+      {
+        "item": "falsification arms discriminate",
+        "met": true,
+        "evidence": "15 live arms"
+      },
+      {
+        "item": "direct and static call latency measured",
+        "met": true,
+        "evidence": "numeric ns/call for both forms against never-inlined controls, with the overhead flagged as within noise"
+      }
+    ],
     "t0_row_linkage": {
       "EB-01": {
         "row_title": "top-level function body",
