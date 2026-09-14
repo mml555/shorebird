@@ -107,3 +107,7 @@ at 6875648 bytes. Built only in out/maot_host.
 SIXTEENTH BORROW (#68 Phase A: decision records, controls, devirtualization).
 Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
 dirty entries, dirty digest 6b358f715e491bd9. Built only in out/maot_host.
+
+SEVENTEENTH BORROW (#68 Phase A: DEPENDENCY_REQUIRED, devirt, m4 gate).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Built only in out/maot_host.

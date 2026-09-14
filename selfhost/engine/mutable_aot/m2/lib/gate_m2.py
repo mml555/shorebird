@@ -973,13 +973,46 @@ def main(argv):
             # component differs -- not because some unrelated guard fired.
             differs = (not fwd['abi_equal']) or (not
                                                  fwd['call_convention_equal'])
-            ok = differs and not fwd['accepted'] and not rev['accepted']
+            # #68 gave StageReplacement a second reason to refuse. A refusal
+            # is only attributable to THIS dimension when the target was
+            # installable; otherwise it proves the escape rule instead. The
+            # pair is still required to be refused both ways, and at least one
+            # of those directions must have had an installable target, or the
+            # dimension is unobservable through this pair.
+            attributable = (fwd.get('onto_installable', True)
+                            or rev.get('onto_installable', True))
+            # When neither direction is attributable the staging attempt
+            # cannot carry the dimension, and for one pair that is permanent
+            # rather than incidental: an owner type parameter can only appear
+            # in an INSTANCE member's signature, and #68 blocks those as
+            # unmodeled dispatch. No fixture fixes that -- a static method
+            # cannot reference its class's type parameters.
+            #
+            # What remains observable is the thing the dimension is actually
+            # about: whether the model REPRESENTS the difference. That is the
+            # canonical forms differing, which is in the record either way.
+            # The weaker observation is recorded as such rather than passed
+            # off as the stronger one.
+            observed_via = 'staging refusal in both directions'
+            if not attributable:
+                observed_via = ('canonical form only -- both targets are '
+                                'un-installable under #68 instance-dispatch '
+                                'blocking, so no staging attempt can attribute '
+                                'a refusal to this dimension')
+                ok = (not fwd['abi_equal']) or (not
+                                                fwd['call_convention_equal'])
+            else:
+                ok = (differs and not fwd['accepted']
+                      and not rev['accepted'])
             dimension_rows.append({
                 'dimension': name, 'a': ia, 'b': ib,
                 'abi_equal': fwd['abi_equal'],
                 'call_convention_equal': fwd['call_convention_equal'],
                 'accepted_a_from_b': fwd['accepted'],
                 'accepted_b_from_a': rev['accepted'],
+                'onto_installable_a': fwd.get('onto_installable', True),
+                'onto_installable_b': rev.get('onto_installable', True),
+                'observed_via': observed_via,
                 'discriminated': ok,
             })
             if not ok:
@@ -998,7 +1031,8 @@ def main(argv):
              'call_convention_equal': m['call_convention_equal'],
              'accepted': m['accepted']}
             for m in matrix
-            if m['accepted'] != (m['abi_equal'] and m['call_convention_equal'])
+            if m['accepted'] != (m['abi_equal'] and m['call_convention_equal']
+                                 and m.get('onto_installable', True))
         ]
         observations['compatibility_matrix_size'] = len(matrix)
         observations['compatibility_matrix_violations'] = violations

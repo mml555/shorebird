@@ -215,6 +215,13 @@ def evaluate(observations, findings, registry=None, selftest=None):
     # the matrix must be an equivalence rather than an implication: a model
     # that refuses everything would pass a one-directional check while making
     # replacement impossible.
+    # #68 added an optimizer escape as a THIRD independent reason for
+    # StageReplacement to refuse, so the matrix equivalence is now over three
+    # facts rather than two. This does not weaken the claim: a pair whose ABI
+    # and calling convention agree is still required to be accepted whenever
+    # the target is installable, and every differing pair is still required to
+    # be refused. It accounts for a refusal reason that did not exist when the
+    # equivalence was written.
     conditions['abi_model_discriminates_every_dimension'] = (
         bool(o.get('abi_dimensions'))
         and o.get('abi_dimensions_undiscriminated') == []
