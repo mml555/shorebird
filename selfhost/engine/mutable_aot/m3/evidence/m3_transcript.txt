@@ -1,16 +1,16 @@
 === MAOT-3 (#67) direct/static replacement through the mutable slot ===
-run  2026-09-14T19:49:13Z
-fork c95ca5ff408f552463ad5545541c03f2eb7e2bf3
+run  2026-09-14T21:05:43Z
+fork c5f214a0f63d5a00dd18325670a58a7b092f82ea
 
-fork          c95ca5ff408f552463ad5545541c03f2eb7e2bf3
+fork          c5f214a0f63d5a00dd18325670a58a7b092f82ea
 top-level     OLD -> NEW -> NEW2
 static        OLD-STATIC -> NEW-STATIC -> NEW2-STATIC
 version       AOT:v1 -> PATCH_CODE:v3
-one process   pid 21921 == 21921
+one process   pid 10430 == 10430
 arms          15 (0 failed)
 blocking      0
 conditions    18 (0 failed)
-latency       direct 1.032 ns (control 0.968) | static 0.999 ns (control 0.983)
+latency       direct 0.969 ns (control 0.934) | static 0.964 ns (control 0.94)
 provenance    bound | arch arm64
 SLICE         arm64_aot_direct_static_vertical_slice = ESTABLISHED
 CLOSURE       issue_67_closure = READY

@@ -103,3 +103,7 @@ FIFTEENTH BORROW (#68 MAOT-4 Phase A: optimizer invariants).
 Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
 dirty entries, dirty digest 6b358f715e491bd9. Route B gen_snapshot untouched
 at 6875648 bytes. Built only in out/maot_host.
+
+SIXTEENTH BORROW (#68 Phase A: decision records, controls, devirtualization).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Built only in out/maot_host.

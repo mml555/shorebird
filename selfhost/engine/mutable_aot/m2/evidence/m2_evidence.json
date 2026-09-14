@@ -2,24 +2,20 @@
   "schema": "maot.m2.evidence/1",
   "issue": 66,
   "generated_by": {
-    "run_id": "2026-09-14T19:48:10Z",
+    "run_id": "2026-09-14T21:05:59Z",
     "gate_sha256": "c51b994d6f0990b556e4ce8d675ac02417b91b97e79ef896a60f2744c7f1c55c",
     "verdict_sha256": "2711b7c784e84925d695046890915f9c6c94855eb038e4dc15e6208d785b918d"
   },
   "identities": {
-    "shorebird_revision": "514df6df5c9686ba7768aafbb1bbf080ee37fa4f",
-    "shorebird_tree": "bef1540d3b967ec2583ff9e12f734bf3dca0eef5",
-    "fork_commit": "c5dd52b96a1a1a7679e85ea5c7abfb9247d3b941",
-    "fork_tree": "569de4f0cfbfffba6315cfa72e81dc8fbbd00917",
+    "shorebird_revision": "ccf1f7fb94766753aa7d8dbfc0b3ff44f5e89df1",
+    "shorebird_tree": "05a90f3be5c922b93c5fd5e6194585b8ff5ebadb",
+    "fork_commit": "c5f214a0f63d5a00dd18325670a58a7b092f82ea",
+    "fork_tree": "693bb8121a41183306f35b1f4a5dbdd9df4a7670",
     "fork_branch": "maot/build",
     "fork_worktree_entries": [
-      "M runtime/vm/compiler/aot/precompiler.cc",
-      " M runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc",
-      " M runtime/vm/maot_registry.cc",
-      " M runtime/vm/maot_registry.h",
       "?? third_party/binaryen/.DS_Store"
     ],
-    "fork_source_dirty": true,
+    "fork_source_dirty": false,
     "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
     "note": "a branch is transport; the commit and tree are identity"
   },
@@ -28,21 +24,21 @@
     "stale_binaries": [],
     "build_digest": {
       "files": {
-        "runtime/vm/maot_registry.cc": "9aff6b764a35b1be5b1338fc0c666d1a925793eea13a9044d93e63dc9e1a2c05",
-        "runtime/vm/maot_registry.h": "530f4cd805041447f0799980ab1a66293a8e35a30fb0ec94d62ac1f4814750d3",
+        "runtime/vm/maot_registry.cc": "b393e330b6865b0962cc70a81b1c4fb26aab7ff158e7eedda6fe1e5d1e4a25ab",
+        "runtime/vm/maot_registry.h": "6a41274ecf8e3bfeb50a95783ba76977dac2ab5197de5cacbc98d8b2f900377f",
         "runtime/vm/kernel_loader.cc": "6ded9b83769b2d64a3c63f9b72ab4237f351cd42193b70ccedd30517a166d9db",
-        "runtime/vm/object_store.h": "8d6df2ea6ebec9b1878424d2c50cc3fa77a7e9097d8e0b2e454ef20b207d46da",
+        "runtime/vm/object_store.h": "f0ccb348e996eacb79b58f3033b3168012ef7f9b1ab9905028c8b9d50ed5edc5",
         "runtime/vm/dart.cc": "76221ab91bfe8a5d882288c7b535b1caa5ee33f263d6bb0b7240d948c5c365af",
-        "runtime/vm/compiler/aot/precompiler.cc": "dfe1bc9abbff1c96ff17db2d97017773a7673d0f2933b1e5ec7cd11815bb3693",
+        "runtime/vm/compiler/aot/precompiler.cc": "91c8339b50df261447e4c60251ddbad5359417992dd7bf6dd5fff999a297fdf3",
         "runtime/vm/compiler/aot/precompiler.h": "96a7e8255eccb81b3caec5c27784861c0be0bf5d48f9cb2bff5fe99c0523ba7d",
         "runtime/vm/compiler/frontend/kernel_translation_helper.cc": "3c7c2ac4cb9e8a04736c184ec1b2a02cea253f5186f45218351594e831f9d96f",
         "runtime/vm/compiler/frontend/kernel_translation_helper.h": "d2726b4c489f025dfef242673006b79d5a21a9663aeae90281e28ffd7cbdb330",
-        "runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc": "fcfd613b9520b5d87e3faf13ed872233d1dfd73a1f8fc41e8e092c3aedccbcdc",
+        "runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc": "4b0e59a38aec086f122f944c296bd549f5685dab0fe6f868d76cdac5b7b64892",
         "runtime/vm/compiler/backend/inliner.cc": "03ab6a0e748cd1c60b069bac04bb58b8ac96fd950734d11d2f12841e8f2d3395"
       },
-      "fork_commit": "c5dd52b96a1a1a7679e85ea5c7abfb9247d3b941",
-      "fork_tree": "569de4f0cfbfffba6315cfa72e81dc8fbbd00917",
-      "built_at": "2026-09-14T19:45:59Z"
+      "fork_commit": "c5f214a0f63d5a00dd18325670a58a7b092f82ea",
+      "fork_tree": "693bb8121a41183306f35b1f4a5dbdd9df4a7670",
+      "built_at": "2026-09-14T21:05:43Z"
     },
     "missing_maot_sources": [],
     "selected_count": 25,
@@ -255,8 +251,8 @@
       "aot_elf_bytes_with_maot": 858168,
       "aot_elf_bytes_control_no_pragmas": 840368,
       "aot_elf_delta_bytes": 17800,
-      "startup_ms_with_maot": 19.23,
-      "startup_ms_control": 18.83,
+      "startup_ms_with_maot": 21.12,
+      "startup_ms_control": 19.14,
       "control_note": "absent here means the control build failed, not that it was skipped",
       "note": "medians of 7 runs of the same program; the control is the identical source with every maot:mutable removed, so the delta includes keeping a dead selected declaration alive",
       "registry_entries": 25,
@@ -265,7 +261,7 @@
       "registry_registry_bytes_approx": 4400,
       "registry_bytes_per_entry_approx": 176,
       "registry_lookup_iterations": 10000,
-      "registry_lookup_total_micros": 195,
+      "registry_lookup_total_micros": 196,
       "registry_lookup_note": "linear scan over a GrowableObjectArray; correctness first, and the cost is recorded rather than optimised around",
       "registry_lookup_sink": 10000
     },
@@ -5163,7 +5159,7 @@
       "registry_bytes_approx": 4400,
       "bytes_per_entry_approx": 176,
       "lookup_iterations": 10000,
-      "lookup_total_micros": 195,
+      "lookup_total_micros": 196,
       "lookup_note": "linear scan over a GrowableObjectArray; correctness first, and the cost is recorded rather than optimised around",
       "lookup_sink": 10000
     }
@@ -6079,7 +6075,202 @@
         "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
         "has_staged": false
       }
-    ]
+    ],
+    "optimizer_decisions": [
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:compute",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posOne",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posTwo",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:posOptional",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedX",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedY",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:genericOne",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:boundNum",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:boundInt",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:staticOne",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:intIdentity",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:genericNone",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:renamedT",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:renamedU",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:nestedBoundNum",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::fn:nestedBoundInt",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      }
+    ],
+    "optimizer_decision_count": 24
   },
   "falsification": [
     {
