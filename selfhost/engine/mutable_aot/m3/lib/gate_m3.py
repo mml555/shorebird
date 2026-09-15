@@ -45,6 +45,15 @@ MAOT_CXX_SOURCES = (
     'runtime/vm/compiler/frontend/kernel_binary_flowgraph.cc',
     'runtime/vm/compiler/frontend/kernel_translation_helper.cc',
     'runtime/vm/compiler/frontend/kernel_translation_helper.h',
+    # Interpreted, not compiled in -- gen_kernel runs these from source on
+    # every invocation, so they cannot go stale against the binary the way a
+    # .cc can. Covered anyway: MAOT selection and the constant-folding
+    # suppression live here, and a record that does not name them cannot say
+    # which sources produced the evidence.
+    'pkg/vm/lib/metadata/maot_declaration_id.dart',
+    'pkg/vm/lib/transformations/type_flow/transformer.dart',
+    'pkg/vm/lib/transformations/pragma.dart',
+    'pkg/vm/lib/modular/target/vm.dart',
 )
 
 

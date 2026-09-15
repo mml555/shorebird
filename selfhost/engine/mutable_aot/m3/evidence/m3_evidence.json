@@ -2,17 +2,23 @@
   "schema": "maot.m3.evidence/2",
   "issue": 67,
   "generated_by": {
-    "run_id": "2026-09-15T00:48:15Z",
-    "gate_sha256": "da3dd906bfe7c4d6b76b6930ec4b9235e4dd3de7eddf6ffef11c950be5a95991",
+    "run_id": "2026-09-15T02:49:21Z",
+    "gate_sha256": "850d04f2965e163cf7581958ca6c325ea8686e234272cda8066ddf2049fd42fb",
     "verdict_sha256": "5cb311d50fc734aa5afac2bfa12c6efb9e22275a9fac65c8f8167d1e29e5c5e3",
     "fixture_sha256": "83c5e003b3d5bcb712c59f1f963c5bf430708d78a753ee817f33f4ce460c608c"
   },
   "identities": {
-    "shorebird_revision": "834e33dc5b07a68bdc6b97626272a3f7a1c411a4",
-    "shorebird_tree": "8e67e36b60573d07bc7a9e2920f9120f0eab6bb4",
+    "shorebird_revision": "3cd65f8c8c71077226572b6e6a0785ca8155c8e0",
+    "shorebird_tree": "9f60c7fa7b4487c25eeb8029a550c6b6cb58acfe",
     "fork_commit": "2e4df989fe22a6e4db73a9eba62c33f275beb674",
     "fork_tree": "e9b81df628905c2f81ea1b537fa4af2c6dccaa75",
     "fork_worktree_entries": [
+      "M pkg/vm/lib/transformations/type_flow/transformer.dart",
+      " M runtime/vm/compiler/aot/precompiler.cc",
+      " M runtime/vm/compiler/backend/inliner.cc",
+      " M runtime/vm/compiler/frontend/kernel_binary_flowgraph.cc",
+      " M runtime/vm/maot_registry.cc",
+      " M runtime/vm/maot_registry.h",
       "?? third_party/binaryen/.DS_Store"
     ],
     "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
@@ -27,22 +33,26 @@
     "target_arch": "arm64",
     "build_digest": {
       "files": {
-        "runtime/vm/maot_registry.cc": "9873596167bcda9b97423aff4aa224e256299ce4d51fea75c3a9b00c2ddc6466",
-        "runtime/vm/maot_registry.h": "389d14236a5bda523d15f4ed78f1c566d51c98cbf10c941ed0c143926f6af07f",
+        "runtime/vm/maot_registry.cc": "9e1c073e34818dc169c68ce1de6d3eb2c0e7957cef5126503b4856154ec82ab8",
+        "runtime/vm/maot_registry.h": "b6766bedc5ea3ee03287f2bd4d300c2f171d9f96b05d0167f553d0143cd7951f",
         "runtime/vm/kernel_loader.cc": "6ded9b83769b2d64a3c63f9b72ab4237f351cd42193b70ccedd30517a166d9db",
         "runtime/vm/object_store.h": "f0ccb348e996eacb79b58f3033b3168012ef7f9b1ab9905028c8b9d50ed5edc5",
         "runtime/vm/dart.cc": "76221ab91bfe8a5d882288c7b535b1caa5ee33f263d6bb0b7240d948c5c365af",
-        "runtime/vm/compiler/aot/precompiler.cc": "1369767c224b19af265b201380c84ee03be55281163aed98063eacf44eafeff9",
+        "runtime/vm/compiler/aot/precompiler.cc": "9ddde405c2cf89ab4ffa52d9ea4b368c4141d5c1e39d547b42f551f22a22d336",
         "runtime/vm/compiler/aot/precompiler.h": "96a7e8255eccb81b3caec5c27784861c0be0bf5d48f9cb2bff5fe99c0523ba7d",
         "runtime/vm/compiler/frontend/kernel_translation_helper.cc": "3c7c2ac4cb9e8a04736c184ec1b2a02cea253f5186f45218351594e831f9d96f",
         "runtime/vm/compiler/frontend/kernel_translation_helper.h": "d2726b4c489f025dfef242673006b79d5a21a9663aeae90281e28ffd7cbdb330",
         "runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc": "4b0e59a38aec086f122f944c296bd549f5685dab0fe6f868d76cdac5b7b64892",
-        "runtime/vm/compiler/backend/inliner.cc": "7ec8b340e51f8fa9a9d8ba3be3f7c33c1ef8f1e2bfb74c1f43b31920a3e6ec94",
-        "runtime/vm/compiler/frontend/kernel_binary_flowgraph.cc": "cff055ce234de667ca58720c96cb57553d90b0e529e65c7ad37c430f620e8461"
+        "runtime/vm/compiler/backend/inliner.cc": "67c9f537e52578ec548da0b0787576e6bf93f2709883e5e3cf3864f33ce75410",
+        "runtime/vm/compiler/frontend/kernel_binary_flowgraph.cc": "9e922e29501bdd02acbcb65d65c494341afa9197ae7d362a6654ca9544e2ca37",
+        "pkg/vm/lib/metadata/maot_declaration_id.dart": "96e1bce90cf4765f3355889bb4003f56e0b64eaeb038476f088e0e167c9b7dd9",
+        "pkg/vm/lib/transformations/type_flow/transformer.dart": "848956217a5aebe4848828dd7191ee524d11e096988efceeff8f28df9b7e87d0",
+        "pkg/vm/lib/transformations/pragma.dart": "882a80a8bb700145fbb7eb5026f2d7f6d8b6c6432e14661b6f52545bdfcde22a",
+        "pkg/vm/lib/modular/target/vm.dart": "82c464b114770687a2868b51d7d93405d0d347dedf8da4604d1c2f56723c1885"
       },
       "fork_commit": "2e4df989fe22a6e4db73a9eba62c33f275beb674",
       "fork_tree": "e9b81df628905c2f81ea1b537fa4af2c6dccaa75",
-      "built_at": "2026-09-15T00:42:42Z"
+      "built_at": "2026-09-15T02:44:53Z"
     },
     "build_provenance_mismatches": [],
     "build_digest_matches": true,
@@ -101,10 +111,10 @@
       }
     },
     "indirect_call_site_trace_lines": 18,
-    "snapshot_sha256_before": "c809a5f8c24ca5906e6a69d34a987d0efd37a2427fd12e4eb76d916f8bddac62",
-    "snapshot_sha256_after": "c809a5f8c24ca5906e6a69d34a987d0efd37a2427fd12e4eb76d916f8bddac62",
+    "snapshot_sha256_before": "84b4856d1c8132c793eb1b57db26852e57ad722a57d2ea17bfc0f58e0e205168",
+    "snapshot_sha256_after": "84b4856d1c8132c793eb1b57db26852e57ad722a57d2ea17bfc0f58e0e205168",
     "calls": {
-      "process.pid": 34708,
+      "process.pid": 15403,
       "top.call.0": "OLD",
       "static.call.0": "OLD-STATIC",
       "untouched.call.0": "UNTOUCHED",
@@ -140,19 +150,19 @@
       "hot.top.value": "NEW2",
       "hot.static.value": "NEW2-STATIC",
       "bench.iterations": 2000000,
-      "bench.top.mutable.us.0": 2051,
-      "bench.top.control.us.0": 1977,
-      "bench.static.mutable.us.0": 2024,
-      "bench.static.control.us.0": 1876,
-      "bench.top.mutable.us.1": 3240,
-      "bench.top.control.us.1": 2017,
-      "bench.static.mutable.us.1": 1964,
-      "bench.static.control.us.1": 1894,
-      "bench.top.mutable.us.2": 1969,
-      "bench.top.control.us.2": 1967,
-      "bench.static.mutable.us.2": 2067,
-      "bench.static.control.us.2": 1885,
-      "process.pid.final": 34708
+      "bench.top.mutable.us.0": 2018,
+      "bench.top.control.us.0": 1953,
+      "bench.static.mutable.us.0": 1977,
+      "bench.static.control.us.0": 2262,
+      "bench.top.mutable.us.1": 2609,
+      "bench.top.control.us.1": 2041,
+      "bench.static.mutable.us.1": 1970,
+      "bench.static.control.us.1": 1896,
+      "bench.top.mutable.us.2": 1991,
+      "bench.top.control.us.2": 2038,
+      "bench.static.mutable.us.2": 1961,
+      "bench.static.control.us.2": 1896,
+      "process.pid.final": 15403
     },
     "runtime_stderr_tail": "",
     "registry_before": {
@@ -185,6 +195,8 @@
           "first_escape_reason": "<none>",
           "installable": true,
           "indirect_call_sites_emitted": 7,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
           "current_implementation_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
           "current_implementation_is_the_declaration_itself": true,
           "release": {
@@ -221,6 +233,8 @@
           "first_escape_reason": "<none>",
           "installable": true,
           "indirect_call_sites_emitted": 8,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
           "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:work",
           "current_implementation_is_the_declaration_itself": true,
           "release": {
@@ -257,6 +271,8 @@
           "first_escape_reason": "<none>",
           "installable": true,
           "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
           "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
           "current_implementation_is_the_declaration_itself": true,
           "release": {
@@ -293,6 +309,8 @@
           "first_escape_reason": "<none>",
           "installable": true,
           "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
           "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
           "current_implementation_is_the_declaration_itself": true,
           "release": {
@@ -329,6 +347,8 @@
           "first_escape_reason": "<none>",
           "installable": true,
           "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
           "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
           "current_implementation_is_the_declaration_itself": true,
           "release": {
@@ -365,6 +385,8 @@
           "first_escape_reason": "<none>",
           "installable": true,
           "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
           "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
           "current_implementation_is_the_declaration_itself": true,
           "release": {
@@ -401,6 +423,8 @@
           "first_escape_reason": "<none>",
           "installable": true,
           "indirect_call_sites_emitted": 3,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
           "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
           "current_implementation_is_the_declaration_itself": true,
           "release": {
@@ -437,6 +461,8 @@
           "first_escape_reason": "<none>",
           "installable": true,
           "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
           "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
           "current_implementation_is_the_declaration_itself": true,
           "release": {
@@ -633,6 +659,8 @@
           "first_escape_reason": "<none>",
           "installable": true,
           "indirect_call_sites_emitted": 7,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
           "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
           "current_implementation_is_the_declaration_itself": false,
           "release": {
@@ -669,6 +697,8 @@
           "first_escape_reason": "<none>",
           "installable": true,
           "indirect_call_sites_emitted": 8,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
           "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
           "current_implementation_is_the_declaration_itself": false,
           "release": {
@@ -705,6 +735,8 @@
           "first_escape_reason": "<none>",
           "installable": true,
           "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
           "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
           "current_implementation_is_the_declaration_itself": true,
           "release": {
@@ -741,6 +773,8 @@
           "first_escape_reason": "<none>",
           "installable": true,
           "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
           "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
           "current_implementation_is_the_declaration_itself": true,
           "release": {
@@ -777,6 +811,8 @@
           "first_escape_reason": "<none>",
           "installable": true,
           "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
           "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
           "current_implementation_is_the_declaration_itself": true,
           "release": {
@@ -813,6 +849,8 @@
           "first_escape_reason": "<none>",
           "installable": true,
           "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
           "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
           "current_implementation_is_the_declaration_itself": true,
           "release": {
@@ -849,6 +887,8 @@
           "first_escape_reason": "<none>",
           "installable": true,
           "indirect_call_sites_emitted": 3,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
           "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
           "current_implementation_is_the_declaration_itself": true,
           "release": {
@@ -885,6 +925,8 @@
           "first_escape_reason": "<none>",
           "installable": true,
           "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
           "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
           "current_implementation_is_the_declaration_itself": true,
           "release": {
@@ -1053,39 +1095,39 @@
     },
     "measurements": {
       "benchmark_iterations": 2000000,
-      "direct_call_ns_mutable": 0.985,
-      "direct_call_ns_control": 0.984,
-      "static_call_ns_mutable": 0.982,
-      "static_call_ns_control": 0.938,
-      "direct_call_ns_overhead": 0.0,
-      "static_call_ns_overhead": 0.04,
+      "direct_call_ns_mutable": 0.996,
+      "direct_call_ns_control": 0.977,
+      "static_call_ns_mutable": 0.981,
+      "static_call_ns_control": 0.948,
+      "direct_call_ns_overhead": 0.02,
+      "static_call_ns_overhead": 0.03,
       "benchmark_elapsed_us_samples": {
         "bench.top.mutable.us": [
-          2051,
-          3240,
-          1969
+          2018,
+          2609,
+          1991
         ],
         "bench.top.control.us": [
-          1977,
-          2017,
-          1967
+          1953,
+          2041,
+          2038
         ],
         "bench.static.mutable.us": [
-          2024,
-          1964,
-          2067
+          1977,
+          1970,
+          1961
         ],
         "bench.static.control.us": [
-          1876,
-          1894,
-          1885
+          2262,
+          1896,
+          1896
         ]
       },
       "benchmark_spread_us": {
-        "bench.top.mutable.us": 1271,
-        "bench.top.control.us": 50,
-        "bench.static.mutable.us": 103,
-        "bench.static.control.us": 18
+        "bench.top.mutable.us": 618,
+        "bench.top.control.us": 88,
+        "bench.static.mutable.us": 16,
+        "bench.static.control.us": 366
       },
       "overhead_is_within_noise": true,
       "overhead_note": "the per-call overhead measures at a few hundredths of a nanosecond while the spread ACROSS SAMPLES OF THE SAME ARM is larger than the difference between arms -- one arm even measured faster than its own control. So the honest statement is that the indirection costs two extra instructions per call and that its cost is not resolvable above scheduling noise at this iteration count, not that it costs 0.06 ns. A resolvable figure needs a quieter harness, which belongs with #68 where the call shape is what is under test.",
@@ -1104,8 +1146,8 @@
       "registry_bytes": 1088,
       "registry_entries": 8,
       "registry_slots_per_entry": 17,
-      "startup_ms_with_maot": 44.13,
-      "startup_ms_control": 37.28,
+      "startup_ms_with_maot": 45.13,
+      "startup_ms_control": 35.81,
       "note": "diagnostic only; no threshold is compared anywhere"
     },
     "falsifications_failed": [],
@@ -1179,6 +1221,8 @@
         "first_escape_reason": "<none>",
         "installable": true,
         "indirect_call_sites_emitted": 7,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
         "current_implementation_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
         "current_implementation_is_the_declaration_itself": true,
         "release": {
@@ -1215,6 +1259,8 @@
         "first_escape_reason": "<none>",
         "installable": true,
         "indirect_call_sites_emitted": 8,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
         "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:work",
         "current_implementation_is_the_declaration_itself": true,
         "release": {
@@ -1251,6 +1297,8 @@
         "first_escape_reason": "<none>",
         "installable": true,
         "indirect_call_sites_emitted": 0,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
         "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
         "current_implementation_is_the_declaration_itself": true,
         "release": {
@@ -1287,6 +1335,8 @@
         "first_escape_reason": "<none>",
         "installable": true,
         "indirect_call_sites_emitted": 0,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
         "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
         "current_implementation_is_the_declaration_itself": true,
         "release": {
@@ -1323,6 +1373,8 @@
         "first_escape_reason": "<none>",
         "installable": true,
         "indirect_call_sites_emitted": 0,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
         "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
         "current_implementation_is_the_declaration_itself": true,
         "release": {
@@ -1359,6 +1411,8 @@
         "first_escape_reason": "<none>",
         "installable": true,
         "indirect_call_sites_emitted": 0,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
         "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
         "current_implementation_is_the_declaration_itself": true,
         "release": {
@@ -1395,6 +1449,8 @@
         "first_escape_reason": "<none>",
         "installable": true,
         "indirect_call_sites_emitted": 3,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
         "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
         "current_implementation_is_the_declaration_itself": true,
         "release": {
@@ -1431,6 +1487,8 @@
         "first_escape_reason": "<none>",
         "installable": true,
         "indirect_call_sites_emitted": 0,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
         "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
         "current_implementation_is_the_declaration_itself": true,
         "release": {
@@ -1627,6 +1685,8 @@
         "first_escape_reason": "<none>",
         "installable": true,
         "indirect_call_sites_emitted": 7,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
         "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
         "current_implementation_is_the_declaration_itself": false,
         "release": {
@@ -1663,6 +1723,8 @@
         "first_escape_reason": "<none>",
         "installable": true,
         "indirect_call_sites_emitted": 8,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
         "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
         "current_implementation_is_the_declaration_itself": false,
         "release": {
@@ -1699,6 +1761,8 @@
         "first_escape_reason": "<none>",
         "installable": true,
         "indirect_call_sites_emitted": 0,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
         "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
         "current_implementation_is_the_declaration_itself": true,
         "release": {
@@ -1735,6 +1799,8 @@
         "first_escape_reason": "<none>",
         "installable": true,
         "indirect_call_sites_emitted": 0,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
         "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
         "current_implementation_is_the_declaration_itself": true,
         "release": {
@@ -1771,6 +1837,8 @@
         "first_escape_reason": "<none>",
         "installable": true,
         "indirect_call_sites_emitted": 0,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
         "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
         "current_implementation_is_the_declaration_itself": true,
         "release": {
@@ -1807,6 +1875,8 @@
         "first_escape_reason": "<none>",
         "installable": true,
         "indirect_call_sites_emitted": 0,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
         "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
         "current_implementation_is_the_declaration_itself": true,
         "release": {
@@ -1843,6 +1913,8 @@
         "first_escape_reason": "<none>",
         "installable": true,
         "indirect_call_sites_emitted": 3,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
         "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
         "current_implementation_is_the_declaration_itself": true,
         "release": {
@@ -1879,6 +1951,8 @@
         "first_escape_reason": "<none>",
         "installable": true,
         "indirect_call_sites_emitted": 0,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
         "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
         "current_implementation_is_the_declaration_itself": true,
         "release": {
@@ -2137,7 +2211,7 @@
       "description": "the process restarted or the release was rebuilt between the OLD and NEW observations",
       "why": "a rebuilt snapshot or a second process would make the whole observation meaningless",
       "result": "pass",
-      "observed": "one pid (34708) and one snapshot (c809a5f8c24c...) across the whole run; a changed hash or a changed pid each fail the condition"
+      "observed": "one pid (15403) and one snapshot (84b4856d1c81...) across the whole run; a changed hash or a changed pid each fail the condition"
     },
     {
       "id": "G16",
@@ -2145,7 +2219,7 @@
       "description": "a measurement condition is satisfied by a non-numeric placeholder, or by only one of the two call forms",
       "why": "a measurement condition satisfied by a non-null field accepts a sentence explaining that nothing was measured",
       "result": "pass",
-      "observed": "direct 0.985 ns vs control 0.984 ns; static 0.982 ns vs control 0.938 ns. A prose value and a missing static arm each fail the condition.",
+      "observed": "direct 0.996 ns vs control 0.977 ns; static 0.981 ns vs control 0.948 ns. A prose value and a missing static arm each fail the condition.",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {
@@ -2154,7 +2228,7 @@
       "description": "the binaries were built from different source bytes than the record names",
       "why": "a run that measures binaries built from other source bytes names a program it did not test",
       "result": "pass",
-      "observed": "the toolchain matches all 12 MAOT sources; against one edited source the guard reports 1 mismatch (flow_graph_compiler_arm64.cc)",
+      "observed": "the toolchain matches all 16 MAOT sources; against one edited source the guard reports 1 mismatch (flow_graph_compiler_arm64.cc)",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {

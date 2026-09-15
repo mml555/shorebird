@@ -120,23 +120,135 @@ RULES = {
                     'on a promise',
         'falsification': 'H05',
     },
-    'unmodeled optimizer classes': {
-        'rule': 'CHA, polymorphic-call specialization, dispatch-table '
-                'specialization, tear-off target caching, recognized/'
-                'intrinsic replacement and accessor subsumption are not '
-                'modeled by #68',
-        'enforcement': 'they can only reach a mutable declaration through an '
-                       'instance member or a tear-off; instance members are '
-                       'blocked above, and a tear-off of a mutable member is '
-                       'an instance member too',
-        'disposition': 'UNMODELED_BLOCKING',
-        'producer': 'the instance-dispatch rule subsumes them',
+    'recognized-or-intrinsic': {
+        'rule': 'a recognized or intrinsified declaration may not be mutable, '
+                'because the compiler can replace its body with inline code '
+                'at the call site and no dispatch cell mediates that',
+        'enforcement': 'precompiler.cc, Function::IsRecognized() or '
+                       'is_intrinsic() at seeding',
+        'disposition': 'FORBIDDEN',
+        'producer': 'NoteDecision at seeding',
         'consumer': 'MaotRegistry::StageReplacement refuses installation',
-        'falsification': 'H08 -- the same arm, because the same blocker '
-                         'covers them. Stated rather than claimed as '
-                         'separately proven',
+        'falsification': 'H16',
+        'why_not_covered_by_instance_dispatch':
+            'an earlier version of this table claimed the instance-dispatch '
+            'blocker covered it. That was wrong: dart:core\'s identical and a '
+            'number of top-level Developer and FFI functions are recognized '
+            'and STATIC. SDK declarations separately cannot be selected -- '
+            'collectSelected and index skip dart: libraries -- and the gate '
+            'asserts the selected set contains no dart: id; but a USER '
+            'declaration can carry vm:recognized, which is the case this rule '
+            'closes.',
+    },
+    'accessor-subsumption': {
+        'rule': 'a field or accessor transformation that would subsume a '
+                'mutable accessor body is refused',
+        'enforcement': 'implicit getters and setters are instance members and '
+                       'are blocked by instance-dispatch; a static or '
+                       'top-level accessor is an ordinary static call and is '
+                       'lowered through the cell like any other',
+        'disposition': 'UNMODELED_BLOCKING',
+        'producer': 'the instance-dispatch rule for the instance case; the '
+                    'static-call-lowering rule for the static case',
+        'consumer': 'MaotRegistry::StageReplacement refuses the instance '
+                    'case; the static case is slot-preserving and installs',
+        'falsification': 'H08 for the instance half. The static half is '
+                         'covered by H01, since a static accessor is a static '
+                         'call. Stated rather than claimed as separately '
+                         'proven.',
     },
 }
 
 REQUIRED_FIELDS = ('rule', 'enforcement', 'disposition', 'producer',
                    'consumer', 'falsification')
+
+# The optimizer classes #68 names, transcribed from the issue's own
+# "At minimum inspect/control" list. This set is INDEPENDENT of RULES on
+# purpose: checking that every key in RULES has populated fields says nothing
+# about a class that was dropped from RULES entirely, and the first version of
+# this gate could not tell the difference. H15 removes a class and requires
+# the condition to fail.
+REQUIRED_CLASSES = {
+    'inlining',
+    'constant-folding',            # "constant propagation/folding through
+                                   #  mutable calls"
+    'tfa-retention',               # "TFA body/result materialization" and
+                                   #  "any precompiler transformation that
+                                   #   removes the mutable declaration"
+    'static-call-lowering',        # "direct-call target binding"
+    'devirtualization',            # "CHA/devirtualization"
+    'instance-dispatch',           # "polymorphic-call specialization",
+                                   #  "dispatch-table specialization",
+                                   #  "tear-off target caching"
+    'recognized-or-intrinsic',     # "recognized/intrinsic replacement where
+                                   #  it would erase mutability"
+    'accessor-subsumption',        # "field/accessor transformations that
+                                   #  subsume a mutable accessor body"
+    'target-architecture',
+    'dependency-carrying optimizations',
+}
+
+
+# ---------------------------------------------------------------------------
+# The recognized/intrinsic population, proven from the VM's own tables.
+#
+# Function::IsRecognized() is recognized_kind() != kUnknown, and
+# recognized_kind is assigned in exactly one place:
+# MethodRecognizer::InitializeState(), which expands RECOGNIZED_LIST,
+# ASM_INTRINSICS_LIST and GRAPH_INTRINSICS_LIST and resolves each row with
+#
+#     lib = Library::<first column>();
+#     func = Library::GetFunction(lib, class, name);
+#
+# @pragma('vm:recognized') does NOT assign it -- object.cc only CHECKS that a
+# function already in the table carries a matching pragma. So the recognized
+# population is exactly what those tables name, and if every row names an SDK
+# library then no user declaration can ever be recognized or intrinsic.
+#
+# That "if" is the whole proof, and it is checkable: these are the library
+# accessors the VM considers SDK. A row naming anything else fails the check
+# rather than quietly widening the population.
+SDK_LIBRARY_ACCESSORS = frozenset({
+    'AsyncLibrary', 'CollectionLibrary', 'CompactHashLibrary',
+    'ConcurrentLibrary', 'ConvertLibrary', 'CoreLibrary', 'DeveloperLibrary',
+    'FfiLibrary', 'InternalLibrary', 'IsolateLibrary', 'MathLibrary',
+    'MirrorsLibrary', 'NativeWrappersLibrary', 'TypedDataLibrary',
+    'VMServiceLibrary', 'VMLibrary',
+})
+
+# The macro blocks InitializeState() actually expands. A block that assigns
+# recognized_kind and is not listed here would be missed, so the check also
+# asserts every one of these is present in the header.
+RECOGNIZED_TABLE_BLOCKS = (
+    'OTHER_RECOGNIZED_LIST',
+    'ASM_INTRINSICS_LIST',
+    'GRAPH_INTRINSICS_LIST',
+)
+
+
+def recognized_table_libraries(header_text):
+    """Library-column values of every row in the recognized/intrinsic tables.
+
+    Returns (libraries, blocks_found). A row is `V(Library, Class, name, Enum,
+    fingerprint)`; rows with fewer columns belong to a different macro and are
+    not part of this population.
+    """
+    libs, blocks = set(), []
+    lines = header_text.splitlines()
+    current = None
+    for line in lines:
+        st = line.strip()
+        if st.startswith('#define ') and st.split('(')[0][8:].endswith('_LIST'):
+            current = st.split('(')[0][8:]
+            if current in RECOGNIZED_TABLE_BLOCKS:
+                blocks.append(current)
+            continue
+        if current not in RECOGNIZED_TABLE_BLOCKS:
+            continue
+        if not st.startswith('V('):
+            continue
+        parts = [p.strip() for p in st[2:].rstrip('\\').strip().rstrip(')')
+                 .split(',')]
+        if len(parts) >= 5:
+            libs.add(parts[0])
+    return libs, blocks

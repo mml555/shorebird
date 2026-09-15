@@ -31,6 +31,22 @@ SOURCES=(
   runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc
   runtime/vm/compiler/backend/inliner.cc
   runtime/vm/compiler/frontend/kernel_binary_flowgraph.cc
+  # Interpreted, not compiled in: gen_kernel runs these from source on every
+  # invocation, so they cannot go stale against the binary the way a .cc can.
+  # Recorded anyway. SELECTION itself lives in transformer.dart, and whether
+  # maot:mutable is honoured at all lives in pragma.dart and vm.dart -- so
+  # editing one of these changes which declarations exist without changing a
+  # byte of the binary, and a record that does not name them cannot say which
+  # sources produced the evidence.
+  #
+  # This list and the gates' lists must match EXACTLY in both directions: the
+  # staleness check walks the recorded set and separately flags anything a
+  # gate hashes that the record does not cover. A two-entry list here against
+  # a four-entry list there reported every run as stale.
+  pkg/vm/lib/metadata/maot_declaration_id.dart
+  pkg/vm/lib/transformations/type_flow/transformer.dart
+  pkg/vm/lib/transformations/pragma.dart
+  pkg/vm/lib/modular/target/vm.dart
 )
 
 for f in "${SOURCES[@]}"; do

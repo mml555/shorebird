@@ -57,7 +57,42 @@ T0_ROW_LINKAGE = {
 CONDITIONS = {
     'every_optimizer_class_has_a_rule':
         'does every optimizer class #68 names have a rule with an enforcement '
-        'site, a disposition, a producer, a consumer and a falsification?',
+        'site, a disposition, a producer, a consumer and a falsification -- '
+        'compared against an INDEPENDENT required-class set, so deleting a '
+        'class fails the check instead of shrinking what it inspects?',
+    'recognized_population_is_sdk_only':
+        'read out of the VM\'s own recognized/intrinsic tables: does every '
+        'row name an SDK library, and is vm:recognized unable to assign '
+        'recognized_kind on its own? Those two facts are what close the '
+        'class, together with no_sdk_declaration_is_selected.',
+    'injected_recognized_defect_is_caught':
+        'the tables cannot make a user declaration recognized, so a blocker '
+        'for that case has never been watched firing. With '
+        '--maot_force_recognized the state is injected: is the declaration '
+        'then FORBIDDEN and uninstallable, and does the verdict flip?',
+    'no_sdk_declaration_is_selected':
+        'is the shipped selected set free of any dart: declaration? The '
+        'recognized/intrinsic rule is only sound if the SDK population cannot '
+        'be selected at all.',
+    'injected_inlining_defect_is_caught':
+        'with --maot_allow_inlining_mutable the inliner actually takes a '
+        'mutable callee: does that caller then keep returning the release '
+        'answer after an install, and does the verdict flip?',
+    'injected_retention_defect_is_caught':
+        'with --maot_disable_retention_roots every selected declaration is '
+        'seen at materialization and then DROPPED: does the registry empty, '
+        'does the program stop running, and does the verdict flip? Retention '
+        'is the only thing seeding contributes to survival, so '
+        '--maot_disable_seeding reaches the same outcome by the same route -- '
+        'the two differ only in the disposition records seeding emits.',
+    'injected_tfa_defect_is_caught':
+        'with MAOT_ALLOW_CONSTANT_FOLDING=1 TFA folds a mutable result: does '
+        'the caller keep the release answer after an install, and does the '
+        'verdict flip?',
+    'scale_measurements_recorded':
+        'are the prevented-inline and devirtualization counts present for a '
+        'representative Flutter application, not only the m4 fixture? No '
+        'threshold is compared; absence is the only failure.',
     'blocking_dispositions_actually_block':
         'measured, not read from the enum: does each blocking disposition '
         'produce an install refusal, and does SLOT_PRESERVING not?',
@@ -135,6 +170,13 @@ BANK = {
                     'the record names'),
     'H14': ('live', 'an optimized and a conservative build disagree about '
                     'mutation semantics'),
+    'H15': ('live', 'an optimizer class #68 names is deleted from the rule '
+                    'table and the completeness check still passes'),
+    'H16': ('live', 'a user declaration carrying both maot:mutable and '
+                    'vm:recognized is treated as installable, so the compiler '
+                    'may substitute inline code no dispatch cell mediates'),
+    'H17': ('live', 'TFA folds a mutable result to a constant, so the caller '
+                    'holds the release answer with no call at all'),
 }
 
 
@@ -151,13 +193,56 @@ def evaluate(observations, findings):
 
     c = {}
 
-    c['every_optimizer_class_has_a_rule'] = (
+    # The first version of this condition checked only that whatever happened
+    # to be in R.RULES had populated fields. An entire class could be deleted
+    # and it still passed -- false-safe in the exact way that matters. The set
+    # of classes #68 requires is now written down INDEPENDENTLY, in
+    # R.REQUIRED_CLASSES, and the condition compares against it in both
+    # directions. H15 deletes a class and requires this to go False.
+    c['every_optimizer_class_has_a_rule'] = bool(
         bool(R.RULES)
+        and set(R.RULES) == set(R.REQUIRED_CLASSES)
         and all(all(f in v and v[f] for f in R.REQUIRED_FIELDS)
                 for v in R.RULES.values())
         and all(v['disposition'] in
                 ('FORBIDDEN', 'SLOT_PRESERVING', 'DEPENDENCY_REQUIRED',
                  'UNMODELED_BLOCKING') for v in R.RULES.values()))
+
+    # Blocker 2. The recognized/intrinsic class needs BOTH halves proven.
+    #
+    # First half: no SDK declaration can be selected. Asserted against the
+    # shipped registry, not argued from how collectSelected is written.
+    c['no_sdk_declaration_is_selected'] = bool(
+        entries
+        and not any(e.get('selected') and ':dart:' in k
+                    for k, e in entries.items()))
+
+    # Second half: the recognized population is exactly what the VM's own
+    # tables name, and every row in them names an SDK library. Together with
+    # the first half that closes the class -- a selected declaration cannot be
+    # recognized, because recognized_kind is assigned nowhere else.
+    #
+    # This replaces an earlier claim that instance-member blocking covered the
+    # class. That claim was wrong: dart:core's identical and a number of
+    # top-level Developer and FFI functions are recognized AND static.
+    rt = o.get('recognized_table') or {}
+    c['recognized_population_is_sdk_only'] = bool(
+        sorted(rt.get('blocks_found') or []) ==
+            sorted(R.RECOGNIZED_TABLE_BLOCKS)
+        and rt.get('libraries')
+        and rt.get('non_sdk_libraries') == []
+        and rt.get('pragma_can_assign_recognized_kind') is False)
+
+    # And the blocker itself must be watched firing. The tables cannot produce
+    # a recognized user declaration, so the state is injected.
+    rec = o.get('injected_recognized_defect') or {}
+    c['injected_recognized_defect_is_caught'] = bool(
+        rec.get('baseline_forbidden_decisions', -1) == 0
+        and rec.get('baseline_install') == 0
+        and rec.get('defect_forbidden_decisions', 0) > 0
+        and rec.get('defect_install') == -3
+        and rec.get('defect_installable') is False
+        and rec.get('verdict_under_defect') == 'NOT_ESTABLISHED')
 
     # Measured from the injection runs, not read from the enum.
     disp = o.get('disposition_effects') or {}
@@ -224,20 +309,134 @@ def evaluate(observations, findings):
         and surv.get('drop_state_install_refused') is False)
 
     cons = o.get('conservative_control') or {}
-    c['optimized_and_conservative_agree'] = (
+    c['optimized_and_conservative_agree'] = bool(
         bool(cons.get('compared'))
         and cons.get('disagreements') == []
-        and cons.get('flags'))
+        and bool(cons.get('flags')))
 
-    c['required_falsifications_detected'] = (
+    c['required_falsifications_detected'] = bool(
         o.get('falsifications_failed') == [])
 
+    # --- injected optimizer defects (blocker 3) -------------------------
+    # H10 and H12 were positive tests: they observed that the protection was
+    # in place, not that removing it produces a defect the gate catches.
+    # These two conditions read the DEFECT builds. Each requires three
+    # things -- the protection was actually doing work in the shipped build,
+    # the defect actually got injected, and the verdict flipped -- because
+    # any one of them alone can pass vacuously.
+    ind = o.get('injected_inlining_defect') or {}
+    c['injected_inlining_defect_is_caught'] = bool(
+        # Baseline: nothing was inlined and the replacement IS observed.
+        ind.get('baseline_inline_admissions', -1) == 0
+        and ind.get('baseline_call_after_install') == 'NEW-TINY'
+        and ind.get('baseline_install') == 0
+        # Defect: the inliner really took the callee. This -- not a refusal
+        # count -- is what proves the callee was inlinable and the rule is
+        # what stopped it. set_is_inlinable(false) makes the inliner skip the
+        # callee before ShouldWeInline is ever asked, so in the shipped build
+        # the refusal counter reads zero for the fixture; admissions under the
+        # falsification flag is the precondition that actually discriminates.
+        and ind.get('defect_inline_admissions', 0) > 0
+        # The caller now holds a copy, and it shows: the call keeps returning
+        # the release answer, cold and hot.
+        and ind.get('defect_call_after_install') == 'OLD-TINY'
+        and ind.get('defect_hot_call') == 'OLD-TINY'
+        # And the system FAILS CLOSED rather than shipping a stale caller:
+        # the admission records an escape and installation is refused.
+        and ind.get('defect_escapes', 0) > 0
+        and ind.get('defect_installable') is False
+        and ind.get('defect_install') == -3
+        and ind.get('verdict_under_defect') == 'NOT_ESTABLISHED')
+
+    ret = o.get('injected_retention_defect') or {}
+    # None-safe on purpose. The first version compared two .get() results
+    # directly and raised TypeError when the key name was wrong, which is a
+    # gate that crashes rather than a gate that reports -- and a crashing
+    # gate says nothing at all. Missing counts mean NOT measured, which is
+    # False, not an exception.
+    _base_sel = ret.get('baseline_selected_entries')
+    _def_sel = ret.get('defect_selected_entries')
+    c['injected_retention_defect_is_caught'] = bool(
+        # Baseline: the dead-at-release declaration is present, retained, and
+        # patchable. Nothing dropped.
+        ret.get('baseline_registry_entries', 0) > 0
+        and ret.get('baseline_dead_declaration_present') is True
+        and ret.get('baseline_dead_version_after_install') == 'PATCH_CODE:v2'
+        and ret.get('baseline_dropped_at_materialization') == 0
+        and ret.get('baseline_retained_at_materialization', 0) > 0
+        and ret.get('baseline_returncode') == 0
+        # Defect: every selected declaration was SEEN and then DROPPED for
+        # want of a retention root. Seen-and-dropped, not absent, is what
+        # distinguishes this from --maot_disable_seeding, which registers
+        # nothing; the runtime dump alone cannot tell them apart.
+        and ret.get('defect_seen_at_materialization', 0) > 0
+        and ret.get('defect_retained_at_materialization', -1) == 0
+        and ret.get('defect_dropped_at_materialization', 0) > 0
+        # Seen-and-dropped, not absent: the declarations were registered by
+        # the kernel loader and then lost at materialization for want of a
+        # retention root. An earlier version of this condition also required
+        # --maot_disable_seeding to show ZERO seen, on the assumption that the
+        # two instruments failed at different points. They do not: binding and
+        # registration happen at load, not at seeding, so both show 13 seen
+        # and 13 dropped. What they actually differ by is the disposition
+        # records seeding emits, which is asserted instead -- a claim the
+        # measurement supports.
+        and ret.get('no_seeding_seen_at_materialization')
+            == ret.get('defect_seen_at_materialization')
+        and ret.get('no_seeding_dropped_at_materialization')
+            == ret.get('defect_dropped_at_materialization')
+        and ret.get('defect_decisions', 0)
+            > ret.get('no_seeding_decisions', 0)
+        # Consequence: nothing is patchable and the program does not run.
+        and ret.get('defect_dead_declaration_present') is False
+        and ret.get('defect_reachable_declaration_present') is False
+        and ret.get('defect_returncode') != 0
+        and isinstance(_base_sel, int) and isinstance(_def_sel, int)
+        and _def_sel < _base_sel
+        and ret.get('defect_install') != 0
+        and ret.get('verdict_under_defect') == 'NOT_ESTABLISHED')
+
+    tfa = o.get('injected_tfa_defect') or {}
+    c['injected_tfa_defect_is_caught'] = bool(
+        tfa.get('baseline_call_after_install') == 'NEW-CONST'
+        and tfa.get('baseline_constant_folding_decisions', -1) == 0
+        # One layer removed (TFA suppression off): the VM backstop sees the
+        # constant result, records it FORBIDDEN, and installation is refused.
+        # Install refused ALONE does not discriminate -- a refused install
+        # trivially leaves the caller on the release answer -- so the
+        # discriminating observation is the backstop decision appearing.
+        and tfa.get('one_layer_constant_folding_decisions', 0) > 0
+        and tfa.get('one_layer_install') == -3
+        and tfa.get('one_layer_verdict') == 'NOT_ESTABLISHED'
+        # Both layers removed: nothing refuses, installation SUCCEEDS, and
+        # every caller still returns the folded release answer. This is the
+        # raw defect, and it is the one that actually shipped once.
+        and tfa.get('both_layers_install') == 0
+        and tfa.get('both_layers_call_after_install') == 'OLD-CONST'
+        and tfa.get('both_layers_verdict') == 'NOT_ESTABLISHED')
+
     m = o.get('measurements') or {}
-    c['measurements_recorded'] = all(
+    c['measurements_recorded'] = bool(all(
         m.get(k) is not None for k in
         ('aot_elf_bytes', 'compile_seconds', 'direct_call_ns_mutable',
          'prevented_inlines', 'devirtualizations_recorded',
-         'indirect_call_sites_total'))
+         'indirect_call_sites_total')))
+
+    # Blocker 4. The m4 fixture is eight declarations; it cannot say what this
+    # posture costs a real program. The scale lane compiles a representative
+    # Flutter application and counts the same two quantities there. Absence is
+    # the only failure -- no threshold is compared, because no threshold has
+    # been agreed and inventing one here would be a fabricated contract.
+    sc = o.get('scale_measurements') or {}
+    c['scale_measurements_recorded'] = bool(
+        sc.get('corpus')
+        and all(sc.get(k) is not None for k in
+                ('selected_declarations', 'prevented_inlines',
+                 'devirtualizations_recorded', 'aot_elf_bytes',
+                 'aot_elf_bytes_control', 'compile_seconds',
+                 'compile_seconds_control'))
+        and sc.get('selected_declarations', 0) > 0
+        and sc.get('framework_declarations_in_corpus', 0) > 0)
 
     c['build_provenance_bound'] = (
         o.get('build_digest_matches') is True
@@ -253,6 +452,17 @@ def evaluate(observations, findings):
         and T0_ROW_LINKAGE['EB-02']['covered_by_issue_68'] == demonstrated
         and T0_ROW_LINKAGE['RS-09']['covered_by_issue_68'] == {}
         and o.get('t0_rows_promoted') in (None, []))
+
+    # A condition whose value is a non-empty list reads as "holds" in every
+    # conjunction and prints as its own contents in the evidence -- which is
+    # how optimized_and_conservative_agree shipped as
+    # ['--inlining_depth_threshold=0'] instead of True. Non-boolean condition
+    # values are now a hard error rather than a silent pass.
+    non_bool = sorted(k for k, v in c.items() if not isinstance(v, bool))
+    if non_bool:
+        raise TypeError(
+            'verdict conditions must be bool; these are not: '
+            + ', '.join(f'{k}={c[k]!r}' for k in non_bool))
 
     blocking = [f for f in findings if f.get('severity') == 'blocking']
     phase_blocking = [f for f in blocking
@@ -327,8 +537,28 @@ def build_ledger(conditions, live_arm_count=0):
                      'version advances'},
         {'item': 'falsification of each major optimization class changes the '
                  'gate',
-         'met': conditions['required_falsifications_detected'],
-         'evidence': f'{live_arm_count} live arms'},
+         'met': conditions['required_falsifications_detected']
+                and conditions['injected_inlining_defect_is_caught']
+                and conditions['injected_retention_defect_is_caught']
+                and conditions['injected_tfa_defect_is_caught'],
+         'evidence': f'{live_arm_count} live arms, of which three inject a '
+                     f'real inlining, retention and TFA defect rather than '
+                     f'observing that the protection is in place'},
+        {'item': 'recognized/intrinsic replacement cannot erase mutability',
+         'met': conditions['no_sdk_declaration_is_selected']
+                and conditions['recognized_population_is_sdk_only']
+                and conditions['injected_recognized_defect_is_caught']
+                and conditions['every_optimizer_class_has_a_rule'],
+         'evidence': 'the recognized tables name only SDK libraries and no '
+                     'SDK declaration can be selected, so the class is empty '
+                     'by construction; the blocker is still watched firing '
+                     'against an injected recognized declaration'},
+        {'item': 'the cost of the conservative posture is measured at '
+                 'application scale, not only on the fixture',
+         'met': conditions['measurements_recorded']
+                and conditions['scale_measurements_recorded'],
+         'evidence': 'prevented inlines and devirtualizations counted on a '
+                     'representative Flutter application against a control'},
         {'item': 'any dependency metadata is consumed by a real decision',
          'met': conditions['blocking_record_survives_to_the_consumer'],
          'evidence': 'blocking decision AND surviving projection AND real '

@@ -120,3 +120,22 @@ NINETEENTH BORROW (#68 Phase A closure: rule table, m4 gate, measurements).
 Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
 dirty entries, dirty digest 6b358f715e491bd9. No fork source changed this
 borrow -- gate, fixture and evidence work only.
+
+TWENTIETH BORROW (#68 closure repair: recognized/intrinsic, injected defects,
+scale measurement).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9 -- identical to every earlier
+recording. Route B gen_snapshot untouched at 6875648 bytes, Sep 1 02:40.
+Built only in out/maot_host.
+
+Fork work committed as b92efd823d83e4c901b48c0ef9e953e07e34c79d, tree
+a5c581641bf7bf3ff80c109e89586aa665b20327, pushed to durable maot/build.
+
+The restore used `git diff route-b maot/rescue-source-loader` rather than a
+loose patch file: the patch named in the original record
+(route-b-source-loader-private-scope-guard.patch) is not on this disk. The
+rescue BRANCH is, on both the local repo and the durable remote, and it is
+the authority -- a file beside a checkout is not provenance. The restored
+working tree reproduces dirty digest 6b358f715e491bd9 exactly, which is the
+same value recorded at the first borrow, so the restore is verified against
+the recorded state rather than against the file it came from.

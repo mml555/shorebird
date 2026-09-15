@@ -42,6 +42,10 @@ MAOT_CXX_SOURCES = (
     'runtime/vm/compiler/frontend/kernel_binary_flowgraph.cc',
     'runtime/vm/compiler/frontend/kernel_translation_helper.cc',
     'runtime/vm/compiler/frontend/kernel_translation_helper.h',
+    'pkg/vm/lib/metadata/maot_declaration_id.dart',
+    'pkg/vm/lib/transformations/type_flow/transformer.dart',
+    'pkg/vm/lib/transformations/pragma.dart',
+    'pkg/vm/lib/modular/target/vm.dart',
 )
 
 # The conservative AOT control: the same program with the optimization most
@@ -121,6 +125,7 @@ class Build:
         self.pkg_config = os.path.join(tool, 'package_config.json')
         self.dill = os.path.join(workdir, 'app.dill')
         self.aot = os.path.join(workdir, 'app.aot')
+        self.precompile_dump = None
         self.dumps = os.path.join(workdir, 'dumps')
         os.makedirs(self.dumps, exist_ok=True)
         self.compile_seconds = None
@@ -138,9 +143,16 @@ class Build:
 
     def snapshot(self, extra=()):
         t = time.perf_counter()
+        # The PRECOMPILE dump, written by gen_snapshot itself. The runtime
+        # dump cannot carry the materialization stats -- they are set during
+        # precompilation and read back as -1 from the deserialized registry --
+        # and without them a falsification cannot tell "registered then
+        # dropped for want of a retention root" from "never registered".
+        self.precompile_dump = os.path.join(self.dir, 'registry_precompile.json')
         r = subprocess.run(
             [os.path.join(OUT, 'gen_snapshot'), '--snapshot_kind=app-aot-elf',
-             f'--elf={self.aot}', f'--maot_namespace={NAMESPACE}']
+             f'--elf={self.aot}', f'--maot_namespace={NAMESPACE}',
+             f'--maot_dump_registry_precompile={self.precompile_dump}']
             + list(extra) + [self.dill],
             capture_output=True, text=True, timeout=1800)
         self.compile_seconds = round(time.perf_counter() - t, 2)
@@ -157,6 +169,10 @@ class Build:
     def registry(self, which='registry_after.json'):
         p = os.path.join(self.dumps, which)
         return json.load(open(p)) if os.path.exists(p) else {}
+
+    def precompile_registry(self):
+        p = getattr(self, 'precompile_dump', None)
+        return json.load(open(p)) if p and os.path.exists(p) else {}
 
 
 def _ns(calls, key, reps=3):
@@ -186,6 +202,19 @@ def parse_calls(stdout):
         except ValueError:
             out[k] = v
     return out
+
+
+def entries_by_suffix(registry, suffix):
+    """One registry entry by declaration-id suffix, or None.
+
+    Returns None rather than {} on purpose: an arm that reads a missing
+    declaration must be able to tell "absent" from "present with zeroes", and
+    the retention falsification depends on exactly that distinction.
+    """
+    for e in (registry or {}).get('entries', []):
+        if e['declaration_id'].endswith(suffix):
+            return e
+    return None
 
 
 class _NotMeasured(Exception):
@@ -345,25 +374,390 @@ def main(argv):
             f"{calls.get('hot.devirt')} hot, and the descriptor never claims "
             f"otherwise")
 
-        arm('H10', 'a vm:prefer-inline mutable callee that got inlined could '
-                   'not observe a replacement; the rule must beat an explicit '
-                   'inline request',
-            calls.get('tiny.0') == 'OLD-TINY'
-            and calls.get('tiny.1') == 'NEW-TINY'
-            and calls.get('hot.tiny') == 'NEW-TINY',
-            f"prefer-inline callee: {calls.get('tiny.0')} -> "
-            f"{calls.get('tiny.1')}, still {calls.get('hot.tiny')} after "
-            f"{calls.get('hot.iterations')} iterations")
+        # ---- H16: the recognized/intrinsic class ----------------------
+        # The instance-dispatch blocker does NOT cover this: `identical` and
+        # several top-level Developer/FFI functions are recognized AND static.
+        # The class is closed by two facts, both checked here, plus a third
+        # arm that watches the blocker fire.
+        rmh = os.path.join(FORK,
+                           'runtime/vm/compiler/recognized_methods_list.h')
+        rt_libs, rt_blocks = R.recognized_table_libraries(open(rmh).read())
+        # object.cc only CHECKS a vm:recognized pragma against the table; the
+        # single assignment of recognized_kind is in InitializeState().
+        objcc = open(os.path.join(FORK, 'runtime/vm/object.cc')).read()
+        assigners = [f for f in (
+            'runtime/vm/compiler/method_recognizer.cc',
+            'runtime/vm/object.cc',
+        ) if 'set_recognized_kind(' in open(os.path.join(FORK, f)).read()]
+        obs['recognized_table'] = {
+            'header': 'runtime/vm/compiler/recognized_methods_list.h',
+            'blocks_found': rt_blocks,
+            'blocks_required': list(R.RECOGNIZED_TABLE_BLOCKS),
+            'libraries': sorted(rt_libs),
+            'non_sdk_libraries': sorted(rt_libs - R.SDK_LIBRARY_ACCESSORS),
+            'files_that_assign_recognized_kind': assigners,
+            # object.cc's only use is the consistency check that a recognized
+            # function also carries the pragma -- the reverse direction.
+            'pragma_can_assign_recognized_kind':
+                'set_recognized_kind' in objcc.split(
+                    'Check that the function is marked as recognized via the '
+                    'vm:recognized')[-1][:400],
+        }
+        sdk_selected = sorted(
+            e['declaration_id'] for e in reg_after.get('entries', [])
+            if e.get('selected') and ':dart:' in e['declaration_id'])
+        obs['selected_sdk_declarations'] = sdk_selected
 
-        arm('H12', 'a declaration the release never calls must stay '
-                   'addressable, or dead code becomes unpatchable',
-            calls.get('unreachable.version.0') == 'AOT:v1'
-            and calls.get('install.unreachable') == 0
-            and calls.get('unreachable.version.1') == 'PATCH_CODE:v2',
-            f"never called by the release: "
+        base_rec = entries_by_suffix(reg_after, '::fn:recognizedish') or {}
+        base_rec_forbidden = [
+            d for d in obs['optimizer_decisions']
+            if d['optimization_class'] == 'recognized-or-intrinsic'
+            and d['disposition'] == 'FORBIDDEN']
+        frc_b = build('recognized_defect', ['--maot_force_recognized'])
+        frc_r = frc_b.run()
+        frc_c = parse_calls(frc_r.stdout)
+        frc_reg = frc_b.registry()
+        frc_e = entries_by_suffix(frc_reg, '::fn:recognizedish') or {}
+        frc_forbidden = [
+            d for d in frc_reg.get('optimizer_decisions', [])
+            if d['optimization_class'] == 'recognized-or-intrinsic'
+            and d['disposition'] == 'FORBIDDEN']
+        rec = {
+            'baseline_forbidden_decisions': len(base_rec_forbidden),
+            'baseline_install': calls.get('install.recognizedish'),
+            'baseline_installable': base_rec.get('installable'),
+            'baseline_call_after_install': calls.get('recognizedish.1'),
+            'defect_forbidden_decisions': len(frc_forbidden),
+            'defect_install': frc_c.get('install.recognizedish'),
+            'defect_installable': frc_e.get('installable'),
+            'defect_escapes': frc_e.get('optimizer_escapes'),
+            'defect_call_after_install': frc_c.get('recognizedish.1'),
+        }
+        obs['injected_recognized_defect'] = rec
+        rec['verdict_under_defect'] = perturbed(
+            calls=frc_c, registry_after=frc_reg,
+            optimizer_decisions=frc_reg.get('optimizer_decisions', []),
+        )['arm64_aot_optimizer_invariants']
+
+        v16 = V.evaluate(dict(obs), [])['conditions']
+        arm('H16', 'a recognized body can be replaced with inline code at the '
+                   'call site that no dispatch cell mediates, and recognized '
+                   'declarations are static as often as not -- so '
+                   'instance-member blocking cannot cover the class. It is '
+                   'closed instead by the tables naming only SDK libraries '
+                   'and no SDK declaration being selectable. The fixture '
+                   'carries vm:recognized on a user function and it is NOT '
+                   'honoured, which is the point: the blocker is proven by '
+                   'injecting the state the tables cannot produce.',
+            v16['recognized_population_is_sdk_only']
+            and v16['no_sdk_declaration_is_selected']
+            and v16['injected_recognized_defect_is_caught'],
+            f"tables {rt_blocks} name {len(rt_libs)} libraries, "
+            f"{len(obs['recognized_table']['non_sdk_libraries'])} non-SDK; "
+            f"recognized_kind assigned only in {assigners}; selected dart: "
+            f"declarations {sdk_selected}; a user vm:recognized pragma is not "
+            f"honoured (baseline {rec['baseline_forbidden_decisions']} "
+            f"FORBIDDEN, install {rec['baseline_install']}); under "
+            f"--maot_force_recognized {rec['defect_forbidden_decisions']} "
+            f"FORBIDDEN, installable {rec['defect_installable']}, install "
+            f"{rec['defect_install']}",
+            rec['verdict_under_defect'])
+
+        # ---- H15: the completeness check must be able to fail -----------
+        # The first version only checked that whatever was in R.RULES had
+        # populated fields, so deleting a class shrank what it inspected
+        # instead of failing it. This arm deletes one and requires the flip.
+        _saved = R.RULES
+        _flip = {}
+        try:
+            for _cls in sorted(R.REQUIRED_CLASSES):
+                R.RULES = {k: v for k, v in _saved.items() if k != _cls}
+                _flip[_cls] = V.evaluate(dict(obs), [])[
+                    'conditions']['every_optimizer_class_has_a_rule']
+        finally:
+            R.RULES = _saved
+        missing_flips = sorted(k for k, v in _flip.items() if v is not False)
+        obs['required_class_removal'] = {
+            'required_classes': sorted(R.REQUIRED_CLASSES),
+            'condition_after_removal': _flip,
+            'classes_whose_removal_went_undetected': missing_flips,
+        }
+        arm('H15', 'an entire optimizer class can be deleted from the rule '
+                   'table. A check that only inspects what is present cannot '
+                   'see that, which is exactly how this one shipped.',
+            len(R.REQUIRED_CLASSES) > 0
+            and missing_flips == []
+            and V.evaluate(dict(obs), [])[
+                'conditions']['every_optimizer_class_has_a_rule'] is True,
+            f"removing any one of {len(R.REQUIRED_CLASSES)} required classes "
+            f"fails the completeness condition; undetected removals: "
+            f"{missing_flips}",
+            'NOT_ESTABLISHED' if missing_flips == [] else 'ESTABLISHED')
+
+        # ---- H10: an INJECTED inlining defect ---------------------------
+        # The previous version of this arm observed that the protection was in
+        # place. That is a positive test, not a falsification. This one turns
+        # the protection off, checks the inliner actually took the callee, and
+        # requires the resulting defect to be caught.
+        base_inl = entries_by_suffix(reg_after, '::fn:tiny') or {}
+        inl_b = build('inline_defect', ['--maot_allow_inlining_mutable'])
+        inl_r = inl_b.run()
+        inl_c = parse_calls(inl_r.stdout)
+        inl_reg = inl_b.registry()
+        inl_e = entries_by_suffix(inl_reg, '::fn:tiny') or {}
+        ind = {
+            'baseline_inline_refusals': base_inl.get('inline_refusals'),
+            'baseline_inline_admissions': base_inl.get('inline_admissions'),
+            'baseline_install': calls.get('install.tiny'),
+            'baseline_installable': base_inl.get('installable'),
+            'baseline_escapes': base_inl.get('optimizer_escapes'),
+            'baseline_call_after_install': calls.get('tiny.1'),
+            'baseline_hot_call': calls.get('hot.tiny'),
+            'refusal_counter_note':
+                'set_is_inlinable(false) at seeding makes the inliner skip a '
+                'mutable callee BEFORE ShouldWeInline is consulted, so the '
+                'refusal counter reads zero on this fixture. It is non-zero '
+                'at application scale (see evidence/m4_scale.json), and it is '
+                'not what this arm stands on: the precondition that '
+                'discriminates is that the inliner DOES take the callee once '
+                'the rule is removed.',
+            'defect_inline_refusals': inl_e.get('inline_refusals'),
+            'defect_inline_admissions': inl_e.get('inline_admissions'),
+            'defect_escapes': inl_e.get('optimizer_escapes'),
+            'defect_installable': inl_e.get('installable'),
+            'defect_install': inl_c.get('install.tiny'),
+            'defect_call_after_install': inl_c.get('tiny.1'),
+            'defect_hot_call': inl_c.get('hot.tiny'),
+        }
+        obs['injected_inlining_defect'] = ind
+        ind['verdict_under_defect'] = perturbed(
+            calls=inl_c, registry_after=inl_reg,
+            optimizer_decisions=inl_reg.get('optimizer_decisions', []),
+        )['arm64_aot_optimizer_invariants']
+        arm('H10', 'a mutable callee the inliner actually took leaves its '
+                   'caller holding a copy no dispatch cell mediates. The '
+                   'protection is removed here, the inline is confirmed to '
+                   'have happened, and the consequence is measured.',
+            V.evaluate(dict(obs), [])['conditions'][
+                'injected_inlining_defect_is_caught'],
+            f"baseline admissions={ind['baseline_inline_admissions']}, "
+            f"install {ind['baseline_install']}, caller returns "
+            f"{ind['baseline_call_after_install']}; under "
+            f"--maot_allow_inlining_mutable the inliner took the callee "
+            f"{ind['defect_inline_admissions']} time(s), which recorded "
+            f"{ind['defect_escapes']} escape(s), installation was refused "
+            f"({ind['defect_install']}) and the caller still returns "
+            f"{ind['defect_call_after_install']} cold and "
+            f"{ind['defect_hot_call']} hot",
+            ind['verdict_under_defect'])
+
+        # ---- H12: an INJECTED retention defect --------------------------
+        # Two instruments, run together. The first draft of this comment said
+        # they fail at different points -- --maot_disable_seeding registering
+        # nothing, --maot_disable_retention_roots registering and then
+        # dropping. Measurement says otherwise: binding and registration
+        # happen in the KERNEL LOADER, not at seeding, so both show 13 seen
+        # and 13 dropped. AddFunction is the only retention effect seeding
+        # has. What the two actually differ by is the disposition records
+        # seeding emits, and that is what the arm asserts.
+        #
+        # The materialization stats still have to come from the PRECOMPILE
+        # dump: they are set during precompilation and read back as -1 from
+        # the deserialized runtime registry.
+        #
+        # FINDING. This arm was written expecting the retention root to matter
+        # only for a declaration the release never calls, and to isolate that
+        # case by withholding it. It does not decompose that way: withholding
+        # the root removes EVERY mutable declaration, reachable ones included,
+        # and the program then aborts in the AOT runtime trying to JIT-compile
+        # `tiny`. The reason is #67's own lowering -- a mutable call site is an
+        # indirect load from the dispatch cell, so the precompiler no longer
+        # sees a static-call edge to the callee and nothing else retains it.
+        # The retention root is not defence in depth. It is the only thing
+        # keeping any mutable declaration alive, and that was found by running
+        # the falsification rather than by reading the code.
+        ret_b = build('retention_defect', ['--maot_disable_retention_roots'])
+        ret_r = ret_b.run()
+        ret_c = parse_calls(ret_r.stdout)
+        ret_reg = ret_b.registry()
+        ret_pre = ret_b.precompile_registry()
+        noseed_b = build('no_seeding', ['--maot_disable_seeding'])
+        noseed_r = noseed_b.run()
+        noseed_pre = noseed_b.precompile_registry()
+        obs['retention_defect_run'] = {
+            'returncode': ret_r.returncode,
+            'stderr_tail': (ret_r.stderr or '')[-600:],
+            'keys_emitted': sorted(ret_c),
+        }
+        base_pre = main_b.precompile_registry()
+        ret = {
+            'baseline_registry_entries': len(reg_after.get('entries', [])),
+            'baseline_selected_entries': sum(
+                1 for e in reg_after.get('entries', []) if e.get('selected')),
+            'baseline_dead_declaration_present': entries_by_suffix(
+                reg_after, '::fn:releaseUnreachable') is not None,
+            'baseline_dead_version_after_install':
+                calls.get('unreachable.version.1'),
+            'baseline_seen_at_materialization': base_pre.get(
+                'selected_seen_at_materialization'),
+            'baseline_retained_at_materialization': base_pre.get(
+                'retained_at_materialization'),
+            'baseline_dropped_at_materialization': base_pre.get(
+                'dropped_at_materialization'),
+            'baseline_returncode': r.returncode,
+
+            'defect_registry_entries': len(ret_reg.get('entries', [])),
+            'defect_selected_entries': sum(
+                1 for e in ret_reg.get('entries', []) if e.get('selected')),
+            'defect_dead_declaration_present': entries_by_suffix(
+                ret_reg, '::fn:releaseUnreachable') is not None,
+            'defect_reachable_declaration_present': entries_by_suffix(
+                ret_reg, '::fn:tiny') is not None,
+            'defect_install': ret_c.get('install.unreachable'),
+            'defect_dead_version_after_install':
+                ret_c.get('unreachable.version.1'),
+            'defect_returncode': ret_r.returncode,
+            'defect_runtime_error': (ret_r.stderr or '').strip()[-160:],
+            # The discrimination: registered and then dropped, not absent.
+            'defect_seen_at_materialization': ret_pre.get(
+                'selected_seen_at_materialization'),
+            'defect_retained_at_materialization': ret_pre.get(
+                'retained_at_materialization'),
+            'defect_dropped_at_materialization': ret_pre.get(
+                'dropped_at_materialization'),
+            # The other instrument, for contrast: never registered at all.
+            'defect_decisions': len(ret_pre.get('optimizer_decisions', [])),
+            'no_seeding_seen_at_materialization': noseed_pre.get(
+                'selected_seen_at_materialization'),
+            'no_seeding_dropped_at_materialization': noseed_pre.get(
+                'dropped_at_materialization'),
+            'no_seeding_decisions': len(
+                noseed_pre.get('optimizer_decisions', [])),
+            'no_seeding_returncode': noseed_r.returncode,
+
+            'finding':
+                'withholding the retention root removes EVERY mutable '
+                'declaration, not only the dead one, because #67 lowering '
+                'replaces the static call with an indirect load from the '
+                'dispatch cell -- so the precompiler no longer sees a '
+                'static-call edge to the callee. The root is not redundant '
+                'with ordinary reachability; it is the only thing that '
+                'retains a mutable declaration.',
+        }
+        obs['injected_retention_defect'] = ret
+        ret['verdict_under_defect'] = perturbed(
+            calls=ret_c, registry_after=ret_reg,
+            optimizer_decisions=ret_reg.get('optimizer_decisions', []),
+        )['arm64_aot_optimizer_invariants']
+        arm('H12', 'the retention root is what keeps a mutable declaration in '
+                   'the program at all. Withhold it and the precompiler drops '
+                   'every one of them -- including the ones the release '
+                   'calls, because the dispatch-cell lowering left no '
+                   'static-call edge to follow -- so the dead-code case is '
+                   'not separable and the program does not run.',
+            V.evaluate(dict(obs), [])['conditions'][
+                'injected_retention_defect_is_caught'],
+            f"baseline: {ret['baseline_seen_at_materialization']} selected "
+            f"seen, {ret['baseline_retained_at_materialization']} retained, "
+            f"{ret['baseline_dropped_at_materialization']} dropped; the dead "
+            f"declaration installs and goes "
             f"{calls.get('unreachable.version.0')} -> "
-            f"{calls.get('unreachable.version.1')}, install "
-            f"{calls.get('install.unreachable')}")
+            f"{ret['baseline_dead_version_after_install']}. Under "
+            f"--maot_disable_retention_roots: "
+            f"{ret['defect_seen_at_materialization']} seen, "
+            f"{ret['defect_retained_at_materialization']} retained, "
+            f"{ret['defect_dropped_at_materialization']} DROPPED, registry "
+            f"empty, and the program aborts "
+            f"({ret['defect_returncode']}): "
+            f"{ret['defect_runtime_error']}. --maot_disable_seeding reaches "
+            f"the SAME retention outcome "
+            f"({ret['no_seeding_seen_at_materialization']} seen, "
+            f"{ret['no_seeding_dropped_at_materialization']} dropped) because "
+            f"AddFunction is the only retention effect seeding has; the two "
+            f"differ only in the disposition records seeding emits "
+            f"({ret['defect_decisions']} vs {ret['no_seeding_decisions']})",
+            ret['verdict_under_defect'])
+
+        # ---- H17: an INJECTED TFA defect, one layer at a time -----------
+        # There are two layers: the front end suppresses the constant, and the
+        # VM refuses to trust that it did. Removing only the first proves the
+        # backstop works; removing both produces the raw defect -- which is
+        # the one that actually shipped, with eleven call sites all reaching
+        # the cell and every caller printing the release answer anyway.
+        #
+        # Measured separately because "install refused" alone does not
+        # discriminate: a refused install trivially leaves the caller on the
+        # release answer, whatever the reason.
+        def _const_decisions(reg):
+            return [d for d in reg.get('optimizer_decisions', [])
+                    if d['optimization_class'] == 'constant-folding']
+
+        one_b = build('tfa_one_layer', (),
+                      kernel_env={'MAOT_ALLOW_CONSTANT_FOLDING': '1'})
+        one_r = one_b.run()
+        one_c = parse_calls(one_r.stdout)
+        one_reg = one_b.registry()
+        both_b = build('tfa_both_layers', ['--maot_disable_constant_backstop'],
+                       kernel_env={'MAOT_ALLOW_CONSTANT_FOLDING': '1'})
+        both_r = both_b.run()
+        both_c = parse_calls(both_r.stdout)
+        both_reg = both_b.registry()
+        tfa = {
+            'baseline_call_after_install': calls.get('constantish.1'),
+            'baseline_constant_folding_decisions': len(
+                _const_decisions(reg_after)),
+            'baseline_call_sites': (entries_by_suffix(
+                reg_after, '::fn:constantish') or {}).get(
+                    'indirect_call_sites_emitted'),
+            'one_layer_removed': 'MAOT_ALLOW_CONSTANT_FOLDING=1',
+            'one_layer_constant_folding_decisions': len(
+                _const_decisions(one_reg)),
+            'one_layer_install': one_c.get('install.constantish'),
+            'one_layer_installable': (entries_by_suffix(
+                one_reg, '::fn:constantish') or {}).get('installable'),
+            'one_layer_call_after_install': one_c.get('constantish.1'),
+            'both_layers_removed':
+                'MAOT_ALLOW_CONSTANT_FOLDING=1 + '
+                '--maot_disable_constant_backstop',
+            'both_layers_constant_folding_decisions': len(
+                _const_decisions(both_reg)),
+            'both_layers_install': both_c.get('install.constantish'),
+            'both_layers_installable': (entries_by_suffix(
+                both_reg, '::fn:constantish') or {}).get('installable'),
+            'both_layers_call_after_install': both_c.get('constantish.1'),
+            'both_layers_hot_call': both_c.get('hot.constantish'),
+            'both_layers_call_sites': (entries_by_suffix(
+                both_reg, '::fn:constantish') or {}).get(
+                    'indirect_call_sites_emitted'),
+        }
+        obs['injected_tfa_defect'] = tfa
+        tfa['one_layer_verdict'] = perturbed(
+            calls=one_c, registry_after=one_reg,
+            optimizer_decisions=one_reg.get('optimizer_decisions', []),
+        )['arm64_aot_optimizer_invariants']
+        tfa['both_layers_verdict'] = perturbed(
+            calls=both_c, registry_after=both_reg,
+            optimizer_decisions=both_reg.get('optimizer_decisions', []),
+        )['arm64_aot_optimizer_invariants']
+        arm('H17', 'TFA can materialize a mutable result as a constant, so a '
+                   'caller uses the release answer without consulting the '
+                   'cell -- while the call site is still emitted and the path '
+                   'evidence still looks perfect. One layer removed shows the '
+                   'VM backstop refusing; both removed produce the raw defect.',
+            V.evaluate(dict(obs), [])['conditions'][
+                'injected_tfa_defect_is_caught'],
+            f"baseline: {tfa['baseline_call_sites']} indirect call sites, "
+            f"{tfa['baseline_constant_folding_decisions']} constant-folding "
+            f"decisions, caller returns {tfa['baseline_call_after_install']}; "
+            f"front end only: "
+            f"{tfa['one_layer_constant_folding_decisions']} decisions, "
+            f"install {tfa['one_layer_install']}; both layers removed: "
+            f"{tfa['both_layers_constant_folding_decisions']} decisions, "
+            f"install {tfa['both_layers_install']} SUCCEEDS and the caller "
+            f"still returns {tfa['both_layers_call_after_install']} "
+            f"(cold) / {tfa['both_layers_hot_call']} (hot) from "
+            f"{tfa['both_layers_call_sites']} emitted call sites",
+            tfa['both_layers_verdict'])
 
         # ---------------- escape controls ----------------
         BY = '--maot_disable_call_indirection'
@@ -543,13 +937,22 @@ def main(argv):
             'compile_seconds_conservative': cons.compile_seconds,
             'indirect_call_sites_total': sites,
             'prevented_inlines': sum(
+                (e.get('inline_refusals') or 0)
+                for e in reg_after.get('entries', [])),
+            'inline_admissions': sum(
+                (e.get('inline_admissions') or 0)
+                for e in reg_after.get('entries', [])),
+            'mutable_declarations_marked_non_inlinable': sum(
                 1 for e in reg_after.get('entries', []) if e.get('selected')),
             'prevented_inlines_note':
-                'every selected declaration is marked non-inlinable, so the '
-                'count of selected declarations IS the count of declarations '
-                'the inliner may not take. A per-call-site count of refusals '
-                'would need an inliner-side counter, which would be a '
-                'statistic no decision reads.',
+                'counted in the inliner itself, per refusal, not inferred '
+                'from the size of the selected set. An earlier version of '
+                'this lane reported the selected count under this name and '
+                'called a per-refusal counter "a statistic no decision '
+                'reads"; it has two consumers now -- refusals > 0 is the '
+                'precondition for H10 (an inliner that never looked at the '
+                'callee cannot have been prevented from taking it), and '
+                'admissions must be 0 in any shipped build.',
             'devirtualizations_recorded': sum(
                 1 for d in decs if d['optimization_class'] == 'devirtualization'),
             'blocking_decisions': sum(
@@ -567,8 +970,46 @@ def main(argv):
                 'than publishing a per-call overhead it cannot resolve.',
             'note': 'diagnostic only; no threshold is compared anywhere.',
         }
+
+        # ---------------- scale lane (blocker 4) ----------------
+        # Produced by lib/scale_m4.py against a representative Flutter
+        # application. Read from disk rather than re-run here: it compiles the
+        # framework twice and takes minutes, and a gate that silently reruns
+        # it would hide whether the record is from this revision. The
+        # provenance check below is what makes reading a file safe.
+        scale_path = os.path.join(m4_dir, 'evidence', 'm4_scale.json')
+        if os.path.exists(scale_path):
+            sc = json.load(open(scale_path))
+            sc['from_fork_commit'] = (obs['build_digest'] or {}).get(
+                'fork_commit')
+            sc['fork_commit_at_measurement'] = sc.get('fork_commit')
+            sc['measured_on_this_revision'] = (
+                sc.get('fork_commit') is not None
+                and sc.get('fork_commit') == sc['from_fork_commit'])
+            obs['scale_measurements'] = sc
+            if not sc.get('measured_on_this_revision'):
+                finding('SCALE_LANE_FROM_ANOTHER_REVISION',
+                        f"evidence/m4_scale.json names fork commit "
+                        f"{sc.get('fork_commit')}, the binaries were built "
+                        f"from {sc['from_fork_commit']}")
+        else:
+            obs['scale_measurements'] = {}
+            finding('SCALE_LANE_NOT_RUN',
+                    'evidence/m4_scale.json is absent; the #68 performance '
+                    'accounting has no application-scale counts. Run '
+                    'lib/scale_m4.py.')
     except _NotMeasured:
         pass
+    except Exception:  # noqa: BLE001 -- recorded, never swallowed
+        # A gate that raises writes no record at all, which reads exactly like
+        # a gate that was never run. Same family as `raise SystemExit(0)`:
+        # silence is indistinguishable from success. The traceback becomes a
+        # blocking finding and the evidence file is still produced.
+        import traceback
+        obs['gate_traceback'] = traceback.format_exc()
+        finding('GATE_RAISED',
+                traceback.format_exc().strip().splitlines()[-1])
+        print(obs['gate_traceback'], file=sys.stderr)
     finally:
         shutil.rmtree(work, ignore_errors=True)
 

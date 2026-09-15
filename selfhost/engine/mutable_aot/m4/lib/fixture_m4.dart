@@ -15,6 +15,24 @@ String tiny() => 'OLD-TINY';
 @pragma('maot:mutable')
 String constantish() => 'OLD-CONST';
 
+// ---- 3. recognized/intrinsic, and STATIC -------------------------------
+// The hole the instance-dispatch blocker does not cover. A recognized or
+// intrinsified declaration can have its body replaced by inline code at the
+// call site, and no dispatch cell mediates that. It is not an instance-member
+// problem: dart:core's `identical` and several top-level Developer and FFI
+// functions are recognized and static.
+//
+// Two separate facts, only one of which is a proof:
+//   * no SDK declaration can be selected -- collectSelected skips dart:
+//     libraries, and the gate asserts the shipped selected set has no dart:
+//     id. That is mechanical, and it is checked.
+//   * a USER declaration can carry vm:recognized and also maot:mutable, and
+//     nothing used to stop it. This declaration IS that case, and H16
+//     requires the precompiler to refuse it.
+@pragma('vm:recognized', 'other')
+@pragma('maot:mutable')
+String recognizedish() => 'OLD-RECOGNIZED';
+
 // ---- 4. unreachable at release, called only by the patch ----------------
 @pragma('maot:mutable')
 String releaseUnreachable() => 'OLD-UNREACHED';
@@ -62,6 +80,9 @@ String tinyNew() => 'NEW-TINY';
 String constantishNew() => 'NEW-CONST';
 @pragma('maot:mutable')
 String unreachableNew() => 'NEW-UNREACHED';
+
+@pragma('maot:mutable')
+String recognizedishNew() => 'NEW-RECOGNIZED';
 @pragma('maot:mutable')
 String chainANew() => 'NEW-A';
 
@@ -140,6 +161,7 @@ void main(List<String> args) {
   _emit('chain.0', chainA());
   _emit('immutableCaller.0', immutableCaller());
   _emit('unreachable.version.0', _v('$_lib::fn:releaseUnreachable'));
+  _emit('recognizedish.0', recognizedish());
   if (dumpDir.isNotEmpty) _dump(_c('$dumpDir/registry_before.json'));
 
   // ---- install across every variant ----
@@ -153,6 +175,11 @@ void main(List<String> args) {
   // 4. a declaration the release never calls is still addressable.
   _emit('install.unreachable',
       _install3('fn:releaseUnreachable', 'fn:unreachableNew', 2, ns));
+  // Must be REFUSED: the declaration is FORBIDDEN at seeding because it is
+  // recognized, so installation has to fail closed rather than produce a
+  // caller holding compiler-substituted code.
+  _emit('install.recognizedish',
+      _install3('fn:recognizedish', 'fn:recognizedishNew', 2, ns));
 
   // ---- cold, after installation ----
   _emit('tiny.1', tiny());
@@ -161,6 +188,7 @@ void main(List<String> args) {
   _emit('chain.1', chainA());
   _emit('immutableCaller.1', immutableCaller());
   _emit('unreachable.version.1', _v('$_lib::fn:releaseUnreachable'));
+  _emit('recognizedish.1', recognizedish());
 
   // ---- 3. hot: the same precompiled sites after many iterations ----
   const hot = 200000;

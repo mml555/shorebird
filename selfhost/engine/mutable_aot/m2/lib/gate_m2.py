@@ -376,8 +376,12 @@ MAOT_CXX_SOURCES = (
     'runtime/vm/compiler/frontend/kernel_binary_flowgraph.cc',
 )
 
-# Read by gen_kernel at run time from the tree, so they cannot go stale inside
-# a binary and are deliberately not part of the digest.
+# Read by gen_kernel from the tree at run time, so they cannot go stale INSIDE
+# a binary. They are in the digest anyway: #68 moved SELECTION itself into
+# transformer.dart, so editing it after a blessed build changes which
+# declarations exist without changing a single byte of the binary -- a
+# staleness class the earlier "deliberately not part of the digest" note did
+# not anticipate, and one that caught this lane once.
 MAOT_DART_SOURCES = (
     'pkg/vm/lib/metadata/maot_declaration_id.dart',
     'pkg/vm/lib/transformations/type_flow/transformer.dart',
@@ -388,10 +392,16 @@ MAOT_DART_SOURCES = (
 DIGEST_FILE = '.maot_source_digest'
 
 
-def build_digests(sources=MAOT_CXX_SOURCES):
-    """sha256 of each MAOT C++ source as it is on disk right now."""
+def build_digests(sources=None):
+    """sha256 of every MAOT source as it is on disk right now.
+
+    The Dart sources are included: build_maot.sh records them, and the
+    staleness check compares the two sets in both directions, so hashing a
+    narrower set than the record covers reports every run as stale.
+    """
     out = {}
-    for f in sources:
+    for f in (MAOT_CXX_SOURCES + MAOT_DART_SOURCES if sources is None
+              else sources):
         path = os.path.join(FORK, f)
         out[f] = sha256_file(path) if os.path.exists(path) else None
     return out
