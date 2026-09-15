@@ -1,25 +1,18 @@
 === MAOT-3 (#67) direct/static replacement through the mutable slot ===
-run  2026-09-15T17:24:08Z
-fork 4760cd9f8aa00eb2b8c19fca3415c54e7adc57d1
+run  2026-09-15T20:49:17Z
+fork e0f6788f29e5616b0087e51111ead33a06cf4e3a
 
-Traceback (most recent call last):
-  File "/Users/mendell/shorebird/selfhost/engine/mutable_aot/m3/lib/gate_m3.py", line 369, in main
-    observations['snapshot_sha256_before'] = sha256_file(main_build.aot)
-                                             ~~~~~~~~~~~^^^^^^^^^^^^^^^^
-  File "/Users/mendell/shorebird/selfhost/engine/mutable_aot/m3/lib/gate_m3.py", line 192, in sha256_file
-    with open(path, 'rb') as fh:
-         ~~~~^^^^^^^^^^^^
-FileNotFoundError: [Errno 2] No such file or directory: '/tmp/maot_m3_82666/release/app.aot'
+fork          e0f6788f29e5616b0087e51111ead33a06cf4e3a
+top-level     OLD -> NEW -> NEW2
+static        OLD-STATIC -> NEW-STATIC -> NEW2-STATIC
+version       AOT:v1 -> PATCH_CODE:v3
+one process   pid 33183 == 33183
+arms          15 (0 failed)
+blocking      0
+conditions    18 (0 failed)
+latency       direct 1.055 ns (control 0.989) | static 1.06 ns (control 0.99)
+provenance    bound | arch arm64
+SLICE         arm64_aot_direct_static_vertical_slice = ESTABLISHED
+CLOSURE       issue_67_closure = READY
 
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/Users/mendell/shorebird/selfhost/engine/mutable_aot/m3/lib/gate_m3.py", line 924, in <module>
-    sys.exit(main(sys.argv))
-             ~~~~^^^^^^^^^^
-  File "/Users/mendell/shorebird/selfhost/engine/mutable_aot/m3/lib/gate_m3.py", line 680, in main
-    prose = perturbed(measurements=dict(
-            ^^^^^^^^^
-UnboundLocalError: cannot access local variable 'perturbed' where it is not associated with a value
-
-gate exit 1
+gate exit 0

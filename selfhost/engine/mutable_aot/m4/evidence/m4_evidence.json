@@ -2,17 +2,17 @@
   "schema": "maot.m4.evidence/1",
   "issue": 68,
   "generated_by": {
-    "run_id": "2026-09-15T16:52:44Z",
+    "run_id": "2026-09-15T21:00:20Z",
     "gate_sha256": "9475c9fba1f556387bf94da1b3c6714366618d70bcab0d2ae75897d4e66a4b16",
     "verdict_sha256": "adaa99ccf9238b7ce67ad7b341ee5df12da3e57a38131ae4022545eb21a21e55",
     "rules_sha256": "71e41f95e498a6ba2a20cc02139c77a1810a4aa73667c5e7b3c3674dc4f6f3fb",
-    "fixture_sha256": "af39a0948cc9219e5e87f0b968f5089c8d5e34c539d83c538e59c6e0d1760d21"
+    "fixture_sha256": "8bf5d6366b730b9fc9f0f557aa9e99cdfea5a85a9edd73c4acfbcf0169a947fb"
   },
   "identities": {
-    "shorebird_revision": "85637b8514eace9b7f2c7cb52a8f85776e955a75",
-    "shorebird_tree": "30436046643d0415a0b2e898ae13402960e5aca7",
-    "fork_commit": "358a0ee8275f69d7f0f778d55c9869ebb7a59e86",
-    "fork_tree": "8e796374b5751936249f043eb3937dc0a370db72",
+    "shorebird_revision": "64f618204af8fd5d259c5f8115aeec5d200f1242",
+    "shorebird_tree": "55b85da9f9e4cfb329ff6d6f23dc7515c3e2eed3",
+    "fork_commit": "e0f6788f29e5616b0087e51111ead33a06cf4e3a",
+    "fork_tree": "11f76bfb4ea691c81b1d31c8e1fc2b7e214cf18f",
     "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
     "target_arch": "arm64",
     "depends_on": {
@@ -87,13 +87,13 @@
     },
     "build_digest": {
       "files": {
-        "runtime/vm/maot_registry.cc": "275d90dbbf12a807edc95738a7f102cd36f0dd1df7789daab20da0ac16511701",
-        "runtime/vm/maot_registry.h": "2fea8ad7456a5220bb4f43df79322573e73e2625feaa0dc6e46900b47f22051b",
+        "runtime/vm/maot_registry.cc": "730a960d35a3c0c8316eeeeb4e95097e6290a823adf85da982ead5d0e3c52ec2",
+        "runtime/vm/maot_registry.h": "a80d945fe8ee4f9c34b50dcc196d1175551d6bbb94a05aec0fd94550f1964d21",
         "runtime/vm/kernel_loader.cc": "6ded9b83769b2d64a3c63f9b72ab4237f351cd42193b70ccedd30517a166d9db",
         "runtime/vm/object_store.h": "f0ccb348e996eacb79b58f3033b3168012ef7f9b1ab9905028c8b9d50ed5edc5",
         "runtime/vm/dart.cc": "76221ab91bfe8a5d882288c7b535b1caa5ee33f263d6bb0b7240d948c5c365af",
-        "runtime/vm/compiler/aot/precompiler.cc": "9ddde405c2cf89ab4ffa52d9ea4b368c4141d5c1e39d547b42f551f22a22d336",
-        "runtime/vm/compiler/aot/precompiler.h": "96a7e8255eccb81b3caec5c27784861c0be0bf5d48f9cb2bff5fe99c0523ba7d",
+        "runtime/vm/compiler/aot/precompiler.cc": "ae77e8aed6fcd78ef7d979f44adecccd4f837145b650d3400cc2b52c6d34420e",
+        "runtime/vm/compiler/aot/precompiler.h": "3e4f399229e538a7d2549d36119e97e4e0d9ec0341e657a5c9833534f90b4e90",
         "runtime/vm/compiler/frontend/kernel_translation_helper.cc": "3c7c2ac4cb9e8a04736c184ec1b2a02cea253f5186f45218351594e831f9d96f",
         "runtime/vm/compiler/frontend/kernel_translation_helper.h": "d2726b4c489f025dfef242673006b79d5a21a9663aeae90281e28ffd7cbdb330",
         "runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc": "88713debf61b9fc9a54d5ddc462dc71310c21790da435b3339218c8be282b8c0",
@@ -104,16 +104,16 @@
         "pkg/vm/lib/transformations/pragma.dart": "882a80a8bb700145fbb7eb5026f2d7f6d8b6c6432e14661b6f52545bdfcde22a",
         "pkg/vm/lib/modular/target/vm.dart": "82c464b114770687a2868b51d7d93405d0d347dedf8da4604d1c2f56723c1885"
       },
-      "fork_commit": "358a0ee8275f69d7f0f778d55c9869ebb7a59e86",
-      "fork_tree": "8e796374b5751936249f043eb3937dc0a370db72",
+      "fork_commit": "e0f6788f29e5616b0087e51111ead33a06cf4e3a",
+      "fork_tree": "11f76bfb4ea691c81b1d31c8e1fc2b7e214cf18f",
       "fork_sources_match_head": "1",
-      "built_at": "2026-09-15T16:43:52Z"
+      "built_at": "2026-09-15T20:48:39Z"
     },
     "build_provenance_mismatches": [],
     "build_digest_matches": true,
     "fork_identity": {
-      "head": "358a0ee8275f69d7f0f778d55c9869ebb7a59e86",
-      "tree": "8e796374b5751936249f043eb3937dc0a370db72",
+      "head": "e0f6788f29e5616b0087e51111ead33a06cf4e3a",
+      "tree": "11f76bfb4ea691c81b1d31c8e1fc2b7e214cf18f",
       "branch": "maot/build",
       "worktree_dirty_paths": [
         "third_party/binaryen/.DS_Store"
@@ -122,7 +122,7 @@
     "source_commit_binding_mismatches": [],
     "sources_match_named_commit": true,
     "calls": {
-      "process.pid": 92194,
+      "process.pid": 94909,
       "tiny.0": "OLD-TINY",
       "constantish.0": "OLD-CONST",
       "devirt.0": "OLD-DEVIRT",
@@ -131,6 +131,8 @@
       "unreachable.version.0": "AOT:v1",
       "recognizedish.0": "OLD-RECOGNIZED",
       "install.tiny": 0,
+      "xwire.A.afterPatchA": "NEW-TINY",
+      "xwire.B.afterPatchA": "OLD-CONST",
       "install.constantish": 0,
       "install.devirt": -3,
       "install.chainA": 0,
@@ -138,6 +140,8 @@
       "install.recognizedish": 0,
       "tiny.1": "NEW-TINY",
       "constantish.1": "NEW-CONST",
+      "xwire.A.afterPatchB": "NEW-TINY",
+      "xwire.B.afterPatchB": "NEW-CONST",
       "devirt.1": "OLD-DEVIRT",
       "chain.1": "NEW-A",
       "immutableCaller.1": "NEW-TINY/NEW-CONST",
@@ -151,13 +155,13 @@
       "tiny.2": "NEW-CONST",
       "tiny.version.2": "PATCH_CODE:v3",
       "bench.iterations": 2000000,
-      "bench.mutable.us.0": 2200,
-      "bench.control.us.0": 2079,
-      "bench.mutable.us.1": 2299,
-      "bench.control.us.1": 2039,
-      "bench.mutable.us.2": 2179,
-      "bench.control.us.2": 3831,
-      "process.pid.final": 92194
+      "bench.mutable.us.0": 2274,
+      "bench.control.us.0": 2044,
+      "bench.mutable.us.1": 2430,
+      "bench.control.us.1": 2026,
+      "bench.mutable.us.2": 3523,
+      "bench.control.us.2": 2147,
+      "process.pid.final": 94909
     },
     "registry_after": {
       "schema": "maot.registry/1",
@@ -270,7 +274,7 @@
           "optimizer_escapes": 0,
           "first_escape_reason": "<none>",
           "installable": true,
-          "indirect_call_sites_emitted": 6,
+          "indirect_call_sites_emitted": 8,
           "inline_refusals": 0,
           "inline_admissions": 0,
           "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
@@ -311,7 +315,7 @@
           "optimizer_escapes": 0,
           "first_escape_reason": "<none>",
           "installable": true,
-          "indirect_call_sites_emitted": 3,
+          "indirect_call_sites_emitted": 5,
           "inline_refusals": 0,
           "inline_admissions": 0,
           "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
@@ -834,6 +838,38 @@
           "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
         },
         {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
           "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
           "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
           "optimization_class": "static-call-lowering",
@@ -914,7 +950,7 @@
           "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
         }
       ],
-      "optimizer_decision_count": 26
+      "optimizer_decision_count": 30
     },
     "registry_before": {
       "schema": "maot.registry/1",
@@ -1027,7 +1063,7 @@
           "optimizer_escapes": 0,
           "first_escape_reason": "<none>",
           "installable": true,
-          "indirect_call_sites_emitted": 6,
+          "indirect_call_sites_emitted": 8,
           "inline_refusals": 0,
           "inline_admissions": 0,
           "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
@@ -1068,7 +1104,7 @@
           "optimizer_escapes": 0,
           "first_escape_reason": "<none>",
           "installable": true,
-          "indirect_call_sites_emitted": 3,
+          "indirect_call_sites_emitted": 5,
           "inline_refusals": 0,
           "inline_admissions": 0,
           "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
@@ -1591,6 +1627,38 @@
           "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
         },
         {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
           "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
           "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
           "optimization_class": "static-call-lowering",
@@ -1671,7 +1739,7 @@
           "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
         }
       ],
-      "optimizer_decision_count": 26
+      "optimizer_decision_count": 30
     },
     "optimizer_decisions": [
       {
@@ -1780,6 +1848,38 @@
       },
       {
         "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedish",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
         "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
         "optimization_class": "static-call-lowering",
         "decision": "dispatch-cell indirection emitted",
@@ -2057,8 +2157,8 @@
       "baseline_hot_call": "NEW-TINY",
       "refusal_counter_note": "set_is_inlinable(false) at seeding makes the inliner skip a mutable callee BEFORE ShouldWeInline is consulted, so the refusal counter reads zero on this fixture. It is non-zero at application scale (see evidence/m4_scale.json), and it is not what this arm stands on: the precondition that discriminates is that the inliner DOES take the callee once the rule is removed.",
       "defect_inline_refusals": 0,
-      "defect_inline_admissions": 6,
-      "defect_escapes": 6,
+      "defect_inline_admissions": 8,
+      "defect_escapes": 8,
       "defect_installable": false,
       "defect_install": -3,
       "defect_call_after_install": "OLD-TINY",
@@ -2092,10 +2192,10 @@
       "defect_seen_at_materialization": 13,
       "defect_retained_at_materialization": 0,
       "defect_dropped_at_materialization": 13,
-      "defect_decisions": 25,
+      "defect_decisions": 29,
       "no_seeding_seen_at_materialization": 13,
       "no_seeding_dropped_at_materialization": 13,
-      "no_seeding_decisions": 23,
+      "no_seeding_decisions": 27,
       "no_seeding_returncode": -6,
       "finding": "withholding the retention root removes EVERY mutable declaration, not only the dead one, because #67 lowering replaces the static call with an indirect load from the dispatch cell -- so the precompiler no longer sees a static-call edge to the callee. The root is not redundant with ordinary reachability; it is the only thing that retains a mutable declaration.",
       "verdict_under_defect": "NOT_ESTABLISHED"
@@ -2103,9 +2203,9 @@
     "injected_tfa_defect": {
       "baseline_call_after_install": "NEW-CONST",
       "baseline_constant_folding_decisions": 0,
-      "baseline_call_sites": 3,
+      "baseline_call_sites": 5,
       "one_layer_removed": "MAOT_ALLOW_CONSTANT_FOLDING=1",
-      "one_layer_constant_folding_decisions": 17,
+      "one_layer_constant_folding_decisions": 25,
       "one_layer_install": -3,
       "one_layer_installable": false,
       "one_layer_call_after_install": "OLD-CONST",
@@ -2115,7 +2215,7 @@
       "both_layers_installable": true,
       "both_layers_call_after_install": "OLD-CONST",
       "both_layers_hot_call": null,
-      "both_layers_call_sites": 3,
+      "both_layers_call_sites": 5,
       "one_layer_verdict": "NOT_ESTABLISHED",
       "both_layers_verdict": "NOT_ESTABLISHED"
     },
@@ -2129,7 +2229,7 @@
       "bypass": {
         "install": -3,
         "call": "OLD-TINY",
-        "escapes": 6,
+        "escapes": 8,
         "installable": false
       },
       "no_detect": {
@@ -2141,7 +2241,7 @@
       "no_consume": {
         "install": 0,
         "call": "OLD-TINY",
-        "escapes": 6,
+        "escapes": 8,
         "installable": false
       },
       "drop_state": {
@@ -2152,10 +2252,10 @@
       }
     },
     "blocking_projection": {
-      "blocking_decisions": 20,
-      "escape_projection": 6,
+      "blocking_decisions": 24,
+      "escape_projection": 8,
       "install_refused": true,
-      "drop_state_decisions": 20,
+      "drop_state_decisions": 24,
       "drop_state_projection": 0,
       "drop_state_install_refused": false,
       "note": "the dropped-state build still carries blocking decisions whose consumed_by claims StageReplacement reads them, while the projection is gone and installation succeeds. That is why the string is not the proof."
@@ -2190,7 +2290,7 @@
       "flags": [
         "--inlining_depth_threshold=0"
       ],
-      "compared": 26,
+      "compared": 30,
       "disagreements": [],
       "compares": "mutation semantics only -- installs, observed values and versions. Timings differ between builds by design and are reported separately.",
       "note": "the amended #68 text makes test 10 optimized AOT versus a conservative AOT control, not a second JIT mechanism. #64's jit value stays a control concept."
@@ -2202,7 +2302,7 @@
           "problem": "source differs from the named commit",
           "file": "runtime/vm/maot_registry.cc",
           "at_head": "ffffffffffffffff",
-          "on_disk": "275d90dbbf12a807"
+          "on_disk": "730a960d35a3c0c8"
         }
       ],
       "untracked_mismatches": [
@@ -2213,21 +2313,21 @@
       ]
     },
     "measurements": {
-      "aot_elf_bytes": 861848,
-      "aot_elf_bytes_conservative": 958240,
-      "compile_seconds": 0.43,
-      "compile_seconds_conservative": 0.29,
-      "indirect_call_sites_total": 18,
+      "aot_elf_bytes": 861864,
+      "aot_elf_bytes_conservative": 958256,
+      "compile_seconds": 0.42,
+      "compile_seconds_conservative": 0.33,
+      "indirect_call_sites_total": 22,
       "prevented_inlines": 0,
       "inline_admissions": 0,
       "mutable_declarations_marked_non_inlinable": 13,
       "prevented_inlines_note": "counted in the inliner itself, per refusal, not inferred from the size of the selected set. An earlier version of this lane reported the selected count under this name and called a per-refusal counter \"a statistic no decision reads\"; it has two consumers now -- refusals > 0 is the precondition for H10 (an inliner that never looked at the callee cannot have been prevented from taking it), and admissions must be 0 in any shipped build.",
       "devirtualizations_recorded": 6,
       "blocking_decisions": 2,
-      "slot_preserving_decisions": 24,
+      "slot_preserving_decisions": 28,
       "benchmark_iterations": 2000000,
-      "direct_call_ns_mutable": 1.089,
-      "direct_call_ns_control": 1.02,
+      "direct_call_ns_mutable": 1.137,
+      "direct_call_ns_control": 1.013,
       "call_cost_note": "minimum of three samples, control is a non-selected never-inlined function. #67 measured the same shape and found the difference below same-arm sample variation; this lane reports the numbers and repeats that caveat rather than publishing a per-call overhead it cannot resolve.",
       "note": "diagnostic only; no threshold is compared anywhere."
     },
@@ -2240,8 +2340,8 @@
         "aot_elf_bytes": 5887776,
         "aot_elf_delta_bytes": 16336,
         "app_declarations_in_corpus": 7,
-        "compile_seconds": 80.4,
-        "compile_seconds_delta": 51.1,
+        "compile_seconds": 76.68,
+        "compile_seconds_delta": 49.81,
         "decisions_recorded": 9,
         "declarations_with_escapes": 5,
         "devirtualizations_recorded": 1,
@@ -2253,9 +2353,9 @@
         "registry_entries": 7,
         "selected_declarations": 7
       },
-      "compile_seconds": 42.05,
-      "compile_seconds_control": 29.3,
-      "compile_seconds_delta": 12.75,
+      "compile_seconds": 44.2,
+      "compile_seconds_control": 26.87,
+      "compile_seconds_delta": 17.33,
       "configurations": {
         "all_non_sdk": "every non-SDK declaration selected, framework included. The upper bound.",
         "app_only": "every declaration in package:scaleapp selected. The realistic posture: an author marks their own code mutable and leaves the framework alone.",
@@ -2265,9 +2365,9 @@
       "decisions_recorded": 35057,
       "declarations_with_escapes": 5657,
       "devirtualizations_recorded": 11244,
-      "fork_commit": "358a0ee8275f69d7f0f778d55c9869ebb7a59e86",
+      "fork_commit": "e0f6788f29e5616b0087e51111ead33a06cf4e3a",
       "fork_dirty": false,
-      "fork_tree": "8e796374b5751936249f043eb3937dc0a370db72",
+      "fork_tree": "11f76bfb4ea691c81b1d31c8e1fc2b7e214cf18f",
       "framework_declarations_in_corpus": 7126,
       "indirect_call_sites_total": 17913,
       "inline_admissions": 0,
@@ -2285,8 +2385,8 @@
       "selected_declarations": 7399,
       "selected_declarations_control": 0,
       "selection": "MAOT_SELECT_ALL_NON_SDK=1 -- every non-SDK declaration with a body, app and framework alike. This is the UPPER BOUND, not a typical posture.",
-      "from_fork_commit": "358a0ee8275f69d7f0f778d55c9869ebb7a59e86",
-      "fork_commit_at_measurement": "358a0ee8275f69d7f0f778d55c9869ebb7a59e86",
+      "from_fork_commit": "e0f6788f29e5616b0087e51111ead33a06cf4e3a",
+      "fork_commit_at_measurement": "e0f6788f29e5616b0087e51111ead33a06cf4e3a",
       "measured_on_this_revision": true
     },
     "falsifications_failed": [],
@@ -2403,7 +2503,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
-        "indirect_call_sites_emitted": 6,
+        "indirect_call_sites_emitted": 8,
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
@@ -2444,7 +2544,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
-        "indirect_call_sites_emitted": 3,
+        "indirect_call_sites_emitted": 5,
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
@@ -2967,6 +3067,38 @@
         "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
       },
       {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
         "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
         "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
         "optimization_class": "static-call-lowering",
@@ -3047,7 +3179,7 @@
         "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
       }
     ],
-    "optimizer_decision_count": 26
+    "optimizer_decision_count": 30
   },
   "optimizer_decisions": [
     {
@@ -3156,6 +3288,38 @@
     },
     {
       "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedish",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "static-call-lowering",
+      "decision": "dispatch-cell indirection emitted",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "static-call-lowering",
+      "decision": "dispatch-cell indirection emitted",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "static-call-lowering",
+      "decision": "dispatch-cell indirection emitted",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "static-call-lowering",
+      "decision": "dispatch-cell indirection emitted",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
       "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
       "optimization_class": "static-call-lowering",
       "decision": "dispatch-cell indirection emitted",
@@ -3301,7 +3465,7 @@
       "description": "a vm:prefer-inline mutable callee is inlined, so its caller cannot observe a replacement",
       "why": "a mutable callee the inliner actually took leaves its caller holding a copy no dispatch cell mediates. The protection is removed here, the inline is confirmed to have happened, and the consequence is measured.",
       "result": "pass",
-      "observed": "baseline admissions=0, install 0, caller returns NEW-TINY; under --maot_allow_inlining_mutable the inliner took the callee 6 time(s), which recorded 6 escape(s), installation was refused (-3) and the caller still returns OLD-TINY cold and OLD-TINY hot",
+      "observed": "baseline admissions=0, install 0, caller returns NEW-TINY; under --maot_allow_inlining_mutable the inliner took the callee 8 time(s), which recorded 8 escape(s), installation was refused (-3) and the caller still returns OLD-TINY cold and OLD-TINY hot",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {
@@ -3310,7 +3474,7 @@
       "description": "a declaration the release never calls is dropped and becomes unpatchable",
       "why": "the retention root is what keeps a mutable declaration in the program at all. Withhold it and the precompiler drops every one of them -- including the ones the release calls, because the dispatch-cell lowering left no static-call edge to follow -- so the dead-code case is not separable and the program does not run.",
       "result": "pass",
-      "observed": "baseline: 13 selected seen, 13 retained, 0 dropped; the dead declaration installs and goes AOT:v1 -> PATCH_CODE:v2. Under --maot_disable_retention_roots: 13 seen, 0 retained, 13 DROPPED, registry empty, and the program aborts (-6): ../../flutter/third_party/dart/runtime/vm/compiler/jit/compiler.cc: 1152: error: Attempt to compile function package:m4app/fixture_m4.dart_::_tiny. --maot_disable_seeding reaches the SAME retention outcome (13 seen, 13 dropped) because AddFunction is the only retention effect seeding has; the two differ only in the disposition records seeding emits (25 vs 23)",
+      "observed": "baseline: 13 selected seen, 13 retained, 0 dropped; the dead declaration installs and goes AOT:v1 -> PATCH_CODE:v2. Under --maot_disable_retention_roots: 13 seen, 0 retained, 13 DROPPED, registry empty, and the program aborts (-6): ../../flutter/third_party/dart/runtime/vm/compiler/jit/compiler.cc: 1152: error: Attempt to compile function package:m4app/fixture_m4.dart_::_tiny. --maot_disable_seeding reaches the SAME retention outcome (13 seen, 13 dropped) because AddFunction is the only retention effect seeding has; the two differ only in the disposition records seeding emits (29 vs 27)",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {
@@ -3319,7 +3483,7 @@
       "description": "TFA folds a mutable result to a constant, so the caller holds the release answer with no call at all",
       "why": "TFA can materialize a mutable result as a constant, so a caller uses the release answer without consulting the cell -- while the call site is still emitted and the path evidence still looks perfect. One layer removed shows the VM backstop refusing; both removed produce the raw defect.",
       "result": "pass",
-      "observed": "baseline: 3 indirect call sites, 0 constant-folding decisions, caller returns NEW-CONST; front end only: 17 decisions, install -3; both layers removed: 0 decisions, install 0 SUCCEEDS and the caller still returns OLD-CONST (cold) / None (hot) from 3 emitted call sites",
+      "observed": "baseline: 5 indirect call sites, 0 constant-folding decisions, caller returns NEW-CONST; front end only: 25 decisions, install -3; both layers removed: 0 decisions, install 0 SUCCEEDS and the caller still returns OLD-CONST (cold) / None (hot) from 5 emitted call sites",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {
@@ -3336,7 +3500,7 @@
       "description": "escape metadata is produced but no install decision reads it",
       "why": "metadata produced but unread must fail exactly like no metadata at all",
       "result": "pass",
-      "observed": "no_consume: install 0, call OLD-TINY, escapes 6 -- versus bypass install -3"
+      "observed": "no_consume: install 0, call OLD-TINY, escapes 8 -- versus bypass install -3"
     },
     {
       "id": "H03",
@@ -3352,7 +3516,7 @@
       "description": "UNMODELED_BLOCKING does not block",
       "why": "a blocking disposition that does not block, and a consumed_by string that claims a consumer the projection no longer reaches",
       "result": "pass",
-      "observed": "bypass: 20 blocking decisions, projection 6, refused. drop-state: 20 blocking decisions still serialized, projection 0, installed anyway"
+      "observed": "bypass: 24 blocking decisions, projection 8, refused. drop-state: 24 blocking decisions still serialized, projection 0, installed anyway"
     },
     {
       "id": "H05",
@@ -3376,7 +3540,7 @@
       "description": "a constant result is folded through a mutable boundary, so the call reaches the cell and the caller ignores it",
       "why": "the call still reaches the cell and the caller uses the folded release answer -- path evidence perfect, program wrong. This shipped once.",
       "result": "pass",
-      "observed": "folding re-enabled: 6 call sites still emitted, 9 escapes recorded, install -3, call OLD-TINY"
+      "observed": "folding re-enabled: 8 call sites still emitted, 13 escapes recorded, install -3, call OLD-TINY"
     },
     {
       "id": "H14",
@@ -3384,7 +3548,7 @@
       "description": "an optimized and a conservative build disagree about mutation semantics",
       "why": "if optimization changed mutation semantics, the conservative posture would be the only thing making them work",
       "result": "pass",
-      "observed": "26 observations compared against --inlining_depth_threshold=0, 0 disagreements"
+      "observed": "30 observations compared against --inlining_depth_threshold=0, 0 disagreements"
     },
     {
       "id": "H11",
@@ -3409,7 +3573,7 @@
       "description": "a dirty worktree lets the record name a fork commit whose bytes were never measured, while every binary-to-source check stays green",
       "why": "a dirty worktree lets a record name a commit it did not measure. The binary matches the bytes, the bytes match the digest, and the commit named in the evidence contains something else entirely -- which is exactly how #68's first closure attempt shipped.",
       "result": "pass",
-      "observed": "live: every tracked source equals its blob at 358a0ee8275f, which is the commit the build record names; against one source differing from that commit the guard reports 1 mismatch, and against one absent from it 1",
+      "observed": "live: every tracked source equals its blob at e0f6788f29e5, which is the commit the build record names; against one source differing from that commit the guard reports 1 mismatch, and against one absent from it 1",
       "verdict_under_defect": "NOT_ESTABLISHED"
     }
   ],

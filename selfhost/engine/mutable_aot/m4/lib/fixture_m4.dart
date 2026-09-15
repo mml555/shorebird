@@ -166,6 +166,13 @@ void main(List<String> args) {
 
   // ---- install across every variant ----
   _emit('install.tiny', _install3('fn:tiny', 'fn:tinyNew', 2, ns));
+  // CROSS-WIRING (#69). Read BOTH immediately after patching only A. If two
+  // declarations' trampolines were bound to the same cell -- which is exactly
+  // what happened while every trampoline deduplicated into one -- then
+  // patching A would move B as well, and installing both before re-reading
+  // either would hide it completely.
+  _emit('xwire.A.afterPatchA', tiny());
+  _emit('xwire.B.afterPatchA', constantish());
   _emit('install.constantish',
       _install3('fn:constantish', 'fn:constantishNew', 2, ns));
   _emit('install.devirt',
@@ -184,6 +191,8 @@ void main(List<String> args) {
   // ---- cold, after installation ----
   _emit('tiny.1', tiny());
   _emit('constantish.1', constantish());
+  _emit('xwire.A.afterPatchB', tiny());
+  _emit('xwire.B.afterPatchB', constantish());
   _emit('devirt.1', shape.describe());
   _emit('chain.1', chainA());
   _emit('immutableCaller.1', immutableCaller());
