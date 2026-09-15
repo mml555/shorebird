@@ -1,353 +1,99 @@
 {
+  "checks": {
+    "derivations_agree": true,
+    "partition_errors": [],
+    "rows_with_drifted_subject": [],
+    "surface_derived_by_declares_virtual": [
+      "EB-03",
+      "EB-04",
+      "EB-05",
+      "EB-06",
+      "EB-19"
+    ],
+    "surface_derived_by_subject_note": [
+      "EB-03",
+      "EB-04",
+      "EB-05",
+      "EB-06",
+      "EB-19"
+    ]
+  },
   "issue": 69,
   "rows": {
-    "EB-01": {
-      "declared_cells": [
-        [
-          "direct",
-          "aot",
-          "cold"
-        ],
-        [
-          "direct",
-          "aot",
-          "hot"
-        ],
-        [
-          "direct",
-          "jit",
-          "cold"
-        ],
-        [
-          "direct",
-          "jit",
-          "hot"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "hot"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "hot"
-        ],
-        [
-          "tearoff_post",
-          "aot",
-          "cold"
-        ],
-        [
-          "tearoff_post",
-          "aot",
-          "hot"
-        ],
-        [
-          "tearoff_post",
-          "jit",
-          "cold"
-        ],
-        [
-          "tearoff_post",
-          "jit",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "hot"
-        ]
-      ],
-      "owned_by_67_68": [
-        [
-          "direct",
-          "aot",
-          "cold"
-        ],
-        [
-          "direct",
-          "aot",
-          "hot"
-        ]
-      ],
-      "reachable_by_69": [
-        [
-          "dynamic",
-          "aot",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "hot"
-        ],
-        [
-          "tearoff_post",
-          "aot",
-          "cold"
-        ],
-        [
-          "tearoff_post",
-          "aot",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "hot"
-        ]
-      ],
-      "row_result_now": "UNMODELED",
-      "unreachable_cells": [
-        [
-          "direct",
-          "jit",
-          "cold"
-        ],
-        [
-          "direct",
-          "jit",
-          "hot"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "hot"
-        ],
-        [
-          "tearoff_post",
-          "jit",
-          "cold"
-        ],
-        [
-          "tearoff_post",
-          "jit",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "hot"
-        ]
-      ],
-      "whole_row_promotable": false,
-      "why_not_promotable": "8 of 16 declared cells are ['jit'] cells, which no Mutable-AOT mechanism can reach"
-    },
-    "EB-02": {
-      "declared_cells": [
-        [
-          "direct",
-          "aot",
-          "cold"
-        ],
-        [
-          "direct",
-          "aot",
-          "hot"
-        ],
-        [
-          "direct",
-          "jit",
-          "cold"
-        ],
-        [
-          "direct",
-          "jit",
-          "hot"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "hot"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "hot"
-        ],
-        [
-          "tearoff_post",
-          "aot",
-          "cold"
-        ],
-        [
-          "tearoff_post",
-          "aot",
-          "hot"
-        ],
-        [
-          "tearoff_post",
-          "jit",
-          "cold"
-        ],
-        [
-          "tearoff_post",
-          "jit",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "hot"
-        ]
-      ],
-      "owned_by_67_68": [
-        [
-          "direct",
-          "aot",
-          "cold"
-        ],
-        [
-          "direct",
-          "aot",
-          "hot"
-        ]
-      ],
-      "reachable_by_69": [
-        [
-          "dynamic",
-          "aot",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "hot"
-        ],
-        [
-          "tearoff_post",
-          "aot",
-          "cold"
-        ],
-        [
-          "tearoff_post",
-          "aot",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "hot"
-        ]
-      ],
-      "row_result_now": "UNMODELED",
-      "unreachable_cells": [
-        [
-          "direct",
-          "jit",
-          "cold"
-        ],
-        [
-          "direct",
-          "jit",
-          "hot"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "hot"
-        ],
-        [
-          "tearoff_post",
-          "jit",
-          "cold"
-        ],
-        [
-          "tearoff_post",
-          "jit",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "hot"
-        ]
-      ],
-      "whole_row_promotable": false,
-      "why_not_promotable": "8 of 16 declared cells are ['jit'] cells, which no Mutable-AOT mechanism can reach"
-    },
     "EB-03": {
+      "accepted_prior": [],
+      "control_only_unreachable": [
+        [
+          "direct",
+          "jit",
+          "cold"
+        ],
+        [
+          "direct",
+          "jit",
+          "hot"
+        ],
+        [
+          "dynamic",
+          "jit",
+          "cold"
+        ],
+        [
+          "dynamic",
+          "jit",
+          "hot"
+        ],
+        [
+          "interface",
+          "jit",
+          "cold"
+        ],
+        [
+          "interface",
+          "jit",
+          "hot"
+        ],
+        [
+          "super",
+          "jit",
+          "cold"
+        ],
+        [
+          "super",
+          "jit",
+          "hot"
+        ],
+        [
+          "tearoff_post",
+          "jit",
+          "cold"
+        ],
+        [
+          "tearoff_post",
+          "jit",
+          "hot"
+        ],
+        [
+          "tearoff_pre",
+          "jit",
+          "cold"
+        ],
+        [
+          "tearoff_pre",
+          "jit",
+          "hot"
+        ],
+        [
+          "virtual",
+          "jit",
+          "cold"
+        ],
+        [
+          "virtual",
+          "jit",
+          "hot"
+        ]
+      ],
       "declared_cells": [
         [
           "direct",
@@ -490,157 +236,127 @@
           "hot"
         ]
       ],
-      "owned_by_67_68": [
-        [
-          "direct",
-          "aot",
-          "cold"
-        ],
-        [
-          "direct",
-          "aot",
-          "hot"
-        ]
-      ],
-      "reachable_by_69": [
-        [
-          "dynamic",
-          "aot",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "hot"
-        ],
-        [
-          "interface",
-          "aot",
-          "cold"
-        ],
-        [
-          "interface",
-          "aot",
-          "hot"
-        ],
-        [
-          "super",
-          "aot",
-          "cold"
-        ],
-        [
-          "super",
-          "aot",
-          "hot"
-        ],
-        [
-          "tearoff_post",
-          "aot",
-          "cold"
-        ],
-        [
-          "tearoff_post",
-          "aot",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "hot"
-        ],
-        [
-          "virtual",
-          "aot",
-          "cold"
-        ],
-        [
-          "virtual",
-          "aot",
-          "hot"
-        ]
-      ],
+      "deferred_other_issue": [],
       "row_result_now": "UNMODELED",
-      "unreachable_cells": [
+      "subject": "instance method body",
+      "target_by_69": [
         [
           "direct",
-          "jit",
+          "aot",
           "cold"
         ],
         [
           "direct",
-          "jit",
+          "aot",
           "hot"
         ],
         [
           "dynamic",
-          "jit",
+          "aot",
           "cold"
         ],
         [
           "dynamic",
-          "jit",
+          "aot",
           "hot"
         ],
         [
           "interface",
-          "jit",
+          "aot",
           "cold"
         ],
         [
           "interface",
-          "jit",
+          "aot",
           "hot"
         ],
         [
           "super",
-          "jit",
+          "aot",
           "cold"
         ],
         [
           "super",
-          "jit",
+          "aot",
           "hot"
         ],
         [
           "tearoff_post",
-          "jit",
+          "aot",
           "cold"
         ],
         [
           "tearoff_post",
-          "jit",
+          "aot",
           "hot"
         ],
         [
           "tearoff_pre",
-          "jit",
+          "aot",
           "cold"
         ],
         [
           "tearoff_pre",
-          "jit",
+          "aot",
           "hot"
         ],
         [
           "virtual",
-          "jit",
+          "aot",
           "cold"
         ],
         [
           "virtual",
-          "jit",
+          "aot",
           "hot"
         ]
       ],
-      "whole_row_promotable": false,
-      "why_not_promotable": "14 of 28 declared cells are ['jit'] cells, which no Mutable-AOT mechanism can reach"
+      "whole_row_promotable": false
     },
     "EB-04": {
+      "accepted_prior": [],
+      "control_only_unreachable": [
+        [
+          "direct",
+          "jit",
+          "cold"
+        ],
+        [
+          "direct",
+          "jit",
+          "hot"
+        ],
+        [
+          "dynamic",
+          "jit",
+          "cold"
+        ],
+        [
+          "dynamic",
+          "jit",
+          "hot"
+        ],
+        [
+          "interface",
+          "jit",
+          "cold"
+        ],
+        [
+          "interface",
+          "jit",
+          "hot"
+        ],
+        [
+          "virtual",
+          "jit",
+          "cold"
+        ],
+        [
+          "virtual",
+          "jit",
+          "hot"
+        ]
+      ],
       "declared_cells": [
         [
           "direct",
@@ -723,97 +439,97 @@
           "hot"
         ]
       ],
-      "owned_by_67_68": [
-        [
-          "direct",
-          "aot",
-          "cold"
-        ],
-        [
-          "direct",
-          "aot",
-          "hot"
-        ]
-      ],
-      "reachable_by_69": [
-        [
-          "dynamic",
-          "aot",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "hot"
-        ],
-        [
-          "interface",
-          "aot",
-          "cold"
-        ],
-        [
-          "interface",
-          "aot",
-          "hot"
-        ],
-        [
-          "virtual",
-          "aot",
-          "cold"
-        ],
-        [
-          "virtual",
-          "aot",
-          "hot"
-        ]
-      ],
+      "deferred_other_issue": [],
       "row_result_now": "UNMODELED",
-      "unreachable_cells": [
+      "subject": "getter body",
+      "target_by_69": [
         [
           "direct",
-          "jit",
+          "aot",
           "cold"
         ],
         [
           "direct",
-          "jit",
+          "aot",
           "hot"
         ],
         [
           "dynamic",
-          "jit",
+          "aot",
           "cold"
         ],
         [
           "dynamic",
-          "jit",
+          "aot",
           "hot"
         ],
         [
           "interface",
-          "jit",
+          "aot",
           "cold"
         ],
         [
           "interface",
-          "jit",
+          "aot",
           "hot"
         ],
         [
           "virtual",
-          "jit",
+          "aot",
           "cold"
         ],
         [
           "virtual",
-          "jit",
+          "aot",
           "hot"
         ]
       ],
-      "whole_row_promotable": false,
-      "why_not_promotable": "8 of 16 declared cells are ['jit'] cells, which no Mutable-AOT mechanism can reach"
+      "whole_row_promotable": false
     },
     "EB-05": {
+      "accepted_prior": [],
+      "control_only_unreachable": [
+        [
+          "direct",
+          "jit",
+          "cold"
+        ],
+        [
+          "direct",
+          "jit",
+          "hot"
+        ],
+        [
+          "dynamic",
+          "jit",
+          "cold"
+        ],
+        [
+          "dynamic",
+          "jit",
+          "hot"
+        ],
+        [
+          "interface",
+          "jit",
+          "cold"
+        ],
+        [
+          "interface",
+          "jit",
+          "hot"
+        ],
+        [
+          "virtual",
+          "jit",
+          "cold"
+        ],
+        [
+          "virtual",
+          "jit",
+          "hot"
+        ]
+      ],
       "declared_cells": [
         [
           "direct",
@@ -896,97 +612,87 @@
           "hot"
         ]
       ],
-      "owned_by_67_68": [
-        [
-          "direct",
-          "aot",
-          "cold"
-        ],
-        [
-          "direct",
-          "aot",
-          "hot"
-        ]
-      ],
-      "reachable_by_69": [
-        [
-          "dynamic",
-          "aot",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "hot"
-        ],
-        [
-          "interface",
-          "aot",
-          "cold"
-        ],
-        [
-          "interface",
-          "aot",
-          "hot"
-        ],
-        [
-          "virtual",
-          "aot",
-          "cold"
-        ],
-        [
-          "virtual",
-          "aot",
-          "hot"
-        ]
-      ],
+      "deferred_other_issue": [],
       "row_result_now": "UNMODELED",
-      "unreachable_cells": [
+      "subject": "setter body",
+      "target_by_69": [
         [
           "direct",
-          "jit",
+          "aot",
           "cold"
         ],
         [
           "direct",
-          "jit",
+          "aot",
           "hot"
         ],
         [
           "dynamic",
-          "jit",
+          "aot",
           "cold"
         ],
         [
           "dynamic",
-          "jit",
+          "aot",
           "hot"
         ],
         [
           "interface",
-          "jit",
+          "aot",
           "cold"
         ],
         [
           "interface",
-          "jit",
+          "aot",
           "hot"
         ],
         [
           "virtual",
-          "jit",
+          "aot",
           "cold"
         ],
         [
           "virtual",
-          "jit",
+          "aot",
           "hot"
         ]
       ],
-      "whole_row_promotable": false,
-      "why_not_promotable": "8 of 16 declared cells are ['jit'] cells, which no Mutable-AOT mechanism can reach"
+      "whole_row_promotable": false
     },
     "EB-06": {
+      "accepted_prior": [],
+      "control_only_unreachable": [
+        [
+          "direct",
+          "jit",
+          "cold"
+        ],
+        [
+          "direct",
+          "jit",
+          "hot"
+        ],
+        [
+          "dynamic",
+          "jit",
+          "cold"
+        ],
+        [
+          "dynamic",
+          "jit",
+          "hot"
+        ],
+        [
+          "virtual",
+          "jit",
+          "cold"
+        ],
+        [
+          "virtual",
+          "jit",
+          "hot"
+        ]
+      ],
       "declared_cells": [
         [
           "direct",
@@ -1049,7 +755,10 @@
           "hot"
         ]
       ],
-      "owned_by_67_68": [
+      "deferred_other_issue": [],
+      "row_result_now": "UNMODELED",
+      "subject": "operator body",
+      "target_by_69": [
         [
           "direct",
           "aot",
@@ -1059,9 +768,7 @@
           "direct",
           "aot",
           "hot"
-        ]
-      ],
-      "reachable_by_69": [
+        ],
         [
           "dynamic",
           "aot",
@@ -1083,681 +790,52 @@
           "hot"
         ]
       ],
-      "row_result_now": "UNMODELED",
-      "unreachable_cells": [
-        [
-          "direct",
-          "jit",
-          "cold"
-        ],
-        [
-          "direct",
-          "jit",
-          "hot"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "hot"
-        ],
-        [
-          "virtual",
-          "jit",
-          "cold"
-        ],
-        [
-          "virtual",
-          "jit",
-          "hot"
-        ]
-      ],
-      "whole_row_promotable": false,
-      "why_not_promotable": "6 of 12 declared cells are ['jit'] cells, which no Mutable-AOT mechanism can reach"
-    },
-    "EB-07": {
-      "declared_cells": [
-        [
-          "direct",
-          "aot",
-          "cold"
-        ],
-        [
-          "direct",
-          "aot",
-          "hot"
-        ],
-        [
-          "direct",
-          "jit",
-          "cold"
-        ],
-        [
-          "direct",
-          "jit",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "hot"
-        ]
-      ],
-      "owned_by_67_68": [
-        [
-          "direct",
-          "aot",
-          "cold"
-        ],
-        [
-          "direct",
-          "aot",
-          "hot"
-        ]
-      ],
-      "reachable_by_69": [
-        [
-          "tearoff_pre",
-          "aot",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "hot"
-        ]
-      ],
-      "row_result_now": "UNMODELED",
-      "unreachable_cells": [
-        [
-          "direct",
-          "jit",
-          "cold"
-        ],
-        [
-          "direct",
-          "jit",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "hot"
-        ]
-      ],
-      "whole_row_promotable": false,
-      "why_not_promotable": "4 of 8 declared cells are ['jit'] cells, which no Mutable-AOT mechanism can reach"
-    },
-    "EB-11": {
-      "declared_cells": [
-        [
-          "direct",
-          "aot",
-          "cold"
-        ],
-        [
-          "direct",
-          "aot",
-          "hot"
-        ],
-        [
-          "direct",
-          "jit",
-          "cold"
-        ],
-        [
-          "direct",
-          "jit",
-          "hot"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "hot"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "hot"
-        ]
-      ],
-      "owned_by_67_68": [
-        [
-          "direct",
-          "aot",
-          "cold"
-        ],
-        [
-          "direct",
-          "aot",
-          "hot"
-        ]
-      ],
-      "reachable_by_69": [
-        [
-          "dynamic",
-          "aot",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "hot"
-        ]
-      ],
-      "row_result_now": "UNMODELED",
-      "unreachable_cells": [
-        [
-          "direct",
-          "jit",
-          "cold"
-        ],
-        [
-          "direct",
-          "jit",
-          "hot"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "hot"
-        ]
-      ],
-      "whole_row_promotable": false,
-      "why_not_promotable": "6 of 12 declared cells are ['jit'] cells, which no Mutable-AOT mechanism can reach"
-    },
-    "EB-12": {
-      "declared_cells": [
-        [
-          "direct",
-          "aot",
-          "cold"
-        ],
-        [
-          "direct",
-          "aot",
-          "hot"
-        ],
-        [
-          "direct",
-          "jit",
-          "cold"
-        ],
-        [
-          "direct",
-          "jit",
-          "hot"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "hot"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "hot"
-        ]
-      ],
-      "owned_by_67_68": [
-        [
-          "direct",
-          "aot",
-          "cold"
-        ],
-        [
-          "direct",
-          "aot",
-          "hot"
-        ]
-      ],
-      "reachable_by_69": [
-        [
-          "dynamic",
-          "aot",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "hot"
-        ]
-      ],
-      "row_result_now": "UNMODELED",
-      "unreachable_cells": [
-        [
-          "direct",
-          "jit",
-          "cold"
-        ],
-        [
-          "direct",
-          "jit",
-          "hot"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "hot"
-        ]
-      ],
-      "whole_row_promotable": false,
-      "why_not_promotable": "4 of 8 declared cells are ['jit'] cells, which no Mutable-AOT mechanism can reach"
-    },
-    "EB-13": {
-      "declared_cells": [
-        [
-          "direct",
-          "aot",
-          "cold"
-        ],
-        [
-          "direct",
-          "aot",
-          "hot"
-        ],
-        [
-          "direct",
-          "jit",
-          "cold"
-        ],
-        [
-          "direct",
-          "jit",
-          "hot"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "hot"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "hot"
-        ]
-      ],
-      "owned_by_67_68": [
-        [
-          "direct",
-          "aot",
-          "cold"
-        ],
-        [
-          "direct",
-          "aot",
-          "hot"
-        ]
-      ],
-      "reachable_by_69": [
-        [
-          "dynamic",
-          "aot",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "hot"
-        ]
-      ],
-      "row_result_now": "UNMODELED",
-      "unreachable_cells": [
-        [
-          "direct",
-          "jit",
-          "cold"
-        ],
-        [
-          "direct",
-          "jit",
-          "hot"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "hot"
-        ]
-      ],
-      "whole_row_promotable": false,
-      "why_not_promotable": "4 of 8 declared cells are ['jit'] cells, which no Mutable-AOT mechanism can reach"
-    },
-    "EB-14": {
-      "declared_cells": [
-        [
-          "direct",
-          "aot",
-          "cold"
-        ],
-        [
-          "direct",
-          "aot",
-          "hot"
-        ],
-        [
-          "direct",
-          "jit",
-          "cold"
-        ],
-        [
-          "direct",
-          "jit",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "hot"
-        ]
-      ],
-      "owned_by_67_68": [
-        [
-          "direct",
-          "aot",
-          "cold"
-        ],
-        [
-          "direct",
-          "aot",
-          "hot"
-        ]
-      ],
-      "reachable_by_69": [
-        [
-          "tearoff_pre",
-          "aot",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "hot"
-        ]
-      ],
-      "row_result_now": "UNMODELED",
-      "unreachable_cells": [
-        [
-          "direct",
-          "jit",
-          "cold"
-        ],
-        [
-          "direct",
-          "jit",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "hot"
-        ]
-      ],
-      "whole_row_promotable": false,
-      "why_not_promotable": "4 of 8 declared cells are ['jit'] cells, which no Mutable-AOT mechanism can reach"
-    },
-    "EB-15": {
-      "declared_cells": [
-        [
-          "direct",
-          "aot",
-          "cold"
-        ],
-        [
-          "direct",
-          "aot",
-          "hot"
-        ],
-        [
-          "direct",
-          "jit",
-          "cold"
-        ],
-        [
-          "direct",
-          "jit",
-          "hot"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "hot"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "hot"
-        ]
-      ],
-      "owned_by_67_68": [
-        [
-          "direct",
-          "aot",
-          "cold"
-        ],
-        [
-          "direct",
-          "aot",
-          "hot"
-        ]
-      ],
-      "reachable_by_69": [
-        [
-          "dynamic",
-          "aot",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "hot"
-        ]
-      ],
-      "row_result_now": "UNMODELED",
-      "unreachable_cells": [
-        [
-          "direct",
-          "jit",
-          "cold"
-        ],
-        [
-          "direct",
-          "jit",
-          "hot"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "jit",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "jit",
-          "hot"
-        ]
-      ],
-      "whole_row_promotable": false,
-      "why_not_promotable": "6 of 12 declared cells are ['jit'] cells, which no Mutable-AOT mechanism can reach"
+      "whole_row_promotable": false
     },
     "EB-19": {
+      "accepted_prior": [],
+      "control_only_unreachable": [
+        [
+          "direct",
+          "jit",
+          "cold"
+        ],
+        [
+          "direct",
+          "jit",
+          "hot"
+        ],
+        [
+          "dynamic",
+          "jit",
+          "cold"
+        ],
+        [
+          "dynamic",
+          "jit",
+          "hot"
+        ],
+        [
+          "tearoff_pre",
+          "jit",
+          "cold"
+        ],
+        [
+          "tearoff_pre",
+          "jit",
+          "hot"
+        ],
+        [
+          "virtual",
+          "jit",
+          "cold"
+        ],
+        [
+          "virtual",
+          "jit",
+          "hot"
+        ]
+      ],
       "declared_cells": [
         [
           "direct",
@@ -1840,105 +918,71 @@
           "hot"
         ]
       ],
-      "owned_by_67_68": [
-        [
-          "direct",
-          "aot",
-          "cold"
-        ],
-        [
-          "direct",
-          "aot",
-          "hot"
-        ]
-      ],
-      "reachable_by_69": [
-        [
-          "dynamic",
-          "aot",
-          "cold"
-        ],
-        [
-          "dynamic",
-          "aot",
-          "hot"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "cold"
-        ],
-        [
-          "tearoff_pre",
-          "aot",
-          "hot"
-        ],
-        [
-          "virtual",
-          "aot",
-          "cold"
-        ],
-        [
-          "virtual",
-          "aot",
-          "hot"
-        ]
-      ],
+      "deferred_other_issue": [],
       "row_result_now": "UNMODELED",
-      "unreachable_cells": [
+      "subject": "callable class `call` body",
+      "target_by_69": [
         [
           "direct",
-          "jit",
+          "aot",
           "cold"
         ],
         [
           "direct",
-          "jit",
+          "aot",
           "hot"
         ],
         [
           "dynamic",
-          "jit",
+          "aot",
           "cold"
         ],
         [
           "dynamic",
-          "jit",
+          "aot",
           "hot"
         ],
         [
           "tearoff_pre",
-          "jit",
+          "aot",
           "cold"
         ],
         [
           "tearoff_pre",
-          "jit",
+          "aot",
           "hot"
         ],
         [
           "virtual",
-          "jit",
+          "aot",
           "cold"
         ],
         [
           "virtual",
-          "jit",
+          "aot",
           "hot"
         ]
       ],
-      "whole_row_promotable": false,
-      "why_not_promotable": "8 of 16 declared cells are ['jit'] cells, which no Mutable-AOT mechanism can reach"
+      "whole_row_promotable": false
     }
   },
-  "schema": "maot.m5.cellmap/1",
+  "schema": "maot.m5.cellmap/2",
   "summary": {
-    "declared_cells": 176,
-    "owned_by_67_68": 26,
-    "reachable_by_69": 62,
-    "rows": 13,
+    "accepted_prior_global_reference": [
+      "EB-01/direct/aot/cold",
+      "EB-01/direct/aot/hot",
+      "EB-02/direct/aot/cold",
+      "EB-02/direct/aot/hot"
+    ],
+    "accepted_prior_within_69_rows": 0,
+    "control_only_unreachable": 44,
+    "declared_cells": 88,
+    "deferred_other_issue": 0,
+    "partition_exact": true,
+    "rows": 5,
     "rows_whole_row_promotable": [],
+    "surface_derivations_agree": true,
     "target_arch": "arm64",
-    "unreachable_cells": 88
+    "target_by_69": 44
   }
 }
