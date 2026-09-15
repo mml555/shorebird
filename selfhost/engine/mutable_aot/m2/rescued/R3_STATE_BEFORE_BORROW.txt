@@ -139,3 +139,19 @@ the authority -- a file beside a checkout is not provenance. The restored
 working tree reproduces dirty digest 6b358f715e491bd9 exactly, which is the
 same value recorded at the first borrow, so the restore is verified against
 the recorded state rather than against the file it came from.
+
+TWENTY-FIRST BORROW (#68 provenance synchronization: bind evidence to the
+commit it names).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Route B gen_snapshot untouched
+at 6875648 bytes, Sep 1 02:40. Built only in out/maot_host.
+
+No fork source changed this borrow. The fork was checked out CLEAN at
+b92efd823d83e4c901b48c0ef9e953e07e34c79d, tree a5c581641bf7..., rebuilt, and
+every lane re-measured against it, because the previous records named
+2e4df989 while having been measured against a dirty worktree holding what
+later became b92efd82.
+
+build_maot.sh now refuses to write a digest while any tracked MAOT source
+differs from HEAD (exit 4, verified firing), so a borrow that edits a source
+and rebuilds without committing cannot produce a record at all.
