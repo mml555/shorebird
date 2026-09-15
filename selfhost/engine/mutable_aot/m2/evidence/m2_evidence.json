@@ -2,15 +2,15 @@
   "schema": "maot.m2.evidence/1",
   "issue": 66,
   "generated_by": {
-    "run_id": "2026-09-15T04:47:04Z",
+    "run_id": "2026-09-15T16:44:00Z",
     "gate_sha256": "b93a9c28441eef6902f3d14cd050fadbbfc4ee2373676adf50239ba1f8c078fd",
     "verdict_sha256": "d884bafa96ae7aa6f775b50fc8617bf807ad9c1ac92f9bbd31f85ea9c59094a6"
   },
   "identities": {
-    "shorebird_revision": "11423c8cfec0d459985a1f162a61851ca65bc3d1",
-    "shorebird_tree": "bf41d02051f2edca3ef412099874e6734b51014e",
-    "fork_commit": "b92efd823d83e4c901b48c0ef9e953e07e34c79d",
-    "fork_tree": "a5c581641bf7bf3ff80c109e89586aa665b20327",
+    "shorebird_revision": "85637b8514eace9b7f2c7cb52a8f85776e955a75",
+    "shorebird_tree": "30436046643d0415a0b2e898ae13402960e5aca7",
+    "fork_commit": "358a0ee8275f69d7f0f778d55c9869ebb7a59e86",
+    "fork_tree": "8e796374b5751936249f043eb3937dc0a370db72",
     "fork_branch": "maot/build",
     "fork_worktree_entries": [
       "?? third_party/binaryen/.DS_Store"
@@ -24,8 +24,8 @@
     "stale_binaries": [],
     "build_digest": {
       "files": {
-        "runtime/vm/maot_registry.cc": "9e1c073e34818dc169c68ce1de6d3eb2c0e7957cef5126503b4856154ec82ab8",
-        "runtime/vm/maot_registry.h": "b6766bedc5ea3ee03287f2bd4d300c2f171d9f96b05d0167f553d0143cd7951f",
+        "runtime/vm/maot_registry.cc": "275d90dbbf12a807edc95738a7f102cd36f0dd1df7789daab20da0ac16511701",
+        "runtime/vm/maot_registry.h": "2fea8ad7456a5220bb4f43df79322573e73e2625feaa0dc6e46900b47f22051b",
         "runtime/vm/kernel_loader.cc": "6ded9b83769b2d64a3c63f9b72ab4237f351cd42193b70ccedd30517a166d9db",
         "runtime/vm/object_store.h": "f0ccb348e996eacb79b58f3033b3168012ef7f9b1ab9905028c8b9d50ed5edc5",
         "runtime/vm/dart.cc": "76221ab91bfe8a5d882288c7b535b1caa5ee33f263d6bb0b7240d948c5c365af",
@@ -33,7 +33,7 @@
         "runtime/vm/compiler/aot/precompiler.h": "96a7e8255eccb81b3caec5c27784861c0be0bf5d48f9cb2bff5fe99c0523ba7d",
         "runtime/vm/compiler/frontend/kernel_translation_helper.cc": "3c7c2ac4cb9e8a04736c184ec1b2a02cea253f5186f45218351594e831f9d96f",
         "runtime/vm/compiler/frontend/kernel_translation_helper.h": "d2726b4c489f025dfef242673006b79d5a21a9663aeae90281e28ffd7cbdb330",
-        "runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc": "4b0e59a38aec086f122f944c296bd549f5685dab0fe6f868d76cdac5b7b64892",
+        "runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc": "88713debf61b9fc9a54d5ddc462dc71310c21790da435b3339218c8be282b8c0",
         "runtime/vm/compiler/backend/inliner.cc": "67c9f537e52578ec548da0b0787576e6bf93f2709883e5e3cf3864f33ce75410",
         "runtime/vm/compiler/frontend/kernel_binary_flowgraph.cc": "9e922e29501bdd02acbcb65d65c494341afa9197ae7d362a6654ca9544e2ca37",
         "pkg/vm/lib/metadata/maot_declaration_id.dart": "96e1bce90cf4765f3355889bb4003f56e0b64eaeb038476f088e0e167c9b7dd9",
@@ -41,15 +41,15 @@
         "pkg/vm/lib/transformations/pragma.dart": "882a80a8bb700145fbb7eb5026f2d7f6d8b6c6432e14661b6f52545bdfcde22a",
         "pkg/vm/lib/modular/target/vm.dart": "82c464b114770687a2868b51d7d93405d0d347dedf8da4604d1c2f56723c1885"
       },
-      "fork_commit": "b92efd823d83e4c901b48c0ef9e953e07e34c79d",
-      "fork_tree": "a5c581641bf7bf3ff80c109e89586aa665b20327",
+      "fork_commit": "358a0ee8275f69d7f0f778d55c9869ebb7a59e86",
+      "fork_tree": "8e796374b5751936249f043eb3937dc0a370db72",
       "fork_sources_match_head": "1",
-      "built_at": "2026-09-15T04:23:14Z"
+      "built_at": "2026-09-15T16:43:52Z"
     },
     "missing_maot_sources": [],
     "fork_identity": {
-      "head": "b92efd823d83e4c901b48c0ef9e953e07e34c79d",
-      "tree": "a5c581641bf7bf3ff80c109e89586aa665b20327",
+      "head": "358a0ee8275f69d7f0f778d55c9869ebb7a59e86",
+      "tree": "8e796374b5751936249f043eb3937dc0a370db72",
       "branch": "maot/build",
       "worktree_dirty_paths": [
         "third_party/binaryen/.DS_Store"
@@ -272,8 +272,8 @@
       "aot_elf_bytes_with_maot": 858168,
       "aot_elf_bytes_control_no_pragmas": 840368,
       "aot_elf_delta_bytes": 17800,
-      "startup_ms_with_maot": 17.49,
-      "startup_ms_control": 17.11,
+      "startup_ms_with_maot": 23.84,
+      "startup_ms_control": 28.24,
       "control_note": "absent here means the control build failed, not that it was skipped",
       "note": "medians of 7 runs of the same program; the control is the identical source with every maot:mutable removed, so the delta includes keeping a dead selected declaration alive",
       "registry_entries": 25,
@@ -282,7 +282,7 @@
       "registry_registry_bytes_approx": 4800,
       "registry_bytes_per_entry_approx": 192,
       "registry_lookup_iterations": 10000,
-      "registry_lookup_total_micros": 245,
+      "registry_lookup_total_micros": 246,
       "registry_lookup_note": "linear scan over a GrowableObjectArray; correctness first, and the cost is recorded rather than optimised around",
       "registry_lookup_sink": 10000
     },
@@ -5814,7 +5814,7 @@
       "registry_bytes_approx": 4800,
       "bytes_per_entry_approx": 192,
       "lookup_iterations": 10000,
-      "lookup_total_micros": 245,
+      "lookup_total_micros": 246,
       "lookup_note": "linear scan over a GrowableObjectArray; correctness first, and the cost is recorded rather than optimised around",
       "lookup_sink": 10000
     }
@@ -5852,6 +5852,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
@@ -5890,6 +5893,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
@@ -5928,6 +5934,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
@@ -5966,6 +5975,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
@@ -6004,6 +6016,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
@@ -6042,6 +6057,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::fn:mutableTopLevel",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::fn:mutableTopLevel",
@@ -6080,6 +6098,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::fn:neverCalled",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::fn:neverCalled",
@@ -6118,6 +6139,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::fn:compute",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::fn:compute",
@@ -6156,6 +6180,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::fn:posOne",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::fn:posOne",
@@ -6194,6 +6221,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::fn:posTwo",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::fn:posTwo",
@@ -6232,6 +6262,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::fn:posOptional",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::fn:posOptional",
@@ -6270,6 +6303,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::fn:namedX",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::fn:namedX",
@@ -6308,6 +6344,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::fn:namedY",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::fn:namedY",
@@ -6346,6 +6385,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::fn:namedRequiredX",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::fn:namedRequiredX",
@@ -6384,6 +6426,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::fn:genericNone",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::fn:genericNone",
@@ -6422,6 +6467,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::fn:genericOne",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::fn:genericOne",
@@ -6460,6 +6508,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::fn:boundNum",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::fn:boundNum",
@@ -6498,6 +6549,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::fn:boundInt",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::fn:boundInt",
@@ -6536,6 +6590,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::fn:staticOne",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::fn:staticOne",
@@ -6574,6 +6631,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::fn:doubleIdentity",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::fn:doubleIdentity",
@@ -6612,6 +6672,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::fn:intIdentity",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::fn:intIdentity",
@@ -6650,6 +6713,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::fn:nestedBoundNum",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::fn:nestedBoundNum",
@@ -6688,6 +6754,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::fn:nestedBoundInt",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::fn:nestedBoundInt",
@@ -6726,6 +6795,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::fn:renamedT",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::fn:renamedT",
@@ -6764,6 +6836,9 @@
         "inline_refusals": 0,
         "inline_admissions": 0,
         "current_implementation_id": "lib:package:m2app/app.dart::fn:renamedU",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
         "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m2app/app.dart::fn:renamedU",

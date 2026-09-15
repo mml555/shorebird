@@ -1,8 +1,8 @@
 === MAOT-4 (#68) optimizer invariants for mutable declarations ===
-run  2026-09-15T04:47:47Z
-fork b92efd823d83e4c901b48c0ef9e953e07e34c79d
+run  2026-09-15T16:52:44Z
+fork 358a0ee8275f69d7f0f778d55c9869ebb7a59e86
 
-fork          b92efd823d83e4c901b48c0ef9e953e07e34c79d
+fork          358a0ee8275f69d7f0f778d55c9869ebb7a59e86
 rules         10 optimizer classes
 variants      tiny OLD-TINY -> NEW-TINY -> NEW-CONST | chain NEW-A
 devirt        install -3 (refused: instance dispatch is #69) | join 6+3
