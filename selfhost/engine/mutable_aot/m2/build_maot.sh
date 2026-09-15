@@ -30,6 +30,7 @@ SOURCES=(
   runtime/vm/compiler/frontend/kernel_translation_helper.h
   runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc
   runtime/vm/compiler/backend/inliner.cc
+  runtime/vm/compiler/frontend/kernel_binary_flowgraph.cc
 )
 
 for f in "${SOURCES[@]}"; do

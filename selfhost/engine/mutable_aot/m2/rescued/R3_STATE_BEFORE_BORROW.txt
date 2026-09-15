@@ -115,3 +115,8 @@ dirty entries, dirty digest 6b358f715e491bd9. Built only in out/maot_host.
 EIGHTEENTH BORROW (#68: devirt instrumentation, restore #66 proof strength).
 Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
 dirty entries, dirty digest 6b358f715e491bd9. Built only in out/maot_host.
+
+NINETEENTH BORROW (#68 Phase A closure: rule table, m4 gate, measurements).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. No fork source changed this
+borrow -- gate, fixture and evidence work only.

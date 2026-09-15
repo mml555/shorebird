@@ -40,6 +40,9 @@ MAOT_CXX_SOURCES = (
     'runtime/vm/compiler/aot/precompiler.h',
     'runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc',
     'runtime/vm/compiler/backend/inliner.cc',
+    # #68 put the constant-folding backstop and the devirtualization
+    # records here, and it ships in the same binaries this lane measures.
+    'runtime/vm/compiler/frontend/kernel_binary_flowgraph.cc',
     'runtime/vm/compiler/frontend/kernel_translation_helper.cc',
     'runtime/vm/compiler/frontend/kernel_translation_helper.h',
 )

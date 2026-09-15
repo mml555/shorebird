@@ -2,13 +2,13 @@
   "schema": "maot.m2.evidence/1",
   "issue": 66,
   "generated_by": {
-    "run_id": "2026-09-15T00:10:55Z",
-    "gate_sha256": "aa35878b2dd5b9fe8606b9970710863880d207d2408c5fcf30d401112e1d4b03",
+    "run_id": "2026-09-15T00:47:48Z",
+    "gate_sha256": "308ab7253c03ab44c58584c085c6145ade9bea22f332c90acbbac1c520472023",
     "verdict_sha256": "d884bafa96ae7aa6f775b50fc8617bf807ad9c1ac92f9bbd31f85ea9c59094a6"
   },
   "identities": {
-    "shorebird_revision": "fb65cde3fdca4826211f7edefcaca6ba7e2dc087",
-    "shorebird_tree": "bf4630c573be2736fc97ffe676fe00d9b182e55e",
+    "shorebird_revision": "834e33dc5b07a68bdc6b97626272a3f7a1c411a4",
+    "shorebird_tree": "8e67e36b60573d07bc7a9e2920f9120f0eab6bb4",
     "fork_commit": "2e4df989fe22a6e4db73a9eba62c33f275beb674",
     "fork_tree": "e9b81df628905c2f81ea1b537fa4af2c6dccaa75",
     "fork_branch": "maot/build",
@@ -34,11 +34,12 @@
         "runtime/vm/compiler/frontend/kernel_translation_helper.cc": "3c7c2ac4cb9e8a04736c184ec1b2a02cea253f5186f45218351594e831f9d96f",
         "runtime/vm/compiler/frontend/kernel_translation_helper.h": "d2726b4c489f025dfef242673006b79d5a21a9663aeae90281e28ffd7cbdb330",
         "runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc": "4b0e59a38aec086f122f944c296bd549f5685dab0fe6f868d76cdac5b7b64892",
-        "runtime/vm/compiler/backend/inliner.cc": "7ec8b340e51f8fa9a9d8ba3be3f7c33c1ef8f1e2bfb74c1f43b31920a3e6ec94"
+        "runtime/vm/compiler/backend/inliner.cc": "7ec8b340e51f8fa9a9d8ba3be3f7c33c1ef8f1e2bfb74c1f43b31920a3e6ec94",
+        "runtime/vm/compiler/frontend/kernel_binary_flowgraph.cc": "cff055ce234de667ca58720c96cb57553d90b0e529e65c7ad37c430f620e8461"
       },
       "fork_commit": "2e4df989fe22a6e4db73a9eba62c33f275beb674",
       "fork_tree": "e9b81df628905c2f81ea1b537fa4af2c6dccaa75",
-      "built_at": "2026-09-15T00:10:55Z"
+      "built_at": "2026-09-15T00:42:42Z"
     },
     "missing_maot_sources": [],
     "selected_count": 25,
@@ -256,8 +257,8 @@
       "aot_elf_bytes_with_maot": 858168,
       "aot_elf_bytes_control_no_pragmas": 840368,
       "aot_elf_delta_bytes": 17800,
-      "startup_ms_with_maot": 17.03,
-      "startup_ms_control": 16.88,
+      "startup_ms_with_maot": 17.55,
+      "startup_ms_control": 17.12,
       "control_note": "absent here means the control build failed, not that it was skipped",
       "note": "medians of 7 runs of the same program; the control is the identical source with every maot:mutable removed, so the delta includes keeping a dead selected declaration alive",
       "registry_entries": 25,
@@ -266,7 +267,7 @@
       "registry_registry_bytes_approx": 4400,
       "registry_bytes_per_entry_approx": 176,
       "registry_lookup_iterations": 10000,
-      "registry_lookup_total_micros": 246,
+      "registry_lookup_total_micros": 240,
       "registry_lookup_note": "linear scan over a GrowableObjectArray; correctness first, and the cost is recorded rather than optimised around",
       "registry_lookup_sink": 10000
     },
@@ -5798,7 +5799,7 @@
       "registry_bytes_approx": 4400,
       "bytes_per_entry_approx": 176,
       "lookup_iterations": 10000,
-      "lookup_total_micros": 246,
+      "lookup_total_micros": 240,
       "lookup_note": "linear scan over a GrowableObjectArray; correctness first, and the cost is recorded rather than optimised around",
       "lookup_sink": 10000
     }
@@ -7148,7 +7149,7 @@
       "description": "a built binary is older than the MAOT source it must contain, so the run measures a different program than the one it names",
       "why": "a run that measures a different program than the one it names is worse than a run that does not happen",
       "result": "pass",
-      "observed": "the toolchain matches all 11 sources now; against one edited source the guard reports 1 mismatch (runtime/vm/maot_registry.cc)"
+      "observed": "the toolchain matches all 12 sources now; against one edited source the guard reports 1 mismatch (runtime/vm/maot_registry.cc)"
     },
     {
       "id": "F25",

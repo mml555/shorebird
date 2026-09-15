@@ -2,14 +2,14 @@
   "schema": "maot.m3.evidence/2",
   "issue": 67,
   "generated_by": {
-    "run_id": "2026-09-15T00:11:41Z",
-    "gate_sha256": "c5ee3feaccca4090790025886e11946c6c52b0863c0d3c843f19bdcc446df8e6",
+    "run_id": "2026-09-15T00:48:15Z",
+    "gate_sha256": "da3dd906bfe7c4d6b76b6930ec4b9235e4dd3de7eddf6ffef11c950be5a95991",
     "verdict_sha256": "5cb311d50fc734aa5afac2bfa12c6efb9e22275a9fac65c8f8167d1e29e5c5e3",
     "fixture_sha256": "83c5e003b3d5bcb712c59f1f963c5bf430708d78a753ee817f33f4ce460c608c"
   },
   "identities": {
-    "shorebird_revision": "fb65cde3fdca4826211f7edefcaca6ba7e2dc087",
-    "shorebird_tree": "bf4630c573be2736fc97ffe676fe00d9b182e55e",
+    "shorebird_revision": "834e33dc5b07a68bdc6b97626272a3f7a1c411a4",
+    "shorebird_tree": "8e67e36b60573d07bc7a9e2920f9120f0eab6bb4",
     "fork_commit": "2e4df989fe22a6e4db73a9eba62c33f275beb674",
     "fork_tree": "e9b81df628905c2f81ea1b537fa4af2c6dccaa75",
     "fork_worktree_entries": [
@@ -37,11 +37,12 @@
         "runtime/vm/compiler/frontend/kernel_translation_helper.cc": "3c7c2ac4cb9e8a04736c184ec1b2a02cea253f5186f45218351594e831f9d96f",
         "runtime/vm/compiler/frontend/kernel_translation_helper.h": "d2726b4c489f025dfef242673006b79d5a21a9663aeae90281e28ffd7cbdb330",
         "runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc": "4b0e59a38aec086f122f944c296bd549f5685dab0fe6f868d76cdac5b7b64892",
-        "runtime/vm/compiler/backend/inliner.cc": "7ec8b340e51f8fa9a9d8ba3be3f7c33c1ef8f1e2bfb74c1f43b31920a3e6ec94"
+        "runtime/vm/compiler/backend/inliner.cc": "7ec8b340e51f8fa9a9d8ba3be3f7c33c1ef8f1e2bfb74c1f43b31920a3e6ec94",
+        "runtime/vm/compiler/frontend/kernel_binary_flowgraph.cc": "cff055ce234de667ca58720c96cb57553d90b0e529e65c7ad37c430f620e8461"
       },
       "fork_commit": "2e4df989fe22a6e4db73a9eba62c33f275beb674",
       "fork_tree": "e9b81df628905c2f81ea1b537fa4af2c6dccaa75",
-      "built_at": "2026-09-15T00:10:55Z"
+      "built_at": "2026-09-15T00:42:42Z"
     },
     "build_provenance_mismatches": [],
     "build_digest_matches": true,
@@ -100,10 +101,10 @@
       }
     },
     "indirect_call_site_trace_lines": 18,
-    "snapshot_sha256_before": "91cd848ca6f5af42f64b6f4a8da2dd21e568be7714ccf380135f6cff1e8e56fb",
-    "snapshot_sha256_after": "91cd848ca6f5af42f64b6f4a8da2dd21e568be7714ccf380135f6cff1e8e56fb",
+    "snapshot_sha256_before": "c809a5f8c24ca5906e6a69d34a987d0efd37a2427fd12e4eb76d916f8bddac62",
+    "snapshot_sha256_after": "c809a5f8c24ca5906e6a69d34a987d0efd37a2427fd12e4eb76d916f8bddac62",
     "calls": {
-      "process.pid": 92468,
+      "process.pid": 34708,
       "top.call.0": "OLD",
       "static.call.0": "OLD-STATIC",
       "untouched.call.0": "UNTOUCHED",
@@ -139,19 +140,19 @@
       "hot.top.value": "NEW2",
       "hot.static.value": "NEW2-STATIC",
       "bench.iterations": 2000000,
-      "bench.top.mutable.us.0": 1980,
-      "bench.top.control.us.0": 2440,
-      "bench.static.mutable.us.0": 2145,
-      "bench.static.control.us.0": 1960,
-      "bench.top.mutable.us.1": 2020,
-      "bench.top.control.us.1": 1924,
+      "bench.top.mutable.us.0": 2051,
+      "bench.top.control.us.0": 1977,
+      "bench.static.mutable.us.0": 2024,
+      "bench.static.control.us.0": 1876,
+      "bench.top.mutable.us.1": 3240,
+      "bench.top.control.us.1": 2017,
       "bench.static.mutable.us.1": 1964,
-      "bench.static.control.us.1": 1897,
-      "bench.top.mutable.us.2": 2004,
-      "bench.top.control.us.2": 1936,
-      "bench.static.mutable.us.2": 1975,
-      "bench.static.control.us.2": 1898,
-      "process.pid.final": 92468
+      "bench.static.control.us.1": 1894,
+      "bench.top.mutable.us.2": 1969,
+      "bench.top.control.us.2": 1967,
+      "bench.static.mutable.us.2": 2067,
+      "bench.static.control.us.2": 1885,
+      "process.pid.final": 34708
     },
     "runtime_stderr_tail": "",
     "registry_before": {
@@ -1052,39 +1053,39 @@
     },
     "measurements": {
       "benchmark_iterations": 2000000,
-      "direct_call_ns_mutable": 0.99,
-      "direct_call_ns_control": 0.962,
+      "direct_call_ns_mutable": 0.985,
+      "direct_call_ns_control": 0.984,
       "static_call_ns_mutable": 0.982,
-      "static_call_ns_control": 0.949,
-      "direct_call_ns_overhead": 0.03,
-      "static_call_ns_overhead": 0.03,
+      "static_call_ns_control": 0.938,
+      "direct_call_ns_overhead": 0.0,
+      "static_call_ns_overhead": 0.04,
       "benchmark_elapsed_us_samples": {
         "bench.top.mutable.us": [
-          1980,
-          2020,
-          2004
+          2051,
+          3240,
+          1969
         ],
         "bench.top.control.us": [
-          2440,
-          1924,
-          1936
+          1977,
+          2017,
+          1967
         ],
         "bench.static.mutable.us": [
-          2145,
+          2024,
           1964,
-          1975
+          2067
         ],
         "bench.static.control.us": [
-          1960,
-          1897,
-          1898
+          1876,
+          1894,
+          1885
         ]
       },
       "benchmark_spread_us": {
-        "bench.top.mutable.us": 40,
-        "bench.top.control.us": 516,
-        "bench.static.mutable.us": 181,
-        "bench.static.control.us": 63
+        "bench.top.mutable.us": 1271,
+        "bench.top.control.us": 50,
+        "bench.static.mutable.us": 103,
+        "bench.static.control.us": 18
       },
       "overhead_is_within_noise": true,
       "overhead_note": "the per-call overhead measures at a few hundredths of a nanosecond while the spread ACROSS SAMPLES OF THE SAME ARM is larger than the difference between arms -- one arm even measured faster than its own control. So the honest statement is that the indirection costs two extra instructions per call and that its cost is not resolvable above scheduling noise at this iteration count, not that it costs 0.06 ns. A resolvable figure needs a quieter harness, which belongs with #68 where the call shape is what is under test.",
@@ -1103,8 +1104,8 @@
       "registry_bytes": 1088,
       "registry_entries": 8,
       "registry_slots_per_entry": 17,
-      "startup_ms_with_maot": 42.94,
-      "startup_ms_control": 35.11,
+      "startup_ms_with_maot": 44.13,
+      "startup_ms_control": 37.28,
       "note": "diagnostic only; no threshold is compared anywhere"
     },
     "falsifications_failed": [],
@@ -2136,7 +2137,7 @@
       "description": "the process restarted or the release was rebuilt between the OLD and NEW observations",
       "why": "a rebuilt snapshot or a second process would make the whole observation meaningless",
       "result": "pass",
-      "observed": "one pid (92468) and one snapshot (91cd848ca6f5...) across the whole run; a changed hash or a changed pid each fail the condition"
+      "observed": "one pid (34708) and one snapshot (c809a5f8c24c...) across the whole run; a changed hash or a changed pid each fail the condition"
     },
     {
       "id": "G16",
@@ -2144,7 +2145,7 @@
       "description": "a measurement condition is satisfied by a non-numeric placeholder, or by only one of the two call forms",
       "why": "a measurement condition satisfied by a non-null field accepts a sentence explaining that nothing was measured",
       "result": "pass",
-      "observed": "direct 0.99 ns vs control 0.962 ns; static 0.982 ns vs control 0.949 ns. A prose value and a missing static arm each fail the condition.",
+      "observed": "direct 0.985 ns vs control 0.984 ns; static 0.982 ns vs control 0.938 ns. A prose value and a missing static arm each fail the condition.",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {
@@ -2153,7 +2154,7 @@
       "description": "the binaries were built from different source bytes than the record names",
       "why": "a run that measures binaries built from other source bytes names a program it did not test",
       "result": "pass",
-      "observed": "the toolchain matches all 11 MAOT sources; against one edited source the guard reports 1 mismatch (flow_graph_compiler_arm64.cc)",
+      "observed": "the toolchain matches all 12 MAOT sources; against one edited source the guard reports 1 mismatch (flow_graph_compiler_arm64.cc)",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {

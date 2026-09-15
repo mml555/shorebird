@@ -1,0 +1,2920 @@
+{
+  "schema": "maot.m4.evidence/1",
+  "issue": 68,
+  "generated_by": {
+    "run_id": "2026-09-15T00:46:12Z",
+    "gate_sha256": "5ea53b4cad6f5d271e96d1316d3b8703469b1335868ecb0649331bc8853146d0",
+    "verdict_sha256": "ce3612cf04b76f3e235d3deb99e1e3a88d1a0b51a399cec148b02eea9ba2ebf3",
+    "rules_sha256": "d621abeed5723fc06eae2a6124ef7a1cdcaad6582d20dad4ef80422da57a5406",
+    "fixture_sha256": "0bdeed31f273c6ef8f2c3f1f8879db657475b4ecd0ba3386b67d43fbfda94c0b"
+  },
+  "identities": {
+    "shorebird_revision": "834e33dc5b07a68bdc6b97626272a3f7a1c411a4",
+    "shorebird_tree": "8e67e36b60573d07bc7a9e2920f9120f0eab6bb4",
+    "fork_commit": "2e4df989fe22a6e4db73a9eba62c33f275beb674",
+    "fork_tree": "e9b81df628905c2f81ea1b537fa4af2c6dccaa75",
+    "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+    "target_arch": "arm64",
+    "depends_on": {
+      "issue_66": "ESTABLISHED",
+      "issue_67": "READY"
+    }
+  },
+  "observations": {
+    "target_arch": "arm64",
+    "t0_row_linkage": {
+      "EB-01": {
+        "row_title": "top-level function body",
+        "covered_by_issue_68": {
+          "dispatch": [
+            "direct"
+          ],
+          "compilation": [
+            "aot"
+          ],
+          "heat": [
+            "cold",
+            "hot"
+          ],
+          "target_arch": [
+            "arm64"
+          ]
+        },
+        "not_covered": [
+          "tearoff_pre",
+          "tearoff_post",
+          "dynamic",
+          "jit"
+        ],
+        "row_result_after_68": "UNMODELED",
+        "what_68_adds": "the same cell as #67, hardened: the conservative posture is an enforced per-pass rule with a falsification per optimization class, not a property that happened to hold for one fixture"
+      },
+      "EB-02": {
+        "row_title": "static method body",
+        "covered_by_issue_68": {
+          "dispatch": [
+            "direct"
+          ],
+          "compilation": [
+            "aot"
+          ],
+          "heat": [
+            "cold",
+            "hot"
+          ],
+          "target_arch": [
+            "arm64"
+          ]
+        },
+        "not_covered": [
+          "tearoff_pre",
+          "tearoff_post",
+          "dynamic",
+          "jit"
+        ],
+        "row_result_after_68": "UNMODELED",
+        "what_68_adds": "same"
+      },
+      "RS-09": {
+        "row_title": "inline caches and dispatch specialization state",
+        "covered_by_issue_68": {},
+        "not_covered": [
+          "every mode -- the row is scaffolded with none"
+        ],
+        "row_result_after_68": "UNMODELED",
+        "what_68_adds": "nothing. Giving this row modes would be a change to a closed corpus, and the runtime dispatch semantics it names belong to #69."
+      }
+    },
+    "build_digest": {
+      "files": {
+        "runtime/vm/maot_registry.cc": "9873596167bcda9b97423aff4aa224e256299ce4d51fea75c3a9b00c2ddc6466",
+        "runtime/vm/maot_registry.h": "389d14236a5bda523d15f4ed78f1c566d51c98cbf10c941ed0c143926f6af07f",
+        "runtime/vm/kernel_loader.cc": "6ded9b83769b2d64a3c63f9b72ab4237f351cd42193b70ccedd30517a166d9db",
+        "runtime/vm/object_store.h": "f0ccb348e996eacb79b58f3033b3168012ef7f9b1ab9905028c8b9d50ed5edc5",
+        "runtime/vm/dart.cc": "76221ab91bfe8a5d882288c7b535b1caa5ee33f263d6bb0b7240d948c5c365af",
+        "runtime/vm/compiler/aot/precompiler.cc": "1369767c224b19af265b201380c84ee03be55281163aed98063eacf44eafeff9",
+        "runtime/vm/compiler/aot/precompiler.h": "96a7e8255eccb81b3caec5c27784861c0be0bf5d48f9cb2bff5fe99c0523ba7d",
+        "runtime/vm/compiler/frontend/kernel_translation_helper.cc": "3c7c2ac4cb9e8a04736c184ec1b2a02cea253f5186f45218351594e831f9d96f",
+        "runtime/vm/compiler/frontend/kernel_translation_helper.h": "d2726b4c489f025dfef242673006b79d5a21a9663aeae90281e28ffd7cbdb330",
+        "runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc": "4b0e59a38aec086f122f944c296bd549f5685dab0fe6f868d76cdac5b7b64892",
+        "runtime/vm/compiler/backend/inliner.cc": "7ec8b340e51f8fa9a9d8ba3be3f7c33c1ef8f1e2bfb74c1f43b31920a3e6ec94",
+        "runtime/vm/compiler/frontend/kernel_binary_flowgraph.cc": "cff055ce234de667ca58720c96cb57553d90b0e529e65c7ad37c430f620e8461"
+      },
+      "fork_commit": "2e4df989fe22a6e4db73a9eba62c33f275beb674",
+      "fork_tree": "e9b81df628905c2f81ea1b537fa4af2c6dccaa75",
+      "built_at": "2026-09-15T00:42:42Z"
+    },
+    "build_provenance_mismatches": [],
+    "build_digest_matches": true,
+    "calls": {
+      "process.pid": 26372,
+      "tiny.0": "OLD-TINY",
+      "constantish.0": "OLD-CONST",
+      "devirt.0": "OLD-DEVIRT",
+      "chain.0": "OLD-A-OLD-B-PLAIN-C",
+      "immutableCaller.0": "OLD-TINY/OLD-CONST",
+      "unreachable.version.0": "AOT:v1",
+      "install.tiny": 0,
+      "install.constantish": 0,
+      "install.devirt": -3,
+      "install.chainA": 0,
+      "install.unreachable": 0,
+      "tiny.1": "NEW-TINY",
+      "constantish.1": "NEW-CONST",
+      "devirt.1": "OLD-DEVIRT",
+      "chain.1": "NEW-A",
+      "immutableCaller.1": "NEW-TINY/NEW-CONST",
+      "unreachable.version.1": "PATCH_CODE:v2",
+      "hot.iterations": 200000,
+      "hot.tiny": "NEW-TINY",
+      "hot.devirt": "OLD-DEVIRT",
+      "hot.chain": "NEW-A",
+      "install.tiny.v3": 0,
+      "tiny.2": "NEW-CONST",
+      "tiny.version.2": "PATCH_CODE:v3",
+      "bench.iterations": 2000000,
+      "bench.mutable.us.0": 2065,
+      "bench.control.us.0": 1953,
+      "bench.mutable.us.1": 2208,
+      "bench.control.us.1": 1994,
+      "bench.mutable.us.2": 3046,
+      "bench.control.us.2": 2598,
+      "process.pid.final": 26372
+    },
+    "registry_after": {
+      "schema": "maot.registry/1",
+      "schema_version": 1,
+      "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+      "runtime_mode": "precompiled",
+      "entry_count": 11,
+      "diverged_implementations": 0,
+      "selected_seen_at_materialization": -1,
+      "retained_at_materialization": -1,
+      "dropped_at_materialization": -1,
+      "entries": [
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'describe':."
+          },
+          "optimizer_escapes": 1,
+          "first_escape_reason": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+          "installable": false,
+          "indirect_call_sites_emitted": 3,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+            "implementation_name_diagnostic": "Function 'describe':.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'describe':.",
+            "agrees_with_current": true
+          },
+          "abi": "k2;p0/0;n;r;t0;recv;onogen;b",
+          "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'describeReplacement':."
+          },
+          "optimizer_escapes": 1,
+          "first_escape_reason": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+          "installable": false,
+          "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+            "implementation_name_diagnostic": "Function 'describeReplacement':.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'describeReplacement':.",
+            "agrees_with_current": true
+          },
+          "abi": "k2;p0/0;n;r;t0;recv;onogen;b",
+          "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "selected": true,
+          "current": {
+            "kind": "PATCH_CODE",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 3,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'constantishNew': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "indirect_call_sites_emitted": 6,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+          "current_implementation_is_the_declaration_itself": false,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+            "implementation_name_diagnostic": "Function 'tiny': static.",
+            "still_represented": true,
+            "is_current": false
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'constantishNew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+          "selected": true,
+          "current": {
+            "kind": "PATCH_CODE",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 2,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'constantishNew': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "indirect_call_sites_emitted": 3,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+          "current_implementation_is_the_declaration_itself": false,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+            "implementation_name_diagnostic": "Function 'constantish': static.",
+            "still_represented": true,
+            "is_current": false
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'constantishNew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
+          "selected": true,
+          "current": {
+            "kind": "PATCH_CODE",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 2,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'unreachableNew': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+          "current_implementation_is_the_declaration_itself": false,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
+            "implementation_name_diagnostic": "Function 'releaseUnreachable': static.",
+            "still_represented": true,
+            "is_current": false
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'unreachableNew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+          "selected": true,
+          "current": {
+            "kind": "PATCH_CODE",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 2,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'chainANew': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "indirect_call_sites_emitted": 3,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:chainANew",
+          "current_implementation_is_the_declaration_itself": false,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+            "implementation_name_diagnostic": "Function 'chainA': static.",
+            "still_represented": true,
+            "is_current": false
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'chainANew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainB",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'chainB': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "indirect_call_sites_emitted": 1,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:chainB",
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:chainB",
+            "implementation_name_diagnostic": "Function 'chainB': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'chainB': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tinyNew",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'tinyNew': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:tinyNew",
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:tinyNew",
+            "implementation_name_diagnostic": "Function 'tinyNew': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'tinyNew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'constantishNew': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+            "implementation_name_diagnostic": "Function 'constantishNew': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'constantishNew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'unreachableNew': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+            "implementation_name_diagnostic": "Function 'unreachableNew': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'unreachableNew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainANew",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'chainANew': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:chainANew",
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:chainANew",
+            "implementation_name_diagnostic": "Function 'chainANew': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'chainANew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        }
+      ],
+      "optimizer_decisions": [
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "optimization_class": "instance-dispatch",
+          "decision": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+          "disposition": "UNMODELED_BLOCKING",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+          "optimization_class": "instance-dispatch",
+          "decision": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+          "disposition": "UNMODELED_BLOCKING",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainB",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "devirtualization",
+          "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "devirtualization",
+          "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "devirtualization",
+          "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "devirtualization",
+          "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "devirtualization",
+          "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "devirtualization",
+          "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:benchMutable",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:immutableCaller",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:immutableCaller",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        }
+      ],
+      "optimizer_decision_count": 24
+    },
+    "registry_before": {
+      "schema": "maot.registry/1",
+      "schema_version": 1,
+      "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+      "runtime_mode": "precompiled",
+      "entry_count": 11,
+      "diverged_implementations": 0,
+      "selected_seen_at_materialization": -1,
+      "retained_at_materialization": -1,
+      "dropped_at_materialization": -1,
+      "entries": [
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'describe':."
+          },
+          "optimizer_escapes": 1,
+          "first_escape_reason": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+          "installable": false,
+          "indirect_call_sites_emitted": 3,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+            "implementation_name_diagnostic": "Function 'describe':.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'describe':.",
+            "agrees_with_current": true
+          },
+          "abi": "k2;p0/0;n;r;t0;recv;onogen;b",
+          "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'describeReplacement':."
+          },
+          "optimizer_escapes": 1,
+          "first_escape_reason": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+          "installable": false,
+          "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+            "implementation_name_diagnostic": "Function 'describeReplacement':.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'describeReplacement':.",
+            "agrees_with_current": true
+          },
+          "abi": "k2;p0/0;n;r;t0;recv;onogen;b",
+          "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'tiny': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "indirect_call_sites_emitted": 6,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+            "implementation_name_diagnostic": "Function 'tiny': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'tiny': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'constantish': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "indirect_call_sites_emitted": 3,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+            "implementation_name_diagnostic": "Function 'constantish': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'constantish': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'releaseUnreachable': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
+            "implementation_name_diagnostic": "Function 'releaseUnreachable': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'releaseUnreachable': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 136,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 136,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'chainA': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "indirect_call_sites_emitted": 3,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+            "implementation_name_diagnostic": "Function 'chainA': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'chainA': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainB",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'chainB': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "indirect_call_sites_emitted": 1,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:chainB",
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:chainB",
+            "implementation_name_diagnostic": "Function 'chainB': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'chainB': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tinyNew",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'tinyNew': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:tinyNew",
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:tinyNew",
+            "implementation_name_diagnostic": "Function 'tinyNew': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'tinyNew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'constantishNew': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+            "implementation_name_diagnostic": "Function 'constantishNew': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'constantishNew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'unreachableNew': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+            "implementation_name_diagnostic": "Function 'unreachableNew': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'unreachableNew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainANew",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'chainANew': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "indirect_call_sites_emitted": 0,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:chainANew",
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:chainANew",
+            "implementation_name_diagnostic": "Function 'chainANew': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'chainANew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        }
+      ],
+      "optimizer_decisions": [
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "optimization_class": "instance-dispatch",
+          "decision": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+          "disposition": "UNMODELED_BLOCKING",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+          "optimization_class": "instance-dispatch",
+          "decision": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+          "disposition": "UNMODELED_BLOCKING",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainB",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "devirtualization",
+          "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "devirtualization",
+          "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "devirtualization",
+          "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "devirtualization",
+          "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "devirtualization",
+          "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "devirtualization",
+          "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:benchMutable",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:immutableCaller",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:immutableCaller",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        }
+      ],
+      "optimizer_decision_count": 24
+    },
+    "optimizer_decisions": [
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "optimization_class": "instance-dispatch",
+        "decision": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+        "optimization_class": "instance-dispatch",
+        "decision": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainB",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "devirtualization",
+        "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "devirtualization",
+        "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "devirtualization",
+        "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "devirtualization",
+        "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "devirtualization",
+        "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "devirtualization",
+        "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:benchMutable",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:immutableCaller",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:immutableCaller",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      }
+    ],
+    "devirtualization_join": {
+      "target": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+      "caller": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "callers_agree": true,
+      "devirtualization_slot_preserving": 6,
+      "static_call_lowering_slot_preserving": 3,
+      "instance_dispatch_unmodeled_blocking": 1,
+      "install_refused": true,
+      "records": [
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "optimization_class": "instance-dispatch",
+          "decision": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+          "disposition": "UNMODELED_BLOCKING",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "devirtualization",
+          "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "devirtualization",
+          "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "devirtualization",
+          "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "devirtualization",
+          "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "devirtualization",
+          "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "devirtualization",
+          "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        }
+      ]
+    },
+    "escape_controls": {
+      "baseline": {
+        "install": 0,
+        "call": "NEW-TINY",
+        "escapes": 0,
+        "installable": true
+      },
+      "bypass": {
+        "install": -3,
+        "call": "OLD-TINY",
+        "escapes": 6,
+        "installable": false
+      },
+      "no_detect": {
+        "install": 0,
+        "call": "OLD-TINY",
+        "escapes": 0,
+        "installable": true
+      },
+      "no_consume": {
+        "install": 0,
+        "call": "OLD-TINY",
+        "escapes": 6,
+        "installable": false
+      },
+      "drop_state": {
+        "install": 0,
+        "call": "OLD-TINY",
+        "escapes": 0,
+        "installable": true
+      }
+    },
+    "blocking_projection": {
+      "blocking_decisions": 18,
+      "escape_projection": 6,
+      "install_refused": true,
+      "drop_state_decisions": 18,
+      "drop_state_projection": 0,
+      "drop_state_install_refused": false,
+      "note": "the dropped-state build still carries blocking decisions whose consumed_by claims StageReplacement reads them, while the projection is gone and installation succeeds. That is why the string is not the proof."
+    },
+    "disposition_effects": {
+      "SLOT_PRESERVING": {
+        "install": 0,
+        "call": "NEW-TINY",
+        "escapes": 0,
+        "installable": true
+      },
+      "DEPENDENCY_REQUIRED": {
+        "install": -3,
+        "call": "OLD-TINY",
+        "escapes": 1,
+        "installable": false
+      },
+      "UNMODELED_BLOCKING": {
+        "install": -3,
+        "call": "OLD-TINY",
+        "escapes": 1,
+        "installable": false
+      },
+      "FORBIDDEN": {
+        "install": -3,
+        "call": "OLD-TINY",
+        "escapes": 1,
+        "installable": false
+      }
+    },
+    "conservative_control": {
+      "flags": [
+        "--inlining_depth_threshold=0"
+      ],
+      "compared": 23,
+      "disagreements": [],
+      "compares": "mutation semantics only -- installs, observed values and versions. Timings differ between builds by design and are reported separately.",
+      "note": "the amended #68 text makes test 10 optimized AOT versus a conservative AOT control, not a second JIT mechanism. #64's jit value stays a control concept."
+    },
+    "measurements": {
+      "aot_elf_bytes": 861640,
+      "aot_elf_bytes_conservative": 958032,
+      "compile_seconds": 0.38,
+      "compile_seconds_conservative": 0.27,
+      "indirect_call_sites_total": 16,
+      "prevented_inlines": 11,
+      "prevented_inlines_note": "every selected declaration is marked non-inlinable, so the count of selected declarations IS the count of declarations the inliner may not take. A per-call-site count of refusals would need an inliner-side counter, which would be a statistic no decision reads.",
+      "devirtualizations_recorded": 6,
+      "blocking_decisions": 2,
+      "slot_preserving_decisions": 22,
+      "benchmark_iterations": 2000000,
+      "direct_call_ns_mutable": 1.032,
+      "direct_call_ns_control": 0.977,
+      "call_cost_note": "minimum of three samples, control is a non-selected never-inlined function. #67 measured the same shape and found the difference below same-arm sample variation; this lane reports the numbers and repeats that caveat rather than publishing a per-call overhead it cannot resolve.",
+      "note": "diagnostic only; no threshold is compared anywhere."
+    },
+    "falsifications_failed": [],
+    "live_arm_count": 14
+  },
+  "registry_after": {
+    "schema": "maot.registry/1",
+    "schema_version": 1,
+    "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+    "runtime_mode": "precompiled",
+    "entry_count": 11,
+    "diverged_implementations": 0,
+    "selected_seen_at_materialization": -1,
+    "retained_at_materialization": -1,
+    "dropped_at_materialization": -1,
+    "entries": [
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'describe':."
+        },
+        "optimizer_escapes": 1,
+        "first_escape_reason": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+        "installable": false,
+        "indirect_call_sites_emitted": 3,
+        "current_implementation_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "implementation_name_diagnostic": "Function 'describe':.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'describe':.",
+          "agrees_with_current": true
+        },
+        "abi": "k2;p0/0;n;r;t0;recv;onogen;b",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'describeReplacement':."
+        },
+        "optimizer_escapes": 1,
+        "first_escape_reason": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+        "installable": false,
+        "indirect_call_sites_emitted": 0,
+        "current_implementation_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+          "implementation_name_diagnostic": "Function 'describeReplacement':.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'describeReplacement':.",
+          "agrees_with_current": true
+        },
+        "abi": "k2;p0/0;n;r;t0;recv;onogen;b",
+        "call_convention": "cc1;fixed1;regs0;nofactory;argst;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+        "selected": true,
+        "current": {
+          "kind": "PATCH_CODE",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 3,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'constantishNew': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "indirect_call_sites_emitted": 6,
+        "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+        "current_implementation_is_the_declaration_itself": false,
+        "release": {
+          "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "implementation_name_diagnostic": "Function 'tiny': static.",
+          "still_represented": true,
+          "is_current": false
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'constantishNew': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+        "selected": true,
+        "current": {
+          "kind": "PATCH_CODE",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 2,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'constantishNew': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "indirect_call_sites_emitted": 3,
+        "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+        "current_implementation_is_the_declaration_itself": false,
+        "release": {
+          "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+          "implementation_name_diagnostic": "Function 'constantish': static.",
+          "still_represented": true,
+          "is_current": false
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'constantishNew': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
+        "selected": true,
+        "current": {
+          "kind": "PATCH_CODE",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 2,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'unreachableNew': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "indirect_call_sites_emitted": 0,
+        "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+        "current_implementation_is_the_declaration_itself": false,
+        "release": {
+          "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
+          "implementation_name_diagnostic": "Function 'releaseUnreachable': static.",
+          "still_represented": true,
+          "is_current": false
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'unreachableNew': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+        "selected": true,
+        "current": {
+          "kind": "PATCH_CODE",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 2,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'chainANew': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "indirect_call_sites_emitted": 3,
+        "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:chainANew",
+        "current_implementation_is_the_declaration_itself": false,
+        "release": {
+          "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+          "implementation_name_diagnostic": "Function 'chainA': static.",
+          "still_represented": true,
+          "is_current": false
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'chainANew': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainB",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'chainB': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "indirect_call_sites_emitted": 1,
+        "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:chainB",
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:chainB",
+          "implementation_name_diagnostic": "Function 'chainB': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'chainB': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tinyNew",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'tinyNew': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "indirect_call_sites_emitted": 0,
+        "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:tinyNew",
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:tinyNew",
+          "implementation_name_diagnostic": "Function 'tinyNew': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'tinyNew': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'constantishNew': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "indirect_call_sites_emitted": 0,
+        "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+          "implementation_name_diagnostic": "Function 'constantishNew': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'constantishNew': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'unreachableNew': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "indirect_call_sites_emitted": 0,
+        "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+          "implementation_name_diagnostic": "Function 'unreachableNew': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'unreachableNew': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainANew",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'chainANew': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "indirect_call_sites_emitted": 0,
+        "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:chainANew",
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:chainANew",
+          "implementation_name_diagnostic": "Function 'chainANew': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'chainANew': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      }
+    ],
+    "optimizer_decisions": [
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "optimization_class": "instance-dispatch",
+        "decision": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+        "optimization_class": "instance-dispatch",
+        "decision": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainB",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "devirtualization",
+        "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "devirtualization",
+        "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "devirtualization",
+        "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "devirtualization",
+        "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "devirtualization",
+        "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "devirtualization",
+        "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:benchMutable",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:immutableCaller",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:immutableCaller",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      }
+    ],
+    "optimizer_decision_count": 24
+  },
+  "optimizer_decisions": [
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+      "optimization_class": "instance-dispatch",
+      "decision": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+      "disposition": "UNMODELED_BLOCKING",
+      "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+      "optimization_class": "instance-dispatch",
+      "decision": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+      "disposition": "UNMODELED_BLOCKING",
+      "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainB",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+      "optimization_class": "static-call-lowering",
+      "decision": "dispatch-cell indirection emitted",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "devirtualization",
+      "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "devirtualization",
+      "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "devirtualization",
+      "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "devirtualization",
+      "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "devirtualization",
+      "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "devirtualization",
+      "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "static-call-lowering",
+      "decision": "dispatch-cell indirection emitted",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "static-call-lowering",
+      "decision": "dispatch-cell indirection emitted",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "static-call-lowering",
+      "decision": "dispatch-cell indirection emitted",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "static-call-lowering",
+      "decision": "dispatch-cell indirection emitted",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "static-call-lowering",
+      "decision": "dispatch-cell indirection emitted",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "static-call-lowering",
+      "decision": "dispatch-cell indirection emitted",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "static-call-lowering",
+      "decision": "dispatch-cell indirection emitted",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "static-call-lowering",
+      "decision": "dispatch-cell indirection emitted",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "static-call-lowering",
+      "decision": "dispatch-cell indirection emitted",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "static-call-lowering",
+      "decision": "dispatch-cell indirection emitted",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainA",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "static-call-lowering",
+      "decision": "dispatch-cell indirection emitted",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:main",
+      "optimization_class": "static-call-lowering",
+      "decision": "dispatch-cell indirection emitted",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:benchMutable",
+      "optimization_class": "static-call-lowering",
+      "decision": "dispatch-cell indirection emitted",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:immutableCaller",
+      "optimization_class": "static-call-lowering",
+      "decision": "dispatch-cell indirection emitted",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:immutableCaller",
+      "optimization_class": "static-call-lowering",
+      "decision": "dispatch-cell indirection emitted",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    }
+  ],
+  "falsification": [
+    {
+      "id": "H09",
+      "kind": "live",
+      "description": "a devirtualized call is claimed slot-preserving with no static-call-lowering record to join",
+      "why": "a devirtualization record without a static-call-lowering partner would mean the transform happened and the edge it produced never reached the cell",
+      "result": "pass",
+      "observed": "target cls:OnlyShape::method:describe, caller fn:main: 6 devirtualization + 3 static-call-lowering records, both SLOT_PRESERVING, with 1 instance-dispatch UNMODELED_BLOCKING and installation refused",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "H08",
+      "kind": "live",
+      "description": "an instance member is installable although no instance-call path traverses the cell",
+      "why": "an instance member installable while no instance-call path traverses the cell is the divergence this issue exists to prevent -- it was real until this rule existed",
+      "result": "pass",
+      "observed": "install refused (-3), the call still returns OLD-DEVIRT cold and OLD-DEVIRT hot, and the descriptor never claims otherwise"
+    },
+    {
+      "id": "H10",
+      "kind": "live",
+      "description": "a vm:prefer-inline mutable callee is inlined, so its caller cannot observe a replacement",
+      "why": "a vm:prefer-inline mutable callee that got inlined could not observe a replacement; the rule must beat an explicit inline request",
+      "result": "pass",
+      "observed": "prefer-inline callee: OLD-TINY -> NEW-TINY, still NEW-TINY after 200000 iterations"
+    },
+    {
+      "id": "H12",
+      "kind": "live",
+      "description": "a declaration the release never calls is dropped and becomes unpatchable",
+      "why": "a declaration the release never calls must stay addressable, or dead code becomes unpatchable",
+      "result": "pass",
+      "observed": "never called by the release: AOT:v1 -> PATCH_CODE:v2, install 0"
+    },
+    {
+      "id": "H01",
+      "kind": "live",
+      "description": "a bypassed dispatch cell goes undetected because escape detection is disabled",
+      "why": "without detection a bypass installs and the program keeps the release answer",
+      "result": "pass",
+      "observed": "no_detect: install 0, call OLD-TINY, escapes 0 -- versus bypass install -3"
+    },
+    {
+      "id": "H02",
+      "kind": "live",
+      "description": "escape metadata is produced but no install decision reads it",
+      "why": "metadata produced but unread must fail exactly like no metadata at all",
+      "result": "pass",
+      "observed": "no_consume: install 0, call OLD-TINY, escapes 6 -- versus bypass install -3"
+    },
+    {
+      "id": "H03",
+      "kind": "live",
+      "description": "escape state is dropped when the registry is rebuilt at materialization",
+      "why": "state lost in the rebuild silently re-opens every disqualified declaration",
+      "result": "pass",
+      "observed": "drop_state: install 0, call OLD-TINY, escapes 0 -- versus bypass install -3"
+    },
+    {
+      "id": "H06",
+      "kind": "live",
+      "description": "UNMODELED_BLOCKING does not block",
+      "why": "a blocking disposition that does not block, and a consumed_by string that claims a consumer the projection no longer reaches",
+      "result": "pass",
+      "observed": "bypass: 18 blocking decisions, projection 6, refused. drop-state: 18 blocking decisions still serialized, projection 0, installed anyway"
+    },
+    {
+      "id": "H05",
+      "kind": "live",
+      "description": "DEPENDENCY_REQUIRED admits an optimization with no dependency token and no consumer",
+      "why": "DEPENDENCY_REQUIRED with no dependency token and no consumer would admit an optimization on a promise",
+      "result": "pass",
+      "observed": "DEPENDENCY_REQUIRED: install -3, call OLD-TINY"
+    },
+    {
+      "id": "H07",
+      "kind": "live",
+      "description": "the disposition model blocks everything, so blocking carries no information",
+      "why": "a model that blocks every disposition carries no information; SLOT_PRESERVING must NOT block",
+      "result": "pass",
+      "observed": "SLOT_PRESERVING installs and runs the replacement; FORBIDDEN=-3, UNMODELED_BLOCKING=-3, DEPENDENCY_REQUIRED=-3"
+    },
+    {
+      "id": "H04",
+      "kind": "live",
+      "description": "a constant result is folded through a mutable boundary, so the call reaches the cell and the caller ignores it",
+      "why": "the call still reaches the cell and the caller uses the folded release answer -- path evidence perfect, program wrong. This shipped once.",
+      "result": "pass",
+      "observed": "folding re-enabled: 6 call sites still emitted, 9 escapes recorded, install -3, call OLD-TINY"
+    },
+    {
+      "id": "H14",
+      "kind": "live",
+      "description": "an optimized and a conservative build disagree about mutation semantics",
+      "why": "if optimization changed mutation semantics, the conservative posture would be the only thing making them work",
+      "result": "pass",
+      "observed": "23 observations compared against --inlining_depth_threshold=0, 0 disagreements"
+    },
+    {
+      "id": "H11",
+      "kind": "live",
+      "description": "a whole #64 row is promoted from evidence covering one of its dispatch modes",
+      "why": "promoting a whole #64 row from one dispatch mode is an overclaim, and #68 adds no cell to what #67 linked",
+      "result": "pass",
+      "observed": "3 rows linked, all still UNMODELED; RS-09 claims no modes at all"
+    },
+    {
+      "id": "H13",
+      "kind": "live",
+      "description": "the binaries were built from different source bytes than the record names",
+      "why": "a run that measures binaries built from other source bytes names a program it did not test",
+      "result": "pass",
+      "observed": "toolchain matches all 12 sources; against one edited source the guard reports 1 mismatch",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    }
+  ],
+  "falsification_bank": {
+    "live": [
+      "H01",
+      "H02",
+      "H03",
+      "H04",
+      "H05",
+      "H06",
+      "H07",
+      "H08",
+      "H09",
+      "H10",
+      "H11",
+      "H12",
+      "H13",
+      "H14"
+    ],
+    "historical": [],
+    "historical_note": "none yet in this lane"
+  },
+  "findings": [],
+  "consumers": {
+    "map": {
+      "verdict": "the gate exit code, the Phase A claim, and separately whether #68 may close",
+      "observations": "every condition in the verdict",
+      "registry_after": "the descriptor, escape and installability conditions",
+      "optimizer_decisions": "the rule-table and join conditions",
+      "falsification": "required_falsifications_detected",
+      "falsification_bank": "whether every live bank entry has an arm",
+      "findings": "verdict.blocking_findings and the gate exit code",
+      "identities": "whether any of this may be quoted",
+      "schema": "readers and later issues",
+      "issue": "readers and later issues",
+      "generated_by": "reproducing this record",
+      "consumers": "this check itself, in both directions"
+    },
+    "unconsumed_or_undeclared": []
+  },
+  "verdict": {
+    "arm64_aot_optimizer_invariants": "ESTABLISHED",
+    "issue_68_closure": "READY",
+    "target_arch": "arm64",
+    "acceptance_ledger": [
+      {
+        "item": "mutability exists as explicit compiler metadata before optimization",
+        "met": true,
+        "evidence": "#65 DeclarationId carried in kernel metadata and bound at load, before any optimizer pass runs"
+      },
+      {
+        "item": "every relevant optimizer pass has a documented and enforced rule",
+        "met": true,
+        "evidence": "9 rules, each with enforcement site, producer, consumer and falsification"
+      },
+      {
+        "item": "the conservative M1 configuration prevents silent bypasses",
+        "met": true,
+        "evidence": "every adversarial variant observes its replacement, and each disabling control lets a bypass through"
+      },
+      {
+        "item": "optimized and non-optimized direct/static fixtures both observe replacements",
+        "met": [
+          "--inlining_depth_threshold=0"
+        ],
+        "evidence": "optimized AOT versus conservative AOT control"
+      },
+      {
+        "item": "dead or unreached-at-release mutable declarations remain patch-addressable",
+        "met": true,
+        "evidence": "a declaration the release never calls installs and its version advances"
+      },
+      {
+        "item": "falsification of each major optimization class changes the gate",
+        "met": true,
+        "evidence": "14 live arms"
+      },
+      {
+        "item": "any dependency metadata is consumed by a real decision",
+        "met": true,
+        "evidence": "blocking decision AND surviving projection AND real install refusal -- a consumed_by string alone does not satisfy it"
+      },
+      {
+        "item": "exact #64 linkage for the demonstrated modes, with EB-01, EB-02 and RS-09 left unpromoted",
+        "met": true,
+        "evidence": "direct / aot / cold+hot / arm64; H11 refuses a whole-row promotion"
+      }
+    ],
+    "acceptance_items_unmet": [],
+    "t0_row_linkage": {
+      "EB-01": {
+        "row_title": "top-level function body",
+        "covered_by_issue_68": {
+          "dispatch": [
+            "direct"
+          ],
+          "compilation": [
+            "aot"
+          ],
+          "heat": [
+            "cold",
+            "hot"
+          ],
+          "target_arch": [
+            "arm64"
+          ]
+        },
+        "not_covered": [
+          "tearoff_pre",
+          "tearoff_post",
+          "dynamic",
+          "jit"
+        ],
+        "row_result_after_68": "UNMODELED",
+        "what_68_adds": "the same cell as #67, hardened: the conservative posture is an enforced per-pass rule with a falsification per optimization class, not a property that happened to hold for one fixture"
+      },
+      "EB-02": {
+        "row_title": "static method body",
+        "covered_by_issue_68": {
+          "dispatch": [
+            "direct"
+          ],
+          "compilation": [
+            "aot"
+          ],
+          "heat": [
+            "cold",
+            "hot"
+          ],
+          "target_arch": [
+            "arm64"
+          ]
+        },
+        "not_covered": [
+          "tearoff_pre",
+          "tearoff_post",
+          "dynamic",
+          "jit"
+        ],
+        "row_result_after_68": "UNMODELED",
+        "what_68_adds": "same"
+      },
+      "RS-09": {
+        "row_title": "inline caches and dispatch specialization state",
+        "covered_by_issue_68": {},
+        "not_covered": [
+          "every mode -- the row is scaffolded with none"
+        ],
+        "row_result_after_68": "UNMODELED",
+        "what_68_adds": "nothing. Giving this row modes would be a change to a closed corpus, and the runtime dispatch semantics it names belong to #69."
+      }
+    },
+    "rule_table": {
+      "inlining": {
+        "rule": "a selected declaration is never inlined, because an inlined copy is a caller that cannot reach the dispatch cell",
+        "enforcement": "precompiler.cc SeedMutableAotRoots sets is_inlinable(false); inliner.cc ShouldWeInline refuses before AlwaysInline, so a force-inline pragma cannot win",
+        "disposition": "FORBIDDEN",
+        "producer": "the refusal is structural -- no inlined copy exists to record",
+        "consumer": "none needed: the optimization does not happen. The OBSERVABLE consequence is that a vm:prefer-inline mutable callee still observes its replacement",
+        "falsification": "H10"
+      },
+      "constant-folding": {
+        "rule": "no constant result may be attached to a call whose target is mutable; the caller would use the release answer while the call still reaches the cell",
+        "enforcement": "transformer.dart suppresses the constant; kernel_binary_flowgraph.cc BuildStaticInvocation records FORBIDDEN if one arrives anyway",
+        "disposition": "FORBIDDEN",
+        "producer": "MaotRegistry::NoteDecision at the VM backstop",
+        "consumer": "MaotRegistry::StageReplacement refuses installation",
+        "falsification": "H04"
+      },
+      "static-call-lowering": {
+        "rule": "a direct or static call to a mutable target must load the dispatch cell",
+        "enforcement": "flow_graph_compiler_arm64.cc GenerateStaticDartCall",
+        "disposition": "SLOT_PRESERVING",
+        "producer": "NoteDecision + NoteCallSiteEmitted per site",
+        "consumer": "nothing reads a slot-preserving record; it is positive evidence. The ABSENCE of the lowering is what is consumed -- it records FORBIDDEN and refuses install",
+        "falsification": "H01"
+      },
+      "devirtualization": {
+        "rule": "the optimizer may turn an instance call into a static call; the resulting edge must still traverse the cell",
+        "enforcement": "kernel_binary_flowgraph.cc, every DirectCallMetadata-to-StaticCall site including BuildMethodInvocation and the dynamic forwarders",
+        "disposition": "SLOT_PRESERVING",
+        "producer": "NoteDecision naming the function TFA proved, not the forwarder that gets called",
+        "consumer": "nothing reads it directly; the gate joins it with the static-call-lowering record for the same target and caller, and a devirtualization without that partner would leave the target with zero emitted call sites",
+        "falsification": "H09"
+      },
+      "instance-dispatch": {
+        "rule": "a selected INSTANCE member is reachable by dispatch forms #68 does not model",
+        "enforcement": "precompiler.cc SeedMutableAotRoots",
+        "disposition": "UNMODELED_BLOCKING",
+        "producer": "NoteDecision at seeding",
+        "consumer": "MaotRegistry::StageReplacement refuses installation",
+        "falsification": "H08"
+      },
+      "target-architecture": {
+        "rule": "a target with no Mutable-AOT call lowering cannot host a replaceable declaration",
+        "enforcement": "precompiler.cc, guarded on TARGET_ARCH_ARM64",
+        "disposition": "FORBIDDEN",
+        "producer": "NoteEscapeById at seeding",
+        "consumer": "MaotRegistry::StageReplacement refuses installation",
+        "falsification": "covered structurally: the arm64 build records no such escape, and the guard is the #else branch of the only lowering that exists. H13 covers the related \"binaries not built from these sources\" case"
+      },
+      "tfa-retention": {
+        "rule": "a selected declaration the release never calls must survive tree shaking and stay addressable",
+        "enforcement": "pragma.dart makes maot:mutable an entry point; precompiler.cc AddFunction with kMutableAotDeclaration",
+        "disposition": "SLOT_PRESERVING",
+        "producer": "the registry entry itself, with indirect_call_sites_emitted = 0",
+        "consumer": "nothing blocks; the observable consequence is that the declaration is installable and its version advances",
+        "falsification": "H12"
+      },
+      "dependency-carrying optimizations": {
+        "rule": "an optimization that crosses the boundary is allowed only with invalidation state the install path can act on",
+        "enforcement": "MaotRegistry::BlocksInstallation",
+        "disposition": "DEPENDENCY_REQUIRED",
+        "producer": "nothing produces one yet -- Phase B owns the token",
+        "consumer": "none exists, which is precisely why it fails closed. Admitting it today would be admitting an optimization on a promise",
+        "falsification": "H05"
+      },
+      "unmodeled optimizer classes": {
+        "rule": "CHA, polymorphic-call specialization, dispatch-table specialization, tear-off target caching, recognized/intrinsic replacement and accessor subsumption are not modeled by #68",
+        "enforcement": "they can only reach a mutable declaration through an instance member or a tear-off; instance members are blocked above, and a tear-off of a mutable member is an instance member too",
+        "disposition": "UNMODELED_BLOCKING",
+        "producer": "the instance-dispatch rule subsumes them",
+        "consumer": "MaotRegistry::StageReplacement refuses installation",
+        "falsification": "H08 -- the same arm, because the same blocker covers them. Stated rather than claimed as separately proven"
+      }
+    },
+    "conditions": {
+      "every_optimizer_class_has_a_rule": true,
+      "blocking_dispositions_actually_block": true,
+      "conservative_posture_holds": true,
+      "hot_sites_observe_replacement": true,
+      "second_replacement_advances": true,
+      "devirtualization_join_present": true,
+      "unmodeled_dispatch_blocks_install": true,
+      "dead_release_declaration_addressable": true,
+      "escape_metadata_is_consumed": true,
+      "blocking_record_survives_to_the_consumer": true,
+      "optimized_and_conservative_agree": [
+        "--inlining_depth_threshold=0"
+      ],
+      "required_falsifications_detected": true,
+      "measurements_recorded": true,
+      "build_provenance_bound": true,
+      "target_architecture_recorded": true,
+      "t0_linkage_exact_and_unpromoted": true
+    },
+    "conditions_failed": [],
+    "condition_meanings": {
+      "every_optimizer_class_has_a_rule": "does every optimizer class #68 names have a rule with an enforcement site, a disposition, a producer, a consumer and a falsification?",
+      "blocking_dispositions_actually_block": "measured, not read from the enum: does each blocking disposition produce an install refusal, and does SLOT_PRESERVING not?",
+      "conservative_posture_holds": "do all the adversarial variants -- prefer-inline callee, constant-return callee, nested chain, mutable caller with immutable callee and the inverse -- observe their replacements?",
+      "hot_sites_observe_replacement": "do heavily-executed precompiled call sites observe it too, after enough iterations to specialize?",
+      "second_replacement_advances": "does a second install move the version again and execute the second body?",
+      "devirtualization_join_present": "for the devirtualized target, does the record carry BOTH a devirtualization and a static-call-lowering decision, same target and caller, both SLOT_PRESERVING?",
+      "unmodeled_dispatch_blocks_install": "is a selected instance member recorded UNMODELED_BLOCKING and its installation refused, until #69?",
+      "dead_release_declaration_addressable": "is a declaration the release never calls still installable, with its version advancing?",
+      "escape_metadata_is_consumed": "does removing the detection, the consumption, or the state at materialization each let a bypass install successfully? Metadata nobody reads must fail exactly like no metadata.",
+      "blocking_record_survives_to_the_consumer": "when a blocking decision exists, does its escape projection survive into the descriptor AND does the real install decision refuse? A consumed_by string alone must never satisfy this.",
+      "optimized_and_conservative_agree": "do the optimized build and a conservative AOT control produce identical mutation semantics?",
+      "required_falsifications_detected": "did every required falsification actually fire?",
+      "measurements_recorded": "are the size, compile-time, call-cost and prevented-optimization counts present? No threshold is compared.",
+      "build_provenance_bound": "were the binaries built from the exact MAOT source bytes the record names?",
+      "target_architecture_recorded": "does the record say which architecture this was proven on?",
+      "t0_linkage_exact_and_unpromoted": "is the #64 linkage exactly the demonstrated modes, with EB-01, EB-02 and RS-09 all left UNMODELED?"
+    },
+    "blocking_findings": [],
+    "verdict_rule": "arm64_aot_optimizer_invariants == ESTABLISHED iff every condition holds and no non-acceptance blocking finding was raised. issue_68_closure == READY iff that and no acceptance item is unmet. Conjunctions throughout; no count, ratio or threshold is compared, and no outcome string is reachable unconditionally.",
+    "not_claimed": [
+      "Proven on arm64 only.",
+      "M1 is not complete. Virtual, interface, super and the remaining call forms are #69 and #70.",
+      "No #64 row is promoted; EB-01, EB-02 and RS-09 stay UNMODELED.",
+      "Phase B is not done: no optimization crosses the boundary with invalidation state, because none carries one. DEPENDENCY_REQUIRED fails closed for that reason.",
+      "No structural class migration, no additions, no product CLI."
+    ]
+  }
+}

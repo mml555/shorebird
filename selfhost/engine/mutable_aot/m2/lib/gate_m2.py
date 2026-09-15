@@ -370,6 +370,10 @@ MAOT_CXX_SOURCES = (
     # mismatch rather than ignoring.
     'runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc',
     'runtime/vm/compiler/backend/inliner.cc',
+    # #68 put the constant-folding backstop and the
+    # devirtualization records here, and it ships in the same
+    # binaries this lane measures.
+    'runtime/vm/compiler/frontend/kernel_binary_flowgraph.cc',
 )
 
 # Read by gen_kernel at run time from the tree, so they cannot go stale inside

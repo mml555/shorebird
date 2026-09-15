@@ -65,6 +65,31 @@ String unreachableNew() => 'NEW-UNREACHED';
 @pragma('maot:mutable')
 String chainANew() => 'NEW-A';
 
+@pragma('vm:never-inline')
+String plainControl() => 'CTL';
+
+@pragma('vm:never-inline')
+int benchMutable(int iters) {
+  var n = 0;
+  final w = Stopwatch()..start();
+  for (var i = 0; i < iters; i++) {
+    n += tiny().length;
+  }
+  w.stop();
+  return w.elapsedMicroseconds + (n < 0 ? 1 : 0);
+}
+
+@pragma('vm:never-inline')
+int benchControl(int iters) {
+  var n = 0;
+  final w = Stopwatch()..start();
+  for (var i = 0; i < iters; i++) {
+    n += plainControl().length;
+  }
+  w.stop();
+  return w.elapsedMicroseconds + (n < 0 ? 1 : 0);
+}
+
 const _lib = 'lib:package:m4app/fixture_m4.dart';
 
 final _proc = DynamicLibrary.process();
@@ -154,6 +179,19 @@ void main(List<String> args) {
   _emit('install.tiny.v3', _install3('fn:tiny', 'fn:constantishNew', 3, ns));
   _emit('tiny.2', tiny());
   _emit('tiny.version.2', _v('$_lib::fn:tiny'));
+
+  // ---- call-cost accounting ----
+  // Same method as #67: total elapsed microseconds reported, three samples,
+  // the gate takes the minimum and divides. The control is a non-selected
+  // function marked never-inline, because an inlined control is not a call.
+  const iters = 2000000;
+  benchMutable(iters ~/ 10);
+  benchControl(iters ~/ 10);
+  _emit('bench.iterations', iters);
+  for (var rep = 0; rep < 3; rep++) {
+    _emit('bench.mutable.us.$rep', benchMutable(iters));
+    _emit('bench.control.us.$rep', benchControl(iters));
+  }
 
   _emit('process.pid.final', _pidFn());
   if (dumpDir.isNotEmpty) _dump(_c('$dumpDir/registry_after.json'));

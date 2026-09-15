@@ -1,6 +1,6 @@
 MAOT-0 (#63) -- the universal Dart patchability contract and matrix
-generated 2026-09-14T06:12:10Z by run_maot0.sh
-repo revision b08eafe3f0385528a9681a4f57b85bf76ae3e807
+generated 2026-09-15T00:48:31Z by run_maot0.sh
+repo revision 834e33dc5b07a68bdc6b97626272a3f7a1c411a4
   That revision is the tree the gate RAN AGAINST, so in a committed record it
   necessarily names the PARENT of the commit carrying it. A record cannot name
   the commit that contains it; re-running after a commit therefore rewrites
@@ -32,8 +32,8 @@ repo revision b08eafe3f0385528a9681a4f57b85bf76ae3e807
   the freeze is re-derived and compared.
 
   re-derivation content: identical
-  re-derivation tree:    c5dd52b96a1a1a7679e85ea5c7abfb9247d3b941
-  re-derived from /Volumes/build/route-b/flutter/engine/src/flutter/third_party/dart, which is at c5dd52b96a1a1a7679e85ea5c7abfb9247d3b941, NOT the commit the freeze names; content identical -- kernel_declarations.json content:identical tree:c5dd52b96a1a1a7679e85ea5c7abfb9247d3b941;vm_runtime_state.json content:identical tree:c5dd52b96a1a1a7679e85ea5c7abfb9247d3b941;
+  re-derivation tree:    2e4df989fe22a6e4db73a9eba62c33f275beb674
+  re-derived from /Volumes/build/route-b/flutter/engine/src/flutter/third_party/dart, which is at 2e4df989fe22a6e4db73a9eba62c33f275beb674, NOT the commit the freeze names; content identical -- kernel_declarations.json content:identical tree:2e4df989fe22a6e4db73a9eba62c33f275beb674;vm_runtime_state.json content:identical tree:2e4df989fe22a6e4db73a9eba62c33f275beb674;
 
   kernel_declarations.json
     entries 330  dart tree 9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
@@ -175,7 +175,7 @@ repo revision b08eafe3f0385528a9681a4f57b85bf76ae3e807
   pass  every figure CONTRACT.md quotes is derived and present
   pass  the doc check derives its claims rather than reading them
   pass  no implementation subsystem is modified in the working tree
-  note  the re-derivation ran on: c5dd52b96a1a1a7679e85ea5c7abfb9247d3b941
+  note  the re-derivation ran on: 2e4df989fe22a6e4db73a9eba62c33f275beb674
 
 ASSERTIONS (38 checked: 38 pass, 0 fail)
 
