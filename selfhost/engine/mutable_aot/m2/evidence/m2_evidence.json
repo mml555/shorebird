@@ -2,15 +2,15 @@
   "schema": "maot.m2.evidence/1",
   "issue": 66,
   "generated_by": {
-    "run_id": "2026-09-14T23:11:33Z",
-    "gate_sha256": "2726556822117cfc42e28995daf921e1d609b70d69702e40739bc45a88af113f",
-    "verdict_sha256": "6d33b386c11153b1236227fad12ff89d992e115c2375cc146f84f365fca2d490"
+    "run_id": "2026-09-15T00:10:55Z",
+    "gate_sha256": "aa35878b2dd5b9fe8606b9970710863880d207d2408c5fcf30d401112e1d4b03",
+    "verdict_sha256": "d884bafa96ae7aa6f775b50fc8617bf807ad9c1ac92f9bbd31f85ea9c59094a6"
   },
   "identities": {
-    "shorebird_revision": "6b0afc588972be7d4e5ed9785837a396054a8b8c",
-    "shorebird_tree": "3e15855d7f61ab4916b59b27260052bf5f8bec21",
-    "fork_commit": "e931567c81ab42d15487f03344393be3eb5cb35d",
-    "fork_tree": "e0c323012535447f58fedbe5e64738452dd748ab",
+    "shorebird_revision": "fb65cde3fdca4826211f7edefcaca6ba7e2dc087",
+    "shorebird_tree": "bf4630c573be2736fc97ffe676fe00d9b182e55e",
+    "fork_commit": "2e4df989fe22a6e4db73a9eba62c33f275beb674",
+    "fork_tree": "e9b81df628905c2f81ea1b537fa4af2c6dccaa75",
     "fork_branch": "maot/build",
     "fork_worktree_entries": [
       "?? third_party/binaryen/.DS_Store"
@@ -24,7 +24,7 @@
     "stale_binaries": [],
     "build_digest": {
       "files": {
-        "runtime/vm/maot_registry.cc": "f161292496e6d26318e6a89ed0c44786eda5b3cdc67776fa8665e88684d5a203",
+        "runtime/vm/maot_registry.cc": "9873596167bcda9b97423aff4aa224e256299ce4d51fea75c3a9b00c2ddc6466",
         "runtime/vm/maot_registry.h": "389d14236a5bda523d15f4ed78f1c566d51c98cbf10c941ed0c143926f6af07f",
         "runtime/vm/kernel_loader.cc": "6ded9b83769b2d64a3c63f9b72ab4237f351cd42193b70ccedd30517a166d9db",
         "runtime/vm/object_store.h": "f0ccb348e996eacb79b58f3033b3168012ef7f9b1ab9905028c8b9d50ed5edc5",
@@ -36,15 +36,20 @@
         "runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc": "4b0e59a38aec086f122f944c296bd549f5685dab0fe6f868d76cdac5b7b64892",
         "runtime/vm/compiler/backend/inliner.cc": "7ec8b340e51f8fa9a9d8ba3be3f7c33c1ef8f1e2bfb74c1f43b31920a3e6ec94"
       },
-      "fork_commit": "e931567c81ab42d15487f03344393be3eb5cb35d",
-      "fork_tree": "e0c323012535447f58fedbe5e64738452dd748ab",
-      "built_at": "2026-09-14T23:11:32Z"
+      "fork_commit": "2e4df989fe22a6e4db73a9eba62c33f275beb674",
+      "fork_tree": "e9b81df628905c2f81ea1b537fa4af2c6dccaa75",
+      "built_at": "2026-09-15T00:10:55Z"
     },
     "missing_maot_sources": [],
     "selected_count": 25,
     "selected_but_absent": [],
     "materialized_count": 25,
     "materialized_dropped": 0,
+    "abi_regression_probe": {
+      "mode": "abi-regression-probe",
+      "escape_consumption_bypassed": true,
+      "entry_count": 25
+    },
     "registry_ids": [
       "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
       "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
@@ -251,8 +256,8 @@
       "aot_elf_bytes_with_maot": 858168,
       "aot_elf_bytes_control_no_pragmas": 840368,
       "aot_elf_delta_bytes": 17800,
-      "startup_ms_with_maot": 21.04,
-      "startup_ms_control": 20.8,
+      "startup_ms_with_maot": 17.03,
+      "startup_ms_control": 16.88,
       "control_note": "absent here means the control build failed, not that it was skipped",
       "note": "medians of 7 runs of the same program; the control is the identical source with every maot:mutable removed, so the delta includes keeping a dead selected declaration alive",
       "registry_entries": 25,
@@ -261,7 +266,7 @@
       "registry_registry_bytes_approx": 4400,
       "registry_bytes_per_entry_approx": 176,
       "registry_lookup_iterations": 10000,
-      "registry_lookup_total_micros": 243,
+      "registry_lookup_total_micros": 246,
       "registry_lookup_note": "linear scan over a GrowableObjectArray; correctness first, and the cost is recorded rather than optimised around",
       "registry_lookup_sink": 10000
     },
@@ -276,7 +281,7 @@
         "accepted_b_from_a": false,
         "onto_installable_a": true,
         "onto_installable_b": true,
-        "observed_via": "staging refusal in both directions",
+        "observed_via": "real StageReplacement, ABI regression probe (escape consumer bypassed)",
         "discriminated": true
       },
       {
@@ -289,7 +294,7 @@
         "accepted_b_from_a": false,
         "onto_installable_a": true,
         "onto_installable_b": true,
-        "observed_via": "staging refusal in both directions",
+        "observed_via": "real StageReplacement, ABI regression probe (escape consumer bypassed)",
         "discriminated": true
       },
       {
@@ -302,7 +307,7 @@
         "accepted_b_from_a": false,
         "onto_installable_a": true,
         "onto_installable_b": true,
-        "observed_via": "staging refusal in both directions",
+        "observed_via": "real StageReplacement, ABI regression probe (escape consumer bypassed)",
         "discriminated": true
       },
       {
@@ -315,7 +320,7 @@
         "accepted_b_from_a": false,
         "onto_installable_a": true,
         "onto_installable_b": true,
-        "observed_via": "staging refusal in both directions",
+        "observed_via": "real StageReplacement, ABI regression probe (escape consumer bypassed)",
         "discriminated": true
       },
       {
@@ -328,7 +333,7 @@
         "accepted_b_from_a": false,
         "onto_installable_a": true,
         "onto_installable_b": true,
-        "observed_via": "staging refusal in both directions",
+        "observed_via": "real StageReplacement, ABI regression probe (escape consumer bypassed)",
         "discriminated": true
       },
       {
@@ -341,7 +346,7 @@
         "accepted_b_from_a": false,
         "onto_installable_a": true,
         "onto_installable_b": true,
-        "observed_via": "staging refusal in both directions",
+        "observed_via": "real StageReplacement, ABI regression probe (escape consumer bypassed)",
         "discriminated": true
       },
       {
@@ -354,7 +359,7 @@
         "accepted_b_from_a": false,
         "onto_installable_a": true,
         "onto_installable_b": false,
-        "observed_via": "staging refusal in both directions",
+        "observed_via": "real StageReplacement, ABI regression probe (escape consumer bypassed)",
         "discriminated": true
       },
       {
@@ -367,7 +372,7 @@
         "accepted_b_from_a": false,
         "onto_installable_a": false,
         "onto_installable_b": false,
-        "observed_via": "canonical form only -- both targets are un-installable under #68 instance-dispatch blocking, so no staging attempt can attribute a refusal to this dimension",
+        "observed_via": "real StageReplacement, ABI regression probe (escape consumer bypassed)",
         "discriminated": true
       },
       {
@@ -380,7 +385,7 @@
         "accepted_b_from_a": false,
         "onto_installable_a": true,
         "onto_installable_b": true,
-        "observed_via": "staging refusal in both directions",
+        "observed_via": "real StageReplacement, ABI regression probe (escape consumer bypassed)",
         "discriminated": true
       },
       {
@@ -393,7 +398,7 @@
         "accepted_b_from_a": false,
         "onto_installable_a": true,
         "onto_installable_b": false,
-        "observed_via": "staging refusal in both directions",
+        "observed_via": "real StageReplacement, ABI regression probe (escape consumer bypassed)",
         "discriminated": true
       }
     ],
@@ -405,9 +410,11 @@
       "owner identity": "Already supplied by the DeclarationId, which is lib:<importUri>::cls:<Name>::<kind>:<name>. Repeating the owner in the descriptor would be a second spelling of the same fact, and two spellings can disagree.",
       "factory index shift": "ComputeLocationsOfFixedParameters shifts the parameter index for a factory, and that is represented twice on purpose: memberKind separates a factory in the Kernel descriptor, and the call-convention string carries factory/nofactory so it stands alone as a fingerprint."
     },
+    "production_matrix_violations": [],
+    "production_matrix_size": 600,
     "compatibility_matrix_size": 600,
     "compatibility_matrix_violations": [],
-    "compatibility_matrix_accepted": 62,
+    "compatibility_matrix_accepted": 64,
     "generic_scope_collisions": [
       {
         "dimension": "owner type-parameter position",
@@ -883,6 +890,8 @@
   },
   "selftest": {
     "schema": "maot.registry.selftest/1",
+    "mode": "production",
+    "escape_consumption_bypassed": false,
     "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
     "entry_count": 25,
     "found_same_abi_pair": true,
@@ -5789,7 +5798,7 @@
       "registry_bytes_approx": 4400,
       "bytes_per_entry_approx": 176,
       "lookup_iterations": 10000,
-      "lookup_total_micros": 243,
+      "lookup_total_micros": 246,
       "lookup_note": "linear scan over a GrowableObjectArray; correctness first, and the cost is recorded rather than optimised around",
       "lookup_sink": 10000
     }
@@ -6740,6 +6749,70 @@
         "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
       },
       {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "devirtualization",
+        "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "devirtualization",
+        "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "devirtualization",
+        "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "devirtualization",
+        "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "devirtualization",
+        "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "devirtualization",
+        "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "devirtualization",
+        "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::fn:main",
+        "optimization_class": "devirtualization",
+        "decision": "an instance call was devirtualized into a static call on TFA's direct-call metadata, and that static call is lowered through the dispatch cell",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
         "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::ctor:",
         "caller_id": "lib:package:m2app/app.dart::fn:main",
         "optimization_class": "static-call-lowering",
@@ -6932,7 +7005,7 @@
         "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
       }
     ],
-    "optimizer_decision_count": 28
+    "optimizer_decision_count": 36
   },
   "falsification": [
     {
@@ -7083,7 +7156,7 @@
       "description": "the compatibility model is missing a dimension, so a replacement that differs in it is accepted",
       "why": "a compatibility model missing a dimension accepts a replacement that differs in it",
       "result": "pass",
-      "observed": "600 ordered pairs attempted, 62 accepted; 10 named dimensions, 0 not discriminated"
+      "observed": "600 ordered pairs attempted, 64 accepted; 10 named dimensions, 0 not discriminated"
     },
     {
       "id": "F27",
@@ -7197,6 +7270,8 @@
       "abi_validation_valid": true,
       "duplicate_missing_wrong_release_fail_closed": true,
       "identity_not_name_keyed": true,
+      "abi_probe_is_isolated": true,
+      "production_matrix_is_equivalence": true,
       "abi_model_discriminates_every_dimension": true,
       "abi_omissions_declared": true,
       "type_renderer_injective_over_scope": true,
@@ -7223,6 +7298,8 @@
       "abi_validation_valid": "is an incompatible ABI refused BEFORE any state changes?",
       "duplicate_missing_wrong_release_fail_closed": "are duplicate ids, unknown ids and foreign-release patches refused?",
       "identity_not_name_keyed": "do two declarations that share a VM Function name resolve to their own implementations rather than to each other -- measured on PRISTINE state, cross-checked against the binding evidence, and requiring such a pair to exist or the question is unanswered?",
+      "abi_probe_is_isolated": "did the ABI regression probe actually run with the optimizer-escape consumer bypassed? If not, the dimensions were measured against #68's guard rather than against ABI compatibility.",
+      "production_matrix_is_equivalence": "in PRODUCTION, is acceptance an equivalence over ABI, calling convention and installability together -- so #68's guard did not quietly change what the ABI model decides?",
       "abi_model_discriminates_every_dimension": "for every named ABI dimension, is a replacement differing only in that dimension refused -- and is the pairwise matrix an equivalence (identical pairs accepted, differing pairs refused) rather than a blanket refusal?",
       "abi_omissions_declared": "is every compatibility dimension the model does NOT represent stated with its reason and the issue that owns it?",
       "type_renderer_injective_over_scope": "are two generic shapes that differ only in scope POSITION rendered differently, while a pure type-parameter rename is rendered identically? (both directions: a colliding renderer is false-safe, a name-encoding one refuses every legitimate replacement)",

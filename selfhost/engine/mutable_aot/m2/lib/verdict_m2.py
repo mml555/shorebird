@@ -49,6 +49,14 @@ CONDITIONS = {
         'own implementations rather than to each other -- measured on PRISTINE '
         'state, cross-checked against the binding evidence, and requiring such '
         'a pair to exist or the question is unanswered?',
+    'abi_probe_is_isolated':
+        'did the ABI regression probe actually run with the optimizer-escape '
+        'consumer bypassed? If not, the dimensions were measured against '
+        '#68\'s guard rather than against ABI compatibility.',
+    'production_matrix_is_equivalence':
+        'in PRODUCTION, is acceptance an equivalence over ABI, calling '
+        'convention and installability together -- so #68\'s guard did not '
+        'quietly change what the ABI model decides?',
     'abi_model_discriminates_every_dimension':
         'for every named ABI dimension, is a replacement differing only in '
         'that dimension refused -- and is the pairwise matrix an equivalence '
@@ -215,13 +223,29 @@ def evaluate(observations, findings, registry=None, selftest=None):
     # the matrix must be an equivalence rather than an implication: a model
     # that refuses everything would pass a one-directional check while making
     # replacement impossible.
-    # #68 added an optimizer escape as a THIRD independent reason for
-    # StageReplacement to refuse, so the matrix equivalence is now over three
-    # facts rather than two. This does not weaken the claim: a pair whose ABI
-    # and calling convention agree is still required to be accepted whenever
-    # the target is installable, and every differing pair is still required to
-    # be refused. It accounts for a refusal reason that did not exist when the
-    # equivalence was written.
+    # Measured on the ABI REGRESSION PROBE: the same real StageReplacement
+    # path with only #68's optimizer-escape consumer bypassed, so ABI
+    # compatibility is the first refusal again. This keeps the condition
+    # meaning what it meant when #66 was accepted -- the RUNTIME COMPATIBILITY
+    # DECISION rejects the ABI difference -- rather than the weaker "the
+    # serialized strings differ", which an earlier version of this gate
+    # briefly accepted in order to stay green.
+    #
+    # The probe must actually be a probe: if the bypass did not take effect it
+    # is just the production run under another name, and the dimensions would
+    # be measured against the guard rather than against ABI.
+    probe = o.get('abi_regression_probe') or {}
+    conditions['abi_probe_is_isolated'] = (
+        probe.get('mode') == 'abi-regression-probe'
+        and probe.get('escape_consumption_bypassed') is True
+        and (probe.get('entry_count') or 0) > 0)
+
+    # And production keeps its own, stronger equivalence: acceptance there is
+    # over ABI, calling convention AND installability.
+    conditions['production_matrix_is_equivalence'] = (
+        o.get('production_matrix_violations') == []
+        and (o.get('production_matrix_size') or 0) > 0)
+
     conditions['abi_model_discriminates_every_dimension'] = (
         bool(o.get('abi_dimensions'))
         and o.get('abi_dimensions_undiscriminated') == []

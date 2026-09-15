@@ -628,6 +628,30 @@ def main(argv):
         if pr.returncode != 0:
             finding('PROBE_RUN_FAILED', (pr.stderr or pr.stdout)[-400:])
         r = main_run.run_aot(selftest=st_path)
+
+        # ---- the #66 ABI regression probe ----
+        # Same snapshot, same real StageReplacement path, one flag: the
+        # optimizer-escape consumer #68 added is bypassed so ABI compatibility
+        # is the FIRST refusal again. Its only purpose is to answer the
+        # question this lane was accepted on -- would the runtime compatibility
+        # decision still accept and reject exactly according to ABI and
+        # calling convention? Production semantics are measured separately and
+        # are not changed by it.
+        probe_st = os.path.join(work, 'selftest_abi_probe.json')
+        pr2 = subprocess.run(
+            [os.path.join(OUT, 'dartaotruntime'),
+             '--maot_ignore_escapes_on_install',
+             f'--maot_selftest={probe_st}', main_run.aot],
+            capture_output=True, text=True, timeout=600)
+        if pr2.returncode != 0:
+            finding('ABI_PROBE_RUN_FAILED', (pr2.stderr or pr2.stdout)[-400:])
+        abi_probe = json.load(open(probe_st)) if os.path.exists(probe_st) else {}
+        observations['abi_regression_probe'] = {
+            'mode': abi_probe.get('mode'),
+            'escape_consumption_bypassed':
+                abi_probe.get('escape_consumption_bypassed'),
+            'entry_count': abi_probe.get('entry_count'),
+        }
         if r.returncode != 0:
             finding('RUNTIME_FAILED', (r.stderr or r.stdout)[-800:])
         if os.path.exists(reg_path):
@@ -952,8 +976,11 @@ def main(argv):
         # The matrix is measured, not asserted: the self-test attempted a real
         # StageReplacement for every ordered pair and recorded whether it was
         # accepted. Here each named dimension is checked against it.
-        matrix = selftest.get('compatibility_matrix') or []
+        # Dimensions are judged on the probe; the production matrix is
+        # checked separately, for its own property.
+        matrix = abi_probe.get('compatibility_matrix') or []
         by_pair = {(m['onto'], m['from']): m for m in matrix}
+        production_matrix = selftest.get('compatibility_matrix') or []
         full = {leaf: i for i in registry_ids_list(registry)
                 for leaf in [i.split('::', 1)[1] if '::' in i else i]}
 
@@ -979,31 +1006,24 @@ def main(argv):
             # pair is still required to be refused both ways, and at least one
             # of those directions must have had an installable target, or the
             # dimension is unobservable through this pair.
-            attributable = (fwd.get('onto_installable', True)
-                            or rev.get('onto_installable', True))
-            # When neither direction is attributable the staging attempt
-            # cannot carry the dimension, and for one pair that is permanent
-            # rather than incidental: an owner type parameter can only appear
-            # in an INSTANCE member's signature, and #68 blocks those as
-            # unmodeled dispatch. No fixture fixes that -- a static method
-            # cannot reference its class's type parameters.
+            # NOT downgraded when the target is un-installable. An earlier
+            # version of this gate accepted "the canonical forms differ" as
+            # sufficient when #68's instance-dispatch blocker made both
+            # targets un-installable -- which silently redefined this
+            # condition from "the runtime compatibility decision rejects this
+            # ABI difference" to "the serialized strings are different", and
+            # kept calling the old condition ESTABLISHED. That is a
+            # regression in proof strength dressed as a green run.
             #
-            # What remains observable is the thing the dimension is actually
-            # about: whether the model REPRESENTS the difference. That is the
-            # canonical forms differing, which is in the record either way.
-            # The weaker observation is recorded as such rather than passed
-            # off as the stronger one.
-            observed_via = 'staging refusal in both directions'
-            if not attributable:
-                observed_via = ('canonical form only -- both targets are '
-                                'un-installable under #68 instance-dispatch '
-                                'blocking, so no staging attempt can attribute '
-                                'a refusal to this dimension')
-                ok = (not fwd['abi_equal']) or (not
-                                                fwd['call_convention_equal'])
-            else:
-                ok = (differs and not fwd['accepted']
-                      and not rev['accepted'])
+            # The dimensions are measured against the ABI REGRESSION PROBE
+            # instead: a separate process running the same real
+            # StageReplacement path with only the optimizer-escape consumer
+            # bypassed, so ABI compatibility is the first refusal again. The
+            # production matrix keeps its own meaning and is checked
+            # separately.
+            observed_via = ('real StageReplacement, ABI regression probe '
+                            '(escape consumer bypassed)')
+            ok = (differs and not fwd['accepted'] and not rev['accepted'])
             dimension_rows.append({
                 'dimension': name, 'a': ia, 'b': ib,
                 'abi_equal': fwd['abi_equal'],
@@ -1025,15 +1045,32 @@ def main(argv):
         # The matrix as a whole must be an equivalence, not an implication:
         # every identical pair accepted, every differing pair refused. This is
         # what catches a dimension nobody thought to name.
+        # On the PROBE the equivalence is over ABI and calling convention
+        # alone, which is exactly the property #66 was accepted on.
         violations = [
             {'onto': m['onto'], 'from': m['from'],
              'abi_equal': m['abi_equal'],
              'call_convention_equal': m['call_convention_equal'],
              'accepted': m['accepted']}
             for m in matrix
+            if m['accepted'] != (m['abi_equal']
+                                 and m['call_convention_equal'])
+        ]
+        # In PRODUCTION an optimizer escape is a third, independent refusal,
+        # so the equivalence there is over three facts. Both are required:
+        # the first says the ABI model is right, the second says #68's guard
+        # did not quietly change what the ABI model decides.
+        observations['production_matrix_violations'] = [
+            {'onto': m['onto'], 'from': m['from'],
+             'abi_equal': m['abi_equal'],
+             'call_convention_equal': m['call_convention_equal'],
+             'onto_installable': m.get('onto_installable'),
+             'accepted': m['accepted']}
+            for m in production_matrix
             if m['accepted'] != (m['abi_equal'] and m['call_convention_equal']
                                  and m.get('onto_installable', True))
         ]
+        observations['production_matrix_size'] = len(production_matrix)
         observations['compatibility_matrix_size'] = len(matrix)
         observations['compatibility_matrix_violations'] = violations
         observations['compatibility_matrix_accepted'] = sum(

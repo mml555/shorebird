@@ -2,16 +2,16 @@
   "schema": "maot.m3.evidence/2",
   "issue": 67,
   "generated_by": {
-    "run_id": "2026-09-14T23:12:03Z",
+    "run_id": "2026-09-15T00:11:41Z",
     "gate_sha256": "c5ee3feaccca4090790025886e11946c6c52b0863c0d3c843f19bdcc446df8e6",
     "verdict_sha256": "5cb311d50fc734aa5afac2bfa12c6efb9e22275a9fac65c8f8167d1e29e5c5e3",
     "fixture_sha256": "83c5e003b3d5bcb712c59f1f963c5bf430708d78a753ee817f33f4ce460c608c"
   },
   "identities": {
-    "shorebird_revision": "6b0afc588972be7d4e5ed9785837a396054a8b8c",
-    "shorebird_tree": "3e15855d7f61ab4916b59b27260052bf5f8bec21",
-    "fork_commit": "e931567c81ab42d15487f03344393be3eb5cb35d",
-    "fork_tree": "e0c323012535447f58fedbe5e64738452dd748ab",
+    "shorebird_revision": "fb65cde3fdca4826211f7edefcaca6ba7e2dc087",
+    "shorebird_tree": "bf4630c573be2736fc97ffe676fe00d9b182e55e",
+    "fork_commit": "2e4df989fe22a6e4db73a9eba62c33f275beb674",
+    "fork_tree": "e9b81df628905c2f81ea1b537fa4af2c6dccaa75",
     "fork_worktree_entries": [
       "?? third_party/binaryen/.DS_Store"
     ],
@@ -27,7 +27,7 @@
     "target_arch": "arm64",
     "build_digest": {
       "files": {
-        "runtime/vm/maot_registry.cc": "f161292496e6d26318e6a89ed0c44786eda5b3cdc67776fa8665e88684d5a203",
+        "runtime/vm/maot_registry.cc": "9873596167bcda9b97423aff4aa224e256299ce4d51fea75c3a9b00c2ddc6466",
         "runtime/vm/maot_registry.h": "389d14236a5bda523d15f4ed78f1c566d51c98cbf10c941ed0c143926f6af07f",
         "runtime/vm/kernel_loader.cc": "6ded9b83769b2d64a3c63f9b72ab4237f351cd42193b70ccedd30517a166d9db",
         "runtime/vm/object_store.h": "f0ccb348e996eacb79b58f3033b3168012ef7f9b1ab9905028c8b9d50ed5edc5",
@@ -39,9 +39,9 @@
         "runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc": "4b0e59a38aec086f122f944c296bd549f5685dab0fe6f868d76cdac5b7b64892",
         "runtime/vm/compiler/backend/inliner.cc": "7ec8b340e51f8fa9a9d8ba3be3f7c33c1ef8f1e2bfb74c1f43b31920a3e6ec94"
       },
-      "fork_commit": "e931567c81ab42d15487f03344393be3eb5cb35d",
-      "fork_tree": "e0c323012535447f58fedbe5e64738452dd748ab",
-      "built_at": "2026-09-14T23:11:32Z"
+      "fork_commit": "2e4df989fe22a6e4db73a9eba62c33f275beb674",
+      "fork_tree": "e9b81df628905c2f81ea1b537fa4af2c6dccaa75",
+      "built_at": "2026-09-15T00:10:55Z"
     },
     "build_provenance_mismatches": [],
     "build_digest_matches": true,
@@ -100,10 +100,10 @@
       }
     },
     "indirect_call_site_trace_lines": 18,
-    "snapshot_sha256_before": "97e699764fb39778d70d14b7cf7921d5e4715f4901ba03b84f0693d62e1caab7",
-    "snapshot_sha256_after": "97e699764fb39778d70d14b7cf7921d5e4715f4901ba03b84f0693d62e1caab7",
+    "snapshot_sha256_before": "91cd848ca6f5af42f64b6f4a8da2dd21e568be7714ccf380135f6cff1e8e56fb",
+    "snapshot_sha256_after": "91cd848ca6f5af42f64b6f4a8da2dd21e568be7714ccf380135f6cff1e8e56fb",
     "calls": {
-      "process.pid": 31225,
+      "process.pid": 92468,
       "top.call.0": "OLD",
       "static.call.0": "OLD-STATIC",
       "untouched.call.0": "UNTOUCHED",
@@ -139,19 +139,19 @@
       "hot.top.value": "NEW2",
       "hot.static.value": "NEW2-STATIC",
       "bench.iterations": 2000000,
-      "bench.top.mutable.us.0": 2036,
-      "bench.top.control.us.0": 2162,
-      "bench.static.mutable.us.0": 2048,
-      "bench.static.control.us.0": 2318,
-      "bench.top.mutable.us.1": 1982,
-      "bench.top.control.us.1": 2456,
-      "bench.static.mutable.us.1": 2413,
-      "bench.static.control.us.1": 1900,
-      "bench.top.mutable.us.2": 2003,
-      "bench.top.control.us.2": 1968,
-      "bench.static.mutable.us.2": 1990,
-      "bench.static.control.us.2": 1924,
-      "process.pid.final": 31225
+      "bench.top.mutable.us.0": 1980,
+      "bench.top.control.us.0": 2440,
+      "bench.static.mutable.us.0": 2145,
+      "bench.static.control.us.0": 1960,
+      "bench.top.mutable.us.1": 2020,
+      "bench.top.control.us.1": 1924,
+      "bench.static.mutable.us.1": 1964,
+      "bench.static.control.us.1": 1897,
+      "bench.top.mutable.us.2": 2004,
+      "bench.top.control.us.2": 1936,
+      "bench.static.mutable.us.2": 1975,
+      "bench.static.control.us.2": 1898,
+      "process.pid.final": 92468
     },
     "runtime_stderr_tail": "",
     "registry_before": {
@@ -1052,39 +1052,39 @@
     },
     "measurements": {
       "benchmark_iterations": 2000000,
-      "direct_call_ns_mutable": 0.991,
-      "direct_call_ns_control": 0.984,
-      "static_call_ns_mutable": 0.995,
-      "static_call_ns_control": 0.95,
-      "direct_call_ns_overhead": 0.01,
-      "static_call_ns_overhead": 0.05,
+      "direct_call_ns_mutable": 0.99,
+      "direct_call_ns_control": 0.962,
+      "static_call_ns_mutable": 0.982,
+      "static_call_ns_control": 0.949,
+      "direct_call_ns_overhead": 0.03,
+      "static_call_ns_overhead": 0.03,
       "benchmark_elapsed_us_samples": {
         "bench.top.mutable.us": [
-          2036,
-          1982,
-          2003
+          1980,
+          2020,
+          2004
         ],
         "bench.top.control.us": [
-          2162,
-          2456,
-          1968
+          2440,
+          1924,
+          1936
         ],
         "bench.static.mutable.us": [
-          2048,
-          2413,
-          1990
+          2145,
+          1964,
+          1975
         ],
         "bench.static.control.us": [
-          2318,
-          1900,
-          1924
+          1960,
+          1897,
+          1898
         ]
       },
       "benchmark_spread_us": {
-        "bench.top.mutable.us": 54,
-        "bench.top.control.us": 488,
-        "bench.static.mutable.us": 423,
-        "bench.static.control.us": 418
+        "bench.top.mutable.us": 40,
+        "bench.top.control.us": 516,
+        "bench.static.mutable.us": 181,
+        "bench.static.control.us": 63
       },
       "overhead_is_within_noise": true,
       "overhead_note": "the per-call overhead measures at a few hundredths of a nanosecond while the spread ACROSS SAMPLES OF THE SAME ARM is larger than the difference between arms -- one arm even measured faster than its own control. So the honest statement is that the indirection costs two extra instructions per call and that its cost is not resolvable above scheduling noise at this iteration count, not that it costs 0.06 ns. A resolvable figure needs a quieter harness, which belongs with #68 where the call shape is what is under test.",
@@ -1103,8 +1103,8 @@
       "registry_bytes": 1088,
       "registry_entries": 8,
       "registry_slots_per_entry": 17,
-      "startup_ms_with_maot": 47.57,
-      "startup_ms_control": 40.71,
+      "startup_ms_with_maot": 42.94,
+      "startup_ms_control": 35.11,
       "note": "diagnostic only; no threshold is compared anywhere"
     },
     "falsifications_failed": [],
@@ -2136,7 +2136,7 @@
       "description": "the process restarted or the release was rebuilt between the OLD and NEW observations",
       "why": "a rebuilt snapshot or a second process would make the whole observation meaningless",
       "result": "pass",
-      "observed": "one pid (31225) and one snapshot (97e699764fb3...) across the whole run; a changed hash or a changed pid each fail the condition"
+      "observed": "one pid (92468) and one snapshot (91cd848ca6f5...) across the whole run; a changed hash or a changed pid each fail the condition"
     },
     {
       "id": "G16",
@@ -2144,7 +2144,7 @@
       "description": "a measurement condition is satisfied by a non-numeric placeholder, or by only one of the two call forms",
       "why": "a measurement condition satisfied by a non-null field accepts a sentence explaining that nothing was measured",
       "result": "pass",
-      "observed": "direct 0.991 ns vs control 0.984 ns; static 0.995 ns vs control 0.95 ns. A prose value and a missing static arm each fail the condition.",
+      "observed": "direct 0.99 ns vs control 0.962 ns; static 0.982 ns vs control 0.949 ns. A prose value and a missing static arm each fail the condition.",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {
