@@ -86,6 +86,13 @@ void main(List<String> args) {
   final which = Platform.environment['M5_RECEIVER'] ?? 'a';
   final Iface obj = pick(which);
 
+  // Retain the replacement bodies. The ruling permits this explicitly: the
+  // diagnostic swap points the cell at a replacement's PINNED BODY Code, so
+  // that body has to exist. Calling them once is the least magical way to
+  // keep them; nothing else in the experiment uses these values.
+  _emit('retain.v2', AlphaNew().v());
+  _emit('retain.v3', AlphaNew2().v());
+
   // Does the declaration carry a trampoline, and is it the Function's
   // current code? 1 = yes, 2 = present but Function points elsewhere,
   // 0 = no trampoline.
