@@ -1,6 +1,6 @@
 MAOT-T0 (#64) -- the universal patchability corpus and adversarial gate
-generated 2026-09-15T02:45:00Z by run_t0.sh
-repo revision 3cd65f8c8c71077226572b6e6a0785ca8155c8e0
+generated 2026-09-15T04:35:19Z by run_t0.sh
+repo revision 621298867e802ef056d21fce433d2abac9578be0
 
 ############ 1. WHAT RUNS TODAY, AND WHAT DOES NOT ############
   The Mutable-AOT mechanism does not exist yet -- #65 through #70 build it.
@@ -25,7 +25,7 @@ executable         14
 placeholders       90
 
 ############ 3. THE RUN ############
-run_id             2026-09-15T02:45:00Z
+run_id             2026-09-15T04:35:19Z
 in-scope rows      104
 executable         14
 placeholders       90

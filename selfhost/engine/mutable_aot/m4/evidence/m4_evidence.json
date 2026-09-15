@@ -2,17 +2,17 @@
   "schema": "maot.m4.evidence/1",
   "issue": 68,
   "generated_by": {
-    "run_id": "2026-09-15T02:49:38Z",
-    "gate_sha256": "b571e6d91e935d57561edc3122df0d36788783ad4cc88baa96c282c8f1878f7a",
-    "verdict_sha256": "899068f685f323c11570511af9554225afbf83a1647d8d2834b238f4e4fd5efb",
+    "run_id": "2026-09-15T04:39:08Z",
+    "gate_sha256": "9475c9fba1f556387bf94da1b3c6714366618d70bcab0d2ae75897d4e66a4b16",
+    "verdict_sha256": "adaa99ccf9238b7ce67ad7b341ee5df12da3e57a38131ae4022545eb21a21e55",
     "rules_sha256": "71e41f95e498a6ba2a20cc02139c77a1810a4aa73667c5e7b3c3674dc4f6f3fb",
     "fixture_sha256": "af39a0948cc9219e5e87f0b968f5089c8d5e34c539d83c538e59c6e0d1760d21"
   },
   "identities": {
-    "shorebird_revision": "3cd65f8c8c71077226572b6e6a0785ca8155c8e0",
-    "shorebird_tree": "9f60c7fa7b4487c25eeb8029a550c6b6cb58acfe",
-    "fork_commit": "2e4df989fe22a6e4db73a9eba62c33f275beb674",
-    "fork_tree": "e9b81df628905c2f81ea1b537fa4af2c6dccaa75",
+    "shorebird_revision": "621298867e802ef056d21fce433d2abac9578be0",
+    "shorebird_tree": "7231dd2183ec8468ae083b5fb582d07609507d35",
+    "fork_commit": "b92efd823d83e4c901b48c0ef9e953e07e34c79d",
+    "fork_tree": "a5c581641bf7bf3ff80c109e89586aa665b20327",
     "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
     "target_arch": "arm64",
     "depends_on": {
@@ -104,14 +104,25 @@
         "pkg/vm/lib/transformations/pragma.dart": "882a80a8bb700145fbb7eb5026f2d7f6d8b6c6432e14661b6f52545bdfcde22a",
         "pkg/vm/lib/modular/target/vm.dart": "82c464b114770687a2868b51d7d93405d0d347dedf8da4604d1c2f56723c1885"
       },
-      "fork_commit": "2e4df989fe22a6e4db73a9eba62c33f275beb674",
-      "fork_tree": "e9b81df628905c2f81ea1b537fa4af2c6dccaa75",
-      "built_at": "2026-09-15T02:44:53Z"
+      "fork_commit": "b92efd823d83e4c901b48c0ef9e953e07e34c79d",
+      "fork_tree": "a5c581641bf7bf3ff80c109e89586aa665b20327",
+      "fork_sources_match_head": "1",
+      "built_at": "2026-09-15T04:23:14Z"
     },
     "build_provenance_mismatches": [],
     "build_digest_matches": true,
+    "fork_identity": {
+      "head": "b92efd823d83e4c901b48c0ef9e953e07e34c79d",
+      "tree": "a5c581641bf7bf3ff80c109e89586aa665b20327",
+      "branch": "maot/build",
+      "worktree_dirty_paths": [
+        "third_party/binaryen/.DS_Store"
+      ]
+    },
+    "source_commit_binding_mismatches": [],
+    "sources_match_named_commit": true,
     "calls": {
-      "process.pid": 16472,
+      "process.pid": 1087,
       "tiny.0": "OLD-TINY",
       "constantish.0": "OLD-CONST",
       "devirt.0": "OLD-DEVIRT",
@@ -140,13 +151,13 @@
       "tiny.2": "NEW-CONST",
       "tiny.version.2": "PATCH_CODE:v3",
       "bench.iterations": 2000000,
-      "bench.mutable.us.0": 2079,
-      "bench.control.us.0": 1897,
-      "bench.mutable.us.1": 2079,
-      "bench.control.us.1": 1894,
-      "bench.mutable.us.2": 2548,
-      "bench.control.us.2": 2115,
-      "process.pid.final": 16472
+      "bench.mutable.us.0": 2039,
+      "bench.control.us.0": 1859,
+      "bench.mutable.us.1": 2059,
+      "bench.control.us.1": 1900,
+      "bench.mutable.us.2": 2089,
+      "bench.control.us.2": 2200,
+      "process.pid.final": 1087
     },
     "registry_after": {
       "schema": "maot.registry/1",
@@ -2106,11 +2117,28 @@
       "compares": "mutation semantics only -- installs, observed values and versions. Timings differ between builds by design and are reported separately.",
       "note": "the amended #68 text makes test 10 optimized AOT versus a conservative AOT control, not a second JIT mechanism. #64's jit value stays a control concept."
     },
+    "source_commit_binding_falsification": {
+      "live_mismatches": [],
+      "perturbed_mismatches": [
+        {
+          "problem": "source differs from the named commit",
+          "file": "runtime/vm/maot_registry.cc",
+          "at_head": "ffffffffffffffff",
+          "on_disk": "9e1c073e34818dc1"
+        }
+      ],
+      "untracked_mismatches": [
+        {
+          "problem": "source is not tracked at the named commit",
+          "file": "runtime/vm/maot_registry.cc"
+        }
+      ]
+    },
     "measurements": {
       "aot_elf_bytes": 861848,
       "aot_elf_bytes_conservative": 958240,
-      "compile_seconds": 0.39,
-      "compile_seconds_conservative": 0.28,
+      "compile_seconds": 0.38,
+      "compile_seconds_conservative": 0.27,
       "indirect_call_sites_total": 18,
       "prevented_inlines": 0,
       "inline_admissions": 0,
@@ -2120,8 +2148,8 @@
       "blocking_decisions": 2,
       "slot_preserving_decisions": 24,
       "benchmark_iterations": 2000000,
-      "direct_call_ns_mutable": 1.04,
-      "direct_call_ns_control": 0.947,
+      "direct_call_ns_mutable": 1.02,
+      "direct_call_ns_control": 0.929,
       "call_cost_note": "minimum of three samples, control is a non-selected never-inlined function. #67 measured the same shape and found the difference below same-arm sample variation; this lane reports the numbers and repeats that caveat rather than publishing a per-call overhead it cannot resolve.",
       "note": "diagnostic only; no threshold is compared anywhere."
     },
@@ -2134,8 +2162,8 @@
         "aot_elf_bytes": 5887776,
         "aot_elf_delta_bytes": 16336,
         "app_declarations_in_corpus": 7,
-        "compile_seconds": 24.16,
-        "compile_seconds_delta": 0.05,
+        "compile_seconds": 23.17,
+        "compile_seconds_delta": -0.41,
         "decisions_recorded": 9,
         "declarations_with_escapes": 5,
         "devirtualizations_recorded": 1,
@@ -2147,9 +2175,9 @@
         "registry_entries": 7,
         "selected_declarations": 7
       },
-      "compile_seconds": 36.89,
-      "compile_seconds_control": 24.11,
-      "compile_seconds_delta": 12.78,
+      "compile_seconds": 35.31,
+      "compile_seconds_control": 23.58,
+      "compile_seconds_delta": 11.73,
       "configurations": {
         "all_non_sdk": "every non-SDK declaration selected, framework included. The upper bound.",
         "app_only": "every declaration in package:scaleapp selected. The realistic posture: an author marks their own code mutable and leaves the framework alone.",
@@ -2159,8 +2187,9 @@
       "decisions_recorded": 35057,
       "declarations_with_escapes": 5657,
       "devirtualizations_recorded": 11244,
-      "fork_commit": "2e4df989fe22a6e4db73a9eba62c33f275beb674",
-      "fork_dirty": true,
+      "fork_commit": "b92efd823d83e4c901b48c0ef9e953e07e34c79d",
+      "fork_dirty": false,
+      "fork_tree": "a5c581641bf7bf3ff80c109e89586aa665b20327",
       "framework_declarations_in_corpus": 7126,
       "indirect_call_sites_total": 17913,
       "inline_admissions": 0,
@@ -2178,12 +2207,12 @@
       "selected_declarations": 7399,
       "selected_declarations_control": 0,
       "selection": "MAOT_SELECT_ALL_NON_SDK=1 -- every non-SDK declaration with a body, app and framework alike. This is the UPPER BOUND, not a typical posture.",
-      "from_fork_commit": "2e4df989fe22a6e4db73a9eba62c33f275beb674",
-      "fork_commit_at_measurement": "2e4df989fe22a6e4db73a9eba62c33f275beb674",
+      "from_fork_commit": "b92efd823d83e4c901b48c0ef9e953e07e34c79d",
+      "fork_commit_at_measurement": "b92efd823d83e4c901b48c0ef9e953e07e34c79d",
       "measured_on_this_revision": true
     },
     "falsifications_failed": [],
-    "live_arm_count": 17
+    "live_arm_count": 18
   },
   "registry_after": {
     "schema": "maot.registry/1",
@@ -3256,6 +3285,15 @@
       "result": "pass",
       "observed": "toolchain matches all 16 sources; against one edited source the guard reports 1 mismatch",
       "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "H18",
+      "kind": "live",
+      "description": "a dirty worktree lets the record name a fork commit whose bytes were never measured, while every binary-to-source check stays green",
+      "why": "a dirty worktree lets a record name a commit it did not measure. The binary matches the bytes, the bytes match the digest, and the commit named in the evidence contains something else entirely -- which is exactly how #68's first closure attempt shipped.",
+      "result": "pass",
+      "observed": "live: every tracked source equals its blob at b92efd823d83, which is the commit the build record names; against one source differing from that commit the guard reports 1 mismatch, and against one absent from it 1",
+      "verdict_under_defect": "NOT_ESTABLISHED"
     }
   ],
   "falsification_bank": {
@@ -3276,7 +3314,8 @@
       "H14",
       "H15",
       "H16",
-      "H17"
+      "H17",
+      "H18"
     ],
     "historical": [],
     "historical_note": "none yet in this lane"
@@ -3332,7 +3371,7 @@
       {
         "item": "falsification of each major optimization class changes the gate",
         "met": true,
-        "evidence": "17 live arms, of which three inject a real inlining, retention and TFA defect rather than observing that the protection is in place"
+        "evidence": "18 live arms, of which three inject a real inlining, retention and TFA defect rather than observing that the protection is in place"
       },
       {
         "item": "recognized/intrinsic replacement cannot erase mutability",
@@ -3549,7 +3588,7 @@
       "optimized_and_conservative_agree": "do the optimized build and a conservative AOT control produce identical mutation semantics?",
       "required_falsifications_detected": "did every required falsification actually fire?",
       "measurements_recorded": "are the size, compile-time, call-cost and prevented-optimization counts present? No threshold is compared.",
-      "build_provenance_bound": "were the binaries built from the exact MAOT source bytes the record names?",
+      "build_provenance_bound": "three claims, not one: were the binaries built from the exact MAOT source bytes the record names; are those bytes what the named fork COMMIT contains; and is that commit the one the fork is on now? The first alone passed while the evidence named a parent commit whose bytes had never been measured.",
       "target_architecture_recorded": "does the record say which architecture this was proven on?",
       "t0_linkage_exact_and_unpromoted": "is the #64 linkage exactly the demonstrated modes, with EB-01, EB-02 and RS-09 all left UNMODELED?"
     },

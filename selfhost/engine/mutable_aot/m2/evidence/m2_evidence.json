@@ -2,26 +2,20 @@
   "schema": "maot.m2.evidence/1",
   "issue": 66,
   "generated_by": {
-    "run_id": "2026-09-15T02:48:51Z",
-    "gate_sha256": "7adacba1323aeb71dc07a094871f5714e643b64c744b0d0f2e4037dc61b8a7bf",
+    "run_id": "2026-09-15T04:38:25Z",
+    "gate_sha256": "b93a9c28441eef6902f3d14cd050fadbbfc4ee2373676adf50239ba1f8c078fd",
     "verdict_sha256": "d884bafa96ae7aa6f775b50fc8617bf807ad9c1ac92f9bbd31f85ea9c59094a6"
   },
   "identities": {
-    "shorebird_revision": "3cd65f8c8c71077226572b6e6a0785ca8155c8e0",
-    "shorebird_tree": "9f60c7fa7b4487c25eeb8029a550c6b6cb58acfe",
-    "fork_commit": "2e4df989fe22a6e4db73a9eba62c33f275beb674",
-    "fork_tree": "e9b81df628905c2f81ea1b537fa4af2c6dccaa75",
+    "shorebird_revision": "621298867e802ef056d21fce433d2abac9578be0",
+    "shorebird_tree": "7231dd2183ec8468ae083b5fb582d07609507d35",
+    "fork_commit": "b92efd823d83e4c901b48c0ef9e953e07e34c79d",
+    "fork_tree": "a5c581641bf7bf3ff80c109e89586aa665b20327",
     "fork_branch": "maot/build",
     "fork_worktree_entries": [
-      "M pkg/vm/lib/transformations/type_flow/transformer.dart",
-      " M runtime/vm/compiler/aot/precompiler.cc",
-      " M runtime/vm/compiler/backend/inliner.cc",
-      " M runtime/vm/compiler/frontend/kernel_binary_flowgraph.cc",
-      " M runtime/vm/maot_registry.cc",
-      " M runtime/vm/maot_registry.h",
       "?? third_party/binaryen/.DS_Store"
     ],
-    "fork_source_dirty": true,
+    "fork_source_dirty": false,
     "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
     "note": "a branch is transport; the commit and tree are identity"
   },
@@ -47,11 +41,22 @@
         "pkg/vm/lib/transformations/pragma.dart": "882a80a8bb700145fbb7eb5026f2d7f6d8b6c6432e14661b6f52545bdfcde22a",
         "pkg/vm/lib/modular/target/vm.dart": "82c464b114770687a2868b51d7d93405d0d347dedf8da4604d1c2f56723c1885"
       },
-      "fork_commit": "2e4df989fe22a6e4db73a9eba62c33f275beb674",
-      "fork_tree": "e9b81df628905c2f81ea1b537fa4af2c6dccaa75",
-      "built_at": "2026-09-15T02:44:53Z"
+      "fork_commit": "b92efd823d83e4c901b48c0ef9e953e07e34c79d",
+      "fork_tree": "a5c581641bf7bf3ff80c109e89586aa665b20327",
+      "fork_sources_match_head": "1",
+      "built_at": "2026-09-15T04:23:14Z"
     },
     "missing_maot_sources": [],
+    "fork_identity": {
+      "head": "b92efd823d83e4c901b48c0ef9e953e07e34c79d",
+      "tree": "a5c581641bf7bf3ff80c109e89586aa665b20327",
+      "branch": "maot/build",
+      "worktree_dirty_paths": [
+        "third_party/binaryen/.DS_Store"
+      ]
+    },
+    "source_commit_binding_mismatches": [],
+    "sources_match_named_commit": true,
     "selected_count": 25,
     "selected_but_absent": [],
     "materialized_count": 25,
@@ -267,8 +272,8 @@
       "aot_elf_bytes_with_maot": 858168,
       "aot_elf_bytes_control_no_pragmas": 840368,
       "aot_elf_delta_bytes": 17800,
-      "startup_ms_with_maot": 19.59,
-      "startup_ms_control": 19.17,
+      "startup_ms_with_maot": 17.03,
+      "startup_ms_control": 16.3,
       "control_note": "absent here means the control build failed, not that it was skipped",
       "note": "medians of 7 runs of the same program; the control is the identical source with every maot:mutable removed, so the delta includes keeping a dead selected declaration alive",
       "registry_entries": 25,
@@ -277,7 +282,7 @@
       "registry_registry_bytes_approx": 4800,
       "registry_bytes_per_entry_approx": 192,
       "registry_lookup_iterations": 10000,
-      "registry_lookup_total_micros": 263,
+      "registry_lookup_total_micros": 246,
       "registry_lookup_note": "linear scan over a GrowableObjectArray; correctness first, and the cost is recorded rather than optimised around",
       "registry_lookup_sink": 10000
     },
@@ -5809,7 +5814,7 @@
       "registry_bytes_approx": 4800,
       "bytes_per_entry_approx": 192,
       "lookup_iterations": 10000,
-      "lookup_total_micros": 263,
+      "lookup_total_micros": 246,
       "lookup_note": "linear scan over a GrowableObjectArray; correctness first, and the cost is recorded rather than optimised around",
       "lookup_sink": 10000
     }

@@ -11,6 +11,7 @@ import datetime
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -154,7 +155,13 @@ def recorded_digests():
         if not line or line.startswith('#'):
             continue
         a, _, b = line.partition(' ')
-        if a in ('fork_commit', 'fork_tree', 'built_at'):
+        # Discriminate on SHAPE, not on a list of known keys. A file line
+        # begins with a 64-hex sha256; anything else is a header. Keying on a
+        # known-key list meant adding one header field (fork_sources_match_head)
+        # silently registered a FILE named "1", which the staleness check then
+        # reported as a missing source -- a parser that was not total over its
+        # own input, reporting its own gap as a defect in the subject.
+        if not re.fullmatch(r'[0-9a-f]{64}', a):
             rec[a] = b
         else:
             rec['files'][b] = a
@@ -1050,7 +1057,7 @@ def main(argv):
             and len(unbound18b) == 1
             and unbound18b[0]['problem']
                 == 'source is not tracked at the named commit'
-            and v18['build_provenance_bound'] is False
+            and v18['conditions']['build_provenance_bound'] is False
             and v18['arm64_aot_optimizer_invariants'] == 'NOT_ESTABLISHED',
             f"live: every tracked source equals its blob at "
             f"{((obs['fork_identity'] or {}).get('head') or '')[:12]}, which "

@@ -487,7 +487,13 @@ def recorded_digests(path=None):
         if not line or line.startswith('#'):
             continue
         a, _, b = line.partition(' ')
-        if a in ('fork_commit', 'fork_tree', 'built_at'):
+        # Discriminate on SHAPE, not on a list of known keys. A file line
+        # begins with a 64-hex sha256; anything else is a header. Keying on a
+        # known-key list meant adding one header field (fork_sources_match_head)
+        # silently registered a FILE named "1", which the staleness check then
+        # reported as a missing source -- a parser that was not total over its
+        # own input, reporting its own gap as a defect in the subject.
+        if not re.fullmatch(r'[0-9a-f]{64}', a):
             rec[a] = b
         else:
             rec['files'][b] = a
@@ -667,6 +673,23 @@ def main(argv):
                 f'hand-back discipline before taking it.')
 
 
+    stale = staleness()
+    if stale:
+        finding('BINARY_NOT_BUILT_FROM_THESE_SOURCES',
+                'the built toolchain does not match the MAOT sources on disk, '
+                'so this run would measure a different program than it names: '
+                + '; '.join(f'{x["problem"]}'
+                            + (f' ({x["file"]})' if 'file' in x else '')
+                            for x in stale))
+
+    work = tempfile.mkdtemp(prefix='maot_m2_')
+    arms = []
+    observations = {'expected_namespace': NAMESPACE,
+                    'stale_binaries': stale,
+                    'build_digest': recorded_digests() or {},
+                    'missing_maot_sources': absent}
+    selftest, registry = {}, {}
+
     # ---- source-to-COMMIT binding -------------------------------------
     # staleness() binds the binary to the bytes on disk. It says nothing
     # about whether those bytes are the ones the named commit contains, and
@@ -686,22 +709,6 @@ def main(argv):
                 + '; '.join(x['problem'] + (f" ({x['file']})" if 'file' in x
                                             else '') for x in unbound))
 
-    stale = staleness()
-    if stale:
-        finding('BINARY_NOT_BUILT_FROM_THESE_SOURCES',
-                'the built toolchain does not match the MAOT sources on disk, '
-                'so this run would measure a different program than it names: '
-                + '; '.join(f'{x["problem"]}'
-                            + (f' ({x["file"]})' if 'file' in x else '')
-                            for x in stale))
-
-    work = tempfile.mkdtemp(prefix='maot_m2_')
-    arms = []
-    observations = {'expected_namespace': NAMESPACE,
-                    'stale_binaries': stale,
-                    'build_digest': recorded_digests() or {},
-                    'missing_maot_sources': absent}
-    selftest, registry = {}, {}
     try:
         # ---------------- the real run ----------------
         main_run = Run(os.path.join(work, 'main'))
