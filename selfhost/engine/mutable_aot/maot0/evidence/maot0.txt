@@ -1,6 +1,6 @@
 MAOT-0 (#63) -- the universal Dart patchability contract and matrix
-generated 2026-09-15T04:35:18Z by run_maot0.sh
-repo revision 621298867e802ef056d21fce433d2abac9578be0
+generated 2026-09-15T04:43:58Z by run_maot0.sh
+repo revision 11423c8cfec0d459985a1f162a61851ca65bc3d1
   That revision is the tree the gate RAN AGAINST, so in a committed record it
   necessarily names the PARENT of the commit carrying it. A record cannot name
   the commit that contains it; re-running after a commit therefore rewrites

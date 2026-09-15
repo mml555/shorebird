@@ -2,15 +2,15 @@
   "schema": "maot.m4.evidence/1",
   "issue": 68,
   "generated_by": {
-    "run_id": "2026-09-15T04:39:08Z",
+    "run_id": "2026-09-15T04:47:47Z",
     "gate_sha256": "9475c9fba1f556387bf94da1b3c6714366618d70bcab0d2ae75897d4e66a4b16",
     "verdict_sha256": "adaa99ccf9238b7ce67ad7b341ee5df12da3e57a38131ae4022545eb21a21e55",
     "rules_sha256": "71e41f95e498a6ba2a20cc02139c77a1810a4aa73667c5e7b3c3674dc4f6f3fb",
     "fixture_sha256": "af39a0948cc9219e5e87f0b968f5089c8d5e34c539d83c538e59c6e0d1760d21"
   },
   "identities": {
-    "shorebird_revision": "621298867e802ef056d21fce433d2abac9578be0",
-    "shorebird_tree": "7231dd2183ec8468ae083b5fb582d07609507d35",
+    "shorebird_revision": "11423c8cfec0d459985a1f162a61851ca65bc3d1",
+    "shorebird_tree": "bf41d02051f2edca3ef412099874e6734b51014e",
     "fork_commit": "b92efd823d83e4c901b48c0ef9e953e07e34c79d",
     "fork_tree": "a5c581641bf7bf3ff80c109e89586aa665b20327",
     "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
@@ -122,7 +122,7 @@
     "source_commit_binding_mismatches": [],
     "sources_match_named_commit": true,
     "calls": {
-      "process.pid": 1087,
+      "process.pid": 33061,
       "tiny.0": "OLD-TINY",
       "constantish.0": "OLD-CONST",
       "devirt.0": "OLD-DEVIRT",
@@ -151,13 +151,13 @@
       "tiny.2": "NEW-CONST",
       "tiny.version.2": "PATCH_CODE:v3",
       "bench.iterations": 2000000,
-      "bench.mutable.us.0": 2039,
-      "bench.control.us.0": 1859,
-      "bench.mutable.us.1": 2059,
-      "bench.control.us.1": 1900,
-      "bench.mutable.us.2": 2089,
-      "bench.control.us.2": 2200,
-      "process.pid.final": 1087
+      "bench.mutable.us.0": 2149,
+      "bench.control.us.0": 1888,
+      "bench.mutable.us.1": 2087,
+      "bench.control.us.1": 1901,
+      "bench.mutable.us.2": 3187,
+      "bench.control.us.2": 3094,
+      "process.pid.final": 33061
     },
     "registry_after": {
       "schema": "maot.registry/1",
@@ -2137,7 +2137,7 @@
     "measurements": {
       "aot_elf_bytes": 861848,
       "aot_elf_bytes_conservative": 958240,
-      "compile_seconds": 0.38,
+      "compile_seconds": 0.4,
       "compile_seconds_conservative": 0.27,
       "indirect_call_sites_total": 18,
       "prevented_inlines": 0,
@@ -2148,8 +2148,8 @@
       "blocking_decisions": 2,
       "slot_preserving_decisions": 24,
       "benchmark_iterations": 2000000,
-      "direct_call_ns_mutable": 1.02,
-      "direct_call_ns_control": 0.929,
+      "direct_call_ns_mutable": 1.044,
+      "direct_call_ns_control": 0.944,
       "call_cost_note": "minimum of three samples, control is a non-selected never-inlined function. #67 measured the same shape and found the difference below same-arm sample variation; this lane reports the numbers and repeats that caveat rather than publishing a per-call overhead it cannot resolve.",
       "note": "diagnostic only; no threshold is compared anywhere."
     },
@@ -2162,8 +2162,8 @@
         "aot_elf_bytes": 5887776,
         "aot_elf_delta_bytes": 16336,
         "app_declarations_in_corpus": 7,
-        "compile_seconds": 23.17,
-        "compile_seconds_delta": -0.41,
+        "compile_seconds": 22.75,
+        "compile_seconds_delta": -0.01,
         "decisions_recorded": 9,
         "declarations_with_escapes": 5,
         "devirtualizations_recorded": 1,
@@ -2175,9 +2175,9 @@
         "registry_entries": 7,
         "selected_declarations": 7
       },
-      "compile_seconds": 35.31,
-      "compile_seconds_control": 23.58,
-      "compile_seconds_delta": 11.73,
+      "compile_seconds": 34.54,
+      "compile_seconds_control": 22.76,
+      "compile_seconds_delta": 11.78,
       "configurations": {
         "all_non_sdk": "every non-SDK declaration selected, framework included. The upper bound.",
         "app_only": "every declaration in package:scaleapp selected. The realistic posture: an author marks their own code mutable and leaves the framework alone.",

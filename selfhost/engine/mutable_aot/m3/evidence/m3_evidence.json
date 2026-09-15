@@ -2,14 +2,14 @@
   "schema": "maot.m3.evidence/2",
   "issue": 67,
   "generated_by": {
-    "run_id": "2026-09-15T04:38:51Z",
+    "run_id": "2026-09-15T04:47:31Z",
     "gate_sha256": "32f7379c2090b24586a8f8b17b7627d64d3d606e2b147e8b9204385ca6ccf35e",
     "verdict_sha256": "1998e7102ec0196a95bae34044d037918826f5a352fdb62c77e9e256123ebd22",
     "fixture_sha256": "83c5e003b3d5bcb712c59f1f963c5bf430708d78a753ee817f33f4ce460c608c"
   },
   "identities": {
-    "shorebird_revision": "621298867e802ef056d21fce433d2abac9578be0",
-    "shorebird_tree": "7231dd2183ec8468ae083b5fb582d07609507d35",
+    "shorebird_revision": "11423c8cfec0d459985a1f162a61851ca65bc3d1",
+    "shorebird_tree": "bf41d02051f2edca3ef412099874e6734b51014e",
     "fork_commit": "b92efd823d83e4c901b48c0ef9e953e07e34c79d",
     "fork_tree": "a5c581641bf7bf3ff80c109e89586aa665b20327",
     "fork_worktree_entries": [
@@ -119,7 +119,7 @@
     "snapshot_sha256_before": "bdf0d5d9a833ef3242b83f0929631887aaf46f7b2b871386652decc80190d03a",
     "snapshot_sha256_after": "bdf0d5d9a833ef3242b83f0929631887aaf46f7b2b871386652decc80190d03a",
     "calls": {
-      "process.pid": 99857,
+      "process.pid": 32035,
       "top.call.0": "OLD",
       "static.call.0": "OLD-STATIC",
       "untouched.call.0": "UNTOUCHED",
@@ -155,19 +155,19 @@
       "hot.top.value": "NEW2",
       "hot.static.value": "NEW2-STATIC",
       "bench.iterations": 2000000,
-      "bench.top.mutable.us.0": 1942,
-      "bench.top.control.us.0": 1910,
-      "bench.static.mutable.us.0": 1978,
-      "bench.static.control.us.0": 1959,
-      "bench.top.mutable.us.1": 2099,
-      "bench.top.control.us.1": 2089,
-      "bench.static.mutable.us.1": 2194,
-      "bench.static.control.us.1": 1931,
-      "bench.top.mutable.us.2": 2050,
-      "bench.top.control.us.2": 1980,
-      "bench.static.mutable.us.2": 2028,
-      "bench.static.control.us.2": 2009,
-      "process.pid.final": 99857
+      "bench.top.mutable.us.0": 1924,
+      "bench.top.control.us.0": 1858,
+      "bench.static.mutable.us.0": 2047,
+      "bench.static.control.us.0": 2012,
+      "bench.top.mutable.us.1": 2131,
+      "bench.top.control.us.1": 2161,
+      "bench.static.mutable.us.1": 1967,
+      "bench.static.control.us.1": 1859,
+      "bench.top.mutable.us.2": 1946,
+      "bench.top.control.us.2": 1864,
+      "bench.static.mutable.us.2": 1974,
+      "bench.static.control.us.2": 1901,
+      "process.pid.final": 32035
     },
     "runtime_stderr_tail": "",
     "registry_before": {
@@ -1100,39 +1100,39 @@
     },
     "measurements": {
       "benchmark_iterations": 2000000,
-      "direct_call_ns_mutable": 0.971,
-      "direct_call_ns_control": 0.955,
-      "static_call_ns_mutable": 0.989,
-      "static_call_ns_control": 0.966,
-      "direct_call_ns_overhead": 0.02,
-      "static_call_ns_overhead": 0.02,
+      "direct_call_ns_mutable": 0.962,
+      "direct_call_ns_control": 0.929,
+      "static_call_ns_mutable": 0.984,
+      "static_call_ns_control": 0.929,
+      "direct_call_ns_overhead": 0.03,
+      "static_call_ns_overhead": 0.05,
       "benchmark_elapsed_us_samples": {
         "bench.top.mutable.us": [
-          1942,
-          2099,
-          2050
+          1924,
+          2131,
+          1946
         ],
         "bench.top.control.us": [
-          1910,
-          2089,
-          1980
+          1858,
+          2161,
+          1864
         ],
         "bench.static.mutable.us": [
-          1978,
-          2194,
-          2028
+          2047,
+          1967,
+          1974
         ],
         "bench.static.control.us": [
-          1959,
-          1931,
-          2009
+          2012,
+          1859,
+          1901
         ]
       },
       "benchmark_spread_us": {
-        "bench.top.mutable.us": 157,
-        "bench.top.control.us": 179,
-        "bench.static.mutable.us": 216,
-        "bench.static.control.us": 78
+        "bench.top.mutable.us": 207,
+        "bench.top.control.us": 303,
+        "bench.static.mutable.us": 80,
+        "bench.static.control.us": 153
       },
       "overhead_is_within_noise": true,
       "overhead_note": "the per-call overhead measures at a few hundredths of a nanosecond while the spread ACROSS SAMPLES OF THE SAME ARM is larger than the difference between arms -- one arm even measured faster than its own control. So the honest statement is that the indirection costs two extra instructions per call and that its cost is not resolvable above scheduling noise at this iteration count, not that it costs 0.06 ns. A resolvable figure needs a quieter harness, which belongs with #68 where the call shape is what is under test.",
@@ -1151,8 +1151,8 @@
       "registry_bytes": 1088,
       "registry_entries": 8,
       "registry_slots_per_entry": 17,
-      "startup_ms_with_maot": 41.36,
-      "startup_ms_control": 34.69,
+      "startup_ms_with_maot": 43.23,
+      "startup_ms_control": 35.48,
       "note": "diagnostic only; no threshold is compared anywhere"
     },
     "falsifications_failed": [],
@@ -2216,7 +2216,7 @@
       "description": "the process restarted or the release was rebuilt between the OLD and NEW observations",
       "why": "a rebuilt snapshot or a second process would make the whole observation meaningless",
       "result": "pass",
-      "observed": "one pid (99857) and one snapshot (bdf0d5d9a833...) across the whole run; a changed hash or a changed pid each fail the condition"
+      "observed": "one pid (32035) and one snapshot (bdf0d5d9a833...) across the whole run; a changed hash or a changed pid each fail the condition"
     },
     {
       "id": "G16",
@@ -2224,7 +2224,7 @@
       "description": "a measurement condition is satisfied by a non-numeric placeholder, or by only one of the two call forms",
       "why": "a measurement condition satisfied by a non-null field accepts a sentence explaining that nothing was measured",
       "result": "pass",
-      "observed": "direct 0.971 ns vs control 0.955 ns; static 0.989 ns vs control 0.966 ns. A prose value and a missing static arm each fail the condition.",
+      "observed": "direct 0.962 ns vs control 0.929 ns; static 0.984 ns vs control 0.929 ns. A prose value and a missing static arm each fail the condition.",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {

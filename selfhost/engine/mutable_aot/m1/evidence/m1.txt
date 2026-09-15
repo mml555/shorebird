@@ -1,6 +1,6 @@
 MAOT-1 (#65) -- stable declaration and type identity
-generated 2026-09-15T04:36:13Z by run_m1.sh
-repo revision 621298867e802ef056d21fce433d2abac9578be0
+generated 2026-09-15T04:44:53Z by run_m1.sh
+repo revision 11423c8cfec0d459985a1f162a61851ca65bc3d1
 
 ############ 1. WHAT THIS ISSUE OWNS ############
   #65 owns IDENTITY and nothing else. No runtime implementation slot, no
