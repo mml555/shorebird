@@ -77,6 +77,19 @@ Pointer<Uint8> _c(String s) {
 
 void _emit(String k, Object v) => print('$k=$v');
 
+// One call site, two receiver classes. Written as a helper so BOTH calls are
+// literally the same site: two separate `x.v()` expressions would be two
+// sites, and the second would start Unlinked instead of hitting the state the
+// first one left behind.
+@pragma('vm:never-inline')
+String _callSame(dynamic first, dynamic second) {
+  var r = '';
+  for (var i = 0; i < 4000; i++) {
+    r = (i < 2000 ? first : second).v();
+  }
+  return r;
+}
+
 int _swapCell(String target, String impl) =>
     _swap(_c('$_lib::$target'), _c('$_lib::$impl'));
 
@@ -128,6 +141,62 @@ void main(List<String> args) {
     last = obj.v();
   }
   _emit('virt.warm.2', last);
+
+  // ---- the DYNAMIC axis, deliberately separate ----
+  // An interface call on a statically-known interface compiles to
+  // DispatchTableCallInstr: a direct indexed branch with no miss handler, so
+  // it never enters the switchable-call machinery at all. A `dynamic`
+  // receiver does, which is why #69 requires separate evidence for the two
+  // and why they cannot be inferred from each other.
+  final dynamic dyn = obj;
+  _emit('dyn.0', dyn.v());
+  var dlast = '';
+  for (var i = 0; i < warm; i++) {
+    dlast = dyn.v();
+  }
+  _emit('dyn.warm', dlast);
+  _emit('swap.3', _swapCell('cls:Alpha::method:v', 'cls:AlphaNew::method:v'));
+  _emit('dyn.1', dyn.v());
+  for (var i = 0; i < warm; i++) {
+    dlast = dyn.v();
+  }
+  _emit('dyn.warm.1', dlast);
+
+  // ---- force transitions past the first linked state ----
+  // After a site links monomorphically, a same-cid receiver never misses
+  // again, so later states are reached SILENTLY and cannot be observed from
+  // the miss handler. Alternating the receiver class forces the monomorphic
+  // check to fail and the site to transition onward.
+  final dynamic dynA = pick('a');
+  final dynamic dynB = pick('b');
+  var alt = '';
+  for (var i = 0; i < warm; i++) {
+    alt = (i.isEven ? dynA : dynB).v();
+  }
+  _emit('alt.last', alt);
+  _emit('swap.4', _swapCell('cls:Alpha::method:v', 'cls:AlphaNew2::method:v'));
+  var alt2 = '';
+  for (var i = 0; i < warm; i++) {
+    alt2 = (i.isEven ? dynA : dynB).v();
+  }
+  _emit('alt.afterSwap.even', dynA.v());
+  _emit('alt.afterSwap.odd', dynB.v());
+
+  // ---- a monomorphic miss whose TARGET is the mutable declaration ----
+  // Order matters. If a site links to Alpha first, the later Beta call is the
+  // one that misses monomorphically, and Beta.v is not mutable so nothing is
+  // recorded. Linking to BETA first and then calling Alpha puts the mutable
+  // declaration on the monomorphic-miss path, where its stored target can be
+  // compared against the trampoline.
+  final dynamic monoSite = pick('b');
+  var m = '';
+  for (var i = 0; i < 2000; i++) {
+    m = monoSite.v();
+  }
+  _emit('mono.beta', m);
+  final dynamic monoAlpha = pick('a');
+  // the SAME call site, now with an Alpha receiver
+  _emit('mono.alpha', _callSame(monoSite, monoAlpha));
 
   // Beta must be untouched throughout: it shares the selector but is a
   // different declaration, so a shared-cell defect would move it too.
