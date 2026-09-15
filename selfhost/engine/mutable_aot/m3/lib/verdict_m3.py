@@ -104,8 +104,11 @@ CONDITIONS = {
         'are the code-size and registry measurements present? No threshold is '
         'compared; absence is the only failure.',
     'build_provenance_bound':
-        'were the binaries that produced this evidence built from the exact '
-        'MAOT source bytes the record names?',
+        'three claims, not one: were the binaries built from the exact MAOT '
+        'source bytes the record names; are those bytes what the named fork '
+        'COMMIT contains; and is that commit the one the fork is on now? The '
+        'first alone passed while the evidence named a parent commit whose '
+        'bytes had never been measured.',
     'target_architecture_recorded':
         'does the record say which architecture the lowering was proven on?',
     'cold_and_hot_observed':
@@ -330,9 +333,17 @@ def evaluate(observations, findings):
     # Same guard #66 learned it needed: the binaries have to have been built
     # from the source bytes this record names. mtimes are useless on a shared
     # rig, where switching branches rewrites every one of them.
-    conditions['build_provenance_bound'] = (
+    conditions['build_provenance_bound'] = bool(
         o.get('build_digest_matches') is True
-        and bool((o.get('build_digest') or {}).get('fork_commit')))
+        and bool((o.get('build_digest') or {}).get('fork_commit'))
+        # The binary matching the bytes is only half of it. The bytes must
+        # also BE what the named commit contains, and the record must name the
+        # commit the fork is actually on -- otherwise a dirty worktree lets a
+        # record name a revision it never measured.
+        and o.get('sources_match_named_commit') is True
+        and bool((o.get('fork_identity') or {}).get('head'))
+        and (o.get('build_digest') or {}).get('fork_commit')
+            == (o.get('fork_identity') or {}).get('head'))
     conditions['target_architecture_recorded'] = (
         o.get('target_arch') == TARGET_ARCH)
 

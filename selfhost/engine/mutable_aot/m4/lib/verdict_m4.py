@@ -133,8 +133,11 @@ CONDITIONS = {
         'are the size, compile-time, call-cost and prevented-optimization '
         'counts present? No threshold is compared.',
     'build_provenance_bound':
-        'were the binaries built from the exact MAOT source bytes the record '
-        'names?',
+        'three claims, not one: were the binaries built from the exact MAOT '
+        'source bytes the record names; are those bytes what the named fork '
+        'COMMIT contains; and is that commit the one the fork is on now? The '
+        'first alone passed while the evidence named a parent commit whose '
+        'bytes had never been measured.',
     'target_architecture_recorded':
         'does the record say which architecture this was proven on?',
     't0_linkage_exact_and_unpromoted':
@@ -177,6 +180,9 @@ BANK = {
                     'may substitute inline code no dispatch cell mediates'),
     'H17': ('live', 'TFA folds a mutable result to a constant, so the caller '
                     'holds the release answer with no call at all'),
+    'H18': ('live', 'a dirty worktree lets the record name a fork commit '
+                    'whose bytes were never measured, while every '
+                    'binary-to-source check stays green'),
 }
 
 
@@ -430,6 +436,10 @@ def evaluate(observations, findings):
     sc = o.get('scale_measurements') or {}
     c['scale_measurements_recorded'] = bool(
         sc.get('corpus')
+        # Measured against a clean worktree at the commit this record names,
+        # not merely annotated as dirty and published anyway.
+        and sc.get('fork_dirty') is False
+        and sc.get('measured_on_this_revision') is True
         and all(sc.get(k) is not None for k in
                 ('selected_declarations', 'prevented_inlines',
                  'devirtualizations_recorded', 'aot_elf_bytes',
@@ -438,9 +448,17 @@ def evaluate(observations, findings):
         and sc.get('selected_declarations', 0) > 0
         and sc.get('framework_declarations_in_corpus', 0) > 0)
 
-    c['build_provenance_bound'] = (
+    c['build_provenance_bound'] = bool(
         o.get('build_digest_matches') is True
-        and bool((o.get('build_digest') or {}).get('fork_commit')))
+        and bool((o.get('build_digest') or {}).get('fork_commit'))
+        # The binary matching the bytes is only half of it. The bytes must
+        # also BE what the named commit contains, and the record must name the
+        # commit the fork is actually on -- otherwise a dirty worktree lets a
+        # record name a revision it never measured.
+        and o.get('sources_match_named_commit') is True
+        and bool((o.get('fork_identity') or {}).get('head'))
+        and (o.get('build_digest') or {}).get('fork_commit')
+            == (o.get('fork_identity') or {}).get('head'))
     c['target_architecture_recorded'] = o.get('target_arch') == TARGET_ARCH
 
     demonstrated = {'dispatch': ['direct'], 'compilation': ['aot'],

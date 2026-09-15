@@ -243,8 +243,12 @@ def main(argv):
             ['git', '-C', FORK, 'rev-parse', 'HEAD'],
             capture_output=True, text=True).stdout.strip() or None,
         'fork_dirty': bool(subprocess.run(
-            ['git', '-C', FORK, 'status', '--porcelain'],
-            capture_output=True, text=True).stdout.strip()),
+            ['git', '-C', FORK, 'diff', '--quiet', 'HEAD', '--',
+             'runtime/vm', 'pkg/vm'],
+            capture_output=True, text=True).returncode),
+        'fork_tree': subprocess.run(
+            ['git', '-C', FORK, 'rev-parse', 'HEAD^{tree}'],
+            capture_output=True, text=True).stdout.strip() or None,
         'corpus': 'a representative Flutter application: MaterialApp, a '
                   'StatefulWidget with an AnimationController, a 500-row '
                   'ListView.builder with per-row painting and taps -- '
@@ -262,6 +266,17 @@ def main(argv):
         ],
     }
     try:
+        # A measurement taken against a dirty worktree names a commit whose
+        # bytes it did not measure. Recording `fork_dirty: true` and carrying
+        # on is not enough -- the first version of this lane did exactly that,
+        # and the number it produced was published under a commit that did not
+        # contain the sources it measured.
+        if rec['fork_dirty']:
+            raise RuntimeError(
+                f"the fork worktree differs from {(rec['fork_commit'] or '?')[:12]} "
+                f"under runtime/vm or pkg/vm. Commit first: a scale record "
+                f"naming a commit whose bytes were never measured is not a "
+                f"measurement of that commit.")
         # Three configurations, not two. The upper bound alone invites the
         # reading that Mutable-AOT costs 3.7x the binary, when most of that
         # is retention of 7,000 framework declarations nothing selects in

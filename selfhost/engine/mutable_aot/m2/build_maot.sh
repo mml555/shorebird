@@ -67,10 +67,44 @@ if [[ $NINJA_RC -ne 0 ]]; then
   exit "$NINJA_RC"
 fi
 
+# The binary is now bound to the sources. Bind the sources to the NAMED
+# COMMIT as well, because those are different claims and only the first was
+# ever checked.
+#
+# The hole, exactly as it occurred: HEAD was 2e4df989 while the worktree
+# already held what became b92efd82. The digest matched the dirty bytes, the
+# binary was built from them, so `build_digest_matches` was true -- and the
+# evidence still named 2e4df989 and its tree. Every link in the chain held
+# except the one nobody checked: that the bytes measured are the bytes the
+# named commit contains.
+#
+# Compared by CONTENT against the blob at HEAD, not with `git diff --quiet`,
+# because that says nothing about a path git is not tracking at all.
+DIRTY=()
+for f in "${SOURCES[@]}"; do
+  if ! git -C "$FORK" cat-file -e "HEAD:$f" 2>/dev/null; then
+    DIRTY+=("$f (not tracked at HEAD)")
+    continue
+  fi
+  have=$(shasum -a 256 "$FORK/$f" | cut -d' ' -f1)
+  want=$(git -C "$FORK" cat-file blob "HEAD:$f" | shasum -a 256 | cut -d' ' -f1)
+  if [[ "$have" != "$want" ]]; then
+    DIRTY+=("$f")
+  fi
+done
+if [[ ${#DIRTY[@]} -gt 0 ]]; then
+  echo "FATAL: ${#DIRTY[@]} tracked MAOT source(s) differ from $(git -C "$FORK" rev-parse --short HEAD):" >&2
+  printf '  %s\n' "${DIRTY[@]}" >&2
+  echo "A record naming a commit whose bytes were never measured is not" >&2
+  echo "provenance. Commit the change, then rebuild." >&2
+  exit 4
+fi
+
 {
   echo "# written by build_maot.sh after a successful build"
   echo "fork_commit $(git -C "$FORK" rev-parse HEAD)"
   echo "fork_tree $(git -C "$FORK" rev-parse 'HEAD^{tree}')"
+  echo "fork_sources_match_head 1"
   echo "built_at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   for f in "${SOURCES[@]}"; do
     echo "$(shasum -a 256 "$FORK/$f" | cut -d' ' -f1) $f"

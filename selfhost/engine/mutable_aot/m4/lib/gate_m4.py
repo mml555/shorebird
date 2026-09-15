@@ -75,6 +75,75 @@ def build_digests():
             for f in MAOT_CXX_SOURCES}
 
 
+def head_digests(sources=None):
+    """sha256 of each tracked MAOT source AS THE FORK'S HEAD COMMIT CONTAINS IT.
+
+    Separate from build_digests(), which reads the worktree. Comparing the two
+    is what binds the bytes that were measured to the commit the evidence
+    names -- a claim nothing checked until #68's closure review, and one that
+    had already failed: HEAD was 2e4df989 while the worktree held what became
+    b92efd82, so the binary matched the sources, the sources matched the
+    digest, and the record still named a commit whose bytes were never
+    measured.
+
+    None for a path HEAD does not track, which is distinct from a path whose
+    content differs and is reported differently.
+    """
+    sources = MAOT_CXX_SOURCES if sources is None else sources
+    out = {}
+    for f in sources:
+        r = subprocess.run(['git', '-C', FORK, 'cat-file', 'blob', f'HEAD:{f}'],
+                           capture_output=True)
+        out[f] = (hashlib.sha256(r.stdout).hexdigest()
+                  if r.returncode == 0 else None)
+    return out
+
+
+def fork_identity():
+    def g(*args):
+        r = subprocess.run(['git', '-C', FORK] + list(args),
+                           capture_output=True, text=True)
+        return r.stdout.strip() if r.returncode == 0 else None
+    return {'head': g('rev-parse', 'HEAD'),
+            'tree': g('rev-parse', 'HEAD^{tree}'),
+            'branch': g('rev-parse', '--abbrev-ref', 'HEAD'),
+            'worktree_dirty_paths': sorted(
+                l[3:] for l in (g('status', '--porcelain') or '').splitlines()
+                if l)}
+
+
+def source_commit_binding(sources=None, override_head=None):
+    """How the measured bytes disagree with the commit the evidence names.
+
+    Three separate claims, and the old provenance only made the first:
+      1. the binary was built from these bytes      (build_digests vs recorded)
+      2. these bytes are what fork HEAD contains    (here)
+      3. the record names that same HEAD            (here)
+    """
+    sources = MAOT_CXX_SOURCES if sources is None else sources
+    ident = fork_identity()
+    now = build_digests()
+    want = override_head if override_head is not None else head_digests(sources)
+    rec = recorded_digests()
+    out = []
+    for f in sorted(sources):
+        if want.get(f) is None:
+            out.append({'problem': 'source is not tracked at the named commit',
+                        'file': f})
+        elif now.get(f) != want.get(f):
+            out.append({'problem': 'source differs from the named commit',
+                        'file': f, 'at_head': (want[f] or '')[:16],
+                        'on_disk': (now.get(f) or '')[:16]})
+    recorded_head = (rec or {}).get('fork_commit')
+    if rec is not None and recorded_head and ident['head'] \
+            and recorded_head != ident['head']:
+        out.append({'problem': 'the build record names a different commit '
+                               'than the fork is on now',
+                    'built_at_commit': recorded_head[:16],
+                    'fork_head_now': ident['head'][:16]})
+    return out, ident
+
+
 def recorded_digests():
     p = os.path.join(OUT, '.maot_source_digest')
     if not os.path.exists(p):
@@ -260,6 +329,26 @@ def main(argv):
         finding('BINARY_NOT_BUILT_FROM_THESE_SOURCES',
                 '; '.join(x['problem'] + (f" ({x['file']})" if 'file' in x
                                           else '') for x in stale))
+
+
+    # ---- source-to-COMMIT binding -------------------------------------
+    # staleness() binds the binary to the bytes on disk. It says nothing
+    # about whether those bytes are the ones the named commit contains, and
+    # that gap was not hypothetical: #68's evidence was measured against a
+    # dirty worktree at 2e4df989 whose content later became b92efd82, so the
+    # digest matched, the binary matched, and the record named a commit whose
+    # bytes had never been measured.
+    unbound, fork_ident = source_commit_binding()
+    obs['fork_identity'] = fork_ident
+    obs['source_commit_binding_mismatches'] = unbound
+    obs['sources_match_named_commit'] = (unbound == [])
+    if unbound:
+        finding('SOURCES_DO_NOT_MATCH_THE_NAMED_COMMIT',
+                'the measured sources are not the ones the named fork commit '
+                'contains, so this record would name a revision it did not '
+                'measure: '
+                + '; '.join(x['problem'] + (f" ({x['file']})" if 'file' in x
+                                            else '') for x in unbound))
 
     work = os.path.join('/tmp', f'maot_m4_{os.getpid()}')
     shutil.rmtree(work, ignore_errors=True)
@@ -925,6 +1014,51 @@ def main(argv):
             f"toolchain matches all {len(MAOT_CXX_SOURCES)} sources; against "
             f"one edited source the guard reports {len(hyp)} mismatch",
             v13['arm64_aot_optimizer_invariants'])
+
+        # ---- H18: the source-to-COMMIT binding must be able to fire ----
+        # H13 proves the binary is bound to the bytes. It cannot see a dirty
+        # worktree, because the bytes it compares against are the dirty ones.
+        # This arm perturbs what the NAMED COMMIT is held to contain, which is
+        # the shape the real defect had: HEAD at 2e4df989, worktree holding
+        # what became b92efd82, every existing check green, and the record
+        # naming a revision whose bytes were never measured.
+        victim18 = 'runtime/vm/maot_registry.cc'
+        fake_head = dict(head_digests())
+        fake_head[victim18] = 'f' * 64
+        unbound18, _ = source_commit_binding(override_head=fake_head)
+        v18 = perturbed(sources_match_named_commit=False,
+                        source_commit_binding_mismatches=unbound18)
+        untracked = dict(head_digests())
+        untracked[victim18] = None
+        unbound18b, _ = source_commit_binding(override_head=untracked)
+        obs['source_commit_binding_falsification'] = {
+            'live_mismatches': obs['source_commit_binding_mismatches'],
+            'perturbed_mismatches': unbound18,
+            'untracked_mismatches': unbound18b,
+        }
+        arm('H18', 'a dirty worktree lets a record name a commit it did not '
+                   'measure. The binary matches the bytes, the bytes match '
+                   'the digest, and the commit named in the evidence contains '
+                   'something else entirely -- which is exactly how #68\'s '
+                   'first closure attempt shipped.',
+            obs['sources_match_named_commit'] is True
+            and (obs['build_digest'] or {}).get('fork_commit')
+                == (obs['fork_identity'] or {}).get('head')
+            and len(unbound18) == 1
+            and unbound18[0].get('file') == victim18
+            and unbound18[0]['problem'] == 'source differs from the named commit'
+            and len(unbound18b) == 1
+            and unbound18b[0]['problem']
+                == 'source is not tracked at the named commit'
+            and v18['build_provenance_bound'] is False
+            and v18['arm64_aot_optimizer_invariants'] == 'NOT_ESTABLISHED',
+            f"live: every tracked source equals its blob at "
+            f"{((obs['fork_identity'] or {}).get('head') or '')[:12]}, which "
+            f"is the commit the build record names; against one source "
+            f"differing from that commit the guard reports "
+            f"{len(unbound18)} mismatch, and against one absent from it "
+            f"{len(unbound18b)}",
+            v18['arm64_aot_optimizer_invariants'])
 
         # ---------------- measurements ----------------
         sites = sum((e.get('indirect_call_sites_emitted') or 0)

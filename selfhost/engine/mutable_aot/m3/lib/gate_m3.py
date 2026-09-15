@@ -66,6 +66,75 @@ def build_digests():
             for f in MAOT_CXX_SOURCES}
 
 
+def head_digests(sources=None):
+    """sha256 of each tracked MAOT source AS THE FORK'S HEAD COMMIT CONTAINS IT.
+
+    Separate from build_digests(), which reads the worktree. Comparing the two
+    is what binds the bytes that were measured to the commit the evidence
+    names -- a claim nothing checked until #68's closure review, and one that
+    had already failed: HEAD was 2e4df989 while the worktree held what became
+    b92efd82, so the binary matched the sources, the sources matched the
+    digest, and the record still named a commit whose bytes were never
+    measured.
+
+    None for a path HEAD does not track, which is distinct from a path whose
+    content differs and is reported differently.
+    """
+    sources = MAOT_CXX_SOURCES if sources is None else sources
+    out = {}
+    for f in sources:
+        r = subprocess.run(['git', '-C', FORK, 'cat-file', 'blob', f'HEAD:{f}'],
+                           capture_output=True)
+        out[f] = (hashlib.sha256(r.stdout).hexdigest()
+                  if r.returncode == 0 else None)
+    return out
+
+
+def fork_identity():
+    def g(*args):
+        r = subprocess.run(['git', '-C', FORK] + list(args),
+                           capture_output=True, text=True)
+        return r.stdout.strip() if r.returncode == 0 else None
+    return {'head': g('rev-parse', 'HEAD'),
+            'tree': g('rev-parse', 'HEAD^{tree}'),
+            'branch': g('rev-parse', '--abbrev-ref', 'HEAD'),
+            'worktree_dirty_paths': sorted(
+                l[3:] for l in (g('status', '--porcelain') or '').splitlines()
+                if l)}
+
+
+def source_commit_binding(sources=None, override_head=None):
+    """How the measured bytes disagree with the commit the evidence names.
+
+    Three separate claims, and the old provenance only made the first:
+      1. the binary was built from these bytes      (build_digests vs recorded)
+      2. these bytes are what fork HEAD contains    (here)
+      3. the record names that same HEAD            (here)
+    """
+    sources = MAOT_CXX_SOURCES if sources is None else sources
+    ident = fork_identity()
+    now = build_digests()
+    want = override_head if override_head is not None else head_digests(sources)
+    rec = recorded_digests()
+    out = []
+    for f in sorted(sources):
+        if want.get(f) is None:
+            out.append({'problem': 'source is not tracked at the named commit',
+                        'file': f})
+        elif now.get(f) != want.get(f):
+            out.append({'problem': 'source differs from the named commit',
+                        'file': f, 'at_head': (want[f] or '')[:16],
+                        'on_disk': (now.get(f) or '')[:16]})
+    recorded_head = (rec or {}).get('fork_commit')
+    if rec is not None and recorded_head and ident['head'] \
+            and recorded_head != ident['head']:
+        out.append({'problem': 'the build record names a different commit '
+                               'than the fork is on now',
+                    'built_at_commit': recorded_head[:16],
+                    'fork_head_now': ident['head'][:16]})
+    return out, ident
+
+
 def recorded_digests():
     """What m2/build_maot.sh recorded after the last successful build."""
     p = os.path.join(OUT, DIGEST_FILE)
@@ -238,6 +307,26 @@ def main(argv):
                 'so this run would measure a different program than it names: '
                 + '; '.join(x['problem'] + (f" ({x['file']})" if 'file' in x
                                             else '') for x in stale))
+
+
+    # ---- source-to-COMMIT binding -------------------------------------
+    # staleness() binds the binary to the bytes on disk. It says nothing
+    # about whether those bytes are the ones the named commit contains, and
+    # that gap was not hypothetical: #68's evidence was measured against a
+    # dirty worktree at 2e4df989 whose content later became b92efd82, so the
+    # digest matched, the binary matched, and the record named a commit whose
+    # bytes had never been measured.
+    unbound, fork_ident = source_commit_binding()
+    observations['fork_identity'] = fork_ident
+    observations['source_commit_binding_mismatches'] = unbound
+    observations['sources_match_named_commit'] = (unbound == [])
+    if unbound:
+        finding('SOURCES_DO_NOT_MATCH_THE_NAMED_COMMIT',
+                'the measured sources are not the ones the named fork commit '
+                'contains, so this record would name a revision it did not '
+                'measure: '
+                + '; '.join(x['problem'] + (f" ({x['file']})" if 'file' in x
+                                            else '') for x in unbound))
 
     # ---- the acceptance ledger ----
     # Stated here, evaluated below, and any unmet item becomes a blocking
