@@ -64,6 +64,8 @@ final _ident = _proc.lookupFunction<Int64 Function(Pointer<Uint8>),
     int Function(Pointer<Uint8>)>('Dart_MaotTrampolineIdentityForTesting');
 final _dump = _proc.lookupFunction<Int64 Function(Pointer<Uint8>),
     int Function(Pointer<Uint8>)>('Dart_MaotDumpForTesting');
+final _stateCount = _proc.lookupFunction<Int64 Function(Pointer<Uint8>),
+    int Function(Pointer<Uint8>)>('Dart_MaotObservedStateCount');
 
 Pointer<Uint8> _c(String s) {
   final u = s.codeUnits;
@@ -81,6 +83,14 @@ void _emit(String k, Object v) => print('$k=$v');
 // literally the same site: two separate `x.v()` expressions would be two
 // sites, and the second would start Unlinked instead of hitting the state the
 // first one left behind.
+// ONE call site, reused. Three separate `x.v()` expressions are three
+// separate sites, each of which starts Unlinked and misses once -- so reading
+// through them measures fresh sites, not the warmed state under test. That
+// error made a no-cache-mutation check report false for a reason that had
+// nothing to do with cache mutation.
+@pragma('vm:never-inline')
+String _oneSite(dynamic x) => x.v();
+
 @pragma('vm:never-inline')
 String _callSame(dynamic first, dynamic second) {
   var r = '';
@@ -197,6 +207,51 @@ void main(List<String> args) {
   final dynamic monoAlpha = pick('a');
   // the SAME call site, now with an Alpha receiver
   _emit('mono.alpha', _callSame(monoSite, monoAlpha));
+
+  // ---- per-state OLD -> NEW -> NEW2, with no cache mutation ----
+  //
+  // The instrument: a cached dispatch target that a replacement invalidated
+  // would MISS again, and a miss records another observation. So a swap that
+  // changes what the call returns WITHOUT increasing the count proves the
+  // cached target was never touched and the state resolved through the cell.
+  //
+  // Each sub-experiment drives one site into one state, then swaps twice
+  // without letting the site fall out of that state.
+  void perState(String label, String stateClass, dynamic site) {
+    // NEVER swap the cell to a declaration that carries a trampoline. Alpha's
+    // CurrentCode IS its trampoline, so `Alpha -> Alpha` sets
+    // cell.implCode = trampoline and the trampoline branches to itself. That
+    // hangs the process -- which is also incidental confirmation that the
+    // trampoline -> cell -> implCode path is the live one.
+    // Warm the ONE site first so it is in a linked state before any swap.
+    for (var i = 0; i < 5000; i++) {
+      _oneSite(site);
+    }
+    _swapCell('cls:Alpha::method:v', 'cls:AlphaNew::method:v');
+    final c0 = _stateCount(_c(stateClass));
+    _emit('$label.old', _oneSite(site));
+    final c1 = _stateCount(_c(stateClass));
+    _swapCell('cls:Alpha::method:v', 'cls:AlphaNew2::method:v');
+    _emit('$label.new', _oneSite(site));
+    final c2 = _stateCount(_c(stateClass));
+    _swapCell('cls:Alpha::method:v', 'cls:AlphaNew::method:v');
+    _emit('$label.new2', _oneSite(site));
+    final c3 = _stateCount(_c(stateClass));
+    _emit('$label.counts', '$c0/$c1/$c2/$c3');
+    _emit('$label.noCacheMutation', c1 == c2 && c2 == c3);
+  }
+
+  // UnlinkedCall -> linked: a site called once is already past Unlinked, so
+  // the swaps below exercise whatever state it settled into without
+  // re-missing.
+  final dynamic siteA = pick('a');
+  for (var i = 0; i < 5000; i++) {
+    siteA.v();
+  }
+  perState('st.linked', 'instance-dispatch/UnlinkedCall-observed', siteA);
+
+  // Monomorphic reached via Beta-first ordering, then Alpha on the same site.
+  perState('st.mono', 'instance-dispatch/monomorphic-observed', monoAlpha);
 
   // Beta must be untouched throughout: it shares the selector but is a
   // different declaration, so a shared-cell defect would move it too.
