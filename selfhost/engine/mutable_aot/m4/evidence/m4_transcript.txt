@@ -1,15 +1,33 @@
 === MAOT-4 (#68) optimizer invariants for mutable declarations ===
-run  2026-09-16T16:30:11Z
-fork ca96854daed14aefde546a25a54c9225162a5e54
+run  2026-09-16T20:26:28Z
+fork d71b543665bc5fce74b4b1d79f29dddbf37fe238
 
-fork          ca96854daed14aefde546a25a54c9225162a5e54
+fork          d71b543665bc5fce74b4b1d79f29dddbf37fe238
 rules         10 optimizer classes
-variants      tiny OLD-TINY -> NEW-TINY -> NEW-CONST | chain NEW-A
+variants      tiny OLD-TINY -> OLD-TINY -> OLD-TINY | chain NEW-A
 devirt        install -3 (refused: instance dispatch is #69) | join 6+3
-arms          19 (0 failed)
-blocking      0
-conditions    23 (0 failed)
-PHASE A       arm64_aot_optimizer_invariants = ESTABLISHED
-CLOSURE       issue_68_closure = READY
+arms          19 (6 failed)
+blocking      8
+conditions    24 (12 failed)
+  unmet: blocking_dispositions_actually_block
+  unmet: conservative_posture_holds
+  unmet: dead_release_declaration_addressable
+  unmet: escape_metadata_is_consumed
+  unmet: hot_sites_observe_replacement
+  unmet: injected_inlining_defect_is_caught
+  unmet: injected_recognized_defect_is_caught
+  unmet: injected_retention_defect_is_caught
+  unmet: injected_tfa_defect_is_caught
+  unmet: required_falsifications_detected
+  unmet: scale_measurements_recorded
+  unmet: second_replacement_advances
+  SCALE_LANE_FROM_ANOTHER_REVISION: evidence/m4_scale.json names fork commit ca96854daed14aefde546a25a54c9225162a5e54, the binaries were
+  FALSIFICATION_ARM_FAILED: H16, H10, H12, H17, H01, H07
+  ACCEPTANCE_ITEM_NOT_MET: every relevant optimizer pass has a documented and enforced rule: not met
+  ACCEPTANCE_ITEM_NOT_MET: the conservative M1 configuration prevents silent bypasses: not met
+  ACCEPTANCE_ITEM_NOT_MET: dead or unreached-at-release mutable declarations remain patch-addressable: not met
+  ACCEPTANCE_ITEM_NOT_MET: falsification of each major optimization class changes the gate: not met
+PHASE A       arm64_aot_optimizer_invariants = NOT_ESTABLISHED
+CLOSURE       issue_68_closure = NOT_READY
 
-gate exit 0
+gate exit 1

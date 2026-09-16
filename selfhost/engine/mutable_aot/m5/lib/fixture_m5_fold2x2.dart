@@ -75,11 +75,29 @@ String xb() => 'OLD-XB';
 @pragma('vm:never-inline')
 String callX() => '${xa()}/${xb()}';
 
+// ---- NEGATIVE CONTROL: ordinary, NOT selected, constant return ---------
+//
+// Both halves are never-inline on purpose. If `plainConst` could be inlined,
+// a constant at the caller would prove nothing -- inlining would produce it
+// whether or not constant PROPAGATION still works. Kept as a real call, the
+// only way main can hold the literal is if the result was folded.
+//
+// This is the control for P1 over-reaching: ordinary, non-selected constant
+// propagation must keep working. If it stops, main stops holding the literal
+// and starts using the returned value.
+@pragma('vm:never-inline')
+String plainConst() => 'PLAIN-CONST';
+
+@pragma('vm:never-inline')
+String callPlainConst() => plainConst();
+
 const _lib = 'lib:package:m5fold/fixture_m5_fold2x2.dart';
 
 final _proc = DynamicLibrary.process();
 final _malloc = _proc.lookupFunction<Pointer<Uint8> Function(IntPtr),
     Pointer<Uint8> Function(int)>('malloc');
+final _dump = _proc.lookupFunction<Int64 Function(Pointer<Uint8>),
+    int Function(Pointer<Uint8>)>('Dart_MaotDumpForTesting');
 final _install = _proc.lookupFunction<
     Int64 Function(Pointer<Uint8>, Pointer<Uint8>, Int64, Pointer<Uint8>),
     int Function(Pointer<Uint8>, Pointer<Uint8>, int,
@@ -108,6 +126,7 @@ void main(List<String> args) {
   _emit('ND.0', nwork());
   _emit('NW.0', callNControl());
   _emit('CX.0', callX());
+  _emit('PC.0', callPlainConst());
 
   _emit('install.CD', _go(ns, 'work', 'workNew'));
   _emit('install.CW', _go(ns, 'control', 'controlNew'));
@@ -120,4 +139,8 @@ void main(List<String> args) {
   _emit('ND.1', nwork());
   _emit('NW.1', callNControl());
   _emit('CX.1', callX());
+  _emit('PC.1', callPlainConst());
+
+  final dumpDir = Platform.environment['MAOT_DUMP_DIR'] ?? '';
+  if (dumpDir.isNotEmpty) _dump(_c('$dumpDir/registry_after.json'));
 }

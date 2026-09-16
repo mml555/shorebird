@@ -2,17 +2,17 @@
   "schema": "maot.m4.evidence/1",
   "issue": 68,
   "generated_by": {
-    "run_id": "2026-09-16T16:30:11Z",
+    "run_id": "2026-09-16T20:26:28Z",
     "gate_sha256": "89d8a0fdca58c78aa12caeac13f21f21defaecffdbf0bcedb4e108f1b21ef31e",
-    "verdict_sha256": "00a5010cdd1364186e3135665406acd70cff2fbbff19756682d62484146306ab",
+    "verdict_sha256": "b2dcf3d53072e3b65f27a33371d3315bff236b4022738ac7cf65188e7be944c7",
     "rules_sha256": "71e41f95e498a6ba2a20cc02139c77a1810a4aa73667c5e7b3c3674dc4f6f3fb",
-    "fixture_sha256": "8bf5d6366b730b9fc9f0f557aa9e99cdfea5a85a9edd73c4acfbcf0169a947fb"
+    "fixture_sha256": "d3cd25eba32d95e54e2a742aaaa6352554229307afdad7f5e186a170dcda13fe"
   },
   "identities": {
-    "shorebird_revision": "75deb50b89210db0e14430358afa1436d5c61065",
-    "shorebird_tree": "e5d638ddd3f6120467ce8330fc8524ef7a4bee7f",
-    "fork_commit": "ca96854daed14aefde546a25a54c9225162a5e54",
-    "fork_tree": "2091ba61f4169871543d4bf744d114907e1a43ee",
+    "shorebird_revision": "34ae14112bec3736d1f92c76f9be53508dd0f4b5",
+    "shorebird_tree": "b359a88f26784c6498a2c76b6a8bba18442f74a7",
+    "fork_commit": "d71b543665bc5fce74b4b1d79f29dddbf37fe238",
+    "fork_tree": "7a26639e5f6c21d37ba2aab6ae177d0384acbecd",
     "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
     "target_arch": "arm64",
     "depends_on": {
@@ -87,33 +87,33 @@
     },
     "build_digest": {
       "files": {
-        "runtime/vm/maot_registry.cc": "60c7477738989f8e340636ac3643d588698238ba89e8306b057c89f4c055af17",
-        "runtime/vm/maot_registry.h": "d61e08afd71cd9b6997e2334ccde6cde5d5a8176b08eadb42f18de273a0609a1",
-        "runtime/vm/kernel_loader.cc": "6ded9b83769b2d64a3c63f9b72ab4237f351cd42193b70ccedd30517a166d9db",
+        "runtime/vm/maot_registry.cc": "18e4632233782b7a6616167fcc79503bb4da75ab9fc30c06415cef7f0434925a",
+        "runtime/vm/maot_registry.h": "819e97610fb1f011cda0b91134f686726c32b09b5b3e44b13b3ae81786cd2bb5",
+        "runtime/vm/kernel_loader.cc": "80cf4ea00a7c87f006245f4451f14b07bcdb4a5bfb283e50590b548f85abff9a",
         "runtime/vm/object_store.h": "f0ccb348e996eacb79b58f3033b3168012ef7f9b1ab9905028c8b9d50ed5edc5",
         "runtime/vm/dart.cc": "76221ab91bfe8a5d882288c7b535b1caa5ee33f263d6bb0b7240d948c5c365af",
-        "runtime/vm/compiler/aot/precompiler.cc": "bb2fe67a0e19f8bce75b410dcee02f138132c605e923e39afda0c9ea49624acb",
-        "runtime/vm/compiler/aot/precompiler.h": "6a701d12b4ca0213710d21dabb289351d25ad2233983eb23ec17a9da199b25f1",
-        "runtime/vm/compiler/frontend/kernel_translation_helper.cc": "3c7c2ac4cb9e8a04736c184ec1b2a02cea253f5186f45218351594e831f9d96f",
-        "runtime/vm/compiler/frontend/kernel_translation_helper.h": "d2726b4c489f025dfef242673006b79d5a21a9663aeae90281e28ffd7cbdb330",
+        "runtime/vm/compiler/aot/precompiler.cc": "871e85474d89e4d1428fc434f65fd9d1dd71f7e386107d740af2e2b9e3499ac2",
+        "runtime/vm/compiler/aot/precompiler.h": "665da80f62951f83fd33b521206ef8a035d3748870f73f1551b88d40da99a2d1",
+        "runtime/vm/compiler/frontend/kernel_translation_helper.cc": "31ed035938828bf7ee4495d2a3b300d01d6e9daefa4eac532448ae99ddd49b5e",
+        "runtime/vm/compiler/frontend/kernel_translation_helper.h": "4c392ddaf8dc6ccb30b785efba2c2a5b33972011d82a11d2939e298a299aa6f2",
         "runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc": "c3104248b28c413d9d26a02f01d039ed5956a9b722982e4287f3275db0348c0f",
         "runtime/vm/compiler/backend/inliner.cc": "67c9f537e52578ec548da0b0787576e6bf93f2709883e5e3cf3864f33ce75410",
         "runtime/vm/compiler/frontend/kernel_binary_flowgraph.cc": "9e922e29501bdd02acbcb65d65c494341afa9197ae7d362a6654ca9544e2ca37",
-        "pkg/vm/lib/metadata/maot_declaration_id.dart": "96e1bce90cf4765f3355889bb4003f56e0b64eaeb038476f088e0e167c9b7dd9",
-        "pkg/vm/lib/transformations/type_flow/transformer.dart": "848956217a5aebe4848828dd7191ee524d11e096988efceeff8f28df9b7e87d0",
+        "pkg/vm/lib/metadata/maot_declaration_id.dart": "54f8efdc8a686e429b91218cbb3c03a41b51ea16a6600eef46298b07e726b770",
+        "pkg/vm/lib/transformations/type_flow/transformer.dart": "bffd59e777e88338a2da9e6e4a687db88420ab4d427807742a8e792aeb0992a9",
         "pkg/vm/lib/transformations/pragma.dart": "882a80a8bb700145fbb7eb5026f2d7f6d8b6c6432e14661b6f52545bdfcde22a",
         "pkg/vm/lib/modular/target/vm.dart": "82c464b114770687a2868b51d7d93405d0d347dedf8da4604d1c2f56723c1885"
       },
-      "fork_commit": "ca96854daed14aefde546a25a54c9225162a5e54",
-      "fork_tree": "2091ba61f4169871543d4bf744d114907e1a43ee",
+      "fork_commit": "d71b543665bc5fce74b4b1d79f29dddbf37fe238",
+      "fork_tree": "7a26639e5f6c21d37ba2aab6ae177d0384acbecd",
       "fork_sources_match_head": "1",
-      "built_at": "2026-09-16T16:20:04Z"
+      "built_at": "2026-09-16T20:26:04Z"
     },
     "build_provenance_mismatches": [],
     "build_digest_matches": true,
     "fork_identity": {
-      "head": "ca96854daed14aefde546a25a54c9225162a5e54",
-      "tree": "2091ba61f4169871543d4bf744d114907e1a43ee",
+      "head": "d71b543665bc5fce74b4b1d79f29dddbf37fe238",
+      "tree": "7a26639e5f6c21d37ba2aab6ae177d0384acbecd",
       "branch": "maot/build",
       "worktree_dirty_paths": [
         "third_party/binaryen/.DS_Store"
@@ -122,7 +122,7 @@
     "source_commit_binding_mismatches": [],
     "sources_match_named_commit": true,
     "calls": {
-      "process.pid": 96762,
+      "process.pid": 28624,
       "tiny.0": "OLD-TINY",
       "constantish.0": "OLD-CONST",
       "devirt.0": "OLD-DEVIRT",
@@ -130,45 +130,48 @@
       "immutableCaller.0": "OLD-TINY/OLD-CONST",
       "unreachable.version.0": "AOT:v1",
       "recognizedish.0": "OLD-RECOGNIZED",
-      "install.tiny": 0,
-      "xwire.A.afterPatchA": "NEW-TINY",
+      "folded.0": "OLD-FOLDED",
+      "install.tiny": -3,
+      "xwire.A.afterPatchA": "OLD-TINY",
       "xwire.B.afterPatchA": "OLD-CONST",
-      "install.constantish": 0,
+      "install.constantish": -3,
       "install.devirt": -3,
       "install.chainA": 0,
-      "install.unreachable": 0,
-      "install.recognizedish": 0,
-      "tiny.1": "NEW-TINY",
-      "constantish.1": "NEW-CONST",
-      "xwire.A.afterPatchB": "NEW-TINY",
-      "xwire.B.afterPatchB": "NEW-CONST",
+      "install.unreachable": -3,
+      "install.recognizedish": -3,
+      "install.folded": -3,
+      "tiny.1": "OLD-TINY",
+      "constantish.1": "OLD-CONST",
+      "xwire.A.afterPatchB": "OLD-TINY",
+      "xwire.B.afterPatchB": "OLD-CONST",
       "devirt.1": "OLD-DEVIRT",
       "chain.1": "NEW-A",
-      "immutableCaller.1": "NEW-TINY/NEW-CONST",
-      "unreachable.version.1": "PATCH_CODE:v2",
-      "recognizedish.1": "NEW-RECOGNIZED",
+      "immutableCaller.1": "OLD-TINY/OLD-CONST",
+      "unreachable.version.1": "AOT:v1",
+      "recognizedish.1": "OLD-RECOGNIZED",
+      "folded.1": "OLD-FOLDED",
       "hot.iterations": 200000,
-      "hot.tiny": "NEW-TINY",
+      "hot.tiny": "OLD-TINY",
       "hot.devirt": "OLD-DEVIRT",
       "hot.chain": "NEW-A",
-      "install.tiny.v3": 0,
-      "tiny.2": "NEW-CONST",
-      "tiny.version.2": "PATCH_CODE:v3",
+      "install.tiny.v3": -3,
+      "tiny.2": "OLD-TINY",
+      "tiny.version.2": "AOT:v1",
       "bench.iterations": 2000000,
-      "bench.mutable.us.0": 2140,
-      "bench.control.us.0": 1896,
-      "bench.mutable.us.1": 2138,
-      "bench.control.us.1": 2077,
-      "bench.mutable.us.2": 2568,
-      "bench.control.us.2": 2332,
-      "process.pid.final": 96762
+      "bench.mutable.us.0": 1973,
+      "bench.control.us.0": 1906,
+      "bench.mutable.us.1": 1949,
+      "bench.control.us.1": 1971,
+      "bench.mutable.us.2": 2513,
+      "bench.control.us.2": 2456,
+      "process.pid.final": 28624
     },
     "registry_after": {
       "schema": "maot.registry/1",
       "schema_version": 1,
       "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
       "runtime_mode": "precompiled",
-      "entry_count": 13,
+      "entry_count": 15,
       "diverged_implementations": 0,
       "selected_seen_at_materialization": -1,
       "retained_at_materialization": -1,
@@ -189,10 +192,10 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'describe':."
           },
-          "optimizer_escapes": 4,
-          "first_escape_reason": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+          "optimizer_escapes": 5,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
           "installable": false,
-          "blocking_records": "dynamic/MonomorphicSmiableCall, dynamic/SingleTargetCache, dynamic/MegamorphicCache, super/unproven",
+          "blocking_records": "constant-folding/transitive-escape-risk, dynamic/MonomorphicSmiableCall, dynamic/SingleTargetCache, dynamic/MegamorphicCache, super/unproven",
           "indirect_call_sites_emitted": 3,
           "inline_refusals": 0,
           "inline_admissions": 0,
@@ -231,10 +234,10 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'describeReplacement':."
           },
-          "optimizer_escapes": 4,
-          "first_escape_reason": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+          "optimizer_escapes": 5,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
           "installable": false,
-          "blocking_records": "dynamic/MonomorphicSmiableCall, dynamic/SingleTargetCache, dynamic/MegamorphicCache, super/unproven",
+          "blocking_records": "constant-folding/transitive-escape-risk, dynamic/MonomorphicSmiableCall, dynamic/SingleTargetCache, dynamic/MegamorphicCache, super/unproven",
           "indirect_call_sites_emitted": 0,
           "inline_refusals": 0,
           "inline_admissions": 0,
@@ -262,38 +265,38 @@
           "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
           "selected": true,
           "current": {
-            "kind": "PATCH_CODE",
+            "kind": "AOT",
             "implementation_code_pinned": true,
             "pinned_code_is_current": true,
             "pinned_code_size": 8,
-            "version": 3,
+            "version": 1,
             "implementation_present": "yes",
             "executable": true,
             "implementation_size": 8,
             "has_code": true,
-            "implementation_name_diagnostic": "Function 'constantishNew': static."
+            "implementation_name_diagnostic": "Function 'tiny': static."
           },
-          "optimizer_escapes": 0,
-          "first_escape_reason": "<none>",
-          "installable": true,
-          "blocking_records": "<none>",
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
           "indirect_call_sites_emitted": 8,
           "inline_refusals": 0,
           "inline_admissions": 0,
-          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
           "dispatch_cell_length": 2,
           "dispatch_cell_has_code": true,
           "dispatch_cell_halves_agree": true,
-          "current_implementation_is_the_declaration_itself": false,
+          "current_implementation_is_the_declaration_itself": true,
           "release": {
             "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
             "implementation_name_diagnostic": "Function 'tiny': static.",
             "still_represented": true,
-            "is_current": false
+            "is_current": true
           },
           "dispatch_cell": {
             "present": true,
-            "holds_diagnostic": "Function 'constantishNew': static.",
+            "holds_diagnostic": "Function 'tiny': static.",
             "agrees_with_current": true
           },
           "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
@@ -304,38 +307,38 @@
           "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
           "selected": true,
           "current": {
-            "kind": "PATCH_CODE",
+            "kind": "AOT",
             "implementation_code_pinned": true,
             "pinned_code_is_current": true,
             "pinned_code_size": 8,
-            "version": 2,
+            "version": 1,
             "implementation_present": "yes",
             "executable": true,
             "implementation_size": 8,
             "has_code": true,
-            "implementation_name_diagnostic": "Function 'constantishNew': static."
+            "implementation_name_diagnostic": "Function 'constantish': static."
           },
-          "optimizer_escapes": 0,
-          "first_escape_reason": "<none>",
-          "installable": true,
-          "blocking_records": "<none>",
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
           "indirect_call_sites_emitted": 5,
           "inline_refusals": 0,
           "inline_admissions": 0,
-          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
           "dispatch_cell_length": 2,
           "dispatch_cell_has_code": true,
           "dispatch_cell_halves_agree": true,
-          "current_implementation_is_the_declaration_itself": false,
+          "current_implementation_is_the_declaration_itself": true,
           "release": {
             "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
             "implementation_name_diagnostic": "Function 'constantish': static.",
             "still_represented": true,
-            "is_current": false
+            "is_current": true
           },
           "dispatch_cell": {
             "present": true,
-            "holds_diagnostic": "Function 'constantishNew': static.",
+            "holds_diagnostic": "Function 'constantish': static.",
             "agrees_with_current": true
           },
           "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
@@ -346,38 +349,38 @@
           "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedish",
           "selected": true,
           "current": {
-            "kind": "PATCH_CODE",
+            "kind": "AOT",
             "implementation_code_pinned": true,
             "pinned_code_is_current": true,
             "pinned_code_size": 8,
-            "version": 2,
+            "version": 1,
             "implementation_present": "yes",
             "executable": true,
             "implementation_size": 8,
             "has_code": true,
-            "implementation_name_diagnostic": "Function 'recognizedishNew': static."
+            "implementation_name_diagnostic": "Function 'recognizedish': static."
           },
-          "optimizer_escapes": 0,
-          "first_escape_reason": "<none>",
-          "installable": true,
-          "blocking_records": "<none>",
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
           "indirect_call_sites_emitted": 2,
           "inline_refusals": 0,
           "inline_admissions": 0,
-          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedishNew",
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedish",
           "dispatch_cell_length": 2,
           "dispatch_cell_has_code": true,
           "dispatch_cell_halves_agree": true,
-          "current_implementation_is_the_declaration_itself": false,
+          "current_implementation_is_the_declaration_itself": true,
           "release": {
             "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedish",
             "implementation_name_diagnostic": "Function 'recognizedish': static.",
             "still_represented": true,
-            "is_current": false
+            "is_current": true
           },
           "dispatch_cell": {
             "present": true,
-            "holds_diagnostic": "Function 'recognizedishNew': static.",
+            "holds_diagnostic": "Function 'recognizedish': static.",
             "agrees_with_current": true
           },
           "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
@@ -388,38 +391,38 @@
           "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
           "selected": true,
           "current": {
-            "kind": "PATCH_CODE",
+            "kind": "AOT",
             "implementation_code_pinned": true,
             "pinned_code_is_current": true,
             "pinned_code_size": 8,
-            "version": 2,
+            "version": 1,
             "implementation_present": "yes",
             "executable": true,
             "implementation_size": 8,
             "has_code": true,
-            "implementation_name_diagnostic": "Function 'unreachableNew': static."
+            "implementation_name_diagnostic": "Function 'releaseUnreachable': static."
           },
-          "optimizer_escapes": 0,
-          "first_escape_reason": "<none>",
-          "installable": true,
-          "blocking_records": "<none>",
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
           "indirect_call_sites_emitted": 0,
           "inline_refusals": 0,
           "inline_admissions": 0,
-          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
           "dispatch_cell_length": 2,
           "dispatch_cell_has_code": true,
           "dispatch_cell_halves_agree": true,
-          "current_implementation_is_the_declaration_itself": false,
+          "current_implementation_is_the_declaration_itself": true,
           "release": {
             "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
             "implementation_name_diagnostic": "Function 'releaseUnreachable': static.",
             "still_represented": true,
-            "is_current": false
+            "is_current": true
           },
           "dispatch_cell": {
             "present": true,
-            "holds_diagnostic": "Function 'unreachableNew': static.",
+            "holds_diagnostic": "Function 'releaseUnreachable': static.",
             "agrees_with_current": true
           },
           "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
@@ -525,10 +528,10 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'tinyNew': static."
           },
-          "optimizer_escapes": 0,
-          "first_escape_reason": "<none>",
-          "installable": true,
-          "blocking_records": "<none>",
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
           "indirect_call_sites_emitted": 0,
           "inline_refusals": 0,
           "inline_admissions": 0,
@@ -567,10 +570,10 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'constantishNew': static."
           },
-          "optimizer_escapes": 0,
-          "first_escape_reason": "<none>",
-          "installable": true,
-          "blocking_records": "<none>",
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
           "indirect_call_sites_emitted": 0,
           "inline_refusals": 0,
           "inline_admissions": 0,
@@ -609,10 +612,10 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'unreachableNew': static."
           },
-          "optimizer_escapes": 0,
-          "first_escape_reason": "<none>",
-          "installable": true,
-          "blocking_records": "<none>",
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
           "indirect_call_sites_emitted": 0,
           "inline_refusals": 0,
           "inline_admissions": 0,
@@ -651,10 +654,10 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'recognizedishNew': static."
           },
-          "optimizer_escapes": 0,
-          "first_escape_reason": "<none>",
-          "installable": true,
-          "blocking_records": "<none>",
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
           "indirect_call_sites_emitted": 0,
           "inline_refusals": 0,
           "inline_admissions": 0,
@@ -693,10 +696,10 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'chainANew': static."
           },
-          "optimizer_escapes": 0,
-          "first_escape_reason": "<none>",
-          "installable": true,
-          "blocking_records": "<none>",
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
           "indirect_call_sites_emitted": 0,
           "inline_refusals": 0,
           "inline_admissions": 0,
@@ -719,9 +722,197 @@
           "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
           "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
           "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'folded': static."
+          },
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
+          "indirect_call_sites_emitted": 1,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+          "dispatch_cell_length": 2,
+          "dispatch_cell_has_code": true,
+          "dispatch_cell_halves_agree": true,
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+            "implementation_name_diagnostic": "Function 'folded': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'folded': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:foldedNew",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'foldedNew': static."
+          },
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
+          "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:foldedNew",
+          "dispatch_cell_length": 2,
+          "dispatch_cell_has_code": true,
+          "dispatch_cell_halves_agree": true,
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:foldedNew",
+            "implementation_name_diagnostic": "Function 'foldedNew': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'foldedNew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
         }
       ],
       "optimizer_decisions": [
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedish",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedish",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tinyNew",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:tinyNew",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedishNew",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedishNew",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainANew",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:chainANew",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:foldedNew",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:foldedNew",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
         {
           "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
           "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
@@ -1075,6 +1266,14 @@
           "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
         },
         {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:foldedCaller",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
           "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
           "caller_id": "lib:package:m4app/fixture_m4.dart::fn:immutableCaller",
           "optimization_class": "static-call-lowering",
@@ -1091,14 +1290,14 @@
           "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
         }
       ],
-      "optimizer_decision_count": 46
+      "optimizer_decision_count": 60
     },
     "registry_before": {
       "schema": "maot.registry/1",
       "schema_version": 1,
       "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
       "runtime_mode": "precompiled",
-      "entry_count": 13,
+      "entry_count": 15,
       "diverged_implementations": 0,
       "selected_seen_at_materialization": -1,
       "retained_at_materialization": -1,
@@ -1119,10 +1318,10 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'describe':."
           },
-          "optimizer_escapes": 4,
-          "first_escape_reason": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+          "optimizer_escapes": 5,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
           "installable": false,
-          "blocking_records": "dynamic/MonomorphicSmiableCall, dynamic/SingleTargetCache, dynamic/MegamorphicCache, super/unproven",
+          "blocking_records": "constant-folding/transitive-escape-risk, dynamic/MonomorphicSmiableCall, dynamic/SingleTargetCache, dynamic/MegamorphicCache, super/unproven",
           "indirect_call_sites_emitted": 3,
           "inline_refusals": 0,
           "inline_admissions": 0,
@@ -1161,10 +1360,10 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'describeReplacement':."
           },
-          "optimizer_escapes": 4,
-          "first_escape_reason": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+          "optimizer_escapes": 5,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
           "installable": false,
-          "blocking_records": "dynamic/MonomorphicSmiableCall, dynamic/SingleTargetCache, dynamic/MegamorphicCache, super/unproven",
+          "blocking_records": "constant-folding/transitive-escape-risk, dynamic/MonomorphicSmiableCall, dynamic/SingleTargetCache, dynamic/MegamorphicCache, super/unproven",
           "indirect_call_sites_emitted": 0,
           "inline_refusals": 0,
           "inline_admissions": 0,
@@ -1203,10 +1402,10 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'tiny': static."
           },
-          "optimizer_escapes": 0,
-          "first_escape_reason": "<none>",
-          "installable": true,
-          "blocking_records": "<none>",
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
           "indirect_call_sites_emitted": 8,
           "inline_refusals": 0,
           "inline_admissions": 0,
@@ -1245,10 +1444,10 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'constantish': static."
           },
-          "optimizer_escapes": 0,
-          "first_escape_reason": "<none>",
-          "installable": true,
-          "blocking_records": "<none>",
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
           "indirect_call_sites_emitted": 5,
           "inline_refusals": 0,
           "inline_admissions": 0,
@@ -1287,10 +1486,10 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'recognizedish': static."
           },
-          "optimizer_escapes": 0,
-          "first_escape_reason": "<none>",
-          "installable": true,
-          "blocking_records": "<none>",
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
           "indirect_call_sites_emitted": 2,
           "inline_refusals": 0,
           "inline_admissions": 0,
@@ -1329,10 +1528,10 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'releaseUnreachable': static."
           },
-          "optimizer_escapes": 0,
-          "first_escape_reason": "<none>",
-          "installable": true,
-          "blocking_records": "<none>",
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
           "indirect_call_sites_emitted": 0,
           "inline_refusals": 0,
           "inline_admissions": 0,
@@ -1455,10 +1654,10 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'tinyNew': static."
           },
-          "optimizer_escapes": 0,
-          "first_escape_reason": "<none>",
-          "installable": true,
-          "blocking_records": "<none>",
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
           "indirect_call_sites_emitted": 0,
           "inline_refusals": 0,
           "inline_admissions": 0,
@@ -1497,10 +1696,10 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'constantishNew': static."
           },
-          "optimizer_escapes": 0,
-          "first_escape_reason": "<none>",
-          "installable": true,
-          "blocking_records": "<none>",
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
           "indirect_call_sites_emitted": 0,
           "inline_refusals": 0,
           "inline_admissions": 0,
@@ -1539,10 +1738,10 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'unreachableNew': static."
           },
-          "optimizer_escapes": 0,
-          "first_escape_reason": "<none>",
-          "installable": true,
-          "blocking_records": "<none>",
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
           "indirect_call_sites_emitted": 0,
           "inline_refusals": 0,
           "inline_admissions": 0,
@@ -1581,10 +1780,10 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'recognizedishNew': static."
           },
-          "optimizer_escapes": 0,
-          "first_escape_reason": "<none>",
-          "installable": true,
-          "blocking_records": "<none>",
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
           "indirect_call_sites_emitted": 0,
           "inline_refusals": 0,
           "inline_admissions": 0,
@@ -1623,10 +1822,10 @@
             "has_code": true,
             "implementation_name_diagnostic": "Function 'chainANew': static."
           },
-          "optimizer_escapes": 0,
-          "first_escape_reason": "<none>",
-          "installable": true,
-          "blocking_records": "<none>",
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
           "indirect_call_sites_emitted": 0,
           "inline_refusals": 0,
           "inline_admissions": 0,
@@ -1649,9 +1848,197 @@
           "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
           "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
           "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'folded': static."
+          },
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
+          "indirect_call_sites_emitted": 1,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+          "dispatch_cell_length": 2,
+          "dispatch_cell_has_code": true,
+          "dispatch_cell_halves_agree": true,
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+            "implementation_name_diagnostic": "Function 'folded': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'folded': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:foldedNew",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'foldedNew': static."
+          },
+          "optimizer_escapes": 1,
+          "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "installable": false,
+          "blocking_records": "constant-folding/transitive-escape-risk",
+          "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
+          "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:foldedNew",
+          "dispatch_cell_length": 2,
+          "dispatch_cell_has_code": true,
+          "dispatch_cell_halves_agree": true,
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:foldedNew",
+            "implementation_name_diagnostic": "Function 'foldedNew': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'foldedNew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
         }
       ],
       "optimizer_decisions": [
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedish",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedish",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tinyNew",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:tinyNew",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedishNew",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedishNew",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainANew",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:chainANew",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:foldedNew",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:foldedNew",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
         {
           "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
           "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
@@ -2005,6 +2392,14 @@
           "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
         },
         {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::fn:foldedCaller",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
           "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
           "caller_id": "lib:package:m4app/fixture_m4.dart::fn:immutableCaller",
           "optimization_class": "static-call-lowering",
@@ -2021,9 +2416,113 @@
           "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
         }
       ],
-      "optimizer_decision_count": 46
+      "optimizer_decision_count": 60
     },
     "optimizer_decisions": [
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedish",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedish",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tinyNew",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:tinyNew",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedishNew",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedishNew",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainANew",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:chainANew",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:foldedNew",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:foldedNew",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
       {
         "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
         "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
@@ -2377,6 +2876,14 @@
         "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
       },
       {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:foldedCaller",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
         "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
         "caller_id": "lib:package:m4app/fixture_m4.dart::fn:immutableCaller",
         "optimization_class": "static-call-lowering",
@@ -2402,6 +2909,14 @@
       "instance_dispatch_unmodeled_blocking": 4,
       "install_refused": true,
       "records": [
+        {
+          "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+          "optimization_class": "constant-folding/transitive-escape-risk",
+          "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+          "disposition": "FORBIDDEN",
+          "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+        },
         {
           "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
           "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
@@ -2603,13 +3118,13 @@
     "selected_sdk_declarations": [],
     "injected_recognized_defect": {
       "baseline_forbidden_decisions": 0,
-      "baseline_install": 0,
-      "baseline_installable": true,
-      "baseline_call_after_install": "NEW-RECOGNIZED",
-      "defect_forbidden_decisions": 13,
+      "baseline_install": -3,
+      "baseline_installable": false,
+      "baseline_call_after_install": "OLD-RECOGNIZED",
+      "defect_forbidden_decisions": 15,
       "defect_install": -3,
       "defect_installable": false,
-      "defect_escapes": 1,
+      "defect_escapes": 2,
       "defect_call_after_install": "OLD-RECOGNIZED",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
@@ -2643,15 +3158,15 @@
     "injected_inlining_defect": {
       "baseline_inline_refusals": 0,
       "baseline_inline_admissions": 0,
-      "baseline_install": 0,
-      "baseline_installable": true,
-      "baseline_escapes": 0,
-      "baseline_call_after_install": "NEW-TINY",
-      "baseline_hot_call": "NEW-TINY",
+      "baseline_install": -3,
+      "baseline_installable": false,
+      "baseline_escapes": 1,
+      "baseline_call_after_install": "OLD-TINY",
+      "baseline_hot_call": "OLD-TINY",
       "refusal_counter_note": "set_is_inlinable(false) at seeding makes the inliner skip a mutable callee BEFORE ShouldWeInline is consulted, so the refusal counter reads zero on this fixture. It is non-zero at application scale (see evidence/m4_scale.json), and it is not what this arm stands on: the precondition that discriminates is that the inliner DOES take the callee once the rule is removed.",
       "defect_inline_refusals": 0,
       "defect_inline_admissions": 8,
-      "defect_escapes": 8,
+      "defect_escapes": 9,
       "defect_installable": false,
       "defect_install": -3,
       "defect_call_after_install": "OLD-TINY",
@@ -2666,12 +3181,12 @@
       ]
     },
     "injected_retention_defect": {
-      "baseline_registry_entries": 13,
-      "baseline_selected_entries": 13,
+      "baseline_registry_entries": 15,
+      "baseline_selected_entries": 15,
       "baseline_dead_declaration_present": true,
-      "baseline_dead_version_after_install": "PATCH_CODE:v2",
-      "baseline_seen_at_materialization": 13,
-      "baseline_retained_at_materialization": 13,
+      "baseline_dead_version_after_install": "AOT:v1",
+      "baseline_seen_at_materialization": 15,
+      "baseline_retained_at_materialization": 15,
       "baseline_dropped_at_materialization": 0,
       "baseline_returncode": 0,
       "defect_registry_entries": 0,
@@ -2682,30 +3197,30 @@
       "defect_dead_version_after_install": null,
       "defect_returncode": -6,
       "defect_runtime_error": "===== CRASH =====\nsi_signo=Segmentation fault: 11(11), si_code=SEGV_ACCERR(2), si_addr=0x7",
-      "defect_seen_at_materialization": 13,
+      "defect_seen_at_materialization": 15,
       "defect_retained_at_materialization": 0,
-      "defect_dropped_at_materialization": 13,
-      "defect_decisions": 45,
-      "no_seeding_seen_at_materialization": 13,
-      "no_seeding_dropped_at_materialization": 13,
-      "no_seeding_decisions": 27,
+      "defect_dropped_at_materialization": 15,
+      "defect_decisions": 59,
+      "no_seeding_seen_at_materialization": 15,
+      "no_seeding_dropped_at_materialization": 15,
+      "no_seeding_decisions": 41,
       "no_seeding_returncode": -6,
       "finding": "withholding the retention root removes EVERY mutable declaration, not only the dead one, because #67 lowering replaces the static call with an indirect load from the dispatch cell -- so the precompiler no longer sees a static-call edge to the callee. The root is not redundant with ordinary reachability; it is the only thing that retains a mutable declaration.",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     "injected_tfa_defect": {
-      "baseline_call_after_install": "NEW-CONST",
+      "baseline_call_after_install": "OLD-CONST",
       "baseline_constant_folding_decisions": 0,
       "baseline_call_sites": 5,
       "one_layer_removed": "MAOT_ALLOW_CONSTANT_FOLDING=1",
-      "one_layer_constant_folding_decisions": 25,
+      "one_layer_constant_folding_decisions": 26,
       "one_layer_install": -3,
       "one_layer_installable": false,
       "one_layer_call_after_install": "OLD-CONST",
       "both_layers_removed": "MAOT_ALLOW_CONSTANT_FOLDING=1 + --maot_disable_constant_backstop",
       "both_layers_constant_folding_decisions": 0,
-      "both_layers_install": 0,
-      "both_layers_installable": true,
+      "both_layers_install": -3,
+      "both_layers_installable": false,
       "both_layers_call_after_install": "OLD-CONST",
       "both_layers_hot_call": null,
       "both_layers_call_sites": 5,
@@ -2714,27 +3229,27 @@
     },
     "escape_controls": {
       "baseline": {
-        "install": 0,
-        "call": "NEW-TINY",
-        "escapes": 0,
-        "installable": true
+        "install": -3,
+        "call": "OLD-TINY",
+        "escapes": 1,
+        "installable": false
       },
       "bypass": {
         "install": -3,
         "call": "OLD-TINY",
-        "escapes": 8,
+        "escapes": 9,
         "installable": false
       },
       "no_detect": {
-        "install": 0,
+        "install": -3,
         "call": "OLD-TINY",
-        "escapes": 0,
-        "installable": true
+        "escapes": 1,
+        "installable": false
       },
       "no_consume": {
         "install": 0,
         "call": "OLD-TINY",
-        "escapes": 8,
+        "escapes": 9,
         "installable": false
       },
       "drop_state": {
@@ -2745,37 +3260,37 @@
       }
     },
     "blocking_projection": {
-      "blocking_decisions": 30,
-      "escape_projection": 8,
+      "blocking_decisions": 44,
+      "escape_projection": 9,
       "install_refused": true,
-      "drop_state_decisions": 30,
+      "drop_state_decisions": 44,
       "drop_state_projection": 0,
       "drop_state_install_refused": false,
       "note": "the dropped-state build still carries blocking decisions whose consumed_by claims StageReplacement reads them, while the projection is gone and installation succeeds. That is why the string is not the proof."
     },
     "disposition_effects": {
       "SLOT_PRESERVING": {
-        "install": 0,
-        "call": "NEW-TINY",
-        "escapes": 0,
-        "installable": true
+        "install": -3,
+        "call": "OLD-TINY",
+        "escapes": 1,
+        "installable": false
       },
       "DEPENDENCY_REQUIRED": {
         "install": -3,
         "call": "OLD-TINY",
-        "escapes": 1,
+        "escapes": 2,
         "installable": false
       },
       "UNMODELED_BLOCKING": {
         "install": -3,
         "call": "OLD-TINY",
-        "escapes": 1,
+        "escapes": 2,
         "installable": false
       },
       "FORBIDDEN": {
         "install": -3,
         "call": "OLD-TINY",
-        "escapes": 1,
+        "escapes": 2,
         "installable": false
       }
     },
@@ -2783,7 +3298,7 @@
       "flags": [
         "--inlining_depth_threshold=0"
       ],
-      "compared": 30,
+      "compared": 33,
       "disagreements": [],
       "compares": "mutation semantics only -- installs, observed values and versions. Timings differ between builds by design and are reported separately.",
       "note": "the amended #68 text makes test 10 optimized AOT versus a conservative AOT control, not a second JIT mechanism. #64's jit value stays a control concept."
@@ -2795,7 +3310,7 @@
           "problem": "source differs from the named commit",
           "file": "runtime/vm/maot_registry.cc",
           "at_head": "ffffffffffffffff",
-          "on_disk": "60c7477738989f8e"
+          "on_disk": "18e4632233782b7a"
         }
       ],
       "untracked_mismatches": [
@@ -2806,21 +3321,21 @@
       ]
     },
     "measurements": {
-      "aot_elf_bytes": 878248,
-      "aot_elf_bytes_conservative": 974640,
+      "aot_elf_bytes": 878536,
+      "aot_elf_bytes_conservative": 974928,
       "compile_seconds": 0.39,
-      "compile_seconds_conservative": 0.27,
-      "indirect_call_sites_total": 22,
+      "compile_seconds_conservative": 0.28,
+      "indirect_call_sites_total": 23,
       "prevented_inlines": 0,
       "inline_admissions": 0,
-      "mutable_declarations_marked_non_inlinable": 13,
+      "mutable_declarations_marked_non_inlinable": 15,
       "prevented_inlines_note": "counted in the inliner itself, per refusal, not inferred from the size of the selected set. An earlier version of this lane reported the selected count under this name and called a per-refusal counter \"a statistic no decision reads\"; it has two consumers now -- refusals > 0 is the precondition for H10 (an inliner that never looked at the callee cannot have been prevented from taking it), and admissions must be 0 in any shipped build.",
       "devirtualizations_recorded": 6,
-      "blocking_decisions": 8,
-      "slot_preserving_decisions": 38,
+      "blocking_decisions": 21,
+      "slot_preserving_decisions": 39,
       "benchmark_iterations": 2000000,
-      "direct_call_ns_mutable": 1.069,
-      "direct_call_ns_control": 0.948,
+      "direct_call_ns_mutable": 0.975,
+      "direct_call_ns_control": 0.953,
       "call_cost_note": "minimum of three samples, control is a non-selected never-inlined function. #67 measured the same shape and found the difference below same-arm sample variation; this lane reports the numbers and repeats that caveat rather than publishing a per-call overhead it cannot resolve.",
       "note": "diagnostic only; no threshold is compared anywhere."
     },
@@ -2878,11 +3393,18 @@
       "selected_declarations": 7399,
       "selected_declarations_control": 0,
       "selection": "MAOT_SELECT_ALL_NON_SDK=1 -- every non-SDK declaration with a body, app and framework alike. This is the UPPER BOUND, not a typical posture.",
-      "from_fork_commit": "ca96854daed14aefde546a25a54c9225162a5e54",
+      "from_fork_commit": "d71b543665bc5fce74b4b1d79f29dddbf37fe238",
       "fork_commit_at_measurement": "ca96854daed14aefde546a25a54c9225162a5e54",
-      "measured_on_this_revision": true
+      "measured_on_this_revision": false
     },
-    "falsifications_failed": [],
+    "falsifications_failed": [
+      "H16",
+      "H10",
+      "H12",
+      "H17",
+      "H01",
+      "H07"
+    ],
     "live_arm_count": 19
   },
   "registry_after": {
@@ -2890,7 +3412,7 @@
     "schema_version": 1,
     "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
     "runtime_mode": "precompiled",
-    "entry_count": 13,
+    "entry_count": 15,
     "diverged_implementations": 0,
     "selected_seen_at_materialization": -1,
     "retained_at_materialization": -1,
@@ -2911,10 +3433,10 @@
           "has_code": true,
           "implementation_name_diagnostic": "Function 'describe':."
         },
-        "optimizer_escapes": 4,
-        "first_escape_reason": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "optimizer_escapes": 5,
+        "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
         "installable": false,
-        "blocking_records": "dynamic/MonomorphicSmiableCall, dynamic/SingleTargetCache, dynamic/MegamorphicCache, super/unproven",
+        "blocking_records": "constant-folding/transitive-escape-risk, dynamic/MonomorphicSmiableCall, dynamic/SingleTargetCache, dynamic/MegamorphicCache, super/unproven",
         "indirect_call_sites_emitted": 3,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -2953,10 +3475,10 @@
           "has_code": true,
           "implementation_name_diagnostic": "Function 'describeReplacement':."
         },
-        "optimizer_escapes": 4,
-        "first_escape_reason": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "optimizer_escapes": 5,
+        "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
         "installable": false,
-        "blocking_records": "dynamic/MonomorphicSmiableCall, dynamic/SingleTargetCache, dynamic/MegamorphicCache, super/unproven",
+        "blocking_records": "constant-folding/transitive-escape-risk, dynamic/MonomorphicSmiableCall, dynamic/SingleTargetCache, dynamic/MegamorphicCache, super/unproven",
         "indirect_call_sites_emitted": 0,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -2984,38 +3506,38 @@
         "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
         "selected": true,
         "current": {
-          "kind": "PATCH_CODE",
+          "kind": "AOT",
           "implementation_code_pinned": true,
           "pinned_code_is_current": true,
           "pinned_code_size": 8,
-          "version": 3,
+          "version": 1,
           "implementation_present": "yes",
           "executable": true,
           "implementation_size": 8,
           "has_code": true,
-          "implementation_name_diagnostic": "Function 'constantishNew': static."
+          "implementation_name_diagnostic": "Function 'tiny': static."
         },
-        "optimizer_escapes": 0,
-        "first_escape_reason": "<none>",
-        "installable": true,
-        "blocking_records": "<none>",
+        "optimizer_escapes": 1,
+        "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "installable": false,
+        "blocking_records": "constant-folding/transitive-escape-risk",
         "indirect_call_sites_emitted": 8,
         "inline_refusals": 0,
         "inline_admissions": 0,
-        "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+        "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
         "dispatch_cell_length": 2,
         "dispatch_cell_has_code": true,
         "dispatch_cell_halves_agree": true,
-        "current_implementation_is_the_declaration_itself": false,
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
           "implementation_name_diagnostic": "Function 'tiny': static.",
           "still_represented": true,
-          "is_current": false
+          "is_current": true
         },
         "dispatch_cell": {
           "present": true,
-          "holds_diagnostic": "Function 'constantishNew': static.",
+          "holds_diagnostic": "Function 'tiny': static.",
           "agrees_with_current": true
         },
         "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
@@ -3026,38 +3548,38 @@
         "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
         "selected": true,
         "current": {
-          "kind": "PATCH_CODE",
+          "kind": "AOT",
           "implementation_code_pinned": true,
           "pinned_code_is_current": true,
           "pinned_code_size": 8,
-          "version": 2,
+          "version": 1,
           "implementation_present": "yes",
           "executable": true,
           "implementation_size": 8,
           "has_code": true,
-          "implementation_name_diagnostic": "Function 'constantishNew': static."
+          "implementation_name_diagnostic": "Function 'constantish': static."
         },
-        "optimizer_escapes": 0,
-        "first_escape_reason": "<none>",
-        "installable": true,
-        "blocking_records": "<none>",
+        "optimizer_escapes": 1,
+        "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "installable": false,
+        "blocking_records": "constant-folding/transitive-escape-risk",
         "indirect_call_sites_emitted": 5,
         "inline_refusals": 0,
         "inline_admissions": 0,
-        "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+        "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
         "dispatch_cell_length": 2,
         "dispatch_cell_has_code": true,
         "dispatch_cell_halves_agree": true,
-        "current_implementation_is_the_declaration_itself": false,
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
           "implementation_name_diagnostic": "Function 'constantish': static.",
           "still_represented": true,
-          "is_current": false
+          "is_current": true
         },
         "dispatch_cell": {
           "present": true,
-          "holds_diagnostic": "Function 'constantishNew': static.",
+          "holds_diagnostic": "Function 'constantish': static.",
           "agrees_with_current": true
         },
         "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
@@ -3068,38 +3590,38 @@
         "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedish",
         "selected": true,
         "current": {
-          "kind": "PATCH_CODE",
+          "kind": "AOT",
           "implementation_code_pinned": true,
           "pinned_code_is_current": true,
           "pinned_code_size": 8,
-          "version": 2,
+          "version": 1,
           "implementation_present": "yes",
           "executable": true,
           "implementation_size": 8,
           "has_code": true,
-          "implementation_name_diagnostic": "Function 'recognizedishNew': static."
+          "implementation_name_diagnostic": "Function 'recognizedish': static."
         },
-        "optimizer_escapes": 0,
-        "first_escape_reason": "<none>",
-        "installable": true,
-        "blocking_records": "<none>",
+        "optimizer_escapes": 1,
+        "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "installable": false,
+        "blocking_records": "constant-folding/transitive-escape-risk",
         "indirect_call_sites_emitted": 2,
         "inline_refusals": 0,
         "inline_admissions": 0,
-        "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedishNew",
+        "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedish",
         "dispatch_cell_length": 2,
         "dispatch_cell_has_code": true,
         "dispatch_cell_halves_agree": true,
-        "current_implementation_is_the_declaration_itself": false,
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedish",
           "implementation_name_diagnostic": "Function 'recognizedish': static.",
           "still_represented": true,
-          "is_current": false
+          "is_current": true
         },
         "dispatch_cell": {
           "present": true,
-          "holds_diagnostic": "Function 'recognizedishNew': static.",
+          "holds_diagnostic": "Function 'recognizedish': static.",
           "agrees_with_current": true
         },
         "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
@@ -3110,38 +3632,38 @@
         "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
         "selected": true,
         "current": {
-          "kind": "PATCH_CODE",
+          "kind": "AOT",
           "implementation_code_pinned": true,
           "pinned_code_is_current": true,
           "pinned_code_size": 8,
-          "version": 2,
+          "version": 1,
           "implementation_present": "yes",
           "executable": true,
           "implementation_size": 8,
           "has_code": true,
-          "implementation_name_diagnostic": "Function 'unreachableNew': static."
+          "implementation_name_diagnostic": "Function 'releaseUnreachable': static."
         },
-        "optimizer_escapes": 0,
-        "first_escape_reason": "<none>",
-        "installable": true,
-        "blocking_records": "<none>",
+        "optimizer_escapes": 1,
+        "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "installable": false,
+        "blocking_records": "constant-folding/transitive-escape-risk",
         "indirect_call_sites_emitted": 0,
         "inline_refusals": 0,
         "inline_admissions": 0,
-        "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+        "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
         "dispatch_cell_length": 2,
         "dispatch_cell_has_code": true,
         "dispatch_cell_halves_agree": true,
-        "current_implementation_is_the_declaration_itself": false,
+        "current_implementation_is_the_declaration_itself": true,
         "release": {
           "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
           "implementation_name_diagnostic": "Function 'releaseUnreachable': static.",
           "still_represented": true,
-          "is_current": false
+          "is_current": true
         },
         "dispatch_cell": {
           "present": true,
-          "holds_diagnostic": "Function 'unreachableNew': static.",
+          "holds_diagnostic": "Function 'releaseUnreachable': static.",
           "agrees_with_current": true
         },
         "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
@@ -3247,10 +3769,10 @@
           "has_code": true,
           "implementation_name_diagnostic": "Function 'tinyNew': static."
         },
-        "optimizer_escapes": 0,
-        "first_escape_reason": "<none>",
-        "installable": true,
-        "blocking_records": "<none>",
+        "optimizer_escapes": 1,
+        "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "installable": false,
+        "blocking_records": "constant-folding/transitive-escape-risk",
         "indirect_call_sites_emitted": 0,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -3289,10 +3811,10 @@
           "has_code": true,
           "implementation_name_diagnostic": "Function 'constantishNew': static."
         },
-        "optimizer_escapes": 0,
-        "first_escape_reason": "<none>",
-        "installable": true,
-        "blocking_records": "<none>",
+        "optimizer_escapes": 1,
+        "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "installable": false,
+        "blocking_records": "constant-folding/transitive-escape-risk",
         "indirect_call_sites_emitted": 0,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -3331,10 +3853,10 @@
           "has_code": true,
           "implementation_name_diagnostic": "Function 'unreachableNew': static."
         },
-        "optimizer_escapes": 0,
-        "first_escape_reason": "<none>",
-        "installable": true,
-        "blocking_records": "<none>",
+        "optimizer_escapes": 1,
+        "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "installable": false,
+        "blocking_records": "constant-folding/transitive-escape-risk",
         "indirect_call_sites_emitted": 0,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -3373,10 +3895,10 @@
           "has_code": true,
           "implementation_name_diagnostic": "Function 'recognizedishNew': static."
         },
-        "optimizer_escapes": 0,
-        "first_escape_reason": "<none>",
-        "installable": true,
-        "blocking_records": "<none>",
+        "optimizer_escapes": 1,
+        "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "installable": false,
+        "blocking_records": "constant-folding/transitive-escape-risk",
         "indirect_call_sites_emitted": 0,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -3415,10 +3937,10 @@
           "has_code": true,
           "implementation_name_diagnostic": "Function 'chainANew': static."
         },
-        "optimizer_escapes": 0,
-        "first_escape_reason": "<none>",
-        "installable": true,
-        "blocking_records": "<none>",
+        "optimizer_escapes": 1,
+        "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "installable": false,
+        "blocking_records": "constant-folding/transitive-escape-risk",
         "indirect_call_sites_emitted": 0,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -3441,9 +3963,197 @@
         "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
         "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
         "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'folded': static."
+        },
+        "optimizer_escapes": 1,
+        "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "installable": false,
+        "blocking_records": "constant-folding/transitive-escape-risk",
+        "indirect_call_sites_emitted": 1,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
+        "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+          "implementation_name_diagnostic": "Function 'folded': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'folded': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:foldedNew",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'foldedNew': static."
+        },
+        "optimizer_escapes": 1,
+        "first_escape_reason": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "installable": false,
+        "blocking_records": "constant-folding/transitive-escape-risk",
+        "indirect_call_sites_emitted": 0,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
+        "current_implementation_id": "lib:package:m4app/fixture_m4.dart::fn:foldedNew",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m4app/fixture_m4.dart::fn:foldedNew",
+          "implementation_name_diagnostic": "Function 'foldedNew': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'foldedNew': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
       }
     ],
     "optimizer_decisions": [
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedish",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedish",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tinyNew",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:tinyNew",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedishNew",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedishNew",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainANew",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:chainANew",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:foldedNew",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:foldedNew",
+        "optimization_class": "constant-folding/transitive-escape-risk",
+        "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+        "disposition": "FORBIDDEN",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
       {
         "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
         "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
@@ -3797,6 +4507,14 @@
         "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
       },
       {
+        "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+        "caller_id": "lib:package:m4app/fixture_m4.dart::fn:foldedCaller",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
         "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
         "caller_id": "lib:package:m4app/fixture_m4.dart::fn:immutableCaller",
         "optimization_class": "static-call-lowering",
@@ -3813,9 +4531,113 @@
         "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
       }
     ],
-    "optimizer_decision_count": 46
+    "optimizer_decision_count": 60
   },
   "optimizer_decisions": [
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
+      "optimization_class": "constant-folding/transitive-escape-risk",
+      "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+      "disposition": "FORBIDDEN",
+      "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describeReplacement",
+      "optimization_class": "constant-folding/transitive-escape-risk",
+      "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+      "disposition": "FORBIDDEN",
+      "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
+      "optimization_class": "constant-folding/transitive-escape-risk",
+      "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+      "disposition": "FORBIDDEN",
+      "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:constantish",
+      "optimization_class": "constant-folding/transitive-escape-risk",
+      "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+      "disposition": "FORBIDDEN",
+      "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedish",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedish",
+      "optimization_class": "constant-folding/transitive-escape-risk",
+      "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+      "disposition": "FORBIDDEN",
+      "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:releaseUnreachable",
+      "optimization_class": "constant-folding/transitive-escape-risk",
+      "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+      "disposition": "FORBIDDEN",
+      "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tinyNew",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:tinyNew",
+      "optimization_class": "constant-folding/transitive-escape-risk",
+      "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+      "disposition": "FORBIDDEN",
+      "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:constantishNew",
+      "optimization_class": "constant-folding/transitive-escape-risk",
+      "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+      "disposition": "FORBIDDEN",
+      "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:unreachableNew",
+      "optimization_class": "constant-folding/transitive-escape-risk",
+      "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+      "disposition": "FORBIDDEN",
+      "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedishNew",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:recognizedishNew",
+      "optimization_class": "constant-folding/transitive-escape-risk",
+      "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+      "disposition": "FORBIDDEN",
+      "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:chainANew",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:chainANew",
+      "optimization_class": "constant-folding/transitive-escape-risk",
+      "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+      "disposition": "FORBIDDEN",
+      "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+      "optimization_class": "constant-folding/transitive-escape-risk",
+      "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+      "disposition": "FORBIDDEN",
+      "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+    },
+    {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:foldedNew",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:foldedNew",
+      "optimization_class": "constant-folding/transitive-escape-risk",
+      "decision": "this declaration's own summary result is constant, so the constant can propagate into a non-mutable intermediary's summary and be folded at callers that neither the front-end suppression nor the backstop examines",
+      "disposition": "FORBIDDEN",
+      "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+    },
     {
       "declaration_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
       "caller_id": "lib:package:m4app/fixture_m4.dart::cls:OnlyShape::method:describe",
@@ -4169,6 +4991,14 @@
       "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
     },
     {
+      "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:folded",
+      "caller_id": "lib:package:m4app/fixture_m4.dart::fn:foldedCaller",
+      "optimization_class": "static-call-lowering",
+      "decision": "dispatch-cell indirection emitted",
+      "disposition": "SLOT_PRESERVING",
+      "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+    },
+    {
       "declaration_id": "lib:package:m4app/fixture_m4.dart::fn:tiny",
       "caller_id": "lib:package:m4app/fixture_m4.dart::fn:immutableCaller",
       "optimization_class": "static-call-lowering",
@@ -4217,8 +5047,8 @@
       "kind": "live",
       "description": "a user declaration carrying both maot:mutable and vm:recognized is treated as installable, so the compiler may substitute inline code no dispatch cell mediates",
       "why": "a recognized body can be replaced with inline code at the call site that no dispatch cell mediates, and recognized declarations are static as often as not -- so instance-member blocking cannot cover the class. It is closed instead by the tables naming only SDK libraries and no SDK declaration being selectable. The fixture carries vm:recognized on a user function and it is NOT honoured, which is the point: the blocker is proven by injecting the state the tables cannot produce.",
-      "result": "pass",
-      "observed": "tables ['OTHER_RECOGNIZED_LIST', 'ASM_INTRINSICS_LIST', 'GRAPH_INTRINSICS_LIST'] name 12 libraries, 0 non-SDK; recognized_kind assigned only in ['runtime/vm/compiler/method_recognizer.cc', 'runtime/vm/object.cc']; selected dart: declarations []; a user vm:recognized pragma is not honoured (baseline 0 FORBIDDEN, install 0); under --maot_force_recognized 13 FORBIDDEN, installable False, install -3",
+      "result": "FAIL",
+      "observed": "tables ['OTHER_RECOGNIZED_LIST', 'ASM_INTRINSICS_LIST', 'GRAPH_INTRINSICS_LIST'] name 12 libraries, 0 non-SDK; recognized_kind assigned only in ['runtime/vm/compiler/method_recognizer.cc', 'runtime/vm/object.cc']; selected dart: declarations []; a user vm:recognized pragma is not honoured (baseline 0 FORBIDDEN, install -3); under --maot_force_recognized 15 FORBIDDEN, installable False, install -3",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {
@@ -4235,8 +5065,8 @@
       "kind": "live",
       "description": "a vm:prefer-inline mutable callee is inlined, so its caller cannot observe a replacement",
       "why": "a mutable callee the inliner actually took leaves its caller holding a copy no dispatch cell mediates. The protection is removed here, the inline is confirmed to have happened, and the consequence is measured.",
-      "result": "pass",
-      "observed": "baseline admissions=0, install 0, caller returns NEW-TINY; under --maot_allow_inlining_mutable the inliner took the callee 8 time(s), which recorded 8 escape(s), installation was refused (-3) and the caller still returns OLD-TINY cold and OLD-TINY hot",
+      "result": "FAIL",
+      "observed": "baseline admissions=0, install -3, caller returns OLD-TINY; under --maot_allow_inlining_mutable the inliner took the callee 8 time(s), which recorded 9 escape(s), installation was refused (-3) and the caller still returns OLD-TINY cold and OLD-TINY hot",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {
@@ -4244,8 +5074,8 @@
       "kind": "live",
       "description": "a declaration the release never calls is dropped and becomes unpatchable",
       "why": "the retention root is what keeps a mutable declaration in the program at all. Withhold it and the precompiler drops every one of them -- including the ones the release calls, because the dispatch-cell lowering left no static-call edge to follow -- so the dead-code case is not separable and the program does not run.",
-      "result": "pass",
-      "observed": "baseline: 13 selected seen, 13 retained, 0 dropped; the dead declaration installs and goes AOT:v1 -> PATCH_CODE:v2. Under --maot_disable_retention_roots: 13 seen, 0 retained, 13 DROPPED, registry empty, and the program aborts (-6): ===== CRASH =====\nsi_signo=Segmentation fault: 11(11), si_code=SEGV_ACCERR(2), si_addr=0x7. --maot_disable_seeding reaches the SAME retention outcome (13 seen, 13 dropped) because AddFunction is the only retention effect seeding has; the two differ only in the disposition records seeding emits (45 vs 27)",
+      "result": "FAIL",
+      "observed": "baseline: 15 selected seen, 15 retained, 0 dropped; the dead declaration installs and goes AOT:v1 -> AOT:v1. Under --maot_disable_retention_roots: 15 seen, 0 retained, 15 DROPPED, registry empty, and the program aborts (-6): ===== CRASH =====\nsi_signo=Segmentation fault: 11(11), si_code=SEGV_ACCERR(2), si_addr=0x7. --maot_disable_seeding reaches the SAME retention outcome (15 seen, 15 dropped) because AddFunction is the only retention effect seeding has; the two differ only in the disposition records seeding emits (59 vs 41)",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {
@@ -4253,8 +5083,8 @@
       "kind": "live",
       "description": "TFA folds a mutable result to a constant, so the caller holds the release answer with no call at all",
       "why": "TFA can materialize a mutable result as a constant, so a caller uses the release answer without consulting the cell -- while the call site is still emitted and the path evidence still looks perfect. One layer removed shows the VM backstop refusing; both removed produce the raw defect.",
-      "result": "pass",
-      "observed": "baseline: 5 indirect call sites, 0 constant-folding decisions, caller returns NEW-CONST; front end only: 25 decisions, install -3; both layers removed: 0 decisions, install 0 SUCCEEDS and the caller still returns OLD-CONST (cold) / None (hot) from 5 emitted call sites",
+      "result": "FAIL",
+      "observed": "baseline: 5 indirect call sites, 0 constant-folding decisions, caller returns OLD-CONST; front end only: 26 decisions, install -3; both layers removed: 0 decisions, install -3 SUCCEEDS and the caller still returns OLD-CONST (cold) / None (hot) from 5 emitted call sites",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {
@@ -4262,8 +5092,8 @@
       "kind": "live",
       "description": "a bypassed dispatch cell goes undetected because escape detection is disabled",
       "why": "without detection a bypass installs and the program keeps the release answer",
-      "result": "pass",
-      "observed": "no_detect: install 0, call OLD-TINY, escapes 0 -- versus bypass install -3"
+      "result": "FAIL",
+      "observed": "no_detect: install -3, call OLD-TINY, escapes 1 -- versus bypass install -3"
     },
     {
       "id": "H02",
@@ -4271,7 +5101,7 @@
       "description": "escape metadata is produced but no install decision reads it",
       "why": "metadata produced but unread must fail exactly like no metadata at all",
       "result": "pass",
-      "observed": "no_consume: install 0, call OLD-TINY, escapes 8 -- versus bypass install -3"
+      "observed": "no_consume: install 0, call OLD-TINY, escapes 9 -- versus bypass install -3"
     },
     {
       "id": "H03",
@@ -4287,7 +5117,7 @@
       "description": "UNMODELED_BLOCKING does not block",
       "why": "a blocking disposition that does not block, and a consumed_by string that claims a consumer the projection no longer reaches",
       "result": "pass",
-      "observed": "bypass: 30 blocking decisions, projection 8, refused. drop-state: 30 blocking decisions still serialized, projection 0, installed anyway"
+      "observed": "bypass: 44 blocking decisions, projection 9, refused. drop-state: 44 blocking decisions still serialized, projection 0, installed anyway"
     },
     {
       "id": "H05",
@@ -4302,7 +5132,7 @@
       "kind": "live",
       "description": "the disposition model blocks everything, so blocking carries no information",
       "why": "a model that blocks every disposition carries no information; SLOT_PRESERVING must NOT block",
-      "result": "pass",
+      "result": "FAIL",
       "observed": "SLOT_PRESERVING installs and runs the replacement; FORBIDDEN=-3, UNMODELED_BLOCKING=-3, DEPENDENCY_REQUIRED=-3"
     },
     {
@@ -4311,7 +5141,7 @@
       "description": "a constant result is folded through a mutable boundary, so the call reaches the cell and the caller ignores it",
       "why": "the call still reaches the cell and the caller uses the folded release answer -- path evidence perfect, program wrong. This shipped once.",
       "result": "pass",
-      "observed": "folding re-enabled: 8 call sites still emitted, 13 escapes recorded, install -3, call OLD-TINY"
+      "observed": "folding re-enabled: 8 call sites still emitted, 14 escapes recorded, install -3, call OLD-TINY"
     },
     {
       "id": "H14",
@@ -4319,7 +5149,7 @@
       "description": "an optimized and a conservative build disagree about mutation semantics",
       "why": "if optimization changed mutation semantics, the conservative posture would be the only thing making them work",
       "result": "pass",
-      "observed": "30 observations compared against --inlining_depth_threshold=0, 0 disagreements"
+      "observed": "33 observations compared against --inlining_depth_threshold=0, 0 disagreements"
     },
     {
       "id": "H11",
@@ -4344,7 +5174,7 @@
       "description": "a dirty worktree lets the record name a fork commit whose bytes were never measured, while every binary-to-source check stays green",
       "why": "a dirty worktree lets a record name a commit it did not measure. The binary matches the bytes, the bytes match the digest, and the commit named in the evidence contains something else entirely -- which is exactly how #68's first closure attempt shipped.",
       "result": "pass",
-      "observed": "live: every tracked source equals its blob at ca96854daed1, which is the commit the build record names; against one source differing from that commit the guard reports 1 mismatch, and against one absent from it 1",
+      "observed": "live: every tracked source equals its blob at d71b543665bc, which is the commit the build record names; against one source differing from that commit the guard reports 1 mismatch, and against one absent from it 1",
       "verdict_under_defect": "NOT_ESTABLISHED"
     }
   ],
@@ -4373,7 +5203,48 @@
     "historical": [],
     "historical_note": "none yet in this lane"
   },
-  "findings": [],
+  "findings": [
+    {
+      "code": "SCALE_LANE_FROM_ANOTHER_REVISION",
+      "severity": "blocking",
+      "message": "evidence/m4_scale.json names fork commit ca96854daed14aefde546a25a54c9225162a5e54, the binaries were built from d71b543665bc5fce74b4b1d79f29dddbf37fe238"
+    },
+    {
+      "code": "FALSIFICATION_ARM_FAILED",
+      "severity": "blocking",
+      "message": "H16, H10, H12, H17, H01, H07"
+    },
+    {
+      "code": "ACCEPTANCE_ITEM_NOT_MET",
+      "severity": "blocking",
+      "message": "every relevant optimizer pass has a documented and enforced rule: not met"
+    },
+    {
+      "code": "ACCEPTANCE_ITEM_NOT_MET",
+      "severity": "blocking",
+      "message": "the conservative M1 configuration prevents silent bypasses: not met"
+    },
+    {
+      "code": "ACCEPTANCE_ITEM_NOT_MET",
+      "severity": "blocking",
+      "message": "dead or unreached-at-release mutable declarations remain patch-addressable: not met"
+    },
+    {
+      "code": "ACCEPTANCE_ITEM_NOT_MET",
+      "severity": "blocking",
+      "message": "falsification of each major optimization class changes the gate: not met"
+    },
+    {
+      "code": "ACCEPTANCE_ITEM_NOT_MET",
+      "severity": "blocking",
+      "message": "recognized/intrinsic replacement cannot erase mutability: not met"
+    },
+    {
+      "code": "ACCEPTANCE_ITEM_NOT_MET",
+      "severity": "blocking",
+      "message": "the cost of the conservative posture is measured at application scale, not only on the fixture: not met"
+    }
+  ],
   "consumers": {
     "map": {
       "verdict": "the gate exit code, the Phase A claim, and separately whether #68 may close",
@@ -4392,8 +5263,8 @@
     "unconsumed_or_undeclared": []
   },
   "verdict": {
-    "arm64_aot_optimizer_invariants": "ESTABLISHED",
-    "issue_68_closure": "READY",
+    "arm64_aot_optimizer_invariants": "NOT_ESTABLISHED",
+    "issue_68_closure": "NOT_READY",
     "target_arch": "arm64",
     "acceptance_ledger": [
       {
@@ -4403,12 +5274,17 @@
       },
       {
         "item": "every relevant optimizer pass has a documented and enforced rule",
-        "met": true,
+        "met": false,
         "evidence": "10 rules, each with enforcement site, producer, consumer and falsification"
       },
       {
-        "item": "the conservative M1 configuration prevents silent bypasses",
+        "item": "a replacement is never reported installed while callers keep the release value",
         "met": true,
+        "evidence": "mutable constant-return declaration behind a non-mutable pass-through wrapper: either the replacement is observed or StageReplacement refuses"
+      },
+      {
+        "item": "the conservative M1 configuration prevents silent bypasses",
+        "met": false,
         "evidence": "every adversarial variant observes its replacement, and each disabling control lets a bypass through"
       },
       {
@@ -4418,22 +5294,22 @@
       },
       {
         "item": "dead or unreached-at-release mutable declarations remain patch-addressable",
-        "met": true,
+        "met": false,
         "evidence": "a declaration the release never calls installs and its version advances"
       },
       {
         "item": "falsification of each major optimization class changes the gate",
-        "met": true,
+        "met": false,
         "evidence": "19 live arms, of which three inject a real inlining, retention and TFA defect rather than observing that the protection is in place"
       },
       {
         "item": "recognized/intrinsic replacement cannot erase mutability",
-        "met": true,
+        "met": false,
         "evidence": "the recognized tables name only SDK libraries and no SDK declaration can be selected, so the class is empty by construction; the blocker is still watched firing against an injected recognized declaration"
       },
       {
         "item": "the cost of the conservative posture is measured at application scale, not only on the fixture",
-        "met": true,
+        "met": false,
         "evidence": "prevented inlines and devirtualizations counted on a representative Flutter application against a control"
       },
       {
@@ -4447,7 +5323,14 @@
         "evidence": "direct / aot / cold+hot / arm64; H11 refuses a whole-row promotion"
       }
     ],
-    "acceptance_items_unmet": [],
+    "acceptance_items_unmet": [
+      "dead or unreached-at-release mutable declarations remain patch-addressable",
+      "every relevant optimizer pass has a documented and enforced rule",
+      "falsification of each major optimization class changes the gate",
+      "recognized/intrinsic replacement cannot erase mutability",
+      "the conservative M1 configuration prevents silent bypasses",
+      "the cost of the conservative posture is measured at application scale, not only on the fixture"
+    ],
     "t0_row_linkage": {
       "EB-01": {
         "row_title": "top-level function body",
@@ -4598,28 +5481,42 @@
       "every_optimizer_class_has_a_rule": true,
       "no_sdk_declaration_is_selected": true,
       "recognized_population_is_sdk_only": true,
-      "injected_recognized_defect_is_caught": true,
-      "blocking_dispositions_actually_block": true,
-      "conservative_posture_holds": true,
-      "hot_sites_observe_replacement": true,
-      "second_replacement_advances": true,
+      "injected_recognized_defect_is_caught": false,
+      "blocking_dispositions_actually_block": false,
+      "conservative_posture_holds": false,
+      "hot_sites_observe_replacement": false,
+      "second_replacement_advances": false,
       "devirtualization_join_present": true,
       "unmodeled_dispatch_blocks_install": true,
-      "dead_release_declaration_addressable": true,
-      "escape_metadata_is_consumed": true,
+      "transitive_constant_never_reports_false_success": true,
+      "dead_release_declaration_addressable": false,
+      "escape_metadata_is_consumed": false,
       "blocking_record_survives_to_the_consumer": true,
       "optimized_and_conservative_agree": true,
-      "required_falsifications_detected": true,
-      "injected_inlining_defect_is_caught": true,
-      "injected_retention_defect_is_caught": true,
-      "injected_tfa_defect_is_caught": true,
+      "required_falsifications_detected": false,
+      "injected_inlining_defect_is_caught": false,
+      "injected_retention_defect_is_caught": false,
+      "injected_tfa_defect_is_caught": false,
       "measurements_recorded": true,
-      "scale_measurements_recorded": true,
+      "scale_measurements_recorded": false,
       "build_provenance_bound": true,
       "target_architecture_recorded": true,
       "t0_linkage_exact_and_unpromoted": true
     },
-    "conditions_failed": [],
+    "conditions_failed": [
+      "blocking_dispositions_actually_block",
+      "conservative_posture_holds",
+      "dead_release_declaration_addressable",
+      "escape_metadata_is_consumed",
+      "hot_sites_observe_replacement",
+      "injected_inlining_defect_is_caught",
+      "injected_recognized_defect_is_caught",
+      "injected_retention_defect_is_caught",
+      "injected_tfa_defect_is_caught",
+      "required_falsifications_detected",
+      "scale_measurements_recorded",
+      "second_replacement_advances"
+    ],
     "condition_meanings": {
       "every_optimizer_class_has_a_rule": "does every optimizer class #68 names have a rule with an enforcement site, a disposition, a producer, a consumer and a falsification -- compared against an INDEPENDENT required-class set, so deleting a class fails the check instead of shrinking what it inspects?",
       "recognized_population_is_sdk_only": "read out of the VM's own recognized/intrinsic tables: does every row name an SDK library, and is vm:recognized unable to assign recognized_kind on its own? Those two facts are what close the class, together with no_sdk_declaration_is_selected.",
@@ -4645,7 +5542,11 @@
       "target_architecture_recorded": "does the record say which architecture this was proven on?",
       "t0_linkage_exact_and_unpromoted": "is the #64 linkage exactly the demonstrated modes, with EB-01, EB-02 and RS-09 all left UNMODELED?"
     },
-    "blocking_findings": [],
+    "blocking_findings": [
+      "ACCEPTANCE_ITEM_NOT_MET",
+      "FALSIFICATION_ARM_FAILED",
+      "SCALE_LANE_FROM_ANOTHER_REVISION"
+    ],
     "verdict_rule": "arm64_aot_optimizer_invariants == ESTABLISHED iff every condition holds and no non-acceptance blocking finding was raised. issue_68_closure == READY iff that and no acceptance item is unmet. Conjunctions throughout; no count, ratio or threshold is compared, and no outcome string is reachable unconditionally.",
     "not_claimed": [
       "Proven on arm64 only.",

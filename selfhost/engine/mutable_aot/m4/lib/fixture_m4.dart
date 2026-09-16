@@ -89,6 +89,31 @@ String chainANew() => 'NEW-A';
 @pragma('vm:never-inline')
 String plainControl() => 'CTL';
 
+// ---- 9. the transitive constant-propagation shape (#68 regression) ------
+//
+// The dangerous shape, made load-bearing. `folded` returns a constant, so its
+// constant enters the analysis summary of `foldedCaller`, which is NOT
+// mutable and returns that value verbatim. Every caller of `foldedCaller`
+// then folds the release answer at a call site whose target is the
+// intermediary -- which neither the front-end suppression nor the VM backstop
+// examines, because both key on the immediate target.
+//
+// Measured before this arm existed: install reported success, the cell held
+// the replacement, the replacement body ran, and the caller still printed the
+// release constant.
+//
+// The arm does not require a particular implementation. It requires that the
+// program never claim success while the release constant survives -- either
+// the replacement is observed, or StageReplacement refuses.
+@pragma('maot:mutable')
+String folded() => 'OLD-FOLDED';
+
+@pragma('maot:mutable')
+String foldedNew() => 'NEW-FOLDED';
+
+@pragma('vm:never-inline')
+String foldedCaller() => folded();
+
 @pragma('vm:never-inline')
 int benchMutable(int iters) {
   var n = 0;
@@ -162,6 +187,7 @@ void main(List<String> args) {
   _emit('immutableCaller.0', immutableCaller());
   _emit('unreachable.version.0', _v('$_lib::fn:releaseUnreachable'));
   _emit('recognizedish.0', recognizedish());
+  _emit('folded.0', foldedCaller());
   if (dumpDir.isNotEmpty) _dump(_c('$dumpDir/registry_before.json'));
 
   // ---- install across every variant ----
@@ -187,6 +213,9 @@ void main(List<String> args) {
   // caller holding compiler-substituted code.
   _emit('install.recognizedish',
       _install3('fn:recognizedish', 'fn:recognizedishNew', 2, ns));
+  // Either this is refused, or `folded.1` shows NEW-FOLDED. Success plus the
+  // release constant is the one outcome the arm forbids.
+  _emit('install.folded', _install3('fn:folded', 'fn:foldedNew', 2, ns));
 
   // ---- cold, after installation ----
   _emit('tiny.1', tiny());
@@ -198,6 +227,7 @@ void main(List<String> args) {
   _emit('immutableCaller.1', immutableCaller());
   _emit('unreachable.version.1', _v('$_lib::fn:releaseUnreachable'));
   _emit('recognizedish.1', recognizedish());
+  _emit('folded.1', foldedCaller());
 
   // ---- 3. hot: the same precompiled sites after many iterations ----
   const hot = 200000;

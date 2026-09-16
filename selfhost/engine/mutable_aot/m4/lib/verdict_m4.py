@@ -291,6 +291,30 @@ def evaluate(observations, findings):
         and calls.get('install.devirt') == -3
         and calls.get('devirt.1') == 'OLD-DEVIRT')
 
+    # #68 REGRESSION: the transitive constant-propagation shape.
+    #
+    # A mutable declaration returning a constant, reached through a
+    # NON-mutable pass-through wrapper. Measured behaviour before this arm
+    # existed: StageReplacement returned success, the cell held the
+    # replacement, the replacement body executed, and the caller still
+    # returned the release constant -- because the constant had propagated
+    # into the wrapper's analysis summary, and the caller's call targets the
+    # wrapper, which neither the front-end suppression nor the VM backstop
+    # examines.
+    #
+    # The arm is deliberately implementation-agnostic. Either the replacement
+    # becomes visible, or installation is refused. What it forbids is the
+    # third outcome: install reports success while the release constant
+    # survives. Written as the disjunction the invariant actually is, with
+    # both readings required to be present so a missing key cannot pass it.
+    folded_install = calls.get('install.folded')
+    folded_after = calls.get('folded.1')
+    c['transitive_constant_never_reports_false_success'] = (
+        calls.get('folded.0') == 'OLD-FOLDED'
+        and folded_install is not None and folded_after is not None
+        and (folded_after == 'NEW-FOLDED'
+             or (folded_install == -3 and folded_after == 'OLD-FOLDED')))
+
     c['dead_release_declaration_addressable'] = (
         calls.get('unreachable.version.0') == 'AOT:v1'
         and calls.get('install.unreachable') == 0
@@ -540,6 +564,12 @@ def build_ledger(conditions, live_arm_count=0):
                 and conditions['blocking_dispositions_actually_block'],
          'evidence': f'{len(R.RULES)} rules, each with enforcement site, '
                      f'producer, consumer and falsification'},
+        {'item': 'a replacement is never reported installed while callers '
+                 'keep the release value',
+         'met': conditions['transitive_constant_never_reports_false_success'],
+         'evidence': 'mutable constant-return declaration behind a '
+                     'non-mutable pass-through wrapper: either the '
+                     'replacement is observed or StageReplacement refuses'},
         {'item': 'the conservative M1 configuration prevents silent bypasses',
          'met': conditions['conservative_posture_holds']
                 and conditions['hot_sites_observe_replacement']

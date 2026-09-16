@@ -70,6 +70,12 @@ final _swap = _proc.lookupFunction<
     Int64 Function(Pointer<Uint8>, Pointer<Uint8>),
     int Function(Pointer<Uint8>, Pointer<Uint8>)>(
     'Dart_MaotDiagnosticCellSwap');
+final _dump = _proc.lookupFunction<Int64 Function(Pointer<Uint8>),
+    int Function(Pointer<Uint8>)>('Dart_MaotDumpForTesting');
+final _install = _proc.lookupFunction<
+    Int64 Function(Pointer<Uint8>, Pointer<Uint8>, Int64, Pointer<Uint8>),
+    int Function(Pointer<Uint8>, Pointer<Uint8>, int,
+        Pointer<Uint8>)>('Dart_MaotInstallForTesting');
 
 Pointer<Uint8> _c(String s) {
   final u = s.codeUnits;
@@ -83,6 +89,8 @@ Pointer<Uint8> _c(String s) {
 
 void _emit(String k, Object v) => print('$k=$v');
 int _swapCell(String t, String i) => _swap(_c('$_lib::$t'), _c('$_lib::$i'));
+int _go(String ns, String t, String i) =>
+    _install(_c('$_lib::$t'), _c('$_lib::$i'), 2, _c(ns));
 
 void main(List<String> args) {
   // Retain the replacement bodies exactly as the measured super fixture does.
@@ -97,9 +105,21 @@ void main(List<String> args) {
   _emit('CS.override', sc.v());
   _emit('NS.override', sn.v());
 
-  _emit('swap.CS', _swapCell('cls:BaseC::method:v', 'cls:BaseCNew::method:v'));
-  _emit('swap.NS', _swapCell('cls:BaseN::method:v', 'cls:BaseNNew::method:v'));
-
+  // The PRODUCTION path first: this is the one the #68 posture governs.
+  final ns = Platform.environment['MAOT_NAMESPACE'] ?? '';
+  _emit('install.CS', _go(ns, 'cls:BaseC::method:v', 'cls:BaseCNew::method:v'));
+  _emit('install.NS', _go(ns, 'cls:BaseN::method:v', 'cls:BaseNNew::method:v'));
   _emit('CS.1', sc.viaSuper());
   _emit('NS.1', sn.viaSuper());
+
+  // The diagnostic swap bypasses StageReplacement entirely, so it says
+  // nothing about policy -- it is here only to show the ROUTE still reaches
+  // the cell whatever the install path decided.
+  _emit('swap.CS', _swapCell('cls:BaseC::method:v', 'cls:BaseCNew::method:v'));
+  _emit('swap.NS', _swapCell('cls:BaseN::method:v', 'cls:BaseNNew::method:v'));
+  _emit('CS.2', sc.viaSuper());
+  _emit('NS.2', sn.viaSuper());
+
+  final dumpDir = Platform.environment['MAOT_DUMP_DIR'] ?? '';
+  if (dumpDir.isNotEmpty) _dump(_c('$dumpDir/registry_after.json'));
 }
