@@ -29,6 +29,21 @@ class Sub extends Base {
   String v() => 'SUB-OVERRIDE';
 }
 
+// ---- the PAIRED CONTROL ----------------------------------------------
+// A top-level mutable function: exactly the subject #67's accepted evidence
+// covers. If its call site keeps the cell route through every rewrite while
+// the super site does not, the divergence is located in whatever differs
+// between them. If BOTH lose it, the static-call-binding hypothesis is
+// refuted and the defect is elsewhere.
+@pragma('maot:mutable')
+String control() => 'OLD-CONTROL';
+
+@pragma('maot:mutable')
+String controlNew() => 'NEW-CONTROL';
+
+@pragma('vm:never-inline')
+String callControl() => control();
+
 class BaseNew {
   @pragma('maot:mutable')
   String v() => 'NEW-BASE';
@@ -82,6 +97,7 @@ void main(List<String> args) {
   // The override must NOT be what super selects.
   _emit('super.0', sub.viaSuper());
   _emit('virtual.onSub', sub.v());
+  _emit('control.0', callControl());
 
   var last = '';
   for (var i = 0; i < 50000; i++) {
@@ -105,6 +121,11 @@ void main(List<String> args) {
   _emit('super.3', sub.viaSuper());
 
   final after = [for (final s in states) _stateCount(_c(s))];
+  // The paired control, swapped the same way at the same point.
+  _emit('swap.control',
+      _swapCell('fn:control', 'fn:controlNew'));
+  _emit('control.1', callControl());
+
   _emit('super.switchableStatesUsed', '$before -> $after');
   _emit('super.noSwitchableTransition', '$before' == '$after');
   _emit('virtual.onSub.after', sub.v());
