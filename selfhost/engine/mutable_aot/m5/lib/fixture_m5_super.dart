@@ -72,6 +72,9 @@ final _stateCount = _proc.lookupFunction<Int64 Function(Pointer<Uint8>),
     int Function(Pointer<Uint8>)>('Dart_MaotObservedStateCount');
 final _dump = _proc.lookupFunction<Int64 Function(Pointer<Uint8>),
     int Function(Pointer<Uint8>)>('Dart_MaotDumpForTesting');
+final _report = _proc.lookupFunction<
+    Int64 Function(Pointer<Uint8>, Pointer<Uint8>),
+    int Function(Pointer<Uint8>, Pointer<Uint8>)>('Dart_MaotIdentityReport');
 
 Pointer<Uint8> _c(String s) {
   final u = s.codeUnits;
@@ -85,6 +88,14 @@ Pointer<Uint8> _c(String s) {
 
 void _emit(String k, Object v) => print('$k=$v');
 int _swapCell(String t, String i) => _swap(_c('$_lib::$t'), _c('$_lib::$i'));
+
+// Cell identity at each stage. If the seeded pool index moves between
+// replacements, the call site is not reading one stable cell and the whole
+// route claim is void -- so it is recorded every time rather than once.
+final _identOut = Platform.environment['M5_REPORT'] ?? '/tmp/maot_super_ident.txt';
+void _ident2(String stage) {
+  _report(_c('$_lib::cls:Base::method:v'), _c('$_identOut.$stage'));
+}
 
 void main(List<String> args) {
   final dumpDir = Platform.environment['MAOT_DUMP_DIR'] ?? '';
@@ -113,11 +124,15 @@ void main(List<String> args) {
   ];
   final before = [for (final s in states) _stateCount(_c(s))];
 
+  _ident2('s0');
   _emit('swap.1', _swapCell('cls:Base::method:v', 'cls:BaseNew::method:v'));
+  _ident2('s1');
   _emit('super.1', sub.viaSuper());
   _emit('swap.2', _swapCell('cls:Base::method:v', 'cls:BaseNew2::method:v'));
+  _ident2('s2');
   _emit('super.2', sub.viaSuper());
   _emit('swap.3', _swapCell('cls:Base::method:v', 'cls:BaseNew::method:v'));
+  _ident2('s3');
   _emit('super.3', sub.viaSuper());
 
   final after = [for (final s in states) _stateCount(_c(s))];
