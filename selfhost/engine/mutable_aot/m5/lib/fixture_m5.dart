@@ -66,6 +66,9 @@ final _dump = _proc.lookupFunction<Int64 Function(Pointer<Uint8>),
     int Function(Pointer<Uint8>)>('Dart_MaotDumpForTesting');
 final _stateCount = _proc.lookupFunction<Int64 Function(Pointer<Uint8>),
     int Function(Pointer<Uint8>)>('Dart_MaotObservedStateCount');
+final _unlinkedTransition = _proc.lookupFunction<
+    Int64 Function(Int64, Int64), int Function(int, int)>(
+    'Dart_MaotUnlinkedTransition');
 
 Pointer<Uint8> _c(String s) {
   final u = s.codeUnits;
@@ -95,6 +98,9 @@ String _oneSite(dynamic x) => x.v();
 // into ICData without disturbing the monomorphic site under test.
 @pragma('vm:never-inline')
 String _icSite(dynamic x) => x.v();
+
+@pragma('vm:never-inline')
+String _msSite(dynamic x) => x.v();
 
 @pragma('vm:never-inline')
 String _callSame(dynamic first, dynamic second) {
@@ -287,6 +293,44 @@ void main(List<String> args) {
   // itself. -5 is the refusal.
   _emit('selfcycle.refused',
       _swapCell('cls:Alpha::method:v', 'cls:Alpha::method:v'));
+
+  // ---- MonomorphicSmiableCall, on its own warmed site ----------------
+  // DoUnlinkedCallAOT installs MonomorphicSmiableCall only when
+  // can_patch_to_monomorphic is FALSE. Drive a fresh site and read the state
+  // through it after each swap, exactly as the other states were tested.
+  final dynamic msSite = pick('a');
+  for (var i = 0; i < 5000; i++) {
+    _msSite(msSite);
+  }
+  const msState = 'instance-dispatch/MonomorphicSmiableCall-observed';
+  final m0 = _stateCount(_c(msState));
+  _swapCell('cls:Alpha::method:v', 'cls:AlphaNew::method:v');
+  _emit('st.ms.old', _msSite(msSite));
+  final m1 = _stateCount(_c(msState));
+  _swapCell('cls:Alpha::method:v', 'cls:AlphaNew2::method:v');
+  _emit('st.ms.new', _msSite(msSite));
+  final m2 = _stateCount(_c(msState));
+  _swapCell('cls:Alpha::method:v', 'cls:AlphaNew::method:v');
+  _emit('st.ms.new2', _msSite(msSite));
+  final m3 = _stateCount(_c(msState));
+  _emit('st.ms.counts', '$m0/$m1/$m2/$m3');
+  _emit('st.ms.noCacheMutation', m1 == m2 && m2 == m3);
+  _emit('st.ms.beta', _msSite(pick('b')));
+
+  // GROUND TRUTH for the can_patch_to_monomorphic question. kSmiCid is 0 in
+  // this VM only by coincidence of ordering, so probe the two cids that
+  // matter by value and report which (flag, resulting-state) pairs occurred.
+  // cids are read from the dump rather than hardcoded meanings.
+  final pairs = <String>[];
+  for (final flag in [0, 1]) {
+    for (final cid in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+                       16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+                       30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]) {
+      final n = _unlinkedTransition(flag, cid);
+      if (n > 0) pairs.add('flag=$flag cid=$cid n=$n');
+    }
+  }
+  _emit('unlinked.transitions', pairs.isEmpty ? '<none>' : pairs.join(' | '));
 
   // Beta must be untouched throughout: it shares the selector but is a
   // different declaration, so a shared-cell defect would move it too.
