@@ -158,3 +158,164 @@ The fold on the constant-returning super case is gone. The production install
 is still refused, but now only by the four pre-existing instance-dispatch
 blockers — the constant-escape record is absent. As in §3, super does not
 independently demonstrate anything here; `CS.2` is the measurement that moved.
+
+### Negative control: unrelated constant propagation must survive
+
+`plainConst()` is ordinary and NOT selected; `callPlainConst()` is the same
+wrapper shape as `callControl()`. Both halves are `vm:never-inline` on purpose
+— if `plainConst` could be inlined, a literal at the caller would prove
+nothing, because inlining would put it there whether or not propagation still
+worked.
+
+Measured structurally in `_main`'s own final code, same binary, both runs:
+
+| literal loaded by `_main` | P1 off | P1 on |
+|---|---|---|
+| `"PLAIN-CONST"` @ pool #6512 — ordinary, not selected | **YES** | **YES** ✓ |
+| `"OLD-CONTROL"` @ pool #624 — mutable, selected | **YES** (the defect) | **NO** ✓ |
+
+P1 removes the fold for the mutable declaration and leaves unrelated
+propagation exactly where it was.
+
+### Blast radius on the correctness fixture
+
+```
+selected               11
+cleared_declarations    7      distinct mutable declarations whose constant was stripped
+cleared_applications   14      invocation results stripped
+member summaries traced 1830
+downstream summaries whose inferred constant changed:  1
+    1 -> 0   package:m5fold/...::callControl
+```
+
+One downstream summary changed, and it is the intermediary itself. `callX` did
+not change — its result was never constant — and `callPlainConst` did not
+change. This is the small-fixture number, not a scale number; the scale lane
+is what decides.
+
+## 8. Scale lane — the blast radius at the upper bound
+
+Corpus: the m4 scale rig's representative Flutter application (MaterialApp, a
+StatefulWidget with an AnimationController, a 500-row ListView.builder),
+compiled against the real `package:flutter`. Selection is
+`MAOT_SELECT_ALL_NON_SDK=1` — every non-SDK declaration with a body, app and
+framework alike. **This is the upper bound, not a typical posture.**
+
+Fork `013b3b14a96`, clean, both lanes.
+
+| metric | P1 off | P1 on | delta |
+|---|---|---|---|
+| selected declarations | 7,399 | 7,425 | +26 |
+| AOT elf bytes | 43,519,248 | 43,707,936 | **+188,688 (+0.43%)** |
+| kernel bytes | 27,325,680 | 27,359,224 | +33,544 (+0.12%) |
+| compile seconds | 42.61 | 40.99 | −1.62 |
+| optimizer decisions recorded | 82,184 | 82,573 | +389 |
+| devirtualizations recorded | 11,244 | 11,371 | +127 |
+| prevented inlines | 1,366 | 1,374 | +8 |
+| indirect call sites | 17,913 | 18,113 | +200 |
+
+Reading these honestly:
+
+- **+0.43% AOT growth** at the absolute upper bound — every non-SDK
+  declaration mutable at once.
+- **The compile-time delta is not a speedup.** One sample per lane, and the
+  sign is negative, which no mechanism here predicts. It is noise, and it is
+  reported as noise rather than as a result.
+- **The selected count itself moves (+26), which is the mechanism showing
+  through.** Constants drive dead-code elimination; removing them keeps more
+  code alive, so more declarations survive to be indexed, and the AOT grows.
+  The size delta and the declaration delta are the same effect seen twice.
+
+### A measurement error caught before it was reported
+
+The first attempt at the trace-derived counts was wrong and would have been
+reported as a result. `MAOT_P1_TRACE` named one path and the writer truncated,
+so every `gen_kernel` call in a multi-lane run overwrote the previous one. The
+two traces being compared were different lanes:
+
+```
+trace_off: selected 26590    <- the select-all lane
+trace_on:  selected 0        <- the CONTROL lane; nothing selected, cleared 0
+```
+
+`cleared 0` there means "wrong lane", not "no effect", and the two are
+indistinguishable from the number alone. The trace now appends one record per
+compilation and the comparison asserts both records name the same lane rather
+than trusting the filename.
+
+### Corrected trace counts
+
+Both records name the same lane (26,590 selected), so this is like for like.
+
+| | value |
+|---|---|
+| mutable declarations whose constant was cleared | **444** |
+| invocation results cleared (applications) | 2,213 |
+| member summaries traced | 10,163 |
+| **downstream summaries whose inferred constant changed** | **52** (all constant -> not) |
+
+The two selection numbers are different things and should not be compared:
+26,590 is `maotSelectedIds` on the UNSHAKEN component, 7,399 is what survives
+tree shaking into the registry.
+
+The shape of this is the useful part: **444 declarations had a constant
+stripped, and only 52 other summaries changed as a result.** The escape is
+real but narrow -- most mutable constants never reach an intermediary whose
+own result is constant, which is the same boundary the CX arm measured on the
+fixture.
+
+A whole-program count of members with a constant result reads 3,505 -> 3,470,
+but those totals are over slightly different member sets, because P1 changes
+what survives tree shaking. The like-for-like figure is the 52 above; the
+totals are context, not the measurement.
+
+## 9. Optimizer/gate regressions under P1
+
+m4 run with `MAOT_P1_CLEAR_MUTABLE_CONSTANTS=1` and the P3 rule relaxed, so
+P1's effect is what is being measured:
+
+| | P3 (shipped interim) | P1 prototype |
+|---|---|---|
+| arms failed | 6 of 19 | **2 of 19** |
+| conditions unmet | 12 of 24 | **3 of 24** |
+| `tiny` | `OLD-TINY -> OLD-TINY -> OLD-TINY` | `OLD-TINY -> NEW-TINY -> NEW-CONST` |
+| `install.unreachable` | `-3` | `0`, version `PATCH_CODE:v2` |
+| `immutableCaller.1` | `OLD-TINY/OLD-CONST` | `NEW-TINY/NEW-CONST` |
+| `folded` (the new arm) | refused (`-3`) | **observed** (`install 0`, `NEW-FOLDED`) |
+
+P1 restores what the interim posture gives up. The new regression arm has now
+exercised **both** of its branches — refusal under P3, observation under P1 —
+which is what an invariant-shaped arm should be able to do.
+
+`scale_measurements_recorded` failed only because the scale evidence named an
+older fork commit; regenerated.
+
+### The two arms that still fail, and why it matters
+
+**H04 and H17 go vacuous under P1.** Both are falsification arms that REMOVE
+the constant-folding protections and require the defect to appear:
+
+```
+H04  folding re-enabled:  8 call sites emitted, 0 escapes, install 0, call NEW-TINY
+H17  both layers removed: 0 decisions, install 0 succeeds, caller NEW-CONST
+```
+
+Neither produced the defect. They disable the front-end suppression and the VM
+backstop — but P1 is a third layer they do not know about, and it removes the
+constant during the analysis, so there is nothing left to fold.
+
+Two honest readings, and the difference matters:
+
+1. **As run**, P1 was forced on for every build in the suite, the
+   defect-injection builds included. The arms could not produce the defect
+   because the mechanism they were trying to defeat was still on.
+2. **If P1 ships as default**, the same thing happens permanently.
+
+Either way the conclusion is the same and it is a precondition, not a
+footnote: **P1 cannot become the default until H04 and H17's injection also
+disables P1.** An arm that can no longer produce the defect can no longer
+prove the gate detects it, and a green H04/H17 under P1 today would be exactly
+the vacuous pass this programme refuses.
+
+The arms are currently RED, so nothing is being falsely certified. They are
+failing for the right reason and saying so.

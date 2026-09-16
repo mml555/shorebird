@@ -219,6 +219,12 @@ class Build:
 
     def snapshot(self, extra=()):
         t = time.perf_counter()
+        # Extra gen_snapshot flags for the whole suite, so a posture can be
+        # measured against a baseline without editing call sites. RECORDED,
+        # not merely honoured: a harness convenience that can silently turn
+        # off the thing under test is how a suite starts certifying a posture
+        # nobody ran. EXTRA_SNAPSHOT_FLAGS becomes a blocking finding, so
+        # closure cannot be claimed from a run that used them.
         # The PRECOMPILE dump, written by gen_snapshot itself. The runtime
         # dump cannot carry the materialization stats -- they are set during
         # precompilation and read back as -1 from the deserialized registry --
@@ -229,7 +235,7 @@ class Build:
             [os.path.join(OUT, 'gen_snapshot'), '--snapshot_kind=app-aot-elf',
              f'--elf={self.aot}', f'--maot_namespace={NAMESPACE}',
              f'--maot_dump_registry_precompile={self.precompile_dump}']
-            + list(extra) + [self.dill],
+            + list(EXTRA_SNAPSHOT_FLAGS) + list(extra) + [self.dill],
             capture_output=True, text=True, timeout=1800)
         self.compile_seconds = round(time.perf_counter() - t, 2)
         return r
@@ -249,6 +255,10 @@ class Build:
     def precompile_registry(self):
         p = getattr(self, 'precompile_dump', None)
         return json.load(open(p)) if p and os.path.exists(p) else {}
+
+
+EXTRA_SNAPSHOT_FLAGS = tuple(
+    os.environ.get('MAOT_EXTRA_SNAPSHOT_FLAGS', '').split())
 
 
 def _ns(calls, key, reps=3):
@@ -328,6 +338,13 @@ def main(argv):
                 f'{FORK} has no Mutable-AOT sources; the shared rig is handed '
                 f'back. See m2/rescued/R3_STATE_BEFORE_BORROW.txt.')
 
+    obs['extra_snapshot_flags'] = list(EXTRA_SNAPSHOT_FLAGS)
+    if EXTRA_SNAPSHOT_FLAGS:
+        finding('MEASURED_UNDER_NON_DEFAULT_FLAGS',
+                'every snapshot in this run carried '
+                f'{" ".join(EXTRA_SNAPSHOT_FLAGS)}, so the result describes '
+                'that posture and not the shipped one')
+
     stale = provenance()
     obs['build_digest'] = recorded_digests() or {}
     obs['build_provenance_mismatches'] = stale
@@ -365,7 +382,14 @@ def main(argv):
     # a gate that passed -- which is exactly how this one first ran: no
     # output, exit 0, nothing measured.
     try:
-        if findings:
+        # A provenance finding means the run CANNOT be measured -- the binary
+        # and the sources disagree, so whatever came out would describe
+        # neither. Non-default snapshot flags are a different thing: the run
+        # measures fine, it just describes a posture other than the shipped
+        # one. It stays a blocking finding so closure is refused, but it must
+        # not skip the builds, or the posture it names can never be examined.
+        if [f for f in findings
+                if f['code'] != 'MEASURED_UNDER_NON_DEFAULT_FLAGS']:
             measured = False
         else:
             measured = True
