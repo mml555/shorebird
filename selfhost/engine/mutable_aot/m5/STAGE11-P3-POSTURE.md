@@ -319,3 +319,40 @@ the vacuous pass this programme refuses.
 
 The arms are currently RED, so nothing is being falsely certified. They are
 failing for the right reason and saying so.
+
+## 10. The P3 fail-open surface, measured
+
+`index()` runs after TreeShaker and SignatureShaker, which replace member
+nodes, while the analysis keyed its summaries on the members that existed
+before them. For any member whose summary cannot be found, the constant-return
+test silently answers "no" — the wrong direction for a fail-closed posture.
+
+At Flutter scale, counted rather than argued:
+
+```
+selected 26590    selected_without_summary 3
+```
+
+**3 declarations out of 26,590.** The node identity survives the shakers for
+everything else. Those three would be answered "not constant" by P3 whatever
+they return, so they are the fail-open surface; it is small enough to name
+rather than estimate, and it is now a number that a later run can be compared
+against.
+
+## 11. Where this leaves the decision
+
+Everything the ruling asked for is measured. What the PM rules on:
+
+- **P1 works and is cheap at the upper bound.** +0.43% AOT, 52 downstream
+  summaries changed out of 10,163 traced, and it restores m4 from 12 unmet to
+  3 unmet.
+- **P1 has a precondition that is not optional.** H04 and H17 go vacuous under
+  it. Their injection must also disable P1 before P1 can be default. The same
+  will be true of P2 or of any mechanism that removes the constant earlier
+  than the layers those arms know about.
+- **P3 and P1 are independent.** Authorizing P1 is also a decision about
+  narrowing or retiring the P3 rule, because P3 keys on the declaration's own
+  summary result, which P1 does not change.
+
+Not claimed: that #68 is ready to close, that super is resolved, or that the
+interim posture is acceptable as a resting state.
