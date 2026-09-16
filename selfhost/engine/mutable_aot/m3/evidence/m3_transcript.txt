@@ -2,3 +2,17 @@
 run  2026-09-16T16:21:41Z
 fork ca96854daed14aefde546a25a54c9225162a5e54
 
+fork          ca96854daed14aefde546a25a54c9225162a5e54
+top-level     OLD -> NEW -> NEW2
+static        OLD-STATIC -> NEW-STATIC -> NEW2-STATIC
+version       AOT:v1 -> PATCH_CODE:v3
+one process   pid 64271 == 64271
+arms          15 (0 failed)
+blocking      0
+conditions    18 (0 failed)
+latency       direct 0.994 ns (control 0.934) | static 1.014 ns (control 0.93)
+provenance    bound | arch arm64
+SLICE         arm64_aot_direct_static_vertical_slice = ESTABLISHED
+CLOSURE       issue_67_closure = READY
+
+gate exit 0
