@@ -467,6 +467,41 @@ def main(argv):
             f"UNMODELED_BLOCKING and installation refused",
             no_join['arm64_aot_optimizer_invariants'])
 
+        # ---- H19: the granular join cannot be silently zeroed -----------
+        # #69 split the single 'instance-dispatch' record into one record per
+        # (call form x switchable state). An exact-name match then counted
+        # zero, and this condition went false -- loudly, which was correct,
+        # but the next rename must not be able to do it quietly either. This
+        # arm requires the count to come from the granular records AND to
+        # reach zero when none of them block.
+        disp_rows = [d for d in obs['optimizer_decisions']
+                     if d['optimization_class'].startswith(
+                         ('instance-dispatch', 'dynamic/', 'interface/',
+                          'super/'))]
+        blocking_forms = sorted({d['optimization_class'] for d in disp_rows
+                                 if d['disposition'] == 'UNMODELED_BLOCKING'})
+        all_preserving = perturbed(devirtualization_join=dict(
+            j, instance_dispatch_unmodeled_blocking=0))
+        obs['granular_dispatch_forms'] = {
+            'records': sorted({d['optimization_class'] for d in disp_rows}),
+            'blocking': blocking_forms,
+        }
+        arm('H19', 'the devirtualization join counts dispatch-form records by '
+                   'NAME. Splitting one coarse record into several made an '
+                   'exact-name match count zero; a future rename must not be '
+                   'able to zero it quietly.',
+            len(obs['granular_dispatch_forms']['records']) > 1
+            and len(blocking_forms) > 0
+            and j['instance_dispatch_unmodeled_blocking'] > 0
+            and not all_preserving['conditions'][
+                'devirtualization_join_present'],
+            f"{len(obs['granular_dispatch_forms']['records'])} dispatch-form "
+            f"records, {len(blocking_forms)} still blocking "
+            f"({', '.join(x.split('/')[-1] for x in blocking_forms)}); the "
+            f"join counts {j['instance_dispatch_unmodeled_blocking']}, and "
+            f"with none blocking the condition goes false",
+            all_preserving['arm64_aot_optimizer_invariants'])
+
         arm('H08', 'an instance member installable while no instance-call '
                    'path traverses the cell is the divergence this issue '
                    'exists to prevent -- it was real until this rule existed',

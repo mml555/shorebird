@@ -183,6 +183,8 @@ BANK = {
     'H18': ('live', 'a dirty worktree lets the record name a fork commit '
                     'whose bytes were never measured, while every '
                     'binary-to-source check stays green'),
+    'H19': ('live', 'a dispatch-form record is renamed and the join silently '
+                    'counts zero, so instance dispatch reads as unblocked'),
 }
 
 
