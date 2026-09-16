@@ -91,6 +91,11 @@ void _emit(String k, Object v) => print('$k=$v');
 @pragma('vm:never-inline')
 String _oneSite(dynamic x) => x.v();
 
+// A second single site, kept separate so it can be driven POLYMORPHICALLY
+// into ICData without disturbing the monomorphic site under test.
+@pragma('vm:never-inline')
+String _icSite(dynamic x) => x.v();
+
 @pragma('vm:never-inline')
 String _callSame(dynamic first, dynamic second) {
   var r = '';
@@ -252,6 +257,36 @@ void main(List<String> args) {
 
   // Monomorphic reached via Beta-first ordering, then Alpha on the same site.
   perState('st.mono', 'instance-dispatch/monomorphic-observed', monoAlpha);
+
+  // ---- ICData: reached naturally by driving ONE site polymorphically ----
+  // Alternating receiver classes pushes the site past monomorphic. The reads
+  // afterwards use Alpha only, through that same now-polymorphic site, so the
+  // ICData entry for Alpha's cid is what serves them.
+  final dynamic icA = pick('a');
+  final dynamic icB = pick('b');
+  for (var i = 0; i < 20000; i++) {
+    _icSite(i.isEven ? icA : icB);
+  }
+  const icState = 'instance-dispatch/ICData-observed';
+  final i0 = _stateCount(_c(icState));
+  _swapCell('cls:Alpha::method:v', 'cls:AlphaNew::method:v');
+  _emit('st.ic.old', _icSite(icA));
+  final i1 = _stateCount(_c(icState));
+  _swapCell('cls:Alpha::method:v', 'cls:AlphaNew2::method:v');
+  _emit('st.ic.new', _icSite(icA));
+  final i2 = _stateCount(_c(icState));
+  _swapCell('cls:Alpha::method:v', 'cls:AlphaNew::method:v');
+  _emit('st.ic.new2', _icSite(icA));
+  final i3 = _stateCount(_c(icState));
+  _emit('st.ic.counts', '$i0/$i1/$i2/$i3');
+  _emit('st.ic.noCacheMutation', i1 == i2 && i2 == i3);
+  _emit('st.ic.beta', _icSite(icB));
+
+  // The self-cycle guard must refuse rather than hang: Alpha's CurrentCode is
+  // its own trampoline, so this swap would make the trampoline branch to
+  // itself. -5 is the refusal.
+  _emit('selfcycle.refused',
+      _swapCell('cls:Alpha::method:v', 'cls:Alpha::method:v'));
 
   // Beta must be untouched throughout: it shares the selector but is a
   // different declaration, so a shared-cell defect would move it too.

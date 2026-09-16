@@ -433,9 +433,18 @@ def main(argv):
                 1 for d in rows
                 if d['optimization_class'] == 'static-call-lowering'
                 and d['disposition'] == 'SLOT_PRESERVING'),
+            # #69 split the single 'instance-dispatch' record into one per
+            # (call form x switchable state), so an exact-name match finds
+            # nothing. The condition this feeds must still mean "instance
+            # dispatch is blocked", so it counts every dispatch-form record
+            # that is still blocking rather than one fixed name.
             'instance_dispatch_unmodeled_blocking': sum(
-                1 for d in rows if d['optimization_class'] == 'instance-dispatch'
-                and d['disposition'] == 'UNMODELED_BLOCKING'),
+                1 for d in rows
+                if d['disposition'] == 'UNMODELED_BLOCKING'
+                and (d['optimization_class'].startswith('instance-dispatch')
+                     or d['optimization_class'].startswith('dynamic/')
+                     or d['optimization_class'].startswith('interface/')
+                     or d['optimization_class'].startswith('super/'))),
             'install_refused': calls.get('install.devirt') == -3,
             'records': rows,
         }

@@ -2,15 +2,15 @@
   "schema": "maot.m2.evidence/1",
   "issue": 66,
   "generated_by": {
-    "run_id": "2026-09-15T20:48:39Z",
+    "run_id": "2026-09-16T06:03:07Z",
     "gate_sha256": "b93a9c28441eef6902f3d14cd050fadbbfc4ee2373676adf50239ba1f8c078fd",
     "verdict_sha256": "d884bafa96ae7aa6f775b50fc8617bf807ad9c1ac92f9bbd31f85ea9c59094a6"
   },
   "identities": {
-    "shorebird_revision": "64f618204af8fd5d259c5f8115aeec5d200f1242",
-    "shorebird_tree": "55b85da9f9e4cfb329ff6d6f23dc7515c3e2eed3",
-    "fork_commit": "e0f6788f29e5616b0087e51111ead33a06cf4e3a",
-    "fork_tree": "11f76bfb4ea691c81b1d31c8e1fc2b7e214cf18f",
+    "shorebird_revision": "583ac162be416cd07ef8fed347e47dab1536c76b",
+    "shorebird_tree": "f38574dabc5af903c95b2a5989988cb2bbf98bc7",
+    "fork_commit": "88e4643358e4954f811d36be06f25d195257d2be",
+    "fork_tree": "796ab7e3d74ebf7f69abd7180ed386671babf13e",
     "fork_branch": "maot/build",
     "fork_worktree_entries": [
       "?? third_party/binaryen/.DS_Store"
@@ -24,16 +24,16 @@
     "stale_binaries": [],
     "build_digest": {
       "files": {
-        "runtime/vm/maot_registry.cc": "730a960d35a3c0c8316eeeeb4e95097e6290a823adf85da982ead5d0e3c52ec2",
-        "runtime/vm/maot_registry.h": "a80d945fe8ee4f9c34b50dcc196d1175551d6bbb94a05aec0fd94550f1964d21",
+        "runtime/vm/maot_registry.cc": "ea1156d03d1b8c8a5b2afe5dac14ce35c337bff90322d13b626ee682096bfd49",
+        "runtime/vm/maot_registry.h": "ec19317a964b233158729ea74275d1c683b7880896f4f8d4e3e899b96a34a49a",
         "runtime/vm/kernel_loader.cc": "6ded9b83769b2d64a3c63f9b72ab4237f351cd42193b70ccedd30517a166d9db",
         "runtime/vm/object_store.h": "f0ccb348e996eacb79b58f3033b3168012ef7f9b1ab9905028c8b9d50ed5edc5",
         "runtime/vm/dart.cc": "76221ab91bfe8a5d882288c7b535b1caa5ee33f263d6bb0b7240d948c5c365af",
-        "runtime/vm/compiler/aot/precompiler.cc": "ae77e8aed6fcd78ef7d979f44adecccd4f837145b650d3400cc2b52c6d34420e",
-        "runtime/vm/compiler/aot/precompiler.h": "3e4f399229e538a7d2549d36119e97e4e0d9ec0341e657a5c9833534f90b4e90",
+        "runtime/vm/compiler/aot/precompiler.cc": "54c5f1b814c46854084441c95542eccff170c6bbdabbda731943a39c4aa050a4",
+        "runtime/vm/compiler/aot/precompiler.h": "6a701d12b4ca0213710d21dabb289351d25ad2233983eb23ec17a9da199b25f1",
         "runtime/vm/compiler/frontend/kernel_translation_helper.cc": "3c7c2ac4cb9e8a04736c184ec1b2a02cea253f5186f45218351594e831f9d96f",
         "runtime/vm/compiler/frontend/kernel_translation_helper.h": "d2726b4c489f025dfef242673006b79d5a21a9663aeae90281e28ffd7cbdb330",
-        "runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc": "88713debf61b9fc9a54d5ddc462dc71310c21790da435b3339218c8be282b8c0",
+        "runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc": "c3104248b28c413d9d26a02f01d039ed5956a9b722982e4287f3275db0348c0f",
         "runtime/vm/compiler/backend/inliner.cc": "67c9f537e52578ec548da0b0787576e6bf93f2709883e5e3cf3864f33ce75410",
         "runtime/vm/compiler/frontend/kernel_binary_flowgraph.cc": "9e922e29501bdd02acbcb65d65c494341afa9197ae7d362a6654ca9544e2ca37",
         "pkg/vm/lib/metadata/maot_declaration_id.dart": "96e1bce90cf4765f3355889bb4003f56e0b64eaeb038476f088e0e167c9b7dd9",
@@ -41,15 +41,15 @@
         "pkg/vm/lib/transformations/pragma.dart": "882a80a8bb700145fbb7eb5026f2d7f6d8b6c6432e14661b6f52545bdfcde22a",
         "pkg/vm/lib/modular/target/vm.dart": "82c464b114770687a2868b51d7d93405d0d347dedf8da4604d1c2f56723c1885"
       },
-      "fork_commit": "e0f6788f29e5616b0087e51111ead33a06cf4e3a",
-      "fork_tree": "11f76bfb4ea691c81b1d31c8e1fc2b7e214cf18f",
+      "fork_commit": "88e4643358e4954f811d36be06f25d195257d2be",
+      "fork_tree": "796ab7e3d74ebf7f69abd7180ed386671babf13e",
       "fork_sources_match_head": "1",
-      "built_at": "2026-09-15T20:48:39Z"
+      "built_at": "2026-09-16T05:51:12Z"
     },
     "missing_maot_sources": [],
     "fork_identity": {
-      "head": "e0f6788f29e5616b0087e51111ead33a06cf4e3a",
-      "tree": "11f76bfb4ea691c81b1d31c8e1fc2b7e214cf18f",
+      "head": "88e4643358e4954f811d36be06f25d195257d2be",
+      "tree": "796ab7e3d74ebf7f69abd7180ed386671babf13e",
       "branch": "maot/build",
       "worktree_dirty_paths": [
         "third_party/binaryen/.DS_Store"
@@ -269,20 +269,20 @@
       "registry_entries": 0
     },
     "measurements": {
-      "aot_elf_bytes_with_maot": 858168,
+      "aot_elf_bytes_with_maot": 874552,
       "aot_elf_bytes_control_no_pragmas": 840368,
-      "aot_elf_delta_bytes": 17800,
-      "startup_ms_with_maot": 26.52,
-      "startup_ms_control": 23.06,
+      "aot_elf_delta_bytes": 34184,
+      "startup_ms_with_maot": 18.12,
+      "startup_ms_control": 17.85,
       "control_note": "absent here means the control build failed, not that it was skipped",
       "note": "medians of 7 runs of the same program; the control is the identical source with every maot:mutable removed, so the delta includes keeping a dead selected declaration alive",
       "registry_entries": 25,
-      "registry_array_slots": 625,
-      "registry_slots_per_entry": 25,
-      "registry_registry_bytes_approx": 5000,
-      "registry_bytes_per_entry_approx": 200,
+      "registry_array_slots": 650,
+      "registry_slots_per_entry": 26,
+      "registry_registry_bytes_approx": 5200,
+      "registry_bytes_per_entry_approx": 208,
       "registry_lookup_iterations": 10000,
-      "registry_lookup_total_micros": 250,
+      "registry_lookup_total_micros": 244,
       "registry_lookup_note": "linear scan over a GrowableObjectArray; correctness first, and the cost is recorded rather than optimised around",
       "registry_lookup_sink": 10000
     },
@@ -5809,12 +5809,12 @@
     ],
     "measurements": {
       "entries": 25,
-      "array_slots": 625,
-      "slots_per_entry": 25,
-      "registry_bytes_approx": 5000,
-      "bytes_per_entry_approx": 200,
+      "array_slots": 650,
+      "slots_per_entry": 26,
+      "registry_bytes_approx": 5200,
+      "bytes_per_entry_approx": 208,
       "lookup_iterations": 10000,
-      "lookup_total_micros": 250,
+      "lookup_total_micros": 244,
       "lookup_note": "linear scan over a GrowableObjectArray; correctness first, and the cost is recorded rather than optimised around",
       "lookup_sink": 10000
     }
@@ -5845,9 +5845,10 @@
           "has_code": true,
           "implementation_name_diagnostic": "Function 'byPosition':."
         },
-        "optimizer_escapes": 1,
-        "first_escape_reason": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+        "optimizer_escapes": 6,
+        "first_escape_reason": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
         "installable": false,
+        "blocking_records": "dynamic/MonomorphicSmiableCall, dynamic/SingleTargetCache, dynamic/ICData, dynamic/MegamorphicCache, interface/unproven, super/unproven",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -5886,9 +5887,10 @@
           "has_code": true,
           "implementation_name_diagnostic": "Function 'byPosition':."
         },
-        "optimizer_escapes": 1,
-        "first_escape_reason": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+        "optimizer_escapes": 6,
+        "first_escape_reason": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
         "installable": false,
+        "blocking_records": "dynamic/MonomorphicSmiableCall, dynamic/SingleTargetCache, dynamic/ICData, dynamic/MegamorphicCache, interface/unproven, super/unproven",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -5930,6 +5932,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
+        "blocking_records": "<none>",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -5968,9 +5971,10 @@
           "has_code": true,
           "implementation_name_diagnostic": "Function 'instanceOne':."
         },
-        "optimizer_escapes": 1,
-        "first_escape_reason": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+        "optimizer_escapes": 6,
+        "first_escape_reason": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
         "installable": false,
+        "blocking_records": "dynamic/MonomorphicSmiableCall, dynamic/SingleTargetCache, dynamic/ICData, dynamic/MegamorphicCache, interface/unproven, super/unproven",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6009,9 +6013,10 @@
           "has_code": true,
           "implementation_name_diagnostic": "Function 'compute':."
         },
-        "optimizer_escapes": 1,
-        "first_escape_reason": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+        "optimizer_escapes": 6,
+        "first_escape_reason": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
         "installable": false,
+        "blocking_records": "dynamic/MonomorphicSmiableCall, dynamic/SingleTargetCache, dynamic/ICData, dynamic/MegamorphicCache, interface/unproven, super/unproven",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6053,6 +6058,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
+        "blocking_records": "<none>",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6094,6 +6100,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
+        "blocking_records": "<none>",
         "indirect_call_sites_emitted": 0,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6135,6 +6142,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
+        "blocking_records": "<none>",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6176,6 +6184,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
+        "blocking_records": "<none>",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6217,6 +6226,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
+        "blocking_records": "<none>",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6258,6 +6268,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
+        "blocking_records": "<none>",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6299,6 +6310,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
+        "blocking_records": "<none>",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6340,6 +6352,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
+        "blocking_records": "<none>",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6381,6 +6394,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
+        "blocking_records": "<none>",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6422,6 +6436,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
+        "blocking_records": "<none>",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6463,6 +6478,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
+        "blocking_records": "<none>",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6504,6 +6520,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
+        "blocking_records": "<none>",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6545,6 +6562,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
+        "blocking_records": "<none>",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6586,6 +6604,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
+        "blocking_records": "<none>",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6627,6 +6646,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
+        "blocking_records": "<none>",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6668,6 +6688,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
+        "blocking_records": "<none>",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6709,6 +6730,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
+        "blocking_records": "<none>",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6750,6 +6772,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
+        "blocking_records": "<none>",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6791,6 +6814,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
+        "blocking_records": "<none>",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6832,6 +6856,7 @@
         "optimizer_escapes": 0,
         "first_escape_reason": "<none>",
         "installable": true,
+        "blocking_records": "<none>",
         "indirect_call_sites_emitted": 1,
         "inline_refusals": 0,
         "inline_admissions": 0,
@@ -6860,32 +6885,288 @@
       {
         "declaration_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
         "caller_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
-        "optimization_class": "instance-dispatch",
-        "decision": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+        "optimization_class": "instance-dispatch/dispatch-table",
+        "decision": "the AOT dispatch-table slot for this declaration holds its trampoline, which loads the mutable cell on every call, so the frozen executable target selects the current implementation",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
+        "optimization_class": "dynamic/UnlinkedCall-linked",
+        "decision": "one warmed call site in this state observed successive implementation changes with the state's observation count unchanged, and every observation recorded the stored executable target as this declaration's trampoline",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
+        "optimization_class": "dynamic/monomorphic",
+        "decision": "one warmed call site in this state observed successive implementation changes with the state's observation count unchanged, and every observation recorded the stored executable target as this declaration's trampoline",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
+        "optimization_class": "dynamic/MonomorphicSmiableCall",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
+        "optimization_class": "dynamic/SingleTargetCache",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
+        "optimization_class": "dynamic/ICData",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
+        "optimization_class": "dynamic/MegamorphicCache",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
+        "optimization_class": "interface/unproven",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::cls:OwnerAB::method:byPosition",
+        "optimization_class": "super/unproven",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
         "disposition": "UNMODELED_BLOCKING",
         "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
       },
       {
         "declaration_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
         "caller_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
-        "optimization_class": "instance-dispatch",
-        "decision": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+        "optimization_class": "instance-dispatch/dispatch-table",
+        "decision": "the AOT dispatch-table slot for this declaration holds its trampoline, which loads the mutable cell on every call, so the frozen executable target selects the current implementation",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
+        "optimization_class": "dynamic/UnlinkedCall-linked",
+        "decision": "one warmed call site in this state observed successive implementation changes with the state's observation count unchanged, and every observation recorded the stored executable target as this declaration's trampoline",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
+        "optimization_class": "dynamic/monomorphic",
+        "decision": "one warmed call site in this state observed successive implementation changes with the state's observation count unchanged, and every observation recorded the stored executable target as this declaration's trampoline",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
+        "optimization_class": "dynamic/MonomorphicSmiableCall",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
+        "optimization_class": "dynamic/SingleTargetCache",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
+        "optimization_class": "dynamic/ICData",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
+        "optimization_class": "dynamic/MegamorphicCache",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
+        "optimization_class": "interface/unproven",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
+        "caller_id": "lib:package:m2app/app.dart::cls:OwnerBA::method:byPosition",
+        "optimization_class": "super/unproven",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
         "disposition": "UNMODELED_BLOCKING",
         "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
       },
       {
         "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
         "caller_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
-        "optimization_class": "instance-dispatch",
-        "decision": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+        "optimization_class": "instance-dispatch/dispatch-table",
+        "decision": "the AOT dispatch-table slot for this declaration holds its trampoline, which loads the mutable cell on every call, so the frozen executable target selects the current implementation",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "caller_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "optimization_class": "dynamic/UnlinkedCall-linked",
+        "decision": "one warmed call site in this state observed successive implementation changes with the state's observation count unchanged, and every observation recorded the stored executable target as this declaration's trampoline",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "caller_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "optimization_class": "dynamic/monomorphic",
+        "decision": "one warmed call site in this state observed successive implementation changes with the state's observation count unchanged, and every observation recorded the stored executable target as this declaration's trampoline",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "caller_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "optimization_class": "dynamic/MonomorphicSmiableCall",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "caller_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "optimization_class": "dynamic/SingleTargetCache",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "caller_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "optimization_class": "dynamic/ICData",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "caller_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "optimization_class": "dynamic/MegamorphicCache",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "caller_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "optimization_class": "interface/unproven",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "caller_id": "lib:package:m2app/app.dart::cls:Shapes::method:instanceOne",
+        "optimization_class": "super/unproven",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
         "disposition": "UNMODELED_BLOCKING",
         "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
       },
       {
         "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
         "caller_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
-        "optimization_class": "instance-dispatch",
-        "decision": "a selected instance member is reachable through dispatch forms #68 does not model; #69 owns virtual, interface, super and dynamic dispatch",
+        "optimization_class": "instance-dispatch/dispatch-table",
+        "decision": "the AOT dispatch-table slot for this declaration holds its trampoline, which loads the mutable cell on every call, so the frozen executable target selects the current implementation",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "caller_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "optimization_class": "dynamic/UnlinkedCall-linked",
+        "decision": "one warmed call site in this state observed successive implementation changes with the state's observation count unchanged, and every observation recorded the stored executable target as this declaration's trampoline",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "caller_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "optimization_class": "dynamic/monomorphic",
+        "decision": "one warmed call site in this state observed successive implementation changes with the state's observation count unchanged, and every observation recorded the stored executable target as this declaration's trampoline",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "caller_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "optimization_class": "dynamic/MonomorphicSmiableCall",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "caller_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "optimization_class": "dynamic/SingleTargetCache",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "caller_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "optimization_class": "dynamic/ICData",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "caller_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "optimization_class": "dynamic/MegamorphicCache",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "caller_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "optimization_class": "interface/unproven",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
+        "disposition": "UNMODELED_BLOCKING",
+        "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
+      },
+      {
+        "declaration_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "caller_id": "lib:package:m2app/app.dart::cls:Shapes::method:compute",
+        "optimization_class": "super/unproven",
+        "decision": "this call form or switchable-call state has not been shown to converge on the declaration trampoline; #69 owes it separate mechanical evidence and it may not inherit another form's",
         "disposition": "UNMODELED_BLOCKING",
         "consumed_by": "MaotRegistry::StageReplacement refuses installation while this disposition stands"
       },
@@ -7146,7 +7427,7 @@
         "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
       }
     ],
-    "optimizer_decision_count": 36
+    "optimizer_decision_count": 68
   },
   "falsification": [
     {
