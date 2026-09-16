@@ -843,11 +843,23 @@ def main(argv):
             ret['verdict_under_defect'])
 
         # ---- H17: an INJECTED TFA defect, one layer at a time -----------
-        # There are two layers: the front end suppresses the constant, and the
-        # VM refuses to trust that it did. Removing only the first proves the
-        # backstop works; removing both produces the raw defect -- which is
-        # the one that actually shipped, with eleven call sites all reaching
-        # the cell and every caller printing the release answer anyway.
+        # The front end stops the constant reaching a caller two ways now, and
+        # BOTH have to come off for the defect to be injectable: the direct
+        # call site's annotation is blanked (MAOT_ALLOW_CONSTANT_FOLDING), and
+        # P1 clears the constant on the summary result so it never propagates
+        # at all (MAOT_P1_CLEAR_MUTABLE_CONSTANTS). Behind them the VM refuses
+        # to trust that either happened.
+        #
+        # P1 was added after this arm was written, and for one run the arm
+        # kept "passing" its build step while testing nothing: it removed the
+        # two layers it knew about, P1 silently removed the constant anyway,
+        # and the defect could not be produced. An arm that cannot inject its
+        # defect cannot prove the gate detects it.
+        #
+        # Removing the front-end layers proves the backstop works; removing
+        # all three produces the raw defect -- the one that actually shipped,
+        # with eleven call sites all reaching the cell and every caller
+        # printing the release answer anyway.
         #
         # Measured separately because "install refused" alone does not
         # discriminate: a refused install trivially leaves the caller on the
@@ -856,13 +868,14 @@ def main(argv):
             return [d for d in reg.get('optimizer_decisions', [])
                     if d['optimization_class'] == 'constant-folding']
 
-        one_b = build('tfa_one_layer', (),
-                      kernel_env={'MAOT_ALLOW_CONSTANT_FOLDING': '1'})
+        _FOLDING_OFF = {'MAOT_ALLOW_CONSTANT_FOLDING': '1',
+                        'MAOT_P1_CLEAR_MUTABLE_CONSTANTS': '0'}
+        one_b = build('tfa_one_layer', (), kernel_env=dict(_FOLDING_OFF))
         one_r = one_b.run()
         one_c = parse_calls(one_r.stdout)
         one_reg = one_b.registry()
         both_b = build('tfa_both_layers', ['--maot_disable_constant_backstop'],
-                       kernel_env={'MAOT_ALLOW_CONSTANT_FOLDING': '1'})
+                       kernel_env=dict(_FOLDING_OFF))
         both_r = both_b.run()
         both_c = parse_calls(both_r.stdout)
         both_reg = both_b.registry()
@@ -873,7 +886,8 @@ def main(argv):
             'baseline_call_sites': (entries_by_suffix(
                 reg_after, '::fn:constantish') or {}).get(
                     'indirect_call_sites_emitted'),
-            'one_layer_removed': 'MAOT_ALLOW_CONSTANT_FOLDING=1',
+            'one_layer_removed': 'MAOT_ALLOW_CONSTANT_FOLDING=1 + '
+                                 'MAOT_P1_CLEAR_MUTABLE_CONSTANTS=0',
             'one_layer_constant_folding_decisions': len(
                 _const_decisions(one_reg)),
             'one_layer_install': one_c.get('install.constantish'),
@@ -882,6 +896,7 @@ def main(argv):
             'one_layer_call_after_install': one_c.get('constantish.1'),
             'both_layers_removed':
                 'MAOT_ALLOW_CONSTANT_FOLDING=1 + '
+                'MAOT_P1_CLEAR_MUTABLE_CONSTANTS=0 + '
                 '--maot_disable_constant_backstop',
             'both_layers_constant_folding_decisions': len(
                 _const_decisions(both_reg)),
@@ -1015,8 +1030,11 @@ def main(argv):
             + ', '.join(f"{d}={effects[d]['install']}" for d in R.BLOCKING))
 
         # ---------------- the historical constant-folding defect ----------
+        # Both front-end layers, not just the annotation one: with P1 left on
+        # the constant never exists and this arm injects nothing.
         fold = build('constant_fold',
-                     kernel_env={'MAOT_ALLOW_CONSTANT_FOLDING': '1'})
+                     kernel_env={'MAOT_ALLOW_CONSTANT_FOLDING': '1',
+                                 'MAOT_P1_CLEAR_MUTABLE_CONSTANTS': '0'})
         fold_s, fold_c, fold_reg = summarize(fold)
         fold_tiny = next((x for x in fold_reg.get('entries', [])
                           if x['declaration_id'].endswith('::fn:tiny')), {})

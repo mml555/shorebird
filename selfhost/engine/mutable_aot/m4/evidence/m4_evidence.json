@@ -2,17 +2,17 @@
   "schema": "maot.m4.evidence/1",
   "issue": 68,
   "generated_by": {
-    "run_id": "2026-09-16T20:45:15Z",
-    "gate_sha256": "03cd1b25865f01a28a53eb28f1ea6eee2cd269422e3f7269bdb6ba86e898a6f2",
+    "run_id": "2026-09-16T21:26:44Z",
+    "gate_sha256": "4aa45604602bbb435f88407bb1ced2df8a7d5680a7db9acb0b3bd5f34020d4f3",
     "verdict_sha256": "b2dcf3d53072e3b65f27a33371d3315bff236b4022738ac7cf65188e7be944c7",
     "rules_sha256": "71e41f95e498a6ba2a20cc02139c77a1810a4aa73667c5e7b3c3674dc4f6f3fb",
     "fixture_sha256": "d3cd25eba32d95e54e2a742aaaa6352554229307afdad7f5e186a170dcda13fe"
   },
   "identities": {
-    "shorebird_revision": "08ae0bacf4f91286e87cedee332f85ff4a862663",
-    "shorebird_tree": "5ca832ce5d2005462a22896f7f0ba40f41b328fa",
-    "fork_commit": "6ffbcc909bd9781181b47711145004f5b1e6f433",
-    "fork_tree": "3d93c4f66e5ec5d10f889e79f15bca6ec753d34c",
+    "shorebird_revision": "0c61de862f2c9d37bed52027b549dec6ce5d0750",
+    "shorebird_tree": "d3f45ddd2b22ae5f250f552314f013df566e6a9c",
+    "fork_commit": "4c637705c880fb87a82d3fa87b3bb6bf963a26d6",
+    "fork_tree": "37fa7088b0e06751a982f2a012e2bc021a875495",
     "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
     "target_arch": "arm64",
     "depends_on": {
@@ -85,14 +85,12 @@
         "what_68_adds": "nothing. Giving this row modes would be a change to a closed corpus, and the runtime dispatch semantics it names belong to #69."
       }
     },
-    "extra_snapshot_flags": [
-      "--maot_disable_constant_escape_block"
-    ],
+    "extra_snapshot_flags": [],
     "build_digest": {
       "files": {
-        "runtime/vm/maot_registry.cc": "3038f51b0b73091bcd902d4f0c2ca9b1e347e4824fd18a8408b28c02e86e39d1",
-        "runtime/vm/maot_registry.h": "a175c3bcaf98ffb299d7a3a1d2248788f73a923489693eff52fb86b2258d0177",
-        "runtime/vm/kernel_loader.cc": "3bea1ca29516fc313367ceaefc3bda829351a0e097e7984efbf8880895ebdf3f",
+        "runtime/vm/maot_registry.cc": "f55b434aea1863812b83ccdc0b4e85cb062c271cfa5e3f65724b596db00327e3",
+        "runtime/vm/maot_registry.h": "833f73b338fc167786d3bba4c29a76c620b5e185fbd1a16f066eb0b93b9e792c",
+        "runtime/vm/kernel_loader.cc": "42a9c25279cc049d9669ba601fc5936eadda78d837c1f25abad5d92928d87751",
         "runtime/vm/object_store.h": "f0ccb348e996eacb79b58f3033b3168012ef7f9b1ab9905028c8b9d50ed5edc5",
         "runtime/vm/dart.cc": "76221ab91bfe8a5d882288c7b535b1caa5ee33f263d6bb0b7240d948c5c365af",
         "runtime/vm/compiler/aot/precompiler.cc": "871e85474d89e4d1428fc434f65fd9d1dd71f7e386107d740af2e2b9e3499ac2",
@@ -107,16 +105,16 @@
         "pkg/vm/lib/transformations/pragma.dart": "882a80a8bb700145fbb7eb5026f2d7f6d8b6c6432e14661b6f52545bdfcde22a",
         "pkg/vm/lib/modular/target/vm.dart": "82c464b114770687a2868b51d7d93405d0d347dedf8da4604d1c2f56723c1885"
       },
-      "fork_commit": "6ffbcc909bd9781181b47711145004f5b1e6f433",
-      "fork_tree": "3d93c4f66e5ec5d10f889e79f15bca6ec753d34c",
+      "fork_commit": "4c637705c880fb87a82d3fa87b3bb6bf963a26d6",
+      "fork_tree": "37fa7088b0e06751a982f2a012e2bc021a875495",
       "fork_sources_match_head": "1",
-      "built_at": "2026-09-16T20:44:15Z"
+      "built_at": "2026-09-16T21:23:53Z"
     },
     "build_provenance_mismatches": [],
     "build_digest_matches": true,
     "fork_identity": {
-      "head": "6ffbcc909bd9781181b47711145004f5b1e6f433",
-      "tree": "3d93c4f66e5ec5d10f889e79f15bca6ec753d34c",
+      "head": "4c637705c880fb87a82d3fa87b3bb6bf963a26d6",
+      "tree": "37fa7088b0e06751a982f2a012e2bc021a875495",
       "branch": "maot/build",
       "worktree_dirty_paths": [
         "third_party/binaryen/.DS_Store"
@@ -125,7 +123,7 @@
     "source_commit_binding_mismatches": [],
     "sources_match_named_commit": true,
     "calls": {
-      "process.pid": 4860,
+      "process.pid": 67501,
       "tiny.0": "OLD-TINY",
       "constantish.0": "OLD-CONST",
       "devirt.0": "OLD-DEVIRT",
@@ -161,13 +159,13 @@
       "tiny.2": "NEW-CONST",
       "tiny.version.2": "PATCH_CODE:v3",
       "bench.iterations": 2000000,
-      "bench.mutable.us.0": 1981,
-      "bench.control.us.0": 1977,
-      "bench.mutable.us.1": 2033,
-      "bench.control.us.1": 2398,
-      "bench.mutable.us.2": 2549,
-      "bench.control.us.2": 1950,
-      "process.pid.final": 4860
+      "bench.mutable.us.0": 2053,
+      "bench.control.us.0": 2355,
+      "bench.mutable.us.1": 2848,
+      "bench.control.us.1": 2510,
+      "bench.mutable.us.2": 3291,
+      "bench.control.us.2": 2439,
+      "process.pid.final": 67501
     },
     "registry_after": {
       "schema": "maot.registry/1",
@@ -2895,16 +2893,16 @@
       "baseline_call_after_install": "NEW-CONST",
       "baseline_constant_folding_decisions": 0,
       "baseline_call_sites": 5,
-      "one_layer_removed": "MAOT_ALLOW_CONSTANT_FOLDING=1",
-      "one_layer_constant_folding_decisions": 0,
-      "one_layer_install": 0,
-      "one_layer_installable": true,
-      "one_layer_call_after_install": "NEW-CONST",
-      "both_layers_removed": "MAOT_ALLOW_CONSTANT_FOLDING=1 + --maot_disable_constant_backstop",
+      "one_layer_removed": "MAOT_ALLOW_CONSTANT_FOLDING=1 + MAOT_P1_CLEAR_MUTABLE_CONSTANTS=0",
+      "one_layer_constant_folding_decisions": 26,
+      "one_layer_install": -3,
+      "one_layer_installable": false,
+      "one_layer_call_after_install": "OLD-CONST",
+      "both_layers_removed": "MAOT_ALLOW_CONSTANT_FOLDING=1 + MAOT_P1_CLEAR_MUTABLE_CONSTANTS=0 + --maot_disable_constant_backstop",
       "both_layers_constant_folding_decisions": 0,
       "both_layers_install": 0,
       "both_layers_installable": true,
-      "both_layers_call_after_install": "NEW-CONST",
+      "both_layers_call_after_install": "OLD-CONST",
       "both_layers_hot_call": null,
       "both_layers_call_sites": 5,
       "one_layer_verdict": "NOT_ESTABLISHED",
@@ -2993,7 +2991,7 @@
           "problem": "source differs from the named commit",
           "file": "runtime/vm/maot_registry.cc",
           "at_head": "ffffffffffffffff",
-          "on_disk": "3038f51b0b73091b"
+          "on_disk": "f55b434aea186381"
         }
       ],
       "untracked_mismatches": [
@@ -3006,8 +3004,8 @@
     "measurements": {
       "aot_elf_bytes": 878536,
       "aot_elf_bytes_conservative": 974928,
-      "compile_seconds": 0.4,
-      "compile_seconds_conservative": 0.28,
+      "compile_seconds": 0.38,
+      "compile_seconds_conservative": 0.29,
       "indirect_call_sites_total": 23,
       "prevented_inlines": 0,
       "inline_admissions": 0,
@@ -3017,73 +3015,70 @@
       "blocking_decisions": 8,
       "slot_preserving_decisions": 39,
       "benchmark_iterations": 2000000,
-      "direct_call_ns_mutable": 0.991,
-      "direct_call_ns_control": 0.975,
+      "direct_call_ns_mutable": 1.026,
+      "direct_call_ns_control": 1.177,
       "call_cost_note": "minimum of three samples, control is a non-selected never-inlined function. #67 measured the same shape and found the difference below same-arm sample variation; this lane reports the numbers and repeats that caveat rather than publishing a per-call overhead it cannot resolve.",
       "note": "diagnostic only; no threshold is compared anywhere."
     },
     "scale_measurements": {
-      "aot_elf_bytes": 42388752,
+      "aot_elf_bytes": 42593824,
       "aot_elf_bytes_control": 5937096,
-      "aot_elf_delta_bytes": 36451656,
+      "aot_elf_delta_bytes": 36656728,
       "app_declarations_in_corpus": 7,
       "app_only": {
         "aot_elf_bytes": 5969808,
         "aot_elf_delta_bytes": 32712,
         "app_declarations_in_corpus": 7,
-        "compile_seconds": 24.06,
-        "compile_seconds_delta": -0.29,
+        "compile_seconds": 24.42,
+        "compile_seconds_delta": -2.76,
         "decisions_recorded": 49,
         "declarations_with_escapes": 5,
         "devirtualizations_recorded": 1,
         "framework_declarations_in_corpus": 0,
         "indirect_call_sites_total": 3,
         "inline_admissions": 0,
-        "kernel_bytes": 27312704,
+        "kernel_bytes": 27325680,
         "prevented_inlines": 0,
         "registry_entries": 7,
         "selected_declarations": 7
       },
-      "compile_seconds": 43.82,
-      "compile_seconds_control": 24.35,
-      "compile_seconds_delta": 19.47,
+      "compile_seconds": 40.29,
+      "compile_seconds_control": 27.18,
+      "compile_seconds_delta": 13.11,
       "configurations": {
         "all_non_sdk": "every non-SDK declaration selected, framework included. The upper bound.",
         "app_only": "every declaration in package:scaleapp selected. The realistic posture: an author marks their own code mutable and leaves the framework alone.",
         "control": "nothing selected -- stock AOT of the same program"
       },
       "corpus": "a representative Flutter application: MaterialApp, a StatefulWidget with an AnimationController, a 500-row ListView.builder with per-row painting and taps -- compiled against the real package:flutter framework",
-      "decisions_recorded": 79913,
-      "declarations_with_escapes": 5967,
-      "devirtualizations_recorded": 11244,
-      "fork_commit": "ca96854daed14aefde546a25a54c9225162a5e54",
+      "decisions_recorded": 80338,
+      "declarations_with_escapes": 5975,
+      "devirtualizations_recorded": 11371,
+      "fork_commit": "4c637705c880fb87a82d3fa87b3bb6bf963a26d6",
       "fork_dirty": false,
-      "fork_tree": "2091ba61f4169871543d4bf744d114907e1a43ee",
-      "framework_declarations_in_corpus": 7126,
-      "indirect_call_sites_total": 17913,
+      "fork_tree": "37fa7088b0e06751a982f2a012e2bc021a875495",
+      "framework_declarations_in_corpus": 7152,
+      "indirect_call_sites_total": 18113,
       "inline_admissions": 0,
       "issue": 68,
-      "kernel_bytes": 27312704,
+      "kernel_bytes": 27359224,
       "lane": "scale",
       "not_claimed": [
         "the application is not run; every number is a compile-time fact read out of the precompiler registry dump",
         "no threshold is compared. #68 asked for the counts and did not agree a budget",
         "a real patch author selects a small subset, so a realistic posture costs strictly less than this"
       ],
-      "prevented_inlines": 1366,
+      "prevented_inlines": 1374,
       "prevented_inlines_control": 0,
-      "registry_entries": 7399,
-      "selected_declarations": 7399,
+      "registry_entries": 7425,
+      "selected_declarations": 7425,
       "selected_declarations_control": 0,
       "selection": "MAOT_SELECT_ALL_NON_SDK=1 -- every non-SDK declaration with a body, app and framework alike. This is the UPPER BOUND, not a typical posture.",
-      "from_fork_commit": "6ffbcc909bd9781181b47711145004f5b1e6f433",
-      "fork_commit_at_measurement": "ca96854daed14aefde546a25a54c9225162a5e54",
-      "measured_on_this_revision": false
+      "from_fork_commit": "4c637705c880fb87a82d3fa87b3bb6bf963a26d6",
+      "fork_commit_at_measurement": "4c637705c880fb87a82d3fa87b3bb6bf963a26d6",
+      "measured_on_this_revision": true
     },
-    "falsifications_failed": [
-      "H17",
-      "H04"
-    ],
+    "falsifications_failed": [],
     "live_arm_count": 19
   },
   "registry_after": {
@@ -4554,8 +4549,8 @@
       "kind": "live",
       "description": "TFA folds a mutable result to a constant, so the caller holds the release answer with no call at all",
       "why": "TFA can materialize a mutable result as a constant, so a caller uses the release answer without consulting the cell -- while the call site is still emitted and the path evidence still looks perfect. One layer removed shows the VM backstop refusing; both removed produce the raw defect.",
-      "result": "FAIL",
-      "observed": "baseline: 5 indirect call sites, 0 constant-folding decisions, caller returns NEW-CONST; front end only: 0 decisions, install 0; both layers removed: 0 decisions, install 0 SUCCEEDS and the caller still returns NEW-CONST (cold) / None (hot) from 5 emitted call sites",
+      "result": "pass",
+      "observed": "baseline: 5 indirect call sites, 0 constant-folding decisions, caller returns NEW-CONST; front end only: 26 decisions, install -3; both layers removed: 0 decisions, install 0 SUCCEEDS and the caller still returns OLD-CONST (cold) / None (hot) from 5 emitted call sites",
       "verdict_under_defect": "NOT_ESTABLISHED"
     },
     {
@@ -4611,8 +4606,8 @@
       "kind": "live",
       "description": "a constant result is folded through a mutable boundary, so the call reaches the cell and the caller ignores it",
       "why": "the call still reaches the cell and the caller uses the folded release answer -- path evidence perfect, program wrong. This shipped once.",
-      "result": "FAIL",
-      "observed": "folding re-enabled: 8 call sites still emitted, 0 escapes recorded, install 0, call NEW-TINY"
+      "result": "pass",
+      "observed": "folding re-enabled: 8 call sites still emitted, 13 escapes recorded, install -3, call OLD-TINY"
     },
     {
       "id": "H14",
@@ -4645,7 +4640,7 @@
       "description": "a dirty worktree lets the record name a fork commit whose bytes were never measured, while every binary-to-source check stays green",
       "why": "a dirty worktree lets a record name a commit it did not measure. The binary matches the bytes, the bytes match the digest, and the commit named in the evidence contains something else entirely -- which is exactly how #68's first closure attempt shipped.",
       "result": "pass",
-      "observed": "live: every tracked source equals its blob at 6ffbcc909bd9, which is the commit the build record names; against one source differing from that commit the guard reports 1 mismatch, and against one absent from it 1",
+      "observed": "live: every tracked source equals its blob at 4c637705c880, which is the commit the build record names; against one source differing from that commit the guard reports 1 mismatch, and against one absent from it 1",
       "verdict_under_defect": "NOT_ESTABLISHED"
     }
   ],
@@ -4674,33 +4669,7 @@
     "historical": [],
     "historical_note": "none yet in this lane"
   },
-  "findings": [
-    {
-      "code": "MEASURED_UNDER_NON_DEFAULT_FLAGS",
-      "severity": "blocking",
-      "message": "every snapshot in this run carried --maot_disable_constant_escape_block, so the result describes that posture and not the shipped one"
-    },
-    {
-      "code": "SCALE_LANE_FROM_ANOTHER_REVISION",
-      "severity": "blocking",
-      "message": "evidence/m4_scale.json names fork commit ca96854daed14aefde546a25a54c9225162a5e54, the binaries were built from 6ffbcc909bd9781181b47711145004f5b1e6f433"
-    },
-    {
-      "code": "FALSIFICATION_ARM_FAILED",
-      "severity": "blocking",
-      "message": "H17, H04"
-    },
-    {
-      "code": "ACCEPTANCE_ITEM_NOT_MET",
-      "severity": "blocking",
-      "message": "falsification of each major optimization class changes the gate: not met"
-    },
-    {
-      "code": "ACCEPTANCE_ITEM_NOT_MET",
-      "severity": "blocking",
-      "message": "the cost of the conservative posture is measured at application scale, not only on the fixture: not met"
-    }
-  ],
+  "findings": [],
   "consumers": {
     "map": {
       "verdict": "the gate exit code, the Phase A claim, and separately whether #68 may close",
@@ -4719,8 +4688,8 @@
     "unconsumed_or_undeclared": []
   },
   "verdict": {
-    "arm64_aot_optimizer_invariants": "NOT_ESTABLISHED",
-    "issue_68_closure": "NOT_READY",
+    "arm64_aot_optimizer_invariants": "ESTABLISHED",
+    "issue_68_closure": "READY",
     "target_arch": "arm64",
     "acceptance_ledger": [
       {
@@ -4755,7 +4724,7 @@
       },
       {
         "item": "falsification of each major optimization class changes the gate",
-        "met": false,
+        "met": true,
         "evidence": "19 live arms, of which three inject a real inlining, retention and TFA defect rather than observing that the protection is in place"
       },
       {
@@ -4765,7 +4734,7 @@
       },
       {
         "item": "the cost of the conservative posture is measured at application scale, not only on the fixture",
-        "met": false,
+        "met": true,
         "evidence": "prevented inlines and devirtualizations counted on a representative Flutter application against a control"
       },
       {
@@ -4779,10 +4748,7 @@
         "evidence": "direct / aot / cold+hot / arm64; H11 refuses a whole-row promotion"
       }
     ],
-    "acceptance_items_unmet": [
-      "falsification of each major optimization class changes the gate",
-      "the cost of the conservative posture is measured at application scale, not only on the fixture"
-    ],
+    "acceptance_items_unmet": [],
     "t0_row_linkage": {
       "EB-01": {
         "row_title": "top-level function body",
@@ -4945,21 +4911,17 @@
       "escape_metadata_is_consumed": true,
       "blocking_record_survives_to_the_consumer": true,
       "optimized_and_conservative_agree": true,
-      "required_falsifications_detected": false,
+      "required_falsifications_detected": true,
       "injected_inlining_defect_is_caught": true,
       "injected_retention_defect_is_caught": true,
-      "injected_tfa_defect_is_caught": false,
+      "injected_tfa_defect_is_caught": true,
       "measurements_recorded": true,
-      "scale_measurements_recorded": false,
+      "scale_measurements_recorded": true,
       "build_provenance_bound": true,
       "target_architecture_recorded": true,
       "t0_linkage_exact_and_unpromoted": true
     },
-    "conditions_failed": [
-      "injected_tfa_defect_is_caught",
-      "required_falsifications_detected",
-      "scale_measurements_recorded"
-    ],
+    "conditions_failed": [],
     "condition_meanings": {
       "every_optimizer_class_has_a_rule": "does every optimizer class #68 names have a rule with an enforcement site, a disposition, a producer, a consumer and a falsification -- compared against an INDEPENDENT required-class set, so deleting a class fails the check instead of shrinking what it inspects?",
       "recognized_population_is_sdk_only": "read out of the VM's own recognized/intrinsic tables: does every row name an SDK library, and is vm:recognized unable to assign recognized_kind on its own? Those two facts are what close the class, together with no_sdk_declaration_is_selected.",
@@ -4985,12 +4947,7 @@
       "target_architecture_recorded": "does the record say which architecture this was proven on?",
       "t0_linkage_exact_and_unpromoted": "is the #64 linkage exactly the demonstrated modes, with EB-01, EB-02 and RS-09 all left UNMODELED?"
     },
-    "blocking_findings": [
-      "ACCEPTANCE_ITEM_NOT_MET",
-      "FALSIFICATION_ARM_FAILED",
-      "MEASURED_UNDER_NON_DEFAULT_FLAGS",
-      "SCALE_LANE_FROM_ANOTHER_REVISION"
-    ],
+    "blocking_findings": [],
     "verdict_rule": "arm64_aot_optimizer_invariants == ESTABLISHED iff every condition holds and no non-acceptance blocking finding was raised. issue_68_closure == READY iff that and no acceptance item is unmet. Conjunctions throughout; no count, ratio or threshold is compared, and no outcome string is reachable unconditionally.",
     "not_claimed": [
       "Proven on arm64 only.",

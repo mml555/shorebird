@@ -1,23 +1,15 @@
 === MAOT-4 (#68) optimizer invariants for mutable declarations ===
-run  2026-09-16T20:45:15Z
-fork 6ffbcc909bd9781181b47711145004f5b1e6f433
+run  2026-09-16T21:26:44Z
+fork 4c637705c880fb87a82d3fa87b3bb6bf963a26d6
 
-fork          6ffbcc909bd9781181b47711145004f5b1e6f433
+fork          4c637705c880fb87a82d3fa87b3bb6bf963a26d6
 rules         10 optimizer classes
 variants      tiny OLD-TINY -> NEW-TINY -> NEW-CONST | chain NEW-A
 devirt        install -3 (refused: instance dispatch is #69) | join 6+3
-arms          19 (2 failed)
-blocking      5
-conditions    24 (3 failed)
-  unmet: injected_tfa_defect_is_caught
-  unmet: required_falsifications_detected
-  unmet: scale_measurements_recorded
-  MEASURED_UNDER_NON_DEFAULT_FLAGS: every snapshot in this run carried --maot_disable_constant_escape_block, so the result describes tha
-  SCALE_LANE_FROM_ANOTHER_REVISION: evidence/m4_scale.json names fork commit ca96854daed14aefde546a25a54c9225162a5e54, the binaries were
-  FALSIFICATION_ARM_FAILED: H17, H04
-  ACCEPTANCE_ITEM_NOT_MET: falsification of each major optimization class changes the gate: not met
-  ACCEPTANCE_ITEM_NOT_MET: the cost of the conservative posture is measured at application scale, not only on the fixture: not 
-PHASE A       arm64_aot_optimizer_invariants = NOT_ESTABLISHED
-CLOSURE       issue_68_closure = NOT_READY
+arms          19 (0 failed)
+blocking      0
+conditions    24 (0 failed)
+PHASE A       arm64_aot_optimizer_invariants = ESTABLISHED
+CLOSURE       issue_68_closure = READY
 
-gate exit 1
+gate exit 0
