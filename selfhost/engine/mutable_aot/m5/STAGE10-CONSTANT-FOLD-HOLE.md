@@ -55,9 +55,27 @@ B: 116: bl  <callControl>                    →  120: ldr x1,[x27,#6200]
 ```
 
 All three B sites (`116/120/124`, `280/284/288`, `412/416/420`) load `x2` from
-the **same** pool offset 152. `callControl()` is called — `vm:never-inline` is
-honoured — the cell is read, the replacement body runs, and `main` ignores what
-it returns.
+the **same** pool offset 152. Dumping the string-valued pool entries with the
+same offset formula identifies it, and identifies the key string loaded beside
+it, so the whole group is read off the binary rather than inferred from
+position:
+
+```
+[maot-strpool] index 17  offset 152  = "OLD-CONTROL"
+[maot-strpool] index 773 offset 6200 = "B.0"
+```
+
+giving, in full:
+
+```
+116: bl  <callControl>     ; result in x0 — discarded
+120: ldr x1,[x27,#6200]    ; "B.0"
+124: ldr x2,[x27,#152]     ; "OLD-CONTROL"   <- the folded release answer
+128: bl  <_emit>
+```
+
+`callControl()` is called — `vm:never-inline` is honoured — the cell is read,
+the replacement body runs, and `main` ignores what it returns.
 
 ## 3. Which variable is responsible — measured, not inferred
 
@@ -136,6 +154,45 @@ replacement."*
 - It **can** have produced false negatives. Any fixture whose mutable subject
   returns a constant and is reached through a non-mutable intermediary was
   measuring this hole rather than the mechanism under test.
+
+## 6b. The hole is narrower than "any wrapper" — and no m4 arm is compromised
+
+m4 already contains the wrapper shape and it passes:
+
+```dart
+String immutableCaller() => '${tiny()}/${constantish()}';   // fixture_m4.dart:74
+```
+
+`immutableCaller.0 = OLD-TINY/OLD-CONST` -> `immutableCaller.1 = NEW-TINY/NEW-CONST`.
+That is not a contradiction; it sharpens the boundary. Rather than infer the
+reason from a separate run, a fifth arm puts the same shape in the 2x2 binary:
+
+```dart
+@pragma('vm:never-inline') String callX() => '${xa()}/${xb()}';   // xa, xb both mutable, both constant
+```
+
+| arm | intermediary | intermediary's own result | after install |
+|---|---|---|---|
+| CW | `callControl() => control();` | constant | `OLD-CONTROL` ✗ |
+| CX | `callX() => '${xa()}/${xb()}';` | not constant | `NEW-XA/OLD-XB` ✓ |
+
+So the fold needs the **intermediary's own inferred result** to be constant.
+`callControl()` returns the callee's value verbatim and the constant flows
+straight through; a concatenation of two calls produces no constant attribute,
+nothing propagates, and the wrapper stays honest. An intermediary alone is not
+enough.
+
+The other arm worth checking is `unmodeled_dispatch_blocks_install`, which uses
+a non-observation (`devirt.1 == 'OLD-DEVIRT'`) as part of its pass criterion.
+It is not at risk on either count: `shape.describe()` is called directly from
+`main` (fixture_m4.dart:160,196), so the direct-edge suppression applies, and
+the clause is conjoined with the mechanical `install.devirt == -3`, which is
+what actually discriminates.
+
+I checked for the general failure mode rather than assuming it away: an arm
+that passes on a *non*-observation could now be passing because the value was
+folded rather than because the mechanism under test refused. `devirt` is the
+only such arm and it survives.
 
 ## 7. The super divergence is the same hole — measured
 

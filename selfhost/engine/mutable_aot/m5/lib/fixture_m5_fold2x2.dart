@@ -58,6 +58,23 @@ String ncontrolNew() => 'NEW-NW$_seed';
 @pragma('vm:never-inline')
 String callNControl() => ncontrol();
 
+// ---- CX: constant-returning callees, but the WRAPPER's own result is not
+// constant-inferable. m4's `immutableCaller` has this shape and passes; this
+// arm makes that measurable in the same binary rather than inferred from a
+// separate run. If CX is observed while CW is not, the hole needs the
+// intermediary's OWN result to be constant, not merely an intermediary.
+@pragma('maot:mutable')
+String xa() => 'OLD-XA';
+
+@pragma('maot:mutable')
+String xaNew() => 'NEW-XA';
+
+@pragma('maot:mutable')
+String xb() => 'OLD-XB';
+
+@pragma('vm:never-inline')
+String callX() => '${xa()}/${xb()}';
+
 const _lib = 'lib:package:m5fold/fixture_m5_fold2x2.dart';
 
 final _proc = DynamicLibrary.process();
@@ -90,14 +107,17 @@ void main(List<String> args) {
   _emit('CW.0', callControl());
   _emit('ND.0', nwork());
   _emit('NW.0', callNControl());
+  _emit('CX.0', callX());
 
   _emit('install.CD', _go(ns, 'work', 'workNew'));
   _emit('install.CW', _go(ns, 'control', 'controlNew'));
   _emit('install.ND', _go(ns, 'nwork', 'nworkNew'));
   _emit('install.NW', _go(ns, 'ncontrol', 'ncontrolNew'));
+  _emit('install.CX', _go(ns, 'xa', 'xaNew'));
 
   _emit('CD.1', work());
   _emit('CW.1', callControl());
   _emit('ND.1', nwork());
   _emit('NW.1', callNControl());
+  _emit('CX.1', callX());
 }
