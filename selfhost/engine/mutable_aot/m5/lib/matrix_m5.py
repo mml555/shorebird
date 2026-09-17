@@ -34,6 +34,11 @@ SUBJECTS = [
 # tear-off arms carry it instead.
 NO_SITE_EVIDENCE = {'tearoff'}
 
+# Per-row the traversal check accepts PASS or PASS_LEAF_ONLY, but a suite made
+# entirely of leaf bodies would assert nothing about static-call binding. At
+# least one row must be non-leaf.
+TRAVERSAL_VERDICTS = []
+
 FROZEN = ['id_declaration_function', 'id_declaration_current_code',
           'id_trampoline_code', 'id_trampoline_entry', 'id_dispatch_cell',
           'id_release_body']
@@ -75,11 +80,18 @@ def build_and_run(tag, fixture, pkg):
     s = subprocess.run(
         [os.path.join(OUT, 'gen_snapshot'), '--snapshot_kind=app-aot-elf',
          f'--elf={aot}', f'--maot_namespace={NS}', '--maot_install_trampolines',
+         # Permanent structural regression, asserted on every row rather than
+         # run once: the defect it guards blinded a dozen passes at once.
+         '--maot_verify_pinned_body_traversal',
          f'--maot_dump_registry_precompile={os.path.join(wd, "pre.json")}', dill],
         capture_output=True, text=True, timeout=1800)
+    trav = [l.strip() for l in s.stderr.splitlines() if 'PINNED_TRAVERSAL' in l]
     if s.returncode != 0:
         sig = [l.strip() for l in s.stderr.splitlines() if 'si_addr' in l]
         return None, f'SNAPSHOT rc={s.returncode} {sig[:1]}', {}, wd
+    if not trav or 'verdict=PASS' not in trav[0]:
+        return None, f'TRAVERSAL {trav[0] if trav else "no verdict emitted"}', {}, wd
+    TRAVERSAL_VERDICTS.append((tag, trav[0]))
     dumps = os.path.join(wd, 'dumps'); os.makedirs(dumps, exist_ok=True)
     r = subprocess.run([os.path.join(OUT, 'dartaotruntime'), aot],
                        capture_output=True, text=True, timeout=900,
@@ -126,6 +138,13 @@ for tag, fixture, pkg, subj, other in SUBJECTS:
     print(f'{tag:9s} {verdict}  ({n_checks} checks, {len(fails)} failed)')
     for f in fails:
         print(f'            FAILED: {f}')
+
+non_leaf = [t for t, v in TRAVERSAL_VERDICTS if 'verdict=PASS' in v
+            and 'LEAF_ONLY' not in v]
+print('\n=== pinned-body traversal ===')
+for t, v in TRAVERSAL_VERDICTS:
+    print(f'  {t:9s} {v.split("verdict=")[-1]}')
+print(f'  non-leaf rows: {non_leaf if non_leaf else "NONE -- suite is vacuous"}')
 
 print('\n=== matrix ===')
 for tag, verdict, fails in results:

@@ -12,12 +12,18 @@ Every number below comes from a stamped build; every run passes
 |---|---|
 | #67 | ESTABLISHED |
 | #68 | ESTABLISHED (re-closed; P1 mutable-constant suppression ON by default, P3 retained as fallback) |
-| #69 | ACTIVE — instance-member surface complete, awaiting disposition |
+| #69 | ACTIVE — instance-member subject matrix complete; cross-dispatch matrix pending |
 | #70 | not authorized, untouched |
 | #64 promotion | not claimed |
 
 Established milestones: `ARM64_AOT_INSTANCE_STAGE_REPLACEMENT_VERTICAL_SLICE`,
-`ARM64_AOT_INSTANCE_GETTER_VERTICAL_SLICE`.
+`ARM64_AOT_INSTANCE_GETTER_VERTICAL_SLICE`,
+`ARM64_AOT_INSTANCE_MEMBER_SUBJECT_MATRIX`, `ARM64_AOT_TEAROFF_METHOD_ROUTE`.
+
+The subject dimension of #69 is established. The full subject x dispatch
+surface is **not** closed: the five subjects are established under `dynamic`
+dispatch, while `direct`/`virtual`/`interface`/`super` were established earlier
+as route classes and never rerun through the identity-frozen production judge.
 
 ---
 
@@ -110,19 +116,37 @@ Harness: `m5/lib/{judge_m5,matrix_m5,selftest_m5}.py`.
 
 ---
 
-## 4. What needs a ruling
+## 4. Ruled (was: what needs a ruling)
 
-1. **Disposition on the six-row matrix.** Milestone naming is the PM's.
-2. **Ratify or reject a classification I made under delegated authority:**
-   `dynamic/MegamorphicCache via dyn-invocation-forwarder = SLOT_PRESERVING`,
-   recorded as a *distinct* form rather than folded into the accepted record.
-3. **An architecture sentence that no longer describes every route.** The
-   accepted chain is `frozen cache → declaration Function → trampoline → cell →
-   body`. For forwarder-routed members it is `frozen cache → forwarder
-   Function → cell (direct) → body` — **the declaration trampoline is not on
-   that path.** The invariant carrying those members is the stable cell
-   re-read per call. Replacement works and is slot-preserving; the wording
-   does not cover it.
+1. **Matrix accepted**, milestone renamed to
+   `ARM64_AOT_INSTANCE_MEMBER_SUBJECT_MATRIX = ESTABLISHED`, with
+   `ARM64_AOT_TEAROFF_METHOD_ROUTE = ESTABLISHED` recorded separately.
+2. **Classification ratified as architecture**, with its own precise record:
+   `dynamic/MegamorphicCache/dyn-invocation-forwarder = SLOT_PRESERVING`. Not
+   collapsed into an undifferentiated `dynamic/MegamorphicCache` record: there
+   are two mechanically different stable routes.
+3. **Architecture sentence replaced** — see section 4a. Ruled a refinement, not
+   a weakening: the invariant was never "every path contains a trampoline".
+
+## 4a. Programme invariant (replaces the old wording)
+
+> Every accepted frozen AOT dispatch structure must retain a stable routing
+> anchor whose execution reaches the declaration's stable mutable
+> implementation cell without modifying the frozen dispatch structure. The
+> stable anchor is normally the declaration trampoline; where the VM inserts a
+> dynamic invocation forwarder, the stable forwarder itself may be the routing
+> anchor and reach the cell directly. Frozen routing must never retain the
+> replaceable implementation body as the semantic target.
+
+```
+frozen dispatch -> stable routing anchor -> stable mutable cell -> current body
+
+stable routing anchor = declaration trampoline
+                      OR proven stable forwarding Function
+```
+
+The property that matters: **replacement must occur behind the last identity
+frozen into AOT dispatch.**
 
 ---
 
