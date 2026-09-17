@@ -105,9 +105,13 @@ for tag, fixture, pkg, subj, other in SUBJECTS:
         print(f'{tag:9s} BLOCKED  no dump entry for {subj} at {missing}')
         results.append((tag, 'BLOCKED', [f'missing dumps {missing}'])); continue
 
-    json.dump({'stages': stages, 'beta': beta, 'kv': kv},
+    site_path = os.path.join(wd, 'site.txt')
+    site_report = (open(site_path, errors='replace').read()
+                   if os.path.exists(site_path) else None)
+    json.dump({'stages': stages, 'beta': beta, 'kv': kv,
+               'site_report': site_report},
               open(os.path.join(SCRATCH, f'evidence_{tag}.json'), 'w'), indent=1)
-    n_checks, fails = judge(stages, beta, kv)
+    n_checks, fails = judge(stages, beta, kv, site_report)
     verdict = 'PASS' if not fails else 'FAIL'
     results.append((tag, verdict, fails))
     print(f'{tag:9s} {verdict}  ({n_checks} checks, {len(fails)} failed)')

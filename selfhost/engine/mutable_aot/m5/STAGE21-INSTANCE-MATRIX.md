@@ -1,5 +1,15 @@
 # STAGE21 — instance-member matrix after the body-leaves-the-walk repair
 
+> **SUPERSEDED IN PART by STAGE22.** Section 5 concluded that the setter,
+> operator and callable sites "do not route through" the switchable-call path.
+> That is refuted. Disassembly shows all three are ordinary ARM64 switchable
+> calls, identical in form to the getter's. They recorded nothing because a
+> dynamic call to a member with a typed parameter resolves to that member's
+> DYNAMIC INVOCATION FORWARDER, which the registry did not recognise. The
+> measurements in section 5 are accurate as taken; the inference drawn from
+> them was wrong. Everything else in this document stands.
+
+
 Fork `c27af45252f`, built and stamped by `m2/build_maot.sh`
 (`fork_sources_match_head 1`). Shorebird `9d09e938`.
 `gen_snapshot` run with `--maot_install_trampolines` — the mechanism is OFF by

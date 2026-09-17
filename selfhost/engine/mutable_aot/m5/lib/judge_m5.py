@@ -7,6 +7,8 @@ shown to discriminate. This module holds the judgement as a pure function of
 deliberately corrupted evidence and require it to FAIL.
 """
 
+import re
+
 FROZEN = ['id_declaration_function', 'id_declaration_current_code',
           'id_trampoline_code', 'id_trampoline_entry', 'id_dispatch_cell',
           'id_release_body']
@@ -15,7 +17,15 @@ MOVING = ['id_cell_impl_function', 'id_cell_impl_code',
 STAGES = ('before', 'v2', 'v3')
 
 
-def judge(stages, beta, kv):
+SITE_PAT = re.compile(
+    r'site=(0x[0-9a-f]+) state=(\S+) entry_cid=(\d+) cached_fn=(.*?) '
+    r'owner=(\S+) cached_fn_addr=(0x[0-9a-f]+) '
+    r'CurrentCode_IS_trampoline=(\S+) trampoline_entry=(0x[0-9a-f]+)')
+SITE_FIELDS = ['site_pc', 'cache_state', 'entry_cid', 'cached_fn', 'owner',
+               'cached_fn_addr', 'currentcode_is_trampoline', 'trampoline_entry']
+
+
+def judge(stages, beta, kv, site_report=None):
     """Return (checks_run, failures)."""
     fails = []
     n = 0
@@ -81,6 +91,25 @@ def judge(stages, beta, kv):
                 len(set(vals)) == 1, str(vals))
     else:
         chk('unrelated declaration present in dumps', False, 'missing')
+    # The warmed dispatch structure itself. Behaviour and registry identities
+    # can both look right while the cache was quietly relinked underneath, so
+    # the site is read back at each stage and every field compared.
+    if site_report is not None:
+        # Only the SUBJECT's site. A fixture may inspect the unrelated
+        # declaration's site too, and at more points -- the method fixture
+        # inspects Alpha and Beta across five calls. Counting every inspection
+        # in the file made a correct row fail, which is a harness assumption
+        # being wrong, not the product.
+        rows = [r for r in SITE_PAT.findall(site_report) if r[4] == 'Alpha']
+        chk('subject site inspected at all three stages', len(rows) == 3,
+            f'{len(rows)} inspections of the subject site')
+        if len(rows) == 3:
+            for name, vals in zip(SITE_FIELDS, zip(*rows)):
+                chk(f'frozen cache {name}', len(set(vals)) == 1, str(vals))
+        vias = set(re.findall(r'via=(\S+)', site_report))
+        chk('routing via a single known form',
+            vias in ({'declaration'}, {'dyn-invocation-forwarder'}), str(vias))
+
     chk('unrelated behaviour unchanged',
         kv.get('beta.0') is not None and kv.get('beta.0') == kv.get('beta.after'),
         f"{kv.get('beta.0')} -> {kv.get('beta.after')}")

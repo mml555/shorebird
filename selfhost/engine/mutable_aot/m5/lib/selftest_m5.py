@@ -4,15 +4,17 @@
 Every mutation below encodes one of the PM's hard stop conditions. If the
 judge still returns PASS for any of them, the matrix result means nothing.
 """
-import copy, json, os, sys
+import copy, json, os, re, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from judge_m5 import judge, FROZEN, MOVING, STAGES
 
 SCRATCH = os.path.dirname(os.path.abspath(__file__))
 real = json.load(open(os.path.join(SCRATCH, 'evidence_setter.json')))
 stages, beta, kv = real['stages'], real['beta'], real['kv']
+site = real.get('site_report')
+assert site, 'no site report in the evidence; the cache checks would be skipped'
 
-n, fails = judge(stages, beta, kv)
+n, fails = judge(stages, beta, kv, site)
 print(f'unmutated setter evidence: {n} checks, {len(fails)} failures')
 assert not fails, fails
 
@@ -81,13 +83,55 @@ def m_absent(s, b, k):
     return s, b, k
 MUTATIONS.append(('identity fields absent from dump', m_absent))
 
+def _last_sub(text, pattern, replacement):
+    """Rewrite only the LAST match, so baseline and V2 agree and V3 diverges.
+
+    A mutation that silently matches nothing reports as "the judge missed it",
+    which is indistinguishable from a real gap -- so this asserts it changed
+    something.
+    """
+    ms = list(re.finditer(pattern, text))
+    assert ms, f'mutation pattern never matched: {pattern}'
+    m = ms[-1]
+    out = text[:m.start()] + replacement + text[m.end():]
+    assert out != text, f'mutation changed nothing: {pattern}'
+    return out
+
+
+SITE_MUTATIONS = [
+    ('warmed cache relinked (site pc moved at v3)',
+     _last_sub(site, r'site=0x[0-9a-f]+', 'site=0xdeadbee1')),
+    ('cached function replaced at v3',
+     _last_sub(site, r'cached_fn_addr=0x[0-9a-f]+',
+               'cached_fn_addr=0xfeedface')),
+    ('cache state transitioned at v3',
+     _last_sub(site, r'state=MegamorphicCache', 'state=ICData')),
+    ('trampoline entry moved at v3',
+     _last_sub(site, r'trampoline_entry=0x[0-9a-f]+',
+               'trampoline_entry=0xbadbad01')),
+    ('an inspection is missing',
+     site.split('site=', 2)[0] + 'site=' + site.split('site=', 2)[1]),
+    ('routing form is not a single known form',
+     _last_sub(site, r'via=\S+', 'via=something-unmodelled')),
+]
+
 bad = 0
 for name, mut in MUTATIONS:
+    if not callable(mut):
+        continue
     s2, b2, k2 = mut(stages, beta, kv)
-    _, f2 = judge(s2, b2, k2)
+    _, f2 = judge(s2, b2, k2, site)
     ok = len(f2) > 0
     print(f'  {"DETECTED" if ok else "MISSED  "}  {name}')
     if not ok:
         bad += 1
-print(f'\n{len(MUTATIONS)} mutations, {bad} undetected')
+for name, bad_site in SITE_MUTATIONS:
+    _, f2 = judge(stages, beta, kv, bad_site)
+    ok = len(f2) > 0
+    print(f'  {"DETECTED" if ok else "MISSED  "}  {name}')
+    if not ok:
+        bad += 1
+
+total = len([m for _, m in MUTATIONS if callable(m)]) + len(SITE_MUTATIONS)
+print(f'\n{total} mutations, {bad} undetected')
 raise SystemExit(1 if bad else 0)
