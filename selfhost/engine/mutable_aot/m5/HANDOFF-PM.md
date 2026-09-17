@@ -1,6 +1,6 @@
 # Mutable-AOT #69 — PM handoff and proposed next task sets
 
-Fork `fbae05c4ab8` (clean, `fork_sources_match_head 1`), Shorebird `4198d4de1`.
+Fork `1a20e5b12a2` (clean, `fork_sources_match_head 1`), Shorebird `40b1482dc`.
 Every number below comes from a stamped build; every run passes
 `--maot_install_trampolines`, which is OFF by default.
 
@@ -11,19 +11,37 @@ Every number below comes from a stamped build; every run passes
 | issue | state |
 |---|---|
 | #67 | ESTABLISHED |
-| #68 | ESTABLISHED (re-closed; P1 mutable-constant suppression ON by default, P3 retained as fallback) |
-| #69 | ACTIVE — instance-member subject matrix complete; cross-dispatch matrix pending |
-| #70 | not authorized, untouched |
-| #64 promotion | not claimed |
+| #68 | ESTABLISHED |
+| **#69** | **ESTABLISHED — ARM64 instance-member dispatch** |
+| #70 | UNTOUCHED |
+| #64 | NO PROMOTION |
 
-Established milestones: `ARM64_AOT_INSTANCE_STAGE_REPLACEMENT_VERTICAL_SLICE`,
+| readiness | state |
+|---|---|
+| Scale / population readiness | ACTIVE |
+| Default-on readiness | **NOT ESTABLISHED** |
+
+The separation that matters now: **semantic routing correctness is
+established; population and operational readiness are not.**
+
+Established milestones:
+`ARM64_AOT_INSTANCE_STAGE_REPLACEMENT_VERTICAL_SLICE`,
 `ARM64_AOT_INSTANCE_GETTER_VERTICAL_SLICE`,
-`ARM64_AOT_INSTANCE_MEMBER_SUBJECT_MATRIX`, `ARM64_AOT_TEAROFF_METHOD_ROUTE`.
+`ARM64_AOT_INSTANCE_MEMBER_SUBJECT_MATRIX`,
+`ARM64_AOT_TEAROFF_METHOD_ROUTE`,
+`PINNED_BODY_PROGRAM_TRAVERSAL_REGRESSION`,
+`ARM64_AOT_INSTANCE_DISPATCH_MATRIX`,
+`ISSUE_69_INSTANCE_MEMBER_SURFACE`,
+`ARM64_AOT_SYNTHETIC_POPULATION_512`.
 
-The subject dimension of #69 is established. The full subject x dispatch
-surface is **not** closed: the five subjects are established under `dynamic`
-dispatch, while `direct`/`virtual`/`interface`/`super` were established earlier
-as route classes and never rerun through the identity-frozen production judge.
+#69 closure covers the five subjects x five dispatch forms, each either
+mechanically exercised through production StageReplacement or mechanically
+classified by its real final AOT routing.
+
+It does **not** establish production-scale population support, device or other
+architecture support, default-on readiness, #64 promotion, #70, or all tear-off
+forms. Tear-offs remain their own surface; additional tear-off subjects do not
+reopen #69.
 
 ---
 
