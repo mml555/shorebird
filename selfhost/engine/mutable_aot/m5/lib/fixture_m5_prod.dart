@@ -41,6 +41,13 @@ class AlphaNew {
   String v() => 'NEW-ALPHA';
 }
 
+// Used ONLY to mutate AlphaNew's own cell in the cross-wiring regression --
+// never installed over Alpha.
+class Interloper {
+  @pragma('maot:mutable')
+  String v() => 'INTERLOPER';
+}
+
 class AlphaNew2 {
   @pragma('maot:mutable')
   String v() => 'NEW2-ALPHA';
@@ -97,6 +104,13 @@ final _version = _proc.lookupFunction<Int64 Function(Pointer<Uint8>),
 // TRAMPOLINE into cell.implCode? The self-cycle guard only refuses THIS
 // declaration's own trampoline, and the replacement is itself a selected
 // declaration that may have one, so an extra hop would pass that guard.
+// The diagnostic swap is used for ONE purpose here: to perturb a DIFFERENT
+// declaration's cell (AlphaNew's), so that Alpha's independence from it can be
+// tested. It is never used on Alpha.
+final _swap = _proc.lookupFunction<
+    Int64 Function(Pointer<Uint8>, Pointer<Uint8>),
+    int Function(Pointer<Uint8>, Pointer<Uint8>)>(
+    'Dart_MaotDiagnosticCellSwap');
 final _report = _proc.lookupFunction<
     Int64 Function(Pointer<Uint8>, Pointer<Uint8>),
     int Function(Pointer<Uint8>, Pointer<Uint8>)>('Dart_MaotIdentityReport');
@@ -187,6 +201,16 @@ void main(List<String> args) {
   _emit('version.v3', _version(_c('$_lib::cls:Alpha::method:v')));
   _emit('ident.v3', _ident2('v3'));
   _emit('site.afterV3', _look('cls:Alpha::method:v'));
+
+  // ---- CROSS-WIRING REGRESSION ----
+  // After v3 Alpha runs AlphaNew2's body. Now perturb AlphaNew2's OWN cell. If
+  // Alpha's cell still held AlphaNew2's trampoline, Alpha would follow this
+  // and start returning INTERLOPER. It must not: Alpha's cell pins the BODY.
+  _emit('xwire.swapAlphaNewCell',
+      _swap(_c('$_lib::cls:AlphaNew2::method:v'),
+            _c('$_lib::cls:Interloper::method:v')));
+  _emit('xwire.alphaAfter', site(receivers[0]));  // must stay NEW2-ALPHA
+  _emit('xwire.retainInterloper', Interloper().v());
 
   final after = _counts();
   _emit('states.before', before);
