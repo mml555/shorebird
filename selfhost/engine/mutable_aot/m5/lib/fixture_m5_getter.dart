@@ -113,6 +113,9 @@ const _states = [
   'instance-dispatch/SingleTargetCache-observed',
   'instance-dispatch/ICData-observed',
   'instance-dispatch/MegamorphicCache-observed',
+  // Unfiltered: distinguishes 'this site is not a switchable call' from
+  // 'it is, but its target is not a tracked declaration'.
+  'any-dispatch/miss-observed',
 ];
 List<int> _counts() => [for (final s in _states) _stateCount(_c(s))];
 

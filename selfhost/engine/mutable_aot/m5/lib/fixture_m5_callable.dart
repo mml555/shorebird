@@ -1,67 +1,55 @@
-// MAOT-5 (#69) -- setter vertical slice.
+// MAOT-5 (#69) -- callable-class call() vertical slice.
 //
-// THE SETTER TRAP. `obj.v = x` evaluates to x regardless of what the setter
-// body did, so the value of the assignment expression proves nothing about
-// which implementation ran. Every observation here comes from a side effect
-// the setter BODY produced.
+// Same production mechanism as the instance-method and getter slices. No
+// callable-class call()-specific machinery: if the shared trampoline/cell design cannot
+// represent this subject, that is a finding to report, not something to paper
+// over with a second mechanism.
 //
-// The side effect is also derived from runtime INPUT, not a constant, so this
-// is not another constant-result test wearing a different hat: each
-// implementation applies a DIFFERENT arithmetic transformation, and the
-// resulting number says which body ran.
+// NOTE ON IDENTITY. The #65 declaration id below was read out of the registry
+// dump, not guessed. An earlier subject lost a full cycle to `getter:v` vs
+// `get:v`, where every call returned -1 and the value stayed OLD -- which
+// looks exactly like "this member kind is unsupported" and is the opposite.
 //
-//   release -> input * 2
-//   v2      -> input * 3
-//   v3      -> input + 7
-//
-// With input 10 that is 20 / 30 / 17 -- distinct, and none of them derivable
-// without running the corresponding body.
+// NOTE ON THE BODY. The bodies interpolate a runtime input on purpose, so the
+// body Code carries real pc-relative static calls. A constant-returning body
+// has an empty static-call table and never exercises the path that
+// ProgramVisitor::WalkProgram stopped reaching once a trampoline became the
+// declaration's CurrentCode.
 import 'dart:ffi';
 import 'dart:io' show Platform;
 
-// The observable. Written only by setter bodies.
-String marker = '<unset>';
-
-// Runtime input: read from the environment so no implementation's result is a
-// compile-time constant.
 final int input = int.tryParse(Platform.environment['M5_INPUT'] ?? '') ?? 10;
 
 class Alpha {
   @pragma('maot:mutable')
-  set v(int x) {
-    marker = 'OLD:${x * 2}';
-  }
+  String call(int x) => 'OLD:${x * 2}';
 }
 
 class AlphaNew {
   @pragma('maot:mutable')
-  set v(int x) {
-    marker = 'NEW:${x * 3}';
-  }
+  String call(int x) => 'NEW:${x * 3}';
 }
 
 class AlphaNew2 {
   @pragma('maot:mutable')
-  set v(int x) {
-    marker = 'NEW2:${x + 7}';
-  }
+  String call(int x) => 'NEW2:${x + 7}';
 }
 
-// Cross-declaration isolation control, sharing the selector.
+// Cross-declaration isolation control: shares the selector, owns its own
+// declaration, cell and trampoline.
 class Beta {
   @pragma('maot:mutable')
-  set v(int x) {
-    marker = 'BETA:${x * 5}';
-  }
+  String call(int x) => 'BETA:${x * 5}';
 }
 
-// Keep the site statically wide so it is not devirtualised.
-class F1 { set v(int x) { marker = 'F1'; } }
-class F2 { set v(int x) { marker = 'F2'; } }
-class F3 { set v(int x) { marker = 'F3'; } }
-class F4 { set v(int x) { marker = 'F4'; } }
-class F5 { set v(int x) { marker = 'F5'; } }
-class F6 { set v(int x) { marker = 'F6'; } }
+// A statically wide receiver set, so the site is not devirtualised and can
+// reach the megamorphic state.
+class F1 { String call(int x) => 'F1'; }
+class F2 { String call(int x) => 'F2'; }
+class F3 { String call(int x) => 'F3'; }
+class F4 { String call(int x) => 'F4'; }
+class F5 { String call(int x) => 'F5'; }
+class F6 { String call(int x) => 'F6'; }
 
 @pragma('vm:never-inline')
 dynamic mk(int i) {
@@ -77,20 +65,13 @@ dynamic mk(int i) {
   }
 }
 
-// THE ONE SITE -- an assignment, and its value is deliberately discarded.
+// THE ONE SITE.
 @pragma('vm:never-inline')
-void site(dynamic d, int x) {
-  d.v = x;
-}
+String site(dynamic d, int x) => d(x) as String;
 
-// Reads the side effect the BODY produced, never the assignment's value.
-String observe(dynamic d, int x) {
-  marker = '<unset>';
-  site(d, x);
-  return marker;
-}
+String observe(dynamic d, int x) => site(d, x);
 
-const _lib = 'lib:package:m5setter/fixture_m5_setter.dart';
+const _lib = 'lib:package:m5callable/fixture_m5_callable.dart';
 
 final _proc = DynamicLibrary.process();
 final _malloc = _proc.lookupFunction<Pointer<Uint8> Function(IntPtr),
@@ -124,13 +105,11 @@ Pointer<Uint8> _c(String s) {
 
 void _emit(String k, Object v) => print('$k=$v');
 final _ns = Platform.environment['MAOT_NAMESPACE'] ?? '';
-// The #65 spelling for a setter, taken from the registry dump rather than
-// guessed -- the getter subject lost a full cycle to `getter:v` vs `get:v`.
-const _decl = 'cls:Alpha::set:v';
+const _decl = 'cls:Alpha::method:call';
 int _stage(String i, int v) =>
     _install(_c('$_lib::$_decl'), _c('$_lib::$i'), v, _c(_ns));
 final _siteOut =
-    Platform.environment['M5_SITE_REPORT'] ?? '/tmp/maot_setter_site.txt';
+    Platform.environment['M5_SITE_REPORT'] ?? '/tmp/maot_callable_site.txt';
 int _look() => _inspect(_c('$_lib::$_decl'), _c(_siteOut));
 
 const _states = [
@@ -149,33 +128,35 @@ List<int> _counts() => [for (final s in _states) _stateCount(_c(s))];
 void main(List<String> args) {
   final dumpDir = Platform.environment['MAOT_DUMP_DIR'] ?? '';
   _emit('input', input);
-  // Retain the replacement bodies.
+
+  // The replacements must be retained and reachable, or the install refuses
+  // for a reason that has nothing to do with the subject under test.
   _emit('retain.new', observe(AlphaNew(), input));
   _emit('retain.new2', observe(AlphaNew2(), input));
   _emit('tramp.identity', _ident(_c('$_lib::$_decl')));
 
+  // ---- WARM THE SITE TO MEGAMORPHIC ----
   final receivers = [for (var i = 0; i < 8; i++) mk(i)];
-  for (var i = 0; i < receivers.length; i++) {
-    site(receivers[i], input);
+  for (var i = 0; i < 8; i++) {
+    _emit('drive.$i', observe(receivers[i], input));
   }
-  for (var i = 0; i < 50000; i++) {
-    site(receivers[i % receivers.length], input);
-  }
+  _emit('states.afterWarm', _counts());
   _emit('alpha.0', observe(receivers[0], input));
   _emit('beta.0', observe(receivers[1], input));
   _emit('version.0', _version(_c('$_lib::$_decl')));
-  _emit('states.afterWarm', _counts());
   _emit('site.afterWarm', _look());
   final before = _counts();
-  if (dumpDir.isNotEmpty) _dump(_c('$dumpDir/registry_before.json'));
 
-  _emit('install.v2', _stage('cls:AlphaNew::set:v', 2));
+  // ---- PRODUCTION INSTALL v2 ----
+  if (dumpDir.isNotEmpty) _dump(_c('$dumpDir/registry_before.json'));
+  _emit('install.v2', _stage('cls:AlphaNew::method:call', 2));
   _emit('alpha.v2', observe(receivers[0], input));
   _emit('version.v2', _version(_c('$_lib::$_decl')));
   _emit('site.afterV2', _look());
   if (dumpDir.isNotEmpty) _dump(_c('$dumpDir/registry_v2.json'));
 
-  _emit('install.v3', _stage('cls:AlphaNew2::set:v', 3));
+  // ---- PRODUCTION INSTALL v3 ----
+  _emit('install.v3', _stage('cls:AlphaNew2::method:call', 3));
   _emit('alpha.v3', observe(receivers[0], input));
   _emit('version.v3', _version(_c('$_lib::$_decl')));
   _emit('site.afterV3', _look());
